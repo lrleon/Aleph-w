@@ -1,0 +1,727 @@
+DEPEND = sh ./depend.sh
+
+# just delete or comment these four lines if you wish to use gnu
+# compiler suite 
+
+# adjust this path to your clang path
+#CLANGPATH=/home/lrleon/LLVM-3.9.0
+#CLANGPATH=$(shell echo $$CXXPATH)
+# adjust this path to your gcc path
+#GCCPATH=/home/lrleon/GCC-5.3
+
+# CC = $(CLANGPATH)/bin/clang
+# AS = $(CLANGPATH)/bin/llvm-as
+# AR = $(CLANGPATH)/bin/llvm-ar clq
+# LD = $(CLANGPATH)/bin/llvm-link
+
+# now comment clang++ line and uncomment c++ line. Flag for standard could
+# change according to compiler version. This flag is for gcc 4.6.3. On
+# 4.7.x should work -std=c++11
+#CXX = $(CLANGPATH)/bin/clang++  
+#CXX = $(GCCPATH)/bin/c++  
+
+# Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
+# to generate optimized libAleph.a. If you use clang compiler, then you
+# may be intested in to use -O4; in this case, be sure that llvm be
+# installed with gold linker and the gold plugin. Be careful with some
+# gsl parts and the -Ofast option in clang; they do not compile! 
+#
+# In Aleph-w clang generated code is between 5-10% faster than gcc
+
+HLIST=	tpl_dynSetTree.H tpl_arrayHeap.H tpl_binHeap.H tpl_netcost.H	\
+	tpl_dynBinHeap.H generate_tree.H generate_graph.H tpl_tree_node.H \
+	point.H tpl_treapRk.H Set.H Map.H array_it.H al-domain.H \
+	Multiset.H Multimap.H List.H Vector.H ahAlgo.H Stack.H 	\
+	Queue.H tpl_odhash.H tpl_nodePool.H random_graph.H  Priority_Queue.H \
+	tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H\
+	tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H graph-traverse.H \
+	tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H test-filt.C\
+	ahMem.H ahAssert.H ahDefs.H aleph.H euclidian-graph-common.H 	\
+	tpl_linearHash.H signal.H ahUtils.H ran_array.h tpl_dynDlist.H \
+	tpl_skipList.H tpl_tdRbTree.H tpl_splay_tree.H \
+	tpl_dynTreap.H tpl_union.H tpl_binNode.H tpl_splay_treeRk.H\
+	useMutex.H protected_cache.H socket_wrappers.H tpl_dynListStack.H \
+	tpl_autoPtr.H trace.H tpl_cache.H format.H random_net.H \
+	protected_lhash.H protected_odhash.H log.H useCondVar.H \
+	tpl_dynListQueue.H al-vector.H ahSingleton.H comb.H \
+	treepic_utils.H driven_table.H pointer_table.H Karger.H al-matrix.H \
+	timeoutQueue.H parse_utils.H ah_stdc++_utils.H eulerian.H \
+	hamiltonian.H ahTypes.H tpl_arrayStack.H  tpl_arrayQueue.H \
+	tpl_graph.H mat_path.H tpl_slist_modified.H ahFunction.H ahPair.H \
+	ahIterator.H  grid.H tpl_path_utils.H mat_latex.H tpl_sort_utils.H \
+	polygon.H generate_df_tree.H generate_spanning_tree_picture.H \
+	archeap.H filter_iterator.H kosaraju.H htlist.H tpl_sgraph.H\
+	tpl_indexNode.H tpl_indexArc.H tpl_indexGraph.H io_graph.H \
+	tpl_dynSlist.C tpl_slist.H tpl_snode.H tpl_lhash.H tpl_dynLhash.H \
+	tpl_odhash.H tpl_memArray.H tpl_dynArray.H ahFuntional.H hash-dry.H\
+	bloom-filter.H ah-dry.H graph-dry.H tpl_con_queue.H testHash.C\
+	q-consumer-threads.H ah-string-utils.H ah-comb.H geom_algorithms.H
+
+HXX=	$(HLIST:.H=.hxx)
+
+TESTSRCS= testDlink.C testDnode.C testMerge.C test-bloom.C test-lambda.C\
+	testSlink.C testSnode.C test-net.C test-join.C test-bsearch.C\
+	testArrayQueue.C testDynListStack.C test-suffix-tree.C	   	\
+	testQueue.C testDynDlist.C polinom.C joseph.C testBinNode.C 	\
+	mat.C testBinNodeUtils.C testBinTree.C testBinTree_r.C 	    	\
+	fibonacci.C testNew.C testProtectedCache.C generate_forest.C 	\
+	testDynHash.C testSlist.C testTreap.C testTreapRk.C 	    	\
+	testArrayHeap.C testDynArray.C evalExp.C writeAllTrees.C 	\
+	testAllTree.C testElemSort.C test_union.C testDynSetTree.C\
+	testSkipList.C testInsertRoot.C testTest.C testCache.C test-in-out.C\
+	testBinHeap.C testDynBinHeap.C testBinNodeXt.C testDynSlist.C \
+	testFib.C testDynListQueue.C testJoin.C primo_hash.C \
+	testBinHeapPtr.C test_hash_cache.C test_copy_graph.C\
+	testSplit.C testOpBinTree.C testBalance.C test_rand_tree.C  	\
+	writeRandTree.C writeTreap.C  writeBinTree.C test_random_graph.C \
+	writeAvl.C testAvl.C writeRb.C writeRankTree.C test-netcost.C	\
+	writeInsertRoot.C testBitArray.C test_tree_node.C test_floyd.C	\
+	test_rb_tree.C writeSplit.C writeJoin.C writeBalance.C 	    	\
+	writeSplay.C btreepic.C btreetikz.C test_search_deway.C    	\
+	ntreepic.C test_splay_tree.C treepic_utils.C invertir_arreglos.C \
+	test_driven_table.C test_pointer_table.C test_graph.C 	    	\
+	testVector.C testList.C invertir_lista.C testSet.C test-traverse.C \
+	seleccion.C test_dyn_sort_utils.C testMultiset.C test_karger.C	\
+	testMultimap.C test_dynSetTree.C testAlgo.C test-digraph.C	\
+	testList_draft.C test_bin_to_tree.C test_sort.C deway.C     	\
+	testInss.C test_in_graph.C write_floyd.C  test_sort_ex.C 	\
+	test_graph_to_tree.C test_gen_tree.C test_sgraph.C test_agraph.C\
+	test_cut_nodes.C test_sort_array.C test_find_path.C 		\
+	test_random_search.C writeHeap.C raiz.C test-splice.C \
+	test_huffman.C  test_shift.C test_random_net.C test_sort_lists.C \
+	write_huffman.C testMap.C grafo_archivos.C test_dijkstra.C	\
+	test_cut.C test_simplex.C test_matgraph.C test_point.C 		\
+	test_search.C test_min_path.C work_multimap.C test-comb.C\
+	test_dynArray-cut.C testLuka.C test_top_sort.C 	\
+	test_polygon.C test_generate_graph.C test-forward.C\
+	test_generate_spanning.C  test_bellman.C test_min_spanning.C 	\
+	test_cpp_cont.C testLinHash.C gen_rand_graph.C 	\
+	test_kosaraju.C test_bipartite.C test-rvalues.C test-graph-dry.C \
+	test_kgraph.C test_tarjan.C test_htlist.C test-matrix.C\
+	testDynMat.C testSlist-mod.C test-dry.C test-tree-itor.C \
+	test_io_graph.C test_eulerian.C number_generator.C 	\
+	test_load_eugraph.C test_sortdyna.C test_leveltree.C test_2dtree.C \
+	test-memarray.C testDynMapTree.C test_splayRk.C timeAllTree.C \
+	testDynSetHash.C test-vector.C testFunctional.C testOhash.C \
+	test-sq.C test_rk.C test-itor.C test-map.C test-emplace.C \
+	test-quadtree.C test-con-queue.C graphpic.C test_eepicgeom.C	\
+	test_ellipse.C test-convexhull-time.C test-string.cc test-zip-it.cc \
+	test-dispatch.C test-stl-utils.C test-flatten.C
+
+LIBCCCSRCS=	ahAssert.C primes.C ahDefs.C  useMutex.C ahDaemonize.C	\
+		socket_wrappers.C parse_utils.C timeoutQueue.C uid.C	\
+		gmpfrxx.C eepicgeom.C point.C treepic_utils.C \
+		euclidian-graph-common.C ahUtils.C tpl_sort_utils.C	\
+		hash-fct.C hash-dry.C aleph-graph.C tpl_sort_utils.C \
+		geom_algorithms.C ahNow.C
+
+LIBCSRCS=	ran_array.c mpfr_mul_d.c 
+
+SRCLIST=	 $(HLIST) $(TESTSRCS) $(LIBSRCS)
+
+SRCS=           $(LIBCSRCS) $(LIBCCCSRCS) $(TESTSRCS) $(NODISTSRCS)
+
+BASIC_OBJS= 	$(LIBCCCSRCS:.C=.o) $(LIBCSRCS:.c=.o) 
+
+LOCALLIBS=	./libAleph.a 
+
+DEPLIBS=	./libAleph.a 
+
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+#SYSLIBS=	 -lgmpxx -lgmp -lc++ -lpthread -lnana -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+
+INCLUDES =      -I./ 
+
+MSG=-DMESSAGES
+
+WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
+
+
+#FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
+FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
+
+#DEFINES=	-D_REENTRANT -D__extern_always_inline=inline
+DEFINES=	-D_GLIBCXX__PTHREADS 
+#DEFINES=	-D_GLIBCXX__PTHREADS -D_REENTRANT -D__extern_always_inline=inline
+
+OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
+#OPTIONS=	-Ofast -D_REENTRANT
+
+CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+
+# depend:
+# 	$(DEPEND) $(DEPENDFLAGS) $(ALLDEFINES) $(DEPEND_DEFINES) $(SRCS)
+
+NormalLibraryObjectRule()
+
+NormalLibraryTarget(Aleph,$(BASIC_OBJS))
+InstallLibrary(Aleph,./)
+
+AllTarget(btreepic)
+NormalProgramTarget(btreepic,btreepic.o treepic_utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ntreepic)
+NormalProgramTarget(ntreepic,ntreepic.o treepic_utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSlink)
+NormalProgramTarget(testSlink,testSlink.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSnode)
+NormalProgramTarget(testSnode,testSnode.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSlist)
+NormalProgramTarget(testSlist,testSlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDlink)
+NormalProgramTarget(testDlink,testDlink.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDnode)
+NormalProgramTarget(testDnode,testDnode.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_dynSetTree)
+NormalProgramTarget(test_dynSetTree,test_dynSetTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testMerge)
+NormalProgramTarget(testMerge,testMerge.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynHash)
+NormalProgramTarget(testDynHash,testDynHash.o, $(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynListStack)
+NormalProgramTarget(testDynListStack,testDynListStack.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynListQueue)
+NormalProgramTarget(testDynListQueue,testDynListQueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testQueue)
+NormalProgramTarget(testQueue,testQueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testArrayQueue)
+NormalProgramTarget(testArrayQueue,testArrayQueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(evalExp)
+NormalProgramTarget(evalExp,evalExp.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynDlist)
+NormalProgramTarget(testDynDlist,testDynDlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(joseph)
+NormalProgramTarget(joseph,joseph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(polinom)
+NormalProgramTarget(polinom,polinom.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinNode)
+NormalProgramTarget(testBinNode,testBinNode.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinTree)
+NormalProgramTarget(testBinTree,testBinTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinNodeUtils)
+NormalProgramTarget(testBinNodeUtils,testBinNodeUtils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSplit)
+NormalProgramTarget(testSplit,testSplit.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_rb_tree)
+NormalProgramTarget(test_rb_tree,test_rb_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSkipList)
+NormalProgramTarget(testSkipList,testSkipList.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testAllTree)
+NormalProgramTarget(testAllTree,testAllTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testArrayHeap)
+NormalProgramTarget(testArrayHeap,testArrayHeap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testNew)
+NormalProgramTarget(testNew,testNew.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testElemSort)
+NormalProgramTarget(testElemSort,testElemSort.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(fibonacci)
+NormalProgramTarget(fibonacci,fibonacci.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynArray)
+NormalProgramTarget(testDynArray,testDynArray.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testTreap)
+NormalProgramTarget(testTreap,testTreap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testTreapRk)
+NormalProgramTarget(testTreapRk,testTreapRk.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeTreap)
+NormalProgramTarget(writeTreap,writeTreap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeBinTree)
+NormalProgramTarget(writeBinTree,writeBinTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeSplay)
+NormalProgramTarget(writeSplay,writeSplay.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeBalance)
+NormalProgramTarget(writeBalance,writeBalance.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeSplit)
+NormalProgramTarget(writeSplit,writeSplit.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeRankTree)
+NormalProgramTarget(writeRankTree,writeRankTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testInsertRoot)
+NormalProgramTarget(testInsertRoot,testInsertRoot.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeAvl)
+NormalProgramTarget(writeAvl,writeAvl.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeJoin)
+NormalProgramTarget(writeJoin,writeJoin.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeRb)
+NormalProgramTarget(writeRb,writeRb.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testAvl)
+NormalProgramTarget(testAvl,testAvl.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testJoin)
+NormalProgramTarget(testJoin,testJoin.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBitArray)
+NormalProgramTarget(testBitArray,testBitArray.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinNodeXt)
+NormalProgramTarget(testBinNodeXt,testBinNodeXt.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynSlist)
+NormalProgramTarget(testDynSlist,testDynSlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testFib)
+NormalProgramTarget(testFib,testFib.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinHeap)
+NormalProgramTarget(testBinHeap,testBinHeap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynBinHeap)
+NormalProgramTarget(testDynBinHeap,testDynBinHeap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBinHeapPtr)
+NormalProgramTarget(testBinHeapPtr,testBinHeapPtr.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testCache)
+NormalProgramTarget(testCache,testCache.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_hash_cache)
+NormalProgramTarget(test_hash_cache,test_hash_cache.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(primo_hash)
+NormalProgramTarget(primo_hash,primo_hash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testOpBinTree)
+NormalProgramTarget(testOpBinTree,testOpBinTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testBalance)
+NormalProgramTarget(testBalance,testBalance.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_rand_tree)
+NormalProgramTarget(test_rand_tree,test_rand_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeRandTree)
+NormalProgramTarget(writeRandTree,writeRandTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeInsertRoot.C)
+NormalProgramTarget(writeInsertRoot,writeInsertRoot.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_splay_tree)
+NormalProgramTarget(test_splay_tree,test_splay_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_ranarray)
+NormalProgramTarget(test_ranarray,test_ranarray.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testVector)
+NormalProgramTarget(testVector,testVector.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testAlgo)
+NormalProgramTarget(testAlgo,testAlgo.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testList)
+NormalProgramTarget(testList,testList.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testMap)
+NormalProgramTarget(testMap,testMap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(invertir_lista)
+NormalProgramTarget(invertir_lista,invertir_lista.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSet)
+NormalProgramTarget(testSet,testSet.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testMultiset)
+NormalProgramTarget(testMultiset,testMultiset.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testMultimap)
+NormalProgramTarget(testMultimap,testMultimap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(work_multimap)
+NormalProgramTarget(work_multimap,work_multimap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_bin_to_tree)
+NormalProgramTarget(test_bin_to_tree,test_bin_to_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(seleccion)
+NormalProgramTarget(seleccion,seleccion.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_dyn_sort_utils)
+NormalProgramTarget(test_dyn_sort_utils,test_dyn_sort_utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_graph)
+NormalProgramTarget(test_graph,test_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testUid)
+NormalProgramTarget(testUid,testUid.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sort)
+NormalProgramTarget(test_sort,test_sort.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sort_ex)
+NormalProgramTarget(test_sort_ex,test_sort_ex.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testInss)
+NormalProgramTarget(testInss,testInss.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_tree_node)
+NormalProgramTarget(test_tree_node,test_tree_node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(deway)
+NormalProgramTarget(deway,deway.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_matgraph)
+NormalProgramTarget(test_matgraph,test_matgraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_in_graph)
+NormalProgramTarget(test_in_graph,test_in_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_bellman)
+NormalProgramTarget(test_bellman,test_bellman.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_graph_to_tree)
+NormalProgramTarget(test_graph_to_tree,test_graph_to_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_gen_tree)
+NormalProgramTarget(test_gen_tree,test_gen_tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_cut_nodes)
+NormalProgramTarget(test_cut_nodes,test_cut_nodes.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_cut)
+NormalProgramTarget(test_cut,test_cut.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_search_deway)
+NormalProgramTarget(test_search_deway,test_search_deway.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sort_array)
+NormalProgramTarget(test_sort_array,test_sort_array.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_random_search)
+NormalProgramTarget(test_random_search,test_random_search.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeHeap)
+NormalProgramTarget(writeHeap,writeHeap.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(raiz)
+NormalProgramTarget(raiz,raiz.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_bipartite)
+NormalProgramTarget(test_bipartite,test_bipartite.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_huffman)
+NormalProgramTarget(test_huffman,test_huffman.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_shift)
+NormalProgramTarget(test_shift,test_shift.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(write_huffman)
+NormalProgramTarget(write_huffman,write_huffman.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_search)
+NormalProgramTarget(test_search,test_search.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_min_path)
+NormalProgramTarget(test_min_path,test_min_path.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_polygon)
+NormalProgramTarget(test_polygon,test_polygon.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_generate_graph)
+NormalProgramTarget(test_generate_graph,test_generate_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_generate_spanning)
+NormalProgramTarget(test_generate_spanning,test_generate_spanning.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_cpp_cont)
+NormalProgramTarget(test_cpp_cont,test_cpp_cont.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testLinHash)
+NormalProgramTarget(testLinHash,testLinHash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_dynArray-cut)
+NormalProgramTarget(test_dynArray-cut,test_dynArray-cut.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testLuka)
+NormalProgramTarget(testLuka,testLuka.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(writeAllTrees)
+NormalProgramTarget(writeAllTrees,writeAllTrees.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_top_sort)
+NormalProgramTarget(test_top_sort,test_top_sort.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_kgraph)
+NormalProgramTarget(test_kgraph,test_kgraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_tarjan)
+NormalProgramTarget(test_tarjan,test_tarjan.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynMat)
+NormalProgramTarget(testDynMat,testDynMat.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_simplex)
+NormalProgramTarget(test_simplex,test_simplex.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_kosaraju)
+NormalProgramTarget(test_kosaraju,test_kosaraju.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(grafo_archivos)
+NormalProgramTarget(grafo_archivos,grafo_archivos.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testSlist-mod)
+NormalProgramTarget(testSlist-mod,testSlist-mod.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(invertir_arreglos)
+NormalProgramTarget(invertir_arreglos,invertir_arreglos.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_random_graph)
+NormalProgramTarget(test_random_graph,test_random_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_io_graph)
+NormalProgramTarget(test_io_graph,test_io_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_point)
+NormalProgramTarget(test_point,test_point.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_eulerian)
+NormalProgramTarget(test_eulerian,test_eulerian.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(generate_forest)
+NormalProgramTarget(generate_forest,generate_forest.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(no_search)
+NormalProgramTarget(no_search,no_search.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(number_generator)
+NormalProgramTarget(number_generator,number_generator.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_htlist)
+NormalProgramTarget(test_htlist,test_htlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sgraph)
+NormalProgramTarget(test_sgraph,test_sgraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_agraph)
+NormalProgramTarget(test_agraph,test_agraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_find_path)
+NormalProgramTarget(test_find_path,test_find_path.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_min_spanning)
+NormalProgramTarget(test_min_spanning,test_min_spanning.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_dijkstra)
+NormalProgramTarget(test_dijkstra,test_dijkstra.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(gen_rand_graph)
+NormalProgramTarget(gen_rand_graph,gen_rand_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_load_eugraph)
+NormalProgramTarget(test_load_eugraph,test_load_eugraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sortdyna)
+NormalProgramTarget(test_sortdyna,test_sortdyna.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_union)
+NormalProgramTarget(test_union,test_union.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_leveltree)
+NormalProgramTarget(test_leveltree,test_leveltree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_random_net)
+NormalProgramTarget(test_random_net,test_random_net.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_karger)
+NormalProgramTarget(test_karger,test_karger.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_floyd)
+NormalProgramTarget(test_floyd,test_floyd.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+
+AllTarget(write_floyd)
+NormalProgramTarget(write_floyd,write_floyd.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-rvalues)
+NormalProgramTarget(test-rvalues,test-rvalues.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-forward)
+NormalProgramTarget(test-forward,test-forward.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynMapTree)
+NormalProgramTarget(testDynMapTree,testDynMapTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_splayRk)
+NormalProgramTarget(test_splayRk,test_splayRk.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynSetHash)
+NormalProgramTarget(testDynSetHash,testDynSetHash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testDynSetTree)
+NormalProgramTarget(testDynSetTree,testDynSetTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-vector)
+NormalProgramTarget(test-vector,test-vector.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-matrix)
+NormalProgramTarget(test-matrix,test-matrix.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testFunctional)
+NormalProgramTarget(testFunctional,testFunctional.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-tmp)
+NormalProgramTarget(test-tmp,test-tmp.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testOhash)
+NormalProgramTarget(testOhash,testOhash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_sort_lists)
+NormalProgramTarget(test_sort_lists,test_sort_lists.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-sq)
+NormalProgramTarget(test-sq,test-sq.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_rk)
+NormalProgramTarget(test_rk,test_rk.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_copy_graph)
+NormalProgramTarget(test_copy_graph,test_copy_graph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-in-out)
+NormalProgramTarget(test-in-out,test-in-out.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-net)
+NormalProgramTarget(test-net,test-net.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-traverse)
+NormalProgramTarget(test-traverse,test-traverse.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-netcost)
+NormalProgramTarget(test-netcost,test-netcost.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_2dtree)
+NormalProgramTarget(test_2dtree,test_2dtree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-memarray)
+NormalProgramTarget(test-memarray,test-memarray.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testProtectedCache)
+NormalProgramTarget(testProtectedCache,testProtectedCache.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(timeAllTree)
+NormalProgramTarget(timeAllTree,timeAllTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-itor)
+NormalProgramTarget(test-itor,test-itor.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-bloom)
+NormalProgramTarget(test-bloom,test-bloom.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-map)
+NormalProgramTarget(test-map,test-map.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-emplace)
+NormalProgramTarget(test-emplace,test-emplace.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-digraph)
+NormalProgramTarget(test-digraph,test-digraph.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-dry)
+NormalProgramTarget(test-dry,test-dry.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-tree-itor)
+NormalProgramTarget(test-tree-itor,test-tree-itor.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-graph-dry)
+NormalProgramTarget(test-graph-dry,test-graph-dry.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-filter)
+NormalProgramTarget(test-filter,test-filter.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-lambda)
+NormalProgramTarget(test-lambda,test-lambda.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-join)
+NormalProgramTarget(test-join,test-join.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-bsearch)
+NormalProgramTarget(test-bsearch,test-bsearch.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-suffix-tree)
+NormalProgramTarget(test-suffix-tree,test-suffix-tree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-splice)
+NormalProgramTarget(test-splice,test-splice.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-pair-it)
+NormalProgramTarget(test-pair-it,test-pair-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-con-queue)
+NormalProgramTarget(test-con-queue,test-con-queue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-quadtree)
+NormalProgramTarget(test-quadtree,test-quadtree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_eepicgeom)
+NormalProgramTarget(test_eepicgeom,test_eepicgeom.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test_ellipse)
+NormalProgramTarget(test_ellipse,test_ellipse.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(graphpic)
+NormalProgramTarget(graphpic,graphpic.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-comb)
+NormalProgramTarget(test-comb,test-comb.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-convexhull-time)
+NormalProgramTarget(test-convexhull-time,test-convexhull-time.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-string)
+NormalProgramTarget(test-string,test-string.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-zip-it)
+NormalProgramTarget(test-zip-it,test-zip-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(testHash)
+NormalProgramTarget(testHash,testHash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-dispatch)
+NormalProgramTarget(test-dispatch,test-dispatch.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-stl-utils)
+NormalProgramTarget(test-stl-utils,test-stl-utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-flatten)
+NormalProgramTarget(test-flatten,test-flatten.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+DependTarget()
+
+

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+TMP=/home/lrleon/tmp
+
+rm -rf $TMP/Aleph-w
+mkdir $TMP/Aleph-w
+cp COPYRIGHT Imakefile README INSTALL depend.sh $TMP/Aleph-w/
+cp *.[hcHC] $TMP/Aleph-w/
+
+NODOC=/home/lrleon/bin/nodoxygen 
+
+CURR=`pwd`
+
+list=`ls *.[hcHC]`
+cd $TMP/Aleph-w/
+for f in $list
+do
+    name=`basename $f`
+    echo "generating" $f
+    $NODOC $f > $f.temp1
+    cat COPYRIGHT $f.temp1 > $f 
+    rm $f.temp[12]
+done
+cd ..
+tar -jcvf alephw.tbz Aleph-w/
+cd $CURR
+#tar -zcvf aleph.tgz aleph/
+
