@@ -93,7 +93,8 @@ public:
     // empty
   }
 
-  DynArrayHeap(Compare && cmp = Compare()) : DynArrayHeap(cmp)
+  DynArrayHeap(Compare && cmp = Compare())
+    : DynArrayHeap(std::forward<Compare&>(cmp))
   { 
     // empty
   }

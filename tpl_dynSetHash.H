@@ -106,7 +106,7 @@ public:
   }
   
   DynHashTable(DynHashTable && other) noexcept
-    : Base(other.len, other.hash_fct, other.get_compare(),
+    : Base(other.len, other.hash_fct, other.cmp,
 	   other.lower_alpha, other.upper_alpha, true, true)
   {
     this->swap(other);
