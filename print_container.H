@@ -1,8 +1,14 @@
+#ifndef PRINT_CONTAINER_H
+#define PRINT_CONTAINER_H
+
+# include <iostream>
+
+using namespace std;
 
 namespace Aleph
 {
 
-    template <class Container>
+    template <class Container> inline
 void print_container(Container & c)
 {
   if (c.size() == 0)
@@ -24,7 +30,7 @@ void print_container(Container & c)
 }
 
 
-template <class Itor>
+template <class Itor> inline
 void print_range(Itor beg, const Itor & end)
 {
   int n = 0;
@@ -41,3 +47,9 @@ void print_range(Itor beg, const Itor & end)
 
 
 }
+
+
+
+#endif
+
+

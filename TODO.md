@@ -60,3 +60,6 @@
 ## 20. count for_each_if que retorne cuantas fueron hechas
 - Created at   2017-09-11 10:47:50 -0400
 
+## 21. Revisar filtros temporales en iteradores (ojo con Kruskal)
+- Created at   2017-09-18 20:48:00 -0400
+

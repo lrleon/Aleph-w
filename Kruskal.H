@@ -169,8 +169,9 @@ public:
 	GT::map_nodes(gp, tp);
       }
 
-    typedef Paint_Filt<GT, SA> F;
-    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next()) 
+    using F = Paint_Filt<GT, SA>;
+    F filt(sa);
+    for (Arc_Iterator<GT, F> it(g, filt); it.has_curr(); it.next()) 
       {
 	auto ga    = it.get_current_arc();
 	auto tsrc = mapped_node<GT>(g.get_src_node(ga));
