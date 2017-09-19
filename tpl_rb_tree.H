@@ -43,7 +43,7 @@ private:
   Node *            head;      // puntero a centinela
   Node *&           root; 
   FixedStack<Node*> rb_stack; 
-  Compare &         cmp;
+  Compare           cmp;
 
   Node * search_and_stack_rb(const Key & key)             
   {
@@ -296,14 +296,12 @@ public:
   Compare & get_compare() { return key_comp(); }
 
       /// Instancia un árbol rojo-negro.
-  Gen_Rb_Tree(Compare & __cmp) 
+  Gen_Rb_Tree(Compare cmp) 
     : head(&head_node), root(head_node.getR()), 
-      rb_stack(Node::MaxHeight), cmp(__cmp)
+      rb_stack(Node::MaxHeight), cmp(cmp)
   {
     /* empty */ 
   }
-
-  Gen_Rb_Tree(Compare && cmp = Compare()) : Gen_Rb_Tree(cmp) { /* empty */ }
 
   /** Intercambia todos los elementos del treap this con el treap tree
       en tiempo contante (y extremadamente rápido).
