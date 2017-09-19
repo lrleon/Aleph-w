@@ -93,7 +93,7 @@ class ODhashTable
   Hash_Fct hash_fct        = nullptr; // primera función hash
   Hash_Fct second_hash_fct = nullptr; // segunda función hash
 
-  Cmp & cmp;
+  Cmp cmp;
 
 protected:
 
@@ -272,7 +272,7 @@ public:
     this->copy_from_table(other);
   }
 
-  ODhashTable(ODhashTable && other) noexcept : ODhashTable(other)
+  ODhashTable(ODhashTable && other) : ODhashTable(other)
   {
     assert(table != nullptr);
     swap(other);

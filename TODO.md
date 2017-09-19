@@ -63,3 +63,6 @@
 ## 21. Revisar filtros temporales en iteradores (ojo con Kruskal)
 - Created at   2017-09-18 20:48:00 -0400
 
+## 22. Compare atributo por copia y nunca por referencia
+- Created at   2017-09-19 11:40:42 -0400
+

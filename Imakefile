@@ -1,23 +1,14 @@
 DEPEND = sh ./depend.sh
 
-# just delete or comment these four lines if you wish to use gnu
-# compiler suite 
-
-# adjust this path to your clang path
-#CLANGPATH=/home/lrleon/LLVM-3.9.0
-#CLANGPATH=$(shell echo $$CXXPATH)
-# adjust this path to your gcc path
-#GCCPATH=/home/lrleon/GCC-5.3
-
-# CC = $(CLANGPATH)/bin/clang
-# AS = $(CLANGPATH)/bin/llvm-as
-# AR = $(CLANGPATH)/bin/llvm-ar clq
-# LD = $(CLANGPATH)/bin/llvm-link
+CC = /usr/bin/clang
+AS = /usr/bin/llvm-as
+AR = /usr/bin/llvm-ar clq
+LD = /usr/bin/llvm-link
 
 # now comment clang++ line and uncomment c++ line. Flag for standard could
 # change according to compiler version. This flag is for gcc 4.6.3. On
 # 4.7.x should work -std=c++11
-#CXX = $(CLANGPATH)/bin/clang++  
+CXX = /usr/bin/clang++  
 #CXX = $(GCCPATH)/bin/c++  
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want

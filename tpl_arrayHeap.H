@@ -195,7 +195,7 @@ class ArrayHeap :
 
   mutable bool array_allocated = true;
 
-  Compare & cmp;
+  Compare cmp;
 
   static size_t r_index(const size_t & i)
   {

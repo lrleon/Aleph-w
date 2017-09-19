@@ -88,7 +88,7 @@ protected:
   size_t len;
   float  lower_alpha;
   float  upper_alpha;
-  Cmp &  cmp;
+  Cmp    cmp;
 
 private:
 

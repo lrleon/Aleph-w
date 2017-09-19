@@ -37,7 +37,7 @@ private:
   Node               head_node; 
   Node *             head_ptr;  
   Node *&            root;      
-  Compare &          cmp;       
+  Compare            cmp;       
 
   bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
 

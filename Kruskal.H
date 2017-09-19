@@ -53,7 +53,7 @@ namespace Aleph {
 class Kruskal_Min_Spanning_Tree 
 {
   Distance & dist;
-  SA      &  sa;
+  SA         sa;
   bool       painted;
   
 public:
@@ -170,8 +170,7 @@ public:
       }
 
     using F = Paint_Filt<GT, SA>;
-    F filt(sa);
-    for (Arc_Iterator<GT, F> it(g, filt); it.has_curr(); it.next()) 
+    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next()) 
       {
 	auto ga    = it.get_current_arc();
 	auto tsrc = mapped_node<GT>(g.get_src_node(ga));

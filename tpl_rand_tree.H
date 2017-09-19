@@ -52,7 +52,7 @@ private:
 
   Node *    tree_root; 
   gsl_rng * r;
-  Compare & cmp;
+  Compare   cmp;
 
   Node * random_insert(Node * root, Node * p) noexcept
   {
@@ -105,7 +105,7 @@ private:
 
   Gen_Rand_Tree& operator = (const Gen_Rand_Tree&);
 
-  void init(unsigned long seed) noexcept
+  void init(unsigned long seed)
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
 

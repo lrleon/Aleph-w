@@ -1299,7 +1299,7 @@ preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r)
       */
     template <class Node, class Compare> inline 
 Node * searchInBinTree(Node * root, const typename Node::key_type & key,
-		       Compare & cmp) noexcept
+		       const Compare & cmp) noexcept
 {
   while (root != Node::NullPtr)
     if (cmp(key, KEY(root)))

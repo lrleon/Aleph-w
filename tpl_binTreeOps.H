@@ -16,7 +16,7 @@ class BinTree_Operation
 {
 protected:
 
-  Cmp & cmp;
+  Cmp cmp;
 
 public:
 
@@ -31,9 +31,7 @@ public:
   using key_type = typename Node::key_type; /// The type of key
 
   /// Initialize the functor with comarison criteria `__cmp`
-  BinTree_Operation(Cmp & __cmp) noexcept : cmp(__cmp) { /* empty */ }
-
-  BinTree_Operation(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp) { /* empty */ }
+  BinTree_Operation(Cmp __cmp = Cmp()) noexcept : cmp(__cmp) { /* empty */ }
 
   /** Search a node with a specific key.
 
@@ -540,14 +538,8 @@ public:
   using Key = typename Node::key_type;
 
   /// Initialize the functor with comparison criteria `cmp` 
-  BinTreeXt_Operation(Cmp & cmp) noexcept
+  BinTreeXt_Operation(Cmp cmp = Cmp()) noexcept
     : BinTree_Operation<Node, Cmp>(cmp)
-  {
-    // empty
-  }
-
-  BinTreeXt_Operation(Cmp && cmp = Cmp()) noexcept
-    : BinTree_Operation<Node, Cmp>(std::forward<Cmp>(cmp))
   {
     // empty
   }

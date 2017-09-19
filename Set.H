@@ -494,9 +494,9 @@ public:
     if (tree.search_or_insert(p) != p) // se inserta o ya está en el conjunto?
       {    // value ya está dentro del conjunto
 	node_pool.deallocate(p);
-	itor.itor.reset_to_key (value);
+	itor.itor.reset_to_key(value);
 	
-	return std::pair<iterator, bool> (itor, false);
+	return std::pair<iterator, bool>(itor, false);
       }
 
     itor.itor.reset_to_node(p);

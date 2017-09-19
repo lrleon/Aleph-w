@@ -36,7 +36,7 @@ public:
   void reset() noexcept { count = 1; }
 };
 
-  DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
+DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
   
   /** Extended treap (a special type of ramdomized binary search tree)
       which manages selection and splitting for inorder position.
@@ -90,7 +90,7 @@ private:
   Node *    head_ptr;
   Node *&   tree_root;
   gsl_rng * r;
-  Compare & cmp;
+  Compare   cmp;
 
   void init(unsigned int seed)
   {
@@ -528,8 +528,8 @@ public:
   {
     std::pair<int, Node*> r(-2, nullptr);
 
-    r.first = BinTreeXt_Operation <Node, Compare>(cmp) .
-      find_position(tree_root, key, r.second);
+    BinTreeXt_Operation<Node, Compare> op(cmp);
+    r.first = op.find_position(tree_root, key, r.second);
 
     return r;
   }
@@ -982,8 +982,8 @@ public:
       ramdomized option trends to be faster. The split is equivalent,
       but the join is definitively faster. The join of two trees of n
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
-      addition,
+      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. 
+
       
       The class internally uses the gsl random number generator of 
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).

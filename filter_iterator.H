@@ -35,13 +35,13 @@ namespace Aleph {
         itera y al tipo de elemento que retorna el iterador It.
 
         @note Esta clase está diseñada para Aleph, no funciona para la
-        biblioteca estándar std.
+        biblioteca estándar stl.
         @ingroup Secuencias
      */
     template <class Container, class It, class Show_Item>
 class Filter_Iterator : public It
 {
-  Show_Item & show_item; 
+  Show_Item show_item; 
 
   Container * container_ptr = nullptr;
 

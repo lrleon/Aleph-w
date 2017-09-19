@@ -76,7 +76,7 @@ class DynArrayHeap :
   DynArray<T> array;
   size_t      num_items;
 
-  Compare & cmp;
+  Compare cmp;
 
   static size_t r_index(const size_t & i) noexcept
   {
