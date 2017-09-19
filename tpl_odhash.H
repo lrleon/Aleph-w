@@ -232,29 +232,19 @@ public:
         @throw bad_alloc si no hay memoria para la tabla de cubetas.
         
     */
-  ODhashTable(size_t  __len, Hash_Fct __first_hash_fct,
-	      Hash_Fct __second_hash_fct, Cmp & __cmp,
- 	      float __lower_alpha, float  __upper_alpha, bool __with_resize)
-    : table(nullptr), hash_fct(__first_hash_fct), 
-      second_hash_fct(__second_hash_fct), cmp(__cmp), 
-      len(Primes::next_prime(__len)),  
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
-      N(0), with_resize(__with_resize)
-  {
-    table = new Bucket[len];
-  }
-
   ODhashTable(size_t len               = Primes::DefaultPrime,
 	      Hash_Fct first_hash_fct  = Aleph::dft_hash_fct<Key>, 
 	      Hash_Fct second_hash_fct = Aleph::snd_hash_fct<Key>, 
-	      Cmp && cmp               = Cmp(),
+	      Cmp    cmp               = Cmp(),
  	      float lower_alpha        = hash_default_lower_alpha,
 	      float upper_alpha        = hash_default_upper_alpha,
 	      bool  with_resize        = true)
-    : ODhashTable(len, first_hash_fct, second_hash_fct, cmp, 
-		  lower_alpha, upper_alpha, with_resize)
+    :  table(nullptr), hash_fct(first_hash_fct),
+       second_hash_fct(second_hash_fct), cmp(cmp), len(Primes::next_prime(len)),  
+       lower_alpha(lower_alpha), upper_alpha(upper_alpha),
+      N(0), with_resize(with_resize)
   {
-    // empty
+    table = new Bucket[len];
   }
 
     /// Libera toda la tabla hash.

@@ -111,26 +111,17 @@ public:
 
   Cmp & get_compare() { return cmp; }
 
-      /// Instancia una tabla hash con función hash __hash_fct y
-      /// dimensión len.
-  OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp & __cmp,
- 	      float __lower_alpha, float __upper_alpha, bool __with_resize)
-    : table(nullptr), N(0), len(Primes::next_prime(__len)),
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
-      hash_fct(__hash_fct), with_resize(__with_resize)
-  {
-    table = new Bucket [len];
-  }
-
-  OLhashTable(size_t len        = Primes::DefaultPrime,
-	      Hash_Fct hash_fct = Aleph::dft_hash_fct<Key>, 
-	      Cmp && cmp        = Cmp(),
- 	      float lower_alpha = hash_default_lower_alpha,
-	      float upper_alpha = hash_default_upper_alpha,
-	      bool with_resize  = true)
-    : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize)
+  OLhashTable(size_t   len         = Primes::DefaultPrime,
+	      Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>, 
+	      Cmp      cmp         = Cmp(),
+ 	      float    lower_alpha = hash_default_lower_alpha,
+	      float    upper_alpha = hash_default_upper_alpha,
+	      bool     with_resize = true)
+    : table(nullptr), N(0), len(Primes::next_prime(len)),
+      lower_alpha(lower_alpha), upper_alpha(upper_alpha), cmp(cmp),
+      hash_fct(hash_fct), with_resize(with_resize)
     {
-      // empty
+      table = new Bucket [len];
     }
 
   /** Constructor with two hash function for metaprogramming

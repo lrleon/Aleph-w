@@ -57,6 +57,8 @@ void deway(Tree_Node<int> * p, const int & h)
       prefix[0] = i;
       deway(p, prefix, 0, dim);
     }
+
+  delete [] prefix;
 }
 
 
@@ -126,10 +128,13 @@ int main(int argn, char * argc[])
   forest_postorder_traversal(tree, printNode);
   cout << endl << endl;
 
-
   BinNode<int> * prb = forest_to_bin< Tree_Node<int>, BinNode<int> > (tree);
 
   assert(areEquivalents(prb, bp));
 
   deway(tree, computeHeightRec(bp));
+
+  destroyRec(bp);
+  destroyRec(prb);
+  destroy_forest(tree);
 }
