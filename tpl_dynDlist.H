@@ -68,7 +68,7 @@ public:
     num_elem = 0;
   }
 
-  ~DynDlist() /// Destructor
+  virtual ~DynDlist() /// Destructor
   { 
     empty();
   }

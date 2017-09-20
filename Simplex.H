@@ -153,16 +153,16 @@ private:
     return ret_val;
   }
 
-  DynMatrix<T> * m;
+  unique_ptr<DynMatrix<T>> m;
 
-  T * objetive;
+  unique_ptr<T[]> objetive;
 
-  DynDlist<T*> rest_list;
+  DynList<T*> rest_list;
 
-  int num_var;
-  int num_rest;
+  size_t num_var;
+  size_t num_rest;
 
-  T * solution;
+  unique_ptr<T[]> solution;
 
   public:
 
@@ -189,7 +189,8 @@ private:
 
     void create_matrix()
     {
-      m = new DynMatrix<T> (num_rest + 1, num_var + num_rest + 1);
+      m = unique_ptr<DynMatrix<T>>(new DynMatrix<T> (num_rest + 1,
+						     num_var + num_rest + 1));
 
       int i = 0; // llena los num_var coeficientes de la función objetivo
       for (; i < num_var; i++)
@@ -223,19 +224,8 @@ public:
          @throw bad_alloc si no hay suficiente memoria.
      */
   Simplex(int n) 
-    : m(nullptr), objetive(nullptr), num_var(n), num_rest(0), state(Not_Solved)
-  {
-    objetive = new T [num_var];
-    try
-      {
-        solution = new T [num_var];
-      }
-    catch (...)
-      {
-        delete objetive;
-        throw;
-      }
-  }
+    : m(nullptr), objetive(new T [n]), num_var(n), num_rest(0),
+      solution(new T [num_var]), state(Not_Solved) {}
 
      /// Define el coeficiente coef de la variable i en el afunción
      /// objetivo. No se valida si i está fuera de rango.
@@ -510,14 +500,6 @@ public:
   size_t get_num_restrictions() const noexcept { return num_rest; }
 
   size_t get_num_vars() const noexcept { return num_var; }
-
-  ~Simplex()
-  {
-    delete [] objetive;
-
-    if (m != nullptr)
-      delete m;
-  }
 
   T * get_objetive_function() noexcept
   {

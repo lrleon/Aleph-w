@@ -12,7 +12,7 @@ namespace Primes
 
   extern const unsigned long primeList[];
 
-  extern unsigned long next_prime(unsigned long n);
+  extern size_t next_prime(unsigned long n);
 
   extern bool check_primes_database();
 

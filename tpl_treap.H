@@ -83,22 +83,16 @@ private:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Treap(unsigned long seed, Compare & __cmp) 
-    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
+  Gen_Treap(unsigned long seed, Compare & cmp = Compare()) 
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(cmp)
   {
     init(seed);
   }
 
-  Gen_Treap(unsigned long seed, Compare && cmp) : Gen_Treap(seed, cmp)
-  {
-    // empty
-  }
-
   /// Initialize a treap with random seed from system time and
   /// comparison criteria `cmp`
-  Gen_Treap(Compare & cmp) : Gen_Treap(time(nullptr), cmp) { /* empty */ }
-
-  Gen_Treap(Compare && cmp = Compare()) : Gen_Treap(cmp) { /* empty */ }  
+  Gen_Treap(Compare cmp = Compare())
+    : Gen_Treap(time(nullptr), cmp) { /* empty */ }
 
   ~Gen_Treap() 
   {
