@@ -8,7 +8,7 @@ using namespace std;
 
 struct Test //: public Dlink
 {
-  unsigned n;
+  size_t n;
   Dlink link;
 
   Test(unsigned __n = 0) : n(__n) {}
@@ -52,7 +52,7 @@ void create_random_list(Dlink* link, int n)
 
 int main(int argn, char *argc[])
 {
-  int n = argc[1] ? atoi(argc[1]) : 1000;
+  size_t n = argc[1] ? atoi(argc[1]) : 1000;
 
   unsigned int t = time(0);
 
@@ -66,7 +66,7 @@ int main(int argn, char *argc[])
   Test* testPtr;
   Dlink head;
 
-  unsigned i;
+  size_t i;
 
   for (i = 0; i < n; i++)
     {
@@ -123,16 +123,20 @@ int main(int argn, char *argc[])
 
   {
     Dlink list;
-    for (int i = 1; i < 10; ++i)
+    for (size_t i = 0; i < 10; ++i)
       list.append(&(new Test(i))->link);
 
     Dlink split = list.cut_list(list.get_next());
     assert(list.is_empty());
-    Dlink::Iterator it(split); int i = 0;
-    for (; it.has_curr(); i++, it.next())
-      assert(dlink_to_Test(it.get_curr())->n == i);
-    assert(i == 10);
-  }
+    Dlink::Iterator it(split); 
+    for (size_t i = 0; it.has_curr(); i++, it.next())
+      {
+	cout << dlink_to_Test(it.get_curr())->n << " ";
+	assert(dlink_to_Test(it.get_curr())->n == i);
+      }
+    cout << endl;
+    split.remove_all_and_delete();
+  }  
 
   printf("Ending .... \n\n");
 }

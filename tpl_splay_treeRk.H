@@ -27,7 +27,7 @@ public:
 private:
 
   Node * root;
-  Compare & cmp;
+  Compare cmp;
 
 public:
   
@@ -110,13 +110,8 @@ public:
   }
 
   /// Constructor
-  GenTdSplayTreeRk(Compare & __cmp) 
-      : root(Node::NullPtr), cmp(__cmp)
-  {
-    // Empty
-  }
-
-  GenTdSplayTreeRk(Compare && cmp = Compare()) : GenTdSplayTreeRk(cmp)
+  GenTdSplayTreeRk(Compare cmp = Compare()) 
+      : root(Node::NullPtr), cmp(cmp)
   {
     // Empty
   }

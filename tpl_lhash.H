@@ -77,7 +77,7 @@ private:
 protected:
 
   size_t len;                  // Tamaño de la tabla
-  Cmp &  cmp;
+  Cmp    cmp;
   float  lower_alpha;
   float  upper_alpha;
 
@@ -102,32 +102,22 @@ public:
           liberan todas las cubetas cuando se invoca al destructor.
           @throw bad_alloc si no hay memoria para apartar la tabla.
        */
-  GenLhashTable(size_t table_size, Hash_Fct __hash_fct, Cmp & __cmp,
-		float __lower_alpha, float __upper_alpha, 
-                bool __remove_all_buckets, bool __with_resize) 
-    throw(std::exception, std::bad_alloc) 
-    : hash_fct(__hash_fct), table(nullptr),
-      len(Primes::next_prime(table_size)), cmp(__cmp),
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
-      N(0), busy_slots_counter(0), remove_all_buckets(__remove_all_buckets),
-      with_resize(__with_resize)
-  { 
-    table = new BucketList [len];
-  }
-
   GenLhashTable(size_t   table_size  = Primes::DefaultPrime,
 		Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>, 
-		Cmp &&   cmp         = Cmp(),
+		Cmp      cmp         = Cmp(),
 		float    lower_alpha = hash_default_lower_alpha,
 		float    upper_alpha = hash_default_upper_alpha,
                 bool     remove_all_buckets = true,
 		bool     with_resize        = true) 
     throw(std::exception, std::bad_alloc) 
-    : GenLhashTable(table_size, hash_fct, cmp, lower_alpha, upper_alpha,
-		    remove_all_buckets, with_resize)
-    {
-      // empty
-    }
+    : hash_fct(hash_fct), table(nullptr),
+      len(Primes::next_prime(table_size)), cmp(cmp),
+      lower_alpha(lower_alpha), upper_alpha(upper_alpha),
+      N(0), busy_slots_counter(0), remove_all_buckets(remove_all_buckets),
+      with_resize(with_resize)
+  { 
+    table = new BucketList [len];
+  }
 
   void swap(GenLhashTable & other) noexcept
   {

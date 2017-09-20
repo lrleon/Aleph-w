@@ -28,7 +28,7 @@ private:
 
   Node headnode; 
   Node * head, *& root;
-  Compare & cmp;
+  Compare cmp;
 
 public:
   
@@ -96,14 +96,8 @@ public:
   }
 
   /// Constructor
-  GenTdSplayTree(Compare & __cmp) noexcept
-    : head(&headnode), root(headnode.getR()), cmp(__cmp)
-  {
-    // Empty
-  }
-
-  GenTdSplayTree(Compare && cmp = Compare()) noexcept
-    : GenTdSplayTree(cmp)
+  GenTdSplayTree(Compare cmp = Compare()) noexcept
+    : head(&headnode), root(headnode.getR()), cmp(cmp)
   {
     // Empty
   }

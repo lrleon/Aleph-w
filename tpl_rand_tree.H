@@ -131,25 +131,16 @@ public:
 
   /// Initialize a random tree with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Rand_Tree(unsigned int seed, Compare & __cmp) noexcept
-    : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
+  Gen_Rand_Tree(unsigned int seed, Compare & cmp = Compare()) noexcept
+    : tree_root(Node::NullPtr), r(nullptr), cmp(cmp)
   {
     init(seed);
   }
 
-  Gen_Rand_Tree(unsigned int seed, Compare && cmp = Compare()) noexcept
-    : Gen_Rand_Tree(seed, cmp)
-  {
-    // empty 
-  }
-
   /// Initialize a random tree with random seed from system time and
   /// comparison criteria `cmp`
-  Gen_Rand_Tree(Compare & cmp) noexcept 
+  Gen_Rand_Tree(Compare cmp = Compare()) noexcept 
   : Gen_Rand_Tree(time(nullptr), cmp) { /* empty */ }
-
-  Gen_Rand_Tree(Compare && cmp = Compare()) noexcept
-    : Gen_Rand_Tree(time(nullptr), std::forward<Compare>(cmp)) { /* empty */ }
 
   /// Swap in constant time all the nodes of `this` with `tree`
   void swap(Gen_Rand_Tree & tree) noexcept

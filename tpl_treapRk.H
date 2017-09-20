@@ -116,25 +116,13 @@ public:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Treap_Rk(unsigned long seed, Compare & __cmp) 
-    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
+  Gen_Treap_Rk(unsigned long seed, Compare cmp) 
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(cmp)
   {
     init(seed);
   }
 
-  Gen_Treap_Rk(unsigned long seed, Compare && cmp) 
-    : Gen_Treap_Rk(seed, cmp)
-  {
-    // empty
-  }
-
-  Gen_Treap_Rk(Compare & cmp) : Gen_Treap_Rk(time(nullptr), cmp)
-  {
-    // empty
-  }
-
-  Gen_Treap_Rk(Compare && cmp = Compare()) 
-    : Gen_Treap_Rk(time(nullptr), std::forward<Compare>(cmp))
+  Gen_Treap_Rk(Compare cmp = Compare()) : Gen_Treap_Rk(time(nullptr), cmp)
   {
     // empty
   }

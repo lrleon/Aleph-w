@@ -77,15 +77,9 @@ public:
       /// Instancia un conjunto dinámico vacío
   DynSetTree() : tree(Compare()), num_nodes(0), node_pool(dim) {}
 
-  DynSetTree(Compare & cmp) 
+  DynSetTree(Compare cmp) 
     : tree(cmp), num_nodes(0), node_pool(dim)
   { 
-    /* empty */ 
-  }
-
-  DynSetTree(Compare && cmp) 
-    : tree(std::forward<Compare>(cmp)), num_nodes(0), node_pool(dim)
-  {
     /* empty */ 
   }
 

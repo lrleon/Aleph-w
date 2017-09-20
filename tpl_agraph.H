@@ -78,7 +78,7 @@ public:
     init(0);
   }
  
-  ~Graph_Anode()
+  virtual ~Graph_Anode()
   {
     if (arc_array != nullptr)
       free(arc_array);

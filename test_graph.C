@@ -862,7 +862,7 @@ int main()
     });
     cout << endl;
 
-    assert(eq(subgrafos, subs, [cmp] (const Mapa & m1, const Mapa & m2)
+    assert(eq(subgrafos, subs, [] (const Mapa & m1, const Mapa & m2)
     	      {
     		return eq(m1.nodes(), m2.nodes(), [] (auto p1, auto p2)
                   {

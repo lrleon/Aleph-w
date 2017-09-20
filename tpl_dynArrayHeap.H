@@ -88,13 +88,7 @@ public:
   using Item_Type = T;
 
       /// Constructor con dimensión por omisión.
-  DynArrayHeap(Compare & __cmp) : num_items(0), cmp(__cmp)
-  { 
-    // empty
-  }
-
-  DynArrayHeap(Compare && cmp = Compare())
-    : DynArrayHeap(std::forward<Compare&>(cmp))
+  DynArrayHeap(Compare cmp = Compare()) : num_items(0), cmp(cmp)
   { 
     // empty
   }

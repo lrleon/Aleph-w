@@ -1,6 +1,7 @@
 # ifndef BLOOM_FILTER_H
 # define BLOOM_FILTER_H
 
+# include <memory>
 # include <gsl/gsl_rng.h>
 # include <cmath>
 # include <iostream>
@@ -23,12 +24,12 @@ private:
 
   BitArray bits;
 
-  mutable Hash_Fct hash_fct = nullptr;  
-  mutable size_t num_hash   = 0;
-  unsigned long * seeds     = nullptr;
-  unsigned long * fst_seed  = nullptr;
-  unsigned long * last_seed = nullptr;
-  size_t num_ins            = 0;
+  mutable Hash_Fct hash_fct        = nullptr;  
+  mutable unsigned long num_hash   = 0;
+  unsigned long * seeds            = nullptr;
+  unsigned long * fst_seed         = nullptr;
+  unsigned long * last_seed        = nullptr;
+  size_t num_ins                   = 0;
 
 public:
 
@@ -59,15 +60,14 @@ public:
       fst_seed(&seeds[0]), last_seed(&seeds[num_hash])
   {
     bits.reserve(dim);
-    gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-    if (r == nullptr)
+    unique_ptr<gsl_rng, void(*)(gsl_rng*)>
+      r(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free);
+    if (r.get() == nullptr)
       throw std::bad_alloc();
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
 
     for (auto ptr = fst_seed; ptr < last_seed; ++ptr)
-      *ptr = gsl_rng_get(r);
-
-    gsl_rng_free(r);
+      *ptr = gsl_rng_get(r.get());
   }
 
   Bloom_Filter(size_t n, double p,

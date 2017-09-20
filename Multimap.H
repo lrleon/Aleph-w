@@ -255,15 +255,15 @@ public:
   {
     friend class multimap<Key, T, Compare, KTree, TTree>;
 
-    mutable multimap * multimap_ptr;
-    mutable K_Tree *   k_tree_ptr;
+    mutable multimap * multimap_ptr = nullptr;
+    mutable K_Tree *   k_tree_ptr = nullptr;
     mutable K_Itor     k_it;
     mutable T_Tree *   t_tree_ptr;
     mutable T_Itor     t_it;
-    mutable int        pos_in_k;
-    mutable int        pos_in_t;
-    bool               underflow;
-    bool               overflow;
+    mutable int        pos_in_k = 0;
+    mutable int        pos_in_t = 0;
+    bool               underflow = false;
+    bool               overflow = false;
     Pair               ret_pair; // Usado por el operador ->
 
     void default_init()

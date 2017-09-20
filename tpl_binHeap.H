@@ -78,7 +78,7 @@ class GenBinHeap
 {
 protected:
 
-  Compare & cmp;
+  Compare cmp;
 
 public:
 
@@ -530,15 +530,9 @@ public:
     return level_traverse(operation);
   }
 
-  GenBinHeap(Compare & __cmp) noexcept
-    : cmp(__cmp), head(&head_node), root(RLINK(head)), last(&head_node), 
+  GenBinHeap(Compare cmp = Compare()) noexcept
+    : cmp(cmp), head(&head_node), root(RLINK(head)), last(&head_node), 
       num_nodes(0) 
-  {
-    // empty
-  }
-
-  GenBinHeap(Compare && __cmp = Compare()) noexcept
-    : GenBinHeap(__cmp)
   {
     // empty
   }

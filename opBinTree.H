@@ -46,7 +46,7 @@ static inline double sum_p(double p[], const int & i, const int & j) noexcept
 int min_index(DynArray <double>& cost, 
               const int & j, const int & k, const int & n) noexcept
 {
-  int ret_val;
+  int ret_val = -1;
   double min_sum = 1e32;
   for (int i = j; i <= k; ++i)
     {

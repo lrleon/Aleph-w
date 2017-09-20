@@ -221,29 +221,17 @@ public:
 
   Args_Ctor(ArrayHeap, T);
 
-      /// Constructor con dimensión por omisión.
-  ArrayHeap(const size_t d, Compare & __cmp) 
-    : array(nullptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
+      /// Constructor con dimensión 
+  ArrayHeap(const size_t d = 1024, Compare cmp = Compare()) 
+    : array(nullptr), dim(d), num_items(0), array_allocated(false), cmp(cmp)
   { 
     array = new T [d + 1];
     array_allocated = true;
   }
 
-  ArrayHeap(const size_t & d = 1024, Compare && cmp = Compare()) 
-    : ArrayHeap(d, cmp)
-  {
-    assert(array_allocated);
-  }
-
       /// Constructor con arreglo y dimensión.
-  ArrayHeap(T * ptr, const size_t & d, Compare & __cmp) 
-    : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
-  { 
-    // empty
-  }
-
-  ArrayHeap(T * ptr, const size_t & d, Compare && cmp = Compare()) 
-    : ArrayHeap(ptr, d, cmp)
+  ArrayHeap(T * ptr, const size_t & d, Compare cmp = Compare()) 
+    : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(cmp)
   { 
     // empty
   }
