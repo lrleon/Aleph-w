@@ -505,6 +505,7 @@ private:
 	    decrease_probe_counter(bucket);
 	    return true;
 	  }
+	break;
       case DELETED:
 	decrease_probe_counter(bucket);
 	break;

@@ -19,8 +19,9 @@ void DeleteSkipNodes(LongSkipListNode* node )
 
   while( node != NULL )
     {
-      delete node; 
+      auto ptr = node;
       node = node->get_next();
+      delete ptr; 
      }   
 }
 

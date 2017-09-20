@@ -157,7 +157,7 @@ private:
 
   unique_ptr<T[]> objetive;
 
-  DynList<T*> rest_list;
+  DynDlist<T*> rest_list;
 
   size_t num_var;
   size_t num_rest;
@@ -198,10 +198,9 @@ private:
       
           // llena los num_var coeficientes de las restricciones
       i = 1;
-      for (typename DynDlist<T*>::Iterator it(rest_list); 
-           it.has_current(); it.next(), i++)
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next(), i++)
         {
-          T * rest = it.get_current();
+          T * rest = it.get_curr();
 
           for (int j = 0; j < num_var; j++)
             m->write(i, j, rest[j]);
@@ -226,6 +225,11 @@ public:
   Simplex(int n) 
     : m(nullptr), objetive(new T [n]), num_var(n), num_rest(0),
       solution(new T [num_var]), state(Not_Solved) {}
+
+  ~Simplex()
+  {
+    rest_list.for_each([] (auto ptr) { delete [] ptr; });
+  }
 
      /// Define el coeficiente coef de la variable i en el afunción
      /// objetivo. No se valida si i está fuera de rango.
@@ -284,8 +288,7 @@ public:
 			      "out of range (" + to_string(num_rest - 1) + ")");
 
     int i = 1;
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       if (i == rest_num)
         return it.get_current();
   }
@@ -391,10 +394,9 @@ public:
       /// restricciones; false de lo contrario.
   bool verify_solution() const noexcept
   {
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       {
-        T * rest = it.get_current();
+        T * rest = it.get_curr();
         T sum = 0;
         for (int j = 0; j < num_var; j++)
           sum += rest[j]*solution[j];
@@ -469,10 +471,9 @@ public:
         << "Sujeto a:" << endl
         << "\\begin{eqnarray*}" << endl;
 
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       {
-        T * rest = it.get_current();
+        T * rest = it.get_curr();
 
         for (int i = 0; i < num_rest; i++)
           {
