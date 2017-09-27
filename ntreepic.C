@@ -925,63 +925,6 @@ void adjust_minimal_separation_with_letf_sibling(EepicNode * p)
      más uniforme posible entre los hermanos izquierdos de p sin
      incluir el más a la izquierda.
   */
-  EepicNode * left_sibling = p->get_left_sibling();
-  if (not left_sibling->is_leftmost())
-    {
-          // buscar el nodo más a la derecha de left_sibling 
-      int level = LEVEL(left_sibling);
-    
-      long double r_sum_mod = 0, l_sum_mod = 0;
-      EepicNode * r = left_sibling; // más a la derecha de left_sibling 
-      EepicNode * l = p; // más a la izquierda de p 
-    
-      while (true) // buscamos si hay nodo en el siguiente nivel 
-	{    
-	  long double next_r_sum_mod;
-	  EepicNode * r_next =
-	    advance_to_rightmost_in_level(left_sibling, level + 1, 
-					  next_r_sum_mod);
-	  if (r_next == NULL)
-	    break; /* fin de busqueda. r contiene el más a la derecha y
-		      l el más a la izquierda. Ambos en el nivel level */
-
-	  long double next_l_sum_mod;
-	  EepicNode * l_next = 
-	    advance_to_leftmost_in_level(p, level + 1, next_l_sum_mod);
-
-	  if (l_next == NULL)
-	    break; /* fin de busqueda. r contiene el más a la derecha y
-		      l el más a la izquierda. Ambos en el nivel level */
-
-	      /* avanzar al próximo nivel */
-	  level++; 
-	  r = r_next;
-	  l = l_next;
-	  r_sum_mod = next_r_sum_mod;
-	  l_sum_mod = next_l_sum_mod;
-
-      assert(LEVEL(l) == LEVEL(r));
-      int r_height = LEVEL(r) - LEVEL(left_sibling);
-      long double rx = PRE(r) + r_sum_mod; // coordenada x de r
-      long double lx = PRE(l) + l_sum_mod; // coordenada x de l
-
-      long double min_separation =  XR(r) + XR(l) + tree_gap;
-      long double current_separation = lx - rx;
-      long double gap = current_separation - min_separation;
-      if (gap > 0)
-	do /* se detecto brecha desproporcionada. Hermanos son desplazados
-	      hacia la derecha gap/2, gap/4, gap/8 ... */
-	  {
-	    gap /= 2.0;
-	    PRE(left_sibling) += gap;
-	    MOD(left_sibling) += gap;
-	    left_sibling = left_sibling->get_left_sibling();
-	  }
-	while (not left_sibling->is_leftmost() and 
-	       compute_height(left_sibling) <= r_height);
-	}
-
-    }
 }
 
 

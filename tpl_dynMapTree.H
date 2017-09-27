@@ -40,7 +40,7 @@ class DynMapTree :
   using Pair = std::pair<Key, Data>;
 
   using Base =
-  DynSetTree<std::pair<Key, Data>, Tree, Dft_Pair_Cmp<Key, Data, Compare>>;
+    DynSetTree<std::pair<Key, Data>, Tree, Dft_Pair_Cmp<Key, Data, Compare>>;
 
 public:
 
@@ -164,13 +164,13 @@ public:
           @return the data associated to the removed key.
 	  @throw domain_error if key is not in the mapping
       */
-  Data remove(const Key & key) noexcept 
+  Data remove(const Key & key)
   {
     Pair p(key, Data());
     return this->del(p).second;
   }
 
-  Data remove(Key && key) noexcept 
+  Data remove(Key && key)
   {
     return this->del(forward<Key>(key), Data()).second;
   }

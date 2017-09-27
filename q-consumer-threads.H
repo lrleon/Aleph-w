@@ -82,7 +82,7 @@ private:
   
 public:
 
-  ~QueueTheadsPool() 
+  ~QueueTheadsPool() throw(domain_error)
   {
     unique_lock<mutex> cs(lck);
     if (not shutdown_done)

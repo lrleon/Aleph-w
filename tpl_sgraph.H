@@ -480,7 +480,7 @@ private:
     return arc;
   }
 
-  void disconnect_arc(Arc * arc) noexcept
+  void disconnect_arc(Arc * arc)
   {
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;

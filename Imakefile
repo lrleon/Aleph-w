@@ -1,14 +1,17 @@
 DEPEND = sh ./depend.sh
 
-CC = /usr/bin/clang
-AS = /usr/bin/llvm-as
-AR = /usr/bin/llvm-ar clq
-LD = /usr/bin/llvm-link
+# just delete or comment these four lines if you wish to use gnu
+# compiler suite 
+
+CC = clang
+AS = llvm-as
+AR = llvm-ar clq
+LD = llvm-link
 
 # now comment clang++ line and uncomment c++ line. Flag for standard could
 # change according to compiler version. This flag is for gcc 4.6.3. On
 # 4.7.x should work -std=c++11
-CXX = /usr/bin/clang++  
+CXX = clang++  
 #CXX = $(GCCPATH)/bin/c++  
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
@@ -97,7 +100,7 @@ TESTSRCS= testDlink.C testDnode.C testMerge.C test-bloom.C test-lambda.C\
 	test-sq.C test_rk.C test-itor.C test-map.C test-emplace.C \
 	test-quadtree.C test-con-queue.C graphpic.C test_eepicgeom.C	\
 	test_ellipse.C test-convexhull-time.C test-string.cc test-zip-it.cc \
-	test-dispatch.C test-stl-utils.C test-flatten.C
+	test-dispatch.C test-stl-utils.C test-flatten.C test-odhash.cc
 
 LIBCCCSRCS=	ahAssert.C primes.C ahDefs.C  useMutex.C ahDaemonize.C	\
 		socket_wrappers.C parse_utils.C timeoutQueue.C uid.C	\
@@ -712,6 +715,9 @@ NormalProgramTarget(test-stl-utils,test-stl-utils.o,$(DEPLIBS),$(LOCALLIBS),$(SY
 
 AllTarget(test-flatten)
 NormalProgramTarget(test-flatten,test-flatten.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(test-odhash)
+NormalProgramTarget(test-odhash,test-odhash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 DependTarget()
 

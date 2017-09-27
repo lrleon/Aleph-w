@@ -83,7 +83,7 @@ public:
       // empty
     }
     
-    Cache_Entry() : locked(false), is_in_hash_table(false)
+    Cache_Entry() : data(), locked(false), is_in_hash_table(false)
     {
       // empty
     }
@@ -280,7 +280,7 @@ public:
       }
   }
 
-  virtual ~Cache() 
+  virtual ~Cache() throw(domain_error)
   {
     assert(hash_table.size() <= cache_size);
     	

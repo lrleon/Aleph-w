@@ -19,18 +19,14 @@ namespace Aleph {
       template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Build_Subgraph
 {
-  SA & sa;
-  const GT * gptr;
-  size_t count;
+  SA sa;
+  const GT * gptr = nullptr;
+  size_t count = 0;
 
 public:
 
-  Build_Subgraph(SA && __sa = SA()) 
+  Build_Subgraph(SA __sa = SA()) 
   noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa) { /* empty */ }
-
-  Build_Subgraph(SA & __sa) 
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
 private:
@@ -184,16 +180,12 @@ private:
       template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Inconnected_Components
 {
-  SA & sa;
+  SA sa;
 
 public:
 
-  Inconnected_Components(SA && __sa = SA()) 
+  Inconnected_Components(SA __sa = SA()) 
   noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa) { /* empty */ }
-
-  Inconnected_Components(SA & __sa) 
-  noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
       template <template <class> class List>

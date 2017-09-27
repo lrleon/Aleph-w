@@ -5,8 +5,8 @@ enum Offset { NO_OFFSET, LEFT, RIGHT };
 
 struct Infix_Desc
 {
-  int pos;
-  int level;
+  int pos = 0;
+  int level = 0;
   
   Offset offset;
 

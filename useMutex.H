@@ -53,7 +53,7 @@ public:
 
   void leave() { unlock(); }
 	
-  ~UseMutex()
+  ~UseMutex() throw(std::domain_error)
   {
     if (unlock_when_destroy)
       unlock();

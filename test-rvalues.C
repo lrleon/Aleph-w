@@ -245,7 +245,7 @@ int main(int, char * argc[])
 
   test_map_tree <DynMapBinTree<int,int>> (V);
 
-    return 0;
+  //return 0;
 
   cout << "Testing DynList" << endl;
   test_list <DynList<>> ();

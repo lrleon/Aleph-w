@@ -31,7 +31,7 @@ class DynDlist
 	public GenericItems<DynDlist<T>, T>,
 	public StlAlephIterator<DynDlist<T>>
 {
-  size_t num_elem;
+  size_t num_elem = 0;
 
 public:
 
@@ -47,8 +47,7 @@ public:
   /// Return the number of elements (contant time)
   const size_t & size() const noexcept { return num_elem; }
 
-  DynDlist() noexcept(std::is_nothrow_constructible<T>::value) 
-    : Dnode<T>(), num_elem(0) { /* Empty */ }
+  DynDlist() { /* Empty */ }
 
   /** Construct a new list with copies of elements of list `l`
 
@@ -63,12 +62,12 @@ public:
   void empty() noexcept /// Empty the list
   {
     while (not this->is_empty())
-      delete this->remove_next();
+      delete this->Dnode<T>::remove_next();
 
     num_elem = 0;
   }
 
-  virtual ~DynDlist() /// Destructor
+  ~DynDlist() /// Destructor
   { 
     empty();
   }
@@ -358,21 +357,21 @@ public:
     }
 
     /// Reset the iterator to the first item
-    void reset_first() noexcept
+    void reset_first()
     {
       Dnode<T>::Iterator::reset_first();
       pos = 0;
     }
 
     /// Reset the iterator to the last item
-    void reset_last() noexcept
+    void reset_last()
     {
       Dnode<T>::Iterator::reset_last();
       pos = list_ptr->num_elem - 1;
     }
 
     /// Put theiterator at the end state (where there is no current item)
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();

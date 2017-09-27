@@ -1,6 +1,8 @@
 # ifndef TPL_TEST_CYCLE_H
 # define TPL_TEST_CYCLE_H
 
+# include <tpl_graph.H>
+
 namespace Aleph {
 
 
@@ -18,7 +20,7 @@ namespace Aleph {
 class Test_For_Cycle
 {
   typename GT::Node * src;
-  SA & sa;
+  SA sa;
 
   bool test_cycle(typename GT::Node * curr)
   {
@@ -75,9 +77,7 @@ class Test_For_Cycle
 
 public:
 
-  Test_For_Cycle(SA && __sa = SA()) : sa(__sa) { /* empty */ }
-
-  Test_For_Cycle(SA & __sa) : sa(__sa) { /* empty */ }
+  Test_For_Cycle(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
   /** Invoca a la prueba de existencia de ciclo
       

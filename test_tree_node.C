@@ -27,7 +27,6 @@ bool is_string_an_int(const string& str)
 
 
 int * string_to_deway(const string& str, size_t & size) 
-  throw (invalid_argument, bad_alloc)
 {
   DynArray<int> a;
 
@@ -104,7 +103,7 @@ int main()
 
 	  //	  assert(check_tree(root));
 
-	  delete deway;
+	  delete [] deway;
 	  
 	  cout << endl;
 	}

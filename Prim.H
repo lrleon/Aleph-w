@@ -12,8 +12,8 @@ using namespace Aleph;
     template <class GT> 
 struct Prim_Info
 {
-  typename GT::Node * tree_node; // imagen en el árbol abarcador
-  void *              heap_node; // puntero en el heap exclusivo
+  typename GT::Node * tree_node = nullptr; // imagen en el árbol abarcador
+  void *              heap_node = nullptr; // puntero en el heap exclusivo
 
   Prim_Info() : tree_node(nullptr), heap_node(nullptr) { /* empty */ } 
 };
@@ -126,8 +126,8 @@ class Prim_Min_Spanning_Tree
 
   typedef ArcHeap<GT, Distance, Acc_Simple_Heap> Simple_Heap;
 
-  Distance & dist;
-  SA &       sa; 
+  Distance dist;
+  SA       sa; 
 
 public:
 
@@ -137,14 +137,7 @@ public:
       \param[inout] __cmp comparación entre distancias de arco
       \param[inout] __sa filtro de iterador de arcos
   */
-  Prim_Min_Spanning_Tree(Distance && __dist = Distance(),  
-			 SA &&       __sa = SA())
-    : dist(__dist), sa(__sa)
-  {
-    // empty
-  }
-
-  Prim_Min_Spanning_Tree(Distance & __dist, SA & __sa)
+  Prim_Min_Spanning_Tree(Distance __dist = Distance(), SA __sa = SA())
     : dist(__dist), sa(__sa)
   {
     // empty

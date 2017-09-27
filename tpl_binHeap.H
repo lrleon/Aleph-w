@@ -519,19 +519,13 @@ private:
 public:
 
   template <class Op>
-  bool level_traverse(Op & operation) const
+  bool level_traverse(Op operation = Op()) const
   {
     return __level_traverse(getRoot(), operation);
   }
 
-  template <class Op>
-  bool level_traverse(Op && operation = Op())  const
-  {
-    return level_traverse(operation);
-  }
-
-  GenBinHeap(Compare cmp = Compare()) noexcept
-    : cmp(cmp), head(&head_node), root(RLINK(head)), last(&head_node), 
+  GenBinHeap(Compare __cmp = Compare()) noexcept
+    : cmp(__cmp), head(&head_node), root(RLINK(head)), last(&head_node), 
       num_nodes(0) 
   {
     // empty

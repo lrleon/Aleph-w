@@ -31,6 +31,4 @@ int main(int argn, char *argc[])
   //  queue<int> q(s);
 
   priority_queue<int> pq(s);
-
-
 }

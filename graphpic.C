@@ -1205,7 +1205,7 @@ void process_text_arc(Eepic_Plane & plane, Graph::Arc * a, Polygon & trigon)
       // la idea es calcular un segmento paralelo al que conectaría los
       // nodos y luego invocar a la rutina anterior sobre ese segmento
       // paralelo 
-  Vertex & first_vt = trigon.get_first_vertex();
+  const Vertex & first_vt = trigon.get_first_vertex();
 
       // segmento que conectaría a los nodos si no hubiese un arco
   const Segment arc_sg(first_vt, trigon.get_last_vertex());

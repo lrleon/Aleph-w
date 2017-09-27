@@ -208,7 +208,7 @@ private:
     return 1 << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
+  static size_t compute_dim(size_t d, size_t s, size_t b)
   {
     return two_raised(d)*two_raised(s)*two_raised(b);
   }
@@ -844,7 +844,7 @@ public:
   }
 
   /// Move constructor
-  DynArray(DynArray && other) noexcept
+  DynArray(DynArray && other)
     : pow_dir             ( Default_Pow_Dir                          ),
       pow_seg             ( Default_Pow_Seg                          ),
       pow_block           (std::min(Default_Pow_Block, Max_Pow_Block)), 

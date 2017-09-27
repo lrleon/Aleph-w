@@ -538,7 +538,7 @@ are_eq(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
 
   template <typename T, template <typename> class Container = Aleph::DynList, 
 	    class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
+bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp cmp = Cmp())
 {
   typename Container<T>::Iterator it1(c1), it2(c2);
   for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
@@ -551,14 +551,6 @@ bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
     return false;
 
   return it2.has_curr();
-}
-
-template <typename T, template <typename> class Container = DynList, 
-	  class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, 
-	    Cmp && cmp = Cmp())
-{
-  return lesser<T, Container, Cmp>(c1, c2, cmp);
 }
 
 template <typename T, template <typename> class Container = DynList,

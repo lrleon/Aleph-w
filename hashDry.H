@@ -166,8 +166,8 @@ public:
       throw std::overflow_error ("New size is not enough for current" 
 				 " number of entries"); 
 
-    auto new_table   = new typename HashTbl::Bucket [new_size];
-    auto old_table   = me()->table;
+    typename HashTbl::Bucket * new_table = new typename HashTbl::Bucket[new_size];
+    typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
 
     int old_N = me()->N;
@@ -306,7 +306,7 @@ public:
       assert(check());
     }
 
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();
@@ -382,12 +382,12 @@ public:
 
   struct Stats
   {
-    size_t num_busy;
-    size_t num_deleted;
-    size_t num_empty;
+    size_t num_busy = 0;
+    size_t num_deleted = 0;
+    size_t num_empty = 0;
     DynArray<size_t> lens;
-    float avg, var;
-    size_t max_len;
+    float avg = 0, var = 0;
+    size_t max_len = 0;
 
     Stats() : max_len(std::numeric_limits<size_t>::min())
       {
@@ -438,7 +438,7 @@ public:
 
 private:
 
-  static void update_stat_len(DynArray<size_t> & lens, size_t i) noexcept
+  static void update_stat_len(DynArray<size_t> & lens, size_t i)
   {
     if (lens.exist(i))
       lens(i) += 1;

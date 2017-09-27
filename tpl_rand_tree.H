@@ -131,8 +131,8 @@ public:
 
   /// Initialize a random tree with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Rand_Tree(unsigned int seed, Compare & cmp = Compare()) noexcept
-    : tree_root(Node::NullPtr), r(nullptr), cmp(cmp)
+  Gen_Rand_Tree(unsigned int seed, Compare __cmp = Compare()) noexcept
+    : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }

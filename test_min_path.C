@@ -26,7 +26,7 @@ struct __Nodo
 struct __Arco
 {
   string nombre;
-  int distancia;
+  int distancia = 0;
 
   __Arco() {}
 

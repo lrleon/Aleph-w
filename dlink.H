@@ -572,7 +572,7 @@ public:
     }
     
         /// Put the iterator out of range
-    void end() noexcept
+    void end()
     {
       reset_last();
       next(); 

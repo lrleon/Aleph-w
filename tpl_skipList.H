@@ -58,7 +58,7 @@ public:
   private:
 
     Key  key;
-    Type data;
+    Type data = Type();
     
     void fillForwardNULL()
     {

@@ -114,42 +114,4 @@ int main(int argn, char* argc[])
 
     delete [] array2;
   }
-
-  return 0;
-
-  { 
-    cout << "testing with pointers" << endl;
-
-    ArrayHeap<unsigned int*> heap(n);
-    unsigned int i, value;
-    unsigned int *ptr;
-
-    for (i = 0; i < n; i++)
-      {
-	value = rand() % 100;
-	ptr = new unsigned int;
-	*ptr = value;
-	cout << value << ", ";
-	heap.insert(ptr);
-      }
-
-    cout << "\n\n";
-
-    for (i = 0; i < heap.size(); i++)
-      cout << *heap[i] << " ";
-
-    cout << "\n\n";
-
-    for (i = 0; i < n; i++)
-      {
-	ptr = heap.getMin();
-	value = *ptr;
-	cout << value << " ";
-	delete ptr;
-      }
-
-    cout << "\n\n";
-  }
-
-
 }

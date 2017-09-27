@@ -111,18 +111,20 @@ public:
 
   Cmp & get_compare() { return cmp; }
 
-  OLhashTable(size_t   len         = Primes::DefaultPrime,
-	      Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>, 
-	      Cmp      cmp         = Cmp(),
- 	      float    lower_alpha = hash_default_lower_alpha,
-	      float    upper_alpha = hash_default_upper_alpha,
-	      bool     with_resize = true)
-    : table(nullptr), N(0), len(Primes::next_prime(len)),
-      lower_alpha(lower_alpha), upper_alpha(upper_alpha), cmp(cmp),
-      hash_fct(hash_fct), with_resize(with_resize)
-    {
-      table = new Bucket [len];
-    }
+      /// Instancia una tabla hash con función hash __hash_fct y
+      /// dimensión len.
+  OLhashTable(size_t   __len      = Primes::DefaultPrime,
+	      Hash_Fct __hash_fct = Aleph::dft_hash_fct<Key>,
+	      Cmp __cmp           = Cmp(),
+ 	      float __lower_alpha = hash_default_lower_alpha,
+	      float __upper_alpha = hash_default_upper_alpha,
+	      bool __with_resize  = true)
+    : table(nullptr), N(0), len(Primes::next_prime(__len)),
+      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
+      hash_fct(__hash_fct), with_resize(__with_resize)
+  {
+    table = new Bucket [len];
+  }
 
   /** Constructor with two hash function for metaprogramming
       compatibility with ODhashTable
@@ -272,7 +274,7 @@ protected:
     /// search(). Dispara excepciones invalid_argument si record no es una
     /// dirección dentro del rango de la tabla o domain_error si la cubeta
     /// del registro no está ocupada.
-  void deallocate_bucket(Bucket * bucket) noexcept
+  void deallocate_bucket(Bucket * bucket)
   {
     if (not is_valid_bucket(bucket))
       throw std::invalid_argument("record address is not inside table's range");

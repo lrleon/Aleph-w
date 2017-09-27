@@ -67,9 +67,9 @@ namespace Aleph {
       template <class GT, class SA = Dft_Show_Arc<GT> >
 class Compute_Cut_Nodes
 {
-  SA &                            sa;
-  GT *                            gptr;
-  DynDlist<typename GT::Node *> * list_ptr;
+  SA                              sa;
+  GT *                            gptr = nullptr;
+  DynDlist<typename GT::Node *> * list_ptr = nullptr;
   long                            curr_df;
   long                            curr_color;
 
@@ -292,14 +292,8 @@ public:
 	  @param[in] __sa el filtro de arcos para los oiteradores sobre
 	  arcos. 
        */
-  Compute_Cut_Nodes(const GT & g, SA && __sa = SA()) 
+  Compute_Cut_Nodes(const GT & g, SA __sa = SA()) 
     : sa(__sa), gptr(&const_cast<GT&>(g)), state(Init)
-  {
-    /* empty */ 
-  }
-
-  Compute_Cut_Nodes(const GT & g, SA & __sa) 
-    : sa(__sa), gptr(&const_cast<GT&>(g))
   {
     /* empty */ 
   }

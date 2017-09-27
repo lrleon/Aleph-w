@@ -73,7 +73,7 @@ int main(int argn, char *argc[])
   cout << "vector4: ";
   print_container(vector4);
 
-  return 0;
+  //  return 0;
   
   cout << "capacidad vector4: " << vector4.capacity() << endl;
  

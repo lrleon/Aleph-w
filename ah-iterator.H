@@ -23,7 +23,7 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -40,9 +40,9 @@ struct StlIterator : public SetType::Iterator
     return not (*this == it);
   }
 
-  T & operator * () noexcept { return const_cast<T&>(this->get_curr()); }
+  T & operator * () { return const_cast<T&>(this->get_curr()); }
 
-  T * operator -> () noexcept { return &const_cast<T&>(this->get_curr()); }
+  T * operator -> () { return &const_cast<T&>(this->get_curr()); }
 
   static StlIterator begin(const SetType & s) noexcept
   {
@@ -79,7 +79,7 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -95,9 +95,9 @@ struct StlConstIterator : public SetType::Iterator
     return not (*this == it);
   }
 
-  const T & operator * () const noexcept { return this->get_curr(); }
+  const T & operator * () const { return this->get_curr(); }
 
-  T const * operator -> () const noexcept
+  T const * operator -> () const
   { 
     return const_cast<T*>(&this->get_curr()); 
   }

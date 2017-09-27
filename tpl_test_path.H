@@ -28,7 +28,7 @@ namespace Aleph {
       template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Test_For_Path
 {
-  SA & sa;
+  SA sa;
   typename GT::Node * tgt;
 
   bool test_path(typename GT::Node * curr)  
@@ -84,9 +84,7 @@ class Test_For_Path
 
 public:
 
-  Test_For_Path(SA && __sa = SA()) : sa(__sa) { /* empty */ }
-
-  Test_For_Path(SA & __sa) : sa(__sa) { /* empty */ }
+  Test_For_Path(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
     /** Invoca a la prueba de existencia de camino entre dos nodos.
 

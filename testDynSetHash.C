@@ -307,7 +307,7 @@ void test_DynMapLinHash(size_t n)
 
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     if (table.insert(keys(i), i) == NULL) 
       ++repeated_counter;
 
@@ -320,7 +320,7 @@ void test_DynMapLinHash(size_t n)
        << endl
        << "Testing for_each and a battery of other tests ...." << endl;
 
-  assert(table.all(/* Lambda */ [&table, &keys] 
+  assert(table.all(/* Lambda */ [&table] 
 		   (const std::pair<const unsigned long, long> & p)
 		   {
 		     auto ptr = table.search(p.first);

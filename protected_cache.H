@@ -23,7 +23,7 @@ public:
     init_mutex(mutex);
   }
 
-  virtual ~Protected_Cache() 
+  virtual ~Protected_Cache() throw(domain_error)
   { 
     destroy_mutex(mutex); 
   }

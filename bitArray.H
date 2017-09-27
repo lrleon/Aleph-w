@@ -145,7 +145,7 @@ class BitArray
       return byte_ptr != nullptr ? byte_ptr->read_bit(bit_index) : 0; 
     }
 
-    BitProxy & operator = (const size_t value) noexcept
+    BitProxy & operator = (const size_t value)
     {
       assert(value <= 1);
 
@@ -160,7 +160,7 @@ class BitArray
       return *this;
     }
 
-    BitProxy & operator = (const BitProxy & proxy) noexcept
+    BitProxy & operator = (const BitProxy & proxy)
     {
       if (byte_ptr == nullptr)
         byte_ptr = &array->array_of_bytes.touch(byte_index);
@@ -435,6 +435,7 @@ public:
   {
     array_of_bytes.cut();
 
+    // TODO: bound num_bytes to a maximum according to available ram
     size_t num_bytes = 0;
     input >> num_bytes >> current_size;
     for (size_t i = 0; i < num_bytes; i++)

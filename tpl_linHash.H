@@ -142,7 +142,7 @@ private:
 protected:
 
   Hash_Fct             hash_fct; // puntero a función hash
-  Cmp &                cmp;
+  Cmp                  cmp;
 
 private:
 
@@ -226,7 +226,7 @@ private:
       } 
   }
 
-  void contract() noexcept
+  void contract()
   { // contraer la tabla hasta que carga esté debajo de lower_alpha
     for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len; 
          alpha = (1.0*N)/MP)
@@ -298,10 +298,13 @@ public:
         @throw overflow_error si ocurre un desborde desde DynArray
         (causado por sus cálculos internos).
      */
-  GenLinearHashTable(size_t __len, Hash_Fct __hash_fct, Cmp & __cmp,
-                     float __lower_alpha, float __upper_alpha,
-		     bool __remove_all_buckets, 
-		     bool /* __with_resize fictitious */)
+  GenLinearHashTable(size_t   __len               = Primes::DefaultPrime,
+		     Hash_Fct __hash_fct          = Aleph::dft_hash_fct<Key>,
+		     Cmp      __cmp               = Cmp(),
+                     float    __lower_alpha       = hash_default_lower_alpha,
+		     float    __upper_alpha       = hash_default_upper_alpha,
+		     bool    __remove_all_buckets = true, 
+		     bool    __with_resize        = true)
     throw(std::exception, std::length_error, std::domain_error,
           std::bad_alloc, std::overflow_error) 
   : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0), 
@@ -317,19 +320,6 @@ public:
       
     if (upper_alpha <= lower_alpha)
       throw std::domain_error("lower alpha is greater than lower alpha");
-  }
-
-  GenLinearHashTable(size_t len              = Primes::DefaultPrime, 
-		     Hash_Fct hash_fct       = Aleph::dft_hash_fct<Key>,
-		     Cmp && cmp              = Cmp(), 
-                     float lower_alpha       = hash_default_lower_alpha,
-                     float upper_alpha       = hash_default_upper_alpha,
-		     bool remove_all_buckets = true,
-		     bool with_resize        = true/* fictitious */)
-  : GenLinearHashTable(len, hash_fct, cmp, lower_alpha, upper_alpha,
-		       remove_all_buckets, with_resize)
-  {
-    // empty
   }
 
   void swap(GenLinearHashTable & other) noexcept

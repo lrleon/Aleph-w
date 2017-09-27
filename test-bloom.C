@@ -1,4 +1,17 @@
+
+# include <tclap/CmdLine.h>
+
 # include <bloom-filter.H>
+
+using namespace TCLAP;
+
+CmdLine cmd = { "test-bloom", ' ', "0.0" };
+
+ValueArg<size_t> n = { "n", "n", "number of items", true, 1000,
+		       "number of items", cmd };
+ValueArg<double> p = { "p", "prob", "probability of failures", true, .01,
+		       "probability of failures", cmd };
+ValueArg<unsigned long> seed = { "s", "seed", "seed", true, 0, "seed", cmd };
 
 template <typename T>
 ostream & operator << (ostream & s, const DynList<T> & l)
@@ -12,16 +25,20 @@ ostream & operator << (ostream & s, const DynList<T> & l)
 
 int main(int argc, char *argv[])
 {
-  const size_t n = atoi(argv[1]);
-  const double p = atof(argv[2]);
-  const unsigned long seed = atoi(argv[3]);
+  cmd.parse(argc, argv);
 
-  Bloom_Filter<long> f(n, p, seed);
+  if (p.getValue() <= 0 or p.getValue() >= 1)
+    {
+      cout << "probability must be inside (0, 1)" << endl;
+      abort();
+    }
+
+  Bloom_Filter<long> f(n.getValue(), p.getValue(), seed.getValue());
   Bloom_Filter<long> ff(f);
 
   ff.swap(f);
 
-  auto t = f.estimate(n, p);
+  auto t = f.estimate(n.getValue(), p.getValue());
   auto m = get<0>(t);
   cout << "seeds = " << f.hash_seeds() << endl
        << "hashes(10) = " << f.hashes(10) << endl
@@ -32,10 +49,10 @@ int main(int argc, char *argv[])
        << "sizeof(size_t) = " << sizeof(size_t) << endl
        << endl
        << endl
-       << "Inserting " << n << " items sequentially" << endl
+       << "Inserting " << n.getValue() << " items sequentially" << endl
        << endl;
 
-  for (auto i = 0; i < n; ++i)
+  for (auto i = 0; i < n.getValue(); ++i)
     f.append(i);
 
   auto x = f.get_x();
@@ -46,13 +63,13 @@ int main(int argc, char *argv[])
        << "Generating random searches" << endl;
   
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, seed % gsl_rng_max(r));
+  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
   size_t false_positive_count = 0;
   size_t failed_search_count = 0;
-  for (auto i = 0; i < 10*n; ++i)
+  for (auto i = 0; i < 10*n.getValue(); ++i)
     {
       long val = gsl_rng_get(r);
-      if (val >= 0 and val < n)
+      if (val >= 0 and val < n.getValue())
 	{
 	  if (not f.contains(val))
 	    cout << "ERROR: " << val << " was not found" << endl;
@@ -66,7 +83,7 @@ int main(int argc, char *argv[])
     }
 
   cout << "done!" << endl
-       << "Total searches  = " << 10*n << endl
+       << "Total searches  = " << 10*n.getValue() << endl
        << "Failed searches = " << failed_search_count << endl
        << "False positives = " << false_positive_count << endl
        << "Error = " << 100.0*false_positive_count/failed_search_count 

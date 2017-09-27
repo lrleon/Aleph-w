@@ -10,7 +10,7 @@
 class ArcHeap 
  : public BinHeap<typename GT::Arc*, Distance_Compare<GT, Distance>>
 {
-  Distance &                     dist;
+  Distance                       dist;
   Access_Heap_Node &             access_node;
   Distance_Compare<GT, Distance> dist_cmp;
 
@@ -18,7 +18,8 @@ public:
 
   Distance & get_distance() { return dist; }
 
-  ArcHeap(Distance & __dist, Access_Heap_Node && acc = Access_Heap_Node())
+  ArcHeap(Distance __dist = Distance(),
+	  Access_Heap_Node && acc = Access_Heap_Node())
     : dist(__dist), access_node(acc), dist_cmp(dist)
   {
     // empty

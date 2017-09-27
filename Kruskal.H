@@ -65,7 +65,7 @@ public:
       \param[inout] __sa filtro de iterador de arcos
   */
   Kruskal_Min_Spanning_Tree(Distance && __dist = Distance(),  
-			    SA &&       __sa   = SA()) 
+			    SA             __sa   = SA()) 
   noexcept(std::is_nothrow_move_assignable<Distance>::value and
 	   std::is_nothrow_move_assignable<SA>::value)
     : dist(__dist), sa(__sa), painted(false)
@@ -73,7 +73,7 @@ public:
     /* empty */ 
   }
 
-  Kruskal_Min_Spanning_Tree(Distance & __dist, SA & __sa) 
+  Kruskal_Min_Spanning_Tree(Distance & __dist, SA __sa = SA()) 
   noexcept(std::is_nothrow_copy_assignable<Distance>::value and
 	   std::is_nothrow_copy_assignable<SA>::value)
     : dist(__dist), sa(__sa), painted(false)
@@ -169,7 +169,7 @@ public:
 	GT::map_nodes(gp, tp);
       }
 
-    using F = Paint_Filt<GT, SA>;
+    typedef Paint_Filt<GT, SA> F;
     for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next()) 
       {
 	auto ga    = it.get_current_arc();

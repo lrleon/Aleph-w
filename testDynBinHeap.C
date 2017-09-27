@@ -150,8 +150,6 @@ int main(int argn, char* argc[])
       }
 
     cout << "\n\n";
-
-    heap.size();
   }
 
 }

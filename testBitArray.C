@@ -29,11 +29,6 @@ int main()
   array[27] = 1;
   array[22] = 1;
 
-  for (int i = 100; i < 20; i++)
-    {
-      array[i] = array[20];
-    }
-
   for (int i = 30; i < 40; i++)
     {
       array[i] = array[i];

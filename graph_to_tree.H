@@ -87,7 +87,7 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
          @see Tree_Node is_graph_acyclique() 
       */
     template <class GT, typename Key, 
-              class Convert, class SA = Dft_Show_Arc<GT> > inline
+              class Convert, class SA = Dft_Show_Arc<GT>> inline
 Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
 { 
   if (not is_graph_acyclique<GT>(g))
@@ -169,11 +169,10 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
 	      class SA = Dft_Show_Arc<GT> > 
 class Graph_To_Tree_Node
 {
-  SA &      sa;
-  Convert * convert;
+  SA        sa;
+  Convert * convert = nullptr;
 
-  void graph_to_tree(typename GT::Node * groot,
-			  Tree_Node<Key> * troot)
+  void graph_to_tree(typename GT::Node * groot, Tree_Node<Key> * troot)
   {           
     typedef typename GT::Node Node;
     typedef typename GT::Arc Arc;
@@ -217,9 +216,7 @@ class Graph_To_Tree_Node
 
 public:
 
-  Graph_To_Tree_Node(SA && __sa = SA()) : sa(__sa) { /* empty */ }
-
-  Graph_To_Tree_Node(SA & __sa) : sa(__sa) { /* empty */ }
+  Graph_To_Tree_Node(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
   /** Invoca a la conversión de grafo hacia árbol abarcador.
 

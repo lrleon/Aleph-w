@@ -27,7 +27,8 @@ static void printNode(Node* node, int, int)
 void test(unsigned long n, gsl_rng * r)
 {
   unsigned long max = 100*n;
-  int i, value;
+  size_t i;
+  int value;
   DynMapTree<int, int, TreeType> tree;
 
   for (i = 0; i < n; i++)
@@ -61,8 +62,8 @@ void test(unsigned long n, gsl_rng * r)
   for (i = 0; i < n; i++)
     {
       value = gsl_rng_uniform_int(r, max);
-      tree.insert(value, i);
-      //      cout << "(" << value << "," << i << ")";
+      auto val = tree.insert(value, i);
+      cout << "(" << val << "," << i << ")";
     }
   
   cout << endl;

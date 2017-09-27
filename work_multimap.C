@@ -245,13 +245,9 @@ int main(int argn, char * arg[])
       else
 	cout << "el valor no se encontro pero es mayor que todos" << endl;
       cout << endl;
-    }
-    
+    }    
 
   cout << "max_size() = " << mm.max_size() << endl;
-
-  return 0;
-
 
   cout << "Prueba de mm.erase(10)" << endl;
   int count = mm.erase(10);

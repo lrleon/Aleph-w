@@ -698,7 +698,7 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
         @ingroup Arboles
      */
     template <class Node>  inline
-void insert_by_pos_xt(Node *& r, Node * p, size_t pos) noexcept
+void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
 {
   assert(COUNT(Node::NullPtr) == 0);
 

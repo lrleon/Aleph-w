@@ -162,8 +162,6 @@ int main(int argn, char *argc[])
        << "s3:";
   print_container(s3);
 
-  return 0;
-
   s3.erase(s3.find(3));
 
   print_container(s3);

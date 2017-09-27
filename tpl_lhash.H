@@ -102,19 +102,19 @@ public:
           liberan todas las cubetas cuando se invoca al destructor.
           @throw bad_alloc si no hay memoria para apartar la tabla.
        */
-  GenLhashTable(size_t   table_size  = Primes::DefaultPrime,
-		Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>, 
-		Cmp      cmp         = Cmp(),
-		float    lower_alpha = hash_default_lower_alpha,
-		float    upper_alpha = hash_default_upper_alpha,
-                bool     remove_all_buckets = true,
-		bool     with_resize        = true) 
+  GenLhashTable(size_t table_size         = Primes::DefaultPrime,
+		Hash_Fct __hash_fct       = Aleph::dft_hash_fct<Key>,
+		Cmp  __cmp                = Cmp(),
+		float __lower_alpha       = hash_default_lower_alpha,
+		float __upper_alpha       = hash_default_upper_alpha, 
+                bool __remove_all_buckets = true,
+		bool __with_resize        = true) 
     throw(std::exception, std::bad_alloc) 
-    : hash_fct(hash_fct), table(nullptr),
-      len(Primes::next_prime(table_size)), cmp(cmp),
-      lower_alpha(lower_alpha), upper_alpha(upper_alpha),
-      N(0), busy_slots_counter(0), remove_all_buckets(remove_all_buckets),
-      with_resize(with_resize)
+    : hash_fct(__hash_fct), table(nullptr),
+      len(Primes::next_prime(table_size)), cmp(__cmp),
+      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
+      N(0), busy_slots_counter(0), remove_all_buckets(__remove_all_buckets),
+      with_resize(__with_resize)
   { 
     table = new BucketList [len];
   }
@@ -170,7 +170,7 @@ public:
 
       /// Inserta en la tabla la cubeta bucket y retorna su dirección si
       /// la clave no está en la tabla; de lo contrario se retorna nullptr
-  Bucket * insert(Bucket * bucket) noexcept
+  Bucket * insert(Bucket * bucket)
   {
     const auto i = (*hash_fct)(bucket->get_key()) % len;
     auto & list = table[i];
@@ -192,7 +192,7 @@ public:
 
   // Busca bucket->key. Si la encuentra, retorna la dirección de bucket
   // dentro de la tabla. De lo contrario inserta y retorna bucket
-  Bucket * search_or_insert(Bucket * bucket) noexcept
+  Bucket * search_or_insert(Bucket * bucket)
   {
     const auto i = (*hash_fct)(bucket->get_key()) % len;
     auto & list = table[i];
@@ -434,7 +434,7 @@ public:
     Iterator() noexcept { /* Empty */ }
 
         /// Reinicia el iterador sobre la primera cubeta.
-    void reset_first() noexcept
+    void reset_first()
     {
       curr_index = -1;
       curr_pos = 1;
@@ -442,14 +442,14 @@ public:
     }
 
         /// Reinicia el iterador sobre la última cubeta.
-    void reset_last() noexcept
+    void reset_last()
     { 
       curr_index = hash_table->len;
       curr_pos = hash_table->N - 1;
       locate_prev_available_entry();
     }
 
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();

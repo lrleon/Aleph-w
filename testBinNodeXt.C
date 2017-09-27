@@ -150,8 +150,8 @@ int main(int argn, char *argc[])
       remove_by_key_xt(root, p->get_key());
       insert_by_pos_xt(root, p, i);
 
-      check_rank_tree(root);
-      check_bst(root);
+      assert(check_rank_tree(root));
+      assert(check_bst(root));
 
       cout << "(" << i << "," << num_nodes << ")" << endl;
     }

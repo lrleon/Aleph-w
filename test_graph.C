@@ -86,7 +86,7 @@ struct Distancia_Via
 
   Distancia_Via() { /* empty */ }
 
-  Distancia_Via(Distancia_Via &) { /* empty */ }
+  Distancia_Via(const Distancia_Via&){ /* empty */ }
 };
 
 
@@ -870,7 +870,7 @@ int main()
 		  });
     	      }));
 
-    zipEq(subgrafos, subs).for_each([] (auto p)
+    zipEq(subgrafos, subs).for_each([] (auto & p)
     {
       zipEq(p.first.nodes(), p.second.nodes()).for_each([] (auto p) 
       {
@@ -919,7 +919,7 @@ int main()
 
   Mapa tree1;
   Kruskal_Min_Spanning_Tree <Mapa, Distancia_Via> () (g, tree1);
-  int sum1 = Total_Cost<Mapa, Distancia_Via>() (tree1);
+  int sum1 = Total_Cost<Mapa, Distancia_Via> () (tree1);
   cout << endl
        << "Arbol abarcador segun Kruskal (" << sum1 << ")" << endl;
   imprimir_mapa(tree1);

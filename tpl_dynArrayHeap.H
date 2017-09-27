@@ -74,7 +74,7 @@ class DynArrayHeap :
     public StlAlephIterator<DynArrayHeap<T, Compare>>
 {
   DynArray<T> array;
-  size_t      num_items;
+  size_t      num_items = 0;
 
   Compare cmp;
 
@@ -88,7 +88,7 @@ public:
   using Item_Type = T;
 
       /// Constructor con dimensión por omisión.
-  DynArrayHeap(Compare cmp = Compare()) : num_items(0), cmp(cmp)
+  DynArrayHeap(Compare __cmp = Compare()) : num_items(0), cmp(__cmp)
   { 
     // empty
   }

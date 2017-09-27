@@ -74,8 +74,8 @@ class Eepic_Plane
 
       // marco final resultante según que el usuario decida o no escalar
       // la figura  
-  double real_wide;   // ancho en puntos de la resolución
-  double real_height; // altura en puntos de la resolución
+  double real_wide = 0;   // ancho en puntos de la resolución
+  double real_height = 0; // altura en puntos de la resolución
 
   double xoffset;   // margen adicional de ancho
   double yoffset; // margen adicional de altura

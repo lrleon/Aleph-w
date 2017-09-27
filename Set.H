@@ -74,12 +74,12 @@ public:
     
     typedef typename Tree<T, Compare>::Iterator Iterator;
     
-    Tree<T, Compare> * tree;
+    const Tree<T, Compare> * tree;
     Iterator  itor;
     bool underflow;
     bool overflow;
 
-    iterator (Tree<T, Compare> & _tree, Node * node) 
+    iterator(const Tree<T, Compare> & _tree, Node * node) 
       : tree (&_tree), itor (_tree, node), underflow (false), overflow (false)
     {
       /* empty */
@@ -93,7 +93,7 @@ public:
 	underflow = overflow = false;
     }
 
-    iterator (Tree<T, Compare> & _tree) : tree (&_tree), itor (_tree)
+    iterator(const Tree<T, Compare> & _tree) : tree(&_tree), itor(_tree)
     {
       init_flags ();
     }
@@ -272,13 +272,10 @@ public:
   }  
 
       /// Retorna la cantidad de elementos que contiene el conjunto.
-  size_type size () { return COUNT (tree.getRoot () ); }
+  size_type size () const { return COUNT(tree.getRoot()); }
 
       /// Retorna true si el contenedor esta vacío.
-  bool empty () 
-  {
-    return COUNT (tree.getRoot () ) == 0;
-  }
+  bool empty () const { return size() == 0; }
 
       /// retorna true si el conjunto this contiene exactamente los mismos
       /// elementos del conjunto c.
@@ -370,7 +367,7 @@ public:
 	  @return 1 si el elemento se encuentra en el conjunto; 0 de lo
 	  contrario. 
       */
-  size_type count (const T & value) 
+  size_type count (const T & value) const
   {
     if (tree.search (value) == nullptr)
       return 0;
@@ -391,7 +388,7 @@ public:
 	  o iterador desbordado si value no se encuentra dentro del
 	  conjunto. 
        */
-  iterator find(const T & value) 
+  iterator find(const T & value) const
   { 
     Node * node = tree.search (value);
 
@@ -407,7 +404,7 @@ public:
       /// Retorna un iterador posicionado sobre el predecesor de value en el
       /// conjunto; independientemente de que value se encuentre o no
       /// en el conjunto.
-  iterator lower_bound(const T & value)
+  iterator lower_bound(const T & value) const
   {
     if (size() == 0)
       return end ();
@@ -420,7 +417,7 @@ public:
       /// Retorna un iterador posicionado sobre el sucesor de value en el
       /// conjunto; independientemente de que value se encuentre o no
       /// en el conjunto.
-  iterator upper_bound(const T & value)
+  iterator upper_bound(const T & value) const
   {
     if (size () == 0)
       return end ();
@@ -456,13 +453,13 @@ public:
   }
 
       /// Retorna un iterador posicionado al primer elemento del conjunto.
-  iterator begin () 
+  iterator begin () const
   {
     return iterator (tree);
   }
 
       /// Retorna un iterador posicionado al último elemento del conjunto.
-  iterator end ()
+  iterator end () const
   {
     iterator last (tree);
     last.goto_end ();
@@ -494,9 +491,9 @@ public:
     if (tree.search_or_insert(p) != p) // se inserta o ya está en el conjunto?
       {    // value ya está dentro del conjunto
 	node_pool.deallocate(p);
-	itor.itor.reset_to_key(value);
+	itor.itor.reset_to_key (value);
 	
-	return std::pair<iterator, bool>(itor, false);
+	return std::pair<iterator, bool> (itor, false);
       }
 
     itor.itor.reset_to_node(p);
