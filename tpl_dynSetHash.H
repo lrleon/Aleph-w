@@ -84,7 +84,6 @@ private:
       {
 	Bucket * bucket = (Bucket*) it.get_curr();
 	insert(bucket->get_key());
-	assert(Base::cmp(*search(bucket->get_key()), bucket->get_key()));
       }
   }
 
@@ -98,8 +97,8 @@ public:
     copy(other);
   }
   
-  DynHashTable(DynHashTable && other) noexcept
-    : Base(other.len, other.hash_fct, other.cmp,
+  DynHashTable(DynHashTable && other)
+    : Base(other.len, other.hash_fct, other.get_compare(),
 	   other.lower_alpha, other.upper_alpha, true, true)
   {
     this->swap(other);

@@ -36,7 +36,7 @@ public:
   void reset() noexcept { count = 1; }
 };
 
-DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
+  DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
   
   /** Extended treap (a special type of ramdomized binary search tree)
       which manages selection and splitting for inorder position.
@@ -116,13 +116,13 @@ public:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Treap_Rk(unsigned long seed, Compare cmp) 
-    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(cmp)
+  Gen_Treap_Rk(unsigned long seed, Compare __cmp = Compare()) 
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }
 
-  Gen_Treap_Rk(Compare cmp = Compare()) : Gen_Treap_Rk(time(nullptr), cmp)
+  Gen_Treap_Rk(Compare __cmp = Compare()) : Gen_Treap_Rk(time(nullptr), __cmp)
   {
     // empty
   }
@@ -143,6 +143,8 @@ public:
 
   /// Return the tree's root
   Node *& getRoot() noexcept { return tree_root; }
+
+  Node * getRoot() const noexcept { return tree_root; }
 
   /** Search a key in a treap
 
@@ -397,7 +399,7 @@ public:
       @return a pointer to a tree root containing all the removed nodes
       @throw range_error if the range is invalid
   */
-  Node * remove(const size_t beg, const size_t end) noexcept
+  Node * remove(const size_t beg, const size_t end)
   {
     if (beg > end or end > COUNT(tree_root))
       throw std::range_error("remove of TreapRk out of range");
@@ -516,8 +518,8 @@ public:
   {
     std::pair<int, Node*> r(-2, nullptr);
 
-    BinTreeXt_Operation<Node, Compare> op(cmp);
-    r.first = op.find_position(tree_root, key, r.second);
+    r.first = BinTreeXt_Operation <Node, Compare>(cmp) .
+      find_position(tree_root, key, r.second);
 
     return r;
   }
@@ -715,22 +717,24 @@ public:
     }
 
         /// Initialize an iterator on `__tree`
-    Iterator(Gen_Treap_Rk & __tree) noexcept
-      : tree_ptr(&__tree), curr(nullptr)
+    Iterator(const Gen_Treap_Rk & __tree) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)), curr(nullptr)
     {
       curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
     }
 
     /// Initialize an iterator startin from node `__curr`
-    Iterator(Gen_Treap_Rk & __tree, Node * __curr) noexcept
-      : tree_ptr(&__tree), curr(__curr), curr_pos(Pos_Not_Updated)
+    Iterator(const Gen_Treap_Rk & __tree, Node * __curr) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
+	curr(__curr), curr_pos(Pos_Not_Updated)
     {
       // empty
     }
 
     /// Initialize an iterator starting from the iorder position `pos`
-    Iterator(Gen_Treap_Rk & __tree, const size_t pos) noexcept
-      : tree_ptr(&__tree), curr(nullptr), curr_pos(pos)
+    Iterator(const Gen_Treap_Rk & __tree, const size_t pos) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
+	curr(nullptr), curr_pos(pos)
     {
       // empty
     }
@@ -769,7 +773,7 @@ public:
     }
 
     /// Put the iterator in the end state
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();
@@ -970,8 +974,8 @@ public:
       ramdomized option trends to be faster. The split is equivalent,
       but the join is definitively faster. The join of two trees of n
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. 
-
+      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
+      addition,
       
       The class internally uses the gsl random number generator of 
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).

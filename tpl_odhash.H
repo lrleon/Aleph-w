@@ -2,9 +2,12 @@
 # ifndef TPL_ODHASH_H
 # define TPL_ODHASH_H
 
+# include <iostream>
+
 # include <primes.H>
 # include <dlink.H>
 # include <tpl_dynArray.H>
+# include <array_it.H>
 # include <ahDry.H>
 # include <hash-dry.H>
 # include <hashDry.H>
@@ -73,10 +76,10 @@ class ODhashTable
 
   struct Bucket
   {
-    Key      key;               // clave
-    unsigned char status;     // status EMPTY, DELETED o BUSY
-    unsigned char probe_type; // FIRST_PROBE SECOND_PROBE LINEAR_PROBE 
-    unsigned int probe_counter; // contador de sondeos
+    Key           key;                // clave
+    unsigned char status     = EMPTY; // status EMPTY, DELETED o BUSY
+    unsigned char probe_type = NO_PROBED; // FIRST_PROBE SECOND_PROBE LINEAR_PROBE
+    unsigned int  probe_counter = 0; // contador de sondeos
 
     Bucket() noexcept : status(EMPTY), probe_type(NO_PROBED), probe_counter(0)
     { /* empty */ }
@@ -86,6 +89,36 @@ class ODhashTable
       status = EMPTY;
       probe_type = NO_PROBED;
       probe_counter = 0;
+    }
+
+    bool valid() const
+    {
+      return (status == EMPTY or status == DELETED or status == BUSY) and
+	(probe_type == NO_PROBED or probe_type == FIRST_PROBE or
+	 probe_type == SECOND_PROBE or probe_type == LINEAR_PROBE);
+    }
+
+    friend ostream & operator << (ostream & out, const Bucket & bucket)
+    {
+      string status;
+      switch (bucket.status)
+	{
+	case EMPTY: status = "EMPTY"; break;
+	case BUSY: status = "BUSY"; break;
+	case DELETED: status = "DELETED"; break;
+	}
+      string probe_type;
+      switch (bucket.probe_type)
+	{
+	case NO_PROBED: probe_type = "NO_PROBED"; break;
+	case FIRST_PROBE: probe_type = "FIRST_PROBE"; break;
+	case SECOND_PROBE: probe_type = "SECOND_PROBE"; break;
+	case LINEAR_PROBE: probe_type = "LINEAR_PROBE"; break;
+	}
+      return out << "Bucket at " << &bucket << endl
+		 << "status = " << status << endl
+		 << "probe_type = " << probe_type << endl
+		 << "probe_counter = " << bucket.probe_counter;
     }
   };
 
@@ -232,17 +265,18 @@ public:
         @throw bad_alloc si no hay memoria para la tabla de cubetas.
         
     */
-  ODhashTable(size_t len               = Primes::DefaultPrime,
-	      Hash_Fct first_hash_fct  = Aleph::dft_hash_fct<Key>, 
-	      Hash_Fct second_hash_fct = Aleph::snd_hash_fct<Key>, 
-	      Cmp    cmp               = Cmp(),
- 	      float lower_alpha        = hash_default_lower_alpha,
-	      float upper_alpha        = hash_default_upper_alpha,
-	      bool  with_resize        = true)
-    :  table(nullptr), hash_fct(first_hash_fct),
-       second_hash_fct(second_hash_fct), cmp(cmp), len(Primes::next_prime(len)),  
-       lower_alpha(lower_alpha), upper_alpha(upper_alpha),
-      N(0), with_resize(with_resize)
+  ODhashTable(size_t   __len             = Primes::DefaultPrime,
+	      Hash_Fct __first_hash_fct  = Aleph::dft_hash_fct<Key>, 
+	      Hash_Fct __second_hash_fct = Aleph::snd_hash_fct<Key>, 
+	      Cmp      __cmp             = Cmp(),
+ 	      float    __lower_alpha     = hash_default_lower_alpha,
+	      float    __upper_alpha     = hash_default_upper_alpha,
+	      bool     __with_resize     = true)
+    : table(nullptr), hash_fct(__first_hash_fct), 
+      second_hash_fct(__second_hash_fct), cmp(__cmp),
+      len(Primes::next_prime(__len)),
+      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
+      N(0), with_resize(__with_resize)
   {
     table = new Bucket[len];
   }
@@ -334,7 +368,7 @@ public:
 
     size_t i = i_snd; 
         // sondeo lineal a partir de índice de 2da función hash
-    for (int count = 0; count < len; ++count)
+    for (size_t count = 0; count < len; ++count)
       {
 	index_forward(i);
 	switch (table[i].status)
@@ -391,7 +425,7 @@ private:
       return nullptr;
 
     size_t i = i_snd;
-    for (int c = 0; c < len; ++c)
+    for (size_t c = 0; c < len; ++c)
       {	 
 	index_forward(i);
 	switch (table[i].status)
@@ -399,7 +433,7 @@ private:
 	case BUSY: 
 	  if (cmp(table[i].key, key))
 	    { // duplicated key ==> rollback previous probe_counter increases
-	      for (int k = 0; k < c; ++k)
+	      for (size_t k = 0; k < c; ++k)
 		{
 		  index_backward(i);
 		  table[i].probe_counter--;
@@ -445,7 +479,7 @@ private:
       return tuple<Bucket*, bool>(&table[i_snd], true);
 
     size_t i = i_snd;
-    for (int c = 0; c < len; ++c)
+    for (size_t c = 0; c < len; ++c)
       {	 
 	index_forward(i);
 	switch (table[i].status)
@@ -454,7 +488,7 @@ private:
 	    if (cmp(table[i].key, key))
 	      { // duplicated key ==> rollback previous probe_counter increases
 		const size_t idx = i;
-		for (int k = 0; k < c; ++k)
+		for (size_t k = 0; k < c; ++k)
 		  {
 		    index_backward(i);
 		    table[i].probe_counter--;
@@ -530,7 +564,7 @@ public:
 	  return;
 
 	size_t i = i_snd;
-	for (int c = 0; i < len; ++c)
+	for (size_t c = 0; i < len; ++c)
 	  {
 	    index_forward(i);
 	    if (process_entry_for_remove(&table[i], key))
@@ -552,7 +586,7 @@ public:
     DynArray<size_t> lens;						
     size_t num_busy = 0, num_deleted = 0, num_empty = 0;			
     size_t max_len = std::numeric_limits<size_t>::min();			
-    for (int i = 0; i < len; ++i)					
+    for (size_t i = 0; i < len; ++i)					
       switch (table[i].status)						
 	{								
 	case BUSY:							

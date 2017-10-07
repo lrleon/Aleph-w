@@ -9,7 +9,7 @@ class AvlNode_Data
 
 private:
 
-  signed char diff; // diferencia de altura
+  signed char diff = 0; // diferencia de altura
 
 public:
 

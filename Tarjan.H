@@ -25,33 +25,28 @@ namespace Aleph {
 	       class SA = Dft_Show_Arc<GT>> 
 class Tarjan_Connected_Components
 {
-  SA & sa;
+  SA sa;
 
   GT * g_ptr = nullptr;
 
   DynListStack<typename GT::Node*> stack;
 
-  long df_count;
-  mutable size_t n; // número de nodos del grafo
+  long df_count = 0;
+  mutable size_t n = 0; // número de nodos del grafo
 
       // lista de listas; cada lista almacena los nodos de los bloques
   DynList<DynList<typename GT::Node*>> * list_list_ptr; 
 
-  DynList <GT> * block_list_ptr; // lista de bloques fuertemente
-				 // conexos
+  DynList <GT> * block_list_ptr = nullptr; // lista de bloques fuertemente conexos
 
-  DynList<size_t> * list_len_ptr; // lista de tamaños de componentes
+  DynList<size_t> * list_len_ptr = nullptr; // lista de tamaños de componentes
 
-  Path<GT> * path_ptr;
+  Path<GT> * path_ptr = nullptr;
 
 public:
 
-  Tarjan_Connected_Components(SA && __sa = SA()) 
+  Tarjan_Connected_Components(SA  __sa = SA()) 
   noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa) { /* empty */ }
-
-  Tarjan_Connected_Components(SA & __sa) 
-    noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
 private:

@@ -7,6 +7,8 @@
 
 namespace Aleph {
 
+template <typename T> class Array_Container;
+  
   /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
 
       @ingroups Secuencias
@@ -14,9 +16,9 @@ namespace Aleph {
     template <class T>
 class Array_Iterator
 {
-  T * ptr = NULL;
-  size_t dim = 0;
-  size_t num_items = 0;
+  T * ptr = nullptr;
+  long dim = 0;
+  long num_items = 0;
   long idx = 0;
   long first = 0;
   long last = 0;
@@ -30,20 +32,28 @@ public:
 
   Array_Iterator() noexcept {}
 
-  Array_Iterator(T * p, size_t sz, size_t n) noexcept
-    : ptr(p), dim(sz), num_items(n), last(sz - 1)
+  Array_Iterator(T * p, size_t sz, size_t n)
+    : ptr(p), dim(sz), num_items(n), last(n - 1)
   {
     assert(ptr);
-    assert(num_items <= dim);
+     if (num_items > dim)
+       throw std::domain_error("Array_Iterator(): num_items greater tan dim");
   }
 
-  Array_Iterator(T * p, size_t sz, size_t n, long f, long l) noexcept
+  Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
     : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
   {
     assert(ptr);
-    assert(first >= 0 and first < dim and last >= 0 and last <= dim and
-           num_items < dim and idx == first);
+     if (num_items > dim)
+       throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+     if (first >= dim)
+       throw std::domain_error("Array_Iterator(): first >= dim");
+     if (last >= dim)
+       throw std::domain_error("Array_Iterator(): last >= dim");
   }
+
+  Array_Iterator(const Array_Container<T> & c)
+    : Array_Iterator(c.base(), c.capacity(), c.size()) {}
 
   bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
 
@@ -56,28 +66,32 @@ public:
   T & get_curr() const
   {
     if (pos < 0)
-      throw std::underflow_error("");
+      throw std::underflow_error("MemArray::Iterator::get_curr(): has not current");
 
     if (pos >= num_items)
-      throw std::overflow_error("");
+      throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
 
     return ptr[idx]; 
   }
 
   T & get_current() const { return get_curr(); }
 
-  void next() noexcept
+  void next()
   {
+    if (num_items == 0 or pos >= num_items)
+      throw std::overflow_error("MemArray::Iterator::next(): has not current");
     if (++idx == dim)
       idx = 0;
     ++pos; 
   }
 
-  void prev() noexcept
+  void prev()
   {
+    if (num_items == 0 or pos < 0)
+      throw std::underflow_error("MemArray::Iterator::prev(): has not current");
     if (--idx < 0)
       idx = dim - 1;
-    ++pos; 
+    --pos; 
   }
 
   void reset() noexcept
@@ -107,6 +121,13 @@ Array_Iterator<T> get_array_it(const T * array, size_t n)
   return Array_Iterator<T>(array, n, n);
 }
 
+  template <typename T> inline
+Array_Container<T> get_array_it(const T * array, size_t n)
+{
+  return Array_Iterator<T>(array, n);
+}
+
+
 template <typename T>
 class Array_Container 
   : public GenericTraverse<Array_Container<T>>,
@@ -121,33 +142,40 @@ class Array_Container
 
 public:
 
+  T * get_base() const noexcept { return  base; }
+
   Array_Container(T * base_ptr, const size_t d) : base(base_ptr), n(d) 
   {
     // empty
   }
 
-  Array_Container(const T * base_ptr, const size_t d) : base(base_ptr), n(d) 
+  bool is_empty() const noexcept { return n == 0; }
+
+  size_t size() const noexcept { return n; }
+
+  size_t capacity() const noexcept { return n; }
+
+  T & get_first() const
   {
-    // empty
+    if (n == 0)
+      throw std::underflow_error("Array_Container::get_first(): n == 0");
+    return base[0];
   }
 
-  T & get_first() const noexcept { return base[0]; }
-
-  T& get_last() const noexcept { return base[n - 1]; }
+  T & get_last() const
+  {
+    if (n == 0)
+      throw std::underflow_error("Array_Container::get_first(): n == 0");
+    return base[n - 1];
+  }
 
   struct Iterator : public Array_Iterator<T>
   {
     Iterator(const Array_Container & c) : Array_Iterator<T>(c.base, c.n, c.n) {}
   };
+
+  Iterator get_it() const { return Iterator(*this); }
 };
-
-
-  template <typename T> inline
-Array_Container<T> get_array_container(const T * array, size_t n)
-{
-  return Array_Iterator<T>(array, n);
-}
-
 
 } // end namespace Aleph
 

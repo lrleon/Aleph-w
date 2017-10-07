@@ -37,7 +37,7 @@ struct Net_Cost_Arc : public Net_Arc<Arc_Info, F_Type>
   using Flow_Type = F_Type;
 
       /// coste por unidad de flujo (negativo si el arco es residual)
-  Flow_Type cost;
+  Flow_Type cost = 0;
 
       /// Retorna el coste del flujo circulante
   Flow_Type flow_cost() const noexcept { return this->flow*cost; }

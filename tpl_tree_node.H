@@ -796,7 +796,7 @@ void forest_preorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
 
   for (/* nada */; root != nullptr; root = root->get_right_tree())
     {
-      //assert(root->is_root());
+      assert(root->is_root());
     __tree_preorder_traversal(root, 0, 0, visitFct);
     }
 }
@@ -875,7 +875,7 @@ void forest_postorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
 
   for (/* nada */; root not_eq nullptr; root = root->get_right_sibling())
     {
-      //      assert(root->is_root());
+      assert(root->is_root());
       __tree_postorder_traversal(root, 0, 0, visitFct);
     }
 }

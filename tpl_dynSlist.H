@@ -115,7 +115,7 @@ public:
     --num_items;
   }
       /// Destructor.
-  ~DynSlist() 
+  virtual ~DynSlist() 
   {      // eliminar nodo por nodo hasta que la lista devenga vacía
     while (not this->is_empty())
       delete this->remove_first(); // remove_first de clase Slink

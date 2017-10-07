@@ -8,7 +8,6 @@
 
 # include <ah_stdc++_utils.H>
 # include <tpl_treapRk.H>
-# include <tpl_nodePool.H>
 
 namespace Aleph
 {
@@ -75,18 +74,17 @@ template <typename Key,
 	  typename T, 
 	  class Compare = Aleph::less<Key>,
 	  template <class, class> class KTree = Treap_Rk,
-	  template <class, class> class TTree = Treap_Rk
-    >
+	  template <class, class> class TTree = Treap_Rk>
 class multimap
 {
       // Definición de registro conteniendo elem de tipo T
   struct Tdata
   {
     T elem;          // elemento mapeado a una clave de tipo key
-    size_t num_reps; // número de ocurrencias de elem relacionado a un
-		     // valor de clave key
+    size_t num_reps = 0; // número de ocurrencias de elem relacionado
+			 // a un valor de clave key
 
-    Tdata() : num_reps(0) { /* empty */ }
+    Tdata() : elem(), num_reps(0) { /* empty */ }
 
     Tdata(const T & e) : elem(e), num_reps(0) { /* empty */ }
 
@@ -111,13 +109,11 @@ class multimap
 
   typedef typename T_Tree::Node Tnode;
 
-  typedef Node_Pool<Tnode> Tpool;
-
       // Definición de registro conteniendo elementos del multimapeo
   struct Kdata
   {
     Key    key;      // clave primaria
-    size_t num_reps; // Número de repeticiones del valor de key
+    size_t num_reps = 0; // Número de repeticiones del valor de key
     T_Tree t_tree;   // árbol de elementos de tipo T asociados a key
     
     Kdata() : num_reps(0) { /* empty */ }
@@ -161,13 +157,9 @@ class multimap
 
   typedef typename K_Tree::Node Knode;
 
-      // miembros dato
-  Node_Pool<Knode> kpool;
-  Tpool            tpool;
-
   K_Tree           k_tree;
 
-  size_t           num_elem;
+  size_t           num_elem = 0;
 
   // Para ahorrar memoria, el árbol ktree indiza por registros de tipo
   // Kdata y la función de comparación siguiente se encarga de sólo
@@ -176,11 +168,11 @@ class multimap
   // constructor de Kdata cada vez que se requiera realizar una
   // búsqueda. Así el siguiente campo se crea una sola vez y se emplea
   // para las búsquedas. 
-  Kdata                 searching_kdata; 
+  mutable Kdata searching_kdata; 
 
       // esta función se emplea cuando se desee buscar key y se requiera
       // obtener un Kdata
-  Kdata & key_kdata(const Key & key) 
+  Kdata & key_kdata(const Key & key) const
   {
     searching_kdata.key = key;
     return searching_kdata;
@@ -188,7 +180,7 @@ class multimap
   
 public:
 
-  multimap() : kpool(100), tpool(100), num_elem(0) { /* empty */ }
+  multimap() { /* empty */ }
 
   ~multimap()
   {
@@ -255,16 +247,16 @@ public:
   {
     friend class multimap<Key, T, Compare, KTree, TTree>;
 
-    mutable multimap * multimap_ptr = nullptr;
-    mutable K_Tree *   k_tree_ptr = nullptr;
-    mutable K_Itor     k_it;
-    mutable T_Tree *   t_tree_ptr;
-    mutable T_Itor     t_it;
-    mutable int        pos_in_k = 0;
-    mutable int        pos_in_t = 0;
-    bool               underflow = false;
-    bool               overflow = false;
-    Pair               ret_pair; // Usado por el operador ->
+    multimap *       multimap_ptr = nullptr;
+    const K_Tree *   k_tree_ptr = nullptr;
+    mutable K_Itor   k_it;
+    const T_Tree *   t_tree_ptr = nullptr;
+    mutable T_Itor   t_it;
+    mutable int      pos_in_k = 0;
+    mutable int      pos_in_t = 0;
+    bool             underflow;
+    bool             overflow;
+    Pair             ret_pair; // Usado por el operador ->
 
     void default_init()
     {
@@ -282,17 +274,25 @@ public:
 	put_in_overflow();
     }
 
-    iterator(multimap * m, Knode * kp, Tnode * tp, int kpos = 0, int tpos = 0)
-      : multimap_ptr(m), k_tree_ptr(&m->k_tree), k_it(*k_tree_ptr, kp),
-	t_tree_ptr(&KEY(kp).t_tree), t_it(*t_tree_ptr, tp), 
-	pos_in_k(kpos), pos_in_t(tpos), underflow(false), overflow(false)
+    iterator(const multimap * m, Knode * kp, Tnode * tp,
+	     int kpos = 0, int tpos = 0)
+      : multimap_ptr(const_cast<multimap*>(m)),
+	k_tree_ptr(&m->k_tree),
+	k_it(*k_tree_ptr, kp),
+	t_tree_ptr(&KEY(kp).t_tree),
+	t_it(*t_tree_ptr, tp), 
+	pos_in_k(kpos),
+	pos_in_t(tpos),
+	underflow(false),
+	overflow(false)
     {
       assert(not KEY(kp).t_tree.is_empty());
       assert(KEY(tp).num_reps > 0 and tpos < KEY(tp).num_reps);
     }
 
-    iterator(multimap * m, Knode * p)
-      : multimap_ptr(m), k_tree_ptr(&m->k_tree), k_it(*k_tree_ptr, p),
+    iterator(const multimap * m, Knode * p)
+      : multimap_ptr(const_cast<multimap*>(m)),
+	k_tree_ptr(&m->k_tree), k_it(*k_tree_ptr, p),
 	t_tree_ptr(&KEY(p).t_tree), t_it(*t_tree_ptr),
 	pos_in_t(0), underflow(false), overflow(false)
     {
@@ -589,7 +589,7 @@ public:
       --kdata.num_reps;
       if (--tdata.num_reps == 0)
 	{
-	  multimap_ptr->tpool.deallocate(t_it.del()); // elimine y libere tp
+	  delete t_it.del();
 	  pos_in_t = 0;
 	}
       else if (pos_in_t == tdata.num_reps)
@@ -608,7 +608,7 @@ public:
 	{
 	  Knode * kp = k_it.del();
 	  assert(KEY(kp).t_tree.is_empty());
-	  multimap_ptr->kpool.deallocate(kp);
+	  delete kp;
 	}
       else
 	k_it.next();
@@ -751,11 +751,11 @@ public:
   */
   iterator insert(const value_type & value)
   {
-    Knode * kp = kpool.allocate(key_kdata(value.first)); // nuevo nodo
+    Knode * kp = new Knode(key_kdata(value.first)); // nuevo nodo
     Knode * kq = k_tree.search_or_insert(kp); 
 
     if (kp != kq) // ¿Está ya la clave primaria en el multiconjunto?
-      kpool.deallocate(kp); // sí está ==> mantenga el nodo para uso futuro
+      delete kp; // sí está ==> mantenga el nodo para uso futuro pero borre kp
 
     assert(KEY(kq).key == value.first); // TMP
 
@@ -764,11 +764,11 @@ public:
     
     try
       {
-	Tnode * tp = tpool.allocate(tdata);
+	Tnode * tp = new Tnode(tdata);
 	Tnode * tq = t_tree.search_or_insert(tp);
 
 	if (tp != tq)  // ¿Está el elemento ya asociado a la clave?
-	  tpool.deallocate(tp);
+	  delete tp;
 
 	++num_elem;
 	++KEY(kq).num_reps;
@@ -777,8 +777,8 @@ public:
       }
     catch (...)
       {
-	if (kp == kq) 
-	  kpool.deallocate(kp);
+	if (kp == kq)
+	  delete kp;
 	
 	throw;
       }
@@ -858,10 +858,10 @@ public:
     	        // ¿clave asociada distinta?
 	    if (Aleph::no_equals <T, Tless> (tdata.elem, value.second)) 
 	      {     // sí == > buscar o insertar en subárbol de clave asociada
-		Tnode * tp = tpool.allocate(tdata);
+		Tnode * tp = new Tnode(tdata); 
 		tq = kdata.t_tree.search_or_insert(tp);
 		if (tp != tq)  // ¿Está el elemento ya asociado a la clave?
-		  tpool.deallocate(tp); // sí ==> manténgalo para uso futuro
+		  delete tp; // sí ==> manténgalo para uso futuro
 	      }
 	    
 	    ++num_elem;
@@ -942,7 +942,7 @@ public:
 
       /// Retorna un iterador posicionado sobre el primer par con clave
       /// key; end() de lo contrario.
-  iterator find(const Key & key)
+  iterator find(const Key & key) const
   {
     Knode * p = k_tree.search(key_kdata(key));
     if (p == nullptr)
@@ -951,14 +951,8 @@ public:
     return iterator(this, p);
   }
 
-  /// \overload find()
-  const_iterator find(const Key & key) const
-  {
-    return const_cast<multimap*>(this)->find(key);
-  }
-
   /// Retorna un iterador posicionado en el lugar donde sería insertado key.
-  iterator lower_bound(const Key & key)
+  iterator lower_bound(const Key & key) const
   {
     if (k_tree.is_empty())
       return end();
@@ -983,15 +977,9 @@ public:
     return ret;
   }
 
-  /// \overload lower_bound()
-  const_iterator lower_bound(const Key & key) const
-  {
-    return const_cast<multimap*>(this)->lower_bound(key);
-  }
-
   /// Retorna un iterador posicionado en el lugar sucesor de key si key
   /// fuese insertado.
-  iterator upper_bound(const Key & key)
+  iterator upper_bound(const Key & key) const
   {
     if (k_tree.is_empty())
       return end();
@@ -1016,15 +1004,9 @@ public:
     return ret;
   }
 
-  /// \overload upper_bound()
-  const_iterator upper_bound(const Key & key) const
-  {
-    return const_cast<multimap*>(this)->upper_bound(key);
-  }
-
   /// Retorna un par de iteradores que definen el rango completo de
   /// claves con valor key que están contenidas en el multimapeo.
-  std::pair<iterator,iterator> equal_range(const Key & key)
+  std::pair<iterator,iterator> equal_range(const Key & key) const
   {
     Knode * p = k_tree.search(key_kdata(key));
     if (p == nullptr)
@@ -1038,12 +1020,6 @@ public:
     last += KEY(p).num_reps;
     
     return std::pair<iterator,iterator>(first, last);
-  }
-
-  /// \overload equal_range()
-  std::pair<const iterator,const iterator> equal_range(const Key & key) const 
-  {
-    return const_cast<multimap*>(this)->equal_range(key);
   }
 
   /// Intercambia los valores de this con los de other.
@@ -1209,10 +1185,6 @@ public:
     return ret->second;
   }
 };
-
-
-
-
 
 } // end namespace Aleph
 

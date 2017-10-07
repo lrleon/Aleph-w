@@ -187,6 +187,27 @@ public:
   };
 };
 
+template <typename T> Dnode<T> * Dlink::to_dnode() noexcept
+{
+  return static_cast<Dnode<T>*>(this);
+}
+
+template <typename T> const Dnode<T> * Dlink::to_dnode() const noexcept
+{
+  return static_cast<const Dnode<T>*>(this);
+}
+
+template <typename T> T & Dlink::to_data() noexcept
+{
+  return to_dnode<T>()->get_data();
+}
+
+template <typename T> const T & Dlink::to_data() const noexcept
+{
+  return to_dnode<T>()->get_data();
+}
+
+
 }
 
 # endif /* TPL_DNODE_H */

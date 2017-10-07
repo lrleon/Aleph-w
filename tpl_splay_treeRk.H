@@ -110,8 +110,8 @@ public:
   }
 
   /// Constructor
-  GenTdSplayTreeRk(Compare cmp = Compare()) 
-      : root(Node::NullPtr), cmp(cmp)
+  GenTdSplayTreeRk(Compare __cmp = Compare())
+      : root(Node::NullPtr), cmp(__cmp)
   {
     // Empty
   }

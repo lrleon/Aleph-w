@@ -44,14 +44,19 @@ namespace Aleph
     template <typename T>
 class MemArray
 {
-  static const size_t Min_Dim = 4; // some day with constexp
+public:
+
+  static constexpr size_t Min_Dim = 4;
 
 protected:
 
   T *    ptr = nullptr;
   size_t dim = Min_Dim;
   size_t n   = 0;
-  size_t contract_threshold;
+
+public:
+  
+  mutable size_t contract_threshold;
 
 public:
 
@@ -59,7 +64,7 @@ public:
   T * get_ptr() const noexcept { return ptr; }
 
   /// Return the current dimension of array
-  size_t get_dim() const noexcept { return dim; }
+  const size_t & get_dim() const noexcept { return dim; }
 
 protected:
 
@@ -221,8 +226,9 @@ public:
   
   /// Construct a array moved of rvalue `a`
   MemArray(MemArray && a) noexcept
-  : ptr(nullptr), dim(0), n(0), contract_threshold(0)
+    : ptr(nullptr), dim(0), n(0), contract_threshold(0)
   {
+    assert(a.ptr);
     swap(a);
   }
 
@@ -232,13 +238,14 @@ public:
     if (this == &a)
       return *this;
 
-    assert(ptr);
+    assert(a.ptr);
 
-    T * newptr = new T [a.dim];      // allocate new array
+    T * newptr = new T [a.dim];    // allocate new array
     for (int i = 0; i < a.n; ++i)  // copy items to new array
       newptr[i] = a.ptr[i];
 
-    delete [] ptr;
+    if (ptr != nullptr)
+      delete [] ptr;
     ptr = newptr;
     dim = a.dim;
     n = a.n;
@@ -322,7 +329,7 @@ public:
     return ret;
   }
 
-    /// Push a copy of `item` at the begining of sequence. The array expands if
+  /// Push a copy of `item` at the begining of sequence. The array expands if
   /// this is already full
   T & push(T && item)
   {
@@ -334,14 +341,28 @@ public:
     return ret;
   }
 
+  T & top() const
+  {
+    if (n == 0)
+      throw std::underflow_error("top(): MemArray is empty");
+
+    return ptr[0];
+  }
+
+  /// Remove first item. Gap is closed
   T remove_first()
   {
+    if (n == 0)
+      throw std::underflow_error("remove_first(): MemArray is empty");
     assert(ptr);
-    T ret = ptr[0];
+    T ret = move(ptr[0]);
     close_gap(0);
     return ret;
   }
 
+  /// pop() the most recently pushed item
+  T pop() { return remove_first(); }
+  
   /// \overload put(const T & item)
   T & append(T & item)
   {
@@ -428,14 +449,15 @@ public:
     contract_threshold = dim/4;
   }
   
-  /// Remove `i` elements from the end. Return a copy of the last
+  /// Remove `i` elements from the end. Return the value of the last
   /// removed element
-  T get(int i = 1) 
+  T get(size_t i = 1) 
   {
     assert(ptr);
-    int idx = n - i;
+    long idx = n - i;
     if (idx < 0)
-      throw std::underflow_error("Deleted more entries than capacity");
+      throw std::underflow_error("MemArray::get(): deleted more entries"
+				 " than capacity");
 
     n = idx;
     T ret = std::move(ptr[n]);
@@ -448,13 +470,27 @@ public:
   /// \overload get()
   T remove_last() { return get(); }
 
-  /// Return a modifiable reference to the last element. No bound check
-  /// is performed 
-  T & last() const noexcept { return ptr[n - 1]; }
+  /// Return a modifiable reference to the last element
+  T & last() const
+  {
+    if (n == 0)
+      throw std::underflow_error("MemArray::last(): empty array");
+    return ptr[n - 1];
+  }
 
-  /// Return a modifiable reference to the first element. No bound check
-  /// is performed 
-  T & first() const noexcept { return ptr[0]; }
+  /// Return a modifiable reference to the first element
+  T & first() const
+  {
+    if (n == 0)
+      throw std::underflow_error("MemArray::first(): empty array");
+    return ptr[0];
+  }
+
+  /// \overload first
+  T & get_first() const noexcept { return first(); }
+
+    /// \overload last
+  T & get_last() const noexcept { return last(); }
 
   /// Reverse the order of items in array
   MemArray & reverse()

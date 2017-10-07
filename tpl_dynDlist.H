@@ -31,7 +31,7 @@ class DynDlist
 	public GenericItems<DynDlist<T>, T>,
 	public StlAlephIterator<DynDlist<T>>
 {
-  size_t num_elem;
+  size_t num_elem = 0;
 
 public:
 
@@ -47,8 +47,7 @@ public:
   /// Return the number of elements (contant time)
   const size_t & size() const noexcept { return num_elem; }
 
-  DynDlist() noexcept(std::is_nothrow_constructible<T>::value) 
-    : Dnode<T>(), num_elem(0) { /* Empty */ }
+  DynDlist() { /* Empty */ }
 
   /** Construct a new list with copies of elements of list `l`
 
@@ -63,12 +62,12 @@ public:
   void empty() noexcept /// Empty the list
   {
     while (not this->is_empty())
-      delete this->remove_next();
+      delete this->Dnode<T>::remove_next();
 
     num_elem = 0;
   }
 
-  virtual ~DynDlist() /// Destructor
+  ~DynDlist() /// Destructor
   { 
     empty();
   }
@@ -135,18 +134,9 @@ public:
     return __append(new Dnode<T> (std::forward<T>(item)));
   }
 
-      /** Insert in constant time all the elements of `list` before `this`.
+ private:
 
-	  After invocation `list` becomes empty, since all its elements
-	  has been moved to `this`. The order of both lists is preserved
-	  in the final result. The elements of `list` remains in the
-	  same order and before the elements of `this`. All this is done
-	  in constant time.
-
-          @param[in,out] list to move and insert before `this`. After
-          operation, `list` becomes empty
-       */
-  void insert_list(DynDlist & list) noexcept
+  void __insert(DynDlist<T> & list) noexcept
   {
     Dlink::insert_list(&list);
     num_elem += list.num_elem;
@@ -155,24 +145,7 @@ public:
     assert(list.is_empty());
   }
 
-  /// \overload insert_list(DynDlist & list)
-  void insert_list(DynDlist && list) noexcept 
-  {
-    insert_list(list);
-  }
-
-  /** Append in constant time all the elements of `list` after `this`.
-
-      After invocation `list` becomes empty, since all its elements
-      has been moved to `this`. The order of both lists is preserved
-      in the final result. The elements of `list` remains in the
-      same order and after the elements of `this`. All this is done
-      in constant time.
-
-      @param[in,out] list to move and append after  `this`. After
-      operation, `list` becomes empty
-  */
-  void append_list(DynDlist & list) noexcept
+  void __append(DynDlist<T> & list) noexcept
   {
     Dlink::append_list(&list);
     num_elem += list.num_elem;
@@ -181,10 +154,38 @@ public:
     assert(list.is_empty());
   }
 
-  /// \overload append_list(DynDlist & list)
-  void append_list(DynDlist && list) noexcept
+ public:
+
+      /** Insert all the elements of `list` before `this`.
+
+          @param[in] list insert before `this`. 
+       */
+  void insert(const DynDlist & list)
   {
-    append_list(list);
+    auto l = list; // perform a copy of list
+    __insert(l);
+  }
+
+  /// \overload insert_list(DynDlist & list)
+  void insert(DynDlist && list) noexcept 
+  {
+    __insert(list);
+  }
+
+  /** Append all the elements of `list` after `this`.
+
+      @param[in] list to insert after `this`
+  */
+  void append(const DynDlist & list) noexcept
+  {
+    auto l = list; // perform a copy of list
+    __append(l);
+  }
+
+  /// \overload append_list(DynDlist & list)
+  void append(DynDlist && list) noexcept
+  {
+    __append(list);
   }
 
     /// Return a modifiable reference to first item in the list
@@ -319,6 +320,13 @@ public:
     num_elem = 0;
   }
 
+  /// \overload split_list
+  void split(DynDlist & l, DynDlist & r) 
+    throw(std::exception, std::domain_error)
+  {
+    split_list(l, r);
+  }
+
        /** Iterator dynamic list.
 
            @ingroup Secuencias
@@ -358,21 +366,21 @@ public:
     }
 
     /// Reset the iterator to the first item
-    void reset_first() noexcept
+    void reset_first()
     {
       Dnode<T>::Iterator::reset_first();
       pos = 0;
     }
 
     /// Reset the iterator to the last item
-    void reset_last() noexcept
+    void reset_last()
     {
       Dnode<T>::Iterator::reset_last();
       pos = list_ptr->num_elem - 1;
     }
 
     /// Put theiterator at the end state (where there is no current item)
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();

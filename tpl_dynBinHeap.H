@@ -65,7 +65,9 @@ private:
 
 public:
 
-  DynBinHeap(Compare cmp = Compare()) noexcept : BinHeap<T, Compare>(cmp) 
+  DynBinHeap(Compare & cmp) noexcept : Base(cmp) { /* empty */ }
+
+  DynBinHeap(Compare && cmp = Compare()) noexcept : BinHeap<T, Compare>(cmp) 
   { /* empty */ }
 
   DynBinHeap(const DynBinHeap & h) : Base(h.cmp)

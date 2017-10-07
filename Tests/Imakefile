@@ -1,0 +1,87 @@
+
+DEPEND = sh ./depend.sh
+
+# just delete or comment these four lines if you wish to use gnu
+# compiler suite 
+
+CC = clang
+AS = llvm-as
+AR = llvm-ar clq
+LD = llvm-link
+
+# now comment clang++ line and uncomment c++ line. Flag for standard could
+# change according to compiler version. This flag is for gcc 4.6.3. On
+# 4.7.x should work -std=c++11
+CXX = clang++  
+
+GTESTDIR=$(shell echo $$GOOGLETEST)
+
+SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc
+
+LOCALLIBS=	../libAleph.a $(GTESTDIR)/googletest/make/gtest_main.a 		$(GTESTDIR)/googlemock/make/gmock_main.a 
+DEPLIBS=	../libAleph.a 
+
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+#SYSLIBS=	 -lgmpxx -lgmp -lc++ -lpthread -lnana -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+
+INCLUDES=	-I../ -I$(GTESTDIR)/googletest/include 		-I$(GTESTDIR)/googlemock/include
+
+MSG=-DMESSAGES
+
+WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
+
+
+FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
+
+DEFINES=	-D_GLIBCXX__PTHREADS 
+
+OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
+
+CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+AllTarget(array_utils)
+NormalProgramTarget(array_utils,array_utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(array-it)
+NormalProgramTarget(array-it,array-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(memarray)
+NormalProgramTarget(memarray,memarray.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(slinknc)
+NormalProgramTarget(slinknc,slinknc.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(snodenc)
+NormalProgramTarget(snodenc,snodenc.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(htlist)
+NormalProgramTarget(htlist,htlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dynlist)
+NormalProgramTarget(dynlist,dynlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dlink)
+NormalProgramTarget(dlink,dlink.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dnode)
+NormalProgramTarget(dnode,dnode.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dyndlist)
+NormalProgramTarget(dyndlist,dyndlist.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(arraystack)
+NormalProgramTarget(arraystack,arraystack.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(fixedstack)
+NormalProgramTarget(fixedstack,fixedstack.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dynliststack)
+NormalProgramTarget(dynliststack,dynliststack.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(arrayqueue)
+NormalProgramTarget(arrayqueue,arrayqueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dynlistqueue)
+NormalProgramTarget(dynlistqueue,dynlistqueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+
+DependTarget()

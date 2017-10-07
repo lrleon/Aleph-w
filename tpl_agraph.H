@@ -432,7 +432,7 @@ private:
 
 public:
 
-  Arc * disconnect_arc(Arc * arc) noexcept
+  Arc * disconnect_arc(Arc * arc)
   {
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
@@ -681,7 +681,7 @@ public:
     this->digraph = true; 
   }
   
-  Array_Digraph(const Array_Digraph & dg) noexcept
+  Array_Digraph(const Array_Digraph & dg)
     : Array_Graph<Node, Arc>((Array_Digraph&) dg)
   {
     this->digraph = true; 

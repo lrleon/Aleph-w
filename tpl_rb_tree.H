@@ -296,9 +296,9 @@ public:
   Compare & get_compare() { return key_comp(); }
 
       /// Instancia un árbol rojo-negro.
-  Gen_Rb_Tree(Compare cmp = Compare()) 
+  Gen_Rb_Tree(Compare __cmp = Compare()) 
     : head(&head_node), root(head_node.getR()), 
-      rb_stack(Node::MaxHeight), cmp(cmp)
+      rb_stack(Node::MaxHeight), cmp(__cmp)
   {
     /* empty */ 
   }

@@ -108,7 +108,7 @@ public:
     
     typedef typename Tree_Type::Iterator Iterator;
     
-    mutable multiset * multiset_ptr;
+    mutable multiset * multiset_ptr = nullptr;
 
     mutable Iterator tree_it;
 

@@ -1138,15 +1138,7 @@ struct Node_Arc_Iterator :
       @param[in] p nodo over whom you wish to iterate
       @param[in] sa the filter
   */
-  Node_Arc_Iterator(typename GT::Node * p, Show_Arc & sa) 
-  noexcept(noexcept(Itor(p, sa)))
-    : Itor(p, sa) 
-  {
-    // empty
-  }
-
-  /// \overload Node_Arc_Iterator(typename GT::Node * p, Show_Arc & sa)
-  Node_Arc_Iterator(typename GT::Node * p, Show_Arc && sa = Show_Arc()) 
+  Node_Arc_Iterator(typename GT::Node * p, Show_Arc sa = Show_Arc()) 
   noexcept(noexcept(Itor(p, sa)))
     : Itor(p, sa) 
   {
@@ -1186,16 +1178,9 @@ struct Arc_Iterator :
       @param[in] g the graph
       @param[in] sa filter functor
    */
-  Arc_Iterator(const GT & g, Show_Arc & sa) noexcept(noexcept(Itor(g, sa)))
+  Arc_Iterator(const GT & g, Show_Arc sa = Show_Arc())
+    noexcept(noexcept(Itor(g, sa)))
     : Itor(g, sa)
-  {
-    // empty
-  }
-
-  /// \overload Arc_Iterator(const GT & g, Show_Arc & sa)
-  Arc_Iterator(const GT & g, Show_Arc && sa = Show_Arc()) 
-  noexcept(noexcept(Arc_Iterator(g, sa)))
-    : Arc_Iterator(g, sa)
   {
     // empty
   }
@@ -1241,16 +1226,9 @@ public:
       @param[in] g the graph
       @param[in] sn the node filter
   */
-  Node_Iterator(const GT & g, Show_Node & sn) noexcept(noexcept(Itor(g, sn)))
+  Node_Iterator(const GT & g, Show_Node sn = Show_Node())
+    noexcept(noexcept(Itor(g, sn)))
     : Itor (g, sn) 
-  {
-    /* empty */ 
-  }
-
-  /// \overload Node_Iterator(const GT & g, Show_Node & sn)
-  Node_Iterator(const GT & g, Show_Node && sn = Show_Node()) 
-  noexcept(noexcept(Itor (g, sn)))
-    : Itor (g, sn)
   {
     /* empty */ 
   }
@@ -1265,22 +1243,14 @@ public:
 
     @ingroup Grafos
  */
-template <class GT, class SN>
+template <class GT, class SN = Dft_Show_Node<GT>>
 void for_each_node(const GT & g, 
 		   std::function<void(typename GT::Node*)> operation,
-		   SN & sn) noexcept(noexcept(operation) and noexcept(sn))
+		   SN sn = SN())
+  noexcept(noexcept(operation) and noexcept(sn))
 {
   for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
     operation(it.get_curr());
-}
-
-template <class GT, class SN = Dft_Show_Node<GT>>
-void for_each_node(const GT &                              g, 
-		   std::function<void(typename GT::Node*)> operation,
-		   SN &&                                   sn = SN())
-  noexcept(noexcept(operation) and noexcept(sn))
-{
-  for_each_node<GT, SN>(g, operation, sn);
 }
 
 /** Traverse all the arcs of graph filtering some ones according to a
@@ -1292,23 +1262,14 @@ void for_each_node(const GT &                              g,
 
     @ingroup Grafos
  */
-template <class GT, class SA>
-void for_each_arc(const GT &                             g, 
+template <class GT, class SA = Dft_Show_Arc<GT>>
+void for_each_arc(const GT & g,
 		  std::function<void(typename GT::Arc*)> operation,
-		  SA &                                   sa)
+		  SA sa = SA())
   noexcept(noexcept(operation) and noexcept(sa))
 {
   for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
     operation(it.get_curr());
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-void for_each_arc(const GT &                             g, 
-		  std::function<void(typename GT::Arc*)> operation,
-		  SA &&                                  sa = SA())
-  noexcept(noexcept(for_each_arc<GT, SA>(g, operation, sa)))
-{
-  for_each_arc<GT, SA>(g, operation, sa);
 }
 
 /** Traverse all the arcs adjacent to a node filtering some ones
@@ -1321,25 +1282,15 @@ void for_each_arc(const GT &                             g,
 
     @ingroup Grafos
  */
-template <class GT, class SA>
+template <class GT, class SA = Dft_Show_Arc<GT>>
 void for_each_arc(const GT&, 
 		  typename GT::Node *                    p, 
 		  std::function<void(typename GT::Arc*)> operation,
-		  SA &                                   sa)
+		  SA                                     sa = SA())
   noexcept(noexcept(operation) and noexcept(sa))
 {
   for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     operation(it.get_curr());
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-void for_each_arc(const GT &                             g,
-		  typename GT::Node *                    p, 
-		  std::function<void(typename GT::Arc*)> operation,
-		  SA &&                                  sa = SA())
-  noexcept(noexcept(for_each_arc<GT, SA>(g, p, operation, sa)))
-{
-  for_each_arc<GT, SA>(g, p, operation, sa);
 }
 
 /** Return `true` if condition `cond` is met on every filtered node of
@@ -1352,25 +1303,16 @@ void for_each_arc(const GT &                             g,
 
    @ingroup Grafos
  */
-template <class GT, class SN>
+template <class GT, class SN = Dft_Show_Node<GT>>
 bool forall_node(const GT &                              g, 
 		 std::function<bool(typename GT::Node*)> cond,
-		 SN &                                    sn)
+		 SN                                      sn = SN())
   noexcept(noexcept(cond) and noexcept(sn))
 {
   for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
     if (not cond(it.get_curr()))
       return false;
   return true;
-}
-
-template <class GT, class SN = Dft_Show_Node<GT>>
-bool forall_node(const GT &                              g, 
-		 std::function<bool(typename GT::Node*)> cond,
-		 SN &&                                   sn = SN())
-  noexcept(noexcept(forall_node<GT, SN>(g, cond, sn)))
-{
-  return forall_node<GT, SN>(g, cond, sn);
 }
 
 /** Return `true` if condition `cond` is met on every filtered arc of
@@ -1386,22 +1328,13 @@ bool forall_node(const GT &                              g,
 template <class GT, class SA = Dft_Show_Arc<GT>>
 bool forall_arc(const GT &                             g, 
 		std::function<bool(typename GT::Arc*)> cond,
-		SA &                                   sa)
+		SA                                     sa = SA())
   noexcept(noexcept(cond) and noexcept(sa))
 {
   for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
     if (not cond(it.get_curr()))
       return false;
   return true;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-bool forall_arc(const GT &                             g, 
-		std::function<bool(typename GT::Arc*)> cond,
-		SA &&                                  sa = SA())
-  noexcept(noexcept(cond) and noexcept(sa))
-{
-  return forall_arc<GT, SA>(g, cond, sa);
 }
 
 /** Return `true` if condition `cond` is met on every filtered arc of a
@@ -1414,25 +1347,16 @@ bool forall_arc(const GT &                             g,
 
    @ingroup Grafos
  */
-template <class GT, class SA>
+template <class GT, class SA = Dft_Show_Arc<GT>>
 bool forall_arc(typename GT::Node *                    p, 
 		std::function<bool(typename GT::Arc*)> cond,
-		SA &                                   sa)
+		SA                                     sa = SA())
   noexcept(noexcept(cond) and noexcept(sa))
 {
   for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     if (not cond(it.get_curr()))
       return false;
   return true;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-bool forall_arc(typename GT::Node * p, 
-		std::function<bool(typename GT::Arc*)> cond,
-		SA &&                                  sa = SA())
-  noexcept(noexcept(sa) and noexcept(cond))
-{
-  return forall_arc<GT, SA>(p, cond, sa);
 }
 
 
@@ -1446,10 +1370,12 @@ bool forall_arc(typename GT::Node * p,
 
     @ingroup Grafos
  */
-template <class GT, typename T, template <typename> class Container, class SN>
+template <class GT, typename T,
+	  template <typename> class Container = DynList,
+	  class SN                            = Dft_Show_Node<GT>>
 Container<T> nodes_map(GT &                                  g, 
 		       std::function<T(typename GT::Node *)> transformation,
-		       SN &                                  sn)
+		       SN                                    sn = SN())
 {
   Container<T> ret_val;
   for_each_node<GT, SN>(g, [&ret_val, &transformation] (typename GT::Node * p)
@@ -1457,17 +1383,6 @@ Container<T> nodes_map(GT &                                  g,
 			  ret_val.append(transformation(p));
 			}, sn);
   return ret_val;
-}
-
-template <class GT, 
-	  typename T                          = typename GT::Node_Type,
-	  template <typename> class Container = DynDlist,
-	  class SN                            = Dft_Show_Node<GT>>
-Container<T> nodes_map(GT &                                  g, 
-		       std::function<T(typename GT::Node *)> transformation,
-		       SN &&                                 sn = SN())
-{
-  return nodes_map<GT, T, Container, SN>(g, transformation, sn);
 }
 
 /** Map the filtered arcs of a graph to a transformed type.
@@ -1479,10 +1394,12 @@ Container<T> nodes_map(GT &                                  g,
     transformation
     @ingroup Grafos
  */
-template <class GT, typename T, template <typename> class Container, class SA>
+template <class GT, typename T,
+	  template <typename> class Container = DynList,
+	  class SA                            = Dft_Show_Arc<GT>>
 Container<T> arcs_map(GT &                                 g, 
 		      std::function<T(typename GT::Arc *)> transformation,
-		      SA &                                 sa)
+		      SA                                   sa = SA())
 {
   Container<T> ret_val;
   for_each_arc<GT, SA>(g, [&ret_val, &transformation] (typename GT::Arc * p)
@@ -1490,17 +1407,6 @@ Container<T> arcs_map(GT &                                 g,
 			 ret_val.append(transformation(p));
 		       }, sa);
   return ret_val;
-}
-
-template <class GT, 
-	  typename T                          = typename GT::Arc_Type,
-	  template <typename> class Container = DynDlist,
-	  class SA                            = Dft_Show_Arc<GT>>
-Container<T> arcs_map(GT &                                 g, 
-		      std::function<T(typename GT::Arc *)> transformation,
-		      SA &&                                sa = SA())
-{
-  return arcs_map<GT, T, Container, SA>(g, transformation, sa);
 }
 
 /** Map the filtered nodes of node graph to a transformed type.
@@ -1513,11 +1419,13 @@ Container<T> arcs_map(GT &                                 g,
     transformation
     @ingroup Grafos
  */
-template <class GT, typename T, template <typename> class Container, class SA>
+template <class GT, typename T,
+	  template <typename> class Container = DynList,
+	  class SA                            = Dft_Show_Arc<GT>>
 Container<T> arcs_map(GT &                                 g, 
 		      typename GT::Node *                  p,
 		      std::function<T(typename GT::Arc *)> transformation,
-		      SA &                                 sa)
+		      SA                                   sa = SA())
 {
   Container<T> ret_val;
   for_each_arc<GT, SA>(g, p, [&ret_val, &transformation] (typename GT::Arc * p)
@@ -1525,18 +1433,6 @@ Container<T> arcs_map(GT &                                 g,
 			 ret_val.append(transformation(p));
 		       }, sa);
   return ret_val;
-}
-
-template <class GT, 
-	  typename T                          = typename GT::Arc_Type,
-	  template <typename> class Container = DynDlist,
-	  class SA                            = Dft_Show_Arc<GT>>
-Container<T> arcs_map(GT &                                 g, 
-		      typename GT::Node *                  p,
-		      std::function<T(typename GT::Arc *)> transformation,
-		      SA &&                                sa = SA())
-{
-  return arcs_map<GT, T, Container, SA>(g, p, transformation, sa);
 }
 
 /** Fold the filtered nodes of a graph.
@@ -1549,10 +1445,10 @@ Container<T> arcs_map(GT &                                 g,
 
    @ingroup Grafos
  */
-template <class GT, typename T, class SN>
+template <class GT, typename T, class SN = Dft_Show_Node<GT>>
 T foldl_nodes(GT & g, const T & init, 
 	      std::function<T(const T&, typename GT::Node*)> operation,
-	      SN & sn)
+	      SN sn = SN())
   noexcept(noexcept(operation) and noexcept(sn) and
 	   std::is_nothrow_copy_assignable<T>::value)
 {
@@ -1562,15 +1458,6 @@ T foldl_nodes(GT & g, const T & init,
       ret_val = operation(ret_val, p);
     }, sn);
   return ret_val;
-}
-
-template <class GT, typename T, class SN = Dft_Show_Node<GT>>
-T foldl_nodes(GT & g, const T & init, 
-	      std::function<T(const T&, typename GT::Node*)> operation,
-	      SN && sn = SN())
-  noexcept(noexcept(foldl_nodes<GT, T, SN>(g, init, operation, sn)))
-{
-  return foldl_nodes<GT, T, SN>(g, init, operation, sn);
 }
 
 /** Fold the filtered arcs of a graph.
@@ -1585,7 +1472,7 @@ T foldl_nodes(GT & g, const T & init,
 template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
 T foldl_arcs(GT & g, const T & init,
 	     std::function<T(const T&, typename GT::Arc*)> operation,
-	     SA & sa)
+	     SA sa = SA())
   noexcept(noexcept(operation) and noexcept(sa) and
 	   std::is_nothrow_copy_assignable<T>::value)
 {
@@ -1595,15 +1482,6 @@ T foldl_arcs(GT & g, const T & init,
       ret_val = operation(ret_val, a);
     }, sa);
   return ret_val;
-}
-
-template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
-T foldl_arcs(GT & g, const T & init,
-	     std::function<T(const T&, typename GT::Arc*)> operation,
-	     SA && sa = SA())
-  noexcept(noexcept(foldl_arcs<GT, T, SA>(g, init, operation, sa)))
-{
-  return foldl_arcs<GT, T, SA>(g, init, operation, sa);
 }
 
 /** Fold the filtered adjacent arcs of a node.
@@ -1616,11 +1494,11 @@ T foldl_arcs(GT & g, const T & init,
     \result the final folded result
    @ingroup Grafos
  */
-template <class GT, typename T, class SA>
+template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
 T foldl_arcs(GT & g, typename GT::Node * p,
 	     const T & init,
 	     std::function<T(const T&, typename GT::Arc*)> operation,
-	     SA & sa)
+	     SA sa = SA())
   noexcept(noexcept(operation) and noexcept(sa) and
 	   std::is_nothrow_copy_assignable<T>::value)
 {
@@ -1631,16 +1509,6 @@ T foldl_arcs(GT & g, typename GT::Node * p,
     }, sa);
   return ret_val;
 }
-
-template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
-T foldl_arcs(GT & g, typename GT::Node * p,
-	     const T & init,
-	     std::function<T(const T&, typename GT::Arc*)> operation,
-	     SA && sa = SA())
-  noexcept(noexcept(foldl_arcs<GT, T, SA>(g, p, init, operation, sa)))
-{
-  return foldl_arcs<GT, T, SA>(g, p, init, operation, sa);
-}			 
 
     /** Directed graph implemented with double linked adjacency lists.
 
@@ -1664,13 +1532,13 @@ public:
     this->digraph = true; 
   }
   
-  List_Digraph(const List_Digraph & dg) noexcept(noexcept(GT())) : GT()
+  List_Digraph(const List_Digraph & dg) : GT()
   {
     this->digraph = true; 
     *this = dg;
   }
 
-  List_Digraph(List_Digraph && dg) noexcept(noexcept(GT())) : GT()
+  List_Digraph(List_Digraph && dg) : GT()
   {
     this->digraph = true; 
     this->swap(dg);
@@ -1890,19 +1758,13 @@ class In_Iterator : public
 
     @ingroup Grafos
 */
-template <class GT, class SA>
-DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Node *> ret;
   for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     ret.append(it.get_node());
   return ret;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA && sa = SA())
-{
-  return out_nodes<GT, SA>(p, sa);
 }
 
 /** Return the nodes connected to the filtered incoming arcs to `p`.
@@ -1913,19 +1775,13 @@ DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA && sa = SA())
     incoming nodes  
     @ingroup Grafos
 */
-template <class GT, class SA>
-DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Node *> ret;
   for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     ret.append(it.get_node());
   return ret;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA && sa = SA())
-{
-  return in_nodes<GT, SA>(p, sa);
 }
 
 /** Return the filtered incoming arcs of `p`.
@@ -1935,19 +1791,13 @@ DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA && sa = SA())
 
     @ingroup Grafos
  */
-template <class GT, class SA>
-DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc*> ret;
   for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     ret.append(it.get_curr());
   return ret;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA && sa = SA())
-{
-  return out_arcs<GT, SA>(p, sa);
 }
 
 /** Return the filtered incoming arcs of `p`.
@@ -1957,8 +1807,8 @@ DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA && sa = SA())
 
     @ingroup Grafos
 */ 
-template <class GT, class SA>
-DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc*> ret;
   for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
@@ -1966,21 +1816,14 @@ DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA & sa)
   return ret;
 }
 
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA && sa = SA())
-{
-  return in_arcs<GT, SA>(p, sa);
-}
-
-
 /** Return all the filtered arcs related to `p`
 
     @param[in] p node pointer
     @param[in] sa arc filter
     @ingroup Grafos
 */
-template <class GT, class SA>
-DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc *> ret;
   for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
@@ -1988,21 +1831,14 @@ DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA & sa)
   return ret;
 }
 
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA && sa = SA())
-{
-  return arcs<GT, SA>(p, sa);
-}
-
-
 /** Return the filtered incoming pairs of (arc,node) related to node `p`
 
     @param[in] p node pointer
     @param[in] sa arc filter
     @ingroup Grafos
  */
-template <class GT, class SA>
-DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA sa = SA())
 {
   DynList<ArcPair<GT>> ret;
   for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
@@ -2011,12 +1847,6 @@ DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA & sa)
       ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
     }
   return ret;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA && sa = SA())
-{
-  return in_pairs<GT, SA>(p, sa);
 }
 
 /** Return the filtered outcoming pairs of (arc,node) related to node `p`
@@ -2026,8 +1856,8 @@ DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA && sa = SA())
     \result a `DynList<ArcPair<GT>>` containg the outcoming pairs
     @ingroup Grafos
  */
-template <class GT, class SA>
-DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA sa = SA())
 {
   DynList<ArcPair<GT>> ret;
   for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
@@ -2036,12 +1866,6 @@ DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA & sa)
       ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
     }
   return ret;
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>>
-DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA && sa = SA())
-{
-  return out_pairs<GT, SA>(p, sa);
 }
 
 /** Compute the filtered in degree of node `p`.
@@ -2053,19 +1877,13 @@ DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA && sa = SA())
     \result the incoming degree
     @ingroup Grafos
 */
-template <class GT, class SA>
-size_t in_degree(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+size_t in_degree(typename GT::Node * p, SA sa = SA())
 {
   size_t count = 0;
   for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     ++count;
   return count;
-}
-
-template <class GT, class SA>
-size_t in_degree(typename GT::Node * p, SA && sa = SA())
-{
-  return in_degree<GT, SA>(p, sa);
 }
 
 template <class GT>
@@ -2087,21 +1905,14 @@ size_t in_degree(typename GT::Node * p)
 
    @ingroup Grafos
 */
-template <class GT, class SA>
-size_t out_degree(typename GT::Node * p, SA & sa)
+template <class GT, class SA = Dft_Show_Arc<GT>>
+size_t out_degree(typename GT::Node * p, SA sa = SA())
 {
   size_t count = 0;
   for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
     ++count;
   return count;
 }
-
-template <class GT, class SA>
-size_t out_degree(typename GT::Node * p, SA && sa = SA())
-{
-  return out_degree<GT, SA>(p, sa);
-}
-
 
 template <class GT>
 size_t out_degree(typename GT::Node * p)
@@ -2136,7 +1947,7 @@ size_t out_degree(typename GT::Node * p)
     @ingroup Grafos
  */
 template <class GT, class Itor, class Operation> inline
-bool traverse_arcs(typename GT::Node * p, Operation & operation)
+bool traverse_arcs(typename GT::Node * p, Operation operation = Operation())
 {
   for (Itor it(p); it.has_curr(); it.next())
     if (not operation(it.get_curr()))
@@ -2162,7 +1973,7 @@ bool traverse_arcs(typename GT::Node * p, Operation & operation)
     @ingroup Grafos
  */
 template <class GT, class Itor, class Operation> inline
-void for_each_arc(typename GT::Node * p, Operation & operation)
+void for_each_arc(typename GT::Node * p, Operation operation = Operation())
 {
   for (Itor it(p); it.has_curr(); it.next())
     operation(it.get_curr());
@@ -2181,15 +1992,9 @@ void for_each_arc(typename GT::Node * p, Operation & operation)
     @ingroup Grafos
  */
 template <class GT, class Op> inline
-bool traverse_in_arcs(typename GT::Node * p, Op & op)
+bool traverse_in_arcs(typename GT::Node * p, Op op = Op())
 {
   return traverse_arcs<GT, __In_Iterator<GT>, Op>(p, op);
-}
-
-template <class GT, class Op> inline
-bool traverse_in_arcs(typename GT::Node * p, Op && op = Op())
-{
-  return traverse_in_arcs<GT, Op>(p, op);
 }
 
 /** Traverse the incoming arcs of a node and executes an operation
@@ -2199,15 +2004,9 @@ bool traverse_in_arcs(typename GT::Node * p, Op && op = Op())
     @ingroup Grafos
  */
 template <class GT, class Op> inline
-void for_each_in_arc(typename GT::Node * p, Op & op)
+void for_each_in_arc(typename GT::Node * p, Op op = Op())
 {
   for_each_arc<GT, __In_Iterator<GT>, Op>(p, op);
-}
-
-template <class GT, class Op> inline
-void for_each_in_arc(typename GT::Node * p, Op && op = Op())
-{
-  for_each_in_arc<GT, Op>(p, op);
 }
 
 /** Test if the incoming arcs meet a condition.
@@ -2221,15 +2020,9 @@ void for_each_in_arc(typename GT::Node * p, Op && op = Op())
     \result `true` if `op` returns `true` for all the incoming arcs
  */
 template <class GT, class Op> inline
-bool all_in_arc(typename GT::Node * p, Op & op)
+bool all_in_arc(typename GT::Node * p, Op op = Op())
 {
   return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
-}
-
-template <class GT, class Op> inline
-bool all_in_arc(typename GT::Node * p, Op && op = Op())
-{
-  return all_in_arc<GT, Op>(p, op);
 }
 
 /** Test if it exists an incoming arc satisfying an operation.
@@ -2243,15 +2036,9 @@ bool all_in_arc(typename GT::Node * p, Op && op = Op())
     \result `true` if there is at least an arc satisfying the operation
  */
 template <class GT, class Op> inline
-bool exists_in_arc(typename GT::Node * p, Op & op)
+bool exists_in_arc(typename GT::Node * p, Op op = Op())
 {
   return not traverse_in_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
-}
-
-template <class GT, class Op> inline
-bool exists_in_arc(typename GT::Node * p, Op && op = Op())
-{
-  return exists_in_arc<GT, Op>(p, op);
 }
 
 /** Search an incoming arc to a node satisfying a condition `op`.
@@ -2266,7 +2053,7 @@ bool exists_in_arc(typename GT::Node * p, Op && op = Op())
     found; `nullptr` otherwise
  */
 template <class GT, class Op> inline
-auto search_in_arc(typename GT::Node * p, Op & op)
+auto search_in_arc(typename GT::Node * p, Op op = Op())
 {
   typename GT::Arc * ret = nullptr;
   traverse_in_arcs(p, [&op, &ret] (auto a)
@@ -2279,12 +2066,6 @@ auto search_in_arc(typename GT::Node * p, Op & op)
 		     return true;
 		   });
   return ret;
-}
-
-template <class GT, class Op> inline
-auto search_in_arc(typename GT::Node * p, Op && op = Op())
-{
-  return search_in_arc<GT, Op>(p, op);
 }
 
 /** Map the incoming arcs to a transformation,
@@ -2340,7 +2121,7 @@ T foldl_in_arcs(typename GT::Node * p, const T & init,
     \result a `DynList<typename GT::Arc*>` containing the filtered arcs
  */
 template <class GT, class Op> inline
-DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op & cond)
+DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op cond)
 {
   DynList<typename GT::Arc*> ret;
   for_each_in_arc(p, [&ret, &cond] (auto a) 
@@ -2349,12 +2130,6 @@ DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op & cond)
 		      ret.append(a);
 		  });
   return ret;
-}
-
-template <class GT, class Op> inline
-auto filter_in_arcs(typename GT::Node * p, Op && op = Op())
-{
-  return filter_in_arcs<GT, Op>(p, op);
 }
 
 
@@ -2370,15 +2145,9 @@ auto filter_in_arcs(typename GT::Node * p, Op && op = Op())
     @ingroup Grafos
  */
 template <class GT, class Op> inline
-bool traverse_out_arcs(typename GT::Node * p, Op & op)
+bool traverse_out_arcs(typename GT::Node * p, Op op = Op())
 {
   return traverse_arcs<GT, __Out_Iterator<GT>, Op>(p, op);
-}
-
-template <class GT, class Op> inline
-bool traverse_out_arcs(typename GT::Node * p, Op && op = Op())
-{
-  return traverse_out_arcs<GT, Op>(p, op);
 }
 
 /** Traverse the outcoming arcs of a node and executes an operation
@@ -2388,15 +2157,9 @@ bool traverse_out_arcs(typename GT::Node * p, Op && op = Op())
     @ingroup Grafos
  */
 template <class GT, class Op> inline
-void for_each_out_arc(typename GT::Node * p, Op & op)
+void for_each_out_arc(typename GT::Node * p, Op op = Op())
 {
   for_each_arc<GT, __Out_Iterator<GT>, Op>(p, op);
-}
-
-template <class GT, class Op> inline
-void for_each_out_arc(typename GT::Node * p, Op && op = Op())
-{
-  for_each_out_arc<GT, Op>(p, op);
 }
 
 /** Test if the outcoming arcs meet a condition.
@@ -2410,15 +2173,9 @@ void for_each_out_arc(typename GT::Node * p, Op && op = Op())
     \result `true` if `op` returns `true` for all the incoming arcs
  */
 template <class GT, class Op> inline
-bool all_out_arc(typename GT::Node * p, Op & op)
+bool all_out_arc(typename GT::Node * p, Op op = Op())
 {
   return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
-}
-
-template <class GT, class Op> inline
-bool all_out_arc(typename GT::Node * p, Op && op = Op())
-{
-  return all_out_arc<GT, Op>(p, op);
 }
 
 /** Test if it exists an outcoming arc satisfying an operation.
@@ -2432,15 +2189,9 @@ bool all_out_arc(typename GT::Node * p, Op && op = Op())
     \result `true` if there is at least an arc satisfying the operation
  */
 template <class GT, class Op> inline
-bool exists_out_arc(typename GT::Node * p, Op & op)
+bool exists_out_arc(typename GT::Node * p, Op op = Op())
 {
   return not traverse_out_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
-}
-
-template <class GT, class Op> inline
-bool exists_out_arc(typename GT::Node * p, Op && op = Op())
-{
-  return exists_out_arc<GT, Op>(p, op);
 }
 
 /** Search an outcoming arc to a node satisfying a condition `op`.
@@ -2455,7 +2206,7 @@ bool exists_out_arc(typename GT::Node * p, Op && op = Op())
     found; `nullptr` otherwise
  */
 template <class GT, class Op> inline
-auto search_out_arc(typename GT::Node * p, Op & op)
+auto search_out_arc(typename GT::Node * p, Op op = Op())
 {
   typename GT::Arc * ret = nullptr;
   __traverse_out_arcs(p, [&op, &ret] (auto a)
@@ -2468,12 +2219,6 @@ auto search_out_arc(typename GT::Node * p, Op & op)
 		       return true;
 		     });
   return ret;
-}
-
-template <class GT, class Op> inline
-auto search_out_arc(typename GT::Node * p, Op && op = Op())
-{
-  return search_out_arc<GT, Op>(p, op);
 }
 
 /** Map the outcoming arcs to a transformation,
@@ -2496,7 +2241,6 @@ auto map_out_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
   for_each_out_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
   return ret;
 }
-
 
 /** Fold the outcoming arcs of a node.
 
@@ -2530,7 +2274,7 @@ T foldl_out_arcs(typename GT::Node * p, const T & init,
     \result a `DynList<typename GT::Arc*>` containing the filtered arcs
  */
 template <class GT, class Op> inline
-DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op & cond)
+DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op cond)
 {
   DynList<typename GT::Arc*> ret;
   for_each_out_arc(p, [&ret, &cond] (auto a) 
@@ -2539,12 +2283,6 @@ DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op & cond)
 		      ret.append(a);
 		  });
   return ret;
-}
-
-template <class GT, class Op> inline
-auto filter_out_arcs(typename GT::Node * p, Op && op = Op())
-{
-  return filter_out_arcs<GT, Op>(p, op);
 }
 
 /** Arc filtered searching given two nodes.
@@ -2560,10 +2298,11 @@ auto filter_out_arcs(typename GT::Node * p, Op && op = Op())
     @return pointer to found node; \c nullptr otherwise
     @ingroup Grafos
 */
-    template <class GT, class SA> typename GT::Arc * 
+    template <class GT, class SA = Dft_Show_Arc<GT>>
+  typename GT::Arc * 
 search_arc(const GT & g, 
 	   typename GT::Node * src, typename GT::Node * tgt,
-	   SA & sa) noexcept
+	   SA sa = SA()) noexcept
 {
   assert(src != nullptr and tgt != nullptr);
 
@@ -2577,15 +2316,6 @@ search_arc(const GT & g,
   return nullptr; 
 }
 
-template <class GT, class SA = Dft_Show_Arc<GT>> typename GT::Arc * 
-search_arc(const GT & g, 
-	   typename GT::Node * src, typename GT::Node * tgt,
-	   SA && sa = SA()) 
-      noexcept
-{
-  return search_arc<GT, SA>(g, src, tgt, sa);
-}
-
 /** Searching of directed arc linking two nodes.
 
     @param[in] g the graph
@@ -2595,10 +2325,11 @@ search_arc(const GT & g,
     nullptr otherwise. 
     @ingroup Grafos
 */
-template <class GT, class SA> typename GT::Arc * 
+template <class GT, class SA = Dft_Show_Arc<GT>>
+		 typename GT::Arc * 
 search_directed_arc(const GT &, 
-		    typename GT::Node * src, typename GT::Node * tgt, SA & sa) 
-  noexcept
+		    typename GT::Node * src, typename GT::Node * tgt,
+		    SA sa = SA()) noexcept
 {
   assert(src != nullptr and tgt != nullptr);
 
@@ -2610,15 +2341,6 @@ search_directed_arc(const GT &,
     }
 
   return nullptr; 
-}
-
-template <class GT, class SA = Dft_Show_Arc<GT>> typename GT::Arc * 
-search_directed_arc(const GT & g, 
-		    typename GT::Node * src, typename GT::Node * tgt, 
-		    SA && sa = SA()) 
-  noexcept
-{
-  return search_directed_arc<GT, SA>(g, src, tgt, sa);
 }
 
 /** Return the mapped node through the cookie of `p`
@@ -2692,16 +2414,12 @@ template <class GT> inline void clear_graph(GT & g) noexcept;
     template <class GT, class Operation, class SN = Dft_Show_Node<GT>> 
 class Operate_On_Nodes
 {
-  SN & sn;
+  SN sn;
 
 public:
 
   /// Initialize the functor with the filter `sa`
-  Operate_On_Nodes(SN & __sn)
-  noexcept(std::is_nothrow_constructible<SN>::value)
-  : sn(__sn) { /* empty */ }
-
-  Operate_On_Nodes(SN && __sn = SN()) 
+  Operate_On_Nodes(SN __sn = SN())
   noexcept(std::is_nothrow_constructible<SN>::value)
   : sn(__sn) { /* empty */ }
 
@@ -2722,8 +2440,7 @@ public:
       @param[in] g the graph
       @param[in] op the operation
   */
-  void operator () (GT & g, Operation op = Operation()) 
-    noexcept(noexcept(op))
+  void operator () (GT & g, Operation op = Operation()) noexcept(noexcept(op))
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
       op (g, it.get_curr());
@@ -2744,18 +2461,14 @@ public:
     template <class GT, class Operation, class SA = Dft_Show_Arc<GT>> 
 class Operate_On_Arcs
 {
-  SA & sa;
+  SA sa;
 
 public:
 
   /// Initialize the functor with the filter `sa`
-  Operate_On_Arcs(SA & __sa) 
+  Operate_On_Arcs(SA __sa = SA()) 
   noexcept(std::is_nothrow_constructible<SA>::value)
  : sa(__sa) { /* empty */ }
-
-  Operate_On_Arcs(SA && __sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value)
-  : sa(__sa) { /* empty */ }
 
    /** Call to `op on each arc
 
@@ -2782,15 +2495,15 @@ public:
       @param[in] p node pointer
       @param[in] op the operation
   */
-  void operator () (const GT & g, typename GT::Node * p, 
-                    Operation op = Operation()) const noexcept(noexcept(op))
+  void operator () (const GT & g, typename GT::Node * p,
+		    Operation op = Operation()) const noexcept(noexcept(op))
   {
     for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next())
       op (g, it.get_current_arc());
   }
 
   void operator () (GT & g, typename GT::Node * p, 
-                    Operation && op = Operation()) const
+                    Operation op = Operation()) const
     noexcept(noexcept(op))
   {
     for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next())
@@ -2967,7 +2680,7 @@ public:
   bool is_empty() const noexcept { return list.is_empty(); }
 
     /// Clean the path: all the nodes and arc are removed
-  void empty() noexcept
+  void empty()
   {
     check_graph();
     while (not list.is_empty())
@@ -3441,18 +3154,10 @@ public:
 	\param[in] op operation 
      */
   template <class Operation> 
-  void for_each_node(Operation & op) const noexcept(noexcept(op))
+  void for_each_node(Operation op = Operation()) const noexcept(noexcept(op))
   {
     for (Iterator it(*this); it.has_current_node(); it.next())
       op (it.get_current_node());
-  }
-
-  /// \overload for_each_node(Operation & op)
-  template <class Operation> 
-  void for_each_node(Operation && op = Operation()) const 
-    noexcept(noexcept(op))
-  {
-    for_each_node<Operation>(op);
   }
 
   /** Execute an operation on each arc of path
@@ -3460,18 +3165,10 @@ public:
 	\param[in] op operation 
      */
   template <class Operation> 
-  void for_each_arc(Operation & op) const noexcept(noexcept(op))
+  void for_each_arc(Operation op = Operation()) const noexcept(noexcept(op))
   {
     for (Iterator it(*this); it.has_current_arc(); it.next())
       op (it.get_current_arc());
-  }
-
-  /// \overload for_each_arc(Operation & op)
-      template <class Operation> 
-  void for_each_arc(Operation && op = Operation()) const
-	noexcept(noexcept(op))
-  {
-    for_each_arc<Operation>(op);
   }
 
       /// Return `true` if `node` belongs to the path
@@ -3838,8 +3535,8 @@ void inter_copy_graph(GTT & gtgt, const GTS & gsrc,
 template <class GT, class SN = Dft_Show_Node<GT>, class SA = Dft_Show_Arc<GT>>
 class Copy_Graph
 {
-  SN & sn;
-  SA & sa;
+  SN sn;
+  SA sa;
 
 public:
 
@@ -3848,19 +3545,7 @@ public:
       @param[in] __sa node filter
       @param[in] __sn arc filter
   */
-  Copy_Graph(SA & __sa, SN & __sn) : sn(__sn), sa(__sa)
-  {
-    // empty
-  }
-
-  /// \overload Copy_Graph(SA & __sa, SN & __sn) 
-  Copy_Graph(SA && sa = SA(), SN && sn = SN()) : Copy_Graph(sa, sn)
-  {
-    // empty
-  }
-
-  /// \overload Copy_Graph(SA & __sa, SN & __sn) 
-  Copy_Graph(SA & sa, SN && sn = SN()) : Copy_Graph(sa, sn)
+  Copy_Graph(SA __sa = SA(), SN __sn = SN()) : sn(__sn), sa(__sa)
   {
     // empty
   }

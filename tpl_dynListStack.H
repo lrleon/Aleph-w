@@ -9,10 +9,9 @@
 
 namespace Aleph {
 
-  /** Dynamic stack of element of generic type `T`
+  /** Dynamic stack of generic elements of type `T`
 
-      `DynListStack<T>` models a dynamic stack bases on single linked list.
-      tipo genérico T.
+      `DynListStack<T>` models a dynamic stack based on single linked list.
 
       @see ArrayStack FixedStack
       @ingroup Secuencias

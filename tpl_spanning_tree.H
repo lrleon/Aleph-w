@@ -1,6 +1,8 @@
 # ifndef TPL_SPANNING_TREE_H
 # define TPL_SPANNING_TREE_H
 
+# include <tpl_graph.H>
+
 namespace Aleph {
 
 
@@ -25,9 +27,9 @@ namespace Aleph {
     template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Find_Depth_First_Spanning_Tree
 {
-  SA & sa;
-  GT * gptr;
-  GT * tptr;
+  SA   sa;
+  GT * gptr = nullptr;
+  GT * tptr = nullptr;
 
   bool build_tree(typename GT::Node * gnode, typename GT::Arc * garc, 
 		  typename GT::Node * tnode)
@@ -102,9 +104,7 @@ class Find_Depth_First_Spanning_Tree
 
 public:
 
-  Find_Depth_First_Spanning_Tree(SA && __sa = SA()) : sa(__sa) { /* empty */ }
-
-  Find_Depth_First_Spanning_Tree(SA & __sa) : sa(__sa) { /* empty */ }
+  Find_Depth_First_Spanning_Tree(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
   /** Invoca a la construcción de árbol abarcador en profundidad.
 

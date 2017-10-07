@@ -20,16 +20,16 @@ namespace Aleph {
       verifications 
 
       `ArrayStack<T>` instruments a stack of elements of generic type
-      `T`. The stack is store into an internal contigouos array which
+      `T`. The stack is store into an internal contiguous array which
       grows and ungrows dynamically according to the number of elements.
 
-      `ArrayStack<T>` is a good trade off between perfomance and memory
+      `ArrayStack<T>` is a good trade off between performance and memory
       consumption. In general is faster than a stack implemented with
       linked list, but since the internal array growths in two powers,
       the waste of memory could reach twice the number of elements.
 
       You could use `FixedStack`, which other than the internal array
-      does not dinamically grow, it does not still perform bound checks.
+      does not dynamically grow, it does not still perform bound checks.
 
       @see FixedStack DynListStack
       @ingroup Secuencias
@@ -178,11 +178,11 @@ public:
         @throw out_of_range if `i` is greater than the number of
         elements of stack
     */
-  T & top(size_t i) const throw(std::exception, std::underflow_error)
+  T & top(size_t i) const throw(std::exception, std::out_of_range)
   {
     const size_t sz = array.size();
     if (i >= sz)
-      std::out_of_range("top index out of range");
+      throw std::out_of_range("top index out of range");
     return array.access(sz - i - 1);
   }
 
@@ -238,7 +238,7 @@ public:
 
   /** Iterator on the items of a stack.
 
-      The visit order goes from the youngest item to the oldest.
+      The visit order goes from the oldest to the youngest item 
 
       @ingroup Secuencias
   */
@@ -263,7 +263,7 @@ public:
       operations the more highest performance.
 
       \note Use this type when you have an precise idea about the
-      maximum stackl size and this last is not too big.
+      maximum stack size and this last is not too big.
 
       @see ArrayStack DynListStack
       @ingroup Secuencias

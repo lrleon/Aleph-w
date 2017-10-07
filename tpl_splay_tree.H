@@ -96,8 +96,8 @@ public:
   }
 
   /// Constructor
-  GenTdSplayTree(Compare cmp = Compare()) noexcept
-    : head(&headnode), root(headnode.getR()), cmp(cmp)
+  GenTdSplayTree(Compare __cmp = Compare()) noexcept
+    : head(&headnode), root(headnode.getR()), cmp(__cmp)
   {
     // Empty
   }

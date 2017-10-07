@@ -279,8 +279,8 @@ public:
     if (this->n == 0)
       return true;
 
-    for (size_t i = front_index; i != rear_index; increase_index(i))
-      if (not operation(this->access(i)))
+    for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
+      if (not operation(this->access(idx)))
 	return false;
     return true;
   }
@@ -319,7 +319,7 @@ public:
     using Set_Type = ArrayQueue;
 
     Iterator(const ArrayQueue & q) noexcept
-      : Base(q.ptr, q.dim, q.n, q.front_index, q.rear_index - 1) { }
+      : Base(q.ptr, q.dim, q.n, q.front_index, (q.rear_index - 1) % q.dim) {}
   };
 };
 
@@ -383,6 +383,12 @@ public:
     std::swap(num_items, q.num_items);
   }
 
+  /// empty the queue
+  void empty()
+  {
+    front_index = rear_index = num_items = 0;
+  }
+
       /** Construct a queue of capacity the immediately two power of `d`
 
 	  Te resulting capacity will be the first number such \f$2^k
@@ -408,7 +414,7 @@ public:
   /// Copy constructor
   FixedQueue(const FixedQueue & q) 
     : dim(q.dim), array(new T [dim]), front_index(q.front_index), 
-    rear_index(q.rear_index), mask(q.mask), num_items(q.num_items)
+      rear_index(q.rear_index), mask(q.mask), num_items(q.num_items)
   {
     for (size_t i = front_index; i != rear_index; ++i)
       array[i] = q.array[i];
@@ -557,8 +563,8 @@ public:
   {
     if (num_items == 0)
       return true;
-    for (size_t i = front_index; i != rear_index; increase_index(i))
-      if (not operation(array[i]))
+    for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
+      if (not operation(array[idx]))
 	return false;
     return true;
   }
@@ -597,11 +603,17 @@ public:
     using Set_Type = FixedQueue;
 
     Iterator(const FixedQueue & q) noexcept
-      : Base(q.array, q.dim, q.num_items, q.front_index, q.rear_index - 1) { }
+      : Base(q.array, q.dim, q.num_items, q.front_index,
+	     (q.rear_index - 1) % q.dim) {}
   };
 };
 
 } // end namespace Aleph
 
 # endif /* TPL_ARRAYQUEUE_H */
+
+
+
+
+
 

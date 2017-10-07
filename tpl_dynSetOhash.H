@@ -125,17 +125,17 @@ namespace Aleph
 	return this->find(move(key));
       }
 
-      void remove_by_data(Data & data) noexcept
+      void remove_by_data(Data & data)
       {
 	Base::remove_ptr(data_to_pair(&data));
       }
 
-      void remove(const Key & key) noexcept
+      void remove(const Key & key)
       {
 	Base::remove(Pair(key, Data()));
       }
 
-      void remove(Key && key) noexcept
+      void remove(Key && key)
       {
 	Base::remove(Pair(move(key), Data()));
       }
@@ -176,8 +176,7 @@ namespace Aleph
       using Base = MapOpenHash<Key, Data, Cmp, OLhashTable>;
       using Base::Base;
 
-      MapOLhash()
-	: Base()
+      MapOLhash() : Base()
       {
 	this->set_hash_fct(map_dft_hash_fct);
       }
@@ -191,16 +190,12 @@ namespace Aleph
       using Base = MapOpenHash<Key, Data, Cmp, ODhashTable>;
       using Base::Base;
 
-      MapODhash()
-	: Base()
+      MapODhash() : Base()
       {
 	this->set_hash_fct(map_dft_hash_fct);	
 	this->set_second_hash_fct(map_snd_hash_fct);
       }
     };
-  
-  
-  
   
 } // end namespace Aleph
 

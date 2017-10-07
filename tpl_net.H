@@ -437,10 +437,10 @@ public:
   }
 
     /// Retorna un nodo fuente de la red
-  Node * get_source() const noexcept { return src_nodes.get_item(); }
+  Node * get_source() const { return src_nodes.get_item(); }
 
     /// Retorna un nodo sumidero de la red
-  Node * get_sink() const noexcept { return sink_nodes.get_item(); }
+  Node * get_sink() const { return sink_nodes.get_item(); }
 
     /** Inserta un nuevo nodo en la red.
 
@@ -579,8 +579,7 @@ public:
         grafo. 
 
         El arco, por supuesto, debe haber sido previamente insertado en
-        el grafo. A 
-        este respecto, no se hace ninguna verificación. 
+        el grafo. A este respecto, no se hace ninguna verificación. 
 
         No se realiza ninguna verificación de existencia previa de un
         arco entre los nodos involucrados (esto es necesario para operar
@@ -589,7 +588,7 @@ public:
         @param[in] arc puntero al arco a re-insertar.
         @return puntero al arco re-insertado
      */
-  Arc * connect_arc(Arc * arc) noexcept
+  Arc * connect_arc(Arc * arc)
   {     
     Graph::connect_arc(arc); 
 

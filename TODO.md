@@ -60,9 +60,21 @@
 ## 20. count for_each_if que retorne cuantas fueron hechas
 - Created at   2017-09-11 10:47:50 -0400
 
-## 21. Revisar filtros temporales en iteradores (ojo con Kruskal)
-- Created at   2017-09-18 20:48:00 -0400
+## 21. bug en destructor de DynSetTree se combina pool con destroyRec
+- Created at   2017-09-21 11:55:06 -0400
 
-## 22. Compare atributo por copia y nunca por referencia
-- Created at   2017-09-19 11:40:42 -0400
+## 22. resolver problema de Special_Ctors y operacion cmp
+- Created at   2017-09-22 11:12:51 -0400
+
+## 23. entradas para clang-tidy
+- Created at   2017-09-22 20:49:56 -0400
+
+## 24. blindar load_in_text_mode y mas de io_graph
+- Created at   2017-09-22 21:22:07 -0400
+
+## 25. revisar Total_Cost
+- Created at   2017-09-23 18:51:14 -0400
+
+## 26. probar algos sobre grafos
+- Created at   2017-09-23 19:46:23 -0400
 

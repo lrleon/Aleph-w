@@ -1,0 +1,997 @@
+[
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o ahAssert.o /home/lrleon/Aleph-w/ahAssert.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ahAssert.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o primes.o /home/lrleon/Aleph-w/primes.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/primes.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o useMutex.o /home/lrleon/Aleph-w/useMutex.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/useMutex.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o ahDefs.o /home/lrleon/Aleph-w/ahDefs.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ahDefs.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o ahDaemonize.o /home/lrleon/Aleph-w/ahDaemonize.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ahDaemonize.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o socket_wrappers.o /home/lrleon/Aleph-w/socket_wrappers.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/socket_wrappers.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o parse_utils.o /home/lrleon/Aleph-w/parse_utils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/parse_utils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o timeoutQueue.o /home/lrleon/Aleph-w/timeoutQueue.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/timeoutQueue.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o uid.o /home/lrleon/Aleph-w/uid.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/uid.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o gmpfrxx.o /home/lrleon/Aleph-w/gmpfrxx.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/gmpfrxx.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o eepicgeom.o /home/lrleon/Aleph-w/eepicgeom.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/eepicgeom.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o point.o /home/lrleon/Aleph-w/point.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/point.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o treepic_utils.o /home/lrleon/Aleph-w/treepic_utils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/treepic_utils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o euclidian-graph-common.o /home/lrleon/Aleph-w/euclidian-graph-common.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/euclidian-graph-common.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o ahUtils.o /home/lrleon/Aleph-w/ahUtils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ahUtils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o tpl_sort_utils.o /home/lrleon/Aleph-w/tpl_sort_utils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/tpl_sort_utils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o hash-fct.o /home/lrleon/Aleph-w/hash-fct.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/hash-fct.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o hash-dry.o /home/lrleon/Aleph-w/hash-dry.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/hash-dry.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o aleph-graph.o /home/lrleon/Aleph-w/aleph-graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/aleph-graph.C"
+    },
+    {
+        "command": "cc -c -g -O2 -fno-strict-aliasing -I/home/lrleon/Aleph-w -Dlinux -D__amd64__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE -D_BSD_SOURCE -D_SVID_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DFUNCPROTO=15 -DNARROWPROTO -D_GLIBCXX__PTHREADS /home/lrleon/Aleph-w/ran_array.c",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ran_array.c"
+    },
+    {
+        "command": "cc -c -g -O2 -fno-strict-aliasing -I/home/lrleon/Aleph-w -Dlinux -D__amd64__ -D_POSIX_C_SOURCE=199309L -D_POSIX_SOURCE -D_XOPEN_SOURCE -D_BSD_SOURCE -D_SVID_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DFUNCPROTO=15 -DNARROWPROTO -D_GLIBCXX__PTHREADS /home/lrleon/Aleph-w/mpfr_mul_d.c",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/mpfr_mul_d.c"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o btreepic.o /home/lrleon/Aleph-w/btreepic.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/btreepic.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o ntreepic.o /home/lrleon/Aleph-w/ntreepic.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/ntreepic.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSlink.o /home/lrleon/Aleph-w/testSlink.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSlink.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSnode.o /home/lrleon/Aleph-w/testSnode.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSnode.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSlist.o /home/lrleon/Aleph-w/testSlist.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSlist.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDlink.o /home/lrleon/Aleph-w/testDlink.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDlink.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDnode.o /home/lrleon/Aleph-w/testDnode.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDnode.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_dynSetTree.o /home/lrleon/Aleph-w/test_dynSetTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_dynSetTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testMerge.o /home/lrleon/Aleph-w/testMerge.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testMerge.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynHash.o /home/lrleon/Aleph-w/testDynHash.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynHash.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynListStack.o /home/lrleon/Aleph-w/testDynListStack.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynListStack.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynListQueue.o /home/lrleon/Aleph-w/testDynListQueue.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynListQueue.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testQueue.o /home/lrleon/Aleph-w/testQueue.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testQueue.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testArrayQueue.o /home/lrleon/Aleph-w/testArrayQueue.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testArrayQueue.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o evalExp.o /home/lrleon/Aleph-w/evalExp.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/evalExp.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynDlist.o /home/lrleon/Aleph-w/testDynDlist.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynDlist.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o joseph.o /home/lrleon/Aleph-w/joseph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/joseph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o polinom.o /home/lrleon/Aleph-w/polinom.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/polinom.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinNode.o /home/lrleon/Aleph-w/testBinNode.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinNode.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinTree.o /home/lrleon/Aleph-w/testBinTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinNodeUtils.o /home/lrleon/Aleph-w/testBinNodeUtils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinNodeUtils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSplit.o /home/lrleon/Aleph-w/testSplit.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSplit.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_rb_tree.o /home/lrleon/Aleph-w/test_rb_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_rb_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSkipList.o /home/lrleon/Aleph-w/testSkipList.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSkipList.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testAllTree.o /home/lrleon/Aleph-w/testAllTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testAllTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testArrayHeap.o /home/lrleon/Aleph-w/testArrayHeap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testArrayHeap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testNew.o /home/lrleon/Aleph-w/testNew.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testNew.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testElemSort.o /home/lrleon/Aleph-w/testElemSort.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testElemSort.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o fibonacci.o /home/lrleon/Aleph-w/fibonacci.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/fibonacci.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynArray.o /home/lrleon/Aleph-w/testDynArray.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynArray.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testTreap.o /home/lrleon/Aleph-w/testTreap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testTreap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testTreapRk.o /home/lrleon/Aleph-w/testTreapRk.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testTreapRk.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeTreap.o /home/lrleon/Aleph-w/writeTreap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeTreap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeBinTree.o /home/lrleon/Aleph-w/writeBinTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeBinTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeSplay.o /home/lrleon/Aleph-w/writeSplay.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeSplay.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeBalance.o /home/lrleon/Aleph-w/writeBalance.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeBalance.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeSplit.o /home/lrleon/Aleph-w/writeSplit.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeSplit.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeRankTree.o /home/lrleon/Aleph-w/writeRankTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeRankTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testInsertRoot.o /home/lrleon/Aleph-w/testInsertRoot.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testInsertRoot.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeAvl.o /home/lrleon/Aleph-w/writeAvl.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeAvl.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeJoin.o /home/lrleon/Aleph-w/writeJoin.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeJoin.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeRb.o /home/lrleon/Aleph-w/writeRb.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeRb.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testAvl.o /home/lrleon/Aleph-w/testAvl.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testAvl.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testJoin.o /home/lrleon/Aleph-w/testJoin.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testJoin.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBitArray.o /home/lrleon/Aleph-w/testBitArray.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBitArray.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinNodeXt.o /home/lrleon/Aleph-w/testBinNodeXt.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinNodeXt.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynSlist.o /home/lrleon/Aleph-w/testDynSlist.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynSlist.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testFib.o /home/lrleon/Aleph-w/testFib.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testFib.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinHeap.o /home/lrleon/Aleph-w/testBinHeap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinHeap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynBinHeap.o /home/lrleon/Aleph-w/testDynBinHeap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynBinHeap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBinHeapPtr.o /home/lrleon/Aleph-w/testBinHeapPtr.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBinHeapPtr.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testCache.o /home/lrleon/Aleph-w/testCache.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testCache.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_hash_cache.o /home/lrleon/Aleph-w/test_hash_cache.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_hash_cache.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o primo_hash.o /home/lrleon/Aleph-w/primo_hash.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/primo_hash.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testOpBinTree.o /home/lrleon/Aleph-w/testOpBinTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testOpBinTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testBalance.o /home/lrleon/Aleph-w/testBalance.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testBalance.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_rand_tree.o /home/lrleon/Aleph-w/test_rand_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_rand_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeRandTree.o /home/lrleon/Aleph-w/writeRandTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeRandTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_splay_tree.o /home/lrleon/Aleph-w/test_splay_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_splay_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_ranarray.o /home/lrleon/Aleph-w/test_ranarray.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_ranarray.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testVector.o /home/lrleon/Aleph-w/testVector.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testVector.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testAlgo.o /home/lrleon/Aleph-w/testAlgo.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testAlgo.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testList.o /home/lrleon/Aleph-w/testList.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testList.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testMap.o /home/lrleon/Aleph-w/testMap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testMap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o invertir_lista.o /home/lrleon/Aleph-w/invertir_lista.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/invertir_lista.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSet.o /home/lrleon/Aleph-w/testSet.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSet.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testMultiset.o /home/lrleon/Aleph-w/testMultiset.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testMultiset.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testMultimap.o /home/lrleon/Aleph-w/testMultimap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testMultimap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o work_multimap.o /home/lrleon/Aleph-w/work_multimap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/work_multimap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_bin_to_tree.o /home/lrleon/Aleph-w/test_bin_to_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_bin_to_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o seleccion.o /home/lrleon/Aleph-w/seleccion.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/seleccion.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_dyn_sort_utils.o /home/lrleon/Aleph-w/test_dyn_sort_utils.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_dyn_sort_utils.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_graph.o /home/lrleon/Aleph-w/test_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testUid.o /home/lrleon/Aleph-w/testUid.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testUid.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sort.o /home/lrleon/Aleph-w/test_sort.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sort.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sort_ex.o /home/lrleon/Aleph-w/test_sort_ex.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sort_ex.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testInss.o /home/lrleon/Aleph-w/testInss.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testInss.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_tree_node.o /home/lrleon/Aleph-w/test_tree_node.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_tree_node.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o deway.o /home/lrleon/Aleph-w/deway.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/deway.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_matgraph.o /home/lrleon/Aleph-w/test_matgraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_matgraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_in_graph.o /home/lrleon/Aleph-w/test_in_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_in_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_bellman.o /home/lrleon/Aleph-w/test_bellman.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_bellman.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_graph_to_tree.o /home/lrleon/Aleph-w/test_graph_to_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_graph_to_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_gen_tree.o /home/lrleon/Aleph-w/test_gen_tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_gen_tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_cut_nodes.o /home/lrleon/Aleph-w/test_cut_nodes.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_cut_nodes.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_cut.o /home/lrleon/Aleph-w/test_cut.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_cut.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_search_deway.o /home/lrleon/Aleph-w/test_search_deway.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_search_deway.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sort_array.o /home/lrleon/Aleph-w/test_sort_array.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sort_array.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_random_search.o /home/lrleon/Aleph-w/test_random_search.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_random_search.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeHeap.o /home/lrleon/Aleph-w/writeHeap.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeHeap.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o raiz.o /home/lrleon/Aleph-w/raiz.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/raiz.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_bipartite.o /home/lrleon/Aleph-w/test_bipartite.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_bipartite.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_huffman.o /home/lrleon/Aleph-w/test_huffman.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_huffman.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_shift.o /home/lrleon/Aleph-w/test_shift.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_shift.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o write_huffman.o /home/lrleon/Aleph-w/write_huffman.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/write_huffman.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_search.o /home/lrleon/Aleph-w/test_search.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_search.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_min_path.o /home/lrleon/Aleph-w/test_min_path.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_min_path.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_polygon.o /home/lrleon/Aleph-w/test_polygon.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_polygon.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_generate_graph.o /home/lrleon/Aleph-w/test_generate_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_generate_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_generate_spanning.o /home/lrleon/Aleph-w/test_generate_spanning.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_generate_spanning.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_cpp_cont.o /home/lrleon/Aleph-w/test_cpp_cont.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_cpp_cont.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testLinHash.o /home/lrleon/Aleph-w/testLinHash.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testLinHash.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_dynArray-cut.o /home/lrleon/Aleph-w/test_dynArray-cut.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_dynArray-cut.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testLuka.o /home/lrleon/Aleph-w/testLuka.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testLuka.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o writeAllTrees.o /home/lrleon/Aleph-w/writeAllTrees.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/writeAllTrees.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_top_sort.o /home/lrleon/Aleph-w/test_top_sort.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_top_sort.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_kgraph.o /home/lrleon/Aleph-w/test_kgraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_kgraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_tarjan.o /home/lrleon/Aleph-w/test_tarjan.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_tarjan.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynMat.o /home/lrleon/Aleph-w/testDynMat.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynMat.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_simplex.o /home/lrleon/Aleph-w/test_simplex.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_simplex.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_kosaraju.o /home/lrleon/Aleph-w/test_kosaraju.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_kosaraju.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o grafo_archivos.o /home/lrleon/Aleph-w/grafo_archivos.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/grafo_archivos.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testSlist-mod.o /home/lrleon/Aleph-w/testSlist-mod.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testSlist-mod.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o invertir_arreglos.o /home/lrleon/Aleph-w/invertir_arreglos.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/invertir_arreglos.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_random_graph.o /home/lrleon/Aleph-w/test_random_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_random_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_io_graph.o /home/lrleon/Aleph-w/test_io_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_io_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_point.o /home/lrleon/Aleph-w/test_point.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_point.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_eulerian.o /home/lrleon/Aleph-w/test_eulerian.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_eulerian.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o generate_forest.o /home/lrleon/Aleph-w/generate_forest.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/generate_forest.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o no_search.o /home/lrleon/Aleph-w/no_search.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/no_search.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o number_generator.o /home/lrleon/Aleph-w/number_generator.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/number_generator.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_htlist.o /home/lrleon/Aleph-w/test_htlist.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_htlist.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sgraph.o /home/lrleon/Aleph-w/test_sgraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sgraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_agraph.o /home/lrleon/Aleph-w/test_agraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_agraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_find_path.o /home/lrleon/Aleph-w/test_find_path.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_find_path.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_min_spanning.o /home/lrleon/Aleph-w/test_min_spanning.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_min_spanning.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_dijkstra.o /home/lrleon/Aleph-w/test_dijkstra.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_dijkstra.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o gen_rand_graph.o /home/lrleon/Aleph-w/gen_rand_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/gen_rand_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_load_eugraph.o /home/lrleon/Aleph-w/test_load_eugraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_load_eugraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sortdyna.o /home/lrleon/Aleph-w/test_sortdyna.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sortdyna.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_union.o /home/lrleon/Aleph-w/test_union.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_union.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_leveltree.o /home/lrleon/Aleph-w/test_leveltree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_leveltree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_random_net.o /home/lrleon/Aleph-w/test_random_net.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_random_net.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_karger.o /home/lrleon/Aleph-w/test_karger.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_karger.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_floyd.o /home/lrleon/Aleph-w/test_floyd.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_floyd.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o write_floyd.o /home/lrleon/Aleph-w/write_floyd.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/write_floyd.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-rvalues.o /home/lrleon/Aleph-w/test-rvalues.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-rvalues.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-forward.o /home/lrleon/Aleph-w/test-forward.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-forward.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynMapTree.o /home/lrleon/Aleph-w/testDynMapTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynMapTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_splayRk.o /home/lrleon/Aleph-w/test_splayRk.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_splayRk.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynSetHash.o /home/lrleon/Aleph-w/testDynSetHash.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynSetHash.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testDynSetTree.o /home/lrleon/Aleph-w/testDynSetTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testDynSetTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-vector.o /home/lrleon/Aleph-w/test-vector.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-vector.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-matrix.o /home/lrleon/Aleph-w/test-matrix.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-matrix.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testFunctional.o /home/lrleon/Aleph-w/testFunctional.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testFunctional.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-tmp.o /home/lrleon/Aleph-w/test-tmp.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-tmp.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testOhash.o /home/lrleon/Aleph-w/testOhash.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testOhash.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_sort_lists.o /home/lrleon/Aleph-w/test_sort_lists.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_sort_lists.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-sq.o /home/lrleon/Aleph-w/test-sq.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-sq.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_rk.o /home/lrleon/Aleph-w/test_rk.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_rk.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_copy_graph.o /home/lrleon/Aleph-w/test_copy_graph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_copy_graph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-in-out.o /home/lrleon/Aleph-w/test-in-out.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-in-out.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-net.o /home/lrleon/Aleph-w/test-net.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-net.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-traverse.o /home/lrleon/Aleph-w/test-traverse.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-traverse.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-netcost.o /home/lrleon/Aleph-w/test-netcost.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-netcost.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_2dtree.o /home/lrleon/Aleph-w/test_2dtree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_2dtree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-memarray.o /home/lrleon/Aleph-w/test-memarray.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-memarray.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o testProtectedCache.o /home/lrleon/Aleph-w/testProtectedCache.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/testProtectedCache.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o timeAllTree.o /home/lrleon/Aleph-w/timeAllTree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/timeAllTree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-itor.o /home/lrleon/Aleph-w/test-itor.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-itor.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-bloom.o /home/lrleon/Aleph-w/test-bloom.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-bloom.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-map.o /home/lrleon/Aleph-w/test-map.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-map.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-emplace.o /home/lrleon/Aleph-w/test-emplace.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-emplace.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-digraph.o /home/lrleon/Aleph-w/test-digraph.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-digraph.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-dry.o /home/lrleon/Aleph-w/test-dry.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-dry.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-tree-itor.o /home/lrleon/Aleph-w/test-tree-itor.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-tree-itor.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-graph-dry.o /home/lrleon/Aleph-w/test-graph-dry.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-graph-dry.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-filter.o /home/lrleon/Aleph-w/test-filter.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-filter.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-lambda.o /home/lrleon/Aleph-w/test-lambda.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-lambda.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-join.o /home/lrleon/Aleph-w/test-join.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-join.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-bsearch.o /home/lrleon/Aleph-w/test-bsearch.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-bsearch.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-suffix-tree.o /home/lrleon/Aleph-w/test-suffix-tree.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-suffix-tree.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-splice.o /home/lrleon/Aleph-w/test-splice.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-splice.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-pair-it.o /home/lrleon/Aleph-w/test-pair-it.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-pair-it.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test-con-queue.o /home/lrleon/Aleph-w/test-con-queue.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test-con-queue.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_eepicgeom.o /home/lrleon/Aleph-w/test_eepicgeom.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_eepicgeom.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o test_ellipse.o /home/lrleon/Aleph-w/test_ellipse.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/test_ellipse.C"
+    },
+    {
+        "command": "c++ -c -std=c++14 -I/home/lrleon/Aleph-w -DNDEBUG -Ofast -D_REENTRANT \"-D__extern_always_inline=extern __always_inline\" -DMESSAGES -Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses -D_GLIBCXX__PTHREADS -o graphpic.o /home/lrleon/Aleph-w/graphpic.C",
+        "directory": "/home/lrleon/Aleph-w",
+        "file": "/home/lrleon/Aleph-w/graphpic.C"
+    }
+]

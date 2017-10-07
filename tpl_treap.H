@@ -49,7 +49,7 @@ private:
   Node *    head_ptr;
   Node *&   tree_root;
   gsl_rng * r;
-  Compare & cmp;
+  Compare cmp;
 
   void init(unsigned int seed)
   {
@@ -83,8 +83,8 @@ private:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Treap(unsigned long seed, Compare & cmp = Compare()) 
-    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(cmp)
+  Gen_Treap(unsigned long seed, Compare & __cmp = Compare()) 
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }

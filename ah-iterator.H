@@ -23,7 +23,7 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -35,21 +35,21 @@ struct StlIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const noexcept
+  bool operator != (const Itor & it) const
   {
     return not (*this == it);
   }
 
-  T & operator * () noexcept { return const_cast<T&>(this->get_curr()); }
+  T & operator * () { return const_cast<T&>(this->get_curr()); }
 
-  T * operator -> () noexcept { return &const_cast<T&>(this->get_curr()); }
+  T * operator -> () { return &const_cast<T&>(this->get_curr()); }
 
-  static StlIterator begin(const SetType & s) noexcept
+  static StlIterator begin(const SetType & s)
   {
     return StlIterator(s);
   }
 
-  static StlIterator end(const SetType & s) noexcept
+  static StlIterator end(const SetType & s)
   {
     StlIterator it(s);
     it.Itor::end();
@@ -79,7 +79,7 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -90,24 +90,24 @@ struct StlConstIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const noexcept
+  bool operator != (const Itor & it) const
   {
     return not (*this == it);
   }
 
-  const T & operator * () const noexcept { return this->get_curr(); }
+  const T & operator * () const { return this->get_curr(); }
 
-  T const * operator -> () const noexcept
+  T const * operator -> () const
   { 
     return const_cast<T*>(&this->get_curr()); 
   }
 
-  static StlConstIterator cbegin(const SetType & s) noexcept
+  static StlConstIterator cbegin(const SetType & s)
   {
     return StlConstIterator(s);
   }
 
-  static StlConstIterator cend(const SetType & s) noexcept
+  static StlConstIterator cend(const SetType & s)
   {
     StlConstIterator it(s);
     it.Itor::end();

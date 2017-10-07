@@ -34,12 +34,10 @@ public:
 
       /// Instancia una cola con todos los elementos del contenedor cont.
       template <class Container>
-  priority_queue(Container & cont)
+  priority_queue(const Container & cont)
   {
-    const typename Container::iterator end = cont.end();
-
-    for (typename Container::iterator it(cont.begin()); 
-	 it != end; this->insert(*it++));
+    for (auto & item : cont)
+      this->insert(item);
   }
 
       /// Instancia una cola con los elementos comprendidos entre el

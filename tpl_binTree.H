@@ -35,10 +35,10 @@ public:
 
 private:
 
-  Node    headNode;
-  Node  * head;
-  Node *& root;
-  Compare cmp;
+  Node      headNode;
+  Node  *   head;
+  Node *&   root;
+  Compare   cmp;
 
 public:
 
@@ -60,9 +60,9 @@ public:
   Compare & get_compare() noexcept { return key_comp(); }
 
   /// Initialize an empty tree with comparison criteria `__cmp`
-  GenBinTree(Compare cmp = Compare()) noexcept
-    : head(&headNode), root(headNode.getR()), cmp(cmp)
-  { 
+  GenBinTree(Compare __cmp = Compare()) noexcept
+    : head(&headNode), root(headNode.getR()), cmp(__cmp)
+  {
     // empty
   }
 

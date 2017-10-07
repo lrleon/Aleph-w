@@ -109,7 +109,7 @@ private:
     return state = Solving;
   }
 
-  void to_pivot(size_t p, size_t q) noexcept
+  void to_pivot(size_t p, size_t q)
   {
     assert(p <= num_rest and q <= num_var + num_rest);
 
@@ -233,7 +233,7 @@ public:
 
      /// Define el coeficiente coef de la variable i en el afunción
      /// objetivo. No se valida si i está fuera de rango.
-  void put_objetive_function_coef(int i, const T & coef) noexcept
+  void put_objetive_function_coef(int i, const T & coef)
   {
     verify_var_index(i);
     objetive[i] = coef;
@@ -392,7 +392,7 @@ public:
 
       /// Retorna true si la solución obtenida satisface las
       /// restricciones; false de lo contrario.
-  bool verify_solution() const noexcept
+  bool verify_solution() const
   {
     for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       {

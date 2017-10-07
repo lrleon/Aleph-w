@@ -131,8 +131,8 @@ public:
 
   /// Initialize a random tree with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Rand_Tree(unsigned int seed, Compare & cmp = Compare()) noexcept
-    : tree_root(Node::NullPtr), r(nullptr), cmp(cmp)
+  Gen_Rand_Tree(unsigned int seed, Compare __cmp = Compare()) noexcept
+    : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }
@@ -318,7 +318,7 @@ public:
       @return a valid pointer to the i-th node inorder sense
       @throw out_of_range if i is greater or equal that the number of nodes
   */
-  Node * select(const size_t i) const noexcept
+  Node * select(const size_t i) const
   {
     return Aleph::select(tree_root, i); 
   }

@@ -35,7 +35,7 @@ namespace Aleph {
         itera y al tipo de elemento que retorna el iterador It.
 
         @note Esta clase está diseñada para Aleph, no funciona para la
-        biblioteca estándar stl.
+        biblioteca estándar std.
         @ingroup Secuencias
      */
     template <class Container, class It, class Show_Item>
@@ -112,43 +112,26 @@ public:
       /// perderá cuando se invoque al destructor ~Filter_Iterator()
   Show_Item & get_filter() { return show_item; }
 
-  void set_filter(Show_Item && si)
+  void set_filter(Show_Item si)
   {
     show_item = si;
   }
 
-  void set_filter(Show_Item & si)
-  {
-    show_item = si;
-  }
-
-  Filter_Iterator(Show_Item & si) 
-    : show_item(si)
-  {
-    // empty
-  }
-
-  Filter_Iterator(Show_Item && si = Show_Item()) : Filter_Iterator(si)
+  Filter_Iterator(Show_Item si = Show_Item()) : show_item(si)
   {
     // empty
   }
 
   /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, Show_Item & si) 
+  Filter_Iterator(const Container & c, Show_Item si = Show_Item()) 
     : It(c), show_item(si), container_ptr(&const_cast<Container&>(c))
   {
     goto_first_valid_item();
   }
 
-     /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, Show_Item && si = Show_Item()) 
-    : Filter_Iterator(c, si)
-  {
-    // empty
-  }
-
   /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, void * __cookie, Show_Item & si) 
+  Filter_Iterator(const Container & c, void * __cookie,
+		  Show_Item si = Show_Item()) 
     : Filter_Iterator(c, si)
   {
     cookie = __cookie;

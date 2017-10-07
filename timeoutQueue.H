@@ -98,7 +98,7 @@ public:
 
   TimeoutQueue();
 
-  ~TimeoutQueue();
+  ~TimeoutQueue() throw(domain_error);
 
   void schedule_event(const Time &, Event*);
 

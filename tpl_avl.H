@@ -367,9 +367,9 @@ public:
       /// \overload key_comp()
   Compare & get_compare() noexcept { return key_comp(); }
 
-  Gen_Avl_Tree(Compare cmp = Compare()) noexcept
-    : avl_stack(Node::MaxHeight), head_ptr(&head_node),
-      root(RLINK (head_ptr)), cmp(cmp)
+  Gen_Avl_Tree(Compare __cmp = Compare()) noexcept
+    : avl_stack(Node::MaxHeight), head_ptr(&head_node), 
+      root(RLINK (head_ptr)), cmp(__cmp)
   {
     avl_stack.push(head_ptr);
   }
@@ -450,7 +450,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node *pp = search_and_stack_avl(KEY(p));
+    Node * pp = search_and_stack_avl(KEY(p));
     if (cmp(KEY(p), KEY(pp))) 
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
