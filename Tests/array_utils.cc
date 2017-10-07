@@ -177,7 +177,7 @@ struct ComplexArray : public Test
       }
   }
   ~ComplexArray() { delete [] a; }
-  void print() const noexcept
+  void print() const
   {
     cout << "a =";
     for (size_t i = 0; i < n; ++i)

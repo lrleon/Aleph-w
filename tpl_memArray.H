@@ -487,10 +487,10 @@ public:
   }
 
   /// \overload first
-  T & get_first() const noexcept { return first(); }
+  T & get_first() const { return first(); }
 
     /// \overload last
-  T & get_last() const noexcept { return last(); }
+  T & get_last() const { return last(); }
 
   /// Reverse the order of items in array
   MemArray & reverse()
@@ -579,7 +579,7 @@ public:
     using Base::Base;
 
     /// Construct an iterator on array `a`
-    Iterator(const MemArray<T> & a) noexcept
+    Iterator(const MemArray<T> & a)
       : Array_Iterator<T>(a.ptr, a.dim, a.n)
     {
       assert(a.ptr != nullptr);

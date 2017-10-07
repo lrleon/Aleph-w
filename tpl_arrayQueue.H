@@ -318,7 +318,7 @@ public:
     using Base::Base;
     using Set_Type = ArrayQueue;
 
-    Iterator(const ArrayQueue & q) noexcept
+    Iterator(const ArrayQueue & q)
       : Base(q.ptr, q.dim, q.n, q.front_index, (q.rear_index - 1) % q.dim) {}
   };
 };
