@@ -252,7 +252,7 @@ public:
     using Base::Base;
 
     /// Initialize an iterator on stack `s`
-    Iterator(const ArrayStack<T> & s) noexcept : Base(s.array) {}
+    Iterator(const ArrayStack<T> & s) : Base(s.array) {}
   };
 };
 
