@@ -45,6 +45,16 @@ TEST_F(SimpleQueue, push_pop)
 {
   EXPECT_FALSE(s.is_empty());
   EXPECT_EQ(s.size(), n);
+  EXPECT_EQ(s.(), n - 1);
+
+  const size_t m = 100;
+  for (size_t i = 0; i < m; ++i)
+    EXPECT_EQ(s.push(i), i);
+  EXPECT_EQ(s.size(), n + m);
+
+  for (size_t i = 0; i < m; ++i)
+    EXPECT_EQ(s.pop(), m - i - 1);
+
   EXPECT_EQ(s.rear(), n - 1);
   EXPECT_EQ(s.front(), 0);
 
@@ -75,6 +85,7 @@ TEST_F(SimpleQueue, push_pop)
 }
 
 /*
+
 
 TEST_F(ComplexQueue, push_pop)
 {
