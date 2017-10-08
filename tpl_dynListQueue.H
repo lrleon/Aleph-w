@@ -149,7 +149,12 @@ public:
   } 
 
   /// Empty the queue
-  void empty() noexcept { q.empty(); }
+  void empty() noexcept
+  {
+    q.empty();
+    num_items = 0;
+    assert(q.is_empty());
+  }
 
   /** Traverse all the elements from the youngest to the oldest and execute
       `operation` on each on them.

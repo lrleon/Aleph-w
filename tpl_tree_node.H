@@ -83,7 +83,7 @@ public:
     /// retorna referencia modificable al contenido del nodo.
   T & get_key() noexcept { return get_data(); }
 
-  const T & get_key() const  noexcept { return get_data(); }
+  const T & get_key() const noexcept { return get_data(); }
 
     /// retorna referencia modificable al contenido del nodo.
   T & get_data() noexcept { return data; }
@@ -491,7 +491,7 @@ public:
 private:
 
   template <class Operation> static
-  bool preorder(Tree_Node * root, Operation & op)
+  bool preorder(const Tree_Node * root, Operation & op)
   {
     if (root == nullptr)
       return true;
@@ -559,12 +559,17 @@ public:
 
     bool has_curr() const noexcept { return curr != nullptr; }
 
-    Tree_Node * get_curr() const noexcept { return curr; }
+    Tree_Node * get_curr() const
+    {
+      if (curr == nullptr)
+	throw std::overflow_error("Children_Iterator::get_curr()");
+      return curr;
+    }
 
     void next() 
     {
       if (curr == nullptr)
-	throw std::overflow_error("Iterator overflow");
+	throw std::overflow_error("Children_Iterator::next()");
 
       curr = curr->get_right_sibling();
     }
@@ -654,8 +659,8 @@ public:
       if (not has_curr())
 	throw std::overflow_error("Iterator overflow");
 
+      ++pos;
       Tree_Node * lchild = curr->get_left_child();
-
       if (lchild == nullptr)
 	{
 	  if (s.is_empty())
@@ -666,8 +671,8 @@ public:
 	  return;
 	}
 
-      for (auto p = lchild->get_right_sibling(); p != nullptr; 
-	   p = p->get_right_sibling())
+      for (auto p = curr->get_right_child(); p != lchild;
+	   p = p->get_left_sibling())
 	s.push(p);
       
       curr = lchild;
