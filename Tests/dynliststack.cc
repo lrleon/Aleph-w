@@ -49,20 +49,20 @@ TEST_F(SimpleStack, push_pop)
 
   const size_t m = 100;
   for (size_t i = 0; i < m; ++i)
-    EXPECT_EQ(s.push(i), i);
+    ASSERT_EQ(s.push(i), i);
   EXPECT_EQ(s.size(), n + m);
 
   for (size_t i = 0; i < m; ++i)
-    EXPECT_EQ(s.pop(), m - i - 1);
+    ASSERT_EQ(s.pop(), m - i - 1);
 
   EXPECT_EQ(s.size(), n);
 
   for (size_t i = 0; i < m; ++i)
-    EXPECT_EQ(s.push(i), i);
+    ASSERT_EQ(s.push(i), i);
   EXPECT_EQ(s.size(), n + m);
 
   for (size_t i = 0; i < m; ++i)
-    EXPECT_EQ(s.pop(), m - i - 1);
+    ASSERT_EQ(s.pop(), m - i - 1);
   EXPECT_FALSE(s.is_empty());
   EXPECT_EQ(s.size(), n);
 
@@ -80,21 +80,21 @@ TEST_F(ComplexStack, push_pop)
   const size_t m = 100;
   for (size_t i = 0; i < m; ++i)
     {
-      EXPECT_EQ(s.push({int(i), 0, 1, int(i)}).get_first(), i);
-      EXPECT_EQ(s.top().get_first(), i);
-      EXPECT_EQ(s.top().get_last(), i);
-      EXPECT_EQ(s.top().nth(1), 0);
-      EXPECT_EQ(s.top().nth(2), 1);
+      ASSERT_EQ(s.push({int(i), 0, 1, int(i)}).get_first(), i);
+      ASSERT_EQ(s.top().get_first(), i);
+      ASSERT_EQ(s.top().get_last(), i);
+      ASSERT_EQ(s.top().nth(1), 0);
+      ASSERT_EQ(s.top().nth(2), 1);
     }
   EXPECT_EQ(s.size(), n + m);
 
   for (size_t i = 0; i < m; ++i)
     {
       auto l = s.pop();
-      EXPECT_EQ(l.get_first(), m - i - 1);      
-      EXPECT_EQ(l.get_last(), m - i - 1);
-      EXPECT_EQ(l.nth(1), 0);
-      EXPECT_EQ(l.nth(2), 1);
+      ASSERT_EQ(l.get_first(), m - i - 1);      
+      ASSERT_EQ(l.get_last(), m - i - 1);
+      ASSERT_EQ(l.nth(1), 0);
+      ASSERT_EQ(l.nth(2), 1);
     }
 
   EXPECT_EQ(s.size(), n);
@@ -102,30 +102,30 @@ TEST_F(ComplexStack, push_pop)
   for (size_t i = 0; i < m; ++i)
     {
       auto & l = s.push({ int(i), 0, 1, int(i) });
-      EXPECT_EQ(l.get_first(), i);
-      EXPECT_EQ(l.get_last(), i);
-      EXPECT_EQ(l.nth(1), 0);
-      EXPECT_EQ(l.nth(2), 1);
+      ASSERT_EQ(l.get_first(), i);
+      ASSERT_EQ(l.get_last(), i);
+      ASSERT_EQ(l.nth(1), 0);
+      ASSERT_EQ(l.nth(2), 1);
     }
   EXPECT_EQ(s.size(), n + m);
 
   for (size_t i = 0; i < m; ++i)
     {
       auto l = s.pop();
-      EXPECT_EQ(l.get_first(), m - i - 1);
-      EXPECT_EQ(l.get_last(), m - i - 1);
-      EXPECT_EQ(l.nth(1), 0);
-      EXPECT_EQ(l.nth(2), 1);
+      ASSERT_EQ(l.get_first(), m - i - 1);
+      ASSERT_EQ(l.get_last(), m - i - 1);
+      ASSERT_EQ(l.nth(1), 0);
+      ASSERT_EQ(l.nth(2), 1);
     }
   EXPECT_EQ(s.size(), n);
   
   for (size_t i = 0; i < n; ++i)
     {
       auto l = s.pop();
-      EXPECT_EQ(l.get_first(), n - i - 1);
-      EXPECT_EQ(l.get_last(), n - i - 1);
-      EXPECT_EQ(l.nth(1), 0);
-      EXPECT_EQ(l.nth(2), 1);
+      ASSERT_EQ(l.get_first(), n - i - 1);
+      ASSERT_EQ(l.get_last(), n - i - 1);
+      ASSERT_EQ(l.nth(1), 0);
+      ASSERT_EQ(l.nth(2), 1);
     }
   EXPECT_TRUE(s.is_empty());
   EXPECT_EQ(s.size(), 0);
@@ -136,10 +136,10 @@ TEST_F(ComplexStack, push_pop)
   for (size_t i = 0; i < m; ++i)
     {
       auto & l = s.push({ int(i), 0, 1, int(i) });
-      EXPECT_EQ(l.get_first(), i);
-      EXPECT_EQ(l.get_last(), i);
-      EXPECT_EQ(l.nth(1), 0);
-      EXPECT_EQ(l.nth(2), 1);
+      ASSERT_EQ(l.get_first(), i);
+      ASSERT_EQ(l.get_last(), i);
+      ASSERT_EQ(l.nth(1), 0);
+      ASSERT_EQ(l.nth(2), 1);
     }
   EXPECT_EQ(s.size(), m);
 
@@ -161,7 +161,7 @@ TEST_F(SimpleStack, Iterator)
 {
   auto it = s.get_it(); 
   for (size_t i = 0; it.has_curr(); it.next(), ++i)
-    EXPECT_EQ(it.get_curr(), n - i - 1);
+    ASSERT_EQ(it.get_curr(), n - i - 1);
 }
 
 TEST_F(ComplexStack, Iterator)
@@ -169,10 +169,10 @@ TEST_F(ComplexStack, Iterator)
   auto it = s.get_it(); 
   for (size_t i = 0; it.has_curr(); it.next(), ++i)
     {
-      EXPECT_EQ(it.get_curr().get_first(), n - i -1);
-      EXPECT_EQ(it.get_curr().get_last(), n - i - 1);
-      EXPECT_EQ(it.get_curr().nth(1), 0);
-      EXPECT_EQ(it.get_curr().nth(2), 1);
+      ASSERT_EQ(it.get_curr().get_first(), n - i -1);
+      ASSERT_EQ(it.get_curr().get_last(), n - i - 1);
+      ASSERT_EQ(it.get_curr().nth(1), 0);
+      ASSERT_EQ(it.get_curr().nth(2), 1);
     }
 }
 
@@ -185,7 +185,7 @@ TEST_F(SimpleStack, copy_operations)
     EXPECT_EQ(s.size(), sc.size());
     int i = 0;
     for (; i < n; ++i)
-      EXPECT_EQ(sc.pop(), n - i - 1);
+      ASSERT_EQ(sc.pop(), n - i - 1);
     EXPECT_EQ(i, n);
   }
   
@@ -196,7 +196,7 @@ TEST_F(SimpleStack, copy_operations)
     EXPECT_EQ(s.size(), sc.size());
     int i = 0;
     for (; i < n; ++i)
-      EXPECT_EQ(sc.pop(), n - i - 1);
+      ASSERT_EQ(sc.pop(), n - i - 1);
     EXPECT_EQ(i, s.size());
   }
 
@@ -210,7 +210,7 @@ TEST_F(SimpleStack, copy_operations)
   for (; i < n; ++i)
     {
       s.push(sc.pop());
-      EXPECT_EQ(s.top(), n - i - 1);
+      ASSERT_EQ(s.top(), n - i - 1);
     }
   EXPECT_EQ(i, n);
   EXPECT_EQ(s.size(), n);
@@ -224,7 +224,7 @@ TEST_F(SimpleStack, copy_operations)
   for (; i < n; ++i)
     {
       s.push(sc.pop());
-      EXPECT_EQ(s.top(), i);
+      ASSERT_EQ(s.top(), i);
     }
   EXPECT_EQ(i, n);
   EXPECT_EQ(s.size(), n);
@@ -235,17 +235,17 @@ TEST_F(ComplexStack, copy_operations)
 {
   { // test copy ctor
     DynListStack<DynList<int>> sc = s;
-    EXPECT_FALSE(sc.is_empty());
-    EXPECT_EQ(s.size(), sc.size());
-    EXPECT_TRUE(eq(s.top(), sc.top()));
+    ASSERT_FALSE(sc.is_empty());
+    ASSERT_EQ(s.size(), sc.size());
+    ASSERT_TRUE(eq(s.top(), sc.top()));
   }
   
   { // test copy assignment 
     DynListStack<DynList<int>> sc;
     sc = s;
-    EXPECT_FALSE(sc.is_empty());
-    EXPECT_EQ(s.size(), sc.size());
-    EXPECT_TRUE(eq(s.top(), sc.top()));
+    ASSERT_FALSE(sc.is_empty());
+    ASSERT_EQ(s.size(), sc.size());
+    ASSERT_TRUE(eq(s.top(), sc.top()));
   }
 
   // test move ctor

@@ -16,7 +16,7 @@ CXX = clang++
 
 GTESTDIR=$(shell echo $$GOOGLETEST)
 
-SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc
+SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc
 
 LOCALLIBS=	../libAleph.a $(GTESTDIR)/googletest/make/gtest_main.a 		$(GTESTDIR)/googlemock/make/gmock_main.a 
 DEPLIBS=	../libAleph.a 
@@ -82,6 +82,12 @@ NormalProgramTarget(arrayqueue,arrayqueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 AllTarget(dynlistqueue)
 NormalProgramTarget(dynlistqueue,dynlistqueue.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(bin-node)
+NormalProgramTarget(bin-node,bin-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(tree-node)
+NormalProgramTarget(tree-node,tree-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 
 DependTarget()

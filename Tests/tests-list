@@ -13,3 +13,5 @@ fixedstack
 dynliststack
 arrayqueue
 dynlistqueue
+bin-node
+tree-node
