@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_TREAPRK_H
 # define TPL_TREAPRK_H
 
@@ -90,7 +112,7 @@ private:
   Node *    head_ptr;
   Node *&   tree_root;
   gsl_rng * r;
-  Compare & cmp;
+  Compare   cmp;
 
   void init(unsigned int seed)
   {
@@ -116,25 +138,13 @@ public:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Treap_Rk(unsigned long seed, Compare & __cmp) 
+  Gen_Treap_Rk(unsigned long seed, Compare __cmp = Compare()) 
     : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }
 
-  Gen_Treap_Rk(unsigned long seed, Compare && cmp) 
-    : Gen_Treap_Rk(seed, cmp)
-  {
-    // empty
-  }
-
-  Gen_Treap_Rk(Compare & cmp) : Gen_Treap_Rk(time(nullptr), cmp)
-  {
-    // empty
-  }
-
-  Gen_Treap_Rk(Compare && cmp = Compare()) 
-    : Gen_Treap_Rk(time(nullptr), std::forward<Compare>(cmp))
+  Gen_Treap_Rk(Compare __cmp = Compare()) : Gen_Treap_Rk(time(nullptr), __cmp)
   {
     // empty
   }
@@ -155,6 +165,8 @@ public:
 
   /// Return the tree's root
   Node *& getRoot() noexcept { return tree_root; }
+
+  Node * getRoot() const noexcept { return tree_root; }
 
   /** Search a key in a treap
 
@@ -409,7 +421,7 @@ public:
       @return a pointer to a tree root containing all the removed nodes
       @throw range_error if the range is invalid
   */
-  Node * remove(const size_t beg, const size_t end) noexcept
+  Node * remove(const size_t beg, const size_t end)
   {
     if (beg > end or end > COUNT(tree_root))
       throw std::range_error("remove of TreapRk out of range");
@@ -727,22 +739,24 @@ public:
     }
 
         /// Initialize an iterator on `__tree`
-    Iterator(Gen_Treap_Rk & __tree) noexcept
-      : tree_ptr(&__tree), curr(nullptr)
+    Iterator(const Gen_Treap_Rk & __tree) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)), curr(nullptr)
     {
       curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
     }
 
     /// Initialize an iterator startin from node `__curr`
-    Iterator(Gen_Treap_Rk & __tree, Node * __curr) noexcept
-      : tree_ptr(&__tree), curr(__curr), curr_pos(Pos_Not_Updated)
+    Iterator(const Gen_Treap_Rk & __tree, Node * __curr) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
+	curr(__curr), curr_pos(Pos_Not_Updated)
     {
       // empty
     }
 
     /// Initialize an iterator starting from the iorder position `pos`
-    Iterator(Gen_Treap_Rk & __tree, const size_t pos) noexcept
-      : tree_ptr(&__tree), curr(nullptr), curr_pos(pos)
+    Iterator(const Gen_Treap_Rk & __tree, const size_t pos) noexcept
+      : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
+	curr(nullptr), curr_pos(pos)
     {
       // empty
     }
@@ -781,7 +795,7 @@ public:
     }
 
     /// Put the iterator in the end state
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();

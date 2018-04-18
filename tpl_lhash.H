@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_LHASH_H
 # define TPL_LHASH_H
@@ -77,7 +99,7 @@ private:
 protected:
 
   size_t len;                  // Tamaño de la tabla
-  Cmp &  cmp;
+  Cmp    cmp;
   float  lower_alpha;
   float  upper_alpha;
 
@@ -102,9 +124,13 @@ public:
           liberan todas las cubetas cuando se invoca al destructor.
           @throw bad_alloc si no hay memoria para apartar la tabla.
        */
-  GenLhashTable(size_t table_size, Hash_Fct __hash_fct, Cmp & __cmp,
-		float __lower_alpha, float __upper_alpha, 
-                bool __remove_all_buckets, bool __with_resize) 
+  GenLhashTable(size_t table_size         = Primes::DefaultPrime,
+		Hash_Fct __hash_fct       = Aleph::dft_hash_fct<Key>,
+		Cmp  __cmp                = Cmp(),
+		float __lower_alpha       = hash_default_lower_alpha,
+		float __upper_alpha       = hash_default_upper_alpha, 
+                bool __remove_all_buckets = true,
+		bool __with_resize        = true) 
     throw(std::exception, std::bad_alloc) 
     : hash_fct(__hash_fct), table(nullptr),
       len(Primes::next_prime(table_size)), cmp(__cmp),
@@ -114,20 +140,6 @@ public:
   { 
     table = new BucketList [len];
   }
-
-  GenLhashTable(size_t   table_size  = Primes::DefaultPrime,
-		Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>, 
-		Cmp &&   cmp         = Cmp(),
-		float    lower_alpha = hash_default_lower_alpha,
-		float    upper_alpha = hash_default_upper_alpha,
-                bool     remove_all_buckets = true,
-		bool     with_resize        = true) 
-    throw(std::exception, std::bad_alloc) 
-    : GenLhashTable(table_size, hash_fct, cmp, lower_alpha, upper_alpha,
-		    remove_all_buckets, with_resize)
-    {
-      // empty
-    }
 
   void swap(GenLhashTable & other) noexcept
   {
@@ -180,7 +192,7 @@ public:
 
       /// Inserta en la tabla la cubeta bucket y retorna su dirección si
       /// la clave no está en la tabla; de lo contrario se retorna nullptr
-  Bucket * insert(Bucket * bucket) noexcept
+  Bucket * insert(Bucket * bucket)
   {
     const auto i = (*hash_fct)(bucket->get_key()) % len;
     auto & list = table[i];
@@ -202,7 +214,7 @@ public:
 
   // Busca bucket->key. Si la encuentra, retorna la dirección de bucket
   // dentro de la tabla. De lo contrario inserta y retorna bucket
-  Bucket * search_or_insert(Bucket * bucket) noexcept
+  Bucket * search_or_insert(Bucket * bucket)
   {
     const auto i = (*hash_fct)(bucket->get_key()) % len;
     auto & list = table[i];
@@ -444,7 +456,7 @@ public:
     Iterator() noexcept { /* Empty */ }
 
         /// Reinicia el iterador sobre la primera cubeta.
-    void reset_first() noexcept
+    void reset_first()
     {
       curr_index = -1;
       curr_pos = 1;
@@ -452,14 +464,14 @@ public:
     }
 
         /// Reinicia el iterador sobre la última cubeta.
-    void reset_last() noexcept
+    void reset_last()
     { 
       curr_index = hash_table->len;
       curr_pos = hash_table->N - 1;
       locate_prev_available_entry();
     }
 
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();

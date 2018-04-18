@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef BELLMAN_FORD_H
 # define BELLMAN_FORD_H
 
@@ -51,13 +73,13 @@ class Bellman_Ford
     return ((Ni*) NODE_COOKIE(p))->idx;
   }
 
-  DynArray<typename GT::Arc*>  arcs;
+  DynArray<typename GT::Arc*> arcs;
   const GT & g;
   const Distance_Type Inf;
-  bool painted;
-  Node * s;
-  SA & sa;
-  Distance & dist;
+  bool painted = false;
+  Node * s = nullptr;
+  SA sa;
+  Distance dist;
 
   // Inicializa sin usar los arreglos
   void init_simple(Node * start)
@@ -124,30 +146,11 @@ class Bellman_Ford
 
 public:
 
-  Bellman_Ford(const GT & __g, Distance & d, SA & __sa) noexcept
+  Bellman_Ford(const GT & __g, Distance d = Distance(), SA __sa = SA())
     : g(const_cast<GT&>(__g)), Inf(std::numeric_limits<Distance_Type>::max()), 
       painted(false), sa(__sa), dist(d)
   {
     // empty
-  }
-
-  Bellman_Ford(const GT & __g, Distance && d = Distance(), SA && __sa = SA()) 
-    noexcept
-    : Bellman_Ford(__g, d, __sa)
-  {
-    // Empty
-  }
-
-  Bellman_Ford(const GT & __g, Distance && d, SA & __sa) noexcept
-    : Bellman_Ford(__g, d, __sa)
-  {
-    // Empty
-  }
-
-  Bellman_Ford(const GT & __g, Distance & d, SA && __sa) noexcept
-    : Bellman_Ford(__g, d, __sa)
-  {
-    // Empty
   }
 
 private:
@@ -318,7 +321,7 @@ public:
       returned and the minimal spanning tree is painted with the bit
       `Spanning_Tree`
   */
-  bool paint_spanning_tree(Node * start) noexcept
+  bool paint_spanning_tree(Node * start)
   {
     init_with_indexes(start); 
     

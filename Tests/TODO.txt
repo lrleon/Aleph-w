@@ -1,0 +1,7 @@
+test Slinknc::Iterator con nodo de entrada,2017-09-27 20:57:05 -0400,,
+operacion is_in_last o is_in_first para iteradores,2017-09-28 11:03:45 -0400,,
+test incremental sobre transpose para solo usar Slinknc,2017-10-04 09:59:45 -0400,,
+get de memarray debe ser incluido en tests,2017-10-04 20:22:16 -0400,,
+validar ctor de 5 parametros de Array_Iterator,2017-10-05 11:30:32 -0400,,
+all-tests debe verificar si figlet está instalado,2017-10-05 11:37:19 -0400,,
+script que borre ejecutables,2017-10-05 19:56:59 -0400,,

@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef FILTER_ITERATOR_H
 # define FILTER_ITERATOR_H
@@ -41,7 +63,7 @@ namespace Aleph {
     template <class Container, class It, class Show_Item>
 class Filter_Iterator : public It
 {
-  Show_Item & show_item; 
+  Show_Item show_item; 
 
   Container * container_ptr = nullptr;
 
@@ -112,43 +134,26 @@ public:
       /// perderá cuando se invoque al destructor ~Filter_Iterator()
   Show_Item & get_filter() { return show_item; }
 
-  void set_filter(Show_Item && si)
+  void set_filter(Show_Item si)
   {
     show_item = si;
   }
 
-  void set_filter(Show_Item & si)
-  {
-    show_item = si;
-  }
-
-  Filter_Iterator(Show_Item & si) 
-    : show_item(si)
-  {
-    // empty
-  }
-
-  Filter_Iterator(Show_Item && si = Show_Item()) : Filter_Iterator(si)
+  Filter_Iterator(Show_Item si = Show_Item()) : show_item(si)
   {
     // empty
   }
 
   /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, Show_Item & si) 
+  Filter_Iterator(const Container & c, Show_Item si = Show_Item()) 
     : It(c), show_item(si), container_ptr(&const_cast<Container&>(c))
   {
     goto_first_valid_item();
   }
 
-     /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, Show_Item && si = Show_Item()) 
-    : Filter_Iterator(c, si)
-  {
-    // empty
-  }
-
   /// Iterador sobre conjunto cont_ptr con filtro si
-  Filter_Iterator(const Container & c, void * __cookie, Show_Item & si) 
+  Filter_Iterator(const Container & c, void * __cookie,
+		  Show_Item si = Show_Item()) 
     : Filter_Iterator(c, si)
   {
     cookie = __cookie;

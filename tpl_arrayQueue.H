@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_ARRAYQUEUE_H
 # define TPL_ARRAYQUEUE_H
@@ -279,8 +301,8 @@ public:
     if (this->n == 0)
       return true;
 
-    for (size_t i = front_index; i != rear_index; increase_index(i))
-      if (not operation(this->access(i)))
+    for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
+      if (not operation(this->access(idx)))
 	return false;
     return true;
   }
@@ -318,8 +340,8 @@ public:
     using Base::Base;
     using Set_Type = ArrayQueue;
 
-    Iterator(const ArrayQueue & q) noexcept
-      : Base(q.ptr, q.dim, q.n, q.front_index, q.rear_index - 1) { }
+    Iterator(const ArrayQueue & q)
+      : Base(q.ptr, q.dim, q.n, q.front_index, (q.rear_index - 1) % q.dim) {}
   };
 };
 
@@ -383,6 +405,12 @@ public:
     std::swap(num_items, q.num_items);
   }
 
+  /// empty the queue
+  void empty()
+  {
+    front_index = rear_index = num_items = 0;
+  }
+
       /** Construct a queue of capacity the immediately two power of `d`
 
 	  Te resulting capacity will be the first number such \f$2^k
@@ -408,7 +436,7 @@ public:
   /// Copy constructor
   FixedQueue(const FixedQueue & q) 
     : dim(q.dim), array(new T [dim]), front_index(q.front_index), 
-    rear_index(q.rear_index), mask(q.mask), num_items(q.num_items)
+      rear_index(q.rear_index), mask(q.mask), num_items(q.num_items)
   {
     for (size_t i = front_index; i != rear_index; ++i)
       array[i] = q.array[i];
@@ -557,8 +585,8 @@ public:
   {
     if (num_items == 0)
       return true;
-    for (size_t i = front_index; i != rear_index; increase_index(i))
-      if (not operation(array[i]))
+    for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
+      if (not operation(array[idx]))
 	return false;
     return true;
   }
@@ -597,11 +625,17 @@ public:
     using Set_Type = FixedQueue;
 
     Iterator(const FixedQueue & q) noexcept
-      : Base(q.array, q.dim, q.num_items, q.front_index, q.rear_index - 1) { }
+      : Base(q.array, q.dim, q.num_items, q.front_index,
+	     (q.rear_index - 1) % q.dim) {}
   };
 };
 
 } // end namespace Aleph
 
 # endif /* TPL_ARRAYQUEUE_H */
+
+
+
+
+
 

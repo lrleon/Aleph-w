@@ -1,0 +1,1151 @@
+/** 
+   \mainpage   
+ 
+   \f$\aleph_\omega\f$ Aleph-w  es una biblioteca de tipos de datos
+   abstractos y algoritmos en torno a una amplia gama de estructuras de
+   datos y problemas fundamentales de computación.
+
+   \f$\aleph_\omega\f$ Aleph-w tiene una multiplicidad de ambientes
+   según el nivel y ámbito de los programas que la empleen, yendo desde
+   sistemas de bajo nivel: operativos, tiempo real, empotrados, drivers,
+   etc., donde los recursos sean muy limitados y la eficiencia es
+   esencial, hasta aplicaciones gráficas tipo front-end donde el manejo
+   de memoria puede efectuarse a través de las interfaces del lenguaje.
+
+   \f$\aleph_\omega\f$ Aleph-w está programada en <code>C</code> y
+   <code>C++</code>, y puede usarse para estos lenguajes así también
+   como para otros empleando las adecuadas convenciones de
+   encadenamiento.
+
+   \f$\aleph_\omega\f$ Aleph-w está agrupado en los siguientes módulos:
+   - \ref Secuencias  
+   - \ref Arboles
+   - \ref Hash
+   - \ref Grafos 
+   - \ref Redes
+   - \ref Geometria
+   - \ref Algos
+   - \ref stl
+   - \ref fcts
+   - \ref utils
+   - \ref Funcional
+   .
+
+   Un panorama general de diseño de \f$\aleph_\omega\f$ Aleph-w, así
+   como sus principios rectores puede encontrarse en \ref Intro
+   
+   <a href="http://sourceforge.net/projects/aleph-w/"
+   target="_blank">Fuentes de Aleph-w</a> pueden descargarse de <a 
+   href="http://sourceforge.net/" target="_blank">SourceForge</a>.
+
+   @author <a href="http://webdelprofesor.ula.ve/ingenieria/lrleon/" target="_blank">Leandro Rabindranath León</a> (lrleon en ula punto ve)   
+
+   Con las contribuciones esenciales de:
+   - <a href="http://webdelprofesor.ula.ve/ingenieria/alejandromujica/" target="_blank">Alejandro Mujica</a> (aledrums at gmail point com): grafos, geometría
+     computacional, interfaces gráficas y muchísimas y diversas mejoras y
+     correcciones 
+   - \ref Autores
+
+   \ref Licencia
+*/
+
+
+/**
+   \page Licencia  Licencia ALEPH-w
+  
+<p>Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+2011, 2012, 2013, 2014, 2015</p> 
+<br/>
+
+<p>Leandro Rabindranath León</p>
+<p>Alejandro Mujica</p>
+<br/>
+<p>All rights reserved.</p>
+
+<p>Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:<p>
+<ol>
+<li>Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.</li>
+<li>Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.</li>
+<li>All advertising materials mentioning features or use of this software
+   must display the following acknowledgement: 
+
+   <p>Copyright (c) 2002-2015/Leandro Rabindranath León/Alejandro Mujica.
+   See details of licence.</p> 
+
+   <p>This product includes software developed by the  Hewlett-Packard
+     Company, Free Software Foundation and Silicon Graphics Computer
+     Systems, Inc. </p>
+<li>Neither the name of copyright holders nor the names of its
+   contributors may be used to endorse or promote products derived
+   from this software without specific prior written permission.</li>
+</ol>
+
+<br/>
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL COPYRIGHT HOLDERS OR CONTRIBUTORS
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.</p>
+
+<br/>
+   
+<p> Aleph is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE. </p>
+
+<br/>
+<p> I request users of this software to return to:</p> 
+<br/>
+
+  <a href ="http://webdelprofesor.ula.ve/ingenieria/lrleon/">Leandro Rabindranath Leon</a><br/>  
+  CEMISID <br/>
+  Ed La Hechicera <br/>
+  3er piso, ala sur<br/>
+  Facultad de Ingenieria <br/>
+  Universidad de Los Andes <br/>
+  Merida - VENEZUELA    or <br/>
+   <br/>
+  lrleon@ula.ve or leandro.r.leon@gmail.com <br/>
+
+
+<p>any improvements or extensions that they make and grant me
+  the rights to redistribute these changes. </p>
+
+\f$\aleph_\omega\f$ Aleph-w se sustenta sobre otras librerías, la
+mayoría de licencia gpl 2.0. 
+
+Para el caso de los algoritmos de la biblioteca <code>stlc++</code>,
+\f$\aleph_\omega\f$ Aleph-w se basa en la implementación de GNU, la cual
+se basa en las siguientes licencias:
+-# \ref Licenciahp
+-# \ref LicenciaSGI
+-# \ref Licenciagpl
+
+ \section Licenciahp Licencia Hewlett-Packard Company
+
+  Copyright (c) 1994
+  Hewlett-Packard Company
+ 
+  Permission to use, copy, modify, distribute and sell this software
+  and its documentation for any purpose is hereby granted without fee,
+  provided that the above copyright notice appear in all copies and
+  that both that copyright notice and this permission notice appear
+  in supporting documentation.  Hewlett-Packard Company makes no
+  representations about the suitability of this software for any
+  purpose.  It is provided "as is" without express or implied warranty.
+
+
+ \section LicenciaSGI Licencia Silicon Graphics Computer Systems, Inc.
+
+Copyright (c) 1996,1997
+Silicon Graphics Computer Systems, Inc.
+ 
+  Permission to use, copy, modify, distribute and sell this software
+  and its documentation for any purpose is hereby granted without fee,
+  provided that the above copyright notice appear in all copies and
+  that both that copyright notice and this permission notice appear
+  in supporting documentation.  Silicon Graphics makes no
+  representations about the suitability of this software for any
+  purpose.  It is provided "as is" without express or implied warranty.
+
+
+ \section Licenciagpl Licencia GNU V 3
+
+
+		    GNU GENERAL PUBLIC LICENSE
+		       Version 3, 29 June 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+			    Preamble
+
+  The GNU General Public License is a free, copyleft license for
+software and other kinds of works.
+
+  The licenses for most software and other practical works are designed
+to take away your freedom to share and change the works.  By contrast,
+the GNU General Public License is intended to guarantee your freedom to
+share and change all versions of a program--to make sure it remains free
+software for all its users.  We, the Free Software Foundation, use the
+GNU General Public License for most of our software; it applies also to
+any other work released this way by its authors.  You can apply it to
+your programs, too.
+
+  When we speak of free software, we are referring to freedom, not
+price.  Our General Public Licenses are designed to make sure that you
+have the freedom to distribute copies of free software (and charge for
+them if you wish), that you receive source code or can get it if you
+want it, that you can change the software or use pieces of it in new
+free programs, and that you know you can do these things.
+
+  To protect your rights, we need to prevent others from denying you
+these rights or asking you to surrender the rights.  Therefore, you have
+certain responsibilities if you distribute copies of the software, or if
+you modify it: responsibilities to respect the freedom of others.
+
+  For example, if you distribute copies of such a program, whether
+gratis or for a fee, you must pass on to the recipients the same
+freedoms that you received.  You must make sure that they, too, receive
+or can get the source code.  And you must show them these terms so they
+know their rights.
+
+  Developers that use the GNU GPL protect your rights with two steps:
+(1) assert copyright on the software, and (2) offer you this License
+giving you legal permission to copy, distribute and/or modify it.
+
+  For the developers' and authors' protection, the GPL clearly explains
+that there is no warranty for this free software.  For both users' and
+authors' sake, the GPL requires that modified versions be marked as
+changed, so that their problems will not be attributed erroneously to
+authors of previous versions.
+
+  Some devices are designed to deny users access to install or run
+modified versions of the software inside them, although the manufacturer
+can do so.  This is fundamentally incompatible with the aim of
+protecting users' freedom to change the software.  The systematic
+pattern of such abuse occurs in the area of products for individuals to
+use, which is precisely where it is most unacceptable.  Therefore, we
+have designed this version of the GPL to prohibit the practice for those
+products.  If such problems arise substantially in other domains, we
+stand ready to extend this provision to those domains in future versions
+of the GPL, as needed to protect the freedom of users.
+
+  Finally, every program is threatened constantly by software patents.
+States should not allow patents to restrict development and use of
+software on general-purpose computers, but in those that do, we wish to
+avoid the special danger that patents applied to a free program could
+make it effectively proprietary.  To prevent this, the GPL assures that
+patents cannot be used to render the program non-free.
+
+  The precise terms and conditions for copying, distribution and
+modification follow.
+
+		       TERMS AND CONDITIONS
+
+  0. Definitions.
+
+  "This License" refers to version 3 of the GNU General Public License.
+
+  "Copyright" also means copyright-like laws that apply to other kinds of
+works, such as semiconductor masks.
+ 
+  "The Program" refers to any copyrightable work licensed under this
+License.  Each licensee is addressed as "you".  "Licensees" and
+"recipients" may be individuals or organizations.
+
+  To "modify" a work means to copy from or adapt all or part of the work
+in a fashion requiring copyright permission, other than the making of an
+exact copy.  The resulting work is called a "modified version" of the
+earlier work or a work "based on" the earlier work.
+
+  A "covered work" means either the unmodified Program or a work based
+on the Program.
+
+  To "propagate" a work means to do anything with it that, without
+permission, would make you directly or secondarily liable for
+infringement under applicable copyright law, except executing it on a
+computer or modifying a private copy.  Propagation includes copying,
+distribution (with or without modification), making available to the
+public, and in some countries other activities as well.
+
+  To "convey" a work means any kind of propagation that enables other
+parties to make or receive copies.  Mere interaction with a user through
+a computer network, with no transfer of a copy, is not conveying.
+
+  An interactive user interface displays "Appropriate Legal Notices"
+to the extent that it includes a convenient and prominently visible
+feature that (1) displays an appropriate copyright notice, and (2)
+tells the user that there is no warranty for the work (except to the
+extent that warranties are provided), that licensees may convey the
+work under this License, and how to view a copy of this License.  If
+the interface presents a list of user commands or options, such as a
+menu, a prominent item in the list meets this criterion.
+
+  1. Source Code.
+
+  The "source code" for a work means the preferred form of the work
+for making modifications to it.  "Object code" means any non-source
+form of a work.
+
+  A "Standard Interface" means an interface that either is an official
+standard defined by a recognized standards body, or, in the case of
+interfaces specified for a particular programming language, one that
+is widely used among developers working in that language.
+
+  The "System Libraries" of an executable work include anything, other
+than the work as a whole, that (a) is included in the normal form of
+packaging a Major Component, but which is not part of that Major
+Component, and (b) serves only to enable use of the work with that
+Major Component, or to implement a Standard Interface for which an
+implementation is available to the public in source code form.  A
+"Major Component", in this context, means a major essential component
+(kernel, window system, and so on) of the specific operating system
+(if any) on which the executable work runs, or a compiler used to
+produce the work, or an object code interpreter used to run it.
+
+  The "Corresponding Source" for a work in object code form means all
+the source code needed to generate, install, and (for an executable
+work) run the object code and to modify the work, including scripts to
+control those activities.  However, it does not include the work's
+System Libraries, or general-purpose tools or generally available free
+programs which are used unmodified in performing those activities but
+which are not part of the work.  For example, Corresponding Source
+includes interface definition files associated with source files for
+the work, and the source code for shared libraries and dynamically
+linked subprograms that the work is specifically designed to require,
+such as by intimate data communication or control flow between those
+subprograms and other parts of the work.
+
+  The Corresponding Source need not include anything that users
+can regenerate automatically from other parts of the Corresponding
+Source.
+
+  The Corresponding Source for a work in source code form is that
+same work.
+
+  2. Basic Permissions.
+
+  All rights granted under this License are granted for the term of
+copyright on the Program, and are irrevocable provided the stated
+conditions are met.  This License explicitly affirms your unlimited
+permission to run the unmodified Program.  The output from running a
+covered work is covered by this License only if the output, given its
+content, constitutes a covered work.  This License acknowledges your
+rights of fair use or other equivalent, as provided by copyright law.
+
+  You may make, run and propagate covered works that you do not
+convey, without conditions so long as your license otherwise remains
+in force.  You may convey covered works to others for the sole purpose
+of having them make modifications exclusively for you, or provide you
+with facilities for running those works, provided that you comply with
+the terms of this License in conveying all material for which you do
+not control copyright.  Those thus making or running the covered works
+for you must do so exclusively on your behalf, under your direction
+and control, on terms that prohibit them from making any copies of
+your copyrighted material outside their relationship with you.
+
+  Conveying under any other circumstances is permitted solely under
+the conditions stated below.  Sublicensing is not allowed; section 10
+makes it unnecessary.
+
+  3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+
+  No covered work shall be deemed part of an effective technological
+measure under any applicable law fulfilling obligations under article
+11 of the WIPO copyright treaty adopted on 20 December 1996, or
+similar laws prohibiting or restricting circumvention of such
+measures.
+
+  When you convey a covered work, you waive any legal power to forbid
+circumvention of technological measures to the extent such circumvention
+is effected by exercising rights under this License with respect to
+the covered work, and you disclaim any intention to limit operation or
+modification of the work as a means of enforcing, against the work's
+users, your or third parties' legal rights to forbid circumvention of
+technological measures.
+
+  4. Conveying Verbatim Copies.
+
+  You may convey verbatim copies of the Program's source code as you
+receive it, in any medium, provided that you conspicuously and
+appropriately publish on each copy an appropriate copyright notice;
+keep intact all notices stating that this License and any
+non-permissive terms added in accord with section 7 apply to the code;
+keep intact all notices of the absence of any warranty; and give all
+recipients a copy of this License along with the Program.
+
+  You may charge any price or no price for each copy that you convey,
+and you may offer support or warranty protection for a fee.
+
+  5. Conveying Modified Source Versions.
+
+  You may convey a work based on the Program, or the modifications to
+produce it from the Program, in the form of source code under the
+terms of section 4, provided that you also meet all of these conditions:
+
+    a) The work must carry prominent notices stating that you modified
+    it, and giving a relevant date.
+
+    b) The work must carry prominent notices stating that it is
+    released under this License and any conditions added under section
+    7.  This requirement modifies the requirement in section 4 to
+    "keep intact all notices".
+
+    c) You must license the entire work, as a whole, under this
+    License to anyone who comes into possession of a copy.  This
+    License will therefore apply, along with any applicable section 7
+    additional terms, to the whole of the work, and all its parts,
+    regardless of how they are packaged.  This License gives no
+    permission to license the work in any other way, but it does not
+    invalidate such permission if you have separately received it.
+
+    d) If the work has interactive user interfaces, each must display
+    Appropriate Legal Notices; however, if the Program has interactive
+    interfaces that do not display Appropriate Legal Notices, your
+    work need not make them do so.
+
+  A compilation of a covered work with other separate and independent
+works, which are not by their nature extensions of the covered work,
+and which are not combined with it such as to form a larger program,
+in or on a volume of a storage or distribution medium, is called an
+"aggregate" if the compilation and its resulting copyright are not
+used to limit the access or legal rights of the compilation's users
+beyond what the individual works permit.  Inclusion of a covered work
+in an aggregate does not cause this License to apply to the other
+parts of the aggregate.
+
+  6. Conveying Non-Source Forms.
+
+  You may convey a covered work in object code form under the terms
+of sections 4 and 5, provided that you also convey the
+machine-readable Corresponding Source under the terms of this License,
+in one of these ways:
+
+    a) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by the
+    Corresponding Source fixed on a durable physical medium
+    customarily used for software interchange.
+
+    b) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by a
+    written offer, valid for at least three years and valid for as
+    long as you offer spare parts or customer support for that product
+    model, to give anyone who possesses the object code either (1) a
+    copy of the Corresponding Source for all the software in the
+    product that is covered by this License, on a durable physical
+    medium customarily used for software interchange, for a price no
+    more than your reasonable cost of physically performing this
+    conveying of source, or (2) access to copy the
+    Corresponding Source from a network server at no charge.
+
+    c) Convey individual copies of the object code with a copy of the
+    written offer to provide the Corresponding Source.  This
+    alternative is allowed only occasionally and noncommercially, and
+    only if you received the object code with such an offer, in accord
+    with subsection 6b.
+
+    d) Convey the object code by offering access from a designated
+    place (gratis or for a charge), and offer equivalent access to the
+    Corresponding Source in the same way through the same place at no
+    further charge.  You need not require recipients to copy the
+    Corresponding Source along with the object code.  If the place to
+    copy the object code is a network server, the Corresponding Source
+    may be on a different server (operated by you or a third party)
+    that supports equivalent copying facilities, provided you maintain
+    clear directions next to the object code saying where to find the
+    Corresponding Source.  Regardless of what server hosts the
+    Corresponding Source, you remain obligated to ensure that it is
+    available for as long as needed to satisfy these requirements.
+
+*/
+
+
+/** \page Autores 
+
+    En el desarrollo de \f$\aleph_\omega\f$ Aleph-w la siguientes
+    personas han contribuido decisivamente:
+   - Leandro Rabindranath León
+   - Alejandro Mujica
+   - Víctor Bravo: listas skip, tablas hash dinámicas .
+   - José Brito: graphpic Tree_Node.
+   - Juan Fuentes:  Tree_Node.
+   - Carlos Nava: Sistema IPC.
+   - Jorge Redondo: Porte CORBA.
+   - Juan Carlos Vargas: Árboles AVL hilados con rango.
+   - Leonardo Zuñiga, Bladimir Contreras, Tomás López
+   - Jesús Sanchez:  map, multiset, multimap, list, vector
+   - José Ruíz: Point Segment 
+   - Arístides Castillo y Derik Romero: Concurrent_Graph Agent_Graph
+*/
+
+
+
+/**
+   @defgroup Hash Tablas hash
+   @{ Tablas hash
+   
+   `Aleph-w` (\f$\aleph_\omega\f$) define la mayoría de tipos de tablas
+   hash existentes para guardar claves en memoria principal.
+
+   Hay tres grupo de tablas hash:
+   -# Con resolución de colisiones por encadenamiento separado (enfoque
+   tradicional) 
+   @see LhashTable LhashTableVtl 
+   -# Con resolución de colisiones por encadenamiento separado y
+   crecimiento dinámico y lineal
+   @see GenLinearHashTable
+   -# Resolución de colisiones cerrada (open addressing)
+   @see OLhashTable ODhashTable
+
+   Todas las tablas con resolución de colisión por encadenamiento
+   separado manejan "cubetas"; es decir, su objeto de operación es la
+   cubeta contentiva de la clave junto con cualquier información
+   asociada. Este enfoque, aunque muy versatil, es más engorroso que un
+   simple contenedor. Sin embargo todas las clases que manejan cubetas
+   tienen una derivación que maneja directamente un conjunto dinámico.
+   @see DynLhashTable LinearHashTable LinearHashTableVtl
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @}
+*/
+
+/**
+   @defgroup Grafos Grafos
+
+   Introduction
+    ============
+
+    `Aleph-w` (\f$\aleph_\omega\f$) allows to model graphs represented
+    with several types of linked lists. Many combinatorial problems can
+    be modeled and solved through `Aleph-w` (\f$\aleph_\omega\f$)
+    graphs.
+
+    There are three types of graphs in `Aleph-w` (\f$\aleph_\omega\f$):
+
+    1. `List_Digraph<Node, Arc>`: graph represented with doubly linked
+    lists. 
+
+    2. `List_SGraph<Node, Arc>`:  graph represented with single linked
+    lists. 
+
+    3. `Array_Graph<Node, Arc>`: graph represented with dynamic arrays.
+
+    All the three classes export the same interface. What differentiates
+    them is their performance qualities in speed and space comsuption. 
+
+    Historically, the first `Aleph-w` (\f$\aleph_\omega\f$) graph class
+    was `List_Graph`. This class is very versatile and dynamic in the
+    sense that it allows very fast topological modifications on the
+    graph. By topological modification we intend to say that nodes
+    and/or arc are inserted and/or removed. The dynamic sense consists on
+    the possibility that these operations are done very frequently in
+    \f$ O(1) \$f. `List_Graph` in since the choice of fact for applications
+    requering to build partial and/or many graph are very often. However,
+    this speed pays its price in space consumption.
+    */
+
+/**
+   @defgroup Algos Algoritmos
+   @{ Algoritmos genéricos
+   
+   \f$\aleph_\omega\f$ Aleph-w exporta una amplia gama de
+   algoritmos. Básicamente, las categorías de algoritmos pueden
+   dividirse en:
+   -# Ordenamientos
+   -# Algoritmos que emplean contenedores \f$\aleph_\omega\f$ Aleph-w
+   -# Algoritmos de la <code>stlc++</code>
+   -# Algoritmos sobre grafos. 
+   .
+
+   Con excepción de los algoritmos sobre grafos, que están agrupados
+   bajo el módulo \ref Grafos, todos los algoritmos están agrupados bajo
+   esta sección. Para mirar los algoritmos sobre grafos, vaya la sección
+   "Funciones" del módulo \ref Grafos.
+
+   A pesar del soporte para para la biblioteca <code>stlc++</code>, es
+   recomendable emplear algoritmos directos de \f$\aleph_\omega\f$
+   Aleph-w, pues lo de <code>stlc++</code> son genéricos y según la
+   implementación del contenedor pueden incurrir en algunas
+   penalidades. 
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @author Jesús Sanchez
+   @}
+*/
+
+
+/**
+   @defgroup Secuencias Sequences
+   @{ 
+   
+   In `Aleph-w` (\f$\aleph_\omega\f$) a sequence is any data structure
+   involving an array or linked list, as well as some algorithms on
+   sequences.
+
+   This category comprises the following classes and groups:
+
+   -# Arrays: simple scalable arrays `MemArray`, dynamic scalable
+     arrayns `DynArray<T>` and bits arrays `BitArray`.
+   #- Linked lists: the `Aleph-w` (\f$\aleph_\omega\f$) implementation
+     style is by layers managing links, then another layer managing a
+     node with data and finally a last layer mamaging memory
+       - Link managing: `Dlink`, `Slink` and `Slinknc`
+       - Node managing: `Dnode`, `Snode` and `Snodenc`.
+       - Dynamic lists: DynList y DynDlist
+       .
+     -# Algorithms for managing sets implemented with arrays
+     -# Sorting methods
+     .
+
+     @author Leandro Rabindranath León (lrleon en ula punto ve)
+     @} 
+  */ 
+
+
+/**
+   @defgroup Arboles Trees
+   @{ Trees
+
+   Aleph maneja distintos tipos y funciones vinculados a los árboles con raíz.
+
+   Aleph maneja dos tipos básicos de árboles con raíz:
+   #- Árboles generales: bajo el tipo Tree_Node.
+   #- Árboles binarios: bajo el tipo fundamental BinNode.
+
+   En el discurso sobre las funciones, el árbol Tree_Node se menciona
+   como "árbol" o "arborescencia", mientras que BinNode como "árbol
+   binario". 
+
+   Prácticamente, la mayoría de las funciones parametrizan bajo el tipo
+   genérico Node el tipo de nodo del árbol. Este debe ser derivado de
+   Tree_Node si se trata de un árbol o arborescencia o de BinNode si es
+   un árbol binario.
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @}
+*/
+
+/**
+   @defgroup utils Utilitarios
+   @{ Utilitarios diversos
+
+   Aleph maneja exporta distintos tipos de funciones y clases
+   utilitarias destinadas a facilitar el desarrollo de aplicaciones. 
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @author Alejandro J. Mujica
+   @}
+*/
+
+
+/** 
+   @defgroup stl Contenedores de la biblioteca estándar C++.
+   @{ Contenedores estándar
+   
+   Aleph instrumenta, por medio de sus propias clases y algoritmos, gran
+   parte de la interfaz de la biblioteca estándar C++. En particular,
+   Aleph implanta los contenedores estándar set, map, multiset,
+   multimap, vector y list, así como algunos algoritmos.
+
+   Una diferencia importante, aunque no crucial, con el estándar es que
+   Aleph no utiliza la clase parámetro <code>Allocator</code>. Sin
+   embargo, está planificado que futuran versiones sí lo contengan.
+
+   Para evitar colisiones con otras implantaciones de la biblioteca
+   estándar, y por su carácter experimental, estos contenedores están
+   incluidos en el espacio de nombres de Aleph.   
+
+   Las implantaciones Aleph de los contenedores estándar han probado ser
+   más rápidos que otras implantaciones (gnu y Boost), pero las de Aleph
+   son incompletas y deben ser consideradas experimentales.
+
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @author Jesús Sanchez
+   @}
+*/
+
+
+/**
+   @defgroup Geometria Geometría computacional
+   @{ Geometría computacional
+
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @author José Ruíz
+   @}
+*/
+
+/**
+   @defgroup fcts Funciones especiales
+   @{  Funciones especiales utilitarias de \f$\aleph_\omega\f$ Aleph-w.
+   
+   \f$\aleph_\omega\f$ Aleph-w contiene un conjunto de 
+   -# Ordenamientos
+   -# Algoritmos que emplean contenedores \f$\aleph_\omega\f$ Aleph-w
+   -# Algoritmos de la <code>stlc++</code>
+   -# Algoritmos sobre grafos. 
+   .
+
+   Con excepción de los algoritmos sobre grafos, que están agrupados
+   bajo el módulo \ref Grafos, todos los algoritmos están agrupados bajo
+   esta sección. Para mirar los algoritmos sobre grafos, vaya la sección
+   "Funciones" del módulo \ref Grafos.
+
+   A pesar del soporte para para la biblioteca <code>stlc++</code>, es
+   recomendable emplear algoritmos directos de \f$\aleph_\omega\f$
+   Aleph-w, pues lo de <code>stlc++</code> son genéricos y según la
+   implementación del contenedor pueden incurrir en algunas
+   penalidades. 
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @author Jesús Sanchez
+   @}
+*/
+
+
+
+/**
+ \page Intro  Principios generales 
+
+ \section Prin Principios generales de diseño y programación 
+
+ El diseño de \f$\aleph_\omega\f$ Aleph-w está orientado hacia grupos de
+ clases de objeto según su granularidad en lugar de capas según su
+ funcionalidad.
+
+ En este contexto, la granularidad de una clase es una idea que da
+ cuenta de su complejidad bajo las siguientes consideraciones: 
+ -# La continuidad de memoria: una clase cuya estructuración en memoria
+ sea contigua, básicamente que no contenga punteros a zonas
+ discontinuas, y que represente a una sola unidad se considera de
+ granularidad baja o fina. Por ejemplo, los tipos básicos del compilador
+ (<code>int</code>, <code>float</code>, etc) son tipos de granularidad
+ muy fina. También, objetos simplemente estructurados, tales como
+ números complejos, y otros de \f$\aleph_\omega\f$ Aleph-w como
+ Point, Slink, Dlink, etc. son de granularidad fina.
+ -# Funcionalidad mínima por herencia: funcionalmente hablando, una
+ clase es de baja granularidad en la medida en que sus métodos sean
+ indispensables a su nivel de herencia de clases. En ese sentido, un
+ método dado debe exportarse desde el nivel de clase más bajo.
+ . 
+
+ La siguiente figura esquematiza un panorama arquitectural de
+ \f$\aleph_\omega\f$ Aleph-w:
+
+ <img src="capas.png" width="400" height="400" border="0"
+ alt="Arquitectura Aleph-w"/>	 
+
+ Note que estos grupos no necesariamente se corresponden con los módulos
+ planteados en este manual. Se trata de grupos de diseño según la
+ granularidad. 
+
+ Fundamentalmente, según la granularidad, \f$\aleph_\omega\f$ Aleph-w se
+ compone de cinco (5) grandes grupos de clases:
+ -# Clases de granularidad fina.
+ -# Clases de granularidad intermedia.
+ -# Clases de representación.
+ -# Contenedores 
+ -# Algoritmos.
+
+ \section gfino Clases de granularidad fina
+
+ Las clases de grano fino son bastante incompletas en el sentido de que
+ no están diseñadas para utilizarse por si solas, sino como parte de una
+ estructura de datos.
+
+ A esta categoría pertenecen las clases Slink, Dlink, Point y Segment.
+
+ De este grupo, quizá la más notoria, por su empleo prácticamente ubicuo
+ en el resto de la biblioteca, es la clase Dlink, la cual representa un
+ doble enlace de una lista circular, doblemente enlazada, con nodo
+ cabecera. Dlink en si no tiene sentido sin pensar en otra estructura de
+ dato, pero separarla tiene grandes ventajas, entre la cuales se puede
+ señalar:
+ - El manejo de los enlaces, que quizá es lo más engorroso de emplear
+ listas enlazadas, se resuelve definitivamente y de una vez parta
+ siempre a nivel de esta clase. Posteriormente, el manejo de listas
+ enlazadas no requiere para nada pensar en los enlaces, pues todo este
+ manejo ya queda resuelto en esta clase.
+ - El manejo de memoria es ausente en esta clase.
+ - Las implementaciones de los métodos de esta clase son muy cortas, por
+ lo general lineales. Consiguientemente, se maximiza la exposición al
+ optimizador del compilador y se aumenta el desempeño.
+ - Algunos métodos que después son culminados de implantar en niveles
+ más altos son implementados en este nivel independientemente de los
+ tipos de datos que luego se manejen. Algunos ejemplos lo conforman la
+ partición y la concatenación.
+ - Una clase de objeto dada puede pertenecer arbitrariamente a muchas
+ listas. Sólo es necesario que la clase contengan tantos Dlink como
+ listas a los que puede pertenecer.
+
+ Muy parecido ocurre con la clase Point y otras clase y algoritmos de la
+ geometría computacional. 
+
+ \section gmedio Clases de granularidad intermedia
+
+ Todas las clases que pertenecen a este grupo son "nodos" de listas
+ enlazadas, de árboles, de tablas hash y de grafos y de redes de
+ flujo. Adicionalmente, también hay "arcos" de grafos y redes.
+
+ A este grupo pertenecen las clases Dnode, Snode, BinNode, AvlNode, RbNode,
+ Rand_Node, TreapNode, BinHeapNode, Graph_Node, Arc_Node, Net_Node y
+ Net_Arc. 
+
+ Cada nodo tiene un tipo de dato asociado.
+
+ En este nivel, tampoco tiene mucho sentido el uso aislado, pero si
+ existe un uso de especificación. Hay dos formas de especificación:
+ -# Definición de un componente de una estructura de dato posterior: por
+ ejemplos, para usar árboles splay se debe definir el nodo de un árbol
+ splay, el cual es de tipo BinNode y que contiene una clave de
+ indización. Para usar grafos, primero se debe definir el nodo del
+ grafo, el cual también contiene una serie de atributos que son
+ especificados por asociación al tipo de dato de que contiene el nodo.
+ -# Extensión del nodo por derivación: cada clase nodo conforma la
+ mínima representación que podría manejar un contenedor de nodos. Sin
+ embargo, es posible, y a menudo muy útil, extender el nodo por
+ derivación. Así, por ejemplo, podríamos pensar en una lista de
+ nodos que contienen "personas". Luego podríamos mezclar distintos tipos
+ de personas (estudiantes, profesores, empleados, etc) que serían
+ definidos por clases derivadas de un nodo que contiene a una
+ persona. Puesto que estudiantes, profesores, empleados, etc son
+ personas, las primitivas que manejen nodos con personas también
+ manejarán, sin modificación, los nodos de estudiantes, profesores,
+ empleados, etc.
+ .
+
+ \section probf El problema fundamental de estructuras de datos
+
+ El diseño de \f$\aleph_\omega\f$ Aleph-w parte de la premisa de que el
+ desempeño de un algoritmo es medida de las estructuras de datos sobre
+ las cuales éste se sustente. En este sentido, en \f$\aleph_\omega\f$
+ Aleph-w se maneja intensivamente la idea de
+ "contenedor". Fundamentalmente, un contenedor modeliza un conjunto de
+ elementos prácticamente en el mismo sentido que el de la teoría de
+ conjuntos. La diferencia esencial entre un tipo de contenedor y otro es
+ las promesas de desempeño que ofrece.
+
+ Todos los contenedores de \f$\aleph_\omega\f$ Aleph-w ofrecen las
+ siguientes primitivas fundamentales cuyo nombre especifica por si
+ mismo la índole de su función:
+ \code
+ T insert(const T & item);
+ T * search(const T & item);
+ void remove(const T & item);
+ size_t size() const;
+ \endcode
+
+ Según la implementación y el destino para el cual se desee emplear,
+ estas primitivas cambian ligeramente. Por ejemplo,
+ <code>search()</code> podría retornar una referencia en lugar de un
+ puntero. 
+
+ Según la implementación del contenedor, éste puede exportar otras
+ interfaces adicionales. Asumiendo un nombre de tipo genérico,
+ <code>Set<T></code>, para designar el tipo contenedor, otras primitivas
+ que podrían exportarse son:
+ \code
+  void swap(Set<T> & set);
+  void join(Set<T> & set);
+  void split(const T & key, Set<T> & l, Set<T> & r);
+  int position(const T& key) const;
+  T & select(const int pos);
+  void split_pos(const int & pos, Set<T> & l, Set<T> & r);
+};
+ \endcode
+ <code>swap()</code> intercambia todos los elementos del contenedor invocante
+ <code>this</code> con los del contenedor <code>set</code>. Lo notable
+ de esta primitiva es que se garantiza que en todos los contenedores en
+ los cuales se exporta la operación tomará \f$O(1)\f$ tanto de duración
+ como de consumo de espacio.
+
+ <code>join()</code> une las elementos de <code>this</code> con los de
+ <code>set</code>. Al final de la operación <code>this</code> contiene
+ la unión, mientras que <code>set</code> deviene vacío.
+
+  <code>split()</code> particiona el conjunto <code>this</code> en dos
+ conjuntos <code>l</code> y <code>r</code> tales que al final de la
+ partición <code>l</code> contiene los elementos menores que
+ <code>key</code> y <code>r</code> los mayores o iguales. Al terminar la
+ operación <code>this</code> deviene vacío.
+ 
+ <code>position()</code> retorna la posición del elemento
+ <code>key</code> si todos los elementos del conjunto estuviesen
+ ordenados. 
+
+ <code>select()</code>  retorna el elemento cuya posición si el conjunto
+ estuviese ordenado sería <code>pos</code>.
+
+ \section Compare Comparación paramétrica
+ 
+ Muy parecido a la biblioteca <code>stlc++</code> y otras,
+ los contenedores  \f$\aleph_\omega\f$ Aleph-w emplean una clase
+ paramétrica (<code>template</code> encargada de efectuar las
+ comparaciones entre los elementos y, según sea el caso, establecer un
+ ordenamiento. 
+ 
+ La estructura general de la clase de comparación es como sigue:
+ \code
+ struct Cmp
+ {
+   bool operator () (const T & k1, const T & k2) const
+   {
+     // implementación de la comparación entre k1 y k2
+   ]
+ };
+ \endcode
+ En la inmensa mayoría de los casos, la clase <code>Cmp</code>
+ implementa el operador relacional "menor que". En este caso, las
+ elementos se verían ordenado de menor a mayor. Note, sin embargo, que
+ también se puede implementar el operador "mayor que", en cuyo caso el
+ ordenamiento es de mayor a menor.
+
+ Todos los contenedores que emplean clase de comparación efectúan la
+ comparación bajo el siguiente esquema:
+ \code
+ if (Cmp () (p1, p2)) // equivaldría a p1 < p2
+   // código si p1 < p2
+ else if (Cmp() (p2, p1)) // equivaldría a p2 < p1 o p2 > p1
+   // código si p2 > p1
+ else
+   // código si p1 == p2
+
+ \endcode
+
+ \section Iteradores Iteradores
+
+ De manera similar a la biblioteca stlc++ y otras, \f$\aleph_\omega\f$
+ Aleph-w maneja como patrón de diseño el concepto de iterador sobre un
+ conjunto. Cada contenedor de \f$\aleph_\omega\f$ Aleph-w exporta una
+ subclase llamada <code>Iterator</code>, cuyos métodos son esencialmente
+ los mismos que en <code>stlc++</code> pero con nombres distintos, los
+ cuales, en la opinión de este autor, son más representativos de su
+ función y, muy importante a decir, con menos penalidades de ejecución
+ por múltiples instanciaciones y copias.
+
+ Para un todo contenedor que maneje algún ordenamiento, se garantiza que
+ el iterador recorrerá los elementos de manera ordenada.
+
+ \section Oculta Ocultamiento parcial de la implementación
+
+ El diseño de \f$\aleph_\omega\f$ Aleph-w parte de la premisa de que es
+ una biblioteca para programadores que conocen bien de estructuras de
+ datos, algoritmos así como sus técnicas de diseño y análisis. Pensando
+ en esto, a diferencia de otras bibliotecas, en \f$\aleph_\omega\f$
+ Aleph-w no se hace énfasis en ocultar completamente la implementación. 
+
+ Hay varias razones para esta decisión. En primer lugar, en términos de
+ desempeño, no siempre se puede garantizar la transparencia; algunas
+ estructuras de datos y algoritmos son más lentos que otros, o consumen
+ más espacio que otros. Estas realidades de tienden a ser patentes en la
+ medida en que se escasean los recursos computacionales. Por esa razón,
+ muchas de las clases, métodos y algoritmos tienen nombres que dicen
+ parte de la implementación. Por ejemplo, el tipo
+ <code>DynSetAvlTree<T></code> connota un conjunto de elementos de tipo
+ genérico <code>T</code> que es dinámico y que está implementado
+ mediante árboles AVL. Esto contrasta con su contraparte
+ <code>stlc++</code> llamada <code>stl::set<T></code>, la cual es
+ funcionalmente equivalente y que suele implementarse con árboles AVL o
+ rojo-negro. 
+
+ Especificando con el nombre y documentación parte de la implementación
+ le permite al programador escoger su estructura de dato, clase o
+ algoritmo en función de lo que él considere le sea más adecuado.
+
+ De todos modos, \f$\aleph_\omega\f$ Aleph-w exporta el tipo
+ <code>Aleph::set<T></code>, el cual es la versión de la
+ biblioteca <code>stlc++</code>.
+
+ Otra ventaja de traslucir parte de la implementación en la interfaz es
+ que posibilita operaciones especiales según la estructura de dato. Por
+ ejemplo, puesto que para insertar una clave en un árbol binario de
+ búsqueda suele requerirse una búsqueda fallida, las clases basadas 
+ en árboles binarios de búsqueda exportan la interfaz
+ <code>search_insert()</code>, la cual busca una clave, al cual, de no
+ encontrarse, es insertada sin necesidad de repetir la búsqueda.
+
+ \section Nodosl Contenedores de nodos
+
+ El siguiente grupo de clases comprende los contenedores de
+ nodos. Tradicionalmente, los contenedores de muchas bibliotecas sólo
+ permiten elementos uniformes y ellos mismos se encargan de manejar la
+ memoria. Si bien este tipo de funcionalidad también está soportado,
+ \f$\aleph_\omega\f$ Aleph-w exporta una serie de contenedores cuyos
+ elementos son nodos. Estos contenedores son árboles, diversos árboles binarios
+ de búsqueda, tablas hash, heaps, grafos, digrafos y redes de flujo.
+
+ En la mayoría de estos contenedores el manejo de memoria es
+ responsabilidad del usuario y no de la biblioteca. Aunque esto puede
+ parecer engorroso, ello permite más flexibilidad de uso. Por ejemplo,
+ se podría eliminar un nodo de un árbol e insertarlo en otro sin
+ necesidad de eliminar y apartar de nuevo la memoria.
+
+ Cada contenedor de nodo exporta una subclase <code>Node</code> que es
+ el nodo que éste emplearía.
+
+ \section Dtor Destructores virtuales
+
+ Considere una jerarquía de clases arbitraria derivada de un nodo. Con
+ base a lo anterior, para albergar nodos <code>AvlNode<Key></code>
+ debemos emplear la subclase <code>AvlTree<Key>::Node</code> cuyo
+ destructor no es virtual. Ahora bien, para clases derivadas de
+ <code>AvlTree<Key>::Node</code> puede ser necesario invocar al
+ destructor, lo cual es imposible desde una clase derivada de
+ <code>AvlTree<Key>::Node</code>, pues su destructor no es virtual.
+
+ Para confrontar este problema, en caso de necesidad, por cada clase
+ nodo existe una con sufijo <code>Vtl</code>, lo cual significa que su
+ destructor es virtual y que por consiguiente los destructores de las
+ clases derivadas sería invocados. El tipo contendor de nodos sería
+ <code>AvlTreeVtl<Key>::Node</code>.
+
+ La razón de esta separación es que si no se requiere el destructor
+ virtual, entonces hay una penalidad adicional de espacio por cada nodo
+ que esté apartado. Con esta separación, el coste en espacio se paga
+ sólo si es necesario.
+
+ \section Contenedores Contenedores de elementos
+
+ Llegamos a un nivel final de contenedor en el cual no hay que
+ preocuparse por nodos ni por el manejo de memoria, sino simplemente por
+ pensar en conjuntos de elementos del mismo tipo.
+
+ Los tipos más importantes en este nivel son:
+ <code>DynSetAvlTree</code>, <code>DynSetRandTree</code>,
+ <code>DynSetBinTree</code>, <code>DynSetSplayTree</code>,
+ <code>DynSetRandTree</code>, <code>DynSetTreap</code>,
+ <code>DynLhashTable</code>, <code>ODhashTable<T,R></code>,
+ <code>OLhashTable</code>, <code>Aleph::set</code>,
+ <code>Aleph::map</code>, <code>Aleph::multiset</code>,
+ <code>Aleph::multimap</code>, <code>DynDlist</code>,
+ <code>ArrayStack</code>, <code>ListStack</code>,
+ <code>ArrayQueue</code>, <code>ListQueue</code>,
+ <code>DynBinHeap</code>, <code>BitArray</code>,
+ <code>DynArray</code>, <code>Aleph::vector</code> y
+ <code>Aleph::list</code>, entre otros más. 
+
+ \section grafos Grafos
+
+ Quizá una de las principales características de \f$\aleph_\omega\f$
+ Aleph-w es que permite  mente definir fácil y genéricamente grafos,
+ digrafos y redes de flujo, así como ejecutar muchísimos de su
+ algoritmos asociados sin pérdida sustancial de desempeño.
+
+ \section algos Algoritmos
+
+ Sobre la base de todos los grupos de clases previamente descritos,
+ \f$\aleph_\omega\f$ Aleph-w exporta una cantidad considerable de
+ algoritmos para resolver problemas específicos, yendo desde los métodos
+ de ordenamiento sobre arreglos y listas, pasando por una buena cantidad
+ de algoritmos sobre grafos y redes de flujo y con una buena cantidad de
+ algoritmos de <code>stlc++</code> implementados.
+
+*/
+ 
+/**
+   @defgroup Funcional Programación funcional
+   @{ Programación funcional
+   
+   \f$\aleph_\omega\f$ Aleph-w exporta primitivas de programación
+  funcional. Las rutinas están inspiradas del estándar de la biblioteca
+  general de ML; concretamente las funciones que atañen a listas.
+
+  Puesto que los contenedores de \f$\aleph_\omega\f$ Aleph-w poseen
+  iteradores para inspeccionar todos sus elementos, el soporte de
+  programación funcional es extendido para todos los contenedores.
+
+  Hay dos formas en que \f$\aleph_\omega\f$ Aleph-w soporta programación
+  funcional:
+  - Los contenedores exportan una gama de métodos
+  - Algunas primitivas globales
+   
+   @author Leandro Rabindranath León (lrleon en ula punto ve)
+   @}
+*/
+
+ \section Instalacion Instrucciones para la instalación
+
+Estas instrucciones de instalación están pensadas para distribuciones Debian o
+Ubuntu de GNU/Linux. Con los comandos análogos se puede instalar en otras
+distribuciones. Algunas de las dependencias podrían ser encontradas con otros
+nombres en ese caso.
+
+ 1- Instale las dependencias:
+ \code
+:~# sudo -i (Ubuntu) o su - (Debian)
+:~# apt-get install build-essential libx11-dev xutils-dev gettext m4 libgsl0-dev libgmp-dev libmpfr-dev
+ \endcode
+
+Nota 1: Deseablemente instale el paquete clang.
+
+Nota 2: Asegúrese de que el compilador gcc o el paquete clang tengan el soporte para C++14.
+
+3- Descomprima las fuentes de Aleph-w en donde desee.
+\code
+:~# tar -xjvf aleph-x.x.tbz
+\endcode
+
+4- Entre al directorio mediante una terminal
+\code
+:~# cd aleph
+\endcode
+
+5- Abra el archivo Imakefile y, a continuación, edite las líneas 11, 12, 13, 14 y 19 escribiendo los datos de su compilador. Las líneas antes mencionadas contienen lo siguiente (se muestra número de línea y contenido):
+
+\code
+11 CC = $(GCCPATH)/gcc
+12 AS = $(CLANGPATH)/llvm-as
+13 AR = $(CLANGPATH)/llvm-ar clq
+14 LD = $(CLANGPATH)/llvm-link -nostdlib
+15
+16 # now comment clang++ line and uncomment c++ line. Flag for standard could
+17 # change according to compiler version. This flag is for gcc 4.6.3. On
+18 # 4.7.x should work -std=c++11
+19 CXX = $(CLANGPATH)/clang++
+\endcode
+
+Por ejemplo, si su compilador es g++ y quiere utilizar la versión instalada por omisión, las líneas del archivo deberían quedar así:
+
+\code
+11 CC = gcc
+12 AS = as
+13 AR = ar clq
+14 LD = link -nostdlib
+15
+16 # now comment clang++ line and uncomment c++ line. Flag for standard could
+17 # change according to compiler version. This flag is for gcc 4.6.3. On
+18 # 4.7.x should work -std=c++11
+19 CXX = g++
+\endcode
+
+6- Finalmente ejecute la siguiente secuencia de comandos:
+\code
+:~# xmkmf
+:~# make depend
+:~# make libAleph.a
+\endcode
+
+7- Si lo desea puede ejecutar make all para compilar todos los test.
+
+ \section TODO Pendiente por hacer
+
+ Dentro de la versión actual, 1.0, se planean:
+ -# Depuraciones menores
+ -# Incorporación de una clase <code>Allocator</code> a las clases
+ contenedores de tipos.
+ -# Refinamiento de los algoritmos de la biblioteca
+ <code>stlc++</code>, especialmente la adición de la clase
+ <code>Allocator</code> a los contenedores ya realizados.
+ -# Culminación y depuración de los algoritmos <code>stlc++</code>.
+ 
+
+ Para la versión 2.0 se planea:
+ -# Una implementación del simplex para redes de flujo.
+ -# Mejoras en los grafos y Redes de flujo, especialmente menor consumo
+ de memoria.
+ -# Redes multiflujo
+ -# Coloreado de grafos.
+ -# Caminos eulerianos
+ -# Heurísticas basadas en colonias de hormigas (versión 1.0 contiene
+ una versión alfa).
+ -# Planaridad de grafos.
+ -# Emparejamientos mínimos y máximos
+ -# Heurísticas para hamiltonianos.
+ -# Gran parte de la geometría computacional.
+ -# Soporte completo para la biblioteca <code>C++11</code> (nueva
+ especificación de la <code>stlc++</code>.
+
+*/

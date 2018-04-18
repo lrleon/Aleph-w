@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef AH_STRING_UTILS_H
 # define AH_STRING_UTILS_H
@@ -16,6 +38,36 @@
 namespace Aleph
 {
 
+  // left trim
+inline void ltrim(string & s) 
+{
+  s.erase(s.begin(), find_if(s.begin(), s.end(),
+			     [] (int ch) { return not isspace(ch); }));
+}
+
+// trim from end 
+inline void rtrim(string & s)
+{
+  s.erase(find_if(s.rbegin(), s.rend(),
+		  [](int ch) { return not isspace(ch); }).base(), s.end());
+}
+
+// trim from both ends (in place)
+inline string trim(const string & s)
+{
+  string ret = s;
+  ltrim(ret);
+  rtrim(ret);
+  return ret;
+}
+
+inline string & trim_in_place(string & s)
+{
+  ltrim(s);
+  rtrim(s);
+  return s;
+}
+  
 inline bool contains(const string & str, const string & substr)
 {
   return str.find(substr) != std::string::npos;
@@ -34,6 +86,33 @@ inline string to_str(double d)
   return to_string(d, numeric_limits<double>::max_digits10);
 }
 
+// inline bool read_line(istream & in, istringstream & s)
+// {
+//   string line;
+//   if (not getline(in, line))
+//     return false;
+//   s = istringstream(line);
+//   return true;
+// }
+
+inline string tolower(const string & str)
+{
+  string ret;
+  ret.reserve(str.size());
+  for (auto & c : str)
+    ret.push_back(::tolower(c));
+  return ret;
+}
+
+inline string toupper(const string & str)
+{
+  string ret;
+  ret.reserve(str.size());
+  for (auto & c : str)
+    ret.push_back(::toupper(c));
+  return ret;
+}
+
 inline std::string only_alpha(const std::string & str)
 {
   std::string ret; ret.reserve(str.size() + 1);
@@ -44,7 +123,7 @@ inline std::string only_alpha(const std::string & str)
 	{
 	case '0'...'9':
 	case 'a'...'z': ret.push_back(c); break;
-	case 'A'...'Z': ret.push_back(tolower(c)); break;
+	case 'A'...'Z': ret.push_back(::tolower(c)); break;
 	default: break;
 	}
     }
@@ -79,7 +158,7 @@ inline ostream & join(const C & c, const string & sep, ostream & out)
 }
 
 template <class C>
-inline string join(const C & c, const string & sep)
+inline string join(const C & c, const string & sep = " ")
 {
   ostringstream s;
   join(c, sep, s);
@@ -214,7 +293,7 @@ inline std::vector<std::string> split(const std::string & s, char delim)
   return elems;
 }
 
-template <template <typename> class Container>
+template <template <typename> class Container = DynList>
 inline Container<string> split_string(const string & s, const string & delim)
 {
   char * buf = new char [s.size() + 1];

@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef GEOM_ALGORITHMS_H
 # define GEOM_ALGORITHMS_H
 
@@ -15,10 +37,11 @@
 */
 class CuttingEarsTriangulation
 {
-  using EarsSet = DynSetTree<Vertex *, Treap_Rk>;
+  using EarsSet = DynSetTree<const Vertex*, Treap_Rk>;
   
 public:
-  bool diagonalie(Polygon & p, const Segment & s)
+
+  bool diagonalie(const Polygon & p, const Segment & s)
   {
     for (Polygon::Segment_Iterator it(p); it.has_current(); it.next())
       {
@@ -34,11 +57,11 @@ public:
     return true;
   }
 
-  bool in_cone(Polygon & p, Vertex & a, Vertex & b)
+  bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
   {
     // a0 -> a -> a1 son vértices consecutivos
-    Vertex & a0 = p.get_prev_vertex(a);
-    Vertex & a1 = p.get_next_vertex(a);
+    const Vertex & a0 = p.get_prev_vertex(a);
+    const Vertex & a1 = p.get_next_vertex(a);
     
     if (a0.is_to_left_on_from(a, a1))
       return a0.is_to_left_from(a, b) and a1.is_to_left_from(b, a);
@@ -47,21 +70,21 @@ public:
 		a0.is_to_left_on_from(b, a));
   }
   
-  bool diagonal(Polygon & p, Vertex & a, Vertex & b)
+  bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
   {
     return in_cone(p, a, b) and in_cone(p, b, a) and
       diagonalie(p, Segment(a, b));
   }
 
-  EarsSet init_ears(Polygon & p)
+  EarsSet init_ears(const Polygon & p)
   {
     EarsSet ret;
 
     for (Polygon::Vertex_Iterator it(p); it.has_current(); it.next())
       {
 	Vertex & curr = it.get_current_vertex();
-	Vertex & prev = p.get_prev_vertex(curr);
-	Vertex & next = p.get_next_vertex(curr);
+	const Vertex & prev = p.get_prev_vertex(curr);
+	const Vertex & next = p.get_next_vertex(curr);
 	if (diagonal(p, prev, next))
 	  ret.insert(&curr);
       }
@@ -70,7 +93,8 @@ public:
   }
   
 public:
-  DynList<Triangle> operator () (Polygon p)
+
+  DynList<Triangle> operator () (Polygon & p)
   {
     if (p.size() < 3)
       throw std::domain_error("Polygon has less than 3 vertexs");
@@ -81,12 +105,12 @@ public:
 
     while (p.size() > 3)
       {
-	Vertex * curr = ears.remove_pos(0);
+	const Vertex * curr = ears.remove_pos(0);
 
-	Vertex & prev = p.get_prev_vertex(*curr);
-	Vertex & prev_prev = p.get_prev_vertex(prev);
-	Vertex & next = p.get_next_vertex(*curr);
-	Vertex & next_next = p.get_next_vertex(next);
+	const Vertex & prev = p.get_prev_vertex(*curr);
+	const Vertex & prev_prev = p.get_prev_vertex(prev);
+	const Vertex & next = p.get_next_vertex(*curr);
+	const Vertex & next_next = p.get_next_vertex(next);
 
 	if (diagonal(p, prev_prev, next))
 	  ears.insert(&prev);
@@ -105,9 +129,9 @@ public:
     
     assert(p.size() == 3);
 
-    Vertex & a = p.get_first_vertex();
-    Vertex & b = a.next_vertex();
-    Vertex & c = b.next_vertex();
+    const Vertex & a = p.get_first_vertex();
+    const Vertex & b = a.next_vertex();
+    const Vertex & c = b.next_vertex();
 
     ret.append(Triangle(a, b, c));
 
@@ -199,7 +223,7 @@ public:
 
     while (true)
       {
-	Vertex & last_vertex = ret.get_last_vertex();
+	const Vertex & last_vertex = ret.get_last_vertex();
 	
 	Segment * ptr = extremes.find_ptr([&last_vertex](const Segment & s) {
 	    return s.get_src_point() == last_vertex;

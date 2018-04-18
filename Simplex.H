@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef SIMPLEX_H
 # define SIMPLEX_H
@@ -109,7 +131,7 @@ private:
     return state = Solving;
   }
 
-  void to_pivot(size_t p, size_t q) noexcept
+  void to_pivot(size_t p, size_t q)
   {
     assert(p <= num_rest and q <= num_var + num_rest);
 
@@ -153,16 +175,16 @@ private:
     return ret_val;
   }
 
-  DynMatrix<T> * m;
+  unique_ptr<DynMatrix<T>> m;
 
-  T * objetive;
+  unique_ptr<T[]> objetive;
 
   DynDlist<T*> rest_list;
 
-  int num_var;
-  int num_rest;
+  size_t num_var;
+  size_t num_rest;
 
-  T * solution;
+  unique_ptr<T[]> solution;
 
   public:
 
@@ -189,7 +211,8 @@ private:
 
     void create_matrix()
     {
-      m = new DynMatrix<T> (num_rest + 1, num_var + num_rest + 1);
+      m = unique_ptr<DynMatrix<T>>(new DynMatrix<T> (num_rest + 1,
+						     num_var + num_rest + 1));
 
       int i = 0; // llena los num_var coeficientes de la función objetivo
       for (; i < num_var; i++)
@@ -197,10 +220,9 @@ private:
       
           // llena los num_var coeficientes de las restricciones
       i = 1;
-      for (typename DynDlist<T*>::Iterator it(rest_list); 
-           it.has_current(); it.next(), i++)
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next(), i++)
         {
-          T * rest = it.get_current();
+          T * rest = it.get_curr();
 
           for (int j = 0; j < num_var; j++)
             m->write(i, j, rest[j]);
@@ -223,23 +245,17 @@ public:
          @throw bad_alloc si no hay suficiente memoria.
      */
   Simplex(int n) 
-    : m(nullptr), objetive(nullptr), num_var(n), num_rest(0), state(Not_Solved)
+    : m(nullptr), objetive(new T [n]), num_var(n), num_rest(0),
+      solution(new T [num_var]), state(Not_Solved) {}
+
+  ~Simplex()
   {
-    objetive = new T [num_var];
-    try
-      {
-        solution = new T [num_var];
-      }
-    catch (...)
-      {
-        delete objetive;
-        throw;
-      }
+    rest_list.for_each([] (auto ptr) { delete [] ptr; });
   }
 
      /// Define el coeficiente coef de la variable i en el afunción
      /// objetivo. No se valida si i está fuera de rango.
-  void put_objetive_function_coef(int i, const T & coef) noexcept
+  void put_objetive_function_coef(int i, const T & coef)
   {
     verify_var_index(i);
     objetive[i] = coef;
@@ -294,8 +310,7 @@ public:
 			      "out of range (" + to_string(num_rest - 1) + ")");
 
     int i = 1;
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       if (i == rest_num)
         return it.get_current();
   }
@@ -399,12 +414,11 @@ public:
 
       /// Retorna true si la solución obtenida satisface las
       /// restricciones; false de lo contrario.
-  bool verify_solution() const noexcept
+  bool verify_solution() const
   {
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       {
-        T * rest = it.get_current();
+        T * rest = it.get_curr();
         T sum = 0;
         for (int j = 0; j < num_var; j++)
           sum += rest[j]*solution[j];
@@ -479,10 +493,9 @@ public:
         << "Sujeto a:" << endl
         << "\\begin{eqnarray*}" << endl;
 
-    for (typename DynDlist<T*>::Iterator it(rest_list); 
-         it.has_current(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
       {
-        T * rest = it.get_current();
+        T * rest = it.get_curr();
 
         for (int i = 0; i < num_rest; i++)
           {
@@ -510,14 +523,6 @@ public:
   size_t get_num_restrictions() const noexcept { return num_rest; }
 
   size_t get_num_vars() const noexcept { return num_var; }
-
-  ~Simplex()
-  {
-    delete [] objetive;
-
-    if (m != nullptr)
-      delete m;
-  }
 
   T * get_objetive_function() noexcept
   {

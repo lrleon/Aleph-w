@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TARJAN_H
 # define TARJAN_H
 
@@ -25,33 +47,28 @@ namespace Aleph {
 	       class SA = Dft_Show_Arc<GT>> 
 class Tarjan_Connected_Components
 {
-  SA & sa;
+  SA sa;
 
   GT * g_ptr = nullptr;
 
   DynListStack<typename GT::Node*> stack;
 
-  long df_count;
-  mutable size_t n; // número de nodos del grafo
+  long df_count = 0;
+  mutable size_t n = 0; // número de nodos del grafo
 
       // lista de listas; cada lista almacena los nodos de los bloques
   DynList<DynList<typename GT::Node*>> * list_list_ptr; 
 
-  DynList <GT> * block_list_ptr; // lista de bloques fuertemente
-				 // conexos
+  DynList <GT> * block_list_ptr = nullptr; // lista de bloques fuertemente conexos
 
-  DynList<size_t> * list_len_ptr; // lista de tamaños de componentes
+  DynList<size_t> * list_len_ptr = nullptr; // lista de tamaños de componentes
 
-  Path<GT> * path_ptr;
+  Path<GT> * path_ptr = nullptr;
 
 public:
 
-  Tarjan_Connected_Components(SA && __sa = SA()) 
+  Tarjan_Connected_Components(SA  __sa = SA()) 
   noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa) { /* empty */ }
-
-  Tarjan_Connected_Components(SA & __sa) 
-    noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
 private:
@@ -236,7 +253,7 @@ private:
   // Toma el bloque block, que está mapeado del grafo original, que es
   // fuertemente conexo, y construye en path_ptr el ciclo
       void 
-  build_path(const GT &                                              block, 
+  build_path(const GT &                                             block, 
 	     DynMapAvlTree<typename GT::Node*, typename GT::Node*> & table)
   {
           // buscar ciclo en blk.
@@ -618,6 +635,7 @@ public:
 	    return true;
       }
 
+    path.empty();
     return false; 
   }
 

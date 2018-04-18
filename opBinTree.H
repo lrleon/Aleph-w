@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef OPBINTREE_H 
 # define OPBINTREE_H
@@ -9,46 +31,46 @@ namespace Aleph {
 # define COST(i,j) (cost[(i)*(n+1) + (j)])
 # define TREE(i,j) (tree[(i)*(n+1) + (j)])
 
-static inline double sum_p(double p[], const int & i, const int & j) noexcept;
+static inline double sum_p(double p[], const size_t i, const size_t j) noexcept;
 
-    static inline int 
-min_index(DynArray <double>&, const int &, const int &, const int &) noexcept;
+    static inline size_t 
+min_index(DynArray <double>&, const size_t, const size_t, const size_t);
 
     static inline 
 void compute_optimal_costs(DynArray <double> & cost, double p[], 
-                           const int & n, DynArray <int> & tree) noexcept
+                           const size_t n, DynArray <int> & tree)
 {
-  int i, j, k;
-  for (i = 1; i <= n; ++i)
+  for (size_t i = 1; i <= n; ++i)
     {
       COST(i, i - 1) = 0;
       TREE(i, i) = i;
     }
-  for (i = 0; i < n; ++i)
-    for (j = 1; j <= n - i; ++j)
+  for (size_t i = 0; i < n; ++i)
+    for (size_t j = 1; j <= n - i; ++j)
       {
-        k          = j + i;
+        size_t k   = j + i;
         TREE(j, k) = min_index(cost, j, k, n);
         COST(j, k) = sum_p(p, j, k) + 
                      COST(j, TREE(j, k) - 1) + COST(TREE(j, k) + 1, k);
       }
 }
 
-static inline double sum_p(double p[], const int & i, const int & j) noexcept
+static inline double sum_p(double p[], const size_t i, const size_t j) noexcept
 {
   double sum = 0.0;
-  for (int k = i - 1; k < j; ++k)
+  for (size_t k = i - 1; k < j; ++k)
     sum += p[k];
   return sum;
 }
 
     static inline 
-int min_index(DynArray <double>& cost, 
-              const int & j, const int & k, const int & n) noexcept
+size_t min_index(DynArray <double>& cost, 
+		 const size_t j, const size_t k, const size_t n)
 {
-  int ret_val;
-  double min_sum = 1e32;
-  for (int i = j; i <= k; ++i)
+  assert(j <= k);
+  size_t ret_val = 0;
+  double min_sum = numeric_limits<double>::max();
+  for (size_t i = j; i <= k; ++i)
     {
       const double sum = COST(j, i - 1) + COST(i + 1, k);
       if (sum < min_sum)
@@ -62,7 +84,7 @@ int min_index(DynArray <double>& cost,
 
     template<class Node, typename Key> static inline
 Node * compute_tree(Key keys[], DynArray<int>& tree, 
-                    const int & n, const int & i, const int & j) noexcept
+                    const size_t n, const size_t i, const size_t j)
 {
   if (i > j) 
     return Node::NullPtr;
@@ -91,7 +113,7 @@ Node * compute_tree(Key keys[], DynArray<int>& tree,
         @ingroup Arboles
     */
     template <class Node, typename Key>
-Node * build_optimal_tree(Key keys[], double p[], const int & n)
+Node * build_optimal_tree(Key keys[], double p[], const size_t n)
 {
   DynArray <int> tree((n + 1)*(n + 1));
   DynArray <double> cost((n + 1)*(n + 1));

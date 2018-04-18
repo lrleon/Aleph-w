@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef DIJKSTRA_H
 # define DIJKSTRA_H
 
@@ -103,27 +125,17 @@ class Dijkstra_Min_Paths
   // Información a colocar en el nodo para la versión que pinta
   struct Node_Info
   {
-    typename Distance::Distance_Type dist;      // distancia acumulada
-    void *                           heap_node;
-    void *                           ret_node; // padre en árbol
-
-    Node_Info() noexcept : dist(0), heap_node(nullptr), ret_node(nullptr)
-    { 
-      // empty
-    }
+    typename Distance::Distance_Type dist      = 0;      // distancia acumulada
+    void *                           heap_node = nullptr;
+    void *                           ret_node  = nullptr; // padre en árbol
   };
 
   // Información a colocar en el nodo para la versión que construye árbol
   struct Tree_Node_Info : public Node_Info
   {
-    typename GT::Node *              tree_node; // nodo árbol abarcador
+    typename GT::Node *              tree_node = nullptr; // nodo árbol abarcador
     typename Distance::Distance_Type dist;      // distancia acumulada
-    void *                           heap_node;
-
-    Tree_Node_Info() noexcept : tree_node(nullptr)
-    { 
-      // empty
-    }
+    void *                           heap_node = nullptr;
   };
 
   // Acceso al heap de arcos
@@ -241,12 +253,12 @@ class Dijkstra_Min_Paths
 
   typedef ArcHeap<GT, Get_Potential_Arc, Heap_Info> Heap;
 
-  SA &                sa;
+  SA                  sa;
   Get_Potential_Arc   get_pot;
   Heap                heap;
-  bool                painted;
-  GT *                ptr_g;
-  typename GT::Node * s;
+  bool                painted = false;
+  GT *                ptr_g = nullptr;
+  typename GT::Node * s = nullptr;
 
 public:
 
@@ -258,17 +270,8 @@ public:
       \param[in] cmp comparador entre la distancias de arcos.
       \param[in] __sa filtro de arcos para los iteradores.
    */
-  Dijkstra_Min_Paths(Distance && dist = Distance(),  
-		     SA &&       __sa = SA())
-  noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()), 
-      painted(false), ptr_g(nullptr), s(nullptr)
-  {
-    // empty
-  }
-
-  /// \overload Dijkstra_Min_Paths
-  Dijkstra_Min_Paths(Distance & dist, SA & __sa)
+  Dijkstra_Min_Paths(Distance dist = Distance(),  
+		     SA         __sa = SA())
   noexcept(std::is_nothrow_move_assignable<SA>::value)
     : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()), 
       painted(false), ptr_g(nullptr), s(nullptr)

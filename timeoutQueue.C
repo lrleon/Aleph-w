@@ -1,4 +1,3 @@
-
 # include <errno.h>
 # include <string.h>
 # include <typeinfo>
@@ -27,7 +26,7 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 }
 
 
-TimeoutQueue::~TimeoutQueue()
+TimeoutQueue::~TimeoutQueue() throw(domain_error)
 {
   if (not isShutdown)
     EXIT("TimeoutQueue is not shut down");

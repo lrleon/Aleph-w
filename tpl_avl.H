@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_AVL_H
 # define TPL_AVL_H
@@ -37,7 +59,7 @@ private:
   Node               head_node; 
   Node *             head_ptr;  
   Node *&            root;      
-  Compare &          cmp;       
+  Compare            cmp;       
 
   bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
 
@@ -367,15 +389,9 @@ public:
       /// \overload key_comp()
   Compare & get_compare() noexcept { return key_comp(); }
 
-  Gen_Avl_Tree(Compare & __cmp) noexcept
+  Gen_Avl_Tree(Compare __cmp = Compare()) noexcept
     : avl_stack(Node::MaxHeight), head_ptr(&head_node), 
       root(RLINK (head_ptr)), cmp(__cmp)
-  {
-    avl_stack.push(head_ptr);
-  }
-
-  Gen_Avl_Tree(Compare && __cmp = Compare()) noexcept
-    : Gen_Avl_Tree(std::forward<Compare&>(__cmp))
   {
     avl_stack.push(head_ptr);
   }
@@ -456,7 +472,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node *pp = search_and_stack_avl(KEY(p));
+    Node * pp = search_and_stack_avl(KEY(p));
     if (cmp(KEY(p), KEY(pp))) 
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))

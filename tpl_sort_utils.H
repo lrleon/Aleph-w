@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_SORT_UTILS_H
 # define TPL_SORT_UTILS_H
 
@@ -21,8 +43,9 @@ namespace Aleph
 
      \ingroup Algos
    */
-  template <template <typename> class Container, typename T, class Compare>
-bool is_sorted(const Container<T> & cont, Compare & cmp = Compare()) noexcept
+  template <template <typename> class Container, typename T,
+	    class Compare = Aleph::less<T>>
+bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
 {
   if (cont.is_empty())
     return true;
@@ -32,7 +55,7 @@ bool is_sorted(const Container<T> & cont, Compare & cmp = Compare()) noexcept
   for (; it.has_curr(); it.next())
     {
       const T & curr = it.get_curr();
-      if (cmp(curr, item))
+      if (not cmp(item, curr))
 	return false;
 
       item = curr;
@@ -40,20 +63,47 @@ bool is_sorted(const Container<T> & cont, Compare & cmp = Compare()) noexcept
   return true;
 }
 
-  template <template <typename> class Container, typename T, 
+
+  /** Check if container is sorted.
+
+      @return a pair whose first element says whether the array is or
+      not sorted. If the array is not sorted, then second contains the
+      index where the inversion was detected. Otherwise, second
+      contains the number of elements that the container has.
+
+      \ingroup Algos
+   */
+template <template <typename> class Container, typename T,
 	    class Compare = Aleph::less<T>>
-bool is_sorted(const Container<T> & cont, Compare && cmp = Compare()) noexcept
+pair<bool, size_t> search_inversion(const Container<T> & cont,
+				    Compare cmp = Compare())
 {
-  return is_sorted(cont, cmp);
+  if (cont.is_empty())
+    return make_pair(true, 0);
+
+  T item = cont.get_first();
+  typename Container<T>::Iterator it(cont); it.next();
+  size_t n = 0;
+  for (; it.has_curr(); it.next(), ++n)
+    {
+      const T & curr = it.get_curr();
+      if (not cmp(item, curr))
+	return make_pair(false, n);
+
+      item = curr;
+    }
+  return make_pair(true, n);
 }
+  
+
 
     /** Return true if the sequence is inversely sorted
 
-     \ingroup Algos
+	\ingroup Algos
    */
-  template <template <typename> class Container, typename T, class Compare>
-bool is_inversely_sorted(const Container<T> & cont,
-			 Compare & cmp = Compare()) noexcept
+  template <template <typename> class Container, typename T,
+	    class Compare = Aleph::less<T>>
+bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
 {
   if (cont.is_empty())
     return true;
@@ -63,20 +113,12 @@ bool is_inversely_sorted(const Container<T> & cont,
   for (; it.has_curr(); it.next())
     {
       const T & curr = it.get_curr();
-      if (cmp(item, curr))
+      if (not cmp(curr, item))
 	return false;
 
       item = curr;
     }
   return true;
-}
-
-  template <template <typename> class Container, typename T, 
-	    class Compare = Aleph::less<T>>
-bool is_inversely_sorted(const Container<T> & cont,
-			 Compare && cmp = Compare()) noexcept
-{
-  return is_inversely_sorted(cont, cmp);
 }
 
  /** Return a pair where first is `true` if the sequence is sorted. If the
@@ -85,9 +127,10 @@ bool is_inversely_sorted(const Container<T> & cont,
 
      \ingroup Algos
    */
-  template <template <typename> class Container, typename T, class Compare>
+  template <template <typename> class Container, typename T,
+	    class Compare = Aleph::less<T>>
   pair<bool, size_t>
-test_sorted(const Container<T> & cont, Compare & cmp = Compare()) noexcept
+test_sorted(const Container<T> & cont, Compare cmp = Compare()) noexcept
 {
   if (cont.is_empty())
     return pair<bool, size_t>(true, 0);
@@ -105,13 +148,6 @@ test_sorted(const Container<T> & cont, Compare & cmp = Compare()) noexcept
   return pair<bool, size_t>(true, 0);
 }
 
-  template <template <typename> class Container, typename T, 
-	    class Compare = Aleph::less<T>>
-    pair<bool, size_t>
-test_sorted(const Container<T> & cont, Compare && cmp = Compare()) noexcept
-{
-  return test_sorted(cont, cmp);
-}
 
     /** Ordena un arreglo por el método de selección.
 
@@ -133,7 +169,7 @@ test_sorted(const Container<T> & cont, Compare && cmp = Compare()) noexcept
 	\ingroup Algos
      */
     template <typename T, class Compare  = Aleph::less<T>> inline
-void selection_sort(T * a, const size_t n, Compare && cmp = Compare()) noexcept
+void selection_sort(T * a, const size_t n, Compare cmp = Compare()) noexcept
 {
   for (size_t i = 0, min, j; i < n - 1; ++i)
     {
@@ -145,12 +181,6 @@ void selection_sort(T * a, const size_t n, Compare && cmp = Compare()) noexcept
         std::swap(a[min], a[i]);
     }
 }
-
-//     template <typename T, class Compare = Aleph::less<T>> inline
-// void selection_sort(T * a, const size_t n, Compare && cmp = Compare()) noexcept
-// {
-//   selection_sort<T, Compare>(a, n, cmp);
-// }
 
 
     /** Búsqueda genérica de un elemento extremo en una lista
@@ -182,31 +212,15 @@ Link * search_extreme(const Link & list, Compare & cmp) noexcept
 }
 
     template <class Compare> inline 
-Dlink * search_extreme(const Dlink & list, Compare & cmp) noexcept
+Dlink * search_extreme(const Dlink & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<Dlink, Compare>(list, cmp);
 }
 
-    // Wrapper para llamar a search_extreme con un r-value
     template <class Compare> inline 
-Dlink * search_extreme(const Dlink & list, Compare && cmp = Compare()) noexcept
-{
-  return search_extreme<Dlink, Compare>(list, cmp);
-}
-
-
-    template <class Compare> inline 
-Slinknc * search_extreme(const Slinknc & list, Compare & cmp) noexcept
+Slinknc * search_extreme(const Slinknc & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<Slinknc, Compare>(list, cmp);
-}
-
-    // Wrapper para llamar a search_extreme con un r-value
-    template <class Compare> inline 
-Slinknc * search_extreme(const Slinknc & list, Compare && cmp = Compare())
-      noexcept
-{
-  return search_extreme<Compare>(list, cmp);
 }
 
     /** Ordena por el método de selección una lista doblemente enlazada.
@@ -225,7 +239,7 @@ Slinknc * search_extreme(const Slinknc & list, Compare && cmp = Compare())
 	\ingroup Algos
      */
     template <class Compare> inline 
-void selection_sort(Dlink & list, Compare && cmp) noexcept
+void selection_sort(Dlink & list, Compare cmp) noexcept
 {
   Dlink aux;
   while (not list.is_empty())
@@ -238,28 +252,17 @@ void selection_sort(Dlink & list, Compare && cmp) noexcept
   list.swap(&aux);
 }
 
-//     template <class Compare> inline 
-// void selection_sort(Dlink & list, Compare && cmp = Compare()) noexcept
-// {
-//   selection_sort<Compare>(list, cmp);
-// }
-
-
 template <typename Tlink, 
 	  template <class> class Tnode, 
 	  typename T, class Compare> 
 class Compare_Tnode
 {
-  Compare & cmp;
+  Compare cmp;
 
 public:
 
-  Compare_Tnode(Compare && __cmp = Compare()) 
+  Compare_Tnode(Compare __cmp = Compare()) 
   noexcept(std::is_nothrow_move_assignable<Compare>::value)
-    : cmp(__cmp) { /* empty */ }
-
-  Compare_Tnode(Compare & __cmp) 
-  noexcept(std::is_nothrow_copy_assignable<Compare>::value)
     : cmp(__cmp) { /* empty */ }
 
   bool operator () (Tlink * l1, Tlink * l2) const noexcept
@@ -286,14 +289,9 @@ public:
     template <typename T, class Compare> 
 struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
 {
-  Compare_Dnode(Compare && cmp = Compare()) 
+  Compare_Dnode(Compare cmp = Compare()) 
   noexcept(std::is_nothrow_move_assignable<Compare>::value)
     : Compare_Tnode<Dlink, Dnode, T, Compare> (std::forward<Compare>(cmp)) 
-  { /* empty */ }
-
-  Compare_Dnode(Compare & cmp) 
-  noexcept(std::is_nothrow_copy_assignable<Compare>::value)
-    : Compare_Tnode<Dlink, Dnode, T, Compare> (cmp) 
   { /* empty */ }
 };
 
@@ -319,18 +317,12 @@ using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
 	@param[in,out] list ka lista a ser ordenada.
 	\ingroup Algos
      */
-    template <typename T, class Compare> 
-inline void selection_sort(Dnode<T> & list, Compare && cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> 
+inline void selection_sort(Dnode<T> & list, Compare cmp) noexcept
 {
   selection_sort<Compare_Dnode<T, Compare>>
     (list, Compare_Dnode<T, Compare>(cmp));
 }
-
- //    template <typename T, class Compare = Aleph::less<T>> 
-// inline void selection_sort(Dnode<T> & list, Compare && cmp = Compare()) noexcept
-// {
-//   selection_sort<T, Compare>(list, cmp);
-// }
 
       /** Búsqueda secuencial sobre un arreglo.
 
@@ -351,23 +343,14 @@ inline void selection_sort(Dnode<T> & list, Compare && cmp) noexcept
 	  \ingroup Algos
        */
       template <typename T, class Equal = Aleph::equal_to<T>> inline 
-int sequential_search(T * a, T && x, const int l, const int r, 
-		      Equal && eq = Equal())
-	noexcept
+int sequential_search(T * a, T && x, const int l, const int r,
+		      Equal eq = Equal()) noexcept
 {
   for (int i = l; i <= r; i++)
     if (eq(a[i], x)) return i;
 
   return Not_Found;
 }
-
-//       template <typename T, class Equal = Aleph::equal_to<T>> inline 
-// int sequential_search(T * a, const T & x, const int l, const int r,
-// 		      Equal && eq = Equal()) noexcept
-// {
-//   return sequential_search<T, Equal>(a, x, l, r, eq);
-// }
-
 
      /** Búsqueda secuencial sobre un arreglo dinámico.
 
@@ -401,9 +384,9 @@ int sequential_search(T * a, T && x, const int l, const int r,
  	  @see DynArray
 	\ingroup Algos
        */
-    template <typename T, class Equal> inline
+    template <typename T, class Equal = Aleph::equal_to<T>> inline
 int sequential_search(const DynArray<T> & a, const T & x, 
-		      const int l, const int r, Equal & eq) noexcept
+		      const int l, const int r, Equal eq = Equal()) noexcept
 {
   for (int i = l; i <= r; i++)
     if (a.exist(i))
@@ -411,14 +394,6 @@ int sequential_search(const DynArray<T> & a, const T & x,
 	return i;
 
   return -1;
-}
-
-    template <typename T, class Equal = Aleph::equal_to<T>> inline
-int sequential_search(const DynArray<T> & a, 
-		      const T & x, const int l, const int r,
-		      Equal && eq = Equal()) noexcept
-{
-  return sequential_search<T, Equal>(a, x, l, r, eq);
 }
 
     template <class Link, typename T, class Equal>
@@ -436,30 +411,17 @@ Link * sequential_search(const Link & list, const T & x, Equal & eq) noexcept
 }
 
     template <typename T, class Equal>
-Dlink * sequential_search(const Dlink & list, const T & x, Equal & eq) noexcept
+Dlink * sequential_search(const Dlink & list, const T & x,
+			  Equal eq = Equal()) noexcept
 {
   return sequential_search <Dlink, T, Equal>(list, x, eq);
 }
 
-template <typename T, class Equal>
-Dlink * sequential_search(const Dlink & list, const T & x, 
-			  Equal && eq = Equal()) noexcept
-{
-  return sequential_search <T, Equal>(list, x, eq);
-}
-
     template <typename T, class Equal>
-Slinknc * sequential_search(const Slinknc & list, const T & x, Equal & eq)
-      noexcept
+Slinknc * sequential_search(const Slinknc & list, const T & x,
+			    Equal eq = Equal()) noexcept
 {
   return sequential_search <Slinknc, T, Equal>(list, x, eq);
-}
-
-template <typename T, class Equal>
-Slinknc * sequential_search(const Slinknc & list, const T & x, 
-			    Equal && eq = Equal()) noexcept
-{
-  return sequential_search <T, Equal>(list, x, eq);
 }
 
     /** Búsqueda secuencial sobre una lista de nodos.
@@ -516,23 +478,17 @@ Dnode<T> * sequential_search(const Dnode<T> & list, const T & x,
 	@see DynDlist
 	\ingroup Algos
     */
-    template <typename T, class Equal> inline
-T * sequential_search(const DynDlist<T> & list, const T & x, Equal & eq) 
-      noexcept
+    template <typename T, class Equal = Aleph::equal_to<T>> inline
+T * sequential_search(const DynDlist<T> & list, const T & x,
+		      Equal eq = Equal()) noexcept
 {
   Dnode<T> * ret = sequential_search<T, Equal>((Dnode<T>&) list, x, eq);
   return ret != nullptr ? &ret->get_data() : nullptr;
 }
 
     template <typename T, class Equal = Aleph::equal_to<T>> inline
-T * sequential_search(const DynDlist<T> & list, const T & x, 
-		      Equal && eq = Equal()) noexcept
-{
-  return sequential_search<T, Equal>(list, x, eq);
-}
-
-    template <typename T, class Equal> inline
-T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
+T * sequential_search(const DynList<T> & list, const T & x,
+		      Equal & eq = Equal())
       noexcept
 {
   Slinknc * ret =
@@ -543,12 +499,6 @@ T * sequential_search(const DynList<T> & list, const T & x, Equal & eq)
     ret != nullptr ? &((static_cast<Snodenc<T>*>(ret))->get_data()) : nullptr;
 }
 
-    template <typename T, class Equal = Aleph::equal_to<T>> inline
-T * sequential_search(const DynList<T> & list, const T & x, 
-		      Equal && eq = Equal()) noexcept
-{
-  return sequential_search<T, Equal>(list, x, eq);
-}
 
     /** Búsqueda genérica en un arreglo de un elemento extremo.
 	
@@ -564,7 +514,8 @@ T * sequential_search(const DynList<T> & list, const T & x,
 	\ingroup Algos
      */
     template <typename T, class Compare = Aleph::less<T>> inline
-int search_extreme(T * a, const int l, const int r, Compare & cmp) noexcept
+int search_extreme(T * a, const int l, const int r, Compare cmp = Compare())
+      noexcept
 {
   T extreme_index = l;
   for (int i = l + 1; i <= r; i++)
@@ -574,28 +525,15 @@ int search_extreme(T * a, const int l, const int r, Compare & cmp) noexcept
   return extreme_index;
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-int search_extreme(T * a, const int l, const int r, 
-		   Compare && cmp = Compare()) noexcept
-{
-  return search_extreme<T, Compare>(a, l, r, cmp);
-}
-
  /** Retorna el mínimo elemento del arreglo a entre l y r.
 
      \ingroup Algos
   */
     template <typename T, class Compare = Aleph::less<T>> inline
-int search_min(T * a, const int l, const int r, Compare & cmp) noexcept
-{
-  return search_extreme<T, Compare> (a, l, r, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-int search_min(T * a, const int l, const int r, Compare && cmp = Compare())
+int search_min(T * a, const int l, const int r, Compare cmp = Compare())
       noexcept
 {
-  return search_min<T, Compare>(a, l, r, cmp);
+  return search_extreme<T, Compare> (a, l, r, cmp);
 }
 
  /** Retorna el máximo elemento del arreglo a entre l y r.
@@ -603,23 +541,17 @@ int search_min(T * a, const int l, const int r, Compare && cmp = Compare())
      \ingroup Algos
   */
     template <typename T, class Compare = Aleph::greater<T>> inline
-int search_max(T * a, const int l, const int r, Compare & cmp) noexcept
+int search_max(T * a, const int l, const int r, Compare cmp = Compare()) noexcept
 {
   return search_extreme<T, Compare> (a, l, r, cmp);
-}
-
-    template <typename T, class Compare = Aleph::greater<T>> inline
-int search_max(T * a, const int l, const int r, Compare && cmp = Compare())
-      noexcept
-{
-  return search_max<T, Compare>(a, l, r, cmp);
 }
 
     /** \overload search_extreme
 	\ingroup Algos
     */
-    template <typename T, class Compare> inline 
-Dnode<T> * search_extreme(const Dnode<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline 
+Dnode<T> * search_extreme(const Dnode<T> & list, Compare cmp = Compare())
+      noexcept
 {
   Compare_Dnode<T, Compare> cmp_dnode(cmp);
   Dlink * ret = 
@@ -640,8 +572,8 @@ Dnode<T> * search_extreme(const Dnode<T> & list, Compare & cmp) noexcept
 	@note No se verifica si la lista está vacía.
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-T * search_extreme(const DynDlist<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+T * search_extreme(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
 {
   Dnode<T> * ret = search_extreme <T, Compare> ((Dnode<T>&) list, cmp); 
 
@@ -649,21 +581,7 @@ T * search_extreme(const DynDlist<T> & list, Compare & cmp) noexcept
 }
 
     template <typename T, class Compare = Aleph::less<T>> inline 
-Dnode<T> * search_extreme(const Dnode<T> & list, Compare && cmp = Compare())
-      noexcept
-{
-  return search_extreme<T, Compare>(list, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-T * search_extreme(const DynDlist<T> & list, Compare && cmp = Compare()) 
-      noexcept
-{
-  return search_extreme<T, Compare>(list, cmp);
-}
-
-    template <typename T, class Compare> inline 
-T * search_extreme(const DynList<T> & list, Compare & cmp) noexcept
+T * search_extreme(const DynList<T> & list, Compare cmp = Compare()) noexcept
 {
   Slinknc * ret =
     search_extreme <Compare_Snodenc<T, Compare>>
@@ -672,43 +590,24 @@ T * search_extreme(const DynList<T> & list, Compare & cmp) noexcept
   return ret != nullptr ? &(((Snodenc<T>*)ret)->get_data()) : nullptr;
 }
 
-    template <typename T, class Compare> inline 
-T * search_extreme(const DynList<T> & list, Compare && cmp = Compare()) noexcept
-{
-  return search_extreme<T, Compare>(list, cmp);
-}
-
     /** Retorna el mínimo elemento de la lista list.
 
 	\ingroup Algos
     */
-    template <typename T, class Compare> inline
-T * search_min(const DynDlist<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+T * search_min(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<T, Compare> (list, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-T * search_min(const DynDlist<T> & list, Compare && cmp = Compare()) noexcept
-{
-  return search_min<T, Compare>(list, cmp);
 }
 
     /** Retorna el máximo elemento de la lista list.
 
 	\ingroup Algos
     */
-    template <typename T, class Compare> inline
-T * search_max(const DynDlist<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+      T * search_max(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<T, Compare> (list, cmp);
-}
-
-
-    template <typename T, class Compare = Aleph::greater<T>> inline
-T * search_max(const DynDlist<T> & list, Compare && cmp = Compare()) noexcept
-{
-  return search_max<T, Compare>(list, cmp);
 }
 
     /** Ordena un arreglo por el método de inserción.
@@ -734,9 +633,9 @@ T * search_max(const DynDlist<T> & list, Compare && cmp = Compare()) noexcept
 	@see selection_sort() quicksort_rec() mergesort() heapsort()
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void insertion_sort(T * a, const size_t l, const size_t r, Compare & cmp)
-      noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void insertion_sort(T * a, const size_t l, const size_t r,
+		    Compare cmp = Compare()) noexcept
 {
   for (size_t i = l, j; i <= r; ++i)
     {
@@ -747,13 +646,6 @@ void insertion_sort(T * a, const size_t l, const size_t r, Compare & cmp)
 
       a[j] = tmp; // inserte tmp en la brecha
     }
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void insertion_sort(T * a, const size_t l, const size_t r,
-		    Compare && cmp = Compare()) noexcept
-{
-  insertion_sort<T, Compare>(a, l, r, cmp);
 }
 
     /** Inserta un nodo ordenadamente en una lista doblemente enlazada.
@@ -779,13 +671,6 @@ void insert_sorted(Dlink & list, Dlink * p, Compare & cmp) noexcept
     it.get_curr()->append(p); // insertar antes de current
   else
     list.append(p); 
-}
-
-
-    template <class Compare> inline 
-void insert_sorted(Dlink & list, Dlink * p, Compare && cmp = Compare()) noexcept
-{
-  insert_sorted<Compare>(list, p, cmp);
 }
 
 template <class Compare> inline
@@ -820,13 +705,6 @@ void insert_sorted(HTList & list, Slinknc * p, Compare & cmp) noexcept
   assert(false); // it should be unreachable
 }
 
-template <class Compare> inline
-void insert_sorted(HTList & list, Slinknc * p, Compare && cmp = Compare())
-  noexcept
-{
-  insert_sorted<Compare>(list, p, cmp);
-}
-
     /** Ordena según el método de inserción una lista de nodos simples
 
 	insertion_sort(list) ordena según el método de inserción la
@@ -850,8 +728,8 @@ void list_insertion_sort(ListType & list, Compare & cmp) noexcept
   list.swap(aux);
 }
 
-template <typename T, class Compare> inline 
-void insertion_sort(DynList<T> & l, Compare & cmp) noexcept
+template <typename T, class Compare = Aleph::less<T>> inline 
+void insertion_sort(DynList<T> & l, Compare cmp = Compare()) noexcept
 {
   using Cmp = Compare_Snodenc<T, Compare>;
   Cmp c(cmp);  
@@ -859,24 +737,12 @@ void insertion_sort(DynList<T> & l, Compare & cmp) noexcept
 }
 
 template <typename T, class Compare = Aleph::less<T>> inline 
-void insertion_sort(DynList<T> & l, Compare && cmp = Compare()) noexcept
-{
-  insertion_sort<T, Compare>(l, cmp);
-}
-
-template <typename T, class Compare> inline 
-DynList<T> insertion_sort(DynList<T> && l, Compare & cmp) noexcept
+DynList<T> insertion_sort(DynList<T> && l, Compare cmp = Compare()) noexcept
 {
   using Cmp = Compare_Snodenc<T, Compare>;
   Cmp c(cmp);  
   list_insertion_sort<HTList, Cmp>(l, c);
   return move(l);
-}
-
-template <typename T, class Compare = Aleph::less<T>> inline 
-DynList<T> insertion_sort(DynList<T> && l, Compare && cmp = Compare()) noexcept
-{
-  return insertion_sort<T, Compare>(move(l), cmp);
 }
 
     /** Ordena la lista list por el método de inserción.
@@ -889,19 +755,12 @@ DynList<T> insertion_sort(DynList<T> && l, Compare && cmp = Compare()) noexcept
 	@param[in,out] list la lista a ordenar.
 	@see Dnode selection_sort(Dlink * link)
      */
-    template <typename T, class Compare> 
-inline void insertion_sort(Dnode<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> 
+inline void insertion_sort(Dnode<T> & list, Compare cmp = Compare()) noexcept
 {
   using Cmp = Compare_Dnode<T, Compare>;
   Cmp c(cmp);
   list_insertion_sort <Dlink, Cmp> (list, c);
-}
-
-
-    template <typename T, class Compare = Aleph::less<T>> 
-inline void insertion_sort(Dnode<T> & list, Compare && cmp = Compare())
-{
-  insertion_sort<T, Compare>(list, cmp);
 }
 
 /** Mezcla dos particiones ordenadas almacenadas en un arreglo.
@@ -917,9 +776,9 @@ inline void insertion_sort(Dnode<T> & list, Compare && cmp = Compare())
 
     \ingroup Algos
 */
-    template <typename T, class Compare> inline
-void merge(T * a, const int l, const int m, const int r, Compare & cmp)
-      noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void merge(T * a, const int l, const int m, const int r,
+	   Compare cmp = Compare()) noexcept
 {
   int i, j, k, s;
   s = r - l + 1;
@@ -936,13 +795,6 @@ void merge(T * a, const int l, const int m, const int r, Compare & cmp)
       a[k] = b[i++];
     else
       a[k] = b[j--];
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void merge(T * a, const int l, const int m, const int r, 
-	   Compare && cmp = Compare()) noexcept
-{
-  merge<T, Compare>(a, l, m, r, cmp);
 }
 
      /** Ordena un arreglo por el método de mezcla.
@@ -965,8 +817,9 @@ void merge(T * a, const int l, const int m, const int r,
 
 	 \ingroup Algos
       */
-    template <typename T, class Compare> inline
-void mergesort(T * a, const int l, const int r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void mergesort(T * a, const int l, const int r, Compare cmp = Compare())
+      noexcept
 {
   if (l >= r) 
     return;
@@ -980,13 +833,6 @@ void mergesort(T * a, const int l, const int r, Compare & cmp) noexcept
     return;
 
   merge<T, Compare>(a, l, m, r, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void mergesort(T * a, const int l, const int r, Compare && cmp = Compare())
-      noexcept
-{
-  mergesort<T, Compare>(a, l, r, cmp);
 }
 
     /** Mezcla dos listas ordenadas en una sola.
@@ -1005,7 +851,8 @@ void mergesort(T * a, const int l, const int r, Compare && cmp = Compare())
 	\ingroup Algos
      */
     template <typename Tlist, class Compare> inline
-void merge_lists(Tlist & l1, Tlist & l2, Tlist & result, Compare & cmp) noexcept
+void merge_lists(Tlist & l1, Tlist & l2, Tlist & result,
+		 Compare cmp = Compare()) noexcept
 {
   assert(result.is_empty());
 
@@ -1023,13 +870,6 @@ void merge_lists(Tlist & l1, Tlist & l2, Tlist & result, Compare & cmp) noexcept
   assert(l1.is_empty() and l2.is_empty());
 }
 
-    template <typename Tlist, class Compare> inline
-void merge_lists(Tlist & l1, Tlist & l2, Tlist & result,
-		 Compare && cmp = Compare()) noexcept
-{
-  merge_lists<Tlist, Compare>(l1, l2, result, cmp);
-}
-
     /** Mezcla dos listas ordenadas de tipo Dnode en una sola.
  
 	merge_lists(l1,l2,result) toma dos listas ordenadas l1 y l2 
@@ -1045,16 +885,9 @@ void merge_lists(Tlist & l1, Tlist & l2, Tlist & result,
 	
 	\ingroup Algos
      */
-     template <typename T, class Compare> inline
-void merge_lists(Dnode<T> & l1, Dnode<T> & l2, Dnode<T> & result,
-		 Compare & cmp) noexcept
-{
-  merge_lists<Dnode<T>, Compare_Dnode<T, Compare>>(l1, l2, result, cmp);
-}
-
      template <typename T, class Compare = Aleph::less<T>> inline
 void merge_lists(Dnode<T> & l1, Dnode<T> & l2, Dnode<T> & result,
-		 Compare && cmp = Compare()) noexcept
+		 Compare cmp = Compare()) noexcept
 {
   merge_lists<Dnode<T>, Compare_Dnode<T, Compare>>(l1, l2, result, cmp);
 }
@@ -1075,7 +908,7 @@ void merge_lists(Dnode<T> & l1, Dnode<T> & l2, Dnode<T> & result,
 	 \ingroup Algos
      */
     template <typename Tlist, class Compare> inline 
-void mergesort(Tlist & list, Compare & cmp) noexcept
+void mergesort(Tlist & list, Compare cmp = Compare()) noexcept
 {
   if (list.is_unitarian_or_empty()) 
     return;
@@ -1088,13 +921,6 @@ void mergesort(Tlist & list, Compare & cmp) noexcept
   
   merge_lists <Tlist, Compare> (l, r, list, cmp); // mezclarlas 
 }
-
-    template <typename Tlist, class Compare> inline 
-void mergesort(Tlist & list, Compare && cmp = Compare()) noexcept
-{
-  mergesort<Tlist, Compare>(list, cmp);
-}
-
 
      /** Ordena una lista según el método de mezcla (mergesort)
 	 combinado con el método de inserción.
@@ -1112,10 +938,10 @@ void mergesort(Tlist & list, Compare && cmp = Compare()) noexcept
 
 	 \ingroup Algos
      */
-template <template <typename> class Tlist, typename T, class Compare> inline 
-void mergeinsertsort(Tlist<T> & list, Compare & cmp, 
-		     const size_t lsz = Aleph::Insertion_Threshold)
-  noexcept
+template <template <typename> class Tlist, typename T,
+	  class Compare = Aleph::less<T>> inline 
+void mergeinsertsort(Tlist<T> & list, Compare cmp = Compare(), 
+		     const size_t lsz = Aleph::Insertion_Threshold) noexcept
 {
   if (lsz < Aleph::Insertion_Threshold)
     {
@@ -1135,14 +961,9 @@ void mergeinsertsort(Tlist<T> & list, Compare & cmp,
   merge_lists <Tlist<T>, Compare> (l, r, list, cmp); // mezclarlas 
 }
 
-template <template <typename> class Tlist, typename T, class Compare> inline 
-void mergeinsertsort(Tlist<T> & list, Compare && cmp = Compare()) noexcept
-{
-  mergeinsertsort<Tlist, T, Compare>(list, cmp);
-}
-
-template <template <typename> class Tlist, typename T, class Compare> inline 
-void mergesort(Tlist<T> & list, Compare & cmp) noexcept
+template <template <typename> class Tlist, typename T,
+	  class Compare = Aleph::less<T>> inline 
+void mergesort(Tlist<T> & list, Compare cmp = Compare()) noexcept
 {
   if (list.is_unitarian_or_empty()) 
     return;
@@ -1154,12 +975,6 @@ void mergesort(Tlist<T> & list, Compare & cmp) noexcept
   mergesort <Tlist, T, Compare> (r, cmp);  
   
   merge_lists <Tlist<T>, Compare> (l, r, list, cmp); // mezclarlas 
-}
-
-template <template <typename> class Tlist, typename T, class Compare> inline 
-void mergeort(Tlist<T> & list, Compare && cmp = Compare()) noexcept
-{
-  mergesort<Tlist, T, Compare>(list, cmp);
 }
 
      /** Ordena una lista según el método de mezcla (mergesort).
@@ -1181,17 +996,10 @@ void mergeort(Tlist<T> & list, Compare && cmp = Compare()) noexcept
 
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void mergesort(Dnode<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+  void mergesort(Dnode<T> & list, Compare cmp = Compare()) noexcept
 {
   mergesort <Dnode<T>, Compare_Dnode<T, Compare>> (list, cmp);
-}
-
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void mergesort(Dnode<T> & list, Compare && cmp = Compare()) noexcept
-{
-  mergesort<Dnode<T>, Compare_Dnode<T, Compare>>(list, cmp);
 }
 
     /** Ordena una lista dinámica según el método de mezcla (mergesort).
@@ -1213,40 +1021,25 @@ void mergesort(Dnode<T> & list, Compare && cmp = Compare()) noexcept
 
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void mergesort(DynDlist<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void mergesort(DynDlist<T> & list, Compare cmp = Compare()) noexcept
 {
   mergesort <Dnode<T>, Compare_Dnode<T, Compare>> (list, cmp);
 }
 
     template <typename T, class Compare = Aleph::less<T>> inline
-void mergesort(DynDlist<T> & list, Compare && cmp = Compare()) noexcept
-{
-  mergesort<T, Compare>(list, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void mergesort(DynList<T> & list, Compare & cmp) noexcept
+      void mergesort(DynList<T> & list, Compare cmp = Compare()) noexcept
 {
   mergesort<DynList<T>, Compare>(list, cmp);
 }
 
     template <typename T, class Compare = Aleph::less<T>> inline
-void mergesort(DynList<T> & list, Compare && cmp = Compare()) noexcept
-{
-  mergesort<DynList<T>, Compare>(list, cmp);
-}
+int select_pivot(T * a, const int l, const int r, Compare cmp = Compare())
+      noexcept; 
 
-    template <typename T, class Compare> inline
-int select_pivot(T * a, const int l, const int r, Compare & cmp) noexcept; 
 
     template <typename T, class Compare = Aleph::less<T>> inline
-int select_pivot(T * a, const int l, const int r, Compare && cmp = Compare())
-      noexcept;
-
-
-    template <typename T, class Compare> inline
-int partition(T * a, const int l, const int r, Compare & cmp) noexcept
+int partition(T * a, const int l, const int r, Compare cmp = Compare()) noexcept
 {
   const int p = select_pivot <T, Compare> (a, l, r, cmp);
   std::swap(a[p], a[r]);
@@ -1273,13 +1066,6 @@ int partition(T * a, const int l, const int r, Compare & cmp) noexcept
   std::swap(a[i], a[r]);
 
   return i;
-}
-
-    template <typename T, class Compare> inline
-int partition(T * a, const int l, const int r, Compare && cmp = Compare())
-      noexcept
-{
-  return partition<T, Compare>(a, l, r, cmp);
 }
 
     /** Ordena un arreglo por el método quicksort.
@@ -1315,8 +1101,9 @@ int partition(T * a, const int l, const int r, Compare && cmp = Compare())
 
 	\ingroup Algos
       */
-    template <typename T, class Compare> inline
-void quicksort_rec(T * a, const int l, const int r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void quicksort_rec(T * a, const int l, const int r, Compare cmp = Compare())
+      noexcept
 {
   if (l >= r) 
     return;
@@ -1328,14 +1115,7 @@ void quicksort_rec(T * a, const int l, const int r, Compare & cmp) noexcept
 }
 
     template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort_rec(T * a, const int l, const int r, 
-		   Compare && cmp = Compare()) noexcept
-{
-  quicksort_rec<T, Compare>(a, l, r, cmp);
-}
-
-    template <typename T, class Compare> inline
-void quicksort_no_tail(T * a, int l, int r, Compare & cmp) noexcept
+void quicksort_no_tail(T * a, int l, int r, Compare cmp = Compare()) noexcept
 {
  start:
   if (l >= r) 
@@ -1347,13 +1127,6 @@ void quicksort_no_tail(T * a, int l, int r, Compare & cmp) noexcept
 
   l = pivot + 1;
   goto start;
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort_no_tail(T * a, int l, int r, 
-		       Compare && cmp = Compare()) noexcept
-{
-  quicksort_no_tail<T, Compare>(a, l, r, cmp);
 }
 
     /** Ordena un arreglo según el método quicksort con mínimo
@@ -1371,8 +1144,9 @@ void quicksort_no_tail(T * a, int l, int r,
 	@see quicksort_rec() quicksort() quicksort_insertion()
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void quicksort_rec_min(T * a, const int l, const int r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void quicksort_rec_min(T * a, const int l, const int r,
+		       Compare cmp = Compare()) noexcept
 {
   if (r <= l) 
     return;  
@@ -1390,17 +1164,9 @@ void quicksort_rec_min(T * a, const int l, const int r, Compare & cmp) noexcept
     }
 } 
 
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort_rec_min(T * a, const int l, const int r, 
-		       Compare && cmp = Compare()) noexcept
-{
-  quicksort_rec_min<T, Compare>(a, l, r, cmp);  
-}
-
-
     template <typename T, class Compare> inline
-int select_pivot(T * a, const int l, const int r, Compare & cmp) noexcept
+int select_pivot(T * a, const int l, const int r, Compare cmp)
+      noexcept
 {
   assert(l <= r);
 
@@ -1411,13 +1177,6 @@ int select_pivot(T * a, const int l, const int r, Compare & cmp) noexcept
   const int p = cmp(a[l], a[m]) ? m : l; // p=max(a[l],a[m])
 
   return cmp (a[r], a[m]) ? r : p; // retornar min(a[r], a[m])
-}
-
-
-    template <typename T, class Compare> inline
-int select_pivot(T * a, const int l, const int r, Compare && cmp) noexcept
-{
-  return select_pivot<T, Compare>(a, l, r, cmp);
 }
 
     /** Ordena un arreglo por el método quicksort sin recursión.
@@ -1453,8 +1212,9 @@ int select_pivot(T * a, const int l, const int r, Compare && cmp) noexcept
 
 	\ingroup Algos
       */
-    template <typename T, class Compare> inline
-void quicksort(T * a, const int l, const int r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void quicksort(T * a, const int l, const int r, Compare cmp = Compare())
+      noexcept
 {
   if (r - l < Quicksort_Threshold) 
     {
@@ -1495,13 +1255,6 @@ void quicksort(T * a, const int l, const int r, Compare & cmp) noexcept
     }
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort(T * a, const int l, const int r, Compare && cmp = Compare())
-      noexcept
-{
-  quicksort<T, Compare>(a, l, r, cmp);
-}
-
     /** Ordena una lista enlazada por el método quicksort.
 
 	quicksort(list) ordena una lista
@@ -1515,7 +1268,7 @@ void quicksort(T * a, const int l, const int r, Compare && cmp = Compare())
 	\ingroup Algos
       */
     template <class Compare> 
-void quicksort(Dlink & list, Compare & cmp) noexcept
+void quicksort(Dlink & list, Compare cmp = Compare()) noexcept
 {
   if (list.is_unitarian_or_empty()) 
     return;
@@ -1540,12 +1293,6 @@ void quicksort(Dlink & list, Compare & cmp) noexcept
   list.concat_list(&bigger);
 } 
 
-    template <class Compare> 
-void quicksort(Dlink & list, Compare && cmp = Compare()) noexcept
-{
-  quicksort<Compare>(list, cmp);
-}
-
     /** Ordena una lista por el método quicksort.
 
 	 quicksort(list) ordena  una lista mediante el método
@@ -1566,20 +1313,14 @@ void quicksort(Dlink & list, Compare && cmp = Compare()) noexcept
 
 	\ingroup Algos
       */
-    template <typename T, class Compare>
-void quicksort(Dnode<T> & list, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>>
+void quicksort(Dnode<T> & list, Compare cmp = Compare()) noexcept
 {
   quicksort <Compare_Dnode<T, Compare>> (list, cmp);
 }
 
-    template <typename T, class Compare = Aleph::less<T>>
-void quicksort(Dnode<T> & list, Compare && cmp = Compare()) noexcept
-{
-  quicksort<T, Compare>(list, cmp);
-}
-
 template <typename T, class Compare> 
-void quicksort(HTList & list, Compare & cmp) noexcept
+void quicksort(HTList & list, Compare cmp = Compare()) noexcept
 {
   if (list.is_unitarian_or_empty()) 
     return;
@@ -1605,7 +1346,7 @@ void quicksort(HTList & list, Compare & cmp) noexcept
 } 
 
     template <typename T, class Compare = Aleph::less<T>>
-void quicksort(DynList<T> & list, Compare && cmp = Compare()) noexcept
+void quicksort(DynList<T> & list, Compare cmp = Compare()) noexcept
 {
   quicksort<T, Compare>((HTList&) list, cmp);
 }
@@ -1647,9 +1388,9 @@ void quicksort(DynList<T> & list, Compare && cmp = Compare()) noexcept
 
 	\ingroup Algos
       */
-     template <typename T, class Compare> inline
-void quicksort_insertion(T * a, const int l, const int r, Compare & cmp) 
-       noexcept
+     template <typename T, class Compare = Aleph::less<T>> inline
+void quicksort_insertion(T * a, const int l, const int r,
+			 Compare cmp = Compare()) noexcept
 {
   if (r <= l) 
     return;
@@ -1701,13 +1442,6 @@ void quicksort_insertion(T * a, const int l, const int r, Compare & cmp)
     }
 }    
 
-     template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort_insertion(T * a, const int l, const int r,
-			 Compare && cmp = Compare()) noexcept
-{
-  quicksort_insertion<T, Compare>(a, l, r, cmp);
-}
-
      /** Búsqueda aleatoria de un elemento en un arreglo.
 
 	 random_search(a,x,l,r) se vale del algoritmo de partición del
@@ -1738,9 +1472,9 @@ void quicksort_insertion(T * a, const int l, const int r,
 	 \ingroup Algos
 	 @see sequential_search() binary_search_rec()
       */
-     template <typename T, class Compare> inline
+     template <typename T, class Compare = Aleph::less<T>> inline
 int random_search(T * a, const T & x, const long l, const long r, 
-		  Compare & cmp) noexcept
+		  Compare cmp = Compare()) noexcept
 {
   if (l > r)
     return Not_Found;
@@ -1755,16 +1489,9 @@ int random_search(T * a, const T & x, const long l, const long r,
   return pivot; // elemento encontrado en el índice x
 }
 
-     template <typename T, class Compare = Aleph::less<T>> inline
-int random_search(T * a, const T & x, const long l, const long r,
-		  Compare && cmp = Compare()) noexcept
-{
-  return random_search<T, Compare>(a, x, l, r, cmp);
-}
-
-    template <typename T, class Compare> inline
+    template <typename T, class Compare = Aleph::less<T>> inline
 int random_search(DynArray<T> & a, const T & x, const long l, const long r,
-		  Compare & cmp) noexcept
+		  Compare cmp = Compare()) noexcept
 {
   if (l > r)
     return Not_Found;
@@ -1777,13 +1504,6 @@ int random_search(DynArray<T> & a, const T & x, const long l, const long r,
     return random_search<T, Compare>(a, x, pivot + 1, r, cmp);
 
   return pivot; // elemento encontrado en el índice x
-}
-
-template <typename T, class Compare = Aleph::less<T>> inline
-int random_search(DynArray<T> & a, const T & x, const long l, const long r,
-		  Compare && cmp = Compare()) noexcept
-{
-  return random_search<T, Compare>(a, x, l, r, cmp);
 }
 
     /** Búsqueda aleatoria de un elemento en una lista dlink.
@@ -1812,8 +1532,8 @@ int random_search(DynArray<T> & a, const T & x, const long l, const long r,
 	\ingroup Algos
       */
     template <typename T, class Compare> inline
-Dnode<T> * dlink_random_search(Dlink & list, const T & x, Compare & cmp)
-      noexcept
+Dnode<T> * dlink_random_search(Dlink & list, const T & x,
+			       Compare cmp = Compare()) noexcept
 {
   if (list.is_empty()) 
     return nullptr;
@@ -1852,13 +1572,6 @@ Dnode<T> * dlink_random_search(Dlink & list, const T & x, Compare & cmp)
   return ret_val;
 }
 
-    template <typename T, class Compare> inline
-Dnode<T> * dlink_random_search(Dlink & list, const T & x,
-			       Compare && cmp = Compare()) noexcept
-{
-  return dlink_random_search<T, Compare>(list, x, cmp);
-}
-
     /** Búsqueda aleatoria de un elemento en una lista Dnode<T>.
 
 	random_search(list,x) se vale del algoritmo de partición del
@@ -1887,17 +1600,11 @@ Dnode<T> * dlink_random_search(Dlink & list, const T & x,
 
 	\ingroup Algos
       */
-    template <typename T, class Compare>
-Dnode<T> * random_search(Dlink & list, const T & x, Compare & cmp) noexcept
-{
-  return dlink_random_search <T, Compare_Dnode<T, Compare>> (list, x, cmp);
-}
-
     template <typename T, class Compare = Aleph::less<T>>
-Dnode<T> * random_search(Dlink & list, const T & x, Compare && cmp = Compare())
+Dnode<T> * random_search(Dlink & list, const T & x, Compare cmp = Compare())
       noexcept
 {
-  return random_search<T, Compare>(list, x, cmp);
+  return dlink_random_search <T, Compare_Dnode<T, Compare>> (list, x, cmp);
 }
 
     /** Búsqueda aleatoria de un elemento en una lista dinámica.
@@ -1928,20 +1635,14 @@ Dnode<T> * random_search(Dlink & list, const T & x, Compare && cmp = Compare())
 
 	\ingroup Algos
       */
-    template <typename T, class Compare> inline
-T * random_search(DynDlist<T> & list, const T & x, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+T * random_search(DynDlist<T> & list, const T & x, Compare cmp = Compare())
+      noexcept
 {
   Dnode<T> * p = 
     dlink_random_search <T, Compare_Dnode<T, Compare>> (list, x, cmp);
 
   return p == nullptr ? nullptr : &(p->get_data());
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-T * random_search(DynDlist<T> & list, const T & x, Compare && cmp = Compare())
-      noexcept
-{
-  return random_search<T, Compare>(list, x, cmp);
 }
 
     template <typename T, class Compare> static inline
@@ -1958,21 +1659,14 @@ const T & __random_select(T * a, const long i, const long l, const long r,
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
 }
 
-    template <typename T, class Compare> static inline
-const T & __random_select(T * a, const long i, const long l, const long r,
-			  Compare && cmp = Compare()) noexcept
-{
-  return __random_select<T, Compare>(a, i, l, r, cmp);
-}
-
 /** Selecciona un elemento pivote de un DynArray como la mediana entre
     los extremos y el centro.
 
     @ingrouop Algos
  */
-    template <typename T, class Compare> inline
+    template <typename T, class Compare = Aleph::less<T>> inline
 long select_pivot_op(const DynArray<T> & a, const long l, const long r,
-		     Compare & cmp) noexcept
+		     Compare cmp = Compare()) noexcept
 {
   assert(l <= r);
 
@@ -1997,13 +1691,6 @@ long select_pivot_op(const DynArray<T> & a, const long l, const long r,
   assert(med_ptr == &ra);
 
   return r;
-}
-
-    template <typename T, class Compare> inline
-int select_pivot_op(const DynArray<T> & a, const long l, const long r,
-		    Compare && cmp = Compare()) noexcept
-{
-  return select_pivot_op<T, Compare>(a, l, r, cmp);
 }
 
 /** Selecciona un elemento pivote de un DynArray como la mediana entre
@@ -2011,9 +1698,9 @@ int select_pivot_op(const DynArray<T> & a, const long l, const long r,
 
     @ingrouop Algos
  */
-    template <typename T, class Compare> inline
+    template <typename T, class Compare = Aleph::less<T>> inline
 long select_pivot_op(const Array<T> & a, const long l, const long r,
-		     Compare & cmp) noexcept
+		     Compare cmp = Compare()) noexcept
 {
   assert(l <= r);
 
@@ -2040,15 +1727,9 @@ long select_pivot_op(const Array<T> & a, const long l, const long r,
   return r;
 }
 
-    template <typename T, class Compare> inline
-int select_pivot_op(const Array<T> & a, const long l, const long r,
-		    Compare && cmp = Compare()) noexcept
-{
-  return select_pivot_op<T, Compare>(a, l, r, cmp);
-}
-
-    template <typename T, class Compare> inline
-int partition_op(const DynArray<T> & a, long l, long r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+int partition_op(const DynArray<T> & a, long l, long r,
+		 Compare cmp = Compare()) noexcept
 {
   if (l == r)
     return l;
@@ -2080,15 +1761,9 @@ int partition_op(const DynArray<T> & a, long l, long r, Compare & cmp) noexcept
   return i;
 }
 
-    template <typename T, class Compare> inline
-int partition_op(const DynArray<T> & a, long l, long r, 
-		 Compare && cmp = Compare()) noexcept
-{
-  return partition_op<T, Compare>(a, l, r, cmp);
-}
-
-    template <typename T, class Compare> inline
-int partition_op(const Array<T> & a, long l, long r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+int partition_op(const Array<T> & a, long l, long r,
+		 Compare cmp = Compare()) noexcept
 {
   if (l == r)
     return l;
@@ -2120,40 +1795,10 @@ int partition_op(const Array<T> & a, long l, long r, Compare & cmp) noexcept
   return i;
 }
 
-    template <typename T, class Compare> inline
-int partition_op(const Array<T> & a, long l, long r, Compare && cmp = Compare())
-      noexcept
-{
-  return partition_op<T, Compare>(a, l, r, cmp);
-}
-
-    template <typename T, class Compare> static inline
-const T & __random_select(const DynArray<T> & a, const long i, 
-			  const long l, const long r, Compare & cmp) noexcept
-{
-  assert(i >= l and i <= r);
-
-  const long pivot = partition_op<T, Compare>(a, l, r, cmp);
-  if (i == pivot) 
-    return a(i);
-
-  if (i < pivot) // ¿está en partición izquierda?
-    return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
-  else
-    return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
-}
-
     template <typename T, class Compare> static inline
 const T & __random_select(const DynArray<T> & a, const long i, 
 			  const long l, const long r,
-			  Compare && cmp = Compare()) noexcept
-{
-  return __random_select<T, Compare>(a, i, l, r, cmp);
-}
-
-    template <typename T, class Compare> static inline
-const T & __random_select(const Array<T> & a, const long i, 
-			  const long l, const long r, Compare & cmp) noexcept
+			  Compare cmp = Compare()) noexcept
 {
   assert(i >= l and i <= r);
 
@@ -2170,13 +1815,22 @@ const T & __random_select(const Array<T> & a, const long i,
     template <typename T, class Compare> static inline
 const T & __random_select(const Array<T> & a, const long i, 
 			  const long l, const long r,
-			  Compare && cmp = Compare()) noexcept
+			  Compare cmp = Compare()) noexcept
 {
-  return __random_select<T, Compare>(a, i, l, r, cmp);
+  assert(i >= l and i <= r);
+
+  const long pivot = partition_op<T, Compare>(a, l, r, cmp);
+  if (i == pivot) 
+    return a(i);
+
+  if (i < pivot) // ¿está en partición izquierda?
+    return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
+  else
+    return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
 }
 
-template <typename T, class Compare> 
-const T & random_select(DynArray<T> & a, const long i, Compare & cmp)
+template <typename T, class Compare = Aleph::less<T>> 
+const T & random_select(DynArray<T> & a, const long i, Compare cmp = Compare())
 {
   const int n = a.size() - 1;
   if (i > n)
@@ -2185,28 +1839,14 @@ const T & random_select(DynArray<T> & a, const long i, Compare & cmp)
   return __random_select<T, Compare>(a, i, 0, n, cmp);
 }
 
-  template <typename T, class Compare = Aleph::less<T>> 
-const T & random_select(DynArray<T> & a, const long i, 
-			Compare && cmp = Compare()) noexcept
-{
-  return random_select<T, Compare>(a, i, cmp);
-}
-
-template <typename T, class Compare> 
-const T & random_select(Array<T> & a, const long i, Compare & cmp)
+template <typename T, class Compare = Aleph::less<T>> 
+const T & random_select(Array<T> & a, const long i, Compare cmp = Compare())
 {
   const int n = a.size() - 1;
   if (i > n)
     throw std::out_of_range("index out of range");
 
   return __random_select<T, Compare>(a, i, 0, n, cmp);
-}
-
-  template <typename T, class Compare = Aleph::less<T>> 
-const T & random_select(Array<T> & a, const long i, 
-			Compare && cmp = Compare()) noexcept
-{
-  return random_select<T, Compare>(a, i, cmp);
 }
 
     /** Selección aleatoria del i-ésimo elemento de un arreglo.
@@ -2232,8 +1872,9 @@ const T & random_select(Array<T> & a, const long i,
 
 	\ingroup Algos
      */
-  template <typename T, class Compare> 
-const T & random_select(T * a, const long i, const long n, Compare & cmp)
+  template <typename T, class Compare = Aleph::less<T>> 
+const T & random_select(T * a, const long i, const long n,
+			Compare cmp = Compare())
 {
   if (i >= n)
     throw std::out_of_range("index out of range");
@@ -2270,7 +1911,8 @@ const T & random_select(T * a, const long i, const long n,
 	\ingroup Algos
      */
     template <class Compare>
-Dlink * dlink_random_select(Dlink & list, const size_t i, Compare & cmp)
+Dlink * dlink_random_select(Dlink & list, const size_t i,
+			    Compare cmp = Compare())
 {
   if (list.is_empty()) 
     return nullptr;
@@ -2310,13 +1952,6 @@ Dlink * dlink_random_select(Dlink & list, const size_t i, Compare & cmp)
   return ret_val;
 }
 
-    template <class Compare>
-Dlink * dlink_random_select(Dlink & list, const size_t i, 
-			    Compare && cmp = Compare()) noexcept
-{
-  return dlink_random_select<Compare>(list, i, cmp);
-}
-
     /** Selección aleatoria del i-ésimo elemento de una lista basada 
 	sobre Dlink.
 
@@ -2341,18 +1976,11 @@ Dlink * dlink_random_select(Dlink & list, const size_t i,
 
 	\ingroup Algos
      */
-    template <typename T, class Compare>
-Dnode<T> * random_select(Dlink & list, const size_t i, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>>
+Dnode<T> * random_select(Dlink & list, const size_t i, Compare cmp = Compare())
 {
   return (Dnode<T>*) 
     dlink_random_select<Compare_Dnode<T, Compare>> (list, i, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>>
-Dnode<T> * random_select(Dlink & list, const size_t i, 
-			 Compare && cmp = Compare()) noexcept
-{
-  return random_select<T, Compare> (list, i, cmp);
 }
 
     /** Selección aleatoria del i-ésimo elemento de una lista dinámica.
@@ -2379,22 +2007,14 @@ Dnode<T> * random_select(Dlink & list, const size_t i,
 
 	\ingroup Algos
      */
-    template <typename T, class Compare>
-T * random_select(DynDlist<T> & list, const size_t i, Compare & cmp)
-      noexcept
+    template <typename T, class Compare = Aleph::less<T>>
+T * random_select(DynDlist<T> & list, const size_t i, Compare cmp = Compare())
 {
   Dlink * link = dlink_random_select <Compare_Dnode<T, Compare>> (list, i, cmp);
 
   Dnode<T> * p = static_cast<Dnode<T>*>(link);
 
   return p != nullptr ? &(p->get_data()) : nullptr;
-}
-
-    template <typename T, class Compare = Aleph::less<T>>
-T * random_select(DynDlist<T> & list, const size_t i, 
-		  Compare && cmp = Compare()) noexcept
-{
-  return random_select<T, Compare>(list, i, cmp);
 }
   
   /** Ordena un arreglo dinámico por el método de selección.
@@ -2415,8 +2035,8 @@ T * random_select(DynDlist<T> & list, const size_t i,
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
-    template <typename T, class Compare> inline
-void selection_sort(DynArray<T> & a, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void selection_sort(DynArray<T> & a, Compare cmp = Compare()) noexcept
 {
   const int n = a.size();
 
@@ -2431,12 +2051,6 @@ void selection_sort(DynArray<T> & a, Compare & cmp) noexcept
       if (cmp(a(min), a(i)))
 	std::swap(a(min), a(i));
     }
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void selection_sort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
-{
-  selection_sort<T, Compare>(a, cmp);
 }
 
   /** Ordena un arreglo dinámico por el método de la burbuja.
@@ -2456,8 +2070,8 @@ void selection_sort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
-    template <typename T, class Compare> inline
-void bubble_sort(DynArray<T> & a, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void bubble_sort(DynArray<T> & a, Compare cmp = Compare()) noexcept
 {
   const int n = a.size();
 
@@ -2465,12 +2079,6 @@ void bubble_sort(DynArray<T> & a, Compare & cmp) noexcept
     for (int j = n - 1; j > i; j--)
       if (cmp(a(j), a(j - 1)))
 	std::swap(a(j - 1), a(j));
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void bubble_sort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
-{
-  bubble_sort<T, Compare>(a, cmp);
 }
 
     /** Ordena un arreglo dinámico por el método de inserción.
@@ -2498,8 +2106,9 @@ void bubble_sort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
 	@see selection_sort() quicksort_rec() mergesort() heapsort()
 	\ingroup Algos
      */
-template <typename T, template <typename> class C, class Compare> inline
-void insertion_sort(C<T> & a, long l, long r, Compare & cmp) noexcept
+template <template <typename> class C, typename T, 
+	  class Compare = Aleph::less<T>> inline
+void insertion_sort(C<T> & a, long l, long r, Compare cmp = Compare()) noexcept
 {
   for (long i = l + 1; i <= r; i++)
     {
@@ -2511,30 +2120,16 @@ void insertion_sort(C<T> & a, long l, long r, Compare & cmp) noexcept
       a(j) = tmp;
     }
 }
-
-    template <typename T, template <typename> class C, 
-	      class Compare = Aleph::less<T>> inline
-void insertion_sort(C<T> & a, long l, long r, Compare && cmp = Compare()) 
-      noexcept
-{
-  insertion_sort(a, l, r, cmp);
-}
-
+  
     /**
 	\overload insertion_sort()
 	\ingroup Algos
      */
-    template <typename T, template <typename> class C, class Compare> inline
-void insertion_sort(C<T> & a, Compare & cmp) noexcept
+    template <template <typename> class C, typename T, 
+	      class Compare = Aleph::less<T>> inline
+void insertion_sort(C<T> & a, Compare cmp = Compare()) noexcept
 {
   insertion_sort(a, 0, a.size() - 1, cmp);
-}
-
-    template <typename T, template <typename> class C, 
-	      class Compare = Aleph::less<T>> inline
-void insertion_sort(C<T> & a, Compare && cmp = Compare()) noexcept
-{
-  insertion_sort<T, Compare> (a, cmp);
 }
 
     /** Ordena un arreglo dinámico por el método de shell.
@@ -2553,8 +2148,8 @@ void insertion_sort(C<T> & a, Compare && cmp = Compare()) noexcept
 	@see selection_sort() quicksort_rec() mergesort() heapsort()
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void shellsort(DynArray<T> & a, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void shellsort(DynArray<T> & a, Compare cmp = Compare()) noexcept
 {
   const long n = a.size();
   int incs[16] = { 1391376, 463792, 198768, 86961, 33936, 13776, 
@@ -2579,13 +2174,8 @@ void shellsort(DynArray<T> & a, Compare & cmp) noexcept
     } 
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-void shellsort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
-{
- shellsort<T, Compare>(a, cmp);
-}
-    inline static 
-long back_index(const long i) noexcept { return i - 1; }
+
+  inline static long back_index(const long i) noexcept { return i - 1; }
 
 
     template <typename T, class Compare> inline
@@ -2603,14 +2193,6 @@ void sift_up(DynArray<T> & table, const size_t n, Compare & cmp) noexcept
     }
 }
 
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void sift_up(DynArray<T> & table, const size_t n, Compare && cmp = Compare()) 
-      noexcept
-{
-  sift_up<T, Compare>(table, n, cmp);
-}
-
     template <typename T, class Compare> inline
 void sift_down(DynArray<T> & table, const size_t n, Compare & cmp) noexcept
 {
@@ -2618,7 +2200,7 @@ void sift_down(DynArray<T> & table, const size_t n, Compare & cmp) noexcept
 
   while (true)
     {
-      long c = i << 1; // c = 2*i
+      size_t c = i << 1; // c = 2*i
 
       if (c > n) 
 	return;
@@ -2635,27 +2217,16 @@ void sift_down(DynArray<T> & table, const size_t n, Compare & cmp) noexcept
     }
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-void sift_down(DynArray<T> & table, const size_t n, Compare && cmp = Compare()) 
-      noexcept
-{
-  sift_down<T, Compare>(table, n, cmp);
-}
-
     template <typename T, class Compare>
 class Negate_Compare
 {
-  Compare & cmp;
+  Compare cmp;
 
 public:
 
-  Negate_Compare(Compare & _cmp) 
+  Negate_Compare(Compare __cmp = Compare()) 
   noexcept(std::is_nothrow_copy_assignable<Compare>::value)
-    : cmp(_cmp) { /* Empty */ }
-
-  Negate_Compare(Compare && _cmp = Compare()) 
-  noexcept(std::is_nothrow_move_assignable<Compare>::value)
-    : cmp(_cmp) { /* Empty */ }
+    : cmp(__cmp) { /* Empty */ }
 
   bool operator () (const T & e1, const T & e2) noexcept
   {
@@ -2680,8 +2251,8 @@ public:
 	@see selection_sort() faster_heapsort()
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
-void heapsort(DynArray<T> & a, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void heapsort(DynArray<T> & a, Compare cmp = Compare()) noexcept
 {
   const long n = a.size();
 
@@ -2699,14 +2270,9 @@ void heapsort(DynArray<T> & a, Compare & cmp) noexcept
     }
 }
 
-    template <typename T, class Compare> inline
-void heapsort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
-{
-  heapsort<T, Compare>(a, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-long partition(C<T> & a, long l, long r, Compare & cmp) noexcept
+    template <template <typename> class C, typename T, 
+	      class Compare = Aleph::less<T>> inline
+long partition(C<T> & a, long l, long r, Compare cmp = Compare()) noexcept
 {
   if (l == r)
     return l;
@@ -2734,18 +2300,9 @@ long partition(C<T> & a, long l, long r, Compare & cmp) noexcept
   return i;
 }
 
-
-    template <typename T, template <typename> class C, class Compare> inline
-int partition(C<T> & a, const long l, const long r,
-	      Compare && cmp = Compare()) noexcept
-{
-  return partition<T, Compare>(a, l, r, cmp);
-}
-
-
-    template <typename T, class Compare> inline 
-void quicksort_rec(DynArray<T> & a, const long l, const long r, Compare & cmp)
-      noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline 
+void quicksort_rec(DynArray<T> & a, const long l, const long r,
+		   Compare cmp = Compare()) noexcept
 {
   if (r <= l) 
     return;
@@ -2761,14 +2318,6 @@ void quicksort_rec(DynArray<T> & a, const long l, const long r, Compare & cmp)
       quicksort_rec<T, Compare>(a, i + 1, r, cmp);
       quicksort_rec<T, Compare>(a, l, i - 1, cmp);
     }
-}
-
-
-    template <typename T, class Compare = Aleph::less<T>> inline 
-void quicksort_rec(DynArray<T> & a, const long l, const long r,
-		   Compare && cmp = Compare()) noexcept
-{
-  quicksort_rec<T, Compare>(a, l, r, cmp);
 }
 
 # define push2(stack, a, b)  stack.push(b); stack.push(a);
@@ -2801,8 +2350,8 @@ void quicksort_rec(DynArray<T> & a, const long l, const long r,
 
 	\ingroup Algos
       */
-    template <typename T, class Compare> inline
-void quicksort(DynArray<T> & a, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline
+void quicksort(DynArray<T> & a, Compare cmp = Compare()) noexcept
 {
   long i, l = 0, r = a.size() -1;
 
@@ -2830,12 +2379,6 @@ void quicksort(DynArray<T> & a, Compare & cmp) noexcept
     }
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-void quicksort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
-{
-  quicksort(a, cmp);
-}
-
     /** Búsqueda genérica en un arreglo dinámico de un elemento extremo.
 	
 	search_extreme(a, l, r) busca secuencialmente en el arreglo
@@ -2849,9 +2392,9 @@ void quicksort(DynArray<T> & a, Compare && cmp = Compare()) noexcept
 	@note No se verifica si la secuencia está vacía.
 	\ingroup Algos
      */
-    template <typename T, class Compare> inline
+    template <typename T, class Compare = Aleph::less<T>> inline
 long search_extreme(const DynArray<T>& a, const long l, const long r, 
-		    Compare & cmp) noexcept
+		    Compare cmp = Compare()) noexcept
 {
   long extreme_index = l;
 
@@ -2862,30 +2405,16 @@ long search_extreme(const DynArray<T>& a, const long l, const long r,
   return extreme_index;
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-long search_extreme(const DynArray<T>& a, const long l, const long r,
-		    Compare && cmp = Compare()) noexcept
-{
-  return search_extreme(a, l, r, cmp);
-}
-
   /** Retorna el máximo elemento del arreglo a entre l y r.
 
       \ingroup Algos
   */
-    template <typename T, class Compare> inline
+    template <typename T, class Compare = Aleph::less<T>> inline
 long search_max(const DynArray<T>& a, const long l, const long r,
-		Compare & cmp) noexcept
+		Compare cmp = Compare()) noexcept
 {
   return search_extreme<T, Compare>(a, l, r, cmp);
 }  
-
-    template <typename T, class Compare = Aleph::greater<T>> inline
-long search_max(const DynArray<T> & a, const long l, const long r,
-		Compare && cmp = Compare()) noexcept
-{
-  return search_max<T, Compare>(a, l, r, cmp);
-}
 
     /** Búsqueda binaria sobre un arreglo dinámico ordenado.
 
@@ -2919,9 +2448,10 @@ long search_max(const DynArray<T> & a, const long l, const long r,
 	 @see sequential_search()
 	 \ingroup Algos
       */
-template <typename T, template <typename> class C, class Compare> inline
+template <template <typename> class C, typename T, 
+	  class Compare = Aleph::less<T>> inline
 long binary_search(const C<T> & a, const T & x, long l, long r,
-		   Compare & cmp) noexcept
+		   Compare cmp = Compare()) noexcept
 {
   if (l > r) 
     return l;
@@ -2941,17 +2471,10 @@ long binary_search(const C<T> & a, const T & x, long l, long r,
   return m;
 } 
 
-    template <typename T, template <typename> class C, 
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
-long binary_search(const C<T> & a, const T & x, long l, long r,
-		   Compare && cmp = Compare()) noexcept
-{
-  return binary_search(a, x, l, r, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
 long binary_search(const C<T*> & a, const T & x, long l, long r,
-		   Compare & cmp) noexcept
+		   Compare cmp = Compare()) noexcept
 {
   if (l > r) 
     return l;
@@ -2971,15 +2494,7 @@ long binary_search(const C<T*> & a, const T & x, long l, long r,
   return m;
 } 
 
-    template <typename T, template <typename> class C,
-	      class Compare = Aleph::less<T>> inline
-long binary_search(const C<T*> & a, const T & x, long l, long r,
-		   Compare && cmp = Compare()) noexcept
-{
-  return binary_search(a, x, l, r, cmp);
-}
-
-    template <typename T, template <typename> class C, 
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
 long binary_search(const C<T*> & a, const T & x, Compare && cmp = Compare()) 
       noexcept
@@ -3012,23 +2527,17 @@ long binary_search(const C<T*> & a, const T & x, Compare && cmp = Compare())
 	 @see sequential_search()
 	 \ingroup Algos
       */
-    template <typename T, template <typename> class C, class Compare> inline
-long binary_search(const C<T> & a, const T & x, Compare & cmp) noexcept
+    template <template <typename> class C, typename T, 
+	      class Compare = Aleph::less<T>> inline
+long binary_search(const C<T> & a, const T & x, Compare cmp = Compare()) noexcept
 {
   return binary_search(a, x, 0, a.size() - 1, cmp);
 }
 
-    template <typename T, template <typename> class C, 
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
-long binary_search(const C<T> & a, const T & x, Compare && cmp = Compare()) 
-      noexcept
-{
-  return binary_search(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
 DynList<size_t> binary_search_dup(const C<T> & a, const T & x,
-				  Compare & cmp) noexcept
+				  Compare cmp = Compare()) noexcept
 {
   DynList<size_t> ret;
   long idx = binary_search(a, x, 0, a.size() - 1, cmp);
@@ -3056,16 +2565,9 @@ DynList<size_t> binary_search_dup(const C<T> & a, const T & x,
   return ret;
 }
 
-    template <typename T, template <typename> class C, 
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
-DynList<size_t> binary_search_dup(const C<T> & a, const T & x, 
-				  Compare && cmp = Compare()) noexcept
-{
-  return binary_search_dup(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-T * bsearch(const C<T> & a, const T & x, Compare & cmp) noexcept
+T * bsearch(const C<T> & a, const T & x, Compare cmp = Compare()) noexcept
 {
   long i = binary_search(a, x, cmp);
   if (i < 0)
@@ -3074,15 +2576,9 @@ T * bsearch(const C<T> & a, const T & x, Compare & cmp) noexcept
   return are_equals(*ptr, x, cmp) ? ptr : nullptr;
 }
 
-    template <typename T, template <typename> class C,
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
-T* bsearch(const C<T> & a, const T & x, Compare && cmp = Compare()) noexcept
-{
-  return bsearch(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-T * bsearch(const C<T*> & a, const T & x, Compare & cmp) noexcept
+T * bsearch(const C<T*> & a, const T & x, Compare cmp = Compare()) noexcept
 {
   long i = binary_search(a, x, cmp);
   if (i < 0)
@@ -3091,16 +2587,9 @@ T * bsearch(const C<T*> & a, const T & x, Compare & cmp) noexcept
   return are_equals(*ptr, x, cmp) ? ptr : nullptr;
 }
 
-    template <typename T, template <typename> class C, 
-	      class Compare = Aleph::less<T>> inline
-T * bsearch(const C<T*> & a, const T & x, Compare && cmp = Compare()) 
-      noexcept
-{
-  return bsearch(a, x, cmp);
-}
-
-template <template <typename> class C, typename T, class Compare> inline
-DynList<T*> bsearch_dup(const C<T> & a, const T & x, Compare & cmp)
+template <template <typename> class C, typename T,
+	  class Compare = Aleph::less<T>> inline
+DynList<T*> bsearch_dup(const C<T> & a, const T & x, Compare cmp = Compare())
   noexcept
 {
   DynList<T*> ret;
@@ -3133,16 +2622,10 @@ DynList<T*> bsearch_dup(const C<T> & a, const T & x, Compare & cmp)
   return ret;
 }
 
-template <typename T, template <typename> class C, 
+template <template <typename> class C, typename T,
 	  class Compare = Aleph::less<T>> inline
-DynList<T*> bsearch_dup(const C<T> & a, const T & x, Compare && cmp = Compare())
+DynList<T*> bsearch_dup(const C<T*> & a, const T & x, Compare cmp = Compare())
   noexcept
-{
-  return bsearch_dup(a, x, cmp);
-}
-
-template <template <typename> class C, typename T, class Compare> inline
-DynList<T*> bsearch_dup(const C<T*> & a, const T & x, Compare & cmp) noexcept
 {
   DynList<T*> ret;
   long idx = binary_search(a, x, cmp);
@@ -3174,34 +2657,16 @@ DynList<T*> bsearch_dup(const C<T*> & a, const T & x, Compare & cmp) noexcept
   return ret;
 }
 
-    template <typename T, template <typename> class C, class Compare> inline
-long binindex(const C<T> & a, const T & x, Compare & cmp) noexcept
+    template <template <typename> class C, typename T, 
+	      class Compare = Aleph::less<T>> inline
+long binindex(const C<T> & a, const T & x, Compare cmp = Compare()) noexcept
 {
   return binary_search(a, x, cmp);
 }
 
-    template <typename T, template <typename> class C,
+    template <template <typename> class C, typename T,
 	      class Compare = Aleph::less<T>> inline
-long binindex(const C<T> & a, const T & x, Compare && cmp = Compare()) noexcept
-{
-  return binindex(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-long binindex(const C<T*> & a, const T & x, Compare & cmp) noexcept
-{
-  return binary_search(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, 
-	      class Compare = Aleph::less<T>> inline
-long binindex(const C<T*> & a, const T & x, Compare && cmp = Compare()) noexcept
-{
-  return binindex(a, x, cmp);
-}
-
-    template <template <typename> class C, typename T, class Compare> inline
-DynList<long> binindex_dup(const C<T> & a, const T & x, Compare & cmp)
+DynList<long> binindex_dup(const C<T> & a, const T & x, Compare cmp = Compare())
   noexcept
 {
   DynList<long> ret;
@@ -3236,16 +2701,9 @@ DynList<long> binindex_dup(const C<T> & a, const T & x, Compare & cmp)
   return ret;
 }
 
-template <typename T, template <typename> class C, 
+template <template <typename> class C, typename T,
 	  class Compare = Aleph::less<T>> inline
-DynList<long> binindex_dup(const C<T> & a, const T & x, 
-			   Compare && cmp = Compare()) noexcept
-{
-  return binindex_dup(a, x, cmp);
-}
-
-template <template <typename> class C, typename T, class Compare> inline
-DynList<long> binindex_dup(const C<T*> & a, const T & x, Compare & cmp)
+DynList<long> binindex_dup(const C<T*> & a, const T & x, Compare cmp = Compare())
   noexcept
 {
   DynList<long> ret;
@@ -3278,16 +2736,9 @@ DynList<long> binindex_dup(const C<T*> & a, const T & x, Compare & cmp)
   return ret;
 }
 
-template <typename T, template <typename> class C, 
-	  class Compare = Aleph::less<T>> inline
-DynList<T*> binindex_dup(const C<T*> & a, const T & x, 
-			 Compare && cmp = Compare()) noexcept
-{
-  return binindex_dup(a, x, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-DynArray<size_t> build_index(const C<T> & a, Compare & cmp)
+    template <template <typename> class C, typename T, 
+	      class Compare = Aleph::less<T>> inline
+DynArray<size_t> build_index(const C<T> & a, Compare cmp = Compare())
 {
   const size_t & n = a.size();
   DynArray<size_t> ret; ret.reserve(a.size());
@@ -3300,15 +2751,9 @@ DynArray<size_t> build_index(const C<T> & a, Compare & cmp)
   return ret;
 }
 
-    template <typename T, template <typename> class C, 
+    template <template <typename> class C, typename T, 
 	      class Compare = Aleph::less<T>> inline
-DynArray<size_t> build_index(const C<T> & a, Compare && cmp = Compare())
-{
-  return build_index(a, cmp);
-}
-
-    template <typename T, template <typename> class C, class Compare> inline
-DynArray<T*> build_index_ptr(const C<T> & a, Compare & cmp)
+DynArray<T*> build_index_ptr(const C<T> & a, Compare cmp = Compare())
 {
   const size_t & n = a.size();
   DynArray<T*> ret; ret.reserve(a.size());
@@ -3321,18 +2766,12 @@ DynArray<T*> build_index_ptr(const C<T> & a, Compare & cmp)
   return ret;
 }
 
-    template <typename T, template <typename> class C, 
-	      class Compare = Aleph::less<T>> inline
-DynArray<T*> build_index_ptr(const C<T> & a, Compare && cmp = Compare())
-{
-  return build_index_ptr(a, cmp);
-}
-
-template <typename T, template <typename> class C, class Compare> inline
-void quicksort_op(C<T> & a, Compare & cmp,
+template <template <typename> class C, typename T, 
+	  class Compare = Aleph::less<T>> inline
+void quicksort_op(C<T> & a, Compare cmp = Compare(),
 		  size_t threshold = Quicksort_Threshold) noexcept
 {
-  long i, l = 0, r = a.size() -1;
+  size_t i, l = 0, r = a.size() -1;
 
   FixedStack<int> stack(40);
 
@@ -3342,7 +2781,7 @@ void quicksort_op(C<T> & a, Compare & cmp,
     {
       l = stack.pop(); r = stack.pop();
 
-      long partition_size = r - l + 1;
+      size_t partition_size = r - l + 1;
       if (partition_size <= 1)  
 	continue;
 
@@ -3365,16 +2804,7 @@ void quicksort_op(C<T> & a, Compare & cmp,
     }
 }
 
-   template <typename T, template <typename> class C, 
-	     class Compare = Aleph::less<T>> inline
-void quicksort_op(C<T> & a, Compare && cmp = Compare(),
-		  size_t threshold = Quicksort_Threshold) noexcept
-{
-  quicksort_op(a, cmp, threshold);
-}
-
 # undef push2
-
 
       /** Búsqueda binaria recursiva sobre un arreglo ordenado.
 
@@ -3405,9 +2835,9 @@ void quicksort_op(C<T> & a, Compare && cmp = Compare(),
 	 @see sequential_search()
 	 \ingroup Algos
       */
-    template <typename T, class Compare> inline 
+    template <typename T, class Compare = Aleph::less<T>> inline 
 int binary_search_rec(T * a, const T & x, const long l, const long r,
-		      Compare & cmp) noexcept
+		      Compare cmp = Compare()) noexcept
 {
   const long m = (l + r) / 2;
   if (l > r) 
@@ -3420,15 +2850,6 @@ int binary_search_rec(T * a, const T & x, const long l, const long r,
 
   return m; // encontrado
 }
-
-    template <typename T, class Compare = Aleph::less<T>> inline 
-int binary_search_rec(T * a, const T & x, 
-		      const long l, const long r,
-		      Compare && cmp = Compare()) noexcept
-{
-  return binary_search_rec<T, Compare>(a, x, l, r, cmp);
-}
-
 
     /** Búsqueda binaria iterativa sobre un arreglo ordenado.
 
@@ -3459,8 +2880,9 @@ int binary_search_rec(T * a, const T & x,
 	 @see sequential_search()
 	 \ingroup Algos
       */
-    template <typename T, class Compare> inline 
-long binary_search(T * a, const T & x, long l, long r, Compare & cmp) noexcept
+    template <typename T, class Compare = Aleph::less<T>> inline 
+long binary_search(T * a, const T & x, long l, long r,
+		   Compare cmp = Compare()) noexcept
 {
   long m;
   while (l <= r)
@@ -3475,27 +2897,6 @@ long binary_search(T * a, const T & x, long l, long r, Compare & cmp) noexcept
     }
   return m; 
 }
-
-template <typename T, class Compare> inline 
-long binary_search(T * a, T && x, long l, long r, Compare & cmp) noexcept
-{
-  return binary_search(a, x, l, r, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline 
-long binary_search(T * a, const T & x, long l, long r, 
-		   Compare && cmp = Compare()) noexcept
-{
-  return binary_search(a, x, l, r, cmp);
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline 
-long binary_search(T * a, T && x, long l, long r, Compare && cmp = Compare())
-      noexcept
-{
-  return binary_search(a, x, l, r, cmp);
-}
-
 
 }
 

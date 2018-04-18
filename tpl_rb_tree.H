@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_RB_TREE_H
 # define TPL_RB_TREE_H
@@ -43,7 +65,7 @@ private:
   Node *            head;      // puntero a centinela
   Node *&           root; 
   FixedStack<Node*> rb_stack; 
-  Compare &         cmp;
+  Compare           cmp;
 
   Node * search_and_stack_rb(const Key & key)             
   {
@@ -296,14 +318,12 @@ public:
   Compare & get_compare() { return key_comp(); }
 
       /// Instancia un árbol rojo-negro.
-  Gen_Rb_Tree(Compare & __cmp) 
+  Gen_Rb_Tree(Compare __cmp = Compare()) 
     : head(&head_node), root(head_node.getR()), 
       rb_stack(Node::MaxHeight), cmp(__cmp)
   {
     /* empty */ 
   }
-
-  Gen_Rb_Tree(Compare && cmp = Compare()) : Gen_Rb_Tree(cmp) { /* empty */ }
 
   /** Intercambia todos los elementos del treap this con el treap tree
       en tiempo contante (y extremadamente rápido).

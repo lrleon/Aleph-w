@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_MEMARRAY_H
 # define TPL_MEMARRAY_H
 
@@ -11,6 +33,8 @@
 # include <ahIterator.H>
 # include <array_it.H>
 # include <array_utils.H>
+
+using namespace Aleph;
 
 namespace Aleph
 {
@@ -44,14 +68,19 @@ namespace Aleph
     template <typename T>
 class MemArray
 {
-  static const size_t Min_Dim = 4; // some day with constexp
+public:
+
+  static constexpr size_t Min_Dim = 4;
 
 protected:
 
   T *    ptr = nullptr;
   size_t dim = Min_Dim;
   size_t n   = 0;
-  size_t contract_threshold;
+
+public:
+  
+  mutable size_t contract_threshold;
 
 public:
 
@@ -59,7 +88,7 @@ public:
   T * get_ptr() const noexcept { return ptr; }
 
   /// Return the current dimension of array
-  size_t get_dim() const noexcept { return dim; }
+  const size_t & get_dim() const noexcept { return dim; }
 
 protected:
 
@@ -221,8 +250,9 @@ public:
   
   /// Construct a array moved of rvalue `a`
   MemArray(MemArray && a) noexcept
-  : ptr(nullptr), dim(0), n(0), contract_threshold(0)
+    : ptr(nullptr), dim(0), n(0), contract_threshold(0)
   {
+    assert(a.ptr);
     swap(a);
   }
 
@@ -232,13 +262,14 @@ public:
     if (this == &a)
       return *this;
 
-    assert(ptr);
+    assert(a.ptr);
 
-    T * newptr = new T [a.dim];      // allocate new array
+    T * newptr = new T [a.dim];    // allocate new array
     for (int i = 0; i < a.n; ++i)  // copy items to new array
       newptr[i] = a.ptr[i];
 
-    delete [] ptr;
+    if (ptr != nullptr)
+      delete [] ptr;
     ptr = newptr;
     dim = a.dim;
     n = a.n;
@@ -322,7 +353,7 @@ public:
     return ret;
   }
 
-    /// Push a copy of `item` at the begining of sequence. The array expands if
+  /// Push a copy of `item` at the begining of sequence. The array expands if
   /// this is already full
   T & push(T && item)
   {
@@ -334,14 +365,28 @@ public:
     return ret;
   }
 
+  T & top() const
+  {
+    if (n == 0)
+      throw std::underflow_error("top(): MemArray is empty");
+
+    return ptr[0];
+  }
+
+  /// Remove first item. Gap is closed
   T remove_first()
   {
+    if (n == 0)
+      throw std::underflow_error("remove_first(): MemArray is empty");
     assert(ptr);
-    T ret = ptr[0];
+    T ret = move(ptr[0]);
     close_gap(0);
     return ret;
   }
 
+  /// pop() the most recently pushed item
+  T pop() { return remove_first(); }
+  
   /// \overload put(const T & item)
   T & append(T & item)
   {
@@ -404,6 +449,26 @@ public:
     contract_threshold = dim/4;
   }
 
+  MemArray & append(const MemArray & a)
+  {
+    const size_t old_n = n;
+    const size_t num_entries = a.size();
+    putn(num_entries);
+    for (size_t i = 0; i < num_entries; ++i)
+      ptr[old_n + i] = a.ptr[i];
+
+    return *this;
+  }
+
+  /*
+  MemArray & insert(const MemArray & a)
+  {
+    const size_t old_n = n;
+    const size_t & num_entries = a.size();
+    Aleph::open_gap(ptr, n);
+  }
+  */
+
   /** Reserves `cap` cells into the array.
 
       @param[in] cap new dimension
@@ -428,14 +493,15 @@ public:
     contract_threshold = dim/4;
   }
   
-  /// Remove `i` elements from the end. Return a copy of the last
+  /// Remove `i` elements from the end. Return the value of the last
   /// removed element
-  T get(int i = 1) 
+  T get(size_t i = 1) 
   {
     assert(ptr);
-    int idx = n - i;
+    long idx = n - i;
     if (idx < 0)
-      throw std::underflow_error("Deleted more entries than capacity");
+      throw std::underflow_error("MemArray::get(): deleted more entries"
+				 " than capacity");
 
     n = idx;
     T ret = std::move(ptr[n]);
@@ -448,20 +514,33 @@ public:
   /// \overload get()
   T remove_last() { return get(); }
 
-  /// Return a modifiable reference to the last element. No bound check
-  /// is performed 
-  T & last() const noexcept { return ptr[n - 1]; }
+  /// Return a modifiable reference to the last element
+  T & last() const
+  {
+    if (n == 0)
+      throw std::underflow_error("MemArray::last(): empty array");
+    return ptr[n - 1];
+  }
 
-  /// Return a modifiable reference to the first element. No bound check
-  /// is performed 
-  T & first() const noexcept { return ptr[0]; }
+  /// Return a modifiable reference to the first element
+  T & first() const
+  {
+    if (n == 0)
+      throw std::underflow_error("MemArray::first(): empty array");
+    return ptr[0];
+  }
+
+  /// \overload first
+  T & get_first() const { return first(); }
+
+    /// \overload last
+  T & get_last() const { return last(); }
 
   /// Reverse the order of items in array
   MemArray & reverse()
   {
     for (size_t i = 0, j = n - 1; i < j; ++i, --j)
       std::swap(ptr[i], ptr[j]);
-
     return *this;
   }
 
@@ -543,7 +622,7 @@ public:
     using Base::Base;
 
     /// Construct an iterator on array `a`
-    Iterator(const MemArray<T> & a) noexcept
+    Iterator(const MemArray<T> & a)
       : Array_Iterator<T>(a.ptr, a.dim, a.n)
     {
       assert(a.ptr != nullptr);

@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_DYNARRAY_H
 # define TPL_DYNARRAY_H
@@ -165,7 +187,7 @@ class DynArray :
   friend class BitArray; // for access to __traversal() method
 
   // look at the end of this file for seeing the values
-public:
+ public:
 
   using Item_Type = T; /// The type of element stored in the array
   using Key_Type = T; /// The type of element stored in the array
@@ -183,7 +205,7 @@ public:
   /// Maximum dimension allowed
   static const unsigned long long Max_Dim_Allowed;
 
-private:
+ private:
 
   static const size_t Max_Pow_Block;
 
@@ -208,12 +230,12 @@ private:
     return 1 << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
+  static size_t compute_dim(size_t d, size_t s, size_t b)
   {
     return two_raised(d)*two_raised(s)*two_raised(b);
   }
 
-public:
+ public:
 
   /** Given a dimension `n`, it proposes values for the directory,
       segment and block sizes.
@@ -224,7 +246,6 @@ public:
       @param[out] b block size
   */
   static void compute_sizes(const size_t n, size_t & d, size_t & s, size_t & b)
-    noexcept
   {
     d = Default_Pow_Dir;
     s = Default_Pow_Seg;
@@ -844,7 +865,7 @@ public:
   }
 
   /// Move constructor
-  DynArray(DynArray && other) noexcept
+  DynArray(DynArray && other)
     : pow_dir             ( Default_Pow_Dir                          ),
       pow_seg             ( Default_Pow_Seg                          ),
       pow_block           (std::min(Default_Pow_Block, Max_Pow_Block)), 
@@ -1215,6 +1236,18 @@ public:
 
     return *this;
   }
+
+  DynArray & rev() { return reverse(); }
+
+  DynArray reverse() const
+  {
+    DynArray ret;
+    for (size_t i = 0; i < current_dim; ++i)
+      ret.append(touch(current_dim - i - 1));
+    return ret;
+  }
+
+  DynArray rev() const { return reverse(); }
 
   /// Remove the last item of array (as if this was a stack)
   T pop() 

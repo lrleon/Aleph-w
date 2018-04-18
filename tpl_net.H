@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_NET_H
 # define TPL_NET_H
 
@@ -437,10 +459,10 @@ public:
   }
 
     /// Retorna un nodo fuente de la red
-  Node * get_source() const noexcept { return src_nodes.get_item(); }
+  Node * get_source() const { return src_nodes.get_item(); }
 
     /// Retorna un nodo sumidero de la red
-  Node * get_sink() const noexcept { return sink_nodes.get_item(); }
+  Node * get_sink() const { return sink_nodes.get_item(); }
 
     /** Inserta un nuevo nodo en la red.
 
@@ -579,8 +601,7 @@ public:
         grafo. 
 
         El arco, por supuesto, debe haber sido previamente insertado en
-        el grafo. A 
-        este respecto, no se hace ninguna verificación. 
+        el grafo. A este respecto, no se hace ninguna verificación. 
 
         No se realiza ninguna verificación de existencia previa de un
         arco entre los nodos involucrados (esto es necesario para operar
@@ -589,7 +610,7 @@ public:
         @param[in] arc puntero al arco a re-insertar.
         @return puntero al arco re-insertado
      */
-  Arc * connect_arc(Arc * arc) noexcept
+  Arc * connect_arc(Arc * arc)
   {     
     Graph::connect_arc(arc); 
 
