@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef AH_ZIP_H
 # define AH_ZIP_H 1
@@ -8,6 +30,10 @@
 # include <htlist.H>
 # include <ahFunctional.H>
 
+/** 
+
+    @author Leandro Rabindranath Leon
+ */
 template <class HeadC, class ... TailC>
 class ZipIterator : public ZipIterator<TailC...>
 {
@@ -35,6 +61,8 @@ public:
     std::tuple<T> curr(it.get_curr());
     return std::tuple_cat(curr, ZipIterator<TailC...>::get_curr());
   }
+
+  using ZipType = std::tuple<T, TailC...>;
 
   DynList<T> get_curr_list() const
   {
@@ -218,6 +246,75 @@ T zip_foldl(const T & init, Op op, const Cs & ... cs)
   for (auto it = get_zip_it(cs...); it.has_curr(); it.next())
     acu = op(acu, it.get_curr());
   return acu;
+}
+
+template <class Op, class ... Cs>
+auto zip_filter(Op op, const Cs & ... cs)
+{
+  using ZipType = decltype(zip_it(cs...).get_curr());
+
+  DynList<ZipType> ret;
+  for (auto it = get_zip_it(cs...); it.has_curr(); it.next())
+    {
+      auto t = it.get_curr();
+      if (op(t))
+	ret.append(t);
+    }
+  return ret;
+}
+
+template <class Cmp, class ... Cs>
+bool zip_cmp(Cmp cmp, const Cs & ... cs)
+{
+  for (auto it = get_zip_it(cs...); it.has_curr(); it.next())
+    {
+      auto l = it.get_curr_list();
+      auto curr = l.remove_first();
+      while (not l.is_empty())
+	{
+	  if (not cmp(curr, l.get_first()))
+	    return false;
+	  curr = l.remove_first();
+	}
+    }
+  return true;
+}
+
+template <class Op, class ... Cs>
+size_t zip_find_index(Op op, const Cs & ... cs)
+{
+  size_t i = 0;
+  for (auto it = get_zip_it(cs...); it.has_curr(); it.next(), ++i)
+    {
+      auto t = it.get_curr();
+      if (op(t))
+	break;
+    }
+  return i;
+}
+
+template <class Op, class ... Cs>
+auto zip_partition(Op op, const Cs & ... cs)
+{
+  using ZipType = decltype(zip_it(cs...).get_curr());
+
+  DynList<ZipType> ret1, ret2;
+  size_t n1 = 0, n2 = 0;
+  for (auto it = get_zip_it(cs...); it.has_curr(); it.next())
+    {
+      auto t = it.get_curr();
+      if (op(t))
+	{
+	  ret1.append(t);
+	  ++n1;
+	}
+      else
+	{
+	  ret2.append(t);
+	  ++n2;
+	}
+    }
+  return make_tuple(ret1, n1, ret2, n2);
 }
 
 template <class ... Cs> inline
@@ -422,6 +519,8 @@ auto zip_lists_eq(const C & c, const Lists & ... lists)
 
   return ret;
 }
+
+
 
 # endif // AH_ZIP_H
 

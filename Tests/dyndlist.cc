@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # include <gmock/gmock.h>
 
@@ -11,10 +33,14 @@ using namespace testing;
   {						\
     size_t n = 0;				\
     DynDlist<int> list##num;			\
+    DynDlist<int> rlist##num;			\
     List_of_##num##_items()			\
       {						\
 	for (size_t i = 0; i < num; ++i, ++n)	\
 	  list##num.append(i + 1);		\
+						\
+	const DynDlist<int> l = list##num;	\
+	rlist##num = l.rev();			\
       }						\
   };
 
@@ -252,12 +278,12 @@ TEST_F(List_of_25_items, swap)
 
 TEST_F(List_of_25_items, reverse)
 {
-  EXPECT_EQ(list25.reverse(), 25);
+  list25.reverse();
   int i = 25;
   for (auto it = list25.get_it(); it.has_curr(); it.next(), --i)
     EXPECT_EQ(it.get_curr(), i);
 
-  EXPECT_EQ(list25.reverse(), 25);
+  list25.reverse();
 
   i = 1;
   for (auto it = list25.get_it(); it.has_curr(); it.next(), ++i)

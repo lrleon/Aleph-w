@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # include <gmock/gmock.h>
 
@@ -9,10 +31,14 @@ struct List_of_25_items : public Test
 {
   size_t n = 0;
   DynList<int> list;
+  DynList<int> rlist;
   List_of_25_items()
   {
     for (size_t i = 0; i < 25; ++i, ++n)
       list.append(i + 1);
+
+    const DynList<int> l = list;
+    rlist = l.rev();
   }
 };
 
@@ -145,16 +171,22 @@ TEST_F(List_of_25_items, swap)
 
 TEST_F(List_of_25_items, reverse)
 {
-  EXPECT_EQ(list.reverse(), 25);
+  list.reverse();
   int i = 25;
   for (auto it = list.get_it(); it.has_curr(); it.next(), --i)
     EXPECT_EQ(it.get_curr(), i);
 
-  EXPECT_EQ(list.reverse(), 25);
+  list.reverse();
 
   i = 1;
   for (auto it = list.get_it(); it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr(), i);
+
+  const DynList<int> list_cpy = list;
+  const DynList<int> rlist_cpy = rlist;
+
+  EXPECT_TRUE(eq(list_cpy.rev(), rlist));
+  EXPECT_TRUE(eq(rlist_cpy.rev(), list));
 
   DynList<int> l, r;
   list.split(l, r);
@@ -170,6 +202,7 @@ TEST_F(List_of_25_items, reverse)
   i = 1;
   for (HTList::Iterator it = list; it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr()->to_data<int>(), i);
+  
 }
 
 TEST_F(List_of_25_items, rotate_left)

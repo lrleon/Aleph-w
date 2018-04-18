@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef AH_FUNCTIONAL_H
 # define AH_FUNCTIONAL_H
 
@@ -486,11 +508,14 @@ enumerate(const Container & c)
 }
 
 
-  template <typename T, template <typename> class Container = DynList,
+  template <typename T,
+	    template <typename> class C1 = DynList,
+	    template <typename> class C2 = DynList,
 	    class Eq = std::equal_to<T>> inline 
-bool eq(const Container<T> & c1, const Container<T> & c2, Eq & e)
+bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
 {
-  typename Container<T>::Iterator it1(c1), it2(c2);
+  auto it1 = c1.get_it();
+  auto it2 = c2.get_it();
   for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
     if (not (e(it1.get_curr(), it2.get_curr())))
       return false;
@@ -498,17 +523,11 @@ bool eq(const Container<T> & c1, const Container<T> & c2, Eq & e)
   return not (it1.has_curr() or it2.has_curr());
 }
 
-  template <typename T, template <typename> class Container = DynList,
-	    class Eq = std::equal_to<T>> inline 
-bool eq(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
+  template <class C1, class C2, class Eq> inline 
+bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
 {
-  return eq<T, Container, Eq>(c1, c2, e);
-}
-
-  template <class Container, class Eq> inline 
-bool containers_eq(const Container & c1, const Container & c2, Eq && e)
-{
-  typename Container::Iterator it1(c1), it2(c2);
+  auto it1 = c1.get_it();
+  auto it2 = c2.get_it();;
   for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
     if (not (e(it1.get_curr(), it2.get_curr())))
       return false;
@@ -516,13 +535,15 @@ bool containers_eq(const Container & c1, const Container & c2, Eq && e)
   return not (it1.has_curr() or it2.has_curr());
 }
 
-
-  template <typename T, template <typename> class Container = DynList,
+  template <typename T,
+	    template <typename> class C1 = DynList,
+	    template <typename> class C2 = DynList,
 	    class Eq = std::equal_to<T>> inline 
     std::tuple<bool, size_t, T, T>
-are_eq(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
+are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
 {
-  typename Container<T>::Iterator it1(c1), it2(c2);
+  auto it1 = c1.get_it();
+  auto it2 = c2.get_it();
   size_t n = 0;
   for (; it1.has_curr() and it2.has_curr(); it1.next(), it2.next(), n++)
     {
@@ -534,7 +555,6 @@ are_eq(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
 
   return std::make_tuple(c1.is_empty() == c2.is_empty(), n, T(), T());
 }
-
 
   template <typename T, template <typename> class Container = Aleph::DynList, 
 	    class Cmp = std::less<T>> inline
@@ -1076,6 +1096,24 @@ DynList<T> flatten(const C4<C3<C2<C1<T>>>> & c)
   for (auto it = c.get_it(); it.has_curr(); it.next())
     ret.append(flatten(it.get_curr()));
   return ret;
+}
+
+  template <typename T> inline
+bool is_inside(const T & val, const DynList<T> & values)
+{
+  for (auto & v : values)
+    if (val == v)
+      return true;
+  return false;
+}
+
+  template <typename T>
+bool is_equal(const T &) { return false; }
+
+  template <typename T, typename ... Args>
+bool is_equal(const T & val, const T & rhs, Args & ... args)
+{
+  return val == rhs or is_equal(val, args...);
 }
 
 

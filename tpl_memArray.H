@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_MEMARRAY_H
 # define TPL_MEMARRAY_H
 
@@ -11,6 +33,8 @@
 # include <ahIterator.H>
 # include <array_it.H>
 # include <array_utils.H>
+
+using namespace Aleph;
 
 namespace Aleph
 {
@@ -425,6 +449,26 @@ public:
     contract_threshold = dim/4;
   }
 
+  MemArray & append(const MemArray & a)
+  {
+    const size_t old_n = n;
+    const size_t num_entries = a.size();
+    putn(num_entries);
+    for (size_t i = 0; i < num_entries; ++i)
+      ptr[old_n + i] = a.ptr[i];
+
+    return *this;
+  }
+
+  /*
+  MemArray & insert(const MemArray & a)
+  {
+    const size_t old_n = n;
+    const size_t & num_entries = a.size();
+    Aleph::open_gap(ptr, n);
+  }
+  */
+
   /** Reserves `cap` cells into the array.
 
       @param[in] cap new dimension
@@ -497,7 +541,6 @@ public:
   {
     for (size_t i = 0, j = n - 1; i < j; ++i, --j)
       std::swap(ptr[i], ptr[j]);
-
     return *this;
   }
 

@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_SORT_UTILS_H
 # define TPL_SORT_UTILS_H
 
@@ -33,7 +55,7 @@ bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
   for (; it.has_curr(); it.next())
     {
       const T & curr = it.get_curr();
-      if (cmp(curr, item))
+      if (not cmp(item, curr))
 	return false;
 
       item = curr;
@@ -42,9 +64,42 @@ bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
 }
 
 
+  /** Check if container is sorted.
+
+      @return a pair whose first element says whether the array is or
+      not sorted. If the array is not sorted, then second contains the
+      index where the inversion was detected. Otherwise, second
+      contains the number of elements that the container has.
+
+      \ingroup Algos
+   */
+template <template <typename> class Container, typename T,
+	    class Compare = Aleph::less<T>>
+pair<bool, size_t> search_inversion(const Container<T> & cont,
+				    Compare cmp = Compare())
+{
+  if (cont.is_empty())
+    return make_pair(true, 0);
+
+  T item = cont.get_first();
+  typename Container<T>::Iterator it(cont); it.next();
+  size_t n = 0;
+  for (; it.has_curr(); it.next(), ++n)
+    {
+      const T & curr = it.get_curr();
+      if (not cmp(item, curr))
+	return make_pair(false, n);
+
+      item = curr;
+    }
+  return make_pair(true, n);
+}
+  
+
+
     /** Return true if the sequence is inversely sorted
 
-     \ingroup Algos
+	\ingroup Algos
    */
   template <template <typename> class Container, typename T,
 	    class Compare = Aleph::less<T>>
@@ -58,7 +113,7 @@ bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
   for (; it.has_curr(); it.next())
     {
       const T & curr = it.get_curr();
-      if (cmp(item, curr))
+      if (not cmp(curr, item))
 	return false;
 
       item = curr;

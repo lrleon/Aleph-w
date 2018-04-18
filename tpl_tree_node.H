@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_TREE_H
 # define TPL_TREE_H
@@ -10,6 +32,7 @@
 # include <ahFunctional.H>
 # include <htlist.H>
 # include <tpl_dynListStack.H>
+# include <tpl_dynListQueue.H>
 # include <tpl_binNode.H>
 
 # define ISROOT(p)      ((p)->is_root())
@@ -79,6 +102,8 @@ class Tree_Node
   }
 
 public:
+
+  using Item_Type = Tree_Node*;
 
     /// retorna referencia modificable al contenido del nodo.
   T & get_key() noexcept { return get_data(); }
@@ -393,13 +418,17 @@ public:
     return this;
   }
 
-      /** Adjunta el árbol tree a la arborescencia this.
+      /** Insert `tree` to the right of `this`
 
-          Adjunta el árbol tree a la arborescencia this.
+	  Assuming that `this` is part of a forrest, this method
+	  insert `tree` to the right of this.
 
-          @param[in] tree el árbol a añadir a la arborescencia.
-          @throw domain_error si tree no es raíz.
-          @note tree deben ser raíz de un árbol.
+	  Be careful with the fact that `tree` will not always be
+	  inserted as the rightmost tree, but as the tree to right of
+	  `this`. 
+
+          @param[in] tree the tree to insert
+          @throw domain_error if tree is not root
        */
   void insert_tree_to_right(Tree_Node * tree) 
   {
@@ -449,6 +478,17 @@ public:
       throw std::range_error("\"this\" is not the leftmost tree in the forest");
 
     return left_link();
+  }
+
+  /// Return a list with all trees belonging to the forrest
+  template <template <typename> class Container = DynList>
+  Container<Tree_Node*> trees() const
+  {
+    Container<Tree_Node*> ret;
+    for (auto t = const_cast<Tree_Node*>(this); t != nullptr;
+	 t = t->get_right_tree())
+      ret.append(t);
+    return ret;
   }
 
   /// Visita cada hijo de this y ejecuta la operación operation sobre el
@@ -511,27 +551,34 @@ public:
 
   /// Recorre en prefijo todos los nodos y ejecuta op
   template <class Operation>
-  bool traverse(Operation & op)
+  bool traverse(Operation op)
   {
     return preorder(this, op);
   }
 
   template <class Operation>
-  bool traverse(Operation && op = Operation())
-  {
-    return traverse(op);
-  }
-
-  template <class Operation>
-  bool traverse(Operation & op) const
+  bool traverse(Operation op) const
   {
     return const_cast<Tree_Node*>(this)->traverse(op);
   }
 
-  template <class Operation>
-  bool traverse(Operation && op = Operation()) const
+  template <class Op> bool level_traverse(Op op)
   {
-    return traverse(op);
+    DynListQueue<Tree_Node*> q;
+    q.put(this);
+    while (not q.is_empty())
+      {
+	Tree_Node * p = q.get();
+	if (not op(p))
+	  return false;
+	p->for_each_child([&q] (auto cptr) { q.put(cptr); });
+      }
+    return false;
+  }
+
+  template <class Op> bool level_traverse(Op op) const
+  {
+    return const_cast<Tree_Node*>(this)->level_traverse(op);
   }
 
   Functional_Methods(Tree_Node*);
@@ -575,6 +622,11 @@ public:
     }
   };
 
+  Children_Iterator children_it() const
+  {
+    return Children_Iterator(*this);
+  }
+
   struct Children_Set // truco para usar Pair_Iterator
   {
     Children_Set(const Tree_Node &&) {}
@@ -594,6 +646,8 @@ public:
 
   public:
 
+    using Item_Type = Tree_Node*;
+
     void swap(Iterator & it)
     {
       std::swap(root, it.root);
@@ -603,10 +657,12 @@ public:
     }
 
     Iterator(Tree_Node * __root = nullptr) noexcept
-    : root(__root), curr(root)
+      : root(__root), curr(root)
     {
       // empty
     }
+
+    Iterator(Tree_Node & root) : Iterator(&root) {}
 
     Iterator(const Iterator & it) 
       : root(it.root), curr(it.curr), pos(it.pos), s(it.s) 
@@ -722,6 +778,8 @@ void clone_tree(Node * src, Node * tgt)
 template <class Node>
 Node * clone_tree(Node * root)
 {
+  if (root == nullptr)
+    return nullptr;
   Node * ret = new Node(root->get_key());
   clone_tree(root, ret);
   return ret;
@@ -934,6 +992,9 @@ inline bool are_tree_equal(Node * t1, Node * t2, Eq && eq = Eq())
     template <class Node> inline 
 void destroy_tree(Node * root)
 {
+  if (root == nullptr)
+    return;
+  
   if (not IS_UNIQUE_SIBLING(root))
     SIBLING_LIST(root)->del(); // no ==> sacarlo de lista hermanos
 
@@ -966,7 +1027,10 @@ void destroy_tree(Node * root)
     template <class Node> inline 
 void destroy_forest(Node * root)
 {
-  if (not root->is_leftmost())
+  if (root == nullptr)
+    return;
+  
+    if (not root->is_leftmost())
     throw std::domain_error("root is not the leftmost tree of forest");
 
   if (not root->is_root())
@@ -990,6 +1054,9 @@ void destroy_forest(Node * root)
     template <class Node>
 size_t compute_height(Node * root) 
 {
+  if (root == nullptr)
+    return 0;
+
   size_t temp_h, max_h = 0;
   for (Node * aux = root->get_left_child(); aux != nullptr;
        aux = aux->get_right_sibling()) 

@@ -1,10 +1,35 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # include <gmock/gmock.h>
 
 # include <tpl_tree_node.H>
+# include <ah-zip.H>
+# include <ah-string-utils.H>
+
+# include "tree-node-common.H"
 
 using namespace std;
-using namespace testing;
 using namespace Aleph;
 
 TEST(Tree_Node, on_isolated_node)
@@ -175,33 +200,6 @@ TEST(Tree_Node, simple_tree_construction_and_destruction)
   ASSERT_EQ(k, 5);
 }
 
-struct Simple_Tree : public Test
-{
-  const size_t num_nodes_by_subtree = 5;
-  static int key;
-  Tree_Node<int> * root = nullptr;
-  Simple_Tree()
-  {
-    root = new Tree_Node<int>(key++);
-    for (size_t i = 0; i < num_nodes_by_subtree; ++i, ++key)
-      {
-	root->insert_rightmost_child(new Tree_Node<int>(key));
-      }
-    for (Tree_Node<int>::Children_Iterator it(root); it.has_curr(); it.next())
-      {
-    	auto ptr = it.get_curr();
-    	for (size_t i = 0; i < num_nodes_by_subtree; ++i, ++key)
-    	  ptr->insert_rightmost_child(new Tree_Node<int>(key));
-      }
-  }
-  ~Simple_Tree()
-  {
-    destroy_tree(root);
-  }
-};
-
-int Simple_Tree::key = 0;
-
 TEST(Tree_Node, Iterator_on_extreme_cases)
 {
   {
@@ -253,18 +251,133 @@ TEST(Tree_Node, Iterator_on_extreme_cases)
 
 TEST_F(Simple_Tree, Iterators)
 {
-  DynList<int> l = { 0, 1, 6, 7, 8, 9, 10, 2, 11, 12, 13, 14, 15, 3, 16, 17,
-		     18, 19, 20, 4, 21, 22, 23, 24, 25, 5, 26, 27, 28, 29, 30 };
   auto itl = l.get_it();
-
   size_t k = 0;
   for (auto it = root->get_it(); it.has_curr(); it.next(), itl.next(), ++k)
     ASSERT_EQ(it.get_curr()->get_key(), itl.get_curr());
   ASSERT_GT(k, 0);
 }
 
-
-TEST(Tree_Node, Forrest)
+TEST(Tree_Node, clone_on_extreme_cases)
 {
-
+  {
+    Tree_Node<int> * root = nullptr;
+    ASSERT_EQ(clone_tree(root), nullptr);
+  }
+  {
+    Tree_Node<int> root(5);
+    auto rootp = clone_tree(&root);
+    ASSERT_NE(rootp, nullptr);
+    ASSERT_EQ(root.get_key(), rootp->get_key());
+    destroy_tree(rootp);
+  }
 }
+
+TEST_F(Simple_Tree, level_traversal)
+{
+  int i = 0;
+  root->level_traverse([&i] (auto p)
+		       {
+			 return p->get_key() == i++;
+		       });
+  ASSERT_EQ(i, 31);
+}
+
+TEST_F(Simple_Tree, clone)
+{
+  Tree_Node<int> * clone = clone_tree(root);
+  using It = Tree_Node<int>::Iterator;
+  using Pit = Pair_Iterator<It>;
+  for (Pit it{It(root), It(clone)}; it.has_curr(); it.next())
+    {
+      auto p = it.get_curr();
+      ASSERT_EQ(p.first->get_key(), p.second->get_key());
+    }
+  destroy_tree(clone);
+}
+
+TEST(Tree_Node, traverse_on_extreme_cases)
+{
+  {
+    Tree_Node<int> * root = nullptr;
+    ASSERT_TRUE(root->traverse([] (auto) { return false; }));
+  }
+  {
+    Tree_Node<int> root(5);
+    size_t k = 0;
+    ASSERT_TRUE(root.traverse([&k] (auto p) { k++; return p->get_key() == 5; }));
+    ASSERT_EQ(k, 1);
+  }
+}
+
+TEST_F(Simple_Tree, traverse)
+{
+  auto it = l.get_it();
+  size_t k = 0;
+  auto ret = root->traverse([&it, &k] (auto p)
+    {
+      bool r = p->get_key() == it.get_curr();
+      it.next(); ++k;
+      return r;
+    });
+  ASSERT_TRUE(ret);
+  ASSERT_EQ(k, l.size());
+}
+
+TEST_F(Simple_Tree, deway)
+{
+  int d[100];
+  size_t sz;
+  auto p = search_deway(root, 14, d, 100, sz);
+  ASSERT_EQ(p->get_key(), 14);
+  ASSERT_EQ(sz, 3);
+  ASSERT_EQ(d[0], 0);
+  ASSERT_EQ(d[1], 1);
+  ASSERT_EQ(d[2], 3);
+}
+
+/*                                    0
+ 
+      1              2                3                 4                    5
+
+6 7 8 9 10     11 12 13 14 15  16 17 18 19 20     21 22 23 24 25 26   27 28 29 30 31
+
+*/
+
+TEST_F(Three_Trees, insertion_of_trees)
+{
+  auto t1 = clone_tree(root1); 
+  auto t2 = clone_tree(root2);
+  auto t3 = clone_tree(root3);
+
+  t1->insert_tree_to_right(t3);
+  t1->insert_tree_to_right(t2);
+
+  DynList<Tree_Node<int>*> tlist = { t1, t2, t3 };
+  DynList<Tree_Node<int>*> flist = t1->trees();
+
+  zip_for_each([] (auto t) { ASSERT_EQ(get<0>(t), get<1>(t)); }, tlist, flist);
+  
+  destroy_forest(t1);
+}
+
+TEST_F(Three_Trees, join)
+{
+  auto t = clone_tree(root1);
+  auto t2 = clone_tree(root2);
+
+  t->join(t2);
+
+  DynList<int> l = { 0, 1, 2, 3, 4, 5, 31, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+		     30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43 };
+
+  DynList<int> order;
+  t->level_traverse([&order] (auto p) { order.append(p->get_key()); return true; });
+
+  ASSERT_TRUE(eq(l, order));
+
+  destroy_forest(t);
+}
+
+

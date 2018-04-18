@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef AHSORT_H
 # define AHSORT_H
 
@@ -62,24 +84,12 @@ namespace Aleph
     return ret_val;
   }
 
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   DynArray<T> sort(const DynArray<T> & a, Cmp && cmp = Cmp()) 
-  // {
-  //   return sort<T, Cmp>(a, cmp);
-  // }
-
   template <typename T, class Cmp = Aleph::less<T>> inline
     DynArray<T> sort(DynArray<T> && a, Cmp && cmp = Cmp())
   {
     quicksort_op(a, cmp);
     return move(a);
   }
-
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   DynArray<T> sort(DynArray<T> && a, Cmp && cmp = Cmp()) 
-  // {
-  //   return sort<T, Cmp>(move(a), cmp);
-  // }
 
   template <typename T, class Cmp = Aleph::less<T>> inline
     Array<T> sort(const Array<T> & a, Cmp && cmp = Cmp()) noexcept
@@ -89,51 +99,35 @@ namespace Aleph
     return ret_val;
   }
 
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   Array<T> sort(const Array<T> & a, Cmp && cmp = Cmp()) 
-  // {
-  //   return sort<T, Cmp>(a, cmp);
-  // }
-
   template <typename T, class Cmp = Aleph::less<T>> inline
-    Array<T> sort(Array<T> && a, Cmp && cmp = Cmp()) 
+    Array<T> sort(Array<T> && a, Cmp cmp = Cmp()) 
   {
     quicksort_op(a, cmp);
     return move(a);
   }
 
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   Array<T> sort(Array<T> && a, Cmp && cmp = Cmp()) 
-  // {
-  //   return sort<T, Cmp>(move(a), cmp);
-  // }
+  template <typename Container,
+	    class Cmp = std::less<typename Container::value_type>> inline
+    Container stdsort(const Container & c, Cmp cmp = Cmp())
+  {
+    Container ret = c;
+    sort(ret.begin(), ret.end(), cmp);
+    return ret;
+  }
 
   template <typename T, class Cmp = Aleph::less<T>> inline
-    DynArray<T> & in_place_sort(DynArray<T> & c, Cmp && cmp = Cmp()) noexcept
+    DynArray<T> & in_place_sort(DynArray<T> & c, Cmp cmp = Cmp()) noexcept
   {
     quicksort_op(c, cmp);
     return c;
   }
 
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   DynArray<T> & in_place_sort(DynArray<T> & c, Cmp && cmp = Cmp()) 
-  //   noexcept
-  // {
-  //   return in_place_sort<T, Cmp>(c, cmp);
-  // }
-
   template <typename T, class Cmp = Aleph::less<T>> inline
-    Array<T> & in_place_sort(Array<T> & c, Cmp && cmp = Cmp()) noexcept
+    Array<T> & in_place_sort(Array<T> & c, Cmp cmp = Cmp()) noexcept
   {
     quicksort_op(c, cmp);
     return c;
   }
-
-  // template <typename T, class Cmp = Aleph::less<T>> inline
-  //   Array<T> & in_place_sort(Array<T> & c, Cmp && cmp = Cmp()) noexcept
-  // {
-  //   return in_place_sort<T, Cmp>(c, cmp);
-  // }
 
 
   template <typename T, template <typename> class C>

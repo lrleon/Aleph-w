@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef HTLIST_H
 # define HTLIST_H
 
@@ -16,7 +38,7 @@ using namespace Aleph;
 
 namespace Aleph {
 
-template <typename T> class Snodenc; // forward declration
+template <typename T> class Snodenc; // forward declaration
 
   /**
 
@@ -895,7 +917,6 @@ public:
     return reverse();
   }
 
-
   //!\~English It cuts 'this' over 'link' element and it puts all
   //!remaining elements \~Spanish Corta this por el elemento link y
   //!coloca los elementos restantes (los que están después de link) en
@@ -1583,6 +1604,27 @@ public:
     }
   };
 
+  DynList & reverse() noexcept
+  {
+    reverse_list();
+    return *this;
+  }
+
+  DynList & rev() noexcept { return reverse(); }
+
+  /// Return a reversed copy of `this`. Not confuse with reverse
+  /// without `const` which mutates `this`
+  DynList reverse() const
+  {
+    DynList ret;
+    for (auto it = this->get_it(); it.has_curr(); it.next())
+      ret.insert(it.get_curr());
+
+    return ret;
+  }
+
+  DynList rev() const { return reverse(); }
+
   /** Remove the first element matching an equality criteria.
 
       `remove(eq)` sequentually traverses the list and on each current
@@ -1705,9 +1747,10 @@ public:
 
       \param[in] l a rvalue reference to the list to be appended
   */
-  void append(DynList && list) noexcept
+  DynList & append(DynList && list) noexcept
   {
     HTList::append(list);
+    return *this;
   }
 
   /** Insert `list `at the beginning of `this` by movement.
@@ -1724,9 +1767,10 @@ public:
 
       \param[in] l a rvalue reference to the list to be inserted
   */
-  void insert(DynList && list) noexcept
+  DynList & insert(DynList && list) noexcept
   {
     HTList::insert(list);
+    return *this;
   }
 
   /** Append to `this` a copy of `list`.
@@ -1737,13 +1781,11 @@ public:
       \param[in] l list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
-  void append(const DynList & list) noexcept(noexcept(DynList(list)))
+  DynList & append(const DynList & list) noexcept(noexcept(DynList(list)))
   {
-    if (&list == this)
-      return;
-
     DynList copy = list;
     HTList::append(copy);
+    return *this;
   }
 
   /** Insert to `this` a copy of `list`.
@@ -1754,13 +1796,11 @@ public:
       \param[in] l list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
-  void insert(const DynList & list) noexcept(noexcept(DynList(list)))
+  DynList & insert(const DynList & list) noexcept(noexcept(DynList(list)))
   {
-    if (&list == this)
-      return;
-
     DynList tmp = list;
     HTList::insert(tmp);
+    return *this;
   }
 
   /// Obtains a modifiable reference to the i-th item of `this`. Throws
