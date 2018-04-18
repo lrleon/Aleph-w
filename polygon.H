@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef POLYGON_H
 # define POLYGON_H
 
@@ -11,6 +33,7 @@ using namespace Aleph;
 class Vertex : public Point, public Dlink
 {
 public:
+
   Vertex() { /* empty */ }
 
   Vertex(const Point & point) : Point(point) { /* empty */ }
@@ -19,10 +42,15 @@ public:
 
   static Vertex * dlink_to_vertex(Dlink * link) 
   {
-    return static_cast<Vertex *>(link);
+    return static_cast<Vertex*>(link);
   }
 
-  Vertex & prev_vertex() 
+  static const Vertex * dlink_to_vertex(const Dlink * link) 
+  {
+    return static_cast<const Vertex*>(link);
+  }
+
+  const Vertex & prev_vertex() const
   {
     assert(not this->is_empty());
 
@@ -32,7 +60,7 @@ public:
     return * dlink_to_vertex(this->get_prev());
   }
 
-  Vertex & next_vertex() 
+  const Vertex & next_vertex() const
   {
     assert(not this->is_empty());
 
@@ -193,7 +221,7 @@ public:
 
   struct Vertex_Iterator : public Dlink::Iterator
   {
-    Vertex_Iterator(Polygon & poly) : Dlink::Iterator(poly.vertex_list) 
+    Vertex_Iterator(const Polygon & poly) : Dlink::Iterator(poly.vertex_list) 
     {
       if (poly.vertex_list.is_empty())
 	throw std::domain_error("Polygon has not any vertex");
@@ -211,8 +239,8 @@ public:
 
   public:
 
-    Segment_Iterator(Polygon & __poly) 
-      : Dlink::Iterator(__poly.vertex_list), poly(__poly)
+    Segment_Iterator(const Polygon & __poly) 
+      : Dlink::Iterator(__poly.vertex_list), poly(const_cast<Polygon&>(__poly))
     {
       if (poly.vertex_list.is_unitarian_or_empty())
 	throw std::domain_error("Polygon has less than two vertex");
@@ -226,7 +254,7 @@ public:
       return Dlink::Iterator::has_current();
     }
 
-    Segment get_current_segment() 
+    Segment get_current_segment() const 
     {
       if (not poly.is_closed() and this->is_in_last())
 	throw std::domain_error("Segment iterator is in the last point and "
@@ -235,14 +263,14 @@ public:
       Vertex * src = Vertex::dlink_to_vertex(this->get_current());
 
           // decidir punto tgt según que se esté en el último punto o no
-      Vertex & tgt = 
+      const Vertex & tgt = 
 	this->is_in_last() ? poly.get_first_vertex() : src->next_vertex();
       
       return Segment(*src, tgt);
     }
   };
 
-  bool vertex_belong_polygon(Vertex & v)
+  bool vertex_belong_polygon(const Vertex & v) const
   {
     for (Vertex_Iterator it(*this); it.has_current(); it.next())
       if (&it.get_current_vertex() == &v)
@@ -251,7 +279,7 @@ public:
     return false;
   }
   
-  Vertex & get_first_vertex() 
+  const Vertex & get_first_vertex() const
   {
     if (vertex_list.is_empty())
       throw std::domain_error("Polygon has not any vertex");
@@ -259,7 +287,7 @@ public:
     return * Vertex::dlink_to_vertex(vertex_list.get_next());
   }
 
-  Vertex & get_last_vertex() 
+  const Vertex & get_last_vertex() const
   {
     if (vertex_list.is_empty())
       throw std::domain_error("Polygon has not any vertex");
@@ -267,7 +295,7 @@ public:
     return * Vertex::dlink_to_vertex(vertex_list.get_prev());
   }
 
-  Vertex & get_next_vertex(Vertex & v)
+  const Vertex & get_next_vertex(const Vertex & v) const
   {
     // TODO: ¿Validar si v pertenece al polígono?
     
@@ -276,7 +304,7 @@ public:
       v.next_vertex();
   }
 
-  Vertex & get_prev_vertex(Vertex & v)
+  const Vertex & get_prev_vertex(const Vertex & v) const
   {
     // TODO: ¿Validar si v pertenece al polígono?
     
@@ -290,7 +318,7 @@ public:
     if (vertex_list.is_unitarian_or_empty())
       throw std::domain_error("polygon has less than two vertex");
 
-    Vertex & first_vertex = get_first_vertex();
+    const Vertex & first_vertex = get_first_vertex();
 
     return Segment(first_vertex, first_vertex.next_vertex());
   }
@@ -300,7 +328,7 @@ public:
     if (vertex_list.is_unitarian_or_empty())
       throw std::domain_error("polygon has less than two vertex");
 
-    Vertex & last_vertex = get_last_vertex();
+    const Vertex & last_vertex = get_last_vertex();
 
     return Segment(last_vertex.prev_vertex(), last_vertex);
   }
@@ -312,7 +340,6 @@ public:
     for (Segment_Iterator it(*this); it.has_current(); it.next())
       {
 	const Segment & curr_side = it.get_current_segment();
-
 	if (curr_side.intersects_with(sg))
 	  return true;
       }
@@ -329,7 +356,6 @@ public:
     if (num_vertex > 1)
       {
 	Segment last_sg = get_last_segment();
-
 	if (point.is_colinear_with(last_sg))
 	  {
 	    if (point.is_inside(last_sg))
@@ -337,7 +363,7 @@ public:
 				      "segment");
 
 	        // punto colineal ==> lo substituimos el último por este nuevo
-	    Vertex & last_vertex = get_last_vertex();
+	    Vertex & last_vertex = const_cast<Vertex&>(get_last_vertex());
 
 	    Point & last_point = last_vertex;
 
@@ -382,14 +408,14 @@ public:
     add_vertex(Point(x, y));
   }
   
-  void remove_vertex(Vertex & v)
+  void remove_vertex(const Vertex & v)
   {
     if (not vertex_belong_polygon(v))
       throw std::domain_error("Vertex does not belong to polygon");
 
     // TODO: Resolver casos de colinealidad
     
-    v.del();
+    const_cast<Vertex&>(v).del();
     --num_vertex;
     delete &v;
   }
@@ -645,7 +671,7 @@ inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
 {
   assert(num_vertex == 0 and not __is_closed);
 
-  for (int i = 0; i < poly.size(); ++i)
+  for (size_t i = 0; i < poly.size(); ++i)
     add_vertex(poly.get_vertex(i));
 
   close();

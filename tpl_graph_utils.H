@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_GRAPH_UTILS_H
 # define TPL_GRAPH_UTILS_H
 
@@ -111,10 +133,10 @@ struct Default_Visit_Op
 	    class SA        = Dft_Show_Arc<GT>> 
 class Depth_First_Traversal
 {
-  Operation * op;
-  SA        & sa;
-  size_t      count;
-  const GT *  g_ptr;
+  Operation * op_ptr = nullptr;
+  SA          sa;
+  size_t      count = 0;
+  const GT *  g_ptr = nullptr;
 
 private:
 
@@ -126,7 +148,7 @@ private:
     NODE_BITS(node).set_bit(Depth_First, true); // marca nodo visitado
     count++;
 
-    if ((*op)(*g_ptr, node, arc)) 
+    if ((*op_ptr)(*g_ptr, node, arc)) 
       return true; // sí, invóquela
 
     if (count == g_ptr->get_num_nodes()) // ¿se visitaron todos lo nodos?
@@ -149,8 +171,8 @@ private:
 
   size_t dft(const GT & g, typename GT::Node * start_node, Operation & __op)
   {
-    op = &__op;
-    g_ptr = &g;
+    op_ptr = &__op;
+    g_ptr  = &g;
     
     g_ptr->reset_bit_nodes(Depth_First); // reiniciar Depth_First de nodos
     g_ptr->reset_bit_arcs(Depth_First);  // reiniciar Depth_First de arcos
@@ -166,9 +188,7 @@ public:
 
       /// Construct a depth first traversal whose arcs are filtered by `s`
       /// filtro de arcos del iterador interno.
-  Depth_First_Traversal(SA & __sa) : sa(__sa) { /* empty */ }
-
-  Depth_First_Traversal(SA && __sa = SA()) : sa(__sa) { /* empty */ }
+  Depth_First_Traversal(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
     /** Invoke to traversal starting on any node of graph
 
@@ -176,12 +196,7 @@ public:
         @param[in] op visit operation
         @return the number of visited nodes
      */
-   size_t operator () (const GT & g, Operation & op) 
-  {
-    return dft(g, g.get_first_node(), op);
-  }
-
-  size_t operator () (const GT & g, Operation && op = Operation()) 
+  size_t operator () (const GT & g, Operation op = Operation()) 
   {
     return dft(g, g.get_first_node(), op);
   }
@@ -193,13 +208,8 @@ public:
         @param[in] op visit operation
         @return the number of visited nodes
      */
-  size_t operator () (const GT & g, typename GT::Node * sn, Operation & op)
-  {
-    return dft(g, sn, op);
-  }
-
-  size_t operator () (const GT & g, typename GT::Node * sn, 
-		      Operation && op = Operation())
+  size_t operator () (const GT & g, typename GT::Node * sn,
+		      Operation op = Operation())
   {
     return dft(g, sn, op);
   }
@@ -363,8 +373,8 @@ breadth_first_traversal(GT & g,
                 class SA        = Dft_Show_Arc<GT>> 
 class Breadth_First_Traversal
 {
-  SA     & sa;
-  size_t   count;
+  SA     sa;
+  size_t count = 0;
 
   size_t bft(const GT & g, typename GT::Node * start, Operation & op)
   {
@@ -421,9 +431,7 @@ public:
 
   /// Constructor of functor Breadth_First_Traversal whose arcs are
   /// filtered by `sa`
-  Breadth_First_Traversal(SA & __sa) : sa(__sa) { /* empty */ }
-
-  Breadth_First_Traversal(SA && __sa = SA()) : sa(__sa) { /* empty */ }
+  Breadth_First_Traversal(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
   /** Invoke to traversal.
             
@@ -432,12 +440,7 @@ public:
       @return number of visited nodes
       @throw bad_alloc if there is no enough memory
   */
-  size_t operator () (const GT & g, Operation & op)
-  {
-    return bft (g, g.get_first_node(), op);
-  }
-
-  size_t operator () (const GT & g, Operation && op = Operation())
+  size_t operator () (const GT & g, Operation op)
   {
     return bft (g, g.get_first_node(), op);
   }
@@ -1450,7 +1453,6 @@ paint_subgraphs(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   return current_color;
 }
 
-         
 
        template <class GT> inline static
 void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc, 
@@ -1611,17 +1613,11 @@ map_cut_graph(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
     template <class GT, class Distance> 
 struct Distance_Compare
 {
-  Distance & dist;
+  Distance dist;
 
-  Distance_Compare(Distance & __dist) : dist(__dist) { /* empty */ }
+  Distance_Compare(Distance __dist = Distance()) : dist(__dist) { /* empty */ }
 
-  Distance_Compare(Distance && dist = Distance()) 
-    : Distance_Compare(dist)
-  {
-    // empty
-  }
-
-  bool operator () (typename GT::Arc * a1, typename GT::Arc * a2)
+  bool operator () (typename GT::Arc * a1, typename GT::Arc * a2) const
   {
     return dist(a1) < dist(a2);
   }
@@ -1686,14 +1682,12 @@ GT invert_digraph(const GT & g)
       template <class GT, class SA = Dft_Show_Arc<GT>>
 class Invert_Digraph
 {
-  SA & sa;
+  SA sa;
 
 public:
 
   /// Construct functor wih filter sa
-  Invert_Digraph(SA & __sa) : sa(__sa) { /* empty */ }
-  
-  Invert_Digraph(SA && __sa = SA()) : sa(__sa) { /* empty */ }
+  Invert_Digraph(SA __sa) : sa(__sa) { /* empty */ }
 
   /** Compute the inverted graph; that is the seame nodes but its
       arcs inverted.
@@ -1826,18 +1820,13 @@ template <class GT,
 	  class SA       = Dft_Show_Arc<GT>>
 class Total_Cost
 {
-  Distance & dist;
-  SA &       sa;
+  Distance dist;
+  SA       sa;
 
 public:
 
-  Total_Cost(Distance && __dist = Distance(), SA && __sa = SA()) 
+  Total_Cost(Distance __dist = Distance(), SA __sa = SA()) 
     : dist(__dist), sa(__sa)
-  {
-    // empty
-  }
-
-  Total_Cost(Distance & __dist, SA & __sa) : dist(__dist), sa(__sa)
   {
     // empty
   }

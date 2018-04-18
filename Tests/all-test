@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby
+# -*- coding: iso-8859-1 -*-
+
+require 'fileutils'
+
+alephw = ENV['ALEPHW']
+gtestdir = ENV['GOOGLETEST']
+
+TestsFile = 'tests-list'
+
+fail "ALEPHW env var has not been defined" unless alephw
+fail "GOOGLETEST env var has not been defined" unless gtestdir
+
+fail 'file tests-list does not exist' unless File.exists? TestsFile
+
+tests = File.open TestsFile
+
+tests.each do |name|
+  cmd = "./run-test -f #{name}"
+  status = system cmd
+  unless status
+    system "figlet \"#{name} failed\""
+    exit
+  end
+end
+
+system("figlet \"ALL TESTS PERFORMED SUCCESSFULLY!\"")
+
+

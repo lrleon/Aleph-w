@@ -238,3 +238,15 @@
 - Comment      
 - Finished     
 
+## 41. cambiar int en odhash
+- Created at   2017-09-21 16:48:32 -0400
+- Completed at 2017-09-22 11:14:50 -0400
+- Comment      
+- Finished     
+
+## 42. auto ptr para tablas hash
+- Created at   2017-09-20 21:00:37 -0400
+- Completed at 
+- Comment      
+- Finished     
+

@@ -1,7 +1,30 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_DYNSETTREE_H
 # define TPL_DYNSETTREE_H
 
+# include <typeinfo>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
 # include <tpl_binNodeUtils.H>
@@ -13,7 +36,6 @@
 # include <tpl_rand_tree.H>
 # include <tpl_rb_tree.H>
 # include <tpl_splay_tree.H>
-# include <tpl_nodePool.H>
 
 using namespace Aleph;
 
@@ -53,7 +75,6 @@ private:
 
   mutable Tree<Key, Compare> tree; 
   size_t num_nodes; 
-  Node_Pool<Node> node_pool;
 
 public:
 
@@ -74,25 +95,16 @@ public:
     std::swap(num_nodes, dset.num_nodes);
   }
   
-      /// Instancia un conjunto dinámico vacío
-  DynSetTree() : tree(Compare()), num_nodes(0), node_pool(dim) {}
-
-  DynSetTree(Compare & cmp) 
-    : tree(cmp), num_nodes(0), node_pool(dim)
+      /// Instancia un conjunto dinámico
+  DynSetTree(Compare cmp = Compare()) 
+    : tree(cmp), num_nodes(0)
   { 
-    /* empty */ 
-  }
-
-  DynSetTree(Compare && cmp) 
-    : tree(std::forward<Compare>(cmp)), num_nodes(0), node_pool(dim)
-  {
     /* empty */ 
   }
 
       /// Instancia un conjunto dinámico copia de srcTree.
   DynSetTree(const DynSetTree & srcTree) 
-    : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes),
-      node_pool(srcTree.dim)
+    : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
   { 
     Node * srcRoot = srcTree.tree.getRoot(); 
     try 
@@ -108,7 +120,7 @@ public:
 
   Special_Ctors(DynSetTree, Key);
 
-  DynSetTree(DynSetTree && srcTree) : num_nodes(0), node_pool(dim)
+  DynSetTree(DynSetTree && srcTree) : num_nodes(0)
   { 
     swap(srcTree);
   }
@@ -159,10 +171,7 @@ private:
   Key * __insert(Node * p)
   {
     if (tree.search_or_insert(p) != p)
-      {
-	node_pool.deallocate(p);
-	return nullptr;
-      }
+      return nullptr;
 
     ++num_nodes;
 
@@ -181,22 +190,22 @@ public:
       */
   Key * insert(const Key & key)
   {
-    return __insert(node_pool.allocate(key));
+    return __insert(new Node(key));
   }
 
   Key * insert(Key && key)
   {
-    return __insert(node_pool.allocate(std::forward<Key>(key)));
+    return __insert(new Node(std::forward<Key>(key)));
   }
   
   Key * append(const Key & key)
   {
-    return __insert(node_pool.allocate(key));
+    return insert(key);
   }
 
   Key * append(Key && key)
   {
-    return __insert(node_pool.allocate(std::forward<Key>(key)));
+    return insert(std::forward<Key>(key));
   }
 
 private:
@@ -205,7 +214,7 @@ private:
   {
     Node * q = tree.search_or_insert(p);
     if (q != p)
-      node_pool.deallocate(p);
+      delete p;
     else
       ++num_nodes;
 
@@ -217,7 +226,7 @@ private:
     Node * q = tree.search_or_insert(p);
     if (q != p)
       { // KEY(p) is already inside the tree
-	node_pool.deallocate(p);
+	delete p;
 	return pair<Node*, bool>(q, true);
       }
     ++num_nodes;
@@ -240,12 +249,12 @@ public:
      */
   Key * search_or_insert(const Key & key)
   {
-    return __search_or_insert(node_pool.allocate(key));
+    return __search_or_insert(new Node(key));
   }
 
   Key * search_or_insert(Key && key)
   {
-    return __search_or_insert(node_pool.allocate(std::forward<Key>(key)));
+    return __search_or_insert(new Node(std::forward<Key>(key)));
   }
 
   /* Busca la clave <code>key</code> en el árbol binario de búsqueda y
@@ -263,13 +272,13 @@ public:
    */
   pair<Key*, bool> contains_or_insert(const Key & key)
   {
-    auto p = __contains_or_insert(node_pool.allocate(key));
+    auto p = __contains_or_insert(new Node(key));
     return pair<Key*, bool>(&p.first->get_key(), p.second);
   }
 
   pair<Key*, bool> contains_or_insert(Key && key)
   {
-    auto p = __contains_or_insert(node_pool.allocate(std::forward<Key>(key)));
+    auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
     return pair<Key&, bool>(&p.first->get_key(), p.second);
   }
 
@@ -286,12 +295,12 @@ public:
 
   Key * insert_dup(const Key & key)
   {
-    return __insert_dup(node_pool.allocate(key));
+    return __insert_dup(new Node(key));
   }
 
   Key * insert_dup(Key && key)
   {
-    return __insert_dup(node_pool.allocate(std::forward<Key>(key)));
+    return __insert_dup(new Node(std::forward<Key>(key)));
   }
 
   Key * put(const Key & key)
@@ -318,7 +327,7 @@ public:
     if (p == nullptr)
       return num_nodes;
 
-    node_pool.deallocate(p);
+    delete p;
 
     return --num_nodes;
   }
@@ -342,7 +351,7 @@ public:
 
     auto ret_val = p->get_key();
 
-    node_pool.deallocate(p);
+    delete p;
 
     --num_nodes;
 
@@ -361,7 +370,7 @@ public:
     Node * p = static_cast<Node*>(tree.remove_pos(i));
     const Key ret_val = KEY(p);
 
-    node_pool.deallocate(p);
+    delete p;
 
     --num_nodes;
 
@@ -1035,8 +1044,26 @@ public:
       using Base::Base;
     }; 
   
-  
+
+  template <typename T, class Op, class C>
+DynSetTree<T> set_unify(const C & c, Op op)
+{
+  DynSetTree<T> ret;
+  for (auto it = c.get_it(); it.has_curr(); it.next())
+    ret.insert(op(it.get_curr()));
+  return ret;
+}
+
 } // end namespace Aleph
 
 # endif /* TPL_DYNSETTREE_H */
+
+
+
+
+
+
+
+
+
 

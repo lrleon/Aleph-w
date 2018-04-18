@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_AGRAPH_H
 # define TPL_AGRAPH_H
 
@@ -78,7 +100,7 @@ public:
     init(0);
   }
  
-  ~Graph_Anode()
+  virtual ~Graph_Anode()
   {
     if (arc_array != nullptr)
       free(arc_array);
@@ -298,7 +320,6 @@ public:
   //     return (Node*) get_current_arc()->tgt_node; 
   //   }
   // };
-
   
   class Node_Arc_Iterator : public Array_Iterator<void*>
   {
@@ -432,7 +453,7 @@ private:
 
 public:
 
-  Arc * disconnect_arc(Arc * arc) noexcept
+  Arc * disconnect_arc(Arc * arc)
   {
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
@@ -681,7 +702,7 @@ public:
     this->digraph = true; 
   }
   
-  Array_Digraph(const Array_Digraph & dg) noexcept
+  Array_Digraph(const Array_Digraph & dg)
     : Array_Graph<Node, Arc>((Array_Digraph&) dg)
   {
     this->digraph = true; 

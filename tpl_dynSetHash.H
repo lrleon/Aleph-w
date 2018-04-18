@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_DYNSETHASH_H
 # define TPL_DYNSETHASH_H
 
@@ -66,19 +88,12 @@ public:
 	  @param[in] upper_alpha umbral superior de carga;  tamaño de la
 	  tabla se expandirá si la carga es superior a este factor.
        */
-  DynHashTable(const size_t len, Hash_Fct hash_fct,
-	       Cmp & cmp, const float lower_alpha, const float upper_alpha) 
+  DynHashTable(size_t   len         = Primes::DefaultPrime,
+	       Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>,
+	       Cmp      cmp         = Cmp(),
+	       float    lower_alpha = hash_default_lower_alpha,
+	       float    upper_alpha = hash_default_upper_alpha) 
     : Base(len, hash_fct, cmp, lower_alpha, upper_alpha, true, true)
-  {
-    // empty
-  }
-
-  DynHashTable(size_t len        = Primes::DefaultPrime,
-	       Hash_Fct hash_fct = Aleph::dft_hash_fct<Key>,
-	       Cmp && cmp        = Cmp(),
-	       float lower_alpha = hash_default_lower_alpha,
-	       float upper_alpha = hash_default_upper_alpha) 
-    : DynHashTable(len, hash_fct, cmp, lower_alpha, upper_alpha)
     {
       // empty
     }
@@ -91,7 +106,6 @@ private:
       {
 	Bucket * bucket = (Bucket*) it.get_curr();
 	insert(bucket->get_key());
-	assert(Base::cmp(*search(bucket->get_key()), bucket->get_key()));
       }
   }
 
@@ -105,7 +119,7 @@ public:
     copy(other);
   }
   
-  DynHashTable(DynHashTable && other) noexcept
+  DynHashTable(DynHashTable && other)
     : Base(other.len, other.hash_fct, other.get_compare(),
 	   other.lower_alpha, other.upper_alpha, true, true)
   {

@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_OLHASH_H
 # define TPL_OLHASH_H
@@ -88,7 +110,7 @@ protected:
   size_t len;
   float  lower_alpha;
   float  upper_alpha;
-  Cmp &  cmp;
+  Cmp    cmp;
 
 private:
 
@@ -113,25 +135,18 @@ public:
 
       /// Instancia una tabla hash con función hash __hash_fct y
       /// dimensión len.
-  OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp & __cmp,
- 	      float __lower_alpha, float __upper_alpha, bool __with_resize)
+  OLhashTable(size_t   __len      = Primes::DefaultPrime,
+	      Hash_Fct __hash_fct = Aleph::dft_hash_fct<Key>,
+	      Cmp __cmp           = Cmp(),
+ 	      float __lower_alpha = hash_default_lower_alpha,
+	      float __upper_alpha = hash_default_upper_alpha,
+	      bool __with_resize  = true)
     : table(nullptr), N(0), len(Primes::next_prime(__len)),
       lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
       hash_fct(__hash_fct), with_resize(__with_resize)
   {
     table = new Bucket [len];
   }
-
-  OLhashTable(size_t len        = Primes::DefaultPrime,
-	      Hash_Fct hash_fct = Aleph::dft_hash_fct<Key>, 
-	      Cmp && cmp        = Cmp(),
- 	      float lower_alpha = hash_default_lower_alpha,
-	      float upper_alpha = hash_default_upper_alpha,
-	      bool with_resize  = true)
-    : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize)
-    {
-      // empty
-    }
 
   /** Constructor with two hash function for metaprogramming
       compatibility with ODhashTable
@@ -281,7 +296,7 @@ protected:
     /// search(). Dispara excepciones invalid_argument si record no es una
     /// dirección dentro del rango de la tabla o domain_error si la cubeta
     /// del registro no está ocupada.
-  void deallocate_bucket(Bucket * bucket) noexcept
+  void deallocate_bucket(Bucket * bucket)
   {
     if (not is_valid_bucket(bucket))
       throw std::invalid_argument("record address is not inside table's range");

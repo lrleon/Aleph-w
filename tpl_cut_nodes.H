@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_CUT_NODES_H
 # define TPL_CUT_NODES_H
 
@@ -43,7 +65,7 @@ namespace Aleph {
 	  Esta clase exporta varias operaciones con dependencia
 	  secuencial:
 	  -# cut_nodes(): la cual calcula los nodos de corte y los
-	  introcuce en una lista. El operador () sobre la clase es
+	  introduce en una lista. El operador () sobre la clase es
 	  sinónimo de este método.
 	  -# paint_subgraphs(): "pinta" los distintos componentes del
 	  grafo en torno a los puntos de corte previamente
@@ -67,11 +89,11 @@ namespace Aleph {
       template <class GT, class SA = Dft_Show_Arc<GT> >
 class Compute_Cut_Nodes
 {
-  SA &                            sa;
-  GT *                            gptr;
-  DynDlist<typename GT::Node *> * list_ptr;
-  long                            curr_df;
-  long                            curr_color;
+  SA                              sa;
+  GT *                            gptr = nullptr;
+  DynDlist<typename GT::Node *> * list_ptr = nullptr;
+  long                            curr_df = 0;
+  long                            curr_color = 1;
 
   enum State { Init, Cut_Nodes_Computed, Painted } state;
 
@@ -292,14 +314,8 @@ public:
 	  @param[in] __sa el filtro de arcos para los oiteradores sobre
 	  arcos. 
        */
-  Compute_Cut_Nodes(const GT & g, SA && __sa = SA()) 
+  Compute_Cut_Nodes(const GT & g, SA __sa = SA()) 
     : sa(__sa), gptr(&const_cast<GT&>(g)), state(Init)
-  {
-    /* empty */ 
-  }
-
-  Compute_Cut_Nodes(const GT & g, SA & __sa) 
-    : sa(__sa), gptr(&const_cast<GT&>(g))
   {
     /* empty */ 
   }

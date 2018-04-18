@@ -1,3 +1,7 @@
+
+# include <exception>
+# include <string>
+
 # include <primes.H>
 
 namespace Primes
@@ -16,17 +20,17 @@ const unsigned long primeList[] =
 
 const unsigned int numPrimes = 30;
 
-static int nextPrimeIndex(unsigned long n)
+static size_t nextPrimeIndex(unsigned long n)
 {
   unsigned int i;
 
   for (i = 0; i < numPrimes; i++)
     if (primeList[i] >= n)
       return i;
-  return -1;
+  throw std::overflow_error("next prime n out of max " + std::to_string(n));
 }
 
-static int prevPrimeIndex(unsigned long n)
+static size_t prevPrimeIndex(unsigned long n)
 {
   unsigned int i;
 
@@ -34,12 +38,12 @@ static int prevPrimeIndex(unsigned long n)
     if (primeList[i] > n)
       return i - 1;
             
-  return -1;
+  throw std::underflow_error("next prime n out of min 0");
 }
 
 const unsigned long DefaultPrime = primeList[0];
 
-unsigned long next_prime(unsigned long n)
+size_t next_prime(unsigned long n)
 { 
   unsigned int prime_index = nextPrimeIndex(n);
 
@@ -48,7 +52,7 @@ unsigned long next_prime(unsigned long n)
 
 bool check_primes_database()
 {
-  for (int i = 1; i < numPrimes; ++i)
+  for (size_t i = 1; i < numPrimes; ++i)
     if (primeList[i] <= 2*primeList[i - 1])
       return false;
   return true;

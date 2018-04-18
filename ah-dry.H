@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef AH_DRY_H
 # define AH_DRY_H
@@ -420,12 +442,12 @@ public:
   /** Appends a new element into the container by constructing it
       in-place with the given args.
 
-      `emplace(args)` tries to match a contructor `T(args)`. If this
-      exists, then this is constructed in-place and directely forwarded
+      `emplace(args)` tries to match a constructor `T(args)`. If this
+      exists, then this is constructed in-place and directly forwarded
       to the method `append() of container. If all on the container and
       `T` is adequately done, then the object is constructed once time,
       successively forwarded and at its target place in the container is
-      moved, avoiding thus innecesary copies.
+      moved, avoiding thus unnecessary copies.
 
       \note The semantic of append depends of container. In general,
       this has some sense for lists and arrays and it means insertion at
@@ -451,16 +473,16 @@ public:
   /** Insert a new element into the container by constructing it
       in-place with the given args.
 
-      `emplace_ins(args)` tries to match a contructor `T(args)`. If this
-      exists, then this is constructed in-place and directely forwarded
+      `emplace_ins(args)` tries to match a constructor `T(args)`. If this
+      exists, then this is constructed in-place and directly forwarded
       to the method `insert() of container. If all on the container and
       `T` is adequately done, then the object is constructed once time,
       successively forwarded and finally, at its target place in the
-      container, is moved, avoiding thus innecesary copies.
+      container, is moved, avoiding thus unnecessary copies.
 
       \note The semantic of `insert()` depends of container. In general,
       this has some sense for lists and arrays and it means insertion at
-      the begining of sequence. On other type of container `append()`
+      the beginning of sequence. On other type of container `append()`
       is equivalent to `insert()`.
 
       \param[in] args variadic arguments list

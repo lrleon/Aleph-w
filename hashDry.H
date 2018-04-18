@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef HASHDRY_H
 # define HASHDRY_H
@@ -166,8 +188,8 @@ public:
       throw std::overflow_error ("New size is not enough for current" 
 				 " number of entries"); 
 
-    auto new_table   = new typename HashTbl::Bucket [new_size];
-    auto old_table   = me()->table;
+    typename HashTbl::Bucket * new_table = new typename HashTbl::Bucket[new_size];
+    typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
 
     int old_N = me()->N;
@@ -306,7 +328,7 @@ public:
       assert(check());
     }
 
-    void end() noexcept
+    void end()
     {
       reset_last();
       next();
@@ -382,12 +404,12 @@ public:
 
   struct Stats
   {
-    size_t num_busy;
-    size_t num_deleted;
-    size_t num_empty;
+    size_t num_busy = 0;
+    size_t num_deleted = 0;
+    size_t num_empty = 0;
     DynArray<size_t> lens;
-    float avg, var;
-    size_t max_len;
+    float avg = 0, var = 0;
+    size_t max_len = 0;
 
     Stats() : max_len(std::numeric_limits<size_t>::min())
       {
@@ -438,7 +460,7 @@ public:
 
 private:
 
-  static void update_stat_len(DynArray<size_t> & lens, size_t i) noexcept
+  static void update_stat_len(DynArray<size_t> & lens, size_t i)
   {
     if (lens.exist(i))
       lens(i) += 1;

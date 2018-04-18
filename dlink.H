@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef DLINK_H
 # define DLINK_H
@@ -7,6 +29,8 @@
 using namespace Aleph;
 
 namespace Aleph {
+
+template <typename T> class Dnode; // Forward declaration of derived class
 
     /**  Double link of a node belonging to a double circular linked
 	 list with header node. 
@@ -26,11 +50,22 @@ protected:
 
 public:
 
+  template <typename T> inline Dnode<T> * to_dnode() noexcept;
+  template <typename T> inline const Dnode<T> * to_dnode() const noexcept;
+  template <typename T> inline T& to_data() noexcept;
+  template <typename T> inline const T& to_data() const noexcept;
+
   /// Initialize a node or an empty list
   Dlink() noexcept : prev(this), next(this) { assert(is_empty()); }
 
-    /// Copy constructor
-  Dlink(const Dlink & l) noexcept : prev(l.prev), next(l.next) { /* empty */ }
+    /// Copy constructor. Be very careful because if `l` contains
+    /// items, then these will be lost
+  Dlink(const Dlink & l) noexcept
+    : prev(l.prev), next(l.next)
+  {
+    if (l.is_empty())
+      reset();
+  }
 
   /** Swap `this` with list whose header is `link`. 
 
@@ -105,6 +140,9 @@ public:
       */
   Dlink & operator = (const Dlink & l) noexcept
   {
+    if (l.is_empty())
+      return *this;
+
     assert(is_empty());
     prev = l.prev;
     next = l.next;
@@ -115,7 +153,7 @@ public:
 
       Assign a rvalue list to `this` without copying.
 
-       \note Since `l` is rvalue reference, take care of that if you are
+      \note Since `l` is rvalue reference, take care of that if you are
       interested in to avoid the copy. So, if you have a lvalue
       reference to a list, use `std::move()`, upon your responsability,
       if and only if you are absolutely sure that the list will not be
@@ -201,9 +239,6 @@ public:
     assert(next != nullptr and prev != nullptr);
     return next; 
   }
-
-  /// \overload get_next()
-  Dlink * top() noexcept { return get_next(); }
 
     /// Return the link that is before `this`
   Dlink *& get_prev() const noexcept
@@ -295,7 +330,7 @@ public:
 
   /** Insert a list `l` without header node after the node `this`.
 
-      @param[in] l list **without header node* to be inserted after `this`
+      @param[in] l list **without header node** to be inserted after `this`
    */
   void splice(Dlink * l) noexcept
   {
@@ -341,13 +376,14 @@ public:
   }
 
   /// Remove `this` from the list. `this` must not be a header node
-  void del() noexcept 
+  Dlink * del() noexcept 
   {
     assert(next != nullptr and prev != nullptr);
 
     prev->next = next;
     next->prev = prev;
     reset();
+    return this;
   }
 
       /// \overload del()
@@ -405,8 +441,18 @@ public:
     return remove_next();
   }
 
-  Dlink * pop() noexcept /// \overload remove_next()
+  /// \overload get_next()
+  Dlink * top()
   {
+    if (is_empty())
+      throw std::underflow_error("Dlink as stack is not empty");
+    return get_next();
+  }
+
+  Dlink * pop() /// \overload remove_next()
+  {
+    if (is_empty())
+      throw std::underflow_error("Dlink as stack is not empty");
     return remove_next();
   }
 
@@ -429,6 +475,9 @@ public:
     return counter;
   }
 
+  /// \overload reverse_list
+  size_t reverse() noexcept { return reverse_list(); }
+  
   /**  Split `this` in the middle in two lists.
 
        `split_list(l, r)` searches the middle of `this` an on this point
@@ -470,6 +519,9 @@ public:
 
        \warning Takes in account that the return value is `Dlink`
        object, not a pointer. 
+
+       \warning if `link` belongs to a list, then this one will be in
+       an inconsistent state 
 
        @param[in] link pointer to the item from which the cut will be
        done
@@ -572,7 +624,7 @@ public:
     }
     
         /// Put the iterator out of range
-    void end() noexcept
+    void end()
     {
       reset_last();
       next(); 
@@ -588,7 +640,10 @@ public:
     /// \overload has_current()
     bool has_curr() const noexcept { return has_current(); }
 
-    bool is_last() const noexcept { return curr == head->prev; }
+    bool is_last() const noexcept
+    {
+      return head->is_empty() ? false : curr == head->prev;
+    }
 
     /** Return the current node of iterator
 
@@ -609,10 +664,13 @@ public:
     Dlink * get_curr() const { return get_current(); }
 
         ///  Return `true` if the iterator is positiones on the first item
-    bool is_in_first() const noexcept { return curr == head->next; }
+    bool is_in_first() const noexcept
+    {
+      return head->is_empty() ? false : curr == head->next;
+    }
 
         ///  Return `true` if the iterator is positiones on the last item
-    bool is_in_last() const noexcept { return curr == head->prev; }
+    bool is_in_last() const noexcept { return is_last(); }
 
     /** Move the iterator one position backward
 
@@ -703,7 +761,10 @@ public:
   void rotate_left(size_t n)
   {
     if (is_empty())
-      throw std::domain_error("List is empty");
+      if (n == 0)
+	return;
+      else
+	throw std::domain_error("List is empty");
 
     for (size_t i = 0; i < n; ++i)
       append(remove_first());
@@ -713,7 +774,10 @@ public:
   void rotate_right(size_t n)
   {
     if (is_empty())
-      throw std::domain_error("List is empty");
+      if (n == 0)
+	return;
+      else
+	throw std::domain_error("List is empty");
 
     for (size_t i = 0; i < n; ++i)
       insert(remove_last());

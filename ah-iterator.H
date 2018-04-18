@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef AH_ITERATOR_H
 # define AH_ITERATOR_H
@@ -7,6 +29,8 @@ struct StlIterator : public SetType::Iterator
 {
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
+
+  using value_type = T;
 
   using Itor::Itor;
 
@@ -23,7 +47,7 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -35,21 +59,21 @@ struct StlIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const noexcept
+  bool operator != (const Itor & it) const
   {
     return not (*this == it);
   }
 
-  T & operator * () noexcept { return const_cast<T&>(this->get_curr()); }
+  T & operator * () { return const_cast<T&>(this->get_curr()); }
 
-  T * operator -> () noexcept { return &const_cast<T&>(this->get_curr()); }
+  T * operator -> () { return &const_cast<T&>(this->get_curr()); }
 
-  static StlIterator begin(const SetType & s) noexcept
+  static StlIterator begin(const SetType & s)
   {
     return StlIterator(s);
   }
 
-  static StlIterator end(const SetType & s) noexcept
+  static StlIterator end(const SetType & s)
   {
     StlIterator it(s);
     it.Itor::end();
@@ -64,6 +88,8 @@ struct StlConstIterator : public SetType::Iterator
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
 
+  using value_type = T;
+
   using Itor::Itor;
 
   Itor operator ++ ()
@@ -79,7 +105,7 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const noexcept
+  bool operator == (const Itor & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -90,24 +116,24 @@ struct StlConstIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const noexcept
+  bool operator != (const Itor & it) const
   {
     return not (*this == it);
   }
 
-  const T & operator * () const noexcept { return this->get_curr(); }
+  const T & operator * () const { return this->get_curr(); }
 
-  T const * operator -> () const noexcept
+  T const * operator -> () const
   { 
     return const_cast<T*>(&this->get_curr()); 
   }
 
-  static StlConstIterator cbegin(const SetType & s) noexcept
+  static StlConstIterator cbegin(const SetType & s)
   {
     return StlConstIterator(s);
   }
 
-  static StlConstIterator cend(const SetType & s) noexcept
+  static StlConstIterator cend(const SetType & s)
   {
     StlConstIterator it(s);
     it.Itor::end();

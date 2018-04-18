@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_ARRAYHEAP_H
 # define TPL_ARRAYHEAP_H
@@ -86,24 +108,18 @@ void sift_down_up(T * ptr, const size_t l, const size_t i, const size_t r,
         @ingroup Algos
      */
     template <typename T, class Compare = Aleph::less<T>> inline
-void heapsort(T * array, const size_t n, Compare & cmp) 
+void heapsort(T * array, const size_t n, Compare cmp = Compare()) 
 {
   Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
   --array; //desplazar posición hacia atrás ==> array[1] == primero
-  for (int i = 2; i <= n; ++i)
+  for (size_t i = 2; i <= n; ++i)
     sift_up <T, Aleph::Inversed_Compare<T, Compare>> (array, 1, i, inv_cmp);
-  for (int i = n; i > 1; --i)
+  for (size_t i = n; i > 1; --i)
     {
       std::swap(array[1], array[i]); // poner en raíz i-ésimo item 
       sift_down<T,Aleph::Inversed_Compare<T,Compare>>(array, 1, i - 1, inv_cmp);
     }
-}
-
-    template <typename T, class Compare = Aleph::less<T>> inline
-void heapsort(T * array, const size_t n, Compare && cmp = Compare())
-{
-  heapsort(array, n, cmp);
 }
 
     /** Ordena un arreglo por el método heapsort mejorado.
@@ -128,44 +144,31 @@ void heapsort(T * array, const size_t n, Compare && cmp = Compare())
         @ingroup Algos
      */
     template <typename T, class Compare = Aleph::less<T>> inline
-void faster_heapsort(T * array, const size_t n, Compare & cmp)
+void faster_heapsort(T * array, const size_t n, Compare cmp = Compare())
 {
   Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
   --array; // desplazar posición hacia atrás ==> array[1] == primero
-  for (int i = n/2; i >= 1; --i)
+  for (size_t i = n/2; i >= 1; --i)
     sift_down(array, i, n, inv_cmp);
-  for (int i = n; i > 1; --i)
+  for (size_t i = n; i > 1; --i)
     {
       std::swap(array[1], array[i]); // poner en raíz i-ésimo item 
       sift_down(array, 1, i - 1, inv_cmp);
     }
 }
 
-    template <typename T, class Compare = Aleph::less<T>> inline
-void faster_heapsort(T * array, const size_t n, Compare && cmp = Compare())
-{
-  faster_heapsort(array, n, cmp);
-}
-
-
    /// Retorna true si array entre l y r es un heap con criterio de
    /// comparación Compare()()
-      template <typename T, class Compare>
-bool valid_heap(T * array, const size_t l, const size_t r, Compare & cmp) 
+      template <typename T, class Compare = Aleph::less<T>>
+bool valid_heap(T * array, const size_t l, const size_t r,
+		Compare cmp = Compare()) 
 {
   size_t i;
   for (i = l_index(l) /* i = 2*l */; i <= r; i++)
     if (cmp(array[i], array[u_index (i)]))
       break;
   return i > r;
-}
-
-      template <typename T, class Compare>
-bool valid_heap(T * array, const size_t l, const size_t r, 
-		Compare && cmp = Compare()) 
-{
-  return valid_heap(array, l, r, cmp);
 }
 
      /** Heap o cola de prioridad implementada con arreglos.
@@ -195,7 +198,7 @@ class ArrayHeap :
 
   mutable bool array_allocated = true;
 
-  Compare & cmp;
+  Compare cmp;
 
   static size_t r_index(const size_t & i)
   {
@@ -222,28 +225,16 @@ public:
   Args_Ctor(ArrayHeap, T);
 
       /// Constructor con dimensión por omisión.
-  ArrayHeap(const size_t d, Compare & __cmp) 
+  ArrayHeap(const size_t d = 1024, Compare __cmp = Compare()) 
     : array(nullptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
   { 
     array = new T [d + 1];
     array_allocated = true;
   }
 
-  ArrayHeap(const size_t & d = 1024, Compare && cmp = Compare()) 
-    : ArrayHeap(d, cmp)
-  {
-    assert(array_allocated);
-  }
-
       /// Constructor con arreglo y dimensión.
-  ArrayHeap(T * ptr, const size_t & d, Compare & __cmp) 
+  ArrayHeap(T * ptr, const size_t & d, Compare __cmp = Compare()) 
     : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
-  { 
-    // empty
-  }
-
-  ArrayHeap(T * ptr, const size_t & d, Compare && cmp = Compare()) 
-    : ArrayHeap(ptr, d, cmp)
   { 
     // empty
   }

@@ -1,0 +1,666 @@
+==9405== Memcheck, a memory error detector
+==9405== Copyright (C) 2002-2015, and GNU GPL'd, by Julian Seward et al.
+==9405== Using Valgrind-3.11.0 and LibVEX; rerun with -h for copyright info
+==9405== Command: ./test-vector
+==9405== Parent PID: 16326
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x4088A9: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:377)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40995D: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:446)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF49: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:113)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:116)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF8E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:117)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF95: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF9F: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x407FC6: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:50)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x404F53: void std::swap<int>(int&, int&) (move.h:185)
+==9405==    by 0x40B040: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:199)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x407FE1: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:53)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x404F6A: void std::swap<int>(int&, int&) (move.h:186)
+==9405==    by 0x40B040: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:199)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x407FE1: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:53)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x405DB9: void std::swap<double>(double&, double&) (move.h:185)
+==9405==    by 0x40B05B: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:200)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x407FE1: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:53)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x405DD6: void std::swap<double>(double&, double&) (move.h:186)
+==9405==    by 0x40B05B: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:200)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x407FE1: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:53)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x4099CD: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:449)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409A28: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:453)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x409ABC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:459)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x40986A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::index_forward(unsigned long&) const (tpl_odhash.H:175)
+==9405==    by 0x409AFF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:465)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x4098AE: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::index_forward(unsigned long&) const (tpl_odhash.H:176)
+==9405==    by 0x409AFF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:465)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409B1B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:466)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409BEF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:481)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409C13: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:482)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF49: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:113)
+==9405==    by 0x409C4A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:483)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:116)
+==9405==    by 0x409C4A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:483)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF8E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:117)
+==9405==    by 0x409C4A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:483)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF95: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409C4A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:483)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF9F: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409C4A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:483)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x4088D6: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:380)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x408912: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:380)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408A0E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:389)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408A3B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:392)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x408A77: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:392)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x40986A: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::index_forward(unsigned long&) const (tpl_odhash.H:175)
+==9405==    by 0x408B5B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:403)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x4098AE: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::index_forward(unsigned long&) const (tpl_odhash.H:176)
+==9405==    by 0x408B5B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:403)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408B77: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:404)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408BF4: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:410)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x408C48: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:411)
+==9405==    by 0x407E41: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::search(int const&) const (tpl_dynSetOhash.H:66)
+==9405==    by 0x405C6F: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:132)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x409B71: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:469)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409C84: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:486)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40995D: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:446)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF49: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:113)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:116)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF8E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:117)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF95: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF9F: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409993: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:447)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x404F53: void std::swap<int>(int&, int&) (move.h:185)
+==9405==    by 0x40B040: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:199)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x4094A2: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:185)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x404F6A: void std::swap<int>(int&, int&) (move.h:186)
+==9405==    by 0x40B040: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:199)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x4094A2: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:185)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x405DB9: void std::swap<double>(double&, double&) (move.h:185)
+==9405==    by 0x40B05B: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:200)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x4094A2: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:185)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x405DD6: void std::swap<double>(double&, double&) (move.h:186)
+==9405==    by 0x40B05B: std::pair<int, double>::swap(std::pair<int, double>&) (stl_pair.h:200)
+==9405==    by 0x409CD4: void std::swap<int, double>(std::pair<int, double>&, std::pair<int, double>&) (stl_pair.h:256)
+==9405==    by 0x4094A2: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:185)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x4099CD: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:449)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409A28: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:453)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409A4B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:455)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF49: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:113)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:116)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF8E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:117)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF95: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF9F: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x40948B: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::resize(unsigned long const&) (hashDry.H:184)
+==9405==    by 0x409DCC: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:342)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x4088A9: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:377)
+==9405==    by 0x409DDF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:344)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x4088D6: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:380)
+==9405==    by 0x409DDF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:344)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AB72: std::equal_to<int>::operator()(int const&, int const&) const (stl_function.h:357)
+==9405==    by 0x40ABBB: Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >::operator()(std::pair<int, double> const&, std::pair<int, double> const&) const (ahDry.H:580)
+==9405==    by 0x408912: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:380)
+==9405==    by 0x409DDF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:344)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408946: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:382)
+==9405==    by 0x409DDF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:344)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x408982: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::search(std::pair<int, double> const&) const (tpl_odhash.H:383)
+==9405==    by 0x409DDF: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:344)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Conditional jump or move depends on uninitialised value(s)
+==9405==    at 0x409DE9: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:345)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409CE8: bool std::operator==<int, double>(std::pair<int, double> const&, std::pair<int, double> const&) (in /home/lrleon/Aleph-w/test-vector)
+==9405==    by 0x409E16: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:346)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409CF8: bool std::operator==<int, double>(std::pair<int, double> const&, std::pair<int, double> const&) (in /home/lrleon/Aleph-w/test-vector)
+==9405==    by 0x409E16: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::test_resize(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket*, std::pair<int, double> const&) (tpl_odhash.H:346)
+==9405==    by 0x408006: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:55)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x409A4B: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:455)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF49: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:113)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:116)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF8E: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:117)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF95: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== Use of uninitialised value of size 8
+==9405==    at 0x40AF9F: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::Bucket&, unsigned char) (tpl_odhash.H:118)
+==9405==    by 0x409A82: Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >::allocate_bucket(std::pair<int, double> const&) (tpl_odhash.H:456)
+==9405==    by 0x407FBC: OhashCommon<Aleph::ODhashTable<std::pair<int, double>, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> > >, std::pair<int, double> >::insert(std::pair<int, double>&&) (hashDry.H:49)
+==9405==    by 0x405E86: Aleph::MapOpenHash<int, double, Aleph::Dft_Pair_Cmp<int, double, std::equal_to<int> >, Aleph::ODhashTable>::insert(int const&, double const&) (tpl_dynSetOhash.H:45)
+==9405==    by 0x405CCC: Aleph::Vector<int, double>::set_entry(int const&, double const&) (al-vector.H:143)
+==9405==    by 0x4049CC: Aleph::Vector<int, double>::Vector(Aleph::AlDomain<int> const&, Aleph::DynList<double> const&, double const&) (al-vector.H:99)
+==9405==    by 0x40261C: main (test-vector.C:55)
+==9405== 
+==9405== 
+==9405== HEAP SUMMARY:
+==9405==     in use at exit: 77,720 bytes in 3 blocks
+==9405==   total heap usage: 53 allocs, 50 frees, 80,300 bytes allocated
+==9405== 
+==9405== LEAK SUMMARY:
+==9405==    definitely lost: 0 bytes in 0 blocks
+==9405==    indirectly lost: 0 bytes in 0 blocks
+==9405==      possibly lost: 0 bytes in 0 blocks
+==9405==    still reachable: 77,720 bytes in 3 blocks
+==9405==         suppressed: 0 bytes in 0 blocks
+==9405== Rerun with --leak-check=full to see details of leaked memory
+==9405== 
+==9405== For counts of detected and suppressed errors, rerun with: -v
+==9405== Use --track-origins=yes to see where uninitialised values come from
+==9405== ERROR SUMMARY: 222 errors from 69 contexts (suppressed: 0 from 0)

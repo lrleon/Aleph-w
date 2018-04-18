@@ -1,6 +1,29 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef BLOOM_FILTER_H
 # define BLOOM_FILTER_H
 
+# include <memory>
 # include <gsl/gsl_rng.h>
 # include <cmath>
 # include <iostream>
@@ -23,15 +46,18 @@ private:
 
   BitArray bits;
 
-  mutable Hash_Fct hash_fct = nullptr;  
-  mutable size_t num_hash   = 0;
-  unsigned long * seeds     = nullptr;
-  unsigned long * fst_seed  = nullptr;
-  unsigned long * last_seed = nullptr;
-  size_t num_ins            = 0;
+  mutable Hash_Fct hash_fct        = nullptr;  
+  mutable unsigned long num_hash   = 0;
+  unsigned long * seeds            = nullptr;
+  unsigned long * fst_seed         = nullptr;
+  unsigned long * last_seed        = nullptr;
+  size_t num_ins                   = 0;
 
 public:
 
+  /**
+
+   */
   static tuple<size_t, size_t> estimate(const size_t n, const double p)
   {
     assert(p > 0 and p < 1);
@@ -59,15 +85,14 @@ public:
       fst_seed(&seeds[0]), last_seed(&seeds[num_hash])
   {
     bits.reserve(dim);
-    gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-    if (r == nullptr)
+    unique_ptr<gsl_rng, void(*)(gsl_rng*)>
+      r(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free);
+    if (r.get() == nullptr)
       throw std::bad_alloc();
-    gsl_rng_set(r, seed % gsl_rng_max(r));
+    gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
 
     for (auto ptr = fst_seed; ptr < last_seed; ++ptr)
-      *ptr = gsl_rng_get(r);
-
-    gsl_rng_free(r);
+      *ptr = gsl_rng_get(r.get());
   }
 
   Bloom_Filter(size_t n, double p,

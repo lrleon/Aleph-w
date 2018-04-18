@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 
 # ifndef TPL_RAND_TREE_H
 # define TPL_RAND_TREE_H
@@ -52,7 +74,7 @@ private:
 
   Node *    tree_root; 
   gsl_rng * r;
-  Compare & cmp;
+  Compare   cmp;
 
   Node * random_insert(Node * root, Node * p) noexcept
   {
@@ -105,7 +127,7 @@ private:
 
   Gen_Rand_Tree& operator = (const Gen_Rand_Tree&);
 
-  void init(unsigned long seed) noexcept
+  void init(unsigned long seed)
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
 
@@ -131,25 +153,16 @@ public:
 
   /// Initialize a random tree with random `seed` and comparison criteria
   /// `__cmp` 
-  Gen_Rand_Tree(unsigned int seed, Compare & __cmp) noexcept
+  Gen_Rand_Tree(unsigned int seed, Compare __cmp = Compare()) noexcept
     : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
   {
     init(seed);
   }
 
-  Gen_Rand_Tree(unsigned int seed, Compare && cmp = Compare()) noexcept
-    : Gen_Rand_Tree(seed, cmp)
-  {
-    // empty 
-  }
-
   /// Initialize a random tree with random seed from system time and
   /// comparison criteria `cmp`
-  Gen_Rand_Tree(Compare & cmp) noexcept 
+  Gen_Rand_Tree(Compare cmp = Compare()) noexcept 
   : Gen_Rand_Tree(time(nullptr), cmp) { /* empty */ }
-
-  Gen_Rand_Tree(Compare && cmp = Compare()) noexcept
-    : Gen_Rand_Tree(time(nullptr), std::forward<Compare>(cmp)) { /* empty */ }
 
   /// Swap in constant time all the nodes of `this` with `tree`
   void swap(Gen_Rand_Tree & tree) noexcept
@@ -327,7 +340,7 @@ public:
       @return a valid pointer to the i-th node inorder sense
       @throw out_of_range if i is greater or equal that the number of nodes
   */
-  Node * select(const size_t i) const noexcept
+  Node * select(const size_t i) const
   {
     return Aleph::select(tree_root, i); 
   }

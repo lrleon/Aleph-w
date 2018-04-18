@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef PRIM_H
 # define PRIM_H
 
@@ -12,8 +34,8 @@ using namespace Aleph;
     template <class GT> 
 struct Prim_Info
 {
-  typename GT::Node * tree_node; // imagen en el árbol abarcador
-  void *              heap_node; // puntero en el heap exclusivo
+  typename GT::Node * tree_node = nullptr; // imagen en el árbol abarcador
+  void *              heap_node = nullptr; // puntero en el heap exclusivo
 
   Prim_Info() : tree_node(nullptr), heap_node(nullptr) { /* empty */ } 
 };
@@ -126,8 +148,8 @@ class Prim_Min_Spanning_Tree
 
   typedef ArcHeap<GT, Distance, Acc_Simple_Heap> Simple_Heap;
 
-  Distance & dist;
-  SA &       sa; 
+  Distance dist;
+  SA       sa; 
 
 public:
 
@@ -137,14 +159,7 @@ public:
       \param[inout] __cmp comparación entre distancias de arco
       \param[inout] __sa filtro de iterador de arcos
   */
-  Prim_Min_Spanning_Tree(Distance && __dist = Distance(),  
-			 SA &&       __sa = SA())
-    : dist(__dist), sa(__sa)
-  {
-    // empty
-  }
-
-  Prim_Min_Spanning_Tree(Distance & __dist, SA & __sa)
+  Prim_Min_Spanning_Tree(Distance __dist = Distance(), SA __sa = SA())
     : dist(__dist), sa(__sa)
   {
     // empty

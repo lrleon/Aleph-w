@@ -1,3 +1,25 @@
+/* 
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
+                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
+
+  Leandro Rabindranath Leon / Alejandro Mujica
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see
+  <https://www.gnu.org/licenses/>.
+*/
 # ifndef TPL_DYNSETOHASH_H
 # define TPL_DYNSETOHASH_H
 
@@ -125,17 +147,17 @@ namespace Aleph
 	return this->find(move(key));
       }
 
-      void remove_by_data(Data & data) noexcept
+      void remove_by_data(Data & data)
       {
 	Base::remove_ptr(data_to_pair(&data));
       }
 
-      void remove(const Key & key) noexcept
+      void remove(const Key & key)
       {
 	Base::remove(Pair(key, Data()));
       }
 
-      void remove(Key && key) noexcept
+      void remove(Key && key)
       {
 	Base::remove(Pair(move(key), Data()));
       }
@@ -176,8 +198,7 @@ namespace Aleph
       using Base = MapOpenHash<Key, Data, Cmp, OLhashTable>;
       using Base::Base;
 
-      MapOLhash()
-	: Base()
+      MapOLhash() : Base()
       {
 	this->set_hash_fct(map_dft_hash_fct);
       }
@@ -191,16 +212,12 @@ namespace Aleph
       using Base = MapOpenHash<Key, Data, Cmp, ODhashTable>;
       using Base::Base;
 
-      MapODhash()
-	: Base()
+      MapODhash() : Base()
       {
 	this->set_hash_fct(map_dft_hash_fct);	
 	this->set_second_hash_fct(map_snd_hash_fct);
       }
     };
-  
-  
-  
   
 } // end namespace Aleph
 
