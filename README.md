@@ -1,3 +1,32 @@
+# Aleph-w
+
+## Purpose
+
+### Sequences
+
+### Functional programming
+
+### Trees
+
+### Hash tables
+
+### Graphs
+
+
+## Network flows
+
+
+## Integration
+
+
+### Requirements
+
+### Building
+
+
+### Use in projects
+
+## LICENSE
 This a alpha release of version 1.3 of Aleph-w. This release has
 passed all my tests. Unfortunately, my tests are not fully automated; by
 this reason, I warn about the alpha character of this release.

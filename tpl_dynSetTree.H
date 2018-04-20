@@ -268,7 +268,7 @@ public:
      @return a pair whose first field is a pointer to the found or
      inserted key and the second field is a boolean whose value is
      `false` if the key was inserted; `true` otherwise, that is if the
-     key is already present in the tree
+     key is already present in the tree.
    */
   pair<Key*, bool> contains_or_insert(const Key & key)
   {
@@ -279,7 +279,7 @@ public:
   pair<Key*, bool> contains_or_insert(Key && key)
   {
     auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
-    return pair<Key&, bool>(&p.first->get_key(), p.second);
+    return pair<Key*, bool>(&p.first->get_key(), p.second);
   }
 
 private:
