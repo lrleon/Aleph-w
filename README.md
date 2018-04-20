@@ -1,6 +1,28 @@
 # Aleph-w
 
-## Purpose
+Aleph-w is a library of data structures and algorithms implemented in
+and for C++.
+
+It contains the most popular data structures: single and double lists, special
+arrays (dynamic and of bits), many types of trees: multitrees, binary
+search trees, avl, red-black, randomized, treaps, splay and other
+interesting types.
+
+Several types of hash tables are implemented: separated chaining, open
+adressing with linear probing and double function hash; this last one
+has a garbage colector mechanism that allows to free deleted
+entries. Dynamic linear hash tables are implemented too.
+
+The main algorithms on graphs are implemented in an easy way and with
+good performance features. Network Flow (maximum and min cost), cut
+points, topological sort, spanning trees, min paths. etc. The graphs
+are generic in the sense that they can contain data independent of the
+algorithm.
+
+The more popular part of algorithmic related to network flows has been
+implemented, including networks with costs.
+
+## Brief description of main components
 
 ### Sequences
 
@@ -27,73 +49,11 @@
 ### Use in projects
 
 ## LICENSE
-This a alpha release of version 1.3 of Aleph-w. This release has
-passed all my tests. Unfortunately, my tests are not fully automated; by
-this reason, I warn about the alpha character of this release.
 
-Please email me to leandro.r.leon@gmail.com for reporting bugs or
-problems.
+## License
 
-This version *only* compiles with clang version 3.4. Unhappily gcc 4.8.2
-fails to compile all the library; specially some functional primitives
-and methods that use the std::function wrapper, 
-
-Between the main characteristics of this release are:
-
-1-. Support for functional programming. 
-
-    All container of Aleph-w has the following functional primitives:
-
-    a- for_each: traverse all the items of container and executes a
-       first order function on each item
-
-    b- all, forall: traverse all the items and executes a first order
-       function l until that l returns false
-
-    c- exists: traverse all the items and executes a first order
-       function l while l returns true
-
-    d- map: traverse the container and for each item executes an first
-       order function l that maps the item to another item in another
-       container type. This function almost always requires template
-       argument for indicating the target container type and the mapped
-       type.
-
-    e. foldl: executes on each item of a container a function 
-       l(T, item). The function returns a T resulting of accumulate on
-       each item l(T, item)
-
-    f. filter: traverse the container and for each item executes an first
-       order function l that filter the item. If l returns true, then
-       the item is copied to the target container. 
-
-    g. partition: analogous to filter, but returns a pair of container
-       with the filtered items and the not filtered.
-
-    h. The graph's api exports these primitives, but according to
-       objects type, By example, for_each_node() traverse all the nodes
-       of graph.
-
-2-. Support for move semantic.
-
-    All containers have move semantic, both constructors and assignment
-    as in insertion methods.
-
-3-. Hash tables are been improved. Now, it is preferable to use hash
-    tables for mappings than trees. However, trees are still an
-    alternative. 
-
-    There are several types of hash tables:
-
-    a-. OLhashTable: simple open addressing. The most concise in space
-
-    b- ODHashTable: double hash. Probably the better in terms of space
-       and speed. 
-
-    c- DynLhashTable: separated chaining.
-
-    d- LinearHashTable: linear hash table. This table resizes
-       progressively. The others resize when the upper and lower bounds
-       are reached.
-
- 
+See
+[LICENSE](https://github.com/lrleon/Aleph-w/blob/master/LICENSE). Copyright
+(c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012,
+2013, 2014, 2015, 2016, 2017, 2018 Leandro Rabindranath Leon and
+Alejandro Mujica
