@@ -4,25 +4,25 @@ TMP=/home/lrleon/tmp
 
 rm -rf $TMP/Aleph-w
 mkdir $TMP/Aleph-w
-cp COPYRIGHT Imakefile README INSTALL depend.sh $TMP/Aleph-w/
+mkdir $TMP/Aleph-w/Examples
+mkdir $TMP/Aleph-w/Tests
+cp LICENSE Imakefile README INSTALL depend.sh $TMP/Aleph-w/
 cp *.[hcHC] $TMP/Aleph-w/
+cp Examples/*.C $TMP/Aleph-w/Examples
+cp Examples/*.cc $TMP/Aleph-w/Examples
+cp Examples/Imakefile $TMP/Aleph-w/Examples
+cp Examples/depend.sh $TMP/Aleph-w/Examples
+cp Tests/*.cc $TMP/Aleph-w/Tests
+cp Tests/all-test $TMP/Aleph-w/Tests
+cp Tests/run-test $TMP/Aleph-w/Tests
 
 NODOC=/home/lrleon/bin/nodoxygen 
 
 CURR=`pwd`
 
-list=`ls *.[hcHC]`
 cd $TMP/Aleph-w/
-for f in $list
-do
-    name=`basename $f`
-    echo "generating" $f
-    $NODOC $f > $f.temp1
-    cat COPYRIGHT $f.temp1 > $f 
-    rm $f.temp[12]
-done
 cd ..
 tar -jcvf alephw.tbz Aleph-w/
 cd $CURR
-#tar -zcvf aleph.tgz aleph/
+
 
