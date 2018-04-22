@@ -9,8 +9,8 @@ search trees, avl, red-black, randomized, treaps, splay and other
 interesting types.
 
 Several types of hash tables are implemented: separated chaining, open
-adressing with linear probing and double function hash; this last one
-has a garbage colector mechanism that allows to free deleted
+addressing with linear probing and double function hash; this last one
+has a garbage collector mechanism that allows to free deleted
 entries. Dynamic linear hash tables are implemented too.
 
 The main algorithms on graphs are implemented in an easy way and with
@@ -19,26 +19,12 @@ points, topological sort, spanning trees, min paths. etc. The graphs
 are generic in the sense that they can contain data independent of the
 algorithm.
 
-The more popular part of algorithmic related to network flows has been
+The more popular part of algorithmic related to network flows is
 implemented, including networks with costs.
-
-## Brief description of main components
-
-### Sequences
-
-### Functional programming
-
-### Trees
-
-### Hash tables
-
-### Graphs
-
-
-## Network flows
 
 
 ## Integration
+
 
 
 ### Requirements
