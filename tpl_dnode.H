@@ -36,7 +36,7 @@ using namespace Aleph;
 
 namespace Aleph {
 
-    /** Node belongig to a double circular linked list with header node.
+    /** Node belonging to a double circular linked list with header node.
 
         @ingroup Secuencias
         @see Dnode::Iterator
