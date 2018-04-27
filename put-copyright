@@ -32,7 +32,7 @@ note = %Q<
 */
 >
 
-pat = /\/\*.*This file is part of Aleph-w library.*?\*\/\n/m
+pat = /[\s\n]*\/\*.*Aleph-w.*?\*\/\n/m
 
 file_name = ARGV.shift
 
