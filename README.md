@@ -42,12 +42,9 @@ distinctive principles:
      level, the class `Dnode<T>` handles a node belonging to a double
      list of nodes (not items) without memory management. Finally, the
      class `DynDlist<T>` handles a list of items, with full memory
-     management.
-	 
+     management. 
 	
-
-Thus,
-     you could have something like this:
+Thus, you could have something like this:
 	 
     struct MyNode
 	{
@@ -95,3 +92,9 @@ Thus,
 See
 [LICENSE](https://github.com/lrleon/Aleph-w/blob/master/LICENSE). Copyright
 (c) 2002-2018 Leandro Rabindranath Leon and Alejandro Mujica
+
+
+<a href="https://scan.coverity.com/projects/lrleon-aleph-w">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/13802/badge.svg"/>
+</a>
