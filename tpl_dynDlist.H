@@ -392,24 +392,23 @@ public:
     }
 
     /// Reset the iterator to the first item
-    void reset_first()
+    void reset_first() noexcept
     {
       Dnode<T>::Iterator::reset_first();
       pos = 0;
     }
 
     /// Reset the iterator to the last item
-    void reset_last()
+    void reset_last() noexcept
     {
       Dnode<T>::Iterator::reset_last();
       pos = list_ptr->num_elem - 1;
     }
 
     /// Put theiterator at the end state (where there is no current item)
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
     /// Initialize the iterator to the first item of `list`

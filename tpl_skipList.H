@@ -52,7 +52,6 @@
   it's very important don't forget this condition, if you use 
   operator (New) instead of NewSize then will crash your code.
 */
-
     template <class Key, class Type> 
 class SkipList
 {

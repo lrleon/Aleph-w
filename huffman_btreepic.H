@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,8 +23,9 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
 # include <cstdlib>
+# include <tpl_dynMapTree.H>
+# include <Huffman.H>
 
 enum Offset { NO_OFFSET, LEFT, RIGHT };
 
@@ -50,7 +50,7 @@ DynMapTree<Freq_Node *, Infix_Desc, Treap> infix_table;
 struct Level_Desc
 {
   bool        is_left;
-  Freq_Node * level_succ;
+  Freq_Node * level_succ = nullptr;
 
   Level_Desc() {}
 

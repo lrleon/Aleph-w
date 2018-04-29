@@ -103,7 +103,8 @@ public:
 
   public:
 
-    Cache_Entry() : locked(false), is_in_hash_table(false) { /* empty */ }
+    Cache_Entry()
+      : data(), locked(false), is_in_hash_table(false) { /* empty */ }
 
         /// Retorna una referencia al dato asociado a la clave
     Data & get_data() { return data; }

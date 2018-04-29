@@ -42,6 +42,8 @@ using namespace std;
 
 enum EmptyCtor { emptyCtor };
 
+enum NoExceptionCtor { no_exception_ctor };
+
 enum SentinelCtor { sentinelCtor };
 
 namespace Aleph

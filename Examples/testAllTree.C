@@ -94,16 +94,6 @@ void test(unsigned long n, gsl_rng * r)
   
   cout << endl;
 
-  cout << "Test test ... " << endl;
-
-  for (i = 0; i < n; i++)
-    {
-      value = gsl_rng_uniform_int(r, max);
-      tree.search(value);
-    }
-  
-  cout << endl;
-
   cout << "The path length is " << tree.internal_path_length() << endl;
 
   cout << "The height is " << tree.height() << endl;

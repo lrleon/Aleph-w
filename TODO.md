@@ -78,3 +78,6 @@
 ## 26. probar algos sobre grafos
 - Created at   2017-09-23 19:46:23 -0400
 
+## 27. dry de patro end para iteradores
+- Created at   2018-04-29 15:32:55 -0400
+

@@ -231,7 +231,7 @@ class DynArray :
     if (n >= Max_Bits_Allowed)
       throw std::overflow_error ("number of bits exceeds maximum allowed");
 
-    return 1 << n;
+    return size_t(1) << n;
   }
 
   static size_t compute_dim(size_t d, size_t s, size_t b)

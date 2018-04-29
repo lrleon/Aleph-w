@@ -799,10 +799,9 @@ public:
     }
 
     /// Put the iterator in the end state
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
         /** Put the iterator to a node according to specific key

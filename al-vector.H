@@ -92,7 +92,7 @@ public:
   Vector(const Domain & d, const NumType & zero = default_epsilon)
     : domain_ptr(&const_cast<Domain&>(d)), epsilon(zero)
   {
-    test_epsilon(epsilon);
+    //Empty
   }
 
   Vector(const Vector & v)

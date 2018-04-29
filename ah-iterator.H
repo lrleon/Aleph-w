@@ -72,12 +72,12 @@ struct StlIterator : public SetType::Iterator
 
   T * operator -> () { return &const_cast<T&>(this->get_curr()); }
 
-  static StlIterator begin(const SetType & s)
+  static StlIterator begin(const SetType & s) noexcept
   {
     return StlIterator(s);
   }
 
-  static StlIterator end(const SetType & s)
+  static StlIterator end(const SetType & s) noexcept
   {
     StlIterator it(s);
     it.Itor::end();
@@ -132,12 +132,12 @@ struct StlConstIterator : public SetType::Iterator
     return const_cast<T*>(&this->get_curr()); 
   }
 
-  static StlConstIterator cbegin(const SetType & s)
+  static StlConstIterator cbegin(const SetType & s) noexcept
   {
     return StlConstIterator(s);
   }
 
-  static StlConstIterator cend(const SetType & s)
+  static StlConstIterator cend(const SetType & s) noexcept
   {
     StlConstIterator it(s);
     it.Itor::end();

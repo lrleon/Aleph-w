@@ -34,5 +34,13 @@
 # include <ahUtils.H>
 # include <ahAssert.H>
 
+template <class Itor> inline
+void put_itor_at_the_end(Itor & it) noexcept
+{
+  it.reset_last();
+  if (it.has_curr())
+    it.next();
+}
+
 # endif /* ALEPH_H */
 

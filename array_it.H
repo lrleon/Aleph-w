@@ -29,6 +29,8 @@
 
 # include <cassert>
 # include <tuple>
+# include <aleph.H>
+# include <ahDefs.H>
 # include <htlist.H>
 
 namespace Aleph {
@@ -76,6 +78,17 @@ public:
        throw std::domain_error("Array_Iterator(): first >= dim");
      if (last >= dim)
        throw std::domain_error("Array_Iterator(): last >= dim");
+  }
+
+  /** Constructor no throwing exception. 
+
+      It is similar to the previous buy it is guaranteed that no
+      exception will be thrown
+   */
+  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
+    : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+  {
+    assert(ptr);
   }
 
   Array_Iterator(const Array_Container<T> & c)
@@ -136,8 +149,7 @@ public:
 
   void end() noexcept
   {
-    reset_last();
-    next();
+    put_itor_at_the_end(*this);
   }
 };
 

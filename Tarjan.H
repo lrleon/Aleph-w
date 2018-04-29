@@ -61,7 +61,7 @@ class Tarjan_Connected_Components
   mutable size_t n = 0; // número de nodos del grafo
 
       // lista de listas; cada lista almacena los nodos de los bloques
-  DynList<DynList<typename GT::Node*>> * list_list_ptr; 
+  DynList<DynList<typename GT::Node*>> * list_list_ptr = nullptr; 
 
   DynList <GT> * block_list_ptr = nullptr; // lista de bloques fuertemente conexos
 

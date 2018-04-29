@@ -460,7 +460,7 @@ public:
     Iterator() noexcept { /* Empty */ }
 
         /// Reinicia el iterador sobre la primera cubeta.
-    void reset_first()
+    void reset_first() noexcept
     {
       curr_index = -1;
       curr_pos = 1;
@@ -468,17 +468,16 @@ public:
     }
 
         /// Reinicia el iterador sobre la última cubeta.
-    void reset_last()
+    void reset_last() noexcept
     { 
       curr_index = hash_table->len;
       curr_pos = hash_table->N - 1;
       locate_prev_available_entry();
     }
 
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
         /// Retorna true si el iterador tiene cubeta actual.

@@ -530,7 +530,8 @@ public:
     using Base::Base;
     using Set_Type = FixedStack;
 
-    Iterator(const FixedStack<T> & s) : Base(s.array, s.dim, s.head) {}
+    Iterator(const FixedStack<T> & s)
+      : Base(no_exception_ctor, s.array, s.dim, s.head) {}
   };
 };
 

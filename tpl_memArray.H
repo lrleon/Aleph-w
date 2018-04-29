@@ -626,8 +626,8 @@ public:
     using Base::Base;
 
     /// Construct an iterator on array `a`
-    Iterator(const MemArray<T> & a)
-      : Array_Iterator<T>(a.ptr, a.dim, a.n)
+    Iterator(const MemArray<T> & a) noexcept
+      : Array_Iterator<T>(no_exception_ctor, a.ptr, a.dim, a.n)
     {
       assert(a.ptr != nullptr);
     }

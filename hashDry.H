@@ -28,6 +28,8 @@
 # ifndef HASHDRY_H
 # define HASHDRY_H
 
+# include <aleph.H>
+
 template <class HashTbl, typename Key>
 class OhashCommon
 {
@@ -332,10 +334,9 @@ public:
       assert(check());
     }
 
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
     long get_pos() const noexcept { return ordinal; }

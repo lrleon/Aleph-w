@@ -628,10 +628,9 @@ public:
     }
     
         /// Put the iterator out of range
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next(); 
+      put_itor_at_the_end(*this);
     }
 
         /// Return `true` if the iterator has current item

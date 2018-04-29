@@ -1727,7 +1727,7 @@ public:
   void reset_last() noexcept { it.reset_last(); }
 
   /// Put the iterator in end state
-  void end() { reset_last(); next(); }
+  void end() noexcept { put_itor_at_the_end(*this); }
 };
 
 
