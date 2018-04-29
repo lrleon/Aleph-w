@@ -342,7 +342,8 @@ public:
 
         /// Instancia un iterador sobre el nodo _src_node
     Node_Arc_Iterator(Node * src) noexcept
-      : Array_Iterator<void*>(src->arc_array, src->arcs_dim, src->num_arcs), 
+      : Array_Iterator<void*>(no_exception_ctor,
+			      src->arc_array, src->arcs_dim, src->num_arcs), 
 	src_node(src)
     {
       // empty 

@@ -373,7 +373,7 @@ public:
       cout << "Loading " << num_nodes << " nodes ...";
 
     DynArray<typename GT::Node*> nodes_table(num_nodes);
-    nodes_table.reserve(0, num_nodes - 1);
+    nodes_table.reserve(0, num_nodes - size_t(1));
 
     for (size_t i = 0; i < num_nodes; ++i)
       {

@@ -81,7 +81,6 @@ public:
 
   void set_epsilon(const NumType & e) 
   {
-    test_epsilon(e);
     epsilon = e;
   }
 
@@ -112,7 +111,6 @@ public:
 	 const NumType & zero = default_epsilon)
     : domain_ptr(&d), epsilon(zero)
   {
-    test_epsilon(epsilon);
     if (l.size() != domain_ptr->size())
       throw std::range_error("Vector(DynList): list sizes does'n match");
 

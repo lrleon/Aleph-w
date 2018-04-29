@@ -415,10 +415,9 @@ public:
 
   struct Iterator : public Array_Iterator<T>
   {
-    // Iterator() {}
-
     Iterator(const ArrayHeap & h) noexcept
-    : Array_Iterator<T>(h.array + 1, h.dim, h.num_items) { /* empty */ }
+      : Array_Iterator<T>(no_exception_ctor, h.array + 1, h.dim, h.num_items)
+    { /* empty */ }
   };
 
 private:
