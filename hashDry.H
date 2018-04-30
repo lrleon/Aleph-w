@@ -29,6 +29,7 @@
 # define HASHDRY_H
 
 # include <aleph.H>
+# include <tpl_dynArray.H>
 
 template <class HashTbl, typename Key>
 class OhashCommon
