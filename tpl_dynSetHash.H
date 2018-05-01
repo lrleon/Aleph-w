@@ -78,6 +78,8 @@ public:
       /// El tipo de función hash.
   using Hash_Fct = typename Base::Hash_Fct;
 
+  using Hash_Fct_Ptr = typename Base::Hash_Fct_Ptr;
+
   using Key_Type = Key;
 
   using Item_Type = Key;
@@ -391,18 +393,17 @@ public:
   using Base::insert;
   using Iterator = typename Base::Iterator;
 
-  typedef size_t (*Hash_Fct)(const Pair&);
+  using Hash_Fct = std::function<size_t(const Key&)>;
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-  DynMapHashTable(size_t len, Hash_Fct hash_fct, Cmp & cmp, 
-		  float lower_alpha, float upper_alpha)
-    : Base(len, hash_fct, cmp, lower_alpha, upper_alpha) {}
-
-  DynMapHashTable(size_t len        = Primes::DefaultPrime, 
-		  Hash_Fct hash_fct = map_dft_hash_fct, 
-		  Cmp && cmp        = Cmp(), 
-		  float lower_alpha = hash_default_lower_alpha, 
-		  float upper_alpha = hash_default_upper_alpha)
-    : DynMapHashTable(len, hash_fct, cmp, lower_alpha, upper_alpha) {}
+  DynMapHashTable(size_t len          = Primes::DefaultPrime, 
+		  Hash_Fct_Ptr hash_fct = dft_hash_fct, 
+		  Cmp cmp               = Cmp(), 
+		  float lower_alpha     = hash_default_lower_alpha, 
+		  float upper_alpha     = hash_default_upper_alpha)
+    : Base(len, std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
+			  hash_fct, std::placeholders::_1),
+	   cmp, lower_alpha, upper_alpha) {}
 
   /// Inserta en el mapeo hash el par (key,record) indizado por la clave
   /// key. Retorna un puntero al registro dentro de la tabla. Dispara la

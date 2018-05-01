@@ -82,7 +82,9 @@ public:
 
   using Bucket = BucketType;
 
-  typedef size_t (*Hash_Fct)(const Key &);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
   using Key_Type = Key;
 
@@ -191,6 +193,11 @@ public:
     hash_fct = fct;
   }
 
+  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    hash_fct = Hash_Fct(fct);
+  }
+
   /// return the current table load
   float current_alpha() const noexcept { return 1.0*N/len; }
 
@@ -198,7 +205,7 @@ public:
       /// la clave no está en la tabla; de lo contrario se retorna nullptr
   Bucket * insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -220,7 +227,7 @@ public:
   // dentro de la tabla. De lo contrario inserta y retorna bucket
   Bucket * search_or_insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -243,7 +250,7 @@ public:
     /// a la cubeta si se encuentra; nullptr de lo contrario.
   Bucket * search(const Key & key) const noexcept
   {
-    const auto i = (*hash_fct)(key) % len;
+    const auto i = hash_fct(key) % len;
     return search_in_bucket_list(table[i], key);
   }
 

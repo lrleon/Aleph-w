@@ -27,29 +27,12 @@
 # include <gmock/gmock.h>
 
 # include <tpl_dynSetOhash.H>
+# include <tpl_dynSetHash.H>
 
 using namespace std;
 using namespace testing;
 
 using P = pair<size_t, string>;
-
-inline size_t fst_hast(const P & p) noexcept
-{
-  return dft_hash_fct(p.first);
-}
-
-inline size_t snd_hash(const P & p) noexcept
-{
-  return snd_hash_fct(p.first);
-}
-
-struct PEq
-{
-  bool operator () (const P & p1, const P & p2) const noexcept
-  {
-    return p1.first == p2.first;
-  }
-};
 
 template <class HashTbl>
 struct OHashTest : public ::testing::Test
@@ -89,36 +72,11 @@ TYPED_TEST_P(OHashTest, basic)
 
 REGISTER_TYPED_TEST_CASE_P(OHashTest, basic);
 
-typedef
-Types<MapODhash<size_t, string, PEq>, MapOLhash<size_t, string, PEq>> HashTypes;
+typedef Types<MapODhash<size_t, string>,
+	      MapOLhash<size_t, string>,
+	      DynMapLinHash<size_t, string>,
+	      DynMapHash<size_t, string>> HashTypes;
 
 INSTANTIATE_TYPED_TEST_CASE_P(Open, OHashTest, HashTypes);
 
-// TEST(ODhashTable, Map)
-// {
-//   MapODhash<size_t, string> tbl;
 
-//   EXPECT_EQ(tbl.size(), 0);
-//   EXPECT_TRUE(tbl.is_empty());
-
-//   for (size_t i = 0; i < 100; ++i)
-//     {
-//       EXPECT_EQ(tbl.size(), i);
-//       tbl.emplace(i, to_string(i));
-//       EXPECT_EQ(tbl.size(), i + 1);
-//       auto ptr = tbl.search(i);
-//       EXPECT_NE(ptr, nullptr);
-//       EXPECT_EQ(ptr->first, i);
-//       EXPECT_EQ(ptr->second, to_string(i));
-//     }
-
-//   for (size_t i = 0, n = tbl.size(); i < n; ++i)
-//     {
-//       auto ptr = tbl.search(i);
-//       EXPECT_EQ(ptr->first, i);
-//       tbl.remove(i);
-//       EXPECT_EQ(tbl.size(), n - i - 1);
-//       EXPECT_EQ(tbl.search(i), nullptr);
-//       EXPECT_FALSE(tbl.contains(i));
-//     }
-// }

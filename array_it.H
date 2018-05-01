@@ -68,6 +68,14 @@ public:
        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
   }
 
+  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
+    : ptr(p), dim(sz), num_items(n), last(n - 1)
+  {
+    assert(ptr);
+    if (num_items > dim)
+      throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+  }
+
   Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
     : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
   {

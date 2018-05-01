@@ -94,7 +94,9 @@ class ODhashTable
 
   using Item_Type = Key;
 
-  using Hash_Fct = size_t (*) (const Key&);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key&);
 
   enum Status { EMPTY, BUSY, DELETED };
 
@@ -193,7 +195,7 @@ private:
     bucket->status = DELETED;
     const Key & key = bucket->key;
 
-    const size_t i_fst = (*hash_fct)(key) % len;
+    const size_t i_fst = hash_fct(key) % len;
     if (&table[i_fst] == bucket)
       {
 	assert(Cmp () (table[i_fst].key, key)); 
@@ -201,7 +203,7 @@ private:
       }
     else
       {
-	const size_t i_snd = (*second_hash_fct)(key) % len;
+	const size_t i_snd = second_hash_fct(key) % len;
 	if (&table[i_snd] == bucket)
 	  {
 	    assert(Cmp () (table[i_snd].key, key));
@@ -281,6 +283,18 @@ public:
     std::swap(len, other.len);
   }
 
+  ODhashTable(size_t __len, Hash_Fct __first_hash_fct,
+	      Hash_Fct __second_hash_fct, Cmp __cmp,
+ 	      float __lower_alpha, float __upper_alpha, bool __with_resize)
+    : table(nullptr), hash_fct(__first_hash_fct), 
+      second_hash_fct(__second_hash_fct), cmp(__cmp),
+      len(Primes::next_prime(__len)),  
+      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
+      N(0), with_resize(__with_resize)
+  {
+    table = new Bucket[len];
+  }
+
     /** Instancia una tabla hash cerrada con resolución de colisiones por
         doble hash.  
 
@@ -291,21 +305,15 @@ public:
         @throw bad_alloc si no hay memoria para la tabla de cubetas.
         
     */
-  ODhashTable(size_t   __len             = Primes::DefaultPrime,
-	      Hash_Fct __first_hash_fct  = Aleph::dft_hash_fct<Key>, 
-	      Hash_Fct __second_hash_fct = Aleph::snd_hash_fct<Key>, 
-	      Cmp      __cmp             = Cmp(),
- 	      float    __lower_alpha     = hash_default_lower_alpha,
-	      float    __upper_alpha     = hash_default_upper_alpha,
-	      bool     __with_resize     = true)
-    : table(nullptr), hash_fct(__first_hash_fct), 
-      second_hash_fct(__second_hash_fct), cmp(__cmp),
-      len(Primes::next_prime(__len)),
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
-      N(0), with_resize(__with_resize)
-  {
-    table = new Bucket[len];
-  }
+  ODhashTable(size_t   len                 = Primes::DefaultPrime,
+	      Hash_Fct_Ptr first_hash_fct  = Aleph::dft_hash_fct<Key>, 
+	      Hash_Fct_Ptr second_hash_fct = Aleph::snd_hash_fct<Key>, 
+	      Cmp      cmp                 = Cmp(),
+ 	      float    lower_alpha         = hash_default_lower_alpha,
+	      float    upper_alpha         = hash_default_upper_alpha,
+	      bool     with_resize         = true)
+    : ODhashTable(len, Hash_Fct(first_hash_fct), Hash_Fct(second_hash_fct),
+		  cmp, lower_alpha, upper_alpha, with_resize) {}
 
     /// Libera toda la tabla hash.
   ~ODhashTable()
@@ -365,11 +373,12 @@ public:
 
   OHASH_COMMON(ODhashTable);
 
+
     /// busca en la tabla la clave key. Retorna un puntero al registro
     /// asociado a key dentro de la tabla; nullptr de lo contrario.
   Key * search(const Key & key) const noexcept
   {
-    const size_t i_fst = (*hash_fct)(key) % len; // 1er sondeo (1ra fun hash)
+    const size_t i_fst = hash_fct(key) % len; // 1er sondeo (1ra fun hash)
     if (table[i_fst].status == EMPTY) 
       return nullptr;
 
@@ -380,7 +389,7 @@ public:
 	return &table[i_fst].key;
       }
 
-    const size_t i_snd = (*second_hash_fct)(key) % len; // 2do sondeo
+    const size_t i_snd = second_hash_fct(key) % len; // 2do sondeo
 
     if (table[i_snd].status == EMPTY)
       return nullptr;
@@ -427,20 +436,25 @@ public:
     second_hash_fct = fct;
   }
 
+  void set_second_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    second_hash_fct = Hash_Fct(fct);
+  }
+
 private:
 
   Bucket * allocate_bucket(const Key & key) noexcept
   {
     assert(N < len);
 
-    const size_t i_fst = (*hash_fct)(key) % len; // sondeo con 1ra función hash
+    const size_t i_fst = hash_fct(key) % len; // sondeo con 1ra función hash
     if (table[i_fst].status != BUSY) // ¿cubeta disponible?
       return allocate_bucket(table[i_fst], FIRST_PROBE);
 
     if (cmp(table[i_fst].key, key)) // test if key is alredy present
       return nullptr;
 
-    const size_t i_snd = (*second_hash_fct)(key) % len; // 2do hash
+    const size_t i_snd = second_hash_fct(key) % len; // 2do hash
     if (table[i_snd].status != BUSY) // ¿cubeta disponible?
       {
 	table[i_fst].probe_counter++;
@@ -485,7 +499,7 @@ private:
   {
     assert(N < len);
 
-    const size_t i_fst = (*hash_fct)(key) % len; // sondeo con 1ra función hash
+    const size_t i_fst = hash_fct(key) % len; // sondeo con 1ra función hash
     if (table[i_fst].status != BUSY) // ¿cubeta disponible?
       return tuple<Bucket*, bool>(allocate_bucket(table[i_fst], FIRST_PROBE),
 				  false);
@@ -493,7 +507,7 @@ private:
     if (cmp(table[i_fst].key, key)) // test if key is alredy present
       return tuple<Bucket*, bool>(&table[i_fst], true);
 
-    const size_t i_snd = (*second_hash_fct)(key) % len; // 2do hash
+    const size_t i_snd = second_hash_fct(key) % len; // 2do hash
     if (table[i_snd].status != BUSY) // ¿cubeta disponible?
       {
 	table[i_fst].probe_counter++;
@@ -581,11 +595,11 @@ public:
     --N;
     try
       {
-	const size_t i_fst = (*hash_fct)(key) % len;
+	const size_t i_fst = hash_fct(key) % len;
 	if (process_entry_for_remove(&table[i_fst], key))
 	  return;
     
-	const size_t i_snd = (*second_hash_fct)(key) % len;
+	const size_t i_snd = second_hash_fct(key) % len;
 	if (process_entry_for_remove(&table[i_snd], key))
 	  return;
 
@@ -620,7 +634,7 @@ public:
 	    ++num_busy;							
 	    const Key & key = table[i].key;				
 	    size_t count = 1;
-	    const size_t i_fst = (*hash_fct)(key) % len;
+	    const size_t i_fst = hash_fct(key) % len;
 	    if (cmp(table[i_fst].key, key))
 		{
 		  assert(table[i_fst].probe_type == FIRST_PROBE);
@@ -630,7 +644,7 @@ public:
 	    else 
 	      {
 		++count;
-		size_t i_snd = (*second_hash_fct)(key) % len;
+		size_t i_snd = second_hash_fct(key) % len;
 		if (cmp(table[i_snd].key, key))
 		{
 		  assert(table[i_snd].probe_type == SECOND_PROBE);

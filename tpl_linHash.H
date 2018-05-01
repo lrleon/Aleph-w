@@ -105,7 +105,6 @@ class LinHashBucketVtl : public Dnode<Key>
   virtual ~LinHashBucketVtl() {}
 };
 
- 
 
    /** Tabla hash lineal genérica.
 
@@ -143,7 +142,8 @@ public:
 
       /// El tipo de función hash. Debe retornar valores positivos seudo
       /// aleatorios, entre cero y el número más grande posible.
-  typedef size_t (*Hash_Fct)(const Key &);
+  using Hash_Fct     = std::function<size_t(const Key &)>;
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
       /// El tipo de cubeta.
   using Bucket = BucketType<Key>;
@@ -197,9 +197,9 @@ protected:
 private:
 
   size_t call_hash_fct(const Key & key) const 
-    noexcept(noexcept((*hash_fct)(key)))
+    noexcept(noexcept(hash_fct(key)))
   {
-    const auto hash = (*hash_fct)(key);
+    const auto hash = hash_fct(key);
     const auto i = hash % M;
     return i < p ? hash % MM : i;
   }
@@ -222,7 +222,7 @@ private:
                   it.next(); // avance al siguiente elemento de la lista
 
                   const Key & key = bucket->get_key();
-                  const int i = (*hash_fct)(key) % MM;
+                  const int i = hash_fct(key) % MM;
                   if (i == p) // ¿pertenece esta clave a table[p]?
                     continue; // sí ==> clave sigue en table[p] ==> siguiente
 
@@ -291,6 +291,11 @@ public:
   void set_hash_fct(Hash_Fct fct) noexcept
   {
     hash_fct = fct;
+  }
+
+  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    hash_fct = Hash_Fct(fct);
   }
 
   Hash_Fct get_hash_fct() const noexcept { return hash_fct; }

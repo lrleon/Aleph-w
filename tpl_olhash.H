@@ -86,7 +86,9 @@ public:
 
   using Item_Type = Key;
 
-  using Hash_Fct = size_t (*) (const Key&);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key&);
 
   enum Status { EMPTY, BUSY, DELETED };
 
@@ -139,12 +141,8 @@ public:
 
       /// Instancia una tabla hash con función hash __hash_fct y
       /// dimensión len.
-  OLhashTable(size_t   __len      = Primes::DefaultPrime,
-	      Hash_Fct __hash_fct = Aleph::dft_hash_fct<Key>,
-	      Cmp __cmp           = Cmp(),
- 	      float __lower_alpha = hash_default_lower_alpha,
-	      float __upper_alpha = hash_default_upper_alpha,
-	      bool __with_resize  = true)
+  OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
+  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
     : table(nullptr), N(0), len(Primes::next_prime(__len)),
       lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
       hash_fct(__hash_fct), with_resize(__with_resize)
@@ -152,17 +150,33 @@ public:
     table = new Bucket [len];
   }
 
+  OLhashTable(size_t __len, Hash_Fct __hash_fct, Hash_Fct, Cmp __cmp,
+  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
+    : table(nullptr), N(0), len(Primes::next_prime(__len)),
+      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
+    hash_fct(__hash_fct), with_resize(__with_resize) {}
+
+  OLhashTable(size_t len            = Primes::DefaultPrime,
+	      Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>, 
+	      Cmp cmp               = Cmp(),
+ 	      float lower_alpha     = hash_default_lower_alpha,
+	      float upper_alpha     = hash_default_upper_alpha,
+	      bool with_resize      = true)
+    : OLhashTable(len, Hash_fct(hash_fct), cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
+
+  OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
+	      Cmp cmp, float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, Hash_fct(hash_fct), cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
+
   /** Constructor with two hash function for metaprogramming
       compatibility with ODhashTable
-
    */
-  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, 
- 	      const float & lower_alpha, const float & upper_alpha,
-	      const bool with_resize)
-    : OLhashTable(len, hash_fct, lower_alpha, upper_alpha, with_resize)
-  {
-    // empty
-  }
+  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
+  	      float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, hash_fct, cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
 
   Special_Ctors(OLhashTable, Key);
 
@@ -232,7 +246,7 @@ public:
      /// encuentra dentro de la tabla; de lo contrario, retorna nullptr.
   Key * search(const Key & key) const noexcept
   {   
-    long i = (*hash_fct)(key) % len, c = 0;
+    long i = hash_fct(key) % len, c = 0;
     while (c < len and table[i].status != EMPTY)
       {
 	if (table[i].status == BUSY and cmp(table[i].key, key))
@@ -252,7 +266,7 @@ protected:
   {
     assert(N < len);
 
-    size_t i = (*hash_fct)(key) % len; 
+    size_t i = hash_fct(key) % len; 
 
     while (table[i].status == BUSY) // find a slot that is not busy
       {
@@ -276,7 +290,7 @@ protected:
   {
     assert(N < len);
 
-    size_t i = (*hash_fct)(key) % len; 
+    size_t i = hash_fct(key) % len; 
     while (table[i].status == BUSY) // find a slot that is not busy
       {
 	if (cmp(key, table[i].key))

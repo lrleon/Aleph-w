@@ -380,7 +380,7 @@ void test_map_olhash(size_t n, unsigned long seed)
 {
   cout << "Testing map OLhash" << endl
        << endl;
-  MapOLhash<Foo, Foo> table(n, &hash_foo_pair);
+  MapOLhash<Foo, Foo> table(n);
   test_map(table, n, seed);
 }
 
@@ -388,7 +388,7 @@ void test_map_odhash(size_t n, unsigned long seed)
 {
   cout << "Testing map ODhash" << endl
        << endl;
-  MapODhash<Foo, Foo> table(n, hash_foo_pair, hash_foo_pair2);
+  MapODhash<Foo, Foo> table(n);
   test_map(table, n, seed);
 }
 
