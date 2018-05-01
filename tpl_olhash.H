@@ -139,6 +139,8 @@ public:
 
   Cmp & get_compare() { return cmp; }
 
+ protected:
+
       /// Instancia una tabla hash con función hash __hash_fct y
       /// dimensión len.
   OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
@@ -156,13 +158,15 @@ public:
       lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
     hash_fct(__hash_fct), with_resize(__with_resize) {}
 
+ public:
+
   OLhashTable(size_t len            = Primes::DefaultPrime,
 	      Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>, 
 	      Cmp cmp               = Cmp(),
  	      float lower_alpha     = hash_default_lower_alpha,
 	      float upper_alpha     = hash_default_upper_alpha,
 	      bool with_resize      = true)
-    : OLhashTable(len, Hash_fct(hash_fct), cmp,
+    : OLhashTable(len, Hash_Fct(hash_fct), cmp,
 		  lower_alpha, upper_alpha, with_resize) {}
 
   OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
@@ -359,7 +363,7 @@ protected:
 	  {								
 	    ++num_busy;							
 	    const Key & key = table[i].key;				
-	    long i = (*hash_fct)(key) % len;				
+	    long i = hash_fct(key) % len;
 	    size_t count = 1;						
 									
 	    while (true)							

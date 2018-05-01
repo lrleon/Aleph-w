@@ -26,7 +26,7 @@
 */
 # include <gmock/gmock.h>
 
-# include <tpl_dynSetOhash.H>
+# include <tpl_dynMapOhash.H>
 # include <tpl_dynSetHash.H>
 
 using namespace std;

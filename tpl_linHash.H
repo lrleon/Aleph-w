@@ -307,6 +307,30 @@ public:
   /// return the current table load
   float current_alpha() const noexcept { return 1.0*N/MP; }
 
+ protected:
+  
+  GenLinearHashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
+                     float __lower_alpha, float __upper_alpha,
+		     bool __remove_all_buckets, bool /* __with_resize */)
+    throw(std::exception, std::length_error, std::domain_error,
+          std::bad_alloc, std::overflow_error) 
+  : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0), 
+      busy_slots_counter(0), remove_all_buckets(__remove_all_buckets), 
+      upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
+      p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
+  {
+    if (M == 0)
+      std::length_error("table's length is zero");
+
+    if (MM > table.max_size())
+      throw std::length_error("table's length too big");
+      
+    if (upper_alpha <= lower_alpha)
+      throw std::domain_error("lower alpha is greater than lower alpha");
+  }
+
+ public:
+
     /** Instancia una tabla hash lineal genérica.
 
         Instancia una tabla hash lineal genérica de tamaño __len.
@@ -329,29 +353,17 @@ public:
         @throw overflow_error si ocurre un desborde desde DynArray
         (causado por sus cálculos internos).
      */
-  GenLinearHashTable(size_t   __len               = Primes::DefaultPrime,
-		     Hash_Fct __hash_fct          = Aleph::dft_hash_fct<Key>,
-		     Cmp      __cmp               = Cmp(),
-                     float    __lower_alpha       = hash_default_lower_alpha,
-		     float    __upper_alpha       = hash_default_upper_alpha,
-		     bool    __remove_all_buckets = true, 
-		     bool    __with_resize        = true)
+  GenLinearHashTable(size_t       len                = Primes::DefaultPrime,
+		     Hash_Fct_Ptr hash_fct           = Aleph::dft_hash_fct<Key>,
+		     Cmp          cmp                = Cmp(),
+                     float        lower_alpha        = hash_default_lower_alpha,
+		     float        upper_alpha        = hash_default_upper_alpha,
+		     bool         remove_all_buckets = true, 
+		     bool         with_resize        = true)
     throw(std::exception, std::length_error, std::domain_error,
           std::bad_alloc, std::overflow_error) 
-  : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0), 
-      busy_slots_counter(0), remove_all_buckets(__remove_all_buckets), 
-      upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
-      p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
-  {
-    if (M == 0)
-      std::length_error("table's length is zero");
-
-    if (MM > table.max_size())
-      throw std::length_error("table's length too big");
-      
-    if (upper_alpha <= lower_alpha)
-      throw std::domain_error("lower alpha is greater than lower alpha");
-  }
+  : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp, lower_alpha, upper_alpha,
+		       remove_all_buckets, with_resize) {}
 
   void swap(GenLinearHashTable & other) noexcept
   {

@@ -24,8 +24,8 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TPL_DYNSETOHASH_H
-# define TPL_DYNSETOHASH_H
+# ifndef TPL_DYNMAPOHASH_H
+# define TPL_DYNMAPOHASH_H
 
 # include <tpl_olhash.H>
 # include <tpl_odhash.H>
@@ -229,4 +229,4 @@ namespace Aleph
   
 } // end namespace Aleph
 
-# endif // TPL_DYNSETOHASH_H
+# endif // TPL_DYNMAPOHASH_H

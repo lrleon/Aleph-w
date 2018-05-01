@@ -283,6 +283,8 @@ public:
     std::swap(len, other.len);
   }
 
+ protected:
+
   ODhashTable(size_t __len, Hash_Fct __first_hash_fct,
 	      Hash_Fct __second_hash_fct, Cmp __cmp,
  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
@@ -294,6 +296,8 @@ public:
   {
     table = new Bucket[len];
   }
+
+ public:
 
     /** Instancia una tabla hash cerrada con resolución de colisiones por
         doble hash.  
