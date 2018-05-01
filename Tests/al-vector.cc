@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,60 +23,30 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef AL_DOMAIN_H
-# define AL_DOMAIN_H
+# include <gtest/gtest.h>
 
-# include <tpl_hash.H>
+# include <ahSort.H>
+# include <ah-string-utils.H>
+# include <al-vector.H>
 
-namespace Aleph
+using namespace std;
+using namespace testing;
+
+TEST(Vector, basic)
 {
+  AlDomain<char> chars = { 'a', 'b', 'c', 'd', 'e'};
 
-  template <typename T = int>
-struct AlDomain : public Aleph::HashSet<T, SetODhash>
-{
-  using Base = Aleph::HashSet<T, SetODhash>;
-  using Base::Base;
+  Vector<char, int> v1(chars);
+  Vector<char, int> v2(chars, { 0, 1, 2, 3, 4});
+  auto v3 = v2;
 
-  DynList<T> to_list() const { return this->keys(); }
+  EXPECT_TRUE(eq(sort(v1.get_domain().to_list()), { 'a', 'b', 'c', 'd', 'e'}));
+  EXPECT_EQ(v2, v3);
 
-  std::string to_str() const
-  {
-    return sort(to_list()).template foldl<std::string> 
-      ("", /* Lambda */ [] (const std::string & s, const T & item)
-       {
-	 return s + " " + Aleph::to_str(item);
-       });
-  }
-};
+  auto v4 = v1;
+  v4 += v2;
 
-template <typename T> inline
-ostream & operator << (ostream & s, const AlDomain<T> & dom)
-{
-  return s << dom.to_str();
+  EXPECT_EQ(v2, v4);
+
+
 }
-
-struct IntRange : public AlDomain<int>
-{
-  IntRange() = delete; 
-
-  IntRange(int start, int end, int step = 1)
-  {
-    if (step < 0)
-      throw std::domain_error("negative step");
-
-    cout << "step = " << step << endl;
-    for (long i = start; i <= end; i += step)
-      insert(i);
-  }
-
-  IntRange(size_t n)
-  {
-    for (int i = 0; i < n; ++i)
-      insert(i);
-  }
-
-};
-
-} // end namespace Aleph
-
-# endif // AL_DOMAIN_H

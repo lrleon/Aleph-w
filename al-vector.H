@@ -45,14 +45,17 @@ namespace Aleph
 template <typename Trow, typename Tcol, typename NumType>
 class Matrix;
 
+  /** 
+
+      @author Leandro Rabindranath Leon
+   */
     template <typename T = int, typename NumType = double>
 class Vector
 {
 public:
 
   using Domain = AlDomain<T>;
-  using Map = Aleph::HashMap<T, NumType, MapODhash ,
-			     Aleph::Dft_Pair_Cmp<T, NumType>>;
+  using Map = Aleph::HashMap<T, NumType, MapODhash>;
 
 private:
 
@@ -62,31 +65,31 @@ private:
   NumType        epsilon    = default_epsilon;
   Map            entries;
 
-  static NumType abs(const NumType & val)
+  static NumType abs(const NumType & val) noexcept
   {
     return val < 0 ? -val : val;
   }
 
-  bool is_zero(const NumType & val) const
+  bool is_zero(const NumType & val) const noexcept
   {
     assert(epsilon >= 0);
     return abs(val) <= epsilon;
   }
 
-  static bool test_epsilon(const NumType & e) { return e >= 0; }
+  static bool test_epsilon(const NumType & e) noexcept { return e >= 0; }
 
 public:
 
-  const NumType & get_epsilon() const { return epsilon; }
+  const NumType & get_epsilon() const noexcept { return epsilon; }
 
-  void set_epsilon(const NumType & e) 
+  void set_epsilon(const NumType & e) noexcept
   {
     epsilon = e;
   }
 
-  typedef std::pair<T, NumType> Pair;
+  using Pair = std::pair<T, NumType>;
 
-  const Domain & get_domain() const { return *domain_ptr; }
+  const Domain & get_domain() const noexcept { return *domain_ptr; }
 
   Vector(const Domain & d, const NumType & zero = default_epsilon)
     : domain_ptr(&const_cast<Domain&>(d)), epsilon(zero)
@@ -115,7 +118,7 @@ public:
       throw std::range_error("Vector(DynList): list sizes does'n match");
 
     Aleph::zip(sort(domain_ptr->keys()), l).
-      for_each(/* Lambda */ [this] (const std::pair<T, NumType> & p)
+      for_each([this] (const std::pair<T, NumType> & p)
 	       {
 		 set_entry(p.first, p.second);
 	       });
@@ -189,7 +192,7 @@ public:
       throw std::range_error("size mismatch between domain and range");
 
     auto itr = lr.begin();
-    c.for_each(/* Lambda */ [this, &itr] (const T & key)
+    c.for_each([this, &itr] (const T & key)
 	       {
 		 if (not domain_ptr->has(key))
 		   throw std::domain_error("Key does not belong to domain");
@@ -267,11 +270,10 @@ public:
     assert(domain_ptr == v.domain_ptr);
 
         // Traverse all non-zero entries of v and add them to this
-    v.entries.for_each(/* Lambda */ [this] (const Pair & p)
+    v.entries.for_each([this] (const Pair & p)
 		       {
 			 set_entry(p.first, get_entry(p.first) + p.second);
-		       }
-		       );
+		       });
     return *this;
   }
 
@@ -279,11 +281,10 @@ public:
   {
     assert(domain_ptr == v.domain_ptr);
 
-    v.entries.for_each(/* Lambda */ [this] (const Pair & p)
+    v.entries.for_each([this] (const Pair & p)
 		       {
 			 set_entry(p.first, get_entry(p.first) - p.second);
-		       }
-		       );
+		       });
     return *this;
   }
 
@@ -312,7 +313,7 @@ public:
     if (scalar == 1)
       return *this;
 
-    entries.for_each(/* Lambda */ [this, &scalar] (const Pair & p)
+    entries.for_each([this, &scalar] (const Pair & p)
 		     {
 		       const_cast<Pair&>(p).second *= scalar;
 		     });
@@ -333,7 +334,7 @@ public:
     if (scalar == 1)
       return *this;
 
-    entries.for_each(/* Lambda */ [this, &scalar] (const Pair & p)
+    entries.for_each([this, &scalar] (const Pair & p)
 		     {
 		       const_cast<Pair&>(p).second /= scalar;
 		     });
@@ -359,16 +360,14 @@ public:
       throw std::domain_error("scalar_product: different domains");
 
     if (entries.size() < v.entries.size())
-      return entries.template foldl<NumType>(0, 
-					     /* Lambda */ [this, &v] 
+      return entries.template foldl<NumType>(0, [this, &v] 
 			   (const NumType & acc, const Pair & p) -> NumType
 			   {
 			     return acc + p.second*v.get_entry(p.first);
 			   });
 
-    return v.entries.template foldl<NumType>(0, /* Lambda */ [this] 
-					     (const NumType & acc, 
-					      const Pair & p)
+    return v.entries.template foldl<NumType>(0, [this] (const NumType & acc, 
+							const Pair & p)
 		   {
 		     return acc + get_entry(p.first)*p.second;
 		   });
@@ -390,7 +389,7 @@ public:
 
   void print() const
   {
-    domain_ptr->for_each(/* Lambda */ [&] (const T & k)
+    domain_ptr->for_each([&] (const T & k)
 			 {
 			   if (entries.has(k) != 0)
 			     std::cout << "(" << k << "," << entries(k) << ") ";
@@ -404,23 +403,23 @@ public:
 
         // Elementos del dominio en string
     DynList<std::string> keys_str = 
-      keys.template maps <std::string> (/* Lambda */ [] (const T & k)
-					{ 
-					  return Aleph::to_str(k);
-					});
+      keys.template maps<std::string>([] (const T & k)
+				      { 
+					return Aleph::to_str(k);
+				      });
 
         // elementos del rango en string
     DynList<std::string> entries_str =
-      keys.template maps <std::string> (/* Lambda */ [this] (const T & d)
-      {
-	return Aleph::to_str(get_entry(d));
-      });
+      keys.template maps<std::string>([this] (const T & d)
+				      {
+					return Aleph::to_str(get_entry(d));
+				      });
 
     typedef std::pair<std::string, std::string> Pair;
     DynList<Pair> pairs = zip(keys_str, entries_str);
 
     DynList<Pair> format = // pares formateados
-      pairs.template maps <Pair> (/* Lambda */ [] (const Pair & p)
+      pairs.template maps <Pair> ([] (const Pair & p)
       {
 	size_t fsz = p.first.size(), ssz = p.second.size();
 	if (fsz > ssz)
@@ -431,8 +430,7 @@ public:
 
     std::pair<DynList<std::string>, DynList<std::string>> ret = unzip(format);
 
-    auto concatenate = /* Lambda */ [] 
-      (const std::string & s1, const std::string & s2)
+    auto concatenate =  [] (const std::string & s1, const std::string & s2)
       {
 	return s1 + s2;
       };

@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,60 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef AL_DOMAIN_H
-# define AL_DOMAIN_H
+# include <gtest/gtest.h>
 
-# include <tpl_hash.H>
+# include <al-domain.H>
 
-namespace Aleph
+using namespace std;
+using namespace testing;
+
+TEST(Domain, basic)
 {
+  AlDomain<int> domain;
 
-  template <typename T = int>
-struct AlDomain : public Aleph::HashSet<T, SetODhash>
-{
-  using Base = Aleph::HashSet<T, SetODhash>;
-  using Base::Base;
+  EXPECT_TRUE(domain.is_empty());
 
-  DynList<T> to_list() const { return this->keys(); }
+  for (size_t i = 0; i < 10; ++i)
+    domain.insert(i);
 
-  std::string to_str() const
-  {
-    return sort(to_list()).template foldl<std::string> 
-      ("", /* Lambda */ [] (const std::string & s, const T & item)
-       {
-	 return s + " " + Aleph::to_str(item);
-       });
-  }
-};
+  EXPECT_FALSE(domain.contains(-1));
+  EXPECT_FALSE(domain.contains(10));
 
-template <typename T> inline
-ostream & operator << (ostream & s, const AlDomain<T> & dom)
-{
-  return s << dom.to_str();
+  EXPECT_TRUE(domain.all([] (auto i) { return i >= 0 and i < 10; }));
 }
-
-struct IntRange : public AlDomain<int>
-{
-  IntRange() = delete; 
-
-  IntRange(int start, int end, int step = 1)
-  {
-    if (step < 0)
-      throw std::domain_error("negative step");
-
-    cout << "step = " << step << endl;
-    for (long i = start; i <= end; i += step)
-      insert(i);
-  }
-
-  IntRange(size_t n)
-  {
-    for (int i = 0; i < n; ++i)
-      insert(i);
-  }
-
-};
-
-} // end namespace Aleph
-
-# endif // AL_DOMAIN_H
