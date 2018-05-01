@@ -28,6 +28,9 @@
 
 # include <tpl_dynSetOhash.H>
 
+using namespace std;
+using namespace testing;
+
 using P = pair<size_t, string>;
 
 inline size_t fst_hast(const P & p) noexcept
@@ -48,11 +51,17 @@ struct PEq
   }
 };
 
-
-TEST(ODhashTable, Map)
+template <class HashTbl>
+struct OHashTest : public ::testing::Test
 {
-  MapODhash<size_t, string> tbl;
+  HashTbl tbl;
+};
 
+TYPED_TEST_CASE_P(OHashTest);
+
+TYPED_TEST_P(OHashTest, basic)
+{
+  TypeParam tbl = this->tbl;
   EXPECT_EQ(tbl.size(), 0);
   EXPECT_TRUE(tbl.is_empty());
 
@@ -70,10 +79,46 @@ TEST(ODhashTable, Map)
   for (size_t i = 0, n = tbl.size(); i < n; ++i)
     {
       auto ptr = tbl.search(i);
-      EXPECT_EQ(*ptr, i);
+      EXPECT_EQ(ptr->first, i);
       tbl.remove(i);
       EXPECT_EQ(tbl.size(), n - i - 1);
       EXPECT_EQ(tbl.search(i), nullptr);
       EXPECT_FALSE(tbl.contains(i));
     }
 }
+
+REGISTER_TYPED_TEST_CASE_P(OHashTest, basic);
+
+typedef
+Types<MapODhash<size_t, string, PEq>, MapOLhash<size_t, string, PEq>> HashTypes;
+
+INSTANTIATE_TYPED_TEST_CASE_P(Open, OHashTest, HashTypes);
+
+// TEST(ODhashTable, Map)
+// {
+//   MapODhash<size_t, string> tbl;
+
+//   EXPECT_EQ(tbl.size(), 0);
+//   EXPECT_TRUE(tbl.is_empty());
+
+//   for (size_t i = 0; i < 100; ++i)
+//     {
+//       EXPECT_EQ(tbl.size(), i);
+//       tbl.emplace(i, to_string(i));
+//       EXPECT_EQ(tbl.size(), i + 1);
+//       auto ptr = tbl.search(i);
+//       EXPECT_NE(ptr, nullptr);
+//       EXPECT_EQ(ptr->first, i);
+//       EXPECT_EQ(ptr->second, to_string(i));
+//     }
+
+//   for (size_t i = 0, n = tbl.size(); i < n; ++i)
+//     {
+//       auto ptr = tbl.search(i);
+//       EXPECT_EQ(ptr->first, i);
+//       tbl.remove(i);
+//       EXPECT_EQ(tbl.size(), n - i - 1);
+//       EXPECT_EQ(tbl.search(i), nullptr);
+//       EXPECT_FALSE(tbl.contains(i));
+//     }
+// }
