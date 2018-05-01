@@ -371,7 +371,7 @@ template <typename Key, class Cmp = Aleph::equal_to<Key>>
    @ingroup Hash
  */
 template <typename Key, typename Data, 
-	  class Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>,
+	  class Cmp = Aleph::equal_to<Key>,
 	  template <class, class> class HashTable = LhashTable>
 class DynMapHashTable 
   : public DynHashTable<std::pair<Key, Data>, Cmp, HashTable>

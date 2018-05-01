@@ -43,9 +43,9 @@ struct AlDomain : public Aleph::HashSet<T, SetODhash>
   {
     Container<T> ret_val;
     this->for_each(/* Lambda */ [&ret_val] (const T & item)
-	     {
-	       ret_val.append(item);
-	     });
+		   {
+		     ret_val.append(item);
+		   });
     return ret_val;    
   }
 

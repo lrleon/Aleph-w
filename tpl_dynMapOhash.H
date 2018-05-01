@@ -37,7 +37,7 @@ namespace Aleph
      @ingroup Hash
   */
   template <typename Key, typename Data, 
-	    class Cmp = Aleph::Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>,
+	    class Cmp = Aleph::equal_to<Key>,
 	    template <typename, class> class HashTable = ODhashTable>
     struct MapOpenHash : public HashTable<std::pair<Key, Data>, Cmp>
     {
