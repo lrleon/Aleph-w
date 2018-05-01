@@ -64,6 +64,11 @@ public:									\
  void set_hash_fct(Hash_Fct fct) noexcept				\
  {									\
    hash_fct = fct;							\
+ }									\
+									\
+ void set_hash_fct(Hash_Fct_Ptr fct) noexcept				\
+ {									\
+   hash_fct = Hash_Fct(fct);						\
  }
 
 namespace Aleph

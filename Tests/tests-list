@@ -15,3 +15,5 @@ arrayqueue
 dynlistqueue
 bin-node
 tree-node
+odhash
+dynsetohash

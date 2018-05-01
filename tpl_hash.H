@@ -30,7 +30,7 @@
 
 # include <initializer_list>
 # include <tpl_dynSetHash.H>
-# include <tpl_dynSetOhash.H>
+# include <tpl_dynMapOhash.H>
 
 namespace Aleph 
 {

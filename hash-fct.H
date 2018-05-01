@@ -771,23 +771,29 @@ namespace Aleph
     return murmur3hash(key, seed);
   }
 
-  template <typename Key> inline
-  size_t map_dft_hash_fct(const Key & key)
+  template<typename Key, typename Data, typename Fct>
+  inline size_t pair_hash_fct(Fct fct, const std::pair<Key, Data> & p)
   {
-    return dft_hash_fct<typename Key::first_type>(key.first);
+    return fct(p.first);
   }
 
-  template <typename Key> inline
-  size_t map_snd_hash_fct(const Key & key)
-  {
-    return snd_hash_fct<typename Key::first_type>(key.first);
-  }
+  // template <typename Key> inline
+  // size_t map_dft_hash_fct(const Key & key)
+  // {
+  //   return dft_hash_fct<typename Key::first_type>(key.first);
+  // }
 
-  template <typename Key> inline
-  size_t map_dft_hash_fct(const Key & key, unsigned long seed)
-  {
-    return dft_hash_fct<typename Key::first_type>(key.first, seed);
-  }
+  // template <typename Key> inline
+  // size_t map_snd_hash_fct(const Key & key)
+  // {
+  //   return snd_hash_fct<typename Key::first_type>(key.first);
+  // }
+
+  // template <typename Key> inline
+  // size_t map_dft_hash_fct(const Key & key, unsigned long seed)
+  // {
+  //   return dft_hash_fct<typename Key::first_type>(key.first, seed);
+  // }
 
 } // end namespace Aleph
 

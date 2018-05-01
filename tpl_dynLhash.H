@@ -150,7 +150,7 @@ private:
 public:
 
     /// El tipo de función hash.
-  typedef typename DynLhashTable<Key, Record>::Hash_Fct Hash_Fct;
+  using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
 
   void swap(DynLhashTable & table) 
   {
@@ -160,8 +160,8 @@ public:
     /// Instancia un mapeo hash dinámico con función hash hash_fct y
     /// tabla de longitud len. Dispara excepción bad_alloc si no hay
     /// memoria para apartar la tabla interna.
-  DynLhashTable(size_t len        = DefaultPrime, 
-		Hash_Fct hash_fct = dft_hash_fct<Key>) 
+  DynLhashTable(size_t len           = DefaultPrime, 
+		Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>) 
     throw (std::exception, std::bad_alloc) 
     : LhashTable<Key>(len, hash_fct)
   {

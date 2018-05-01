@@ -82,7 +82,9 @@ public:
 
   using Bucket = BucketType;
 
-  typedef size_t (*Hash_Fct)(const Key &);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
   using Key_Type = Key;
 
@@ -120,21 +122,11 @@ public:
 
   const Cmp & get_compare() const { return cmp; }
 
-      /** Instancia una tabla hash genérica.
-
-          @param[in] __hash_fct la función hash.
-          @param[in] table_size el tamaño de la tabla.
-          @param[in] __remove_all_buckets si es true, entonces se
-          liberan todas las cubetas cuando se invoca al destructor.
-          @throw bad_alloc si no hay memoria para apartar la tabla.
-       */
-  GenLhashTable(size_t table_size         = Primes::DefaultPrime,
-		Hash_Fct __hash_fct       = Aleph::dft_hash_fct<Key>,
-		Cmp  __cmp                = Cmp(),
-		float __lower_alpha       = hash_default_lower_alpha,
-		float __upper_alpha       = hash_default_upper_alpha, 
-                bool __remove_all_buckets = true,
-		bool __with_resize        = true) 
+ protected:
+  
+  GenLhashTable(size_t table_size, Hash_Fct __hash_fct, Cmp  __cmp,
+		float __lower_alpha, float __upper_alpha,
+                bool __remove_all_buckets, bool __with_resize) 
     throw(std::exception, std::bad_alloc) 
     : hash_fct(__hash_fct), table(nullptr),
       len(Primes::next_prime(table_size)), cmp(__cmp),
@@ -144,6 +136,27 @@ public:
   { 
     table = new BucketList [len];
   }
+
+ public:
+
+  /** Instancia una tabla hash genérica.
+
+      @param[in] __hash_fct la función hash.
+      @param[in] table_size el tamaño de la tabla.
+      @param[in] __remove_all_buckets si es true, entonces se
+      liberan todas las cubetas cuando se invoca al destructor.
+      @throw bad_alloc si no hay memoria para apartar la tabla.
+  */
+  GenLhashTable(size_t table_size       = Primes::DefaultPrime,
+		Hash_Fct_Ptr hash_fct   = Aleph::dft_hash_fct<Key>,
+		Cmp cmp                 = Cmp(),
+		float lower_alpha       = hash_default_lower_alpha,
+		float upper_alpha       = hash_default_upper_alpha, 
+                bool remove_all_buckets = true,
+		bool with_resize        = true)
+    : GenLhashTable(table_size, Hash_Fct(hash_fct), cmp,
+		    lower_alpha, upper_alpha, remove_all_buckets, with_resize)
+    {}
 
   void swap(GenLhashTable & other) noexcept
   {
@@ -191,6 +204,11 @@ public:
     hash_fct = fct;
   }
 
+  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    hash_fct = Hash_Fct(fct);
+  }
+
   /// return the current table load
   float current_alpha() const noexcept { return 1.0*N/len; }
 
@@ -198,7 +216,7 @@ public:
       /// la clave no está en la tabla; de lo contrario se retorna nullptr
   Bucket * insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -220,7 +238,7 @@ public:
   // dentro de la tabla. De lo contrario inserta y retorna bucket
   Bucket * search_or_insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -243,7 +261,7 @@ public:
     /// a la cubeta si se encuentra; nullptr de lo contrario.
   Bucket * search(const Key & key) const noexcept
   {
-    const auto i = (*hash_fct)(key) % len;
+    const auto i = hash_fct(key) % len;
     return search_in_bucket_list(table[i], key);
   }
 
@@ -322,7 +340,7 @@ public:
   {
     assert(bucket != nullptr);
 
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
 
     BucketItor itor(table[i]); 
     itor.set(bucket);

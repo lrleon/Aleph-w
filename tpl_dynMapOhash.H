@@ -24,8 +24,8 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TPL_DYNSETOHASH_H
-# define TPL_DYNSETOHASH_H
+# ifndef TPL_DYNMAPOHASH_H
+# define TPL_DYNMAPOHASH_H
 
 # include <tpl_olhash.H>
 # include <tpl_odhash.H>
@@ -45,6 +45,21 @@ namespace Aleph
       using Base = HashTable<Pair, Cmp>;
       using Base::Base;
       using Base::insert;
+      using Hash_Fct = std::function<size_t(const Key &)>;
+      using Hash_Fct_Ptr = size_t (*) (const Key &);
+
+      MapOpenHash(size_t len                  = Primes::DefaultPrime,
+       		  Hash_Fct_Ptr first_hash_fct  = dft_hash_fct<Key>,
+		  Hash_Fct_Ptr second_hash_fct = snd_hash_fct<Key>,
+		  Cmp  cmp                     = Cmp(),
+		  float lower_alpha            = hash_default_lower_alpha, 
+		  float upper_alpha            = hash_default_upper_alpha,
+		  bool with_resize             = true)
+       	: Base(len, std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
+			      first_hash_fct, std::placeholders::_1),
+	       std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
+			 second_hash_fct, std::placeholders::_1),
+	       cmp, lower_alpha, upper_alpha, with_resize) {}
 
       static Pair * key_to_pair(Key * ptr) noexcept { return (Pair*) ptr; }
 
@@ -201,11 +216,6 @@ namespace Aleph
     {
       using Base = MapOpenHash<Key, Data, Cmp, OLhashTable>;
       using Base::Base;
-
-      MapOLhash() : Base()
-      {
-	this->set_hash_fct(map_dft_hash_fct);
-      }
     };
   
   
@@ -215,14 +225,8 @@ namespace Aleph
     {
       using Base = MapOpenHash<Key, Data, Cmp, ODhashTable>;
       using Base::Base;
-
-      MapODhash() : Base()
-      {
-	this->set_hash_fct(map_dft_hash_fct);	
-	this->set_second_hash_fct(map_snd_hash_fct);
-      }
     };
   
 } // end namespace Aleph
 
-# endif // TPL_DYNSETOHASH_H
+# endif // TPL_DYNMAPOHASH_H
