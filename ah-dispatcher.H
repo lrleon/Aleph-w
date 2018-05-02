@@ -53,7 +53,7 @@ public:
   }
 
   template <typename ... Args>
-  auto run(const Key & key, Args ... args) const
+  auto run(const Key & key, Args && ... args) const
   {
     auto ptr = tbl.search(key);
     if (ptr == nullptr)

@@ -178,12 +178,12 @@ public:
   void reserve(size_t cap) { array.reserve(cap); }
 
   /// Return a modifiable reference to first element of array
-  T & base() const noexcept { return array.first(); }
+  T & base() const noexcept { return *array.get_ptr(); }
 
     /// Empty the stack
   void empty() noexcept { array.empty(); }
 
-    /// Retrun `true` if stack is empty
+    /// Return `true` if stack is empty
   bool is_empty() const noexcept { return array.size() == 0; }
 
     /// Return the number of elements stored in the stack
@@ -194,11 +194,11 @@ public:
 
   /// return a modifiable reference to the first element. No bound check
   /// is perfomed 
-  T & get_first() const noexcept { return array.first(); }
+  T & get_first() const { return array.first(); }
 
   /// return a modifiable reference to the last element. No bound check
   /// is perfomed 
-  T & get_last() const noexcept { return array.last(); }
+  T & get_last() const { return array.last(); }
 
   T remove_last() { return array.remove_last(); }
 
