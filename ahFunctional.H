@@ -332,8 +332,8 @@ template <typename                  Ta,
 Cb<Tb> maps(const Ca<Ta> & ca, std::function<Tb(const Ta &)> operation)
 {
   Cb<Tb> ret_val;
-  for (typename Ca<Ta>::Iterator it(ca); it.has_curr(); it.next())
-    ret_val.append(operation(it.get_curr()));
+  for (typename Ca<Ta>::Iterator it(ca); it.has_curr(); it.next_ne())
+    ret_val.append(operation(it.get_curr_ne()));
 
   return ret_val;
 }
@@ -354,8 +354,9 @@ T foldl(const Container<T> & container, const T & init, Operation & operation)
   noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
 {
   T ret_val = init;
-  for (typename Container<T>::Iterator it(container); it.has_curr(); it.next())
-    ret_val = operation(ret_val, it.get_curr());
+  for (typename Container<T>::Iterator it(container); it.has_curr();
+       it.next_ne())
+    ret_val = operation(ret_val, it.get_curr_ne());
 
   return ret_val;
 }
@@ -384,8 +385,9 @@ zip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
 }
@@ -402,8 +404,9 @@ tzip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
 }
@@ -441,8 +444,9 @@ tzipEq(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
     throw std::length_error("Container sizes mismatch");
@@ -465,10 +469,10 @@ DynList<std::tuple<typename C1::Item_Type,
   typename C2::Iterator it2(c2);
   typename C3::Iterator it3(c3);
   for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next(), it2.next(), it3.next())
-    ret_val.append(std::make_tuple(it1.get_curr(),
-				   it2.get_curr(),
-				   it3.get_curr()));
+       it1.next_ne(), it2.next_ne(), it3.next_ne())
+    ret_val.append(std::make_tuple(it1.get_curr_ne(),
+				   it2.get_curr_ne(),
+				   it3.get_curr_ne()));
 
   return ret_val;
 }
@@ -488,9 +492,9 @@ DynList<std::tuple<typename C1::Item_Type,
   typename C2::Iterator it2(c2);
   typename C2::Iterator it3(c3);
   for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next(), it2.next(), it3.next())
-    ret_val.append(std::make_tuple(it1.get_curr(), it2.get_curr(),
-				   it3.get_curr()));
+       it1.next_ne(), it2.next_ne(), it3.next_ne())
+    ret_val.append(std::make_tuple(it1.get_curr_ne(), it2.get_curr_ne(),
+				   it3.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr() or it3.has_curr())
     throw std::length_error("Container sizes mismatch");
@@ -565,10 +569,11 @@ are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
 bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
 {
   typename Container<T>::Iterator it1(c1), it2(c2);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
     if (cmp(it1.get_curr(), it2.get_curr()))
       return true;
-    else if (cmp(it2.get_curr(), it1.get_curr()))
+    else if (cmp(it2.get_curr_ne(), it1.get_curr_ne()))
       return false;
 
   if (not it1.has_curr() and not it2.has_curr())
@@ -606,9 +611,9 @@ unzip(const Container<std::pair<T1, T2>> & l)
   Container<T1> l1;
   Container<T2> l2;
   for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next())
+       it.next_ne())
     {
-      std::pair<T1, T2> curr = it.get_curr();
+      std::pair<T1, T2> curr = it.get_curr_ne();
       l1.append(curr.first);
       l2.append(curr.second);
     }
@@ -623,9 +628,9 @@ tunzip(const Container<std::tuple<T1, T2>> & l)
   Container<T1> l1;
   Container<T2> l2;
   for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next())
+       it.next_ne())
     {
-      auto curr = it.get_curr();
+      auto curr = it.get_curr_ne();
       l1.append(curr.first);
       l2.append(curr.second);
     }
@@ -926,10 +931,21 @@ public:
     return std::make_pair(it1.get_curr(), it2.get_curr());
   }
 
+  auto get_curr_ne() const noexcept
+  {
+    return std::make_pair(it1.get_curr_ne(), it2.get_curr_ne());
+  }
+
   void next()
   {
     it1.next();
     it2.next();
+  }
+
+  void next_ne() noexcept
+  {
+    it1.next_ne();
+    it2.next_ne();
   }
 
   /// return true if the two iterator were completely traversed 

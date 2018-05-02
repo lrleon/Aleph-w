@@ -125,6 +125,7 @@ namespace Aleph
       Slink_Nc * curr;
     
     public:
+      
       Iterator() : head(nullptr), curr(nullptr) { /* Empty */ }
 
       Iterator(Slink_Nc * head_ptr) : head(head_ptr), curr(head->get_next())
@@ -161,39 +162,40 @@ namespace Aleph
         curr = head->get_next();;
       }
 
-      bool has_current() const 
+      bool has_curr() const 
       {
         assert(head != nullptr);
         return curr != nullptr;
       }
 
-      // sinónimo de has_current()
-      bool has_curr() const { return has_current(); }
-
       /// Retorna dirección de nodo actual
-      Slink_Nc * get_current()  
+      Slink_Nc * get_curr_ne() noexcept
       {
         assert(curr != nullptr and head != nullptr);
-
-        if (not has_current())
-          throw std::overflow_error("Not element in list");
-
         return curr;
       }
 
-      // sinónimo de get_current()
-      Slink_Nc * get_curr() { return get_current(); }
+      Slink_Nc * get_curr()  
+      {
+        if (not has_curr())
+          throw std::overflow_error("Not element in list");
+	return get_curr_ne();
+      }
 
       /// Retorna true si iterador está sobre primer elemento
       bool is_in_first() const { return curr == head->next; }
 
       /// Avanza iterador en una posición 
+      void next_ne() noexcept
+      {
+        curr = curr->get_next();
+      }
+
       void next() throw(std::exception, std::overflow_error)
       {
-        if (not has_current())
+        if (not has_curr())
           throw std::overflow_error("Not next element in list");
-
-        curr = curr->get_next();
+	next_ne();
       }
 
       /// Retorna true si iteradores están sobre el mismo elemento.

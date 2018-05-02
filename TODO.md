@@ -81,3 +81,6 @@
 ## 27. dry de patro end para iteradores
 - Created at   2018-04-29 15:32:55 -0400
 
+## 28. marcar excepciones en funciones de ah-zip
+- Created at   2018-05-02 14:33:43 -0400
+

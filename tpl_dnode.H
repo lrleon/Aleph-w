@@ -185,6 +185,12 @@ public:
 
     using Base::Base;
 
+        /// Return the current link guaranteeing no exception. Be careful.
+    Dnode<T> * get_curr_ne() const noexcept
+    {
+      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_curr_ne()); 
+    }
+
     /** Return a pointer to the current node.
 
 	\throw overflow_error if the iterator is not positioned on a

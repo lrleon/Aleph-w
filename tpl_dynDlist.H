@@ -375,6 +375,14 @@ public:
     /// Return the ordinal position of current item
     long get_pos() const noexcept { return pos; }
 
+    /// Move the iterator one position forward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept
+    {
+      Dnode<T>::Iterator::next_ne();
+      pos++;
+    }
+
     /// Move the iterator one item forward. Throw overflow_error if
     /// iterator has not current item
     void next()
@@ -431,15 +439,14 @@ public:
 
       /// Return the current item; throw `overflow_error` if there is no
       /// current item
-    T & get_current() const
-    {
-      return Dnode<T>::Iterator::get_current()->get_data(); 
-    }
-
-    /// \overload get_current()
     T & get_curr() const
     {
-      return get_current(); 
+      return Dnode<T>::Iterator::get_curr()->get_data(); 
+    }
+
+    T & get_curr_ne() const noexcept
+    {
+      return Dnode<T>::Iterator::get_curr_ne()->get_data(); 
     }
 
       /** Insert by copy an item after the current item.
@@ -614,8 +621,8 @@ public:
     empty();
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_current();itor.next())
-      this->append(itor.get_current()); 
+	 itor.has_current(); itor.next_ne())
+      this->append(itor.get_curr_ne()); 
 
     return *this;
   }
@@ -632,8 +639,8 @@ public:
     assert(this->is_empty());
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_current();itor.next())
-      this->append(itor.get_current()); 
+	 itor.has_current();itor.next_ne())
+      this->append(itor.get_curr_ne()); 
   }
 
   /**  Move constructor; all items of `list` are moved.
@@ -690,8 +697,8 @@ public:
   DynDlist<T> reverse() const
   {
     DynDlist<T> ret;
-    for (auto it = this->get_it(); it.has_curr(); it.next())
-      ret.insert(it.get_curr());
+    for (auto it = this->get_it(); it.has_curr(); it.next_ne())
+      ret.insert(it.get_curr_ne());
     return ret;
   }
 

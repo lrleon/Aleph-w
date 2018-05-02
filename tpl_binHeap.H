@@ -816,19 +816,17 @@ protected:
 
     bool has_curr() const noexcept { return curr != nullptr; }
 
+    Node * get_curr_ne() const noexcept { return curr; }
+
     Node * get_curr() const
     {
       if (not has_curr())
 	throw std::overflow_error("Iterator overflow");
-
-      return curr;
+      return get_curr_ne();
     }
 
-    void next()
+    void next_ne() noexcept
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator overflow");
-
       auto l = curr->advance_left(curr), r = curr->advance_right(curr);
       if (l != nullptr)
 	{
@@ -848,6 +846,13 @@ protected:
 	curr = nullptr;
       else
 	curr = s.pop();
+    }
+
+    void next()
+    {
+      if (not has_curr())
+	throw std::overflow_error("Iterator overflow");
+      next_ne();
     }
   };
 };

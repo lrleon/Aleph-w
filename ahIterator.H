@@ -85,9 +85,9 @@ struct __iterator : public Set_Type::Iterator
 {
   STL_ITOR_SPEC(__iterator);
 
-  T & operator * () noexcept { return const_cast<T&>(this->get_curr()); }
+  T & operator * () { return const_cast<T&>(this->get_curr()); }
 
-  T * operator -> () noexcept
+  T * operator -> ()
   { 
     return &const_cast<T&>(this->get_curr()); 
   }

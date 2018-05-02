@@ -128,9 +128,9 @@ class Polygon : public Geom_Object
   {
     Dlink * list = const_cast<Dlink *>(&poly.vertex_list);
 
-    for (Dlink::Iterator it(list); it.has_current(); it.next())
+    for (Dlink::Iterator it(list); it.has_curr(); it.next_ne())
       vertex_list.
-	append(new Vertex(*Vertex::dlink_to_vertex(it.get_current())));
+	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr_ne())));
   }
 
   void copy_regular_polygon(const Regular_Polygon & poly);

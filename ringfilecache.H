@@ -726,8 +726,8 @@ public:
   {
     Array<T> ret;
     Iterator it(*this, pos);
-    for (size_t i = 0; i < m and it.has_curr(); ++i, it.next())
-      ret.append(it.get_curr());
+    for (size_t i = 0; i < m and it.has_curr(); ++i, it.next_ne())
+      ret.append(it.get_curr_ne());
     
     return ret;
   }
@@ -878,23 +878,27 @@ public:
       load_curr();
     }
 
+    T get_curr_ne() const noexcept { return curr; }
+
     T get_curr() const
     {
       if (not has_curr())
 	throw overflow_error("RingFileCache::Iterator::get_curr()");
+      return get_curr_ne();
+    }
 
-      return curr;
+    void next_ne() noexcept
+    {
+      increase_pos();
+      if (has_curr())
+	load_curr();
     }
 
     void next()
     {
       if (not has_curr())
 	throw overflow_error("RingFileCache::Iterator::next()");
-
-      increase_pos();
-      
-      if (has_curr())
-	load_curr();
+      next_ne();
     }    
   };
 

@@ -177,11 +177,15 @@ public:
       // mutex will remain locked until destructor be performed
     }
 
-    const bool has_current() const { return itor.has_current(); }
+    bool has_current() const { return itor.has_current(); }
 
-    Record * get_current() { return &(itor.get_current()->record); }
+    Record * get_curr() { return &(itor.get_curr()->record); }
+
+    Record * get_curr_ne() { return &(itor.get_curr_ne()->record); }
 
     void next() { itor.next(); }
+
+    void next_ne() { itor.next_ne(); }
 
     void prev() { itor.prev(); }
   };

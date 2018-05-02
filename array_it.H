@@ -110,6 +110,11 @@ public:
 
   long get_pos() const noexcept { return pos; }
 
+  T & get_curr_ne() const noexcept
+  {
+    return ptr[idx]; 
+  }
+
   T & get_curr() const
   {
     if (pos < 0)
@@ -123,22 +128,26 @@ public:
 
   T & get_current() const { return get_curr(); }
 
+  void next_ne() noexcept { ++pos; }
+
   void next()
   {
     if (num_items == 0 or pos >= num_items)
       throw std::overflow_error("MemArray::Iterator::next(): has not current");
     if (++idx == dim)
       idx = 0;
-    ++pos; 
+    next_ne();
   }
 
+  void prev_ne() noexcept { --pos; }
+    
   void prev()
   {
     if (num_items == 0 or pos < 0)
       throw std::underflow_error("MemArray::Iterator::prev(): has not current");
     if (--idx < 0)
       idx = dim - 1;
-    --pos; 
+    prev_ne();
   }
 
   void reset() noexcept

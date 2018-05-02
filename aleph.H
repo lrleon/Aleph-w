@@ -39,7 +39,7 @@ void put_itor_at_the_end(Itor & it) noexcept
 {
   it.reset_last();
   if (it.has_curr())
-    it.next();
+    it.next_ne();
 }
 
 # endif /* ALEPH_H */

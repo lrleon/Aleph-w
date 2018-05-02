@@ -247,6 +247,13 @@ public:
       return get_current();
     }
 
+    /// Return the current link guaranteeing no exception. Be careful.
+    Slinknc * get_curr_ne() const noexcept { return curr; }
+
+    /// Move the iterator one position forward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept { curr = curr->next; }
+
     /**
        \~English
        Move the iterator one position forward. Throw `overflow_error`
@@ -1094,21 +1101,13 @@ public:
     /// \overload get_curr()
     Slinknc * get_current() const { return get_curr(); }
 
-    /**
-    \~English
-      Move the iterator one item forward. Throw overflow_error if
-      iterator has not current item
+    /// Return the current link guaranteeing no exception. Be careful.
+    Slinknc * get_curr_ne() const noexcept { return curr; }
 
-    \~Spanish
-      Mueve el iterador un elemento más adelante. Lanza overflow_error
-      si el iterador no tiene elemento actual.
-      */
-
-    void next()
+    /// Move the iterator one position forward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
-
       if (curr == lptr->head) // on the first item?
         {
           assert(prev == lptr->head);
@@ -1127,6 +1126,23 @@ public:
           assert(NEXT(prev) == curr);
         }
       pos++;
+    }
+
+    /**
+    \~English
+      Move the iterator one item forward. Throw overflow_error if
+      iterator has not current item
+
+    \~Spanish
+      Mueve el iterador un elemento más adelante. Lanza overflow_error
+      si el iterador no tiene elemento actual.
+      */
+
+    void next()
+    {
+      if (not has_curr())
+        throw std::overflow_error("Iterator overflow");
+      next_ne();
     }
 
     /**
@@ -1217,7 +1233,7 @@ public:
   size_t size() const noexcept
   {
     size_t count = 0;
-    for (Iterator it(*this); it.has_curr(); it.next())
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
       ++count;
 
     return count;
@@ -1574,6 +1590,12 @@ public:
     Iterator(const DynList & list) noexcept
       : HTList::Iterator(list) { /* empty */ }
 
+        /// Return the current link guaranteeing no exception. Be careful.
+    T & get_curr_ne() const noexcept
+    {
+      return ((Snodenc<T>*) (HTList::Iterator::get_curr_ne()))->get_data();
+    }
+
     /** Return the current item
 
 	\return a modifiable reference to the current item
@@ -1655,9 +1677,9 @@ public:
   template <class Equal = std::equal_to<T>>
     T remove(Equal & eq)
     {
-      for (Iterator it(*this); it.has_curr(); it.next())
+      for (Iterator it(*this); it.has_curr(); it.next_ne())
 	{
-	  const T & item = it.get_curr();
+	  const T & item = it.get_curr_ne();
 	  if (eq(item))
 	    {
 	      T ret = item; // performs a copy
@@ -1712,8 +1734,8 @@ public:
 
     empty();
 
-    for (typename DynList::Iterator it(l); it.has_curr(); it.next())
-      append(it.get_curr());
+    for (typename DynList::Iterator it(l); it.has_curr(); it.next_ne())
+      append(it.get_curr_ne());
 
     return *this;
   }

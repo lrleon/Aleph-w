@@ -826,29 +826,35 @@ public:
 
     bool has_current() const noexcept { return has_curr(); }
 
-    unsigned int get_curr() noexcept { return array_ptr->read_bit(curr_idx); }
-
-    unsigned int get_curr() const noexcept 
+    unsigned int get_curr_ne() const noexcept
     {
+      return array_ptr->read_bit(curr_idx);
+    }
+
+    unsigned int get_curr() const
+    {
+      if (not has_curr())
+	throw std::overflow_error("Iterator is at the end of the list");
       return array_ptr->read_bit(curr_idx); 
     }
 
     long get_pos() const noexcept { return curr_idx; }
 
+    void next_ne() noexcept { ++curr_idx; }
+
     void next() 
     {
       if (curr_idx == array_ptr->size())
 	throw std::overflow_error("not current item in iterator");
-	  
-      ++curr_idx;
+      next_ne();
     }
 
+    void prev_ne() noexcept { --curr_idx; }
     void prev()
     {
       if (curr_idx == -1)
 	throw std::underflow_error("not current item in iterator");
-
-      --curr_idx;
+      prev_ne();
     }
 
     void reset_last() noexcept { curr_idx = array_ptr->size() - 1; }

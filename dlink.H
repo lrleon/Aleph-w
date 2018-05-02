@@ -648,6 +648,13 @@ public:
       return head->is_empty() ? false : curr == head->prev;
     }
 
+    /// Return the current link guaranteeing no exception. Be careful.
+    Dlink * get_curr_ne() const noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      return curr;
+    }
+
     /** Return the current node of iterator
 
 	\return a pointer to the current node
@@ -655,12 +662,10 @@ public:
     */
     Dlink * get_current() const
     {
-      assert(curr != nullptr and head != nullptr);
-
       if (not has_current())
         throw std::overflow_error("Not element in list");
 
-      return curr;
+      return get_curr_ne();
     }
 
     /// \overload get_current()
@@ -675,6 +680,10 @@ public:
         ///  Return `true` if the iterator is positiones on the last item
     bool is_in_last() const noexcept { return is_last(); }
 
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void prev_ne() noexcept { curr = curr->get_prev(); }
+
     /** Move the iterator one position backward
 
 	\throw underflow_error if there is no current item
@@ -683,9 +692,12 @@ public:
     {
       if (not has_current())
         throw std::underflow_error("Not previous element in list");
-
-      curr = curr->get_prev();
+      prev_ne();
     }
+
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept { curr = curr->get_next(); }
 
     /** Move the iterator one position forward 
 
@@ -695,8 +707,7 @@ public:
     {
       if (not has_current())
         throw std::overflow_error("Not next element in list");
-
-      curr = curr->get_next();
+      next_ne();
     }
 
     /// Return `true` if `this` and it are positioned on the same item
@@ -792,9 +803,9 @@ public:
     Iterator itor(this);
     Dlink* node;
 
-    for (/* nothing */; itor.has_current(); itor.next())
+    for (/* nothing */; itor.has_current(); itor.next_ne())
       {
-        node = itor.get_current();
+        node = itor.get_curr_ne();
 
         if (not (node->get_next()->get_prev() == node))
           return false;
