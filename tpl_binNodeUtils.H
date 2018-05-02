@@ -190,7 +190,7 @@ int postOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 class For_Each_In_Order
 {
   template <class Op>
-  static void for_each_inorder(Node * root, Op & op) 
+  static void for_each_inorder(Node * root, Op & op) noexcept(noexcept(op))
   {
     if (root == Node::NullPtr)
       return;
@@ -204,18 +204,21 @@ public:
 
   /// Invoke to traversal from root node
   template <class Op>
-  void traverse(Node * root, Op & op) const { for_each_inorder<Op>(root, op); }
+  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  {
+    for_each_inorder<Op>(root, op);
+  }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) const
+  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
   {
     for_each_inorder<Op>(root, op);
   }
   
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op) const
+  void operator () (Node * root, Op && op) const noexcept(noexcept(op))
   {
     for_each_inorder<Op>(root, op);
   }
@@ -228,7 +231,7 @@ public:
     @ingroup Arboles
 */
   template <class Node, class Op> inline
-void for_each_in_order(Node * root, Op && op)
+void for_each_in_order(Node * root, Op && op) noexcept(noexcept(op))
 {
   return For_Each_In_Order<Node>().template traverse<Op>(root, op);
 }
@@ -252,7 +255,7 @@ void for_each_in_order(Node * root, Op && op)
 class For_Each_Preorder
 {
   template <class Op>
-  static void preorder(Node * root, Op & op) 
+  static void preorder(Node * root, Op & op) noexcept(noexcept(op))
   {
     if (root == Node::NullPtr)
       return;
@@ -266,18 +269,21 @@ public:
 
   /// Invoke the traversal
   template <class Op>
-  void traverse(Node * root, Op & op) const { return preorder(root, op); }
+  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  {
+    return preorder(root, op);
+  }
   
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) 
+  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
   {
     preorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op = Op()) 
+  void operator () (Node * root, Op && op = Op()) const noexcept(noexcept(op))
   {
     preorder<Op>(root, op);
   }
@@ -315,7 +321,7 @@ void for_each_preorder(Node * root, Op && op)
 class For_Each_Postorder
 {
   template <class Op>
-  static void postorder(Node * root, Op & op) 
+  static void postorder(Node * root, Op & op) noexcept(noexcept(op))
   {
     if (root == Node::NullPtr)
       return;
@@ -329,18 +335,21 @@ public:
 
 /// Invoke the traversal
   template <class Op>
-  void traverse(Node * root, Op & op) const { return postorder(root, op); }
+  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  {
+    return postorder(root, op);
+  }
   
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) 
+  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
   {
     postorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op = Op())
+  void operator () (Node * root, Op && op = Op()) const noexcept(noexcept(op))
   {
     postorder<Op>(root, op);
   }
@@ -2249,11 +2258,11 @@ public:
     s.swap(it.s);
   }
 
-  BinNodePrefixIterator() { /* empty */ }
+  BinNodePrefixIterator() noexcept { /* empty */ }
   
   /// Initialize an iterator on the first node in preorder for the tree
   /// with root `__root`
-  BinNodePrefixIterator(Node * __root) 
+  BinNodePrefixIterator(Node * __root) noexcept
     : root(__root), curr(root), s(Node::MaxHeight) 
   {
     // empty
@@ -2271,7 +2280,7 @@ public:
   }
 
   /// Reset the iterator to the first node in preorder sense
-  void reset_first() 
+  void reset_first() noexcept
   {
     curr = root;
     s.empty();
@@ -2280,7 +2289,7 @@ public:
 private:
 
   // Helper function for finding last node
-  static Node * last(Node * p)
+  static Node * last(Node * p) noexcept
   {
     if (RLINK(p) != Node::NullPtr)
       return last(RLINK(p));
@@ -2294,14 +2303,14 @@ private:
 public:
 
   /// Reset the iterator to the last node in preorder
-  void reset_last()
+  void reset_last() noexcept
   {
     curr = last(root);
     s.empty();
   } 
 
   /// Put the iterator in end state
-  void end()
+  void end() noexcept
   {
     curr = Node::NullPtr;
     s.empty();
@@ -2330,24 +2339,21 @@ public:
   /// \overload has_cur()
   bool has_current() const noexcept { return has_curr(); }
 
+  /// Return the current link guaranteeing no exception. Be careful.
+  Node * get_curr_ne() const noexcept { return curr; }
+
   /// Return a pointer to current node
   Node * get_curr() const
   {
     if (not has_curr())
       throw std::overflow_error("Iterator overflow");
-
-    return curr;
+    return get_curr_ne();
   }
 
-  /// \overload get_curr()
-  Node * get_current() const { return get_curr(); }
-
-  /// Move the iterator one position forward
-  void next()
+  /// Move the iterator one position forward guaranteeing no
+  /// exception. Be careful.
+  void next_ne() noexcept
   {
-    if (not has_curr())
-      throw std::overflow_error("Iterator overflow");
-
     auto l = LLINK(curr), r = RLINK(curr);
     if (l != Node::NullPtr)
       {
@@ -2367,6 +2373,14 @@ public:
       curr = Node::NullPtr;
     else
       curr = s.pop();
+  }
+
+  /// Move the iterator one position forward
+  void next()
+  {
+    if (not has_curr())
+      throw std::overflow_error("Iterator overflow");
+    next_ne();
   }
 };
 
@@ -2393,23 +2407,14 @@ public:
       @ingroup Arboles
   */
 template <class Node, class Op> 
-bool prefix_traverse(Node * root, Op & op)
+bool prefix_traverse(Node * root, Op op) noexcept(noexcept(op))
 {
-  for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next())
-    if (not op(it.get_curr()))
+  for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    if (not op(it.get_curr_ne()))
       return false;
   return true;
 }
 
-/** \overload prefix_traverse()
-    
-    @ingroup Arboles
- */
-template <class Node, class Op> 
-bool prefix_traverse(Node * root, Op && op = Op())
-{
-  return prefix_traverse(root, op);
-}
 
   /** Traverse in preorder all the container and performs an operation on each
       element.
@@ -2430,16 +2435,10 @@ bool prefix_traverse(Node * root, Op && op = Op())
       \throw anything that can throw `operation`
    */
 template <class Node, class Op> 
-void prefix_for_each(Node * root, Op & op)
+void prefix_for_each(Node * root, Op op) noexcept(noexcept(op))
 {
-  for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next())
-    op(it.get_curr());
-}
-
-template <class Node, class Op> 
-void prefix_for_each(Node * root, Op && op = Op())
-{
-  prefix_for_each(root, op);
+  for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    op(it.get_curr_ne());
 }
 
 
@@ -2458,7 +2457,7 @@ class BinNodeInfixIterator
   long pos            = 0;
   ArrayStack<Node*> s;
 
-  Node * advance_to_min(Node * r)
+  Node * advance_to_min(Node * r) noexcept
   {
     while (LLINK(r) != Node::NullPtr)
       {
@@ -2468,7 +2467,7 @@ class BinNodeInfixIterator
     return r;
   }
 
-  static Node * advance_to_max(Node * r)
+  static Node * advance_to_max(Node * r) noexcept
   {
     while (RLINK(r) != Node::NullPtr)
       r = RLINK(r);
@@ -2476,7 +2475,7 @@ class BinNodeInfixIterator
     return r;
   }
 
-  void init()
+  void init() noexcept
   {
     if (root != Node::NullPtr)
       curr = advance_to_min(root);
@@ -2493,10 +2492,11 @@ public:
     s.swap(it.s);
   }
 
-  BinNodeInfixIterator() { /* empty */ }
+  BinNodeInfixIterator() noexcept { /* empty */ }
 
   /// Initialize an iterator on the first node inorder sense
-  BinNodeInfixIterator(Node * __root) : root(__root), s(Node::MaxHeight) 
+  BinNodeInfixIterator(Node * __root) noexcept
+    : root(__root), s(Node::MaxHeight) 
   {
     init();
   }
@@ -2510,21 +2510,21 @@ public:
   BinNodeInfixIterator(BinNodeInfixIterator && it) { swap(it); }
 
   /// Reset the iterator to the first node inorder sense
-  void reset_first()
+  void reset_first() noexcept
   {
     s.empty();
     init();
   }
 
   /// Reset the iterator to the first node inorder sense
-  void reset_last()
+  void reset_last() noexcept
   {
     s.empty();
     curr = advance_to_max(root);
     pos = -2;
   }
   
-  void end() 
+  void end() noexcept
   {
     s.empty();
     curr = Node::NullPtr;
@@ -2560,6 +2560,9 @@ public:
     return curr != nullptr and RLINK(curr) == nullptr and s.is_empty();
   }
 
+  /// Return the current link guaranteeing no exception. Be careful.
+  Node * get_curr_ne() const noexcept { return curr; }
+
   /// Return the current node. Throw `overflow_error` if there is no current
   Node * get_curr() const 
   {
@@ -2568,19 +2571,11 @@ public:
     return curr;
   }
 
-  /// \overload get_curr()
-  Node * get_current() const { return get_curr(); }
-
   /// Return the current position of iterator. Only valid if has_curr() == true
   size_t get_pos() const { return pos; }
 
-  /// Move the iterator one position forward. Throw `overflow_error` if
-  /// there is no current 
-  void next()
+  void next_ne() noexcept
   {
-    if (not has_curr())
-      throw std::overflow_error("Iterator overflow");
-
     ++pos;
     curr = RLINK(curr);
     if (curr != Node::NullPtr)
@@ -2593,6 +2588,14 @@ public:
       curr = Node::NullPtr;
     else
       curr = s.pop();
+  }
+  /// Move the iterator one position forward. Throw `overflow_error` if
+  /// there is no current 
+  void next()
+  {
+    if (not has_curr())
+      throw std::overflow_error("Iterator overflow");
+    next_ne();
   }
 };
 
@@ -2619,10 +2622,10 @@ public:
       @ingroup Arboles
   */
 template <class Node, class Op> 
-bool infix_traverse(Node * root, Op & op)
+bool infix_traverse(Node * root, Op op) noexcept(noexcept(op))
 {
-  for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next())
-    if (not op(it.get_curr()))
+  for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    if (not op(it.get_curr_ne()))
       return false;
   return true;
 }
@@ -2632,29 +2635,9 @@ bool infix_traverse(Node * root, Op & op)
     @ingroup Arboles
  */
 template <class Node, class Op> 
-bool infix_traverse(Node * root, Op && op = Op())
+bool traverse(Node * root, Op op) noexcept(noexcept(op))
 {
   return infix_traverse(root, op);
-}
-
-/** \overload infix_traverse()
-    
-    @ingroup Arboles
- */
-template <class Node, class Op> 
-bool traverse(Node * root, Op & op)
-{
-  return infix_traverse(root, op);
-}
-
-/** \overload infix_traverse()
-    
-    @ingroup Arboles
- */
-template <class Node, class Op> 
-bool traverse(Node * root, Op && op = Op())
-{
-  return traverse(root, op);
 }
 
   /** Traverse all the container and performs an operation on each
@@ -2676,18 +2659,11 @@ bool traverse(Node * root, Op && op = Op())
       \throw anything that can throw `operation`
    */
 template <class Node, class Op> 
-void infix_for_each(Node * root, Op & op)
+void infix_for_each(Node * root, Op op) noexcept(noexcept(op))
 {
-  for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next())
-    op(it.get_curr());
+  for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
+    op(it.get_curr_ne());
 }
-
-template <class Node, class Op> 
-void infix_for_each(Node * root, Op && op = Op())
-{
-  prefix_for_each(root, op);
-}
-
 
 } // end Aleph
 

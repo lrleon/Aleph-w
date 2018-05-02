@@ -93,7 +93,7 @@ struct GTArcIterator : public Dlink::Iterator
 
   /// Build a iterator for all the arcs of g
   GTArcIterator(Dlink & head) noexcept
-  : Dlink::Iterator(head) 
+    : Dlink::Iterator(head) 
   { /* empty */ }
 
         /// Return the current arc

@@ -1307,10 +1307,10 @@ public:
       return curr_idx >= 0 and curr_idx < array_ptr->size(); 
     }
     
-    /// \overload has_curr()
-    bool has_current() const noexcept { return has_curr(); }
-
     bool is_last() const noexcept { return curr_idx == array_ptr->size() - 1; }
+
+    /// Return the current link guaranteeing no exception. Be careful.
+    T & get_curr_ne() const noexcept { return array_ptr->access(curr_idx); }
 
     /** Return the current item
 
@@ -1320,11 +1320,15 @@ public:
     {
       if (curr_idx == array_ptr->size())
 	throw std::overflow_error("not current item in iterator");
-      return array_ptr->access(curr_idx); 
+      return get_curr_ne();
     }
 
     /// Return the ordinal position of current item
     long get_pos() const noexcept { return curr_idx; }
+
+    /// Move the iterator one position forward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept { ++curr_idx; }
 
     /// Move the current a position forward. Throw `overflow_error` if
     /// current is the last item
@@ -1332,9 +1336,12 @@ public:
     {
       if (curr_idx == array_ptr->size())
 	throw std::overflow_error("not current item in iterator");
-	  
-      ++curr_idx;
+      next_ne();
     }
+
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void prev_ne() noexcept { --curr_idx; }
 
     /// Move the current a position backward. Throw `underflow_error` if
     /// current is the first item
@@ -1342,8 +1349,7 @@ public:
     {
       if (curr_idx == -1)
 	throw std::underflow_error("not current item in iterator");
-
-      --curr_idx;
+      prev_ne();
     }
 
     /// Reset the iterator to the last item
