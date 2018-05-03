@@ -250,3 +250,9 @@
 - Comment      
 - Finished     
 
+## 43. revisar filter_itor
+- Created at   2018-05-03 09:16:33 -0400
+- Completed at 2018-05-03 15:02:28 -0400
+- Comment      
+- Finished     
+

@@ -525,8 +525,7 @@ bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
 {
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
       return false;
 

@@ -38,7 +38,7 @@ template <class Itor> inline
 void put_itor_at_the_end(Itor & it) noexcept
 {
   it.reset_last();
-  if (it.has_curr())
+  if (it.has_curr()) // Test for non empty container
     it.next_ne();
 }
 

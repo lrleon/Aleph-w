@@ -387,6 +387,27 @@ public:
     GenLhashTable * hash_table = nullptr; 
 
         // Avanza a próxima entrada de table
+    void locate_next_available_entry_ne() noexcept
+    {
+      while (true)
+        {
+          if (curr_index == hash_table->len - 1)
+            {  // quedar en estado overflow
+              curr_index = hash_table->len;
+              return;
+            }
+
+          ++curr_index;
+
+          if (not hash_table->table[curr_index].is_empty())
+            {
+              BucketItor itor(hash_table->table[curr_index]);
+              curr_itor = itor;
+              return;
+            }
+        }
+    }
+
     void locate_next_available_entry() 
     {
       while (true)
@@ -411,13 +432,42 @@ public:
         }
     }
 
-    void locate_next_available_bucket()
+    void locate_next_available_bucket_ne() noexcept
     {
       curr_itor.next_ne();
+      if (not curr_itor.has_curr())
+        locate_next_available_entry_ne();
+      curr_pos++;
+    }
 
+    void locate_next_available_bucket()
+    {
+      curr_itor.next();
       if (not curr_itor.has_curr())
         locate_next_available_entry();
       curr_pos++;
+    }
+
+    void locate_prev_available_entry_ne() noexcept
+    {
+      while (true)
+        {
+          if (curr_index == 0)
+            { // quedar en estado underflow
+              curr_index = -1;
+              return;
+            }
+
+          --curr_index;
+
+          if (not hash_table->table[curr_index].is_empty())
+            {
+              BucketItor itor(hash_table->table[curr_index]);
+              curr_itor = itor;
+              curr_itor.reset_last();
+              return;
+            }
+        }
     }
 
     void locate_prev_available_entry() 
@@ -444,11 +494,18 @@ public:
             }
         }
     }
+
+    void locate_prev_available_bucket_ne() noexcept
+    {
+      curr_itor.prev_ne();
+      if (not curr_itor.has_curr())
+        locate_prev_available_entry_ne();
+      curr_pos--;
+    }
     
     void locate_prev_available_bucket() 
     {
       curr_itor.prev();
-
       if (not curr_itor.has_curr())
         locate_prev_available_entry();
       curr_pos--;
@@ -538,11 +595,15 @@ public:
     }    
 
         /// Retrocede el iterador una cubeta.
+    void prev_ne() noexcept
+    {
+      locate_prev_available_bucket_ne();
+    }
+
     void prev() 
     {
       if (curr_index == -1) 
         throw std::underflow_error ("hash table iterator underflow");
-
       locate_prev_available_bucket();
     }    
 

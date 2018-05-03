@@ -124,26 +124,32 @@ public:
     return ptr[idx]; 
   }
 
-  void next_ne() noexcept { ++pos; }
+  void next_ne() noexcept
+  {
+    if (++idx == dim)
+      idx = 0;
+    ++pos;
+  }
 
   void next()
   {
     if (num_items == 0 or pos >= num_items)
       throw std::overflow_error("MemArray::Iterator::next(): has not current");
-    if (++idx == dim)
-      idx = 0;
     next_ne();
   }
 
-  void prev_ne() noexcept { --pos; }
+  void prev_ne() noexcept
+  {
+    if (--idx < 0)
+      idx = dim - 1;
+    --pos;
+  }
     
   void prev()
   {
     if (num_items == 0 or pos < 0)
       throw std::underflow_error("MemArray::Iterator::prev(): has not current");
-    if (--idx < 0)
-      idx = dim - 1;
-    prev_ne();
+      prev_ne();
   }
 
   void reset() noexcept

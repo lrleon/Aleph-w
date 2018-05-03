@@ -272,30 +272,36 @@ public:
 	(ordinal >= -1 and ordinal <= (long) table_ptr->size());
     }
 
-    void locate_next_available_entry()
+    void locate_next_available_entry_ne() noexcept
     {
-      if (ordinal >= table_ptr->size())
-	throw std::overflow_error("Iterator next() overflow"); 
-
       assert(check());
-
       if (++ordinal == table_ptr->size())
 	return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
 
-    void locate_prev_available_entry()
+    void locate_prev_available_entry_ne()
     {
       assert(check());
-
-      if (ordinal <= -1)
-	throw std::underflow_error("Iterator next() underflow");
-
       if (--ordinal == -1)
 	return;
 
       while (table_ptr->table[--curr_idx].status != HashTbl::BUSY);
+    }
+
+    void locate_next_available_entry()
+    {
+      if (ordinal >= table_ptr->size())
+	throw std::overflow_error("Iterator next() overflow"); 
+      locate_next_available_entry_ne();
+    }
+
+    void locate_prev_available_entry()
+    {
+      if (ordinal <= -1)
+	throw std::underflow_error("Iterator next() underflow");
+      locate_prev_available_entry_ne();
     }
 
   public:
@@ -385,7 +391,9 @@ public:
 
     void next() { locate_next_available_entry(); }
 
-    void next_ne() noexcept { locate_next_available_entry(); }
+    void next_ne() noexcept { locate_next_available_entry_ne(); }
+
+    void prev_ne() { locate_prev_available_entry_ne(); }
 
     void prev() { locate_prev_available_entry(); }
 

@@ -84,6 +84,13 @@ TYPED_TEST_P(OHashTest, Without_exception)
   EXPECT_FALSE(it.has_curr());
   auto ll = l.maps<size_t>([] (auto & p) { return p.first; });
   EXPECT_EQ(sort(ll), this->items);
+
+  l.empty();
+  EXPECT_NO_THROW(it.reset_last());
+  for (; it.has_curr(); it.prev_ne())
+    l.append(it.get_curr_ne());
+  ll = l.maps<size_t>([] (auto & p) { return p.first; });
+  EXPECT_EQ(sort(ll), this->items);
 }
 
 REGISTER_TYPED_TEST_CASE_P(EmptyOHashTest, With_exception);
