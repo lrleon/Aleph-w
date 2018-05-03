@@ -728,6 +728,17 @@ public:
       return current;
     } 
 
+    Dlink * del_ne() noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      assert(has_curr());
+
+      Dlink * current = get_curr_ne(); // obtener nodo actual
+      next_ne(); // avanzar al siguiente nodo
+      current->del(); // eliminar de la lista antiguo nodo actual 
+      return current;
+    } 
+
     /// Return `true` if the iterator is on the list pointed by `l`
     bool verify(Dlink * l) const { return head == l; }
 

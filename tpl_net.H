@@ -781,7 +781,7 @@ public:
 
 	@return true si la red es valida; false de lo contrario.
     */
-  bool check_network() noexcept
+  bool check_network()
   {
     return this->nodes().all([this] (Node * p) { return check_node(p); }) and
       this->arcs().all([] (Arc * a) { return a->check_arc(); }) and
@@ -791,7 +791,7 @@ public:
     /// Retorna el valor de flujo de la red visto desde el nodo fuente o
     /// sumidero p. Dispara excepción std::domain_error si p no es ni
     /// fuente ni sumidero.
-  Flow_Type flow_value() const noexcept
+  Flow_Type flow_value() const
   {
     assert(get_in_flow(get_source()) == get_out_flow(get_sink()));
     return get_out_flow(get_source()); 

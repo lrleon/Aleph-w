@@ -539,7 +539,7 @@ public:
 
       /// Elimina la cubeta bucket. Atención: no se verifica si la cubeta
       /// pertenece a la tabla.
-  Bucket * remove(Bucket * bucket) noexcept
+  Bucket * remove(Bucket * bucket)
   {
     bucket->get_link()->del(); // elimine de entries_list
     return remove_bucket(bucket);

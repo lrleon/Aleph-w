@@ -152,11 +152,9 @@ public:
     table = new Bucket [len];
   }
 
-  OLhashTable(size_t __len, Hash_Fct __hash_fct, Hash_Fct, Cmp __cmp,
-  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
-    : table(nullptr), N(0), len(Primes::next_prime(__len)),
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
-    hash_fct(__hash_fct), with_resize(__with_resize) {}
+  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, Cmp cmp,
+  	      float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}    
 
  public:
 

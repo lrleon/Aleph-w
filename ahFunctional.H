@@ -533,6 +533,12 @@ bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
   return not (it1.has_curr() or it2.has_curr());
 }
 
+  template <typename T> inline
+bool operator == (const DynList<T> & l1, const DynList<T> & l2)
+{
+  return eq(l1, l2);
+}
+
   template <class C1, class C2, class Eq> inline 
 bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
 {

@@ -265,28 +265,19 @@ public:
     long curr_idx          = 0;
     long ordinal           = 0;
 
-    bool check() const
+    bool check() const noexcept
     {
       assert(table_ptr != nullptr);
       return (curr_idx >= 0 and curr_idx < (long) table_ptr->len) and
 	(ordinal >= -1 and ordinal <= (long) table_ptr->size());
     }
 
-    void locate_next_available_entry_ne() noexcept
-    {
-      assert(check());
-      if (++ordinal == table_ptr->size())
-	return;
-
-      while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
-    }
-
     void locate_next_available_entry()
     {
-      assert(check());
-
       if (ordinal >= table_ptr->size())
 	throw std::overflow_error("Iterator next() overflow"); 
+
+      assert(check());
 
       if (++ordinal == table_ptr->size())
 	return;
@@ -312,6 +303,8 @@ public:
     void reset_first() noexcept
     {
       assert(table_ptr != nullptr);
+      curr_idx = 0;
+      ordinal = -1;
       if (table_ptr->is_empty())
 	{
 	  curr_idx = table_ptr->len;
@@ -353,7 +346,6 @@ public:
 
     Key & get_curr_ne() noexcept
     {
-      assert(check());
       assert(table_ptr->table[curr_idx].status == HashTbl::BUSY);
       return table_ptr->table[curr_idx].key;
     }
@@ -365,12 +357,13 @@ public:
 
     Key & get_curr()
     {
-      assert(check());
       if (ordinal == table_ptr->size())
 	throw std::overflow_error("O hash::Iterator next() overflow");
 
       if (ordinal == -1)
 	throw std::underflow_error("O hash::Iterator next() underflow");
+
+      assert(check());
 
       return get_curr_ne();
     }
@@ -392,7 +385,7 @@ public:
 
     void next() { locate_next_available_entry(); }
 
-    void next_ne() noexcept { locate_next_available_entry_ne(); }
+    void next_ne() noexcept { locate_next_available_entry(); }
 
     void prev() { locate_prev_available_entry(); }
 

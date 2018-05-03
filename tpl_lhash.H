@@ -411,7 +411,7 @@ public:
         }
     }
 
-    void locate_next_available_bucket() noexcept
+    void locate_next_available_bucket()
     {
       curr_itor.next_ne();
 
