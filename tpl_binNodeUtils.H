@@ -2336,9 +2336,6 @@ public:
   /// Return `true` if iterator has current node
   bool has_curr() const noexcept { return curr != Node::NullPtr; }
 
-  /// \overload has_cur()
-  bool has_current() const noexcept { return has_curr(); }
-
   /// Return the current link guaranteeing no exception. Be careful.
   Node * get_curr_ne() const noexcept { return curr; }
 
@@ -2551,9 +2548,6 @@ public:
 
   /// Return `true` the iterator has current node
   bool has_curr() const noexcept { return curr != Node::NullPtr; }
-
-  /// \overload has_curr()
-  bool has_current() const noexcept { return has_curr(); }
 
   bool is_last() const noexcept
   {

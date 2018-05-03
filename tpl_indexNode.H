@@ -216,10 +216,9 @@ public:
       /// Inserta todos los nodos del grafo en el índice.
   void build_index()
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
-	GT_Node * p = it.get_curr();
-
+	GT_Node * p = it.get_curr_ne();
 	if (search(p) != p)
 	  insert(p);
       }
@@ -236,8 +235,8 @@ private:
 
   void init()
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      insert(it.get_curr());
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      insert(it.get_curr_ne());
   }
 
 public:

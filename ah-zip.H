@@ -405,7 +405,7 @@ public:
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
   }
 
-  void next_ne()
+  void next_ne() noexcept
   {
     it.next_ne();
     EnumZipIterator<TailC...>::next_ne();
@@ -422,6 +422,12 @@ public:
   void next()
   {
     C::Iterator::next();
+    ++i;
+  }
+
+  void next_ne()
+  {
+    C::Iterator::next_ne();
     ++i;
   }
 

@@ -44,18 +44,18 @@ DynList<DynList<T>> __transpose(const DynList<DynList<T>> & l)
   {
     const HTList & lrow = l.get_first();
     Array<Snodenc<T>*> row;
-    for (HTList::Iterator it(lrow); it.has_curr(); it.next(), ++ncol)
-      row.append(static_cast<Snodenc<T>*>(it.get_curr()));
+    for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++ncol)
+      row.append(static_cast<Snodenc<T>*>(it.get_curr_ne()));
     mat.append(move(row));
   }
 
   size_t nrow = 1;
-  for (auto row_it = l.get_it(1); row_it.has_curr(); row_it.next(), ++nrow)
+  for (auto row_it = l.get_it(1); row_it.has_curr(); row_it.next_ne(), ++nrow)
     {
-      const HTList & lrow = row_it.get_curr();
+      const HTList & lrow = row_it.get_curr_ne();
       Array<Snodenc<T>*> row; row.reserve(ncol);
-      for (HTList::Iterator it(lrow); it.has_curr(); it.next())
-	row.append(static_cast<Snodenc<T>*>(it.get_curr()));
+      for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne())
+	row.append(static_cast<Snodenc<T>*>(it.get_curr_ne()));
       
       mat.append(move(row));
     }
@@ -78,8 +78,8 @@ DynList<DynList<T>> transpose(const DynList<DynList<T>> & l)
 {
   Array<Array<T>> mat;
 
-  for (auto it = l.get_it(); it.has_curr(); it.next())
-    mat.append(it.get_curr());
+  for (auto it = l.get_it(); it.has_curr(); it.next_ne())
+    mat.append(it.get_curr_ne());
 
   const size_t nrow = mat.size();
   const size_t ncol = mat[0].size();
@@ -168,9 +168,9 @@ bool traverse_perm(DynList<T> & sample,
     return op(sample.template maps<T>([] (const T & i) { return i; }));
 
   auto itor = its.remove_first();
-  for (auto it = itor; it.has_curr(); it.next())
+  for (auto it = itor; it.has_curr(); it.next_ne())
     {
-      auto item = it.get_curr();
+      auto item = it.get_curr_ne();
       sample.insert(item);
       if (not traverse_perm(sample, its, op))
 	return false;

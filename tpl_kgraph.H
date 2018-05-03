@@ -60,9 +60,9 @@ long edge_connectivity(GT & g)
   Net net;
   typename Net::Node * source = nullptr; 
   long min_degree = numeric_limits<long>::max(); 
-  for (Node_Iterator<GT> it(g); it.has_current(); it.next())
+  for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_current();
+      auto p = it.get_curr_ne();
       NODE_COOKIE(p) = net.insert_node();
       if (g.get_num_arcs(p) < min_degree)
 	{
@@ -74,9 +74,9 @@ long edge_connectivity(GT & g)
   if (min_degree <= 1)
     return min_degree; 
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_current(); it.next()) 
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne()) 
     {
-      auto a   = it.get_current();
+      auto a   = it.get_curr_ne();
       auto src = mapped_node<GT, Net> (g.get_src_node(a));
       auto tgt = mapped_node<GT, Net> (g.get_tgt_node(a));
       if (src != source)
@@ -86,20 +86,20 @@ long edge_connectivity(GT & g)
     }
 
   long min_k = min_degree;
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next())
+  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto sink = it.get_curr();
+      auto sink = it.get_curr_ne();
       if (sink == source) 
 	continue;
 
       DynDlist<typename Net::Arc*> from_sink_arcs;
 
-      for (Node_Arc_Iterator<Net> it(sink); it.has_current(); it.next())
-	from_sink_arcs.append(it.get_curr());
+      for (Node_Arc_Iterator<Net> it(sink); it.has_curr(); it.next_ne())
+	from_sink_arcs.append(it.get_curr_ne());
 
       for (typename DynDlist<typename Net::Arc*>::Iterator 
-	     it(from_sink_arcs); it.has_curr(); it.next())
-	net.disconnect_arc(it.get_curr());
+	     it(from_sink_arcs); it.has_curr(); it.next_ne())
+	net.disconnect_arc(it.get_curr_ne());
 
       const typename Net::Flow_Type flow = Max_Flow <Net> () (net); 
       if (flow < min_k)
@@ -190,9 +190,9 @@ long compute_min_cut(GT &                             g,
   Net net;
   typename Net::Node * source = nullptr; 
   long min_degree = numeric_limits<long>::max(); 
-  for (Node_Iterator<GT> it(g); it.has_current(); it.next())
+  for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
     {
-      auto p  = it.get_current();
+      auto p  = it.get_curr_ne();
       auto q = net.insert_node();
       GT::map_nodes (p, q);
 
@@ -206,9 +206,9 @@ long compute_min_cut(GT &                             g,
   if (min_degree <= 1)
     return min_degree; 
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_current(); it.next()) 
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne()) 
     {
-      auto a   = it.get_current();
+      auto a   = it.get_curr_ne();
       auto src = mapped_node<GT, Net>(g.get_src_node(a));
       auto tgt = mapped_node<GT, Net>(g.get_tgt_node(a));
       if (src != source)
@@ -227,20 +227,20 @@ long compute_min_cut(GT &                             g,
   Aleph::set<typename Net::Node*> tmp_vs, tmp_vt;
   DynDlist<typename Net::Arc*>    tmp_cuts, tmp_cutt;
   long min_k = numeric_limits<long>::max();  
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next())
+  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto sink = it.get_curr();
+      auto sink = it.get_curr_ne();
       if (sink == source) 
 	continue;
 
       DynDlist<typename Net::Arc*> from_sink_arcs;
 
-      for (Node_Arc_Iterator<Net> it(sink); it.has_curr(); it.next())
-	from_sink_arcs.append(it.get_curr());
+      for (Node_Arc_Iterator<Net> it(sink); it.has_curr(); it.next_ne())
+	from_sink_arcs.append(it.get_curr_ne());
 
       for (typename DynDlist<typename Net::Arc*>::Iterator 
-	     it(from_sink_arcs); it.has_curr(); it.next())
-	net.disconnect_arc(it.get_curr());
+	     it(from_sink_arcs); it.has_curr(); it.next_ne())
+	net.disconnect_arc(it.get_curr_ne());
 
       Aleph::set<typename Net::Node*> vs, vt;
       DynDlist<typename Net::Arc *> cuts, cutt;
@@ -270,9 +270,9 @@ long compute_min_cut(GT &                             g,
     r.insert(mapped_node <Net, GT> (*it));
 
   for (typename DynDlist<typename Net::Arc*>::Iterator it(tmp_cuts); 
-       it.has_current(); it.next())
+       it.has_curr(); it.next_ne())
     {
-      typename Net::Arc* arc = it.get_current();
+      typename Net::Arc* arc = it.get_curr_ne();
       cut.append(mapped_arc<Net, GT> (arc));
     }
 
@@ -342,15 +342,15 @@ long vertex_connectivity(GT & g)
 {
   typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class> > Net;
   Net net;
-  for (Node_Iterator<GT> it(g); it.has_current(); it.next())
+  for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_current();
+      auto p = it.get_curr_ne();
       NODE_COOKIE(p) = net.insert_node();
     }
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_current(); it.next()) 
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne()) 
     {
-      auto a   = it.get_current();
+      auto a   = it.get_curr_ne();
       auto src = mapped_node<GT,Net>(g.get_src_node(a));
       auto tgt = mapped_node<GT,Net>(g.get_tgt_node(a));
       net.insert_arc(tgt, src, 1);
@@ -360,13 +360,13 @@ long vertex_connectivity(GT & g)
   long min_k = g.get_num_nodes();
   int i = 1;
 
-  for (Node_Iterator<Net> k(net); k.has_curr() and i < min_k; k.next(), i++)
+  for (Node_Iterator<Net> k(net); k.has_curr() and i < min_k; k.next_ne(), i++)
     {
-      auto source = k.get_curr();
+      auto source = k.get_curr_ne();
       DynDlist<typename Net::Arc*> to_source_list;
-      for (Node_Arc_Iterator<Net> it(source); it.has_curr(); it.next())
+      for (Node_Arc_Iterator<Net> it(source); it.has_curr(); it.next_ne())
 	{
-	  auto from_arc = it.get_curr();
+	  auto from_arc = it.get_curr_ne();
 	  auto to_arc = 
 	    search_arc<Net>(net, net.get_tgt_node(from_arc), source);
 	  assert(to_arc != nullptr);
@@ -375,32 +375,32 @@ long vertex_connectivity(GT & g)
 	}
 
       for (typename DynDlist<typename Net::Arc *>::Iterator it(to_source_list); 
-	   it.has_curr(); it.next())
-	net.disconnect_arc(it.get_curr());
+	   it.has_curr(); it.next_ne())
+	net.disconnect_arc(it.get_curr_ne());
 
       {
 	Node_Iterator<Net> j(k);
-	for (j.next(); j.has_curr(); j.next())
+	for (j.next(); j.has_curr(); j.next_ne())
 	  {
-	    auto sink = j.get_curr();
+	    auto sink = j.get_curr_ne();
 	    if (search_arc <Net> (net, source, sink) != nullptr)
 	      continue; // existe arco ==> ignórelo y avance a siguiente
 
 	    DynDlist<typename Net::Arc*> from_sink_arcs;
 
-	    for (Node_Arc_Iterator<Net> it(sink); it.has_curr(); it.next())
-	      from_sink_arcs.append(it.get_curr());
+	    for (Node_Arc_Iterator<Net> it(sink); it.has_curr(); it.next_ne())
+	      from_sink_arcs.append(it.get_curr_ne());
 
 	    for (typename DynDlist<typename Net::Arc*>::Iterator 
-		   it(from_sink_arcs); it.has_curr(); it.next())
-	      net.disconnect_arc(it.get_curr());
+		   it(from_sink_arcs); it.has_curr(); it.next_ne())
+	      net.disconnect_arc(it.get_curr_ne());
 	    {
 	      Net aux_net;
 	      {
 		DynMapTreap<typename Net::Node*,typename Net::Arc*> map;
-		for (Node_Iterator<Net> it(net); it.has_curr(); it.next())
+		for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
 		  {
-		    auto p = it.get_curr();
+		    auto p = it.get_curr_ne();
 		    if (p == source or p == sink)
 		      {
 			NODE_COOKIE(p) = aux_net.insert_node();
@@ -412,9 +412,9 @@ long vertex_connectivity(GT & g)
 		    map.insert(p, aux_net.insert_arc(ps, pt, 1));
 		  }
 
-		for (Arc_Iterator<Net> it(net); it.has_curr(); it.next())
+		for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
 		  {
-		    auto a    = it.get_curr();
+		    auto a    = it.get_curr_ne();
 		    auto nsrc = net.get_src_node(a);
 		    auto ntgt = net.get_tgt_node(a);
 		    typename Net::Node * asrc = nullptr;

@@ -284,16 +284,16 @@ public:
   DynList<Data*> values_ptr()
   {
     DynList<Data*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr().second);
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne().second);
     return ret;
   }
 
   DynList<Pair*> items_ptr()
   {
     DynList<Pair*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr());
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne());
     return ret;
   }
 };
@@ -382,9 +382,9 @@ namespace Aleph {
 DynMapTree<typename C::Item_Type, T> map_unify(const C & c, Op op)
 {
   DynMapTree<typename C::Item_Type, T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     {
-      const auto & curr = it.get_curr();
+      const auto & curr = it.get_curr_ne();
       ret.insert(curr, op(curr));
     }
   return ret;

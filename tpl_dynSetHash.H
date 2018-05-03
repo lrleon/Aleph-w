@@ -115,9 +115,9 @@ private:
 
   void copy(const DynHashTable & other)
   {
-    for (typename Base::Iterator it(other); it.has_curr(); it.next())
+    for (typename Base::Iterator it(other); it.has_curr(); it.next_ne())
       {
-	Bucket * bucket = (Bucket*) it.get_curr();
+	Bucket * bucket = (Bucket*) it.get_curr_ne();
 	insert(bucket->get_key());
       }
   }
@@ -323,6 +323,16 @@ public:
 
     Iterator(const DynHashTable & table) : Base::Iterator(table) {} 
 
+    Key & get_curr_ne() noexcept
+    { 
+      return this->Base::Iterator::get_curr_ne()->get_key(); 
+    }
+
+    const Key & get_curr_ne() const noexcept
+    { 
+      return const_cast<Iterator*>(this)->get_curr_ne();
+    } 
+    
     const Key & get_curr() const
     { 
       return const_cast<Iterator*>(this)->get_curr();
@@ -521,16 +531,16 @@ public:
   DynList<Data*> values_ptr()
   {
     DynList<Data*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr().second);
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne().second);
     return ret;
   }
 
   DynList<Pair*> items_ptr()
   {
     DynList<Pair*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr());
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne());
     return ret;
   }
 };

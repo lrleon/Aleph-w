@@ -204,9 +204,9 @@ class Graph_To_Tree_Node
     typedef typename GT::Arc Arc;
 
         // recorrer arcos de groot y construir recursivamente
-    for (Node_Arc_Iterator<GT, SA> it(groot, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(groot, sa); it.has_curr(); it.next_ne())
       {
-	Arc * arc = it.get_current_arc();
+	Arc * arc = it.get_current_arc_ne();
 	if (IS_ARC_VISITED(arc, Convert_Tree)) 
 	  continue;
 
@@ -277,9 +277,9 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
   typedef typename GT::Arc Arc;
 
       // recorrer arcos de groot y construir recursivamente
-  for (Node_Arc_Iterator<GT, SA> it(groot); it.has_current(); it.next())
+  for (Node_Arc_Iterator<GT, SA> it(groot); it.has_curr(); it.next_ne())
     {
-      Arc * arc = it.get_current_arc();
+      Arc * arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Convert_Tree)) 
         continue;
 

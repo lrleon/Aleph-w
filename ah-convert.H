@@ -41,8 +41,8 @@ template <class C>
 Array<typename C::Item_Type> to_Array(const C & c)
 {
   Array<typename C::Item_Type> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
   return ret;
 }
 

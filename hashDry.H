@@ -272,6 +272,15 @@ public:
 	(ordinal >= -1 and ordinal <= (long) table_ptr->size());
     }
 
+    void locate_next_available_entry_ne() noexcept
+    {
+      assert(check());
+      if (++ordinal == table_ptr->size())
+	return;
+
+      while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
+    }
+
     void locate_next_available_entry()
     {
       assert(check());
@@ -342,29 +351,34 @@ public:
 
     long get_pos() const noexcept { return ordinal; }
 
+    Key & get_curr_ne() noexcept
+    {
+      assert(check());
+      assert(table_ptr->table[curr_idx].status == HashTbl::BUSY);
+      return table_ptr->table[curr_idx].key;
+    }
+
+    const Key & get_curr_ne() const noexcept
+    {
+      return const_cast<Iterator*>(this)->get_curr_ne();
+    }
+
     Key & get_curr()
     {
       assert(check());
-
       if (ordinal == table_ptr->size())
 	throw std::overflow_error("O hash::Iterator next() overflow");
 
       if (ordinal == -1)
 	throw std::underflow_error("O hash::Iterator next() underflow");
 
-      assert(table_ptr->table[curr_idx].status == HashTbl::BUSY);
-
-      return table_ptr->table[curr_idx].key;
+      return get_curr_ne();
     }
 
     const Key & get_curr() const
     {
       return const_cast<Iterator*>(this)->get_curr();
     }
-
-    Key & get_current() { return get_curr(); }
-
-    const Key & get_current() const { return get_curr(); }
 
     bool has_curr() const noexcept
     {
@@ -374,16 +388,16 @@ public:
       return ordinal >= 0 and ordinal < table_ptr->size();
     }
 
-    bool has_current() const noexcept { return has_curr(); }
-
     bool is_last() const noexcept { return ordinal == table_ptr->size() - 1; }
 
     void next() { locate_next_available_entry(); }
 
+    void next_ne() noexcept { locate_next_available_entry_ne(); }
+
     void prev() { locate_prev_available_entry(); }
 
     Iterator(const HashTbl & table) noexcept
-    : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
+      : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
     {
       reset_first();
     }

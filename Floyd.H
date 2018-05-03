@@ -144,8 +144,8 @@ public:
   {
     int i = 0;
     nodes.reserve(g.get_num_nodes());
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
-      nodes.access(i++) = it.get_curr();
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+      nodes.access(i++) = it.get_curr_ne();
     in_place_sort(nodes); // ordena por punteros a nodo
 
     dist.allocate();

@@ -634,14 +634,11 @@ public:
     }
 
         /// Return `true` if the iterator has current item
-    bool has_current() const noexcept
+    bool has_curr() const noexcept
     {
       assert(curr != nullptr and head != nullptr);
       return curr != head;
     }
-
-    /// \overload has_current()
-    bool has_curr() const noexcept { return has_current(); }
 
     bool is_last() const noexcept
     {
@@ -660,16 +657,13 @@ public:
 	\return a pointer to the current node
 	\throw overflow_error if there is not current node
     */
-    Dlink * get_current() const
+    Dlink * get_curr() const
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::overflow_error("Not element in list");
 
       return get_curr_ne();
     }
-
-    /// \overload get_current()
-    Dlink * get_curr() const { return get_current(); }
 
         ///  Return `true` if the iterator is positiones on the first item
     bool is_in_first() const noexcept
@@ -690,7 +684,7 @@ public:
     */
     void prev() throw(std::exception, std::underflow_error)
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::underflow_error("Not previous element in list");
       prev_ne();
     }
@@ -705,7 +699,7 @@ public:
     */
     void next() throw(std::exception, std::overflow_error)
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::overflow_error("Not next element in list");
       next_ne();
     }
@@ -726,9 +720,9 @@ public:
     Dlink * del() 
     {
       assert(curr != nullptr and head != nullptr);
-      assert(has_current());
+      assert(has_curr());
 
-      Dlink * current = get_current(); // obtener nodo actual
+      Dlink * current = get_curr(); // obtener nodo actual
       next(); // avanzar al siguiente nodo
       current->del(); // eliminar de la lista antiguo nodo actual 
       return current;
@@ -803,7 +797,7 @@ public:
     Iterator itor(this);
     Dlink* node;
 
-    for (/* nothing */; itor.has_current(); itor.next_ne())
+    for (/* nothing */; itor.has_curr(); itor.next_ne())
       {
         node = itor.get_curr_ne();
 
@@ -814,9 +808,9 @@ public:
           return false;
       }
 
-    for (itor.reset_last(); itor.has_current(); itor.prev())
+    for (itor.reset_last(); itor.has_curr(); itor.prev())
       {
-        node = itor.get_current();
+        node = itor.get_curr();
 
         if (not (node->get_next()->get_prev() == node))
           return false;

@@ -454,10 +454,10 @@ public:
       // empty
     }
 
-    Cache_Entry * get_current()  
+    Cache_Entry * get_curr()  
     { 
       Cache_Entry * ret_val =  
-	Cache_Entry::dlink_inside_to_Cache_Entry(Dlink::Iterator::get_current()); 
+	Cache_Entry::dlink_inside_to_Cache_Entry(Dlink::Iterator::get_curr()); 
 
       assert(ret_val->is_in_table()); 
 

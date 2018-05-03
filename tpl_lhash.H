@@ -184,9 +184,9 @@ private:
   Bucket * 
   search_in_bucket_list(BucketList & list, const Key & key) const noexcept
   {
-    for (BucketItor it(list); it.has_curr(); it.next())
+    for (BucketItor it(list); it.has_curr(); it.next_ne())
       {
-        Bucket * bucket = static_cast<Bucket*>(it.get_current());
+        Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
         if (cmp (key, bucket->get_key())) 
           return bucket; 
       }
@@ -347,12 +347,12 @@ public:
 
     while (true)
       {
-        itor.next();
+        itor.next_ne();
 
         if (not itor.has_curr()) 
           return nullptr;
 
-        Bucket * node = static_cast<Bucket*>(itor.get_curr());
+        Bucket * node = static_cast<Bucket*>(itor.get_curr_ne());
 
         if (cmp(bucket->get_key(), node->get_key())) 
           return node;
@@ -411,9 +411,9 @@ public:
         }
     }
 
-    void locate_next_available_bucket() 
+    void locate_next_available_bucket() noexcept
     {
-      curr_itor.next();
+      curr_itor.next_ne();
 
       if (not curr_itor.has_curr())
         locate_next_available_entry();
@@ -503,6 +503,11 @@ public:
     {
       return curr_index >= 0 and curr_index < hash_table->len;
     }
+
+    Bucket * get_curr_ne() noexcept
+    {
+      return static_cast<Bucket*>(curr_itor.get_curr_ne());
+    }
     
         /// Retorna la cubeta actual.
     Bucket * get_curr() 
@@ -520,12 +525,16 @@ public:
     long get_pos() const noexcept { return curr_pos; }
 
         /// Avanza el iterador una cubeta.
+    void next_ne() noexcept
+    {
+      locate_next_available_bucket();
+    }    
+
     void next() 
     {
       if (curr_index == hash_table->len) 
         throw std::overflow_error ("hash table iterator overflow");
-
-      locate_next_available_bucket();
+      next_ne();
     }    
 
         /// Retrocede el iterador una cubeta.

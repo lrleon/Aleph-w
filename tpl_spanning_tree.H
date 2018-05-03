@@ -77,9 +77,9 @@ class Find_Depth_First_Spanning_Tree
 
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
 	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes();
-	 i.next())
+	 i.next_ne())
       {
-        auto arc = i.get_current_arc();
+        auto arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Spanning_Tree)) 
           continue;
 
@@ -111,9 +111,9 @@ class Find_Depth_First_Spanning_Tree
   
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
 	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes(); 
-	 i.next())
+	 i.next_ne())
       {
-	auto arc = i.get_current_arc();
+	auto arc = i.get_current_arc_ne();
 	if (IS_ARC_VISITED(arc, Spanning_Tree)) 
 	  continue;
 
@@ -233,8 +233,8 @@ class Find_Breadth_First_Spanning_Tree
     GT::map_nodes(gp, tp_auto.release());
 
     DynListQueue<typename GT::Arc*> q; // insertar en cola arcos gp
-    for (Node_Arc_Iterator<GT, SA> i(gp, sa); i.has_curr(); i.next())
-      q.put(i.get_current_arc());
+    for (Node_Arc_Iterator<GT, SA> i(gp, sa); i.has_curr(); i.next_ne())
+      q.put(i.get_current_arc_ne());
 
     NODE_BITS(gp).set_bit(Spanning_Tree, true); 
 
@@ -268,9 +268,9 @@ class Find_Breadth_First_Spanning_Tree
 	  break; 
 
             // insertar en cola arcos de gtgt
-	for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next())
+	for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next_ne())
 	  {
-	    auto current_arc = i.get_current_arc();
+	    auto current_arc = i.get_current_arc_ne();
 	    if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
 	      continue;
 

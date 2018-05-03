@@ -168,9 +168,9 @@ public:
     // Recorrer arcos ordenados de g hasta que numero de arcos de
     // tree sea igual al numero de nodos de g 
     for (Arc_Iterator <GT, SA> it(g, sa); tree.get_num_blocks() > 1 and
-	   it.has_curr(); it.next()) 
+	   it.has_curr(); it.next_ne()) 
       {     // siguiente menor arco
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	long i = NODE_COUNTER(g.get_src_node(arc));
 	long j = NODE_COUNTER(g.get_tgt_node(arc));
 	if (arc_is_in_tree(tree, i, j))
@@ -188,17 +188,17 @@ public:
     paint_min_spanning_tree(g);
     clear_graph(tree); // limpia grafo destino 
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr();
+	auto gp = it.get_curr_ne();
 	auto tp = tree.insert_node(gp->get_info());
 	GT::map_nodes(gp, tp);
       }
 
     typedef Paint_Filt<GT, SA> F;
-    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next()) 
+    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next_ne()) 
       {
-	auto ga    = it.get_current_arc();
+	auto ga    = it.get_current_arc_ne();
 	auto tsrc = mapped_node<GT>(g.get_src_node(ga));
 	auto ttgt = mapped_node<GT>(g.get_tgt_node(ga));
 	auto ta   = tree.insert_arc(tsrc, ttgt, ga->get_info());

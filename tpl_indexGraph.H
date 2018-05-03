@@ -173,8 +173,8 @@ public:
   {
         // eliminar del índice los arcos emanantes del nodo (ellos serán
         // eliminados por la eliminación de nodo del grafo)
-    for (typename GT::Node_Arc_Iterator it(p); it.has_current(); it.next())
-      idx_arc.remove(it.get_current());
+    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+      idx_arc.remove(it.get_curr_ne());
 
     return idx_node.remove_from_graph(p); 
   }

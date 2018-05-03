@@ -461,10 +461,10 @@ public:
     void insert(const T & item) 
       throw(std::exception, std::overflow_error, std::bad_alloc)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->insert(new Dnode<T>(item));
+      Dnode<T>::Iterator::get_curr()->insert(new Dnode<T>(item));
       ++list_ptr->num_elem;
     }
 
@@ -480,10 +480,10 @@ public:
     void insert(T && item) 
       throw(std::exception, std::overflow_error, std::bad_alloc)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->
+      Dnode<T>::Iterator::get_curr()->
 	insert(new Dnode<T>(std::forward<T>(item)));
       ++list_ptr->num_elem;
     }
@@ -500,10 +500,10 @@ public:
     void append(const T & item) 
       throw(std::exception, std::overflow_error, std::bad_alloc)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->append(new Dnode<T>(item));
+      Dnode<T>::Iterator::get_curr()->append(new Dnode<T>(item));
       ++list_ptr->num_elem;
     }
 
@@ -519,10 +519,10 @@ public:
     void append(T && item) 
       throw(std::exception, std::overflow_error, std::bad_alloc)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->
+      Dnode<T>::Iterator::get_curr()->
 	append(new Dnode<T>(std::forward<T>(item)));
       ++list_ptr->num_elem;
     }
@@ -545,10 +545,10 @@ public:
     void insert_list(DynDlist & list) 
       throw(std::exception, std::overflow_error)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->insert_list(&list);
+      Dnode<T>::Iterator::get_curr()->insert_list(&list);
       list_ptr->num_elem += list.num_elem;
       list.num_elem = 0;
 
@@ -573,10 +573,10 @@ public:
     void append_list(DynDlist & list) 
       throw(std::exception, std::overflow_error)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T>::Iterator::get_current()->append_list(&list);
+      Dnode<T>::Iterator::get_curr()->append_list(&list);
       list_ptr->num_elem += list.num_elem;
       list.num_elem = 0;
 
@@ -591,10 +591,10 @@ public:
     */
     T del() throw(std::exception, std::overflow_error)
     {
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T> * ptr = Dnode<T>::Iterator::get_current(); 
+      Dnode<T> * ptr = Dnode<T>::Iterator::get_curr(); 
       T ret_val      = ptr->get_data(); 
       Dnode<T>::Iterator::next();
       ptr->del();
@@ -621,7 +621,7 @@ public:
     empty();
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_current(); itor.next_ne())
+	 itor.has_curr(); itor.next_ne())
       this->append(itor.get_curr_ne()); 
 
     return *this;
@@ -639,7 +639,7 @@ public:
     assert(this->is_empty());
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_current();itor.next_ne())
+	 itor.has_curr();itor.next_ne())
       this->append(itor.get_curr_ne()); 
   }
 
@@ -677,9 +677,9 @@ public:
   {
     typename DynDlist<T>::Iterator it(*this);
 
-    for (int i = 0; i < n and it.has_current(); i++, it.next()) ;
+    for (int i = 0; i < n and it.has_curr(); i++, it.next_ne()) ;
 
-    return it.get_current();
+    return it.get_curr();
   }
 
   DynDlist & reverse() noexcept

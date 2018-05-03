@@ -196,14 +196,9 @@ public:
 	\throw overflow_error if the iterator is not positioned on a
 	current node
     */
-    Dnode<T> * get_current() const 
+    Dnode<T> * get_curr() const 
     {
-      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_current()); 
-    }
-
-    Dnode<T> * get_curr() const  /// \overload get_current()
-    {
-      return Dnode<T>::Iterator::get_current(); 
+      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_curr()); 
     }
 
     /** Remove the current node of the list a return a pointer to the

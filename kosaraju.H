@@ -41,9 +41,9 @@ void __dfp(const GT & g, typename GT::Node * p,
   NODE_BITS(p).set_bit(Depth_First, true); 
 
       // recorre en profundidad los arcos de p 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
 
@@ -71,9 +71,9 @@ void __dfp(const GT & g, typename GT::Node * p, GT & blk, const int & color)
   NODE_COUNTER(q) = color;
   GT::map_nodes(p, q);
 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
       ARC_BITS(a).set_bit(Depth_First, true); 
@@ -126,9 +126,9 @@ void kosaraju_connected_components(const GT &                     g,
   DynArray<typename GT::Node*> df; // arreglo de df por sufijo
 
       // recorre en profundidad y marca en sufijo los nodos
-  for (auto it = g.get_node_it(); it.has_current() and df.size() < g.vsize();
-       it.next())
-    __dfp(g, it.get_current(), df);
+  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
+       it.next_ne())
+    __dfp(g, it.get_curr_ne(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 
@@ -149,9 +149,9 @@ void kosaraju_connected_components(const GT &                     g,
       assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
     }
 
-  for (auto it = g.get_arc_it(); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
-      auto a  = it.get_current();
+      auto a  = it.get_curr_ne();
       auto gs = g.get_src_node(a);
       auto gt = g.get_tgt_node(a);
 
@@ -187,9 +187,9 @@ void __dfp(const GT & g,
 
   list.append(mapped_node<GT>(p));
 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
       ARC_BITS(a).set_bit(Depth_First, true); 
@@ -248,8 +248,8 @@ kosaraju_connected_components(const GT & g)
 
       // recorre en profundidad y marca en sufijo los nodos
   for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize(); 
-       it.next())
-    __dfp(g, it.get_current(), df);
+       it.next_ne())
+    __dfp(g, it.get_curr_ne(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 

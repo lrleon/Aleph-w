@@ -461,7 +461,7 @@ public:
       k_it.reset_last();
       if (has_curr())
 	{
-	  k_it.next(); // lo coloca fuera de rango
+	  k_it.next_ne(); // lo coloca fuera de rango
 	  underflow = false;
 	}
       else
@@ -1064,10 +1064,10 @@ public:
   {
     K_Itor kit1(const_cast<multimap*>(this)->k_tree);
     K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
-    for (; kit1.has_curr() and kit2.has_curr(); kit1.next(), kit2.next())
+    for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
       {
-	Kdata & kdata1 = KEY(kit1.get_curr());
-	Kdata & kdata2 = KEY(kit2.get_curr());
+	Kdata & kdata1 = KEY(kit1.get_curr_ne());
+	Kdata & kdata2 = KEY(kit2.get_curr_ne());
 
 	const size_t & n1 = kdata1.num_reps;
 	const size_t & n2 = kdata2.num_reps;
@@ -1098,10 +1098,10 @@ public:
   {
     K_Itor kit1(const_cast<multimap*>(this)->k_tree);
     K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
-    for (; kit1.has_curr() and kit2.has_curr(); kit1.next(), kit2.next())
+    for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
       {
-	Kdata & kdata1 = KEY(kit1.get_curr());
-	Kdata & kdata2 = KEY(kit2.get_curr());
+	Kdata & kdata1 = KEY(kit1.get_curr_ne());
+	Kdata & kdata2 = KEY(kit2.get_curr_ne());
 
 	const size_t & n1 = kdata1.num_reps;
 	const size_t & n2 = kdata2.num_reps;
@@ -1131,10 +1131,10 @@ public:
 
     K_Itor kit1(const_cast<multimap*>(this)->k_tree);
     K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
-    for (; kit1.has_curr() and kit2.has_curr(); kit1.next(), kit2.next())
+    for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
       {
-	Kdata & kdata1 = KEY(kit1.get_curr());
-	Kdata & kdata2 = KEY(kit2.get_curr());
+	Kdata & kdata1 = KEY(kit1.get_curr_ne());
+	Kdata & kdata2 = KEY(kit2.get_curr_ne());
 
 	if (kdata1.num_reps != kdata2.num_reps)
 	  return false;

@@ -122,9 +122,9 @@ protected:
   {
     const unsigned long k = gsl_rng_uniform_int(r, list.size());
     typename DynList<GT_Node*>::Iterator it(list);
-    for (int i = 0; i < k; ++i, it.next()) ;
+    for (int i = 0; i < k; ++i, it.next_ne()) ;
 
-    return it.get_curr();
+    return it.get_curr_ne();
   }
 
   virtual void create_nodes_and_initialize_arc_index() = 0;
@@ -404,8 +404,8 @@ class Random_Graph : public Random_Graph_Base<GT, Init_Node, Init_Arc>
     DynArray<GT_Node*> block_nodes;
 
     for (typename DynList<DynList<GT_Node*>>::Iterator it(subgraphs); 
-	 it.has_curr(); it.next())
-      block_nodes.append(this->select_random_node(it.get_curr()));
+	 it.has_curr(); it.next_ne())
+      block_nodes.append(this->select_random_node(it.get_curr_ne()));
     
     for (int i = 1; i < num_subs; ++i)
       {
@@ -874,14 +874,14 @@ class Random_Digraph : public Random_Graph_Base<GT, Init_Node, Init_Arc>
       in_degree.reserve(this->g.get_num_nodes());
 
       typename GT::Node_Iterator it(this->g);
-      for (int i = 0; it.has_curr(); it.next(), ++i)
-	in_degree.access(i) = NODE_COUNTER(it.get_curr());
+      for (int i = 0; it.has_curr(); it.next_ne(), ++i)
+	in_degree.access(i) = NODE_COUNTER(it.get_curr_ne());
 
       Tarjan_Connected_Components <GT> () (this->g, blk_list);
 
       it.reset_first(); // restaurar los grados de entrada
-      for (int i = 0; it.has_curr(); it.next(), ++i)
-	NODE_COUNTER(it.get_curr()) = in_degree.access(i);
+      for (int i = 0; it.has_curr(); it.next_ne(), ++i)
+	NODE_COUNTER(it.get_curr_ne()) = in_degree.access(i);
     }
 
     const size_t & num_blocks = blk_list.size();
@@ -895,9 +895,9 @@ class Random_Digraph : public Random_Graph_Base<GT, Init_Node, Init_Arc>
     DynArray<typename GT::Node*> b2; b2.reserve(num_blocks);
     {
       typename DynList<DynList<GT_Node*>>::Iterator it(blk_list);
-      for (int i = 0; it.has_curr(); it.next(), ++i)
+      for (int i = 0; it.has_curr(); it.next_ne(), ++i)
       {     // seleccione dos nodos al azar del componente actual
-	DynList<typename GT::Node*> & list = it.get_curr();
+	DynList<typename GT::Node*> & list = it.get_curr_ne();
 	b1.access(i) = this->select_random_node(list);
 	b2.access(i) = this->select_random_node(list);
       }
@@ -1143,8 +1143,8 @@ private:
     this->g.reset_counter_nodes();
 
         // contabiliza el grado de entrada por cada nodo
-    for (typename GT::Arc_Iterator it(this->g); it.has_curr(); it.next())
-      NODE_COUNTER(it.get_tgt_node())++;
+    for (typename GT::Arc_Iterator it(this->g); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_tgt_node_ne())++;
 
     const size_t & n = this->g.get_num_nodes();
 

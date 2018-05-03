@@ -867,11 +867,16 @@ public:
 
     Iterator(const DynSetTree & tree) : Base(tree.tree) { /* empty */ }
 
+    const Key & get_curr_ne() const noexcept
+    {
+      return Base::get_curr_ne()->get_key();
+    }
+
+    Key & get_curr_ne() noexcept { return Base::get_curr_ne()->get_key(); }
+
     const Key & get_curr() const { return Base::get_curr()->get_key(); }
 
     Key & get_curr() { return Base::get_curr()->get_key(); }
-
-    auto get_current() const { return get_curr(); }
   };
 
   /** Traverse all the set of pairs and for each key executes the operation op.
@@ -1053,8 +1058,8 @@ public:
 DynSetTree<T> set_unify(const C & c, Op op)
 {
   DynSetTree<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.insert(op(it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.insert(op(it.get_curr_ne()));
   return ret;
 }
 

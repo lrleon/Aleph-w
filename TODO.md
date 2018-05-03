@@ -84,3 +84,12 @@
 ## 28. marcar excepciones en funciones de ah-zip
 - Created at   2018-05-02 14:33:43 -0400
 
+## 29. revisar del de iteradores y poner del_ne
+- Created at   2018-05-02 21:48:36 -0400
+
+## 30. revisar iteradores de tablas hash
+- Created at   2018-05-02 21:48:51 -0400
+
+## 31. hacer más test para las tablas hash
+- Created at   2018-05-02 21:49:09 -0400
+

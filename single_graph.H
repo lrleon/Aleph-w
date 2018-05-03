@@ -66,9 +66,9 @@ public:
   {
     DynSetAvlTree<GT_Node*> nodes;
 
-    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
-	GT_Node * q = it.get_tgt_node();
+	GT_Node * q = it.get_tgt_node_ne();
 	if (nodes.exist(q))
 	  return false;
 	else
@@ -80,8 +80,8 @@ public:
 
   bool operator () (GT & g)
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      if (not test_node(it.get_curr()))
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      if (not test_node(it.get_curr_ne()))
 	return false;
 
     return true;

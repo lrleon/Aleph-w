@@ -214,15 +214,9 @@ public:
 
        \~Spanish Retorna `true` si el iterador es posicionado en un enlace válido
     */
-    bool has_current() const noexcept
-    {
-      return curr != nullptr;
-    }
-
-    /// \overload has_current()
     bool has_curr() const noexcept
     {
-      return has_current();
+      return curr != nullptr;
     }
 
     /**
@@ -234,17 +228,11 @@ public:
        Retorna el enlace actual sobre el cual el iterador está posicionado.
        Lanza la excepción `overflow_error` si no hay enlace actual.
     */
-    Slinknc * get_current() const
-    {
-      if (not has_current())
-        throw std::overflow_error("Iterator is at the end of the list");
-      return curr;
-    }
-
-    /// \overload get_current()
     Slinknc * get_curr() const
     {
-      return get_current();
+      if (not has_curr())
+        throw std::overflow_error("Iterator is at the end of the list");
+      return curr;
     }
 
     /// Return the current link guaranteeing no exception. Be careful.
@@ -265,7 +253,7 @@ public:
     */
     void next()
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::overflow_error("Iterator is at the end of the list");
       curr = curr->next;
     }
@@ -1062,9 +1050,6 @@ public:
     //!Retorna `true` si el iterador tiene un elemento actual 
     bool has_curr() const noexcept { return curr != nullptr; }
 
-    /// @overload has_curr()
-    bool has_current() const noexcept { return has_curr(); }
-
     bool is_last() const noexcept
     {
       return lptr->is_empty() ? false : curr == lptr->tail;
@@ -1097,9 +1082,6 @@ public:
 
       return curr;
     }
-
-    /// \overload get_curr()
-    Slinknc * get_current() const { return get_curr(); }
 
     /// Return the current link guaranteeing no exception. Be careful.
     Slinknc * get_curr_ne() const noexcept { return curr; }
@@ -1606,12 +1588,6 @@ public:
       return ((Snodenc<T>*) (HTList::Iterator::get_curr()))->get_data();
     }
 
-    /// \overload get_curr()
-    T & get_current() const
-    {
-      return get_curr();
-    }
-
     /** Remove the current item of the iterator.
 
 	`del()` removes the current item and advance forward the
@@ -1835,9 +1811,9 @@ public:
   {
     Iterator it(*this);
 
-    for (size_t __i = 0 ; it.has_current() and __i < i; it.next(), ++__i);
+    for (size_t __i = 0 ; it.has_curr() and __i < i; it.next_ne(), ++__i);
 
-    return it.get_current();
+    return it.get_curr_ne();
   }
 
   /// \overload get(const size_t & i)

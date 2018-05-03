@@ -58,8 +58,8 @@ class Test_Eulerian
   {
     assert(not g.is_digraph());
 
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      if ((g.get_num_arcs(it.get_curr()) % 2) == 1)
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      if ((g.get_num_arcs(it.get_curr_ne()) % 2) == 1)
 	return false;
 
     return true;
@@ -72,13 +72,12 @@ class Test_Eulerian
     g.reset_counter_nodes();
 
       // una primera pasada sobre arcos para contar grados de entrada
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_current(); it.next())
-      NODE_COUNTER(it.get_tgt_node())++;
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_tgt_node_ne())++;
 
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
-	typename GT::Node * p = it.get_curr();
-
+	typename GT::Node * p = it.get_curr_ne();
 	if (g.get_num_arcs(p) != NODE_COUNTER(p))
 	  return false;
       }

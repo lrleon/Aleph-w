@@ -62,9 +62,9 @@ public:
       return count;
 
     Q<typename GT::Arc*> q;
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -90,9 +90,9 @@ public:
 	if (not op(curr))
 	  return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -132,9 +132,9 @@ public:
     
     using Pair = tuple<typename GT::Node*, typename GT::Arc*>; 
     Q<Pair> q;
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -157,9 +157,9 @@ public:
 	if (not op(curr, arc))
 	  return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -199,9 +199,9 @@ public:
     if (not node_op(start))
       return make_tuple(1, 0);
 
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -229,9 +229,9 @@ public:
 	if (not node_op(curr))
 	  return make_tuple(node_count, arc_count);
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);

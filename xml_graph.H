@@ -205,9 +205,9 @@ namespace Aleph
 
       size_t i = 0;
 
-      for (typename GT::Node_Iterator it(g); it.has_current(); it.next(), ++i)
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
         {
-          typename GT::Node * p = it.get_current();
+          typename GT::Node * p = it.get_curr_ne();
 
           map.insert(p, i);
 
@@ -226,9 +226,9 @@ namespace Aleph
 
       xmlpp::Element * arcs = element->add_child("arcs");
 
-      for (typename GT::Arc_Iterator it(g); it.has_current(); it.next(), ++i)
+      for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
         {
-          typename GT::Arc * a = it.get_current();
+          typename GT::Arc * a = it.get_curr_ne();
         
           xmlpp::Element * arc = arcs->add_child(arc_name);
 

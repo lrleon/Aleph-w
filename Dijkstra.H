@@ -329,9 +329,9 @@ public:
     auto ret = TREENODE(start) = tree.insert_node(start->get_info());
     NODE_COOKIE(TREENODE(start)) = start;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne()) 
       {
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	POT(arc) = ARC_DIST(arc);
 	heap.put_arc(arc, it.get_tgt_node());
       }
@@ -370,9 +370,9 @@ public:
 	const auto & acc = ACC(gtgt);
 
 	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next()) 
+	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    auto arc = it.get_current_arc();
+	    auto arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
@@ -417,9 +417,9 @@ public:
     TREENODE(start)              = tree.insert_node(start->get_info());
     NODE_COOKIE(TREENODE(start)) = start;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne()) 
       {
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	POT(arc) = ARC_DIST(arc);
 	heap.put_arc(arc, it.get_tgt_node());
       }
@@ -460,9 +460,9 @@ public:
 	const auto & acc = ACC(gtgt);
 
 	      // por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next()) 
+	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    auto arc = it.get_current_arc();
+	    auto arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
@@ -497,9 +497,9 @@ public:
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
     ACC(start) = 0; 
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne()) 
       {
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	POT(arc) = ARC_DIST(arc);
 	heap.put_arc(arc, it.get_tgt_node());
       }
@@ -542,9 +542,9 @@ public:
 	const auto & acc = ACC(tgt);
 
 	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next()) 
+	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    auto a = it.get_current_arc();
+	    auto a = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
 	      continue;
 
@@ -577,9 +577,9 @@ public:
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
     ACC(start) = 0; 
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne()) 
       {
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	POT(arc) = ARC_DIST(arc);
 	heap.put_arc(arc, it.get_tgt_node());
       }
@@ -615,9 +615,9 @@ public:
 	const auto & acc = ACC(tgt);
 
 	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next()) 
+	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    auto a = it.get_current_arc();
+	    auto a = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
 	      continue;
 
@@ -810,8 +810,8 @@ public:
     path.empty();
     path.init(s);
     typename Path<GT>::Iterator it(tree_path);
-    for (it.next(); it.has_curr(); it.next())
-      path.append(mapped_node<GT>(it.get_current_node()));
+    for (it.next(); it.has_curr(); it.next_ne())
+      path.append(mapped_node<GT>(it.get_current_node_ne()));
 
     return total.dist;
   }

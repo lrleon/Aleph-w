@@ -54,15 +54,17 @@ struct GTNodeIterator : public Dlink::Iterator
       /// Build a iterator for all the nodes of g
   GTNodeIterator(Dlink & head) noexcept : Dlink::Iterator(head) { /* empty */ }
 
+  Node * get_curr_ne() const noexcept
+  {
+    return (Node*) Dlink::Iterator::get_curr_ne();
+  }
+
         /// Return the current node
   Node * get_current_node() const
   {
-    return (Node*) Dlink::Iterator::get_current(); 
+    return (Node*) Dlink::Iterator::get_curr(); 
   }
 
-  /// \overload get_current_node()
-  Node * get_current() const { return get_current_node(); }
-  
   /// \overload get_current_node()
   Node * get_curr() const { return get_current_node(); }
 };
@@ -96,28 +98,30 @@ struct GTArcIterator : public Dlink::Iterator
     : Dlink::Iterator(head) 
   { /* empty */ }
 
+  Arc * get_curr_ne() const noexcept
+  {
+    return (Arc*) Dlink::Iterator::get_curr_ne();
+  }
+
         /// Return the current arc
   Arc * get_current_arc() const
   {
-    return (Arc*) Dlink::Iterator::get_current(); 
+    return (Arc*) Dlink::Iterator::get_curr(); 
   }
 
-  /// \overload get_current_node()
-  Arc * get_current() const { return get_current_arc(); }
-  
   /// \overload get_current_node()
   Arc * get_curr() const { return get_current_arc(); }
 
   /// Return the sourcenode of current arc (if it is a directed graph) 
   Node * get_src_node() noexcept 
   {
-    return (Node*) get_current_arc()->src_node; 
+    return (Node*) get_curr_ne()->src_node; 
   }
 
   /// Return the target node of current arc (if it is a directed graph) 
   Node * get_tgt_node() noexcept
   {
-    return (Node*) get_current_arc()->tgt_node; 
+    return (Node*) get_curr_ne()->tgt_node; 
   }
 };
 
@@ -215,7 +219,7 @@ public:
 
   using Node_Type = NodeInfo; /// another alias for set type
 
-  GTNodeCommon() {}
+  GTNodeCommon() noexcept {}
 
   GTNodeCommon(const NodeInfo & info) : node_info(info) {}
 
@@ -990,19 +994,19 @@ public:
       @see traverse_arcs() all_nodes()
    */
   template <class Operation>
-  bool traverse_nodes(Operation & operation) const
+  bool traverse_nodes(Operation & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      if (not op(it.get_curr_ne()))
 	return false;
     return true;
   }
 
   /// \overload traverse_nodes()
   template <class Operation>
-  bool traverse_nodes(Operation && operation = Operation()) const
+  bool traverse_nodes(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return traverse_nodes(operation);
+    return traverse_nodes(op);
   }
 
   /** Conditioned traversal of all the arcs of a graph.
@@ -1055,19 +1059,19 @@ public:
       @see traverse_arcs() all_arcs()
    */
   template <class Operation>
-  bool traverse_arcs(Operation & operation) const
+  bool traverse_arcs(Operation & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      if (not op(it.get_curr_ne()))
 	return false;
     return true;
   }
 
   /// \overload traverse_arcs()
   template <class Operation>
-  bool traverse_arcs(Operation && operation = Operation()) const
+  bool traverse_arcs(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return traverse_arcs(operation);
+    return traverse_arcs(op);
   } 
 
   /** Conditioned traversal of all the adjacent arcs of a node.
@@ -1122,19 +1126,20 @@ public:
       @see traverse_arcs() all_arcs()
   */
   template <class Operation>
-  bool traverse_arcs(Node * p, Operation & operation) const
+  bool traverse_arcs(Node * p, Operation & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+      if (not op(it.get_curr_ne()))
 	return false;
     return true; 
   }
 
   /// \overload traverse_arcs(Node * p, Operation & operation)
   template <class Operation>
-  bool traverse_arcs(Node * p, Operation && operation = Operation()) const
+  bool traverse_arcs(Node * p, Operation && op = Operation())
+    const noexcept(noexcept(op))
   {
-    return traverse_arcs(p, operation);
+    return traverse_arcs(p, op);
   }
 
   /** Unconditionally traverse all the nodes of graph and on each one
@@ -1162,10 +1167,10 @@ public:
       @throw anything that can throw `operation`.
    */
   template <class Operation>
-  void for_each_node(Operation & operation) const
+  void for_each_node(Operation & operation) const noexcept(noexcept(operation))
   {
-    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next())
-      operation(it.get_curr());
+    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      operation(it.get_curr_ne());
   }
 
   /// \overload for_each_node()
@@ -1200,10 +1205,10 @@ public:
       @throw anything that can throw `operation`.
   */
   template <class Operation> 
-  void for_each_arc(Operation & operation) const
+  void for_each_arc(Operation & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next())
-      operation(it.get_curr());
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      op(it.get_curr_ne());
   }
 
   /// \overload for_each_arc(Operation & operation)
@@ -1247,17 +1252,18 @@ public:
       @throw anything that can throw `operation`.
    */
     template <class Operation>
-  void for_each_arc(Node * p, Operation & operation) const
+  void for_each_arc(Node * p, Operation & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next())
-      operation(it.get_curr());
+    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+      op(it.get_curr_ne());
   }
 
   /// \overlaod for_each_arc(Node * p, Operation & operation)
   template <class Operation>
-  void for_each_arc(Node * p, Operation && operation = Operation()) const
+  void for_each_arc(Node * p, Operation && op = Operation())
+    const noexcept(noexcept(op))
   {
-    for_each_arc(p, operation);
+    for_each_arc(p, op);
   }
 
   /** Check if all the nodes of graph satisfy an boolean condition.
@@ -1290,16 +1296,16 @@ public:
       @see exists_node()
    */
   template <class Operation>
-  bool all_nodes(Operation & operation) const
+  bool all_nodes(Operation & op) const noexcept(noexcept(op))
   {
-    return traverse_nodes(operation);
+    return traverse_nodes(op);
   }
 
   /// \overload all_nodes()
   template <class Operation>
-  bool all_nodes(Operation && operation = Operation()) const
+  bool all_nodes(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return all_nodes(operation);
+    return all_nodes(op);
   }
 
     /** Check if all the arcs of graph satisfy a boolean condition.
@@ -1332,16 +1338,16 @@ public:
       @see exists_arc()
    */
   template <class Operation>
-  bool all_arcs(Operation & operation) const
+  bool all_arcs(Operation & op) const noexcept(noexcept(op))
   {
-    return traverse_arcs(operation);
+    return traverse_arcs(op);
   }
 
   /// \overload all_arcs(Operation & operation)
   template <class Operation>
-  bool all_arcs(Operation && operation = Operation()) const
+  bool all_arcs(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return all_arcs(operation);
+    return all_arcs(op);
   }
 
   /** Check if all the arcs adjacent to a node satisfy an boolean
@@ -1377,16 +1383,17 @@ public:
       \see bool exists_arc(Operation & operation)
   */
   template <class Operation>
-  bool all_arcs(Node * p, Operation & operation) const
+  bool all_arcs(Node * p, Operation & op) const noexcept(noexcept(op))
   { 
-    return traverse_arcs(p, operation);
+    return traverse_arcs(p, op);
   }
 
   /// \overload all_arcs(Node * p, Operation & operation)
   template <class Operation>
-  bool all_arcs(Node * p, Operation && operation = Operation()) const
+  bool all_arcs(Node * p, Operation && op = Operation())
+    const noexcept(noexcept(op))
   {
-    return all_arcs(p, operation);
+    return all_arcs(p, op);
   }
   
   /** Map the nodes of a graph to a specific range.
@@ -1430,13 +1437,10 @@ public:
      dynamic list or anything else that can throw `operation`
    */
   template <typename T = Node_Type>
-  auto nodes_map(std::function<T(Node *)> operation) const
+  auto nodes_map(std::function<T(Node *)> op) const
   {
     DynList<T> ret_val;
-    for_each_node([&ret_val, &operation] (Node * p)
-		  {
-		    ret_val.append(operation(p));
-		  });
+    for_each_node([&ret_val, &op] (Node * p) { ret_val.append(op(p)); });
     return ret_val;
   }
 
@@ -1577,14 +1581,10 @@ public:
    */
   template <typename T = Node_Type>
   T foldl_nodes(const T & init,
-		std::function<T(const T&, Node*)> operation) const
+		std::function<T(const T&, Node*)> op) const
   {
     T ret = init;
-    for_each_node([&ret, &operation] (Node * p)
-		  {
-		    ret = operation(ret, p);
-		  });				
-    return ret;
+    for_each_node([&ret, &op] (Node * p) { ret = op(ret, p); });			  return ret;
   }
 
   /** Folding of arcs on a graph.
@@ -1622,13 +1622,10 @@ public:
    */
   template <typename T = Arc_Type>
   T foldl_arcs(const T & init,
-	       std::function<T(const T&, Arc*)> operation) const
+	       std::function<T(const T&, Arc*)> op) const
   {
     T ret = init;
-    for_each_arc([&ret, &operation] (Arc * p)
-		 {
-		   ret = operation(ret, p);
-		 });
+    for_each_arc([&ret, &op] (Arc * p) { ret = op(ret, p); });
     return ret;
   }
 
@@ -1668,13 +1665,10 @@ public:
    */
   template <typename T = Arc_Type>
   T foldl_arcs(Node * p, const T & init,
-	       std::function<T(const T&, Arc*)> operation) const
+	       std::function<T(const T&, Arc*)> op) const
   {
     T ret = init;
-    for_each_arc(p, [&ret, &operation] (Arc * a)
-		 {
-		   ret = operation(ret, a);
-		 });
+    for_each_arc(p, [&ret, &op] (Arc * a) { ret = op(ret, a); });
     return ret;
   }
   
@@ -1820,19 +1814,16 @@ public:
       @see all_nodes()
    */
   template <class Operation>
-  bool exists_node(Operation & operation) const
+  bool exists_node(Operation & op) const noexcept(noexcept(op))
   {
-    return not traverse_nodes([&operation] (Node * p)
-			      {
-				return not operation(p);
-			      });
+    return not traverse_nodes([&op] (Node * p) { return not op(p); });
   }
 
   /// \overload exists_node()
   template <class Operation>
-  bool exists_node(Operation && operation = Operation()) const
+  bool exists_node(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return exists_node(operation);
+    return exists_node(op);
   }
 
   /** Determine if exists at least a arc satisfying a condition.
@@ -1854,19 +1845,16 @@ public:
       @see all_arcs()
    */
   template <class Operation>
-  bool exists_arc(Operation & operation) const
+  bool exists_arc(Operation & op) const noexcept(noexcept(op))
   {
-    return not traverse_arcs([&operation] (Arc * a)
-			     {
-			       return not operation(a);
-			     });
+    return not traverse_arcs([&op] (Arc * a) { return not op(a); });
   }
 
   /// \overload exists_arc(Operation & operation)
   template <class Operation>
-  bool exists_arc(Operation && operation = Operation()) const
+  bool exists_arc(Operation && op = Operation()) const noexcept(noexcept(op))
   {
-    return exists_arc(operation);
+    return exists_arc(op);
   }
 
   /** Determine if exists at least a arc adjacent to a node satisfying a
@@ -1892,19 +1880,17 @@ public:
       @see all_arcs(Node * p)
    */
   template <class Operation>
-  bool exists_arc(Node * p, Operation & operation) const
+  bool exists_arc(Node * p, Operation & op) const noexcept(noexcept(op))
   {
-    return not traverse_arcs(p, [&operation] (Arc * a)
-			     {
-			       return not operation(a);
-			     });
+    return not traverse_arcs(p, [&op] (Arc * a) { return not op(a); });
   }
 
   /// \overload exists_arc(Node * p, Operation & operation)
   template <class Operation>
-  bool exists_arc(Node * p, Operation && operation = Operation()) const
+  bool exists_arc(Node * p, Operation && op = Operation())
+    const noexcept(noexcept(op))
   {
-    return exists_arc(p, operation);
+    return exists_arc(p, op);
   }
 
   /** Linear search of a node.
@@ -1924,11 +1910,11 @@ public:
       @see exists_node()
    */
   template <class Op>
-  Node * search_node(Op & op) const
+  Node * search_node(Op & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr();
+	auto p = it.get_curr_ne();
 	if (op(p))
 	  return p;
       }
@@ -1937,7 +1923,10 @@ public:
 
   /// \overload search_node()
   template <class Op>
-  Node * search_node(Op && op) const { return search_node(op); }
+  Node * search_node(Op && op) const noexcept(noexcept(op))
+  {
+    return search_node(op);
+  }
 
   /** Find a node mathing a content.
 
@@ -1950,7 +1939,7 @@ public:
       \return a valid pointer to a node if there is one mathing `info`
       or `nullptr` otherwise.
    */
-  Node * find_node(const Node_Type & info) const
+  Node * find_node(const Node_Type & info) const noexcept
   {
     return search_node([&info] (auto p) { return p->get_info() == info; });
   }
@@ -1972,11 +1961,11 @@ public:
       @see exists_arc()
    */
   template <class Op>
-  Arc * search_arc(Op & op) const
+  Arc * search_arc(Op & op) const noexcept(noexcept(op))
   {
-    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next())
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 	if (op(a))
 	  return a;
       }
@@ -1985,7 +1974,10 @@ public:
 
   /// \overload search_arc(Op & op) 
   template <class Op>
-  Arc * search_arc(Op && op) const { return search_arc(op); }
+  Arc * search_arc(Op && op) const noexcept(noexcept(op))
+  {
+    return search_arc(op);
+  }
 
   /** Find an arc mathing a content.
 
@@ -1998,7 +1990,7 @@ public:
       \return a valid pointer to a arc if there is one mathing `info`
       or `nullptr` otherwise.
   */
-  Arc * find_arc(const Arc_Type & info) const
+  Arc * find_arc(const Arc_Type & info) const noexcept
   {
     return search_arc([&info] (auto a) { return a->get_info() == info; });
   }
@@ -2022,11 +2014,11 @@ public:
       @see exists_arc(Node * p, Operation & op)
    */
   template <class Operation>
-  Arc * search_arc(Node * p, Operation & op) const
+  Arc * search_arc(Node * p, Operation & op) const noexcept(noexcept(op))
   { 
-    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next())
+    for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	Arc * arc = it.get_curr();
+	Arc * arc = it.get_curr_ne();
 	if (op(arc))
 	  return arc;
       }
@@ -2035,7 +2027,8 @@ public:
 
   /// \overload search_arc(Node * p, Operation & op)
   template <class Operation>
-  Arc * search_arc(Node * p, Operation && op = Operation()) const
+  Arc * search_arc(Node * p, Operation && op = Operation())
+    const noexcept(noexcept(op))
   {
     return search_arc(p, op);
   }
@@ -2063,11 +2056,11 @@ public:
 
       \see search_directed_arc()
    */
-  Arc * search_arc(Node * src, Node * tgt) const
+  Arc * search_arc(Node * src, Node * tgt) const noexcept
   {
-    for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next())
+    for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node() == tgt)
-	return it.get_curr();
+	return it.get_curr_ne();
     return nullptr;
   }
 
@@ -2344,10 +2337,12 @@ public:
     /// Instantiate an filtered iterator for arcs on the node `p`
     Digraph_Iterator(Node * p)
     noexcept(noexcept(Filter(p)) and noexcept(Itor(p, filt)))
-    : filt(p), it(p, filt) 
+      : filt(p), it(p, filt) 
     {
       // empty
     }
+
+    void next_ne() noexcept { it.next_ne(); }
 
     /// Advance to next arc. Throw `overflow_error` if there is no
     /// current arc
@@ -2355,41 +2350,38 @@ public:
 
     /// back to previous item. Throw `underflow_error` if there is no
     /// current arc
-    void prev() { it.next(); }
+    void prev() { it.prev(); }
+
+    void prev_ne() { it.prev_ne(); }
 
     /// Return true is the iterator has a current arc
     bool has_curr() const noexcept { return it.has_curr(); }
-
-    /// \overload has_curr()
-    auto has_current() const noexcept { return has_curr(); }
 
     /// Return the current arc. Throws `overflow_error` if there is no
     /// current arc
     typename GT::Arc * get_curr() const { return it.get_curr(); }
 
-    /// \overload get_curr()
-    auto get_current() const { return get_curr(); }
-		
+    typename GT::Arc * get_curr_ne() const { return it.get_curr_ne(); }
+
     /// \overload get_curr()
     auto get_current_arc() const { return get_curr(); }
 	
     /// Return the node connected to `p` (passed during construction)
     /// and linked through `a`
-    typename GT::Node * get_node(typename GT::Arc * a) const 
-      noexcept(noexcept(filt.get_node(a)))
+    typename GT::Node * get_node(typename GT::Arc * a) const noexcept
     {
       return filt.get_node(a);
     }
 
     /// Return the node connected to `p` (passed during construction)
     /// and linked through the current arc
-    typename GT::Node * get_node() 
+    typename GT::Node * get_node() noexcept
     { 
-      return this->get_node(this->get_curr()); 
+      return this->get_node(this->get_curr_ne()); 
     }
 
     /// \overload get_node()
-    auto get_tgt_node() { return get_node(); }
+    auto get_tgt_node() noexcept { return get_node(); }
 
     /// Reset the iterator to first arc
     void reset_first() noexcept { it.reset_first(); }
@@ -2457,11 +2449,11 @@ public:
       \return a valid pointer to an arc if this is found or `nullptr`
       otherwise. 
    */
-  Arc * search_directed_arc(Node * src, Node * tgt) const
+  Arc * search_directed_arc(Node * src, Node * tgt) const noexcept
   {
-    for (typename GT::Out_Iterator it(src); it.has_curr(); it.next())
+    for (typename GT::Out_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node() == tgt)
-	return it.get_curr();
+	return it.get_curr_ne();
     return nullptr;
   }
 
@@ -2478,7 +2470,7 @@ public:
   DynList<Node*> in_nodes(Node * p) const
   {
     DynList<Node*> ret;
-    for (In_Iterator it(p); it.has_curr(); it.next())
+    for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_node());
     return ret;
   }
@@ -2496,7 +2488,7 @@ public:
   DynList<Node*> out_nodes(Node * p) const
   {
     DynList<Node*> ret;
-    for (Out_Iterator it(p); it.has_curr(); it.next())
+    for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_node());
     return ret;
   }
@@ -2513,8 +2505,8 @@ public:
   DynList<Arc*> out_arcs(Node * p) const
   {
     DynList<Arc*> ret;
-    for (Out_Iterator it(p); it.has_curr(); it.next())
-      ret.append(it.get_curr());
+    for (Out_Iterator it(p); it.has_curr(); it.next_ne())
+      ret.append(it.get_curr_ne());
     return ret;
   }
 
@@ -2529,8 +2521,8 @@ public:
   DynList<Arc*> in_arcs(Node * p) const
   {
     DynList<Arc*> ret;
-    for (In_Iterator it(p); it.has_curr(); it.next())
-      ret.append(it.get_curr());
+    for (In_Iterator it(p); it.has_curr(); it.next_ne())
+      ret.append(it.get_curr_ne());
     return ret;
   }
 
@@ -2552,9 +2544,9 @@ public:
   auto in_pairs(Node * p) const
   {
     DynList<ArcPair> ret;
-    for (In_Iterator it(p); it.has_curr(); it.next())
+    for (In_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -2575,9 +2567,9 @@ public:
   auto out_pairs(Node * p) const
   {
     DynList<ArcPair> ret;
-    for (Out_Iterator it(p); it.has_curr(); it.next())
+    for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -2599,7 +2591,7 @@ public:
   size_t in_degree(Node * p) const noexcept
   {
     size_t count = 0;
-    for (In_Iterator it(p); it.has_curr(); it.next())
+    for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ++count;
     return count;
   }
@@ -2622,7 +2614,7 @@ public:
   size_t out_degree(Node * p) const noexcept
   {
     size_t count = 0;
-    for (Out_Iterator it(p); it.has_curr(); it.next())
+    for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       ++count;
     return count;
   }
@@ -2646,61 +2638,61 @@ public:
       \see traverse(Node * p, Operation & operation)
    */
   template <class Itor, class Operation> 
-  bool traverse_arcs(Node * p, Operation & operation) const
+  bool traverse_arcs(Node * p, Operation & op) const noexcept(noexcept(op))
   {
-    for (Itor it(p); it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+    for (Itor it(p); it.has_curr(); it.next_ne())
+      if (not op(it.get_curr_ne()))
 	return false;
     return true;
   }
 
   /// Perform `operation` on each arc of node `p`
   template <class Itor, class Operation>
-  void for_each_arc(Node * p, Operation & operation) const
+  void for_each_arc(Node * p, Operation & op) const noexcept(noexcept(op))
   {
-    for (Itor it(p); it.has_curr(); it.next())
-      operation(it.get_curr());
+    for (Itor it(p); it.has_curr(); it.next_ne())
+      operation(it.get_curr_ne());
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned
   /// `operation` 
   template <class Op>
-  bool traverse_in_arcs(Node * p, Op & op) const
+  bool traverse_in_arcs(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return traverse_arcs<In_Iterator, Op>(p, op);
   }
 
   /// \overload traverse_in_arcs(Node * p, Op & op)
   template <class Op>
-  bool traverse_in_arcs(Node * p, Op && op = Op()) const
+  bool traverse_in_arcs(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return traverse_in_arcs(p, op);
   }
 
   /// Perform `operation` on each incoming arc of node `p`
   template <class Op>
-  void for_each_in_arc(Node * p, Op & op) const
+  void for_each_in_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     for_each_arc(p, op); 
   }
 
   // \overload for_each_in_arc(Node * p, Op & op)
   template <class Op>
-  void for_each_in_arc(Node * p, Op && op = Op()) const
+  void for_each_in_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     for_each_in_arc(p, op);
   }
 
   /// Return `true` if `op` is true for all the incoming arcs to node `p`
   template <class Op>
-  bool all_in_arcs(Node * p, Op & op) const
+  bool all_in_arcs(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
   }
 
   /// \overload all_in_arcs(Node * p, Op & op)
   template <class Op>
-  bool all_in_arcs(Node * p, Op && op = Op()) const
+  bool all_in_arcs(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return all_in_arc(p, op);
   }
@@ -2708,14 +2700,14 @@ public:
   /// Return true if it exists a incoming arc to `p` returning `true`
   /// for `op` 
   template <class Op>
-  bool exists_in_arc(Node * p, Op & op) const
+  bool exists_in_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return not traverse_in_arcs(p, [&op] (auto a) { return not op(a); });
   }
 
   /// \overload exists_in_arc(Node * p, Op & op)
   template <class Op>
-  bool exists_in_arc(Node * p, Op && op = Op()) const
+  bool exists_in_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return exists_in_arc(p, op);
   }
@@ -2734,7 +2726,7 @@ public:
       \throw anything that `op` could throw
    */
   template <class Op>
-  auto search_in_arc(Node * p, Op & op) const
+  auto search_in_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     Arc * ret = nullptr;
     traverse_in_arcs(p, [&op, &ret] (auto a)
@@ -2751,7 +2743,7 @@ public:
 
   /// \overload search_in_arc(Node * p, Op & op)
   template <class Op>
-  auto search_in_arc(Node * p, Op && op = Op()) const
+  auto search_in_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return search_in_arc(p, op);
   }
@@ -2765,7 +2757,8 @@ public:
       \see arcs_map(Node * p, std::function<T(Arc *)> operation)
   */
   template <typename T>
-  auto in_arcs_map(Node * p, std::function<T(Arc*)> op) const
+  auto in_arcs_map(Node * p, std::function<T(Arc*)> op)
+    const noexcept(noexcept(op))
   {
     DynList<T> ret;
     for_each_in_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
@@ -2781,7 +2774,8 @@ public:
    */
   template <typename T = Arc_Type>
   T foldl_in_arcs(Node * p, const T & init, 
-		  std::function<T(const T&, Arc*)> op) const
+		  std::function<T(const T&, Arc*)> op)
+    const noexcept(noexcept(op))
   {
     T ret = init;
     for_each_in_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2796,7 +2790,7 @@ public:
       \see filter_arcs(Node * p, Operation & operation)
    */
   template <class Op>
-  DynList<Arc*> filter_in_arcs(Node * p, Op & op) const
+  DynList<Arc*> filter_in_arcs(Node * p, Op & op) const 
   {
     DynList<Arc*> ret;
     for_each_in_arc(p, [&ret, &op] (auto a) 
@@ -2817,42 +2811,43 @@ public:
   /// Traverse the outcoming arcs of node `p` executing the conditioned
   /// `operation` 
   template <class Op>
-  bool traverse_out_arcs(Node * p, Op & op) const
+  bool traverse_out_arcs(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return traverse_arcs(p, op);
   }
 
   /// \overload traverse_out_arcs(Node * p, Op & op)
   template <class Op>
-  bool traverse_out_arcs(Node * p, Op && op = Op()) const
+  bool traverse_out_arcs(Node * p, Op && op = Op())
+    const noexcept(noexcept(op))
   {
     return traverse_out_arcs(p, op);
   }
 
   /// Perform `operation` on each incoming arc of node `p`
   template <class Op>
-  void for_each_out_arc(Node * p, Op & op) const
+  void for_each_out_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     for_each_arc(p, op);
   }
 
   /// \overload for_each_out_arc(Node * p, Op & op)
   template <class Op>
-  void for_each_out_arc(Node * p, Op && op = Op()) const
+  void for_each_out_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     for_each_out_arc(p, op);
   }
 
   /// Return `true` if `op` is true for all the outcoming arcs to node `p`
   template <class Op>
-  bool all_out_arcs(Node * p, Op & op) const
+  bool all_out_arcs(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
   }
 
   /// \overload all_out_arcs(Node * p, Op & op)
   template <class Op>
-  bool all_out_arcs(Node * p, Op && op = Op()) const
+  bool all_out_arcs(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return all_out_arc(p, op);
   }
@@ -2860,14 +2855,14 @@ public:
   /// Return true if it exists a outcoming arc to `p` returning `true`
   /// for `op` 
   template <class Op>
-  bool exists_out_arc(Node * p, Op & op) const
+  bool exists_out_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     return not traverse_out_arcs(p, [&op] (auto a) { return not op(a); });
   }
 
   /// \overload exists_out_arc(Node * p, Op & op)
   template <class Op>
-  bool exists_out_arc(Node * p, Op && op = Op()) const
+  bool exists_out_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return exists_out_arc(p, op);
   }
@@ -2885,7 +2880,7 @@ public:
       this exists; `nullptr` otherwise 
       \throw anything that `op` could throw
   */  template <class Op>
-  auto search_out_arc(Node * p, Op & op) const
+  auto search_out_arc(Node * p, Op & op) const noexcept(noexcept(op))
   {
     typename GT::Arc * ret = nullptr;
     traverse_out_arcs(p, [&op, &ret] (auto a)
@@ -2902,7 +2897,7 @@ public:
 
   /// \overload search_out_arc(Node * p, Op & op)
   template <class Op>
-  auto search_out_arc(Node * p, Op && op = Op()) const
+  auto search_out_arc(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return search_out_arc(p, op);
   }
@@ -2926,7 +2921,8 @@ public:
   /// \overload out_arcs_map(Node * p, std::function<T(Arc*)> op)
   template <typename T = Arc_Type>
   T foldl_out_arcs(Node * p, const T & init,
-		   std::function<T(const T&, Arc*)> op) const
+		   std::function<T(const T&, Arc*)> op)
+    const noexcept(noexcept(op))
   {
     T ret = init;
     for_each_out_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2941,7 +2937,7 @@ public:
       \see filter_arcs(Node * p, Operation & operation)
   */
   template <class Op>
-  DynList<Arc*> filter_out_arcs(Node * p, Op & op) const
+  DynList<Arc*> filter_out_arcs(Node * p, Op & op) const noexcept(noexcept(op))
   {
     DynList<Arc*> ret;
     for_each_out_arc(p, [&ret, &op] (auto a) 
@@ -2954,7 +2950,7 @@ public:
 
   /// \overload filter_out_arcs(Node * p, Op & op)
   template <class Op>
-  auto filter_out_arcs(Node * p, Op && op = Op()) const
+  auto filter_out_arcs(Node * p, Op && op = Op()) const noexcept(noexcept(op))
   {
     return filter_out_arcs(p, op);
   }

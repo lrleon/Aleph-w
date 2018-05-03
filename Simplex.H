@@ -224,9 +224,9 @@ private:
       
           // llena los num_var coeficientes de las restricciones
       i = 1;
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next(), i++)
+      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), i++)
         {
-          T * rest = it.get_curr();
+          T * rest = it.get_curr_ne();
 
           for (int j = 0; j < num_var; j++)
             m->write(i, j, rest[j]);
@@ -314,9 +314,9 @@ public:
 			      "out of range (" + to_string(num_rest - 1) + ")");
 
     int i = 1;
-    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       if (i == rest_num)
-        return it.get_current();
+        return it.get_curr_ne();
   }
 
     /** Define una restricción mediante un arreglo dinámico.
@@ -420,9 +420,9 @@ public:
       /// restricciones; false de lo contrario.
   bool verify_solution() const
   {
-    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       {
-        T * rest = it.get_curr();
+        T * rest = it.get_curr_ne();
         T sum = 0;
         for (int j = 0; j < num_var; j++)
           sum += rest[j]*solution[j];
@@ -497,9 +497,9 @@ public:
         << "Sujeto a:" << endl
         << "\\begin{eqnarray*}" << endl;
 
-    for (auto it = rest_list.get_it(); it.has_curr(); it.next())
+    for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       {
-        T * rest = it.get_curr();
+        T * rest = it.get_curr_ne();
 
         for (int i = 0; i < num_rest; i++)
           {

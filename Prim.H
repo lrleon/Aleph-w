@@ -182,10 +182,10 @@ private:
     NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visitado
 
     Simple_Heap heap(dist, Acc_Simple_Heap());
-    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * arc = it.get_current_arc();
-	heap.put_arc(arc, it.get_tgt_node());
+	typename GT::Arc * arc = it.get_current_arc_ne();
+	heap.put_arc(arc, it.get_tgt_node_ne());
       }
 
     const size_t V1 = g.get_num_nodes() - 1;
@@ -212,13 +212,13 @@ private:
 
 	    // insertar en heap arcos no visitados de tgt_node
 	for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr();
-	     it.next())
+	     it.next_ne())
 	  {
-	    typename GT::Arc * arc = it.get_current_arc();
+	    typename GT::Arc * arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
-	    typename GT::Node * tgt = it.get_tgt_node();
+	    typename GT::Node * tgt = it.get_tgt_node_ne();
 	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
 	      continue; // nodo visitado ==> causará ciclo 
 
@@ -245,10 +245,10 @@ private:
 
     Heap heap(dist, Acc_Heap()) ;
         // meter en heap arcos iniciales del primer nodo
-    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * arc = it.get_current_arc();
-	heap.put_arc(arc, it.get_tgt_node());
+	typename GT::Arc * arc = it.get_current_arc_ne();
+	heap.put_arc(arc, it.get_tgt_node_ne());
       }
 
     const size_t V1 = g.get_num_nodes() - 1;
@@ -274,13 +274,13 @@ private:
 
 	    // insertar en heap arcos no visitados de tgt_node
 	for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr(); 
-	     it.next())
+	     it.next_ne())
 	  {
-	    typename GT::Arc * arc = it.get_current_arc();
+	    typename GT::Arc * arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
-	    typename GT::Node * tgt = it.get_tgt_node();
+	    typename GT::Node * tgt = it.get_tgt_node_ne();
 	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
 	      continue; // nodo visitado ==> causará ciclo 
 

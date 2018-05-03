@@ -55,10 +55,10 @@ bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
     return true;
 
   T item = cont.get_first();
-  typename Container<T>::Iterator it(cont); it.next();
-  for (; it.has_curr(); it.next())
+  typename Container<T>::Iterator it(cont); it.next_ne();
+  for (; it.has_curr(); it.next_ne())
     {
-      const T & curr = it.get_curr();
+      const T & curr = it.get_curr_ne();
       if (not cmp(item, curr))
 	return false;
 
@@ -86,11 +86,11 @@ pair<bool, size_t> search_inversion(const Container<T> & cont,
     return make_pair(true, 0);
 
   T item = cont.get_first();
-  typename Container<T>::Iterator it(cont); it.next();
+  typename Container<T>::Iterator it(cont); it.next_ne();
   size_t n = 0;
-  for (; it.has_curr(); it.next(), ++n)
+  for (; it.has_curr(); it.next_ne(), ++n)
     {
-      const T & curr = it.get_curr();
+      const T & curr = it.get_curr_ne();
       if (not cmp(item, curr))
 	return make_pair(false, n);
 
@@ -113,10 +113,10 @@ bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
     return true;
 
   T item = cont.get_first();
-  typename Container<T>::Iterator it(cont); it.next();
-  for (; it.has_curr(); it.next())
+  typename Container<T>::Iterator it(cont); it.next_ne();
+  for (; it.has_curr(); it.next_ne())
     {
-      const T & curr = it.get_curr();
+      const T & curr = it.get_curr_ne();
       if (not cmp(curr, item))
 	return false;
 
@@ -140,10 +140,10 @@ test_sorted(const Container<T> & cont, Compare cmp = Compare()) noexcept
     return pair<bool, size_t>(true, 0);
 
   T item = cont.get_first();
-  typename Container<T>::Iterator it(cont); it.next();
-  for (size_t i = 1; it.has_curr(); it.next(), ++i)
+  typename Container<T>::Iterator it(cont); it.next_ne();
+  for (size_t i = 1; it.has_curr(); it.next_ne(), ++i)
     {
-      const T & curr = it.get_curr();
+      const T & curr = it.get_curr_ne();
       if (cmp(curr, item))
 	return pair<bool, size_t>(false, i);
 
@@ -203,11 +203,11 @@ void selection_sort(T * a, const size_t n, Compare cmp = Compare()) noexcept
 Link * search_extreme(const Link & list, Compare & cmp) noexcept
 {
   typename Link::Iterator it(const_cast<Link&>(list));
-  Link * extreme = it.get_current();
+  Link * extreme = it.get_curr();
 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      Link * curr = it.get_curr();
+      Link * curr = it.get_curr_ne();
       if (cmp(curr, extreme))
 	extreme = curr;
     } 
@@ -404,9 +404,9 @@ int sequential_search(const DynArray<T> & a, const T & x,
 Link * sequential_search(const Link & list, const T & x, Equal & eq) noexcept
 {
   for (typename Link::Iterator it(const_cast<Link&>(list)); 
-       it.has_curr(); it.next())
+       it.has_curr(); it.next_ne())
     {
-      Link * curr = it.get_curr();
+      Link * curr = it.get_curr_ne();
       if (eq(curr, x)) 
 	return curr;
     }
@@ -668,11 +668,11 @@ void insertion_sort(T * a, const size_t l, const size_t r,
 void insert_sorted(Dlink & list, Dlink * p, Compare & cmp) noexcept
 {
   typename Dlink::Iterator it(list); 
-  while (it.has_curr() and cmp(it.get_curr(), p)) 
-    it.next();
+  while (it.has_curr() and cmp(it.get_curr_ne(), p)) 
+    it.next_ne();
 
   if (it.has_curr())
-    it.get_curr()->append(p); // insertar antes de current
+    it.get_curr_ne()->append(p); // insertar antes de current
   else
     list.append(p); 
 }
@@ -696,9 +696,9 @@ void insert_sorted(HTList & list, Slinknc * p, Compare & cmp) noexcept
 
   Slinknc * prev = list.get_first();
   typename HTList::Iterator it(list); 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      Slinknc * curr = it.get_curr();
+      Slinknc * curr = it.get_curr_ne();
       if (cmp(p, curr)) // p < curr
 	{
 	  prev->insert(p);

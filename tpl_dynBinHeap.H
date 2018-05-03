@@ -65,7 +65,7 @@ public:
       /// El tipo de conjunto sobre el cual se itera.
   using Set_Type = DynBinHeap;
 
-      /// El tipo de elemento que retorna get_current().
+      /// El tipo de elemento que retorna get_curr().
   using Item_Type = T;
 
   using Key_Type = T;

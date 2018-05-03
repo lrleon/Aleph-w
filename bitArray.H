@@ -824,8 +824,6 @@ public:
       return curr_idx >= 0 and curr_idx < array_ptr->size(); 
     }
 
-    bool has_current() const noexcept { return has_curr(); }
-
     unsigned int get_curr_ne() const noexcept
     {
       return array_ptr->read_bit(curr_idx);

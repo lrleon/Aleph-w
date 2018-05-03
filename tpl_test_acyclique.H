@@ -62,9 +62,9 @@ class Is_Graph_Acyclique
 
     NODE_BITS(curr).set_bit(Test_Cycle, true); // marcar nodo
 
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
       {
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue; 
 
@@ -90,9 +90,9 @@ class Is_Graph_Acyclique
     g.reset_bit_arcs(Test_Cycle);
     g.reset_bit_nodes(Test_Cycle);
 
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next()) 
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne()) 
     {
-      typename GT::Node * curr = it.get_current_node();
+      typename GT::Node * curr = it.get_current_node_ne();
       if (IS_NODE_VISITED(curr, Test_Cycle)) 
 	continue; 
 

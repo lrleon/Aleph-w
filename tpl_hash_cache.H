@@ -456,16 +456,16 @@ public:
   public:
         /// El tipo de conjunto sobre el cual se itera.
     typedef Hash_Cache Set_Type;
-        /// El tipo de elemento que retorna get_current().
+        /// El tipo de elemento que retorna get_curr().
     typedef Cache_Entry * Item_Type;
 
         /// Instancia un iterador sobre cache.
     Iterator(Hash_Cache & cache) : Dlink::Iterator(&cache.inside_list) {}
 
         /// Retorna el Cache_Entry actual.
-    Cache_Entry * get_current()  
+    Cache_Entry * get_curr()  
     { 
-      Dlink * dl = Dlink::Iterator::get_current();
+      Dlink * dl = Dlink::Iterator::get_curr();
       return Cache_Entry::dlink_inside_to_Cache_Entry(dl); 
     } 
   };

@@ -233,7 +233,7 @@ public:
 
     Vertex & get_current_vertex()
     {
-      return *Vertex::dlink_to_vertex(get_current());
+      return *Vertex::dlink_to_vertex(get_curr());
     }
   };
 
@@ -250,12 +250,12 @@ public:
 	throw std::domain_error("Polygon has less than two vertex");
     }
 
-    bool has_current() const
+    bool has_curr() const
     {
       if (this->is_in_last())
 	return poly.is_closed() ? true : false;
 
-      return Dlink::Iterator::has_current();
+      return Dlink::Iterator::has_curr();
     }
 
     Segment get_current_segment() const 
@@ -264,7 +264,7 @@ public:
 	throw std::domain_error("Segment iterator is in the last point and "
 				"it is not closed");
       
-      Vertex * src = Vertex::dlink_to_vertex(this->get_current());
+      Vertex * src = Vertex::dlink_to_vertex(this->get_curr());
 
           // decidir punto tgt según que se esté en el último punto o no
       const Vertex & tgt = 
@@ -276,7 +276,7 @@ public:
 
   bool vertex_belong_polygon(const Vertex & v) const
   {
-    for (Vertex_Iterator it(*this); it.has_current(); it.next())
+    for (Vertex_Iterator it(*this); it.has_curr(); it.next_ne())
       if (&it.get_current_vertex() == &v)
 	return true;
     
@@ -341,7 +341,7 @@ public:
   bool intersects_with(const Segment & sg)
   {
         // recorrer todos los lados y verificar que no haya intersección
-    for (Segment_Iterator it(*this); it.has_current(); it.next())
+    for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
       {
 	const Segment & curr_side = it.get_current_segment();
 	if (curr_side.intersects_with(sg))
@@ -387,7 +387,7 @@ public:
 
 	    // verificar si hay intersección con los demás lados excepto el
 	    // penúltimo (con el cual comparte un punto)
-	for (Segment_Iterator it(*this); true; it.next())
+	for (Segment_Iterator it(*this); true; it.next_ne())
 	  {
 	    const Segment curr_side = it.get_current_segment();
 
@@ -439,7 +439,7 @@ public:
 
 	Segment_Iterator it(*this); 
 	
-	for (it.next(); true; it.next())
+	for (it.next(); true; it.next_ne())
 	  {
 	    const Segment curr_side = it.get_current_segment();
 
@@ -465,7 +465,7 @@ public:
 
     it.next();
     
-    for ( /* nothing */ ; it.has_current(); it.next())
+    for ( /* nothing */ ; it.has_curr(); it.next_ne())
       if (p.is_to_left_from(it.get_current_segment()) != test)
 	return false;
 
@@ -584,11 +584,11 @@ public:
       // empty 
     }
 
-    bool has_current() const { return curr < poly.size(); }
+    bool has_curr() const { return curr < poly.size(); }
 
     Vertex & get_current_vertex() 
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
 
       vertex = poly.get_vertex(curr);
@@ -596,19 +596,20 @@ public:
       return vertex;
     }
 
+    void next_ne() noexcept { ++curr; }
+
     void next()
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
-
-      ++curr;
+      next_ne();
     }
 
     void prev()
     {
       --curr;
 
-      if (not has_current())
+      if (not has_curr())
 	throw std::underflow_error("Iterator has not current");
     }
   };
@@ -629,30 +630,31 @@ public:
       // empty 
     }
 
-    bool has_current() const { return curr < poly.size(); }
+    bool has_curr() const { return curr < poly.size(); }
 
     const Segment get_current_segment() const
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
 
       return Segment(poly.get_vertex(curr), 
 		     poly.get_vertex((curr + 1) % poly.size()));
     }
 
+    void next_ne() noexcept { ++curr; }
+
     void next()
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
-
-      ++curr;
+      next_ne();
     }
 
     void prev()
     {
       --curr;
 
-      if (not has_current())
+      if (not has_curr())
 	throw std::underflow_error("Iterator has not current");
     }
   };

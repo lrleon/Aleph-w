@@ -119,7 +119,7 @@ class Filter_Iterator : public It
  
 public:
 
-      /// Tipo de elemento que retorna get_current()
+      /// Tipo de elemento que retorna get_curr()
   typedef typename It::Item_Type Item_Type;
 
      /// El tipo de iterador.
@@ -167,6 +167,15 @@ public:
 
       /// Adelanta el iterador una posición.
   void next() { forward(); }
+
+  void next_ne() noexcept
+  {
+    try
+      {
+	forward();
+      }
+    catch (...) {}
+  }
 
       /// Retrocede el iterador una posición.
   void prev() { backward(); }

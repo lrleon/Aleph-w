@@ -73,9 +73,9 @@ private:
       }
 
     for (Node_Arc_Iterator<GT, SA> i(g_src, sa); // explore desde g_src 
-	 i.has_current(); i.next())
+	 i.has_curr(); i.next_ne())
       {
-        auto arc = i.get_current_arc();
+        auto arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Build_Subtree)) 
           continue; // avance próximo arco
 
@@ -109,9 +109,9 @@ private:
     l.append(p);
 
     for (Node_Arc_Iterator<GT, SA> it(p, sa); // explore desde g_src 
-	 count < gptr->get_num_nodes() and it.has_curr(); it.next())
+	 count < gptr->get_num_nodes() and it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_current_arc();
+        auto arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Build_Subtree)) 
           continue; // avance próximo arco
 
@@ -221,9 +221,9 @@ public:
     g.reset_arcs();  
     size_t count = 0; // contador de nodos visitados
     for (typename GT::Node_Iterator it(g); // recorrer nodos de g
-         count < g.get_num_nodes() and it.has_curr(); it.next())
+         count < g.get_num_nodes() and it.has_curr(); it.next_ne())
       {
-        auto curr = it.get_current_node();
+        auto curr = it.get_current_node_ne();
         if (IS_NODE_VISITED(curr, Build_Subtree)) 
           continue;
 
@@ -243,9 +243,9 @@ public:
     g.reset_arcs();  
     size_t count = 0; // contador de nodos visitados
     for (typename GT::Node_Iterator i(g); // recorrer nodos de g
-         count < g.get_num_nodes() and i.has_curr(); i.next())
+         count < g.get_num_nodes() and i.has_curr(); i.next_ne())
       {
-        auto curr = i.get_current_node();
+        auto curr = i.get_current_node_ne();
         if (IS_NODE_VISITED(curr, Build_Subtree)) 
           continue;
 

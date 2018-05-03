@@ -84,7 +84,7 @@ private:
 
     size_type counter = 0;
 
-    for (typename Dnode<T>::Iterator it(dlist); it.has_current(); it.next())
+    for (typename Dnode<T>::Iterator it(dlist); it.has_curr(); it.next_ne())
       ++counter;
 
     num_elem = counter;
@@ -111,7 +111,7 @@ public:
 
     void init_flags()
     {
-      if (itor.has_current())
+      if (itor.has_curr())
 	underflow = overflow = false;
       else
 	underflow = overflow = true;
@@ -153,7 +153,7 @@ public:
       
       itor.next();
 
-      if (not itor.has_current())
+      if (not itor.has_curr())
 	overflow = true;
     }
 
@@ -167,7 +167,7 @@ public:
       
       itor.prev();
 
-      if (not itor.has_current())
+      if (not itor.has_curr())
 	underflow = true;
     }
 
@@ -192,13 +192,13 @@ public:
         /// Proporciona una referencia al elemento actual de iterador.
     T & operator *()
     {
-      return itor.get_current()->get_data();
+      return itor.get_curr()->get_data();
     }
 
         /// Dereferencia el elemento actual del iterador.
     T * operator ->()
     {
-      return & itor.get_current()->get_data();
+      return & itor.get_curr()->get_data();
     }
 
         /// Avanza el iterador hacia delante y luego carga el elemento
@@ -284,9 +284,9 @@ private:
     assert(num_elem == 0);
 
     for (typename Dnode<T>::Iterator it(_list.dlist); 
-	 it.has_current(); it.next())
+	 it.has_curr(); it.next_ne())
       {
-	Node * node = new Node(it.get_current()->get_data());
+	Node * node = new Node(it.get_curr_ne()->get_data());
 
 	dlist.append(node);
 	++num_elem;
@@ -390,13 +390,13 @@ public:
 
     typename Dnode<T>::Iterator it_l(*this), it_r(c.dlist);
 
-    while (it_l.has_current() and it_r.has_current())
+    while (it_l.has_curr() and it_r.has_curr())
       {
-	if (it_l.get_current()->get_data() != it_r.get_current()->get_data())
+	if (it_l.get_curr_ne()->get_data() != it_r.get_curr_ne()->get_data())
 	  return false;
 
-	it_l.next();
-	it_r.next();
+	it_l.next_ne();
+	it_r.next_ne();
       }
 
     if (it_l.is_empty() and it_r.is_empty())
@@ -422,16 +422,16 @@ public:
     typename Dnode<T>::Iterator it_l(*this);
     typename Dnode<T>::Iterator it_r(c);
 
-    while (it_l.has_current() and it_r.has_current())
+    while (it_l.has_curr() and it_r.has_curr())
       {
-	if (it_l.get_current()->get_data() < it_r.get_current()->get_data())
+	if (it_l.get_curr_ne()->get_data() < it_r.get_curr_ne()->get_data())
 	  return true;
-	else if (it_r.get_current()->get_data() < 
-		 it_l.get_current()->get_data())
+	else if (it_r.get_curr()->get_data() < 
+		 it_l.get_curr()->get_data())
 	  return false; // no son iguales
 
-	it_l.next();
-	it_r.next();
+	it_l.next_ne();
+	it_r.next_ne();
       }
 
     return it_l.is_empty();
@@ -554,7 +554,7 @@ public:
 
     Node * new_node = new Node(value);
 
-    Node * current_node = pos.itor.get_current();
+    Node * current_node = pos.itor.get_curr();
 
     current_node->append(new_node);
 
@@ -578,7 +578,7 @@ public:
 	for (int i = 0; i < num; ++i)
 	  new_list.append (new Node(value));
 
-	Node * current_node = pos.itor.get_current();
+	Node * current_node = pos.itor.get_curr();
 	current_node->insert_list(&new_list);
 	num_elem += num;
       }
@@ -606,7 +606,7 @@ public:
 	    ++num_elem;
 	  }
 
-	Node * current_node = pos.itor.get_current();
+	Node * current_node = pos.itor.get_curr();
 	current_node->insert_list(&new_list);
       }
     catch (...)
@@ -632,14 +632,14 @@ public:
       /// Inserta al final de la lista el valor value.
   void remove(const T & value)
   {
-    for (typename Dnode<T>::Iterator it(dlist); it.has_current(); /* nothing */)
-      if (it.get_current()->get_data() == value)
+    for (typename Dnode<T>::Iterator it(dlist); it.has_curr(); /* nothing */)
+      if (it.get_curr_ne()->get_data() == value)
 	{
 	  delete it.del();
 	  --num_elem;
 	}
       else
-	it.next();
+	it.next_ne();
   }
 
       /// Elimina el elemento posicionado por el iterador pos.
@@ -737,13 +737,13 @@ public:
   {
     reset_num_elem(); // recordar que coloca num_elem = 0
     
-    for (typename Dnode<T>::Iterator it1(dlist); it1.has_current(); 
-	 it1.next(), ++num_elem)
+    for (typename Dnode<T>::Iterator it1(dlist); it1.has_curr(); 
+	 it1.next_ne(), ++num_elem)
       {
-	typename Dnode<T>::Iterator it2(it1); it2.next(); 
+	typename Dnode<T>::Iterator it2(it1); it2.next_ne();
 
-	while (it2.has_current())
-	  if (op(it1.get_current()->get_data(), it2.get_current()->get_data()))
+	while (it2.has_curr())
+	  if (op(it1.get_curr_ne()->get_data(), it2.get_curr_ne()->get_data()))
 	    delete it2.del();
 	  else
 	    break;
@@ -772,7 +772,7 @@ public:
   {
     Aleph::verify_container_and_iterator(*this, pos);
 
-    pos.itor.get_current()->insert_list(&l.dlist);
+    pos.itor.get_curr()->insert_list(&l.dlist);
 
     num_elem_is_updated = l.num_elem_is_updated;
     num_elem += l.num_elem;
@@ -800,7 +800,7 @@ public:
     Aleph::verify_container_and_iterator(*this, pos);
     Aleph::verify_container_and_iterator(src_list, src_pos);
 
-    pos.itor.get_current()->insert(src_pos.itor.del());
+    pos.itor.get_curr()->insert(src_pos.itor.del());
     --src_list.num_elem;
     ++num_elem;
   }
@@ -815,12 +815,12 @@ public:
     Aleph::verify_iterators(src_beg, src_end);    
 
     Dlink list_to_insert;
-    src_list.dlist.cut_list(src_beg.itor.get_current(), &list_to_insert);
+    src_list.dlist.cut_list(src_beg.itor.get_curr(), &list_to_insert);
 
     Dlink remaining_list;
-    list_to_insert.cut_list(src_end.itor.get_current(), &remaining_list);
+    list_to_insert.cut_list(src_end.itor.get_curr(), &remaining_list);
     
-    pos.itor.get_current()->insert_list(&list_to_insert);
+    pos.itor.get_curr()->insert_list(&list_to_insert);
     num_elem_is_updated = false;
 
     src_list.dlist.concat_list(&remaining_list);

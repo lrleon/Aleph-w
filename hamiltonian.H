@@ -63,15 +63,15 @@ class Test_Hamiltonian_Sufficiency
 
     const size_t & n = g.get_num_nodes();
 
-    for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next())
+    for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr();
+	typename GT::Node * src = i.get_curr_ne();
 	const size_t & nsrc = g.get_num_arcs(src);
 
-	i.next();
+	i.next_ne();
 
-	for (Node_Iterator<GT, SN> j(i); j.has_curr(); j.next())
-	  if (nsrc + g.get_num_arcs(j.get_curr()) < n)
+	for (Node_Iterator<GT, SN> j(i); j.has_curr(); j.next_ne())
+	  if (nsrc + g.get_num_arcs(j.get_curr_ne()) < n)
 	    return false;
       }
 
@@ -85,18 +85,18 @@ class Test_Hamiltonian_Sufficiency
     g.reset_counter_nodes();
 
       // una primera pasada sobre arcos para contar grados de entrada
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-      NODE_COUNTER(it.get_tgt_node())++;
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_tgt_node_ne())++;
 
     const size_t & n = g.get_num_nodes();
 
-    for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next())
+    for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr();
+	typename GT::Node * src = i.get_curr_ne();
 
-	for (Node_Iterator<GT, SN> j(g, sn); j.has_curr(); j.next())
+	for (Node_Iterator<GT, SN> j(g, sn); j.has_curr(); j.next_ne())
 	  {
-	    typename GT::Node * tgt = j.get_current();
+	    typename GT::Node * tgt = j.get_curr_ne();
 
 	    if (src == tgt)
 	      continue;
@@ -107,8 +107,8 @@ class Test_Hamiltonian_Sufficiency
 	        // buscar si hay arco src-->tgt
 	    bool terminate = true;
 	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); 
-		 it.next())
-	      if (src == it.get_tgt_node())
+		 it.next_ne())
+	      if (src == it.get_tgt_node_ne())
 		{
 		  terminate = false;
 		  break;

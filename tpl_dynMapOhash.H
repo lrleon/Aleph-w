@@ -196,16 +196,16 @@ namespace Aleph
       DynList<Data*> values_ptr()
       {
 	DynList<Data*> ret;
-	for (Iterator it(*this); it.has_curr(); it.next())
-	  ret.append(&it.get_curr().second);
+	for (Iterator it(*this); it.has_curr(); it.next_ne())
+	  ret.append(&it.get_curr_ne().second);
 	return ret;
       }
 
       DynList<Pair*> items_ptr()
       {
 	DynList<Pair*> ret;
-	for (Iterator it(*this); it.has_curr(); it.next())
-	  ret.append(&it.get_curr());
+	for (Iterator it(*this); it.has_curr(); it.next_ne())
+	  ret.append(&it.get_curr_ne());
 	return ret;
       }
     };

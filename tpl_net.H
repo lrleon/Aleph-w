@@ -270,8 +270,8 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   Flow_Type get_in_cap(Node * node) const noexcept
   {
     Flow_Type sum = 0.0;
-    for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next())
-      sum += it.get_curr()->cap;
+    for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr_ne()->cap;
     return sum;
   }
 
@@ -279,8 +279,8 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   Flow_Type get_out_cap(Node * node) const noexcept 
   {
     Flow_Type sum = 0.0;
-    for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next())
-      sum += it.get_curr()->cap;
+    for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr_ne()->cap;
     return sum;
   }
 
@@ -302,8 +302,8 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   Flow_Type get_out_flow(Node * node) const noexcept
   {
     Flow_Type sum = 0;
-    for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next())
-      sum += it.get_curr()->flow;
+    for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr_ne()->flow;
     return sum;
   }
 
@@ -311,8 +311,8 @@ struct Net_Graph : public Array_Graph<NodeT, ArcT>
   Flow_Type get_in_flow(Node * node) const noexcept
   {
     Flow_Type sum = 0;
-    for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next())
-      sum += it.get_curr()->flow;
+    for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      sum += it.get_curr_ne()->flow;
     return sum;
   }
 
@@ -765,8 +765,8 @@ public:
 
   void reset() noexcept
   {
-    for (Arc_Iterator<Net_Graph> it(*this); it.has_curr(); it.next())
-      it.get_curr()->flow = 0;
+    for (Arc_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
+      it.get_curr_ne()->flow = 0;
   }
 
     /** Verifica si una red capacitada satisface las condiciones de
@@ -816,11 +816,11 @@ public:
     const Net_Graph & net = path.get_graph();
     typename Path<Net_Graph>::Iterator it(path);
     s << it.get_current_node()->get_info();
-    for (; it.has_current_arc(); it.next())
+    for (; it.has_current_arc(); it.next_ne())
       {
-	typename Net_Graph::Arc * a = it.get_current_arc();
+	typename Net_Graph::Arc * a = it.get_current_arc_ne();
 	s << "(" << a->cap << "," << a->flow << ")" 
-	  << net.get_connected_node(a, it.get_current_node())-> get_info();
+	  << net.get_connected_node(a, it.get_current_node_ne())-> get_info();
       }
     return s;
   }
@@ -853,9 +853,10 @@ inline void print(const DynList<Parc<Net>> & sp)
       return;
     }
 
-  for (typename DynList<Parc<Net>>::Iterator it(sp); it.has_curr(); it.next())
+  for (typename DynList<Parc<Net>>::Iterator it(sp); it.has_curr();
+       it.next_ne())
     {
-      const Parc<Net> & pa = it.get_curr();
+      const Parc<Net> & pa = it.get_curr_ne();
       auto a = get<0>(pa);
       auto s = (typename Net::Node *) a->src_node;
       auto t = (typename Net::Node *) a->tgt_node;
@@ -897,9 +898,10 @@ typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
   using Tuple = tuple<typename Net::Node*, typename Net::Arc*>;
 
       // calcular el eslabón mínimo del camino de aumento
-  for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next())
+  for (typename Path<Net>::Iterator it(path); it.has_current_arc();
+       it.next_ne())
     {
-      Tuple t = it.get_tuple();
+      Tuple t = it.get_tupl_nee();
       auto p = get<0>(t);
       auto arc = get<1>(t);
       const auto w = remaining_flow<Net>(p, arc);
@@ -908,9 +910,9 @@ typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
     }
 
       // aumentar el flujo de la red por el camino de aumento
-  for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next())
+  for (typename Path<Net>::Iterator it(path); it.has_current_arc(); it.next_ne())
     {
-      auto t = it.get_tuple();
+      auto t = it.get_tuple_ne();
       auto p = get<0>(t);
       auto arc = get<1>(t);
 
@@ -948,9 +950,9 @@ void increase_flow(Net & net,
 {
       // aumentar el flujo de la red por el camino de aumento
   for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr(); 
-	 it.next())
+	 it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       auto arc = get<0>(p);
       if (get<1>(p)) // es arco de normal?
 	arc->flow += slack; 
@@ -1006,9 +1008,9 @@ class Find_Aumenting_Path
     
     start->set_state(Processed);
     Q<typename Net::Arc*> q;
-    for (Itor it(start); it.has_curr(); it.next())
+    for (Itor it(start); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 	if (remaining_flow<Net>(start, a) < min_slack)
 	  continue;
 	auto tgt = net.get_connected_node(a, start);
@@ -1038,9 +1040,9 @@ class Find_Aumenting_Path
 	if (curr == end)
 	  return curr;
 
-	for (Itor it(curr); it.has_curr(); it.next()) 
+	for (Itor it(curr); it.has_curr(); it.next_ne()) 
 	  {
-	    auto a = it.get_curr();
+	    auto a = it.get_curr_ne();
 	    if (remaining_flow<Net>(curr, a) < min_slack)
 	      continue;
 	    a->set_state(Processing);
@@ -1420,17 +1422,17 @@ preflow_create_residual_net(Net & net)
   net.reset_nodes();
   Rnet rnet;
 
-  for (typename Net::Node_Iterator it(net); it.has_curr(); it.next())
+  for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       auto q = rnet.insert_node();
       q->in_flow = net.get_in_flow(p);
       q->out_flow = net.get_out_flow(p);
       map_nodes<typename Rnet::Node, typename Net::Node>(q, p);
     }
 
-  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next())
-    create_residual_arc(net, rnet, it.get_curr());
+  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+    create_residual_arc(net, rnet, it.get_curr_ne());
     
   return make_tuple(std::move(rnet), 
 		    (typename Rnet::Node*) NODE_COOKIE(net.get_source()), 
@@ -1440,9 +1442,9 @@ preflow_create_residual_net(Net & net)
 template <class Rnet> inline
 void update_flow(const Rnet & rnet)
 {
-  for (typename Rnet::Arc_Iterator it(rnet); it.has_curr(); it.next())
+  for (typename Rnet::Arc_Iterator it(rnet); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       auto img = arc->img;
       if (img == nullptr)
 	continue;
@@ -1692,9 +1694,9 @@ generic_preflow_vertex_push_maximum_flow(Net & net)
 
   using Itor = __Net_Iterator<Net>;
   Q_Type q;  
-  for (Itor it(source); it.has_curr(); it.next()) // initial preflow
+  for (Itor it(source); it.has_curr(); it.next_ne()) // initial preflow
     {
-      auto arc  = it.get_curr();  
+      auto arc  = it.get_curr_ne();
       arc->flow = arc->cap; // saturate arc
       auto tgt = net.get_tgt_node(arc);
       put_in_active_queue(q, tgt);
@@ -1706,9 +1708,9 @@ generic_preflow_vertex_push_maximum_flow(Net & net)
       auto excess = net.get_in_flow(src) - net.get_out_flow(src);
       long m = Max;
       bool was_eligible_arc = false;
-      for (Itor it(src); it.has_curr() and excess > 0; it.next())
+      for (Itor it(src); it.has_curr() and excess > 0; it.next_ne())
 	{
-	  auto arc = it.get_curr();
+	  auto arc = it.get_curr_ne();
 	  auto tgt = net.get_connected_node(arc, src);
 	  if (node_height<Net>(src) != node_height<Net>(tgt) + 1)
 	    {
@@ -2016,16 +2018,16 @@ typename Net::Flow_Type min_cut(Net &                             net,
   // Calcula vt por el complemento
   const size_t size_vt = net.get_num_nodes() - vs.size();
   for (Node_Iterator<Net> it(net); it.has_curr() and 
-         vt.size() < size_vt; it.next())
+         vt.size() < size_vt; it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       if (p->state() == Unprocessed)
         vt.insert(p);
     }     
 
-  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next())
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       if (arc->flow == 0) // ¿candidato a arco de retroceso?
         if (vt.contains(net.get_src_node(arc)) and // ¿de vt hacia vs?
             vs.contains(net.get_tgt_node(arc)) > 0)

@@ -836,7 +836,7 @@ public:
     }
 
     /// Return the current node
-    Node * get_current() const noexcept
+    Node * get_curr_ne() const noexcept
     {
       if (not curr_updated())
 	update_curr();
@@ -844,10 +844,10 @@ public:
       return curr; 
     }
 
-    /// \overload get_current()
+        /// \overload get_curr()
     Node * get_curr() const noexcept
     {
-      return get_current();
+      return get_curr_ne();
     }
 
         /** return the position of current node
@@ -878,7 +878,7 @@ public:
     size_t get_pos() const { return get_current_position(); }
 
     /// Return `true` if iterator has current node
-    bool has_current() const noexcept
+    bool has_curr() const noexcept
     {
       if (not pos_updated())
 	update_pos();
@@ -886,20 +886,20 @@ public:
       return curr_pos >= 0 and curr_pos < COUNT(tree_ptr->getRoot());
     }
 
-    /// \overload has_current()
-    bool has_curr() const noexcept
-    {
-      return has_current();
-    }
-
     /// Move the iterator one position backward. Throws `underflow_error`
     /// if there is no current
     void prev() throw(std::exception, std::underflow_error)
     {
-      if (not has_current() )
+      if (not has_curr() )
 	throw std::underflow_error("TreapRk iterator has not current");
 
       --curr_pos;
+      curr = nullptr;
+    }
+
+    void next_ne() noexcept
+    {
+      ++curr_pos;
       curr = nullptr;
     }
 
@@ -907,17 +907,15 @@ public:
     /// if there is no current
     void next() throw(std::exception, std::overflow_error)
     {
-      if (not has_current() )
+      if (not has_curr())
 	throw std::underflow_error("TreapRk iterator has not current");
-
-      ++curr_pos;
-      curr = nullptr;
+      next_ne();
     }
 
     /// Remove the current node and move the iterator one position forward
     Node * del()
     {
-      if (not has_current() )
+      if (not has_curr())
 	throw std::underflow_error("TreapRk iterator has not current");
 
       if (not curr_updated())

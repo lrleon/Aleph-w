@@ -610,19 +610,22 @@ public:
 
     bool has_curr() const noexcept { return curr != nullptr; }
 
+    Tree_Node * get_curr_ne() const noexcept { return curr; }
+
     Tree_Node * get_curr() const
     {
       if (curr == nullptr)
 	throw std::overflow_error("Children_Iterator::get_curr()");
-      return curr;
+      return get_curr_ne();
     }
+
+    void next_ne() noexcept { curr = curr->get_right_sibling(); }
 
     void next() 
     {
       if (curr == nullptr)
 	throw std::overflow_error("Children_Iterator::next()");
-
-      curr = curr->get_right_sibling();
+      next_ne();
     }
   };
 
@@ -702,23 +705,17 @@ public:
 
     bool has_curr() const noexcept { return curr != nullptr; }
 
-    bool has_current() const noexcept { return has_curr(); }
+    Tree_Node * get_curr_ne() const noexcept { return curr; }
 
     Tree_Node * get_curr() const
     {
       if (not has_curr())
 	throw std::overflow_error("Iterator overflow");
-
-      return curr;
+      return get_curr_ne();
     }
 
-    auto get_current() const { return get_curr(); }
-
-    void next()
+    void next_ne() noexcept
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator overflow");
-
       ++pos;
       Tree_Node * lchild = curr->get_left_child();
       if (lchild == nullptr)
@@ -736,6 +733,13 @@ public:
 	s.push(p);
       
       curr = lchild;
+    }
+
+    void next()
+    {
+      if (not has_curr())
+	throw std::overflow_error("Iterator overflow");
+      next_ne();
     }
 
     void end()
@@ -768,13 +772,13 @@ struct Tree_Node_Vtl : public Tree_Node<T>
 void clone_tree(Node * src, Node * tgt)
 {
   using It = typename Node::Children_Iterator;
-  for (It it(src); it.has_curr(); it.next())
-    tgt->insert_rightmost_child(new Node(it.get_curr()->get_key()));
+  for (It it(src); it.has_curr(); it.next_ne())
+    tgt->insert_rightmost_child(new Node(it.get_curr_ne()->get_key()));
 
   using PItor = Pair_Iterator<It>;
-  for (PItor itor{It(*src), It(*tgt)}; itor.has_curr(); itor.next()) 
+  for (PItor itor{It(*src), It(*tgt)}; itor.has_curr(); itor.next_ne()) 
     {
-      auto p = itor.get_curr();
+      auto p = itor.get_curr_ne();
       clone_tree(p.first, p.second);
     }
 }
@@ -857,7 +861,6 @@ void tree_preorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
     template <class Node> inline
 void forest_preorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
 {
-
   if (not root->is_root())
     throw std::domain_error("root is not root");
 

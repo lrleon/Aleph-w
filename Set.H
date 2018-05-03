@@ -155,7 +155,7 @@ public:
       
       itor.next ();
 
-      if (not itor.has_current() )
+      if (not itor.has_curr())
 	overflow = true;
     }
 
@@ -169,7 +169,7 @@ public:
       
       itor.prev ();
 
-      if (not itor.has_current() )
+      if (not itor.has_curr())
 	underflow = true;
     }
 

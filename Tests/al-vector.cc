@@ -37,7 +37,7 @@ TEST(Vector, basic)
   AlDomain<char> chars = { 'a', 'b', 'c', 'd', 'e'};
 
   Vector<char, int> v1(chars);
-  Vector<char, int> v2(chars, { 0, 1, 2, 3, 4});
+  Vector<char, int> v2(chars, { 0, 1, 2, 3, 4 });
   auto v3 = v2;
 
   EXPECT_TRUE(eq(sort(v1.get_domain().to_list()), { 'a', 'b', 'c', 'd', 'e'}));

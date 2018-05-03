@@ -67,8 +67,8 @@ struct GenericTraverse
   bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this)); 
-	 it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+	 it.has_curr(); it.next_ne())
+      if (not operation(it.get_curr_ne()))
 	return false;
     return true;
   }
@@ -1213,8 +1213,9 @@ public:
   DynList<T> take(size_t i, size_t j) const
   {
     DynList<T> ret;
-    for (auto it = const_me()->get_it(i); i <= j and it.has_curr(); it.next(), ++i)
-      ret.append(it.get_curr());
+    for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
+	 it.next_ne(), ++i)
+      ret.append(it.get_curr_ne());
     return ret;
   }
 

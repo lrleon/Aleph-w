@@ -180,6 +180,7 @@ void test_map(C & table, size_t n, unsigned long seed)
 		   auto c = p;
 		   assert(table.insert(p.first, move(p.second)));
 		 });
+
   assert(table.all([&table] (auto p) 
 		   {
 		     auto ptr = table.search(p.first);

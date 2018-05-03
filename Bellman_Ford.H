@@ -89,9 +89,9 @@ class Bellman_Ford
   void init_simple(Node * start)
   {
     typename GT::Node_Iterator it(g);
-    for (int i = 0; it.has_curr(); ++i, it.next())
+    for (int i = 0; it.has_curr(); ++i, it.next_ne())
       {
-        auto p = it.get_curr();
+        auto p = it.get_curr_ne();
         g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
         auto ptr = new Sni;
         ptr->acum = Inf;
@@ -107,10 +107,10 @@ class Bellman_Ford
   {
     arcs.reserve(g.get_num_nodes());
     typename GT::Node_Iterator it(g);
-    for (int i = 0; it.has_curr(); ++i, it.next())
+    for (int i = 0; it.has_curr(); ++i, it.next_ne())
       {
 	arcs(i) = nullptr;
-        auto p = it.get_curr();
+        auto p = it.get_curr_ne();
         g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
         auto ptr = new Ni;
         ptr->acum = Inf;
@@ -130,9 +130,9 @@ class Bellman_Ford
   template <class Info_Type>
   void uninit() noexcept
   {
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr();
+	auto p = it.get_curr_ne();
 	delete (Info_Type*) NODE_COOKIE(p);
 	NODE_COOKIE(p) = nullptr;
       }
@@ -141,8 +141,8 @@ class Bellman_Ford
   bool check_painted_arcs() noexcept
   {
     auto num_arcs = 0;
-    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next())
-      if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
+    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      if (IS_ARC_VISITED(it.get_curr_ne(), Aleph::Spanning_Tree))
 	++num_arcs;
 
     return num_arcs == g.get_num_nodes() - 1 or num_arcs == g.get_num_nodes();
@@ -163,9 +163,9 @@ private:
   {
     const size_t & n = g.vsize();
     for (int i = 0; i < n - 1; ++i)
-      for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next()) 
+      for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne()) 
 	{
-	  auto arc = it.get_curr();
+	  auto arc = it.get_curr_ne();
 	  auto src  = g.get_src_node(arc);
 	  const auto & acum_src = acum(src);
 	  if (acum_src == Inf)
@@ -203,9 +203,9 @@ private:
 
   void relax_arcs(typename GT::Node * src, DynListQueue<typename GT::Node*> & q)
   {
-    for (NAit<GT, SA> it(src, sa); it.has_curr(); it.next()) 
+    for (NAit<GT, SA> it(src, sa); it.has_curr(); it.next_ne()) 
         {
-          auto arc = it.get_curr();
+          auto arc = it.get_curr_ne();
 	  auto src  = g.get_src_node(arc);
           const auto & acum_src = acum(src);
           if (acum_src == Inf)
@@ -250,9 +250,9 @@ private:
   bool last_relax_and_prepare_check_negative_cycle() noexcept
   {
     bool negative_cycle = false;
-    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next())
+    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr();
+	auto arc = it.get_curr_ne();
 	auto src = g.get_src_node(arc);
 	auto & acum_src = acum(src);
 	if (acum_src == Inf)
@@ -275,9 +275,9 @@ private:
 
   bool last_relax_and_test_negative_cycle() noexcept
   {
-    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next())
+    for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr();
+	auto arc = it.get_curr_ne();
 	auto src  = g.get_src_node(arc);
 	auto & acum_src = acum(src);
 	if (acum_src == Inf)
@@ -389,9 +389,9 @@ private:
   Node * create_dummy_node()
   {
     s = const_cast<GT&>(g).insert_node(typename GT::Node_Type());
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr();
+	auto p = it.get_curr_ne();
 	if (p == s)
 	  continue;
 	auto a = const_cast<GT&>(g).insert_arc(s, p);
@@ -442,9 +442,9 @@ private:
 
      // we map because Tarjan algorithm modifies cookies
      DynMapTree<Node*, Node*> table; 
-     for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next())
+     for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
        {
-	 auto p = it.get_curr();
+	 auto p = it.get_curr_ne();
 	 table.insert(p, (Node*) NODE_COOKIE(p));
        }
 
@@ -453,8 +453,8 @@ private:
        {
 	 Path<GT> ret(g);
 	 for (typename Path<GT>::Iterator it(path); it.has_current_node(); 
-	      it.next())
-	   ret.append_directed((Node*) table.find(it.get_current_node()));
+	      it.next_ne())
+	   ret.append_directed((Node*) table.find(it.get_current_node_ne()));
 	 return ret;
        }
      
@@ -729,16 +729,16 @@ public:
     clear_graph(tree);
 
     DynMapTree<Node*, Node*> table;
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr();
+	auto gp = it.get_curr_ne();
 	auto tp = tree.insert_node(gp->get_info());
 	table.insert(gp, tp);
       }
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gtgt = it.get_curr();
+	auto gtgt = it.get_curr_ne();
 	auto gsrc = (Node*) NODE_COOKIE(gtgt);
 	if (gsrc == nullptr)
 	  continue; // Se trata del nodo origen del árbol abarcador
@@ -833,9 +833,9 @@ public:
 
     // build mapping if there are no negative cycles
     if (not negative_cycle)
-      for (auto it = g.get_node_it(); it.has_curr(); it.next())
+      for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
 	{
-	  auto p = it.get_curr();
+	  auto p = it.get_curr_ne();
 	  ret.insert(p, acum(p));
 	}
 

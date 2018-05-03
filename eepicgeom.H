@@ -230,16 +230,16 @@ public:
         // (más a la izquierad, a la derecha, alto y bajo
     DynDlist<Eepic_Geom_Object*>::Iterator it(list);
 
-    Eepic_Geom_Object * curr = it.get_current();
+    Eepic_Geom_Object * curr = it.get_curr();
 
     __lowest    = curr->lowest_point();
     __highest   = curr->highest_point();
     __leftmost  = curr->leftmost_point();
     __rightmost = curr->rightmost_point();
 
-    for (it.next(); it.has_current(); it.next())
+    for (it.next(); it.has_curr(); it.next_ne())
       {
-	curr = it.get_current();
+	curr = it.get_curr_ne();
 
 	if (curr->lowest_point().get_y() < __lowest.get_y())
 	  __lowest = curr->lowest_point();
@@ -374,9 +374,9 @@ public:
 
         // recorre cada objeto y lo dibuja
     for (DynDlist<Eepic_Geom_Object*>::Iterator it(list); 
-	 it.has_current(); it.next())
+	 it.has_curr(); it.next_ne())
       {
-	Eepic_Geom_Object * curr = it.get_current();
+	Eepic_Geom_Object * curr = it.get_curr_ne();
 	
     	    // reinicia cada vez al grosor por omisión de forma
 	output << "\\thinlines" << std::endl 
@@ -718,7 +718,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 		    ofstream &       output,
 		    Draw_Segment_Fct draw_sg_fct)
   {
-    for (typename Poly::Segment_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       (this->*draw_sg_fct)(it.get_current_segment(), output);
   }
 
@@ -736,7 +736,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 	   << " sides" << endl
 	   << "\\shade\\path";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -752,7 +752,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
     output << "    % Drawing of dotted line Polygon" << endl
 	   << "\\shade\\dottedline{" << dotgap << "}";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -766,7 +766,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
     template <class Poly>
   void draw_dots_from_polygon(Poly & poly, ofstream & output)
   {
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       {
 	Vertex & vertex = it.get_current_vertex();
       
@@ -790,7 +790,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       template <class Poly>
   void draw_arrows_in_polygon(Poly & poly, ofstream & output)
   {
-    for (typename Poly::Segment_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       {
 	const Segment & sg = it.get_current_segment();
       
@@ -835,7 +835,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
     template <class Poly>
   void draw_points_text_in_polygon(Poly & poly, ofstream & output)
   {
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       draw_point_text(it.get_current_vertex(), output);
   }
 
@@ -851,7 +851,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
     int n = 0;
 
     for (typename Poly::Vertex_Iterator it(poly); 
-	 it.has_current(); it.next(), ++n)
+	 it.has_curr(); it.next_ne(), ++n)
       {
 	Vertex & vertex = it.get_current_vertex();
       
@@ -877,7 +877,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 	   << " points" << endl
 	   << "\\spline";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -894,7 +894,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 	   << " points" << endl
 	   << "\\closecurve";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())

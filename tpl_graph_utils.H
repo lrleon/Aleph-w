@@ -159,14 +159,14 @@ private:
       return true;
 
         // recorrer recursivamente arcos de node 
-    for (Node_Arc_Iterator<GT, SA> it(node, sa); it.has_current(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(node, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	if (IS_ARC_VISITED(arc, Depth_First)) 
 	  continue;
 
 	ARC_BITS(arc).set_bit(Depth_First, true); // visitado
-	if (__dft (it.get_tgt_node(), arc))
+	if (__dft (it.get_tgt_node_ne(), arc))
 	  return true; // ya se exploró cabalmente it.get_tgt_node()
       }
 
@@ -240,14 +240,14 @@ __depth_first_traversal(const GT & g, typename GT::Node * node,
   if (count == g.get_num_nodes()) // ¿se visitaron todos lo nodos?
     return true;
 
-  for (auto it = g.get_arc_it(node); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(node); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Depth_First)) 
 	continue;
 
       ARC_BITS(arc).set_bit(Depth_First, true); // visitado
-      if (__depth_first_traversal(g, it.get_tgt_node(), arc, visit, count))
+      if (__depth_first_traversal(g, it.get_tgt_node_ne(), arc, visit, count))
 	return true; // ya se exploró cabalmente it.get_tgt_node()
     }
 
@@ -285,8 +285,8 @@ breadth_first_traversal(const GT & g, typename GT::Node * start,
   g.reset_bit_arcs(Breadth_First);  
   DynListQueue<typename GT::Arc*> q;
 
-  for (auto it = g.get_arc_it(start); it.has_current(); it.next())
-    q.put(it.get_current_arc());
+  for (auto it = g.get_arc_it(start); it.has_curr(); it.next_ne())
+    q.put(it.get_current_arc_ne());
 
   NODE_BITS(start).set_bit(Breadth_First, true); 
   size_t node_counter = 1; // count the visited nodes
@@ -314,9 +314,9 @@ breadth_first_traversal(const GT & g, typename GT::Node * start,
       NODE_BITS(visit_node).set_bit(Breadth_First, true); 
       node_counter++;
 
-      for (auto it = g.get_arc_it(visit_node); it.has_curr(); it.next())
+      for (auto it = g.get_arc_it(visit_node); it.has_curr(); it.next_ne())
 	{
-	  auto curr_arc = it.get_current_arc();
+	  auto curr_arc = it.get_current_arc_ne();
 	  if (IS_ARC_VISITED(curr_arc, Breadth_First)) 
 	    continue; 
 
@@ -386,8 +386,8 @@ class Breadth_First_Traversal
     g.reset_bit_arcs(Breadth_First);  
     DynListQueue<typename GT::Arc*> q; // cola de arcos pendientes
 
-    for (Node_Arc_Iterator<GT, SA> it(start); it.has_current(); it.next())
-      q.put(it.get_current_arc());
+    for (Node_Arc_Iterator<GT, SA> it(start); it.has_curr(); it.next_ne())
+      q.put(it.get_current_arc_ne());
 
     NODE_BITS(start).set_bit(Breadth_First, true); 
     count = 1; // contador de nodos visitados
@@ -414,9 +414,9 @@ class Breadth_First_Traversal
 	NODE_BITS(curr).set_bit(Breadth_First, true); 
 	count++;
 
-	for (Node_Arc_Iterator<GT, SA> it(curr); it.has_current(); it.next())
+	for (Node_Arc_Iterator<GT, SA> it(curr); it.has_curr(); it.next_ne())
 	  {
-	    auto curr_arc = it.get_current_arc();
+	    auto curr_arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(curr_arc, Breadth_First)) 
 	      continue; 
 
@@ -492,8 +492,8 @@ Path<GT> find_path_breadth_first(const GT & g, typename GT::Node * start,
   
   DynListQueue<typename GT::Arc*> q; 
 
-  for (auto it = g.get_arc_it(start); it.has_curr(); it.next())
-    q.put(it.get_current_arc());
+  for (auto it = g.get_arc_it(start); it.has_curr(); it.next_ne())
+    q.put(it.get_current_arc_ne());
         
   NODE_BITS(start).set_bit(Find_Path, true);
 
@@ -521,9 +521,9 @@ Path<GT> find_path_breadth_first(const GT & g, typename GT::Node * start,
 	  break;
 	}
 
-      for (auto it = g.get_arc_it(tgt); it.has_curr(); it.next())
+      for (auto it = g.get_arc_it(tgt); it.has_curr(); it.next_ne())
 	{
-	  auto a = it.get_current_arc();
+	  auto a = it.get_current_arc_ne();
 	  if (IS_ARC_VISITED(a, Find_Path))
 	    continue;
 
@@ -604,14 +604,14 @@ bool test_for_cycle(const GT & g, typename GT::Node * src)
 {
   g.reset_bit_nodes(Test_Cycle);
   g.reset_bit_arcs(Test_Cycle);
-  for (auto it = g.get_arc_it(src); it.has_curr(); it.next())
+  for (auto it = g.get_arc_it(src); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       if (IS_ARC_VISITED(arc, Test_Cycle)) 
 	continue;
 
       ARC_BITS(arc).set_bit(Test_Cycle, true);
-      if (__test_cycle(g, src, it.get_tgt_node()))
+      if (__test_cycle(g, src, it.get_tgt_node_ne()))
 	return true;
     }
 
@@ -630,14 +630,14 @@ __test_cycle(const GT & g, typename GT::Node * src, typename GT::Node * curr)
 
   NODE_BITS(curr).set_bit(Test_Cycle, true);
 
-  for (auto it = g.get_arc_it(curr); it.has_curr(); it.next())
+  for (auto it = g.get_arc_it(curr); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_curr();
+      auto arc = it.get_curr_ne();
       if (IS_ARC_VISITED(arc, Test_Cycle)) 
 	continue;
 
       ARC_BITS(arc).set_bit(Test_Cycle, true);
-      if (__test_cycle(g, src, it.get_tgt_node()))
+      if (__test_cycle(g, src, it.get_tgt_node_ne()))
 	return true;
     }
 
@@ -652,15 +652,15 @@ bool __is_graph_acyclique(const GT & g, typename GT::Node * curr_node)
 
     NODE_BITS(curr_node).set_bit(Test_Cycle, true); // marcar nodo
 
-    for (auto it = g.get_arc_it(curr_node); it.has_current(); it.next())
+    for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_current_arc();
+        auto arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue; 
 
         ARC_BITS(arc).set_bit(Test_Cycle, true); 
 
-        if (not __is_graph_acyclique(g, it.get_tgt_node())) 
+        if (not __is_graph_acyclique(g, it.get_tgt_node_ne())) 
           return false;
       }
         // todos los arcos recorridos sin encontrar ciclo ==>
@@ -711,9 +711,9 @@ bool is_graph_acyclique(const GT & g)
   g.reset_bit_arcs(Test_Cycle);
   g.reset_bit_nodes(Test_Cycle);
 
-  for (auto it = g.get_node_it(); it.has_current(); it.next()) 
+  for (auto it = g.get_node_it(); it.has_curr(); it.next_ne()) 
     {
-      auto current_node = it.get_current_node();
+      auto current_node = it.get_current_node_ne();
       if (IS_NODE_VISITED(current_node, Test_Cycle)) 
 	continue; 
 
@@ -762,11 +762,11 @@ bool test_for_path(const GT & g, typename GT::Node * start_node,
   g.reset_bit_nodes(Find_Path); 
   g.reset_bit_arcs(Find_Path);
 
-  for (auto it = g.get_arc_it(start_node); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(start_node); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       ARC_BITS(arc).set_bit(Find_Path, true); // marcar arco
-      if (__test_for_path(g, it.get_tgt_node(), end_node)) 
+      if (__test_for_path(g, it.get_tgt_node_ne(), end_node)) 
 	return true; 
     }
 
@@ -786,14 +786,14 @@ bool __test_for_path(const GT & g, typename GT::Node * curr_node,
 
   NODE_BITS(curr_node).set_bit(Find_Path, true);
 
-  for (auto it = g.get_arc_it(curr_node); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
     { 
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Find_Path)) 
 	continue; 
 
       ARC_BITS(arc).set_bit(Find_Path, true);
-      if (__test_for_path(g, it.get_tgt_node(), end_node)) 
+      if (__test_for_path(g, it.get_tgt_node_ne(), end_node)) 
 	return true;
     }
 
@@ -834,10 +834,10 @@ DynList<GT> inconnected_components(const GT & g)
 
   DynList<GT> list;
   size_t count = 0; // counter of visited nodes
-  for (auto it = g.get_node_it(); count < g.get_num_nodes() and it.has_curr(); 
-       it.next())
+  for (auto it = g.get_node_it(); count < g.get_num_nodes() and it.has_curr();
+       it.next_ne())
     {
-      auto curr = it.get_current_node();
+      auto curr = it.get_current_node_ne();
       if (IS_NODE_VISITED(curr, Build_Subtree)) 
 	continue;
 
@@ -892,14 +892,14 @@ void build_subgraph(const GT & g, GT & sg,
     }
 
   for (auto it = g.get_arc_it(g_src); 
-       node_count < g.get_num_nodes() and it.has_current(); it.next())
+       node_count < g.get_num_nodes() and it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Build_Subtree)) 
 	continue; 
 
       ARC_BITS(arc).set_bit(Build_Subtree, true);
-      auto g_tgt  = it.get_tgt_node();
+      auto g_tgt  = it.get_tgt_node_ne();
       auto sg_tgt = mapped_node<GT>(g_tgt);
       if (sg_tgt == nullptr) // sg_tgt mapped in sg?
 	{
@@ -952,13 +952,13 @@ GT find_depth_first_spanning_tree(const GT & g, typename GT::Node * gnode)
   auto tnode = tree.insert_node(gnode->get_info()); 
   GT::map_nodes(gnode, tnode);
   
-  for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next())
+  for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Spanning_Tree)) 
 	continue;
 
-      auto arc_tgt_node = it.get_tgt_node();
+      auto arc_tgt_node = it.get_tgt_node_ne();
       if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
 	continue; // destino ya visitado desde otro arco
 
@@ -997,13 +997,13 @@ bool __find_depth_first_spanning_tree(const GT & g, typename GT::Node * gnode,
 
   assert(tree.get_num_nodes() > tree.get_num_arcs()); // debe ser acíclico
 
-  for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next())
+  for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Spanning_Tree)) 
 	continue;
 
-      auto arc_tgt_node = it.get_tgt_node();
+      auto arc_tgt_node = it.get_tgt_node_ne();
       if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
 	continue; // destino ya visitado desde otro arco
 
@@ -1045,8 +1045,8 @@ GT find_breadth_first_spanning_tree(GT & g, typename GT::Node * gp)
   NODE_BITS(gp).set_bit(Spanning_Tree, true); // mark gp as visited
 
   DynListQueue<typename GT::Arc*> q; // queue of arcs
-  for (auto it = g.get_arc_it(gp); it.has_curr(); it.next())
-    q.put(it.get_curr());
+  for (auto it = g.get_arc_it(gp); it.has_curr(); it.next_ne())
+    q.put(it.get_curr_ne());
 
   while (not q.is_empty()) 
     {
@@ -1078,9 +1078,9 @@ GT find_breadth_first_spanning_tree(GT & g, typename GT::Node * gp)
 	break; 
 
             // insertar en cola arcos de gtgt
-      for (auto it = g.get_arc_it(gtgt); it.has_curr(); it.next())
+      for (auto it = g.get_arc_it(gtgt); it.has_curr(); it.next_ne())
 	{
-	  auto current_arc = it.get_current_arc();
+	  auto current_arc = it.get_current_arc_ne();
 	  if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
 	    continue;
 
@@ -1214,13 +1214,13 @@ compute_cut_nodes(const GT & g, typename GT::Node * start)
   
       // Recorra los arcos de start mientras g no haya sido abarcado
   for (auto it = g.get_arc_it(start); 
-       it.has_curr() and current_df < g.get_num_nodes(); it.next())
+       it.has_curr() and current_df < g.get_num_nodes(); it.next_ne())
     {
-      auto tgt = it.get_tgt_node();
+      auto tgt = it.get_tgt_node_ne();
       if (IS_NODE_VISITED(tgt, Depth_First)) 
         continue; 
 
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (IS_ARC_VISITED(arc, Depth_First)) 
         continue;
 
@@ -1255,13 +1255,13 @@ void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list,
 
       // recorrer arcos de p mientras no se abarque a g
   bool p_is_cut_node = false;
-  for (auto it = g.get_arc_it(p); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (arc == a) 
 	continue; // a es el padre de arc ==> ignorarlo
 
-      auto tgt = it.get_tgt_node();
+      auto tgt = it.get_tgt_node_ne();
       if (IS_NODE_VISITED(tgt, Depth_First)) 
 	{ 
 	  if (not IS_ARC_VISITED(arc, Depth_First)) // no abarcador?
@@ -1359,13 +1359,13 @@ void __paint_subgraph(const GT & g, typename GT::Node * p, long current_color)
 
   paint_node <GT> (p, current_color);
 
-  for (auto it = g.get_arc_it(p); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       if (is_arc_painted <GT> (arc))
           continue;
 
-      auto tgt = it.get_tgt_node();
+      auto tgt = it.get_tgt_node_ne();
       if (is_a_cut_node <GT> (tgt))
 	continue;
 
@@ -1382,13 +1382,13 @@ __paint_from_cut_node(const GT & g, typename GT::Node * p, long & current_color)
   assert(is_a_cut_node <GT> (p));
 
       // pintar recursivamente con dif colores bloques conectados a p
-  for (auto it = g.get_arc_it(p); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
 
       assert(not is_arc_painted <GT> (arc));
 
-      auto tgt_node = it.get_tgt_node();
+      auto tgt_node = it.get_tgt_node_ne();
       if (is_a_cut_node <GT> (tgt_node)) // ¿ es un arco de corte?
 	{
 	  ARC_BITS(arc).set_bit(Cut, true); // marque como de corte
@@ -1451,8 +1451,8 @@ paint_subgraphs(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   long current_color = 1;
 
         // Recorrer cada nodo de corte y pintar sus bloques
-  for (auto it = cut_node_list.get_it(); it.has_current(); it.next())
-    __paint_from_cut_node(g, it.get_current(), current_color);
+  for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
+    __paint_from_cut_node(g, it.get_curr_ne(), current_color);
 
   return current_color;
 }
@@ -1467,15 +1467,15 @@ void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc,
   auto tsrc = mapped_node<GT>(gsrc); // gsrc en sg
 
       // recorrer arcos de gsrc y añadir a sg los del color de interés
-  for (auto it = g.get_arc_it(gsrc); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(gsrc); it.has_curr(); it.next_ne())
     {
-      auto garc = it.get_current_arc();
+      auto garc = it.get_current_arc_ne();
       if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
 	continue; // arco es de otro color o ya está visitado 
 
       ARC_BITS(garc).set_bit(Build_Subtree, true); 
 
-      auto gtgt = it.get_tgt_node(); 
+      auto gtgt = it.get_tgt_node_ne(); 
 
       assert(get_color <GT> (gtgt) == color);
 
@@ -1521,9 +1521,9 @@ void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc,
 GT map_subgraph(const GT & g, const long color)
 {
   typename GT::Node * first = nullptr; // busque primer nodo con color
-  for (auto it = g.get_node_it(); it.has_current(); it.next())
-    if (get_color <GT> (it.get_current_node()) == color)
-      first = it.get_current_node();
+  for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+    if (get_color <GT> (it.get_current_node_ne()) == color)
+      first = it.get_current_node_ne();
 
   if (first == nullptr) // Encontró el color?
     throw std::domain_error("Color does not exist in the graph");
@@ -1571,9 +1571,9 @@ map_cut_graph(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   GT cut_graph;
   DynList<typename GT::Arc*> cross_arc_list;
 
-  for (auto it = cut_node_list.get_it(); it.has_curr(); it.next())
+  for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
     {
-      auto gp = it.get_current();
+      auto gp = it.get_curr_ne();
 
       assert(is_a_cut_node <GT> (gp));
 
@@ -1583,9 +1583,9 @@ map_cut_graph(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
     }
 
   // cut_graph = {not cut arcs} U cross_arc_list = {cross arcs}
-  for (auto it = g.get_arc_it(); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
-      auto garc = it.get_current_arc();
+      auto garc = it.get_current_arc_ne();
       if (is_a_cross_arc <GT> (garc))
 	{
 	  cross_arc_list.append(garc); 
@@ -1644,9 +1644,9 @@ GT invert_digraph(const GT & g)
   g.reset_nodes();
   GT gi;
 
-  for (auto it = g.get_arc_it(); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
-      auto arc   = it.get_current();
+      auto arc   = it.get_curr_ne();
 
       auto ssrc = g.get_src_node(arc); 
       auto rsrc = mapped_node<GT> (ssrc);
@@ -1707,9 +1707,9 @@ public:
     g.reset_nodes();
     GT gi;
 
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	auto arc   = it.get_current();
+	auto arc  = it.get_curr_ne();
 
 	auto ssrc = g.get_src_node(arc); 
 	auto rsrc = mapped_node<GT> (ssrc);
@@ -1841,8 +1841,8 @@ public:
     typename Distance::Distance_Type sum = 0;
   
         // recorrer todos los arcos y sumar su peso
-    for (Arc_Iterator <GT, SA> it(g, sa); it.has_curr(); it.next())
-      sum += dist(it.get_current_arc());
+    for (Arc_Iterator <GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      sum += dist(it.get_current_arc_ne());
 
     return sum;
   }

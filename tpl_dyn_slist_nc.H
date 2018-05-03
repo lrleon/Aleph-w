@@ -182,12 +182,12 @@ namespace Aleph
         // empty
       }
 
-      T & get_current()
+      T & get_curr_n() const noexcept
       {
-        return Node::Iterator::get_current()->get_data();
+        return Node::Iterator::get_curr()->get_data();
       }
 
-      T & get_curr() { return Dyn_Slist_Nc::Iterator::get_current(); }
+      T & get_curr() const { return Dyn_Slist_Nc::Iterator::get_curr(); }
 
     };
 
@@ -201,8 +201,8 @@ namespace Aleph
     Dyn_Slist_Nc(const Dyn_Slist_Nc & l) : Node(l), head(this), num_items(0)
     {
       for (Iterator it(const_cast <Dyn_Slist_Nc &>(l));
-           it.has_current(); it.next())
-        append(it.get_current());
+           it.has_curr(); it.next_ne())
+        append(it.get_curr_ne());
     } 
 
     ~Dyn_Slist_Nc()
@@ -228,8 +228,8 @@ namespace Aleph
       assert(this->is_empty());
 
       for (Iterator it(const_cast<Dyn_Slist_Nc &>(list)); 
-           it.has_current(); it.next())
-        append(it.get_current()); 
+           it.has_curr(); it.next_ne())
+        append(it.get_curr_ne()); 
 
       return *this;
     }
@@ -237,7 +237,7 @@ namespace Aleph
     T & operator [] (const size_t & n)
     {
       Iterator it(*this);
-      for (int i = 0; i < n and it.has_current(); ++i, it.next());
+      for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
 
       return it.get_curr();
     }

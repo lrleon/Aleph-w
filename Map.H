@@ -235,13 +235,13 @@ public:
         /// Proporciona una referencia al elemento actual.
     const Pair & operator * ()
     {
-      return KEY(itor.get_current());
+      return KEY(itor.get_curr());
     }
 
         /// "Dereferencia" un puntero al elemento actual.
     const Pair * operator -> ()
     {
-      return &KEY(itor.get_current());
+      return &KEY(itor.get_curr());
     }
 
         /// Avanza el iterador una posición hacia adelante, luego carga

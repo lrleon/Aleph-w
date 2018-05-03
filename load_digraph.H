@@ -109,9 +109,9 @@ void generate_dot_file(Digrafo & g, ostream & output)
     //	 << "rankdir = LR" << endl
     ;
 
-  for (Node_Iterator<Digrafo> it(g); it.has_current(); it.next())
+  for (Node_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Node * p = it.get_current();
+      Digrafo::Node * p = it.get_curr_ne();
       Info_Nodo & info = p->get_info();
       output << info.first << " [color=";
       DynDlist<string> & fields = info.second;
@@ -155,12 +155,12 @@ void generate_dot_file(Digrafo & g, ostream & output)
   if (with_cycle)
     {
       output << "// WARNING: Cycle detected in ";
-      for (Path<Digrafo>::Iterator it(p); it.has_current(); it.next())
+      for (Path<Digrafo>::Iterator it(p); it.has_curr(); it.next_ne())
 	{
-	  Info_Nodo & info = it.get_current_node()->get_info();
+	  Info_Nodo & info = it.get_current_node_ne()->get_info();
 	  output << "(" << info.first << ")" << info.second[6];
 	  if (not it.is_in_last())
-	    ooutput << "->";
+	    output << "->";
 	}
       output << endl;
     }
@@ -171,20 +171,20 @@ void generate_dot_file(Digrafo & g, ostream & output)
       Q_Topological_Sort <Digrafo> () (g, ranks);
 
       for (DynDlist<DynDlist<Digrafo::Node*>*>::Iterator it(ranks); 
-	   it.has_current(); it.next())
+	   it.has_curr(); it.next_ne())
 	{
-	  DynDlist<Digrafo::Node*> * l = it.get_current();
+	  DynDlist<Digrafo::Node*> * l = it.get_curr_ne();
 	  output << "{ rank = same; " << endl;
 	  for (DynDlist<Digrafo::Node*>::Iterator i(*l); 
-	       i.has_current(); i.next())
-	    output << i.get_current()->get_info().first << " ";
+	       i.has_curr(); i.next_ne())
+	    output << i.get_curr_ne()->get_info().first << " ";
 	  output << "}" << endl;
 	}
     }
   
-  for (Arc_Iterator<Digrafo> it(g); it.has_current(); it.next())
+  for (Arc_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Arc * a = it.get_current();
+      Digrafo::Arc * a = it.get_curr_ne();
       output << g.get_src_node(a)->get_info().first << " -> " 
 	     << g.get_tgt_node(a)->get_info().first << endl;
     }

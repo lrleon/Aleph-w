@@ -151,9 +151,9 @@ inline ostream & join(const C & c, const string & sep, ostream & out)
     return out;
   
   auto & last = c.get_last();
-  for (auto it = c.get_it(); it.has_curr(); it.next())
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       out << curr;
       if (&curr != &last)
 	out << sep;
@@ -400,9 +400,9 @@ inline DynList<DynList<T>> complete_rows(DynList<DynList<T>> & m)
     });
 
   DynList<DynList<T>> ret;
-  for (auto it = zip_it(m, sizes); it.has_curr(); it.next())
+  for (auto it = zip_it(m, sizes); it.has_curr(); it.next_ne())
     {
-      auto t = it.get_curr();
+      auto t = it.get_curr_ne();
       DynList<T> & l = get<0>(t);
       size_t sz = get<1>(t);
       long n = max_sz - sz;
@@ -434,9 +434,9 @@ format_string(const DynList<size_t> & lens,
 inline ostream & format_string(ostream & out, const DynList<size_t> & lens,
 			       const DynList<DynList<string>> & mat)
 {
-  for (auto it = mat.get_it(); it.has_curr(); it.next())
+  for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
     {
-      const auto & row = it.get_curr();
+      const auto & row = it.get_curr_ne();
       auto line = zip(lens, row).template maps<string>([] (auto p)
 	{
 	  const string blanks(p.first - p.second.size(), ' ');
@@ -470,14 +470,14 @@ inline DynList<DynList<string>>
 format_string_csv(const DynList<DynList<string>> & mat)
 {
   DynList<DynList<string>> ret;
-  for (auto row_it = mat.get_it(); row_it.has_curr(); row_it.next())
+  for (auto row_it = mat.get_it(); row_it.has_curr(); row_it.next_ne())
     {
-      const DynList<string> & curr_row = row_it.get_curr();
+      const DynList<string> & curr_row = row_it.get_curr_ne();
       const string & last = curr_row.get_last();
       DynList<string> row;
-      for (auto it = curr_row.get_it(); it.has_curr(); it.next())
+      for (auto it = curr_row.get_it(); it.has_curr(); it.next_ne())
 	{
-	  const string & s = it.get_curr();
+	  const string & s = it.get_curr_ne();
 	  if (&s == &last)
 	    row.append(s);
 	  else
@@ -517,9 +517,9 @@ inline DynList<string> split_text_into_lines(const string & text)
 inline string to_string(const DynList<string> & lines)
 {
   ostringstream s;
-  for (auto it = lines.get_it(); it.has_curr(); it.next())
+  for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
     {
-      const auto & line = it.get_curr();
+      const auto & line = it.get_curr_ne();
       s << line;
       if (line != lines.get_last())
 	s << endl;
@@ -629,9 +629,9 @@ inline string shift_lines_to_left(const string & str, const size_t n)
   ostringstream s;
   string fill(n, ' ');
   auto lines = split_to_list(str, "\n");
-  for (auto it = lines.get_it(); it.has_curr(); it.next())
+  for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
     {
-      const auto & line = it.get_curr();
+      const auto & line = it.get_curr_ne();
       s << fill << line;
       if (line != lines.get_last())
 	s << endl;
@@ -677,9 +677,9 @@ inline string build_pars_list(Args ... args)
 
   auto & last = c.get_last();
   ostringstream s;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       s << curr;
       if (&curr != &last)
 	s << sep;

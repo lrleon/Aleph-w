@@ -68,9 +68,9 @@ class Test_For_Path
     NODE_BITS(curr).set_bit(Find_Path, true); // pintar curr_node
 
     // buscar recursivamente a través de arcos de curr 
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
       { 
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Find_Path)) 
           continue; 
 
@@ -95,9 +95,9 @@ class Test_For_Path
     tgt = dest;
 
         // buscar recursivamente por arcos adyacentes a src
-    for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_curr(); i.next_ne())
       {
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         ARC_BITS(arc).set_bit(Find_Path, true); // marcar arco
         if (test_path(i.get_tgt_node())) 
           return true; 

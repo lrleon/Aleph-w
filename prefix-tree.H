@@ -249,9 +249,9 @@ public:
 			{
 			  tgt->insert_rightmost_child(new Cnode(s->get_key()));
 			});
-    for (auto it = get_pair_it(*src, *tgt); it.has_curr(); it.next()) 
+    for (auto it = get_pair_it(*src, *tgt); it.has_curr(); it.next_ne()) 
       {
-	auto p = it.get_curr();
+	auto p = it.get_curr_ne();
 	clone(p.first, p.second);
       }
   }

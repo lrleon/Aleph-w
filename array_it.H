@@ -104,8 +104,6 @@ public:
 
   bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
 
-  bool has_current() const noexcept { return has_curr(); }
-
   bool is_last() const noexcept { return pos == num_items - 1; }
 
   long get_pos() const noexcept { return pos; }
@@ -125,8 +123,6 @@ public:
 
     return ptr[idx]; 
   }
-
-  T & get_current() const { return get_curr(); }
 
   void next_ne() noexcept { ++pos; }
 

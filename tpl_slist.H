@@ -113,7 +113,7 @@ public:
   public:
         /// El tipo de conjunto sobre el cual se itera.
     typedef Snode<T> Set_Type;
-        /// El tipo de elemento que retorna get_current().
+        /// El tipo de elemento que retorna get_curr().
     typedef Snode<T> * Item_Type;
 
       /** Constructor.
@@ -125,7 +125,7 @@ public:
     Iterator(Slist & _list) : list(&_list), current(list->get_first()) {}
 
         /// Retorna true si el iterador tiene nodo actual.
-    bool has_current() const { return current != list; }
+    bool has_curr() const { return current != list; }
 
         /** Retorna el nodo actual sobre el cual está posicionado el iterador.
 
@@ -133,13 +133,9 @@ public:
             @throw overflow_error si el iterador no está posicionado sobre 
             un elemento. 
          */
-    Node * get_current() 
-
-      throw(std::exception, std::overflow_error)
-
+    Node * get_curr() throw(std::exception, std::overflow_error)
     {
-
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("");
 
       return current;
@@ -154,13 +150,10 @@ public:
             @throw overflow_error si el iterador no se encuentra sobre un elemento 
             actual.
          */
-    void next()
-
-      throw(std::exception, std::overflow_error)
+    void next() throw(std::exception, std::overflow_error)
 
     {
-
-      if (not this->has_current())
+      if (not this->has_curr())
         throw std::overflow_error ("");
 
       current = current->get_next();

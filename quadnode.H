@@ -503,9 +503,9 @@ public:
    */
   bool remove_point(const Point & p)
   {
-    for (DynList<Point>::iterator it(points); it.has_curr(); it.next())
+    for (DynList<Point>::iterator it(points); it.has_curr(); it.next_ne())
       {
-        const Point & curr = it.get_curr();
+        const Point & curr = it.get_curr_ne();
 	
         if (curr == p)
           {

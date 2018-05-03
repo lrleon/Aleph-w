@@ -88,14 +88,9 @@ namespace Aleph
         // Empty
       }
 
-      Snode_Nc * get_current() /// retorna puntero al nodo actual 
-      {
-        return (Snode_Nc *) this->Slink_Nc::Iterator::get_current(); 
-      }
-
       Snode_Nc * get_curr() /// retorna puntero al nodo actual 
       {
-        return Snode_Nc::Iterator::get_current(); 
+        return (Snode_Nc *) this->Slink_Nc::Iterator::get_current(); 
       }
     };
   };

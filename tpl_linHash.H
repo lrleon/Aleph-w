@@ -61,13 +61,13 @@ namespace Aleph {
 public:									\
 									\
  BUCKETNAME(const BUCKETNAME & bucket)					\
- noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)		\
- : Dnode<Key>(bucket) {}						\
+   noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)		\
+   : Dnode<Key>(bucket) {}						\
 									\
  BUCKETNAME() noexcept(std::is_nothrow_constructible<Key>::value) {}	\
 									\
  BUCKETNAME(const Key & key) noexcept(noexcept(Dnode<Key>(key)))	\
- : Dnode<Key>(key) {}							\
+   : Dnode<Key>(key) {}							\
 									\
  Key & get_key() noexcept { return this->get_data(); }			\
 									\
@@ -215,9 +215,9 @@ private:
               BucketList * tgt_list_ptr = nullptr; 
 
                   // recorrer lista colisiones y mover cubetas de table[p+M] 
-              for (BucketItor it(*src_list_ptr); it.has_current(); /* nada */)
+              for (BucketItor it(*src_list_ptr); it.has_curr(); /* nada */)
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_current());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr());
 
                   it.next(); // avance al siguiente elemento de la lista
 
@@ -425,9 +425,9 @@ private:
   Bucket *
   search_in_bucket_list(BucketList * list, const Key & key) const noexcept
   {
-    for (BucketItor it(*list); it.has_curr(); it.next())
+    for (BucketItor it(*list); it.has_curr(); it.next_ne())
       {
-        Bucket * bucket = static_cast<Bucket*>(it.get_current());
+        Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
         if (cmp (key, bucket->get_key())) 
           return bucket; 
       }
@@ -556,9 +556,9 @@ public:
             BucketList & list = table.access(i);
 
             if (not list.is_empty())
-              for (BucketItor it(list); it.has_current(); it.next())
+              for (BucketItor it(list); it.has_curr(); it.next_ne())
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_current());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
                   const Key & key = bucket->get_key();
                   cout << key << ",";
                 }
@@ -594,15 +594,27 @@ public:
     Iterator() noexcept { /* Empty */ }
 
         /// Retorna la cubeta actual.
-    Bucket * get_curr() 
+    Bucket * get_curr() const
     {
       return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr());
+    }
+
+    /// Retorna la cubeta actual.
+    Bucket * get_curr_ne() const noexcept
+    {
+      return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr_ne());
     }
 
     Bucket * del()
     {
       Bucket * bucket = Bucket::dlink_to_base(this->Dlink::Iterator::del());
       return (Bucket *) hash_table->remove_bucket(bucket);
+    }
+
+    void next_ne() noexcept
+    {
+      this->Dlink::Iterator::next_ne();
+      pos++;
     }
 
     void next() 

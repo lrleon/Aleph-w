@@ -349,7 +349,7 @@ public:
   {
   public:
 
-       /// Tipo de elemento que retorna get_current()
+       /// Tipo de elemento que retorna get_curr()
     using Item_Type = Node *;
 
        /// El tipo de conjunto sobre el cual se itera.
@@ -383,7 +383,7 @@ public:
     
   public:
 
-        /// El tipo de dato que retorna get_current().
+        /// El tipo de dato que retorna get_curr().
     using Item_Type =  Arc *;
 
         /// El tipo de conjunto sobre el cual se itera.
@@ -400,18 +400,30 @@ public:
     }
 
         /// Retorna el arco actual.
+    Arc * get_current_arc_ne() const noexcept
+    {
+      return (Arc*) this->DynList<void*>::Iterator::get_curr_ne();
+    }
+
+        ///\overload get_current_arc()
+    Arc * get_curr_ne() const noexcept { return get_current_arc_ne(); }
+
+        /// Retorna el nodo destino del arco actual.
+    Node * get_tgt_node_ne() const noexcept
+    {
+      Arc * a = get_curr_ne();
+      return (Node*) a->get_connected_node(src_node);
+    }
+
     Arc * get_current_arc() const
     {
       return (Arc*) this->DynList<void*>::Iterator::get_curr();
     }
 
-        ///\overload get_current_arc()
-    Arc * get_current() const { return get_current_arc(); }
-
-        ///\overload get_current_arc()
+    ///\overload get_current_arc()
     Arc * get_curr() const { return get_current_arc(); }
 
-        /// Retorna el nodo destino del arco actual.
+    /// Retorna el nodo destino del arco actual.
     Node * get_tgt_node() const
     {
       Arc * a = get_curr();
@@ -430,7 +442,7 @@ public:
   {
   public:
 
-        /// Tipo de elemento que retorna get_current()
+        /// Tipo de elemento que retorna get_curr()
     using Item_Type = Arc *;
 
        /// El tipo de conjunto sobre el cual se itera.
@@ -442,6 +454,24 @@ public:
       : DynSetArc::Iterator(_g.arc_list)
     {
       // empty
+    }
+
+    /// Retorna un puntero al arco actual
+    Arc * get_current_arc_ne() const noexcept
+    {
+      return this->get_curr_ne();
+    }
+
+        /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
+    Node * get_src_node_ne() const noexcept
+    {
+      return (Node*) get_current_arc_ne()->src_node;
+    }
+
+        /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
+    Node * get_tgt_node_ne() const noexcept
+    {
+      return (Node*) get_current_arc_ne()->tgt_node;
     }
 
         /// Retorna un puntero al arco actual

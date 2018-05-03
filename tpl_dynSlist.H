@@ -156,14 +156,14 @@ public:
   public:
         /// El tipo de conjunto sobre el cual se itera.
     typedef Slist<T> Set_Type;
-        /// El tipo de elemento que retorna get_current().
+        /// El tipo de elemento que retorna get_curr().
     typedef T Item_Type;
 
         /// Constructor.
     Iterator(DynSlist & list) : Slist<T>::Iterator(list) { /* Empty */ } 
 
         /// retorna una referencia al elemento actual.
-    T & get_current() { return Slist<T>::Iterator::get_current()->get_data(); }
+    T & get_curr() { return Slist<T>::Iterator::get_curr()->get_data(); }
   };
 
 };

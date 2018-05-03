@@ -33,7 +33,7 @@ class Name : public Base_Name
   {
   public:
 
-    /// Tipo de elemento que retorna get_current()
+    /// Tipo de elemento que retorna get_curr()
     typedef Node * Item_Type;
 
     /// El tipo de conjunto sobre el cual se itera.
@@ -51,9 +51,6 @@ class Name : public Base_Name
     {
       return DynArray<Node*>::Iterator::get_curr();
     }
-
-    /// \overload get_current_node()
-    Node * get_current() { return get_current_node(); }
 
     /// \overload get_current_node()
     Node * get_curr() { return get_current_node(); }

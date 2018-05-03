@@ -59,9 +59,9 @@ class Test_For_Cycle
     NODE_BITS(curr).set_bit(Test_Cycle, true); // marque nodo
 
       // buscar caminos desde current_node a ver si llega a src_node 
-    for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_current(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * arc = it.get_current_arc();
+        typename GT::Arc * arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 
@@ -84,9 +84,9 @@ class Test_For_Cycle
     g.reset_bit_arcs(Test_Cycle);  // reiniciar Test_Cycle para arcos
 
       // explorar recursivamente por arcos adyacentes a src_node
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * arc = it.get_current_arc();
+        typename GT::Arc * arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 

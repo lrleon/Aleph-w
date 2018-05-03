@@ -196,9 +196,10 @@ public:
         // tabla de pares <ptr nodo, orden de isnerción>
     DynMapTreap<typename GT::Node *, int> nodes_table;
 
-    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr(); it.next(), ++i)
+    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
+	 it.next_ne(), ++i)
       {
-	auto p = it.get_current();
+	auto p = it.get_curr_ne();
 
 	if (verbose)
 	  cout << i << " ";
@@ -216,9 +217,9 @@ public:
 
     output.write((const char*) &num_arcs, sizeof(num_arcs));
 
-    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_current();
+	auto a = it.get_curr_ne();
 
 	auto src = g.get_src_node(a);
 	auto tgt = g.get_tgt_node(a);
@@ -317,9 +318,10 @@ public:
         // tabla de pares <ptr nodo, orden de inserción>
     DynMapTreap<typename GT::Node *, int> nodes_table;
 
-    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr(); it.next(), ++i)
+    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
+	 it.next_ne(), ++i)
       {
-	typename GT::Node * p = it.get_curr();
+	typename GT::Node * p = it.get_curr_ne();
 
 	if (verbose)
 	  cout << i << " ";
@@ -333,9 +335,9 @@ public:
       cout << " done " << endl 
 	   << "Storing " << num_arcs << " arcs ... " << endl;
 
-    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 
 	auto src = g.get_src_node(a);
 	auto tgt = g.get_tgt_node(a);

@@ -79,8 +79,8 @@ template <class Container>
 DynList<typename Container::Item_Type*> pointers_list(Container & c)
 {
   DynList<typename Container::Item_Type*> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(&it.get_curr());
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(&it.get_curr_ne());
   return ret;
 }
 
@@ -90,8 +90,8 @@ pointers_list(const Container & c)
 {
   using T = const typename  Container::Item_Type * const;
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(const_cast<T>(&it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(const_cast<T>(&it.get_curr_ne()));
   return ret;
 }
 
@@ -182,8 +182,8 @@ void enum_for_each(const Container & container, Operation & operation)
     noexcept(noexcept(operation))
 {
   size_t i = 0;
-  for (auto it = container.get_it(); it.has_curr(); it.next(), ++i)
-    operation(it.get_curr(), i);
+  for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
+    operation(it.get_curr_ne(), i);
 }
 
   template <class Container, class Operation> inline
@@ -423,8 +423,9 @@ zipEq(const Container1 & a, const Container2 & b)
   
   auto it1 = a.get_it();
   auto it2 = b.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
     throw std::length_error("Container sizes mismatch");
@@ -524,8 +525,9 @@ bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
 {
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    if (not (e(it1.get_curr(), it2.get_curr())))
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
       return false;
 
   return not (it1.has_curr() or it2.has_curr());
@@ -536,8 +538,9 @@ bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
 {
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();;
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    if (not (e(it1.get_curr(), it2.get_curr())))
+  for (/* nothing */; it1.has_curr() and it2.has_curr();
+		    it1.next_ne(), it2.next_ne())
+    if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
       return false;
 
   return not (it1.has_curr() or it2.has_curr());
@@ -553,10 +556,10 @@ are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
   size_t n = 0;
-  for (; it1.has_curr() and it2.has_curr(); it1.next(), it2.next(), n++)
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne(), n++)
     {
-      auto i1 = it1.get_curr();
-      auto i2 = it2.get_curr();
+      auto i1 = it1.get_curr_ne();
+      auto i2 = it2.get_curr_ne();
       if (not (e(i1, i2)))
 	return std::make_tuple(false, n, i1, i2);
     }
@@ -799,10 +802,10 @@ DynList<DynList<T>> gen_seq_list_tuples(const Container<T> & c, size_t n)
 	 
   DynList<DynList<T>> ret;
   ret.append(l);
-  for (; it.has_curr(); it.next())
+  for (; it.has_curr(); it.next_ne())
     {
       l.remove_first();
-      l.append(it.get_curr());
+      l.append(it.get_curr_ne());
       ret.append(l);
     }
 
@@ -844,9 +847,9 @@ sequential_groups(const Container<T> & c, Equal & eq)
   
   size_t count = 1; // count the number of groups
 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       if (not eq(curr, curr_item)) // group change?
         {
           curr_item = curr;
@@ -888,9 +891,9 @@ unique_sequential(const Container<T> & c, Equal & eq)
   
   size_t count = 1; // count the number of groups
 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       if (not eq(curr, curr_item)) // group change?
         {
           curr_item = curr;
@@ -1012,8 +1015,8 @@ C build_container(Args ... args)
 TgtC assign_container(const SrcC & srcc)
 {
   TgtC ret;
-  for (auto it = srcc.get_it(); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (auto it = srcc.get_it(); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
 
   return ret;
 }
@@ -1084,11 +1087,11 @@ DynList<std::pair<T, size_t>> repeated_with_index(const Container<T> & c);
 DynList<T> flatten(const C2<C1<T>> & c)
 {
   DynList<T> ret;
-  for (auto it_c = c.get_it(); it_c.has_curr(); it_c.next())
+  for (auto it_c = c.get_it(); it_c.has_curr(); it_c.next_ne())
     {
-      auto & curr_c = it_c.get_curr();
-      for (auto it = curr_c.get_it(); it.has_curr(); it.next())
-	ret.append(it.get_curr());
+      auto & curr_c = it_c.get_curr_ne();
+      for (auto it = curr_c.get_it(); it.has_curr(); it.next_ne())
+	ret.append(it.get_curr_ne());
     }
   return ret;
 }
@@ -1100,8 +1103,8 @@ DynList<T> flatten(const C2<C1<T>> & c)
 DynList<T> flatten(const C3<C2<C1<T>>> & c)
 {
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(flatten(it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(flatten(it.get_curr_ne()));
   return ret;
 }
 
@@ -1113,8 +1116,8 @@ DynList<T> flatten(const C3<C2<C1<T>>> & c)
 DynList<T> flatten(const C4<C3<C2<C1<T>>>> & c)
 {
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(flatten(it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(flatten(it.get_curr_ne()));
   return ret;
 }
 

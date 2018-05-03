@@ -99,9 +99,9 @@ struct LFit
 
     double sum_sigma = 0, sum_mse = 0;
     Array<double> error;
-    for (auto it = zip_it(x, y); it.has_curr(); it.next())
+    for (auto it = zip_it(x, y); it.has_curr(); it.next_ne())
       {
-	auto t = it.get_curr();
+	auto t = it.get_curr_ne();
 	auto diff = get<0>(t) - get<1>(t);
 	auto e = fabs(diff);
 	error.append(e);

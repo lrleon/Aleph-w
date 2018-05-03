@@ -172,9 +172,10 @@ private:
 
   void copy(DynLhashTable & table)
   {
-    for (typename LhashTable<Key>::Iterator it(table); it.has_curr(); it.next())
+    for (typename LhashTable<Key>::Iterator it(table); it.has_curr();
+	 it.next_ne())
       {
-	DLBucket * Bucket = (DLBucket*) it.get_curr();
+	DLBucket * Bucket = (DLBucket*) it.get_curr_ne();
 	insert(Bucket->get_key(), Bucket->record);
       }
   }

@@ -221,10 +221,9 @@ public:
         /// Inserta todos los arcos del grafo en el índice.
   void build_index()
   {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	GT_Arc * a = it.get_curr();
-
+	GT_Arc * a = it.get_curr_ne();
 	if (search(a) != a)
 	  insert(a);
       }
@@ -234,8 +233,8 @@ private:
 
   void init()
   {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-      insert(it.get_curr());
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      insert(it.get_curr_ne());
   }
 
 public:
