@@ -1052,9 +1052,9 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node * p)
   const double & yp = Y(p);
 
 
-  for (DynDlist<Tag_Data>::Iterator it(TAGS(p)); it.has_current(); it.next())
+  for (DynDlist<Tag_Data>::Iterator it(TAGS(p)); it.has_curr(); it.next())
     {
-      const Tag_Data & tag_data = it.get_current();
+      const Tag_Data & tag_data = it.get_curr();
 
       Point tag_point(xp, yp);
 
@@ -1342,7 +1342,7 @@ void generate_picture(ofstream & output, Graph * g)
 {
   Eepic_Plane plane(h_size, v_size, x_picture_offset, y_picture_offset); 
 
-  for (Graph::Node_Iterator it(*g); it.has_current(); it.next())
+  for (Graph::Node_Iterator it(*g); it.has_curr(); it.next())
     process_node(plane, it.get_current_node());
 
   for (int i = 0; i < ::arcs.size(); ++i)

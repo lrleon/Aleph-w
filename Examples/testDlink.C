@@ -46,9 +46,9 @@ DLINK_TO_TYPE(Test, link);
 void print_list(Dlink* link)
 {
   Test* ptr;
-  for (Dlink::Iterator it(link); it.has_current(); it.next())
+  for (Dlink::Iterator it(link); it.has_curr(); it.next())
     {
-      ptr = dlink_to_Test(it.get_current()); 
+      ptr = dlink_to_Test(it.get_curr()); 
       cout << ptr->n << " ";
     }
   cout << endl;

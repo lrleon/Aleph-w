@@ -288,42 +288,6 @@ public:
       // empty
     }
   };
-  // class Arc_Iterator : public DynSetArc::Iterator
-  // {
-  // public:
-
-  //       /// Tipo de elemento que retorna get_curr()
-  //   using Item_Type = Arc *;
-
-  //      /// El tipo de conjunto sobre el cual se itera.
-  //   using Set_Type = Array_Graph;
-
-  //   Arc_Iterator() noexcept { /* empty */ }
-
-  //   Arc_Iterator(const Array_Graph & _g) noexcept
-  //     : DynSetArc::Iterator(_g.arc_set)
-  //   {
-  //     // empty
-  //   }
-
-  //       /// Retorna un puntero al arco actual
-  //   Arc * get_current_arc() const
-  //   {
-  //     return this->get_curr();
-  //   }
-
-  //       /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
-  //   Node * get_src_node() noexcept 
-  //   {
-  //     return (Node*) get_current_arc()->src_node; 
-  //   }
-
-  //       /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
-  //   Node * get_tgt_node() noexcept
-  //   {
-  //     return (Node*) get_current_arc()->tgt_node; 
-  //   }
-  // };
   
   class Node_Arc_Iterator : public Array_Iterator<void*>
   {
@@ -349,17 +313,31 @@ public:
       // empty 
     }
 
-        /// Retorna el arco actual.
-    Arc * get_current_arc() const
+    Arc * get_curr() const
     {
       return (Arc*) const_cast<Node_Arc_Iterator*>(this)->
 	Array_Iterator<void*>::get_curr();
     }
 
-        ///\overload get_current_arc()
-    Arc * get_curr() const { return get_current_arc(); }
+    Arc * get_curr_ne() const noexcept
+    {
+      return (Arc*) const_cast<Node_Arc_Iterator*>(this)->
+	Array_Iterator<void*>::get_curr_ne();
+    }
+
+        /// Retorna el arco actual.
+    Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
+
+        /// Retorna el arco actual.
+    Arc * get_current_arc() const { return get_curr(); }
 
         /// Retorna el nodo destino del arco actual.
+    Node * get_tgt_node_ne() const
+    {
+      Arc * a = get_curr_ne();
+      return (Node*) a->get_connected_node(src_node);
+    }
+
     Node * get_tgt_node() const
     {
       Arc * a = get_curr();

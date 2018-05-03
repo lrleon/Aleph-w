@@ -61,8 +61,8 @@ int main(int argn, char *argc[])
       list.append(new Dnode<int>(value));
     }
 
-  for (Dnode<int>::Iterator it(list); it.has_current(); it.next())
-    cout << it.get_current()->get_data() << " ";
+  for (Dnode<int>::Iterator it(list); it.has_curr(); it.next())
+    cout << it.get_curr()->get_data() << " ";
   cout << endl;
 
 # ifdef nada
@@ -81,8 +81,8 @@ int main(int argn, char *argc[])
 
   assert(list.check());
 
-  for (Dnode<int>::Iterator it(list); it.has_current(); it.next())
-    cout << it.get_current()->get_data() << " ";
+  for (Dnode<int>::Iterator it(list); it.has_curr(); it.next())
+    cout << it.get_curr()->get_data() << " ";
   cout << endl;
 
   assert(list.check());

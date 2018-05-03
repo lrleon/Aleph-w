@@ -93,3 +93,6 @@
 ## 31. hacer más test para las tablas hash
 - Created at   2018-05-02 21:49:09 -0400
 
+## 32. revisar filter_itor
+- Created at   2018-05-03 09:16:33 -0400
+

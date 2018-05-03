@@ -37,8 +37,8 @@ using namespace Aleph;
     template <class GT>
 void print_pred(GT & g, DynArray<typename GT::Node*> & pred)
 {
-  for (Node_Iterator<GT> it(g); it.has_current(); it.next())
-    cout << it.get_current()->get_info() << " ";
+  for (Node_Iterator<GT> it(g); it.has_curr(); it.next())
+    cout << it.get_curr()->get_info() << " ";
   cout << endl;
 
   const unsigned int & n = pred.size();
@@ -189,10 +189,10 @@ void imprimir_camino(Camino & path)
 
 void imprimir_arbol(Grafo & g)
 {
-  for (Grafo::Node_Iterator i(g); i.has_current(); i.next())
-    for (Grafo::Node_Arc_Iterator j(i.get_current()); j.has_current(); j.next())
+  for (Grafo::Node_Iterator i(g); i.has_curr(); i.next())
+    for (Grafo::Node_Arc_Iterator j(i.get_curr()); j.has_curr(); j.next())
       {
-	Grafo::Arc * a = j.get_current();
+	Grafo::Arc * a = j.get_curr();
 	cout << g.get_src_node(a)->get_info() << " " 
 	     << a->get_info() << " -->" 
 	     << g.get_tgt_node(a)->get_info() << endl;

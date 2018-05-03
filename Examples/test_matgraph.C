@@ -149,7 +149,7 @@ void imprimir_grafo(Grafo & g)
   cout << endl
        << "Listado de nodos (" << g.get_num_nodes() << ")" << endl;
 
-  for (Grafo::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Grafo::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     cout << INDENT << node_itor.get_current_node()->get_info().nombre << endl;
 
@@ -158,7 +158,7 @@ void imprimir_grafo(Grafo & g)
        << "Listado de arcos (" << g.get_num_arcs() << ")"
        << endl;
 
-  for (Grafo::Arc_Iterator arc_itor(g); arc_itor.has_current();
+  for (Grafo::Arc_Iterator arc_itor(g); arc_itor.has_curr();
        arc_itor.next())
     {
       Grafo::Arc * arc = arc_itor.get_current_arc();
@@ -172,13 +172,13 @@ void imprimir_grafo(Grafo & g)
        << endl
        << "Listado del grafo por nodos y en cada nodo por arcos" 
        << endl;
-  for (Grafo::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Grafo::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     {
       Grafo::Node * src_node = node_itor.get_current_node();
       cout << src_node->get_info().nombre << endl;
       for (Grafo::Node_Arc_Iterator itor(node_itor.get_current_node());
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
 	  Grafo::Arc * arc = itor.get_current_arc();
 	  cout << INDENT << arc->get_info().distancia << " " 
@@ -344,7 +344,7 @@ void imprimir_camino(Path<Grafo> & path)
 {
   cout << endl
        << "Camino: ";
-  for (Path<Grafo>::Iterator itor(path); itor.has_current(); itor.next())
+  for (Path<Grafo>::Iterator itor(path); itor.has_curr(); itor.next())
     cout << itor.get_current_node()->get_info().nombre << "-";
 
   cout << endl;

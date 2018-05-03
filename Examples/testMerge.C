@@ -40,9 +40,9 @@ void printList(List & list)
   List::Iterator itor(list);
   Dnode<unsigned>* node;
 
-  for (itor.reset_first(); itor.has_current(); itor.next())
+  for (itor.reset_first(); itor.has_curr(); itor.next())
     {
-      node = itor.get_current();
+      node = itor.get_curr();
       printf("%u ", node->get_data());
     }
 

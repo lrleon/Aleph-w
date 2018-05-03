@@ -62,7 +62,7 @@ int main()
   Polygon::Vertex_Iterator it_b(base);
   Polygon::Vertex_Iterator it_c(cpy);
 
-  for ( ; it_b.has_current() and it_c.has_current(); it_b.next(), it_c.next())
+  for ( ; it_b.has_curr() and it_c.has_curr(); it_b.next(), it_c.next())
     assert(Point(it_b.get_current_vertex()) ==
 	   Point(it_c.get_current_vertex()));
 

@@ -1448,9 +1448,9 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
       string comment;
 
       for (DynDlist<Tag_Data>::Iterator itor(TAGS(p)); 
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
-	  tag_data = itor.get_current();
+	  tag_data = itor.get_curr();
 
 	  switch (tag_data.tag_option)
 	    {
@@ -1502,10 +1502,10 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
     }
 
       /* Dibujar arcos adicionales declarados con opción ARC o DASHED-ARC */
-  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_current(); 
+  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_curr(); 
        itor.next())
     {
-      Arc_Data arc_data = itor.get_current();
+      Arc_Data arc_data = itor.get_curr();
       
       long double lx = X(arc_data.target_node);
       long double ly = Y(arc_data.target_node);
@@ -1541,9 +1541,9 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
 
       // dibujar conexiones
   for (DynDlist<Connexion_Data>::Iterator itor(CONNEXIONS(p)); 
-       itor.has_current(); itor.next())
+       itor.has_curr(); itor.next())
     {
-      Connexion_Data connexion_data = itor.get_current();
+      Connexion_Data connexion_data = itor.get_curr();
 
       generate_curve(output, p, connexion_data.target_node, 
 		     connexion_data.is_left);

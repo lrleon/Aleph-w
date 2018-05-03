@@ -96,21 +96,21 @@ int main()
 
   Compute_Bipartite <Grafo> () (g, l, r);
 
-  for (DynDlist<Grafo::Node *>::Iterator it(l); it.has_current(); it.next())
-    cout << it.get_current()->get_info() << ", ";
+  for (DynDlist<Grafo::Node *>::Iterator it(l); it.has_curr(); it.next())
+    cout << it.get_curr()->get_info() << ", ";
   cout << endl;
 
-  for (DynDlist<Grafo::Node *>::Iterator it(r); it.has_current(); it.next())
-    cout << it.get_current()->get_info() << ", ";
+  for (DynDlist<Grafo::Node *>::Iterator it(r); it.has_curr(); it.next())
+    cout << it.get_curr()->get_info() << ", ";
   cout << endl;
 
   DynDlist<Grafo::Arc *> m;
 
   Compute_Maximum_Cardinality_Bipartite_Matching <Grafo> () (g, m);
 
-  for (DynDlist<Grafo::Arc *>::Iterator it(m); it.has_current(); it.next())
+  for (DynDlist<Grafo::Arc *>::Iterator it(m); it.has_curr(); it.next())
     {
-      Grafo::Arc * a = it.get_current();
+      Grafo::Arc * a = it.get_curr();
       Grafo::Node * src = g.get_src_node(a);
       Grafo::Node * tgt = g.get_tgt_node(a);
       cout << src->get_info() << "--" << tgt->get_info() << endl;

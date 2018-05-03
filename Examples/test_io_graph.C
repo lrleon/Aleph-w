@@ -76,12 +76,12 @@ Grafo build_graph()
 
   int i = 0;
 
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
-    it.get_current()->get_info() = i++;
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
+    it.get_curr()->get_info() = i++;
 
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
-      Grafo::Arc * a = it.get_current();
+      Grafo::Arc * a = it.get_curr();
       Grafo::Node * src = g.get_src_node(a);
       Grafo::Node * tgt = g.get_tgt_node(a);
 
@@ -96,14 +96,14 @@ Grafo build_graph()
 void print_graph(Grafo & g)
 {
   cout << "Nodes' content ";
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
-    cout << it.get_current()->get_info() << " ";
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
+    cout << it.get_curr()->get_info() << " ";
 
   cout << " done" << endl << endl
        << "Arcs' content ";
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
-      Grafo::Arc * a = it.get_current();
+      Grafo::Arc * a = it.get_curr();
 
       cout << a->get_info() << " ";
     }

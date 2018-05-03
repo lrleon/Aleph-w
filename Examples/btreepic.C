@@ -1265,9 +1265,9 @@ inline bool north_offset(EepicNode<long> * p)
     return false;
 
   for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p)); 
-       tag_itor.has_current(); tag_itor.next())
+       tag_itor.has_curr(); tag_itor.next())
     {
-      Tag_Data & tag_data = tag_itor.get_current();
+      Tag_Data & tag_data = tag_itor.get_curr();
 
       if (tag_data.tag_option == NORTH or 
 	  tag_data.tag_option == NORTH_EAST or
@@ -1287,9 +1287,9 @@ inline bool east_offset(EepicNode<long> * root)
     return false;
 
   for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p)); 
-       tag_itor.has_current(); tag_itor.next())
+       tag_itor.has_curr(); tag_itor.next())
     {
-      Tag_Data & tag_data = tag_itor.get_current();
+      Tag_Data & tag_data = tag_itor.get_curr();
 
       if (tag_data.tag_option == EAST or 
 	  tag_data.tag_option == NORTH_EAST or
@@ -1309,9 +1309,9 @@ inline bool west_offset(EepicNode<long> * root)
     return false;
 
   for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p)); 
-       tag_itor.has_current(); tag_itor.next())
+       tag_itor.has_curr(); tag_itor.next())
     {
-      Tag_Data & tag_data = tag_itor.get_current();
+      Tag_Data & tag_data = tag_itor.get_curr();
 
       if (tag_data.tag_option == WEST or 
 	  tag_data.tag_option == NORTH_WEST or
@@ -1329,17 +1329,17 @@ inline bool south_offset(EepicNode<long> * root,
     compute_nodes_in_level(root, level);
 
   for (DynDlist<EepicNode<long>*>::Iterator it(deepest_nodes); 
-       it.has_current(); it.next())
+       it.has_curr(); it.next())
     {
-      EepicNode<long> * p = it.get_current();
+      EepicNode<long> * p = it.get_curr();
 
       if (TAGLIST(p).is_empty())
 	continue;
 
       for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p)); 
-	   tag_itor.has_current(); tag_itor.next())
+	   tag_itor.has_curr(); tag_itor.next())
 	{
-	  Tag_Data & tag_data = tag_itor.get_current();
+	  Tag_Data & tag_data = tag_itor.get_curr();
 
 	  if (tag_data.tag_option == SOUTH or 
 	      tag_data.tag_option == SOUTH_EAST or
@@ -1843,9 +1843,9 @@ void generate_tree(ofstream & output, EepicNode<long> * p)
       string comment;
 
       for (DynDlist<Tag_Data>::Iterator itor(TAGLIST(p)); 
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
-	  tag_data = itor.get_current();
+	  tag_data = itor.get_curr();
 
 	  switch (tag_data.tag_option)
 	    {
@@ -1916,10 +1916,10 @@ void generate_tree(ofstream & output, EepicNode<long> * p)
   EepicNode<long> * r = RLINK(p);
 
       /* dibujar arcos adicionales del nodo */
-  for (DynDlist<Arc_Desc>::Iterator itor(ARCLIST(p)); itor.has_current(); 
+  for (DynDlist<Arc_Desc>::Iterator itor(ARCLIST(p)); itor.has_curr(); 
        itor.next())
     {
-      Arc_Desc arc_desc = itor.get_current();
+      Arc_Desc arc_desc = itor.get_curr();
 
       if (arc_desc.target_node == l)
 	{ /* el arco sera dibujado cuando se procese lazo izq */

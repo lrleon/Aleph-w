@@ -35,9 +35,9 @@ using namespace std;
 void print_list(Test * link)
 {
   Test* ptr;
-  for (Test::Iterator it(link); it.has_current(); it.next())
+  for (Test::Iterator it(link); it.has_curr(); it.next())
     {
-      ptr = it.get_current(); 
+      ptr = it.get_curr(); 
       cout << ptr->get_data() << " ";
     }
   cout << endl;
@@ -140,7 +140,7 @@ int main(int argn, char *argc[])
       cout << i << " ";
     }
 
-  for (Dnode<unsigned>::Iterator itor(headPtr); itor.has_current(); )
+  for (Dnode<unsigned>::Iterator itor(headPtr); itor.has_curr(); )
     delete itor.del();
 
   assert(headPtr == headPtr->get_prev() && headPtr == headPtr->get_next());

@@ -149,7 +149,7 @@ public:
 
     void init_flags ()
     {
-      if (itor.has_current () )
+      if (itor.has_curr () )
 	underflow = overflow = false;
       else
 	underflow = overflow = true;
@@ -186,7 +186,7 @@ public:
       
       itor.next ();
 
-      if (not itor.has_current () )
+      if (not itor.has_curr () )
 	overflow = true;
     }
 
@@ -200,7 +200,7 @@ public:
       
       itor.prev ();
 
-      if (not itor.has_current () )
+      if (not itor.has_curr () )
 	underflow = true;
     }
 
@@ -363,16 +363,16 @@ public:
 
     typename Tree_Type::Iterator itor1 (tree), itor2 (c.tree);
     
-    while (itor1.has_current () and itor2.has_current () )
+    while (itor1.has_curr() and itor2.has_curr() )
     {
-      if (KEY (itor1.get_current () ) != KEY (itor2.get_current () ) )
+      if (KEY (itor1.get_curr() ) != KEY (itor2.get_curr() ) )
 	return false;
 
       itor1.next ();
       itor2.next ();
     }
     
-    assert(not itor1.has_current () and not itor2.has_current () );
+    assert(not itor1.has_curr() and not itor2.has_curr() );
 
     return true;
   }
@@ -390,11 +390,11 @@ public:
   {
     typename Tree_Type::Iterator itor1 (tree), itor2 (c.tree);
 
-    while (itor1.has_current () and itor2.has_current () )
+    while (itor1.has_curr() and itor2.has_curr() )
     {
-      if (KEY (itor1.get_current () ) < KEY (itor2.get_current () ))
+      if (KEY (itor1.get_curr() ) < KEY (itor2.get_curr() ))
 	return true;
-      else if (KEY (itor2.get_current () ) < KEY (itor1.get_current () ))
+      else if (KEY (itor2.get_curr() ) < KEY (itor1.get_curr() ))
 	return false;
       
       // En este caso las claves sons iguales
@@ -402,7 +402,7 @@ public:
       itor2.next ();
     }
     
-    if (not itor1.has_current ())
+    if (not itor1.has_curr())
       return true;
 
     return false;
@@ -653,7 +653,7 @@ public:
       */
   void erase (iterator pos)
   {
-    erase (KEY (pos.itor.get_current ()).first);
+    erase (KEY (pos.itor.get_curr ()).first);
   }
 
   /** Borra del mapeo el rango comprendido [beg..end).

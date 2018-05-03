@@ -221,7 +221,7 @@ void imprimir_mapa(Mapa & g)
   cout << endl
        << "Listado de nodos (" << g.get_num_nodes() << ")" << endl;
 
-  for (Mapa::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Mapa::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     cout << INDENT << node_itor.get_current_node()->get_info().nombre << endl;
 
@@ -230,7 +230,7 @@ void imprimir_mapa(Mapa & g)
        << "Listado de arcos (" << g.get_num_arcs() << ")"
        << endl;
 
-  for (Mapa::Arc_Iterator arc_itor(g); arc_itor.has_current();
+  for (Mapa::Arc_Iterator arc_itor(g); arc_itor.has_curr();
        arc_itor.next())
     {
       Mapa::Arc * arc = arc_itor.get_current_arc();
@@ -243,13 +243,13 @@ void imprimir_mapa(Mapa & g)
        << endl
        << "Listado del grafo por nodos y en cada nodo por arcos" 
        << endl;
-  for (Mapa::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Mapa::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     {
       Mapa::Node * src_node = node_itor.get_current_node();
       cout << src_node->get_info().nombre << endl;
       for (Mapa::Node_Arc_Iterator itor(node_itor.get_current_node());
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
 	  Mapa::Arc * arc = itor.get_current_arc();
 	  cout << INDENT << arc->get_info().distancia << " " 

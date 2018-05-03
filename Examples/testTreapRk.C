@@ -176,8 +176,8 @@ int main(int argn, char *argc[])
        << endl;
 
   cout << "Recorrido por iterador" << endl;
-  for (Treap_Rk<int>::Iterator it(tree); it.has_current(); it.next())
-    cout << KEY(it.get_current()) << " ";
+  for (Treap_Rk<int>::Iterator it(tree); it.has_curr(); it.next())
+    cout << KEY(it.get_curr()) << " ";
   cout << endl;
     
   n = tree.size();

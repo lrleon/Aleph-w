@@ -54,19 +54,19 @@ struct GTNodeIterator : public Dlink::Iterator
       /// Build a iterator for all the nodes of g
   GTNodeIterator(Dlink & head) noexcept : Dlink::Iterator(head) { /* empty */ }
 
+  /// Return the current node without exception
   Node * get_curr_ne() const noexcept
   {
     return (Node*) Dlink::Iterator::get_curr_ne();
   }
 
-        /// Return the current node
-  Node * get_current_node() const
-  {
-    return (Node*) Dlink::Iterator::get_curr(); 
-  }
+  /// Return the current node
+  Node * get_curr() const { return (Node*) Dlink::Iterator::get_curr(); }
 
-  /// \overload get_current_node()
-  Node * get_curr() const { return get_current_node(); }
+  /// Return the current node
+  Node * get_current_node() const { return get_curr(); }
+
+  Node * get_current_node_ne() const { return get_curr_ne(); }
 };
 
 
@@ -98,30 +98,43 @@ struct GTArcIterator : public Dlink::Iterator
     : Dlink::Iterator(head) 
   { /* empty */ }
 
+  /// Return current arc without exception
   Arc * get_curr_ne() const noexcept
   {
     return (Arc*) Dlink::Iterator::get_curr_ne();
   }
 
-        /// Return the current arc
-  Arc * get_current_arc() const
-  {
-    return (Arc*) Dlink::Iterator::get_curr(); 
-  }
+  /// Return current arc
+  Arc * get_curr() const { return (Arc*) Dlink::Iterator::get_curr(); }
 
-  /// \overload get_current_node()
-  Arc * get_curr() const { return get_current_arc(); }
+  /// Return the current arc
+  Arc * get_current_arc() const { return get_curr(); }
+
+  /// Return the current arc without exception
+  Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
 
   /// Return the sourcenode of current arc (if it is a directed graph) 
-  Node * get_src_node() noexcept 
+  Node * get_src_node_ne() const noexcept 
   {
     return (Node*) get_curr_ne()->src_node; 
   }
 
   /// Return the target node of current arc (if it is a directed graph) 
-  Node * get_tgt_node() noexcept
+  Node * get_tgt_node_ne() const noexcept
   {
     return (Node*) get_curr_ne()->tgt_node; 
+  }
+
+  /// Return the sourcenode of current arc (if it is a directed graph) 
+  Node * get_src_node() const 
+  {
+    return (Node*) get_curr()->src_node; 
+  }
+
+  /// Return the target node of current arc (if it is a directed graph) 
+  Node * get_tgt_node() const
+  {
+    return (Node*) get_curr()->tgt_node; 
   }
 };
 
@@ -730,39 +743,39 @@ public:
   }
   
   /// Reset `bit` to zero for all the nodes of graph
-  void reset_bit_nodes(int bit)	const noexcept
+  void reset_bit_nodes(int bit) const noexcept
   {
-    for_each_node([bit, this] (auto p) { reset_bit(p, bit); });
+    for_each_node([bit, this] (auto p) { this->reset_bit(p, bit); });
   }
 
   /// Reset `bit` to zero for all the arcs of graph
   void reset_bit_arcs(int bit) const noexcept
   {
-    for_each_arc([bit, this] (auto a) { reset_bit(a, bit); });
+    for_each_arc([bit, this] (auto a) { this->reset_bit(a, bit); });
   }
 
   /// Reset all the bits for all the nodes of graph
   void reset_bit_nodes() const noexcept
   {
-    for_each_node([this] (auto p) { reset_bits(p); });
+    for_each_node([this] (auto p) { this->reset_bits(p); });
   }
 
   /// Reset all the bits for all the arcs of graph
-  void reset_bit_arcs()	const noexcept
+  void reset_bit_arcs() const noexcept
   {
-    for_each_arc([this] (auto a) { reset_bits(a); });
+    for_each_arc([this] (auto a) { this->reset_bits(a); });
   }
   
   /// Reset all the counters to zero for all the nodes of graph
   void reset_counter_nodes() const noexcept
   {
-    for_each_node([this] (auto p) { reset_counter(p); });
+    for_each_node([this] (auto p) { this->reset_counter(p); });
   }
 
   /// Reset all the counters to zero for all the arcs of graph
   void reset_counter_arcs() const noexcept
   {
-    for_each_arc([this] (auto a) { reset_counter(a); });
+    for_each_arc([this] (auto a) { this->reset_counter(a); });
   }
 
   /** Reset all the cookies to `nullptr for all the nodes of graph.
@@ -2361,10 +2374,12 @@ public:
     /// current arc
     typename GT::Arc * get_curr() const { return it.get_curr(); }
 
-    typename GT::Arc * get_curr_ne() const { return it.get_curr_ne(); }
+    typename GT::Arc * get_curr_ne() const noexcept { return it.get_curr_ne(); }
 
     /// \overload get_curr()
     auto get_current_arc() const { return get_curr(); }
+
+    auto get_current_arc_ne() const noexcept { return get_curr_ne(); }
 	
     /// Return the node connected to `p` (passed during construction)
     /// and linked through `a`
@@ -2375,13 +2390,21 @@ public:
 
     /// Return the node connected to `p` (passed during construction)
     /// and linked through the current arc
-    typename GT::Node * get_node() noexcept
+    typename GT::Node * get_node_ne() const noexcept
     { 
       return this->get_node(this->get_curr_ne()); 
     }
 
     /// \overload get_node()
-    auto get_tgt_node() noexcept { return get_node(); }
+    auto get_tgt_node_ne() const noexcept { return get_node_ne(); }
+
+    typename GT::Node * get_node() const 
+    { 
+      return this->get_node(this->get_curr()); 
+    }
+
+    /// \overload get_node()
+    auto get_tgt_node() const { return get_node(); }
 
     /// Reset the iterator to first arc
     void reset_first() noexcept { it.reset_first(); }

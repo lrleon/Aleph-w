@@ -186,10 +186,10 @@ int main()
     for (DynDlist<DynDlist<Digrafo::Node*> >::Iterator it(nodes); it.has_curr();
 	 it.next())
       {
-	DynDlist<Digrafo::Node*> & list = it.get_current();
+	DynDlist<Digrafo::Node*> & list = it.get_curr();
 	cout << "Bloque: ";
 	for (DynDlist<Digrafo::Node*>::Iterator i(list); i.has_curr(); i.next())
-	  cout << i.get_current()->get_info() << " ";
+	  cout << i.get_curr()->get_info() << " ";
 	cout << endl;
       }
 

@@ -901,7 +901,7 @@ typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
   for (typename Path<Net>::Iterator it(path); it.has_current_arc();
        it.next_ne())
     {
-      Tuple t = it.get_tupl_nee();
+      Tuple t = it.get_tuple_ne();
       auto p = get<0>(t);
       auto arc = get<1>(t);
       const auto w = remaining_flow<Net>(p, arc);

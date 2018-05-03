@@ -52,9 +52,9 @@ int main()
 
   cout << endl;
 
-  for (Slist<int>::Iterator itor(list); itor.has_current(); itor.next())
+  for (Slist<int>::Iterator itor(list); itor.has_curr(); itor.next())
     {
-      p = itor.get_current();
+      p = itor.get_curr();
       cout << p->get_data() << " ";
     }
 

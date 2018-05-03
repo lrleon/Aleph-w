@@ -101,11 +101,11 @@ void build_test_graph_1(Grafo & g)
 
 void print_graph(Grafo & g)
 {
-  for (Grafo::Node_Iterator node_it(g); node_it.has_current(); node_it.next())
+  for (Grafo::Node_Iterator node_it(g); node_it.has_curr(); node_it.next())
     {
       Grafo::Node * src = node_it.get_current_node();
       cout << src->get_info().nombre << endl;
-      for (Grafo::Node_Arc_Iterator it(src); it.has_current(); it.next())
+      for (Grafo::Node_Arc_Iterator it(src); it.has_curr(); it.next())
 	{
 	  Grafo::Node * tgt = it.get_tgt_node();
 	  cout << INDENT << " --> " << tgt->get_info().nombre << endl;
@@ -129,9 +129,9 @@ int main()
 
     kosaraju_connected_components (g, list, arc_list);
 
-    for (DynList<Grafo>::Iterator it(list); it.has_current(); it.next())
+    for (DynList<Grafo>::Iterator it(list); it.has_curr(); it.next())
       {
-	Grafo & sg = it.get_current();
+	Grafo & sg = it.get_curr();
 	cout << "Bloque: ";
 	print_graph(sg);
 	cout << endl;
@@ -145,8 +145,8 @@ int main()
       {
 	DynList<Grafo::Node*> & l = it.get_curr();
 	cout << "Bloque: ";
-	for (auto t = l.get_it(); t.has_current(); t.next())
-	  cout << t.get_current()->get_info().nombre << " ";
+	for (auto t = l.get_it(); t.has_curr(); t.next())
+	  cout << t.get_curr()->get_info().nombre << " ";
 	cout << endl;
       }
   }  

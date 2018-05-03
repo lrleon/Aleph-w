@@ -309,11 +309,11 @@ void crear_otro_grafo(Grafo & g)
 
 void escribir_grafo(Grafo & g)
 {
-  for (Node_Iterator<Grafo> it(g); it.has_current(); it.next())
+  for (Node_Iterator<Grafo> it(g); it.has_curr(); it.next())
     {
-      Grafo::Node * p = it.get_current();
+      Grafo::Node * p = it.get_curr();
       cout << p->get_info() << endl;
-      for (Node_Arc_Iterator<Grafo> i(p); i.has_current(); i.next())
+      for (Node_Arc_Iterator<Grafo> i(p); i.has_curr(); i.next())
 	cout << "    " << i.get_tgt_node()->get_info() << endl;
     }
 }

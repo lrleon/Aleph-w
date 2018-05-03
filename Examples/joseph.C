@@ -30,13 +30,13 @@ void avanceItor(DynDlist<unsigned>::Iterator& itor, unsigned s)
 {
   for (unsigned i = 0; i < s; i++)
     {
-      if (not itor.has_current())
+      if (not itor.has_curr())
         itor.reset_first();
 
       itor.next();
     }
 
-  if (not itor.has_current())
+  if (not itor.has_curr())
     itor.reset_first();
 }
 void orden_ejecucion(unsigned num_personas, unsigned paso)
@@ -50,7 +50,7 @@ void orden_ejecucion(unsigned num_personas, unsigned paso)
   for (/* nothing */; num_personas > 1; num_personas--)
     {
       avanceItor(itor, paso);
-      printf("%u ", itor.get_current());
+      printf("%u ", itor.get_curr());
       itor.del();
     }
 

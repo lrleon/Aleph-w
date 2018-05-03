@@ -368,6 +368,11 @@ public:
     {
       return this->get_curr();
     }
+
+    Node * get_current_node_ne() const noexcept
+    {
+      return this->get_curr_ne();
+    }
   };
 
       /** Iterador de  arcos de un nodo de grafo.
@@ -399,29 +404,34 @@ public:
       // empty 
     }
 
-        /// Retorna el arco actual.
-    Arc * get_current_arc_ne() const noexcept
+    /// Return get_current_arc() without exception
+    Arc * get_curr_ne() const noexcept
     {
       return (Arc*) this->DynList<void*>::Iterator::get_curr_ne();
     }
 
-        ///\overload get_current_arc()
-    Arc * get_curr_ne() const noexcept { return get_current_arc_ne(); }
+    /// Return get_current_arc()
+    Arc * get_curr() const
+    {
+      return  (Arc*) this->DynList<void*>::Iterator::get_curr();
+    }
 
+    Arc * get_current_arc_ne() const noexcept
+    {
+      return get_curr_ne();
+    }
+
+    Arc * get_current_arc() const
+    {
+      return get_curr(); 
+    }    
+   
         /// Retorna el nodo destino del arco actual.
     Node * get_tgt_node_ne() const noexcept
     {
       Arc * a = get_curr_ne();
       return (Node*) a->get_connected_node(src_node);
     }
-
-    Arc * get_current_arc() const
-    {
-      return (Arc*) this->DynList<void*>::Iterator::get_curr();
-    }
-
-    ///\overload get_current_arc()
-    Arc * get_curr() const { return get_current_arc(); }
 
     /// Retorna el nodo destino del arco actual.
     Node * get_tgt_node() const

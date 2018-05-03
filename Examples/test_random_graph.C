@@ -42,14 +42,14 @@ GT crear_grafo(const size_t & num_nodes, const size_t & num_arcs)
 
   {
     typename GT::Node_Iterator it(g);
-    for (int i = 0; it.has_current(); it.next(), ++i)
-      it.get_current()->get_info() = i;
+    for (int i = 0; it.has_curr(); it.next(), ++i)
+      it.get_curr()->get_info() = i;
   }
 
   {
     typename GT::Arc_Iterator it(g);
-    for (int i = 0; it.has_current(); it.next(), ++i)
-      it.get_current()->get_info() = i;
+    for (int i = 0; it.has_curr(); it.next(), ++i)
+      it.get_curr()->get_info() = i;
   }
 
   return std::move(g);
@@ -60,15 +60,15 @@ void index_verify(Grafo & g)
   {
     IndexNode<Grafo> idx_node(g); 
 
-    for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
-      assert(idx_node.search(it.get_current()) == it.get_current());
+    for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
+      assert(idx_node.search(it.get_curr()) == it.get_curr());
   }
 
 {
     IndexArc<Grafo> idx_arc(g); 
 
-    for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
-      assert(idx_arc.search(it.get_current()) == it.get_current());
+    for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
+      assert(idx_arc.search(it.get_curr()) == it.get_curr());
   }
 }
 

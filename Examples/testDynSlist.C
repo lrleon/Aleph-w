@@ -50,24 +50,24 @@ int main()
 
   itor_aux = itor;
 
-  for (/* nothing */; itor.has_current(); itor.next())
-    cout << itor.get_current() << " ";
+  for (/* nothing */; itor.has_curr(); itor.next())
+    cout << itor.get_curr() << " ";
 
   cout << endl;
 
   for (int i = Num_Items; i < 2*Num_Items; i++)
     list.insert(i - Num_Items, i);
 
-  for (itor.reset_first(); itor.has_current(); itor.next())
-    cout << itor.get_current() << " ";
+  for (itor.reset_first(); itor.has_curr(); itor.next())
+    cout << itor.get_curr() << " ";
 
   cout << endl;
 
   for (int i = 2*Num_Items; i < 3*Num_Items; i++)
     list.insert(0, i);
 
-  for (itor.reset_first(); itor.has_current(); itor.next())
-    cout << itor.get_current() << " ";
+  for (itor.reset_first(); itor.has_curr(); itor.next())
+    cout << itor.get_curr() << " ";
 
   cout << endl;
 
@@ -88,8 +88,8 @@ int main()
 
   list.remove(0);
 
-  for (itor.reset_first(); itor.has_current(); itor.next())
-    cout << itor.get_current() << " ";
+  for (itor.reset_first(); itor.has_curr(); itor.next())
+    cout << itor.get_curr() << " ";
 
   cout << endl;
 

@@ -931,26 +931,33 @@ public:
     // empty 
   }
 
-  /// Return the current arc. Throw `overflow_error` is there is no
-  /// current arc
-  Arc * get_current_arc() const
+  Arc_Node * get_current_arc_node() const
   {
-    return static_cast<Arc*>(dlink_to_arc_node(Dlink::Iterator::get_curr())->arc);
+    return dlink_to_arc_node(Dlink::Iterator::get_curr()); 
   }
 
-  Arc * get_current_arc_ne() const noexcept
+  Arc_Node * get_current_arc_node_ne() const noexcept
   {
-    return static_cast<Arc*>(dlink_to_arc_node(Dlink::Iterator::get_curr_ne())->arc);
+    return dlink_to_arc_node(Dlink::Iterator::get_curr_ne()); 
   }
 
   ///\overload get_current_arc()
-  Arc * get_curr() const { return get_current_arc(); }
+  Arc * get_curr() const
+  {
+    return static_cast<Arc*>(get_current_arc_node()->arc);
+  }
 
   ///\overload get_current_arc()
   Arc * get_curr_ne() const noexcept
   {
-    return static_cast<Arc*>(get_current_arc_node()->arc);
+    return static_cast<Arc*>(get_current_arc_node_ne()->arc);
   }
+
+  /// Return the current arc. Throw `overflow_error` is there is no
+  /// current arc
+  Arc * get_current_arc() const { return get_curr(); }
+
+  Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
 
   /// Return the connected node to source node (src passed in
   /// construction time) through the current arc. Throw
@@ -962,22 +969,12 @@ public:
 
   Node * get_tgt_node_ne() const noexcept
   {
-    return (Node*) get_current_arc()->get_connected_node_ne(src_node);
+    return (Node*) get_current_arc_ne()->get_connected_node(src_node);
   }
 
   Node * get_node() const { return get_tgt_node(); }
   
-  Node * get_node_ne() const noexcept { return get_tgt_node_ne(); }
-  
-  Arc_Node * get_current_arc_node() const
-  {
-    return dlink_to_arc_node(Dlink::Iterator::get_curr_ne()); 
-  }
-
-  Arc_Node * get_current_arc_node_ne() const noexcept
-  {
-    return dlink_to_arc_node(Dlink::Iterator::get_curr_ne()); 
-  }
+  Node * get_node_ne() const noexcept { return get_tgt_node_ne(); }  
 };
 
       /** Iterator on all arcs of a graph.
@@ -1753,7 +1750,7 @@ public:
   }
 
   /// \overload  get_node()
-  auto get_tgt_node() { return get_node(); }
+  auto get_tgt_node() const { return get_node(); }
 
   /// Return the connected node to current arc.
   typename GT::Node * get_node_ne() const noexcept
@@ -3392,7 +3389,7 @@ Path<GT> find_path_depth_first(const GT & g, typename GT::Node * start_node,
   g.reset_bit_arcs(Find_Path); 
   NODE_BITS(start_node).set_bit(Find_Path, true);
 
-  for (auto it = g.get_arc_it(start_node); it.has_cur(); it.next_ne())
+  for (auto it = g.get_arc_it(start_node); it.has_curr(); it.next_ne())
     {
       auto arc = it.get_current_arc_ne();
       ARC_BITS(arc).set_bit(Find_Path, true); 

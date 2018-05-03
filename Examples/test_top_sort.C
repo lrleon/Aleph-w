@@ -74,7 +74,7 @@ template <template <class> class List>
 void imprime_lista(List<Digrafo::Node*> & l)
 {
   for (typename List<Digrafo::Node*>::Iterator it(l); it.has_curr(); it.next())
-    cout << it.get_current()->get_info() << " -> ";
+    cout << it.get_curr()->get_info() << " -> ";
   cout << endl;
 }
 
