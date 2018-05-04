@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
       l.append(gsl_rng_get(r));
 
     cout << endl
-	 << "building array copy of previuos list" << endl;
+	 << "building array copy of previous list" << endl;
     DynArray<long> a;
     l.for_each(/* Lambda */ [&a](long i)
 	       {
