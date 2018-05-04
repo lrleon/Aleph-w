@@ -1,6 +1,5 @@
 -I.
 -I/home/lrleon/Aleph-w
--I/home/lrleon/googletest/googletest/include
 -I/home/lrleon/googletest/googlemock/include
 -std=c++14
 -Wall
