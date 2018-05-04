@@ -67,6 +67,7 @@ class DynSetTree
 	public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
 {
  public:
+  
       /// Tipo de nodo binario empleado por el árbol binario de búsqueda
       /// interno. 
   using Node = typename Tree<Key, Compare>::Node;

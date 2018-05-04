@@ -163,22 +163,38 @@ bool equal_length(const Cs & ... cs)
 template <class Op, class ... Cs> inline
 bool zip_traverse(Op & op, const Cs & ... cs)
 {
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
       return false;
-  return true; 
+  return true;
 }
 
 template <class Op, class ... Cs> inline
 bool zip_traverse(Op && op, const Cs & ... cs)
 {
-  return zip_traverse<Op, Cs ...>(cs ..., op);
+  return zip_traverse(op, cs ...);
+}
+
+template <class Op, class ... Cs> inline
+bool zip_traverse_eq(Op & op, const Cs & ... cs)
+{
+  auto it = zip_it(cs...); 
+  for (;it.has_curr(); it.next_ne())
+    if (not op(it.get_curr_ne()))
+      return false;
+  return it.completed();
+}
+
+template <class Op, class ... Cs> inline
+bool zip_traverse_eq(Op && op, const Cs & ... cs)
+{
+  return zip_traverse_eq(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
 void zip_for_each(Op & op, const Cs & ... cs)
 {
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     op(it.get_curr_ne());
 }
 
@@ -208,7 +224,7 @@ void zip_for_each_eq(Op && op, const Cs & ... cs)
 template <class Op, class ... Cs> inline
 bool zip_all(Op & op, const Cs & ... cs)
 {
-  auto it = get_zip_it(cs...);
+  auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
       return false;
@@ -225,7 +241,7 @@ bool zip_all(Op && op, const Cs & ... cs)
 template <class Op, class ... Cs> inline
 bool zip_exists(Op & op, const Cs & ... cs)
 {
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (op(it.get_curr_ne()))
       return true;
 
@@ -242,7 +258,7 @@ template <typename T, class Op, class ... Cs>
 DynList<T> zip_maps(Op op, const Cs & ... cs)
 {
   DynList<T> ret;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     ret.append(op(it.get_curr_ne()));
   return ret;
 }
@@ -251,7 +267,7 @@ template <typename T, class Prop, class Op, class ... Cs>
 DynList<T> zip_maps_if(Prop prop, Op op, const Cs & ... cs)
 {
   DynList<T> ret;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
       auto t = it.get_curr_ne();
       if (prop(t))
@@ -264,7 +280,7 @@ template <typename T, class Op, class ... Cs>
 T zip_foldl(const T & init, Op op, const Cs & ... cs)
 {
   T acu = init;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     acu = op(acu, it.get_curr_ne());
   return acu;
 }
@@ -275,7 +291,7 @@ auto zip_filter(Op op, const Cs & ... cs)
   using ZipType = decltype(zip_it(cs...).get_curr_ne());
 
   DynList<ZipType> ret;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
       auto t = it.get_curr_ne();
       if (op(t))
@@ -284,6 +300,24 @@ auto zip_filter(Op op, const Cs & ... cs)
   return ret;
 }
 
+/** Return true if `cmp(t)` is `true` for each built tuple `t`.
+
+    Let us suppose 3 containers of the same internal type `T`. 
+
+        l1 = { 1, 2, 3};
+        l2 = { 1, 2, 3};
+        l3 = { 1, 2, 3};
+
+    This function, which receives a comparator `cmp(i1, i2)`, returns
+    true if the elements of each tuple resulting of the zip of three
+    containers are the same. So, in the previous case the result is
+    `true`.
+
+    If any item of any list variates, then the result should be
+    `false`. For example with `l2 = { 1, 4, 3}`.
+
+   @author Leandro Rabindranath Leon
+ */
 template <class Cmp, class ... Cs>
 bool zip_cmp(Cmp cmp, const Cs & ... cs)
 {
@@ -305,7 +339,7 @@ template <class Op, class ... Cs>
 size_t zip_find_index(Op op, const Cs & ... cs)
 {
   size_t i = 0;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
     {
       auto t = it.get_curr_ne();
       if (op(t))
@@ -321,7 +355,7 @@ auto zip_partition(Op op, const Cs & ... cs)
 
   DynList<ZipType> ret1, ret2;
   size_t n1 = 0, n2 = 0;
-  for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
+  for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
       auto t = it.get_curr_ne();
       if (op(t))
@@ -341,7 +375,7 @@ auto zip_partition(Op op, const Cs & ... cs)
 template <class ... Cs> inline
 auto t_zip(const Cs & ... cs)
 {
-  auto it = get_zip_it(cs...);
+  auto it = zip_it(cs...);
   using T = decltype(it.get_curr_ne());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
@@ -353,7 +387,7 @@ auto t_zip(const Cs & ... cs)
 template <class ... Cs> inline
 auto t_zip_eq(const Cs & ... cs)
 {
-  auto it = get_zip_it(cs...);
+  auto it = zip_it(cs...);
   using T = decltype(it.get_curr_ne());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
@@ -455,8 +489,8 @@ EnumZipIterator<Cs...> get_enum_zip_it(const Cs & ... cs)
 }
 
 template <class C, class ... Cs> inline
-EnumZipIterator<C, Cs...> get_enum_zip_it(size_t pos,
-					  const C & c, const Cs & ... cs)
+EnumZipIterator<C, Cs...> get_enum_zip_it_pos(size_t pos,
+					      const C & c, const Cs & ... cs)
 {
   EnumZipIterator<C, Cs...> ret(c, cs...);
   for (size_t i = 0; i < pos; ++i)
@@ -472,9 +506,9 @@ EnumZipIterator<Cs...> enum_zip_it(const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-EnumZipIterator<Cs...> enum_zip_it(size_t pos, const Cs & ... cs)
+EnumZipIterator<Cs...> enum_zip_it_pos(size_t pos, const Cs & ... cs)
 {
-  return get_enum_zip_it(pos, cs...);
+  return get_enum_zip_it_pos(pos, cs...);
 }
 
 template <class ... Cs> inline
