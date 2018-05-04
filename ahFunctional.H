@@ -75,6 +75,80 @@ template <typename TR, typename TD>
 
 template <typename T> class DynList;
 
+  template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> range(const T start, const T end, const T step = 1)
+{
+  Container<T> ret_val;
+  for (T i = start; i <= end; i += step)
+    ret_val.append(i);
+  return ret_val;
+}
+
+    template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> nrange(const T start, const T end, const size_t n)
+{
+  if (n < 2)
+    throw std::domain_error("nrange: n must be greater than 1");
+  
+  const auto step = (end - start)/(n - 1);
+  Container<T> ret_val;
+  T val = start;
+  for (size_t i = 0; i < n; ++i, val += step)
+    ret_val.append(val);
+  return ret_val;
+}
+
+  template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> contiguous_range(T start, const size_t n)
+{
+  Container<T> ret_val;
+  for (size_t i = 0; i < n; ++i)
+    ret_val.append(start++);
+  return ret_val;
+}
+
+
+  /** Return a range 0, 1, ... n - 1
+
+      @param[in] n size of range
+      @return a container with the range (according to the template
+      parameter, which is DynList
+
+     @ingroup Funcional
+   */
+template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> range(const T n)
+{
+  Container<T> ret_val;
+  for (T i = 0; i < n; ++i)
+    ret_val.append(i);
+  return ret_val;
+}
+
+
+  /** Create a sequence of repeated items
+
+      @param[in] n number of items
+      @param[in] item the valur to be repeated
+      @return a container with n instances of item value
+      
+     @ingroup Funcional
+   */
+template <typename T = int> inline
+DynList<T> rep(size_t n, const T & item)
+{
+  DynList<T> ret_val;
+  for (size_t i = 0; i < n; ++i)
+    ret_val.append(item);
+  return ret_val;
+}
+
+  template <typename T = int> inline
+DynList<T> rep(size_t n, T && item = T())
+{
+  return rep<T>(n, item);
+}
+
 template <class Container>
 DynList<typename Container::Item_Type*> pointers_list(Container & c)
 {
@@ -95,48 +169,52 @@ pointers_list(const Container & c)
   return ret;
 }
 
-template <class Container>
-DynList<typename Container::Item_Type>
-sublist(const Container & c, size_t stride)
-{
-  DynList<typename Container::Item_Type> ret;
-  try
-    {
-      for (auto it = c.get_it(stride - 1); it.has_curr(); )
-	{
-	  ret.append(it.get_curr());
-	  for (size_t i = 0; i < stride; ++i)
-	    it.next();
-	}
-    }
-  catch (std::overflow_error) { /* nothing */ }
-
-  return ret;
-}
-
-  template <class Op>
-void each(size_t start, size_t end, Op & op)
+    template <class Op>
+void each(size_t start, size_t end, Op & op) noexcept(noexcept(op))
 {
   for (size_t i = start; i <= end; ++i)
     op();
 }
 
     template <class Op>
-void each(size_t start, size_t end, Op && op)
+void each(size_t start, size_t end, Op && op) noexcept(noexcept(op))
 {
   each(start, end, op);
 }
 
     template <class Op>
-void each(size_t n, Op & op)
+void each(size_t n, Op & op) noexcept(noexcept(op))
 {
   each(0, n - 1, op);
 }
 
     template <class Op>
-void each(size_t n, Op && op)
+void each(size_t n, Op && op) noexcept(noexcept(op))
 {
   each(n, op);
+}
+
+template <class Container>
+DynList<typename Container::Item_Type>
+sublist(const Container & c, size_t pos, size_t stride)
+{
+  DynList<typename Container::Item_Type> ret;
+  try
+    {
+      for (auto it = c.get_it(pos); it.has_curr();
+	   each(0, stride - 1, [&it] () { it.next(); }))
+	ret.append(it.get_curr());
+    }
+  catch (std::overflow_error) { /* nothing */ }
+
+  return ret;
+}
+
+  template <class Container>
+DynList<typename Container::Item_Type>
+sublist(const Container & c, size_t stride)
+{
+  return sublist(c, 0, stride);
 }
 
     template <class Container, class Operation> inline
@@ -325,17 +403,13 @@ inline filter(const Container1 & container, Operation && operation)
     Aleph and std map containers. 
     @ingroup Algos
 */
-template <typename                  Ta,
-	  template <typename> class Ca, 
-	  typename                  Tb = Ta,
-	  template <typename> class Cb = Ca> inline
-Cb<Tb> maps(const Ca<Ta> & ca, std::function<Tb(const Ta &)> operation)
+  template <typename T, class C, class Op>
+DynList<T> maps(const C & c, Op op)
 {
-  Cb<Tb> ret_val;
-  for (typename Ca<Ta>::Iterator it(ca); it.has_curr(); it.next_ne())
-    ret_val.append(operation(it.get_curr_ne()));
-
-  return ret_val;
+  DynList<T> ret;
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(op(it.get_curr_ne()));
+  return ret;
 }
 
 /** Classic foldl
@@ -347,30 +421,14 @@ Cb<Tb> maps(const Ca<Ta> & ca, std::function<Tb(const Ta &)> operation)
 
     @ingroup Algos
  */
-template <template <typename> class Container, 
-	  typename                  T, 
-	  class                     Operation> inline
-T foldl(const Container<T> & container, const T & init, Operation & operation)
+template < typename T, class Container, class Operation> inline
+T foldl(const Container & container, const T & init, Operation operation)
   noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
 {
   T ret_val = init;
-  for (typename Container<T>::Iterator it(container); it.has_curr();
-       it.next_ne())
+  for (auto it = container.get_it(); it.has_curr(); it.next_ne())
     ret_val = operation(ret_val, it.get_curr_ne());
-
   return ret_val;
-}
-
-
-template <template <typename> class Container, 
-	  typename                  T, 
-	  class                     Operation> inline
-T foldl(const Container<T> & container, 
-	const T &            init      = T(),
-	Operation &&         operation = Operation())
-  noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
-{
-  return foldl(container, operation, init) ;
 }
 
 
@@ -668,81 +726,6 @@ std::pair<TgtContainer<typename SrcContainer::Item_Type>,
   return ret_val;
 }
 
-  template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> range(const T start, const T end, const T step = 1)
-{
-  Container<T> ret_val;
-  for (T i = start; i <= end; i += step)
-    ret_val.append(i);
-  return ret_val;
-}
-
-    template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> nrange(const T start, const T end, const size_t n)
-{
-  if (n < 2)
-    throw std::domain_error("nrange: n must be greater than 1");
-  
-  const auto step = (end - start)/(n - 1);
-  Container<T> ret_val;
-  T val = start;
-  for (size_t i = 0; i < n; ++i, val += step)
-    ret_val.append(val);
-  return ret_val;
-}
-
-  template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> contiguous_range(T start, const size_t n)
-{
-  Container<T> ret_val;
-  for (size_t i = 0; i < n; ++i)
-    ret_val.append(start++);
-  return ret_val;
-}
-
-
-  /** Return a range 0, 1, ... n - 1
-
-      @param[in] n size of range
-      @return a container with the range (according to the template
-      parameter, which is DynList
-
-     @ingroup Funcional
-   */
-template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> range(const T n)
-{
-  Container<T> ret_val;
-  for (T i = 0; i < n; ++i)
-    ret_val.append(i);
-  return ret_val;
-}
-
-
-  /** Create a sequence of repeated items
-
-      @param[in] n number of items
-      @param[in] item the valur to be repeated
-      @return a container with n instances of item value
-      
-     @ingroup Funcional
-   */
-template <typename T = int> inline
-DynList<T> rep(size_t n, const T & item)
-{
-  DynList<T> ret_val;
-  for (size_t i = 0; i < n; ++i)
-    ret_val.append(item);
-  return ret_val;
-}
-
-  template <typename T = int> inline
-DynList<T> rep(size_t n, T && item = T())
-{
-  return rep<T>(n, item);
-}
-
-
 template <class Container> inline
 DynList<std::pair<size_t, typename Container::Key_Type>>
 indexes(const Container & c)
@@ -781,10 +764,10 @@ inline Container<T> reverse(const Container<T> & l)
   return ret_val;
 }
 
-/** Genera todas las tuplas secuenciales de tamaño contenidas en el
+/** Genera todas las tuplas secuenciales de tamaño n contenidas en el
     contenedor c.
 
-    Si por ejemplo c = { 1, 2, 3, 4, 5, 6 ..., n}
+    Si por ejemplo c = { 1, 2, 3, 4, 5, 6 ..., N}
 
     Entonces gen_seq_list_tuples(c, 4) = { (1,2,3,4), (2,3,4,5), ... }
 
@@ -797,10 +780,11 @@ inline Container<T> reverse(const Container<T> & l)
 
    @ingroup Algos
  */
-template <typename T, template <typename> class Container>
-DynList<DynList<T>> gen_seq_list_tuples(const Container<T> & c, size_t n)
+template <class Container>
+auto gen_seq_list_tuples(const Container & c, size_t n)
 {
-  typename Container<T>::Iterator it(c);
+  using T = typename Container::Item_Type;
+  typename Container::Iterator it(c);
   DynList<T> l;
   for (size_t i = 0; i < n; ++i, it.next())
     l.append(it.get_curr());

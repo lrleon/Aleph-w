@@ -256,3 +256,27 @@
 - Comment      
 - Finished     
 
+## 44. hacer más test para las tablas hash
+- Created at   2018-05-02 21:49:09 -0400
+- Completed at 2018-05-03 15:02:49 -0400
+- Comment      
+- Finished     
+
+## 45. revisar iteradores de tablas hash
+- Created at   2018-05-02 21:48:51 -0400
+- Completed at 2018-05-04 15:52:25 -0400
+- Comment      
+- Finished     
+
+## 46. marcar excepciones en funciones de ah-zip
+- Created at   2018-05-02 14:33:43 -0400
+- Completed at 2018-05-04 16:03:54 -0400
+- Comment      
+- Finished     
+
+## 47. Resto de operaciones funcionales para zip-it
+- Created at   2016-10-21 17:32:23 -0400
+- Completed at 2018-05-04 16:04:13 -0400
+- Comment      
+- Finished     
+

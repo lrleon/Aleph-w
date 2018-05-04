@@ -75,8 +75,7 @@ int main(int argc, char *argv[])
       return std::to_string(i);
     };
 
-  DynList<std::string> l1_str = 
-    maps<int, DynList, std::string>(l1, to_str);
+  DynList<std::string> l1_str = maps<std::string>(l1, to_str);
 
   print_seq(l1);
   print_seq(l2);

@@ -47,15 +47,15 @@ class ZipIterator : public ZipIterator<TailC...>
 
 public:
 
-  ZipIterator(const HeadC & head, const TailC & ...tail)
+  ZipIterator(const HeadC & head, const TailC & ...tail) noexcept
     : ZipIterator<TailC...>(tail...), it(head) {}
 
-  bool has_curr() const 
+  bool has_curr() const noexcept
   {
     return it.has_curr() and ZipIterator<TailC...>::has_curr();
   }
 
-  bool completed() const
+  bool completed() const noexcept
   {
     return not it.has_curr() and ZipIterator<TailC...>::completed();
   }
@@ -101,7 +101,7 @@ public:
 
   using T = typename C::Item_Type;
 
-  ZipIterator(const C & c) : C::Iterator(c) {}
+  ZipIterator(const C & c) noexcept : C::Iterator(c) {}
 
   std::tuple<T> get_curr() const
   {
@@ -120,11 +120,11 @@ public:
     return l;
   }
 
-  bool completed() const { return not this->has_curr(); }
+  bool completed() const noexcept { return not this->has_curr(); }
 };
 
 template <class ... Cs> inline
-ZipIterator<Cs...> get_zip_it(const Cs & ... cs)
+ZipIterator<Cs...> get_zip_it(const Cs & ... cs) noexcept
 {
   return ZipIterator<Cs...>(cs...);
 }
@@ -139,7 +139,7 @@ ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-ZipIterator<Cs...> zip_it(const Cs & ... cs)
+ZipIterator<Cs...> zip_it(const Cs & ... cs) noexcept
 {
   return get_zip_it(cs...);
 }
@@ -151,7 +151,7 @@ ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-bool equal_length(const Cs & ... cs)
+bool equal_length(const Cs & ... cs) noexcept
 {
   auto it = get_zip_it(cs...); 
   for (/* already initalized */; it.has_curr(); it.next_ne())
@@ -161,7 +161,7 @@ bool equal_length(const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op & op, const Cs & ... cs)
+bool zip_traverse(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
@@ -170,13 +170,13 @@ bool zip_traverse(Op & op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op && op, const Cs & ... cs)
+bool zip_traverse(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   return zip_traverse(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op & op, const Cs & ... cs)
+bool zip_traverse_eq(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
   auto it = zip_it(cs...); 
   for (;it.has_curr(); it.next_ne())
@@ -186,20 +186,20 @@ bool zip_traverse_eq(Op & op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op && op, const Cs & ... cs)
+bool zip_traverse_eq(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   return zip_traverse_eq(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op & op, const Cs & ... cs)
+void zip_for_each(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     op(it.get_curr_ne());
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op && op, const Cs & ... cs)
+void zip_for_each(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   zip_for_each<Op, Cs...>(op, cs ...);
 }
@@ -212,7 +212,7 @@ void zip_for_each_eq(Op & op, const Cs & ... cs)
     op(it.get_curr_ne());
 
   if (not it.completed())
-    throw std::domain_error("zip_for_each_eq() containers sizes mismatch");
+    throw std::length_error("zip_for_each_eq() containers sizes mismatch");
 }
 
 template <class Op, class ... Cs> inline
@@ -222,7 +222,7 @@ void zip_for_each_eq(Op && op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op & op, const Cs & ... cs)
+bool zip_all(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
@@ -233,13 +233,13 @@ bool zip_all(Op & op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op && op, const Cs & ... cs)
+bool zip_all(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   return zip_all(op, cs...);
 }
     
 template <class Op, class ... Cs> inline
-bool zip_exists(Op & op, const Cs & ... cs)
+bool zip_exists(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (op(it.get_curr_ne()))
@@ -249,7 +249,7 @@ bool zip_exists(Op & op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_exists(Op && op, const Cs & ... cs)
+bool zip_exists(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   return zip_exists(op, cs...);
 }
@@ -277,7 +277,7 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs & ... cs)
 }
 
 template <typename T, class Op, class ... Cs>
-T zip_foldl(const T & init, Op op, const Cs & ... cs)
+T zip_foldl(const T & init, Op op, const Cs & ... cs) noexcept(noexcept(op))
 {
   T acu = init;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -286,7 +286,7 @@ T zip_foldl(const T & init, Op op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs>
-auto zip_filter(Op op, const Cs & ... cs)
+auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
 {
   using ZipType = decltype(zip_it(cs...).get_curr_ne());
 
@@ -319,7 +319,7 @@ auto zip_filter(Op op, const Cs & ... cs)
    @author Leandro Rabindranath Leon
  */
 template <class Cmp, class ... Cs>
-bool zip_cmp(Cmp cmp, const Cs & ... cs)
+bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
 {
   for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
     {
@@ -336,7 +336,7 @@ bool zip_cmp(Cmp cmp, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs>
-size_t zip_find_index(Op op, const Cs & ... cs)
+size_t zip_find_index(Op op, const Cs & ... cs) noexcept(noexcept(op))
 {
   size_t i = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
@@ -408,15 +408,15 @@ class EnumZipIterator : public EnumZipIterator<TailC...>
 
 public:
 
-  EnumZipIterator(const HeadC & head, const TailC & ...tail)
+  EnumZipIterator(const HeadC & head, const TailC & ...tail) noexcept
     : EnumZipIterator<TailC...>(tail...), it(head) {}
 
-  bool has_curr() const
+  bool has_curr() const noexcept
   {
     return it.has_curr() and EnumZipIterator<TailC...>::has_curr();
   }
 
-  bool completed() const
+  bool completed() const noexcept
   {
     return not it.has_curr() and EnumZipIterator<TailC...>::completed();
   }
@@ -433,7 +433,7 @@ public:
     EnumZipIterator<TailC...>::next();
   }
 
-  auto get_curr_ne() const
+  auto get_curr_ne() const noexcept
   {
     std::tuple<T> curr(it.get_curr_ne());
     return std::tuple_cat(curr, EnumZipIterator<TailC...>::get_curr_ne());
@@ -459,7 +459,7 @@ public:
     ++i;
   }
 
-  void next_ne()
+  void next_ne() noexcept
   {
     C::Iterator::next_ne();
     ++i;
@@ -467,30 +467,30 @@ public:
 
   using T = typename C::Item_Type;
 
-  EnumZipIterator(const C & c) : C::Iterator(c) {}
+  EnumZipIterator(const C & c) noexcept : C::Iterator(c) {}
 
   std::tuple<T, size_t> get_curr() const
   {
     return std::tuple<T, size_t>(C::Iterator::get_curr(), i);
   }
 
-  std::tuple<T, size_t> get_curr_ne() const
+  std::tuple<T, size_t> get_curr_ne() const noexcept
   {
     return std::tuple<T, size_t>(C::Iterator::get_curr_ne(), i);
   }
 
-  bool completed() const { return not this->has_curr(); }
+  bool completed() const noexcept { return not this->has_curr(); }
 };
 
 template <class ... Cs> inline
-EnumZipIterator<Cs...> get_enum_zip_it(const Cs & ... cs)
+EnumZipIterator<Cs...> get_enum_zip_it(const Cs & ... cs) noexcept
 {
   return EnumZipIterator<Cs...>(cs...);
 }
 
 template <class C, class ... Cs> inline
-EnumZipIterator<C, Cs...> get_enum_zip_it_pos(size_t pos,
-					      const C & c, const Cs & ... cs)
+EnumZipIterator<C, Cs...>
+get_enum_zip_it_pos(size_t pos, const C & c, const Cs & ... cs)
 {
   EnumZipIterator<C, Cs...> ret(c, cs...);
   for (size_t i = 0; i < pos; ++i)
@@ -500,7 +500,7 @@ EnumZipIterator<C, Cs...> get_enum_zip_it_pos(size_t pos,
 }
 
 template <class ... Cs> inline
-EnumZipIterator<Cs...> enum_zip_it(const Cs & ... cs)
+EnumZipIterator<Cs...> enum_zip_it(const Cs & ... cs) noexcept
 {
   return EnumZipIterator<Cs...>(cs...);
 }

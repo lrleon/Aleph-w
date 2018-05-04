@@ -29,6 +29,7 @@
 
 # include <ah-zip.H>
 # include <ahFunctional.H>
+# include <ah-string-utils.H>
 # include <tpl_dynSetTree.H>
 # include <tpl_dynArray.H>
 
@@ -131,7 +132,7 @@ TEST_F(InCompleteGroup, ml_operations)
 	  and to_string(get<0>(t)) == get<2>(t); }, l1, l2, l3));
   EXPECT_NO_THROW(zip_for_each([] (auto) { return; }, l1, l2, l3));
   EXPECT_THROW(zip_for_each_eq([] (auto) { return; }, l1, l2, l3),
-	       domain_error);
+	       length_error);
 
   size_t i = 0;
   zip_for_each([&i] (auto t)
@@ -147,7 +148,7 @@ TEST_F(InCompleteGroup, ml_operations)
 		 EXPECT_EQ(get<0>(t), i++);
 		 EXPECT_EQ(get<0>(t), get<1>(t));
 		 EXPECT_EQ(to_string(get<0>(t)), get<2>(t));
-	       }, l1, l2, l3), domain_error);
+	       }, l1, l2, l3), length_error);
 
    EXPECT_FALSE(zip_all([] (auto t) { return get<0>(t) == get<1>(t)
 	   and to_string(get<0>(t)) == get<2>(t); }, l1, l2, l3));
@@ -168,6 +169,8 @@ TEST_F(InCompleteGroup, ml_operations)
 			       to_string(get<1>(t)) + get<2>(t);
 			     }, l1, l2, l3);
   EXPECT_EQ(lmap, build_dynlist<string>("000", "222", "333"));
+
+  EXPECT_THROW(t_zip_eq(l1, l2, l3), length_error);
 }
 
 TEST_F(CompleteGroup, ml_operations)
@@ -222,7 +225,55 @@ TEST_F(CompleteGroup, ml_operations)
   EXPECT_TRUE(zip_cmp([] (auto & i1, auto & i2) { return i1 == i2; },
 		      l1, l2, l1, l2));
 
-  auto l1_mutated = l1; l1.nth(3) = 4;
+  auto l1_mutated = l1; l1_mutated.nth(3) = 4;
   EXPECT_FALSE(zip_cmp([] (auto & i1, auto & i2) { return i1 == i2; },
 		       l1, l2, l1_mutated, l2));
+
+  auto lzip = t_zip(l1, l2, l3);
+  for (auto it = zip_it(lzip, l1, l2, l3); it.has_curr(); it.next_ne())
+    {
+      auto t = it.get_curr_ne();
+      auto & tz = get<0>(t);
+      EXPECT_EQ(get<0>(tz), get<1>(t));
+    }
+
+  auto uzip = t_unzip(lzip);
+  EXPECT_EQ(get<0>(uzip), l1);
+  EXPECT_EQ(get<1>(uzip), l2.keys());
+  EXPECT_TRUE(eq(get<2>(uzip), l3));
+
+  auto idx = zip_find_index([] (auto t)
+			    {
+			      return get<0>(t) == get<1>(t) and
+			        to_string(get<1>(t)) == get<2>(t) and
+			        get<0>(t) == N - 1;
+			    }, l1, l2, l3);
+  EXPECT_EQ(idx, N - 1);
+
+  idx = zip_find_index([] (auto t)
+			    {
+			      return get<0>(t) == N;
+			    }, l1, l2, l3);
+  EXPECT_EQ(idx, N - 0 /* for avoiding linker error with constant */);
+
+  auto part = zip_partition([] (auto t) { return get<0>(t) < 2; }, l1, l2, l3);
+
+  EXPECT_TRUE(eq(get<0>(part).maps<string>([] (auto & t)
+	       {
+		 return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
+	       }), { "000", "111" }));
+  EXPECT_EQ(get<1>(part), 2);
+  EXPECT_TRUE(eq(get<2>(part).maps<string>([] (auto & t)
+	       {
+		 return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
+	       }), { "222", "333", "444" }));
+  EXPECT_EQ(get<3>(part), N - 2);
+
+  auto l = zip_lists(l1, l2, l1, l2);
+  for (auto it = zip_it(l, l1, l2); it.has_curr(); it.next_ne())
+    {
+      auto c = it.get_curr_ne();
+      EXPECT_EQ(get<0>(c), build_dynlist<int>(get<1>(c), get<2>(c),
+					      get<1>(c), get<2>(c)));
+    }
 }
