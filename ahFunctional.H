@@ -563,8 +563,7 @@ DynList<std::tuple<typename C1::Item_Type,
 
 
 template <class Container>
-DynList<std::pair<typename Container::Item_Type, size_t>> inline
-enumerate(const Container & c)
+auto inline enumerate(const Container & c)
 {
   using Item = typename Container::Item_Type;
   using Pair = std::pair<Item, size_t>;

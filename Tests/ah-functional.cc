@@ -110,5 +110,10 @@ TEST_F(TreeContainer, ml)
 
 TEST_F(TreeContainer, gen_seq_list_tuples)
 {
-  auto l = gen_seq_list_tuples(tbl, 8);
+  auto l = gen_seq_list_tuples(tbl, 7);
+  EXPECT_EQ(l, build_dynlist<DynList<size_t>>
+	    ( build_dynlist<size_t>(0, 1, 2, 3, 4, 5, 6),
+	      build_dynlist<size_t>(1, 2, 3, 4, 5, 6, 7),
+	      build_dynlist<size_t>(2, 3, 4, 5, 6, 7, 8),
+	      build_dynlist<size_t>(3, 4, 5, 6, 7, 8, 9) ));
 }
