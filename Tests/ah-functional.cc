@@ -117,3 +117,81 @@ TEST_F(TreeContainer, gen_seq_list_tuples)
 	      build_dynlist<size_t>(2, 3, 4, 5, 6, 7, 8),
 	      build_dynlist<size_t>(3, 4, 5, 6, 7, 8, 9) ));
 }
+
+TEST_F(TreeContainer, enumerate)
+{
+  auto l = enumerate(tbl);
+  EXPECT_TRUE(l.all([] (auto & p) { return p.first == p.second; }));
+}
+
+TEST(Compare, comparisons)
+{
+  constexpr size_t N = 20;
+  DynList<size_t> l1 = range(N);
+  DynList<size_t> l2 = range(N + 1);
+  DynSetTree<size_t> s1 = range(N);
+  DynSetTree<size_t> s2 = range(N + 1);
+
+  EXPECT_TRUE(eq(l1, s1));
+  EXPECT_TRUE(lesser(l1, l2));
+  EXPECT_TRUE(lesser(l1, s2));
+  EXPECT_FALSE(lesser(l1, s1));
+  EXPECT_FALSE(lesser(s1, l1));
+
+  auto d = are_eq(l1, s1);
+  EXPECT_TRUE(get<0>(d));
+  EXPECT_EQ(get<1>(d), N);
+
+  // Now we modify the last item of l1
+  l1.get_last() = N - 2;
+  EXPECT_FALSE(eq(l1, s1));
+  EXPECT_TRUE(lesser(l1, s1));
+
+  d = are_eq(l1, s1);
+  EXPECT_FALSE(get<0>(d));
+  EXPECT_EQ(get<1>(d), N - 1);
+  EXPECT_EQ(get<2>(d), N - 2);
+  EXPECT_EQ(get<3>(d), N - 1);
+}
+
+TEST_F(TreeContainer, zips)
+{
+  {
+    auto z = zip(tbl, range(N));
+    EXPECT_TRUE(z.all([] (auto & p) { return p.first == p.second; }));
+
+    auto p = unzip(z);
+    EXPECT_TRUE(zip_all([] (auto p) { return get<0>(p) == get<1>(p); },
+			p.first, p.second));
+  }
+  {
+    auto z = tzip(tbl, range(N));
+    EXPECT_TRUE(z.all([] (auto & p) { return get<0>(p) == get<1>(p); }));
+
+    auto p = tunzip(z);
+    EXPECT_TRUE(zip_all([] (auto p) { return get<0>(p) == get<1>(p); },
+			get<0>(p), get<1>(p)));
+  }
+  {
+    auto z = zipEq(tbl, range(N));
+    EXPECT_TRUE(z.all([] (auto & p) { return p.first == p.second; }));
+
+    EXPECT_THROW(zipEq(tbl, range(N + 1)), length_error);
+
+    auto p = unzip(z);
+    EXPECT_TRUE(zip_all([] (auto p) { return get<0>(p) == get<1>(p); },
+  			p.first, p.second));
+  }
+  {
+    auto z = tzipEq(tbl, range(N));
+    EXPECT_TRUE(z.all([] (auto & p) { return get<0>(p) == get<1>(p); }));
+
+    EXPECT_THROW(tzipEq(tbl, range(N + 1)), length_error);
+
+    auto p = tunzip(z);
+    EXPECT_TRUE(zip_all([] (auto p) { return get<0>(p) == get<1>(p); },
+  			get<0>(p), get<1>(p)));
+  }
+}
+
+

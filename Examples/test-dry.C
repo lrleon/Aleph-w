@@ -156,8 +156,10 @@ void functional_test()
        << endl
        << endl;
   
-  assert(eq({0, 1, 2, 3, 4, 5}, sort(c.filter([] (int i) { return i < 6; }))));
-  assert(eq({0, 1, 2, 3, 4, 5}, sort(a.filter([] (int i) { return i < 6; }))));
+  assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
+	    sort(c.filter([] (int i) { return i < 6; }))));
+  assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
+	    sort(a.filter([] (int i) { return i < 6; }))));
   
   c.pfilter([] (int i) { return i < 6; }).for_each([] (auto p)
     {
@@ -198,18 +200,18 @@ void functional_test()
   assert(eq(l1 ,l2, eq_tup));
 
   auto p = c.partition([] (int i) { return i < 6; });
-  assert(eq(sort(p.first), {0, 1, 2, 3, 4, 5}) and 
-	 eq(sort(p.second), {6, 7, 8, 9}));
+  assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and 
+	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
   p = a.partition([] (int i) { return i < 6; });
-  assert(eq(sort(p.first), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(p.second), {6, 7, 8, 9}));
+  assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
 
   auto t = c.tpartition([] (int i) { return i < 6; });
-  assert(eq(sort(get<0>(t)), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(get<1>(t)), {6, 7, 8, 9}));
+  assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
   t = a.tpartition([] (int i) { return i < 6; });
-  assert(eq(sort(get<0>(t)), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(get<1>(t)), {6, 7, 8, 9}));
+  assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
 
   assert(c.length() == 10);
   assert(a.length() == 10);

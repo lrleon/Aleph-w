@@ -19,4 +19,5 @@ odhash
 dynsetohash
 hash-it
 ah-zip
-ah_functional
+ah-functional
+ah-dry

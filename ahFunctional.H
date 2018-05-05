@@ -443,8 +443,7 @@ zip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
@@ -462,8 +461,7 @@ tzip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
@@ -481,8 +479,7 @@ zipEq(const Container1 & a, const Container2 & b)
   
   auto it1 = a.get_it();
   auto it2 = b.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
@@ -503,8 +500,7 @@ tzipEq(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
     ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
@@ -512,55 +508,6 @@ tzipEq(const Container1 & a, const Container2 & b)
 
   return ret_val;
 }
-
-  template <class C1, class C2, class C3> inline
-DynList<std::tuple<typename C1::Item_Type, 
-		   typename C2::Item_Type,
-		   typename C3::Item_Type>> 
-  tzip(const C1 & c1, const C2 & c2, const C3 & c3)
-{
-  typedef typename C1::Item_Type T1;
-  typedef typename C2::Item_Type T2;
-  typedef typename C3::Item_Type T3;
-  DynList<std::tuple<T1, T2, T3>> ret_val;
-  
-  typename C1::Iterator it1(c1);
-  typename C2::Iterator it2(c2);
-  typename C3::Iterator it3(c3);
-  for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next_ne(), it2.next_ne(), it3.next_ne())
-    ret_val.append(std::make_tuple(it1.get_curr_ne(),
-				   it2.get_curr_ne(),
-				   it3.get_curr_ne()));
-
-  return ret_val;
-}
-
-  template <class C1, class C2, class C3> inline
-DynList<std::tuple<typename C1::Item_Type, 
-		   typename C2::Item_Type,
-		   typename C3::Item_Type>> 
-    tzipEq(const C1 & c1, const C2 & c2, const C3 & c3)
-{
-  typedef typename C1::Item_Type T1;
-  typedef typename C2::Item_Type T2;
-  typedef typename C3::Item_Type T3;
-  DynList<std::tuple<T1, T2, T3>> ret_val;
-  
-  typename C1::Iterator it1(c1);
-  typename C2::Iterator it2(c2);
-  typename C2::Iterator it3(c3);
-  for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next_ne(), it2.next_ne(), it3.next_ne())
-    ret_val.append(std::make_tuple(it1.get_curr_ne(), it2.get_curr_ne(),
-				   it3.get_curr_ne()));
-
-  if (it1.has_curr() or it2.has_curr() or it3.has_curr())
-    throw std::length_error("Container sizes mismatch");
-
-  return ret_val;
-}
-
 
 template <class Container>
 auto inline enumerate(const Container & c)
@@ -574,11 +521,9 @@ auto inline enumerate(const Container & c)
 }
 
 
-  template <typename T,
-	    template <typename> class C1 = DynList,
-	    template <typename> class C2 = DynList,
-	    class Eq = std::equal_to<T>> inline 
-bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
+  template <class C1, class C2,
+	    class Eq = std::equal_to<typename C1::Item_Type>> inline 
+bool eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
@@ -596,32 +541,24 @@ bool operator == (const DynList<T> & l1, const DynList<T> & l2)
 }
 
   template <class C1, class C2, class Eq> inline 
-bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
+bool containers_eq(const C1 & c1, const C2 & c2, Eq e) noexcept(noexcept(e))
 {
-  auto it1 = c1.get_it();
-  auto it2 = c2.get_it();;
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
-    if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
-      return false;
-
-  return not (it1.has_curr() or it2.has_curr());
+  return e1(c1, c2, e);
 }
 
-  template <typename T,
-	    template <typename> class C1 = DynList,
-	    template <typename> class C2 = DynList,
-	    class Eq = std::equal_to<T>> inline 
-    std::tuple<bool, size_t, T, T>
-are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
+  template <class C1, class C2,
+	    class Eq = std::equal_to<typename C1::Item_Type>> inline 
+    std::tuple<bool, size_t, typename C1::Item_Type, typename C2::Item_Type>
+are_eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
+  using T = typename C1::Item_Type;
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
   size_t n = 0;
   for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne(), n++)
     {
-      auto i1 = it1.get_curr_ne();
-      auto i2 = it2.get_curr_ne();
+      auto & i1 = it1.get_curr_ne();
+      auto & i2 = it2.get_curr_ne();
       if (not (e(i1, i2)))
 	return std::make_tuple(false, n, i1, i2);
     }
@@ -629,17 +566,22 @@ are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
   return std::make_tuple(c1.is_empty() == c2.is_empty(), n, T(), T());
 }
 
-  template <typename T, template <typename> class Container = Aleph::DynList, 
-	    class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
+  template <class C1, class C2,
+	    class Cmp = std::less<typename C1::Item_Type>> inline
+bool lesser(const C1 & c1, const C2 & c2, Cmp cmp = Cmp())
+    noexcept(noexcept(cmp))
 {
-  typename Container<T>::Iterator it1(c1), it2(c2);
-  for (/* nothing */; it1.has_curr() and it2.has_curr();
-		    it1.next_ne(), it2.next_ne())
-    if (cmp(it1.get_curr(), it2.get_curr()))
-      return true;
-    else if (cmp(it2.get_curr_ne(), it1.get_curr_ne()))
-      return false;
+  auto it1 = c1.get_it();
+  auto it2 = c2.get_it();
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    {
+      auto & curr1 = it1.get_curr_ne();
+      auto & curr2 = it2.get_curr_ne();
+      if (cmp(curr1, curr2))
+	return true;
+      else if (cmp(curr2, curr1))
+	return false;
+    }
 
   if (not it1.has_curr() and not it2.has_curr())
     return false;
@@ -647,43 +589,28 @@ bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
   return it2.has_curr();
 }
 
-template <typename T, template <typename> class Container = DynList, 
-	  class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, 
-	    Cmp && cmp = Cmp())
+  template <class C1, class C2,
+	  class Eq = std::equal_to<typename C1::Item_Type>> inline
+bool diff(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
-  return lesser<T, Container, Cmp>(c1, c2, cmp);
+  return not eq(c1, c2, e);
 }
 
-template <typename T, template <typename> class Container = DynList,
-	  class Eq = std::equal_to<T>> inline
-bool diff(const Container<T> & c1, const Container<T> & c2, Eq & e)
+template <class Container> inline
+auto unzip(const Container & l)
 {
-  return not eq<T, Container, Eq>(c1, c2, e);
-}
-
-template <typename T, template <typename> class Container = DynList,
-	  class Eq = std::equal_to<T>> inline
-bool diff(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
-{
-  return diff<T, Container, Eq>(c1, c2, e);
-}
-
-template <template <typename> class Container, typename T1, typename T2>
-inline std::pair<Container<T1>, Container<T2>>
-unzip(const Container<std::pair<T1, T2>> & l)
-{
-  Container<T1> l1;
-  Container<T2> l2;
-  for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next_ne())
+  using T1 = decltype(l.get_first().first);
+  using T2 = decltype(l.get_first().second);
+  DynList<T1> l1;
+  DynList<T2> l2;
+  for (auto it = l.get_it(); it.has_curr(); it.next_ne())
     {
-      std::pair<T1, T2> curr = it.get_curr_ne();
+      auto & curr = it.get_curr_ne();
       l1.append(curr.first);
       l2.append(curr.second);
     }
 
-  return std::pair<Container<T1>, Container<T2>>(std::move(l1), std::move(l2));
+  return std::make_pair(std::move(l1), std::move(l2));
 }
 
 template <template <typename> class Container, typename T1, typename T2>
@@ -692,12 +619,11 @@ tunzip(const Container<std::tuple<T1, T2>> & l)
 {
   Container<T1> l1;
   Container<T2> l2;
-  for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next_ne())
+  for (auto it = l.get_it(); it.has_curr(); it.next_ne())
     {
-      auto curr = it.get_curr_ne();
-      l1.append(curr.first);
-      l2.append(curr.second);
+      auto & curr = it.get_curr_ne();
+      l1.append(std::get<0>(curr));
+      l2.append(std::get<1>(curr));
     }
 
   return std::make_tuple(std::move(l1), std::move(l2));
