@@ -105,26 +105,20 @@ Node * select_rec(Node * r, const size_t i)
   return __select_rec(r, i);
 }
 
-    /** Iterative selection of a node according to inorder psoition
+    /** Iterative selection of a node according to inorder position
+	without exception.
 
         @param[in] r root of tree
         @param[in] pos position inorder whose node wants to be located
         @return a pointer to the node at the inorder position pos
-        @throw out_of_range if pos is greater or equal than the number
-        of nodes 
 
         @see select_rec()
         @ingroup Arboles
      */
     template <class Node> inline 
-Node * select(Node * r, const size_t pos) 
-  throw(std::exception, std::out_of_range)
+Node * select_ne(Node * r, const size_t pos) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
-
-  if (pos >= COUNT(r))
-    throw std::out_of_range("infix position out of range");
-
   for (size_t i = pos; i != COUNT(LLINK(r)); /* nada */)
     {
       assert(i < COUNT(r) and 
@@ -140,6 +134,28 @@ Node * select(Node * r, const size_t pos)
     }
 
   return r;
+}
+
+      /** Iterative selection of a node according to inorder psoition
+
+        @param[in] r root of tree
+        @param[in] pos position inorder whose node wants to be located
+        @return a pointer to the node at the inorder position pos
+        @throw out_of_range if pos is greater or equal than the number
+        of nodes 
+
+        @see select_rec()
+        @ingroup Arboles
+     */
+    template <class Node> inline 
+Node * select(Node * r, const size_t pos) 
+  throw(std::exception, std::out_of_range)
+{
+  assert(COUNT(Node::NullPtr) == 0);
+  if (pos >= COUNT(r))
+    throw std::out_of_range("infix position out of range");
+
+  return select_ne(r, pos);
 }
 
     /** Iterative selection of a node according to inorder psoition and

@@ -365,7 +365,7 @@ public:
   : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp, lower_alpha, upper_alpha,
 		       remove_all_buckets, with_resize) {}
 
-  void swap(GenLinearHashTable & other) noexcept
+  void swap(GenLinearHashTable & other)
   {
     std::swap(table, other.table);
     std::swap(hash_fct, other.hash_fct);
@@ -402,7 +402,7 @@ public:
   {
     while (not entries_list.is_empty())
       {    
-	Bucket * bucket = Bucket::dlink_to_base(entries_list.remove_first());
+	Bucket * bucket = Bucket::dlink_to_base(entries_list.remove_first_ne());
 	bucket->del();             // borra de la lista en el arreglo
 	bucket->get_link()->del(); // borra de entries list
 	delete bucket;

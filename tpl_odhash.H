@@ -109,7 +109,8 @@ class ODhashTable
     unsigned char probe_type = NO_PROBED; // FIRST_PROBE SECOND_PROBE LINEAR_PROBE
     unsigned int  probe_counter = 0; // contador de sondeos
 
-    Bucket() noexcept : status(EMPTY), probe_type(NO_PROBED), probe_counter(0)
+    Bucket() noexcept
+      : key(), status(EMPTY), probe_type(NO_PROBED), probe_counter(0)
     { /* empty */ }
 
     void reset() noexcept // put all as when constructed

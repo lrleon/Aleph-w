@@ -134,7 +134,28 @@ public:
     return arc;
   }
 
-  void remove_arc(void * arc) 
+  void remove_arc_ne(void * arc) noexcept
+  {
+    bool removed = false;
+    for (size_t i = 0; i < this->num_arcs; ++i)
+      if (arc_array[i] == arc)
+	{
+	  arc_array[i] = arc_array[--(this->num_arcs)];
+	  removed = true;
+	  break;
+	}
+
+    if (this->num_arcs > contract_threshold)
+      return;
+	
+        // contraction 
+    size_t new_sz = arcs_dim >> 1; // num_arcs/2
+    arc_array = (void**) realloc(arc_array, new_sz*sizeof(void*));
+    arcs_dim = new_sz;
+    contract_threshold = arcs_dim/Contract_Factor;
+  }
+
+  void remove_arc(void * arc)
   {
     bool removed = false;
     for (size_t i = 0; i < this->num_arcs; ++i)
@@ -438,9 +459,9 @@ public:
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
 
-    src->remove_arc(arc);
+    src->remove_arc_ne(arc);
     if (not this->digraph and src != tgt)
-      tgt->remove_arc(arc);
+      tgt->remove_arc_ne(arc);
 
     arc->del(); // delete it from arc_set
     this->num_arcs--;

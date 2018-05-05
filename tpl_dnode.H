@@ -62,21 +62,53 @@ public:
   Dnode<T>* remove_next() noexcept { return (Dnode<T>*) Dlink::remove_next(); }
 
   /// Get the first node
-  Dnode<T> *& get_first() const noexcept { return get_next(); } 
+  Dnode<T> *& get_first_ne() const noexcept { return get_next(); } 
 
   /// Get the last node
-  Dnode<T> *& get_last() noexcept { return get_prev(); }
+  Dnode<T> *& get_last_ne() const noexcept { return get_prev(); }
+
+  /// Get the first node
+  Dnode<T> *& get_first() const
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return get_first_ne();
+  } 
+
+  /// Get the last node
+  Dnode<T> *& get_last() const
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return get_last_ne();
+  }
 
   /// Remove the last node and return its address
-  Dnode<T>* remove_last() noexcept 
+  Dnode<T>* remove_last_ne() noexcept 
   { 
     return static_cast<Dnode<T>*>(Dlink::remove_prev()); 
   }
 
   /// Remove the first node and return its address
-  Dnode<T>* remove_first() noexcept
+  Dnode<T>* remove_first_ne() noexcept
   {
     return static_cast<Dnode<T>*>(Dlink::remove_next()); 
+  }
+
+  /// Remove the last node and return its address
+  Dnode<T>* remove_last()
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return remove_last_ne();
+  }
+
+  /// Remove the first node and return its address
+  Dnode<T>* remove_first()
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return remove_first_ne();
   }
   
   Dnode() noexcept 

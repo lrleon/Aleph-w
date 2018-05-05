@@ -252,6 +252,12 @@ public:
   }
 
     /// If `this` is a header node, it return the first node of `this`
+  Dlink *& get_first_ne() const noexcept { return next; }
+
+    /// If `this` is a header node, it return the last node of `this`
+  Dlink *& get_last_ne() const noexcept { return prev; }
+
+    /// If `this` is a header node, it return the first node of `this`
   Dlink *& get_first() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
@@ -435,6 +441,16 @@ public:
     return retValue;
   }
 
+  Dlink * remove_last_ne() noexcept /// \overload remove_prev()
+  {
+    return remove_prev();
+  }
+
+  Dlink * remove_first_ne() noexcept /// \overload remove_next()
+  {
+    return remove_next();
+  }
+
   Dlink * remove_last() noexcept /// \overload remove_prev()
   {
     return remove_prev();
@@ -495,7 +511,7 @@ public:
        @return total number of nodes of both list (what is the same
        number of node that had `this` before the split
       */
-  size_t split_list(Dlink & l, Dlink & r) noexcept
+  size_t split_list_ne(Dlink & l, Dlink & r) noexcept
   {
     assert(l.is_empty() and r.is_empty()); // l y r deben estar vacías
 
@@ -513,6 +529,11 @@ public:
     return count;
   }
 
+  size_t split_list(Dlink & l, Dlink & r) noexcept
+  {
+    return split_list_ne(l, r);
+  }
+      
   /**  Cut `this` from `link`.
 
        `cut_list(link)` takes a valid link to an item of the list and on

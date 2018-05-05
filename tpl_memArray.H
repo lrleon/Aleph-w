@@ -515,6 +515,18 @@ public:
     return ret;
   }
 
+  T get_ne(size_t i = 1) noexcept
+  {
+    assert(ptr);
+    long idx = n - i;
+    n = idx;
+    T ret = std::move(ptr[n]);
+
+    contract();
+
+    return ret;
+  }
+
   /// \overload get()
   T remove_last() { return get(); }
 

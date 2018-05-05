@@ -685,11 +685,8 @@ public:
   //!\~English It deletes head element (first one). Return deleted
   //!element \~Spanish Elimina el elemento en la cabeza (el
   //!primero). Retorna el elemento eliminado. 
-  Slinknc * remove_head()
+  Slinknc * remove_head_ne() noexcept
   {
-    if (is_empty())
-      throw std::underflow_error("HTList is empty");
-
     Slinknc * ret_val = head;
     if (head == tail)
       head = tail = nullptr;
@@ -703,6 +700,13 @@ public:
     ret_val->reset();
 
     return ret_val;
+  }
+
+  Slinknc * remove_head()
+  {
+    if (is_empty())
+      throw std::underflow_error("HTList is empty");
+    return remove_head_ne();
   }
 
   /**
@@ -722,6 +726,8 @@ public:
       \return un puntero al elemento eliminado
       \throw underflow_error si la lista está vacía
   */
+  Slinknc * remove_first_ne() noexcept { return remove_head_ne(); }
+
   Slinknc * remove_first() { return remove_head(); }
 
   /**
@@ -885,6 +891,11 @@ public:
     return count;
   }
 
+  size_t split_list_ne(HTList & l, HTList & r) noexcept
+  {
+    return split_list(l, r);
+  }
+
       /// \overload split_listHTList & l, HTList & r)
   size_t split(HTList & l, HTList & r) noexcept
   {
@@ -977,7 +988,7 @@ public:
   void remove_all_and_delete() noexcept
   {
     while (not is_empty())
-      delete remove_head();
+      delete remove_head_ne();
   }
 
   /**
@@ -1472,6 +1483,21 @@ public:
     return __append(new Snodenc<T> (std::forward<T>(item)));
   }
 
+  /** Remove the first item of the list without exception.
+
+      \return a copy of removed item
+      \throw underflow_error if the list is empty
+  */
+  T remove_ne() noexcept
+  {
+    Slinknc * l = this->HTList::remove_head_ne();
+    Snodenc<T> * p = static_cast<Snodenc<T>*> (l);
+    T ret_val = std::move(p->get_data());
+    delete p;
+
+    return ret_val;
+  }
+
   /** Remove the first item of the list.
 
       \return a copy of removed item
@@ -1488,6 +1514,12 @@ public:
   }
 
   /// \overload remove()
+  T remove_first_ne() noexcept
+  {
+    return remove_ne();
+  }
+
+  /// \overload remove()
   T remove_first()
   {
     return remove();
@@ -1499,6 +1531,25 @@ public:
   /// \overload remove()
   T get() { return remove(); }
 
+  /** Return the last item of the list without exception.
+
+      \return a modifiable reference to the last item
+  */
+  T & get_last_ne() const noexcept
+  {
+    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    return p->get_data();
+  }
+
+  /** Return the first item of the list without exception
+
+      \return a modifiable reference to the first item
+  */
+  T & get_first_ne() const noexcept
+  {
+    return static_cast<Snodenc<T>*>(this->HTList::get_first())->get_data();
+  }
+
   /** Return the last item of the list
 
       \return a modifiable reference to the last item
@@ -1508,9 +1559,7 @@ public:
   {
     if (is_empty())
       throw std::underflow_error("List is empty");
-
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
-    return p->get_data();
+    return get_last_ne();
   }
 
   /** Return the first item of the list
@@ -1522,7 +1571,7 @@ public:
   {
     if (is_empty())
       throw std::underflow_error("List is empty");
-    return static_cast<Snodenc<T>*>(this->HTList::get_first())->get_data();
+    return get_first_ne();
   }
 
   /// \overload get_first()
@@ -1627,6 +1676,23 @@ public:
 
   DynList rev() const { return reverse(); }
 
+  template <class Equal = std::equal_to<T>>
+  T remove_ne(Equal eq) noexcept
+  {
+    T ret;
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      {
+	const T & item = it.get_curr_ne();
+	if (eq(item))
+	  {
+	    ret = item; // performs a copy
+	    it.del();
+	    return ret;
+	  }
+      }
+    return ret;
+  }
+
   /** Remove the first element matching an equality criteria.
 
       `remove(eq)` sequentually traverses the list and on each current
@@ -1650,8 +1716,7 @@ public:
       \return a copy of removed element if the item was found and
       removed; otherwise the exception `domain_error` is thrown.
    */
-  template <class Equal = std::equal_to<T>>
-    T remove(Equal & eq)
+  template <class Equal = std::equal_to<T>> T remove(Equal eq)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
 	{
@@ -1665,13 +1730,6 @@ public:
 	}
 
       throw std::domain_error("DynList::remove(Equal &): item not found");
-    }
-
-  /// \overload remove(const T & item, Equal & eq)
-  template <class Equal = std::equal_to<T>>
-    T remove(Equal && eq)
-    {
-      return remove<Equal>(eq);
     }
 
   /** Initialize the list with all the items of `l` moved to `this`.

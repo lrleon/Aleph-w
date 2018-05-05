@@ -170,6 +170,11 @@ public:
     return array.get(1);
   }
 
+  T pop_ne() noexcept
+  {
+    return array.get_ne(1);
+  }
+
       /** Extract in constant time the `n` more recently inserted
 	  elements of stack 
 

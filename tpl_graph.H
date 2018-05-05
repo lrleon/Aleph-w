@@ -3183,7 +3183,7 @@ public:
 
     Arc * get_current_arc_ne() const noexcept
     { 
-      return this->get_curr_path_desc().arc; 
+      return this->get_curr_path_desc_ne().arc; 
     }
 
         ///\overload get_current_node()
@@ -3223,7 +3223,7 @@ public:
 
     tuple<Node*, Arc*> get_tuple_ne() const noexcept
     {
-      return make_tuple(get_current_node_ne(), get_current_arc());
+      return make_tuple(get_current_node_ne(), get_current_arc_ne());
     }
 
     /** Return `true` if iterator has current arc.

@@ -215,23 +215,38 @@ public:
   }
 
     /// Return a modifiable reference to first item in the list
-  T & get_first() const throw(std::exception, std::underflow_error)
+  T & get_first_ne() const noexcept
   {
     return this->get_next()->get_data();
   }
 
     /// Return a modifiable reference to last item in the list
-  T & get_last() const throw(std::exception, std::underflow_error)
+  T & get_last_ne() const noexcept
   {
     return this->get_prev()->get_data();
+  }
+
+      /// Return a modifiable reference to first item in the list
+  T & get_first() const throw(std::exception, std::underflow_error)
+  {
+    if (this->is_empty())
+      throw std::underflow_error("DynDlist is empty");
+    return get_first_ne();
+  }
+
+    /// Return a modifiable reference to last item in the list
+  T & get_last() const throw(std::exception, std::underflow_error)
+  {
+    if (this->is_empty())
+      throw std::underflow_error("DynDlist is empty");
+    return get_last_ne();
   }
 
   /** Remove the first item of the list; return a copy of removed item.
 
         @return a copy of removed item
-        @throw underflow_error if `this` is empty
     */
-  T remove_first() throw(std::exception, std::underflow_error)
+  T remove_first_ne() noexcept
   {
     Dnode<T> * ptr = this->remove_next();
     T retVal = ptr->get_data();
@@ -244,9 +259,8 @@ public:
   /** Remove the last item of the list; return a copy of removed item.
 
       @return a copy of removed item
-      @throw underflow_error if `this` is empty
   */
-  T remove_last() throw(std::exception, std::underflow_error)
+  T remove_last_ne() noexcept
   {
     Dnode<T> * ptr = this->remove_prev();
     T retVal = ptr->get_data();
@@ -254,6 +268,30 @@ public:
     --num_elem;
 
     return retVal;
+  }
+
+  /** Remove the first item of the list; return a copy of removed item.
+
+        @return a copy of removed item
+        @throw underflow_error if `this` is empty
+    */
+  T remove_first() throw(std::exception, std::underflow_error)
+  {
+    if (this->is_empty())
+      throw std::underflow_error("DynDlist is empty");
+    return remove_first_ne();
+  }
+
+  /** Remove the last item of the list; return a copy of removed item.
+
+      @return a copy of removed item
+      @throw underflow_error if `this` is empty
+  */
+  T remove_last() throw(std::exception, std::underflow_error)
+  {
+    if (this->is_empty())
+      throw std::underflow_error("DynDlist is empty");
+    return remove_last_ne();
   }
 
   /// \overload append(const T & item)
@@ -331,12 +369,8 @@ public:
       \param[out] l list containg the last n/2 first items
       @throw domain_error any of the lists is noty empty
      */
-  void split_list(DynDlist & l, DynDlist & r) 
-    throw(std::exception, std::domain_error)
+  void split_list_ne(DynDlist & l, DynDlist & r) noexcept
   {
-    if ((not l.is_empty()) or (not r.is_empty()))
-      throw std::domain_error("lists are not empty");
-
     Dlink::split_list(l, r);
     l.num_elem = r.num_elem = num_elem/2;
 
@@ -344,6 +378,25 @@ public:
       l.num_elem++;
 
     num_elem = 0;
+  }
+
+      /** Split the list in two.
+      
+      This method takes the first n/2 items of `this` and puts them, in
+      the same order, in list `l`. The remainder items are put in list
+      `r`. After operation `this` becomes empty. The order of items is
+      preserved through `l` and `r`.
+
+      \param[out] l list containg the first n/2 first items
+      \param[out] l list containg the last n/2 first items
+      @throw domain_error any of the lists is noty empty
+     */
+  void split_list(DynDlist & l, DynDlist & r) 
+    throw(std::exception, std::domain_error)
+  {
+    if ((not l.is_empty()) or (not r.is_empty()))
+      throw std::domain_error("lists are not empty");
+    split_list_ne(l, r);
   }
 
   /// \overload split_list

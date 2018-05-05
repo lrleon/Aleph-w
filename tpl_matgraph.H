@@ -852,7 +852,8 @@ public:
             @throw bad_alloc si no hay suficiente memoria.
             @see Ady_Mat::set_null_value() Ady_Mat::null_value()
         */
-  Ady_Mat(GT & g) : lgraph(&g), num_nodes(lgraph->get_num_nodes()) 
+  Ady_Mat(GT & g)
+    : lgraph(&g), num_nodes(lgraph->get_num_nodes())
   {
     copy_nodes(g); 
   }

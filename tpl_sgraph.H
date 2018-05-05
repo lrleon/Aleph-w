@@ -551,7 +551,7 @@ private:
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
 
-    src->arc_list.remove([arc] (auto a) { return a == arc; });
+    src->arc_list.remove_ne([arc] (auto a) { return a == arc; });
     src->num_arcs--;
 
     if (not this->digraph and src != tgt)

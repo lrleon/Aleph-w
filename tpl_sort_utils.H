@@ -200,7 +200,7 @@ void selection_sort(T * a, const size_t n, Compare cmp = Compare()) noexcept
 	\ingroup Algos
      */
   template <class Link, class Compare> inline 
-Link * search_extreme(const Link & list, Compare & cmp) noexcept
+Link * search_extreme(const Link & list, Compare & cmp)
 {
   typename Link::Iterator it(const_cast<Link&>(list));
   Link * extreme = it.get_curr();
@@ -861,10 +861,10 @@ void merge_lists(Tlist & l1, Tlist & l2, Tlist & result,
   assert(result.is_empty());
 
   while (not l1.is_empty() and not l2.is_empty())
-    if (cmp(l1.get_first(), l2.get_first()))
-      result.append(l1.remove_first());
+    if (cmp(l1.get_first_ne(), l2.get_first_ne()))
+      result.append(l1.remove_first_ne());
     else
-      result.append(l2.remove_first());
+      result.append(l2.remove_first_ne());
 
   if (l1.is_empty())
     result.concat_list(l2);
@@ -918,7 +918,7 @@ void mergesort(Tlist & list, Compare cmp = Compare()) noexcept
     return;
 
   Tlist l, r;
-  list.split_list(l, r);         // dividir en dos listas
+  list.split_list_ne(l, r);         // dividir en dos listas
 
   mergesort <Tlist, Compare> (l, cmp);
   mergesort <Tlist, Compare> (r, cmp);  
@@ -1329,12 +1329,12 @@ void quicksort(HTList & list, Compare cmp = Compare()) noexcept
   if (list.is_unitarian_or_empty()) 
     return;
 
-  Snodenc<T> * pivot = (Snodenc<T> *) list.remove_first();
+  Snodenc<T> * pivot = (Snodenc<T> *) list.remove_first_ne();
   HTList smaller, bigger; // listas de menores y mayores que pivot
 
   while (not list.is_empty()) 
     {
-      Snodenc<T> * p = (Snodenc<T> *) list.remove_first();
+      Snodenc<T> * p = (Snodenc<T> *) list.remove_first_ne();
       if (cmp(p->get_data(), pivot->get_data()))
 	smaller.append(p);
       else

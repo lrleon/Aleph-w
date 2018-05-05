@@ -2072,7 +2072,7 @@ public:
   Arc * search_arc(Node * src, Node * tgt) const noexcept
   {
     for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
-      if (it.get_tgt_node() == tgt)
+      if (it.get_tgt_node_ne() == tgt)
 	return it.get_curr_ne();
     return nullptr;
   }

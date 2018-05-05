@@ -175,7 +175,7 @@ public:
   {
     for (int i = 0; i < len; ++i)
       for (BucketItor itor(table[i]); itor.has_curr(); /* nada */)
-        delete (Bucket*) itor.del();
+        delete (Bucket*) itor.del_ne();
     busy_slots_counter = N = 0;
   }
 
@@ -584,7 +584,7 @@ public:
         /// Avanza el iterador una cubeta.
     void next_ne() noexcept
     {
-      locate_next_available_bucket();
+      locate_next_available_bucket_ne();
     }    
 
     void next() 
