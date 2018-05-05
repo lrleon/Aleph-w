@@ -27,8 +27,6 @@
 
 # include <gtest/gtest.h>
 
-
-
 # include <ah-zip.H>
 # include <ahFunctional.H>
 # include <ah-string-utils.H>
@@ -39,8 +37,7 @@
 # include <tpl_dynBinHeap.H>
 # include <tpl_dynDlist.H>
 # include <tpl_dynSetTree.H>
-# include <tpl_olhash.H>
-# include <tpl_odhash.H>
+# include <tpl_hash.H>
 # include <tpl_dynSetHash.H>
 # include <tpl_dynArray.H>
 # include <tpl_arrayQueue.H>
@@ -49,3 +46,43 @@
 # include <tpl_random_queue.H>
 
 using namespace std;
+using namespace testing;
+
+template <class Ctype>
+struct Container : public testing::Test
+{
+  static constexpr size_t N = 10;
+  Ctype c;
+  DynList<int> item_list;
+  Container()
+  {
+    for (size_t i = 0; i < N; ++i)
+      {
+	c.append(i);
+	item_list.append(i);
+      }
+    sort(item_list);
+  }
+};
+
+TYPED_TEST_CASE_P(Container);
+
+TYPED_TEST_P(Container, traverse)
+{
+  auto N = this->N;
+  TypeParam c = this->c;
+  EXPECT_EQ(c.size(), N);
+  DynList<int> l;
+  EXPECT_TRUE(c.traverse([&l] (auto & k) { l.append(k); return true; }));
+  EXPECT_TRUE(zip_all([] (auto t) { return get<0>(t) == get<1>(t); },
+		      this->item_list, sort(l)));
+}
+
+REGISTER_TYPED_TEST_CASE_P(Container, traverse);
+
+typedef Types<DynList<int>, DynDlist<int>, DynSetTree<int>, DynArray<int>,
+	      HashSet<int, ODhashTable>, HashSet<int, OLhashTable>,
+	      DynHashTable<int, LhashTable>,
+	      DynHashTable<int, LinearHashTable>, DynSetHash<int>> Ctypes;
+
+INSTANTIATE_TYPED_TEST_CASE_P(traverse, Container, Ctypes);

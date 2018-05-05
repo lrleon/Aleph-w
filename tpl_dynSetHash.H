@@ -56,16 +56,16 @@ namespace Aleph
 	@ingroup Hash
      */
   template <typename                          Key, 
-	    class                             Cmp       = Aleph::equal_to<Key>,
-	    template <typename,  class> class HashTable = LhashTable>
+	    template <typename,  class> class HashTable = LhashTable,
+	    class                             Cmp       = Aleph::equal_to<Key>>
 class DynHashTable 
     : public HashTable<Key, Cmp>,
-      public GenericTraverse<DynHashTable<Key, Cmp, HashTable>>,
-      public LocateFunctions<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public FunctionalMethods<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public GenericKeys<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public EqualToMethod<DynHashTable<Key, Cmp, HashTable>>,
-      public StlAlephIterator<DynHashTable<Key, Cmp, HashTable>>
+      public GenericTraverse<DynHashTable<Key, HashTable, Cmp>>,
+      public LocateFunctions<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public FunctionalMethods<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public GenericKeys<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public EqualToMethod<DynHashTable<Key, HashTable, Cmp>>,
+      public StlAlephIterator<DynHashTable<Key, HashTable, Cmp>>
 {
 protected:
 
@@ -344,7 +344,19 @@ public:
     } 
     
     void del() { delete this->Base::Iterator::del(); } 
-  }; 
+  };
+
+  Key & get_first() const
+  {
+    return this->get_it().get_curr();
+  }
+
+  Key & get_last() const
+  {
+    auto it = this->get_it();
+    it.reset_last();
+    return it.get_curr();
+  }  
 };
 
 /**
@@ -352,9 +364,9 @@ public:
    @ingroup Hash
  */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
-struct DynSetLhash : public DynHashTable<Key, Cmp, LhashTable>
+struct DynSetLhash : public DynHashTable<Key, LhashTable, Cmp>
 {
-  typedef DynHashTable<Key, Cmp, LhashTable> Base;
+  typedef DynHashTable<Key, LhashTable, Cmp> Base;
   using Base::Base;
 }; 
 
@@ -363,9 +375,9 @@ struct DynSetLhash : public DynHashTable<Key, Cmp, LhashTable>
    @ingroup Hash
  */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
-struct DynSetLinHash : public DynHashTable<Key, Cmp, LinearHashTable>
+struct DynSetLinHash : public DynHashTable<Key, LinearHashTable, Cmp>
 {
-  typedef DynHashTable<Key, Cmp, LinearHashTable> Base;
+  typedef DynHashTable<Key, LinearHashTable, Cmp> Base;
   using Base::Base;
 }; 
 
@@ -374,21 +386,21 @@ struct DynSetLinHash : public DynHashTable<Key, Cmp, LinearHashTable>
    @ingroup Hash
  */
 template <typename Key, class Cmp = Aleph::equal_to<Key>>
-  using DynSetHash = DynHashTable<Key, Cmp, LhashTable>;
+  using DynSetHash = DynHashTable<Key, LhashTable, Cmp>;
 
 /**
 
    @ingroup Hash
  */
 template <typename Key, typename Data, 
-	  class Cmp = Aleph::equal_to<Key>,
-	  template <class, class> class HashTable = LhashTable>
+	  template <class, class> class HashTable = LhashTable,
+	  class Cmp = Aleph::equal_to<Key>>
 class DynMapHashTable 
-  : public DynHashTable<std::pair<Key, Data>, Cmp, HashTable>
+  : public DynHashTable<std::pair<Key, Data>, HashTable, Cmp>
 {
   using Pair = std::pair<Key, Data>;
 
-  using Base = DynHashTable<std::pair<Key, Data>, Cmp, HashTable>;
+  using Base = DynHashTable<std::pair<Key, Data>, HashTable, Cmp>;
 
   using Bucket = typename Base::Bucket;
 
@@ -551,7 +563,7 @@ public:
  */
 template <typename Key, typename Data,
  	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
-using DynMapLinHash = DynMapHashTable<Key, Data, Cmp, LinearHashTable>;
+using DynMapLinHash = DynMapHashTable<Key, Data, LinearHashTable, Cmp>;
 
 /**
 
@@ -559,7 +571,7 @@ using DynMapLinHash = DynMapHashTable<Key, Data, Cmp, LinearHashTable>;
  */
 template <typename Key, typename Data,
  	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
-using DynMapHash = DynMapHashTable<Key, Data, Cmp, LhashTable>;
+using DynMapHash = DynMapHashTable<Key, Data, LhashTable, Cmp>;
 
 
 // Implementation de coming from ahFunctional.H
