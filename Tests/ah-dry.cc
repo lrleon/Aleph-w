@@ -80,9 +80,13 @@ TYPED_TEST_P(Container, traverse)
 
 REGISTER_TYPED_TEST_CASE_P(Container, traverse);
 
-typedef Types<DynList<int>, DynDlist<int>, DynSetTree<int>, DynArray<int>,
+typedef Types<DynList<int>, DynDlist<int>,  DynArray<int>,
 	      HashSet<int, ODhashTable>, HashSet<int, OLhashTable>,
 	      DynHashTable<int, LhashTable>,
-	      DynHashTable<int, LinearHashTable>, DynSetHash<int>> Ctypes;
+	      DynHashTable<int, LinearHashTable>, DynSetHash<int>,
+	      DynSetTree<int, Treap>, DynSetTree<int, Treap_Rk>,
+	      DynSetTree<int, Rand_Tree>, DynSetTree<int, Splay_Tree>,
+	      DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>>
+  Ctypes;
 
 INSTANTIATE_TYPED_TEST_CASE_P(traverse, Container, Ctypes);
