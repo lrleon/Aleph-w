@@ -51,7 +51,7 @@ using namespace testing;
 template <class Ctype>
 struct Container : public testing::Test
 {
-  static constexpr size_t N = 10;
+  static constexpr size_t N = 1000;
   Ctype c;
   DynList<int> item_list;
   Container()
