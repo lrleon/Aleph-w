@@ -75,15 +75,17 @@ public:
 
   DynDlist() { /* Empty */ }
 
-  /** Construct a new list with copies of elements of list `l`
+  // using CtorBase = SpecialCtors<DynDlist<T>, T>;
+  // using CtorBase::CtorBase;
 
-      \param[in] l list to be copied
-      \throw bad_alloc if there is no enough memory
-  */
-  DynDlist(const DynList<T> & l) : Dnode<T>(), CtorBase(l) {}
+  // /** Construct a new list with copies of elements of list `l`
 
-  using CtorBase = SpecialCtors<DynDlist<T>, T>;
-  using CtorBase::CtorBase;
+  //     \param[in] l list to be copied
+  //     \throw bad_alloc if there is no enough memory
+  // */
+  // DynDlist(const DynList<T> & l) : Dnode<T>(), CtorBase(l) {}
+
+  Special_Ctors(DynDlist, T);
 
   void empty() noexcept /// Empty the list
   {

@@ -803,9 +803,10 @@ protected:
 
     FixedStack<Node*> s;
     Node * curr = nullptr;
+    size_t pos = 0;
 
   public:
-    
+
     Iterator(const GenBinHeap & h) : s(Stack_Size)
     {
       if (h.is_empty())
@@ -827,7 +828,8 @@ protected:
 
     void next_ne() noexcept
     {
-      auto l = curr->advance_left(curr), r = curr->advance_right(curr);
+      ++pos;
+      auto l = advance_left(curr), r = advance_right(curr);
       if (l != nullptr)
 	{
 	  curr = l;
@@ -853,6 +855,14 @@ protected:
       if (not has_curr())
 	throw std::overflow_error("Iterator overflow");
       next_ne();
+    }
+
+    size_t get_pos() const noexcept { return pos; }
+
+    void end() noexcept
+    {
+      s.empty();
+      curr = nullptr;
     }
   };
 };

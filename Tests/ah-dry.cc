@@ -147,7 +147,60 @@ Types<DynList<int>, DynDlist<int>,  DynArray<int>,
       DynHashTable<int, LinearHashTable>, DynSetHash<int>,
       DynSetTree<int, Treap>, DynSetTree<int, Treap_Rk>,
       DynSetTree<int, Rand_Tree>, DynSetTree<int, Splay_Tree>,
-      DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>>
+      DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>,
+      Array<int>, ArrayQueue<int>, ArrayStack<int>, DynListQueue<int>,
+      DynListStack<int>, DynArrayHeap<int>, DynBinHeap<int>
+      >
   Ctypes;
 
-INSTANTIATE_TYPED_TEST_CASE_P(traverse, Container, Ctypes);
+INSTANTIATE_TYPED_TEST_CASE_P(traverses, Container, Ctypes);
+
+template <class C>
+struct CtorContainer : public ::testing::Test
+{
+  static constexpr size_t N = 10;
+  C * ptr_1 = nullptr;
+  C * ptr_2 = nullptr;
+  C * ptr_3 = nullptr;
+  CtorContainer()
+  {
+    ptr_1 = new C(range<int>(N));
+    ptr_2 = new C({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 });
+    ptr_3 = new C(ptr_1->begin(), ptr_2->end());
+  }
+  ~CtorContainer()
+  {
+    delete ptr_1;
+    delete ptr_2;
+    delete ptr_3;
+  }
+};
+
+TYPED_TEST_CASE_P(CtorContainer);
+
+TYPED_TEST_P(CtorContainer, ctor)
+{
+  auto N = this->N;
+  auto ptr_1 = this->ptr_1;
+  auto ptr_2 = this->ptr_2;
+  auto ptr_3 = this->ptr_3;
+  EXPECT_EQ(ptr_1->size(), N);
+  EXPECT_EQ(ptr_2->size(), 10);
+  EXPECT_EQ(ptr_3->size(), 10);
+
+  auto l1 = to_dynlist(*ptr_1);
+  auto l2 = to_dynlist(*ptr_2);
+  auto l3 = to_dynlist(*ptr_3);
+
+  const auto r1 = range<int>(N);
+  const auto r2 = build_dynlist<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+  const auto & r3 = r1;
+
+  ASSERT_EQ(sort(l1), r1);
+  ASSERT_EQ(sort(l2), r2);
+  ASSERT_EQ(sort(l3), r3);
+}
+
+REGISTER_TYPED_TEST_CASE_P(CtorContainer, ctor);
+
+INSTANTIATE_TYPED_TEST_CASE_P(Ctors, CtorContainer, Ctypes);

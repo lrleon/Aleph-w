@@ -300,8 +300,15 @@ public:
     return traverse<Operation>(op);
   }
 
-  struct Iterator : Base::Iterator
+  struct Iterator : public Base::Iterator
   {
+    using Item_Type = T;
+    using Base = typename Base::Iterator;
+    Iterator(const DynBinHeap & h) : Base(h) {}
+    const T & get_curr_ne() const noexcept
+    {
+      return KEY(Base::get_curr_ne());
+    }
     const T & get_curr() const { return KEY(Base::get_curr()); }
   };
 };
