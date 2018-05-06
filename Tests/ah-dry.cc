@@ -78,7 +78,67 @@ TYPED_TEST_P(Container, traverse)
 		      this->item_list, sort(l)));
 }
 
-REGISTER_TYPED_TEST_CASE_P(Container, traverse);
+TYPED_TEST_P(Container, for_each)
+{
+  auto N = this->N;
+  TypeParam c = this->c;
+  EXPECT_EQ(c.size(), N);
+  DynList<int> l;
+  c.for_each([&l] (auto & k) { l.append(k); });
+  EXPECT_TRUE(zip_all([] (auto t) { return get<0>(t) == get<1>(t); },
+		      this->item_list, sort(l)));
+}
+
+TYPED_TEST_P(Container, find_ptr)
+{
+  auto N = this->N;
+  TypeParam c = this->c;
+  EXPECT_EQ(c.size(), N);
+  auto ptr = c.find_ptr([N] (auto & k) { return k == int(N); });
+  EXPECT_EQ(ptr, nullptr);
+  this->item_list.for_each([&c] (auto & k)
+    {
+      auto ptr = c.find_ptr([k] (auto i) { return k == i; });
+      ASSERT_NE(ptr, nullptr);
+      ASSERT_EQ(*ptr, k);
+    });
+}
+
+TYPED_TEST_P(Container, find_index_nth)
+{
+  auto N = this->N;
+  TypeParam c = this->c;
+  EXPECT_EQ(c.size(), N);
+
+  auto idx = c.find_index([N] (auto & k) { return k == int(N); });
+  ASSERT_EQ(idx, N);
+
+  this->item_list.for_each([&c] (auto & k)
+    {
+      auto idx = c.find_index([k] (auto i) { return k == i; });
+      ASSERT_EQ(c.nth(idx), k);
+    });
+}
+
+TYPED_TEST_P(Container, find_item)
+{
+  auto N = this->N;
+  TypeParam c = this->c;
+  EXPECT_EQ(c.size(), N);
+
+  auto t = c.find_item([N] (auto & k) { return k == int(N); });
+  ASSERT_FALSE(get<0>(t));
+
+  this->item_list.for_each([&c] (auto & k)
+    {
+      auto t = c.find_item([k] (auto i) { return k == i; });
+      EXPECT_TRUE(get<0>(t));
+      ASSERT_EQ(get<1>(t), k);
+    });
+}
+
+REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
+			   find_index_nth, find_item);
 
 typedef
 Types<DynList<int>, DynDlist<int>,  DynArray<int>,
