@@ -1034,12 +1034,19 @@ public:
     /// \overload reset()
     void reset_first() noexcept { reset(); }
 
-    //!\~English Not implemented. Put only for compilation \~Spanish
-    //!No implementada. Colocada solo para compilación 
+    /// It has O(n) of performance
     void reset_last()
     {
-      
-      throw std::domain_error("reset_last() not implemented for DynList");
+      reset();
+      if (lptr->is_empty())
+	return;
+
+      while (NEXT(curr))
+	{
+	  prev = curr;
+	  curr = NEXT(curr);
+	  ++pos;
+	}
     }
 
     //!\~English Set the iterator to its end position, which has not
@@ -1049,14 +1056,14 @@ public:
       curr = nullptr;
     }
 
-    // //!\~English Assignation \~Spanish Asignación
-    // Iterator & operator = (const Iterator & it) noexcept
-    // {
-    //   lptr = it.lptr;
-    //   curr = it.curr;
-    //   prev = it.prev;
-    //   return *this;
-    // }
+     //!\~English Assignation \~Spanish Asignación
+    Iterator & operator = (const Iterator & it) noexcept
+      {
+	lptr = it.lptr;
+	curr = it.curr;
+	prev = it.prev;
+	return *this;
+      }
 
     //!\~English Return `true` if iterator has current item \~Spanish
     //!Retorna `true` si el iterador tiene un elemento actual 
