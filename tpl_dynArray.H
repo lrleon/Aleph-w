@@ -159,11 +159,11 @@ namespace Aleph {
      through the total of available chunks but it could not exists an
      contiguous block of a given size. The more large is the block size,
      the higher is the probability for failing to allocate. So, there
-     are circunstances where you could be interested in setting a small
-     block size, so as to facilitate thge block's allocation. 
+     are circumstances where you could be interested in setting a small
+     block size, so as to facilitate the block's allocation. 
 
      Of course, these settings restrict the maximum dimension, which
-     eventually could be compesed with a larger directory. As example,
+     eventually could be compensated with a larger directory. As example,
      consider a directory of 1024 segments of 512 blocks of 4096
      entries. This gives a total of
 
@@ -171,7 +171,7 @@ namespace Aleph {
 
      Now suppose that you think that 4096 is too much for a block, the
      you could set the block to 128 and displace the difference to the
-     diretory. This gives sizes of 32768, 512 and 128 respectively and
+     directory. This gives sizes of 32768, 512 and 128 respectively and
      thus to obtain the same maximum capacity.
 
      You could think that failure probability is displaced to the

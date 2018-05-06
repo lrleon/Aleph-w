@@ -155,10 +155,44 @@ TYPED_TEST_P(Container, iterator_operations)
   EXPECT_EQ(it.get_curr_ne(), l.get_first());
   it.reset_last();
   EXPECT_EQ(it.get_curr_ne(), l.get_last());
+  it.reset_first();
+  EXPECT_EQ(it.get_curr_ne(), l.get_first());
+  it.reset_last();
+  EXPECT_EQ(it.get_curr_ne(), l.get_last());
 }
 
+TYPED_TEST_P(Container, nappend)
+{
+  int N = this->N;
+  auto c = this->c;
+
+  c.nappend(N);
+  auto ptr = c.find_ptr([N] (auto i) { return i == N; });
+  EXPECT_EQ(c.size(), N + 1);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N);
+
+  c.nappend(N + 1, N + 2, N + 3);
+  EXPECT_EQ(c.size(), N + 4);
+  
+  ptr = c.find_ptr([N] (auto i) { return i == N + 1; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 1);
+
+  ptr = c.find_ptr([N] (auto i) { return i == N + 2; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 2);
+
+  ptr = c.find_ptr([N] (auto i) { return i == N + 3; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 3);
+}
+
+// For now no test for ninsert because some container do not have them
+
 REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
-			   find_index_nth, find_item, iterator_operations);
+			   find_index_nth, find_item, iterator_operations,
+			   nappend);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
