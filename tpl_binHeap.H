@@ -484,7 +484,25 @@ private:
     __for_each_in_inorder(advance_right(p), operation);
   }
 
+  template <class Operation>
+  bool preorder_traverse(Node * p, Operation op) const noexcept(noexcept(op))
+  {
+    if (p == nullptr)
+      return true;
+    if (not op(p))
+      return false;
+    if (not preorder_traverse(advance_left(p), op))
+      return false;
+    return preorder_traverse(advance_right(p), op);
+  }
+
 public:
+
+  template <class Operation>
+  bool preorder_traverse(Operation op) const noexcept(noexcept(op))
+  {
+    return preorder_traverse(getRoot(), op);
+  }
 
   template <class Operation>
   void for_each_in_preorder(Operation & operation) const
@@ -801,18 +819,49 @@ protected:
   {
     static const size_t Stack_Size = 64;
 
+    GenBinHeap * heap_ptr = nullptr;
     FixedStack<Node*> s;
     Node * curr = nullptr;
     size_t pos = 0;
 
   public:
 
-    Iterator(const GenBinHeap & h) : s(Stack_Size)
+    Iterator(const GenBinHeap & h)
+      : heap_ptr(&const_cast<GenBinHeap&>(h)), s(Stack_Size)
     {
       if (h.is_empty())
 	return;
-
       curr = h.root;
+    }
+
+    void reset_first() noexcept
+    {
+      s.empty();
+      if (heap_ptr->is_empty())
+	curr = nullptr;
+      else
+	curr = heap_ptr->root;
+      pos = 0;
+    }
+
+    void reset_last() noexcept
+    {
+      s.empty();
+      if (heap_ptr->is_empty())
+	curr = nullptr;
+      else
+	{
+	  auto ptr = heap_ptr->root;
+	  curr = ptr;
+	  while (true)
+	    {
+	      ptr = advance_right(ptr);
+	      if (ptr == nullptr)
+		break;
+	      curr = ptr;
+	    }
+	}
+      pos = heap_ptr->num_nodes - 1;
     }
 
     bool has_curr() const noexcept { return curr != nullptr; }
@@ -863,6 +912,7 @@ protected:
     {
       s.empty();
       curr = nullptr;
+      pos = heap_ptr->num_nodes;
     }
   };
 };

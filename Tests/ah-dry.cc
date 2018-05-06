@@ -137,19 +137,39 @@ TYPED_TEST_P(Container, find_item)
     });
 }
 
+TYPED_TEST_P(Container, iterator_operations)
+{
+  //auto N = this->N;
+  auto c = this->c;
+  const DynList<int> l = to_dynlist(c); // in the same order than iterator
+
+  ASSERT_EQ(l.size(), c.size());
+
+  auto itl = l.get_it();
+  for (auto & item : c)
+    {
+      ASSERT_EQ(item, itl.get_curr_ne());
+      itl.next_ne();
+    }
+  auto it = c.get_it();
+  EXPECT_EQ(it.get_curr_ne(), l.get_first());
+  it.reset_last();
+  EXPECT_EQ(it.get_curr_ne(), l.get_last());
+}
+
 REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
-			   find_index_nth, find_item);
+			   find_index_nth, find_item, iterator_operations);
 
 typedef
-Types<DynList<int>, DynDlist<int>,  DynArray<int>,
-      HashSet<int, ODhashTable>, HashSet<int, OLhashTable>,
-      DynHashTable<int, LhashTable>,
-      DynHashTable<int, LinearHashTable>, DynSetHash<int>,
-      DynSetTree<int, Treap>, DynSetTree<int, Treap_Rk>,
-      DynSetTree<int, Rand_Tree>, DynSetTree<int, Splay_Tree>,
-      DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>,
-      Array<int>, ArrayQueue<int>, ArrayStack<int>, DynListQueue<int>,
-      DynListStack<int>, DynArrayHeap<int>, DynBinHeap<int>
+Types< DynList<int>, DynDlist<int>,  DynArray<int>,
+       HashSet<int, ODhashTable>, HashSet<int, OLhashTable>,
+       DynHashTable<int, LhashTable>,
+       DynHashTable<int, LinearHashTable>, DynSetHash<int>,
+       DynSetTree<int, Treap>, DynSetTree<int, Treap_Rk>,
+       DynSetTree<int, Rand_Tree>, DynSetTree<int, Splay_Tree>,
+       DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>,
+       Array<int>, ArrayQueue<int>, ArrayStack<int>, DynListQueue<int>,
+       DynListStack<int>, DynArrayHeap<int>, DynBinHeap<int>
       >
   Ctypes;
 

@@ -279,7 +279,7 @@ public:
   template <class Operation>
   bool traverse(Operation & op) noexcept(noexcept(op))
   {
-    return this->level_traverse([&op] (Node * p) { return op(p->get_key()); });
+    return this->preorder_traverse([&op] (Node * p) { return op(p->get_key()); });
   }
 
   template <class Operation>
@@ -291,7 +291,7 @@ public:
   template <class Operation>
   bool traverse(Operation & op) const noexcept(noexcept(op))
   {
-    return this->level_traverse([&op] (Node * p) { return op(p->get_key()); }); 
+    return this->preorder_traverse([&op] (Node * p) { return op(p->get_key()); }); 
   }
 
   template <class Operation>

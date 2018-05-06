@@ -1038,6 +1038,7 @@ public:
     //!No implementada. Colocada solo para compilación 
     void reset_last()
     {
+      
       throw std::domain_error("reset_last() not implemented for DynList");
     }
 
