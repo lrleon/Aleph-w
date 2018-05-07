@@ -230,8 +230,6 @@ TYPED_TEST_P(Container, all)
   EXPECT_EQ(sort(to_dynlist(c)), tbl.keys());
 }
 
-// For now no test for ninsert because some container do not have them
-
 REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
 			   find_index_nth, find_item, iterator_operations,
 			   nappend, ninsert, all);
