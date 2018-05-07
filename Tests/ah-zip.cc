@@ -259,14 +259,14 @@ TEST_F(CompleteGroup, ml_operations)
   auto part = zip_partition([] (auto t) { return get<0>(t) < 2; }, l1, l2, l3);
 
   EXPECT_TRUE(eq(get<0>(part).maps<string>([] (auto & t)
-	       {
-		 return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
-	       }), { "000", "111" }));
+    {
+      return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
+    }), build_dynlist<string>("000", "111")));
   EXPECT_EQ(get<1>(part), 2);
   EXPECT_TRUE(eq(get<2>(part).maps<string>([] (auto & t)
-	       {
-		 return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
-	       }), { "222", "333", "444" }));
+    {
+      return to_string(get<0>(t)) + to_string(get<1>(t)) + get<2>(t);
+    }), build_dynlist<string>("222", "333", "444")));
   EXPECT_EQ(get<3>(part), N - 2);
 
   auto l = zip_lists(l1, l2, l1, l2);

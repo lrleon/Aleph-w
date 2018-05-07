@@ -188,11 +188,53 @@ TYPED_TEST_P(Container, nappend)
   EXPECT_EQ(*ptr, N + 3);
 }
 
+TYPED_TEST_P(Container, ninsert)
+{
+  int N = this->N;
+  auto c = this->c;
+
+  c.ninsert(N);
+  auto ptr = c.find_ptr([N] (auto i) { return i == N; });
+  EXPECT_EQ(c.size(), N + 1);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N);
+
+  c.ninsert(N + 1, N + 2, N + 3);
+  EXPECT_EQ(c.size(), N + 4);
+  
+  ptr = c.find_ptr([N] (auto i) { return i == N + 1; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 1);
+
+  ptr = c.find_ptr([N] (auto i) { return i == N + 2; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 2);
+
+  ptr = c.find_ptr([N] (auto i) { return i == N + 3; });
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, N + 3);
+}
+
+TYPED_TEST_P(Container, all)
+{
+  int N = this->N;
+  auto c = this->c;
+  DynSetTree<int> tbl;
+  ASSERT_TRUE(c.all([&tbl] (auto i)
+		    {
+		      const bool ret = tbl.contains(i);
+		      tbl.insert(i);
+		      return not ret;
+		    }));
+  EXPECT_EQ(tbl.size(), N);
+  EXPECT_EQ(sort(to_dynlist(c)), tbl.keys());
+}
+
 // For now no test for ninsert because some container do not have them
 
 REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
 			   find_index_nth, find_item, iterator_operations,
-			   nappend);
+			   nappend, ninsert, all);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,

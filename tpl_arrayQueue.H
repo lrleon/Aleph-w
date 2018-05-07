@@ -186,6 +186,12 @@ public:
   /// \overload put(T && item)
   T & append(T && item) { return put(std::forward<T>(item)); }
 
+  /// \overload put(const T & item)
+  T & insert(const T & item) { return put(item); }
+
+  /// \overload put(T && item)
+  T & insert(T && item) { return put(std::forward<T>(item)); }
+
       /** Put in constant time `sz` empty entries to the stack.
 
           `putn(n)` puts `sz` entries to the stack in an functionally

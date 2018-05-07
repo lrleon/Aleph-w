@@ -40,7 +40,8 @@ TEST(Vector, basic)
   Vector<char, int> v2(chars, { 0, 1, 2, 3, 4 });
   auto v3 = v2;
 
-  EXPECT_TRUE(eq(sort(v1.get_domain().to_list()), { 'a', 'b', 'c', 'd', 'e'}));
+  EXPECT_TRUE(eq(sort(v1.get_domain().to_list()),
+		 build_dynlist<char>('a', 'b', 'c', 'd', 'e')));
   EXPECT_EQ(v2, v3);
 
   auto v4 = v1;

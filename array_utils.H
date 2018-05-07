@@ -36,11 +36,9 @@ using namespace std;
 namespace Aleph
 {
 
-template <typename T> inline
-void open_gap(T * ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
+template <class Tarray> inline
+void open_gap(Tarray & ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
 {
-  assert(ptr);
-
   if (pos >= n)
     throw std::out_of_range("pos is greater than n");
 

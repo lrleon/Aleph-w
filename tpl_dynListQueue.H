@@ -136,7 +136,7 @@ public:
       inserted item
       @throw bad_alloc if there is no enough memory
   */
-  T & put(T && data) noexcept(noexcept(std::forward<T>(data)))
+  T & put(T && data)
   {
     T & ret_val = q.append(std::forward<T>(data));
     ++num_items;
@@ -145,7 +145,14 @@ public:
 
   T & append(const T & data) { return put(data); }
 
-  T & append(T && data) noexcept(noexcept(std::forward<T>(data)))
+  T & append(T && data)
+  {
+    return put(std::forward<T>(data)); 
+  }
+
+  T & insert(const T & data) { return put(data); }
+
+  T & insert(T && data)
   {
     return put(std::forward<T>(data)); 
   }

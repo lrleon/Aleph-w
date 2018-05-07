@@ -33,6 +33,7 @@
 # include <string>
 # include <aleph.H>
 # include <ahIterator.H>
+# include <array_utils.H>
 # include <ahDry.H>
 # include <tpl_dynDlist.H>
 # include <ah-args-ctor.H>
@@ -1202,7 +1203,25 @@ public:
     ref = std::move(data);
     return ref;
   }
-  
+
+  T & insert(const T & item)
+  {
+    this->append();
+    Aleph::open_gap(*this, current_dim);
+    T & ret = access(0);
+    ret = item;
+    return ret;
+  }
+
+  T & insert(T && item)
+  {
+    this->append();
+    Aleph::open_gap(*this, current_dim);
+    T & ret = access(0);
+    ret = std::forward<T>(item);
+    return ret;
+  }
+
   /// \overload append(const T & data)
   void push(const T & data) { this->append(data); }
 
