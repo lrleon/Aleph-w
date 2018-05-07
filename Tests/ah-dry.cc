@@ -230,9 +230,72 @@ TYPED_TEST_P(Container, all)
   EXPECT_EQ(sort(to_dynlist(c)), tbl.keys());
 }
 
+TYPED_TEST_P(Container, exists)
+{
+  int N = this->N;
+  auto c = this->c;
+  auto & l = this->item_list;
+  EXPECT_TRUE(l.all([&c] (auto & i)
+		    { return c.exists([i] (auto k) { return i == k; }); }));
+  EXPECT_FALSE(c.exists([N] (auto i) { return i == N; }));
+}
+
+TYPED_TEST_P(Container, maps)
+{
+  auto c = this->c;
+  auto & l = this->item_list;
+  auto fct = [] (int i) { return i + 1; };
+  EXPECT_TRUE(zip(sort(to_dynlist(c.maps(fct))), sort(l.maps(fct))).
+	      all([] (auto & p) { return p.first == p.second; }));
+  EXPECT_TRUE(zip(sort(to_dynlist(c.maps_if([] (auto i)
+					    { return i < 7; }, fct))),
+		  sort(l.template maps_if([] (auto i)
+					  { return i < 7; }, fct))).
+	      all([] (auto & p) { return p.first == p.second; }));
+}
+
+TYPED_TEST_P(Container, foldl)
+{
+  int N = this->N;
+  auto c = this->c;
+  auto sum = c.foldl(0, [] (auto & a, auto & i) { return a + i; });
+  EXPECT_EQ(sum, N*(N-1)/2);
+}
+
+TYPED_TEST_P(Container, filter_ops)
+{
+  auto fct = [] (int a, int i) { return a + i; };
+  auto c = this->c;
+  auto sum = c.filter([] (auto i) { return i < 8; }).foldl(0, fct);
+  EXPECT_EQ(sum, 28);
+
+  auto l = c.ptr_filter([] (auto & i) { return i < 8; });
+  sum = l.foldl(0, [] (auto a, auto ptr) { return a + *ptr; });
+  EXPECT_EQ(sum, 28);
+
+  int N = this->N;
+  auto total = N*(N-1)/2;
+  auto p = c.partition([] (auto & i) { return i < 8; });
+  auto S = p.first.foldl(0, fct) + p.second.foldl(0, fct);
+  EXPECT_EQ(S, total);
+
+  auto t = c.tpartition([] (auto & i) { return i < 8; });
+  S = get<0>(t).foldl(0, fct) + get<1>(t).foldl(0, fct);
+  EXPECT_EQ(S, total);
+
+  auto l1 = c.take(8);
+  auto l2 = c.drop(8);
+  S = l1.foldl(0, fct) + l2.foldl(0, fct);
+  EXPECT_EQ(S, total);
+
+  EXPECT_EQ(sort(c.to_dynlist()).take(8, 12),
+	    build_dynlist<int>(8, 9, 10, 11, 12));
+}
+
 REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
 			   find_index_nth, find_item, iterator_operations,
-			   nappend, ninsert, all);
+			   nappend, ninsert, all, exists, maps, foldl,
+			   filter_ops);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
@@ -243,7 +306,8 @@ Types< DynList<int>, DynDlist<int>,  DynArray<int>,
        DynSetTree<int, Rand_Tree>, DynSetTree<int, Splay_Tree>,
        DynSetTree<int, Avl_Tree>, DynSetTree<int, Rb_Tree>,
        Array<int>, ArrayQueue<int>, ArrayStack<int>, DynListQueue<int>,
-       DynListStack<int>, DynArrayHeap<int>, DynBinHeap<int>
+       DynListStack<int>, DynArrayHeap<int>, DynBinHeap<int>,
+       FixedQueue<int>, FixedStack<int>
       >
   Ctypes;
 

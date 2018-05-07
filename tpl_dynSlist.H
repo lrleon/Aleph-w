@@ -116,9 +116,7 @@ public:
           @throw out_of_range si pos está fuera de rango.
        */
   void insert(const int & pos, const T & data) 
-
     throw(std::exception, std::bad_alloc, std::out_of_range)
-
   {      // apartar nodo para nuevo elemento
     typename Slist<T>::Node * node = new typename Slist<T>::Node (data);
     typename Slist<T>::Node * prev = get_previous_to_pos(pos); 
@@ -130,10 +128,7 @@ public:
           @param[in] pos posición del elemento a eliminar.
           @throw out_of_range si pos está fuera de rango.
        */
-  void remove(const int & pos) 
-
-    throw(std::exception, std::range_error)
-
+  void remove(const int & pos) throw(std::exception, std::range_error)
   {      // obtener nodo predecesor al nuevo elemento
     typename Slist<T>::Node * prev = get_previous_to_pos(pos);
     typename Slist<T>::Node * node_to_delete = prev->remove_next();

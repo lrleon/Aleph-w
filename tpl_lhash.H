@@ -316,7 +316,7 @@ public:
     for (int i = 0; i < old_size; ++i) // reinsertar cubetas
           // recorrer lista colisiones en old_table[i]
       for (BucketItor it(old_table[i]); it.has_curr(); /* Nada */)
-        insert((Bucket*) it.del()); // eliminar e insertar en table[]
+        insert((Bucket*) it.del_ne()); // eliminar e insertar en table[]
 
     delete [] old_table; // liberar memoria antigua tabla
 

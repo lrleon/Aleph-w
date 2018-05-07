@@ -754,7 +754,7 @@ public:
 
       If `__T == `T`, which is common and by default, then you could
       specify a mapping without need of template specification. For
-      example, if the container has interger values, the a mapping of
+      example, if the container has integer values, the a mapping of
       item multiplied by 4 could be very simply written as follows:
 
           c.maps([] (int item) { return 4*i; });
@@ -766,12 +766,12 @@ public:
 
           c.template maps<double>([] (int item) { return 1.0*item/4; });
       
-      \param[in] op operation to be perfomed in order to do the
+      \param[in] op operation to be performed in order to do the
       transformation on an `item` 
       \return a `DynList<__T> object containing the mapped items. The
       order of resulting list is the same than the order of visit of the
       iterator for the container.
-      \throw anything tnat could throw `op` or `bad_alloc` if there is
+      \throw anything that could throw `op` or `bad_alloc` if there is
       no enough memory
    */
   template <typename __T = T, class Operation = Dft_Map_Op<T, __T>>
@@ -806,7 +806,7 @@ public:
       no enough memory
    */
   template <typename __T = T, class Prop, class Operation>
-  DynList<__T> maps_if(Prop & prop, Operation & op) const
+  DynList<__T> maps_if(Prop prop, Operation & op) const
   {
     DynList<__T> ret_val;
     const_me()->for_each([&ret_val, &prop, &op] (const T & item)
@@ -819,7 +819,7 @@ public:
 
   /// \overload map(Prop & prop, Operation & op)
   template <typename __T = T, class Prop, class Operation>
-  DynList<__T> maps_if(Prop & prop, Operation && op) const
+  DynList<__T> maps_if(Prop prop, Operation && op) const
   {
     return maps<__T, Prop, Operation>(prop, op);
   }

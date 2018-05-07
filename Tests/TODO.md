@@ -17,6 +17,6 @@
 ## 6. all-tests debe verificar si figlet está instalado
 - Created at   2017-10-05 11:37:19 -0400
 
-## 7. script que borre ejecutables
-- Created at   2017-10-05 19:56:59 -0400
+## 7. tests para binnode utils
+- Created at   2018-05-07 10:54:29 -0400
 

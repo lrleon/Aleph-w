@@ -2509,8 +2509,8 @@ public:
   void operator () (const GT & g, Operation op = Operation()) 
     noexcept(noexcept(op))
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      op (g, it.get_curr());
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      op (g, it.get_curr_ne());
   }
 
   /** Call to `operation` on each node.

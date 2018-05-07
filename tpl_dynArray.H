@@ -227,11 +227,9 @@ class DynArray :
       // 2^(pow_dir + pow_seg + pow_block) - 1
   unsigned long long max_dim         = two_raised(seg_plus_block_pow + pow_dir);
 
-  static size_t two_raised(const size_t n) 
+  static size_t two_raised(const size_t n) noexcept
   {
-    if (n >= Max_Bits_Allowed)
-      throw std::overflow_error ("number of bits exceeds maximum allowed");
-
+    assert(n >= Max_Bits_Allowed);
     return size_t(1) << n;
   }
 
@@ -1086,17 +1084,8 @@ public:
       reserve(0, dim - 1);
   }
 
-  /** Cut the array to a new dimension; that is, it reduces the
-      dimension of array and frees the remaining memory.
-
-      @param[in] new_dim new dimension value
-      @throw domain_error if `new_dim` is greater than current dim
-   */
-  void cut(const size_t new_dim = 0) throw(std::exception, std::domain_error) 
+  void cut_ne(const size_t new_dim = 0) noexcept
   {
-    if (new_dim > current_dim)
-      throw std::domain_error("new dimension greater that current dimension");
-
     if (new_dim == 0) 
       {
         release_all_segments_and_blocks();
@@ -1137,6 +1126,19 @@ public:
       }
 
     current_dim = new_dim; // actualiza nueva dimensión
+  }
+
+  /** Cut the array to a new dimension; that is, it reduces the
+      dimension of array and frees the remaining memory.
+
+      @param[in] new_dim new dimension value
+      @throw domain_error if `new_dim` is greater than current dim
+   */
+  void cut(const size_t new_dim = 0) throw(std::exception, std::domain_error) 
+  {
+    if (new_dim > current_dim)
+      throw std::domain_error("new dimension greater that current dimension");
+    cut_ne();
   }
 
   /** Set a new dimension.

@@ -315,7 +315,8 @@ public:
   using Item_Type = T; /// The type of element
 
       /// Construct a fixed stack of maximum `d` items
-  FixedStack(size_t d = 512) noexcept
+  FixedStack(size_t d = 1024)
+    // Don't change the default value because you would risk of breaking the tests
     : array(new T[d]), head(0), dim(d) 
   {
     /* empty */ 
@@ -328,7 +329,7 @@ public:
   }
 
   /// Copy constructor
-  FixedStack(const FixedStack & s) 
+  FixedStack(const FixedStack & s)
     : array(new T [s.dim]), head(s.head), dim(s.dim)
   {
     for (int i = 0; i < head; ++i)
@@ -381,7 +382,7 @@ public:
           @param[in] data
           @return a modifiable reference to the copied data.
        */
-  T & push(const T & data) 
+  T & push(const T & data) noexcept
   {
     assert(head < dim );
 
@@ -394,7 +395,7 @@ public:
           @param[in] data to be moved
           @return a modifiable reference to the moved data.
        */
-  T & push(T && data) 
+  T & push(T && data) noexcept
   {
     assert(head < dim );
 
@@ -403,16 +404,16 @@ public:
   }
 
   /// \overload push(const T & data)
-  T & append(const T & data) { return push(data); }
+  T & append(const T & data) noexcept { return push(data); }
 
   /// \overload push(T && data)
-  T & append(T && data) { return push(std::forward<T>(data)); }
+  T & append(T && data) noexcept { return push(std::forward<T>(data)); }
 
   /// \overload push(const T & data)
-  T & insert(const T & data) { return push(data); }
+  T & insert(const T & data) noexcept { return push(data); }
 
   /// \overload push(T && data)
-  T & insert(T && data) { return push(std::forward<T>(data)); }
+  T & insert(T && data) noexcept { return push(std::forward<T>(data)); }
 
     /** Push in contant time `n`spaces into stack
 
@@ -491,7 +492,7 @@ public:
       otherwise the traversal stops
    */
   template <class Operation>
-  bool traverse(Operation & operation)
+bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
     for (int i = 0; i < head; i++)
       if (not operation(array[i]))
@@ -502,14 +503,15 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const
+  bool traverse(Operation & operation) const noexcept(noexcept(operation))
   {
     return const_cast<FixedStack*>(this)->traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation = Operation()) const
+  bool traverse(Operation && operation = Operation())
+    const noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }
@@ -517,6 +519,7 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
+    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }

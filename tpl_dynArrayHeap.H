@@ -233,7 +233,7 @@ public:
     Iterator(const DynArrayHeap & h) noexcept : Base(h.array) 
     {
       if (h.num_items != 0)
-	this->next();
+	this->next_ne();
     }
 
     Iterator() noexcept { /* empty */ }

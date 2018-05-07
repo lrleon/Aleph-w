@@ -416,7 +416,7 @@ public:
   }
 
   /// empty the queue
-  void empty()
+  void empty() noexcept
   {
     front_index = rear_index = num_items = 0;
   }
@@ -428,7 +428,8 @@ public:
 
           @param[in] minimum capacity
        */
-  FixedQueue(size_t d = 128)  
+  FixedQueue(size_t d = 1024)
+    // Don't change the default value because you would risk of breaking the tests
     : array(nullptr), front_index(0), rear_index(0), num_items(0)
   { 
     size_t k = log2(d);
@@ -485,7 +486,7 @@ public:
           @param[in] item to put
           @return a modifiable reference to the copied item.
        */
-  T & put(const T& item) throw(std::exception, std::overflow_error)
+  T & put(const T& item) noexcept
   {
     assert(num_items < dim);
     array[rear_index] = item;
@@ -496,7 +497,7 @@ public:
   }
 
   /// \overload T & put(const T& item)
-  T & put(T && item) throw(std::exception, std::overflow_error)
+  T & put(T && item) noexcept
   {
     assert(num_items < dim);
     array[rear_index] = std::forward<T>(item);
@@ -507,17 +508,23 @@ public:
   }
 
   /// \overload T & put(const T& item)
-  T & append(const T& item) { return put(item); }
+  T & append(const T& item) noexcept { return put(item); }
 
   /// \overload T & put(const T& item)
-  T & append(T && item) { return put(std::forward<T>(item)); }
+  T & append(T && item) noexcept { return put(std::forward<T>(item)); }
+
+  /// \overload T & put(const T& item)
+  T & insert(const T& item) noexcept { return put(item); }
+
+  /// \overload T & put(const T& item)
+  T & insert(T && item) noexcept { return put(std::forward<T>(item)); }
 
       /** Put `n` cells to the queue in constant time.
 
           @param[in] n number of cells
           @return a modifiable reference to the last inserted item
        */
-  T & putn(const size_t n) throw(std::exception, std::overflow_error)
+  T & putn(const size_t n) noexcept
   {
     assert(num_items + n < dim);
     increase_index(rear_index, n);
@@ -529,7 +536,7 @@ public:
 
           @return a copy of removed item
        */
-  T get() throw(std::exception, std::underflow_error)
+  T get() noexcept
   {
     assert(num_items > 0);
     num_items--;
@@ -544,7 +551,7 @@ public:
           @return a modifiable reference to the current oldes item in
           the queue after the removal of `n` entries
        */
-  T & getn(const size_t n) throw(std::exception, std::underflow_error)
+  T & getn(const size_t n) noexcept
   {
     assert(num_items >= n);
     num_items -= n;
@@ -557,7 +564,7 @@ public:
         @param[in] i access position respect to oldest item
         @return a modifiable reference to the i-th item
      */
-  T & front(const size_t i = 0) const throw(std::exception, std::range_error)
+  T & front(const size_t i = 0) const noexcept
   {
     assert(i < num_items);
     return array[front_index + i];
@@ -568,7 +575,7 @@ public:
         @param[in] i access position respect to youngest item
         @return a modifiable reference to the i-th item
      */
-  T & rear(const size_t i = 0) const throw(std::exception, std::range_error)
+  T & rear(const size_t i = 0) const noexcept
   {
     assert(i < num_items);
     return rear_item(i);
@@ -591,7 +598,7 @@ public:
       `false` otherwise.
    */
   template <class Operation>
-  bool traverse(Operation & operation)
+    bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
     if (num_items == 0)
       return true;
@@ -603,14 +610,15 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const 
+  bool traverse(Operation & operation) const noexcept(noexcept(operation))
   {
     return const_cast<FixedQueue*>(this)->traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation = Operation()) const
+  bool traverse(Operation && operation = Operation())
+    const noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }
@@ -618,6 +626,7 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
+    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }
