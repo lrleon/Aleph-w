@@ -1703,7 +1703,7 @@ public:
 
   /** Remove the first element matching an equality criteria.
 
-      `remove(eq)` sequentually traverses the list and on each current
+      `remove(eq)` sequentially traverses the list and on each current
       element `curr` it calls to `eq(curr)`. If the test is `true`,
       then `curr` is removed from the list and a copy of `ciirr` is
       returned. Otherwise, if no element matches with `eq()` test,
@@ -1720,7 +1720,7 @@ public:
       flavors: a more sophisticated functor, function pointers or
       lambdas.
 
-      \param[in] eq equalitiy test
+      \param[in] eq equality test
       \return a copy of removed element if the item was found and
       removed; otherwise the exception `domain_error` is thrown.
    */
