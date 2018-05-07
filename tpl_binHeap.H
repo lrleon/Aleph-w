@@ -631,22 +631,9 @@ public:
     return p;
   }
 
-      /** Elimina del heap el nodo de menor prioridad.
-
-          getMIn() extrae del heap this el nodo que contenga el menor 
-          valor de prioridad según el criterio de comparación definido
-          en la declaración.
-
-          @return puntero al nodo eliminado.
-          @throw underflow_error si el heap está vacío.
-       */
-  Node * getMin() throw(std::exception, std::underflow_error)
+  Node * getMin_ne() noexcept
   {
-    if (root == nullptr)
-      throw std::underflow_error ("Heap is empty");
-
     Node *ret_val = root;
-
     if (num_nodes == 1)
       {
         root = nullptr;
@@ -662,6 +649,22 @@ public:
     ret_val->reset();
 
     return ret_val;
+  }
+
+      /** Elimina del heap el nodo de menor prioridad.
+
+          getMIn() extrae del heap this el nodo que contenga el menor 
+          valor de prioridad según el criterio de comparación definido
+          en la declaración.
+
+          @return puntero al nodo eliminado.
+          @throw underflow_error si el heap está vacío.
+       */
+  Node * getMin() throw(std::exception, std::underflow_error)
+  {
+    if (root == nullptr)
+      throw std::underflow_error ("Heap is empty");
+    return getMin_ne();
   }
 
     /// \overload getMin() para usar si se invierte el orden de prioridad
@@ -701,7 +704,7 @@ public:
       throw std::underflow_error ("Heap is empty");
 
     if (node == root) 
-      return getMin();
+      return getMin_ne();
 
     if (node == last) 
       return remove_last();
@@ -732,7 +735,7 @@ public:
     if (num_nodes <= 3)
       {
         while (not this->is_empty()) 
-          delete getMin(); 
+          delete getMin_ne(); 
         return;
       }
 

@@ -225,7 +225,7 @@ class DynArray :
   mutable size_t block_size          = two_raised(pow_block); // = 2^pow_block
 
       // 2^(pow_dir + pow_seg + pow_block) - 1
-  unsigned long long max_dim         = two_raised(seg_plus_block_pow + pow_dir);
+  size_t max_dim                     = two_raised(seg_plus_block_pow + pow_dir);
 
   static size_t two_raised(const size_t n) noexcept
   {

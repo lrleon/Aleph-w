@@ -384,8 +384,7 @@ public:
        */
   T & push(const T & data) noexcept
   {
-    assert(head < dim );
-
+    assert(head < dim);
     array[head++] = data;
     return array[head - 1];
   }
@@ -398,7 +397,6 @@ public:
   T & push(T && data) noexcept
   {
     assert(head < dim );
-
     std::swap(array[head++], data);
     return array[head - 1];
   }

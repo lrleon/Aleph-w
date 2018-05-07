@@ -280,7 +280,7 @@ public:
 auto shuffle(const C<T> & c)
 {
   Random_Set<T*> q;
-  c.for_each([&q] (const T & item) { q.put_ne(&const_cast<T&>(item)); });
+  c.for_each([&q] (const T & item) { q.put(&const_cast<T&>(item)); });
   
   C<T> ret;
   while (not q.is_empty())

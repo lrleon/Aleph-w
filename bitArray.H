@@ -210,7 +210,8 @@ public:
           @throw bad_alloc si no hay suficiente memoria para un bloque
           continuo de dim/8 bytes       
        */
-  BitArray(const size_t dim = 0) throw(std::exception, std::bad_alloc) 
+  BitArray(const size_t dim = 0)
+    throw(std::exception, std::bad_alloc, std::length_error) 
     : current_size(dim), array_of_bytes(get_num_bytes())
   {
     array_of_bytes.set_default_initial_value(Byte());
@@ -258,6 +259,13 @@ public:
 
   BitProxy operator [] (const size_t i) noexcept { return BitProxy(*this, i); }
 
+  int read_bit_ne(const size_t i) const noexcept
+  {
+    const int bit_index = i % 8;
+    const Byte byte = array_of_bytes[i/8];
+    return byte.read_bit(bit_index);
+  }
+
        /** Lee el bit i.
 
            @param[in] i índice del bit a ser leído.
@@ -268,10 +276,7 @@ public:
   {
     if (i >= current_size)
       throw std::out_of_range("index out of range");
-
-    const int bit_index = i % 8;
-    const Byte byte = array_of_bytes[i/8];
-    return byte.read_bit(bit_index);
+    return read_bit_ne(i);
   }
 
   int operator () (const size_t i) const { return read_bit(i); }
@@ -797,7 +802,7 @@ private:
   bool __traverse(Operation & operation) noexcept(noexcept(operation))
   {
     for (size_t i = 0; i < current_size; ++i)
-      if (not operation(read_bit(i)))
+      if (not operation(read_bit_ne(i)))
 	return false;
     return true;
   }

@@ -912,7 +912,7 @@ public:
     size_t count = 0;
     while (not is_empty())
       {
-	tmp.insert(remove_first());
+	tmp.insert(remove_first_ne());
 	++count;
       }
 

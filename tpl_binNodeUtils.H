@@ -1996,13 +1996,11 @@ void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
 
   Node ** current_parent = nullptr;
   Node ** pending_child  = nullptr;
-  char current_is_right;
-
+  char current_is_right = true;
   if (cmp(key, KEY(root)))
     {
       r = root;
-      pending_child    = &l;
-      current_is_right = true;
+      pending_child = &l;
     }
   else
     {

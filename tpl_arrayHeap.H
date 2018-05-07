@@ -302,6 +302,18 @@ public:
     return array[1];
   }
 
+  T & insert_ne(const T & key) noexcept
+  {
+    array[++num_items] = key;  // colocar nuevo elemento
+    return sift_up(array, 1, num_items, cmp); 
+  }
+
+  T & insert_ne(T && key) noexcept
+  {
+    array[++num_items] = std::move(key);  // colocar nuevo elemento
+    return sift_up(array, 1, num_items, cmp); 
+  }
+  
       /** Inserta un elemento en el heap.
 
           insert(key) inserta en el heap la clave una copia de la 
@@ -315,18 +327,14 @@ public:
   {
     if (num_items >= dim)
       throw std::overflow_error("Heap out of capacity"); 
-
-    array[++num_items] = key;  // colocar nuevo elemento
-    return sift_up(array, 1, num_items, cmp); 
+    return insert_ne(key);
   }
 
   T & insert(T && key) throw(std::exception, std::overflow_error)
   {
     if (num_items >= dim)
       throw std::overflow_error("Heap out of capacity"); 
-
-    array[++num_items] = std::move(key);  // colocar nuevo elemento
-    return sift_up(array, 1, num_items, cmp); 
+    return insert_ne(std::forward<T>(key));
   }
 
   T & put(const T & key) { return insert(key); }

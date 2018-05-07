@@ -588,7 +588,7 @@ public:
   /// Reset all the node counters of graph to zero
   void reset_node_counters() const noexcept 
   {
-    for_each_node([this] (auto p) { reset_counter(p); });
+    for_each_node([this] (auto p) { this->reset_counter(p); });
   }
 
   /// Reset all the control attributes of node `p`. That is: all control
@@ -614,7 +614,7 @@ public:
   /// Reset all the arc counters of graph to zero
   void reset_arc_counters() const noexcept 
   {
-    for_each_arc([this] (auto a) { reset_counter(a); });
+    for_each_arc([this] (auto a) { this->reset_counter(a); });
   }
 
   /// Reset all the control attributes of `arc`. That is: all control
