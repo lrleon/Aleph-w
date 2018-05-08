@@ -249,13 +249,13 @@ public:
   {
     assert(domain_ptr == other.domain_ptr);
 
-    return entries.all(/* Lamdba */ [&other, this] (const Pair & p)
+    return entries.all([&other, this] (const Pair & p)
 		       {
 			 return are_equal(other.get_entry(p.first), p.second);
 		       }
 		       ) 
       and
-      other.entries.all(/* Lamdba */ [this] (const Pair & p)
+      other.entries.all([this] (const Pair & p)
 			{
 			  return are_equal(get_entry(p.first), p.second);
 			});

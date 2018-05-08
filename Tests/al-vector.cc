@@ -47,6 +47,11 @@ TEST(Vector, basic)
   auto v4 = v1;
   v4 += v2;
 
+  cout << v1 << endl << endl
+       << v2 << endl << endl
+       << v3 << endl << endl
+       << v4 << endl << endl;
+
   EXPECT_EQ(v2, v4);
 
 
