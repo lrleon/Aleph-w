@@ -268,7 +268,6 @@ public:
 
     v.entries.for_each([this] (const Pair & p)
 		       {
-			 cout << get_entry(p.first) << " + " << p.second <<  endl;
 			 set_entry(p.first, get_entry(p.first) + p.second);
 		       });
     return *this;
@@ -357,7 +356,7 @@ public:
       throw std::domain_error("scalar_product: different domains");
 
     if (entries.size() < v.entries.size())
-      return entries.template foldl<NumType>(0, [this, &v] 
+      return entries.template foldl<NumType>(0, [&v] 
 			   (const NumType & acc, const Pair & p) -> NumType
 			   {
 			     return acc + p.second*v.get_entry(p.first);
@@ -399,15 +398,15 @@ public:
         // Elementos del dominio en string
     DynList<std::string> keys_str = 
       domain_ptr->keys().template maps<std::string>([] (const T & k)
-						    { 
-						      return Aleph::to_str(k);
-						    });
+        { 
+	  return std::to_string(k);
+	});
 
         // elementos del rango en string
     DynList<std::string> entries_str =
       domain_ptr->keys().template maps<std::string>([this] (const T & d)
         {
-	  return Aleph::to_str(get_entry(d));
+	  return std::to_string(get_entry(d));
 	});
 
     typedef std::pair<std::string, std::string> Pair;
@@ -425,7 +424,7 @@ public:
 
     std::pair<DynList<std::string>, DynList<std::string>> ret = unzip(format);
 
-    auto concatenate =  [] (const std::string & s1, const std::string & s2)
+    auto concatenate = [] (const std::string & s1, const std::string & s2)
       {
 	return s1 + s2;
       };

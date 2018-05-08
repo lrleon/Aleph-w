@@ -60,16 +60,15 @@ TEST(Vector, big)
 {
   constexpr size_t N = 1e3;
   const AlDomain<int> r = range<int>(N);
-  const Vector<int> zero(r);
+  const DynList<int> & D = r.keys();
+  const Vector<int, double> zero(r);
 
-  Vector<int> odd = { r, r.maps<double>([] (auto i)
+  Vector<int, double> odd = { r, D.maps<double>([] (auto i)
     { return (i % 2) == 0 ? 0 : i; }) };
-  cout << "odd" << endl;
-  Vector<int> even = { r, r.maps<double>([] (auto i)
+  Vector<int, double> even = { r, D.maps<double>([] (auto i)
     { return (i % 2) == 0 ? i : 0; }) };
-  cout << "even" << endl;
-  Vector<int> full = { r, range<double>(N) };
-  cout << "full" << endl;
+  Vector<int, double> full = { r, range<double>(N) };
 
   EXPECT_EQ(odd + even, full);
+  EXPECT_EQ(odd*even, 0);
 }

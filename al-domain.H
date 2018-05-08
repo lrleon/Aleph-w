@@ -47,9 +47,7 @@ public:
   {
     if (not keys_build)
       {
-	cout << "SORT" << endl;
 	domain = sort(this->Base::keys());
-	cout << "SORT done" << endl;
 	keys_build = true;
       }
     return domain;

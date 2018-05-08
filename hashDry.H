@@ -195,7 +195,6 @@ public:
       throw std::overflow_error ("New size is not enough for current" 
 				 " number of entries"); 
 
-    cout << "Resizing " << new_size << endl;
     typename HashTbl::Bucket * new_table = new typename HashTbl::Bucket[new_size];
     typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
@@ -218,8 +217,6 @@ public:
     assert(old_N == me()->N);
 
     delete [] old_table;
-
-    cout << "Resizing done" << endl;
 
     return me()->len;
   }
