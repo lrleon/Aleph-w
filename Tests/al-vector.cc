@@ -54,5 +54,7 @@ TEST(Vector, basic)
 
   EXPECT_EQ(v2, v4);
 
+  auto v5 = v2 + v3;
+  cout << v5 << endl;
 
 }
