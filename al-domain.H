@@ -33,17 +33,34 @@ namespace Aleph
 {
 
   template <typename T = int>
-struct AlDomain : public Aleph::HashSet<T, SetODhash>
+class AlDomain : public Aleph::HashSet<T, SetODhash>
 {
+  mutable bool keys_build = false;
+  mutable DynList<T> domain;
+  
+public:
+
   using Base = Aleph::HashSet<T, SetODhash>;
   using Base::Base;
+
+  const DynList<T> & keys() const
+  {
+    if (not keys_build)
+      {
+	cout << "SORT" << endl;
+	domain = sort(this->Base::keys());
+	cout << "SORT done" << endl;
+	keys_build = true;
+      }
+    return domain;
+  }
 
   DynList<T> to_list() const { return this->keys(); }
 
   std::string to_str() const
   {
     return sort(to_list()).template foldl<std::string> 
-      ("", /* Lambda */ [] (const std::string & s, const T & item)
+      ("", [] (const std::string & s, const T & item)
        {
 	 return s + " " + Aleph::to_str(item);
        });

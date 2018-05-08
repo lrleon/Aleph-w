@@ -36,6 +36,7 @@
 # include <ahDry.H>
 # include <ahSort.H>
 # include <htlist.H>
+# include <ah-zip.H>
 # include <tpl_hash.H>
 # include <al-domain.H>
 
@@ -117,11 +118,11 @@ public:
     if (l.size() != domain_ptr->size())
       throw std::range_error("Vector(DynList): list sizes does'n match");
 
-    Aleph::zip(sort(domain_ptr->keys()), l).
-      for_each([this] (const std::pair<T, NumType> & p)
-	       {
-		 set_entry(p.first, p.second);
-	       });
+    for (auto it = zip_it(domain_ptr->keys(), l); it.has_curr(); it.next_ne())
+      {
+	auto t = it.get_curr_ne();
+	set_entry(get<0>(t), get<1>(t));
+      }
   }
 
   Vector & operator = (const Vector & v)
@@ -154,12 +155,10 @@ public:
     assert(domain_ptr->has(i));
 
     auto * ptr = const_cast<Pair*>(entries.search(i));
-
     if (is_zero(value))
       {
 	if (ptr != nullptr)
-	  entries.remove_ptr(ptr);
-	
+	  entries.remove_ptr(ptr);	
 	return;
       }
 
@@ -252,9 +251,7 @@ public:
     return entries.all([&other, this] (const Pair & p)
 		       {
 			 return are_equal(other.get_entry(p.first), p.second);
-		       }
-		       ) 
-      and
+		       }) and
       other.entries.all([this] (const Pair & p)
 			{
 			  return are_equal(get_entry(p.first), p.second);
@@ -269,9 +266,9 @@ public:
   {
     assert(domain_ptr == v.domain_ptr);
 
-        // Traverse all non-zero entries of v and add them to this
     v.entries.for_each([this] (const Pair & p)
 		       {
+			 cout << get_entry(p.first) << " + " << p.second <<  endl;
 			 set_entry(p.first, get_entry(p.first) + p.second);
 		       });
     return *this;
@@ -313,7 +310,7 @@ public:
     if (scalar == 1)
       return *this;
 
-    entries.for_each([this, &scalar] (const Pair & p)
+    entries.for_each([&scalar] (const Pair & p)
 		     {
 		       const_cast<Pair&>(p).second *= scalar;
 		     });
@@ -334,7 +331,7 @@ public:
     if (scalar == 1)
       return *this;
 
-    entries.for_each([this, &scalar] (const Pair & p)
+    entries.for_each([&scalar] (const Pair & p)
 		     {
 		       const_cast<Pair&>(p).second /= scalar;
 		     });
@@ -399,21 +396,19 @@ public:
 
   std::string to_str() const
   {
-    DynList<T> keys = Aleph::sort(domain_ptr->keys());
-
         // Elementos del dominio en string
     DynList<std::string> keys_str = 
-      keys.template maps<std::string>([] (const T & k)
-				      { 
-					return Aleph::to_str(k);
-				      });
+      domain_ptr->keys().template maps<std::string>([] (const T & k)
+						    { 
+						      return Aleph::to_str(k);
+						    });
 
         // elementos del rango en string
     DynList<std::string> entries_str =
-      keys.template maps<std::string>([this] (const T & d)
-				      {
-					return Aleph::to_str(get_entry(d));
-				      });
+      domain_ptr->keys().template maps<std::string>([this] (const T & d)
+        {
+	  return Aleph::to_str(get_entry(d));
+	});
 
     typedef std::pair<std::string, std::string> Pair;
     DynList<Pair> pairs = zip(keys_str, entries_str);

@@ -1184,7 +1184,7 @@ public:
       if n is greater or equal than the number of elements in the
       container. 
    */
-  DynList<T> take(const size_t n) const
+  DynList<T> take(const size_t n, const size_t stride) const
   {
     size_t i = 0;
     DynList<T> ret;
@@ -1210,11 +1210,13 @@ public:
       if n is greater or equal than the number of elements in the
       container. 
   */
-  DynList<T> take(size_t i, size_t j) const
+  DynList<T> take(size_t i, size_t j, size_t step = 1) const
   {
     DynList<T> ret;
+    if (step == 0)
+      return ret;
     for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
-	 it.next_ne(), ++i)
+	 it.next_ne(), i += step)
       ret.append(it.get_curr_ne());
     return ret;
   }

@@ -47,14 +47,29 @@ TEST(Vector, basic)
   auto v4 = v1;
   v4 += v2;
 
-  cout << v1 << endl << endl
-       << v2 << endl << endl
-       << v3 << endl << endl
-       << v4 << endl << endl;
-
   EXPECT_EQ(v2, v4);
 
-  auto v5 = v2 + v3;
-  cout << v5 << endl;
+  EXPECT_EQ(v2 + v3, 2*v2);
 
+  Vector<char, int> zero(chars);
+
+  EXPECT_EQ(v2 - v3, zero);
+}
+
+TEST(Vector, big)
+{
+  constexpr size_t N = 1e3;
+  const AlDomain<int> r = range<int>(N);
+  const Vector<int> zero(r);
+
+  Vector<int> odd = { r, r.maps<double>([] (auto i)
+    { return (i % 2) == 0 ? 0 : i; }) };
+  cout << "odd" << endl;
+  Vector<int> even = { r, r.maps<double>([] (auto i)
+    { return (i % 2) == 0 ? i : 0; }) };
+  cout << "even" << endl;
+  Vector<int> full = { r, range<double>(N) };
+  cout << "full" << endl;
+
+  EXPECT_EQ(odd + even, full);
 }
