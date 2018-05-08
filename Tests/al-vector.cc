@@ -58,7 +58,7 @@ TEST(Vector, basic)
 
 TEST(Vector, big)
 {
-  constexpr size_t N = 1e3;
+  constexpr size_t N = 10000;
   const AlDomain<int> r = range<int>(N);
   const DynList<int> & D = r.keys();
   const Vector<int> zero(r);
@@ -73,8 +73,11 @@ TEST(Vector, big)
   EXPECT_EQ(odd + even, full);
   EXPECT_EQ(odd*even, 0);
 
+  cout << "sum = " << full*I << endl
+       << "N = " << N << endl;
+
   EXPECT_EQ(I*I, N);
   EXPECT_EQ(full*I, N*(N - 1)/2);
-  EXPECT_EQ(even*I, N*(N - 1)/4);
-  EXPECT_EQ(odd*I, N*(N - 1)/4);
+  EXPECT_EQ(even*I, N*(N-2)/4);
+  EXPECT_EQ(odd*I, N*N/4);
 }

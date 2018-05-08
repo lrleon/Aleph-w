@@ -139,7 +139,7 @@ public:
     return *this;
   }
 
-  Vector & operator = (Vector && v)
+  Vector & operator = (Vector && v) noexcept
   {
     if (domain_ptr != v.domain_ptr)
       throw std::domain_error("Unmatch domain in Vector assignation");
@@ -168,7 +168,7 @@ public:
       ptr->second = value;
   }
 
-  void set_entries(std::initializer_list<T>       ld, 
+  void set_entries(std::initializer_list<T>     ld, 
 		   std::initializer_list<NumType> lr)
   {
     if (ld.size() != lr.size())
@@ -200,7 +200,7 @@ public:
 	       });
   }
 
-  NumType get_entry(const T & i)
+  NumType get_entry(const T & i) noexcept
   {
     assert(domain_ptr->has(i));
 
@@ -217,7 +217,7 @@ public:
     return ptr->second;
   }
 
-  NumType get_entry(const T & i) const
+  NumType get_entry(const T & i) const noexcept
   {
     assert(domain_ptr->has(i));
 
@@ -228,7 +228,7 @@ public:
     return ptr->second;
   }
 
-  NumType * search_entry(const T & i) const
+  NumType * search_entry(const T & i) const noexcept
   {
     assert(domain_ptr->has(i));
 
@@ -239,12 +239,12 @@ public:
     return &ptr->second;
   }
 
-  bool are_equal(const NumType & n1, const NumType & n2) const
+  bool are_equal(const NumType & n1, const NumType & n2) const noexcept
   {
     return is_zero(n1 - n2);
   }
 
-  bool equal_to(const Vector & other) const
+  bool equal_to(const Vector & other) const noexcept
   {
     assert(domain_ptr == other.domain_ptr);
 
@@ -258,9 +258,12 @@ public:
 			});
   }
 
-  bool operator == (const Vector & v) const { return equal_to(v); }
+  bool operator == (const Vector & v) const noexcept { return equal_to(v); }
 
-  bool operator != (const Vector & v) const { return not equal_to(v); }
+  bool operator != (const Vector & v) const noexcept
+  {
+    return not equal_to(v);
+  }
 
   Vector & operator += (const Vector & v)
   {
@@ -298,7 +301,7 @@ public:
     return ret_val;
   }
 
-  Vector & product_by_scalar(const NumType & scalar) 
+  Vector & product_by_scalar(const NumType & scalar) noexcept
   {
     if (is_zero(scalar))
       {
@@ -322,7 +325,7 @@ public:
     return ret_val.product_by_scalar(scalar);
   }
 
-  Vector & divide_by_scalar(const NumType & scalar) 
+  Vector & divide_by_scalar(const NumType & scalar) noexcept
   {
     if (is_zero(scalar))
       throw std::domain_error("Zero division");
@@ -444,7 +447,7 @@ public:
 
   public:
 
-    Proxy(Vector & v, const T & k) 
+    Proxy(Vector & v, const T & k) noexcept
       : v_ptr(&v), key_ptr(&const_cast<T&>(k))
     {
       auto * ptr = v_ptr->entries.search(k);
@@ -498,7 +501,7 @@ public:
       return *this;
     }
 
-    operator NumType () 
+    operator NumType () noexcept
     {
       if (entry_ptr == nullptr)
 	return 0;
@@ -507,22 +510,22 @@ public:
     }
   };
 
-  Proxy operator [] (const T & k) const
+  Proxy operator [] (const T & k) const noexcept
   {
     return Proxy(*this, k);
   }
 
-  Proxy operator [] (const T & k)
+  Proxy operator [] (const T & k) noexcept
   {
     return Proxy(*this, k);
   }
 
-  Proxy operator () (const T & k) const
+  Proxy operator () (const T & k) const noexcept
   {
     return Proxy(*this, k);
   }
 
-  Proxy operator () (const T & k)
+  Proxy operator () (const T & k) noexcept
   {
     return Proxy(*this, k);
   }
@@ -532,7 +535,7 @@ public:
     Iterator(const Vector & vec) : Map::Iterator(vec.entries) { }
   };
 
-  Iterator get_itor() const { return Iterador(*this); }
+  Iterator get_itor() const noexcept { return Iterador(*this); }
 
   Generic_Traverse(Pair);
 
