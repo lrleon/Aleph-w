@@ -61,14 +61,20 @@ TEST(Vector, big)
   constexpr size_t N = 1e3;
   const AlDomain<int> r = range<int>(N);
   const DynList<int> & D = r.keys();
-  const Vector<int, double> zero(r);
+  const Vector<int> zero(r);
 
-  Vector<int, double> odd = { r, D.maps<double>([] (auto i)
+  Vector<int> odd = { r, D.maps<double>([] (auto i)
     { return (i % 2) == 0 ? 0 : i; }) };
-  Vector<int, double> even = { r, D.maps<double>([] (auto i)
+  Vector<int> even = { r, D.maps<double>([] (auto i)
     { return (i % 2) == 0 ? i : 0; }) };
-  Vector<int, double> full = { r, range<double>(N) };
+  Vector<int> full = { r, range<double>(N) };
+  Vector<int> I = { r, rep<double>(N, 1) };
 
   EXPECT_EQ(odd + even, full);
   EXPECT_EQ(odd*even, 0);
+
+  EXPECT_EQ(I*I, N);
+  EXPECT_EQ(full*I, N*(N - 1)/2);
+  EXPECT_EQ(even*I, N*(N - 1)/4);
+  EXPECT_EQ(odd*I, N*(N - 1)/4);
 }
