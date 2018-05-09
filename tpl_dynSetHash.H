@@ -396,7 +396,8 @@ template <typename Key, typename Data,
 	  template <class, class> class HashTable = LhashTable,
 	  class Cmp = Aleph::equal_to<Key>>
 class DynMapHashTable 
-  : public DynHashTable<std::pair<Key, Data>, HashTable, Cmp>
+  : public DynHashTable<std::pair<Key, Data>,
+			HashTable, Dft_Pair_Cmp<Key, Data, Cmp>>
 {
   using Pair = std::pair<Key, Data>;
 
