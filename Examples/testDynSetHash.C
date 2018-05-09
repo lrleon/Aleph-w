@@ -65,6 +65,7 @@ insert_n_random_items_in_set
 	  cout << "done!" << endl;
 	}
     }
+  cout << "done" << endl;
 
   return dup_counter;
 }
@@ -105,7 +106,7 @@ void test_DynSetLinHash(size_t n)
 
   unsigned long removed_counter = 0;
   size_t num_inserted = table.size();
-  for (int i = 0; i < n; i++)
+  for (size_t i = 0; i < n; i++)
     if (table.search(keys(i)) != NULL)
       { 
 	table.remove(keys(i));
@@ -126,7 +127,7 @@ void test_DynSetLinHash(size_t n)
 
   unsigned long repeated_counter = 0;
   cout << "Reinserting keys ...." << endl;
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     if (table.insert(keys(i)) == NULL) 
       ++repeated_counter;
 
@@ -162,7 +163,7 @@ void test_DynSetLinHash(size_t n)
   {
     cout << "testing lvalue assigment...." << endl;
     SetType aux;
-    for (int i = 0; i < n/2; ++i)
+    for (size_t i = 0; i < n/2; ++i)
       {
 	unsigned long key = gsl_rng_get(r);
 	while (aux.has(key))
@@ -296,9 +297,7 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
  template <template <typename, typename, class> class HashTable>
 void test_DynMapLinHash(size_t n)
 {
-  using MapType = 
-    DynMapHash<unsigned long, long, 
-	       Dft_Pair_Cmp<unsigned long, long, std::equal_to<unsigned long>>>;
+  using MapType = DynMapHash<unsigned long, long>;
   MapType table; 
   DynArray<unsigned long> keys;
   unsigned int dup_counter = insert_n_random_items_in_map(table, keys, n);

@@ -217,9 +217,9 @@ private:
                   // recorrer lista colisiones y mover cubetas de table[p+M] 
               for (BucketItor it(*src_list_ptr); it.has_curr(); /* nada */)
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_curr());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
 
-                  it.next(); // avance al siguiente elemento de la lista
+                  it.next_ne(); // avance al siguiente elemento de la lista
 
                   const Key & key = bucket->get_key();
                   const int i = hash_fct(key) % MM;

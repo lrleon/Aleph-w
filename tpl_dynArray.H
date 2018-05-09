@@ -1137,7 +1137,7 @@ public:
   void cut(const size_t new_dim = 0) throw(std::exception, std::domain_error) 
   {
     if (new_dim > current_dim)
-      throw std::domain_error("new dimension greater that current dimension");
+      throw std::domain_error("new dimension greater than current dimension");
     cut_ne();
   }
 

@@ -307,8 +307,7 @@ public:
         @param[in] __second_hash_fct función hash para el segundo sondeo.
         @param[in] len tamaño de la tabla.
 
-        @throw bad_alloc si no hay memoria para la tabla de cubetas.
-        
+        @throw bad_alloc si no hay memoria para la tabla de cubetas.        
     */
   ODhashTable(size_t   len                 = Primes::DefaultPrime,
 	      Hash_Fct_Ptr first_hash_fct  = Aleph::dft_hash_fct<Key>, 

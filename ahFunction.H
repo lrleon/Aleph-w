@@ -79,7 +79,7 @@ namespace Aleph
       template <class _Tp>
   struct plus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
     {
       return __x + __y; 
     }
@@ -89,8 +89,7 @@ namespace Aleph
       template <class _Tp>
   struct minus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp 
-    operator () (const _Tp& __x, const _Tp& __y) const
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x - __y; 
     }
@@ -100,7 +99,7 @@ namespace Aleph
       template <class _Tp>
   struct multiplies : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
     {
       return __x * __y; 
     }
@@ -110,7 +109,7 @@ namespace Aleph
       template <class _Tp>
   struct divides : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x / __y; 
     }
@@ -120,7 +119,7 @@ namespace Aleph
       template <class _Tp>
   struct modulus : public binary_function<_Tp, _Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x, const _Tp& __y) const
+    _Tp operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x % __y; 
     }
@@ -130,7 +129,7 @@ namespace Aleph
       template <class _Tp>
   struct negate : public unary_function<_Tp, _Tp>
   {
-    _Tp operator () (const _Tp& __x) const
+    _Tp operator () (const _Tp& __x) const noexcept
     { 
       return -__x; 
     }
@@ -140,7 +139,7 @@ namespace Aleph
       template <class _Tp>
   struct equal_to : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x == __y; 
     }
@@ -150,7 +149,7 @@ namespace Aleph
       template <class _Tp>
   struct not_equal_to : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator()(const _Tp& __x, const _Tp& __y) const
+    bool operator()(const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x != __y; 
     }
@@ -160,7 +159,7 @@ namespace Aleph
       template <class _Tp>
   struct greater : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x > __y; 
     }
@@ -170,7 +169,7 @@ namespace Aleph
       template <class _Tp>
   struct less : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x < __y; 
     }
@@ -180,7 +179,7 @@ namespace Aleph
       template <class _Tp>
   struct greater_equal : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x >= __y; 
     }
@@ -190,7 +189,7 @@ namespace Aleph
       template <class _Tp>
   struct less_equal : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x <= __y; 
     }
@@ -200,7 +199,7 @@ namespace Aleph
       template <class _Tp>
   struct logical_and : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x and __y; 
     }
@@ -210,7 +209,7 @@ namespace Aleph
       template <class _Tp>
   struct logical_or : public binary_function<_Tp, _Tp, bool>
   {
-    bool operator () (const _Tp& __x, const _Tp& __y) const
+    bool operator () (const _Tp& __x, const _Tp& __y) const noexcept
     { 
       return __x or __y; 
     }
@@ -220,7 +219,7 @@ namespace Aleph
       template <class _Tp>
   struct logical_not : public unary_function<_Tp, bool>
   {
-    bool operator () (const _Tp& __x) const
+    bool operator () (const _Tp& __x) const noexcept
     { 
       return not __x; 
     }
@@ -239,7 +238,8 @@ namespace Aleph
 
     explicit unary_negate (const _Predicate& __x) : _M_pred(__x) {}
 
-    bool operator () (const typename _Predicate::argument_type& __x) const
+    bool operator () (const typename _Predicate::argument_type& __x)
+      const noexcept
     { 
       return not _M_pred(__x); 
     }

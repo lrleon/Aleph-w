@@ -39,16 +39,18 @@ namespace Aleph
   template <typename Key, typename Data, 
 	    class Cmp = Aleph::equal_to<Key>,
 	    template <typename, class> class HashTable = ODhashTable>
-    struct MapOpenHash : public HashTable<std::pair<Key, Data>, Cmp>
+  struct MapOpenHash :
+    public HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Data, Cmp>>
     {
       using Pair = std::pair<Key, Data>;
-      using Base = HashTable<Pair, Cmp>;
+      using Base =
+	HashTable<std::pair<Key, Data>, Dft_Pair_Cmp<Key, Data, Cmp>>;
       using Base::Base;
       using Base::insert;
       using Hash_Fct = std::function<size_t(const Key &)>;
       using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-      MapOpenHash(size_t len                  = Primes::DefaultPrime,
+      MapOpenHash(size_t len                   = Primes::DefaultPrime,
        		  Hash_Fct_Ptr first_hash_fct  = dft_hash_fct<Key>,
 		  Hash_Fct_Ptr second_hash_fct = snd_hash_fct<Key>,
 		  Cmp  cmp                     = Cmp(),
@@ -59,7 +61,8 @@ namespace Aleph
 			      first_hash_fct, std::placeholders::_1),
 	       std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
 			 second_hash_fct, std::placeholders::_1),
-	       cmp, lower_alpha, upper_alpha, with_resize) {}
+	       Dft_Pair_Cmp<Key, Data, Cmp>(cmp),
+	       lower_alpha, upper_alpha, with_resize) {}
 
       static Pair * key_to_pair(Key * ptr) noexcept { return (Pair*) ptr; }
 
@@ -210,8 +213,7 @@ namespace Aleph
       }
     };
 
-  template <typename Key, typename Data, 
-	    class Cmp = Aleph::Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
+  template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
     struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
     {
       using Base = MapOpenHash<Key, Data, Cmp, OLhashTable>;
@@ -219,8 +221,7 @@ namespace Aleph
     };
   
   
-  template <typename Key, typename Data, 
-	    class Cmp = Aleph::Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
+  template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
     struct MapODhash : public MapOpenHash<Key, Data, Cmp, ODhashTable>
     {
       using Base = MapOpenHash<Key, Data, Cmp, ODhashTable>;

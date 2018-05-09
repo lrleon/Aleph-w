@@ -292,7 +292,7 @@ namespace Aleph
     return exists<Operation>(operation);				\
   }									\
 									\
-  template <typename __Type                        = Type,			\
+  template <typename __Type                        = Type,		\
 	    template <typename> class Container = Aleph::DynList,	\
 	    class Operation = Dft_Map_Op<Type, __Type>>			\
   Container<__Type> maps(Operation & operation) const			\
@@ -307,15 +307,15 @@ namespace Aleph
 									\
   template < typename __Type                        = Type,		\
 	     template <typename> class Container = Aleph::DynList,	\
-	     class Operation = Dft_Map_Op<__Type, __Type>>			\
+	     class Operation = Dft_Map_Op<__Type, __Type>>		\
   Container<__Type> maps(Operation && operation = Operation()) const	\
   {									\
-    return maps<__Type, Container, Operation>(operation);			\
+    return maps<__Type, Container, Operation>(operation);		\
   }									\
 									\
   template <typename __Type = Type>					\
-  __Type foldl(const __Type & init,						\
-	    std::function<__Type(const __Type&, const Type &)> operation) const \
+  __Type foldl(const __Type & init,					\
+	       std::function<__Type(const __Type&, const Type &)> operation) const \
     noexcept(noexcept(operation))					\
   {									\
     auto ret_val = init;						\
@@ -490,20 +490,20 @@ namespace Aleph
   }
 
 
-# define Equal_To_Method(class_name)			\
-  bool equal_to(const class_name & r) const noexcept	\
-  {							\
-    if (this == &r)					\
-      return true;					\
-							\
-    if (this->size() != r.size())			\
-      return false;					\
-							\
-    return this->all(/* Lambda */ [&r] (const Key & k)	\
+# define Equal_To_Method(class_name)				\
+  bool equal_to(const class_name & r) const noexcept		\
+  {								\
+    if (this == &r)						\
+      return true;						\
+								\
+    if (this->size() != r.size())				\
+      return false;						\
+								\
+    return this->all([&r] (const Key & k)			\
 		     { return r.search(k) != nullptr; });	\
-  }							\
+  }								\
 							\
-  bool operator == (const class_name & r) const	noexcept	\
+  bool operator == (const class_name & r) const noexcept	\
   {							\
     return equal_to(r);					\
   }							\
@@ -600,10 +600,12 @@ std::string to_str(const Type & d)
   template <typename Key, typename Data, class Cmp = std::equal_to<Key>>
 	struct Dft_Pair_Cmp 
 	{
+	  Cmp cmp;
+	  Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
 	  bool operator () (const std::pair<Key, Data> & p1, 
-			    const std::pair<Key, Data> & p2) const
+			    const std::pair<Key, Data> & p2) const noexcept
 	  {
-	    return Cmp () (p1.first, p2.first);
+	    return cmp (p1.first, p2.first);
 	  }
 	};
 

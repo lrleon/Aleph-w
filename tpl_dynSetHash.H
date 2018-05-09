@@ -401,7 +401,8 @@ class DynMapHashTable
 {
   using Pair = std::pair<Key, Data>;
 
-  using Base = DynHashTable<std::pair<Key, Data>, HashTable, Cmp>;
+  using Base =
+  DynHashTable<std::pair<Key, Data>, HashTable, Dft_Pair_Cmp<Key, Data, Cmp>>;
 
   using Bucket = typename Base::Bucket;
 
@@ -420,20 +421,20 @@ public:
   using Value_Type = Data;
 
   // using Base::Base;  // no more need. But I don't remember why I put it
-  using Base::insert;
+  //  using Base::insert;
   using Iterator = typename Base::Iterator;
 
   using Hash_Fct = std::function<size_t(const Key&)>;
   using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-  DynMapHashTable(size_t len          = Primes::DefaultPrime, 
+  DynMapHashTable(size_t len            = Primes::DefaultPrime, 
 		  Hash_Fct_Ptr hash_fct = dft_hash_fct, 
 		  Cmp cmp               = Cmp(), 
 		  float lower_alpha     = hash_default_lower_alpha, 
 		  float upper_alpha     = hash_default_upper_alpha)
     : Base(len, std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
 			  hash_fct, std::placeholders::_1),
-	   cmp, lower_alpha, upper_alpha) {}
+	   Dft_Pair_Cmp<Key, Data, Cmp>(cmp), lower_alpha, upper_alpha) {}
 
   /// Inserta en el mapeo hash el par (key,record) indizado por la clave
   /// key. Retorna un puntero al registro dentro de la tabla. Dispara la
@@ -445,20 +446,20 @@ public:
 
   Pair * insert(const Key & key, Data && data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(key, 
-							      move(data))));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(key, forward<Data>(data))));
   }
 
   Pair * insert(Key && key, Data && data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(move(key), 
-							      move(data))));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(forward<Key>(key), forward<Data>(data))));
   }
 
   Pair * insert(Key && key, const Data & data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(move(key), 
-							      data)));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(forward<Key>(key), data)));
   }
 
   /// Busca la clave key y, si se encuentra, entonces retorna un puntero
@@ -471,16 +472,16 @@ public:
 
   Pair * search(Key && key) const
   {
-    return this->Base::search(Pair(move(key), Data()));
+    return this->Base::search(Pair(forward<Key>(key), Data()));
   }
 
   bool has(const Key & key) const { return search(key) != nullptr; }
 
-  bool has(Key && key) const { return search(move(key)) != nullptr; }
+  bool has(Key && key) const { return search(forward<Key>(key)) != nullptr; }
 
   bool contains(const Key & key) const { return has(key); }
 
-  bool contains(Key && key) const { return has(move(key)); }
+  bool contains(Key && key) const { return has(forward<Key>(key)); }
 
   Data & find(const Key & key) 
   {
@@ -504,12 +505,12 @@ public:
 
   Data & operator [] (Key && key)
   { 
-    return this->search_or_insert(Pair(move(key), Data()))->second;
+    return this->search_or_insert(Pair(forward<Key>(key), Data()))->second;
   }
 
   const Data & operator [] (Key && key) const
   {
-    return this->find(move(key));
+    return this->find(forward<Key>(key));
   }
 
   /// Elimina de la tabla la clave key cuyo puntero debe ser
@@ -527,7 +528,7 @@ public:
 
   Data remove(Key && key)
   {
-    auto p = Base::remove(Pair(move(key), Data()));
+    auto p = Base::remove(Pair(forward<Key>(key), Data()));
     return p.second;
   }
 
