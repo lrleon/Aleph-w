@@ -562,7 +562,7 @@ public:
    @ingroup Hash
  */
 template <typename Key, typename Data,
- 	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
+ 	  class    Cmp = Aleph::equal_to<Key>>
 using DynMapLinHash = DynMapHashTable<Key, Data, LinearHashTable, Cmp>;
 
 /**
@@ -570,7 +570,7 @@ using DynMapLinHash = DynMapHashTable<Key, Data, LinearHashTable, Cmp>;
    @ingroup Hash
  */
 template <typename Key, typename Data,
- 	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
+ 	  class    Cmp = Aleph::equal_to<Key>>
 using DynMapHash = DynMapHashTable<Key, Data, LhashTable, Cmp>;
 
 
