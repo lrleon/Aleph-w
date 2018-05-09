@@ -32,13 +32,20 @@
 using namespace std;
 using namespace testing;
 
-TEST(Vector, basic)
+struct SmallDomain : public testing::Test
 {
   AlDomain<char> chars = { 'a', 'b', 'c', 'd', 'e'};
+  using VType = Vector<char, int>;
+};
 
+TEST_F(SmallDomain, basic)
+{
   Vector<char, int> v1(chars);
   Vector<char, int> v2(chars, { 0, 1, 2, 3, 4 });
   auto v3 = v2;
+
+  EXPECT_TRUE(v1.get_domain().keys().
+	      all([&v1] (char c) { return v1.search_entry(c) == nullptr; }));
 
   EXPECT_TRUE(eq(sort(v1.get_domain().to_list()),
 		 build_dynlist<char>('a', 'b', 'c', 'd', 'e')));
@@ -54,6 +61,28 @@ TEST(Vector, basic)
   Vector<char, int> zero(chars);
 
   EXPECT_EQ(v2 - v3, zero);
+
+  Vector<char, int> v5(chars, { 1, 2, 3, 4, 5 });
+  EXPECT_TRUE(v5.get_domain().keys().
+	      all([&v5] (char c) { return v5.search_entry(c); }));
+}
+
+TEST_F(SmallDomain, validations)
+{
+  EXPECT_THROW(VType(chars, { 1, 2, 3, 4 }), length_error);
+  VType v = { chars, { 1, 2, 3, 4, 5 } };
+
+  EXPECT_NO_THROW(VType v1 = { chars });
+
+  AlDomain<char> auxd = { '1', '2', '3', '4' };
+  VType vaux = { auxd };
+
+  EXPECT_THROW(vaux = v, domain_error);
+  EXPECT_THROW(vaux = VType(chars), domain_error);
+  EXPECT_NO_THROW(vaux = VType(auxd));
+
+  VType vaux1 = { auxd };
+  EXPECT_NO_THROW(vaux = vaux1);
 }
 
 TEST(Vector, big)
@@ -72,9 +101,6 @@ TEST(Vector, big)
 
   EXPECT_EQ(odd + even, full);
   EXPECT_EQ(odd*even, 0);
-
-  cout << "sum = " << full*I << endl
-       << "N = " << N << endl;
 
   EXPECT_EQ(I*I, N);
   EXPECT_EQ(full*I, N*(N - 1)/2);

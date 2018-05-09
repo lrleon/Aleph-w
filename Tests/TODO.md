@@ -20,3 +20,6 @@
 ## 7. tests para binnode utils
 - Created at   2018-05-07 10:54:29 -0400
 
+## 8. test para HashSet y HashMap
+- Created at   2018-05-09 10:39:06 -0400
+

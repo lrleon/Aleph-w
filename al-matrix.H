@@ -37,14 +37,18 @@ class Matrix
 {
 public:
 
-  typedef AlDomain<Trow> RDomain;
+  using RDomain = AlDomain<Trow>;
 
-  typedef AlDomain<Tcol> CDomain;
-  
-  typedef std::pair<Trow, Tcol> RCPair;
+  using CDomain = AlDomain<Tcol>;
 
-  typedef Aleph::HashMap<RCPair, NumType, MapODhash,
-			 Aleph::Dft_Pair_Cmp<RCPair, NumType>> Map;
+  using RCPair = std::pair<Trow, Tcol>;
+
+  using Map = Aleph::HashMap<RCPair, NumType, MapODhash,
+			     Aleph::Dft_Pair_Cmp<RCPair, NumType>>;
+
+  using ColVector = Vector<Trow, NumType>;
+
+  using RowVector = Vector<Tcol, NumType>;
 
 private:
 
@@ -55,7 +59,7 @@ private:
   Map               entries;
   NumType           epsilon;
 
-  bool is_zero(const NumType & val) const
+  bool is_zero(const NumType & val) const noexcept
   {
     assert(epsilon >= 0);
     return val >= -epsilon and val <= epsilon;
@@ -63,7 +67,7 @@ private:
 
 public:
 
-  const NumType & get_epsilon() const { return epsilon; }
+  const NumType & get_epsilon() const noexcept { return epsilon; }
 
   void set_epsilon(const NumType & e) 
   {
@@ -75,9 +79,9 @@ public:
 
   typedef std::pair<RCPair, NumType> Pair; /// the pairs (row,col) -> entry
 
-  const RDomain & get_row_domain() const { return *rdomain_ptr; }
+  const RDomain & get_row_domain() const noexcept { return *rdomain_ptr; }
 
-  const CDomain & get_col_domain() const { return *cdomain_ptr; }
+  const CDomain & get_col_domain() const noexcept { return *cdomain_ptr; }
 
   Matrix(const RDomain & rdomain, const CDomain & cdomain, 
 	 const NumType & e = default_epsilon)
@@ -97,8 +101,7 @@ public:
 
     auto itr = l.begin();
     const DynList<Tcol> clist = sort(cdomain_ptr->keys());
-    sort(rdomain_ptr->keys()).for_each(/* Lambda */ [this, &itr, &clist] 
-				       (const Trow & row)
+    sort(rdomain_ptr->keys()).for_each([this, &itr, &clist] (const Trow & row)
     {
       if (itr->size() != cdomain_ptr->size())
 	throw std::range_error("mismatch with number of columns");
@@ -166,7 +169,7 @@ public:
   Matrix transpose() const
   {
     Matrix ret_val(*cdomain_ptr, *rdomain_ptr);
-    entries.for_each(/* Lambda */ [&ret_val] (const Pair & p)
+    entries.for_each([&ret_val] (const Pair & p)
 		     {
 		       const RCPair & rc = p.first;
 		       const NumType & val = p.second;
@@ -209,11 +212,10 @@ public:
   {
     DynList<Vector<Tcol, NumType>> ret_val;
     DynList<Tcol> cols = col_domain_list();
-    row_domain_list().for_each(/* Lambda */ [this, &ret_val, cols] 
-			       (const Trow & row) 
+    row_domain_list().for_each([this, &ret_val, cols] (const Trow & row) 
     {
       Vector<Tcol, NumType> vec(*cdomain_ptr, epsilon);
-      cols.for_each(/* Lambda */ [this, &vec, &row] (const Tcol & col) 
+      cols.for_each([this, &vec, &row] (const Tcol & col) 
       {
 	auto * val_ptr = entries.search(RCPair(row, col));
 	if (val_ptr != nullptr)
@@ -226,15 +228,14 @@ public:
   }
 
   /// Return a list of vectors corresponding to the columns
-  DynList<Vector<Trow, NumType>> to_collist() const
+  DynList<ColVector> to_collist() const
   {
-    DynList<Vector<Tcol, NumType>> ret_val;
+    DynList<ColVector> ret_val;
     DynList<Trow> rows = row_domain_list();
-    col_domain_list().for_each(/* Lambda */ [this, &ret_val, &rows]
-			       (const Tcol & col)
+    col_domain_list().for_each([this, &ret_val, &rows] (const Tcol & col)
     {
-      Vector<Trow, NumType> vec(*rdomain_ptr, epsilon);
-      rows.for_each(/* Lambda */ [this, &vec, &col] (const Trow & row)
+      ColVector vec(*rdomain_ptr, epsilon);
+      rows.for_each([this, &vec, &col] (const Trow & row)
 		    {
 		      auto * ptr = entries.search(RCPair(row, col));
 		      if (ptr != nullptr)
@@ -253,7 +254,7 @@ public:
       throw std::domain_error("get_row_vector(): invalid row");
 
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
-    cdomain_ptr->for_each(/* Lambda */ [&] (const Tcol & col)
+    cdomain_ptr->for_each([&] (const Tcol & col)
     {
       auto * ptr = entries.search(RCPair(row, col));
       if (ptr != nullptr)
@@ -270,7 +271,7 @@ public:
       throw std::domain_error("get_col_vector(): invalid col");
 
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
-    rdomain_ptr->for_each(/* Lambda */ [&] (const Trow & row)
+    rdomain_ptr->for_each([&] (const Trow & row)
     {
       auto * ptr = entries.search(RCPair(row, col));
       if (ptr != nullptr)
@@ -295,8 +296,7 @@ public:
       throw std::domain_error("mult_matrix_vector_linear_comb:domain mismatch");
 
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
-    vec.for_each(/* Lambda */ [this, &ret_val] 
-		 (const std::pair<Tcol, NumType> & p)
+    vec.for_each([this, &ret_val] (const std::pair<Tcol, NumType> & p)
 		 {
 		   const Tcol & col = p.first;
 		   const NumType & val = p.second;
@@ -313,7 +313,7 @@ public:
       throw std::domain_error("mult_matrix_vector_sparse: domain mismatch");
 
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
-    entries.for_each(/* Lambda */ [&ret_val, &vec] (const Pair & p)
+    entries.for_each([&ret_val, &vec] (const Pair & p)
 		     {
 		       const Trow & row = p.first.first;
 		       const Tcol & col = p.first.second;
@@ -344,8 +344,7 @@ public:
       throw std::domain_error("mult_vector_matrix_linear_comb:domain mismatch");
 
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
-    vec.for_each(/* Lambda */ [this, &ret_val] 
-		 (const std::pair<Trow, NumType> & p)
+    vec.for_each([this, &ret_val] (const std::pair<Trow, NumType> & p)
 		 {
 		   const Trow & row = p.first;
 		   const NumType & val = p.second;
@@ -362,7 +361,7 @@ public:
       throw std::domain_error("mult_matrix_vector_dot_product:domain mismatch");
 
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
-    rdomain_ptr->for_each(/* Lambda */ [&] (const Trow & row)
+    rdomain_ptr->for_each([&] (const Trow & row)
 			  {
 			    ret_val.set_entry(row, get_row_vector(row)*vec);
 			  });
@@ -377,7 +376,7 @@ public:
       throw std::domain_error("mult_vector_matrix_dot_product:domain mismatch");
 
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
-    cdomain_ptr->for_each(/* Lambda */ [&] (const Tcol & col)
+    cdomain_ptr->for_each([&] (const Tcol & col)
 			  {
 			    ret_val.set_entry(col, get_col_vector(col)*vec);
 			  });
@@ -408,7 +407,7 @@ public:
     if (&vec.get_domain() != cdomain_ptr)
       throw std::domain_error("set_vector_as_row: domain vec mismath");
 
-    vec.for_each(/* Lambda */ [this, &row] (const std::pair<Tcol, NumType> & p)
+    vec.for_each([this, &row] (const std::pair<Tcol, NumType> & p)
 		 {
 		   const Tcol & col = p.first;
 		   const NumType & val = p.second;
@@ -424,7 +423,7 @@ public:
     if (&vec.get_domain() != rdomain_ptr)
       throw std::domain_error("set_vector_as_col: domain vec mismath");
 
-    vec.for_each(/* Lambda */ [this, &col] (const std::pair<Trow, NumType> & p)
+    vec.for_each([this, &col] (const std::pair<Trow, NumType> & p)
 		 {
 		   const Trow & row = p.first;
 		   const NumType & val = p.second;
@@ -440,7 +439,7 @@ public:
       throw std::domain_error("Row domain is not the column domain");
 
     Matrix ret_val(*rdomain_ptr, *rdomain_ptr);
-    rdomain_ptr->for_each(/* Lambda */ [&ret_val] (const Trow & row)
+    rdomain_ptr->for_each([&ret_val] (const Trow & row)
 			  {
 			    ret_val.set_entry(row, row, 1);
 			  });
@@ -453,7 +452,7 @@ public:
     if (rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
       throw std::domain_error("Matrix addtion domain mismatch");
 
-    m.entries.for_each(/* Lambda */ [this] (const Pair & p)
+    m.entries.for_each([this] (const Pair & p)
 		       {
 			 const Trow & row = p.first.first;
 			 const Tcol & col = p.first.second;
@@ -477,7 +476,7 @@ public:
 
   Matrix & mult_by_scalar(const NumType & scalar) 
   {
-    entries.for_each(/* Lambda */ [&scalar] (const Pair & p)
+    entries.for_each([&scalar] (const Pair & p)
 		     {
 		       NumType & val = const_cast<Pair&>(p).second;
 		       val *= scalar;
@@ -494,7 +493,7 @@ public:
 
     Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
 
-    rdomain_ptr->for_each(/* Lambda */ [this, &m, &ret_val] (const Trow & row)
+    rdomain_ptr->for_each([this, &m, &ret_val] (const Trow & row)
     {
       ret_val.set_vector_as_row(row, get_row_vector(row)*m);
     });
@@ -509,7 +508,7 @@ public:
     validate_domains_for_mult(m);
 
     Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
-    m.cdomain_ptr->for_each(/* Lambda */ [this, &m, &ret_val] (const Tcol & col)
+    m.cdomain_ptr->for_each([this, &m, &ret_val] (const Tcol & col)
     {
       ret_val.set_vector_as_col(col, *this * m.get_col_vector(col));
     });
@@ -520,7 +519,7 @@ public:
   void print()
   {
     cout << "Non zero entries = " << endl;
-    entries.for_each(/* Lambda */ [] (const Pair & p)
+    entries.for_each([] (const Pair & p)
 		     {
 		       cout << "(" << Aleph::to_str(p.first.first) << "," 
 			    << Aleph::to_str(p.first.second) << ") : " 
@@ -532,14 +531,12 @@ public:
   std::string to_str() const
   {
     typedef std::pair<std::string, std::string> StrPair;
-    typedef Vector<Tcol, NumType> ColVector;
-    typedef Vector<Trow, NumType> RowVector;
 
     DynList<ColVector> cols = to_collist();
 
         // lista de string más largos de cada columna
     DynList<std::string> collens = 
-      cols.template maps<std::string>(/* Lambda */ [] (const ColVector & vec)
+      cols.template maps<std::string>([] (const ColVector & vec)
       {
 	return vec.to_list().template foldl<std::string> 
 			 ("", [] (const std::string & s, const NumType & val)
@@ -550,29 +547,26 @@ public:
       });
 
     DynList<std::string> col_labels = 
-      sort(cdomain_ptr->template maps<std::string>(/* Lambda */ [] 
-						   (const Tcol & col)
+      sort(cdomain_ptr->template maps<std::string>([] (const Tcol & col)
       {
 	return Aleph::to_str(col);
       }));
 
     DynList<std::string> longers = 
-      zip(collens, col_labels).template maps <std::string> 
-      ( /* Lambda */ [] (const StrPair & p)
+      zip(collens, col_labels).template maps <std::string> ([] (const StrPair & p)
       {
 	return p.first.size() > p.second.size() ? p.first : p.second;
       });
 
      DynList<std::string> row_labels = 
-       sort(rdomain_ptr->template maps<std::string>(/* Lambda */ [] 
-						    (const Trow & row)
+       sort(rdomain_ptr->template maps<std::string>([] (const Trow & row)
       {
 	return Aleph::to_str(row);
       }));
 
     std::string longer_row_label = row_labels.template foldl<std::string>
-      (std::string(), /* Lambda */ [] (const std::string & s, 
-				       const std::string & row_label)
+      (std::string(), [] (const std::string & s, 
+			  const std::string & row_label)
        {
 	 return row_label.size() > s.size() ? row_label : s;
        });
@@ -581,7 +575,7 @@ public:
 
     std::string ret_val = string(longer_row_label_sz, ' ') + " |";
     ret_val = zip(col_labels, longers).template foldl<std::string> 
-      (ret_val, /* Lambda */ [] (const std::string & s, const StrPair & p)
+      (ret_val, [] (const std::string & s, const StrPair & p)
        {
 	 size_t fsz = p.first.size(), ssz = p.second.size();
 	 return s + string((fsz > ssz ? fsz-ssz : ssz-fsz) + 1, ' ') + p.first;
@@ -590,7 +584,7 @@ public:
     ret_val += "\n" + string(ret_val.size(), '-');
 
     zip(row_labels, row_domain_list()).for_each
-      ([/* Lambda */ this, &ret_val, &longers, &longer_row_label_sz] 
+      ([this, &ret_val, &longers, &longer_row_label_sz] 
        (const std::pair<std::string, Trow> & p)
        {
 	 const std::string & label = p.first;
@@ -600,8 +594,8 @@ public:
 	   string(longer_row_label_sz - label.size(), ' ') + label + " |";
 	 ret_val = 
 	   zip(get_row_as_list(row), longers).template foldl<std::string>
-	   (ret_val, /* Lambda */ [] (const std::string & s,
-				      const std::pair<NumType, std::string> & q)
+	   (ret_val, [] (const std::string & s,
+			 const std::pair<NumType, std::string> & q)
 	    {
 	      const std::string val = Aleph::to_str(q.first);
 	      const std::string & len_str = q.second;
@@ -623,14 +617,14 @@ public:
     if (not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
       throw std::domain_error("invalid matrixes domains");
 
-    return entries.all(/* Lambda */ [m, this] (const Pair & p)
+    return entries.all([m, this] (const Pair & p)
 		       {
 			 const Trow & row = p.first.first;
 			 const Tcol & col = p.first.second;
 			 return are_equal(m.get_entry(row, col), p.second);
 		       })
       and
-      m.entries.all(/* Lambda */ [this] (const Pair & p)
+      m.entries.all([this] (const Pair & p)
 		    {
 		      const Trow & row = p.first.first;
 		      const Tcol & col = p.first.second;
@@ -673,9 +667,9 @@ Matrix<Trow, Tcol, NumType> outer_product(const Vector<Trow> & v1,
 {
   Matrix<Trow, Tcol, NumType> ret_val(v1.get_domain(), v2.get_domain());
 
-  v1.for_each(/* Lambda */ [&ret_val, &v2] (const std::pair<Trow, NumType> & p1)
+  v1.for_each([&ret_val, &v2] (const std::pair<Trow, NumType> & p1)
   {
-    v2.for_each(/* Lambda */[&ret_val, &p1](const std::pair<Tcol, NumType> & p2)
+    v2.for_each([&ret_val, &p1](const std::pair<Tcol, NumType> & p2)
     {
       ret_val.set_entry(p1.first, p2.first, p1.second*p2.second);
     });

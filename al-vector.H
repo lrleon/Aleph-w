@@ -116,7 +116,7 @@ public:
     : domain_ptr(&d), epsilon(zero)
   {
     if (l.size() != domain_ptr->size())
-      throw std::range_error("Vector(DynList): list sizes does'n match");
+      throw std::length_error("Vector(DynList): list sizes does not match");
 
     for (auto it = zip_it(domain_ptr->keys(), l); it.has_curr(); it.next_ne())
       {
@@ -139,7 +139,7 @@ public:
     return *this;
   }
 
-  Vector & operator = (Vector && v) noexcept
+  Vector & operator = (Vector && v)
   {
     if (domain_ptr != v.domain_ptr)
       throw std::domain_error("Unmatch domain in Vector assignation");
@@ -401,8 +401,10 @@ public:
         // Elementos del dominio en string
     DynList<std::string> keys_str = 
       domain_ptr->keys().template maps<std::string>([] (const T & k)
-        { 
-	  return std::to_string(k);
+        {
+	  ostringstream s;
+	  s << k;
+	  return s.str();
 	});
 
         // elementos del rango en string

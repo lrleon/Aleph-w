@@ -197,22 +197,23 @@ class DynArray :
   using Item_Type = T; /// The type of element stored in the array
   using Key_Type = T; /// The type of element stored in the array
 
-  static const size_t Default_Pow_Dir; /// Default two power for directory size
-  static const size_t Default_Pow_Seg; /// Default two power for segment size
-  static const size_t Default_Pow_Block;/// Default two power for block size
+  static constexpr size_t Default_Pow_Dir   = 6;  /// 2^6 = 64
+  static constexpr size_t Default_Pow_Seg   = 8;  /// 2^8 = 256
+  static constexpr size_t Default_Pow_Block = 12; /// 2^12 = 4096
 
  private:
 
-  static const size_t Max_Bits_Allowed; 
+  static constexpr size_t Max_Bits_Allowed = 8*sizeof(size_t); 
 
  public:
 
-  /// Maximum dimension allowed
-  static const unsigned long long Max_Dim_Allowed;
+  /// Maximum dimension allowed = 256 Gb
+  static constexpr unsigned long long Max_Dim_Allowed = 256*1024*1024*1024ull;
 
  private:
 
-  static const size_t Max_Pow_Block;
+  static constexpr size_t Max_Pow_Block =
+    Max_Bits_Allowed - Default_Pow_Dir  - Default_Pow_Seg  - 1;
 
   mutable size_t pow_dir              = Default_Pow_Dir;
   mutable size_t pow_seg              = Default_Pow_Seg;
@@ -1451,26 +1452,6 @@ public:
     return traverse<Operation>(operation);
   }
 };
-
-    template <typename T> 
-const size_t DynArray<T>::Default_Pow_Dir   = 6;  /* 64   */
-
-    template <typename T> 
-const size_t DynArray<T>::Default_Pow_Seg   = 8;  /* 256   */
-
-    template <typename T> 
-const size_t DynArray<T>::Default_Pow_Block = 12; /* 4096 */
-
-    template <typename T> 
-const size_t DynArray<T>::Max_Bits_Allowed  = 8 * sizeof(size_t); 
-
-    template <typename T> 
-const unsigned long long  DynArray<T>::Max_Dim_Allowed = 
-      256*1024*1024*1024ull; // 256 Gb
-
-    template <typename T> 
-const size_t DynArray<T>::Max_Pow_Block =
-  (Max_Bits_Allowed - Default_Pow_Dir  - Default_Pow_Seg  - 1);
 
 } // end namespace Aleph
 

@@ -68,7 +68,7 @@ struct HashSet : public HashSetTable<Key, Cmp>
 template 
 <typename Key, typename Data,
  template <typename, typename, class> class HashMapTable = MapODhash,
- class Cmp = Aleph::Dft_Pair_Cmp<Key, Data>>
+ class Cmp = Aleph::equal_to<Key>>
 struct HashMap : public HashMapTable<Key, Data, Cmp>
 {
   typedef HashMapTable<Key, Data, Cmp> Base;
