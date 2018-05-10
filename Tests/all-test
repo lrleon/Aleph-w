@@ -13,10 +13,31 @@ fail "GOOGLETEST env var has not been defined" unless gtestdir
 
 fail 'file tests-list does not exist' unless File.exists? TestsFile
 
+def gen_imakefile
+  puts 'Generating Imakefile'
+  system './gen-make > Imakefile'  
+end
+
+def gen_makefile
+  puts 'Generating Makefile'
+  system 'xmkmf'
+  system 'make depend'
+end
+
+if !File.exists?('Imakefile') ||
+   File.ctime('tests-list') > File.ctime('Imakefile')
+  gen_imakefile  
+end
+
+if !File.exists?('Makefile') or
+  File.ctime('Imakefile') > File.ctime('Makefile')
+  gen_makefile   
+end
+
 tests = File.open TestsFile
 
 tests.each do |name|
-  cmd = "./run-test -f #{name}"
+  cmd = "make #{name}"
   status = system cmd
   unless status
     system "figlet \"#{name} failed\""

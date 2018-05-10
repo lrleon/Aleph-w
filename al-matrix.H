@@ -120,7 +120,7 @@ public:
     }); 
   }
 
-  NumType get_entry(const Trow & row, const Tcol & col)
+  NumType get_entry(const Trow & row, const Tcol & col) noexcept
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
 

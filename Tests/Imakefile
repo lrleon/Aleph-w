@@ -16,7 +16,7 @@ CXX = clang++
 
 GTESTDIR=$(shell echo $$GOOGLETEST)
 
-SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc
+SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc odhash.cc dynsetohash.cc hash-it.cc ah-zip.cc ah-functional.cc ah-dry.cc tree-it.cc al-domain.cc al-vector.cc al-matrix.cc
 
 LOCALLIBS=	../libAleph.a $(GTESTDIR)/googletest/make/gtest_main.a 		$(GTESTDIR)/googlemock/make/gmock_main.a 
 DEPLIBS=	../libAleph.a 
@@ -29,7 +29,6 @@ INCLUDES=	-I../ -I$(GTESTDIR)/googletest/include 		-I$(GTESTDIR)/googlemock/incl
 MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
-
 
 FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
 
@@ -88,6 +87,36 @@ NormalProgramTarget(bin-node,bin-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 AllTarget(tree-node)
 NormalProgramTarget(tree-node,tree-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(odhash)
+NormalProgramTarget(odhash,odhash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dynsetohash)
+NormalProgramTarget(dynsetohash,dynsetohash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(hash-it)
+NormalProgramTarget(hash-it,hash-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-zip)
+NormalProgramTarget(ah-zip,ah-zip.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-functional)
+NormalProgramTarget(ah-functional,ah-functional.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-dry)
+NormalProgramTarget(ah-dry,ah-dry.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(tree-it)
+NormalProgramTarget(tree-it,tree-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-domain)
+NormalProgramTarget(al-domain,al-domain.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-vector)
+NormalProgramTarget(al-vector,al-vector.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-matrix)
+NormalProgramTarget(al-matrix,al-matrix.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 
 DependTarget()
