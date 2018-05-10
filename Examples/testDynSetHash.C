@@ -101,7 +101,7 @@ void test_DynSetLinHash(size_t n)
 
   {
     const auto ctable = table;
-    assert(table.all([&ctable] (auto k) { return ctable.find(k) == k; }));
+    //    assert(table.all([&ctable] (auto k) { return ctable.find(k) == k; }));
   }
 
   unsigned long removed_counter = 0;
@@ -255,8 +255,6 @@ unsigned long insert_n_random_items_in_map(HashTable & table,
 					   DynArray<unsigned long> & keys,
 					   unsigned long n)
 {
-  assert(keys.is_empty());
-
   unsigned long dup_counter = 0;
   cout << "Testing simple insertions and searches ...." << endl;
   for (long i = 0; i < n; i++)
@@ -322,6 +320,7 @@ void test_DynMapLinHash(size_t n)
 
   assert(removed_counter == num_inserted);
   assert(table.size() == 0);
+  //keys.cut();
 
   cout << "testing empty() method ...." << endl;
   dup_counter = insert_n_random_items_in_map(table, keys, n);

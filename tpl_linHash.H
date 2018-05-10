@@ -1,30 +1,4 @@
 
-/* Aleph-w
-
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
-
-  This file is part of Aleph-w library
-
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
-
 # ifndef TPL_LINHASH_H
 # define TPL_LINHASH_H
 
@@ -61,13 +35,13 @@ namespace Aleph {
 public:									\
 									\
  BUCKETNAME(const BUCKETNAME & bucket)					\
-   noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)		\
-   : Dnode<Key>(bucket) {}						\
+ noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)		\
+ : Dnode<Key>(bucket) {}						\
 									\
  BUCKETNAME() noexcept(std::is_nothrow_constructible<Key>::value) {}	\
 									\
  BUCKETNAME(const Key & key) noexcept(noexcept(Dnode<Key>(key)))	\
-   : Dnode<Key>(key) {}							\
+ : Dnode<Key>(key) {}							\
 									\
  Key & get_key() noexcept { return this->get_data(); }			\
 									\
@@ -104,7 +78,7 @@ class LinHashBucketVtl : public Dnode<Key>
       /// destructor virtual.
   virtual ~LinHashBucketVtl() {}
 };
-
+ 
 
    /** Tabla hash lineal genérica.
 
@@ -145,7 +119,7 @@ public:
   using Hash_Fct     = std::function<size_t(const Key &)>;
   using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-      /// El tipo de cubeta.
+  /// El tipo de cubeta.
   using Bucket = BucketType<Key>;
 
   using Key_Type = Key;
@@ -167,7 +141,7 @@ private:
 
 protected:
 
-  Hash_Fct             hash_fct; // puntero a función hash
+  Hash_Fct             hash_fct;
   Cmp                  cmp;
 
 private:
@@ -252,7 +226,7 @@ private:
       } 
   }
 
-  void contract()
+  void contract() noexcept
   { // contraer la tabla hasta que carga esté debajo de lower_alpha
     for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len; 
          alpha = (1.0*N)/MP)
@@ -311,7 +285,7 @@ public:
   
   GenLinearHashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
                      float __lower_alpha, float __upper_alpha,
-		     bool __remove_all_buckets, bool /* __with_resize */)
+		     bool __remove_all_buckets, bool /* fake */)
     throw(std::exception, std::length_error, std::domain_error,
           std::bad_alloc, std::overflow_error) 
   : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0), 
@@ -331,41 +305,36 @@ public:
 
  public:
 
-    /** Instancia una tabla hash lineal genérica.
+  /** Instancia una tabla hash lineal genérica.
 
-        Instancia una tabla hash lineal genérica de tamaño __len.
+      Instancia una tabla hash lineal genérica de tamaño __len.
 
-        @param[in] __hash_fct función hash.
-        @param[in] __len tamaño inicial y mínimo de la tabla.
-        @param[in] __upper_alpha umbral superior en que la tabla debe
-        expandirse.  
-        @param[in] __lower_alpha umbral inferior en que la tabla debe
-        contraerse.  
-        @param[in] __remove_all_buckets si es true, entonces se liberan
-        las cuvetas de la tabla. De lo contrario, éstas permanecen
-        intactas. Por omisión el valor es true.
+      @param[in] __hash_fct función hash.
+      @param[in] __len tamaño inicial y mínimo de la tabla.
+      @param[in] __upper_alpha umbral superior en que la tabla debe
+      expandirse.  
+      @param[in] __lower_alpha umbral inferior en que la tabla debe
+      contraerse.  
+      @param[in] __remove_all_buckets si es true, entonces se liberan
+      las cuvetas de la tabla. De lo contrario, éstas permanecen
+      intactas. Por omisión el valor es true.
 
-        @throw length_error si __ es igual a superior que la máxima
-        dimensión permitida para un arreglo dinámico.
-        @throw domain_error si __upper_alpha es menor o igual a
-        __lower_alpha.  
-        @throw bad_alloc si no hay suficiente memoria
-        @throw overflow_error si ocurre un desborde desde DynArray
-        (causado por sus cálculos internos).
-     */
-  GenLinearHashTable(size_t       len                = Primes::DefaultPrime,
-		     Hash_Fct_Ptr hash_fct           = Aleph::dft_hash_fct<Key>,
-		     Cmp          cmp                = Cmp(),
-                     float        lower_alpha        = hash_default_lower_alpha,
-		     float        upper_alpha        = hash_default_upper_alpha,
-		     bool         remove_all_buckets = true, 
-		     bool         with_resize        = true)
-    throw(std::exception, std::length_error, std::domain_error,
-          std::bad_alloc, std::overflow_error) 
-  : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp, lower_alpha, upper_alpha,
-		       remove_all_buckets, with_resize) {}
+      @throw length_error si __ es igual a superior que la máxima
+      dimensión permitida para un arreglo dinámico.
+      @throw domain_error si __upper_alpha es menor o igual a
+      __lower_alpha.  
+      @throw bad_alloc si no hay suficiente memoria
+      @throw overflow_error si ocurre un desborde desde DynArray
+      (causado por sus cálculos internos).
+  */
+  GenLinearHashTable(size_t len, Hash_Fct_Ptr hash_fct, Cmp cmp,
+                     float lower_alpha, float upper_alpha,
+		     bool remove_all_buckets, 
+		     bool /* __with_resize fictitious */)
+  : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp,
+		       lower_alpha, upper_alpha, remove_all_buckets, true) {}
 
-  void swap(GenLinearHashTable & other)
+  void swap(GenLinearHashTable & other) noexcept
   {
     std::swap(table, other.table);
     std::swap(hash_fct, other.hash_fct);
@@ -515,9 +484,9 @@ private:
 
   // This routine deletes bucket from hash table EXCEPT from
   // entries_list. The end of this routine is to dry the deletion and to
-  // allow remove from other places; for instance, from the del()
+  // allow remove from other places; ofor instance, from the del()
   // method of Iterator class
-  Bucket * remove_bucket(Bucket * bucket)
+  Bucket * remove_bucket(Bucket * bucket) noexcept
   {
     assert(bucket != nullptr);
     assert(search(bucket->get_key()) == bucket);
@@ -539,7 +508,7 @@ public:
 
       /// Elimina la cubeta bucket. Atención: no se verifica si la cubeta
       /// pertenece a la tabla.
-  Bucket * remove(Bucket * bucket)
+  Bucket * remove(Bucket * bucket) noexcept
   {
     bucket->get_link()->del(); // elimine de entries_list
     return remove_bucket(bucket);
@@ -593,16 +562,15 @@ public:
         /// Instancia un iterador vacío.
     Iterator() noexcept { /* Empty */ }
 
-        /// Retorna la cubeta actual.
-    Bucket * get_curr() const
-    {
-      return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr());
-    }
-
-    /// Retorna la cubeta actual.
-    Bucket * get_curr_ne() const noexcept
+    Bucket * get_curr_ne() noexcept
     {
       return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr_ne());
+    }
+
+        /// Retorna la cubeta actual.
+    Bucket * get_curr() 
+    {
+      return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr());
     }
 
     Bucket * del()

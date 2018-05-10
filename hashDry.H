@@ -496,7 +496,7 @@ public:
     DynArray<size_t> lens;
     for (int i = 0; i < const_me()->capacity(); ++i)
       {
-	Dlink list = const_me()->table[i];
+	Dlink & list = const_me()->table[i];
 	size_t count = 0;
 	for (typename HashTbl::BucketItor it(list); it.has_curr(); 
 	     it.next(), ++count)
@@ -506,7 +506,7 @@ public:
       }
 
     float avg = 0, sum = 0;
-    for (int i = 0; i < lens.size(); ++i)
+    for (size_t i = 0; i < lens.size(); ++i)
       {
 	avg += lens(i)*i;
 	sum += lens(i);
@@ -514,7 +514,7 @@ public:
     avg /= sum;
 
     float var = 0;
-    for (int i = 0; i < lens.size(); ++i)
+    for (size_t i = 0; i < lens.size(); ++i)
       {
 	float s = i - avg;
 	var += lens(i)*s*s;

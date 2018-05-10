@@ -22,4 +22,8 @@
 
 ## 8. test para HashSet y HashMap
 - Created at   2018-05-09 10:39:06 -0400
+- Completed at 2018-05-10 09:18:39 -0400
+
+## 9. generar makefile con makedepend en ruby
+- Created at   2018-05-10 09:18:53 -0400
 

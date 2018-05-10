@@ -1,30 +1,4 @@
 
-/* Aleph-w
-
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
-
-  This file is part of Aleph-w library
-
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
-
 # ifndef TPL_DYNARRAY_H
 # define TPL_DYNARRAY_H
 
@@ -160,11 +134,11 @@ namespace Aleph {
      through the total of available chunks but it could not exists an
      contiguous block of a given size. The more large is the block size,
      the higher is the probability for failing to allocate. So, there
-     are circumstances where you could be interested in setting a small
-     block size, so as to facilitate the block's allocation. 
+     are circunstances where you could be interested in setting a small
+     block size, so as to facilitate thge block's allocation. 
 
      Of course, these settings restrict the maximum dimension, which
-     eventually could be compensated with a larger directory. As example,
+     eventually could be compesed with a larger directory. As example,
      consider a directory of 1024 segments of 512 blocks of 4096
      entries. This gives a total of
 
@@ -172,7 +146,7 @@ namespace Aleph {
 
      Now suppose that you think that 4096 is too much for a block, the
      you could set the block to 128 and displace the difference to the
-     directory. This gives sizes of 32768, 512 and 128 respectively and
+     diretory. This gives sizes of 32768, 512 and 128 respectively and
      thus to obtain the same maximum capacity.
 
      You could think that failure probability is displaced to the
@@ -192,25 +166,25 @@ class DynArray :
   friend class BitArray; // for access to __traversal() method
 
   // look at the end of this file for seeing the values
- public:
+public:
 
   using Item_Type = T; /// The type of element stored in the array
   using Key_Type = T; /// The type of element stored in the array
 
-  static const size_t Default_Pow_Dir;  /// 2^6 = 64
-  static const size_t Default_Pow_Seg;  /// 2^8 = 256
-  static const size_t Default_Pow_Block;
+  static const size_t Default_Pow_Dir; /// Default two power for directory size
+  static const size_t Default_Pow_Seg; /// Default two power for segment size
+  static const size_t Default_Pow_Block;/// Default two power for block size
 
  private:
 
-  static const size_t Max_Bits_Allowed;
+  static const size_t Max_Bits_Allowed; 
 
  public:
 
-  /// Maximum dimension allowed = 256 Gb
-  static const size_t Max_Dim_Allowed;
+  /// Maximum dimension allowed
+  static const unsigned long long Max_Dim_Allowed;
 
- private:
+private:
 
   static const size_t Max_Pow_Block;
 
@@ -225,7 +199,7 @@ class DynArray :
   mutable size_t block_size          = two_raised(pow_block); // = 2^pow_block
 
       // 2^(pow_dir + pow_seg + pow_block) - 1
-  size_t max_dim                     = two_raised(seg_plus_block_pow + pow_dir);
+  unsigned long long max_dim         = two_raised(seg_plus_block_pow + pow_dir);
 
   static size_t two_raised(const size_t n) noexcept
   {
@@ -233,12 +207,12 @@ class DynArray :
     return 1 << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b)
+  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
   {
     return two_raised(d)*two_raised(s)*two_raised(b);
   }
 
- public:
+public:
 
   /** Given a dimension `n`, it proposes values for the directory,
       segment and block sizes.
@@ -249,6 +223,7 @@ class DynArray :
       @param[out] b block size
   */
   static void compute_sizes(const size_t n, size_t & d, size_t & s, size_t & b)
+    noexcept
   {
     d = Default_Pow_Dir;
     s = Default_Pow_Seg;
@@ -768,8 +743,6 @@ public:
 		  "No copy assign for T");
     static_assert(std::is_move_assignable<T>::value,
 		  "No move assign for T");
-    if (not Max_Dim_Allowed > 0)
-      cout << "Max_Dim_Allowed = " << Max_Dim_Allowed << endl;
     assert(Max_Dim_Allowed > 0);
 
     if (max_dim > Max_Dim_Allowed)
@@ -870,7 +843,7 @@ public:
   }
 
   /// Move constructor
-  DynArray(DynArray && other)
+  DynArray(DynArray && other) noexcept
     : pow_dir             ( Default_Pow_Dir                          ),
       pow_seg             ( Default_Pow_Seg                          ),
       pow_block           (std::min(Default_Pow_Block, Max_Pow_Block)), 
@@ -1085,8 +1058,8 @@ public:
     if (dim > 0)
       reserve(0, dim - 1);
   }
-
-  void cut_ne(const size_t new_dim = 0) noexcept
+  
+  void cut_ne(const size_t new_dim = 0)
   {
     if (new_dim == 0) 
       {
@@ -1130,17 +1103,17 @@ public:
     current_dim = new_dim; // actualiza nueva dimensión
   }
 
-  /** Cut the array to a new dimension; that is, it reduces the
+    /** Cut the array to a new dimension; that is, it reduces the
       dimension of array and frees the remaining memory.
 
       @param[in] new_dim new dimension value
       @throw domain_error if `new_dim` is greater than current dim
    */
-  void cut(const size_t new_dim = 0) throw(std::exception, std::domain_error) 
+  void cut(const size_t new_dim = 0) throw(std::exception, std::length_error)
   {
     if (new_dim > current_dim)
-      throw std::domain_error("new dimension greater than current dimension");
-    cut_ne();
+      throw std::length_error("new dimension greater that current dimension");
+    cut_ne(new_dim);
   }
 
   /** Set a new dimension.
@@ -1225,7 +1198,7 @@ public:
     ret = std::forward<T>(item);
     return ret;
   }
-
+  
   /// \overload append(const T & data)
   void push(const T & data) { this->append(data); }
 
@@ -1263,18 +1236,6 @@ public:
 
     return *this;
   }
-
-  DynArray & rev() { return reverse(); }
-
-  DynArray reverse() const
-  {
-    DynArray ret;
-    for (size_t i = 0; i < current_dim; ++i)
-      ret.append(touch(current_dim - i - 1));
-    return ret;
-  }
-
-  DynArray rev() const { return reverse(); }
 
   /// Remove the last item of array (as if this was a stack)
   T pop() 
@@ -1362,7 +1323,7 @@ public:
       next_ne();
     }
 
-    /// Move the iterator one position backward guaranteeing no
+    // Move the iterator one position backward guaranteeing no
     /// exception. Be careful.
     void prev_ne() noexcept { --curr_idx; }
 
@@ -1467,13 +1428,13 @@ const size_t DynArray<T>::Default_Pow_Block = 12; /* 4096 */
 const size_t DynArray<T>::Max_Bits_Allowed  = 8 * sizeof(size_t); 
 
     template <typename T> 
-const size_t DynArray<T>::Max_Dim_Allowed = 256*1024*1024*1024ull; // 256 Gb
+const unsigned long long  DynArray<T>::Max_Dim_Allowed = 
+      256*1024*1024*1024ull; // 256 Gb
 
     template <typename T> 
 const size_t DynArray<T>::Max_Pow_Block =
   (Max_Bits_Allowed - Default_Pow_Dir  - Default_Pow_Seg  - 1);
-  
-  
+
 } // end namespace Aleph
 
 # endif /* TPL_DYNARRAY_H */
