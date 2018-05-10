@@ -27,3 +27,6 @@
 ## 9. generar makefile con makedepend en ruby
 - Created at   2018-05-10 09:18:53 -0400
 
+## 10. manejo de hash para pares
+- Created at   2018-05-10 19:23:22 -0400
+

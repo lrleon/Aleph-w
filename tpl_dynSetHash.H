@@ -432,7 +432,7 @@ public:
 		  Cmp cmp               = Cmp(), 
 		  float lower_alpha     = hash_default_lower_alpha, 
 		  float upper_alpha     = hash_default_upper_alpha)
-    : Base(len, std::bind(pair_hash_fct<Key, Data, Hash_Fct>,
+    : Base(len, std::bind(map_hash_fct<Key, Data, Hash_Fct>,
 			  hash_fct, std::placeholders::_1),
 	   Dft_Pair_Cmp<Key, Data, Cmp>(cmp), lower_alpha, upper_alpha) {}
 
