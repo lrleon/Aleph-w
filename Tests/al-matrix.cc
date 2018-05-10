@@ -42,6 +42,14 @@ struct SmallDomains : testing::Test
 TEST_F(SmallDomains, basic)
 {
   Mat m1 = { rd, cd };
-  //  EXPECT_TRUE(m1.
+  //EXPECT_TRUE(m1.
   cout << m1 << endl;
+}
+
+TEST_F(SmallDomains, identity)
+{
+  using M1 = Matrix<char, char, int>;
+  using M2 = Matrix<string, string, int>;
+  cout << M1(rd, rd).identity() << endl
+       << M2(cd, cd).identity() << endl;
 }
