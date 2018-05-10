@@ -128,7 +128,7 @@ void test_map(C & table, size_t n, unsigned long seed)
   Now now;
   
   auto tp = now.start();
-  for (auto i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     {
       Foo k = gsl_rng_get(r);
       Foo d = gsl_rng_get(r);
@@ -399,7 +399,7 @@ void test_map_hash(size_t n, unsigned long seed)
   cout << "Testing map ODhash" << endl
        << endl;
 
-  MapTable<Foo, Foo, Dft_Pair_Cmp<Foo, Foo, std::equal_to<Foo>>> table((size_t)n);
+  MapTable<Foo, Foo, std::equal_to<Foo>> table((size_t)n);
 
   // MapTable<Foo, Foo, Dft_Pair_Cmp<Foo, Foo, std::equal_to<Foo>>> table;
   test_map(table, n, seed);

@@ -421,7 +421,7 @@ public:
   using Value_Type = Data;
 
   // using Base::Base;  // no more need. But I don't remember why I put it
-  //  using Base::insert;
+  using Base::insert;
   using Iterator = typename Base::Iterator;
 
   using Hash_Fct = std::function<size_t(const Key&)>;

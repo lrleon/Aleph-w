@@ -2,6 +2,9 @@
 # -*- coding: iso-8859-1 -*-
 
 require 'fileutils'
+require 'concurrent'
+
+ncpu = Concurrent.processor_count
 
 alephw = ENV['ALEPHW']
 gtestdir = ENV['GOOGLETEST']
@@ -36,9 +39,12 @@ end
 
 tests = File.open TestsFile
 
+status = system "make -j #{ncpu}"
+
+fail "Compilation failed" unless status
+
 tests.each do |name|
-  cmd = "make #{name}"
-  status = system cmd
+  status = system "./#{name}"
   unless status
     system "figlet \"#{name} failed\""
     exit

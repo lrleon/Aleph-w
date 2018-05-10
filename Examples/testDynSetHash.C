@@ -101,7 +101,7 @@ void test_DynSetLinHash(size_t n)
 
   {
     const auto ctable = table;
-    //    assert(table.all([&ctable] (auto k) { return ctable.find(k) == k; }));
+    assert(table.all([&ctable] (auto k) { return ctable.find(k) == k; }));
   }
 
   unsigned long removed_counter = 0;

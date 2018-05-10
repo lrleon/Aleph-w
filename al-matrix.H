@@ -43,8 +43,7 @@ public:
 
   using RCPair = std::pair<Trow, Tcol>;
 
-  using Map = Aleph::HashMap<RCPair, NumType, MapODhash,
-			     Aleph::Dft_Pair_Cmp<RCPair, NumType>>;
+  using Map = Aleph::HashMap<RCPair, NumType, MapODhash>;
 
   using ColVector = Vector<Trow, NumType>;
 

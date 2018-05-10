@@ -327,12 +327,16 @@ public:
       @throw overflow_error si ocurre un desborde desde DynArray
       (causado por sus cálculos internos).
   */
-  GenLinearHashTable(size_t len, Hash_Fct_Ptr hash_fct, Cmp cmp,
-                     float lower_alpha, float upper_alpha,
-		     bool remove_all_buckets, 
-		     bool /* __with_resize fictitious */)
+  GenLinearHashTable(size_t       len                = Primes::DefaultPrime, 
+		     Hash_Fct_Ptr hash_fct           = Aleph::dft_hash_fct<Key>, 
+		     Cmp          cmp                = Cmp(), 
+                     float        lower_alpha        = hash_default_lower_alpha, 
+		     float        upper_alpha        = hash_default_upper_alpha, 
+		     bool         remove_all_buckets = true,  
+		     bool         with_resize        = true) 
   : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp,
-		       lower_alpha, upper_alpha, remove_all_buckets, true) {}
+		       lower_alpha, upper_alpha,
+		       remove_all_buckets, with_resize) {}
 
   void swap(GenLinearHashTable & other) noexcept
   {
