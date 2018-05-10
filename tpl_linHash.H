@@ -515,7 +515,7 @@ private:
 
   // This routine deletes bucket from hash table EXCEPT from
   // entries_list. The end of this routine is to dry the deletion and to
-  // allow remove from other places; ofor instance, from the del()
+  // allow remove from other places; for instance, from the del()
   // method of Iterator class
   Bucket * remove_bucket(Bucket * bucket)
   {

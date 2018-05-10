@@ -208,7 +208,7 @@ class DynArray :
  public:
 
   /// Maximum dimension allowed = 256 Gb
-  static const unsigned long long Max_Dim_Allowed;
+  static const size_t Max_Dim_Allowed;
 
  private:
 
@@ -768,6 +768,8 @@ public:
 		  "No copy assign for T");
     static_assert(std::is_move_assignable<T>::value,
 		  "No move assign for T");
+    if (not Max_Dim_Allowed > 0)
+      cout << "Max_Dim_Allowed = " << Max_Dim_Allowed << endl;
     assert(Max_Dim_Allowed > 0);
 
     if (max_dim > Max_Dim_Allowed)
@@ -1465,8 +1467,7 @@ const size_t DynArray<T>::Default_Pow_Block = 12; /* 4096 */
 const size_t DynArray<T>::Max_Bits_Allowed  = 8 * sizeof(size_t); 
 
     template <typename T> 
-const unsigned long long  DynArray<T>::Max_Dim_Allowed = 
-      256*1024*1024*1024ull; // 256 Gb
+const size_t DynArray<T>::Max_Dim_Allowed = 256*1024*1024*1024ull; // 256 Gb
 
     template <typename T> 
 const size_t DynArray<T>::Max_Pow_Block =
