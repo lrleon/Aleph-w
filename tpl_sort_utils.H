@@ -216,13 +216,13 @@ Link * search_extreme(const Link & list, Compare & cmp)
 }
 
     template <class Compare> inline 
-Dlink * search_extreme(const Dlink & list, Compare cmp = Compare()) noexcept
+Dlink * search_extreme(const Dlink & list, Compare cmp = Compare())
 {
   return search_extreme<Dlink, Compare>(list, cmp);
 }
 
     template <class Compare> inline 
-Slinknc * search_extreme(const Slinknc & list, Compare cmp = Compare()) noexcept
+Slinknc * search_extreme(const Slinknc & list, Compare cmp = Compare())
 {
   return search_extreme<Slinknc, Compare>(list, cmp);
 }
@@ -519,7 +519,6 @@ T * sequential_search(const DynList<T> & list, const T & x,
      */
     template <typename T, class Compare = Aleph::less<T>> inline
 int search_extreme(T * a, const int l, const int r, Compare cmp = Compare())
-      noexcept
 {
   T extreme_index = l;
   for (int i = l + 1; i <= r; i++)
@@ -535,7 +534,6 @@ int search_extreme(T * a, const int l, const int r, Compare cmp = Compare())
   */
     template <typename T, class Compare = Aleph::less<T>> inline
 int search_min(T * a, const int l, const int r, Compare cmp = Compare())
-      noexcept
 {
   return search_extreme<T, Compare> (a, l, r, cmp);
 }
@@ -545,7 +543,7 @@ int search_min(T * a, const int l, const int r, Compare cmp = Compare())
      \ingroup Algos
   */
     template <typename T, class Compare = Aleph::greater<T>> inline
-int search_max(T * a, const int l, const int r, Compare cmp = Compare()) noexcept
+int search_max(T * a, const int l, const int r, Compare cmp = Compare())
 {
   return search_extreme<T, Compare> (a, l, r, cmp);
 }
@@ -555,7 +553,6 @@ int search_max(T * a, const int l, const int r, Compare cmp = Compare()) noexcep
     */
     template <typename T, class Compare = Aleph::less<T>> inline 
 Dnode<T> * search_extreme(const Dnode<T> & list, Compare cmp = Compare())
-      noexcept
 {
   Compare_Dnode<T, Compare> cmp_dnode(cmp);
   Dlink * ret = 
@@ -577,7 +574,7 @@ Dnode<T> * search_extreme(const Dnode<T> & list, Compare cmp = Compare())
 	\ingroup Algos
      */
     template <typename T, class Compare = Aleph::less<T>> inline
-T * search_extreme(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
+T * search_extreme(const DynDlist<T> & list, Compare cmp = Compare())
 {
   Dnode<T> * ret = search_extreme <T, Compare> ((Dnode<T>&) list, cmp); 
 
@@ -585,7 +582,7 @@ T * search_extreme(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
 }
 
     template <typename T, class Compare = Aleph::less<T>> inline 
-T * search_extreme(const DynList<T> & list, Compare cmp = Compare()) noexcept
+T * search_extreme(const DynList<T> & list, Compare cmp = Compare())
 {
   Slinknc * ret =
     search_extreme <Compare_Snodenc<T, Compare>>
@@ -599,7 +596,7 @@ T * search_extreme(const DynList<T> & list, Compare cmp = Compare()) noexcept
 	\ingroup Algos
     */
     template <typename T, class Compare = Aleph::less<T>> inline
-T * search_min(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
+T * search_min(const DynDlist<T> & list, Compare cmp = Compare())
 {
   return search_extreme<T, Compare> (list, cmp);
 }
@@ -609,7 +606,7 @@ T * search_min(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
 	\ingroup Algos
     */
     template <typename T, class Compare = Aleph::less<T>> inline
-      T * search_max(const DynDlist<T> & list, Compare cmp = Compare()) noexcept
+T * search_max(const DynDlist<T> & list, Compare cmp = Compare())
 {
   return search_extreme<T, Compare> (list, cmp);
 }
@@ -2398,7 +2395,7 @@ void quicksort(DynArray<T> & a, Compare cmp = Compare()) noexcept
      */
     template <typename T, class Compare = Aleph::less<T>> inline
 long search_extreme(const DynArray<T>& a, const long l, const long r, 
-		    Compare cmp = Compare()) noexcept
+		    Compare cmp = Compare())
 {
   long extreme_index = l;
 
@@ -2415,7 +2412,7 @@ long search_extreme(const DynArray<T>& a, const long l, const long r,
   */
     template <typename T, class Compare = Aleph::less<T>> inline
 long search_max(const DynArray<T>& a, const long l, const long r,
-		Compare cmp = Compare()) noexcept
+		Compare cmp = Compare())
 {
   return search_extreme<T, Compare>(a, l, r, cmp);
 }  

@@ -36,20 +36,33 @@ struct SmallDomains : testing::Test
 {
   AlDomain<char> rd = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j' };
   AlDomain<string> cd = { "a", "b", "c", "d", "e", "f", "g" };
-  using Mat = Matrix<char, string, int>;
+  using V1 = Vector<char, int>;
+  using V2 = Vector<string, int>;
+  using Mat1 = Matrix<char, string, int>;
+  using Mat2 = Matrix<string, char, int>;
 };
 
 TEST_F(SmallDomains, basic)
 {
-  Mat m1 = { rd, cd };
-  //EXPECT_TRUE(m1.
-  cout << m1 << endl;
+  Mat1 m11 = { rd, cd };
+  Mat2 m21 = { cd, rd };
+  V1 v11 = { rd, range<int>(rd.size()).
+	     maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
+  V2 v21 = { cd, range<int>(cd.size()).
+	     maps([] (auto i) { return (i % 2) != 0 ? 1 : 0; }) };
+
+  EXPECT_EQ(v11*m11, V2(cd));
+  cout << v11 << endl << endl
+       << v21 << endl << endl
+       << m11 << endl << endl
+       << m21 << endl << endl
+       << v11*m11 << endl << endl;
 }
 
 TEST_F(SmallDomains, identity)
 {
   using M1 = Matrix<char, char, int>;
   using M2 = Matrix<string, string, int>;
-  cout << M1(rd, rd).identity() << endl
-       << M2(cd, cd).identity() << endl;
+  // cout << M1(rd, rd).identity() << endl
+  //      << M2(cd, cd).identity() << endl;
 }

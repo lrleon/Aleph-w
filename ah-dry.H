@@ -167,6 +167,26 @@ public:
 /// \overload get_it()  
   auto get_itor() const { return get_it(); }
 
+  Type & nth_ne(const size_t n) noexcept
+  {
+    Type * ptr = nullptr;
+    size_t i = 0;
+    me()->traverse([&ptr, &i, &n] (Type & item)
+		   {
+		     if (i++ < n)
+		       return true;
+		     ptr = &item;
+		     return false;
+		   });
+    return *ptr;
+  }
+
+  /// \overload nth()
+  const Type & nth_ne(const size_t n) const noexcept
+  {
+    return base()->nth_ne(n);
+  }
+
   /** Return the n-th item of container.
 
       The notion of ordinal depends of type of container. On list,

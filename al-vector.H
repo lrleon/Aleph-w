@@ -200,7 +200,7 @@ public:
 	       });
   }
 
-  NumType get_entry(const T & i) noexcept
+  NumType get_entry(const T & i)
   {
     assert(domain_ptr->has(i));
 
@@ -325,7 +325,7 @@ public:
     return ret_val.product_by_scalar(scalar);
   }
 
-  Vector & divide_by_scalar(const NumType & scalar) noexcept
+  Vector & divide_by_scalar(const NumType & scalar)
   {
     if (is_zero(scalar))
       throw std::domain_error("Zero division");

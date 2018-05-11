@@ -1219,7 +1219,7 @@ public:
   void remove(T & item) noexcept
   {
     std::swap(item, this->access(this->size() - 1));
-    this->cut(this->size() - 1);
+    this->cut_ne(this->size() - 1);
   }
 
   /// \overload remove(T & item)

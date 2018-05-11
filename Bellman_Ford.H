@@ -311,7 +311,7 @@ private:
 
     NODE_COOKIE(s) = nullptr; // por si acaso hay ciclo negativo 
 
-    arcs.cut();
+    arcs.cut_ne();
   }
 
 public:

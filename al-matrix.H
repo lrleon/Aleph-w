@@ -58,7 +58,7 @@ private:
   Map               entries;
   NumType           epsilon;
   mutable bool identity_computed = false;
-  mutable unique_ptr<Matrix> I_ptr;
+  mutable Matrix * I_ptr = nullptr;
 
   bool is_zero(const NumType & val) const noexcept
   {
@@ -84,10 +84,21 @@ public:
 
   const CDomain & get_col_domain() const noexcept { return *cdomain_ptr; }
 
+  ~Matrix()
+  {
+    if (identity_computed)
+      {
+	assert(I_ptr);
+	delete I_ptr;
+      }
+  }
+  
   Matrix(const RDomain & rdomain, const CDomain & cdomain, 
 	 const NumType & e = default_epsilon)
     : rdomain_ptr(&const_cast<RDomain&>(rdomain)), 
-      cdomain_ptr(&const_cast<CDomain&>(cdomain))
+      cdomain_ptr(&const_cast<CDomain&>(cdomain)),
+      entries(10, Aleph::pair_dft_hash_fct<Trow, Tcol>,
+	      Aleph::pair_snd_hash_fct<Trow, Tcol>)
   {
     set_epsilon(e);
   }
@@ -121,7 +132,7 @@ public:
     }); 
   }
 
-  NumType get_entry(const Trow & row, const Tcol & col) noexcept
+  NumType get_entry(const Trow & row, const Tcol & col)
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
 
@@ -442,9 +453,7 @@ public:
     if (identity_computed)
       return *I_ptr;
 
-    I_ptr = unique_ptr<Matrix>(new Matrix<Trow, Tcol, NumType>(*rdomain_ptr,
-							       *rdomain_ptr));
-    Matrix ret_val(*rdomain_ptr, *rdomain_ptr);
+    I_ptr = new Matrix<Trow, Tcol, NumType>(*rdomain_ptr, *rdomain_ptr);
     rdomain_ptr->for_each([this] (const Trow & row)
 			  {
 			    I_ptr->set_entry(row, row, 1);
@@ -623,7 +632,7 @@ public:
     if (not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
       throw std::domain_error("invalid matrixes domains");
 
-    return entries.all([m, this] (const Pair & p)
+    return entries.all([&m, this] (const Pair & p)
 		       {
 			 const Trow & row = p.first.first;
 			 const Tcol & col = p.first.second;

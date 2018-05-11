@@ -3066,11 +3066,11 @@ public:
 
     /// Return the first node of path; throws `overflow_error` if path
     /// is empty
-  Node * get_first_node() const noexcept { return list.get_first().node; }
+  Node * get_first_node() const { return list.get_first().node; }
 
     /// Return the last node of path; throws `overflow_error` if path
     /// is empty
-  Node * get_last_node() const noexcept 
+  Node * get_last_node() const
   {
     auto & last_path_desc = list.get_last();
     assert(last_path_desc.arc == nullptr);
@@ -3079,7 +3079,7 @@ public:
 
   /// Return the first arc of path; throws `overflow_error` if path
   /// is empty
-  Arc * get_first_arc() const noexcept { return list.get_first().arc; }
+  Arc * get_first_arc() const { return list.get_first().arc; }
 
   /// Return the last arc of path; throws `overflow_error` if path
   /// is empty

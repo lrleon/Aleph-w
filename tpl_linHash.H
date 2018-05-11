@@ -253,7 +253,7 @@ private:
                     tgt_list.concat_list(src_list_ptr);
                     --busy_slots_counter; // table[p+M] devino vacía
                   }
-                table.cut(MP); // eventualmente liberar memoria de table[p+M]
+                table.cut_ne(MP); // eventualmente liberar memoria de table[p+M]
               }
           }
       }
@@ -384,7 +384,7 @@ public:
     M = MP = len;
     MM = multiply_by_two(M);
     N = p = l = 0;
-    table.cut(len);
+    table.cut_ne(len);
   }
 
   ~GenLinearHashTable()

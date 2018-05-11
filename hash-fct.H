@@ -752,18 +752,6 @@ namespace Aleph
     return SuperFastHash((void*) key.c_str(), key.size());
   }
 
-  template <typename K1, typename K2> inline
-  size_t dft_hash_fct(const std::pair<K1, K2> & p) noexcept
-  {
-    return dft_hash_fct(p.first) + dft_hash_fct(p.second);
-  }
-
-  template <typename K1, typename K2> inline
-  size_t snd_hash_fct(const std::pair<K1, K2> & p) noexcept
-  {
-    return dft_hash_fct(p.first) + snd_hash_fct(p.second);
-  }
-
   template <typename Key> inline
   size_t dft_hash_fct(const Key & key) noexcept
   {
@@ -783,28 +771,22 @@ namespace Aleph
   }
 
   template<typename Key, typename Data, typename Fct>
-  inline size_t map_hash_fct(Fct fct, const std::pair<Key, Data> & p)
+  inline size_t map_hash_fct(Fct fct, const std::pair<Key, Data> & p) noexcept
   {
     return fct(p.first);
   }
+  
+  template <typename K1, typename K2> inline
+  size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
+  {
+    return dft_hash_fct(p.first) + dft_hash_fct(p.second);
+  }
 
-  // template <typename Key> inline
-  // size_t map_dft_hash_fct(const Key & key)
-  // {
-  //   return dft_hash_fct<typename Key::first_type>(key.first);
-  // }
-
-  // template <typename Key> inline
-  // size_t map_snd_hash_fct(const Key & key)
-  // {
-  //   return snd_hash_fct<typename Key::first_type>(key.first);
-  // }
-
-  // template <typename Key> inline
-  // size_t map_dft_hash_fct(const Key & key, unsigned long seed)
-  // {
-  //   return dft_hash_fct<typename Key::first_type>(key.first, seed);
-  // }
+  template <typename K1, typename K2> inline
+  size_t pair_snd_hash_fct(const std::pair<K1, K2> & p) noexcept
+  {
+    return dft_hash_fct(p.first) + snd_hash_fct(p.second);
+  }
 
 } // end namespace Aleph
 

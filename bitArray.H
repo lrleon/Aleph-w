@@ -262,8 +262,14 @@ public:
   int read_bit_ne(const size_t i) const noexcept
   {
     const int bit_index = i % 8;
-    const Byte byte = array_of_bytes[i/8];
-    return byte.read_bit(bit_index);
+    auto ptr = array_of_bytes.test(i/8);
+    if (ptr)
+      {
+	const Byte & byte = *ptr;
+	return byte.read_bit(bit_index);
+      }
+    else
+      return 0;
   }
 
        /** Lee el bit i.
@@ -276,7 +282,9 @@ public:
   {
     if (i >= current_size)
       throw std::out_of_range("index out of range");
-    return read_bit_ne(i);
+    const int bit_index = i % 8;
+    const Byte byte = array_of_bytes[i/8];
+    return byte.read_bit(bit_index);
   }
 
   int operator () (const size_t i) const { return read_bit(i); }

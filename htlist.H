@@ -1146,30 +1146,8 @@ public:
       next_ne();
     }
 
-    /**
-       \~English
-       Remove the current item.
-
-       `del()` removes the current item of iterator and advaces it a
-       position forward.
-
-       \return a valid pointer to the removed item
-       \throw overflow_error if iterator has not current item
-
-       \~Spanish
-       Remueve el elemento actual.
-
-       `del()` elimina el elemento actual del iterador y lo desplaza
-       una posición más adelante.
-
-       \return un puntero válido al objeto eliminado
-       \throw overflow_error si el iterador no tiene elemento actual
-     */
-    Slinknc * del()
+    Slinknc * del_ne() noexcept
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
-
       Slinknc * ret_val = nullptr;
       if (curr == lptr->head) // first item removal
         {
@@ -1194,6 +1172,33 @@ public:
 
       ret_val->reset();
       return ret_val;
+    }
+
+    /**
+       \~English
+       Remove the current item.
+
+       `del()` removes the current item of iterator and advaces it a
+       position forward.
+
+       \return a valid pointer to the removed item
+       \throw overflow_error if iterator has not current item
+
+       \~Spanish
+       Remueve el elemento actual.
+
+       `del()` elimina el elemento actual del iterador y lo desplaza
+       una posición más adelante.
+
+       \return un puntero válido al objeto eliminado
+       \throw overflow_error si el iterador no tiene elemento actual
+     */
+    Slinknc * del()
+    {
+      if (not has_curr())
+        throw std::overflow_error("Iterator overflow");
+      
+      return del_ne();
     }
   };
 
@@ -1687,18 +1692,15 @@ public:
   template <class Equal = std::equal_to<T>>
   T remove_ne(Equal eq) noexcept
   {
-    T ret;
-    for (Iterator it(*this); it.has_curr(); it.next_ne())
+    for (Iterator it(*this); true; it.next_ne())
       {
 	const T & item = it.get_curr_ne();
-	if (eq(item))
-	  {
-	    ret = item; // performs a copy
-	    it.del();
-	    return ret;
-	  }
+	if (not eq(item))
+	  continue;
+	T ret = item; // performs a copy
+	it.del_ne();
+	return ret;
       }
-    return ret;
   }
 
   /** Remove the first element matching an equality criteria.

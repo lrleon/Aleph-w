@@ -418,7 +418,7 @@ public:
   ~Eepic_Plane()
   {
     while (not list.is_empty())
-      delete list.remove_first();
+      delete list.remove_first_ne();
   }
 
   void put_cartesian_axis()
