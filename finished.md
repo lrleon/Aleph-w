@@ -280,3 +280,15 @@
 - Comment      
 - Finished     
 
+## 48. dry de patro end para iteradores
+- Created at   2018-04-29 15:32:55 -0400
+- Completed at 2018-05-11 16:04:52 -0400
+- Comment      
+- Finished     
+
+## 49. revisar del de iteradores y poner del_ne
+- Created at   2018-05-02 21:48:36 -0400
+- Completed at 2018-05-11 16:04:44 -0400
+- Comment      
+- Finished     
+

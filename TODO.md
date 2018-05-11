@@ -75,9 +75,3 @@
 ## 25. probar algos sobre grafos
 - Created at   2017-09-23 19:46:23 -0400
 
-## 26. dry de patro end para iteradores
-- Created at   2018-04-29 15:32:55 -0400
-
-## 27. revisar del de iteradores y poner del_ne
-- Created at   2018-05-02 21:48:36 -0400
-
