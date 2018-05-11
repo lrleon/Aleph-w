@@ -44,8 +44,8 @@ namespace Aleph
   template <class Operation>						\
   bool traverse(Operation & operation) const noexcept(noexcept(operation)) \
   {									\
-    for (Iterator it(*this); it.has_curr(); it.next())			\
-      if (not operation(it.get_curr()))					\
+    for (Iterator it(*this); it.has_curr(); it.next_ne())		\
+      if (not operation(it.get_curr_ne()))				\
 	return false;							\
     return true;							\
   }									\
@@ -53,8 +53,8 @@ namespace Aleph
   template <class Operation>						\
   bool traverse(Operation & operation) noexcept(noexcept(operation))	\
   {									\
-    for (Iterator it(*this); it.has_curr(); it.next())			\
-      if (not operation(it.get_curr()))					\
+    for (Iterator it(*this); it.has_curr(); it.next_ne())		\
+      if (not operation(it.get_curr_ne()))				\
 	return false;							\
     return true;							\
   }									\
@@ -110,6 +110,20 @@ namespace Aleph
     if (i != n + 1)							\
       throw std::out_of_range("index out of range");			\
     									\
+    return *ptr;							\
+  }									\
+									\
+  Type & nth_ne(const size_t n) const noexcept				\
+  {									\
+    Type * ptr = nullptr;						\
+    size_t i = 0;							\
+    this->traverse([&ptr, &i, &n] (Type & item)				\
+		   {							\
+		     if (i++ < n)					\
+		       return true;					\
+		     ptr = &item;					\
+		     return false;					\
+		   });							\
     return *ptr;							\
   }									\
   									\

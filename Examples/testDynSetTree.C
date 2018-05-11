@@ -277,8 +277,7 @@ void test_DynMap(size_t n)
        << endl
        << "Testing for_each and a battery of other tests ...." << endl;
 
-  assert(table.all(/* Lambda */ [&table, &keys] 
-		   (const std::pair<const unsigned long, long> & p)
+  assert(table.all([&table] (const std::pair<const unsigned long, long> & p)
 		   {
 		     auto * ptr = table.search(p.first);
 		     assert(ptr != nullptr);

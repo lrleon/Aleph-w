@@ -556,7 +556,7 @@ private:
 
     if (not this->digraph and src != tgt)
       {
-	tgt->arc_list.remove([arc] (auto a) { return a == arc; });
+	tgt->arc_list.remove_ne([arc] (auto a) { return a == arc; });
 	tgt->num_arcs--;
       }
   }

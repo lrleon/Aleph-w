@@ -68,6 +68,11 @@ public:
     this->insert_next(node);
   }
 
+  Node * remove_first_ne() noexcept
+  {
+    return this->remove_next();
+  }
+
     /** Elimina el primer nodo de la lista y retorna su dirección.
 
         Elimina el primer nodo de la lista.

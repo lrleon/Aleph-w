@@ -2512,7 +2512,7 @@ public:
   {
     DynList<Node*> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
-      ret.append(it.get_node());
+      ret.append(it.get_node_ne());
     return ret;
   }
 

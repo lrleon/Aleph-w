@@ -164,14 +164,14 @@ IMPL_PUT_IN_PLANE(Shade_Regular_Polygon_With_Arrows);
 IMPL_PUT_IN_PLANE(Shade_Regular_Polygon_With_Text_Points);
 IMPL_PUT_IN_PLANE(Shade_Regular_Polygon_With_Vertex_Numbers);
 
-void Eepic_Point::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Point::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Point & p = static_cast<const Point&>(*geom_object_ptr);
 
   plane->draw_point(p, output);
 }
 
-void Eepic_Segment::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Segment::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -179,7 +179,7 @@ void Eepic_Segment::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Thick_Segment::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Thick_Segment::draw(Eepic_Plane * plane, ostream & output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -191,7 +191,7 @@ void Eepic_Thick_Segment::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Thick_Dash_Segment::draw(Eepic_Plane * plane, 
-				    ofstream &    output) const
+				    ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -201,7 +201,7 @@ void Eepic_Thick_Dash_Segment::draw(Eepic_Plane * plane,
   plane->draw_dash_segment(sg, output);
 }
 
-void Eepic_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Arrow::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -209,7 +209,7 @@ void Eepic_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Plane::draw_cartesian_axis(ofstream & output)
+void Eepic_Plane::draw_cartesian_axis(ostream & output)
 {
   if (not with_cartesian_axis)
     return;
@@ -222,7 +222,7 @@ void Eepic_Plane::draw_cartesian_axis(ofstream & output)
 }
 
 
-void Eepic_Thick_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Thick_Arrow::draw(Eepic_Plane * plane, ostream & output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -233,7 +233,7 @@ void Eepic_Thick_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dotted_Segment::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dotted_Segment::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -241,7 +241,7 @@ void Eepic_Dotted_Segment::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dash_Segment::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dash_Segment::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -249,7 +249,7 @@ void Eepic_Dash_Segment::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dotted_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dotted_Arrow::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -257,7 +257,7 @@ void Eepic_Dotted_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dash_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dash_Arrow::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Segment & sg = static_cast<const Segment&>(*geom_object_ptr);
 
@@ -266,7 +266,7 @@ void Eepic_Dash_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Thick_Dash_Arrow::draw(Eepic_Plane * plane, 
-				  ofstream &    output) const
+				  ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -276,7 +276,7 @@ void Eepic_Thick_Dash_Arrow::draw(Eepic_Plane * plane,
   plane->draw_arrow_dash_segment(sg, output);
 }
 
-void Eepic_Triangle::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Triangle::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Triangle & t = static_cast<const Triangle&>(*geom_object_ptr);
 
@@ -305,7 +305,7 @@ void Eepic_Triangle::draw(Eepic_Plane * plane, ofstream & output) const
 	 << std::endl;
 }
 
-void Eepic_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Ellipse::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Ellipse & e = static_cast<const Ellipse&>(*geom_object_ptr);
     
@@ -313,7 +313,7 @@ void Eepic_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Shade_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Shade_Ellipse::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Ellipse & e = static_cast<const Ellipse&>(*geom_object_ptr);
     
@@ -323,7 +323,7 @@ void Eepic_Shade_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Thick_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Thick_Ellipse::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Ellipse & e = static_cast<const Ellipse&>(*geom_object_ptr);
     
@@ -333,7 +333,7 @@ void Eepic_Thick_Ellipse::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Text::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Text::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Text & t = static_cast<const Text &>(*geom_object_ptr);	
 
@@ -341,7 +341,7 @@ void Eepic_Text::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Left_Text::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Left_Text::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Text & t = static_cast<const Text &>(*geom_object_ptr);	
 
@@ -349,7 +349,7 @@ void Eepic_Left_Text::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Right_Text::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Right_Text::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Text & t = static_cast<const Text &>(*geom_object_ptr);	
 
@@ -357,14 +357,14 @@ void Eepic_Right_Text::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Center_Text::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Center_Text::draw(Eepic_Plane * plane, ostream & output) const
 {
   const Text & t = static_cast<const Text &>(*geom_object_ptr);	
 
   plane->draw_text(t, output, 0.5, 0.5);
 }
 
-void Eepic_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Polygon::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -375,7 +375,7 @@ void Eepic_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
                 // cada uno de los polinomios 
 
 void Eepic_Polygon_With_Points::draw(Eepic_Plane * plane, 
-				     ofstream & output) const
+				     ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -386,7 +386,7 @@ void Eepic_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Polygon_With_Arrows::draw(Eepic_Plane * plane, 
-				     ofstream & output) const
+				     ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -394,7 +394,7 @@ void Eepic_Polygon_With_Arrows::draw(Eepic_Plane * plane,
 }
 
 
-void Eepic_Dotted_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dotted_Polygon::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -402,7 +402,7 @@ void Eepic_Dotted_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dash_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dash_Polygon::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -410,7 +410,7 @@ void Eepic_Dash_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 void Eepic_Dotted_Polygon_With_Points::draw(Eepic_Plane * plane, 
-					    ofstream &    output) const
+					    ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -421,7 +421,7 @@ void Eepic_Dotted_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Dash_Polygon_With_Points::draw(Eepic_Plane * plane, 
-					  ofstream &    output) const
+					  ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -431,7 +431,7 @@ void Eepic_Dash_Polygon_With_Points::draw(Eepic_Plane * plane,
 }
 
 void Eepic_Dash_Polygon_With_Arrow::draw(Eepic_Plane * plane, 
-					 ofstream &    output) const
+					 ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -444,7 +444,7 @@ void Eepic_Dash_Polygon_With_Arrow::draw(Eepic_Plane * plane,
 
 
 
-void Eepic_Shade_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Shade_Polygon::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -453,7 +453,7 @@ void Eepic_Shade_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Shade_Polygon_With_Points::draw(Eepic_Plane * plane, 
-					   ofstream &    output) const
+					   ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -464,7 +464,7 @@ void Eepic_Shade_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Polygon_With_Arrows::draw(Eepic_Plane * plane, 
-					   ofstream &    output) const
+					   ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -475,7 +475,7 @@ void Eepic_Shade_Polygon_With_Arrows::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Polygon_With_Text_Points::draw(Eepic_Plane * plane, 
-						ofstream &    output) const
+						ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -486,7 +486,7 @@ void Eepic_Shade_Polygon_With_Text_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Polygon_With_Vertex_Numbers::draw(Eepic_Plane * plane, 
-						   ofstream & output) const
+						   ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -496,7 +496,7 @@ void Eepic_Shade_Polygon_With_Vertex_Numbers::draw(Eepic_Plane * plane,
 }
 
 
-void Eepic_Spline::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Spline::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -504,7 +504,7 @@ void Eepic_Spline::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Dash_Spline::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Dash_Spline::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -512,7 +512,7 @@ void Eepic_Dash_Spline::draw(Eepic_Plane * plane, ofstream & output) const
 }
 
 
-void Eepic_Spline_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Spline_Arrow::draw(Eepic_Plane * plane, ostream & output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -521,7 +521,7 @@ void Eepic_Spline_Arrow::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Dash_Spline_Arrow::draw(Eepic_Plane * plane, 
-				   ofstream &    output) const
+				   ostream &    output) const
 {
   Polygon & poly = (Polygon&)(*geom_object_ptr);
 
@@ -532,7 +532,7 @@ void Eepic_Dash_Spline_Arrow::draw(Eepic_Plane * plane,
 // Exactamente los mismo métodos pero con la adición de Thicklines
 
 void Eepic_Thick_Polygon_With_Points::draw(Eepic_Plane * plane, 
-					   ofstream &    output) const
+					   ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -546,7 +546,7 @@ void Eepic_Thick_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Polygon_With_Arrows::draw(Eepic_Plane * plane, 
-					   ofstream &    output) const
+					   ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -558,7 +558,7 @@ void Eepic_Thick_Polygon_With_Arrows::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Dotted_Polygon::draw(Eepic_Plane * plane, 
-				      ofstream &    output) const
+				      ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -570,7 +570,7 @@ void Eepic_Thick_Dotted_Polygon::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Dash_Polygon::draw(Eepic_Plane * plane, 
-				    ofstream &    output) const
+				    ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -581,7 +581,7 @@ void Eepic_Thick_Dash_Polygon::draw(Eepic_Plane * plane,
 }
 
 void Eepic_Thick_Dotted_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						  ofstream &    output) const
+						  ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -595,7 +595,7 @@ void Eepic_Thick_Dotted_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Dash_Polygon_With_Arrow::draw(Eepic_Plane * plane, 
-					       ofstream &    output) const
+					       ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -611,7 +611,7 @@ void Eepic_Thick_Dash_Polygon_With_Arrow::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Dash_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						ofstream &    output) const
+						ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -625,7 +625,7 @@ void Eepic_Thick_Dash_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Shade_Polygon::draw(Eepic_Plane * plane, 
-				     ofstream &    output) const
+				     ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -637,7 +637,7 @@ void Eepic_Thick_Shade_Polygon::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Shade_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						 ofstream &    output) const
+						 ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -651,7 +651,7 @@ void Eepic_Thick_Shade_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Shade_Polygon_With_Arrows::draw(Eepic_Plane * plane, 
-						 ofstream &    output) const
+						 ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -666,7 +666,7 @@ void Eepic_Thick_Shade_Polygon_With_Arrows::draw(Eepic_Plane * plane,
 
     void 
 Eepic_Thick_Shade_Polygon_With_Text_Points::draw(Eepic_Plane * plane, 
-						 ofstream &    output) const
+						 ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -681,7 +681,7 @@ Eepic_Thick_Shade_Polygon_With_Text_Points::draw(Eepic_Plane * plane,
 
     void 
 Eepic_Thick_Shade_Polygon_With_Vertex_Numbers::draw(Eepic_Plane * plane, 
-						    ofstream & output) const
+						    ostream & output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -694,7 +694,7 @@ Eepic_Thick_Shade_Polygon_With_Vertex_Numbers::draw(Eepic_Plane * plane,
 }
 
 
-void Eepic_Thick_Spline::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Thick_Spline::draw(Eepic_Plane * plane, ostream & output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -706,7 +706,7 @@ void Eepic_Thick_Spline::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Thick_Dash_Spline::draw(Eepic_Plane * plane, 
-				   ofstream &    output) const
+				   ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -718,7 +718,7 @@ void Eepic_Thick_Dash_Spline::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Spline_Arrow::draw(Eepic_Plane * plane, 
-				    ofstream &    output) const
+				    ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -730,7 +730,7 @@ void Eepic_Thick_Spline_Arrow::draw(Eepic_Plane * plane,
 
 
 void Eepic_Thick_Dash_Spline_Arrow::draw(Eepic_Plane * plane, 
-					 ofstream &    output) const
+					 ostream &    output) const
 {
   output << "\\Thicklines" << std::endl
 	 << std::endl;
@@ -741,7 +741,7 @@ void Eepic_Thick_Dash_Spline_Arrow::draw(Eepic_Plane * plane,
 }
 
 
-void Eepic_Regular_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
+void Eepic_Regular_Polygon::draw(Eepic_Plane * plane, ostream & output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -750,7 +750,7 @@ void Eepic_Regular_Polygon::draw(Eepic_Plane * plane, ofstream & output) const
 
 
 void Eepic_Regular_Polygon_With_Points::draw(Eepic_Plane * plane, 
-					     ofstream &    output) const
+					     ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -761,7 +761,7 @@ void Eepic_Regular_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Dotted_Regular_Polygon::draw(Eepic_Plane * plane, 
-					ofstream &    output) const
+					ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -770,7 +770,7 @@ void Eepic_Dotted_Regular_Polygon::draw(Eepic_Plane * plane,
 
 
 void Eepic_Dash_Regular_Polygon::draw(Eepic_Plane * plane, 
-				      ofstream &    output) const
+				      ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -778,7 +778,7 @@ void Eepic_Dash_Regular_Polygon::draw(Eepic_Plane * plane,
 }
 
 void Eepic_Dotted_Regular_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						    ofstream &    output) const
+						    ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -789,7 +789,7 @@ void Eepic_Dotted_Regular_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Dash_Regular_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						  ofstream &    output) const
+						  ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -800,7 +800,7 @@ void Eepic_Dash_Regular_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Regular_Polygon::draw(Eepic_Plane * plane, 
-				       ofstream &    output) const
+				       ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -809,7 +809,7 @@ void Eepic_Shade_Regular_Polygon::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Regular_Polygon_With_Points::draw(Eepic_Plane * plane, 
-						   ofstream &    output) const
+						   ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -820,7 +820,7 @@ void Eepic_Shade_Regular_Polygon_With_Points::draw(Eepic_Plane * plane,
 
 
 void Eepic_Shade_Regular_Polygon_With_Arrows::draw(Eepic_Plane * plane, 
-						   ofstream &    output) const
+						   ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -832,7 +832,7 @@ void Eepic_Shade_Regular_Polygon_With_Arrows::draw(Eepic_Plane * plane,
 
     void
 Eepic_Shade_Regular_Polygon_With_Text_Points::draw(Eepic_Plane * plane, 
-						   ofstream &    output) const
+						   ostream &    output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 
@@ -844,7 +844,7 @@ Eepic_Shade_Regular_Polygon_With_Text_Points::draw(Eepic_Plane * plane,
 
     void 
 Eepic_Shade_Regular_Polygon_With_Vertex_Numbers::draw
-    (Eepic_Plane * plane, ofstream & output) const
+    (Eepic_Plane * plane, ostream & output) const
 {
   Regular_Polygon & poly = (Regular_Polygon&)(*geom_object_ptr);
 

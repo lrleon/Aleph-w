@@ -46,15 +46,11 @@ namespace Aleph {
     template <typename T>
 class DynSlist : public Slist<T>
 {
-
-private:
-
   size_t num_items;
   int        current_pos;
   Snode<T> * current_node;
   typename Slist<T>::Node * get_previous_to_pos(const int & pos)
   {
-
     if (pos > num_items)
       throw std::out_of_range ("position out of range");
 
@@ -93,10 +89,7 @@ public:
         @note En términos de desempeño, este operador no es el mismo que
         el acceso sobre un arreglo.
      */
-  T & operator [] (const size_t & i) 
-
-    throw(std::exception, std::out_of_range)
-
+  T & operator [] (const size_t & i) throw(std::exception, std::out_of_range)
   {
     return get_previous_to_pos(i)->get_next()->get_data();
   }    
@@ -139,7 +132,7 @@ public:
   virtual ~DynSlist() 
   {      // eliminar nodo por nodo hasta que la lista devenga vacía
     while (not this->is_empty())
-      delete this->remove_first(); // remove_first de clase Slink
+      delete this->remove_first_ne(); // remove_first de clase Slink
   }
     /** Iterador sobre listas dinámicas implementadas con listas
         simplemente enlazadas. 
@@ -160,7 +153,6 @@ public:
         /// retorna una referencia al elemento actual.
     T & get_curr() { return Slist<T>::Iterator::get_curr()->get_data(); }
   };
-
 };
 
 } // end namespace Aleph

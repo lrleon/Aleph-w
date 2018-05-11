@@ -171,7 +171,7 @@ private:
 	  if (acum_src == Inf)
 	    continue;
 	  
-	  auto tgt = it.get_tgt_node();
+	  auto tgt = it.get_tgt_node_ne();
 	  auto w = dist(arc);
 	  auto sum = acum_src + w;
 	  auto & acum_tgt = acum(tgt);

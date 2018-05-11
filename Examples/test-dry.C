@@ -64,11 +64,11 @@ void find_test()
   int vals[11]; int k = 0;
   c.for_each([&k, &vals] (int i) { vals[k++] = i; });
 
-  c.for_each([&c, vals] (int i) { assert(c.nth(i) == vals[i]); });
+  c.for_each([&c, vals] (int i) { assert(c.nth_ne(i) == vals[i]); });
 
   k = 0;
   a.for_each([&k, &vals] (int i) { vals[k++] = i; });
-  a.for_each([&a, vals] (int i) { assert(a.nth(i) == vals[i]); });
+  a.for_each([&a, vals] (int i) { assert(a.nth_ne(i) == vals[i]); });
 
   assert(c.find_ptr([] (int i) { return i == 5; }));
   assert(a.find_ptr([] (int i) { return i == 5; }));
