@@ -30,3 +30,6 @@
 ## 10. manejo de hash para pares
 - Created at   2018-05-10 19:23:22 -0400
 
+## 11. tal vez para Matrix sea mejor poner un hash explícito para pares
+- Created at   2018-05-10 22:04:18 -0400
+
