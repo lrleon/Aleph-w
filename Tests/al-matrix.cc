@@ -34,35 +34,53 @@ using namespace testing;
 
 struct SmallDomains : testing::Test
 {
-  AlDomain<char> rd = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j' };
-  AlDomain<string> cd = { "a", "b", "c", "d", "e", "f", "g" };
+  AlDomain<char> rd = { 'a', 'b', 'c', 'd', 'e' };
+  AlDomain<string> cd = { "A", "B", "C", "D" };
   using V1 = Vector<char, int>;
   using V2 = Vector<string, int>;
   using Mat1 = Matrix<char, string, int>;
   using Mat2 = Matrix<string, char, int>;
+
+  V1 v1_zero = { rd };
+  V1 v1_one = { rd, range<int>(rd.size()) };
+  V1 v1_odd = { rd, range<int>(rd.size()).
+		maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
+  V1 v1_even = { rd, range<int>(rd.size()).
+		 maps([] (auto i) { return (i % 2) == 0 ? 0 : 1; }) };
+
+  V2 v2_zero = { cd };
+  V2 v2_one = { cd, range<int>(cd.size()) };
+  V2 v2_odd = { cd, range<int>(cd.size()).
+		maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
+  V2 v2_even = { cd, range<int>(cd.size()).
+		 maps([] (auto i) { return (i % 2) == 0 ? 0 : 1; }) };
+
+  Mat1 m1_zero = { rd, cd };
+  Mat1 m1_one = { rd, cd, rd.maps<DynList<int>>([&] (auto)
+    { return range<int>(cd.size()); }) };
+  Mat1 m1_odd = { rd, rep<V2>(rd.size(), v2_odd) };
+  Mat1 m1_even = { rd, rep<V2>(rd.size(), v2_even) };
 };
 
 TEST_F(SmallDomains, basic)
 {
-  Mat1 m11 = { rd, cd };
-  Mat2 m21 = { cd, rd };
-  V1 v11 = { rd, range<int>(rd.size()).
-	     maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
-  V2 v21 = { cd, range<int>(cd.size()).
-	     maps([] (auto i) { return (i % 2) != 0 ? 1 : 0; }) };
-
-  EXPECT_EQ(v11*m11, V2(cd));
-  cout << v11 << endl << endl
-       << v21 << endl << endl
-       << m11 << endl << endl
-       << m21 << endl << endl
-       << v11*m11 << endl << endl;
+  cout << v1_zero << endl << endl
+       << v1_one <<  endl << endl
+       << v1_odd <<  endl << endl
+       << v1_even <<  endl << endl
+       << endl
+       << v2_zero << endl << endl
+       << v2_one <<  endl << endl
+       << v2_odd <<  endl << endl
+       << v2_even <<  endl << endl
+       << m1_even<< endl << endl
+       << endl;
 }
 
 TEST_F(SmallDomains, identity)
 {
-  using M1 = Matrix<char, char, int>;
-  using M2 = Matrix<string, string, int>;
+  // using M1 = Matrix<char, char, int>;
+  // using M2 = Matrix<string, string, int>;
   // cout << M1(rd, rd).identity() << endl
   //      << M2(cd, cd).identity() << endl;
 }

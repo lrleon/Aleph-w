@@ -132,6 +132,70 @@ public:
     }); 
   }
 
+  Matrix(const RDomain & rdomain, const CDomain & cdomain,
+	 const DynList<DynList<NumType>> & l,
+	 const NumType & e = default_epsilon)
+    : Matrix(rdomain, cdomain, e)
+  {
+    if (l.size() != rdomain_ptr->size())
+      throw std::range_error("mismatch with number of rows");
+
+    for (auto it = zip_it(rdomain.keys(), l); it.has_curr(); it.next())
+      {
+	auto t = it.get_curr();
+	const Trow & row_idx = get<0>(t);
+	const DynList<NumType> & row = get<1>(t);
+	for (auto it = zip_it(cdomain.keys(), row); it.has_curr();it.next())
+	  {
+	    auto t = it.get_curr();
+	    const NumType & val = get<1>(t);
+	    if (is_zero(val))
+	      continue;
+	    const Tcol & col_idx = get<0>(t);
+	    entries.insert(RCPair(row_idx, col_idx), val);
+	  }
+      }
+  }
+
+  Matrix(const RDomain & rdomain, 
+	 const DynList<Vector<Tcol, NumType>> & rows,
+	 const NumType & e = default_epsilon)
+    : Matrix(rdomain, rows.get_first().get_domain(), e)
+  {
+    for (auto it = zip_it(rdomain.keys(), rows); it.has_curr(); it.next())
+      {
+	auto t = it.get_curr();
+	const Trow & row_idx = get<0>(t);
+	const Vector<Tcol, NumType> & row = get<1>(t);
+	for (auto it = row.get_it(); it.has_curr(); it.next())
+	  {
+	    auto & p = it.get_curr();
+	    const NumType & val = p.second;
+	    if (is_zero(val))
+	      continue;
+	    const Tcol & col_idx = p.first;
+	    entries.insert(RCPair(row_idx, col_idx), val);
+	  }
+      }
+  }
+
+  Matrix(const CDomain & cdomain, 
+	 const DynList<Vector<Trow, NumType>> & cols,
+	 const NumType & e = default_epsilon)
+    : Matrix(cols.get_first().get_domain(), cdomain, e)
+  {
+    for (auto it = zip_it(cdomain.keys(), cols); it.has_curr(); it.next())
+      {
+	auto t = it.get_curr();
+	const Tcol & col_idx = get<0>(t);
+	const Vector<Trow, NumType> & col = get<1>(t);
+	for (auto it = col.get_it(); it.has_curr(); it.next())
+	  {
+	    auto & p = it.get_curr();
+	  }
+      }
+  }
+
   NumType get_entry(const Trow & row, const Tcol & col)
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));

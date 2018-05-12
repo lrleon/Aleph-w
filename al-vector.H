@@ -534,10 +534,11 @@ public:
 
   struct Iterator : public Map::Iterator 
   {
-    Iterator(const Vector & vec) : Map::Iterator(vec.entries) { }
+    Iterator(const Vector & vec) : Map::Iterator(vec.entries) {}
   };
 
-  Iterator get_itor() const noexcept { return Iterador(*this); }
+  Iterator get_itor() const noexcept { return Iterator(*this); }
+  Iterator get_it() const noexcept { return Iterator(*this); }
 
   Generic_Traverse(Pair);
 
