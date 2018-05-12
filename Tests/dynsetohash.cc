@@ -61,7 +61,6 @@ TYPED_TEST_P(OHashTest, basic)
 
   for (size_t i = 0, n = tbl.size(); i < n; ++i)
     {
-      cout << "i = " << i << endl;
       auto ptr = tbl.search(i);
       ASSERT_NE(ptr, nullptr);
       EXPECT_EQ(ptr->first, i);

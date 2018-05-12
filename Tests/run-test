@@ -33,7 +33,8 @@ fail "#{test_src_name} not found" unless File.exists? test_src_name
 
 tgt_name = File.basename test_src_name, '.cc'
 
-compile_line = "clang++ #{test_src_name} "\
+compile_line = "clang++ -fsanitize=address,undefined "\
+               "#{test_src_name} "\
                "-std=c++14 -isystem -pthread -I#{alephw} "\
                "-I#{gtestdir}/googletest/include "\
                "-I#{gtestdir}/googlemock/include "\

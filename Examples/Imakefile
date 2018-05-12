@@ -8,6 +8,7 @@ AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
 
+CCLINK = clang++ -fsanitize=address,undefined
 # now comment clang++ line and uncomment c++ line. Flag for standard could
 # change according to compiler version. This flag is for gcc 4.6.3. On
 # 4.7.x should work -std=c++11
@@ -70,7 +71,7 @@ WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-paren
 
 
 #FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
-FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
+FLAGS=-fsanitize=address,undefined -DDEBUG -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
 DEFINES=	-D_GLIBCXX__PTHREADS 
 
