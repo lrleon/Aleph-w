@@ -192,6 +192,11 @@ public:
 	for (auto it = col.get_it(); it.has_curr(); it.next())
 	  {
 	    auto & p = it.get_curr();
+	    const NumType & val = p.second;
+	    if (is_zero(val))
+	      continue;
+	    const Trow & row_idx = p.first;
+	    entries.insert(RCPair(row_idx, col_idx), val);
 	  }
       }
   }

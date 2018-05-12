@@ -60,6 +60,14 @@ struct SmallDomains : testing::Test
     { return range<int>(cd.size()); }) };
   Mat1 m1_odd = { rd, rep<V2>(rd.size(), v2_odd) };
   Mat1 m1_even = { rd, rep<V2>(rd.size(), v2_even) };
+
+  Mat2 m2_zero = { cd, rd };
+  Mat2 m2_one = { cd, rd, cd.maps<DynList<int>>([&] (auto)
+    { return range<int>(cd.size()); }) };
+  Mat2 m2_odd = { cd, rep<V1>(cd.size(), v1_odd) };
+  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };
+
+  
 };
 
 TEST_F(SmallDomains, basic)
@@ -74,6 +82,9 @@ TEST_F(SmallDomains, basic)
        << v2_odd <<  endl << endl
        << v2_even <<  endl << endl
        << m1_even<< endl << endl
+       << m1_odd << endl << endl
+       << m2_even<< endl << endl
+       << m1_odd << endl << endl
        << endl;
 }
 

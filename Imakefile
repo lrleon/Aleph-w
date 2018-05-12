@@ -6,8 +6,8 @@ DEPEND = sh ./depend.sh
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
+RANLIB = llvm-ranlib
 LD = llvm-link
-
 CXX = clang++  
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
