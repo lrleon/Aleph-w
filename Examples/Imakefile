@@ -2,16 +2,11 @@ DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
 # compiler suite 
-
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
-
 CCLINK = clang++ -fsanitize=address,undefined
-# now comment clang++ line and uncomment c++ line. Flag for standard could
-# change according to compiler version. This flag is for gcc 4.6.3. On
-# 4.7.x should work -std=c++11
 CXX = clang++  
 
 SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
@@ -69,6 +64,7 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
+# remove -fsanitize=address,undefined if you are not using clang
 FLAGS=-fsanitize=address,undefined -DDEBUG -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
 DEFINES=	-D_GLIBCXX__PTHREADS 
