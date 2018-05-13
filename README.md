@@ -19,6 +19,27 @@ topological sort, spanning trees, min paths, etc. The graphs are
 generic in the sense that they can contain data independent of the
 algorithm.
 
+The implementation details are not hidden. Each data structure claims
+how this is implemented. For example, the Aleph-w type `DynList`
+represents a dynamic list of items that is implemented with a single
+linked list. Consequently you can not delete in O(1) an item given its
+address. At the contrary, the data type `DynDlist`, that represents a
+list implemented with a double linked list, allows to delete any item
+in O(1) given its address because the item contains enough context for
+the deletion.
+
+Most of components of Aleph-w are designed with a minimalist
+pretension, according to the end to end argument (Saltzer et Al). For
+example, in the case of binary trees, we first model the binary node,
+which handles the data storage and link management. Next, we model the
+tree based on the idea of binary node, without to think in memory
+management. Finally we model the general binary tree, which manages
+memory and receives as template parameter the type of tree.
+
+Almost every data structure supports functional programming primitives
+strongly inspired on the ML standard library: `for_each()`, `all()`,
+`exists()`, `maps()`, `find_ptr()`, `foldl()`, etc.
+
 ## Building
 
 ### Library
@@ -65,7 +86,7 @@ You could build a specific example:
 
     make test-name
 
-### Test
+### Tests
 
 In order to execute the tests, which are optional and they are located
 in the `Tests` directory, you will need:
