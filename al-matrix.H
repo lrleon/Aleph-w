@@ -74,7 +74,6 @@ public:
   {
     if (e < 0)
       throw std::domain_error("epsilon must be greater or equal to zero");
-
     epsilon = e;
   }
 
@@ -117,7 +116,6 @@ public:
     {
       if (itr->size() != cdomain_ptr->size())
 	throw std::range_error("mismatch with number of columns");
-
       auto itc = itr->begin();
       clist.for_each([this, &itc, &row] (const Tcol & col)
       {
@@ -126,8 +124,7 @@ public:
 	  return;
 
 	entries.insert(RCPair(row, col), val);
-      });
-      
+      });      
       itr++;
     }); 
   }
@@ -204,35 +201,29 @@ public:
   NumType get_entry(const Trow & row, const Tcol & col)
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
-
     auto * ptr = entries.search(RCPair(row, col));
     if (ptr == nullptr)
       return 0;
-
     if (is_zero(ptr->second))
       {
 	entries.remove_ptr(ptr);
 	return 0;
       }
-
     return ptr->second;
   }
 
   NumType get_entry(const Trow & row, const Tcol & col) const noexcept
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
-
     auto * ptr = entries.search(RCPair(row, col));
     if (ptr == nullptr)
       return 0;
-
     return ptr->second;
   }
 
   void set_entry(const Trow & row, const Tcol & col, const NumType & val)
   {
     assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
-
     auto * ptr = entries.search(RCPair(row, col));
     if (is_zero(val))
       {
@@ -240,7 +231,6 @@ public:
 	  entries.remove_by_data(ptr->second);
 	return;
       }
-
     if (ptr == nullptr)
       entries.insert(RCPair(row, col), val);
     else
@@ -273,7 +263,6 @@ public:
   {
     if (not rdomain_ptr->has(row))
       throw std::domain_error("row is not inside the row domain");
-
     return 
       col_domain_list().template maps<NumType>([this, &row] (const Tcol & col) 
 					       { return get_entry(row, col); });
@@ -283,7 +272,6 @@ public:
   {
     if (not cdomain_ptr->has(col))
       throw std::domain_error("col is not inside the column domain");
-
     return row_domain_list().template maps<NumType>
       ([this, &col] (const Trow & row) { return get_entry(row, col); });
   }
@@ -304,7 +292,6 @@ public:
       });
       ret_val.append(vec);
     });
-
     return ret_val;
   }
 
@@ -324,7 +311,6 @@ public:
 		    });
       ret_val.append(vec);
     });
-
     return ret_val;
   }
 
@@ -333,7 +319,6 @@ public:
   {
     if (not rdomain_ptr->has(row))
       throw std::domain_error("get_row_vector(): invalid row");
-
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
     cdomain_ptr->for_each([&] (const Tcol & col)
     {
@@ -341,7 +326,6 @@ public:
       if (ptr != nullptr)
 	ret_val.set_entry(col, ptr->second);
     });
-
     return ret_val;
   }
 
@@ -350,7 +334,6 @@ public:
   {
     if (not cdomain_ptr->has(col))
       throw std::domain_error("get_col_vector(): invalid col");
-
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
     rdomain_ptr->for_each([&] (const Trow & row)
     {
@@ -358,7 +341,6 @@ public:
       if (ptr != nullptr)
        	ret_val.set_entry(row, ptr->second);
     });
-
     return ret_val;
   }
 
@@ -367,7 +349,7 @@ public:
       | a b c
     ---------
     A | 1 2 3    a b c                                         A  B  C
-    B | 4 5 6 * ------ = v[a]*m[a] + v[b]m[b]*v + v[c]*m[c] = --------
+    B | 4 5 6 * ------ = v[a]*m[a] + v[b]*m[b] + v[c]*m[c] = --------
     C | 7 8 9    1 0 2                                         7 16 25
    */
   Vector<Trow, NumType> 
@@ -375,7 +357,6 @@ public:
   {
     if (&vec.get_domain() != &get_col_domain())
       throw std::domain_error("mult_matrix_vector_linear_comb:domain mismatch");
-
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
     vec.for_each([this, &ret_val] (const std::pair<Tcol, NumType> & p)
 		 {
@@ -383,7 +364,6 @@ public:
 		   const NumType & val = p.second;
 		   ret_val += val*get_col_vector(col);
 		 });
-
     return ret_val;
   }
 
@@ -392,7 +372,6 @@ public:
   {
     if (&vec.get_domain() != &get_col_domain())
       throw std::domain_error("mult_matrix_vector_sparse: domain mismatch");
-
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
     entries.for_each([&ret_val, &vec] (const Pair & p)
 		     {
@@ -400,12 +379,10 @@ public:
 		       const Tcol & col = p.first.second;
 		       const NumType & entry_val = p.second;
 		       NumType * vec_entry = vec.search_entry(col);
-
 		       if (vec_entry != nullptr)
 			 ret_val.set_entry(row, ret_val.get_entry(row) +
 					   entry_val * *vec_entry);
-		     });
-    
+		     });    
     return ret_val;
   }
 
@@ -423,7 +400,6 @@ public:
   {
     if (&vec.get_domain() != &get_row_domain())
       throw std::domain_error("mult_vector_matrix_linear_comb:domain mismatch");
-
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
     vec.for_each([this, &ret_val] (const std::pair<Trow, NumType> & p)
 		 {
@@ -431,7 +407,6 @@ public:
 		   const NumType & val = p.second;
 		   ret_val += val*get_row_vector(row);
 		 });
-
     return ret_val;
   }
 
@@ -440,13 +415,11 @@ public:
   {
     if (&vec.get_domain() != &get_col_domain())
       throw std::domain_error("mult_matrix_vector_dot_product:domain mismatch");
-
     Vector<Trow, NumType> ret_val(*rdomain_ptr);
     rdomain_ptr->for_each([&] (const Trow & row)
 			  {
 			    ret_val.set_entry(row, get_row_vector(row)*vec);
 			  });
-
     return ret_val;
   }
 
@@ -455,18 +428,16 @@ public:
   {
     if (&vec.get_domain() != &get_row_domain())
       throw std::domain_error("mult_vector_matrix_dot_product:domain mismatch");
-
     Vector<Tcol, NumType> ret_val(*cdomain_ptr);
     cdomain_ptr->for_each([&] (const Tcol & col)
 			  {
 			    ret_val.set_entry(col, get_col_vector(col)*vec);
 			  });
-
     return ret_val;
   }
 
-  Vector<Tcol, NumType>
-  operator * (const Vector<Trow, NumType> & vec) const
+  Vector<Trow, NumType>
+  operator * (const Vector<Tcol, NumType> & vec) const
   {
     return mult_matrix_vector_linear_comb(vec);
   }
@@ -486,15 +457,13 @@ public:
   Matrix & set_vector_as_row(const Trow & row, const Vector<Tcol> & vec)
   {
     if (&vec.get_domain() != cdomain_ptr)
-      throw std::domain_error("set_vector_as_row: domain vec mismath");
-
+      throw std::domain_error("set_vector_as_row: domain vec mismatch");
     vec.for_each([this, &row] (const std::pair<Tcol, NumType> & p)
 		 {
 		   const Tcol & col = p.first;
 		   const NumType & val = p.second;
 		   set_entry(row, col, val);
 		 });
-
     return *this;
   }
 
@@ -502,15 +471,13 @@ public:
   Matrix & set_vector_as_col(const Tcol & col, const Vector<Trow> & vec)
   {
     if (&vec.get_domain() != rdomain_ptr)
-      throw std::domain_error("set_vector_as_col: domain vec mismatch"); 
-
+      throw std::domain_error("set_vector_as_col: domain vec mismatch");
     vec.for_each([this, &col] (const std::pair<Trow, NumType> & p)
 		 {
 		   const Trow & row = p.first;
 		   const NumType & val = p.second;
 		   set_entry(row, col, val);
 		 });
-
     return *this;
   }
 
@@ -518,10 +485,8 @@ public:
   {
     static_assert(is_same<Trow, Tcol>::value, 
 		  "Row domain is not equal to column domain"); 
-
     if (identity_computed)
       return *I_ptr;
-
     I_ptr = new Matrix<Trow, Tcol, NumType>(*rdomain_ptr, *rdomain_ptr);
     rdomain_ptr->for_each([this] (const Trow & row)
 			  {
@@ -535,7 +500,6 @@ public:
   {
     if (rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
       throw std::domain_error("Matrix addtion domain mismatch");
-
     m.entries.for_each([this] (const Pair & p)
 		       {
 			 const Trow & row = p.first.first;
@@ -547,7 +511,6 @@ public:
 			 else
 			   ptr->second += p.second;
 		       });
-
     return *this;
   }
 
@@ -565,7 +528,6 @@ public:
 		       NumType & val = const_cast<Pair&>(p).second;
 		       val *= scalar;
 		     });
-
     return *this;
   }
 
@@ -574,14 +536,11 @@ public:
   vector_matrix_mult(const Matrix<T2row, T2col, NumType> & m) const
   {
     validate_domains_for_mult(m);
-
     Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
-
     rdomain_ptr->for_each([this, &m, &ret_val] (const Trow & row)
     {
       ret_val.set_vector_as_row(row, get_row_vector(row)*m);
     });
-
     return ret_val;
   }
 
@@ -590,13 +549,11 @@ public:
   matrix_vector_mult(const Matrix<T2row, T2col, NumType> & m) const
   {
     validate_domains_for_mult(m);
-
     Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
     m.cdomain_ptr->for_each([this, &m, &ret_val] (const Tcol & col)
     {
       ret_val.set_vector_as_col(col, *this * m.get_col_vector(col));
     });
-
     return ret_val;
   }
 
@@ -615,9 +572,7 @@ public:
   std::string to_str() const
   {
     typedef std::pair<std::string, std::string> StrPair;
-
     DynList<ColVector> cols = to_collist();
-
         // lista de string más largos de cada columna
     DynList<std::string> collens = 
       cols.template maps<std::string>([] (const ColVector & vec)
@@ -700,15 +655,13 @@ public:
   {
     if (not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
       throw std::domain_error("invalid matrixes domains");
-
     return entries.all([&m, this] (const Pair & p)
 		       {
 			 const Trow & row = p.first.first;
 			 const Tcol & col = p.first.second;
 			 return are_equal(m.get_entry(row, col), p.second);
 		       })
-      and
-      m.entries.all([this] (const Pair & p)
+      and m.entries.all([this] (const Pair & p)
 		    {
 		      const Trow & row = p.first.first;
 		      const Tcol & col = p.first.second;
@@ -758,7 +711,6 @@ Matrix<Trow, Tcol, NumType> outer_product(const Vector<Trow> & v1,
       ret_val.set_entry(p1.first, p2.first, p1.second*p2.second);
     });
   });
-
   return ret_val;
 }
 

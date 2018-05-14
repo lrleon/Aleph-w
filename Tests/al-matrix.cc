@@ -65,13 +65,16 @@ struct SmallDomains : testing::Test
   Mat2 m2_one = { cd, rd, cd.maps<DynList<int>>([&] (auto)
     { return range<int>(cd.size()); }) };
   Mat2 m2_odd = { cd, rep<V1>(cd.size(), v1_odd) };
-  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };
-
-  
+  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };  
 };
 
 TEST_F(SmallDomains, basic)
 {
+  EXPECT_EQ(v1_one*m1_zero, V2(cd, { 0, 0, 0, 0}));
+  EXPECT_EQ(m1_zero*v2_one, V1(rd, { 0, 0, 0, 0, 0}));
+  cout << v1_one*m1_zero << endl << endl
+       << m1_zero*v2_one << endl << endl;
+  return;
   cout << v1_zero << endl << endl
        << v1_one <<  endl << endl
        << v1_odd <<  endl << endl
