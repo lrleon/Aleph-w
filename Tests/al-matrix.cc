@@ -76,15 +76,15 @@ TEST_F(SmallDomains, basic)
   EXPECT_EQ(m1_one.get_row_vector('d'), v2);
   EXPECT_EQ(m1_one.get_row_vector('e'), v2);
 
-  cout << m1_one << endl << endl;
-
   EXPECT_EQ(m1_one.get_col_vector("A"), V1(rd));
-  EXPECT_EQ(m1_one.get_col_vector("B"), V1(rd, rep<int>(rd.size(), 1)));
-  EXPECT_EQ(m1_one.get_col_vector("C"), V1(rd, rep<int>(rd.size(), 2)));
-  EXPECT_EQ(m1_one.get_col_vector("D"), V1(rd, rep<int>(rd.size(), 3)));
+  EXPECT_EQ(m1_one.get_col_vector("B"), V1(rd, rep(rd.size(), 1)));
+  EXPECT_EQ(m1_one.get_col_vector("C"), V1(rd, rep(rd.size(), 2)));
+  EXPECT_EQ(m1_one.get_col_vector("D"), V1(rd, rep(rd.size(), 3)));
 
   EXPECT_EQ(v1*m1_zero, V2(cd, { 0, 0, 0, 0}));
   EXPECT_EQ(m1_zero*v2, V1(rd, { 0, 0, 0, 0, 0}));
+
+  
 
   return;
   cout << v1_zero << endl << endl
