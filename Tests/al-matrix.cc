@@ -42,14 +42,14 @@ struct SmallDomains : testing::Test
   using Mat2 = Matrix<string, char, int>;
 
   V1 v1_zero = { rd };
-  V1 v1_one = { rd, range<int>(rd.size()) };
+  V1 v1 = { rd, range<int>(rd.size()) };
   V1 v1_odd = { rd, range<int>(rd.size()).
 		maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
   V1 v1_even = { rd, range<int>(rd.size()).
 		 maps([] (auto i) { return (i % 2) == 0 ? 0 : 1; }) };
 
   V2 v2_zero = { cd };
-  V2 v2_one = { cd, range<int>(cd.size()) };
+  V2 v2 = { cd, range<int>(cd.size()) };
   V2 v2_odd = { cd, range<int>(cd.size()).
 		maps([] (auto i) { return (i % 2) == 0 ? 1 : 0; }) };
   V2 v2_even = { cd, range<int>(cd.size()).
@@ -70,18 +70,30 @@ struct SmallDomains : testing::Test
 
 TEST_F(SmallDomains, basic)
 {
-  EXPECT_EQ(v1_one*m1_zero, V2(cd, { 0, 0, 0, 0}));
-  EXPECT_EQ(m1_zero*v2_one, V1(rd, { 0, 0, 0, 0, 0}));
-  cout << v1_one*m1_zero << endl << endl
-       << m1_zero*v2_one << endl << endl;
+  EXPECT_EQ(m1_one.get_row_vector('a'), v2);
+  EXPECT_EQ(m1_one.get_row_vector('b'), v2);
+  EXPECT_EQ(m1_one.get_row_vector('c'), v2);
+  EXPECT_EQ(m1_one.get_row_vector('d'), v2);
+  EXPECT_EQ(m1_one.get_row_vector('e'), v2);
+
+  EXPECT_EQ(m1_one.get_col_vector("A"), V1(rd));
+  EXPECT_EQ(m1_one.get_col_vector("B"), V1(rd, rep(rd.size(), 1)));
+  EXPECT_EQ(m1_one.get_col_vector("C"), V1(rd, rep(rd.size(), 2)));
+  EXPECT_EQ(m1_one.get_col_vector("D"), V1(rd, rep(rd.size(), 3)));
+
+  EXPECT_EQ(v1*m1_zero, V2(cd, { 0, 0, 0, 0}));
+  EXPECT_EQ(m1_zero*v2, V1(rd, { 0, 0, 0, 0, 0}));
+
+  
+
   return;
   cout << v1_zero << endl << endl
-       << v1_one <<  endl << endl
+       << v1 <<  endl << endl
        << v1_odd <<  endl << endl
        << v1_even <<  endl << endl
        << endl
        << v2_zero << endl << endl
-       << v2_one <<  endl << endl
+       << v2 <<  endl << endl
        << v2_odd <<  endl << endl
        << v2_even <<  endl << endl
        << m1_even<< endl << endl
