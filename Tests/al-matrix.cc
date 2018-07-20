@@ -1,4 +1,4 @@
-/* Aleph-w
+         /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
@@ -84,7 +84,7 @@ TEST_F(SmallDomains, basic)
   EXPECT_EQ(v1*m1_zero, V2(cd, { 0, 0, 0, 0}));
   EXPECT_EQ(m1_zero*v2, V1(rd, { 0, 0, 0, 0, 0}));
 
-  
+  cout << m1_even.matrix_vector_mult(m2_even) << endl << endl;
 
   return;
   cout << v1_zero << endl << endl

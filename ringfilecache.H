@@ -59,8 +59,8 @@ public:
     size_t n;    // Number of entries stored in cache
     size_t head; // next integral position ready for reading
     size_t tail; // next integral position ready for writing
-    size_t size_cache_file = 0; // num of chars of string (including '\0'
-    char cache_file_name[0]; // be careful with this field. DONT USE IT!
+    size_t size_cache_file = 0; // num of chars of string (including '\0')
+    char cache_file_name[0]; // be careful with this field. DON'T USE IT!
 
     string to_string() const
     {
@@ -86,7 +86,7 @@ private:
   fstream cache_stream; // the stream for the cache (read/write mode)
 
   size_t dim  = 0; // the maximum number of entries
-  size_t n    = 0; // the current number of entries stored
+  size_t n    = 0; // the current number of stored entries 
   size_t head = 0; // next integral position ready for reading
   size_t tail = 0; // next integral position ready for writing
 

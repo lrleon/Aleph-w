@@ -129,6 +129,8 @@ public:
     }); 
   }
 
+  enum class CtorType { RowVector, ColVector };
+
   Matrix(const RDomain & rdomain, const CDomain & cdomain,
 	 const DynList<DynList<NumType>> & l,
 	 const NumType & e = default_epsilon)
@@ -154,7 +156,8 @@ public:
       }
   }
 
-  Matrix(const RDomain & rdomain, 
+  Matrix(
+const RDomain & rdomain, 
 	 const DynList<Vector<Tcol, NumType>> & rows,
 	 const NumType & e = default_epsilon)
     : Matrix(rdomain, rows.get_first().get_domain(), e)

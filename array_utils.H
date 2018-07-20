@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -95,7 +95,7 @@ void rotate_right(T * ptr, const size_t n, size_t m)
   reverse(ptr, m);
   reverse(ptr + m, n - m);
 }
-  
+
 } // namespace Aleph
 
 # endif

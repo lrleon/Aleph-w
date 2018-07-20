@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -128,8 +128,8 @@ struct StlConstIterator : public SetType::Iterator
   const T & operator * () const { return this->get_curr(); }
 
   T const * operator -> () const
-  { 
-    return const_cast<T*>(&this->get_curr()); 
+  {
+    return const_cast<T*>(&this->get_curr());
   }
 
   static StlConstIterator cbegin(const SetType & s)
