@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -96,7 +96,7 @@ inline bool is_odd(long n)
 }
 
   /** Convierte una nibla almaceneda en un <code>int</code> a un
-      <code<>char/code>.  
+      <code<>char/code>.
 
       @ingroup fcts
    */
@@ -120,12 +120,12 @@ inline int char_to_nibble(const char & c)
 {
   assert((c >= '0' and c <= '9') or (c >= 'A' and c <= 'F'));
 
-  const int ret = c < 'A' ? c - '0' : c - 'A' + 10; 
+  const int ret = c < 'A' ? c - '0' : c - 'A' + 10;
 
   assert(ret >= 0 and ret <= 15);
 
   return ret;
-} 
+}
 
 # define DERIVATE_ITERATOR(container_name,  base_it_name, it_name) \
   struct it_name : public base_it_name				   \
@@ -146,7 +146,7 @@ inline int char_to_nibble(const char & c)
       {								   \
 	return base_it_name::operator = (it);			   \
       }								   \
-  }; 
+  };
 
 
 /** Reajusta el tamaño de la pila sistema a new_size. Retorna true si
@@ -277,7 +277,7 @@ double interpolate(double x1, double x2, double y1, double y2, double x)
 {
   assert(x2 > x1 and x <= x2 and x >= x1);
   return y1 + (y2 - y1)*(x - x1)/(x2 - x1);
-}    
+}
 
 /** Basic linear extrapolation
 
@@ -331,7 +331,7 @@ double extrapolate_right(double x1, double x2, double y1, double y2, double x)
 {
   assert(x2 > x1 and x > x2);
   return y2 + (y2 - y1)*(x - x2)/(x2 - x1);
-}    
+}
 
 /** Return the next representable floating-point value to `val`
 

@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -48,12 +48,12 @@ enum SentinelCtor { sentinelCtor };
 
 namespace Aleph
 {
-  typedef uint32_t IPv4_Address; 
+  typedef uint32_t IPv4_Address;
 
   extern const IPv4_Address Null_IPv4_Address;
 
-  struct Empty_Class 
-  { 
+  struct Empty_Class
+  {
     Empty_Class() { /* empty */ }
 
     Empty_Class(EmptyCtor) { /* empty */ }
@@ -114,7 +114,7 @@ namespace Aleph
 # else
 
 # define MESSAGE(format, args...)
-# define WARNING(format, args...) 
+# define WARNING(format, args...)
 
 # endif
 

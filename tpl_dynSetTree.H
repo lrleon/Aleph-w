@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -44,7 +44,7 @@
 
 using namespace Aleph;
 
-namespace Aleph { 
+namespace Aleph {
 
   /** Conjunto dinámico de elementos de tipo genérico T implementado
       mediante una clase de árboles binarios.
@@ -53,11 +53,11 @@ namespace Aleph {
       instrumentada con la clase de árbol binario de búsqueda Tree<Key> y
       ordenado mediante el criterio Compare()().
 
-      @ingroup Arboles 
+      @ingroup Arboles
    */
     template <
-      typename Key, 
-      template <typename, class> class Tree = Avl_Tree, 
+      typename Key,
+      template <typename, class> class Tree = Avl_Tree,
       class Compare = Aleph::less<Key>
       >
 class DynSetTree
@@ -68,9 +68,9 @@ class DynSetTree
 	public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
 {
  public:
-  
+
       /// Tipo de nodo binario empleado por el árbol binario de búsqueda
-      /// interno. 
+      /// interno.
   using Node = typename Tree<Key, Compare>::Node;
 
   using Tree_Type = Tree<Key, Compare>;
@@ -79,8 +79,8 @@ private:
 
   static const size_t dim = 13;
 
-  mutable Tree<Key, Compare> tree; 
-  size_t num_nodes; 
+  mutable Tree<Key, Compare> tree;
+  size_t num_nodes;
 
 public:
 
@@ -100,12 +100,12 @@ public:
     tree.swap(dset.tree);
     std::swap(num_nodes, dset.num_nodes);
   }
-  
+
       /// Instancia un conjunto dinámico
-  DynSetTree(Compare cmp = Compare()) 
+  DynSetTree(Compare cmp = Compare())
     : tree(cmp), num_nodes(0)
-  { 
-    /* empty */ 
+  {
+    /* empty */
   }
 
       /// Instancia un conjunto dinámico copia de srcTree.

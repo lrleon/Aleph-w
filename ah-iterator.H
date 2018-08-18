@@ -128,8 +128,8 @@ struct StlConstIterator : public SetType::Iterator
   const T & operator * () const { return this->get_curr(); }
 
   T const * operator -> () const
-  { 
-    return const_cast<T*>(&this->get_curr()); 
+  {
+    return const_cast<T*>(&this->get_curr());
   }
 
   static StlConstIterator cbegin(const SetType & s)

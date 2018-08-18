@@ -1,28 +1,28 @@
 
 /* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / \  | | ___ _ __ | |__      __      __
+   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+   |_|
 
-  This file is part of Aleph-w library
+   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+   General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+   You should have received a copy of the GNU General Public License
+   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef RINGFILECACHE_H
 # define RINGFILECACHE_H
@@ -46,47 +46,47 @@ extern const size_t Ring_Max_Name_Size;
 /** Ring cache stored in a file.
 
     @author Leandro Rabindranath Leon
- */
+*/
 template <typename T>
 class RingFileCache
 {
 public:
 
   // The cache parameters are stored in a binary file with this structure
-  struct Pars 
+  struct Pars
   {
     size_t dim;  // capacity in entries of cache
     size_t n;    // Number of entries stored in cache
     size_t head; // next integral position ready for reading
     size_t tail; // next integral position ready for writing
-    size_t size_cache_file = 0; // num of chars of string (including '\0'
-    char cache_file_name[0]; // be careful with this field. DONT USE IT!
+    size_t size_cache_file = 0; // num of chars of string (including '\0')
+    char cache_file_name[0]; // be careful with this field. DON'T USE IT!
 
     string to_string() const
     {
       ostringstream s;
       s <<dim << " " << n << " " << tail << " " << head << " "
-       << size_cache_file;
+        << size_cache_file;
       return s.str();
     }
-    
+
     friend ostream & operator << (ostream & out, const Pars & pars)
     {
-      return out << pars.to_string(); 
+      return out << pars.to_string();
     }
   };
 
 private:
 
   bool initialized = false;
-  string pars_file_name; 
+  string pars_file_name;
   string cache_file_name;
 
   fstream pars_stream;  // the stream for the pars (read/write mode)
   fstream cache_stream; // the stream for the cache (read/write mode)
 
   size_t dim  = 0; // the maximum number of entries
-  size_t n    = 0; // the current number of entries stored
+  size_t n    = 0; // the current number of stored entries 
   size_t head = 0; // next integral position ready for reading
   size_t tail = 0; // next integral position ready for writing
 
@@ -109,39 +109,39 @@ private:
   {
     const size_t pos = (head + num_entries) % dim;
     cache_stream.seekg(pos*sizeof(T));
-  } 
+  }
 
   // load an entry from stream. WARNING: the stream pointer is not a priori set
   T read_entry()
-  { 
+  {
     T ret;
-    cache_stream.read((char*) &ret, sizeof ret);      
+    cache_stream.read((char*) &ret, sizeof ret);
 
     return ret;
   }
 
   // read the pos entry respect to the head (oldest entry)
   T read_entry(const size_t pos)
-  { 
+  {
     if (pos >= n)
       {
         ostringstream s;
         s << "read_entry(" << pos << "): cache has " << n << " items";
         throw range_error(s.str());
       }
-    
+
     const size_t real_pos = (head + pos) % dim;
 
     T ret;
     cache_stream.seekg(real_pos*sizeof(ret));
-    cache_stream.read((char*) &ret, sizeof ret);      
+    cache_stream.read((char*) &ret, sizeof ret);
     return ret;
   }
 
   void write_entry(const T & item)
   {
     cache_stream.write((char*) &item, sizeof item);
-  } 
+  }
 
   void validate_absolute_position(const size_t pos) const
   {
@@ -153,12 +153,12 @@ private:
     throw out_of_range(s.str());
   }
 
-  T read_absolute(const size_t pos) 
+  T read_absolute(const size_t pos)
   {
     validate_absolute_position(pos);
     T ret;
     cache_stream.seekg(pos*sizeof(T));
-    cache_stream.read((char*) &ret, sizeof ret);      
+    cache_stream.read((char*) &ret, sizeof ret);
     return ret;
   }
 
@@ -170,11 +170,11 @@ private:
   }
 
 public:
-  
+
   string to_string() const
   {
-    const size_t tg = const_cast<fstream&>(cache_stream).tellg()/sizeof(T); 
-    const size_t tp = const_cast<fstream&>(cache_stream).tellp()/sizeof(T); 
+    const size_t tg = const_cast<fstream&>(cache_stream).tellg()/sizeof(T);
+    const size_t tp = const_cast<fstream&>(cache_stream).tellp()/sizeof(T);
     ostringstream s;
     s << "Cache pars" << endl
       << "capacity = " << capacity() << endl
@@ -190,7 +190,7 @@ public:
   friend ostream & operator << (ostream & out, const RingFileCache & cache)
   {
     return out << cache.to_string();
-  } 
+  }
 
   /** Create a cache with parameters file stored in `pars_file_name file`,
       cache file in `cache_file_name` and with capacity for `num_entries`
@@ -198,11 +198,11 @@ public:
 
       This is the very first function to be called for creating and
       initializing a new cache. Basically, the function create two new
-      files: 
-      
-          - `pars_file_name` where the cache parameters (its internal
+      files:
+
+      - `pars_file_name` where the cache parameters (its internal
 	    state) is saved
-	  - `cache_file_name`: where the data entries to be cached will
+      - `cache_file_name`: where the data entries to be cached will
 	    be stored. This file is created for storing `num_entries`.
 
       After cache creation these files are created. The internal state
@@ -211,7 +211,7 @@ public:
 
       @param[in] pars_file_name name of parameters file
       @param[in] pars_file_name name of cache file where the entries are
-      stored. 
+      stored.
       @param[in] num_entries number of entries to be stored in the cache
       @throw domain_error if any file cannot be open, read o written
       @throw bad_alloc if there is no enough memory
@@ -221,8 +221,8 @@ public:
                      const size_t num_entries)
   {
     static_assert(std::is_default_constructible<T>::value,
-		  "T type has not default constructor");
-    
+                  "T type has not default constructor");
+
     ostringstream s;
 
     fstream pars_stream(pars_file_name, ios::binary | ios::out);
@@ -238,7 +238,7 @@ public:
         s << "cannot open " << cache_file_name;
         throw domain_error(s.str());
       }
-    
+
     const size_t pars_size = sizeof(Pars) + cache_file_name.size() + 1;
     shared_ptr<Pars> pars_ptr((Pars*) malloc(pars_size), free);
     if (pars_ptr == nullptr)
@@ -261,7 +261,7 @@ private:
   static string state(fstream & ss)
   {
     ostringstream s;
-    auto state = ss.rdstate(); 
+    auto state = ss.rdstate();
     if (state & ios::goodbit)
       s << "    goodbit = true " <<  endl;
     else
@@ -291,20 +291,20 @@ private:
         s << "cannot open " << pars_file_name;
         throw domain_error(s.str());
       }
-        // set the cache internal state from the saved state in pars file
+    // set the cache internal state from the saved state in pars file
     Pars pars;
     pars_stream.read((char*) &pars, sizeof pars);
     dim  = pars.dim;
     n    = pars.n;
     head = pars.head;
     tail = pars.tail;
-    
-        // read the cache file name, which shound be saved at the end of
-        // pars file
+
+    // read the cache file name, which shound be saved at the end of
+    // pars file
     const size_t name_size = min(Ring_Max_Name_Size, pars.size_cache_file);
     shared_ptr<char> name((char*) malloc(name_size), free);
     pars_stream.read(name.get(), name_size);
-    cache_file_name = name.get(); 
+    cache_file_name = name.get();
 
     cache_stream.open(cache_file_name, ios::binary | ios::out | ios::in);
     if ((not cache_stream.is_open()) or (not cache_stream.good()))
@@ -313,7 +313,7 @@ private:
         throw domain_error(s.str());
       }
 
-    pars_stream.seekp(0); 
+    pars_stream.seekp(0);
 
     cache_stream.seekg(head*sizeof(T)); // set read position
     cache_stream.seekp(tail*sizeof(T)); // set write position
@@ -340,8 +340,8 @@ public:
     void validate_position(const size_t pos) const
     {
       if (pos < cache_ptr->dim)
-	return;
-	
+        return;
+
       ostringstream s;
       s << "position " << pos << " is outside of maximum " << cache_ptr->dim;
       throw std::out_of_range(s.str());
@@ -350,49 +350,49 @@ public:
     void increase_pos(const long n = 1) noexcept
     {
       if (n < 0)
-	{
-	  decrease_pos(-n);
-	  return;
-	}
+        {
+          decrease_pos(-n);
+          return;
+        }
 
       pos += n;
       if (pos > end_pos)
-	pos = pos % cache_ptr->dim;
+        pos = pos % cache_ptr->dim;
     }
 
     void decrease_pos(const long n = 1) noexcept
     {
       if (n < 0)
-	{
-	  increase_pos(-n);
-	  return;
-	}
+        {
+          increase_pos(-n);
+          return;
+        }
 
       long val = pos - n;
       if (val < 0)
-	{
-	  size_t m = n % cache_ptr->dim; // real positional offset
-	  if (pos < m)
-	    pos = cache_ptr->dim - (m - pos);
-	  else
-	    pos -= m;
-	}
+        {
+          size_t m = n % cache_ptr->dim; // real positional offset
+          if (pos < m)
+            pos = cache_ptr->dim - (m - pos);
+          else
+            pos -= m;
+        }
       else
-	pos = val;
+        pos = val;
     }
 
   public:
 
-    Pointer() {} 
+    Pointer() {}
 
     /** Construct a pointer to current head (oldest item in the cache)
 
-	@param[in] cache the cache
-	@param[in] __pos position respect the current head of cache
-     */
+        @param[in] cache the cache
+        @param[in] __pos position respect the current head of cache
+    */
     Pointer(const RingFileCache & cache, const size_t __pos = 0)
-      : cache_ptr(&const_cast<RingFileCache&>(cache)), 
-	pos(cache.head_pos() + __pos), end_pos(cache.dim) {}
+      : cache_ptr(&const_cast<RingFileCache&>(cache)),
+        pos(cache.head_pos() + __pos), end_pos(cache.dim) {}
 
     Pointer operator ++ () noexcept // prefix increment
     {
@@ -450,12 +450,12 @@ public:
     {
       auto head = cache_ptr->head;
       if (head < pos)
-	return pos - head;
+        return pos - head;
       else
-	return cache_ptr->dim - head + pos;
+        return cache_ptr->dim - head + pos;
     }
 
-    size_t get_pos() const noexcept 
+    size_t get_pos() const noexcept
     {
       return get_pos_respect_to_head();
     }
@@ -479,26 +479,26 @@ public:
 
   bool is_initialized() const { return initialized; }
 
-      /// Returns the number of entries stored in the cache
+  /// Returns the number of entries stored in the cache
   size_t size() const noexcept { return n; }
 
-      /// Returns the maximum capacity 
+  /// Returns the maximum capacity 
   size_t capacity() const noexcept { return dim; }
 
-      /// Returns the number of available entries
+  /// Returns the number of available entries
   size_t avail() const noexcept { return dim - n; }
 
-      /// Returns the current head position
+  /// Returns the current head position
   size_t head_pos() const noexcept { return head; }
 
-      /// return the current tail position
+  /// return the current tail position
   size_t tail_pos() const noexcept { return tail; }
 
-      /// Returns true if the cache is empty
+  /// Returns true if the cache is empty
   bool is_empty() const noexcept { return n == 0; }
 
   /** Initialize a cache previously built.
-      
+
       The internal state of cache is represented by a file specified
       with the parameters file called `pars_file_name` and passed during
       `create()` static method. The name of cache is also passed to
@@ -510,7 +510,7 @@ public:
       @param[in] pars_fname name of cache parameters file
       @throw domain_error if any file cannot be opened
       @throw std::ios_base::failure if there is a failure in any file.
-   */
+  */
   RingFileCache(const string & pars_fname) : pars_file_name(pars_fname)
   {
     read_pars(pars_file_name);
@@ -523,7 +523,7 @@ public:
       @warning The constructed cache is in an invalid state
 
       @see init()
-   */
+  */
   RingFileCache() {}
 
   /** Tests if pars and cache files have been created.
@@ -531,22 +531,22 @@ public:
       @param[in] pars_fname name of parameters file
       @return true if pars_fname exists and its associated cache file
       exists too.
-   */
-  static bool test(const string & pars_fname) 
+  */
+  static bool test(const string & pars_fname)
   {
     ifstream pars_stream(pars_fname, ios::binary);
     if (not pars_stream.good())
       return false;
-    
+
     Pars pars;
     pars_stream.read((char*) &pars, sizeof pars);
-    
-        // read the cache file name, which should be saved at the end of
-        // pars file
+
+    // read the cache file name, which should be saved at the end of
+    // pars file
     const size_t name_size = min(Ring_Max_Name_Size, pars.size_cache_file);
     shared_ptr<char> name((char*) malloc(name_size), free);
     pars_stream.read(name.get(), name_size);
-    const char * cache_file_name = name.get(); 
+    const char * cache_file_name = name.get();
 
     ifstream cache_stream(cache_file_name, ios::binary);
     if (not cache_stream.good())
@@ -558,12 +558,12 @@ public:
   /** Initialize a cache constructed with the default contructor.
 
       @warning: behaviour is unpredictable if a valid cache has already
-      been constructed. 
-      
+      been constructed.
+
       @param[in] pars_fname name of cache parameters file
       @throw domain_error if a pars file is already opened
       @throw std::ios_base::failure if there is a failure in any file.
-   */
+  */
   void init(const string & pars_fname)
   {
     if (pars_stream.is_open())
@@ -579,10 +579,10 @@ public:
 
       @param[in] item to be inserted into the queue
       @return `true` if the 'item' was correctly inserted; `false`
-      otherwise 
+      otherwise
 
       @throw std::ios_base::failure if there is a failure in any file.
-   */
+  */
   bool put(const T & item)
   {
     if (n == dim)     // cache full?
@@ -593,7 +593,7 @@ public:
     test_and_set_tail_pointer();
 
     assert(cache_stream.tellp() == tail*sizeof(T));
- 
+
     write_entry(item);
     if (++tail == dim) // eof border reached?
       {
@@ -606,7 +606,7 @@ public:
     assert(cache_stream.good());
     assert(cache_stream.tellp() == tail*sizeof(T));
 
-    return true; 
+    return true;
   }
 
   /** Read the m most old entries and load them in a contiguos array.
@@ -628,10 +628,10 @@ public:
       @param[in] entries a array where the read entries will be put. 
       @return true if the `m` entries were read; `false` otherwise, what
       only happens if `m` is greater than the current number of stored
-      elements. 
+      elements.
       @throw std::ios_base::failure if there is a failure in any file.
       @see get()
-   */
+  */
   bool read(T entries[], const size_t m = 1)
   {
     if (m > n)
@@ -656,7 +656,7 @@ public:
 
     assert(cache_stream.good());
 
-    return true; 
+    return true;
   }
 
   /// Read the oldest entry in the set
@@ -664,7 +664,7 @@ public:
   {
     if (n == 0)
       throw underflow_error("read_first(): cache is empty");
-    
+
     test_and_set_head_pointer();
     T ret_val;
     read(&ret_val);
@@ -689,24 +689,24 @@ public:
 
   T oldest() { return read_first(); }
 
-  T oldest(size_t i) 
+  T oldest(size_t i)
   {
     if (i > n)
       {
-	ostringstream s;
-	s << "youngest(" << i << ") but the cache has " << n << " entries";
-	throw overflow_error(s.str());
+        ostringstream s;
+        s << "youngest(" << i << ") but the cache has " << n << " entries";
+        throw overflow_error(s.str());
       }
-    
+
     T ret_val;
     read_entry(i);
     return ret_val;
   }
 
-  /** read all the entries 
+  /** read all the entries
 
       @return an dynamic and contiguous array with all the entries of the cache 
-   */
+  */
   Array<T> read_all()
   {
     Array<T> ret(n);
@@ -721,14 +721,14 @@ public:
       The returned array size indicates how many entries were
       effectively read.
 
-   */
+  */
   Array<T> read_from(const size_t pos, const size_t m)
   {
     Array<T> ret;
     Iterator it(*this, pos);
     for (size_t i = 0; i < m and it.has_curr(); ++i, it.next_ne())
       ret.append(it.get_curr_ne());
-    
+
     return ret;
   }
 
@@ -740,28 +740,28 @@ public:
   */
   Array<T> read_from(const Pointer & ptr, const size_t m)
   {
-    Pointer p = ptr;    
+    Pointer p = ptr;
     Array<T> ret;
     for (size_t i = 0; i < m; ++i)
       ret.append(read(p++));
-    
+
     return ret;
   }
 
   /** Extracts (deletes) from the cache the n most older inserted items.
 
       @param[in] m number of items to be extracted
-      @return true if the `m` items were extracted     
-   */
+      @return true if the `m` items were extracted
+  */
   bool get(const size_t m = 1) noexcept
   {
     if (m > n)
       return false;
 
-    head = (head + m) % dim;    
+    head = (head + m) % dim;
     n -= m;
 
-    return true; 
+    return true;
   }
 
   /// empties the cache; all the entries are deleted
@@ -771,9 +771,9 @@ public:
 
       Use this method wisely, Many calls could be very time expensive,
       but with very few calls the persistence reward of this class is
-      lost. 
+      lost.
   */
-  void flush() 
+  void flush()
   {
     assert(pars_stream.tellp() == 0);
     Pars pars;
@@ -785,7 +785,7 @@ public:
     pars_stream.write((char*) &pars, sizeof(pars));
     pars_stream.flush();
     pars_stream.seekp(0);
-    
+
     cache_stream.flush();
   }
 
@@ -795,7 +795,7 @@ public:
       return;
     flush();
     cache_stream.close();
-    pars_stream.close(); 
+    pars_stream.close();
     initialized = false;
   }
 
@@ -808,21 +808,21 @@ public:
       @param[in] sz new capacity
       @throw domain_error if sz is lesser than the current capacity
       @throw std::ios_base::failure if there is a failure in any file
-   */
+  */
   void resize(const size_t sz)
   {
     if (sz < dim)
       throw domain_error("RingFileCache::resize(): file truncation is not "
-			 "implemented (yet?)");
+                         "implemented (yet?)");
 
     T init;
     cache_stream.seekp(dim*sizeof(T));
     for (size_t i = 0, n = sz - dim; i < n; ++i)
       write_entry(init);
-    
+
     dim = sz;
-    flush(); 
-  } 
+    flush();
+  }
 
   // Only for reading and *NOT REENTRANT* ==> while using you MUST not
   // to execute any others operations on cache object
@@ -835,7 +835,7 @@ public:
     size_t pos;
     size_t curr_pos;
 
-    void set_curr_pointer() 
+    void set_curr_pointer()
     {
       cache_ptr->cache_stream.seekg(curr_pos*sizeof(T));
     }
@@ -844,7 +844,7 @@ public:
     {
       ++pos;
       if (++curr_pos == cache_ptr->dim)
-	curr_pos = 0;
+        curr_pos = 0;
     }
 
     void load_curr()
@@ -859,21 +859,21 @@ public:
 
     bool has_curr() const { return pos < cache_ptr->n; }
 
-     /** Instance an iterator on the cache `n` entries forward from the oldest
-	 cache entry 
+    /** Instance an iterator on the cache `n` entries forward from the oldest
+        cache entry
 
-	 @param[in] cache the cache on which to iterate
-	 @param[in] offset how many positions from the oldest cache entry
-     */
+        @param[in] cache the cache on which to iterate
+        @param[in] offset how many positions from the oldest cache entry
+    */
     Iterator(const RingFileCache<T> & cache, const size_t offset = 0)
       : cache_ptr(&const_cast<RingFileCache<T>&>(cache)),
-	pos(offset), curr_pos((cache_ptr->head + offset) % cache.dim)
+        pos(offset), curr_pos((cache_ptr->head + offset) % cache.dim)
     {
       if (cache_ptr->is_empty())
-	return;
+        return;
 
       if (not cache_ptr->is_valid_offset(pos))
-	return;
+        return;
 
       load_curr();
     }
@@ -883,7 +883,7 @@ public:
     T get_curr() const
     {
       if (not has_curr())
-	throw overflow_error("RingFileCache::Iterator::get_curr()");
+        throw overflow_error("RingFileCache::Iterator::get_curr()");
       return get_curr_ne();
     }
 
@@ -891,15 +891,15 @@ public:
     {
       increase_pos();
       if (has_curr())
-	load_curr();
+        load_curr();
     }
 
     void next()
     {
       if (not has_curr())
-	throw overflow_error("RingFileCache::Iterator::next()");
+        throw overflow_error("RingFileCache::Iterator::next()");
       next_ne();
-    }    
+    }
   };
 
   auto get_it() { return Iterator(*this); }

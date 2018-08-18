@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -53,7 +53,7 @@ public:
 /** \brief Node for extended binary search tree
 
     \class BinNodeXt
-    
+
     @ingroup Arboles
 */
 DECLARE_BINNODE_SENTINEL(BinNodeXt, 255, BinNodeXt_Data);
@@ -65,7 +65,7 @@ DECLARE_BINNODE_SENTINEL(BinNodeXt, 255, BinNodeXt_Data);
    */
 template <class Node> inline auto & COUNT(Node * p) noexcept
 {
-  return p->getCount(); 
+  return p->getCount();
 }
 
 
