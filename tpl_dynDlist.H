@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -41,21 +41,21 @@ namespace Aleph {
 # include <ah-dry.H>
 
   /** Dynamic list of items of generic items of type T based on double
-      linked lists. 
+      linked lists.
 
       @see DynDlist::Iterator
 
       @ingroup Secuencias
    */
-    template <typename T = int> 
-class DynDlist 
+    template <typename T = int>
+class DynDlist
       : public Dnode<T>,
-	public GenericTraverse<DynDlist<T>>,
-	public SpecialCtors<DynDlist<T>, T>,
-	public LocateFunctions<DynDlist<T>, T>,
-	public FunctionalMethods<DynDlist<T>, T>,
-	public GenericItems<DynDlist<T>, T>,
-	public StlAlephIterator<DynDlist<T>>
+        public GenericTraverse<DynDlist<T>>,
+        public SpecialCtors<DynDlist<T>, T>,
+        public LocateFunctions<DynDlist<T>, T>,
+        public FunctionalMethods<DynDlist<T>, T>,
+        public GenericItems<DynDlist<T>, T>,
+        public StlAlephIterator<DynDlist<T>>
 {
   size_t num_elem = 0;
 
@@ -70,7 +70,7 @@ public:
       /// The type of element that stores the container
   using Key_Type = T;
 
-  /// Return the number of elements (contant time)
+  /// Return the number of elements (constant time)
   const size_t & size() const noexcept { return num_elem; }
 
   DynDlist() { /* Empty */ }
@@ -96,12 +96,12 @@ public:
   }
 
   ~DynDlist() /// Destructor
-  { 
+  {
     empty();
   }
 
 private:
-  
+
   T & __insert(Dnode<T> * p) noexcept
   {
     Dnode<T>::insert(p);
@@ -124,7 +124,7 @@ public:
       @return a modifiable reference to the inserted item in the list
       \throw bad_alloc if there is no enough memory
   */
-  T & insert(const T & item) throw(std::exception, std::bad_alloc)
+  T & insert(const T & item)
   {
     return __insert(new Dnode<T> (item));
   }
@@ -135,7 +135,7 @@ public:
       @return a modifiable reference to the inserted item in the list
       \throw bad_alloc if there is no enough memory
   */
-  T & insert(T && item) 
+  T & insert(T && item)
   {
     return __insert(new Dnode<T> (std::forward<T>(item)));
   }
@@ -146,7 +146,7 @@ public:
         @return a modifiable reference to the appended item in the list
         @throw bad_alloc si no hay memoria para el nuevo elemento.
      */
-  T & append(const T & item) throw(std::exception, std::bad_alloc)
+  T & append(const T & item)
   {
     return __append(new Dnode<T> (item));
   }
@@ -157,7 +157,7 @@ public:
       @return a modifiable reference to the appended item in the list
       @throw bad_alloc si no hay memoria para el nuevo elemento.
   */
-  T & append(T && item) throw(std::exception, std::bad_alloc)
+  T & append(T && item)
   {
     return __append(new Dnode<T> (std::forward<T>(item)));
   }
@@ -186,7 +186,7 @@ public:
 
       /** Insert all the elements of `list` before `this`.
 
-          @param[in] list insert before `this`. 
+          @param[in] list insert before `this`.
        */
   void insert(const DynDlist & list)
   {
@@ -195,7 +195,7 @@ public:
   }
 
   /// \overload insert_list(DynDlist & list)
-  void insert(DynDlist && list) noexcept 
+  void insert(DynDlist && list) noexcept
   {
     __insert(list);
   }
@@ -229,7 +229,7 @@ public:
   }
 
       /// Return a modifiable reference to first item in the list
-  T & get_first() const throw(std::exception, std::underflow_error)
+  T & get_first() const
   {
     if (this->is_empty())
       throw std::underflow_error("DynDlist is empty");
@@ -237,7 +237,7 @@ public:
   }
 
     /// Return a modifiable reference to last item in the list
-  T & get_last() const throw(std::exception, std::underflow_error)
+  T & get_last() const
   {
     if (this->is_empty())
       throw std::underflow_error("DynDlist is empty");
@@ -277,7 +277,7 @@ public:
         @return a copy of removed item
         @throw underflow_error if `this` is empty
     */
-  T remove_first() throw(std::exception, std::underflow_error)
+  T remove_first()
   {
     if (this->is_empty())
       throw std::underflow_error("DynDlist is empty");
@@ -289,7 +289,7 @@ public:
       @return a copy of removed item
       @throw underflow_error if `this` is empty
   */
-  T remove_last() throw(std::exception, std::underflow_error)
+  T remove_last()
   {
     if (this->is_empty())
       throw std::underflow_error("DynDlist is empty");
@@ -324,19 +324,19 @@ public:
 
    /// \overload get_first()
   T & top() const { return get_first(); }
-  
+
     /** Assuming that data is a reference to the item in the list, it
-	removes the item.
+        removes the item.
 
-	This method can be more powerful given that allows to remove any
-	item in constant time given a valid reference to it.
+        This method can be more powerful given that allows to remove
+        any item in constant time given a valid reference to it.
 
-	\warning Unpredictable results if the reference is not valid. So
-	be sure that you do not pass a reference to a copy of the
-	item. It must be a reference to the item returned by some of
-	accessor methods of this class.
+        \warning Unpredictable results if the reference is not valid. So
+        be sure that you do not pass a reference to a copy of the
+        item. It must be a reference to the item returned by some of
+        accessor methods of this class.
 
-	\param[in] data valid reference to the item in the list.
+        \param[in] data valid reference to the item in the list.
      */
   void remove(T & data) noexcept
   {
@@ -361,7 +361,7 @@ public:
   }
 
     /** Split the list in two.
-      
+
       This method takes the first n/2 items of `this` and puts them, in
       the same order, in list `l`. The remainder items are put in list
       `r`. After operation `this` becomes empty. The order of items is
@@ -383,7 +383,7 @@ public:
   }
 
       /** Split the list in two.
-      
+
       This method takes the first n/2 items of `this` and puts them, in
       the same order, in list `l`. The remainder items are put in list
       `r`. After operation `this` becomes empty. The order of items is
@@ -393,8 +393,7 @@ public:
       \param[out] l list containg the last n/2 first items
       @throw domain_error any of the lists is noty empty
      */
-  void split_list(DynDlist & l, DynDlist & r) 
-    throw(std::exception, std::domain_error)
+  void split_list(DynDlist & l, DynDlist & r)
   {
     if ((not l.is_empty()) or (not r.is_empty()))
       throw std::domain_error("lists are not empty");
@@ -402,8 +401,7 @@ public:
   }
 
   /// \overload split_list
-  void split(DynDlist & l, DynDlist & r) 
-    throw(std::exception, std::domain_error)
+  void split(DynDlist & l, DynDlist & r)
   {
     split_list(l, r);
   }
@@ -476,7 +474,7 @@ public:
 
     /// Initialize the iterator to the first item of `list`
     Iterator(const DynDlist<T> & list) noexcept
-    : Base(list), list_ptr(&const_cast<DynDlist&>(list)), pos(0) 
+    : Base(list), list_ptr(&const_cast<DynDlist&>(list)), pos(0)
     {
       // empty
     }
@@ -484,7 +482,7 @@ public:
     Iterator() noexcept : list_ptr(nullptr) { /* empty */ }
 
     Iterator & operator = (const Iterator & it) noexcept
-    { 
+    {
       Dnode<T>::Iterator::operator = (it);
       list_ptr = it.list_ptr;
       pos      = it.pos;
@@ -496,12 +494,12 @@ public:
       /// current item
     T & get_curr() const
     {
-      return Dnode<T>::Iterator::get_curr()->get_data(); 
+      return Dnode<T>::Iterator::get_curr()->get_data();
     }
 
     T & get_curr_ne() const noexcept
     {
-      return Dnode<T>::Iterator::get_curr_ne()->get_data(); 
+      return Dnode<T>::Iterator::get_curr_ne()->get_data();
     }
 
       /** Insert by copy an item after the current item.
@@ -510,11 +508,10 @@ public:
           iterator. The current item is not moved.
 
           @param[in] item the item to insert
-	  \throw bad_alloc if there is no enough memory
-	  \throw overflow_error if there is no current item
+          \throw bad_alloc if there is no enough memory
+          \throw overflow_error if there is no current item
        */
-    void insert(const T & item) 
-      throw(std::exception, std::overflow_error, std::bad_alloc)
+    void insert(const T & item)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
@@ -525,35 +522,34 @@ public:
 
     /** Insert by movement an item after the current item.
 
-	This method inserts a new element in the list after the current
-	and then `item` is moved. The current item is not moved.
+        This method inserts a new element in the list after the
+        current and then `item` is moved. The current item is not
+        moved.
 
-	@param[in] item the item to insert
-	\throw bad_alloc if there is no enough memory
-	\throw overflow_error if there is no current item
-       */
-    void insert(T && item) 
-      throw(std::exception, std::overflow_error, std::bad_alloc)
+        @param[in] item the item to insert
+        \throw bad_alloc if there is no enough memory
+        \throw overflow_error if there is no current item
+    */
+    void insert(T && item)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
       Dnode<T>::Iterator::get_curr()->
-	insert(new Dnode<T>(std::forward<T>(item)));
+        insert(new Dnode<T>(std::forward<T>(item)));
       ++list_ptr->num_elem;
     }
 
     /** Append by copy an item before the current item.
 
-	This method appends a copy of `item` before the current item of
-	iterator. The current item is not moved.
+        This method appends a copy of `item` before the current item
+        of iterator. The current item is not moved.
 
-	@param[in] item the item to append
-	\throw bad_alloc if there is no enough memory
-	\throw overflow_error if there is no current item
+        @param[in] item the item to append
+        \throw bad_alloc if there is no enough memory
+        \throw overflow_error if there is no current item
     */
-    void append(const T & item) 
-      throw(std::exception, std::overflow_error, std::bad_alloc)
+    void append(const T & item)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
@@ -564,41 +560,40 @@ public:
 
     /** Append by movement an item after the current item.
 
-	This method appends a new element in the list before the current
-	and then `item` is moved. The current item is not moved.
+        This method appends a new element in the list before the
+        current and then `item` is moved. The current item is not
+        moved.
 
-	@param[in] item the item to append
-	\throw bad_alloc if there is no enough memory
-	\throw overflow_error if there is no current item
-       */
-    void append(T && item) 
-      throw(std::exception, std::overflow_error, std::bad_alloc)
+        @param[in] item the item to append
+        \throw bad_alloc if there is no enough memory
+        \throw overflow_error if there is no current item
+    */
+    void append(T && item)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
       Dnode<T>::Iterator::get_curr()->
-	append(new Dnode<T>(std::forward<T>(item)));
+        append(new Dnode<T>(std::forward<T>(item)));
       ++list_ptr->num_elem;
     }
 
     /** Move and insert all elements of `list` after the current item of
-	iterator. 
+        iterator.
 
-	This operation takes constant time and puts the element of `list`
-	just after the current item. The current item of iterator is not
-	moved. A `next()` operation will move forward the iterator to the
-	first item of `list`.
+        This operation takes constant time and puts the element of
+        `list` just after the current item. The current item of
+        iterator is not moved. A `next()` operation will move forward
+        the iterator to the first item of `list`.
 
-	After operation `list` becomes empty, since all its items were
-	moved to the list on which one is iterating.
+        After operation `list` becomes empty, since all its items were
+        moved to the list on which one is iterating.
 
-	@param[in, out] list to insert after current item. It becomes
-	empty. 
-	@throw overflow_error if there is no current item
+        @param[in, out] list to insert after current item. It becomes
+        empty.
+        @throw overflow_error if there is no current item
     */
-    void insert_list(DynDlist & list) 
-      throw(std::exception, std::overflow_error)
+    void insert_list(DynDlist & list)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
@@ -611,22 +606,21 @@ public:
     }
 
     /** Move and append all elements of `list` before the current item of
-	iterator. 
+        iterator.
 
-	This operation takes constant time and puts the element of
-	`list` just before the current item. The current item of
-	iterator is not moved. A `prev()` operation will move forward
-	the iterator to the last item of `list`.
+        This operation takes constant time and puts the element of
+        `list` just before the current item. The current item of
+        iterator is not moved. A `prev()` operation will move forward
+        the iterator to the last item of `list`.
 
-	After operation `list` becomes empty, since all its items were
-	moved to the list on which one is iterating.
+        After operation `list` becomes empty, since all its items were
+        moved to the list on which one is iterating.
 
-	@param[in, out] list to append after current item. It becomes
-	empty. 
-	@throw overflow_error if there is no current item
+        @param[in, out] list to append after current item. It becomes
+        empty.
+        @throw overflow_error if there is no current item
     */
-    void append_list(DynDlist & list) 
-      throw(std::exception, std::overflow_error)
+    void append_list(DynDlist & list)
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
@@ -639,18 +633,18 @@ public:
     }
 
     /** Remove from the list the current node and move the iterator one
-	position forward.
+        position forward.
 
-	@return a copy to removed item
-	\throw overflow_error if there is no current item
+        @return a copy to removed item
+        \throw overflow_error if there is no current item
     */
-    T del() throw(std::exception, std::overflow_error)
+    T del()
     {
       if (not this->has_curr())
         throw std::overflow_error ("DynDlist Iterator has not current");
 
-      Dnode<T> * ptr = Dnode<T>::Iterator::get_curr(); 
-      T ret_val      = ptr->get_data(); 
+      Dnode<T> * ptr = Dnode<T>::Iterator::get_curr();
+      T ret_val      = ptr->get_data();
       Dnode<T>::Iterator::next();
       ptr->del();
       delete ptr;
@@ -661,23 +655,23 @@ public:
 
     /** Assignment by copy.
 
-	In this assignment `this` is emptied and the the items of `list`
-	are copied to `this`. It takes since time proportional to the
-	size of `list` more the old size of `this`
+        In this assignment `this` is emptied and the the items of
+        `list` are copied to `this`. It takes since time proportional
+        to the size of `list` more the old size of `this`
 
         @param[in] list to be copied
-	\throw bad_alloc if there is no enough memory
+        \throw bad_alloc if there is no enough memory
     */
   DynDlist<T> & operator = (const DynDlist & list)
   {
-    if (this == &list) 
+    if (this == &list)
       return *this;
 
     empty();
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_curr(); itor.next_ne())
-      this->append(itor.get_curr_ne()); 
+    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+         itor.has_curr(); itor.next_ne())
+      this->append(itor.get_curr_ne());
 
     return *this;
   }
@@ -693,9 +687,9 @@ public:
   {
     assert(this->is_empty());
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list)); 
-	 itor.has_curr();itor.next_ne())
-      this->append(itor.get_curr_ne()); 
+    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+         itor.has_curr();itor.next_ne())
+      this->append(itor.get_curr_ne());
   }
 
   /**  Move constructor; all items of `list` are moved.
@@ -714,18 +708,18 @@ public:
 
   /** Assignment by moving.
 
-	In this assignment `this` is swapped with `list`. So, this takes
-	constant time independently of list sizes.
+      In this assignment `this` is swapped with `list`. So, this takes
+      constant time independently of list sizes.
 
-        @param[in] list to be assigned by moving
-	\throw bad_alloc if there is no enough memory
-    */
+      @param[in] list to be assigned by moving
+      \throw bad_alloc if there is no enough memory
+  */
   DynDlist<T> & operator = (DynDlist && list) noexcept
   {
     swap(list);
     return *this;
   }
- 
+
   /// Return a modifiable reference to the i-th item of the list. Throw
   /// `overflow_error` if `n` is greater than the list size
   T & operator [] (const size_t & n) const

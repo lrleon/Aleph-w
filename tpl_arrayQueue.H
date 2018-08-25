@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -53,14 +53,13 @@ namespace Aleph {
       @note If you are sure of knowing the bounds, then use `FixedStack`,
       which is faster because it does not perform bound checks,
    */
-    template <typename T> 
-class ArrayQueue 
-      : public MemArray<T>,
-	public LocateFunctions<ArrayQueue<T>, T>,
-	public FunctionalMethods<ArrayQueue<T>, T>,
-	public GenericKeys<ArrayQueue<T>, T>,
-	public EqualToMethod<ArrayQueue<T>>,
-	public StlAlephIterator<ArrayQueue<T>>
+    template <typename T>
+class ArrayQueue : public MemArray<T>,
+                   public LocateFunctions<ArrayQueue<T>, T>,
+                   public FunctionalMethods<ArrayQueue<T>, T>,
+                   public GenericKeys<ArrayQueue<T>, T>,
+                   public EqualToMethod<ArrayQueue<T>>,
+                   public StlAlephIterator<ArrayQueue<T>>
 {
 private:
 
@@ -91,9 +90,9 @@ public:
       /** Construct a queue with capacity `sz`
 
           @param[in] sz initial capacity
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
        */
-  ArrayQueue(const size_t sz = 8) 
+  ArrayQueue(const size_t sz = 8)
     : MemArray<T>(sz), front_index(0), rear_index(0)
   {
     // empty
@@ -107,8 +106,8 @@ public:
   }
 
   /// Move constructor
-  ArrayQueue(ArrayQueue && q) 
-    : MemArray<T>(std::forward<ArrayQueue>(q)), 
+  ArrayQueue(ArrayQueue && q)
+    : MemArray<T>(std::forward<ArrayQueue>(q)),
       front_index(q.front_index), rear_index(q.rear_index)
   {
     // empty
@@ -123,7 +122,7 @@ public:
       return *this;
 
     static_cast<MemArray<T>&>(*this) = q;
-    
+
     front_index = q.front_index;
     rear_index = q.rear_index;
 
@@ -155,26 +154,26 @@ public:
 
           @param[in] item to put
           @return a modifiable reference to the copied item
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
        */
-  T & put(const T & item) throw(std::exception, std::bad_alloc)
+  T & put(const T & item)
   {
     if (this->expand(front_index))
       {
-	front_index = 0;
-	rear_index = this->n; 
+        front_index = 0;
+        rear_index = this->n;
       }
     this->access(rear_index) = item;
     return complete_put();
   }
 
   /// \overload put(const T & item)
-  T & put(T && item) throw(std::exception, std::bad_alloc)
+  T & put(T && item)
   {
     if (this->expand(front_index))
       {
-	front_index = 0;
-	rear_index = this->n; 
+        front_index = 0;
+        rear_index = this->n;
       }
     this->access(rear_index) = std::forward<T>(item);
     return complete_put();
@@ -198,14 +197,14 @@ public:
           equivalent way to `sz` pushes, except that the operation takes
           constant time.
 
-	  The maximum value of `sz` is bounded by `2*capacity() - size()`.
+          The maximum value of `sz` is bounded by `2*capacity() - size()`.
 
           @param[in] sz number of cells to push
           @return a modifiabñpe reference to the stack's top
           @throw overflow_error if `sz > 2*capacity() - size()`
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
        */
-  T & putn(size_t sz) throw(std::exception, std::bad_alloc)
+  T & putn(size_t sz)
   {
     const size_t max_sz = 2*this->dim - this->n;
     if (sz > max_sz)
@@ -214,9 +213,9 @@ public:
     const int avail_n = this->dim - this->n;
     if (avail_n <= sz)
       {
-	sz -= this->dim - this->n;
-	this->n = this->dim;
-	this->expand(front_index);
+        sz -= this->dim - this->n;
+        this->n = this->dim;
+        this->expand(front_index);
       }
 
     increase_index(rear_index, sz);
@@ -229,19 +228,19 @@ public:
       @return a copy of extracted item
       @throw underflow_error if the queue is empty
   */
-  T get() throw(std::exception, std::underflow_error, std::bad_alloc)
+  T get()
   {
     if (this->n == 0)
       throw std::underflow_error ("queue is empty");
 
-    T ret_val = std::forward<T>(this->access(front_index)); 
+    T ret_val = std::forward<T>(this->access(front_index));
     this->n--;
     increase_index(front_index);
 
     if (this->contract(front_index))
       {
-	front_index = 0;
-	rear_index = this->n;
+        front_index = 0;
+        rear_index = this->n;
       }
 
     return ret_val;
@@ -253,7 +252,7 @@ public:
       @return a modifiable reference to the oldest remaining item
       @throw underflow_error if `i` is greater than the number of items
   */
-  T & getn(const size_t i) throw(std::exception, std::underflow_error)
+  T & getn(const size_t i)
   {
     if (i >= this->n)
       throw std::underflow_error ("queue is empty");
@@ -263,12 +262,12 @@ public:
 
     if (this->contract(front_index))
       {
-	front_index = 0;
-	rear_index = this->n;
+        front_index = 0;
+        rear_index = this->n;
       }
 
     return this->access(front_index);
-  } 
+  }
 
   /** Return the i-th oldest item of the queue.
 
@@ -276,9 +275,9 @@ public:
       @return a modifiable reference to the oldest i-th item of the queue
       @throw range_error if `i` is greater than the number of items
   */
-  T & front(const size_t i = 0) const throw(std::exception, std::range_error)
+  T & front(const size_t i = 0) const
   {
-    if (i >= this->n) 
+    if (i >= this->n)
       throw std::range_error ("index of front out of range");
 
     return this->access((front_index + i) % this->dim);
@@ -290,9 +289,9 @@ public:
       @return a modifiable reference to the i-th youngest item of the queue
       @throw range_error if `i` is greater than the number of items
   */
-  T & rear(const size_t i = 0) const throw(std::exception, std::range_error)
+  T & rear(const size_t i = 0) const
   {
-    if (i >= this->n) 
+    if (i >= this->n)
       throw std::range_error ("index of rear out of range");
 
     return rear_item(i);
@@ -313,25 +312,25 @@ public:
 
     for (size_t i = 0, idx = front_index; i < this->n; increase_index(idx), ++i)
       if (not operation(this->access(idx)))
-	return false;
+        return false;
     return true;
   }
 
-  /// \overload traverse(Operation & operation) 
+  /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const 
+  bool traverse(Operation & operation) const
   {
     return const_cast<ArrayQueue*>(this)->traverse(operation);
   }
 
-/// \overload traverse(Operation & operation) 
+  /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation) const
   {
     return traverse<Operation>(operation);
   }
 
-/// \overload traverse(Operation & operation) 
+  /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation)
   {
@@ -368,13 +367,12 @@ public:
       @see ArrayQueue DynListQueue
       @ingroup Secuencias
    */
-    template <typename T> 
-class FixedQueue 
-      : public LocateFunctions<FixedQueue<T>, T>,
-	public FunctionalMethods<FixedQueue<T>, T>,
-	public GenericKeys<FixedQueue<T>, T>,
-	public EqualToMethod<FixedQueue<T>>,
-	public StlAlephIterator<FixedQueue<T>>
+    template <typename T>
+class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
+                   public FunctionalMethods<FixedQueue<T>, T>,
+                   public GenericKeys<FixedQueue<T>, T>,
+                   public EqualToMethod<FixedQueue<T>>,
+                   public StlAlephIterator<FixedQueue<T>>
 {
 private:
 
@@ -383,19 +381,19 @@ private:
   size_t front_index; /* index of oldest inserted item */
   size_t rear_index;
   size_t mask;
-  size_t num_items; 
+  size_t num_items;
 
   void increase_index(size_t & i, const size_t inc = 1) const noexcept
   {
     assert( ((i + inc)%dim) == ((i+ inc)&mask) );
 
     i += inc;
-    i &= mask;  
+    i &= mask;
   }
 
   T & rear_item(const size_t i = 0) const noexcept
   {
-    assert(static_cast<size_t>((rear_index - i - 1) & mask) == 
+    assert(static_cast<size_t>((rear_index - i - 1) & mask) ==
       (rear_index - i - 1)%dim);
 
     return array[static_cast<size_t> ((rear_index - i - 1) & mask)];
@@ -423,21 +421,22 @@ public:
 
       /** Construct a queue of capacity the immediately two power of `d`
 
-	  Te resulting capacity will be the first number such \f$2^k
-	  \geq d\f$,
+          The resulting capacity will be the first number such \f$2^k
+          \geq d\f$,
 
           @param[in] minimum capacity
        */
   FixedQueue(size_t d = 1024)
-    // Don't change the default value because you would risk of breaking the tests
+    // Don't change the default value because you would risk of
+    // breaking the tests
     : array(nullptr), front_index(0), rear_index(0), num_items(0)
-  { 
+  {
     size_t k = log2(d);
     dim = is_power_of_2(d) ? d : 1 << ++k;
     mask = dim - 1;
     array = new T [dim];
   }
-      
+
   ~FixedQueue()
   {
     if (array != nullptr)
@@ -445,8 +444,8 @@ public:
   }
 
   /// Copy constructor
-  FixedQueue(const FixedQueue & q) 
-    : dim(q.dim), array(new T [dim]), front_index(q.front_index), 
+  FixedQueue(const FixedQueue & q)
+    : dim(q.dim), array(new T [dim]), front_index(q.front_index),
       rear_index(q.rear_index), mask(q.mask), num_items(q.num_items)
   {
     for (size_t i = front_index; i != rear_index; ++i)
@@ -454,7 +453,7 @@ public:
   }
 
     /// Move constructor
-  FixedQueue(FixedQueue && q) noexcept : FixedQueue() 
+  FixedQueue(FixedQueue && q) noexcept : FixedQueue()
   {
     swap(q);
   }
@@ -557,7 +556,7 @@ public:
     num_items -= n;
     increase_index(front_index, n);
     return array[front_index];
-  } 
+  }
 
       /** Return the i-th oldest item
 
@@ -604,7 +603,7 @@ public:
       return true;
     for (size_t i = 0, idx = front_index; i < num_items; increase_index(idx), ++i)
       if (not operation(array[idx]))
-	return false;
+        return false;
     return true;
   }
 

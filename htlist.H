@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -104,9 +104,9 @@ public:
     /**
     \~English
 
-  `insert(p)` inserts the node pointed by `p` after `this`.
+    `insert(p)` inserts the node pointed by `p` after `this`.
 
-  @param[in] p pointer to link (or node)
+    @param[in] p pointer to link (or node)
 
     \~Spanish
 
@@ -140,7 +140,7 @@ public:
     return ret_val;
   }
 
-  /** Convert `this` to a `Snodenc<T>. 
+  /** Convert `this` to a `Snodenc<T>.
 
       @note Undefined and probably buggy behavior if `this` is not a
       valid pointer
@@ -184,7 +184,7 @@ public:
     }
 
     /** \~English Initialize an iterator on the first node of `list`
-	\~Spanish Inicializa un iterador en el primer nodo de `list`
+        \~Spanish Inicializa un iterador en el primer nodo de `list`
     */
     Iterator(Slinknc & list) noexcept : head(&list)
     {
@@ -259,7 +259,7 @@ public:
     }
 
     /** \~English Reset the iterator to the first link on the list
-	\~Spanish Reestablece el iterador en el primer enlace
+        \~Spanish Reestablece el iterador en el primer enlace
     */
     void reset_first() noexcept
     {
@@ -270,16 +270,16 @@ public:
 
 
   /**
-  \~English
-    Node belonging to a single non-circular linked list without header
-      node.
+     \~English
+     Node belonging to a single non-circular linked list without header
+     node.
 
-      \ingroup Sequencies
+     \ingroup Sequencies
 
-  \~Spanish
-    Nodo perteneciente a una lista simple no circular sin nodo cabecera.
+     \~Spanish
+     Nodo perteneciente a una lista simple no circular sin nodo cabecera.
 
-    \ingroup Secuencias
+     \ingroup Secuencias
   */
     template <typename T>
 class Snodenc : public Slinknc
@@ -301,7 +301,7 @@ public:
   Snodenc() noexcept(std::is_nothrow_constructible<T>::value)
   {
     static_assert(std::is_default_constructible<T>::value,
-      "No default constructor for T");
+                  "No default constructor for T");
   }
 
   /** \~English Construct with copy of `item`
@@ -310,37 +310,40 @@ public:
   Snodenc(const T & item) noexcept(noexcept(T(item))) : data(item)
   {
     static_assert(std::is_copy_constructible<T>::value,
-      "No copy constructor for T");
+                  "No copy constructor for T");
   }
 
   /** \~English Costruct by moving `item`
       \~Spanish Construye moviendo `ìtem`
   */
   Snodenc(T && item) noexcept(noexcept(std::swap(data, item)))
-  : data(std::forward<T>(item))
+    : data(std::forward<T>(item))
   {
     static_assert(std::is_move_constructible<T>::value,
-      "No move constructor for T");
+                  "No move constructor for T");
   }
 
       /**
-      \~English
-       Remove the node following to `this`.
+         \~English
+         Remove the node following to `this`.
 
-          `remove_next()`removes the node linked after `this` and
-          returns its address.
+         `remove_next()`removes the node linked after `this` and
+         returns its address.
 
-          @return a pointer to the removed node.
+         @return a pointer to the removed node.
 
-      \~Spanish
-        Elimina el nodo siguiente a `this`
+         \~Spanish
+         Elimina el nodo siguiente a `this`
 
-        `remove_next()` elimina el nodo enlazado luego de `this` y
+         `remove_next()` elimina el nodo enlazado luego de `this` y
          retorna su dirección.
 
-          @return un puntero al nodo removido.
-       */
-  Snodenc * remove_next() noexcept { return (Snodenc*) Slinknc::remove_next(); }
+         @return un puntero al nodo removido.
+      */
+  Snodenc * remove_next() noexcept
+  {
+    return (Snodenc*) Slinknc::remove_next();
+  }
 
   /** \~English Return the node following to `this`
       \~Spanish Retorna el nodo siguiente a `this`
@@ -351,21 +354,21 @@ public:
   Snodenc * remove_first() noexcept{ return Snodenc::remove_next(); }
 
   /**
-    \~English
-    Return the node following to `this`.
+     \~English
+     Return the node following to `this`.
 
-       In the case where `this` is a pointer to the first node, returns
-       the first node.
+     In the case where `this` is a pointer to the first node, returns
+     the first node.
 
-       \return a pointer to the first node.
+     \return a pointer to the first node.
 
-    \~Spanish
-    Retorna el nodo siguiente a `this`.
+     \~Spanish
+     Retorna el nodo siguiente a `this`.
 
-      En el caso donde `this` sea un puntero al primer nodo, retorna
-      el primer nodo.
+     En el caso donde `this` sea un puntero al primer nodo, retorna
+     el primer nodo.
 
-      \return un puntero al primer nodo.
+     \return un puntero al primer nodo.
   */
   Snodenc *& get_first() const noexcept { return Snodenc::get_next(); }
 };
@@ -459,55 +462,54 @@ public:
   }
 
       //!\~English Return true if list is empty \~Spanish Retorna true
-      //!si la lista está vacía. 
+      //!si la lista está vacía.
   bool is_empty() const noexcept { return head == nullptr; }
 
        //!\~English Return true if the list contains exactly just one
        //!element \~Spanish Retorna true si la lista contiene
-       //!exactamente un solo elemento. 
+       //!exactamente un solo elemento.
   bool is_unitarian() const noexcept
   {
     return head != nullptr and head == tail;
   }
 
   //!\~English Return true if list contains one element or is empty
-  //!\~Spanish Retorna true si la lista tiene un elemento o está vacía. 
+  //!\~Spanish Retorna true si la lista tiene un elemento o está vacía.
   bool is_unitarian_or_empty() const noexcept { return head == tail; }
 
   //!\~English Return list head (first element) \~Spanish Retorna la
-  //!cabeza de la lista (el primer elemento) 
+  //!cabeza de la lista (el primer elemento)
   Slinknc * get_head() const noexcept { return head; }
 
  //!\~English Return list tail (first element) \~Spanish Retorna la
- //!cola de la lista (el último elemento) 
+ //!cola de la lista (el último elemento)
   Slinknc * get_tail() const noexcept { return tail; }
 
  //!\~English Return list first element \~Spanish Retorna el primer
- //!elemento de la lista. 
+ //!elemento de la lista.
   Slinknc * get_first() const noexcept { return get_head(); }
 
       /// Return the last item of the list (`nullptr` if the list is empty)
   Slinknc * get_last() const noexcept { return get_tail(); }
 
    //!\~English Exchange 'this' values with another list \~Spanish
-   //!Intercambia los valores de this con otra lista  
+   //!Intercambia los valores de this con otra lista
 
   /**
-  \~English
-    \brief  Swap in constant time (very fast) 'this' elements with 'l'
-    list elements <br> 
-    Referenced by append(), insert(), reverse() and split_list().
+     \~English
+     \brief  Swap in constant time (very fast) 'this' elements with 'l'
+     list elements <br>
+     Referenced by append(), insert(), reverse() and split_list().
 
-    \param [in] l New list which elements will be exchanged
+     \param [in] l New list which elements will be exchanged
 
-  \~Spanish
+     \~Spanish
 
-  \brief  Intercambia en tiempo constante (muy rápido) los elementos
-  de this con los de l 
-  \brief Referenciado por append(), insert(), reverse() y split_list().
+     \brief  Intercambia en tiempo constante (muy rápido) los elementos
+     de this con los de l
+     \brief Referenciado por append(), insert(), reverse() y split_list().
 
-  \param [in] l Lista nueva con la cual se intercambiarán los elementos
-
+     \param [in] l Lista nueva con la cual se intercambiarán los elementos
   */
   HTList & swap(HTList & l) noexcept
   {
@@ -517,14 +519,14 @@ public:
   }
 
   //!\~English Insert link as first element \~Spanish Inserta link como
-  //!primer elemento.  
+  //!primer elemento.
 
   /**
-  \~English
-    \param [in] link New element that will be inserted
+     \~English
+     \param [in] link New element that will be inserted
 
-  \~Spanish
-    \param [in] link Nuevo elemento que será insertado
+     \~Spanish
+     \param [in] link Nuevo elemento que será insertado
   */
   void insert(Slinknc * link) noexcept
   {
@@ -532,9 +534,9 @@ public:
 
     if (head == nullptr)
       {
-	assert(tail == nullptr);
-	head  = tail = link;
-	return;
+        assert(tail == nullptr);
+        head  = tail = link;
+        return;
       }
 
     NEXT(link) = head;
@@ -542,14 +544,14 @@ public:
   }
 
   //!\~English Insert link as last element \~Spanish Inserta link como
-  //!último elemento. 
+  //!último elemento.
 
   /**
-  \~English
-    \param [in] link New element that will be inserted
+     \~English
+     \param [in] link New element that will be inserted
 
-  \~Spanish
-    \param [in] link Nuevo elemento que será insertado
+     \~Spanish
+     \param [in] link Nuevo elemento que será insertado
   */
   void append(Slinknc * link) noexcept
   {
@@ -557,9 +559,9 @@ public:
 
     if (head == nullptr)
       {
-	assert(tail == nullptr);
-	head = tail = link;
-	return;
+        assert(tail == nullptr);
+        head = tail = link;
+        return;
       }
 
     NEXT(tail) = link;
@@ -567,14 +569,14 @@ public:
   }
 
   //!\~English Join 'this' with 'l' through list end \~Spanish Une
-  //!'this' con 'l' a través del final de la lista 
+  //!'this' con 'l' a través del final de la lista
 
   /**
-  \~English
-    \param [in] l List that will be inserted through list end
+     \~English
+     \param [in] l List that will be inserted through list end
 
-  \~Spanish
-    \param [in] l Lista que será insertada  través del final de la lista
+     \~Spanish
+     \param [in] l Lista que será insertada  través del final de la lista
   */
   void append(HTList & l) noexcept
   {
@@ -583,8 +585,8 @@ public:
 
     if (this->is_empty())
       {
-	this->swap(l);
-	return;
+        this->swap(l);
+        return;
       }
 
     NEXT(tail) = l.head;
@@ -593,7 +595,7 @@ public:
   }
 
   //!\~English Insert link as last element \~Spanish Inserta link como
-  //!último elemento. 
+  //!último elemento.
   void put(Slinknc * link) noexcept { append(link); }
 
   //!\~English Concat to 'this' all 'l' list; 'l' becomes empty
@@ -684,7 +686,7 @@ public:
 
   //!\~English It deletes head element (first one). Return deleted
   //!element \~Spanish Elimina el elemento en la cabeza (el
-  //!primero). Retorna el elemento eliminado. 
+  //!primero). Retorna el elemento eliminado.
   Slinknc * remove_head_ne() noexcept
   {
     Slinknc * ret_val = head;
@@ -692,9 +694,9 @@ public:
       head = tail = nullptr;
     else
       {
-	head = NEXT(head);
-	if (head == nullptr)
-	  tail = nullptr;
+        head = NEXT(head);
+        if (head == nullptr)
+          tail = nullptr;
       }
 
     ret_val->reset();
@@ -764,28 +766,27 @@ public:
 
     if (link == head)
       {
-	head = NEXT(head);
-	link->reset();
-	return true;
+        head = NEXT(head);
+        link->reset();
+        return true;
       }
 
     for (Slinknc * prev = head, * p = NEXT(head); p != nullptr;
-	 prev = p, p = NEXT(p))
+         prev = p, p = NEXT(p))
       if (p == link)
-	{
-	  NEXT(prev) = NEXT(p);
-	  if (link == tail)
-	    tail = prev;
-	  link->reset();
-	  return true;
-	}
+        {
+          NEXT(prev) = NEXT(p);
+          if (link == tail)
+            tail = prev;
+          link->reset();
+          return true;
+        }
 
     return false;
   }
 
-  
   //!\~English Insert link as first element \~Spanish Inserta link como
-  //!primer elemento. 
+  //!primer elemento.
   void push(Slinknc * link) noexcept { insert(link); }
 
   /**
@@ -817,7 +818,7 @@ public:
     return remove_head();
   }
 
-  Slinknc * top() 
+  Slinknc * top()
   {
     if (is_empty())
       throw std::underflow_error("HTList as stack is empty");
@@ -863,8 +864,8 @@ public:
 
     if (is_unitarian())
       {
-	swap(l);
-	return 1;
+        swap(l);
+        return 1;
       }
 
     size_t count = 0;
@@ -872,12 +873,12 @@ public:
     Slinknc * q = head;
     while (q != tail and q != nullptr)
       {
-	q = NEXT(q); ++count;
-	if (q == tail or q == nullptr)
-	  break;
+        q = NEXT(q); ++count;
+        if (q == tail or q == nullptr)
+          break;
 
-	p = NEXT(p);
-	q = NEXT(q); ++count;
+        p = NEXT(p);
+        q = NEXT(q); ++count;
       }
 
     l.head = head;
@@ -904,7 +905,7 @@ public:
 
   //!\~English It inverts all list elements. It returns list size
   //!\~Spanish Invierte los elementos de la lista. Retorna el tamaño
-  //!de la lista. 
+  //!de la lista.
   size_t reverse() noexcept
   {
     HTList tmp;
@@ -912,8 +913,8 @@ public:
     size_t count = 0;
     while (not is_empty())
       {
-	tmp.insert(remove_first_ne());
-	++count;
+        tmp.insert(remove_first_ne());
+        ++count;
       }
 
     swap(tmp);
@@ -930,7 +931,7 @@ public:
   //!\~English It cuts 'this' over 'link' element and it puts all
   //!remaining elements \~Spanish Corta this por el elemento link y
   //!coloca los elementos restantes (los que están después de link) en
-  //!list 
+  //!list
 
   /**
      \~English
@@ -1014,13 +1015,13 @@ public:
 
     //!\~English Initialize iterator on at the first item of `list`
     //!\~Spanish Inicializa un iterador sobre el primer elemento de
-    //!`list` 
+    //!`list`
     Iterator(const HTList & list) noexcept
       : lptr(& (HTList&) list), curr(lptr->head), prev(curr)
     { /* empty */ }
 
     //!\~English Reset the iterator at the first item \~Reestablece el
-    //!iterador al primer elemento 
+    //!iterador al primer elemento
     void reset() noexcept
     {
       prev = curr = lptr->head;
@@ -1028,7 +1029,7 @@ public:
     }
 
     //!\~English Return the current position \~Spanish Retorna la
-    //!posición actual 
+    //!posición actual
     long get_pos() const noexcept { return pos; }
 
     /// \overload reset()
@@ -1039,14 +1040,14 @@ public:
     {
       reset();
       if (lptr->is_empty())
-	return;
+        return;
 
       while (NEXT(curr))
-	{
-	  prev = curr;
-	  curr = NEXT(curr);
-	  ++pos;
-	}
+        {
+          prev = curr;
+          curr = NEXT(curr);
+          ++pos;
+        }
     }
 
     //!\~English Set the iterator to its end position, which has not
@@ -1059,14 +1060,14 @@ public:
      //!\~English Assignation \~Spanish Asignación
     Iterator & operator = (const Iterator & it) noexcept
       {
-	lptr = it.lptr;
-	curr = it.curr;
-	prev = it.prev;
-	return *this;
+        lptr = it.lptr;
+        curr = it.curr;
+        prev = it.prev;
+        return *this;
       }
 
     //!\~English Return `true` if iterator has current item \~Spanish
-    //!Retorna `true` si el iterador tiene un elemento actual 
+    //!Retorna `true` si el iterador tiene un elemento actual
     bool has_curr() const noexcept { return curr != nullptr; }
 
     bool is_last() const noexcept
@@ -1197,7 +1198,7 @@ public:
     {
       if (not has_curr())
         throw std::overflow_error("Iterator overflow");
-      
+
       return del_ne();
     }
   };
@@ -1280,9 +1281,9 @@ public:
   {
     if (is_empty())
       if (n == 0)
-	return;
+        return;
       else
-	throw std::domain_error("List is empty");
+        throw std::domain_error("List is empty");
 
     for (size_t i = 0; i < n; ++i)
       append(remove_first());
@@ -1314,12 +1315,12 @@ public:
     */
     template <typename T = int>
 class DynList : public HTList,
-    public GenericTraverse<DynList<T>>,
-    public LocateFunctions<DynList<T>, T>,
-    public SpecialCtors<DynList<T>, T>,
-    public FunctionalMethods<DynList<T>, T>,
-    public GenericItems<DynList<T>, T>,
-    public StlAlephIterator<DynList<T>>
+                public GenericTraverse<DynList<T>>,
+                public LocateFunctions<DynList<T>, T>,
+                public SpecialCtors<DynList<T>, T>,
+                public FunctionalMethods<DynList<T>, T>,
+                public GenericItems<DynList<T>, T>,
+                public StlAlephIterator<DynList<T>>
 {
   using CtorBase = SpecialCtors<DynList<T>, T>;
 
@@ -1352,7 +1353,7 @@ class DynList : public HTList,
 
   //!\~English  Initialize a list with a copy of all the items of list
   //!`l` \~Spanish Inicializa una lista con una copia de todos los
-  //!elementos de la lista 
+  //!elementos de la lista
   DynList(const DynList & l) : HTList(), CtorBase(l) {}
 
 private:
@@ -1360,8 +1361,8 @@ private:
   T & __insert(Snodenc<T> * p) noexcept
   {
     static_assert(std::is_copy_constructible<T>::value or
-		  std::is_move_constructible<T>::value,
-      "No copy assign for T");
+                  std::is_move_constructible<T>::value,
+                  "No copy assign for T");
     HTList::insert(p);
     return p->get_data();
   }
@@ -1369,8 +1370,8 @@ private:
   T & __append(Snodenc<T> * p) noexcept
   {
     static_assert(std::is_copy_constructible<T>::value or
-		  std::is_move_constructible<T>::value,
-      "No copy assign for T");
+                  std::is_move_constructible<T>::value,
+                  "No copy assign for T");
     HTList::append(p);
     return p->get_data();
   }
@@ -1604,9 +1605,9 @@ public:
     Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_first());
     while (p != last)
       {
-	Snodenc<T> * q = p;
-	p = p->get_next();
-	delete q;
+        Snodenc<T> * q = p;
+        p = p->get_next();
+        delete q;
       }
     delete p;
     reset();
@@ -1642,8 +1643,8 @@ public:
 
     /** Return the current item
 
-	\return a modifiable reference to the current item
-	\throw overflow_error if the iterator has not current item
+        \return a modifiable reference to the current item
+        \throw overflow_error if the iterator has not current item
     */
     T & get_curr() const
     {
@@ -1652,12 +1653,12 @@ public:
 
     /** Remove the current item of the iterator.
 
-	`del()` removes the current item and advance forward the
-	iterator to the next item.
+        `del()` removes the current item and advance forward the
+        iterator to the next item.
 
-	\return a moved copy of removed item (moved because the original
-	will be destroyed)
-	\throw overflow_error if the iterator has not current item
+        \return a moved copy of removed item (moved because the original
+        will be destroyed)
+        \throw overflow_error if the iterator has not current item
     */
     T del()
     {
@@ -1694,12 +1695,12 @@ public:
   {
     for (Iterator it(*this); true; it.next_ne())
       {
-	const T & item = it.get_curr_ne();
-	if (not eq(item))
-	  continue;
-	T ret = item; // performs a copy
-	it.del_ne();
-	return ret;
+        const T & item = it.get_curr_ne();
+        if (not eq(item))
+          continue;
+        T ret = item; // performs a copy
+        it.del_ne();
+        return ret;
       }
   }
 
@@ -1716,7 +1717,7 @@ public:
           bool eq(const T& op)
 
       This test would return `true` when `op` satisfies the finding
-      criteria`. 
+      criteria`.
 
       Since that this method is overloaded, you could define several
       flavors: a more sophisticated functor, function pointers or
@@ -1729,15 +1730,15 @@ public:
   template <class Equal = std::equal_to<T>> T remove(Equal eq)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-	{
-	  const T & item = it.get_curr_ne();
-	  if (eq(item))
-	    {
-	      T ret = item; // performs a copy
-	      it.del();
-	      return ret;
-	    }
-	}
+        {
+          const T & item = it.get_curr_ne();
+          if (eq(item))
+            {
+              T ret = item; // performs a copy
+              it.del();
+              return ret;
+            }
+        }
 
       throw std::domain_error("DynList::remove(Equal &): item not found");
     }

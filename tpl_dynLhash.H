@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -44,7 +44,7 @@ namespace Aleph {
        que ésta exhiba un mejor desempeño.
 
        Pueden usarse de manera segura punteros a registros dentro de la
-       tabla. 
+       tabla.
 
        Aparte los métodos tradicionales de inserción y búsqueda, el
        operador [] funge a la vez como consulta e inserción. La
@@ -70,18 +70,17 @@ private:
     DLBucket(const Key & key, const Record & _record)
       : LhashTable<Key>::Bucket(key), record(_record) { /* Empty */ }
 
-    
     DLBucket(const Key & key, Record && _record)
-      : LhashTable<Key>::Bucket(key), record(std::forward<Record>(_record)) 
+      : LhashTable<Key>::Bucket(key), record(std::forward<Record>(_record))
     { /* Empty */ }
 
     DLBucket(Key && key, const Record & _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)), record(_record) 
+      : LhashTable<Key>::Bucket(std::forward<Key>(key)), record(_record)
     { /* Empty */ }
-    
+
     DLBucket(Key && key, Record && _record)
       : LhashTable<Key>::Bucket(std::forward<Key>(key)),
-	record(std::forward<Record>(_record)) { /* Empty */ }
+        record(std::forward<Record>(_record)) { /* Empty */ }
   };
 
   static DLBucket * record_to_bucket(Record * rec)
@@ -106,17 +105,15 @@ private:
       bucket = record not_eq nullptr ? record_to_bucket(record) : nullptr;
     }
 
-    operator const Record & () const 
-      throw(std::exception, std::invalid_argument)
+    operator const Record & () const
     {
       if (bucket == nullptr)
         throw std::invalid_argument("access to unexisting entry");
-    
+
       return bucket->record;
     }
 
-    DLProxy& operator = (const Record& record) 
-      throw(std::exception, std::bad_alloc) 
+    DLProxy& operator = (const Record& record)
     {
       if (bucket != nullptr)
         {
@@ -129,8 +126,7 @@ private:
       return *this;
     }
 
-    DLProxy& operator = (const DLProxy& proxy) 
-      throw(std::exception, std::bad_alloc, std::invalid_argument)
+    DLProxy& operator = (const DLProxy& proxy)
     {
       if (proxy.bucket == nullptr)
         throw std::invalid_argument("access to unexisting entry");
@@ -152,20 +148,19 @@ public:
     /// El tipo de función hash.
   using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
 
-  void swap(DynLhashTable & table) 
+  void swap(DynLhashTable & table)
   {
-    this->LhashTable<Key>::swap(table); 
+    this->LhashTable<Key>::swap(table);
   }
 
     /// Instancia un mapeo hash dinámico con función hash hash_fct y
     /// tabla de longitud len. Dispara excepción bad_alloc si no hay
     /// memoria para apartar la tabla interna.
-  DynLhashTable(size_t len           = DefaultPrime, 
-		Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>) 
-    throw (std::exception, std::bad_alloc) 
+  DynLhashTable(size_t len           = DefaultPrime,
+                Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
     : LhashTable<Key>(len, hash_fct)
   {
-    // Empty 
+    // Empty
   }
 
 private:
@@ -173,10 +168,10 @@ private:
   void copy(DynLhashTable & table)
   {
     for (typename LhashTable<Key>::Iterator it(table); it.has_curr();
-	 it.next_ne())
+         it.next_ne())
       {
-	DLBucket * Bucket = (DLBucket*) it.get_curr_ne();
-	insert(Bucket->get_key(), Bucket->record);
+        DLBucket * Bucket = (DLBucket*) it.get_curr_ne();
+        insert(Bucket->get_key(), Bucket->record);
       }
   }
 
@@ -224,28 +219,24 @@ public:
     /// key. Retorna un puntero al registro dentro de la tabla. Dispara la
     /// excepción bad_alloc si no hay suficiente memoria.
   Record * insert(const Key & key, const Record & record)
-    throw (std::exception, std::bad_alloc)
   {
     return __insert(new DLBucket (key, record));
   }
 
   Record * insert(const Key & key, Record && record = Record())
-    throw (std::exception, std::bad_alloc)
   {
     return __insert(new DLBucket(key, std::forward<Record>(record)));
   }
 
   Record * insert(Key && key, const Record & record)
-    throw (std::exception, std::bad_alloc)
   {
     return __insert(new DLBucket (std::forward<Key>(key), record));
   }
 
   Record * insert(Key && key, Record && record)
-    throw (std::exception, std::bad_alloc)
   {
-    return __insert(new DLBucket(std::forward<Key>(key), 
-				 std::forward<Record>(record)));
+    return __insert(new DLBucket(std::forward<Key>(key),
+                                 std::forward<Record>(record)));
   }
 
     /// Busca la clave key y, si se encuentra, entonces retorna un puntero
@@ -267,13 +258,11 @@ public:
   }
 
   DLProxy operator [] (const Key& key) const
-    throw(std::exception, std::invalid_argument) 
   {
     return DLProxy ( const_cast<DynLhashTable&>(*this), key);
   }
 
-  DLProxy operator [] (const Key& key) 
-    throw(std::exception, std::bad_alloc, std::invalid_argument) 
+  DLProxy operator [] (const Key& key)
   {
     return DLProxy (*this, key);
   }

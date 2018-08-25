@@ -55,19 +55,17 @@ namespace Aleph {
 
       @ingroup Arboles
    */
-    template <
-      typename Key,
-      template <typename, class> class Tree = Avl_Tree,
-      class Compare = Aleph::less<Key>
-      >
+    template <typename Key,
+              template <typename, class> class Tree = Avl_Tree,
+              class Compare = Aleph::less<Key>>
 class DynSetTree
       : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
-	public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
-	public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
-	public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
-	public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
+        public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
+        public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
+        public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
+        public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
 {
- public:
+public:
 
       /// Tipo de nodo binario empleado por el árbol binario de búsqueda
       /// interno.
@@ -109,25 +107,25 @@ public:
   }
 
       /// Instancia un conjunto dinámico copia de srcTree.
-  DynSetTree(const DynSetTree & srcTree) 
+  DynSetTree(const DynSetTree & srcTree)
     : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
-  { 
-    Node * srcRoot = srcTree.tree.getRoot(); 
-    try 
+  {
+    Node * srcRoot = srcTree.tree.getRoot();
+    try
       {
-	tree.getRoot() = copyRec(srcRoot);
+        tree.getRoot() = copyRec(srcRoot);
       }
     catch (...)
       {
-	num_nodes = 0;
-	throw;
+        num_nodes = 0;
+        throw;
       }
   }
 
   Special_Ctors(DynSetTree, Key);
 
   DynSetTree(DynSetTree && srcTree) : num_nodes(0)
-  { 
+  {
     swap(srcTree);
   }
 
@@ -167,7 +165,7 @@ public:
    }
 
       /// Destructor; todos los elementos son liberados.
-  virtual ~DynSetTree() 
+  virtual ~DynSetTree()
   {
     empty();
   }
@@ -187,12 +185,12 @@ private:
 public:
 
       /** Inserta una clave en el conjunto dinámico.
-	  
-	  Inserta la clave key en el conjunto dinámico.
 
-	  @param[in] key clave a insertar.
-	  @return puntero a la clave insertada si ésta no está dentro
-	  del árbol; nullptr de lo contrario.
+          Inserta la clave key en el conjunto dinámico.
+
+          @param[in] key clave a insertar.
+          @return puntero a la clave insertada si ésta no está dentro
+          del árbol; nullptr de lo contrario.
       */
   Key * insert(const Key & key)
   {
@@ -203,7 +201,7 @@ public:
   {
     return __insert(new Node(std::forward<Key>(key)));
   }
-  
+
   Key * append(const Key & key)
   {
     return insert(key);
@@ -232,8 +230,8 @@ private:
     Node * q = tree.search_or_insert(p);
     if (q != p)
       { // KEY(p) is already inside the tree
-	delete p;
-	return pair<Node*, bool>(q, true);
+        delete p;
+        return pair<Node*, bool>(q, true);
       }
     ++num_nodes;
     return pair<Node*, bool>(p, false);
@@ -242,17 +240,17 @@ private:
 public:
 
   /** Busca la clave <code>key</code> en el árbol binario de búsqueda o
-	lo inserta en caso de no encontrarse.
+      lo inserta en caso de no encontrarse.
 
-	<code>search_or_insert(key)</code> busca en el árbol binario un
-	nodo cuya clave 
-	sea <code>KEY(p)</code>. Si la clave se encuentra, entonces se
-	retorna un puntero a ella; de lo contrario se
-	inserta <code>key</code> en el árbol binario de búsqueda this. 
+      <code>search_or_insert(key)</code> busca en el árbol binario un
+      nodo cuya clave sea <code>KEY(p)</code>. Si la clave se
+      encuentra, entonces se retorna un puntero a ella; de lo
+      contrario se inserta <code>key</code> en el árbol binario de
+      búsqueda this.
 
-	@param[in] key la clave a buscar o insertar.
-	@return puntero a la clave dentro del árbol
-     */
+      @param[in] key la clave a buscar o insertar.
+      @return puntero a la clave dentro del árbol
+  */
   Key * search_or_insert(const Key & key)
   {
     return __search_or_insert(new Node(key));
@@ -342,7 +340,7 @@ public:
 
       This method is intended to be used with compound keys, by example
       pairs, whose searching is done by a particular member of compound
-      data. 
+      data.
 
       @param[in] key key to be removed
       @return a full copy of stored key
@@ -414,7 +412,6 @@ public:
 	  pues la referencia es modificable.
        */
   Key & find(const Key & key) const
-    throw(std::exception, std::domain_error)
   {
     Node * node = static_cast<Node*>(tree.search(key));
 
@@ -425,45 +422,44 @@ public:
   }
 
     /** Retorna la posición infija (ordenada) de la clave key o lo que
-	seria su posición de pertenecer al árbol.
+        seria su posición de pertenecer al árbol.
 
-	find_position(key) busca en el árbol extendido la clave key (lo cual
-	toma tiempo \f$O(\lg n)\f$) y retorna la posición infija del nodo
-	que contiene la clave.
+        find_position(key) busca en el árbol extendido la clave key
+        (lo cual toma tiempo \f$O(\lg n)\f$) y retorna la posición
+        infija del nodo que contiene la clave.
 
-	@param[in] key clave a buscar y a determinar posición infija.
-	@return posición infija de la clave key dentro del conjunto
-	ordenado si ésta se encuentra o, de lo contrario, la posición
-	donde se encontraría de pertenecer al árbol.  
-	
-	@warning Sólo funciona si el árbol maneja rangos.
+        @param[in] key clave a buscar y a determinar posición infija.
+        @return posición infija de la clave key dentro del conjunto
+        ordenado si ésta se encuentra o, de lo contrario, la posición
+        donde se encontraría de pertenecer al árbol.
+
+        @warning Sólo funciona si el árbol maneja rangos.
    */
   std::pair<int, Key*> find_position(const Key & key) const
-  { 
+  {
     if (num_nodes == 0)
       return std::pair<int, Key*> (0, nullptr);
 
-    std::pair<int, Node*> p = tree.find_position(key); 
+    std::pair<int, Node*> p = tree.find_position(key);
 
-    return std::pair<int, Key*> (p.first, &p.second->get_key()); 
+    return std::pair<int, Key*> (p.first, &p.second->get_key());
   }
 
       /** Busca un elemento en el conjunto.
 
-	  search(key) busca la clave key en el conjunto. Si el elemento
-	  se encuentra en el conjunto, entonces se retorna un
-	  puntero al valor contenido en el conjunto; de lo contrario se
-	  retrona nullptr.
+          search(key) busca la clave key en el conjunto. Si el
+          elemento se encuentra en el conjunto, entonces se retorna un
+          puntero al valor contenido en el conjunto; de lo contrario
+          se retrona nullptr.
 
-	  @param[in] key clave a buscar.
-	  @return puntero al elemento en en el conjunto si éste se
-	  encuentra en el mismo; nullptr de l contrario.
+          @param[in] key clave a buscar.
+          @return puntero al elemento en en el conjunto si éste se
+          encuentra en el mismo; nullptr de l contrario.
 
-	  @note Téngase sumo cuidado con  alterar el orden de búsqueda,
-	  pues  a través del puntero la clave es modificable.
-       */
+          @note Téngase sumo cuidado con  alterar el orden de búsqueda,
+          pues  a través del puntero la clave es modificable.
+      */
   Key * search(const Key & key) const
-    throw(std::exception, std::domain_error)
   {
     Node * node = static_cast<Node*>(tree.search(key));
 
@@ -474,8 +470,8 @@ public:
   }
 
       /// Retorna la menor clave contenida en el conjunto según el criterio
-      /// de comparación dado. 
-  const Key & min() const
+      /// de comparación dado.
+ const Key & min() const
   {
     if (num_nodes == 0)
       throw std::domain_error("set is empty");
@@ -487,7 +483,7 @@ public:
   const Key & get_first() const { return min(); }
 
       /// Retorna la mayor clave contenida en el conjunto según el criterio
-      /// de comparación dado. 
+      /// de comparación dado.
   const Key & max() const
   {
     if (num_nodes == 0)
@@ -510,9 +506,9 @@ public:
 
       /// Calcula y retorna la longitud del camino interno del árbol
       /// binario de búsqueda.
-  size_t internal_path_length() const 
+  size_t internal_path_length() const
   {
-    return Aleph::internal_path_length(tree.getRoot()); 
+    return Aleph::internal_path_length(tree.getRoot());
   }
 
   Node * get_root_node() const { return tree.getRoot(); }
@@ -536,33 +532,33 @@ public:
   void for_each_in_preorder(void (*visitFct)(Node*, int, int))
   {
     Node * root = static_cast<Node*>(tree.getRoot());
-    preOrderRec(root, visitFct); 
+    preOrderRec(root, visitFct);
   }
 
       /** Retorna la posición infija (ordenada) de la clave key.
 
-	  position(key) busca en el treap extendido la clave key (lo cual
-	  toma tiempo \f$O(\lg n)\f$) y retorna la posición infija del nodo
-	  que contiene la clave.
+          position(key) busca en el treap extendido la clave key (lo
+          cual toma tiempo \f$O(\lg n)\f$) y retorna la posición
+          infija del nodo que contiene la clave.
 
-	  @param[in] key clave a buscar y a determinar posición infija.
-	  @return posición infija de la clave key dentro del conjunto
-	  ordenado si la clave se encuentra; -1 de lo contrario
-	
-	  @warning Sólo funciona si el árbol maneja rangos.
+          @param[in] key clave a buscar y a determinar posición infija.
+          @return posición infija de la clave key dentro del conjunto
+          ordenado si la clave se encuentra; -1 de lo contrario
+
+          @warning Sólo funciona si el árbol maneja rangos.
       */
   long position(const Key & key) const
   {
     std::pair<long, Node*> p = tree.position(key);
-    return p.first; 
+    return p.first;
   }
 
       /** Retorna el i-ésimo nodo en posición infija
 
-	  @param[in] i posición deseada
-	  @return referencia a la i-esima clave insertada en el conjunto
+          @param[in] i posición deseada
+          @return referencia a la i-esima clave insertada en el conjunto
       */
-  Key & select(const size_t & i) 
+  Key & select(const size_t & i)
   {
     return tree.select(i)->get_key();
   }
@@ -592,9 +588,9 @@ public:
     return select(i);
   }
 
-  bool verify() 
+  bool verify()
   {
-    return tree.verify() and check_bst(tree.getRoot()); 
+    return tree.verify() and check_bst(tree.getRoot());
   }
 
 private:
@@ -608,11 +604,11 @@ struct Node_Op
 
   Node_Op(Key_Op && __key_op) : key_op(__key_op)
   {
-    /* empty */ 
+    /* empty */
   }
 
-  void operator () (Node * root) 
-  { 
+  void operator () (Node * root)
+  {
     assert(root != nullptr);
     key_op(KEY(root));
   }
@@ -621,10 +617,10 @@ struct Node_Op
 public:
 
     /** Efectúa un recorrido prefijo sobre todas las claves del conjunto e
-	invoca la operacion Op.
+        invoca la operacion Op.
 
-	<code>Op(p)</code> tiene la siguiente estructura: 
-	\code
+        <code>Op(p)</code> tiene la siguiente estructura:
+        \code
 	     struct Key_Op
 	     {
 	       // atributos de estado que se deseen mantener
@@ -639,12 +635,12 @@ public:
 	         // operación sobre clave key
 	       }
 	     };
-	\endcode
+       \endcode
 
-	@param[in] key_op operación a ejecutar sobre cada clave 
-	\see For_Each_Preorder
+       @param[in] key_op operación a ejecutar sobre cada clave
+       \see For_Each_Preorder
     */
-      template <class Key_Op> 
+      template <class Key_Op>
   void for_each_preorder(Key_Op & key_op) const
   {
     Node * root = (Node *) tree.getRoot();
@@ -655,17 +651,17 @@ public:
   }
 
   /// \overload for_each_preorder
-      template <class Key_Op> 
+      template <class Key_Op>
   void for_each_preorder(Key_Op && key_op = Key_Op()) const
   {
     for_each_preorder<Key_Op>(key_op);
   }
 
     /** Efectúa un recorrido infijo sobre todas las claves del conjunto e
-	invoca la operacion Op.
+        invoca la operacion Op.
 
-	<code>Op(p)</code> tiene la siguiente estructura: 
-	\code
+        <code>Op(p)</code> tiene la siguiente estructura:
+        \code
 	     struct Key_Op
 	     {
 	       // atributos de estado que se deseen mantener
@@ -680,12 +676,12 @@ public:
 	         // operación sobre clave key
 	       }
 	     };
-	\endcode
+       \endcode
 
-	@param[in] key_op operación a ejecutar sobre cada clave 
-	\see For_Each_In_Order
+       @param[in] key_op operación a ejecutar sobre cada clave
+       \see For_Each_In_Order
     */
-      template <class Key_Op> 
+      template <class Key_Op>
   void for_each_inorder(Key_Op & key_op) const
   {
     Node * root = (Node *) tree.getRoot();
@@ -696,17 +692,17 @@ public:
   }
 
   /// \overload for_each_inorder
-      template <class Key_Op> 
+      template <class Key_Op>
   void for_each_inorder(Key_Op && key_op = Key_Op()) const
   {
     for_each_inorder<Key_Op>(key_op);
   }
 
       /** Efectúa un recorrido sufijo sobre todas las claves del conjunto e
-	invoca la operacion Op.
+          invoca la operacion Op.
 
-	<code>Op(p)</code> tiene la siguiente estructura: 
-	\code
+          <code>Op(p)</code> tiene la siguiente estructura:
+          \code
 	     struct Key_Op
 	     {
 	       // atributos de estado que se deseen mantener
@@ -721,13 +717,13 @@ public:
 	         // operación sobre clave key
 	       }
 	     };
-	\endcode
+       \endcode
 
-	@param[in] key_op operación a ejecutar sobre cada clave 
-	\see For_Each_Postorder
+       @param[in] key_op operación a ejecutar sobre cada clave
+       \see For_Each_Postorder
     */
-      template <class Key_Op> 
-  void for_each_postorder(Key_Op & key_op) 
+      template <class Key_Op>
+  void for_each_postorder(Key_Op & key_op)
   {
     Node * root = (Node *) tree.getRoot();
 
@@ -737,13 +733,13 @@ public:
   }
 
   /// \overload for_each_postorder
-      template <class Key_Op> 
-  void for_each_postorder(Key_Op && key_op = Key_Op()) 
+      template <class Key_Op>
+  void for_each_postorder(Key_Op && key_op = Key_Op())
   {
     for_each_postorder<Key_Op>(key_op);
   }
 
-    /** Unión de dos árboles binarios de búsqueda. 
+    /** Unión de dos árboles binarios de búsqueda.
 
         join(t,dup) construye un árbol binario de búsqueda
         correspondiente a la unión de this con t. Las claves duplicadas
@@ -755,7 +751,7 @@ public:
         @note Luego de las llamadas el árbol t deviene vacíos y this deviene
         la unión de ambos árboles;
         sin embargo los valores de t1 y t2 no se modifican.
-	@return this
+        @return this
         @ingroup Arboles
      */
   DynSetTree & join(DynSetTree & t, DynSetTree & dup)
@@ -770,7 +766,7 @@ public:
     return join(t, dup);
   }
 
-  /** Unión de dos árboles binarios de búsqueda. 
+  /** Unión de dos árboles binarios de búsqueda.
 
         join_dup(t) construye un árbol binario de búsqueda
         correspondiente a la unión de this con t en la cual pueden haber
@@ -779,7 +775,7 @@ public:
         @param[in] t árbol binario de búsqueda que se quiere unir a this.
         @note Luego de las llamadas el árbol t deviene vacíos y this deviene
         la unión de ambos árboles;
-	@return this
+        @return this
         @ingroup Arboles
      */
   DynSetTree & join_dup(DynSetTree & t)
@@ -794,7 +790,7 @@ public:
       /** Particiona el árbol binario de búsqueda según una clave.
 
          split_key(key,l,r) particiona, según la clave key, el
-         árbol binario de búsqueda this en dos árboles l y r. Luego de la  
+         árbol binario de búsqueda this en dos árboles l y r. Luego de la
          operación el árbol this deviene vacío, l contiene
          todas las claves menores que key y r las mayores.
 
@@ -820,12 +816,12 @@ public:
   }
 
       /** Particiona el árbol binario de búsqueda según una posición
-	  infija. 
+          infija.
 
          split_pos(pos,l,r) particiona árbol binario de búsqueda this
-         en dos árboles l y r. Luego de la   
-         operación el árbol this deviene vacío, l contiene las pos
-         primeras claves y r las restantes.
+         en dos árboles l y r. Luego de la operación el árbol this
+         deviene vacío, l contiene las pos primeras claves y r las
+         restantes.
 
          @param[in] pos posición de partición
          @param[out] l árbol con las claves entre intervalo [0,pos]
@@ -841,10 +837,10 @@ public:
   }
 
       /** Particiona el árbol binario de búsqueda según una clave que
-          puede estar presente en el árbol. 
+          puede estar presente en el árbol.
 
          split_dup(key,l,r) particiona, según la clave key, el
-         árbol binario de búsqueda this en dos árboles l y r. Luego de la  
+         árbol binario de búsqueda this en dos árboles l y r. Luego de la
          operación el árbol this deviene vacío, l contiene
          todas las claves menores que key y r las mayores o iguales.
 
@@ -927,24 +923,24 @@ public:
 };
 
 
-# define SETTREE_ITOR(Name, Key, Cmp)					\
+# define SETTREE_ITOR(Name, Key, Cmp)                             \
   class Iterator : public DynSetTree<Key, Name, Cmp>::Iterator		\
-  {									\
-  public:								\
-    Iterator() : DynSetTree<Key, Name, Cmp>::Iterator()			\
-    { /* empty */ }							\
-    									\
-    Iterator(DynSetTree<Key, Name, Cmp> & tree)				\
-      : DynSetTree<Key, Name, Cmp>::Iterator(tree)			\
-    { /* empty */ }							\
+  {                                                               \
+  public:                                                         \
+    Iterator() : DynSetTree<Key, Name, Cmp>::Iterator()           \
+      { /* empty */ }                                             \
+                                                                  \
+    Iterator(DynSetTree<Key, Name, Cmp> & tree)                   \
+      : DynSetTree<Key, Name, Cmp>::Iterator(tree)                \
+      { /* empty */ }                                             \
   };
 
 
     /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-	de tipo BinTree<Key>.
+        de tipo BinTree<Key>.
 
-	@see DynSetTree DynMapTree BinTree<Key>
-	@ingroup Arboles
+        @see DynSetTree DynMapTree BinTree<Key>
+        @ingroup Arboles
      */
   template  <typename Key, class Compare = Aleph::less<Key>>
     class DynSetBinTree : public DynSetTree<Key, BinTree, Compare>
@@ -956,10 +952,10 @@ public:
 
 
     /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-	AVL de tipo Avl_Tree<Key>.
+        AVL de tipo Avl_Tree<Key>.
 
-	@see DynSetTree DynMapTree Avl_Tree<Key>
-	@ingroup Arboles
+        @see DynSetTree DynMapTree Avl_Tree<Key>
+        @ingroup Arboles
      */
   template  <typename Key, class Compare = Aleph::less<Key>>
     class DynSetAvlTree : public DynSetTree<Key, Avl_Tree, Compare>
@@ -971,10 +967,10 @@ public:
 
 
     /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-	splay de tipo Splay_Tree<Key>.
+        splay de tipo Splay_Tree<Key>.
 
-	@see DynSetTree DynMapTree Splay_Tree<Key>
-	@ingroup Arboles
+        @see DynSetTree DynMapTree Splay_Tree<Key>
+        @ingroup Arboles
      */
   template  <typename Key, class Compare = Aleph::less<Key>>
     class DynSetSplayTree : public DynSetTree<Key, Splay_Tree, Compare>
@@ -997,17 +993,17 @@ class DynSetRandTree : public DynSetTree<Key, Rand_Tree, Compare>
 public:
   using Base = DynSetTree<Key, Rand_Tree, Compare>;
   using Base::Base;
-  
-  class Iterator : public DynSetTree<Key, Rand_Tree, Compare>::Iterator 
-  { 
-  public: 
-    Iterator() : DynSetTree<Key, Rand_Tree, Compare>::Iterator() 
-    { /* empty */ } 
 
-    Iterator(DynSetTree<Key, Rand_Tree, Compare> & tree) 
-      : DynSetTree<Key, Rand_Tree, Compare>::Iterator(tree) 
-    { /* empty */ } 
-  }; 
+  class Iterator : public DynSetTree<Key, Rand_Tree, Compare>::Iterator
+  {
+  public:
+    Iterator() : DynSetTree<Key, Rand_Tree, Compare>::Iterator()
+    { /* empty */ }
+
+    Iterator(DynSetTree<Key, Rand_Tree, Compare> & tree)
+      : DynSetTree<Key, Rand_Tree, Compare>::Iterator(tree)
+    { /* empty */ }
+  };
 };
 
 
@@ -1019,7 +1015,7 @@ public:
      */
   template  <typename Key, class Compare = Aleph::less<Key>>
     class DynSetTreap : public DynSetTree<Key, Treap, Compare>
-    { 
+    {
     public:
       using Base = DynSetTree<Key, Treap, Compare>;
       using Base::Base;
@@ -1039,7 +1035,7 @@ public:
       using Base::Base;
       SETTREE_ITOR(Treap_Rk, Key, Compare);
     };
-  
+
 
     /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
 	aleatorios treaps de tipo Rb_Tree<Key>.
@@ -1053,8 +1049,8 @@ public:
     public:
       using Base = DynSetTree<Key, Rb_Tree, Compare>;
       using Base::Base;
-    }; 
-  
+    };
+
 
   template <typename T, class Op, class C>
 DynSetTree<T> set_unify(const C & c, Op op)

@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -39,20 +39,20 @@ namespace Aleph {
 
 class TreapRkNode_Data
 {
-  unsigned long priority; 
+  unsigned long priority;
 
   unsigned long count;
 
 public:
 
-  TreapRkNode_Data() noexcept : priority(Max_Priority), count(1) 
-  { 
-    /* empty */ 
+  TreapRkNode_Data() noexcept : priority(Max_Priority), count(1)
+  {
+    /* empty */
   }
 
-  TreapRkNode_Data(SentinelCtor) noexcept : priority(Max_Priority), count(0) 
-  { 
-    /* empty */ 
+  TreapRkNode_Data(SentinelCtor) noexcept : priority(Max_Priority), count(0)
+  {
+    /* empty */
   }
 
   unsigned long & getPriority() noexcept { return priority; }
@@ -63,7 +63,7 @@ public:
 };
 
   DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
-  
+
   /** Extended treap (a special type of ramdomized binary search tree)
       which manages selection and splitting for inorder position.
 
@@ -80,7 +80,7 @@ public:
       (both approaches are logarithmic). Since the priority is chosen
       just one time and the adjustements are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
-      takes less time. 
+      takes less time.
 
       Although tgus approach trends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
@@ -94,11 +94,11 @@ public:
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
       it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
       addition,
-      
-      The class internally uses the gsl random number generator of 
+
+      The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
-      system time. 
+      system time.
 
       @ingroup Arboles
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
@@ -141,8 +141,8 @@ public:
   Compare & get_compare() noexcept { return key_comp(); }
 
   /// Initialize a treap with random `seed` and comparison criteria
-  /// `__cmp` 
-  Gen_Treap_Rk(unsigned long seed, Compare __cmp = Compare()) 
+  /// `__cmp`
+  Gen_Treap_Rk(unsigned long seed, Compare __cmp = Compare())
     : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);
@@ -190,38 +190,38 @@ private:
   {
     if (root == Node::NullPtr)
       {
-	root = p;
-	return true;
+        root = p;
+        return true;
       }
 
     if (cmp(KEY(p), KEY(root)))
       {
-	if (insert(LLINK(root), p))
-	  {
-	    ++COUNT(root);
-	    if (PRIO(LLINK(root)) < PRIO(root) )
-	      root = rotate_to_right_xt(root);
+        if (insert(LLINK(root), p))
+          {
+            ++COUNT(root);
+            if (PRIO(LLINK(root)) < PRIO(root) )
+              root = rotate_to_right_xt(root);
 
-	    return true;
-	  }
+            return true;
+          }
       }
     else if (cmp(KEY(root), KEY(p)))
       {
-	if (insert(RLINK(root), p))
-	  {
-	    ++COUNT(root);
-	    if (PRIO(RLINK(root)) < PRIO(root) )
-	      root = rotate_to_left_xt(root);
+        if (insert(RLINK(root), p))
+          {
+            ++COUNT(root);
+            if (PRIO(RLINK(root)) < PRIO(root) )
+              root = rotate_to_left_xt(root);
 
-	    return true;
-	  }
+            return true;
+          }
       }
 
     return false;
   }
 
   // Search or insert p. Return p if KEY(p) is not in the tree;
-  // otherwise, it returns a pointer to a node containing KEY(p) 
+  // otherwise, it returns a pointer to a node containing KEY(p)
   Node * search_or_insert(Node *& root, Node * p) noexcept
   {
     if (root == Node::NullPtr)
@@ -229,33 +229,33 @@ private:
 
     if (cmp(KEY(p), KEY(root)))
       {
-	Node * ret = search_or_insert(LLINK(root), p);
+        Node * ret = search_or_insert(LLINK(root), p);
         if (ret == p) // insertion done?
-	  { // yes ==> increase counter and perhaps rotate
-	    ++COUNT(root);
-	    if (PRIO(LLINK(root)) < PRIO(root))
-	      root = rotate_to_right_xt(root);
-	    
-	    assert(PRIO(root) <= PRIO(LLINK(root)) and
-		   PRIO(root) <= PRIO(LLINK(root)));
-	  }
+          { // yes ==> increase counter and perhaps rotate
+            ++COUNT(root);
+            if (PRIO(LLINK(root)) < PRIO(root))
+              root = rotate_to_right_xt(root);
 
-	return ret;
+            assert(PRIO(root) <= PRIO(LLINK(root)) and
+                   PRIO(root) <= PRIO(LLINK(root)));
+          }
+
+        return ret;
       }
     else if (cmp(KEY(root), KEY(p)))
       {
-	Node * ret = search_or_insert(RLINK(root), p);
+        Node * ret = search_or_insert(RLINK(root), p);
         if (ret == p) // insertion done?
-	  { // yes ==> increase counter and perhaps rotate
-	    ++COUNT(root);
-	    if (PRIO(RLINK(root)) < PRIO(root))
-	      root = rotate_to_left_xt(root);
+          { // yes ==> increase counter and perhaps rotate
+            ++COUNT(root);
+            if (PRIO(RLINK(root)) < PRIO(root))
+              root = rotate_to_left_xt(root);
 
-	    assert(PRIO(root) <= PRIO(LLINK(root)) and
-		   PRIO(root) <= PRIO(LLINK(root)));
-	  }
+            assert(PRIO(root) <= PRIO(LLINK(root)) and
+                   PRIO(root) <= PRIO(LLINK(root)));
+          }
 
-	return ret;
+        return ret;
       }
 
     assert(PRIO(root) <= PRIO(LLINK(root)) and PRIO(root) <= PRIO(LLINK(root)));
@@ -272,16 +272,16 @@ private:
     if (cmp(KEY(p), KEY(root)))
       {
         insert_dup(LLINK(root), p);
-	++COUNT(root);
+        ++COUNT(root);
         if (PRIO(LLINK(root)) < PRIO(root))
           root = rotate_to_right_xt(root);
       }
     else
       {
-	insert_dup(RLINK(root), p);
-	++COUNT(root);
-	if (PRIO(RLINK(root)) < PRIO(root))
-	  root = rotate_to_left_xt(root);
+        insert_dup(RLINK(root), p);
+        ++COUNT(root);
+        if (PRIO(RLINK(root)) < PRIO(root))
+          root = rotate_to_left_xt(root);
       }
 
     return p;
@@ -291,12 +291,12 @@ public:
 
     /** Insert a node in a treap.
 
-	insert(p) inserta el nodo p en el treap this.
+        insert(p) inserta el nodo p en el treap this.
 
-	@param[in] p pointer to the node to be inserted
-	@return if `p->get_key()` is not in the tree, then `p` is
-	inserted and this node pointer is returned. Otherwise, it is
-	returned `nullptr`.
+        @param[in] p pointer to the node to be inserted
+        @return if `p->get_key()` is not in the tree, then `p` is
+        inserted and this node pointer is returned. Otherwise, it is
+        returned `nullptr`.
     */
   Node * insert(Node * p) noexcept
   {
@@ -323,7 +323,7 @@ public:
     return insert_dup(tree_root, p);
   }
 
- 
+
   /** Search or insert a key.
 
       `search_or_insert(p)` searches in the tree the key `KEY(p)`. If
@@ -360,15 +360,15 @@ private:
 
     if (PRIO(t1) < PRIO(t2))
       {
-	COUNT(t1) += COUNT(t2);
-	RLINK(t1) = join_exclusive(RLINK(t1), t2);
-	return t1;
+        COUNT(t1) += COUNT(t2);
+        RLINK(t1) = join_exclusive(RLINK(t1), t2);
+        return t1;
       }
     else
       {
-	COUNT(t2) += COUNT(t1);
-	LLINK(t2) = join_exclusive(t1, LLINK(t2) );
-	return t2;
+        COUNT(t2) += COUNT(t1);
+        LLINK(t2) = join_exclusive(t1, LLINK(t2) );
+        return t2;
       }
   }
 
@@ -384,15 +384,15 @@ private:
       ret_val = remove(RLINK(root), key);
     else
       {
-	ret_val = root;
-	root = join_exclusive(LLINK(root), RLINK(root) );
-	
-	return ret_val;
+        ret_val = root;
+        root = join_exclusive(LLINK(root), RLINK(root) );
+
+        return ret_val;
       }
 
     if (ret_val == Node::NullPtr)
       return Node::NullPtr;
-      
+
     --COUNT(root);
 
     return ret_val;
@@ -415,7 +415,7 @@ public:
     ret_val->reset();
 
     return ret_val;
-  } 
+  }
 
   /** Remove from the treap all the keys between  inorder position `beg`
       and `end`.
@@ -448,9 +448,9 @@ private:
   {
     if (pos == COUNT(LLINK(root)))
       {
-	Node * ret_val = root;
-	root = join_exclusive(LLINK(ret_val), RLINK(ret_val));
-	return ret_val;
+        Node * ret_val = root;
+        root = join_exclusive(LLINK(ret_val), RLINK(ret_val));
+        return ret_val;
       }
 
     --COUNT(root);
@@ -459,7 +459,7 @@ private:
     else
       return remove_pos(RLINK(root), pos - COUNT(LLINK(root)) - 1);
   }
-  
+
 public:
 
   /** Remove the node at the inorder position pos
@@ -486,7 +486,7 @@ public:
       */
   Node * select(const size_t i) const
   {
-    return Aleph::select(tree_root, i); 
+    return Aleph::select(tree_root, i);
   }
 
       /// Return the number of nodes contained in the tree
@@ -525,17 +525,17 @@ public:
 
       Otherwise, the the tuple returns the position that would have `key`
       if this was in the tree and the parent node that the key would
-      had. At this regard, there are three cases: 
+      had. At this regard, there are three cases:
       1. if `key` is lesser than the minimum key of tree, then first is
          -1 and the node is one with the smallest key.
-	 
+
       2. If `key` is greater than the maximum key in the tree, then
          first is the number of keys and the node is one with the
-         maximum key in the tree. 
+         maximum key in the tree.
 
       3. For any other case, first is the inorder position that would
-         have `key` if this was in the tree and second is the node 
-	 whose key is inmediataly greater than `key`.
+         have `key` if this was in the tree and second is the node
+         whose key is inmediataly greater than `key`.
 
       @param[in] key to be searched
       @return a pair with the inorder position and and related node
@@ -567,7 +567,7 @@ public:
 
       `split_dup(key, t1, t2)` splits the tree according to `key` in two
       trees `t1` which contains the key lesser than `key` and `t2` which
-      contains the keys greater or equal than `key`. 
+      contains the keys greater or equal than `key`.
 
       @param[in] key for splitting
       @param[out] t1 resulting tree with the keys lesser than `key`
@@ -615,8 +615,8 @@ private:
     Node * ret = insert(t1, t2);
     if (ret == Node::NullPtr)
       {
-	dup = insert_dup(dup, remove(t1, KEY(t2)));
-	goto ins;
+        dup = insert_dup(dup, remove(t1, KEY(t2)));
+        goto ins;
       }
 
     t1 = ret;
@@ -671,7 +671,7 @@ public:
   */
   void join_exclusive(Gen_Treap_Rk & t) noexcept
   {
-    tree_root = join_exclusive(tree_root, t.tree_root);    
+    tree_root = join_exclusive(tree_root, t.tree_root);
     t.tree_root = Node::NullPtr;
   }
 
@@ -684,8 +684,8 @@ public:
   class Iterator
   {
   protected:
-    
-    mutable Gen_Treap_Rk * tree_ptr; 
+
+    mutable Gen_Treap_Rk * tree_ptr;
     mutable Node *         curr;
     mutable int            curr_pos;
 
@@ -720,7 +720,7 @@ public:
       assert(curr != nullptr);
 
       curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->cmp).
-	inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
+        inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
     }
 
     void update_curr() const noexcept
@@ -728,8 +728,8 @@ public:
       assert(curr_pos != Pos_Not_Updated);
 
       if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
-	  curr_pos == COUNT(tree_ptr->getRoot()))
-	return;
+          curr_pos == COUNT(tree_ptr->getRoot()))
+        return;
 
       curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
     }
@@ -739,7 +739,7 @@ public:
     Iterator() noexcept
     : tree_ptr(nullptr), curr(nullptr), curr_pos(Pos_Not_Current)
     {
-      /* empty */ 
+      /* empty */
     }
 
         /// Initialize an iterator on `__tree`
@@ -752,7 +752,7 @@ public:
     /// Initialize an iterator startin from node `__curr`
     Iterator(const Gen_Treap_Rk & __tree, Node * __curr) noexcept
       : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
-	curr(__curr), curr_pos(Pos_Not_Updated)
+        curr(__curr), curr_pos(Pos_Not_Updated)
     {
       // empty
     }
@@ -760,7 +760,7 @@ public:
     /// Initialize an iterator starting from the iorder position `pos`
     Iterator(const Gen_Treap_Rk & __tree, const size_t pos) noexcept
       : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
-	curr(nullptr), curr_pos(pos)
+        curr(nullptr), curr_pos(pos)
     {
       // empty
     }
@@ -774,7 +774,7 @@ public:
     Iterator & operator = (const Iterator & itor) noexcept
     {
       if (this == &itor)
-	return *this;
+        return *this;
 
       tree_ptr = itor.tree_ptr;
       curr = itor.curr;
@@ -794,8 +794,8 @@ public:
     void reset_last() noexcept
     {
       curr = nullptr;
-      curr_pos = (is_container_empty() ? Pos_Empty_Container : 
-		  COUNT(tree_ptr->getRoot()) - 1);
+      curr_pos = (is_container_empty() ? Pos_Empty_Container :
+                  COUNT(tree_ptr->getRoot()) - 1);
     }
 
     /// Put the iterator in the end state
@@ -804,24 +804,24 @@ public:
       put_itor_at_the_end(*this);
     }
 
-        /** Put the iterator to a node according to specific key
+    /** Put the iterator to a node according to specific key
 
-	    If `key` is not present, the the iterator is put on the node
+        If `key` is not present, the the iterator is put on the node
 
-	    @param[in] key to to guide te positiong
-	    @throw domain_error si la clave no está contenida en el árbol.
-	*/
+        @param[in] key to  guide the position
+        @throw domain_error si la clave no está contenida en el árbol.
+    */
     void reset_to_key(const Key & key) noexcept
     {
       std::pair<int, Node*> p = tree_ptr->find_position(key);
       curr_pos = p.first;
     }
 
-        /** Put the current node to a specific node
+    /** Put the current node to a specific node
 
-	    @param[in] node toput as current
-	    @note Obviously the node must belong to the tree
-	*/
+        @param[in] node toput as current
+        @note Obviously the node must belong to the tree
+    */
     void reset_to_node(Node * node) noexcept
     {
       curr = node;
@@ -839,9 +839,9 @@ public:
     Node * get_curr_ne() const noexcept
     {
       if (not curr_updated())
-	update_curr();
+        update_curr();
 
-      return curr; 
+      return curr;
     }
 
         /// \overload get_curr()
@@ -850,26 +850,24 @@ public:
       return get_curr_ne();
     }
 
-        /** return the position of current node
+    /** return the position of current node
 
-	    @return current position 
-	    está posicionado el iterador.
+	    @return current position
 	    @throw underflow_error if the iterator has not current node
 	    after a `prev()` operation
 	    @throw overflow_error if the iterator has not current node
 	    after a `next()` operation
 	 */
     size_t get_current_position() const
-      throw(std::exception, std::underflow_error, std::overflow_error)
     {
       if (not pos_updated())
-	update_pos();
+        update_pos();
 
       if (curr_pos < -1 )
-	throw std::range_error("TreapRk iterator has not current");
-	
+        throw std::range_error("TreapRk iterator has not current");
+
       if (curr_pos > COUNT(tree_ptr->getRoot() ) )
-	throw std::range_error("TreapRk iterator has not current");
+        throw std::range_error("TreapRk iterator has not current");
 
       return curr_pos;
     }
@@ -881,17 +879,17 @@ public:
     bool has_curr() const noexcept
     {
       if (not pos_updated())
-	update_pos();
+        update_pos();
 
       return curr_pos >= 0 and curr_pos < COUNT(tree_ptr->getRoot());
     }
 
     /// Move the iterator one position backward. Throws `underflow_error`
     /// if there is no current
-    void prev() throw(std::exception, std::underflow_error)
+    void prev()
     {
       if (not has_curr() )
-	throw std::underflow_error("TreapRk iterator has not current");
+        throw std::underflow_error("TreapRk iterator has not current");
 
       --curr_pos;
       curr = nullptr;
@@ -905,10 +903,10 @@ public:
 
     /// Move the iterator one position forward. Throws `overflow_error`
     /// if there is no current
-    void next() throw(std::exception, std::overflow_error)
+    void next()
     {
       if (not has_curr())
-	throw std::underflow_error("TreapRk iterator has not current");
+        throw std::underflow_error("TreapRk iterator has not current");
       next_ne();
     }
 
@@ -916,13 +914,13 @@ public:
     Node * del()
     {
       if (not has_curr())
-	throw std::underflow_error("TreapRk iterator has not current");
+        throw std::underflow_error("TreapRk iterator has not current");
 
       if (not curr_updated())
-	update_curr();
+        update_curr();
 
       Node * ret_val = tree_ptr->remove(KEY(curr) );
-      
+
       curr = nullptr;
 
       return ret_val;
@@ -932,25 +930,25 @@ public:
     bool operator == (const Iterator & itor) const noexcept
     {
       if (is_container_empty() and itor.is_container_empty())
-	return true;
+        return true;
 
       if (pos_updated() and itor.pos_updated())
-	return curr_pos == itor.curr_pos;
+        return curr_pos == itor.curr_pos;
 
       if (curr_updated() and itor.curr_updated())
-	return curr == itor.curr;
+        return curr == itor.curr;
 
       if (not pos_updated())
-	{
-	  update_pos();
-	  return curr_pos == itor.curr_pos;
-	}
+        {
+          update_pos();
+          return curr_pos == itor.curr_pos;
+        }
 
       itor.update_pos();
 
       return curr_pos == itor.curr_pos;
     }
-  
+
         /// Return `true` if `this` is not equal to `itor`
     bool operator != (const Iterator & itor) const
     {
@@ -985,7 +983,7 @@ public:
       (both approaches are logarithmic). Since the priority is chosen
       just one time and the adjustements are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
-      takes less time. 
+      takes less time.
 
       Although tgus approach trends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
@@ -999,17 +997,17 @@ public:
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
       it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
       addition,
-      
-      The class internally uses the gsl random number generator of 
+
+      The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
-      system time. 
+      system time.
 
       @ingroup Arboles
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
-   */  
+   */
     template <typename Key, class Compare = Aleph::less<Key>>
-struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare> 
+struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
 {
   using Base = Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>;
   using Base::Base;
@@ -1031,7 +1029,7 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
       (both approaches are logarithmic). Since the priority is chosen
       just one time and the adjustements are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
-      takes less time. 
+      takes less time.
 
       Although tgus approach trends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
@@ -1045,17 +1043,17 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
       it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
       addition,
-      
-      The class internally uses the gsl random number generator of 
+
+      The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
-      system time. 
+      system time.
 
       @ingroup Arboles
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
-   */ 
+   */
     template <typename Key, class Compare = Aleph::less<Key>>
-struct Treap_Rk_Vtl : public Gen_Treap_Rk<Treap_Rk_NodeVtl, Key, Compare> 
+struct Treap_Rk_Vtl : public Gen_Treap_Rk<Treap_Rk_NodeVtl, Key, Compare>
 {
   using Base = Gen_Treap_Rk<Treap_Rk_NodeVtl, Key, Compare>;
   using Base::Base;

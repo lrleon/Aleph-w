@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -50,19 +50,18 @@ namespace Aleph {
 
       @ingroup Secuencias
    */
-    template <typename T> 
-class Array
-      : public LocateFunctions<Array<T>, T>,
-	public FunctionalMethods<Array<T>, T>,
-	public GenericKeys<Array<T>, T>,
-	public EqualToMethod<Array<T>>,
-	public StlAlephIterator<Array<T>>
+    template <typename T>
+class Array : public LocateFunctions<Array<T>, T>,
+              public FunctionalMethods<Array<T>, T>,
+              public GenericKeys<Array<T>, T>,
+              public EqualToMethod<Array<T>>,
+              public StlAlephIterator<Array<T>>
 {
   MemArray<T> array;
 
 public:
 
-  using Item_Type = T; /// The type of element 
+  using Item_Type = T; /// The type of element
 
   /// Initializes a stack with a capacity of `dim`
   Array(size_t dim = 32) : array(dim) { /* empty */ }
@@ -107,7 +106,7 @@ public:
       @return a modifiable reference to the copy of inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & append(const T & data) throw(std::exception, std::overflow_error)
+  T & append(const T & data)
   {
     return array.put(data);
   }
@@ -118,7 +117,7 @@ public:
       @return a modifiable reference to the moved inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & append(T && data) throw(std::exception, std::overflow_error)
+  T & append(T && data)
   {
     return array.put(std::forward<T>(data));
   }
@@ -132,7 +131,7 @@ public:
   Array append(const Array & a) const
   {
     Array ret = *this;
-    return ret.append(a);    
+    return ret.append(a);
   }
 
   /** insert a copy of `data` at the begining of the array. All the
@@ -142,7 +141,7 @@ public:
       @return a modifiable reference to the copy of inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & insert(const T & data) throw(std::exception, std::overflow_error)
+  T & insert(const T & data)
   {
     return array.push(data);
   }
@@ -154,7 +153,7 @@ public:
       @return a modifiable reference to the moved inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & insert(T && data) throw(std::exception, std::overflow_error)
+  T & insert(T && data)
   {
     return array.push(std::forward<T>(data));
   }
@@ -193,11 +192,11 @@ public:
   size_t capacity() const noexcept { return array.capacity(); }
 
   /// return a modifiable reference to the first element. No bound check
-  /// is perfomed 
+  /// is perfomed
   T & get_first() const { return array.first(); }
 
   /// return a modifiable reference to the last element. No bound check
-  /// is perfomed 
+  /// is perfomed
   T & get_last() const { return array.last(); }
 
   T remove_last() { return array.remove_last(); }
@@ -210,7 +209,7 @@ public:
   {
     return array[i];
   }
-  
+
   /// Return a reference to the ith element. It does not perform bound checks
   T & operator () (const size_t i) const noexcept
   {
