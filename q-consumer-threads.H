@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -56,7 +56,7 @@ public:
   bool run() = 0;
 };
 
-/** Pool of consumer threads form a queue. 
+/** Pool of consumer threads form a queue.
 
     @ingroup utils
  */
@@ -103,12 +103,12 @@ private:
   bool shutting_down = false;
   bool shutdown_done = false;
   condition_variable shutdown_cv;
-  
+
   DynListQueue<T> q;
-  
+
 public:
 
-  ~QueueTheadsPool() throw(domain_error)
+  ~QueueTheadsPool()
   {
     unique_lock<mutex> cs(lck);
     if (not shutdown_done)
@@ -117,8 +117,8 @@ public:
 
 private:
 
-  static void handler(QueueTheadsPool<T> * threads_pool, 
-		      ConsumerQueueEvent * event)
+  static void handler(QueueTheadsPool<T> * threads_pool,
+                      ConsumerQueueEvent * event)
   {
     threads_pool->run_event(event);
   }
@@ -142,41 +142,22 @@ public:
     ++num_threads;
   }
 
-  // /** 
-
-  //  */
-  // bool put(const T & item)
-  // {
-  //   try
-  //     {
-  // 	unique_lock<mutex> critical_section(lck);
-  // 	if (num_threads == 0)
-  // 	  throw domain_error("there is no any thread created");
-  // 	q.put(item);
-  // 	if (not suspended)
-  // 	  cond.notify_one(); // for waking up a thread
-  //     }
-  //   catch (...) { return false; }
-    
-  //   return true;
-  // }
-
   bool put(T && item)
   {
     try
       {
-	unique_lock<mutex> critical_section(lck);
-	if (num_threads == 0)
-	  throw domain_error("there is no any thread created");
-	q.put(forward<T>(item));
-	if (not suspended)
-	  cond.notify_one(); // for waking up a thread
+        unique_lock<mutex> critical_section(lck);
+        if (num_threads == 0)
+          throw domain_error("there is no any thread created");
+        q.put(forward<T>(item));
+        if (not suspended)
+          cond.notify_one(); // for waking up a thread
       }
     catch (...)
       {
-	return false;
+        return false;
       }
-    
+
     return true;
   }
 
@@ -189,13 +170,13 @@ public:
     suspended = false;
     cond.notify_all();
   }
-  
+
   void suspend()
   {
     unique_lock<mutex> critical_section(lck);
     if (shutting_down)
       return;
-    
+
     suspended = true;
     cond.notify_all();
   }
@@ -234,35 +215,35 @@ void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
 
   while (true)
     {
-      cond.wait(critical_section, 
-		[this] { return not ((q.is_empty() and not shutting_down) or 
-				     suspended); });
+      cond.wait(critical_section,
+                [this] { return not ((q.is_empty() and not shutting_down) or
+                                     suspended); });
 
       if (shutting_down)
-	break;
+        break;
 
       if (suspended or q.is_empty())
-	continue;
+        continue;
 
-      event->item = q.get(); 
+      event->item = q.get();
       ++num_active;
       critical_section.unlock();
 
       try
-	{
-	  event->status = ConsumerQueueEvent::Status::Executing;
-	  event->run();
-	  event->status = ConsumerQueueEvent::Status::Ready;
+        {
+          event->status = ConsumerQueueEvent::Status::Executing;
+          event->run();
+          event->status = ConsumerQueueEvent::Status::Ready;
 
-	  critical_section.lock();
-	  --num_active;
-	}
+          critical_section.lock();
+          --num_active;
+        }
       catch (...)
-	{
-	  event->status = ConsumerQueueEvent::Status::Ready;
-	  critical_section.lock();
-	  --num_active;
-	}
+        {
+          event->status = ConsumerQueueEvent::Status::Ready;
+          critical_section.lock();
+          --num_active;
+        }
     }
 
   --num_threads;

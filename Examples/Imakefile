@@ -1,13 +1,13 @@
 DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
-# compiler suite 
+# compiler suite
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
 CCLINK = clang++ -fsanitize=address,undefined
-CXX = clang++  
+CXX = clang++
 
 SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
 	gen_rand_graph.C graphpic.C joseph.C ntreepic.C polinom.C 	\
@@ -50,13 +50,13 @@ SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
 	writeAvl.C writeBalance.C writeBinTree.C write_floyd.C		\
 	writeHeap.C write_huffman.C writeInsertRoot.C writeJoin.C	\
 	writeRandTree.C writeRankTree.C writeRb.C writeSplay.C		\
-	writeTreap.C testSplayRk1.C testSplayTree.C 
+	writeTreap.C testSplayRk1.C testSplayTree.C
 
-LOCALLIBS=	../libAleph.a 
+LOCALLIBS=	../libAleph.a
 
-DEPLIBS=	../libAleph.a 
+DEPLIBS=	../libAleph.a
 
-SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
 
 INCLUDES =      -I../
 
@@ -67,11 +67,11 @@ WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-paren
 # remove -fsanitize=address,undefined if you are not using clang
 FLAGS=-fsanitize=address,undefined -DDEBUG -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
-DEFINES=	-D_GLIBCXX__PTHREADS 
+DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
 
 AllTarget(btreepic)
 NormalProgramTarget(btreepic,btreepic.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))

@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -35,8 +35,8 @@ namespace Aleph
 
   /** Construye índices de nodos y arcos para su rápida búsqueda y recuperación.
 
-      Index_Graph indiza los nodos y arcos a efectos de su recuper5ación
-      rápida. 
+      Index_Graph indiza los nodos y arcos a efectos de su
+      recuperación rápida.
 
       A efectos de facilitar el uso y hacer su uso más seguro,
       Index_Graph ofrece las operaciones topológicas clásicas de un
@@ -45,18 +45,19 @@ namespace Aleph
       La clase recibe los siguientes parámetros tipo:
       -# GT: el tipo de grafo basado en List_Graph
       -# Compare: clase de comparación para la clave de indización de
-      los nodos. El contrato de esta clase es intrumentar el operador () así: 
+      los nodos. El contrato de esta clase es intrumentar el operador () así:
       \code
-          template <class GT>  
-	struct Dft_Node_Cmp   
-	{  
-            bool  
-          operator () (typename GT::Node * p1, typename GT::Node * p2) const 
-          {  
-	    // acceso a los nodos y comparación según el campo deseado  
-          }  
-      }; 
+          template <class GT>
+          struct Dft_Node_Cmp
+          {
+            bool
+            operator () (typename GT::Node * p1, typename GT::Node * p2) const
+            {
+              // acceso a los nodos y comparación según el campo deseado
+            }
+         };
       \endcode
+
       Por omisión esta clase está programada para comparar
       el valor retornado por get_info() sobre cada nodo. Para ello, el
       operador < del tipo GT::Node_Type debe estar implementado
@@ -65,15 +66,13 @@ namespace Aleph
       .
 
       @see IndexArc IndexNode
-      
+
       @ingroup Grafos
       @author Leandro Rabindranath León (lrleon en ula punto ve)
       @author Alejandro Mujica (aledrums en gmail punto com)
   */
-template 
-<class GT, 
- class Compare = Dft_Node_Cmp<GT>,
- template <class /* Key */, class /* Compare */> class Tree = Treap>
+template <class GT, class Compare = Dft_Node_Cmp<GT>,
+          template <class /* Key */, class /* Compare */> class Tree = Treap>
 class Index_Graph
 {
 private:
@@ -115,9 +114,8 @@ public:
       @return puntero al nuevo arco.
       @throw bad_alloc si no hay suficiente memoria.
    */
-  GT_Arc * insert_arc(GT_Node * src, GT_Node * tgt, 
-		      const GT_Arc_Type & info = GT_Arc_Type())
-    throw (std::exception, std::domain_error)
+  GT_Arc * insert_arc(GT_Node * src, GT_Node * tgt,
+                      const GT_Arc_Type & info = GT_Arc_Type())
   {
     if (idx_node.search(src) == nullptr)
       throw std::domain_error("src node not in index");
@@ -128,16 +126,16 @@ public:
     return idx_arc.insert_in_graph(src, tgt, info);
   }
 
-  /** Busca en el índice un nodo. 
+  /** Busca en el índice un nodo.
 
       @param[in] p puntero al nodo.
       @return puntero al nodo en caso de encontrarse en el índice; nullptr
       de lo contrario.
-   */
+  */
   GT_Node * search_node(GT_Node * p)
   {
     return idx_node.search(p);
-  } 
+  }
 
   /** Busca en el índice un nodo.
 
@@ -147,7 +145,7 @@ public:
       @warning Tome en consideración que la búsqueda se realiza según la
       implementación de la clase de comparación Compare pasada en tiempo
       de instanciación.
-   */
+  */
   GT_Node * search_node(const GT_Node_Type & info)
   {
     return idx_node.search(info);
@@ -159,7 +157,7 @@ public:
       @param[in] tgt puntero al nodo destino.
       @return puntero al arco en caso de encontrarse en el índice; nullptr
       de lo contrario.
-   */
+  */
   GT_Arc * search_arc(GT_Node * src, GT_Node * tgt)
   {
     return idx_arc.search(src, tgt);
@@ -168,64 +166,62 @@ public:
   /** Elimina el nodo p del grafo y del índice.
 
       @param[in] p puntero al nodo a eliminar
-   */
+  */
   void remove_node(GT_Node * p)
   {
-        // eliminar del índice los arcos emanantes del nodo (ellos serán
-        // eliminados por la eliminación de nodo del grafo)
+    // eliminar del índice los arcos emanantes del nodo (ellos serán
+    // eliminados por la eliminación de nodo del grafo)
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       idx_arc.remove(it.get_curr_ne());
 
-    return idx_node.remove_from_graph(p); 
+    return idx_node.remove_from_graph(p);
   }
 
-      /// Elimina del grafo y del índice el arco a
+  /// Elimina del grafo y del índice el arco a
   void remove_arc(GT_Arc * a)
   {
     return idx_arc.remove_from_graph(a);
   }
 
-      /// Retorna el número de arcos que contiene el índice.
+  /// Retorna el número de arcos que contiene el índice.
   size_t get_num_arcs() const { return idx_arc.size(); }
 
-      /// Retorna el número de nodos que contiene el índice.
+  /// Retorna el número de nodos que contiene el índice.
   size_t get_num_nodes() const { return idx_node.size(); }
 };
 
-template <class GT> inline
-bool are_equal(const GT & g1, const GT & g2)
-{
-  if (g1.vsize() != g2.vsize() or g1.esize() != g2.esize())
-    return false;
-
+  template <class GT> inline
+  bool are_equal(const GT & g1, const GT & g2)
   {
-    IndexNode<GT> t2(const_cast<GT&>(g2));
-    if (not g1.all_nodes([&t2] (auto p) 
-			 {
-			   auto q = t2.search(p);
-			   if (q == nullptr)
-			     return false;
-			   GT::map_nodes(p, q);
-			   return true;
-			 }))
+    if (g1.vsize() != g2.vsize() or g1.esize() != g2.esize())
       return false;
+
+    {
+      IndexNode<GT> t2(const_cast<GT&>(g2));
+      if (not g1.all_nodes([&t2] (auto p)
+                           {
+                             auto q = t2.search(p);
+                             if (q == nullptr)
+                               return false;
+                             GT::map_nodes(p, q);
+                             return true;
+                           }))
+        return false;
+    }
+
+    IndexArc<GT> t2(const_cast<GT&>(g2));
+    return g1.all_arcs([idx = &t2, &g1] (auto a)
+                       {
+                         auto s1 = g1.get_src_node(a);
+                         auto t1 = g1.get_tgt_node(a);
+                         auto s2 = mapped_node<GT>(s1);
+                         auto t2 = mapped_node<GT>(t1);
+                         auto a2 = idx->search(s2, t2);
+                         if (a2 == nullptr)
+                           return false;
+                         return a2->get_info() == a->get_info();
+                       });
   }
-  
-  IndexArc<GT> t2(const_cast<GT&>(g2));
-  return g1.all_arcs([idx = &t2, &g1] (auto a) 
-		     {
-		       auto s1 = g1.get_src_node(a);
-		       auto t1 = g1.get_tgt_node(a);
-		       auto s2 = mapped_node<GT>(s1);
-		       auto t2 = mapped_node<GT>(t1);
-		       auto a2 = idx->search(s2, t2);
-		       if (a2 == nullptr)
-			 return false;
-		       return a2->get_info() == a->get_info();
-		     });
-}
-
-
 
 }
 

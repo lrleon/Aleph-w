@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  |_|
 
   This file is part of Aleph-w library
 
@@ -35,12 +35,12 @@
 
 using namespace std;
 
-# define PRINT_ERROR(str, args...)  ( \
-  (cout << input_file_name << "(" << previous_line_number << "," \
-        << previous_col_number << "): " << endl), \
-  save_parameters(), \
-  (cout << "Last token: " << token_instance << endl), \
-  AH_ERROR(str, ##args))
+# define PRINT_ERROR(str, args...)  (                                   \
+                                     (cout << input_file_name << "(" << previous_line_number << "," \
+                                      << previous_col_number << "): " << endl), \
+                                     save_parameters(),                 \
+                                     (cout << "Last token: " << token_instance << endl), \
+                                     AH_ERROR(str, ##args))
 
 
 extern const size_t Buffer_Size;
@@ -56,7 +56,7 @@ extern string token_instance;
 void init_token_scanning();
 void close_token_scanning(char * buffer, char *& start_addr, char * end_addr);
 
-int read_char_from_stream(ifstream& input_stream) throw(out_of_range);
+int read_char_from_stream(ifstream& input_stream);
 
 void skip_white_spaces(ifstream& input_stream);
 

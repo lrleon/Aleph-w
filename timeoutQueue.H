@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -34,8 +34,7 @@
 # include <useMutex.H>
 # include <ah-time.H>
 
-
-class TimeoutQueue 
+class TimeoutQueue
 {
 public:
 
@@ -45,16 +44,16 @@ public:
 
   public:
 
-    enum Execution_Status 
-    {
-      Out_Queue, 
-      In_Queue, 
-      Canceled, 
-      Executing, 
-      Executed,
-      To_Delete,
-      Deleted
-    };
+    enum Execution_Status
+      {
+        Out_Queue,
+        In_Queue,
+        Canceled,
+        Executing,
+        Executed,
+        To_Delete,
+        Deleted
+      };
 
   private:
 
@@ -69,11 +68,11 @@ public:
     void set_execution_status(Execution_Status status)
     {
       execution_status = status;
-    }    
+    }
 
   protected:
 
-    Event(const Time& t) : 
+    Event(const Time& t) :
       BinHeapVtl<Time>::Node(t), execution_status(Out_Queue)
     {
       assert(EVENT_NSEC(this) >= 0 and EVENT_NSEC(this) < NSEC);
@@ -82,17 +81,17 @@ public:
     Event(long sec, long nsec) : execution_status(Out_Queue)
     {
       assert(nsec >= 0 and nsec < NSEC);
-      
+
       EVENT_SEC(this)  = sec;
       EVENT_NSEC(this) = nsec;
     }
 
   public:
 
-    virtual ~Event() 
-    { 
+    virtual ~Event()
+    {
       if (execution_status == In_Queue)
-	AH_ERROR("Attempting to delete an event in queue (0x%x)", this);
+        AH_ERROR("Attempting to delete an event in queue (0x%x)", this);
     }
 
     Execution_Status get_execution_status() const { return execution_status; }
@@ -115,7 +114,7 @@ private:
   bool             isShutdown;
 
   static int       instanceCounter;
-  
+
   void *triggerEvent();
 
   static void* triggerEventThread(void*);
@@ -124,13 +123,13 @@ public:
 
   TimeoutQueue();
 
-  ~TimeoutQueue() throw(domain_error);
+  ~TimeoutQueue();
 
   void schedule_event(const Time &, Event*);
 
   void schedule_event(Event*);
 
-  bool cancel_event(Event*); 
+  bool cancel_event(Event*);
 
   void reschedule_event(const Time &, Event*);
 

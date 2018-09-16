@@ -35,10 +35,10 @@ tgt_name = File.basename test_src_name, '.cc'
 
 compile_line = "clang++ -fsanitize=address,undefined "\
                "#{test_src_name} "\
-               "-std=c++14 -isystem -pthread -I#{alephw} "\
+               "-std=c++17 -isystem -pthread -I#{alephw} "\
                "-I#{gtestdir}/googletest/include "\
                "-I#{gtestdir}/googlemock/include "\
-               "-std=c++14 -Wall -Wextra -Wcast-align -Wno-sign-compare "\
+               "-Wall -Wextra -Wcast-align -Wno-sign-compare "\
                "-Wno-write-strings -Wno-parentheses -O0 -g "\
                "-L../ -lAleph #{gtestdir}/googletest/make/gtest_main.a "\
                "#{gtestdir}/googlemock/make/gmock_main.a "\

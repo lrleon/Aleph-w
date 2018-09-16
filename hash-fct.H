@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -58,7 +58,7 @@ namespace Aleph
       remainder of division. I will give an example of this algorithm only
       because books commonly suggest it in their rush to get past the
       topic of hash functions on their way to collision resolution
-      methods. This algorithm is very bad"  
+      methods. This algorithm is very bad"
 
       @author Julienne Walker
       @ingroup Hash
@@ -67,10 +67,10 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
       h += p[i];
-  
+
     return h;
   }
 
@@ -79,7 +79,7 @@ namespace Aleph
       "The XOR hash is another algorithm commonly suggested by
       textbooks. Instead of adding together the bytes of an object as the
       additive hash does, the XOR hash repeatedly folds the bytes together
-      to produce a seemingly random hash value" 
+      to produce a seemingly random hash value"
 
       @author Julienne Walker
       @ingroup Hash
@@ -88,10 +88,10 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
       h ^= p[i];
-  
+
     return h;
   }
 
@@ -747,7 +747,7 @@ namespace Aleph
     return jen_hash((void*) key.c_str(), key.size(), initval);
   }
 
-  inline size_t SuperFastHash(const std::string & key) noexcept 
+  inline size_t SuperFastHash(const std::string & key) noexcept
   {
     return SuperFastHash((void*) key.c_str(), key.size());
   }
@@ -775,7 +775,7 @@ namespace Aleph
   {
     return fct(p.first);
   }
-  
+
   template <typename K1, typename K2> inline
   size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
   {

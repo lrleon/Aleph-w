@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -55,7 +55,7 @@ namespace Aleph {
 
 
    /** Tabla hash cerrada con resolución de colisiones por doble función
-       hash.  
+       hash.
 
        Este tipo instrumenta una tabla hash cerrada (el arreglo es
        contiguo en memoria), que guarda las colisiones dentro de la misma
@@ -63,7 +63,7 @@ namespace Aleph {
        hash que para sondear una cubeta disponible. Si se encuentra,
        entonces la clave y el registro se colocan en la cubeta
        disponible; de lo  contrario, se sondea linealmente  a partir del
-       índice dado por la segunda función hash. 
+       índice dado por la segunda función hash.
 
        La tabla emplea un método que elimina sin relocalización y en
        tiempo constante las cubetas eliminadas que están en el medio de
@@ -74,7 +74,7 @@ namespace Aleph {
        -# Record: el tipo de dato a mapear por la clave.
        -# Cmp clase de comparación entre las claves; debe retornar
        true si las claves son iguales.
- 
+
        @ingroup Hash
    */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
@@ -225,7 +225,7 @@ private:
 	    assert(table[i].probe_type == LINEAR_PROBE);
 	  }
       }
-    
+
     decrease_probe_counter(bucket);
     --N;
   }
@@ -250,7 +250,7 @@ private:
   {
     Bucket * ret_val = 0;
     const long offset = (long) &ret_val->key;
-    return (Bucket*) ((long) rec - offset); 
+    return (Bucket*) ((long) rec - offset);
   }
 
   bool is_valid_bucket(Bucket * bucket) noexcept

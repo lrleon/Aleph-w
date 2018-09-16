@@ -1,20 +1,20 @@
 DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
-# compiler suite 
+# compiler suite
 
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 RANLIB = llvm-ranlib
 LD = llvm-link
-CXX = clang++  
+CXX = clang++
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
 # to generate optimized libAleph.a. If you use clang compiler, then you
 # may be intested in to use -O4; in this case, be sure that llvm be
 # installed with gold linker and the gold plugin. Be careful with some
-# gsl parts and the -Ofast option in clang; they do not compile! 
+# gsl parts and the -Ofast option in clang; they do not compile!
 #
 # In Aleph-w clang generated code is between 5-10% faster than gcc
 
@@ -56,15 +56,15 @@ LIBCCCSRCS=	ahAssert.C primes.C ahDefs.C  useMutex.C ahDaemonize.C	\
 		hash-fct.C hash-dry.C aleph-graph.C tpl_sort_utils.C \
 		geom_algorithms.C ahNow.C
 
-LIBCSRCS=	ran_array.c mpfr_mul_d.c 
+LIBCSRCS=	ran_array.c mpfr_mul_d.c
 
 SRCLIST=	 $(HLIST) $(TESTSRCS) $(LIBSRCS)
 
 SRCS=           $(LIBCSRCS) $(LIBCCCSRCS)
 
-BASIC_OBJS= 	$(LIBCCCSRCS:.C=.o) $(LIBCSRCS:.c=.o) 
+BASIC_OBJS= 	$(LIBCCCSRCS:.C=.o) $(LIBCSRCS:.c=.o)
 
-INCLUDES =      -I./ 
+INCLUDES =      -I./
 
 MSG=-DMESSAGES
 
@@ -72,11 +72,11 @@ WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-paren
 
 FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
-DEFINES=	-D_GLIBCXX__PTHREADS 
+DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
 
 NormalLibraryObjectRule()
 

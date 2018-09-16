@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -31,14 +31,14 @@
 # include <errno.h>
 # include <ahDefs.H>
 # include <ahUtils.H>
- 
+
 extern void init_mutex(pthread_mutex_t *);
 
 extern void init_mutex(pthread_mutex_t &);
 
 extern void destroy_mutex(pthread_mutex_t *);
 
-extern void destroy_mutex(pthread_mutex_t &);  
+extern void destroy_mutex(pthread_mutex_t &);
 
 using namespace Aleph;
 
@@ -49,27 +49,27 @@ class UseMutex
 
 public:
 
-  void unlock() 
-  { 
+  void unlock()
+  {
     if (mutex == nullptr)
       throw std::domain_error("unlock: nullptr pointer to mutex");
 
-    pthread_mutex_unlock(mutex); 
+    pthread_mutex_unlock(mutex);
   }
 
-  void lock() 
+  void lock()
   {
     if (mutex == nullptr)
       throw std::domain_error("lock: nullptr pointer to mutex");
 
-    pthread_mutex_lock(mutex); 
+    pthread_mutex_lock(mutex);
   }
 
   UseMutex(pthread_mutex_t *m) : mutex(m), unlock_when_destroy(true)
   {
     lock();
   }
-	
+
   UseMutex(pthread_mutex_t & m): mutex(&m), unlock_when_destroy(true)
   {
     lock();
@@ -78,8 +78,8 @@ public:
   void enter() { lock(); }
 
   void leave() { unlock(); }
-	
-  ~UseMutex() throw(std::domain_error)
+
+  ~UseMutex()
   {
     if (unlock_when_destroy)
       unlock();

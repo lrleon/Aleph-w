@@ -1,28 +1,28 @@
 
 /* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / \  | | ___ _ __ | |__      __      __
+   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+   |_|
 
-  This file is part of Aleph-w library
+   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+   General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+   You should have received a copy of the GNU General Public License
+   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <stdlib.h>
 
@@ -37,7 +37,7 @@ using namespace Aleph;
 
 struct Imprimir
 {
-  int i; 
+  int i;
 
   Imprimir() : i(0) { /* empty */ }
 
@@ -55,7 +55,7 @@ struct Verificar
 
   Verificar(int __m) : pos(0), m(__m) { /* empty */ }
 
-  void operator () (const int & k) 
+  void operator () (const int & k)
   {
     int old_key = last_key;
     last_key = k;
@@ -63,8 +63,8 @@ struct Verificar
       return;
 
     if (last_key != k)
-      AH_ERROR("Clave %d en posicion %d es distinta clave %d", 
-	    k, pos - 1, old_key);
+      AH_ERROR("Clave %d en posicion %d es distinta clave %d",
+               k, pos - 1, old_key);
   }
 };
 
@@ -82,7 +82,7 @@ struct Print_Key
 template <template <class, class> class Tree>
 void iterate(DynSetTree<int, Tree> & tree)
 {
-  for (typename DynSetTree<int, Tree>::Iterator it(tree); it.has_curr(); 
+  for (typename DynSetTree<int, Tree>::Iterator it(tree); it.has_curr();
        it.next())
     cout << it.get_curr() << " ";
   cout << endl << endl;
@@ -105,9 +105,9 @@ DynSetTree<int, Tree> test_tree(int n, int m)
 
     int i = 0;
     s.for_each([&i] (int k)
-	       {
-		 cout << "(" << k << "," << i++ << ") ";
-	       });
+               {
+                 cout << "(" << k << "," << i++ << ") ";
+               });
 
     cout << endl;
   }
@@ -119,15 +119,15 @@ DynSetTree<int, Tree> test_tree(int n, int m)
 
     for (int i = 0; i < n; ++i)
       {
-	int value = rand() % 1000;
-	for (int j = 0; j < m; ++j)
-	  { s.insert_dup(value); counter++; }
+        int value = rand() % 1000;
+        for (int j = 0; j < m; ++j)
+          { s.insert_dup(value); counter++; }
 
-	for (int j = 0; j < m/4; ++j)
-	  {
-	    int c = s.remove(value); counter--;
-	    assert(c == counter);
-	  } 
+        for (int j = 0; j < m/4; ++j)
+          {
+            int c = s.remove(value); counter--;
+            assert(c == counter);
+          }
       }
 
     assert(compute_cardinality_rec(s.get_root_node()) == s.size());
@@ -136,14 +136,14 @@ DynSetTree<int, Tree> test_tree(int n, int m)
 
     int i = 0;
     s.for_each ([&i] (int k)
-		{
-		 cout << "(" << k << "," << i++ << ") ";
-		});
+                {
+                  cout << "(" << k << "," << i++ << ") ";
+                });
     s.template for_each <Verificar> (Verificar(m));
 
     cout << endl;
   }
-  
+
   DynSetTree<int, Tree> aux;
 
   {
@@ -151,11 +151,11 @@ DynSetTree<int, Tree> test_tree(int n, int m)
 
     for (int i = 0; i < n; ++i)
       for (int j = 0; j < m; ++j)
-	{
-	  s.insert_dup(i);
-	  int value = rand() % (i + 1);
-	  assert(s.exist(value));
-	}
+        {
+          s.insert_dup(i);
+          int value = rand() % (i + 1);
+          assert(s.exist(value));
+        }
 
     assert(compute_cardinality_rec(s.get_root_node()) == s.size());
 
@@ -184,13 +184,13 @@ DynSetTree<int, Tree> test_tree(int n, int m)
   }
 
   DynSetTree<int, Tree> ret;
-   for (int i = 0; i < n; ++i)
-      ret.insert(i);
+  for (int i = 0; i < n; ++i)
+    ret.insert(i);
   return ret;
 }
 
 int main(int argn, char *argv[])
-{ 
+{
   int n = argn > 1 ? atoi(argv[1]) : 1000;
 
   int m = argn > 2 ? atoi(argv[2]) : 10;

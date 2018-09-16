@@ -7,7 +7,7 @@ void put_char_in_buffer(char *& start_addr, char * end_addr, int c)
   if (start_addr >= end_addr)
     AH_ERROR("String too long");
 
-  *start_addr++ = c;  
+  *start_addr++ = c;
 }
 
 
@@ -49,8 +49,7 @@ void close_token_scanning(char * buffer, char *& start_addr, char * end_addr)
 }
 
 
-
-int read_char_from_stream(ifstream& input_stream) throw(out_of_range)
+int read_char_from_stream(ifstream& input_stream)
 {
   if (input_stream.eof())
     throw out_of_range("end of file has been reached");
@@ -63,7 +62,7 @@ int read_char_from_stream(ifstream& input_stream) throw(out_of_range)
       current_col_number = 0;
     }
   else
-    current_col_number++;	
+    current_col_number++;
 
   return c;
 }
@@ -78,7 +77,7 @@ int read_char_from_stream(ifstream& input_stream) throw(out_of_range)
 
 //   for (int c = input_stream.get(); c != '\n'; c = input_stream.get())
 //     line[i] = c;
-  
+
 //   string ret_val
 // }
 
@@ -99,41 +98,41 @@ long load_number(ifstream& input_stream)
 
   init_token_scanning();
 
-  try 
-    { 
+  try
+    {
       skip_white_spaces(input_stream);
       int c = read_char_from_stream(input_stream);
 
       if (c == '-')
-	{
-	  put_char_in_buffer(start_addr, end_addr, c);
-	  c = read_char_from_stream(input_stream);
+        {
+          put_char_in_buffer(start_addr, end_addr, c);
+          c = read_char_from_stream(input_stream);
 
-	  if (not isdigit(c))
-	    return atoi(buffer);
-	}
-      
+          if (not isdigit(c))
+            return atoi(buffer);
+        }
+
       while (true)
-	{
-	  while (isdigit(c))
-	    {
-	      put_char_in_buffer(start_addr, end_addr, c);
-	      c = read_char_from_stream(input_stream); 
-	    }
+        {
+          while (isdigit(c))
+            {
+              put_char_in_buffer(start_addr, end_addr, c);
+              c = read_char_from_stream(input_stream);
+            }
 
-	  if (isspace(c))
-	    { 
-	      close_token_scanning(buffer, start_addr, end_addr);
-	      return atoi(buffer); 
-	    }
+          if (isspace(c))
+            {
+              close_token_scanning(buffer, start_addr, end_addr);
+              return atoi(buffer);
+            }
 
-	  throw domain_error("Invalid number");
-	}
+          throw domain_error("Invalid number");
+        }
     }
   catch (out_of_range) // Se alcanza fin de archivo
-    { 
+    {
       close_token_scanning(buffer, start_addr, end_addr);
-      return atoi(buffer); 
+      return atoi(buffer);
     }
 }
 
@@ -161,11 +160,11 @@ string load_string(ifstream& input_stream)
       c = read_char_from_stream(input_stream);
 
       if (c == '\"' and quotations_mark)
-	break;
+        break;
 
-      if (not quotations_mark and 
-	  (isblank(c) or c == '\n' or c == EOF))
-	break;
+      if (not quotations_mark and
+          (isblank(c) or c == '\n' or c == EOF))
+        break;
 
       put_char_in_buffer(start_addr, end_addr, c);
     }
@@ -178,8 +177,8 @@ string load_string(ifstream& input_stream)
 
 void print_parse_error_and_exit(const string& str)
 {
-  cout << "Parse error " 
-       << previous_line_number << ":" << previous_col_number <<" " 
+  cout << "Parse error "
+       << previous_line_number << ":" << previous_col_number << " "
        << str << endl
        << "Last token seen is: " << token_instance << endl;
   exit(1);
@@ -188,8 +187,8 @@ void print_parse_error_and_exit(const string& str)
 
 void print_parse_warning(const string& str)
 {
-  cout << "Parse warning " 
-       << previous_line_number << ":" << previous_col_number <<" " 
+  cout << "Parse warning "
+       << previous_line_number << ":" << previous_col_number << " "
        << str << endl
        << "Last token seen is: " << token_instance << endl;
 }

@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -36,7 +36,7 @@
 namespace Aleph {
 
 template <typename T> class Array_Container;
-  
+
   /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
 
       @ingroups Secuencias
@@ -88,7 +88,7 @@ public:
        throw std::domain_error("Array_Iterator(): last >= dim");
   }
 
-  /** Constructor no throwing exception. 
+  /** Constructor no throwing exception.
 
       It is similar to the previous buy it is guaranteed that no
       exception will be thrown
@@ -110,7 +110,7 @@ public:
 
   T & get_curr_ne() const noexcept
   {
-    return ptr[idx]; 
+    return ptr[idx];
   }
 
   T & get_curr() const
@@ -121,7 +121,7 @@ public:
     if (pos >= num_items)
       throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
 
-    return ptr[idx]; 
+    return ptr[idx];
   }
 
   void next_ne() noexcept
@@ -144,25 +144,25 @@ public:
       idx = dim - 1;
     --pos;
   }
-    
+
   void prev()
   {
     if (num_items == 0 or pos < 0)
       throw std::underflow_error("MemArray::Iterator::prev(): has not current");
-      prev_ne();
+    prev_ne();
   }
 
   void reset() noexcept
-  { 
+  {
     idx = first;
-    pos = 0; 
+    pos = 0;
   }
 
   void reset_first() noexcept { reset(); }
 
   void reset_last() noexcept
-  { 
-    idx = last; 
+  {
+    idx = last;
     pos = num_items - 1;
   }
 
