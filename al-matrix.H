@@ -553,7 +553,7 @@ namespace Aleph
     {
       validate_domains_for_mult(m);
       Matrix<Trow, T2col> ret_val(*rdomain_ptr, m.get_col_domain());
-      m.cdomain_ptr->
+      m.get_col_domain().
         for_each([this, &m, &ret_val] (const Tcol & col)
                  {
                    ret_val.set_vector_as_col(col,
