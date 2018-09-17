@@ -4,7 +4,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -65,7 +65,7 @@ struct SmallDomains : testing::Test
   Mat2 m2_one = { cd, rd, cd.maps<DynList<int>>([&] (auto)
     { return range<int>(cd.size()); }) };
   Mat2 m2_odd = { cd, rep<V1>(cd.size(), v1_odd) };
-  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };  
+  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };
 };
 
 TEST_F(SmallDomains, basic)

@@ -7,18 +7,16 @@ require 'concurrent'
 ncpu = Concurrent.processor_count
 
 alephw = ENV['ALEPHW']
-gtestdir = ENV['GOOGLETEST']
 
 TestsFile = 'tests-list'
 
 fail "ALEPHW env var has not been defined" unless alephw
-fail "GOOGLETEST env var has not been defined" unless gtestdir
 
 fail 'file tests-list does not exist' unless File.exists? TestsFile
 
 def gen_imakefile
   puts 'Generating Imakefile'
-  system './gen-make > Imakefile'  
+  system './gen-make > Imakefile'
 end
 
 def gen_makefile
@@ -29,12 +27,12 @@ end
 
 if !File.exists?('Imakefile') ||
    File.ctime('tests-list') > File.ctime('Imakefile')
-  gen_imakefile  
+  gen_imakefile
 end
 
 if !File.exists?('Makefile') or
   File.ctime('Imakefile') > File.ctime('Makefile')
-  gen_makefile   
+  gen_makefile
 end
 
 tests = File.open TestsFile

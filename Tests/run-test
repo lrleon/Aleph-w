@@ -5,10 +5,8 @@ require 'optparse'
 require 'fileutils'
 
 alephw = ENV['ALEPHW']
-gtestdir = ENV['GOOGLETEST']
 
 fail 'ALEPHW env var has not been defined' unless alephw
-fail 'GOOGLETEST env var has not been defined' unless gtestdir
 
 options = {}
 options_parser = OptionParser.new do |opts|
@@ -36,13 +34,10 @@ tgt_name = File.basename test_src_name, '.cc'
 compile_line = "clang++ -fsanitize=address,undefined "\
                "#{test_src_name} "\
                "-std=c++17 -isystem -pthread -I#{alephw} "\
-               "-I#{gtestdir}/googletest/include "\
-               "-I#{gtestdir}/googlemock/include "\
                "-Wall -Wextra -Wcast-align -Wno-sign-compare "\
                "-Wno-write-strings -Wno-parentheses -O0 -g "\
-               "-L../ -lAleph #{gtestdir}/googletest/make/gtest_main.a "\
-               "#{gtestdir}/googlemock/make/gmock_main.a "\
-               "-lstdc++ -lgsl -lgslcblas -lm -lpthread -lc -o #{tgt_name}"
+               "-L../ -lAleph -lgtest_main -lstdc++ -lgsl -lgslcblas "\
+               "-lm -lpthread -lc -lgtest -o #{tgt_name}"
 
 puts compile_line
 
