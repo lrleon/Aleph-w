@@ -1,4 +1,4 @@
-l=`ls *.[hH] *.[cC] Examples/*.cc Examples/*.C Tests/*.cc Tests/*.H`
+l=`ls *.[hH] *.[cc] Examples/*.cc Examples/*.C Tests/*.cc Tests/*.H`
 
 for f in $l
 do
@@ -6,4 +6,4 @@ do
     mv $f $f.tmp
     ./put-copyright $f.tmp > $f
 done
-	 
+
