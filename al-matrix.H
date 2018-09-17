@@ -143,13 +143,12 @@ namespace Aleph
         }
     }
 
-    /*
-    enum class CtorType { RowVector, ColVector };
-    Matrix(const RDomain & rdomain,
-           const DynList<Vector<Tcol, NumType>> & rows,
-           const NumType & e = default_epsilon)
-      : Matrix(rdomain, rows.get_first().get_domain(), e)
+    static Matrix create_by_rows(const RDomain & rdomain,
+                                 const DynList<Vector<Tcol, NumType>> & rows,
+                                 const NumType & e = default_epsilon)
     {
+      Matrix ret(rdomain, rows.get_first().get_domain(), e);
+
       for (auto it = zip_it(rdomain.keys(), rows); it.has_curr(); it.next())
         {
           auto t = it.get_curr();
@@ -159,19 +158,22 @@ namespace Aleph
             {
               auto & p = it.get_curr();
               const NumType & val = p.second;
-              if (is_zero(val))
+              if (ret.is_zero(val))
                 continue;
               const Tcol & col_idx = p.first;
-              entries.insert(RCPair(row_idx, col_idx), val);
+              ret.entries.insert(RCPair(row_idx, col_idx), val);
             }
         }
+
+      return ret;
     }
 
-    Matrix(const CDomain & cdomain,
-           const DynList<Vector<Trow, NumType>> & cols,
-           const NumType & e = default_epsilon)
-      : Matrix(cols.get_first().get_domain(), cdomain, e)
+    static Matrix create_by_columns(const CDomain & cdomain,
+                                    const DynList<Vector<Trow, NumType>> & cols,
+                                    const NumType & e = default_epsilon)
     {
+      Matrix ret(cols.get_first().get_domain(), cdomain, e);
+
       for (auto it = zip_it(cdomain.keys(), cols); it.has_curr(); it.next())
         {
           auto t = it.get_curr();
@@ -181,14 +183,16 @@ namespace Aleph
             {
               auto & p = it.get_curr();
               const NumType & val = p.second;
-              if (is_zero(val))
+              if (ret.is_zero(val))
                 continue;
               const Trow & row_idx = p.first;
-              entries.insert(RCPair(row_idx, col_idx), val);
+              ret.entries.insert(RCPair(row_idx, col_idx), val);
             }
         }
+
+      return ret;
     }
-    */
+
     NumType get_entry(const Trow & row, const Tcol & col)
     {
       assert(rdomain_ptr->has(row) and cdomain_ptr->has(col));
@@ -350,7 +354,8 @@ namespace Aleph
     mult_matrix_vector_linear_comb(const Vector<Tcol, NumType> & vec) const
     {
       if (&vec.get_domain() != &get_col_domain())
-        throw std::domain_error("mult_matrix_vector_linear_comb:domain mismatch");
+        throw std::domain_error("mult_matrix_vector_linear_comb: "
+                                "domain mismatch");
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       vec.for_each([this, &ret_val] (const std::pair<Tcol, NumType> & p)
                    {
@@ -393,7 +398,8 @@ namespace Aleph
     mult_vector_matrix_linear_comb(const Vector<Trow, NumType> & vec) const
     {
       if (&vec.get_domain() != &get_row_domain())
-        throw std::domain_error("mult_vector_matrix_linear_comb:domain mismatch");
+        throw std::domain_error("mult_vector_matrix_linear_comb: "
+                                "domain mismatch");
       Vector<Tcol, NumType> ret_val(*cdomain_ptr);
       vec.for_each([this, &ret_val] (const std::pair<Trow, NumType> & p)
                    {
@@ -408,7 +414,8 @@ namespace Aleph
     mult_matrix_vector_dot_product(const Vector<Tcol, NumType> & vec) const
     {
       if (&vec.get_domain() != &get_col_domain())
-        throw std::domain_error("mult_matrix_vector_dot_product:domain mismatch");
+        throw std::domain_error("mult_matrix_vector_dot_product: "
+                                "domain mismatch");
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       rdomain_ptr->for_each([&] (const Trow & row)
                             {
@@ -421,7 +428,8 @@ namespace Aleph
     mult_vector_matrix_dot_product(const Vector<Trow, NumType> & vec) const
     {
       if (&vec.get_domain() != &get_row_domain())
-        throw std::domain_error("mult_vector_matrix_dot_product:domain mismatch");
+        throw std::domain_error("mult_vector_matrix_dot_product: "
+                                "domain mismatch");
       Vector<Tcol, NumType> ret_val(*cdomain_ptr);
       cdomain_ptr->for_each([&] (const Tcol & col)
                             {
@@ -443,7 +451,8 @@ namespace Aleph
       const
     {
       if (cdomain_ptr->size() != m.rdomain_ptr->size())
-        throw std::domain_error("AxB: Col domain size different from row domain");
+        throw std::domain_error("AxB: Col domain size different from "
+                                "row domain");
     }
 
   public:
@@ -529,7 +538,7 @@ namespace Aleph
     vector_matrix_mult(const Matrix<T2row, T2col, NumType> & m) const
     {
       validate_domains_for_mult(m);
-      Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
+      Matrix<Trow, T2col> ret_val(*rdomain_ptr, m.get_col_domain());
       rdomain_ptr->
         for_each([this, &m, &ret_val] (const Trow & row)
                  {
@@ -543,11 +552,12 @@ namespace Aleph
     matrix_vector_mult(const Matrix<T2row, T2col, NumType> & m) const
     {
       validate_domains_for_mult(m);
-      Matrix<Trow, T2col> ret_val(*rdomain_ptr, *m.cdomain_ptr);
+      Matrix<Trow, T2col> ret_val(*rdomain_ptr, m.get_col_domain());
       m.cdomain_ptr->
         for_each([this, &m, &ret_val] (const Tcol & col)
                  {
-                   ret_val.set_vector_as_col(col, *this * m.get_col_vector(col));
+                   ret_val.set_vector_as_col(col,
+                                             *this * m.get_col_vector(col));
                  });
       return ret_val;
     }

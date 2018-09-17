@@ -1,4 +1,4 @@
-         /* Aleph-w
+/* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
@@ -58,14 +58,14 @@ struct SmallDomains : testing::Test
   Mat1 m1_zero = { rd, cd };
   Mat1 m1_one = { rd, cd, rd.maps<DynList<int>>([&] (auto)
     { return range<int>(cd.size()); }) };
-  Mat1 m1_odd = { rd, rep<V2>(rd.size(), v2_odd) };
-  Mat1 m1_even = { rd, rep<V2>(rd.size(), v2_even) };
+  Mat1 m1_odd = Mat1::create_by_rows(rd, rep<V2>(rd.size(), v2_odd));
+  Mat1 m1_even = Mat1::create_by_rows(rd, rep<V2>(rd.size(), v2_even));
 
   Mat2 m2_zero = { cd, rd };
   Mat2 m2_one = { cd, rd, cd.maps<DynList<int>>([&] (auto)
     { return range<int>(cd.size()); }) };
-  Mat2 m2_odd = { cd, rep<V1>(cd.size(), v1_odd) };
-  Mat2 m2_even = { cd, rep<V1>(cd.size(), v1_even) };
+  Mat2 m2_odd = Mat2::create_by_columns(rd, rep<V2>(cd.size(), v2_odd));
+  Mat2 m2_even = Mat2::create_by_columns(rd, rep<V2>(cd.size(), v2_even));
 };
 
 TEST_F(SmallDomains, basic)
