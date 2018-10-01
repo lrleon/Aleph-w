@@ -32,7 +32,7 @@ note = %Q<
 */
 >
 
-pat = /\s*\/\*.*Aleph-w.*licences*.?\*\//m
+pat = /\s*\/\*.*Aleph-w.*\.\*\//m
 
 file_name = ARGV.shift
 
