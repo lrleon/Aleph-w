@@ -70,7 +70,7 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
-FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
+FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline" -fpic
 
 DEFINES=	-D_GLIBCXX__PTHREADS
 

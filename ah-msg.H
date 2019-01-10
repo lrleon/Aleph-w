@@ -24,22 +24,37 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef AH_ARGS_CTOR_H
-#define AH_ARGS_CTOR_H
 
-# define Args_Ctor(Name, Type)                  \
-  template <typename ... Args>                  \
-  Name(const Type & item, Args & ... args)      \
-    : Name(args...)                             \
-  {                                             \
-    this->append(item);                         \
-  }                                             \
-                                                \
-  template <typename ... Args>                  \
-  Name(Type && item, Args & ... args)           \
-    : Name(args...)                             \
-  {                                             \
-    this->append(item);                         \
-  }
+# ifndef AH_MSG_H
+# define AH_MSG_H
 
-#endif
+# include <sstream>
+
+namespace Aleph
+{
+
+inline void __build_msg(std::ostringstream &) {}
+
+template <typename T, class... Args> static inline
+void __build_msg(std::ostringstream & s, const T & p, const Args &... args)
+{
+  s << p;
+  __build_msg(s, args...);
+}
+
+template <class... Args> inline
+std::string build_string(const Args & ... args)
+{
+  std::ostringstream s;
+  __build_msg(s, args...);
+  return s.str();
+}
+
+template <class... Args> inline
+std::string build_error_msg(const Args & ... args)
+{
+  return build_string(args...);
+}
+
+}
+# endif

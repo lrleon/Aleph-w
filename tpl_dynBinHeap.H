@@ -304,13 +304,13 @@ namespace Aleph {
     struct Iterator : public Base::Iterator
     {
       using Item_Type = T;
-      using Base = typename Base::Iterator;
-      Iterator(const DynBinHeap & h) : Base(h) {}
+      Iterator(const DynBinHeap & h)
+        : Base::Iterator(h) {}
       const T & get_curr_ne() const noexcept
       {
-        return KEY(Base::get_curr_ne());
+        return KEY(Base::Iterator::get_curr_ne());
       }
-      const T & get_curr() const { return KEY(Base::get_curr()); }
+      const T & get_curr() const { return KEY(Base::Iterator::get_curr()); }
     };
   };
 
