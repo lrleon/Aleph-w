@@ -41,8 +41,8 @@
 
 namespace fs = std::experimental::filesystem;
 
-//namespace Aleph
-//{
+namespace Aleph
+{
 
 class MapArena
 {
@@ -242,6 +242,6 @@ private:
   }
 };
 
-  //}
+}
 
 #endif

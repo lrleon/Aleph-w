@@ -43,13 +43,13 @@ namespace Aleph
 {
 
   // left trim
-  inline void ltrim(string & s) 
+  inline void ltrim(string & s)
   {
     s.erase(s.begin(), find_if(s.begin(), s.end(),
                                [] (int ch) { return not isspace(ch); }));
   }
 
-  // trim from end 
+  // trim from end
   inline void rtrim(string & s)
   {
     s.erase(find_if(s.rbegin(), s.rend(),
@@ -71,7 +71,7 @@ namespace Aleph
     rtrim(s);
     return s;
   }
-  
+
   inline bool contains(const string & str, const string & substr)
   {
     return str.find(substr) != std::string::npos;
@@ -149,7 +149,7 @@ namespace Aleph
   {
     if (c.is_empty())
       return out;
-  
+
     auto & last = c.get_last();
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
@@ -213,7 +213,7 @@ namespace Aleph
 
   inline bool is_prefix(const string & str, const string & prefix)
   {
-    return strncmp(str.data(), prefix.data(), prefix.size()) == 0;  
+    return strncmp(str.data(), prefix.data(), prefix.size()) == 0;
   }
 
   inline std::string to_lower(const std::string & str)
@@ -455,7 +455,7 @@ namespace Aleph
   {
     if (mat.is_empty())
       return mat;
-  
+
     DynList<size_t> ilens = rep<size_t>(mat.nth(0).size(), 0);
     DynList<size_t> maxs =
       mat.foldl(ilens, [] (const DynList<size_t> & acu,
@@ -540,7 +540,7 @@ namespace Aleph
             pos = line.find_first_not_of(' ', pos);
             line.insert(pos, " ");
             pos = line.find_first_of(' ', pos+1);
-            if (pos == string::npos) 
+            if (pos == string::npos)
               pos = line.find_first_of(' ');
           }
       }
@@ -565,7 +565,7 @@ namespace Aleph
       else
         {
           if (not line.empty())
-            line.append(" ");	
+            line.append(" ");
           line.append(word);
         }
 
@@ -641,7 +641,7 @@ namespace Aleph
     return s.str();
   }
 
-  inline void build_pars_list(string &) {}  
+  inline void build_pars_list(string &) {}
 
   template <typename T>
   inline void build_pars_list(string & str, const T & item)
@@ -665,7 +665,7 @@ namespace Aleph
    */
   template <class T, class ... Args>
   inline string build_pars_list(Args ... args)
-  {  
+  {
     string ret;
     build_pars_list(ret, args...);
     return ret;

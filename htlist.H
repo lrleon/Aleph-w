@@ -317,6 +317,7 @@ public:
       \~Spanish Construye moviendo `ìtem`
   */
   Snodenc(T && item)
+    noexcept(noexcept(std::is_move_constructible<T>::value))
     : data(std::forward<T>(item))
   {
     static_assert(std::is_move_constructible<T>::value,
