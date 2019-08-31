@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -32,20 +32,20 @@
 using namespace std;
 using namespace testing;
 
-# define Declare_list_n_items(num)		\
+# define Declare_list_n_items(num)            \
   struct List_of_##num##_items : public Test	\
-  {						\
-    size_t n = 0;				\
-    DynDlist<int> list##num;			\
-    DynDlist<int> rlist##num;			\
-    List_of_##num##_items()			\
-      {						\
-	for (size_t i = 0; i < num; ++i, ++n)	\
-	  list##num.append(i + 1);		\
-						\
-	const DynDlist<int> l = list##num;	\
-	rlist##num = l.rev();			\
-      }						\
+  {                                           \
+    size_t n = 0;                             \
+    DynDlist<int> list##num;                  \
+    DynDlist<int> rlist##num;                 \
+    List_of_##num##_items()                   \
+      {                                       \
+        for (size_t i = 0; i < num; ++i, ++n)	\
+          list##num.append(i + 1);            \
+                                              \
+        const DynDlist<int> l = list##num;    \
+        rlist##num = l.rev();                 \
+      }                                       \
   };
 
 Declare_list_n_items(25);
@@ -112,7 +112,7 @@ TEST(DynDlist, Simple_append_and_insert_of_list)
     EXPECT_EQ(list.get_first(), 2);
     EXPECT_EQ(list.get_first(), laux.get_first());
     EXPECT_TRUE(list.is_unitarian());
-  
+
     laux.insert(1);                // laux = { 1, 2 }
     list.insert(laux);             // list = { 1, 2, 2 }
     EXPECT_FALSE(laux.is_empty());
@@ -134,7 +134,7 @@ TEST(DynDlist, Simple_append_and_insert_of_list)
     EXPECT_EQ(list.get_last(), 2);
     EXPECT_TRUE(list.is_unitarian());
     EXPECT_TRUE(list.is_unitarian_or_empty());
-  
+
     laux.insert(1);
     list.insert(move(laux));
     EXPECT_TRUE(laux.is_empty());

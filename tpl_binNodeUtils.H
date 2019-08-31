@@ -51,7 +51,7 @@ void __inorder_rec(Node * node, const int& level, int & position,
  (*visitFct)(node, level, position);
   ++position;
 
-  __inorder_rec(RLINK(node), level + 1, position, visitFct); 
+  __inorder_rec(RLINK(node), level + 1, position, visitFct);
 }
 
   /** Traverse recursively inorder a binary tree.
@@ -246,7 +246,7 @@ void for_each_in_order(Node * root, Op && op) noexcept(noexcept(op))
           {
             void operator () (Node * p)
             {
-            // operation
+              // operation
             }
           };
 
@@ -312,7 +312,7 @@ void for_each_preorder(Node * root, Op && op)
 	  {
 	    void operator () (Node * p)
 	    {
-	    // operation
+	      // operation
 	    }
 	  };
 
@@ -1192,17 +1192,17 @@ void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
     @ingroup Arboles
 */
   template <class Node, class Get_Key> inline
-  void save_tree_in_array_of_chars(Node *         root,
-                                   const string & array_name,
-                                   ostream &     output)
-   {
-     BitArray prefix;
-     tree_to_bits(root, prefix);
-     prefix.save_in_array_of_chars(array_name + "_cdp", output);
-     output << "const char * " << array_name << "_k[] = { " << endl;
-     put_tree_keys_in_array <Node, Get_Key> (root, output);
-     output << "nullptr };" << endl;
-   }
+void save_tree_in_array_of_chars(Node *         root,
+                                 const string & array_name,
+                                 ostream &     output)
+{
+  BitArray prefix;
+  tree_to_bits(root, prefix);
+  prefix.save_in_array_of_chars(array_name + "_cdp", output);
+  output << "const char * " << array_name << "_k[] = { " << endl;
+  put_tree_keys_in_array <Node, Get_Key> (root, output);
+  output << "nullptr };" << endl;
+}
 
 
 /** Build a binary tree from two arrays
@@ -1319,9 +1319,9 @@ preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r)
          @ingroup Arboles
       */
     template <class Node,
-	      class Compare = Aleph::less<typename Node::key_type>> inline 
+              class Compare = Aleph::less<typename Node::key_type>> inline
 Node * searchInBinTree(Node * root, const typename Node::key_type & key,
-		       Compare cmp = Compare()) noexcept
+                       Compare cmp = Compare()) noexcept
 {
   while (root != Node::NullPtr)
     if (cmp(key, KEY(root)))
@@ -1432,7 +1432,7 @@ Node* find_predecessor(Node * p, Node *& pp) noexcept
         @ingroup Arboles
      */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * search_parent(Node * root, const typename Node::key_type & key,
                      Node *& parent, Compare cmp = Compare()) noexcept
 {
@@ -1518,7 +1518,7 @@ search_rank_parent(Node * root, const typename Node::key_type & key,
         @ingroup Arboles
      */
 template <class Node,
-	  class Compare = Aleph::less<typename Node::key_type>> inline
+          class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_in_bst(Node *& r, Node * p, Compare cmp = Compare()) noexcept
 {
   if (r == Node::NullPtr)
@@ -1545,7 +1545,7 @@ Node * insert_in_bst(Node *& r, Node * p, Compare cmp = Compare()) noexcept
     @ingroup Arboles
 */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_dup_in_bst(Node *& root, Node * p, Compare cmp = Compare())
     noexcept
 {
@@ -1573,7 +1573,7 @@ Node * insert_dup_in_bst(Node *& root, Node * p, Compare cmp = Compare())
     @ingroup Arboles
 */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * search_or_insert_in_bst(Node *& r, Node * p, Compare cmp = Compare())
     noexcept
 {
@@ -1639,7 +1639,7 @@ bool __split_key_rec(Node * root, const typename Node::key_type & key,
     @ingroup Arboles
     */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 bool split_key_rec(Node *& root, const typename Node::key_type & key,
                    Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
 {
@@ -1682,7 +1682,7 @@ void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
     @ingroup Arboles
     */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
                        Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
 {
@@ -1734,9 +1734,9 @@ Node * join_exclusive(Node *& ts, Node *& tg) noexcept
         @ingroup Arboles
      */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
-		       Compare cmp = Compare()) noexcept
+                       Compare cmp = Compare()) noexcept
 {
   if (root == Node::NullPtr)
     return Node::NullPtr;
@@ -1769,7 +1769,7 @@ Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
     @ingroup Arboles
 */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
 {
   Node * l = Node::NullPtr, * r = Node::NullPtr;
@@ -1795,7 +1795,7 @@ Node * insert_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
         @ingroup Arboles
      */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_dup_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
 {
   split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
@@ -1818,8 +1818,8 @@ Node * insert_dup_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
 */
     template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
-Node * join_preorder(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
-      noexcept
+Node * join_preorder(Node * t1, Node * t2, Node *& dup,
+                     Compare cmp = Compare()) noexcept
 {
   if (t2 == Node::NullPtr)
     return t1;
@@ -1851,8 +1851,9 @@ Node * join_preorder(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
         @ingroup Arboles
      */
     template <class Node,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
-Node * join(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare()) noexcept
+              class Compare = Aleph::less<typename Node::key_type>> inline
+Node * join(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
+      noexcept
 {
   if (t1 == Node::NullPtr)
     return t2;
@@ -1980,7 +1981,7 @@ Node* rotate_to_left(Node * p, Node * pp) noexcept
        @ingroup Arboles
     */
     template <class Node, class Key,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
+              class Compare = Aleph::less<typename Node::key_type>> inline
 void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
                Compare cmp = Compare()) noexcept
 {
@@ -2105,7 +2106,7 @@ void swap_node_with_predecessor(Node *  p,  // Node for swapping
       noexcept
 {
   assert((p != Node::NullPtr) and (q != Node::NullPtr) and
-    (pp != Node::NullPtr) and (pq != Node::NullPtr));
+         (pp != Node::NullPtr) and (pq != Node::NullPtr));
   assert((RLINK(pp) == p) or (LLINK(pp) == p));
   assert((RLINK(pq) == q) or (LLINK(pq) == q));
   assert(RLINK(q) == Node::NullPtr);
@@ -2154,8 +2155,9 @@ void swap_node_with_predecessor(Node *  p,  // Node for swapping
     @ingroup Arboles
 */
     template <class Node, class Key,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
-Node * insert_root_rec(Node * root, Node * p, Compare cmp = Compare()) noexcept
+              class Compare = Aleph::less<typename Node::key_type>> inline
+Node * insert_root_rec(Node * root, Node * p,
+                       Compare cmp = Compare()) noexcept
 {
   if (root == Node::NullPtr)
     return p; /* insertion in empty tree */
@@ -2194,8 +2196,8 @@ Node * insert_root_rec(Node * root, Node * p, Compare cmp = Compare()) noexcept
 */
     template <class Node, class Key,
               class Compare = Aleph::less<typename Node::key_type> > inline
-Node * search_or_insert_root_rec(Node * root, Node * p, Compare cmp = Compare())
-      noexcept
+Node * search_or_insert_root_rec(Node * root, Node * p,
+                                 Compare cmp = Compare()) noexcept
 {
   if (root == Node::NullPtr)
     return p; // insertion in empty tree

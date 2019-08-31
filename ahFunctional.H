@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -394,13 +394,13 @@ inline filter(const Container1 & container, Operation && operation)
   return filter<Container1, Container2, Operation>(container, operation);
 }
 
-/** This is the classic map on a sequence. 
+/** This is the classic map on a sequence.
 
     Return a new container with each element of container mapped to the
     result of operation(item)
 
     @note The name has been changed because clashes with the stl and
-    Aleph and std map containers. 
+    Aleph and std map containers.
     @ingroup Algos
 */
   template <typename T, class C, class Op>

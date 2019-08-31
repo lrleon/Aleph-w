@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -28,7 +28,7 @@
 # ifndef TPL_TREAP_H
 # define TPL_TREAP_H
 
-# include <gsl/gsl_rng.h> 
+# include <gsl/gsl_rng.h>
 # include <ahFunction.H>
 # include <tpl_binNodeUtils.H>
 # include <treapNode.H>
@@ -53,7 +53,7 @@ namespace Aleph
       just one time and the adjustements are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
-      
+
       The class internally uses the gsl random number generator of 
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
@@ -68,7 +68,7 @@ class Gen_Treap
 public:
 
   using Node = NodeType<Key>;  /// The type of node
-  
+
 private:
 
   Node      head;
@@ -108,8 +108,8 @@ private:
   Compare & get_compare() noexcept { return key_comp(); }
 
   /// Initialize a treap with random `seed` and comparison criteria
-  /// `__cmp` 
-  Gen_Treap(unsigned long seed, Compare & __cmp = Compare()) 
+  /// `__cmp`
+  Gen_Treap(unsigned long seed, Compare & __cmp = Compare())
     : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);

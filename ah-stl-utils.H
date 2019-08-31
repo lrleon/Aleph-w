@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -35,7 +35,7 @@
 # include <tpl_array.H>
 # include <tpl_dynArray.H>
 # include <tpl_dynSetTree.H>
- 
+
 template<class F, class...Ts, std::size_t...Is> inline
 void for_each_in_tuple(const std::tuple<Ts...> & tuple,
 		       F func, std::index_sequence<Is...>)

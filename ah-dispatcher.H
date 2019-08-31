@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -45,7 +45,7 @@ public:
     : AHDispatcher(pairs...)
   {
     tbl.insert(key, op);
-  }  
+  }
 
   void insert(const Key & key, Operation op)
   {
@@ -58,9 +58,9 @@ public:
     auto ptr = tbl.search(key);
     if (ptr == nullptr)
       {
-	cerr << "Tried to run dispatcher with a key" 
-	     << " which has not been registered" << endl;
-	abort();
+        cerr << "Tried to run dispatcher with a key"
+             << " which has not been registered" << endl;
+        abort();
       }
     return (*ptr->second)(args...);
   }

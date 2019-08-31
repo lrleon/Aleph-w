@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -97,9 +97,9 @@ REGISTER_TYPED_TEST_CASE_P(EmptyOHashTest, With_exception);
 REGISTER_TYPED_TEST_CASE_P(OHashTest, Without_exception);
 
 typedef Types<MapODhash<size_t, string>,
-	      MapOLhash<size_t, string>,
-	      DynMapLinHash<size_t, string>,
-	      DynMapHash<size_t, string>> HashTypes;
+              MapOLhash<size_t, string>,
+              DynMapLinHash<size_t, string>,
+              DynMapHash<size_t, string>> HashTypes;
 
 INSTANTIATE_TYPED_TEST_CASE_P(Empty, EmptyOHashTest, HashTypes);
 INSTANTIATE_TYPED_TEST_CASE_P(NoEmpty, OHashTest, HashTypes);

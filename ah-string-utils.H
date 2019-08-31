@@ -604,7 +604,7 @@ namespace Aleph
         }
       else
         {
-          if (not line.empty()) 
+          if (not line.empty())
             line.append(" ");
           line.append(word);
         }

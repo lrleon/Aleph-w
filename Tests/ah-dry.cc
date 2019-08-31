@@ -174,7 +174,7 @@ TYPED_TEST_P(Container, nappend)
 
   c.nappend(N + 1, N + 2, N + 3);
   EXPECT_EQ(c.size(), N + 4);
-  
+
   ptr = c.find_ptr([N] (auto i) { return i == N + 1; });
   ASSERT_NE(ptr, nullptr);
   EXPECT_EQ(*ptr, N + 1);
@@ -201,7 +201,7 @@ TYPED_TEST_P(Container, ninsert)
 
   c.ninsert(N + 1, N + 2, N + 3);
   EXPECT_EQ(c.size(), N + 4);
-  
+
   ptr = c.find_ptr([N] (auto i) { return i == N + 1; });
   ASSERT_NE(ptr, nullptr);
   EXPECT_EQ(*ptr, N + 1);

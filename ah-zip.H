@@ -153,7 +153,7 @@ ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs & ... cs)
 template <class ... Cs> inline
 bool equal_length(const Cs & ... cs) noexcept
 {
-  auto it = get_zip_it(cs...); 
+  auto it = get_zip_it(cs...);
   for (/* already initalized */; it.has_curr(); it.next_ne())
     /* empty */;
 
@@ -178,7 +178,7 @@ bool zip_traverse(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 template <class Op, class ... Cs> inline
 bool zip_traverse_eq(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
-  auto it = zip_it(cs...); 
+  auto it = zip_it(cs...);
   for (;it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
       return false;
@@ -237,7 +237,7 @@ bool zip_all(Op && op, const Cs & ... cs) noexcept(noexcept(op))
 {
   return zip_all(op, cs...);
 }
-    
+
 template <class Op, class ... Cs> inline
 bool zip_exists(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 {
