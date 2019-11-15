@@ -1,4 +1,4 @@
-/* 
+/*
   This file is part of Aleph-w library
 
   Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
@@ -31,7 +31,7 @@
 # include <tpl_dynDlist.H>
 # include <htlist.H>
 
-namespace Aleph 
+namespace Aleph
 {
   extern size_t Insertion_Threshold;
 
@@ -94,7 +94,7 @@ pair<bool, size_t> search_inversion(const Container<T> & cont,
     }
   return make_pair(true, n);
 }
-  
+
 
 
     /** Return true if the sequence is inversely sorted
@@ -184,8 +184,8 @@ void selection_sort(T * a, const size_t n, Compare cmp = Compare()) noexcept
 
 
     /** Búsqueda genérica de un elemento extremo en una lista
-	de nodos Dlink.
-		
+        de nodos Dlink.
+
 	search_extreme(list) busca secuencialmente en la lista de nodos
 	list el elemento extremo, mínimo o
 	máximo según el criterio de comparación Compare.
@@ -195,7 +195,7 @@ void selection_sort(T * a, const size_t n, Compare cmp = Compare()) noexcept
 	@note No se verifica si la lista está vacía.
 	\ingroup Algos
      */
-  template <class Link, class Compare> inline 
+  template <class Link, class Compare> inline
 Link * search_extreme(const Link & list, Compare & cmp) noexcept
 {
   typename Link::Iterator it(const_cast<Link&>(list));
@@ -205,19 +205,19 @@ Link * search_extreme(const Link & list, Compare & cmp) noexcept
     {
       Link * curr = it.get_curr();
       if (cmp(curr, extreme))
-	extreme = curr;
-    } 
+        extreme = curr;
+    }
 
   return extreme;
 }
 
-    template <class Compare> inline 
+    template <class Compare> inline
 Dlink * search_extreme(const Dlink & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<Dlink, Compare>(list, cmp);
 }
 
-    template <class Compare> inline 
+    template <class Compare> inline
 Slinknc * search_extreme(const Slinknc & list, Compare cmp = Compare()) noexcept
 {
   return search_extreme<Slinknc, Compare>(list, cmp);
@@ -640,9 +640,9 @@ void insertion_sort(T * a, const size_t l, const size_t r,
   for (size_t i = l, j; i <= r; ++i)
     {
       T tmp = a[i]; // memorice a[i], pues será sobre escrito
-      
+
       for (j = i; j > l and cmp(tmp, a[j - 1]); --j)
-	a[j] = a[j - 1]; // desplazar hacia la derecha
+        a[j] = a[j - 1]; // desplazar hacia la derecha
 
       a[j] = tmp; // inserte tmp en la brecha
     }
@@ -650,27 +650,27 @@ void insertion_sort(T * a, const size_t l, const size_t r,
 
     /** Inserta un nodo ordenadamente en una lista doblemente enlazada.
 
-	insert_sorted(list,p) inserta en una lista basada sobre Dlink el
-	nodo apuntado por p.
+        insert_sorted(list,p) inserta en una lista basada sobre Dlink el
+        nodo apuntado por p.
 
-	El criterio de orden está dado por la clase de comparación Compare.
+        El criterio de orden está dado por la clase de comparación Compare.
 
-	@param[in,out] list la lista a la cual se le insertará p.
-	@param[in] p el nodo a ser insertado.
-	@see Dlink 
-	\ingroup Algos
-     */
-    template <class Compare> inline 
+        @param[in,out] list la lista a la cual se le insertará p.
+        @param[in] p el nodo a ser insertado.
+        @see Dlink
+        \ingroup Algos
+    */
+    template <class Compare> inline
 void insert_sorted(Dlink & list, Dlink * p, Compare & cmp) noexcept
 {
-  typename Dlink::Iterator it(list); 
-  while (it.has_curr() and cmp(it.get_curr(), p)) 
+  typename Dlink::Iterator it(list);
+  while (it.has_curr() and cmp(it.get_curr(), p))
     it.next();
 
   if (it.has_curr())
     it.get_curr()->append(p); // insertar antes de current
   else
-    list.append(p); 
+    list.append(p);
 }
 
 template <class Compare> inline
