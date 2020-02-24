@@ -1,4 +1,4 @@
-/* 
+/*
   This file is part of Aleph-w library
 
   Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
@@ -21,10 +21,10 @@
   <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_BINNODEUTILS_H
-# define TPL_BINNODEUTILS_H 
+# define TPL_BINNODEUTILS_H
 
 # include <ahFunction.H>
-# include <tpl_arrayStack.H> 
+# include <tpl_arrayStack.H>
 # include <tpl_arrayQueue.H>
 # include <tpl_dynListQueue.H>
 # include <bitArray.H>
@@ -35,18 +35,18 @@ using namespace Aleph;
 namespace Aleph {
 
     template <class Node> inline static
-void __inorder_rec(Node * node, const int& level, int & position, 
-                   void (*visitFct)(Node *, int, int)) 
+void __inorder_rec(Node * node, const int& level, int & position,
+                   void (*visitFct)(Node *, int, int))
 {
-  if (node == Node::NullPtr) 
+  if (node == Node::NullPtr)
     return;
 
   __inorder_rec(LLINK(node), level + 1, position, visitFct);
- 
+
  (*visitFct)(node, level, position);
   ++position;
 
-  __inorder_rec(RLINK(node), level + 1, position, visitFct); 
+  __inorder_rec(RLINK(node), level + 1, position, visitFct);
 }
 
   /** Traverse recursively inorder a binary tree.
@@ -54,7 +54,7 @@ void __inorder_rec(Node * node, const int& level, int & position,
       `inOrderRec(root,visit)` performs a inorder traversal of tree
       rooted by `root` and on each node exceutes a visit function with
       the following signature:
-        
+
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
@@ -75,7 +75,7 @@ void __inorder_rec(Node * node, const int& level, int & position,
 int inOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 {
   int position = 0;
-  __inorder_rec(root, 0, position, visitFct); 
+  __inorder_rec(root, 0, position, visitFct);
   return position;
 }
 
@@ -83,7 +83,7 @@ int inOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 void __preorder_rec (Node * p, const int & level, int & position,
                      void (*visitFct)(Node*, int, int))
 {
-  if (p == Node::NullPtr) 
+  if (p == Node::NullPtr)
     return;
 
   (*visitFct)(p, level, position);
@@ -91,14 +91,14 @@ void __preorder_rec (Node * p, const int & level, int & position,
 
   __preorder_rec(LLINK(p), level + 1, position, visitFct);
   __preorder_rec(RLINK(p), level + 1, position, visitFct);
-} 
+}
 
   /** Traverse recursively in preorder a binary tree.
 
       `preOrderRec(root,visit)` performs a inorder traversal of tree
       rooted by `root` and on each node exceutes a visit function with
       the following signature:
-        
+
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
@@ -115,23 +115,23 @@ void __preorder_rec (Node * p, const int & level, int & position,
       @see preOrderRec() postOrderRec()
       @ingroup Arboles
   */
-    template <class Node> inline 
+    template <class Node> inline
 int preOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 {
   int position = 0;
-  __preorder_rec(root, 0, position, visitFct); 
+  __preorder_rec(root, 0, position, visitFct);
   return position;
 }
 
     template <class Node> inline static
-void __postorder_rec(Node * node, const int & level, int & position, 
+void __postorder_rec(Node * node, const int & level, int & position,
                      void (*visitFct)(Node*, int, int))
 {
-  if (node == Node::NullPtr) 
+  if (node == Node::NullPtr)
     return;
 
   __postorder_rec(LLINK(node), level + 1, position, visitFct);
-  __postorder_rec(RLINK(node), level + 1, position, visitFct); 
+  __postorder_rec(RLINK(node), level + 1, position, visitFct);
 
   (*visitFct)(node, level, position);
   ++position;
@@ -142,7 +142,7 @@ void __postorder_rec(Node * node, const int & level, int & position,
       `postOrderRec(root,visit)` performs a inorder traversal of tree
       rooted by `root` and on each node exceutes a visit function with
       the following signature:
-        
+
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
@@ -163,12 +163,12 @@ void __postorder_rec(Node * node, const int & level, int & position,
 int postOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 {
   int position = 0;
-  __postorder_rec(root, 0, position, visitFct); 
+  __postorder_rec(root, 0, position, visitFct);
   return position;
 }
 
       /** Generic inorder traversal of a binary tree
-          
+
           For_Each_In_Order traverses a binary tree in order. For each
           is node is called an operation with the following signature:
 
@@ -182,11 +182,11 @@ int postOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 
           @ingroup arboles
        */
-    template <class Node> 
+    template <class Node>
 class For_Each_In_Order
 {
   template <class Op>
-  static void for_each_inorder(Node * root, Op & op) 
+  static void for_each_inorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -208,7 +208,7 @@ public:
   {
     for_each_inorder<Op>(root, op);
   }
-  
+
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
   void operator () (Node * root, Op && op) const
@@ -230,7 +230,7 @@ void for_each_in_order(Node * root, Op && op)
 }
 
    /** Generic preorder traversal of a binary tree
-          
+
       For_Each_Preorder traverses a binary tree in preorder. For each
       is node is called an operation with the following signature:
 
@@ -244,11 +244,11 @@ void for_each_in_order(Node * root, Op && op)
 
       @ingroup arboles
   */
-    template <class Node> 
+    template <class Node>
 class For_Each_Preorder
 {
   template <class Op>
-  static void preorder(Node * root, Op & op) 
+  static void preorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -263,17 +263,17 @@ public:
   /// Invoke the traversal
   template <class Op>
   void traverse(Node * root, Op & op) const { return preorder(root, op); }
-  
+
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) 
+  void operator () (Node * root, Op & op)
   {
     preorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op = Op()) 
+  void operator () (Node * root, Op && op = Op())
   {
     preorder<Op>(root, op);
   }
@@ -285,7 +285,7 @@ public:
     @param[in] op operation to be executed on each node
     @ingroup Arboles
 */
-  template <class Node, class Op> 
+  template <class Node, class Op>
 void for_each_preorder(Node * root, Op && op)
 {
   For_Each_Preorder<Node>().template traverse<Op>(root, op);
@@ -293,7 +293,7 @@ void for_each_preorder(Node * root, Op && op)
 
 
 /** Generic postorder traversal of a binary tree
-          
+
     For_Each_Postorder traverses a binary tree in preorder. For each
     is node is called an operation with the following signature:
 
@@ -306,12 +306,12 @@ void for_each_preorder(Node * root, Op && op)
 	  };
 
     @ingroup arboles
-*/     
-    template <class Node> 
+*/
+    template <class Node>
 class For_Each_Postorder
 {
   template <class Op>
-  static void postorder(Node * root, Op & op) 
+  static void postorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -323,13 +323,13 @@ class For_Each_Postorder
 
 public:
 
-/// Invoke the traversal
+  /// Invoke the traversal
   template <class Op>
   void traverse(Node * root, Op & op) const { return postorder(root, op); }
-  
+
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) 
+  void operator () (Node * root, Op & op)
   {
     postorder<Op>(root, op);
   }
@@ -348,7 +348,7 @@ public:
     @param[in] op operation to be executed on each node
     @ingroup Arboles
 */
-  template <class Node, class Op> 
+  template <class Node, class Op>
 void for_each_postorder(Node * root, Op && op)
 {
   For_Each_Postorder<Node>().template traverse<Op>(root, op);
@@ -437,21 +437,21 @@ DynList<Node*> suffix(Node * root)
     /** Count the number of nodes of a binary tree
 
         @param[in] root of tree
-        @return the number of nodes 
+        @return the number of nodes
         @ingroup Arboles
      */
-    template <class Node> inline 
+    template <class Node> inline
 size_t compute_cardinality_rec(Node * root) noexcept
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return 0;
 
-  return (compute_cardinality_rec(LLINK(root)) + 1 + 
+  return (compute_cardinality_rec(LLINK(root)) + 1 +
           compute_cardinality_rec(RLINK(root)));
 }
 
 /// \overload compute_cardinality_rec(Node * root)
-    template <class Node> inline 
+    template <class Node> inline
 size_t size(Node * root) noexcept
 {
   return compute_cardinality_rec(root);
@@ -465,7 +465,7 @@ size_t size(Node * root) noexcept
      */
 template <class Node> inline size_t computeHeightRec(Node * root) noexcept
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return 0;
 
   const size_t left_height  = computeHeightRec(LLINK(root));
@@ -476,16 +476,16 @@ template <class Node> inline size_t computeHeightRec(Node * root) noexcept
 
     /** Free recursively all the memory occuped by the tree `root`
 
-	\note It is assumed that the nodes were allocated with `new`
-	operator. 
+        \note It is assumed that the nodes were allocated with `new`
+        operator.
 
         @param[in] root of tree to free
         @ingroup Arboles
      */
-    template <class Node> inline 
+    template <class Node> inline
 void destroyRec(Node *& root) noexcept
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return;
 
   destroyRec(LLINK(root));
@@ -497,19 +497,19 @@ void destroyRec(Node *& root) noexcept
     /** Copy recursively a tree
 
         @param[in] root of tre to be copied
-        @return a copy of tree with `root` 
-	\throw bad_alloc if there is no enough memory
+        @return a copy of tree with `root`
+        \throw bad_alloc if there is no enough memory
         @ingroup Arboles
      */
-    template <class Node> inline 
-Node * copyRec(Node * root) throw(std::exception, std::bad_alloc) 
+    template <class Node> inline
+Node * copyRec(Node * root) throw(std::exception, std::bad_alloc)
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return Node::NullPtr;
 
-  Node * tgt_root = new Node(*root); 
+  Node * tgt_root = new Node(*root);
 
-  try 
+  try
     {
       LLINK(tgt_root) = copyRec<Node>(LLINK(root));
       RLINK(tgt_root) = copyRec<Node>(RLINK(root));
@@ -519,7 +519,7 @@ Node * copyRec(Node * root) throw(std::exception, std::bad_alloc)
     {
       assert(RLINK(tgt_root) == Node::NullPtr);
 
-      if (LLINK(tgt_root) != Node::NullPtr) 
+      if (LLINK(tgt_root) != Node::NullPtr)
         destroyRec(LLINK(tgt_root)); // TODO: diff de Node*&
 
       delete tgt_root;
@@ -528,7 +528,7 @@ Node * copyRec(Node * root) throw(std::exception, std::bad_alloc)
     }
 
   return tgt_root;
-}      
+}
 
      /** Return `true` if both trees are similar
 
@@ -540,17 +540,17 @@ Node * copyRec(Node * root) throw(std::exception, std::bad_alloc)
          @return `true` if `t1` and `t2` are similar; `false` otherwise
          @see areEquivalents()
       */
-    template <class Node> inline 
+    template <class Node> inline
 bool areSimilar(Node * t1, Node * t2) noexcept
 {
   if (t1 == t2) // that include the case when t1 and t2 are the same or
-		// bot are Node::NullPtr 
+		// bot are Node::NullPtr
     return true;
 
-  if (t1 == Node::NullPtr or t2 == Node::NullPtr) 
+  if (t1 == Node::NullPtr or t2 == Node::NullPtr)
     return false;
 
-  return (areSimilar(LLINK(t1), LLINK(t2)) and 
+  return (areSimilar(LLINK(t1), LLINK(t2)) and
           areSimilar(RLINK(t1), RLINK(t2)));
 }
 
@@ -568,21 +568,21 @@ bool areSimilar(Node * t1, Node * t2) noexcept
     template <class Node, class Equal> inline
 bool areEquivalents(Node * t1, Node * t2, Equal & op) noexcept
 {
-  if (t1 == t2) 
+  if (t1 == t2)
     return true;
 
-  if (t1 == Node::NullPtr or t2 == Node::NullPtr) 
+  if (t1 == Node::NullPtr or t2 == Node::NullPtr)
     return false;
 
-  if (not op(KEY(t1), KEY(t2))) 
+  if (not op(KEY(t1), KEY(t2)))
     return false;
 
-  return (areEquivalents(LLINK(t1), LLINK(t2), op) and 
+  return (areEquivalents(LLINK(t1), LLINK(t2), op) and
           areEquivalents(RLINK(t1), RLINK(t2), op));
 }
 
 /// \overload areEquivalents(Node * t1, Node * t2, Equal & op)
-template <class Node, class Equal = std::equal_to<typename Node::key_type>> 
+template <class Node, class Equal = std::equal_to<typename Node::key_type>>
 inline bool areEquivalents(Node * t1, Node * t2, Equal && op = Equal()) noexcept
 {
   return areEquivalents(t1, t2, op);
@@ -611,7 +611,7 @@ void levelOrder(Node * root, void (*visitFct)(Node*, int, bool))
   if (root == Node::NullPtr)
     return;
 
-  DynListQueue<std::pair<Node*, bool> > queue; 
+  DynListQueue<std::pair<Node*, bool> > queue;
   queue.put(std::pair<Node*, bool>(root, bool()));
 
   for (int pos = 0; not queue.is_empty(); pos++)
@@ -642,7 +642,7 @@ void levelOrder(Node * root, void (*visitFct)(Node*, int, bool))
       @param[in] root of tree
       @param[in] operation to execute on each visited node
       @return `true` if all the nodes were visited; `false` otherwise
-        
+
       @ingroup Arboles
   */
   template <class Node, class Operation> inline
@@ -651,7 +651,7 @@ bool level_traverse(Node * root, Operation & operation)
   if (root == Node::NullPtr)
     return true;
 
-  DynListQueue<Node*> queue; 
+  DynListQueue<Node*> queue;
   queue.put(root);
   while (not queue.is_empty())
     {
@@ -678,7 +678,7 @@ bool level_traverse(Node * root, Operation && operation)
 
         `build_tree()` takes two dynamic arrays with the preorder and
         inorder traversal of keys and builds the correspondent tree.
-        
+
         @param[in] preorder array with the preorder traversal
         @param[in] l_p first index in `preorder`
         @param[in] r_p last index in `preorder`
@@ -699,12 +699,12 @@ Node<Key> * build_tree(const DynArray<Key> & preorder, long l_p, long r_p,
       return Node<Key>::NullPtr;
     }
 
-  assert(r_p - l_p == r_i - l_i); 
+  assert(r_p - l_p == r_i - l_i);
 
   Node<Key> * root = new Node<Key>(preorder[l_p]);
-  if (r_p == l_p) 
+  if (r_p == l_p)
     return root;
-  
+
   assert(l_i <= r_i);
 
   int i = 0;
@@ -717,10 +717,10 @@ Node<Key> * build_tree(const DynArray<Key> & preorder, long l_p, long r_p,
 
   assert(i <= r_i);
 
-  LLINK(root) = build_tree<Node, Key>(preorder, l_p + 1, l_p + i, 
-				      inorder, l_i, l_i + (i - 1));
-  RLINK(root) = build_tree<Node, Key>(preorder, l_p + i + 1, r_p, 
-				      inorder, l_i + i + 1, r_i);
+  LLINK(root) = build_tree<Node, Key>(preorder, l_p + 1, l_p + i,
+                                      inorder, l_i, l_i + (i - 1));
+  RLINK(root) = build_tree<Node, Key>(preorder, l_p + i + 1, r_p,
+                                      inorder, l_i + i + 1, r_i);
   return root;
 }
 
@@ -733,7 +733,7 @@ Node<Key> * build_postorder(const DynArray<Key> & post, long lp, long rp,
     return Node<Key>::NullPtr;
 
   Node<Key> * root = new Node<Key>(post[rp]);
-  
+
   int i = li;
   for (; i <= ri; ++i) // search in inorder array the index of root
     if (in[i] == post[rp])
@@ -742,17 +742,17 @@ Node<Key> * build_postorder(const DynArray<Key> & post, long lp, long rp,
   assert(i <= ri);
 
   LLINK(root) = build_postorder<Node, Key>(post, lp, lp + (i - li) - 1,
-					   in, li, i - 1);
-  RLINK(root) = build_postorder<Node, Key>(post, rp - (ri - i), rp - 1, 
-					   in, i + 1, ri);
+                                           in, li, i - 1);
+  RLINK(root) = build_postorder<Node, Key>(post, rp - (ri - i), rp - 1,
+                                           in, i + 1, ri);
   return root;
 }
 
-    template <class Node> inline static void 
-__compute_nodes_in_level(Node * root, long level, long current_level, 
+    template <class Node> inline static void
+__compute_nodes_in_level(Node * root, long level, long current_level,
                          DynDlist<Node*> & level_list)
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return;
 
   if (current_level == level)
@@ -761,10 +761,8 @@ __compute_nodes_in_level(Node * root, long level, long current_level,
       return; // no vale la pena descender mï¿½s
     }
 
-  __compute_nodes_in_level(LLINK(root), 
-			   level, current_level + 1, level_list);
-  __compute_nodes_in_level(RLINK(root), 
-			   level, current_level + 1, level_list);
+  __compute_nodes_in_level(LLINK(root), level, current_level + 1, level_list);
+  __compute_nodes_in_level(RLINK(root), level, current_level + 1, level_list);
 }
 
     /** Count the number of nodes in a specific tree level
@@ -801,42 +799,42 @@ DynDlist<Node*> compute_nodes_in_level(Node * root, const int & level)
         @param[in] root of tree
         @param[in] visitFct pointer to visit function
         @return the number of nodes of tree
-        @see preOrderThreaded() 
+        @see preOrderThreaded()
         @ingroup Arboles
      */
     template <class Node> inline
 void inOrderThreaded(Node * root, void (*visitFct)(Node*))
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return;
 
   Node *p = root, *r = Node::NullPtr, *q;
   while (p != Node::NullPtr)
     {
-      q = LLINK(p); 
-      if (q == Node::NullPtr) 
+      q = LLINK(p);
+      if (q == Node::NullPtr)
         { // No hay rama izq ==> visitar p
-          (*visitFct)(p);  
-          r = p;          
-          p = RLINK(p);   
-          continue;       
+          (*visitFct)(p);
+          r = p;
+          p = RLINK(p);
+          continue;
         }
 
           // avanzar hacia el nodo mï¿½s a la derecha de la rama izquierda
       while (q != r and RLINK(q) != Node::NullPtr)
         q = RLINK(q);
 
-      if (q != r) // tiene p un predecesor? 
+      if (q != r) // tiene p un predecesor?
         { // si ==> dejar un hilo para luego subir a visitar p
           RLINK(q) = p; // Aquï¿½ se coloca el hilo
           p = LLINK(p); // Seguir bajando por la izquierda
-          continue;     
+          continue;
         }
 
       (*visitFct)(p);
 
       RLINK(q) = Node::NullPtr; // Borrar hilo
-      r = p;            
+      r = p;
       p = RLINK(p); // avanzar a la rama derecha
     }
 }
@@ -859,50 +857,50 @@ void inOrderThreaded(Node * root, void (*visitFct)(Node*))
         @param[in] root of tree
         @param[in] visitFct pointer to visit function
         @return the number of nodes of tree
-        @see inOrderThreaded() 
+        @see inOrderThreaded()
         @ingroup Arboles
-    */    
+    */
     template <class Node> inline
 void preOrderThreaded(Node * node, void (*visitFct)(Node*))
 {
-  if (node == Node::NullPtr) 
+  if (node == Node::NullPtr)
     return;
 
   Node * p = node, * r = Node::NullPtr, *q;
   while (p != Node::NullPtr)
   {
-    q = LLINK(p); 
+    q = LLINK(p);
 
-    if (q == Node::NullPtr) 
-      { 
-        (*visitFct)(p);  
+    if (q == Node::NullPtr)
+      {
+        (*visitFct)(p);
         r = p;
         p = RLINK(p);
-        continue;    
+        continue;
       }
 
         // avanzar hacia el nodo mï¿½s a la derecha de la rama izquierda
     while (q != r and RLINK(q) != Node::NullPtr)
       q = RLINK(q);
 
-    if (q != r) 
-      { 
+    if (q != r)
+      {
         RLINK(q) = p;
         (*visitFct)(p);
         p = LLINK(p);
-        continue;    
+        continue;
       }
 
     RLINK(q) = Node::NullPtr; /* delete thread */
-    r = p;                  
+    r = p;
     p = RLINK(p);       /* advance to right branch */
   }
-} 
+}
 
     template <class Node> inline  static
 size_t __internal_path_length(Node * p, const size_t & level) noexcept
 {
-  if (p == Node::NullPtr) 
+  if (p == Node::NullPtr)
     return 0;
 
   return level + __internal_path_length(LLINK(p), level + 1) +
@@ -913,10 +911,10 @@ size_t __internal_path_length(Node * p, const size_t & level) noexcept
 
          @param[in] p root of tree
          @return the internal path lenght
-         
+
          @ingroup Arboles
       */
-    template <class Node> inline 
+    template <class Node> inline
 size_t internal_path_length(Node * p) noexcept
 {
   return __internal_path_length(p, 0);
@@ -924,18 +922,18 @@ size_t internal_path_length(Node * p) noexcept
 
     /** Compute a bit code for the binary tree
 
-	`tree_to_bits(root, array)` takes the binary tree with `root`
-	and computes its prefix code (Lukasiewicz`s word) in a bit `array`.
+        `tree_to_bits(root, array)` takes the binary tree with `root`
+        and computes its prefix code (Lukasiewicz`s word) in a bit `array`.
 
-	@param[in] root the root
-	@param[out] array bit array where the code will be stored
-	\throw bad_alloc if there is no enough memory
-	@see bits_to_tree() BitArray save_tree_keys_in_prefix()
-	load_tree_keys_in_prefix() 
+        @param[in] root the root
+        @param[out] array bit array where the code will be stored
+        \throw bad_alloc if there is no enough memory
+        @see bits_to_tree() BitArray save_tree_keys_in_prefix()
+        load_tree_keys_in_prefix()
 
-	@ingroup Arboles
+        @ingroup Arboles
     */
-    template <class Node> inline 
+    template <class Node> inline
 void tree_to_bits(Node * root, BitArray & array)
 {
   if (root == Node::NullPtr)
@@ -951,18 +949,18 @@ void tree_to_bits(Node * root, BitArray & array)
 
     /** Compute a bit code for the binary tree
 
-	`tree_to_bits(root)` takes the binary tree with `root`
-	and computes its prefix code (Lukasiewicz`s word) in a bit array 
+        `tree_to_bits(root)` takes the binary tree with `root`
+        and computes its prefix code (Lukasiewicz`s word) in a bit array
 
-	@param[in] root the root
-	@return  array bit array with the tree code
-	\throw bad_alloc if there is no enough memory
-	@see bits_to_tree() BitArray save_tree_keys_in_prefix()
-	load_tree_keys_in_prefix() 
+        @param[in] root the root
+        @return  array bit array with the tree code
+        \throw bad_alloc if there is no enough memory
+        @see bits_to_tree() BitArray save_tree_keys_in_prefix()
+        load_tree_keys_in_prefix() 
 
-	@ingroup Arboles
+        @ingroup Arboles
     */
-template <class Node> inline 
+template <class Node> inline
 BitArray tree_to_bits(Node * root)
 {
   BitArray ret_val;
@@ -988,7 +986,7 @@ template <class Node> inline string code(Node * root)
   return str;
 }
 
-     template <class Node> static inline 
+     template <class Node> static inline
 Node * __bits_to_tree(const BitArray & array, int & i)
 {
   int bit = array.read_bit(i++);
@@ -1010,7 +1008,7 @@ Node * __bits_to_tree(const BitArray & array, int & i)
         @param[in] array bits array
         @param[in] idx starting index
         @return the root of equivalent binary tree
-	\throw bad_alloc if there is no enough memory
+        \throw bad_alloc if there is no enough memory
 
         @see tree_to_bits() BitArray save_tree_keys_in_prefix() load_tree_keys_in_prefix()
         @ingroup Arboles
@@ -1024,21 +1022,21 @@ Node * bits_to_tree(const BitArray & array, int idx = 0)
     /** Store in output stream the tree keys in preorder
 
         `save_tree_keys_in_prefix(root, output)` traverses recursively
-	the tree in preorder. For each node, it saves in the stream its
-	key.
+        the tree in preorder. For each node, it saves in the stream its
+        key.
 
-	Each visit call to functor `Get_Key` whose function is to
-	extract and return a stringficated version of the key. Its
-	signature must be as follows:
-	
-	    string gk(Node * p)
+        Each visit call to functor `Get_Key` whose function is to
+        extract and return a stringficated version of the key. Its
+        signature must be as follows:
+
+        string gk(Node * p)
 
         @param[in] root of tree
         @param[out] output stream
         @ingroup Arboles
         @see load_tree_keys_in_prefix()
      */
-  template <class Node> inline 
+  template <class Node> inline
 void save_tree_keys_in_prefix(Node * root, ostream & output)
 {
   if (root == Node::NullPtr)
@@ -1059,7 +1057,7 @@ void save_tree_keys_in_prefix(Node * root, ostream & output)
         @param[in] input stream where are the keys in preorder
         @ingroup Arboles
      */
-  template <class Node> inline 
+  template <class Node> inline
 void load_tree_keys_in_prefix(Node * root, istream & input)
 {
   if (root == Node::NullPtr)
@@ -1078,19 +1076,19 @@ void load_tree_keys_in_prefix(Node * root, istream & input)
         the stream `output`. The tree could be restored through
         `load_tree()`.
 
-	The operator `<<` must overloaded for the key of node.
+        The operator `<<` must overloaded for the key of node.
 
         @param[in] root of tree
         @param[out] output stream
-	\throw bad_alloc if there is no enough memory
+        \throw bad_alloc if there is no enough memory
         @see load_tree()
         @ingroup Arboles
      */
-  template <class Node> inline 
+  template <class Node> inline
 void save_tree(Node * root, ostream & output)
 {
   BitArray prefix;
-  tree_to_bits(root, prefix); 
+  tree_to_bits(root, prefix);
   prefix.save(output);
   save_tree_keys_in_prefix(root, output);
 }
@@ -1107,18 +1105,18 @@ void save_tree(Node * root, ostream & output)
         @see save_tree()
         @ingroup Arboles
      */
-  template <class Node> inline 
+  template <class Node> inline
 Node * load_tree(istream & input)
 {
   BitArray prefix;
   prefix.load(input);
   Node * root = bits_to_tree <Node> (prefix);
-  load_tree_keys_in_prefix(root, input); 
+  load_tree_keys_in_prefix(root, input);
   return root;
 }
 
-   
-   template <class Node, class Get_Key> inline 
+
+   template <class Node, class Get_Key> inline
 void put_tree_keys_in_array(Node * root, ostream & out)
 {
   if (root == Node::NullPtr)
@@ -1129,7 +1127,7 @@ void put_tree_keys_in_array(Node * root, ostream & out)
   if (str == "\t")
     out << "\"\t\"";
   else if (str == "\n")
-    out << "\"\\n\""; 
+    out << "\"\\n\"";
   else
     out << "\"" << str << "\"";
   out << ", ";
@@ -1139,7 +1137,7 @@ void put_tree_keys_in_array(Node * root, ostream & out)
 }
 
 
-    template <class Node, class Load_Key> inline 
+    template <class Node, class Load_Key> inline
 void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
 {
   if (root == Node::NullPtr)
@@ -1161,7 +1159,7 @@ void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
 
 
         const unsigned char array_name_cdp[n] = { unsigned char list };
-        
+
         const char * array_name_k[] = { key in prefix order };
 
     The first array is a bit arrat containing the tree code (its
@@ -1181,13 +1179,13 @@ void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
     @see load_tree_from_array() BitArray
     @ingroup Arboles
 */
-   template <class Node, class Get_Key> inline 
-   void save_tree_in_array_of_chars(Node *         root, 
-				    const string & array_name, 
-				    ostream &     output)
+   template <class Node, class Get_Key> inline
+   void save_tree_in_array_of_chars(Node *         root,
+                                    const string & array_name,
+                                    ostream &     output)
    {
      BitArray prefix;
-     tree_to_bits(root, prefix); 
+     tree_to_bits(root, prefix);
      prefix.save_in_array_of_chars(array_name + "_cdp", output);
      output << "const char * " << array_name << "_k[] = { " << endl;
      put_tree_keys_in_array <Node, Get_Key> (root, output);
@@ -1205,8 +1203,8 @@ void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
 
     The functor `Load_Key` is used in order to set the node key from a
     array entry. Its structure must be as follows:
-    
-        bool load_key(Node * p, const char * str) 
+
+        bool load_key(Node * p, const char * str)
 
     The functor must take the string `str`, perform any needed
     transformation and set the key of node `p`. If `load_key()` returns
@@ -1224,9 +1222,9 @@ void load_tree_keys_from_array(Node * root, const char * keys[], int & idx)
     @see save_tree_in_array_of_chars() BitArray
     @ingroup Arboles
 */
-    template <class Node, class Load_Key> inline 
-Node * load_tree_from_array(const unsigned char bits[], 
-                            const size_t &      num_bits, 
+    template <class Node, class Load_Key> inline
+Node * load_tree_from_array(const unsigned char bits[],
+                            const size_t &      num_bits,
                             const char *        keys[])
 {
   BitArray prefix;
@@ -1248,10 +1246,10 @@ Node * load_tree_from_array(const unsigned char bits[],
         @ingroup Arboles
      */
     template <class Node,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
+              class Compare = Aleph::less<typename Node::key_type>> inline
 bool check_bst(Node * p, Compare cmp = Compare())
 {
-  if (p == Node::NullPtr) 
+  if (p == Node::NullPtr)
     return true;
 
   if (LLINK(p) != Node::NullPtr and
@@ -1275,23 +1273,23 @@ bool check_bst(Node * p, Compare cmp = Compare())
         @param[in] l lower index
         @param[in] r upper index
         @return root of resulting tree
-	\throw bad_alloc if there is no enough memory
+        \throw bad_alloc if there is no enough memory
         @ingroup Arboles
      */
-    template <class Node> inline Node * 
+    template <class Node> inline Node *
 preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r)
 {
-  if (l > r) 
+  if (l > r)
     return Node::NullPtr;
 
   Node * root = new Node(preorder[l]);
 
-  if (l == r) 
+  if (l == r)
     return root;
 
   int first_greater = l + 1;
   while ((first_greater <= r) and (preorder[first_greater] < preorder[l]))
-    ++first_greater; 
+    ++first_greater;
 
   LLINK(root) = preorder_to_bst<Node>(preorder, l + 1, first_greater - 1);
   RLINK(root) = preorder_to_bst<Node>(preorder, first_greater, r);
@@ -1303,15 +1301,15 @@ preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r)
 
          @param[in] root of tree
          @param[in] key to search
-	 @param[in] cmp key comparison criteria
+         @param[in] cmp key comparison criteria
          @return a valid pointer to the node containing the searched key
          if this was found; `Node::NullPtr` otherwise
          @ingroup Arboles
       */
     template <class Node,
-	      class Compare = Aleph::less<typename Node::key_type>> inline 
+              class Compare = Aleph::less<typename Node::key_type>> inline
 Node * searchInBinTree(Node * root, const typename Node::key_type & key,
-		       Compare cmp = Compare()) noexcept
+                       Compare cmp = Compare()) noexcept
 {
   while (root != Node::NullPtr)
     if (cmp(key, KEY(root)))
@@ -1332,7 +1330,7 @@ Node * searchInBinTree(Node * root, const typename Node::key_type & key,
         @ingroup Arboles
         @see find_max()
      */
-    template <class Node> inline 
+    template <class Node> inline
 Node * find_min(Node * root) noexcept
 {
   while (LLINK(root) != Node::NullPtr)
@@ -1349,7 +1347,7 @@ Node * find_min(Node * root) noexcept
         @ingroup Arboles
         @see find_max()
      */
-    template <class Node> inline 
+    template <class Node> inline
 Node * find_max(Node * root) noexcept
 {
   while (RLINK(root) != Node::NullPtr)
@@ -1366,9 +1364,9 @@ Node * find_max(Node * root) noexcept
          @see find_predecessor()
          @ingroup Arboles
       */
-    template <class Node> inline 
+    template <class Node> inline
 Node * find_successor(Node * p, Node *& pp) noexcept
-{ 
+{
   assert(p != Node::NullPtr);
   assert(RLINK(p) != Node::NullPtr);
 
@@ -1423,7 +1421,7 @@ Node* find_predecessor(Node * p, Node *& pp) noexcept
      */
   template <class Node,
 	    class Compare = Aleph::less<typename Node::key_type>> inline
-Node * search_parent(Node * root, const typename Node::key_type & key, 
+Node * search_parent(Node * root, const typename Node::key_type & key,
                      Node *& parent, Compare cmp = Compare()) noexcept
 {
   assert((LLINK(parent) == root) or (RLINK(parent) == root));
@@ -1431,7 +1429,7 @@ Node * search_parent(Node * root, const typename Node::key_type & key,
 
   while (true)
     if (cmp(key, KEY(root)))
-      { 
+      {
         if (LLINK(root) == Node::NullPtr)
           return root;
 
@@ -1440,7 +1438,7 @@ Node * search_parent(Node * root, const typename Node::key_type & key,
       }
     else if (cmp(KEY(root), key))
       {
-        if (RLINK(root) == Node::NullPtr) 
+        if (RLINK(root) == Node::NullPtr)
           return root;
 
         parent = root;
@@ -1452,8 +1450,8 @@ Node * search_parent(Node * root, const typename Node::key_type & key,
 
     /** Rank search of a key in a binary search tree.
 
-	In a binary search tree the rank search of a key consists in
-	determining the node that would be parent of key.
+        In a binary search tree the rank search of a key consists in
+        determining the node that would be parent of key.
 
         `search_rank_parent(root, key, cmp)` searches a node containing
         key. If `key` is found, then its node is returned. Otherwise,
@@ -1462,15 +1460,15 @@ Node * search_parent(Node * root, const typename Node::key_type & key,
 
         @param[in] root of general tree
         @param[in] key to search
-	@param[in] cmp comparison criteria
+        @param[in] cmp comparison criteria
         @return pointer to a node containing `key` if this node exists
         or the last visited node otherwise
         @note It is not verified if the tree is empty
         @ingroup Arboles
      */
-    template <class Node, 
-	      class Compare = Aleph::less<typename Node::key_type> > 
-    inline Node * 
+    template <class Node,
+              class Compare = Aleph::less<typename Node::key_type> >
+    inline Node *
 search_rank_parent(Node * root, const typename Node::key_type & key,
 		   Compare cmp = Compare()) noexcept
 {
@@ -1478,15 +1476,15 @@ search_rank_parent(Node * root, const typename Node::key_type & key,
 
   while (true)
     if (cmp(key, KEY(root)))
-      { 
-        if (LLINK(root) == Node::NullPtr) 
-          return root; 
-        
+      {
+        if (LLINK(root) == Node::NullPtr)
+          return root;
+
         root = LLINK(root);
       }
     else if (cmp(KEY(root), key))
       {
-        if (RLINK(root) == Node::NullPtr) 
+        if (RLINK(root) == Node::NullPtr)
           return root;
 
         root = RLINK(root);
@@ -1502,16 +1500,16 @@ search_rank_parent(Node * root, const typename Node::key_type & key,
 
         @param[in,out] root of tree
         @param[in] p pointer to the node to be inserted
-	@param[in] cmp comparison criteria
+        @param[in] cmp comparison criteria
         @return `p` if this was inserted; that is if `p->get_key()` is
         not in the tree; otherwise, `Node::NullPtr` is returned
         @ingroup Arboles
      */
 template <class Node,
-	  class Compare = Aleph::less<typename Node::key_type>> inline
+          class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_in_bst(Node *& r, Node * p, Compare cmp = Compare()) noexcept
 {
-  if (r == Node::NullPtr) 
+  if (r == Node::NullPtr)
     return r = p;
 
   if (cmp(KEY(p), KEY(r)))
@@ -1526,7 +1524,7 @@ Node * insert_in_bst(Node *& r, Node * p, Compare cmp = Compare()) noexcept
 
     `insert_dup_in_bst(root, p)` inserts the node `p` in
     the binary search tree with `root`. The key contained in `p` can be
-    already present in the tree. 
+    already present in the tree.
 
     @param[in,out] root of tree
     @param[in] p pointer to the node to be inserted
@@ -1535,16 +1533,16 @@ Node * insert_in_bst(Node *& r, Node * p, Compare cmp = Compare()) noexcept
     @ingroup Arboles
 */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_dup_in_bst(Node *& root, Node * p, Compare cmp = Compare())
     noexcept
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return root = p;
 
   if (cmp(KEY(p), KEY(root)))
     return insert_dup_in_bst(LLINK(root), p, cmp);
-  
+
   return insert_dup_in_bst(RLINK(root), p, cmp);
 }
 
@@ -1563,11 +1561,11 @@ Node * insert_dup_in_bst(Node *& root, Node * p, Compare cmp = Compare())
     @ingroup Arboles
 */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * search_or_insert_in_bst(Node *& r, Node * p, Compare cmp = Compare())
     noexcept
 {
-  if (r == Node::NullPtr) 
+  if (r == Node::NullPtr)
     return r = p;
 
   if (cmp(KEY(p), KEY(r)))
@@ -1575,13 +1573,13 @@ Node * search_or_insert_in_bst(Node *& r, Node * p, Compare cmp = Compare())
   else if (cmp(KEY(r), KEY(p)))
     return search_or_insert_in_bst<Node, Compare>(RLINK(r), p, cmp);
 
-  return r; 
+  return r;
 }
 
-  
+
   template <class Node, class Compare> static inline
-bool __split_key_rec(Node * root, const typename Node::key_type & key, 
-		     Node *& ts, Node *& tg, Compare & cmp) noexcept
+bool __split_key_rec(Node * root, const typename Node::key_type & key,
+                     Node *& ts, Node *& tg, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
     {    // key no se encuentra en árbol ==> split tendrï¿½ ï¿½xito
@@ -1617,7 +1615,7 @@ bool __split_key_rec(Node * root, const typename Node::key_type & key,
 
     The split only is performed if `key` is not in the tree.
 
-    @param[in,out] root of tree 
+    @param[in,out] root of tree
     @param[in] key for slitting
     @param[out] ts tree with keys lesser than `key`
     @param[out] tg tree with keys greater than `key`
@@ -1630,7 +1628,7 @@ bool __split_key_rec(Node * root, const typename Node::key_type & key,
     */
   template <class Node,
 	    class Compare = Aleph::less<typename Node::key_type>> inline
-bool split_key_rec(Node *& root, const typename Node::key_type & key, 
+bool split_key_rec(Node *& root, const typename Node::key_type & key,
                    Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
 {
   bool ret = __split_key_rec(root, key, ts, tg, cmp);
@@ -1641,8 +1639,8 @@ bool split_key_rec(Node *& root, const typename Node::key_type & key,
 
 
      template <class Node, class Compare> static inline
-void __split_key_dup_rec(Node * root, const typename Node::key_type & key, 
-			 Node *& ts, Node *& tg, Compare & cmp) noexcept
+void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
+                         Node *& ts, Node *& tg, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
     {
@@ -1652,7 +1650,7 @@ void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
 
   if (cmp(KEY(root), key))
     __split_key_dup_rec(RLINK(root), key, RLINK(root), tg, cmp);
-  else 
+  else
     __split_key_dup_rec(LLINK(root), key, ts, LLINK(root), cmp);
 }
 
@@ -1673,7 +1671,7 @@ void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
     */
   template <class Node,
 	    class Compare = Aleph::less<typename Node::key_type>> inline
-void split_key_dup_rec(Node *& root, const typename Node::key_type & key, 
+void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
                        Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
 {
   __split_key_dup_rec(root, key, ts, tg, cmp);
@@ -1694,13 +1692,13 @@ void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
     @ingroup Arboles
     @see remove_from_bst()
      */
-template <class Node> inline 
+template <class Node> inline
 Node * join_exclusive(Node *& ts, Node *& tg) noexcept
 {
-  if (ts == Node::NullPtr) 
+  if (ts == Node::NullPtr)
     return tg;
 
-  if (tg == Node::NullPtr) 
+  if (tg == Node::NullPtr)
     return ts;
 
   LLINK(tg) = join_exclusive(RLINK(ts), LLINK(tg));
@@ -1710,13 +1708,13 @@ Node * join_exclusive(Node *& ts, Node *& tg) noexcept
   ts = tg = Node::NullPtr; // empty the trees
 
   return ret_val;
-}  
+}
 
     /** Remove a key from a binary search tree
 
         @param[in,out] root of tree
         @param[in] key to remove
-	@param[in] cmp comparison criteria
+        @param[in] cmp comparison criteria
         @return a valid pointer to the removed node if `key` was found
         in the tree, `Node::NullPtr` otherwise
 
@@ -1724,11 +1722,11 @@ Node * join_exclusive(Node *& ts, Node *& tg) noexcept
         @ingroup Arboles
      */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline 
+            class Compare = Aleph::less<typename Node::key_type>> inline
 Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
-		       Compare cmp = Compare()) noexcept
+                       Compare cmp = Compare()) noexcept
 {
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     return Node::NullPtr;
 
   if (cmp(key, KEY(root)))
@@ -1764,29 +1762,30 @@ Node * insert_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
 {
   Node * l = Node::NullPtr, * r = Node::NullPtr;
 
-  if (not split_key_rec(root, KEY(p), l, r, cmp)) 
-    return Node::NullPtr; 
+  if (not split_key_rec(root, KEY(p), l, r, cmp))
+    return Node::NullPtr;
 
   LLINK(p) = l;
   RLINK(p) = r;
   root = p;
 
-  return root; 
+  return root;
 }
 
     /** Insert node `p` as root of a binary search tree. The key of `p`
-	can be duplicated.
+        can be duplicated.
 
         @param[in,out] root of tree
         @param[in] p node to insert as root
-	@param[in] cmp comparison criteria
+        @param[in] cmp comparison criteria
         @return the pointer `p` which has became the root of tree
         @see insert_root_rec()
         @ingroup Arboles
      */
   template <class Node,
-	    class Compare = Aleph::less<typename Node::key_type>> inline
-Node * insert_dup_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
+            class Compare = Aleph::less<typename Node::key_type>> inline
+Node * insert_dup_root(Node *& root, Node * p, Compare cmp = Compare())
+    noexcept
 {
   split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
   return root = p;
@@ -1806,12 +1805,12 @@ Node * insert_dup_root(Node *& root, Node * p, Compare cmp = Compare()) noexcept
     @see join()
     @ingroup Arboles
 */
-    template <class Node, 
+    template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * join_preorder(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
       noexcept
 {
-  if (t2 == Node::NullPtr) 
+  if (t2 == Node::NullPtr)
     return t1;
 
   Node * l = LLINK(t2);
@@ -1835,7 +1834,7 @@ Node * join_preorder(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
         @param[in] t1 root of first tree
         @param[in] t2 root of second tree
         @param[out] dup tree where the duplicated keys of t2 are put
-	@param[in] cmp comparison criteria
+        @param[in] cmp comparison criteria
         @return pointer to the root of resulting join
         @see join_preorder()
         @ingroup Arboles
@@ -1844,10 +1843,10 @@ Node * join_preorder(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare())
 	      class Compare = Aleph::less<typename Node::key_type>> inline
 Node * join(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare()) noexcept
 {
-  if (t1 == Node::NullPtr) 
+  if (t1 == Node::NullPtr)
     return t2;
 
-  if (t2 == Node::NullPtr) 
+  if (t2 == Node::NullPtr)
     return t1;
 
   Node * l = LLINK(t1);
@@ -1855,7 +1854,7 @@ Node * join(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare()) noexcept
 
   t1->reset();
 
-  while (t1 != Node::NullPtr and insert_root(t2, t1, cmp) == Node::NullPtr) 
+  while (t1 != Node::NullPtr and insert_root(t2, t1, cmp) == Node::NullPtr)
     {
       Node * p = remove_from_bst(t1, KEY(t1), cmp);
       l = LLINK(t1);
@@ -1877,7 +1876,7 @@ Node * join(Node * t1, Node * t2, Node *& dup, Compare cmp = Compare()) noexcept
     @param[in] p root to rotate
     @ingroup Arboles
 */
-    template <class Node> inline 
+    template <class Node> inline
 Node * rotate_to_right(Node * p) noexcept
 {
   assert(p != Node::NullPtr);
@@ -1886,15 +1885,15 @@ Node * rotate_to_right(Node * p) noexcept
   LLINK(p) = RLINK(q);
   RLINK(q) = p;
 
-  return q;           
-} 
+  return q;
+}
 
 /** Rotate to the right the tree with root `p` and update its parent
 
     @param[in] p root to rotate
     @ingroup Arboles
 */
-    template <class Node> inline 
+    template <class Node> inline
 Node * rotate_to_right(Node * p, Node * pp) noexcept
 {
   assert(p != Node::NullPtr);
@@ -1910,14 +1909,14 @@ Node * rotate_to_right(Node * p, Node * pp) noexcept
   else
     RLINK(pp) = q;
 
-  return q;           
-} 
+  return q;
+}
 
 /** Rotate to the left the tree with root `p`
 
     @param[in] p root to rotate
     @ingroup Arboles
-*/    
+*/
     template <class Node> inline
 Node* rotate_to_left(Node * p) noexcept
 {
@@ -1927,8 +1926,8 @@ Node* rotate_to_left(Node * p) noexcept
   RLINK(p) = LLINK(q);
   LLINK(q) = p;
 
-  return q;                  
-} 
+  return q;
+}
 
 /** Rotate to the left the tree with root `p` and update its parent
 
@@ -1950,10 +1949,10 @@ Node* rotate_to_left(Node * p, Node * pp) noexcept
   if (LLINK(pp) == p)
     LLINK(pp) = q;
   else
-    RLINK(pp) = q;        
-      
-  return q;                  
-} 
+    RLINK(pp) = q;
+
+  return q;
+}
 
    /** Split a binary search tree according to a key.
 
@@ -1970,12 +1969,12 @@ Node* rotate_to_left(Node * p, Node * pp) noexcept
        @ingroup Arboles
     */
     template <class Node, class Key,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
-void split_key(Node *& root, const Key & key, Node *& l, Node *& r, 
-	       Compare cmp = Compare()) noexcept
+              class Compare = Aleph::less<typename Node::key_type>> inline
+void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
+               Compare cmp = Compare()) noexcept
 {
   assert(l == Node::NullPtr and r == Node::NullPtr);
-  if (root == Node::NullPtr) 
+  if (root == Node::NullPtr)
     {
       l = r = Node::NullPtr;
       return;
@@ -1999,12 +1998,12 @@ void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
     }
 
   Node * current = root;
-  while (current != Node::NullPtr) 
+  while (current != Node::NullPtr)
     {
       if (cmp (key, KEY(current)))
         { /* current must be in right side */
           if (not current_is_right)
-            { 
+            {
               current_is_right = not current_is_right;
               *pending_child   = *current_parent; /* change of side */
               pending_child    = current_parent;
@@ -2014,7 +2013,7 @@ void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
       else
         { /* current must be in left side */
           if (current_is_right)
-            { 
+            {
               current_is_right = not current_is_right;
               *pending_child   = *current_parent; /* change of side */
               pending_child    = current_parent;
@@ -2039,40 +2038,40 @@ void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
     template <class Node> inline
 void swap_node_with_successor(Node *  p,  // Node for swapping
                               Node *& pp, // parent of p
-                              Node *  q,  // Successor inorder of p 
+                              Node *  q,  // Successor inorder of p
                               Node *& pq) // parent of q
       noexcept
 {
-  assert(p != Node::NullPtr and q != Node::NullPtr and 
-    pp != Node::NullPtr and pq != Node::NullPtr);
-  assert(LLINK(pp) == p or RLINK(pp) == p); 
-  assert(LLINK(pq) == q or RLINK(pq) == q); 
-  assert(LLINK(q) == Node::NullPtr);        
-     
-  /* Set of pp to its new son q */ 
+  assert(p != Node::NullPtr and q != Node::NullPtr and
+         pp != Node::NullPtr and pq != Node::NullPtr);
+  assert(LLINK(pp) == p or RLINK(pp) == p);
+  assert(LLINK(pq) == q or RLINK(pq) == q)
+  assert(LLINK(q) == Node::NullPtr);
+
+  /* Set of pp to its new son q */
   if (LLINK(pp) == p)
     LLINK(pp) = q;
   else
     RLINK(pp) = q;
-     
+
   LLINK(q) = LLINK(p);
-  LLINK(p) = Node::NullPtr; 
+  LLINK(p) = Node::NullPtr;
 
   /* Checks if successor is right child of p. In this case, p will
      become q's son. This situation happens when p's son does not have
-     a left branch */   
-  if (RLINK(p) == q) 
+     a left branch */
+  if (RLINK(p) == q)
     {
       RLINK(p) = RLINK(q);
       RLINK(q) = p;
-      pq             = pp;
-      pp             = q;
+      pq       = pp;
+      pp       = q;
       return;
     }
 
   /* In this case, successor is the leftmost node descending from
-     right son of p */ 
-  Node *qr        = RLINK(q); 
+     right son of p */
+  Node *qr  = RLINK(q);
   RLINK(q)  = RLINK(p);
   LLINK(pq) = p;
   RLINK(p)  = qr;
@@ -2092,29 +2091,29 @@ void swap_node_with_successor(Node *  p,  // Node for swapping
     template <class Node> inline
 void swap_node_with_predecessor(Node *  p,  // Node for swapping
                                 Node *& pp, // p's parent
-                                Node *  q,  // Predecessor inorder of p 
+                                Node *  q,  // Predecessor inorder of p
                                 Node *& pq) // q's parent
       noexcept
 {
-  assert((p != Node::NullPtr) and (q != Node::NullPtr) and 
-    (pp != Node::NullPtr) and (pq != Node::NullPtr));
-  assert((RLINK(pp) == p) or (LLINK(pp) == p)); 
-  assert((RLINK(pq) == q) or (LLINK(pq) == q)); 
+  assert((p != Node::NullPtr) and (q != Node::NullPtr) and
+         (pp != Node::NullPtr) and (pq != Node::NullPtr));
+  assert((RLINK(pp) == p) or (LLINK(pp) == p));
+  assert((RLINK(pq) == q) or (LLINK(pq) == q));
   assert(RLINK(q) == Node::NullPtr);
-     
-  /* Set of pp to its new son q */ 
+
+  /* Set of pp to its new son q */
   if (RLINK(pp) == p)
     RLINK(pp) = q;
   else
     LLINK(pp) = q;
-     
+
   RLINK(q) = RLINK(p);
-  RLINK(p) = Node::NullPtr; 
+  RLINK(p) = Node::NullPtr;
 
   /* Checks if predecessor is left child of p. In this case, p will
      become q's son. This situation happens when p's son does not have
-     a right branch */   
-  if (LLINK(p) == q) 
+     a right branch */
+  if (LLINK(p) == q)
     {
       LLINK(p) = LLINK(q);
       LLINK(q) = p;
@@ -2124,8 +2123,8 @@ void swap_node_with_predecessor(Node *  p,  // Node for swapping
     }
 
   /* In this case, predecessor is the rightmost node descending from
-     right son of p */ 
-  Node *ql        = LLINK(q); 
+     right son of p */
+  Node *ql  = LLINK(q);
   LLINK(q)  = LLINK(p);
   RLINK(pq) = p;
   LLINK(p)  = ql;
@@ -2146,7 +2145,7 @@ void swap_node_with_predecessor(Node *  p,  // Node for swapping
     @ingroup Arboles
 */
     template <class Node, class Key,
-	      class Compare = Aleph::less<typename Node::key_type>> inline
+              class Compare = Aleph::less<typename Node::key_type>> inline
 Node * insert_root_rec(Node * root, Node * p, Compare cmp = Compare()) noexcept
 {
   if (root == Node::NullPtr)
@@ -2184,7 +2183,7 @@ Node * insert_root_rec(Node * root, Node * p, Compare cmp = Compare()) noexcept
 
     @ingroup Arboles
 */
-    template <class Node, class Key, 
+    template <class Node, class Key,
               class Compare = Aleph::less<typename Node::key_type> > inline
 Node * search_or_insert_root_rec(Node * root, Node * p, Compare cmp = Compare())
       noexcept
@@ -2193,7 +2192,7 @@ Node * search_or_insert_root_rec(Node * root, Node * p, Compare cmp = Compare())
     return p; // insertion in empty tree
 
   if (cmp(KEY(p), KEY(root)))
-    { // insert in left subtree 
+    { // insert in left subtree
       Node * left_branch = search_or_insert_root_rec(LLINK(root), p, cmp);
       if (left_branch == p)
         {
@@ -2202,10 +2201,10 @@ Node * search_or_insert_root_rec(Node * root, Node * p, Compare cmp = Compare())
           return p;
         }
 
-        return left_branch; 
+        return left_branch;
     }
   else if (cmp(KEY(root), KEY(p)))
-    { // insert in right subtree 
+    { // insert in right subtree
       Node * right_branch = search_or_insert_root_rec(RLINK(root), p, cmp);
       if (right_branch == p)
         {
@@ -2223,10 +2222,10 @@ Node * search_or_insert_root_rec(Node * root, Node * p, Compare cmp = Compare())
 
   /** Preorder iterator on the nodes of a binary tree.
 
-    This class export a full iterator for the nodes of a binary tree
-    where the visit order corresponds to a preorder sense.
+      This class export a full iterator for the nodes of a binary tree
+      where the visit order corresponds to a preorder sense.
 
-    @ingroup Arboles
+      @ingroup Arboles
 */
 template <class Node>
 class BinNodePrefixIterator
@@ -2246,11 +2245,11 @@ public:
   }
 
   BinNodePrefixIterator() { /* empty */ }
-  
+
   /// Initialize an iterator on the first node in preorder for the tree
   /// with root `__root`
-  BinNodePrefixIterator(Node * __root) 
-    : root(__root), curr(root), s(Node::MaxHeight) 
+  BinNodePrefixIterator(Node * __root)
+    : root(__root), curr(root), s(Node::MaxHeight)
   {
     // empty
   }
@@ -2267,7 +2266,7 @@ public:
   }
 
   /// Reset the iterator to the first node in preorder sense
-  void reset_first() 
+  void reset_first()
   {
     curr = root;
     s.empty();
@@ -2294,7 +2293,7 @@ public:
   {
     curr = last(root);
     s.empty();
-  } 
+  }
 
   /// Put the iterator in end state
   void end()
@@ -2347,16 +2346,16 @@ public:
     auto l = LLINK(curr), r = RLINK(curr);
     if (l != Node::NullPtr)
       {
-	curr = l;
-	if (r != Node::NullPtr)
-	  s.push(r);
-	return;
+        curr = l;
+        if (r != Node::NullPtr)
+          s.push(r);
+        return;
       }
-      
+
     if (r != Node::NullPtr)
       {
-	curr = r;
-	return;
+        curr = r;
+        return;
       }
 
     if (s.is_empty())
@@ -2388,7 +2387,7 @@ public:
 
       @ingroup Arboles
   */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool prefix_traverse(Node * root, Op & op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next())
@@ -2398,10 +2397,10 @@ bool prefix_traverse(Node * root, Op & op)
 }
 
 /** \overload prefix_traverse()
-    
+
     @ingroup Arboles
  */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool prefix_traverse(Node * root, Op && op = Op())
 {
   return prefix_traverse(root, op);
@@ -2425,14 +2424,14 @@ bool prefix_traverse(Node * root, Op && op = Op())
       \return `true` if all the nodes were visites; `false` otherwise
       \throw anything that can throw `operation`
    */
-template <class Node, class Op> 
+template <class Node, class Op>
 void prefix_for_each(Node * root, Op & op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next())
     op(it.get_curr());
 }
 
-template <class Node, class Op> 
+template <class Node, class Op>
 void prefix_for_each(Node * root, Op && op = Op())
 {
   prefix_for_each(root, op);
@@ -2519,8 +2518,8 @@ public:
     curr = advance_to_max(root);
     pos = -2;
   }
-  
-  void end() 
+
+  void end()
   {
     s.empty();
     curr = Node::NullPtr;
@@ -2557,7 +2556,7 @@ public:
   }
 
   /// Return the current node. Throw `overflow_error` if there is no current
-  Node * get_curr() const 
+  Node * get_curr() const
   {
     if (not has_curr())
       throw std::overflow_error("Iterator overflow");
@@ -2571,7 +2570,7 @@ public:
   size_t get_pos() const { return pos; }
 
   /// Move the iterator one position forward. Throw `overflow_error` if
-  /// there is no current 
+  /// there is no current
   void next()
   {
     if (not has_curr())
@@ -2581,8 +2580,8 @@ public:
     curr = RLINK(curr);
     if (curr != Node::NullPtr)
       {
-	curr = advance_to_min(curr);
-	return;
+        curr = advance_to_min(curr);
+        return;
       }
 
     if (s.is_empty())
@@ -2614,7 +2613,7 @@ public:
 
       @ingroup Arboles
   */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool infix_traverse(Node * root, Op & op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next())
@@ -2624,30 +2623,30 @@ bool infix_traverse(Node * root, Op & op)
 }
 
 /** \overload infix_traverse()
-    
+
     @ingroup Arboles
  */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool infix_traverse(Node * root, Op && op = Op())
 {
   return infix_traverse(root, op);
 }
 
 /** \overload infix_traverse()
-    
+
     @ingroup Arboles
  */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool traverse(Node * root, Op & op)
 {
   return infix_traverse(root, op);
 }
 
 /** \overload infix_traverse()
-    
+
     @ingroup Arboles
  */
-template <class Node, class Op> 
+template <class Node, class Op>
 bool traverse(Node * root, Op && op = Op())
 {
   return traverse(root, op);
@@ -2671,14 +2670,14 @@ bool traverse(Node * root, Op && op = Op())
       \return `true` if all the nodes were visites; `false` otherwise
       \throw anything that can throw `operation`
    */
-template <class Node, class Op> 
+template <class Node, class Op>
 void infix_for_each(Node * root, Op & op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next())
     op(it.get_curr());
 }
 
-template <class Node, class Op> 
+template <class Node, class Op>
 void infix_for_each(Node * root, Op && op = Op())
 {
   prefix_for_each(root, op);
@@ -2687,4 +2686,4 @@ void infix_for_each(Node * root, Op && op = Op())
 
 } // end Aleph
 
-# endif // TPL_BINNODEUTILS_H 
+# endif // TPL_BINNODEUTILS_H
