@@ -1,4 +1,4 @@
-/* 
+/*
   This file is part of Aleph-w library
 
   Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
@@ -39,7 +39,7 @@
 
 using namespace Aleph;
 
-namespace Aleph { 
+namespace Aleph {
 
   /** Conjunto dinámico de elementos de tipo genérico T implementado
       mediante una clase de árboles binarios.
@@ -48,11 +48,11 @@ namespace Aleph {
       instrumentada con la clase de árbol binario de búsqueda Tree<Key> y
       ordenado mediante el criterio Compare()().
 
-      @ingroup Arboles 
+      @ingroup Arboles
    */
     template <
-      typename Key, 
-      template <typename, class> class Tree = Avl_Tree, 
+      typename Key,
+      template <typename, class> class Tree = Avl_Tree,
       class Compare = Aleph::less<Key>
       >
 class DynSetTree
@@ -64,7 +64,7 @@ class DynSetTree
 {
  public:
       /// Tipo de nodo binario empleado por el árbol binario de búsqueda
-      /// interno. 
+      /// interno.
   using Node = typename Tree<Key, Compare>::Node;
 
   using Tree_Type = Tree<Key, Compare>;
@@ -73,8 +73,8 @@ private:
 
   static const size_t dim = 13;
 
-  mutable Tree<Key, Compare> tree; 
-  size_t num_nodes; 
+  mutable Tree<Key, Compare> tree;
+  size_t num_nodes;
 
 public:
 
@@ -94,34 +94,34 @@ public:
     tree.swap(dset.tree);
     std::swap(num_nodes, dset.num_nodes);
   }
-  
+
       /// Instancia un conjunto dinámico
-  DynSetTree(Compare cmp = Compare()) 
+  DynSetTree(Compare cmp = Compare())
     : tree(cmp), num_nodes(0)
-  { 
-    /* empty */ 
+  {
+    /* empty */
   }
 
       /// Instancia un conjunto dinámico copia de srcTree.
-  DynSetTree(const DynSetTree & srcTree) 
+  DynSetTree(const DynSetTree & srcTree)
     : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
-  { 
-    Node * srcRoot = srcTree.tree.getRoot(); 
-    try 
+  {
+    Node * srcRoot = srcTree.tree.getRoot();
+    try
       {
-	tree.getRoot() = copyRec(srcRoot);
+        tree.getRoot() = copyRec(srcRoot);
       }
     catch (...)
       {
-	num_nodes = 0;
-	throw;
+        num_nodes = 0;
+        throw;
       }
   }
 
   Special_Ctors(DynSetTree, Key);
 
   DynSetTree(DynSetTree && srcTree) : num_nodes(0)
-  { 
+  {
     swap(srcTree);
   }
 
@@ -161,7 +161,7 @@ public:
    }
 
       /// Destructor; todos los elementos son liberados.
-  virtual ~DynSetTree() 
+  virtual ~DynSetTree()
   {
     empty();
   }
@@ -181,7 +181,7 @@ private:
 public:
 
       /** Inserta una clave en el conjunto dinámico.
-	  
+
 	  Inserta la clave key en el conjunto dinámico.
 
 	  @param[in] key clave a insertar.
@@ -197,7 +197,7 @@ public:
   {
     return __insert(new Node(std::forward<Key>(key)));
   }
-  
+
   Key * append(const Key & key)
   {
     return insert(key);
@@ -239,7 +239,7 @@ public:
 	lo inserta en caso de no encontrarse.
 
 	<code>search_or_insert(key)</code> busca en el árbol binario un
-	nodo cuya clave 
+	nodo cuya clave
 	sea <code>KEY(p)</code>. Si la clave se encuentra, entonces se
 	retorna un puntero a ella; de lo contrario se
 	inserta <code>key</code> en el árbol binario de búsqueda this. 
@@ -336,7 +336,7 @@ public:
 
       This method is intended to be used with compound keys, by example
       pairs, whose searching is done by a particular member of compound
-      data. 
+      data.
 
       @param[in] key key to be removed
       @return a full copy of stored key
@@ -419,27 +419,27 @@ public:
   }
 
     /** Retorna la posición infija (ordenada) de la clave key o lo que
-	seria su posición de pertenecer al árbol.
+        seria su posición de pertenecer al árbol.
 
-	find_position(key) busca en el árbol extendido la clave key (lo cual
-	toma tiempo \f$O(\lg n)\f$) y retorna la posición infija del nodo
-	que contiene la clave.
+        find_position(key) busca en el árbol extendido la clave key
+        (lo cual toma tiempo \f$O(\lg n)\f$) y retorna la posición
+        infija del nodo que contiene la clave.
 
-	@param[in] key clave a buscar y a determinar posición infija.
-	@return posición infija de la clave key dentro del conjunto
-	ordenado si ésta se encuentra o, de lo contrario, la posición
-	donde se encontraría de pertenecer al árbol.  
-	
-	@warning Sólo funciona si el árbol maneja rangos.
-   */
+        @param[in] key clave a buscar y a determinar posición infija.
+        @return posición infija de la clave key dentro del conjunto
+        ordenado si ésta se encuentra o, de lo contrario, la posición
+        donde se encontraría de pertenecer al árbol.
+
+        @warning Sólo funciona si el árbol maneja rangos.
+    */
   std::pair<int, Key*> find_position(const Key & key) const
-  { 
+  {
     if (num_nodes == 0)
       return std::pair<int, Key*> (0, nullptr);
 
-    std::pair<int, Node*> p = tree.find_position(key); 
+    std::pair<int, Node*> p = tree.find_position(key);
 
-    return std::pair<int, Key*> (p.first, &p.second->get_key()); 
+    return std::pair<int, Key*> (p.first, &p.second->get_key());
   }
 
       /** Busca un elemento en el conjunto.
@@ -468,7 +468,7 @@ public:
   }
 
       /// Retorna la menor clave contenida en el conjunto según el criterio
-      /// de comparación dado. 
+      /// de comparación dado.
   const Key & min() const
   {
     if (num_nodes == 0)
@@ -481,7 +481,7 @@ public:
   const Key & get_first() const { return min(); }
 
       /// Retorna la mayor clave contenida en el conjunto según el criterio
-      /// de comparación dado. 
+      /// de comparación dado.
   const Key & max() const
   {
     if (num_nodes == 0)
@@ -504,9 +504,9 @@ public:
 
       /// Calcula y retorna la longitud del camino interno del árbol
       /// binario de búsqueda.
-  size_t internal_path_length() const 
+  size_t internal_path_length() const
   {
-    return Aleph::internal_path_length(tree.getRoot()); 
+    return Aleph::internal_path_length(tree.getRoot());
   }
 
   Node * get_root_node() const { return tree.getRoot(); }
@@ -530,7 +530,7 @@ public:
   void for_each_in_preorder(void (*visitFct)(Node*, int, int))
   {
     Node * root = static_cast<Node*>(tree.getRoot());
-    preOrderRec(root, visitFct); 
+    preOrderRec(root, visitFct);
   }
 
       /** Retorna la posición infija (ordenada) de la clave key.
@@ -542,13 +542,13 @@ public:
 	  @param[in] key clave a buscar y a determinar posición infija.
 	  @return posición infija de la clave key dentro del conjunto
 	  ordenado si la clave se encuentra; -1 de lo contrario
-	
+
 	  @warning Sólo funciona si el árbol maneja rangos.
       */
   long position(const Key & key) const
   {
     std::pair<long, Node*> p = tree.position(key);
-    return p.first; 
+    return p.first;
   }
 
       /** Retorna el i-ésimo nodo en posición infija
@@ -556,7 +556,7 @@ public:
 	  @param[in] i posición deseada
 	  @return referencia a la i-esima clave insertada en el conjunto
       */
-  Key & select(const size_t & i) 
+  Key & select(const size_t & i)
   {
     return tree.select(i)->get_key();
   }
@@ -586,9 +586,9 @@ public:
     return select(i);
   }
 
-  bool verify() 
+  bool verify()
   {
-    return tree.verify() and check_bst(tree.getRoot()); 
+    return tree.verify() and check_bst(tree.getRoot());
   }
 
 private:
@@ -602,11 +602,11 @@ struct Node_Op
 
   Node_Op(Key_Op && __key_op) : key_op(__key_op)
   {
-    /* empty */ 
+    /* empty */
   }
 
-  void operator () (Node * root) 
-  { 
+  void operator () (Node * root)
+  {
     assert(root != nullptr);
     key_op(KEY(root));
   }
@@ -615,9 +615,9 @@ struct Node_Op
 public:
 
     /** Efectúa un recorrido prefijo sobre todas las claves del conjunto e
-	invoca la operacion Op.
+        invoca la operacion Op.
 
-	<code>Op(p)</code> tiene la siguiente estructura: 
+	<code>Op(p)</code> tiene la siguiente estructura:
 	\code
 	     struct Key_Op
 	     {
