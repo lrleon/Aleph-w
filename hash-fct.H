@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
@@ -54,7 +58,7 @@ namespace Aleph
       remainder of division. I will give an example of this algorithm only
       because books commonly suggest it in their rush to get past the
       topic of hash functions on their way to collision resolution
-      methods. This algorithm is very bad"  
+      methods. This algorithm is very bad"
 
       @author Julienne Walker
       @ingroup Hash
@@ -63,10 +67,10 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
       h += p[i];
-  
+
     return h;
   }
 
@@ -75,7 +79,7 @@ namespace Aleph
       "The XOR hash is another algorithm commonly suggested by
       textbooks. Instead of adding together the bytes of an object as the
       additive hash does, the XOR hash repeatedly folds the bytes together
-      to produce a seemingly random hash value" 
+      to produce a seemingly random hash value"
 
       @author Julienne Walker
       @ingroup Hash
@@ -84,10 +88,10 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     for (size_t i = 0; i < len; i++)
       h ^= p[i];
-  
+
     return h;
   }
 
@@ -743,7 +747,7 @@ namespace Aleph
     return jen_hash((void*) key.c_str(), key.size(), initval);
   }
 
-  inline size_t SuperFastHash(const std::string & key) noexcept 
+  inline size_t SuperFastHash(const std::string & key) noexcept
   {
     return SuperFastHash((void*) key.c_str(), key.size());
   }
@@ -757,8 +761,7 @@ namespace Aleph
   template <typename Key> inline
   size_t snd_hash_fct(const Key & key) noexcept
   {
-    //  return elf_hash(key);
-    return jen_hash(key, 52679987);
+    return murmur3hash(key, 52679987);
   }
 
   template <typename Key> inline
@@ -767,22 +770,22 @@ namespace Aleph
     return murmur3hash(key, seed);
   }
 
-  template <typename Key> inline
-  size_t map_dft_hash_fct(const Key & key)
+  template<typename Key, typename Data, typename Fct>
+  inline size_t map_hash_fct(Fct fct, const std::pair<Key, Data> & p) noexcept
   {
-    return dft_hash_fct<typename Key::first_type>(key.first);
+    return fct(p.first);
   }
 
-  template <typename Key> inline
-  size_t map_snd_hash_fct(const Key & key)
+  template <typename K1, typename K2> inline
+  size_t pair_dft_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
-    return snd_hash_fct<typename Key::first_type>(key.first);
+    return dft_hash_fct(p.first) + dft_hash_fct(p.second);
   }
 
-  template <typename Key> inline
-  size_t map_dft_hash_fct(const Key & key, unsigned long seed)
+  template <typename K1, typename K2> inline
+  size_t pair_snd_hash_fct(const std::pair<K1, K2> & p) noexcept
   {
-    return dft_hash_fct<typename Key::first_type>(key.first, seed);
+    return dft_hash_fct(p.first) + snd_hash_fct(p.second);
   }
 
 } // end namespace Aleph

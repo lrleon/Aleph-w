@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TARJAN_H
 # define TARJAN_H
@@ -57,7 +61,7 @@ class Tarjan_Connected_Components
   mutable size_t n = 0; // número de nodos del grafo
 
       // lista de listas; cada lista almacena los nodos de los bloques
-  DynList<DynList<typename GT::Node*>> * list_list_ptr; 
+  DynList<DynList<typename GT::Node*>> * list_list_ptr = nullptr; 
 
   DynList <GT> * block_list_ptr = nullptr; // lista de bloques fuertemente conexos
 
@@ -111,9 +115,9 @@ private:
     init_node_and_push_in_stack(v);
 
         // recorrer en profundidad todos los nodos conectados a v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
     {
-      auto w = g_ptr->get_tgt_node(it.get_curr());
+      auto w = g_ptr->get_tgt_node(it.get_curr_ne());
       if (not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           scc_by_blocks(w);
@@ -148,9 +152,9 @@ private:
     init_node_and_push_in_stack(v);
 
         // recorrer en profundidad todos los nodos conectados a v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
     { 
-      auto w = g_ptr->get_tgt_node(it.get_curr());
+      auto w = g_ptr->get_tgt_node(it.get_curr_ne());
       if (not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           scc_by_lists(w);
@@ -179,9 +183,9 @@ private:
     init_node_and_push_in_stack(v);
 
         // recorrer en profundidad todos los nodos conectados a v
-    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
     { 
-      auto w = g_ptr->get_tgt_node(it.get_curr());
+      auto w = g_ptr->get_tgt_node(it.get_curr_ne());
       if (not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           scc_by_len(w);
@@ -222,9 +226,9 @@ private:
     init_node_and_push_in_stack(v);
 
       // recorrer en profundidad todos los nodos conectados a v
-    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
     {
-      auto w = g_ptr->get_tgt_node(it.get_curr());
+      auto w = g_ptr->get_tgt_node(it.get_curr_ne());
       if (not IS_NODE_VISITED(w, Aleph::Depth_First))
         {
           if (has_cycle(w))
@@ -269,8 +273,8 @@ private:
     // que el camino sea sobre el grafo original. Los nodos del grafo
     // original se recuperan del mapeo table
     path_ptr->empty();
-    for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next())
-      path_ptr->append_directed(table.find(i.get_current_node()));
+    for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next_ne())
+      path_ptr->append_directed(table.find(i.get_current_node_ne()));
     
     path_ptr->append_directed(path_ptr->get_first_node());
   }
@@ -282,9 +286,9 @@ private:
     init_node_and_push_in_stack(v);
 
     // recorrer en profundidad todos los nodos conectados a v
-    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
       {
-	auto w = g_ptr->get_tgt_node(it.get_curr());
+	auto w = g_ptr->get_tgt_node(it.get_curr_ne());
 	if (not IS_NODE_VISITED(w, Aleph::Depth_First))
 	  {
 	    if (build_cycle(w))
@@ -320,15 +324,15 @@ private:
 	  return false; // si blk sólo tiene un nodo no hay ciclo
 
     	    // terminanos de construir el bloque con los arcos
-	for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next())
+	for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
 	  {
-	    auto bsrc = j.get_curr(); 
+	    auto bsrc = j.get_curr_ne(); 
 	    auto gsrc = table.find(bsrc); 
 
     	        // recorrer los arcos de gsrc
-	    for (Itor <GT, SA> k(gsrc, sa); k.has_curr(); k.next())
+	    for (Itor <GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
 	      {
-		auto ga   = k.get_curr();
+		auto ga   = k.get_curr_ne();
 		auto gtgt = g_ptr->get_tgt_node(ga);
 		auto ptr  = table.search(gtgt);
 		if (ptr == nullptr) // ¿arco del bloque?
@@ -354,9 +358,9 @@ private:
     init_node_and_push_in_stack(v);
 
         // recorrer en profundidad todos los nodos conectados a v
-    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next())
+    for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
       {
-	auto w = g_ptr->get_tgt_node(it.get_curr());
+	auto w = g_ptr->get_tgt_node(it.get_curr_ne());
 	if (not IS_NODE_VISITED(w, Aleph::Depth_First))
 	  {
 	    if (not is_connected(w))
@@ -415,9 +419,9 @@ public:
 
     block_list_ptr = &blk_list;
 
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
       {
-	auto v = it.get_curr();
+	auto v = it.get_curr_ne();
 	if (not IS_NODE_VISITED(v, Aleph::Depth_First)) 
 	  scc_by_blocks(v); 
       }
@@ -425,18 +429,18 @@ public:
     assert(stack.is_empty());
 
         // recorrer cada uno de subgrafos parciales y añadir sus arcos
-    for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next())
+    for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next_ne())
       {     // recorrer todos los nodos del bloque
-	GT & blk = i.get_curr();
-	for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next())
+	GT & blk = i.get_curr_ne();
+	for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
 	  {
-	    auto bsrc = j.get_curr();
+	    auto bsrc = j.get_curr_ne();
 	    auto gsrc = mapped_node<GT>(bsrc);
 
               // recorrer arcos de gsrc
-	    for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next())
+	    for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
 	      {
-		auto ga   = k.get_curr();
+		auto ga   = k.get_curr_ne();
 		auto gtgt = g_ptr->get_tgt_node(ga);
 		if (NODE_COUNTER(gsrc) != NODE_COUNTER(gtgt)) 
 		  {   // arco inter-bloque ==> añádalo a arc_list
@@ -492,9 +496,9 @@ public:
   {
     init_tarjan(g);
     list_list_ptr = &blks;
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
       {
-	auto v = it.get_curr();
+	auto v = it.get_curr_ne();
 	if (not IS_NODE_VISITED(v, Aleph::Depth_First))
 	  scc_by_lists(v); 
       }
@@ -533,9 +537,9 @@ public:
   {
     init_tarjan(g);
     list_len_ptr = &blks;
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
       {
-	auto v = it.get_curr();
+	auto v = it.get_curr_ne();
 	if (not IS_NODE_VISITED(v, Aleph::Depth_First))
 	  scc_by_len(v); 
       }
@@ -570,16 +574,16 @@ public:
     DynList<typename GT::Arc*> alist;
     connected_components(g, blist, alist);
 
-    for (typename DynList<GT>::Iterator it(blist); it.has_curr(); it.next())
+    for (typename DynList<GT>::Iterator it(blist); it.has_curr(); it.next_ne())
       {
-	GT & curr = it.get_curr();
+	GT & curr = it.get_curr_ne();
 	GT & block = blk_list.append(GT());
 	curr.swap(block);
       }
 
     for (typename DynList<typename GT::Arc*>::Iterator it(alist); 
-	 it.has_curr(); it.next())
-      arc_list.append(it.get_curr());
+	 it.has_curr(); it.next_ne())
+      arc_list.append(it.get_curr_ne());
   }
 
       /// \overload connected_components
@@ -590,11 +594,11 @@ public:
     connected_components(g, b);
       
     for (typename DynList<DynList<typename GT::Node*>>::Iterator it(b);
-         it.has_curr(); it.next())
+         it.has_curr(); it.next_ne())
       {
 	auto & tgt_list = blks.append(DynDlist<typename GT::Node*>());
 
-	auto & blk = it.get_curr();
+	auto & blk = it.get_curr_ne();
 	while (not blk.is_empty())
 	  tgt_list.append(blk.remove_first());
       }   
@@ -604,9 +608,9 @@ public:
   bool has_cycle(const GT & g)
   {
     init_tarjan(g);
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
     {
-      auto v = it.get_curr();
+      auto v = it.get_curr_ne();
       if (not IS_NODE_VISITED(v, Aleph::Depth_First)) 
         if (has_cycle(v)) 
           return true;
@@ -627,9 +631,9 @@ public:
     path_ptr = &path;
     path_ptr->set_graph(g);
 
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
       {
-	auto v = it.get_curr();
+	auto v = it.get_curr_ne();
 	if (not IS_NODE_VISITED(v, Aleph::Depth_First)) // ¿p visitado?
 	  if (build_cycle(v)) 
 	    return true;
@@ -650,9 +654,9 @@ public:
   bool test_connectivity(const GT & g)
   {
     init_tarjan(g);
-    for (typename GT::Node_Iterator it(g); df_count < n; it.next())
+    for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
       {
-	auto v = it.get_curr();
+	auto v = it.get_curr_ne();
 	if (not IS_NODE_VISITED(v, Aleph::Depth_First)) 
 	  if (not is_connected(v))
 	    return false;

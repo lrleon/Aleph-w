@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <random_graph.H>
@@ -72,12 +76,12 @@ Grafo build_graph()
 
   int i = 0;
 
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
-    it.get_current()->get_info() = i++;
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
+    it.get_curr()->get_info() = i++;
 
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
-      Grafo::Arc * a = it.get_current();
+      Grafo::Arc * a = it.get_curr();
       Grafo::Node * src = g.get_src_node(a);
       Grafo::Node * tgt = g.get_tgt_node(a);
 
@@ -92,14 +96,14 @@ Grafo build_graph()
 void print_graph(Grafo & g)
 {
   cout << "Nodes' content ";
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
-    cout << it.get_current()->get_info() << " ";
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
+    cout << it.get_curr()->get_info() << " ";
 
   cout << " done" << endl << endl
        << "Arcs' content ";
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
-      Grafo::Arc * a = it.get_current();
+      Grafo::Arc * a = it.get_curr();
 
       cout << a->get_info() << " ";
     }

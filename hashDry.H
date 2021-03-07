@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,16 +18,18 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef HASHDRY_H
 # define HASHDRY_H
+
+# include <aleph.H>
+# include <tpl_dynArray.H>
 
 template <class HashTbl, typename Key>
 class OhashCommon
@@ -258,37 +265,43 @@ public:
     long curr_idx          = 0;
     long ordinal           = 0;
 
-    bool check() const
+    bool check() const noexcept
     {
       assert(table_ptr != nullptr);
       return (curr_idx >= 0 and curr_idx < (long) table_ptr->len) and
 	(ordinal >= -1 and ordinal <= (long) table_ptr->size());
     }
 
-    void locate_next_available_entry()
+    void locate_next_available_entry_ne() noexcept
     {
       assert(check());
-
-      if (ordinal >= table_ptr->size())
-	throw std::overflow_error("Iterator next() overflow"); 
-
       if (++ordinal == table_ptr->size())
 	return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
 
-    void locate_prev_available_entry()
+    void locate_prev_available_entry_ne()
     {
       assert(check());
-
-      if (ordinal <= -1)
-	throw std::underflow_error("Iterator next() underflow");
-
       if (--ordinal == -1)
 	return;
 
       while (table_ptr->table[--curr_idx].status != HashTbl::BUSY);
+    }
+
+    void locate_next_available_entry()
+    {
+      if (ordinal >= table_ptr->size())
+	throw std::overflow_error("Iterator next() overflow"); 
+      locate_next_available_entry_ne();
+    }
+
+    void locate_prev_available_entry()
+    {
+      if (ordinal <= -1)
+	throw std::underflow_error("Iterator next() underflow");
+      locate_prev_available_entry_ne();
     }
 
   public:
@@ -296,6 +309,8 @@ public:
     void reset_first() noexcept
     {
       assert(table_ptr != nullptr);
+      curr_idx = 0;
+      ordinal = -1;
       if (table_ptr->is_empty())
 	{
 	  curr_idx = table_ptr->len;
@@ -328,37 +343,41 @@ public:
       assert(check());
     }
 
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
     long get_pos() const noexcept { return ordinal; }
 
+    Key & get_curr_ne() noexcept
+    {
+      assert(table_ptr->table[curr_idx].status == HashTbl::BUSY);
+      return table_ptr->table[curr_idx].key;
+    }
+
+    const Key & get_curr_ne() const noexcept
+    {
+      return const_cast<Iterator*>(this)->get_curr_ne();
+    }
+
     Key & get_curr()
     {
-      assert(check());
-
       if (ordinal == table_ptr->size())
 	throw std::overflow_error("O hash::Iterator next() overflow");
 
       if (ordinal == -1)
 	throw std::underflow_error("O hash::Iterator next() underflow");
 
-      assert(table_ptr->table[curr_idx].status == HashTbl::BUSY);
+      assert(check());
 
-      return table_ptr->table[curr_idx].key;
+      return get_curr_ne();
     }
 
     const Key & get_curr() const
     {
       return const_cast<Iterator*>(this)->get_curr();
     }
-
-    Key & get_current() { return get_curr(); }
-
-    const Key & get_current() const { return get_curr(); }
 
     bool has_curr() const noexcept
     {
@@ -368,16 +387,18 @@ public:
       return ordinal >= 0 and ordinal < table_ptr->size();
     }
 
-    bool has_current() const noexcept { return has_curr(); }
-
     bool is_last() const noexcept { return ordinal == table_ptr->size() - 1; }
 
     void next() { locate_next_available_entry(); }
 
+    void next_ne() noexcept { locate_next_available_entry_ne(); }
+
+    void prev_ne() { locate_prev_available_entry_ne(); }
+
     void prev() { locate_prev_available_entry(); }
 
     Iterator(const HashTbl & table) noexcept
-    : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
+      : table_ptr(&const_cast<HashTbl&>(table)), curr_idx(0), ordinal(-1)
     {
       reset_first();
     }
@@ -475,7 +496,7 @@ public:
     DynArray<size_t> lens;
     for (int i = 0; i < const_me()->capacity(); ++i)
       {
-	Dlink list = const_me()->table[i];
+	Dlink & list = const_me()->table[i];
 	size_t count = 0;
 	for (typename HashTbl::BucketItor it(list); it.has_curr(); 
 	     it.next(), ++count)
@@ -485,7 +506,7 @@ public:
       }
 
     float avg = 0, sum = 0;
-    for (int i = 0; i < lens.size(); ++i)
+    for (size_t i = 0; i < lens.size(); ++i)
       {
 	avg += lens(i)*i;
 	sum += lens(i);
@@ -493,7 +514,7 @@ public:
     avg /= sum;
 
     float var = 0;
-    for (int i = 0; i < lens.size(); ++i)
+    for (size_t i = 0; i < lens.size(); ++i)
       {
 	float s = i - avg;
 	var += lens(i)*s*s;

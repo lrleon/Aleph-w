@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <iostream>
@@ -60,11 +64,11 @@ void find_test()
   int vals[11]; int k = 0;
   c.for_each([&k, &vals] (int i) { vals[k++] = i; });
 
-  c.for_each([&c, vals] (int i) { assert(c.nth(i) == vals[i]); });
+  c.for_each([&c, vals] (int i) { assert(c.nth_ne(i) == vals[i]); });
 
   k = 0;
   a.for_each([&k, &vals] (int i) { vals[k++] = i; });
-  a.for_each([&a, vals] (int i) { assert(a.nth(i) == vals[i]); });
+  a.for_each([&a, vals] (int i) { assert(a.nth_ne(i) == vals[i]); });
 
   assert(c.find_ptr([] (int i) { return i == 5; }));
   assert(a.find_ptr([] (int i) { return i == 5; }));
@@ -152,8 +156,10 @@ void functional_test()
        << endl
        << endl;
   
-  assert(eq({0, 1, 2, 3, 4, 5}, sort(c.filter([] (int i) { return i < 6; }))));
-  assert(eq({0, 1, 2, 3, 4, 5}, sort(a.filter([] (int i) { return i < 6; }))));
+  assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
+	    sort(c.filter([] (int i) { return i < 6; }))));
+  assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
+	    sort(a.filter([] (int i) { return i < 6; }))));
   
   c.pfilter([] (int i) { return i < 6; }).for_each([] (auto p)
     {
@@ -194,18 +200,18 @@ void functional_test()
   assert(eq(l1 ,l2, eq_tup));
 
   auto p = c.partition([] (int i) { return i < 6; });
-  assert(eq(sort(p.first), {0, 1, 2, 3, 4, 5}) and 
-	 eq(sort(p.second), {6, 7, 8, 9}));
+  assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and 
+	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
   p = a.partition([] (int i) { return i < 6; });
-  assert(eq(sort(p.first), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(p.second), {6, 7, 8, 9}));
+  assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
 
   auto t = c.tpartition([] (int i) { return i < 6; });
-  assert(eq(sort(get<0>(t)), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(get<1>(t)), {6, 7, 8, 9}));
+  assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
   t = a.tpartition([] (int i) { return i < 6; });
-  assert(eq(sort(get<0>(t)), {0, 1, 2, 3, 4, 5}) and
-	 eq(sort(get<1>(t)), {6, 7, 8, 9}));
+  assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
+	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
 
   assert(c.length() == 10);
   assert(a.length() == 10);

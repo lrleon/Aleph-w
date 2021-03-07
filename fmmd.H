@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include<tpl_tree.H>
 # include<tpl_binNode.H>
@@ -186,13 +190,13 @@ write_to_stream(BinNode<Key> * root, ofstream & output_stream)
   output_stream<<size<<endl;
   
   Dlist<pre_in<Key> >::Iterator a(l);
-  for(a.reset_first();a.has_current();a.next())
+  for(a.reset_first(); a.has_curr(); a.next_ne())
     output_stream<<
-      stringficate(reinterpret_cast<void *>(&(a.get_current()->get_data().data)),size,buffer)
+      stringficate(reinterpret_cast<void *>(&(a.get_curr_ne()->get_data().data)),size,buffer)
 		 <<endl;
   
-  for(a.reset_first();a.has_current();a.next())
-    output_stream<<a.get_current()->get_data().inorder_pos+1<<endl;
+  for(a.reset_first();a.has_curr();a.next_ne())
+    output_stream<<a.get_curr_ne()->get_data().inorder_pos+1<<endl;
   
   
 }

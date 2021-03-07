@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_HASH_H
@@ -26,7 +30,7 @@
 
 # include <initializer_list>
 # include <tpl_dynSetHash.H>
-# include <tpl_dynSetOhash.H>
+# include <tpl_dynMapOhash.H>
 
 namespace Aleph 
 {
@@ -50,12 +54,21 @@ struct HashSet : public HashSetTable<Key, Cmp>
   Special_Ctors(HashSet, Key);
 
   HashSet() : Base() {}
+
+  Key & get_first() const { return this->get_it().get_curr(); }
+
+  Key & get_last() const
+  {
+    auto it = this->get_it();
+    it.reset_last();
+    return it.get_curr();
+  }
 };
 
 template 
 <typename Key, typename Data,
  template <typename, typename, class> class HashMapTable = MapODhash,
- class Cmp = Aleph::Dft_Pair_Cmp<Key, Data>>
+ class Cmp = Aleph::equal_to<Key>>
 struct HashMap : public HashMapTable<Key, Data, Cmp>
 {
   typedef HashMapTable<Key, Data, Cmp> Base;

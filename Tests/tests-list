@@ -15,3 +15,13 @@ arrayqueue
 dynlistqueue
 bin-node
 tree-node
+odhash
+dynsetohash
+hash-it
+ah-zip
+ah-functional
+ah-dry
+tree-it
+al-domain
+al-vector
+al-matrix

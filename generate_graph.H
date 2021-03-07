@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef GENERATE_GRAPH_H
 # define GENERATE_GRAPH_H
@@ -102,9 +106,9 @@ void generate_graphpic(const GT &      g,
 {
   DynArray<typename GT::Node *> nodes;
   typename GT::Node_Iterator it(g);
-  for (int i = 0; it.has_curr(); it.next(), ++i)
+  for (int i = 0; it.has_curr(); it.next_ne(), ++i)
     {
-      auto p = it.get_current_node();
+      auto p = it.get_current_node_ne();
 
       nodes[i] = p;
 
@@ -119,9 +123,9 @@ void generate_graphpic(const GT &      g,
       output << "NODE-TEXT " << i << " \"" << text_node << "\" 0 0" << endl;
     }
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next())
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       auto src = g.get_src_node(a);
       auto tgt = g.get_tgt_node(a);
       
@@ -226,11 +230,11 @@ void generate_graphviz(const GT & g, std::ostream & output,
   DynArray<typename GT::Node *> nodes;
 
   Node_Iterator<GT, SN> it(g);
-  for (int i = 0; it.has_curr(); it.next(), ++i)
+  for (int i = 0; it.has_curr(); it.next_ne(), ++i)
     {
       output << i << " [ ";
 
-      auto p = it.get_current_node();
+      auto p = it.get_current_node_ne();
       nodes[i] = p;
 
       if (Shade_Node () (p))
@@ -245,9 +249,9 @@ void generate_graphviz(const GT & g, std::ostream & output,
 
   output << endl;
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next())
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       auto src = g.get_src_node(a);
       auto tgt = g.get_tgt_node(a);
       
@@ -326,9 +330,9 @@ void generate_graphviz(const GT & g, std::ostream & out,
   DynMapTreap<typename GT::Node *, int> nodes_table;
 
   Node_Iterator<GT, SN> it(g);
-  for (int i = 0; it.has_curr(); it.next(), ++i)
+  for (int i = 0; it.has_curr(); it.next_ne(), ++i)
     {
-      auto p = it.get_current_node();
+      auto p = it.get_current_node_ne();
 
       nodes_table.insert(p, i);
 
@@ -346,9 +350,9 @@ void generate_graphviz(const GT & g, std::ostream & out,
 
   const string arrow = g.is_digraph() ? "->" : "--";
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next())
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       auto src = g.get_src_node(a);
       auto tgt = g.get_tgt_node(a);
       
@@ -419,9 +423,9 @@ void digraph_graphviz(const GT & g, std::ostream & out,
   DynMapTreap<typename GT::Node *, int> nodes_table;
 
   Node_Iterator<GT, SN> it(g);
-  for (int i = 0; it.has_curr(); it.next(), ++i)
+  for (int i = 0; it.has_curr(); it.next_ne(), ++i)
     {
-      auto p = it.get_current_node();
+      auto p = it.get_current_node_ne();
       nodes_table.insert(p, i);
 
       out << i << " [ ";
@@ -438,9 +442,9 @@ void digraph_graphviz(const GT & g, std::ostream & out,
 
   const string arrow = "->";
 
-  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next())
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       auto src = g.get_src_node(a);
       auto tgt = g.get_tgt_node(a);
       
@@ -512,14 +516,16 @@ size_t rank_graphviz(const GT & g, std::ostream & out,
   DynMapTreap<typename GT::Node*, size_t> nodes_table;
   DynList<DynList<typename GT::Node*>> ranks = Q_Topological_Sort<GT>().ranks(g);
   size_t rank = 0, i = 0;
-  for (auto rank_it = ranks.get_it(); rank_it.has_curr(); rank_it.next(), ++rank)
+  for (auto rank_it = ranks.get_it(); rank_it.has_curr();
+       rank_it.next_ne(), ++rank)
     {
       out << "subgraph rank_" << rank << endl
 	  << "{" << endl
 	  <<  "label = \"rank " << rank << "\"" << endl;
-      for (auto it = rank_it.get_curr().get_it(); it.has_curr(); it.next(), ++i)
+      for (auto it = rank_it.get_curr_ne().get_it(); it.has_curr();
+	   it.next_ne(), ++i)
 	{
-	  auto p = it.get_curr();
+	  auto p = it.get_curr_ne();
 	  nodes_table.insert(p, i);
 	  out << i << " [ ";	     
 	  node_attr(g, p, out);
@@ -534,9 +540,9 @@ size_t rank_graphviz(const GT & g, std::ostream & out,
       << endl;
 
   const string arrow = "->";
-  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next())
+  for (Arc_Iterator<GT, SA> it(g); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       auto src = g.get_src_node(a);
       auto tgt = g.get_tgt_node(a);
       

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_GRAPH_H
 # define TPL_GRAPH_H
@@ -496,16 +500,16 @@ public:
 	  remove_arc(arc);
 	}
     else    // Scan all the arcs and remove those related to node
-      for (Arc_Iterator it(*this); it.has_current();)
+      for (Arc_Iterator it(*this); it.has_curr();)
 	{
-	  Arc * a = it.get_current();
+	  Arc * a = it.get_curr_ne();
 	  if (this->get_src_node(a) == node or this->get_tgt_node(a) == node)
 	    {
-	      it.next();
+	      it.next_ne();
 	      remove_arc(a);
 	    }
 	  else
-	    it.next();
+	    it.next_ne();
 	}
 
     // At this point the node has not more arcs
@@ -927,18 +931,33 @@ public:
     // empty 
   }
 
-  /// Return the current arc. Throw `overflow_error` is there is no
-  /// current arc
-  Arc * get_current_arc() const
+  Arc_Node * get_current_arc_node() const
+  {
+    return dlink_to_arc_node(Dlink::Iterator::get_curr()); 
+  }
+
+  Arc_Node * get_current_arc_node_ne() const noexcept
+  {
+    return dlink_to_arc_node(Dlink::Iterator::get_curr_ne()); 
+  }
+
+  ///\overload get_current_arc()
+  Arc * get_curr() const
   {
     return static_cast<Arc*>(get_current_arc_node()->arc);
   }
 
   ///\overload get_current_arc()
-  Arc * get_current() const { return get_current_arc(); }
+  Arc * get_curr_ne() const noexcept
+  {
+    return static_cast<Arc*>(get_current_arc_node_ne()->arc);
+  }
 
-  ///\overload get_current_arc()
-  Arc * get_curr() const { return get_current_arc(); }
+  /// Return the current arc. Throw `overflow_error` is there is no
+  /// current arc
+  Arc * get_current_arc() const { return get_curr(); }
+
+  Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
 
   /// Return the connected node to source node (src passed in
   /// construction time) through the current arc. Throw
@@ -948,12 +967,14 @@ public:
     return (Node*) get_current_arc()->get_connected_node(src_node);
   }
 
+  Node * get_tgt_node_ne() const noexcept
+  {
+    return (Node*) get_current_arc_ne()->get_connected_node(src_node);
+  }
+
   Node * get_node() const { return get_tgt_node(); }
   
-  Arc_Node * get_current_arc_node() const
-  {
-    return dlink_to_arc_node(Dlink::Iterator::get_current()); 
-  }
+  Node * get_node_ne() const noexcept { return get_tgt_node_ne(); }  
 };
 
       /** Iterator on all arcs of a graph.
@@ -980,26 +1001,42 @@ public:
     }
 
     /// Return the current arc. Throw `overflow_error` if there is no one
-    Arc * get_current_arc() const
+    Arc * get_current_arc_ne() const noexcept
     {
-      return dlink_to_arc(const_cast<Dlink*>(Dlink::Iterator::get_current())); 
+      return dlink_to_arc(const_cast<Dlink*>(Dlink::Iterator::get_curr_ne())); 
     }
 
-        /// \overload get_current_arc(
-    Arc * get_current() const { return get_current_arc(); }  
+    Arc * get_current_arc() const
+    {
+      return dlink_to_arc(const_cast<Dlink*>(Dlink::Iterator::get_curr())); 
+    }
 
-        /// \overload get_current()
     Arc * get_curr() const { return get_current_arc(); }  
+
+    Arc * get_curr_ne() const noexcept { return get_current_arc_ne(); }  
 
     /// Return the source node of current arc. Throw `overflow_error` if
     /// there is no one. Of course, only has sense if one iterates on a
     /// directed graph
-    Node * get_src_node() const { return (Node*) get_current_arc()->src_node; }
+    Node * get_src_node() const
+    {
+      return (Node*) get_current_arc()->src_node;
+    }
+
+    Node * get_src_node_ne() const
+    {
+      return (Node*) get_current_arc_ne()->src_node;
+    }
 
     /// Return the target node of current arc. Throw `overflow_error` if
     /// there is no one. Of course, only has sense if one iterates on a
     /// directed graph
     Node * get_tgt_node() const { return (Node*) get_current_arc()->tgt_node; }
+
+    Node * get_tgt_node_ne() const
+    {
+      return (Node*) get_current_arc_ne()->tgt_node;
+    }
   };
 
   /// Construct an empty graph
@@ -1161,7 +1198,7 @@ struct Node_Arc_Iterator :
       @param[in] sa the filter
   */
   Node_Arc_Iterator(typename GT::Node * p, Show_Arc sa = Show_Arc()) 
-  noexcept(noexcept(Itor(p, sa)))
+    noexcept(noexcept(Itor(p, sa)))
     : Itor(p, sa) 
   {
     // empty
@@ -1271,8 +1308,8 @@ void for_each_node(const GT & g,
 		   SN sn = SN())
   noexcept(noexcept(operation) and noexcept(sn))
 {
-  for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-    operation(it.get_curr());
+  for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+    operation(it.get_curr_ne());
 }
 
 /** Traverse all the arcs of graph filtering some ones according to a
@@ -1290,8 +1327,8 @@ void for_each_arc(const GT & g,
 		  SA sa = SA())
   noexcept(noexcept(operation) and noexcept(sa))
 {
-  for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-    operation(it.get_curr());
+  for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+    operation(it.get_curr_ne());
 }
 
 /** Traverse all the arcs adjacent to a node filtering some ones
@@ -1311,8 +1348,8 @@ void for_each_arc(const GT&,
 		  SA                                     sa = SA())
   noexcept(noexcept(operation) and noexcept(sa))
 {
-  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    operation(it.get_curr());
+  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    operation(it.get_curr_ne());
 }
 
 /** Return `true` if condition `cond` is met on every filtered node of
@@ -1331,8 +1368,8 @@ bool forall_node(const GT &                              g,
 		 SN                                      sn = SN())
   noexcept(noexcept(cond) and noexcept(sn))
 {
-  for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-    if (not cond(it.get_curr()))
+  for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+    if (not cond(it.get_curr_ne()))
       return false;
   return true;
 }
@@ -1353,8 +1390,8 @@ bool forall_arc(const GT &                             g,
 		SA                                     sa = SA())
   noexcept(noexcept(cond) and noexcept(sa))
 {
-  for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-    if (not cond(it.get_curr()))
+  for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+    if (not cond(it.get_curr_ne()))
       return false;
   return true;
 }
@@ -1375,8 +1412,8 @@ bool forall_arc(typename GT::Node *                    p,
 		SA                                     sa = SA())
   noexcept(noexcept(cond) and noexcept(sa))
 {
-  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    if (not cond(it.get_curr()))
+  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    if (not cond(it.get_curr_ne()))
       return false;
   return true;
 }
@@ -1669,8 +1706,8 @@ public:
 
   /// Initialize an iterator on adjacent arcs (incoming or outcoming) of `p`
   Digraph_Iterator(typename GT::Node * p) 
-  noexcept(noexcept(Filter(p)) and noexcept(Itor(p, filt)))
-  : filt(p), it(p, filt) 
+    noexcept(noexcept(Filter(p)) and noexcept(Itor(p, filt)))
+    : filt(p), it(p, filt) 
   {
     // empty
   }
@@ -1679,6 +1716,8 @@ public:
   /// there is no current
   void next() { it.next(); }
 
+  void next_ne() noexcept { it.next_ne(); }
+
   /// Move the iterator one position backward. Throws `overflow_error` it
   /// there is no current
   void prev() { it.next(); }
@@ -1686,35 +1725,41 @@ public:
   /// Return `true` the iterator has an current arc
   bool has_curr() const noexcept { return it.has_curr(); }
 
-  /// \overload has_curr()
-  auto has_current() const noexcept { return has_curr(); }
-
   /// Return the current arc.  Throws `overflow_error` it there is no
   /// current
   typename GT::Arc * get_curr() const { return it.get_curr(); }
 
-  /// \overload get_curr()
-  auto get_current() const { return get_curr(); }
-			
+  /// Return the current arc.  Throws `overflow_error` it there is no
+  /// current
+  typename GT::Arc * get_curr_ne() const noexcept { return it.get_curr_ne(); }
+
   /// \overload get_curr()
   auto get_current_arc() const { return get_curr(); }
 			
   /// Return the connected node to `arc`. The result depends of iterator
   /// type
-  typename GT::Node * get_node(typename GT::Arc * a) const 
-    noexcept(noexcept(filt.get_node(a)))
+  typename GT::Node * get_node(typename GT::Arc * a) const noexcept
   {
     return filt.get_node(a);
   }
 
   /// Return the connected node to current arc.
-  typename GT::Node * get_node() 
+  typename GT::Node * get_node() const
   { 
     return this->get_node(this->get_curr()); 
   }
 
   /// \overload  get_node()
-  auto get_tgt_node() { return get_node(); }
+  auto get_tgt_node() const { return get_node(); }
+
+  /// Return the connected node to current arc.
+  typename GT::Node * get_node_ne() const noexcept
+  { 
+    return this->get_node(this->get_curr_ne()); 
+  }
+
+  /// \overload  get_node()
+  auto get_tgt_node_ne() const noexcept { return get_node_ne(); }
 
   /// Reset the iterator to the first arc
   void reset_first() noexcept { it.reset_first(); }
@@ -1723,7 +1768,7 @@ public:
   void reset_last() noexcept { it.reset_last(); }
 
   /// Put the iterator in end state
-  void end() { reset_last(); next(); }
+  void end() noexcept { put_itor_at_the_end(*this); }
 };
 
 
@@ -1784,8 +1829,8 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Node *> ret;
-  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    ret.append(it.get_node());
+  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    ret.append(it.get_node_ne());
   return ret;
 }
 
@@ -1801,8 +1846,8 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Node *> ret;
-  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    ret.append(it.get_node());
+  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    ret.append(it.get_node_ne());
   return ret;
 }
 
@@ -1817,8 +1862,8 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc*> ret;
-  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
   return ret;
 }
 
@@ -1833,8 +1878,8 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc*> ret;
-  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
   return ret;
 }
 
@@ -1848,8 +1893,8 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA sa = SA())
 {
   DynList<typename GT::Arc *> ret;
-  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
   return ret;
 }
 
@@ -1863,9 +1908,9 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA sa = SA())
 {
   DynList<ArcPair<GT>> ret;
-  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
+  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
     {
-      typename GT::Arc * a = it.get_curr();
+      typename GT::Arc * a = it.get_curr_ne();
       ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
     }
   return ret;
@@ -1882,9 +1927,9 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA sa = SA())
 {
   DynList<ArcPair<GT>> ret;
-  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
+  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
     {
-      typename GT::Arc * a = it.get_curr();
+      typename GT::Arc * a = it.get_curr_ne();
       ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
     }
   return ret;
@@ -1903,7 +1948,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 size_t in_degree(typename GT::Node * p, SA sa = SA())
 {
   size_t count = 0;
-  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
+  for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
     ++count;
   return count;
 }
@@ -1912,7 +1957,7 @@ template <class GT>
 size_t in_degree(typename GT::Node * p)
 {
   size_t count = 0;
-  for (__In_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (__In_Iterator<GT> it(p); it.has_curr(); it.next_ne())
     ++count;
   return count;
 }
@@ -1931,7 +1976,7 @@ template <class GT, class SA = Dft_Show_Arc<GT>>
 size_t out_degree(typename GT::Node * p, SA sa = SA())
 {
   size_t count = 0;
-  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next())
+  for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
     ++count;
   return count;
 }
@@ -1940,7 +1985,7 @@ template <class GT>
 size_t out_degree(typename GT::Node * p)
 {
   size_t count = 0;
-  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next_ne())
     ++count;
   return count;
 }
@@ -1969,10 +2014,11 @@ size_t out_degree(typename GT::Node * p)
     @ingroup Grafos
  */
 template <class GT, class Itor, class Operation> inline
-bool traverse_arcs(typename GT::Node * p, Operation operation = Operation())
+bool traverse_arcs(typename GT::Node * p, Operation op = Operation())
+  noexcept(noexcept(op))
 {
-  for (Itor it(p); it.has_curr(); it.next())
-    if (not operation(it.get_curr()))
+  for (Itor it(p); it.has_curr(); it.next_ne())
+    if (not op(it.get_curr_ne()))
       return false;
   return true;
 }
@@ -1995,10 +2041,11 @@ bool traverse_arcs(typename GT::Node * p, Operation operation = Operation())
     @ingroup Grafos
  */
 template <class GT, class Itor, class Operation> inline
-void for_each_arc(typename GT::Node * p, Operation operation = Operation())
+void for_each_arc(typename GT::Node * p, Operation op = Operation())
+  noexcept(noexcept(op))
 {
-  for (Itor it(p); it.has_curr(); it.next())
-    operation(it.get_curr());
+  for (Itor it(p); it.has_curr(); it.next_ne())
+    op(it.get_curr_ne());
 }
 
 
@@ -2015,6 +2062,7 @@ void for_each_arc(typename GT::Node * p, Operation operation = Operation())
  */
 template <class GT, class Op> inline
 bool traverse_in_arcs(typename GT::Node * p, Op op = Op())
+  noexcept(noexcept(op))
 {
   return traverse_arcs<GT, __In_Iterator<GT>, Op>(p, op);
 }
@@ -2026,7 +2074,7 @@ bool traverse_in_arcs(typename GT::Node * p, Op op = Op())
     @ingroup Grafos
  */
 template <class GT, class Op> inline
-void for_each_in_arc(typename GT::Node * p, Op op = Op())
+void for_each_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   for_each_arc<GT, __In_Iterator<GT>, Op>(p, op);
 }
@@ -2042,7 +2090,7 @@ void for_each_in_arc(typename GT::Node * p, Op op = Op())
     \result `true` if `op` returns `true` for all the incoming arcs
  */
 template <class GT, class Op> inline
-bool all_in_arc(typename GT::Node * p, Op op = Op())
+bool all_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
 }
@@ -2058,7 +2106,7 @@ bool all_in_arc(typename GT::Node * p, Op op = Op())
     \result `true` if there is at least an arc satisfying the operation
  */
 template <class GT, class Op> inline
-bool exists_in_arc(typename GT::Node * p, Op op = Op())
+bool exists_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   return not traverse_in_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
 }
@@ -2075,7 +2123,7 @@ bool exists_in_arc(typename GT::Node * p, Op op = Op())
     found; `nullptr` otherwise
  */
 template <class GT, class Op> inline
-auto search_in_arc(typename GT::Node * p, Op op = Op())
+auto search_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   typename GT::Arc * ret = nullptr;
   traverse_in_arcs(p, [&op, &ret] (auto a)
@@ -2105,6 +2153,7 @@ auto search_in_arc(typename GT::Node * p, Op op = Op())
  */
 template <class GT, typename T> inline
 auto map_in_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
+  noexcept(noexcept(op))
 {
   DynList<T> ret;
   for_each_in_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
@@ -2130,6 +2179,7 @@ auto map_in_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
 template <class GT, typename T> inline
 T foldl_in_arcs(typename GT::Node * p, const T & init,
 		std::function<T(const T&, typename GT::Arc*)> op)
+  noexcept(noexcept(op))
 {
   T ret = init;
   for_each_in_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2144,6 +2194,7 @@ T foldl_in_arcs(typename GT::Node * p, const T & init,
  */
 template <class GT, class Op> inline
 DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op cond)
+  noexcept(noexcept(cond))
 {
   DynList<typename GT::Arc*> ret;
   for_each_in_arc(p, [&ret, &cond] (auto a) 
@@ -2168,6 +2219,7 @@ DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op cond)
  */
 template <class GT, class Op> inline
 bool traverse_out_arcs(typename GT::Node * p, Op op = Op())
+  noexcept(noexcept(op))
 {
   return traverse_arcs<GT, __Out_Iterator<GT>, Op>(p, op);
 }
@@ -2180,6 +2232,7 @@ bool traverse_out_arcs(typename GT::Node * p, Op op = Op())
  */
 template <class GT, class Op> inline
 void for_each_out_arc(typename GT::Node * p, Op op = Op())
+  noexcept(noexcept(op))
 {
   for_each_arc<GT, __Out_Iterator<GT>, Op>(p, op);
 }
@@ -2195,7 +2248,7 @@ void for_each_out_arc(typename GT::Node * p, Op op = Op())
     \result `true` if `op` returns `true` for all the incoming arcs
  */
 template <class GT, class Op> inline
-bool all_out_arc(typename GT::Node * p, Op op = Op())
+bool all_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
 }
@@ -2211,7 +2264,7 @@ bool all_out_arc(typename GT::Node * p, Op op = Op())
     \result `true` if there is at least an arc satisfying the operation
  */
 template <class GT, class Op> inline
-bool exists_out_arc(typename GT::Node * p, Op op = Op())
+bool exists_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   return not traverse_out_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
 }
@@ -2228,7 +2281,7 @@ bool exists_out_arc(typename GT::Node * p, Op op = Op())
     found; `nullptr` otherwise
  */
 template <class GT, class Op> inline
-auto search_out_arc(typename GT::Node * p, Op op = Op())
+auto search_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
 {
   typename GT::Arc * ret = nullptr;
   __traverse_out_arcs(p, [&op, &ret] (auto a)
@@ -2258,6 +2311,7 @@ auto search_out_arc(typename GT::Node * p, Op op = Op())
  */
 template <class GT, typename T> inline
 auto map_out_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
+  noexcept(noexcept(op))
 {
   DynList<T> ret;
   for_each_out_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
@@ -2283,6 +2337,7 @@ auto map_out_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
 template <class GT, typename T> inline
 T foldl_out_arcs(typename GT::Node * p, const T & init,
 		std::function<T(const T&, typename GT::Arc*)> op)
+  noexcept(noexcept(op))
 {
   T ret = init;
   for_each_out_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2297,6 +2352,7 @@ T foldl_out_arcs(typename GT::Node * p, const T & init,
  */
 template <class GT, class Op> inline
 DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op cond)
+  noexcept(noexcept(cond))
 {
   DynList<typename GT::Arc*> ret;
   for_each_out_arc(p, [&ret, &cond] (auto a) 
@@ -2331,9 +2387,9 @@ search_arc(const GT & g,
   if (not g.is_digraph() and tgt->num_arcs < src->num_arcs)
     std::swap(tgt, src); // select the node with less arcs
 
-  for (Node_Arc_Iterator<GT, SA> itor(src, sa); itor.has_curr(); itor.next())  
-    if (itor.get_tgt_node() == tgt)
-      return itor.get_current_arc();
+  for (Node_Arc_Iterator<GT, SA> itor(src, sa); itor.has_curr(); itor.next_ne())  
+    if (itor.get_tgt_node_ne() == tgt)
+      return itor.get_current_arc_ne();
 
   return nullptr; 
 }
@@ -2355,9 +2411,9 @@ search_directed_arc(const GT &,
 {
   assert(src != nullptr and tgt != nullptr);
 
-  for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next())
+  for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
     {
-      typename GT::Arc * a = it.get_curr();
+      typename GT::Arc * a = it.get_curr_ne();
       if (a->src_node == src and a->tgt_node == tgt)
 	return a;
     }
@@ -2442,8 +2498,8 @@ public:
 
   /// Initialize the functor with the filter `sa`
   Operate_On_Nodes(SN __sn = SN())
-  noexcept(std::is_nothrow_constructible<SN>::value)
-  : sn(__sn) { /* empty */ }
+    noexcept(std::is_nothrow_constructible<SN>::value)
+    : sn(__sn) { /* empty */ }
 
    /** Call to `operation` on each node.
        
@@ -2453,8 +2509,8 @@ public:
   void operator () (const GT & g, Operation op = Operation()) 
     noexcept(noexcept(op))
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      op (g, it.get_curr());
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      op (g, it.get_curr_ne());
   }
 
   /** Call to `operation` on each node.
@@ -2464,8 +2520,8 @@ public:
   */
   void operator () (GT & g, Operation op = Operation()) noexcept(noexcept(op))
   {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      op (g, it.get_curr());
+    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+      op (g, it.get_curr_ne());
   }
 };
 
@@ -2489,8 +2545,8 @@ public:
 
   /// Initialize the functor with the filter `sa`
   Operate_On_Arcs(SA __sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value)
- : sa(__sa) { /* empty */ }
+    noexcept(std::is_nothrow_constructible<SA>::value)
+    : sa(__sa) { /* empty */ }
 
    /** Call to `op on each arc
 
@@ -2500,15 +2556,15 @@ public:
   void operator () (const GT & g, Operation op = Operation()) const 
     noexcept(noexcept(op))
   {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-      op (g, it.get_curr());
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      op (g, it.get_curr_ne());
   }
 
   void operator () (GT & g, Operation op = Operation()) const
     noexcept(noexcept(op))
   {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next())
-      op (g, it.get_curr());
+    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+      op (g, it.get_curr_ne());
   } 
 
   /** Call to `op on each arc of a node
@@ -2520,16 +2576,16 @@ public:
   void operator () (const GT & g, typename GT::Node * p,
 		    Operation op = Operation()) const noexcept(noexcept(op))
   {
-    for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next())
-      op (g, it.get_current_arc());
+    for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+      op (g, it.get_current_arc_ne());
   }
 
   void operator () (GT & g, typename GT::Node * p, 
                     Operation op = Operation()) const
     noexcept(noexcept(op))
   {
-    for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next())
-      op (g, it.get_current_arc());
+    for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+      op (g, it.get_current_arc_ne());
   }
 };
 
@@ -3010,11 +3066,11 @@ public:
 
     /// Return the first node of path; throws `overflow_error` if path
     /// is empty
-  Node * get_first_node() const noexcept { return list.get_first().node; }
+  Node * get_first_node() const { return list.get_first().node; }
 
     /// Return the last node of path; throws `overflow_error` if path
     /// is empty
-  Node * get_last_node() const noexcept 
+  Node * get_last_node() const
   {
     auto & last_path_desc = list.get_last();
     assert(last_path_desc.arc == nullptr);
@@ -3023,7 +3079,7 @@ public:
 
   /// Return the first arc of path; throws `overflow_error` if path
   /// is empty
-  Arc * get_first_arc() const noexcept { return list.get_first().arc; }
+  Arc * get_first_arc() const { return list.get_first().arc; }
 
   /// Return the last arc of path; throws `overflow_error` if path
   /// is empty
@@ -3035,7 +3091,7 @@ public:
     typename DynDlist<Path_Desc>::Iterator it(list);
     it.reset_last();
     it.prev();
-    return it.get_current().arc; 
+    return it.get_curr().arc; 
   }
 
     /// Return `true` if `this` is a cycle
@@ -3086,9 +3142,14 @@ public:
 
   private:
 
+    Path_Desc & get_curr_path_desc_ne() const noexcept
+    {
+      return this->DynDlist<Path_Desc>::Iterator::get_curr_ne();
+    }
+
     Path_Desc & get_curr_path_desc() const
     {
-      return this->DynDlist<Path_Desc>::Iterator::get_current();
+      return this->DynDlist<Path_Desc>::Iterator::get_curr();
     }
 
   public:
@@ -3096,6 +3157,11 @@ public:
     /// Return the current node of path. Throw `overflow_error` if path
     /// is empty of iterator has not current node
     Node * get_current_node() const { return this->get_curr_path_desc().node; }
+
+    Node * get_current_node_ne() const noexcept
+    {
+      return this->get_curr_path_desc_ne().node;
+    }
 
     /** Return the current arc of path.
 
@@ -3115,10 +3181,14 @@ public:
       return this->get_curr_path_desc().arc; 
     }
 
-        ///\overload get_current_node()
-    Node * get_current() const { return get_current_node(); }
+    Arc * get_current_arc_ne() const noexcept
+    { 
+      return this->get_curr_path_desc_ne().arc; 
+    }
 
         ///\overload get_current_node()
+    Node * get_curr_ne() const noexcept { return get_current_node_ne(); }
+
     Node * get_curr() const { return get_current_node(); }
 
     /** Return a pair with the current node and arc
@@ -3151,6 +3221,11 @@ public:
       return make_tuple(get_current_node(), get_current_arc());
     }
 
+    tuple<Node*, Arc*> get_tuple_ne() const noexcept
+    {
+      return make_tuple(get_current_node_ne(), get_current_arc_ne());
+    }
+
     /** Return `true` if iterator has current arc.
 
 	\note If the iterator is on the last node, then there is no
@@ -3161,11 +3236,11 @@ public:
     */
     bool has_current_arc() const noexcept
     {
-      return this->has_current() and not this->is_in_last();
+      return this->has_curr() and not this->is_in_last();
     }
 
       /// Return `true` if the iterator has a current node
-    bool has_current_node() const noexcept { return this->has_current(); }
+    bool has_current_node() const noexcept { return this->has_curr(); }
   };
 
   /// Returns an iterator on the path
@@ -3178,8 +3253,8 @@ public:
   template <class Operation> 
   void for_each_node(Operation op = Operation()) const noexcept(noexcept(op))
   {
-    for (Iterator it(*this); it.has_current_node(); it.next())
-      op (it.get_current_node());
+    for (Iterator it(*this); it.has_current_node(); it.next_ne())
+      op (it.get_current_node_ne());
   }
 
   /** Execute an operation on each arc of path
@@ -3189,15 +3264,15 @@ public:
   template <class Operation> 
   void for_each_arc(Operation op = Operation()) const noexcept(noexcept(op))
   {
-    for (Iterator it(*this); it.has_current_arc(); it.next())
-      op (it.get_current_arc());
+    for (Iterator it(*this); it.has_current_arc(); it.next_ne())
+      op (it.get_current_arc_ne());
   }
 
       /// Return `true` if `node` belongs to the path
   bool contains_node(Node * node) const noexcept
   {
-    for (Iterator it(*this); it.has_current_node(); it.next())
-      if (it.get_current_node() == node)
+    for (Iterator it(*this); it.has_current_node(); it.next_ne())
+      if (it.get_current_node_ne() == node)
         return true;
     return false;
   }
@@ -3205,8 +3280,8 @@ public:
       /// Return `true` if `arc` belongs to the path
   bool contains_arc(Arc * arc) const noexcept
   {
-    for (Iterator it(*this); it.has_current_arc(); it.next())
-      if (it.get_current_arc() == arc) 
+    for (Iterator it(*this); it.has_current_arc(); it.next_ne())
+      if (it.get_current_arc_ne() == arc) 
         return true;
     return false;
   }
@@ -3270,9 +3345,9 @@ bool __find_path_depth_first(const GT & g, typename GT::Node * curr_node,
   path.append(curr_arc);
   NODE_BITS(curr_node).set_bit(Find_Path, true); 
 
-  for (auto it = g.get_arc_it(curr_node); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
     {
-      auto next_arc = it.get_curr();
+      auto next_arc = it.get_curr_ne();
       if (IS_ARC_VISITED(next_arc, Find_Path)) 
         continue;
 
@@ -3314,9 +3389,9 @@ Path<GT> find_path_depth_first(const GT & g, typename GT::Node * start_node,
   g.reset_bit_arcs(Find_Path); 
   NODE_BITS(start_node).set_bit(Find_Path, true);
 
-  for (auto it = g.get_arc_it(start_node); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(start_node); it.has_curr(); it.next_ne())
     {
-      auto arc = it.get_current_arc();
+      auto arc = it.get_current_arc_ne();
       ARC_BITS(arc).set_bit(Find_Path, true); 
       auto next_node = it.get_tgt_node();
       if (IS_NODE_VISITED(next_node, Find_Path)) 
@@ -3389,15 +3464,15 @@ void clear_graph(GT & g) noexcept
 {     
   for (typename GT::Arc_Iterator it(g); it.has_curr(); ) // eliminar arcos
     {
-      typename GT::Arc * arc = it.get_curr();
-      it.next();
+      typename GT::Arc * arc = it.get_curr_ne();
+      it.next_ne();
       g.remove_arc(arc);
     }
 
   for (typename GT::Node_Iterator it(g); it.has_curr(); ) // eliminar nodos
     {     
-      typename GT::Node * p = it.get_curr(); 
-      it.next(); // avanzar antes de borrar (consistencia iterador)
+      typename GT::Node * p = it.get_curr_ne();
+      it.next_ne(); // avanzar antes de borrar (consistencia iterador)
       g.remove_node(p); // eliminarlo del grafo
     }
 }
@@ -3412,9 +3487,9 @@ void copy_graph(GT & gtgt, const GT & gsrc, const bool cookie_map)
       DynMapAvlTree<typename GT::Node*, typename GT::Node*> map;  
 
           // fase 1: recorrer nodos de src_graph e insertar copia en this
-      for (typename GT::Node_Iterator it(gsrc); it.has_curr(); it.next())
+      for (typename GT::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
 	{
-	  typename GT::Node * src_node = it.get_current_node(); 
+	  typename GT::Node * src_node = it.get_current_node_ne(); 
 	  unique_ptr<typename GT::Node> 
 	    tgt_node(new typename GT::Node(src_node->get_info()));
 	  map.insert(src_node, tgt_node.get()); 
@@ -3431,9 +3506,9 @@ void copy_graph(GT & gtgt, const GT & gsrc, const bool cookie_map)
 
           // fase 2: por cada arco de src_graph, crear en this un
           // arco que conecte a los nodos mapeados de map
-      for (typename GT::Arc_Iterator it(gsrc); it.has_curr(); it.next())
+      for (typename GT::Arc_Iterator it(gsrc); it.has_curr(); it.next_ne())
 	{
-	  typename GT::Arc * src_arc = it.get_current_arc();
+	  typename GT::Arc * src_arc = it.get_current_arc_ne();
 
 	      // obtener imágenes de nodos en el grafo destino y crear arco
 	  typename GT::Node * src_node = map[gsrc.get_src_node(src_arc)];
@@ -3501,9 +3576,9 @@ void inter_copy_graph(GTT & gtgt, const GTS & gsrc,
       DynMapAvlTree<typename GTS::Node*, typename GTT::Node*> map;  
 
           // fase 1: recorrer nodos de src_graph e insertar copia en this
-      for (typename GTS::Node_Iterator it(gsrc); it.has_curr(); it.next())
+      for (typename GTS::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
 	{
-	  typename GTS::Node * src_node = it.get_current_node(); 
+	  typename GTS::Node * src_node = it.get_current_node_ne();
 	  unique_ptr<typename GTT::Node> tgt_node(new typename GTT::Node);
 	  Copy_Node () (tgt_node.get(), src_node);
 	  map.insert(src_node, tgt_node.get()); 
@@ -3519,9 +3594,9 @@ void inter_copy_graph(GTT & gtgt, const GTS & gsrc,
 
           // fase 2: por cada arco de src_graph, crear en this un
           // arco que conecte a los nodos mapeados de map
-      for (typename GTS::Arc_Iterator it(gsrc); it.has_curr(); it.next())
+      for (typename GTS::Arc_Iterator it(gsrc); it.has_curr(); it.next_ne())
 	{
-	  typename GTS::Arc * src_arc = it.get_current_arc();
+	  typename GTS::Arc * src_arc = it.get_current_arc_ne();
 
 	      // obtener imágenes de nodos en el grafo destino y crear arco
 	  typename GTT::Node * src_node = map[gsrc.get_src_node(src_arc)]; 
@@ -3582,9 +3657,9 @@ private:
 	DynMapAvlTree<typename GT::Node*, typename GT::Node*> map;  
 
           // fase 1: recorrer nodos de src_graph e insertar copia en this
-	for (Node_Iterator<GT, SN> it(gsrc, sn); it.has_curr(); it.next())
+	for (Node_Iterator<GT, SN> it(gsrc, sn); it.has_curr(); it.next_ne())
 	  {
-	    typename GT::Node * src_node = it.get_curr(); 
+	    typename GT::Node * src_node = it.get_curr_ne(); 
 	    unique_ptr<typename GT::Node> 
 	      tgt_node(new typename GT::Node(src_node));
 	    map.insert(src_node, tgt_node.get()); 
@@ -3598,9 +3673,9 @@ private:
 
           // fase 2: por cada arco de src_graph, crear en this un
           // arco que conecte a los nodos mapeados de map
-	for (Arc_Iterator<GT, SA> it(gsrc, sa); it.has_curr(); it.next())
+	for (Arc_Iterator<GT, SA> it(gsrc, sa); it.has_curr(); it.next_ne())
 	  {
-	    typename GT::Arc * src_arc = it.get_curr();
+	    typename GT::Arc * src_arc = it.get_curr_ne();
 
 	      // obtener imágenes de nodos en el grafo destino y crear arco
 	    typename GT::Node * src_node = map[gsrc.get_src_node(src_arc)]; 

@@ -1,25 +1,3 @@
-/* 
-  This file is part of Aleph-w library
-
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
-*/
 
 # ifndef TPL_LINHASH_H
 # define TPL_LINHASH_H
@@ -50,30 +28,30 @@ using namespace Aleph;
 
 namespace Aleph {
 
-# define LINBUCKET_BODY(BUCKETNAME)					\
-									\
-  Dlink link;								\
-									\
-public:									\
-									\
- BUCKETNAME(const BUCKETNAME & bucket)					\
- noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)		\
- : Dnode<Key>(bucket) {}						\
-									\
+# define LINBUCKET_BODY(BUCKETNAME)             \
+                                                \
+  Dlink link;                                   \
+                                                \
+public:                                         \
+                                                \
+ BUCKETNAME(const BUCKETNAME & bucket)                                \
+   noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)         \
+   : Dnode<Key>(bucket) {}                                            \
+                                                                      \
  BUCKETNAME() noexcept(std::is_nothrow_constructible<Key>::value) {}	\
-									\
- BUCKETNAME(const Key & key) noexcept(noexcept(Dnode<Key>(key)))	\
- : Dnode<Key>(key) {}							\
-									\
- Key & get_key() noexcept { return this->get_data(); }			\
-									\
- Dlink * get_link() noexcept { return &link; }				\
-									\
+                                                                      \
+ BUCKETNAME(const Key & key) noexcept(noexcept(Dnode<Key>(key)))      \
+   : Dnode<Key>(key) {}                                               \
+                                                                      \
+ Key & get_key() noexcept { return this->get_data(); }                \
+                                                                      \
+ Dlink * get_link() noexcept { return &link; }                        \
+                                                                      \
  DLINK_TO_BASE(BUCKETNAME, link);
 
- 
+
     /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado. 
+        de colisiones por encadenamiento separado.
 
         @param Key clave de búsqueda hash
         @see LhashTable
@@ -86,7 +64,7 @@ class LinHashBucket : public Dnode<Key>
 };
 
     /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado. 
+        de colisiones por encadenamiento separado.
 
         @param Key clave de búsqueda hash
         @see LhashTable
@@ -101,7 +79,6 @@ class LinHashBucketVtl : public Dnode<Key>
   virtual ~LinHashBucketVtl() {}
 };
 
- 
 
    /** Tabla hash lineal genérica.
 
@@ -122,16 +99,16 @@ class LinHashBucketVtl : public Dnode<Key>
 
         @param Key el tipo de clave por el cual se indiza la tabla.
         @param BucketType el tipo de cubeta entre LinHashBucket o
-        LinHashBucketVtl. 
+        LinHashBucketVtl.
         @param Cmp clase de comparación entre las claves.
 
         @see DynArray LinearHashTable LinearHashTableVtl
         @ingroup Hash
     */
-    template <typename Key, template <class> class BucketType, 
-              class Cmp = Aleph::equal_to<Key>>
-class GenLinearHashTable 
-      : public HashStats<GenLinearHashTable<Key, BucketType, Cmp>>
+  template <typename Key, template <class> class BucketType,
+            class Cmp = Aleph::equal_to<Key>>
+class GenLinearHashTable
+    : public HashStats<GenLinearHashTable<Key, BucketType, Cmp>>
 {
   friend class HashStats<GenLinearHashTable<Key, BucketType, Cmp>>;
 
@@ -139,9 +116,10 @@ public:
 
       /// El tipo de función hash. Debe retornar valores positivos seudo
       /// aleatorios, entre cero y el número más grande posible.
-  typedef size_t (*Hash_Fct)(const Key &);
+  using Hash_Fct     = std::function<size_t(const Key &)>;
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-      /// El tipo de cubeta.
+  /// El tipo de cubeta.
   using Bucket = BucketType<Key>;
 
   using Key_Type = Key;
@@ -163,16 +141,16 @@ private:
 
 protected:
 
-  Hash_Fct             hash_fct; // puntero a función hash
+  Hash_Fct             hash_fct;
   Cmp                  cmp;
 
 private:
 
   size_t               M; // Tamaño de la tabla
   size_t               N; // Número de elementos que tiene la tabla
-  size_t               busy_slots_counter; // Cantidad de entradas ocupadas 
+  size_t               busy_slots_counter; // Cantidad de entradas ocupadas
   bool                 remove_all_buckets; // Indica si destructor debe liberar
-                                           // las cubetas  
+                                           // las cubetas
 
 protected:
 
@@ -192,10 +170,10 @@ protected:
 
 private:
 
-  size_t call_hash_fct(const Key & key) const 
-    noexcept(noexcept((*hash_fct)(key)))
+  size_t call_hash_fct(const Key & key) const
+    noexcept(noexcept(hash_fct(key)))
   {
-    const auto hash = (*hash_fct)(key);
+    const auto hash = hash_fct(key);
     const auto i = hash % M;
     return i < p ? hash % MM : i;
   }
@@ -208,17 +186,17 @@ private:
         if (src_list_ptr != nullptr) // ¿table[p] está escrita?
           if (not src_list_ptr->is_empty()) // ¿table[p] no está vacía'
             {
-              BucketList * tgt_list_ptr = nullptr; 
+              BucketList * tgt_list_ptr = nullptr;
 
-                  // recorrer lista colisiones y mover cubetas de table[p+M] 
-              for (BucketItor it(*src_list_ptr); it.has_current(); /* nada */)
+                  // recorrer lista colisiones y mover cubetas de table[p+M]
+              for (BucketItor it(*src_list_ptr); it.has_curr(); /* nada */)
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_current());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
 
-                  it.next(); // avance al siguiente elemento de la lista
+                  it.next_ne(); // avance al siguiente elemento de la lista
 
                   const Key & key = bucket->get_key();
-                  const int i = (*hash_fct)(key) % MM;
+                  const int i = hash_fct(key) % MM;
                   if (i == p) // ¿pertenece esta clave a table[p]?
                     continue; // sí ==> clave sigue en table[p] ==> siguiente
 
@@ -232,10 +210,10 @@ private:
                 }
 
               if (src_list_ptr->is_empty()) // ¿table[p] quedó vacía?
-                --busy_slots_counter; // sí ==> un slot vacío 
+                --busy_slots_counter; // sí ==> un slot vacío
 
               ++busy_slots_counter; // uno nuevo por table[p+M]
-            } 
+            }
         ++p;
         ++MP;
         if (p == M) // (p == 2*M) ¿debe duplicarse el tamaño de la tabla?
@@ -245,12 +223,12 @@ private:
             MP = M = MM; // se les asigna 2*M
             MM = multiply_by_two(MM);
           }
-      } 
+      }
   }
 
-  void contract()
+  void contract() noexcept
   { // contraer la tabla hasta que carga esté debajo de lower_alpha
-    for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len; 
+    for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len;
          alpha = (1.0*N)/MP)
       {
         if (p == 0) // ¿debe dividirse entre 2 el tamaño de la tabla?
@@ -264,7 +242,7 @@ private:
           --p;   // no ==> sólo reducir índice p
 
         --MP;
-        if (MP < table.size()) // ¿Existe table[MP]]? 
+        if (MP < table.size()) // ¿Existe table[MP]]?
           {
             BucketList * src_list_ptr = table.test(MP);
             if (src_list_ptr != nullptr) // ¿existe entrada para table[p+M]?
@@ -275,7 +253,7 @@ private:
                     tgt_list.concat_list(src_list_ptr);
                     --busy_slots_counter; // table[p+M] devino vacía
                   }
-                table.cut(MP); // eventualmente liberar memoria de table[p+M]
+                table.cut_ne(MP); // eventualmente liberar memoria de table[p+M]
               }
           }
       }
@@ -289,6 +267,11 @@ public:
     hash_fct = fct;
   }
 
+  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    hash_fct = Hash_Fct(fct);
+  }
+
   Hash_Fct get_hash_fct() const noexcept { return hash_fct; }
 
   Cmp & get_compare() noexcept { return cmp; }
@@ -298,39 +281,13 @@ public:
   /// return the current table load
   float current_alpha() const noexcept { return 1.0*N/MP; }
 
-    /** Instancia una tabla hash lineal genérica.
+ protected:
 
-        Instancia una tabla hash lineal genérica de tamaño __len.
-
-        @param[in] __hash_fct función hash.
-        @param[in] __len tamaño inicial y mínimo de la tabla.
-        @param[in] __upper_alpha umbral superior en que la tabla debe
-        expandirse.  
-        @param[in] __lower_alpha umbral inferior en que la tabla debe
-        contraerse.  
-        @param[in] __remove_all_buckets si es true, entonces se liberan
-        las cuvetas de la tabla. De lo contrario, éstas permanecen
-        intactas. Por omisión el valor es true.
-
-        @throw length_error si __ es igual a superior que la máxima
-        dimensión permitida para un arreglo dinámico.
-        @throw domain_error si __upper_alpha es menor o igual a
-        __lower_alpha.  
-        @throw bad_alloc si no hay suficiente memoria
-        @throw overflow_error si ocurre un desborde desde DynArray
-        (causado por sus cálculos internos).
-     */
-  GenLinearHashTable(size_t   __len               = Primes::DefaultPrime,
-		     Hash_Fct __hash_fct          = Aleph::dft_hash_fct<Key>,
-		     Cmp      __cmp               = Cmp(),
-                     float    __lower_alpha       = hash_default_lower_alpha,
-		     float    __upper_alpha       = hash_default_upper_alpha,
-		     bool    __remove_all_buckets = true, 
-		     bool    __with_resize        = true)
-    throw(std::exception, std::length_error, std::domain_error,
-          std::bad_alloc, std::overflow_error) 
-  : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0), 
-      busy_slots_counter(0), remove_all_buckets(__remove_all_buckets), 
+  GenLinearHashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
+                     float __lower_alpha, float __upper_alpha,
+                     bool __remove_all_buckets, bool /* fake */)
+  : table(__len), hash_fct(__hash_fct), cmp(__cmp), M(__len), N(0),
+      busy_slots_counter(0), remove_all_buckets(__remove_all_buckets),
       upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
       p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
   {
@@ -339,10 +296,45 @@ public:
 
     if (MM > table.max_size())
       throw std::length_error("table's length too big");
-      
+
     if (upper_alpha <= lower_alpha)
       throw std::domain_error("lower alpha is greater than lower alpha");
   }
+
+ public:
+
+  /** Instancia una tabla hash lineal genérica.
+
+      Instancia una tabla hash lineal genérica de tamaño __len.
+
+      @param[in] __hash_fct función hash.
+      @param[in] __len tamaño inicial y mínimo de la tabla.
+      @param[in] __upper_alpha umbral superior en que la tabla debe
+      expandirse.
+      @param[in] __lower_alpha umbral inferior en que la tabla debe
+      contraerse.
+      @param[in] __remove_all_buckets si es true, entonces se liberan
+      las cuvetas de la tabla. De lo contrario, éstas permanecen
+      intactas. Por omisión el valor es true.
+
+      @throw length_error si __ es igual a superior que la máxima
+      dimensión permitida para un arreglo dinámico.
+      @throw domain_error si __upper_alpha es menor o igual a
+      __lower_alpha.
+      @throw bad_alloc si no hay suficiente memoria
+      @throw overflow_error si ocurre un desborde desde DynArray
+      (causado por sus cálculos internos).
+  */
+  GenLinearHashTable(size_t       len                = Primes::DefaultPrime,
+                     Hash_Fct_Ptr hash_fct           = Aleph::dft_hash_fct<Key>,
+                     Cmp          cmp                = Cmp(),
+                     float        lower_alpha        = hash_default_lower_alpha,
+                     float        upper_alpha        = hash_default_upper_alpha,
+                     bool         remove_all_buckets = true,
+                     bool         with_resize        = true)
+  : GenLinearHashTable(len, Hash_Fct(hash_fct), cmp,
+                       lower_alpha, upper_alpha,
+                       remove_all_buckets, with_resize) {}
 
   void swap(GenLinearHashTable & other) noexcept
   {
@@ -380,17 +372,17 @@ public:
   void empty() noexcept
   {
     while (not entries_list.is_empty())
-      {    
-	Bucket * bucket = Bucket::dlink_to_base(entries_list.remove_first());
-	bucket->del();             // borra de la lista en el arreglo
-	bucket->get_link()->del(); // borra de entries list
-	delete bucket;
+      {
+        Bucket * bucket = Bucket::dlink_to_base(entries_list.remove_first_ne());
+        bucket->del();             // borra de la lista en el arreglo
+        bucket->get_link()->del(); // borra de entries list
+        delete bucket;
       }
-    
+
     M = MP = len;
     MM = multiply_by_two(M);
     N = p = l = 0;
-    table.cut(len);
+    table.cut_ne(len);
   }
 
   ~GenLinearHashTable()
@@ -404,11 +396,11 @@ private:
   Bucket *
   search_in_bucket_list(BucketList * list, const Key & key) const noexcept
   {
-    for (BucketItor it(*list); it.has_curr(); it.next())
+    for (BucketItor it(*list); it.has_curr(); it.next_ne())
       {
-        Bucket * bucket = static_cast<Bucket*>(it.get_current());
-        if (cmp (key, bucket->get_key())) 
-          return bucket; 
+        Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+        if (cmp (key, bucket->get_key()))
+          return bucket;
       }
 
     return nullptr;
@@ -426,7 +418,7 @@ public:
     if (list == nullptr) // ¿Ha sido escrita alguna vez table[i]?
       return nullptr; // No ==> el elemento no se encuentra en la tabla
 
-    if (list->is_empty()) 
+    if (list->is_empty())
       return nullptr;
 
     return search_in_bucket_list(list, key);
@@ -445,12 +437,12 @@ public:
   const size_t & busy_slots() const noexcept { return busy_slots_counter; }
 
       /// Retorna el nivel de expansiones que se han realizado sobre la
-      /// tabla. 
+      /// tabla.
   const size_t & expansions() const noexcept { return l; }
 
       /// Insert bucket in the table. Return bucket if bucket->get_key()
       /// is not in the table, nullptr otherwise
-  Bucket * insert(Bucket * bucket) 
+  Bucket * insert(Bucket * bucket)
   {
     const int i       = call_hash_fct(bucket->get_key());
     BucketList & list = table.touch(i); // allocates memory for table[i]
@@ -496,7 +488,7 @@ private:
   // entries_list. The end of this routine is to dry the deletion and to
   // allow remove from other places; ofor instance, from the del()
   // method of Iterator class
-  Bucket * remove_bucket(Bucket * bucket)
+  Bucket * remove_bucket(Bucket * bucket) noexcept
   {
     assert(bucket != nullptr);
     assert(search(bucket->get_key()) == bucket);
@@ -529,15 +521,15 @@ public:
     for (int i = 0; i < MP; ++i)
       {
         cout << "table[" << i << "] = [ ";
-        
+
         if (table.exist(i))
           {
             BucketList & list = table.access(i);
 
             if (not list.is_empty())
-              for (BucketItor it(list); it.has_current(); it.next())
+              for (BucketItor it(list); it.has_curr(); it.next_ne())
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_current());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
                   const Key & key = bucket->get_key();
                   cout << key << ",";
                 }
@@ -563,17 +555,22 @@ public:
 
         /// Instancia un iterador sobre la tabla hash table.
     Iterator(const GenLinearHashTable & table) noexcept
-      : Dlink::Iterator(const_cast<Dlink &>(table.entries_list)), 
-	hash_table(& const_cast<GenLinearHashTable &>(table))
+      : Dlink::Iterator(const_cast<Dlink &>(table.entries_list)),
+        hash_table(& const_cast<GenLinearHashTable &>(table))
     {
       // Empty
     }
-    
+
         /// Instancia un iterador vacío.
     Iterator() noexcept { /* Empty */ }
 
+    Bucket * get_curr_ne() noexcept
+    {
+      return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr_ne());
+    }
+
         /// Retorna la cubeta actual.
-    Bucket * get_curr() 
+    Bucket * get_curr()
     {
       return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr());
     }
@@ -584,7 +581,13 @@ public:
       return (Bucket *) hash_table->remove_bucket(bucket);
     }
 
-    void next() 
+    void next_ne() noexcept
+    {
+      this->Dlink::Iterator::next_ne();
+      pos++;
+    }
+
+    void next()
     {
       this->Dlink::Iterator::next();
       pos++;
@@ -640,7 +643,7 @@ using LinearHashTable = GenLinearHashTable<Key, LinHashBucket, Cmp>;
         @param Key el tipo de clave por el cual se indiza la tabla.
         @param Cmp clase de comparación entre las claves.
 
-        @see DynArray LinearHashTable 
+        @see DynArray LinearHashTable
         @ingroup Hash
     */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>

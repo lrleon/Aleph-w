@@ -1,25 +1,3 @@
-/* 
-  This file is part of Aleph-w library
-
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
-*/
 
 # ifndef TPL_DYNARRAY_H
 # define TPL_DYNARRAY_H
@@ -29,6 +7,7 @@
 # include <string>
 # include <aleph.H>
 # include <ahIterator.H>
+# include <array_utils.H>
 # include <ahDry.H>
 # include <tpl_dynDlist.H>
 # include <ah-args-ctor.H>
@@ -42,7 +21,7 @@ using namespace Aleph;
 namespace Aleph {
 
   class BitArray; // forward needed
- 
+
   /** Lazy and scalable dynamic array
       ===============================
 
@@ -54,10 +33,10 @@ namespace Aleph {
 
       The data structure consists of three array types. A first array
       type is called block and it is a contiguous chunk of `block_size`
-      data entries. if an array occupes n entries then there are
+      data entries. if an array occupies n entries then there are
       n/block_size + 1 blocks allocated. The blocks are indexed by
       segments of `seg_size` blocks which in turn are indexed by a
-      directory of `dir_size` segement. For accessing to entry i the
+      directory of `dir_size` segment. For accessing to entry i the
       following calculations are done:
 
       1. The directory entry corresponds to i/(seg_size*block_size).
@@ -70,7 +49,7 @@ namespace Aleph {
      constant access time.
 
      In order to faster perform the calculations, the directory,
-     segement and block size are adjusted to two powers. In this way,
+     segment and block size are adjusted to two powers. In this way,
      the division and modulus can be done with shifting and masking.
 
      Access through [] operator
@@ -81,7 +60,7 @@ namespace Aleph {
      operator is able to determine whether the i-th entry has been o
      not written. If for example a reading on a non allocated block is
      done, some such as:
-     
+
          cout << a[i] << end;
 
      Then a default initialization value will be returned. This value
@@ -90,15 +69,15 @@ namespace Aleph {
      At the contrary, if the first time that a writing is done, some such as:
 
          a[i] = value;
-     
+
      Then the block, and eventually the segment will be allocated.
 
      Eventually the array could be fragmented and to consume memory some
      proportional to the writes done. Suppose for example that you only
      perform:
 
-         a[0] = valuex;
-	 a[100000000] = valuey;
+         a[0] = value;
+         a[100000000] = valuey;
 
      In this case, the registered dimension of array will be 100000000,
      but only two blocks will be allocated. If you only performs reads
@@ -149,7 +128,7 @@ namespace Aleph {
 
      However, sometimes is desirable to set oneself these parameter. The
      principal justification is given for situations where the memory is
-     very limited. 
+     very limited.
 
      Note that a memory manager could have enough memory dispersed
      through the total of available chunks but it could not exists an
@@ -176,18 +155,17 @@ namespace Aleph {
 
      @ingroup Secuencias
    */
-    template <typename T> 
-class DynArray :
-    public LocateFunctions<DynArray<T>, T>,
-    public FunctionalMethods<DynArray<T>, T>,
-    public GenericKeys<DynArray<T>, T>,
-    public EqualToMethod<DynArray<T>>,
-    public StlAlephIterator<DynArray<T>>
+    template <typename T>
+class DynArray : public LocateFunctions<DynArray<T>, T>,
+                 public FunctionalMethods<DynArray<T>, T>,
+                 public GenericKeys<DynArray<T>, T>,
+                 public EqualToMethod<DynArray<T>>,
+                 public StlAlephIterator<DynArray<T>>
 {
   friend class BitArray; // for access to __traversal() method
 
   // look at the end of this file for seeing the values
- public:
+public:
 
   using Item_Type = T; /// The type of element stored in the array
   using Key_Type = T; /// The type of element stored in the array
@@ -198,20 +176,20 @@ class DynArray :
 
  private:
 
-  static const size_t Max_Bits_Allowed; 
+  static const size_t Max_Bits_Allowed;
 
  public:
 
   /// Maximum dimension allowed
   static const unsigned long long Max_Dim_Allowed;
 
- private:
+private:
 
   static const size_t Max_Pow_Block;
 
   mutable size_t pow_dir              = Default_Pow_Dir;
   mutable size_t pow_seg              = Default_Pow_Seg;
-  mutable size_t pow_block            = 
+  mutable size_t pow_block            =
     std::min(Default_Pow_Block, Max_Pow_Block);
   mutable size_t seg_plus_block_pow   = pow_seg + pow_block;
   mutable size_t mask_seg_plus_block = two_raised(seg_plus_block_pow) - 1;
@@ -222,20 +200,18 @@ class DynArray :
       // 2^(pow_dir + pow_seg + pow_block) - 1
   unsigned long long max_dim         = two_raised(seg_plus_block_pow + pow_dir);
 
-  static size_t two_raised(const size_t n) 
+  static size_t two_raised(const size_t n) noexcept
   {
-    if (n >= Max_Bits_Allowed)
-      throw std::overflow_error ("number of bits exceeds maximum allowed");
-
+    assert(n < Max_Bits_Allowed);
     return 1 << n;
   }
 
-  static size_t compute_dim(size_t d, size_t s, size_t b)
+  static size_t compute_dim(size_t d, size_t s, size_t b) noexcept
   {
     return two_raised(d)*two_raised(s)*two_raised(b);
   }
 
- public:
+public:
 
   /** Given a dimension `n`, it proposes values for the directory,
       segment and block sizes.
@@ -246,6 +222,7 @@ class DynArray :
       @param[out] b block size
   */
   static void compute_sizes(const size_t n, size_t & d, size_t & s, size_t & b)
+    noexcept
   {
     d = Default_Pow_Dir;
     s = Default_Pow_Seg;
@@ -255,14 +232,14 @@ class DynArray :
 
     while (true)
       {
-	if (compute_dim(++d, s, b) >= n)
-	  break;
+        if (compute_dim(++d, s, b) >= n)
+          break;
 
-	if (compute_dim(d, ++s, b) >= n)
-	  break;
+        if (compute_dim(d, ++s, b) >= n)
+          break;
 
-	if (compute_dim(d, s, ++b) >= n)
-	  break;
+        if (compute_dim(d, s, ++b) >= n)
+          break;
       }
   }
 
@@ -305,7 +282,7 @@ private:
   size_t index_in_seg(const size_t & i) const noexcept
   {
     assert( two_raised(pow_block) == block_size );
-    assert( (modulus_from_index_in_dir(i) >> pow_block) == 
+    assert( (modulus_from_index_in_dir(i) >> pow_block) ==
             (i%(seg_size*block_size))/block_size );
 
     return modulus_from_index_in_dir(i) >> pow_block;
@@ -314,14 +291,14 @@ private:
   size_t index_in_block(const size_t i) const noexcept
   {
     assert( mask_block == block_size - 1 );
-    assert( (modulus_from_index_in_dir(i) & mask_block) == 
+    assert( (modulus_from_index_in_dir(i) & mask_block) ==
             ((i%(seg_size*block_size))%block_size) );
 
     return modulus_from_index_in_dir(i) & mask_block;
   }
 
-  size_t current_dim;  
-  size_t num_segs   = 0;   
+  size_t current_dim;
+  size_t num_segs   = 0;
   size_t num_blocks = 0;
   T *** dir         = nullptr;
 
@@ -343,10 +320,10 @@ private:
 
   void allocate_dir()
   {
-    dir = (T***) malloc(dir_size*sizeof(T**)); 
+    dir = (T***) malloc(dir_size*sizeof(T**));
     if (dir == nullptr)
       throw std::bad_alloc();
-    
+
     fill_dir_to_null();
   }
 
@@ -357,7 +334,7 @@ private:
     size_t new_pow_dir = pow_dir + 1;
     while (compute_dim(new_pow_dir, pow_seg, pow_block) <= i)
       ++new_pow_dir;
-    
+
     const size_t new_dir_sz = two_raised(new_pow_dir);
     T *** new_dir = (T***) realloc(dir, new_dir_sz*sizeof(T**));
     if (new_dir == nullptr)
@@ -373,7 +350,7 @@ private:
     max_dim = compute_dim(pow_dir, pow_seg, pow_block);
   }
 
-  void allocate_segment(T **& seg) 
+  void allocate_segment(T **& seg)
   {
     assert(seg == nullptr);
 
@@ -392,7 +369,7 @@ private:
     block = new T [block_size];
     ++num_blocks;
 
-    if (default_initial_value_ptr == nullptr) 
+    if (default_initial_value_ptr == nullptr)
       return;
 
     for (size_t i = 0; i < block_size; ++i)
@@ -422,7 +399,7 @@ private:
     assert(seg != nullptr);
 
     for(size_t i = 0; i < seg_size ; ++i)
-      if (seg[i] != nullptr) 
+      if (seg[i] != nullptr)
         release_block(seg[i]);
 
     release_segment(seg);
@@ -434,7 +411,7 @@ private:
 
     for(size_t i = 0; i < dir_size ; ++i)
       if (dir[i] != nullptr)
-        release_blocks_and_segment(dir[i]); 
+        release_blocks_and_segment(dir[i]);
 
     current_dim = 0;
   }
@@ -471,7 +448,7 @@ private:
     return number & mask_block;
   }
 
-  void advance_block_index(size_t block_index, size_t seg_index, 
+  void advance_block_index(size_t block_index, size_t seg_index,
                            const size_t len) const noexcept
   {
     if (block_index + len < block_size)
@@ -481,7 +458,7 @@ private:
       }
 
     seg_index += divide_by_block_size(len);
-    block_index = modulus_by_block_size(len); 
+    block_index = modulus_by_block_size(len);
   }
 
   void allocate_block(T *& block, T * src_block)
@@ -519,17 +496,17 @@ private:
 
   public:
 
-    Proxy(DynArray<T> & _array, const size_t i) noexcept : 
-      index(i), pos_in_dir(_array.index_in_dir(index)),
-      pos_in_seg(_array.index_in_seg(index)), 
-      pos_in_block(_array.index_in_block(index)),
-      ref_seg(_array.dir[pos_in_dir]), block (nullptr), array(_array)
+    Proxy(DynArray<T> & _array, const size_t i) noexcept
+      : index(i), pos_in_dir(_array.index_in_dir(index)),
+        pos_in_seg(_array.index_in_seg(index)),
+        pos_in_block(_array.index_in_block(index)),
+        ref_seg(_array.dir[pos_in_dir]), block (nullptr), array(_array)
     {
       if (ref_seg != nullptr)
         block = ref_seg[pos_in_seg]; // ya existe bloque para entrada i
     }
 
-    operator T & () 
+    operator T & ()
     {
       if (block == nullptr)
         throw std::invalid_argument("accessed entry not been still written");
@@ -541,64 +518,64 @@ private:
       bool seg_was_allocated_in_current_call = false;
 
       if (ref_seg == nullptr) // hay segmento?
-	{     // No ==> apartarlo!
-	  array.allocate_segment(ref_seg);
-	  seg_was_allocated_in_current_call = true; 
-	}
+        {     // No ==> apartarlo!
+          array.allocate_segment(ref_seg);
+          seg_was_allocated_in_current_call = true;
+        }
 
       if (block == nullptr) // test if block is allocated
         {
-	  try // tratar apartar bloque
-	    {
-	      array.allocate_block(block);
-	      ref_seg[pos_in_seg] = block;
+          try // tratar apartar bloque
+            {
+              array.allocate_block(block);
+              ref_seg[pos_in_seg] = block;
 
-	      assert(array.dir[pos_in_dir] == ref_seg); 
-	    }
-	  catch (...) // Ocurre una falla en el apartado del bloque
-	    {
-	      if (seg_was_allocated_in_current_call)
-		array.release_segment(ref_seg);
+              assert(array.dir[pos_in_dir] == ref_seg);
+            }
+          catch (...) // Ocurre una falla en el apartado del bloque
+            {
+              if (seg_was_allocated_in_current_call)
+                array.release_segment(ref_seg);
 
-	      throw;
-	    }
+              throw;
+            }
         }
 
       if (index >= array.current_dim)
-        array.current_dim = index + 1; 
+        array.current_dim = index + 1;
 
-      return &block[pos_in_block]; 
+      return &block[pos_in_block];
     }
 
     Proxy & operator = (const T & data)
     {
       bool seg_was_allocated_in_current_call = false;
       if (ref_seg == nullptr) // hay segmento?
-	{     // No ==> apartarlo!
-	  array.allocate_segment(ref_seg);
-	  seg_was_allocated_in_current_call = true; 
-	}
+        {     // No ==> apartarlo!
+          array.allocate_segment(ref_seg);
+          seg_was_allocated_in_current_call = true;
+        }
 
       if (block == nullptr) // test if block is allocated
         {
-	  try // tratar apartar bloque
-	    {
-	      array.allocate_block(block);
-	      ref_seg[pos_in_seg] = block;
+          try // tratar apartar bloque
+            {
+              array.allocate_block(block);
+              ref_seg[pos_in_seg] = block;
 
-	      assert(array.dir[pos_in_dir] == ref_seg); 
-	    }
-	  catch (...) // Ocurre una falla en el apartado del bloque
-	    {
-	      if (seg_was_allocated_in_current_call)
-		array.release_segment(ref_seg);
+              assert(array.dir[pos_in_dir] == ref_seg);
+            }
+          catch (...) // Ocurre una falla en el apartado del bloque
+            {
+              if (seg_was_allocated_in_current_call)
+                array.release_segment(ref_seg);
 
-	      throw;
-	    }
+              throw;
+            }
         }
 
       if (index >= array.current_dim)
-        array.current_dim = index + 1; 
+        array.current_dim = index + 1;
 
       block[pos_in_block] = data;
 
@@ -610,36 +587,36 @@ private:
       if (proxy.block == nullptr) // ¿operando derecho puede leerse?
         throw std::domain_error("right entry has not been still written");
 
-      if (&proxy == this) 
-	return *this;
+      if (&proxy == this)
+        return *this;
 
       bool seg_was_allocated_in_current_call = false;
       if (ref_seg == nullptr) // hay segmento?
-	{     // No ==> apartarlo!
-	  array.allocate_segment(ref_seg);
-	  seg_was_allocated_in_current_call = true; 
-	}
+        {     // No ==> apartarlo!
+          array.allocate_segment(ref_seg);
+          seg_was_allocated_in_current_call = true;
+        }
 
       if (block == nullptr) // test if block is allocated
         {
-	  try // tratar apartar bloque
-	    {
-	      array.allocate_block(block);
-	      ref_seg[pos_in_seg] = block;
+          try // tratar apartar bloque
+            {
+              array.allocate_block(block);
+              ref_seg[pos_in_seg] = block;
 
-	      assert(array.dir[pos_in_dir] == ref_seg); 
-	    }
-	  catch (...) // Ocurre una falla en el apartado del bloque
-	    {
-	      if (seg_was_allocated_in_current_call)
-		array.release_segment(ref_seg);
+              assert(array.dir[pos_in_dir] == ref_seg);
+            }
+          catch (...) // Ocurre una falla en el apartado del bloque
+            {
+              if (seg_was_allocated_in_current_call)
+                array.release_segment(ref_seg);
 
-	      throw;
-	    }
+              throw;
+            }
         }
 
       if (index >= array.current_dim)
-        array.current_dim = index + 1; 
+        array.current_dim = index + 1;
 
       block[pos_in_block] = proxy.block[proxy.pos_in_block];
 
@@ -656,7 +633,7 @@ public:
   size_t get_seg_size() const noexcept { return seg_size; }
 
   /// Return the block size
-  size_t get_block_size() const noexcept { return block_size; } 
+  size_t get_block_size() const noexcept { return block_size; }
 
   /// Return the current dimension of array. According to usage style,
   /// this could represent the number of items stored in the array seen
@@ -674,8 +651,8 @@ public:
 
       /** Set the default value.
 
-	  The default value of a dynamic array is the value to be
-	  returned when entries not still written are accessed. 
+          The default value of a dynamic array is the value to be
+          returned when entries not still written are accessed.
 
           @param[in] value default value
        */
@@ -686,7 +663,7 @@ public:
   }
 
   /// \overload set_default_initial_value(const T & value)
-  void set_default_initial_value(T && value = T()) 
+  void set_default_initial_value(T && value = T())
     noexcept(noexcept(std::swap(default_initial_value, value)))
   {
     std::swap(default_initial_value, value);
@@ -708,25 +685,23 @@ public:
       @throw overflow_error if it happens an arithmetic overflow with
       the bits operations
   */
-  DynArray(size_t _pow_dir, size_t _pow_seg, size_t _pow_block) 
-    throw (std::exception, std::bad_alloc, 
-           std::length_error, std::overflow_error) 
+  DynArray(size_t _pow_dir, size_t _pow_seg, size_t _pow_block)
     : pow_dir             ( _pow_dir                                 ),
       pow_seg             ( _pow_seg                                 ),
       pow_block           ( _pow_block                               ),
       seg_plus_block_pow  ( _pow_seg + _pow_block                    ),
       mask_seg_plus_block ( two_raised(seg_plus_block_pow) - 1       ),
-      dir_size            ( two_raised(pow_dir)                      ), 
-      seg_size            ( two_raised(pow_seg)                      ), 
-      block_size          ( two_raised(pow_block)                    ), 
-      max_dim             ( two_raised(seg_plus_block_pow + pow_dir) ), 
+      dir_size            ( two_raised(pow_dir)                      ),
+      seg_size            ( two_raised(pow_seg)                      ),
+      block_size          ( two_raised(pow_block)                    ),
+      max_dim             ( two_raised(seg_plus_block_pow + pow_dir) ),
       mask_seg            ( seg_size - 1                             ),
       mask_block          ( block_size - 1                           ),
       current_dim         ( 0                                        ),
       num_segs            ( 0                                        ),
       num_blocks          ( 0                                        )
   {
-    static_assert(std::is_copy_constructible<T>::value, 
+    static_assert(std::is_copy_constructible<T>::value,
 		  "No copy constructor for T");
     static_assert(std::is_move_constructible<T>::value,
 		  "No move constructor for T");
@@ -737,7 +712,7 @@ public:
     assert(Max_Dim_Allowed > 0);
 
     if (max_dim > Max_Dim_Allowed)
-      throw std::length_error ("Dimension too large"); 
+      throw std::length_error ("Dimension too large");
 
     allocate_dir();
   }
@@ -745,19 +720,17 @@ public:
        /** Default constructor
 
            @param[in] dim initial dimension of array
-	   @throw bad_alloc if there is no enough memory
+           @throw bad_alloc if there is no enough memory
            @throw length_error si dim is greater than maximum allowed
            @throw overflow_error if it happens an arithmetic overflow with
-	   the bits operations
-        */ 
-  DynArray(const size_t dim = 0) 
-    throw (std::exception, std::bad_alloc, 
-	   std::length_error, std::overflow_error) 
+           the bits operations
+       */
+  DynArray(const size_t dim = 0)
     : current_dim(dim)
-  {
-    static_assert(std::is_default_constructible<T>::value, 
+    {
+    static_assert(std::is_default_constructible<T>::value,
 		  "No default constructor for T");
-    static_assert(std::is_copy_constructible<T>::value, 
+    static_assert(std::is_copy_constructible<T>::value,
 		  "No copy constructor for T");
     static_assert(std::is_move_constructible<T>::value,
 		  "No move constructor for T");
@@ -775,8 +748,8 @@ public:
 
   Special_Ctors(DynArray, T);
 
-  ~DynArray() 
-  { 
+  ~DynArray()
+  {
     release_dir();
   }
 
@@ -794,10 +767,9 @@ public:
       /** Copy constructor
 
           @param[in] array source of copy
-	  @throw bad_alloc if there is no enough memory
-       */
-  DynArray(const DynArray<T> & array) 
-      throw (std::exception, std::bad_alloc)
+          @throw bad_alloc if there is no enough memory
+      */
+  DynArray(const DynArray<T> & array)
     : pow_dir                   (array.pow_dir),
       pow_seg                   (array.pow_seg),
       pow_block                 (array.pow_block),
@@ -822,16 +794,15 @@ public:
       /** Copy assignment
 
           @param[in] array source of copy
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
        */
-  DynArray<T> & operator = (const DynArray<T> & array) 
-    throw (std::exception, std::bad_alloc)
+  DynArray<T> & operator = (const DynArray<T> & array)
   {
-    if (this == &array) 
+    if (this == &array)
       return *this;
 
     copy_array(array);
-    
+
     if (array.current_dim < current_dim)
       cut(array.current_dim);
 
@@ -865,15 +836,15 @@ public:
   }
 
   /// Move constructor
-  DynArray(DynArray && other)
+  DynArray(DynArray && other) noexcept
     : pow_dir             ( Default_Pow_Dir                          ),
       pow_seg             ( Default_Pow_Seg                          ),
-      pow_block           (std::min(Default_Pow_Block, Max_Pow_Block)), 
+      pow_block           (std::min(Default_Pow_Block, Max_Pow_Block)),
       seg_plus_block_pow  ( pow_seg + pow_block                      ),
       mask_seg_plus_block ( two_raised(seg_plus_block_pow) - 1       ),
-      dir_size            ( two_raised(pow_dir)                      ), 
-      seg_size            ( two_raised(pow_seg)                      ), 
-      block_size          ( two_raised(pow_block)                    ), 
+      dir_size            ( two_raised(pow_dir)                      ),
+      seg_size            ( two_raised(pow_seg)                      ),
+      block_size          ( two_raised(pow_block)                    ),
       max_dim             ( two_raised(seg_plus_block_pow + pow_dir) ),
       mask_seg            ( seg_size - 1                             ),
       mask_block          ( block_size - 1                           ),
@@ -913,7 +884,7 @@ public:
   {
     return access(i);
   }
-    
+
       /** Return `true` if the i-th entry is accessible.
 
 	  By accessible is understood that eitjer the entry has been
@@ -921,7 +892,7 @@ public:
 	  already allocated,
           @param[in] i index to test
        */
-  bool exist(const size_t i) const 
+  bool exist(const size_t i) const
   {
     if (i >= max_dim)
       return false;
@@ -930,25 +901,25 @@ public:
 
     assert(pos_in_dir < dir_size);
 
-    if (dir[pos_in_dir] == nullptr) 
+    if (dir[pos_in_dir] == nullptr)
       return false;
 
     const size_t pos_in_seg = index_in_seg(i);
 
     assert(pos_in_seg < seg_size);
 
-    if (dir[pos_in_dir][pos_in_seg] == nullptr) 
+    if (dir[pos_in_dir][pos_in_seg] == nullptr)
       return false;
 
     return true;
-  }  
+  }
 
       /** Test if the i-th entry es writable,
 
           `test(i)` inspects if the entry i is already allocated. If
           affirmative, then a pointer to the entry in the array is
           returned. Otherwise `nullptr` is returned.
-          
+
           @param[in] i index to test.
           @return `nullptr` if the entry is not allocated; a valid
           pointer inside the array otherwise
@@ -959,11 +930,11 @@ public:
       return nullptr;
 
     const size_t pos_in_dir = index_in_dir(i);
-    if (dir[pos_in_dir] == nullptr) 
+    if (dir[pos_in_dir] == nullptr)
       return nullptr;
 
     const size_t pos_in_seg = index_in_seg(i);
-    if (dir[pos_in_dir][pos_in_seg] == nullptr) 
+    if (dir[pos_in_dir][pos_in_seg] == nullptr)
       return nullptr;
 
     return &dir[index_in_dir(i)][index_in_seg(i)][index_in_block(i)];
@@ -977,14 +948,14 @@ public:
           the method returns a valid pointer to the entry inside the
           array.
 
-	  `touch(i)` is a concise and effective way to test and
-	  eventually to allocate memory for a new entry.
+          `touch(i)` is a concise and effective way to test and
+          eventually to allocate memory for a new entry.
 
           @param[in] i index to touch
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
           @see cut
        */
-  T & touch(const size_t i) throw (std::exception, std::bad_alloc)
+  T & touch(const size_t i)
   {
     if (i >= max_dim)
       resize_dir(i);
@@ -998,7 +969,7 @@ public:
       {
         try
           {
-	    allocate_block(dir[pos_in_dir][pos_in_seg]);
+            allocate_block(dir[pos_in_dir][pos_in_seg]);
           }
         catch (...)
           {
@@ -1021,11 +992,10 @@ public:
 
           @param[in] l lower index
           @param[in] r upper index
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
           @throw domain_error if l is greater than r
        */
-  void reserve(const size_t l, const size_t r) 
-    throw (std::exception, std::bad_alloc, std::domain_error)
+  void reserve(const size_t l, const size_t r)
   {
     if (l > r)
       throw std::domain_error("invalid range");
@@ -1040,26 +1010,26 @@ public:
 
     try
       {
-	for (size_t seg_idx = first_seg; seg_idx <= last_seg; ++seg_idx)
-	  {
-	    if (dir[seg_idx] == nullptr)
-	      allocate_segment(dir[seg_idx]);
-	    
-	    size_t block_idx = (seg_idx == first_seg) ? first_block : 0;
-	    const size_t final_block = 
-	      (seg_idx == last_seg) ? last_block : seg_size - 1;
+        for (size_t seg_idx = first_seg; seg_idx <= last_seg; ++seg_idx)
+          {
+            if (dir[seg_idx] == nullptr)
+              allocate_segment(dir[seg_idx]);
 
-	    while (block_idx <= final_block)
-	      {
-		if (dir[seg_idx][block_idx] == nullptr)
-		  allocate_block(dir[seg_idx][block_idx]);
+            size_t block_idx = (seg_idx == first_seg) ? first_block : 0;
+            const size_t final_block =
+              (seg_idx == last_seg) ? last_block : seg_size - 1;
 
-		++block_idx; 
-	      }
-	  } // end for (...) 
+            while (block_idx <= final_block)
+              {
+                if (dir[seg_idx][block_idx] == nullptr)
+                  allocate_block(dir[seg_idx][block_idx]);
 
-	if (r + 1 > current_dim)
-	  current_dim = r + 1;
+                ++block_idx;
+              }
+          } // end for (...)
+
+        if (r + 1 > current_dim)
+          current_dim = r + 1;
       }
     catch (...)
       {
@@ -1073,26 +1043,17 @@ public:
       /** Assure that the range between 0 and dim is allocated
 
           @param[in] dim upper index
-	  @throw bad_alloc if there is no enough memory
+          @throw bad_alloc if there is no enough memory
        */
-  void reserve(const size_t dim) 
+  void reserve(const size_t dim)
   {
     if (dim > 0)
       reserve(0, dim - 1);
   }
 
-  /** Cut the array to a new dimension; that is, it reduces the
-      dimension of array and frees the remaining memory.
-
-      @param[in] new_dim new dimension value
-      @throw domain_error if `new_dim` is greater than current dim
-   */
-  void cut(const size_t new_dim = 0) throw(std::exception, std::domain_error) 
+  void cut_ne(const size_t new_dim = 0)
   {
-    if (new_dim > current_dim)
-      throw std::domain_error("new dimension greater that current dimension");
-
-    if (new_dim == 0) 
+    if (new_dim == 0)
       {
         release_all_segments_and_blocks();
         current_dim = 0;
@@ -1106,15 +1067,15 @@ public:
     const long idx_first_block = index_in_seg(old_dim - 1);
 
         // segment and block last indexes
-    const long idx_last_seg    = index_in_dir(new_dim - 1); 
-    const long idx_last_block  = index_in_seg(new_dim - 1);    
-    for (long idx_seg = index_in_dir(old_dim - 1); idx_seg >= idx_last_seg; 
-         --idx_seg) // recorre descendentemente los segmentos 
+    const long idx_last_seg    = index_in_dir(new_dim - 1);
+    const long idx_last_block  = index_in_seg(new_dim - 1);
+    for (long idx_seg = index_in_dir(old_dim - 1); idx_seg >= idx_last_seg;
+         --idx_seg) // recorre descendentemente los segmentos
       {
         if (dir[idx_seg] == nullptr) // ¿hay un segmento?
           continue; // no ==> avance al siguiente
 
-        long idx_block =  // primer bloque a liberar 
+        long idx_block =  // primer bloque a liberar
           idx_seg == idx_first_seg ? idx_first_block : seg_size - 1;
 
             // Libera descendentemente los bloques reservados del segmento
@@ -1124,7 +1085,7 @@ public:
           if (dir[idx_seg][idx_block] != nullptr) // ¿Hay un bloque aquí?
             release_block(dir[idx_seg][idx_block]);
 
-          --idx_block; 
+          --idx_block;
         }
 
         if (idx_block < 0)
@@ -1132,6 +1093,19 @@ public:
       }
 
     current_dim = new_dim; // actualiza nueva dimensión
+  }
+
+    /** Cut the array to a new dimension; that is, it reduces the
+      dimension of array and frees the remaining memory.
+
+      @param[in] new_dim new dimension value
+      @throw domain_error if `new_dim` is greater than current dim
+   */
+  void cut(const size_t new_dim = 0)
+  {
+    if (new_dim > current_dim)
+      throw std::length_error("new dimension greater that current dimension");
+    cut_ne(new_dim);
   }
 
   /** Set a new dimension.
@@ -1155,8 +1129,6 @@ public:
   void empty() noexcept { cut(0); }
 
   Proxy operator [] (const size_t i) const
-    throw (std::exception, std::bad_alloc, std::length_error, 
-	   std::invalid_argument) 
   {
     if (i >= max_dim)
       throw std::out_of_range ("index out of maximun range");
@@ -1164,9 +1136,7 @@ public:
     return Proxy (const_cast<DynArray<T>&>(*this), i);
   }
 
-  Proxy operator [] (const size_t i) 
-    throw (std::exception, std::length_error, 
-           std::invalid_argument, std::bad_alloc)
+  Proxy operator [] (const size_t i)
   {
     if (i >= max_dim)
       resize_dir(i);
@@ -1176,15 +1146,15 @@ public:
 
   /// Allocate a new entry to the end of array. Increase the dimension
   /// and return a mdoficiable reference to the last entry
-  T & append() 
+  T & append()
   {
-    return touch(this->size()); 
+    return touch(this->size());
   }
-  
+
   /// Copy `data` to the end of array, increase the dimension and return
   /// a modifiable reference to teh copied data
-  T & append(const T & data) 
-  { 
+  T & append(const T & data)
+  {
     T & ref = this->append();
     ref = data;
     return ref;
@@ -1192,13 +1162,31 @@ public:
 
   /// Move `data` to the end of array, increase the dimension and return
   /// a modifiable reference to teh copied data
-  T & append(T && data) 
-  { 
+  T & append(T && data)
+  {
     T & ref = this->append();
     ref = std::move(data);
     return ref;
   }
-  
+
+  T & insert(const T & item)
+  {
+    this->append();
+    Aleph::open_gap(*this, current_dim);
+    T & ret = access(0);
+    ret = item;
+    return ret;
+  }
+
+  T & insert(T && item)
+  {
+    this->append();
+    Aleph::open_gap(*this, current_dim);
+    T & ret = access(0);
+    ret = std::forward<T>(item);
+    return ret;
+  }
+
   /// \overload append(const T & data)
   void push(const T & data) { this->append(data); }
 
@@ -1219,7 +1207,7 @@ public:
   void remove(T & item) noexcept
   {
     std::swap(item, this->access(this->size() - 1));
-    this->cut(this->size() - 1);
+    this->cut_ne(this->size() - 1);
   }
 
   /// \overload remove(T & item)
@@ -1237,23 +1225,11 @@ public:
     return *this;
   }
 
-  DynArray & rev() { return reverse(); }
-
-  DynArray reverse() const
-  {
-    DynArray ret;
-    for (size_t i = 0; i < current_dim; ++i)
-      ret.append(touch(current_dim - i - 1));
-    return ret;
-  }
-
-  DynArray rev() const { return reverse(); }
-
   /// Remove the last item of array (as if this was a stack)
-  T pop() 
+  T pop()
   {
     T ret_val = std::move(this->access(this->size() - 1));
-    cut(size() - 1); 
+    cut(size() - 1);
 
     return ret_val;
   }
@@ -1263,7 +1239,7 @@ public:
 
   /// Return a modifiable reference to the first item of array (as if
   /// this was a queue)
-  T & get_first() const { return (*this)[0]; } 
+  T & get_first() const { return (*this)[0]; }
 
   /// Return a modifiable reference to the last item of array (as if
   /// this was a queue)
@@ -1275,7 +1251,7 @@ public:
       minus one.
 
       It is assumed that all the entries between 0 and current dimension
-      have been allocated. 
+      have been allocated.
 
       @ingroup Secuencias
   */
@@ -1300,46 +1276,52 @@ public:
     /// Return `true` if there is current item
     bool has_curr() const noexcept
     {
-      return curr_idx >= 0 and curr_idx < array_ptr->size(); 
+      return curr_idx >= 0 and curr_idx < array_ptr->size();
     }
-    
-    /// \overload has_curr()
-    bool has_current() const noexcept { return has_curr(); }
 
     bool is_last() const noexcept { return curr_idx == array_ptr->size() - 1; }
 
+    /// Return the current link guaranteeing no exception. Be careful.
+    T & get_curr_ne() const noexcept { return array_ptr->access(curr_idx); }
+
     /** Return the current item
 
-	@throw overflow_error if there is no current
+        @throw overflow_error if there is no current
     */
     T & get_curr() const
     {
       if (curr_idx == array_ptr->size())
-	throw std::overflow_error("not current item in iterator");
-      return array_ptr->access(curr_idx); 
+        throw std::overflow_error("not current item in iterator");
+      return get_curr_ne();
     }
 
     /// Return the ordinal position of current item
     long get_pos() const noexcept { return curr_idx; }
 
+    /// Move the iterator one position forward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept { ++curr_idx; }
+
     /// Move the current a position forward. Throw `overflow_error` if
     /// current is the last item
-    void next() 
+    void next()
     {
       if (curr_idx == array_ptr->size())
-	throw std::overflow_error("not current item in iterator");
-	  
-      ++curr_idx;
+        throw std::overflow_error("not current item in iterator");
+      next_ne();
     }
+
+    // Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void prev_ne() noexcept { --curr_idx; }
 
     /// Move the current a position backward. Throw `underflow_error` if
     /// current is the first item
     void prev()
     {
       if (curr_idx == -1)
-	throw std::underflow_error("not current item in iterator");
-
-      --curr_idx;
+        throw std::underflow_error("not current item in iterator");
+      prev_ne();
     }
 
     /// Reset the iterator to the last item
@@ -1361,18 +1343,18 @@ private:
     size_t dir_idx = 0, seg_idx = 0, block_idx = 0;
     for (size_t i = 0; i < current_dim; ++i)
       {
-	if (not operation(dir[dir_idx][seg_idx][block_idx]))
-	  return false;
-	
-	if (++block_idx == block_size)
-	  {
-	    block_idx = 0;
-	    if (++seg_idx == seg_size)
-	      {
-		seg_idx = 0;
-		++dir_idx;
-	      }
-	  }
+        if (not operation(dir[dir_idx][seg_idx][block_idx]))
+          return false;
+
+        if (++block_idx == block_size)
+          {
+            block_idx = 0;
+            if (++seg_idx == seg_size)
+              {
+                seg_idx = 0;
+                ++dir_idx;
+              }
+          }
       }
     return true;
   }
@@ -1403,7 +1385,7 @@ public:
   template <class Operation>
   bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
-    return __traverse(operation); 
+    return __traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
@@ -1414,30 +1396,30 @@ public:
   }
 
   /// \overload traverse(Operation & operation)
-  template <class Operation> bool traverse(Operation && operation) 
+  template <class Operation> bool traverse(Operation && operation)
     noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }
 };
 
-    template <typename T> 
+    template <typename T>
 const size_t DynArray<T>::Default_Pow_Dir   = 6;  /* 64   */
 
-    template <typename T> 
+    template <typename T>
 const size_t DynArray<T>::Default_Pow_Seg   = 8;  /* 256   */
 
-    template <typename T> 
+    template <typename T>
 const size_t DynArray<T>::Default_Pow_Block = 12; /* 4096 */
 
-    template <typename T> 
-const size_t DynArray<T>::Max_Bits_Allowed  = 8 * sizeof(size_t); 
+    template <typename T>
+const size_t DynArray<T>::Max_Bits_Allowed  = 8 * sizeof(size_t);
 
-    template <typename T> 
-const unsigned long long  DynArray<T>::Max_Dim_Allowed = 
+    template <typename T>
+const unsigned long long DynArray<T>::Max_Dim_Allowed =
       256*1024*1024*1024ull; // 256 Gb
 
-    template <typename T> 
+    template <typename T>
 const size_t DynArray<T>::Max_Pow_Block =
   (Max_Bits_Allowed - Default_Pow_Dir  - Default_Pow_Seg  - 1);
 

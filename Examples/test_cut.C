@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <iostream>
@@ -256,7 +260,7 @@ void imprimir_grafo(Grafo & g)
   cout << endl
        << "Listado de nodos (" << g.get_num_nodes() << ")" << endl;
 
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
     cout << INDENT << it.get_current_node()->get_info().clave << endl;
 
   cout << endl
@@ -264,7 +268,7 @@ void imprimir_grafo(Grafo & g)
        << "Listado de arcos (" << g.get_num_arcs() << ")"
        << endl;
 
-  for (Grafo::Arc_Iterator it(g); it.has_current();it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr();it.next())
     {
       Grafo::Arc * arc = it.get_current_arc();
       cout << "Arco de " << g.get_src_node(arc)->get_info().clave
@@ -275,12 +279,12 @@ void imprimir_grafo(Grafo & g)
        << endl
        << "Listado del grafo por nodos y en cada nodo por arcos" 
        << endl;
-  for (Grafo::Node_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Node_Iterator it(g); it.has_curr(); it.next())
     {
       Grafo::Node * src_node = it.get_current_node();
       cout << src_node->get_info().clave << endl;
       for (Grafo::Node_Arc_Iterator itor(src_node); 
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
 	  Grafo::Arc * arc = itor.get_current_arc();
 
@@ -302,7 +306,7 @@ typedef std::pair<Grafo::Node *, Grafo::Node *>  No_Tree_Arc;
 void generate_non_tree_arcs(Grafo & g, // g donde se calculó árbol abarcador
 			    DynDlist<No_Tree_Arc> & arc_list)
 {
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
       Grafo::Arc * arc = it.get_current_arc();
 
@@ -338,9 +342,9 @@ void write_non_tree_arcs(DynDlist<No_Tree_Arc> & list,
   const size_t Buf_Size = 512;
 
   DynDlist<No_Tree_Arc>::Iterator it(list);
-  for (int i = 0; it.has_current(); it.next(), ++i)
+  for (int i = 0; it.has_curr(); it.next(), ++i)
     {
-      No_Tree_Arc arc = it.get_current();
+      No_Tree_Arc arc = it.get_curr();
       Grafo::Node * src = arc.first;
       Grafo::Node * tgt = arc.second;
 
@@ -381,13 +385,13 @@ void write_non_tree_arcs(DynDlist<No_Tree_Arc> & list,
 void generate_low(Grafo & g, DynDlist<No_Tree_Arc> & list)
 {
       // inicialmente cada low(node) = df(node)
-  for (Grafo::Node_Iterator i(g); i.has_current(); i.next())
+  for (Grafo::Node_Iterator i(g); i.has_curr(); i.next())
     i.get_current_node()->get_info().low = i.get_current_node()->get_info().df;
 
       // revisar arcos no-abacadores en búsqueda de df menores
-  for (DynDlist<No_Tree_Arc>::Iterator it(list); it.has_current(); it.next())
+  for (DynDlist<No_Tree_Arc>::Iterator it(list); it.has_curr(); it.next())
     {
-      No_Tree_Arc non_arc = it.get_current();
+      No_Tree_Arc non_arc = it.get_curr();
 
       Grafo::Node *& gsrc = non_arc.first;
       Grafo::Node *& gtgt = non_arc.second;
@@ -418,7 +422,7 @@ void reset_grafo(Grafo & g)
 void imprimir_arcos(Grafo & g, const long & color)
 {
   cout << "Listado de arcos con color " << color << endl;
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
       Grafo::Arc * arc = it.get_current_arc();
 
@@ -432,7 +436,7 @@ void imprimir_arcos(Grafo & g, const long & color)
 void imprimir_arcos_corte(Grafo & g)
 {
   cout << "Listado de arcos de corte *** " << endl;
-  for (Grafo::Arc_Iterator it(g); it.has_current(); it.next())
+  for (Grafo::Arc_Iterator it(g); it.has_curr(); it.next())
     {
       Grafo::Arc * arc = it.get_current_arc();
 

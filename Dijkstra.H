@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef DIJKSTRA_H
 # define DIJKSTRA_H
@@ -30,7 +34,7 @@
 
 namespace Aleph {
 
-    // conversión de cookie a Node_Info 
+    // conversión de cookie a Node_Info
 # define DNassert(p) ((Node_Info*) NODE_COOKIE((p)))
 
     // Acceso al nodo del árbol en el grafo
@@ -62,23 +66,23 @@ namespace Aleph {
       The class receives the following template parameters:
       -# `GT`: graph type.
       -# `Distance <GT>`: class reading the weight. It should export the
-          following attributes: 
-        -# `typedef Distance<GT>::Distance_Type`: Data type. It
-	  represents a weight on an arc  
-	-# Distance <GT> Distance_Type :: operator () (typename GT :: Arc * a):
-           that returns the value of the peso in the bow
+          following attributes:
+      -# `typedef Distance<GT>::Distance_Type`: Data type. It
+         represents a weight on an arc
+      -# Distance <GT> Distance_Type :: operator () (typename GT :: Arc * a):
+         that returns the value of the peso in the bow
         .
       -# `SA`: Arcs filter for internal iterator
       .
 
-      @see Find_Path_Depth_First Floyd_All_Shortest_Paths Bellman_Ford_Min_Spanning_Tree  
+      @see Find_Path_Depth_First Floyd_All_Shortest_Paths Bellman_Ford_Min_Spanning_Tree
 
   @ingroup Grafos
 */
-  template <class GT, 
-	    class Distance = Dft_Dist<GT>,
-	    template <typename, class> class Itor = Node_Arc_Iterator,
-	    class SA       = Dft_Show_Arc<GT>>
+  template <class GT,
+            class Distance = Dft_Dist<GT>,
+            template <typename, class> class Itor = Node_Arc_Iterator,
+            class SA       = Dft_Show_Arc<GT>>
 class Dijkstra_Min_Paths
 {
   // Aunque fundamentalmente el algoritmo es el mismo, hay dos enfoques
@@ -92,7 +96,7 @@ class Dijkstra_Min_Paths
   // Según un enfoque u otro, el grafo se inicializa con información
   // distinta. Así, las clases que comiencen con el prefijo "Tree" son
   // clases que atañen a la solucipon que construye un árbol abarcador
-  // separado. 
+  // separado.
 
   // Información a colocar en el arco para la versión que pinta
   struct Arc_Info
@@ -103,7 +107,7 @@ class Dijkstra_Min_Paths
   // Información a colocar en el arco para la versión que construye árbol
   struct Tree_Arc_Info : public Arc_Info
   {
-    typename GT::Arc * tree_arc; // imagen en árbol 
+    typename GT::Arc * tree_arc; // imagen en árbol
     typename Distance::Distance_Type pot; // potencial del arco
   };
 
@@ -114,7 +118,7 @@ class Dijkstra_Min_Paths
 
     Get_Potential_Arc(Distance & d) noexcept : Distance(d) { /* empty */ }
 
-    typename Distance::Distance_Type 
+    typename Distance::Distance_Type
     operator () (typename GT::Arc *a) const noexcept
     {
       auto arc_info = (Arc_Info*) ARC_COOKIE(a);
@@ -141,14 +145,14 @@ class Dijkstra_Min_Paths
   // Acceso al heap de arcos
   struct Dijkstra_Heap_Info
   {
-        typedef typename 
+    typedef typename
     ArcHeap<GT, Get_Potential_Arc, Dijkstra_Heap_Info>::Node Node;
 
     Node *& operator () (typename GT::Node * p) const noexcept
     {
-      return (Node*&) HEAPNODE(p); 
+      return (Node*&) HEAPNODE(p);
     }
-  }; 
+  };
 
   // Inicialización de nodo para la versión que pinta
   struct Initialize_Node
@@ -156,7 +160,7 @@ class Dijkstra_Min_Paths
     void operator () (const GT & g, typename GT::Node * p) const noexcept
     {
       g.reset_bit(p, Aleph::Spanning_Tree);
-      NODE_COOKIE(p) = new Node_Info; 
+      NODE_COOKIE(p) = new Node_Info;
     }
   };
 
@@ -187,7 +191,7 @@ class Dijkstra_Min_Paths
   {
     void operator () (const GT &, typename GT::Arc * ga) const noexcept
     {
-      delete DAassert(ga); 
+      delete DAassert(ga);
     }
   };
 
@@ -197,7 +201,7 @@ class Dijkstra_Min_Paths
     void operator () (const GT & g, typename GT::Node * p) const noexcept
     {
       g.reset_bit(p, Aleph::Spanning_Tree);
-      NODE_COOKIE(p) = new Tree_Node_Info; 
+      NODE_COOKIE(p) = new Tree_Node_Info;
     }
   };
 
@@ -208,15 +212,15 @@ class Dijkstra_Min_Paths
     {
       auto aux = (Tree_Node_Info *) DNassert(p); //bloque a liberar
       auto tp = TREENODE(p); // imagen en árbol abarcador
-      if (tp != nullptr) // ¿está este nodo incluído en el árbol abarcador? 
-	{
-	  NODE_COOKIE(p) = NODE_COOKIE(tp) = nullptr;
-	  GT::map_nodes (p, tp);
-	}
+      if (tp != nullptr) // ¿está este nodo incluído en el árbol abarcador?
+        {
+          NODE_COOKIE(p) = NODE_COOKIE(tp) = nullptr;
+          GT::map_nodes (p, tp);
+        }
       else
-	NODE_COOKIE(p) = nullptr;
+        NODE_COOKIE(p) = nullptr;
 
-      delete aux; 
+      delete aux;
     }
   };
 
@@ -237,13 +241,13 @@ class Dijkstra_Min_Paths
   {
     void operator () (const GT &, typename GT::Arc * ga) const noexcept
     {
-      auto aux = (Tree_Arc_Info *) DAassert(ga); 
+      auto aux = (Tree_Arc_Info *) DAassert(ga);
       typename GT::Arc * ta = TREEARC(ga);
       if (ta != nullptr) // ¿pertenece este arco al árbol abarcador?
-	{    
-	  assert(IS_ARC_VISITED(ga, Aleph::Spanning_Tree));
-	  GT::map_arcs (ga, ta); // sí ==> mapearlo
-	}
+        {
+          assert(IS_ARC_VISITED(ga, Aleph::Spanning_Tree));
+          GT::map_arcs (ga, ta); // sí ==> mapearlo
+        }
 
       delete aux;
     }
@@ -263,17 +267,17 @@ class Dijkstra_Min_Paths
 public:
 
   // Constructores
-  
+
   /** Constructor
 
       \param[in] dist acceso a la distancia de arco.
       \param[in] cmp comparador entre la distancias de arcos.
       \param[in] __sa filtro de arcos para los iteradores.
    */
-  Dijkstra_Min_Paths(Distance dist = Distance(),  
-		     SA         __sa = SA())
+  Dijkstra_Min_Paths(Distance dist = Distance(),
+                     SA         __sa = SA())
   noexcept(std::is_nothrow_move_assignable<SA>::value)
-    : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()), 
+    : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()),
       painted(false), ptr_g(nullptr), s(nullptr)
   {
     // empty
@@ -318,68 +322,68 @@ public:
   {
     init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
 
-    clear_graph(tree); // limpiar árbol abarcador destino 
+    clear_graph(tree); // limpiar árbol abarcador destino
 
-    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
-    ACC(start)                   = 0; 
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    ACC(start)                   = 0;
     auto ret = TREENODE(start) = tree.insert_node(start->get_info());
     NODE_COOKIE(TREENODE(start)) = start;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_current_arc();
-	POT(arc) = ARC_DIST(arc);
-	heap.put_arc(arc, it.get_tgt_node());
+        auto arc = it.get_current_arc_ne();
+        POT(arc) = ARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
       }
 
     const auto & n = g.get_num_nodes();
 
     while (tree.get_num_nodes() < n)  // mientras tree no abarque a g
       {
-	auto garc  = heap.get_min_arc(); 
-	if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-	  continue;
+        auto garc  = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
 
-	auto gsrc = g.get_src_node(garc);
-	auto gtgt = g.get_tgt_node(garc);
+        auto gsrc = g.get_src_node(garc);
+        auto gtgt = g.get_tgt_node(garc);
 
 	      // ¿Están los dos nodos visitados?
-	if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and 
-	    IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-	  continue; // insertar arco causaría ciclo
+        if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          continue; // insertar arco causaría ciclo
 
-	ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);	  
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
 
-	if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-	  std::swap(gsrc, gtgt);
+        if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          std::swap(gsrc, gtgt);
 
-	NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
 
-	auto ttgt = tree.insert_node(gtgt->get_info());
-	TREENODE(gtgt) = ttgt;
-	auto tsrc = TREENODE(gsrc);
+        auto ttgt = tree.insert_node(gtgt->get_info());
+        TREENODE(gtgt) = ttgt;
+        auto tsrc = TREENODE(gsrc);
 
-	auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
-	TREEARC(garc) = tarc;
+        auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        TREEARC(garc) = tarc;
 
-	ACC(gtgt) = ACC(gsrc) + ARC_DIST(garc); // total dist nodo inicial
-	const auto & acc = ACC(gtgt);
+        ACC(gtgt) = ACC(gsrc) + ARC_DIST(garc); // total dist nodo inicial
+        const auto & acc = ACC(gtgt);
 
-	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next()) 
-	  {
-	    auto arc = it.get_current_arc();
-	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-	      continue;
+        // por cada arco calcular potencial e insertarlo en heap
+        for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
 
-	    auto tgt = it.get_tgt_node();
-	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
-	      continue; // causaría ciclo ==> no se mete en heap  
+            auto tgt = it.get_tgt_node();
+            if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+              continue; // causaría ciclo ==> no se mete en heap
 
-	    POT(arc) = acc + ARC_DIST(arc); // calcula potencial
-	    heap.put_arc(arc, tgt);
-	  }
-      } 
+            POT(arc) = acc + ARC_DIST(arc); // calcula potencial
+            heap.put_arc(arc, tgt);
+          }
+      }
 
     uninit<Destroy_Tree_Node, Destroy_Tree_Arc> ();
 
@@ -395,80 +399,80 @@ public:
 
       @param[in] g el grafo.
       @param[in] start el nodo inicio de todos los caminos mínimos
-      @param[in] end 
+      @param[in] end
       @param[out] tree el árbol abarcador de todos los caminos mínimos
       que comienzan por start mapeado mediante los cookies al grafo g.
       @throw bad_alloc si no hay suficiente memoria
   */
-  void compute_partial_min_paths_tree(const GT & g, 
-				      typename GT::Node * start,
-				      typename GT::Node * end, 
-				      GT & tree)
+  void compute_partial_min_paths_tree(const GT & g,
+                                      typename GT::Node * start,
+                                      typename GT::Node * end,
+                                      GT & tree)
   {
     init <Initialize_Tree_Node, Initialize_Tree_Arc> (g, start);
     clear_graph(tree);
 
-    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
-    ACC(start)                   = 0; 
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    ACC(start)                   = 0;
     TREENODE(start)              = tree.insert_node(start->get_info());
     NODE_COOKIE(TREENODE(start)) = start;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_current_arc();
-	POT(arc) = ARC_DIST(arc);
-	heap.put_arc(arc, it.get_tgt_node());
+        auto arc = it.get_current_arc_ne();
+        POT(arc) = ARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
       }
 
     const auto & n = g.get_num_nodes();
 
     while (tree.get_num_nodes() < n and not heap.is_empty()) // tree no abarque
       {
-	auto garc  = heap.get_min_arc(); 
-	if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-	  continue;
+        auto garc  = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
 
-	auto gsrc = g.get_src_node(garc);
-	auto gtgt = g.get_tgt_node(garc);
+        auto gsrc = g.get_src_node(garc);
+        auto gtgt = g.get_tgt_node(garc);
 
-	// ¿Están los dos nodos visitados?
-	if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and 
-	    IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-	  continue; // insertar arco causaría ciclo
+        // ¿Están los dos nodos visitados?
+        if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          continue; // insertar arco causaría ciclo
 
-	ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
 
-	if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-	  std::swap(gsrc, gtgt);
+        if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          std::swap(gsrc, gtgt);
 
-	auto ttgt      = tree.insert_node(gtgt->get_info());
-	TREENODE(gtgt) = ttgt;
-	NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
+        auto ttgt      = tree.insert_node(gtgt->get_info());
+        TREENODE(gtgt) = ttgt;
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
 
-	auto tarc = // insertar nuevo arco en tree 
-	  tree.insert_arc(TREENODE(gsrc), TREENODE(gtgt), garc->get_info());
-	TREEARC(garc) = tarc;
+        auto tarc = // insertar nuevo arco en tree
+          tree.insert_arc(TREENODE(gsrc), TREENODE(gtgt), garc->get_info());
+        TREEARC(garc) = tarc;
 
-	if (gtgt == end) // ¿está end_node en árbol abarcador? 
-	  break; // sí ==> camino mínimo ya está en árbol abarcador
+        if (gtgt == end) // ¿está end_node en árbol abarcador?
+          break; // sí ==> camino mínimo ya está en árbol abarcador
 
-	ACC(gtgt) = ACC(gsrc) + ARC_DIST(garc); // total dist nodo inicial
-	const auto & acc = ACC(gtgt);
+        ACC(gtgt) = ACC(gsrc) + ARC_DIST(garc); // total dist nodo inicial
+        const auto & acc = ACC(gtgt);
 
 	      // por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next()) 
-	  {
-	    auto arc = it.get_current_arc();
-	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-	      continue;
+        for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
 
-	    auto tgt = it.get_tgt_node();
-	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
-	      continue; // causaría ciclo ==> no se mete en heap  
+            auto tgt = it.get_tgt_node();
+            if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+              continue; // causaría ciclo ==> no se mete en heap
 
-	    POT(arc) = acc + ARC_DIST(arc); // calcula potencial
-	    heap.put_arc(arc, tgt);
-	  }
+            POT(arc) = acc + ARC_DIST(arc); // calcula potencial
+            heap.put_arc(arc, tgt);
+          }
       }
 
     uninit <Destroy_Tree_Node, Destroy_Tree_Arc> ();
@@ -483,21 +487,21 @@ public:
       @param[in] end el nodo final del camino mínimo.
       @throw bad_alloc si no hay suficiente memoria.
    */
-  bool paint_partial_min_paths_tree(const GT & g, 
-				    typename GT::Node * start, 
-				    typename GT::Node * end)
+  bool paint_partial_min_paths_tree(const GT & g,
+                                    typename GT::Node * start,
+                                    typename GT::Node * end)
   {
     bool ret_val = false;
     init<Initialize_Node, Initialize_Arc> (g, start);
 
-    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
-    ACC(start) = 0; 
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    ACC(start) = 0;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_current_arc();
-	POT(arc) = ARC_DIST(arc);
-	heap.put_arc(arc, it.get_tgt_node());
+        auto arc = it.get_current_arc_ne();
+        POT(arc) = ARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
       }
 
     const auto & n = g.get_num_nodes();
@@ -505,57 +509,57 @@ public:
 
     while (tn < n and not heap.is_empty()) // tree no abarque g
       {
-	auto garc  = heap.get_min_arc(); 
-	if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-	  continue;
+        auto garc  = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
 
-	auto src = g.get_src_node(garc);
-	auto tgt = g.get_tgt_node(garc);
+        auto src = g.get_src_node(garc);
+        auto tgt = g.get_tgt_node(garc);
 
-	// ¿Están los dos nodos visitados?
-	if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and 
-	    IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-	  continue; // este arco causaría un ciclo
+        // ¿Están los dos nodos visitados?
+        if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          continue; // este arco causaría un ciclo
 
-	ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
 
-	if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-	  std::swap(src, tgt);
+        if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          std::swap(src, tgt);
 
-	NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
-	PARENT(tgt) = src; 
+        NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
+        PARENT(tgt) = src;
 
-	++tn; // simula que p se metió en el árbol abarcador
+        ++tn; // simula que p se metió en el árbol abarcador
 
-	if (tgt == end) // ¿está end_node en árbol abarcador? 
-	  {
-	    ret_val = true;
-	    break; // sí ==> camino mínimo ya está pintado
-	  }
+        if (tgt == end) // ¿está end_node en árbol abarcador?
+          {
+            ret_val = true;
+            break; // sí ==> camino mínimo ya está pintado
+          }
 
-	ACC(tgt) = ACC(src) + ARC_DIST(garc); // total dist nodo inicial
+        ACC(tgt) = ACC(src) + ARC_DIST(garc); // total dist nodo inicial
 
-	const auto & acc = ACC(tgt);
+        const auto & acc = ACC(tgt);
 
-	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next()) 
-	  {
-	    auto a = it.get_current_arc();
-	    if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
-	      continue;
+        // por cada arco calcular potencial e insertarlo en heap
+        for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+              continue;
 
-	    auto t = it.get_tgt_node();
-	    if (IS_NODE_VISITED(t, Aleph::Spanning_Tree)) 
-	      continue; // causaría ciclo ==> no se mete en heap  
+            auto t = it.get_tgt_node();
+            if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
+              continue; // causaría ciclo ==> no se mete en heap
 
-	    POT(a) = acc + ARC_DIST(a); // calcula potencial
-	    heap.put_arc(a, t);
-	  }
+            POT(a) = acc + ARC_DIST(a); // calcula potencial
+            heap.put_arc(a, t);
+          }
       }
 
     uninit<Destroy_Node, Destroy_Arc> ();
     painted = true;
-    
+
     return ret_val;
   }
 
@@ -570,14 +574,14 @@ public:
   {
     init<Initialize_Node, Initialize_Arc> (g, start);
 
-    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true); 
-    ACC(start) = 0; 
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    ACC(start) = 0;
 
-    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next()) 
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_current_arc();
-	POT(arc) = ARC_DIST(arc);
-	heap.put_arc(arc, it.get_tgt_node());
+        auto arc = it.get_current_arc_ne();
+        POT(arc) = ARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
       }
 
     const auto & n = g.get_num_nodes();
@@ -585,45 +589,45 @@ public:
 
     while (tn < n and not heap.is_empty()) // tree no abarque g
       {
-	auto garc  = heap.get_min_arc(); 
-	if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-	  continue;
+        auto garc  = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
 
-	auto src = g.get_src_node(garc);
-	auto tgt = g.get_tgt_node(garc);
+        auto src = g.get_src_node(garc);
+        auto tgt = g.get_tgt_node(garc);
 
-	// ¿Están los dos nodos visitados?
-	if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and 
-	    IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-	  continue; // este arco causaría un ciclo
+        // ¿Están los dos nodos visitados?
+        if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          continue; // este arco causaría un ciclo
 
-	ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
 
-	if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-	  std::swap(src, tgt);
+        if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          std::swap(src, tgt);
 
-	NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
-	PARENT(tgt) = src; 
+        NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
+        PARENT(tgt) = src;
 
-	++tn; // simula que p se metió en el árbol abarcador
+        ++tn; // simula que p se metió en el árbol abarcador
 
-	ACC(tgt) = ACC(src) + ARC_DIST(garc); // total dist nodo inicial
-	const auto & acc = ACC(tgt);
+        ACC(tgt) = ACC(src) + ARC_DIST(garc); // total dist nodo inicial
+        const auto & acc = ACC(tgt);
 
-	// por cada arco calcular potencial e insertarlo en heap
-	for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next()) 
-	  {
-	    auto a = it.get_current_arc();
-	    if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
-	      continue;
+        // por cada arco calcular potencial e insertarlo en heap
+        for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+              continue;
 
-	    auto t = it.get_tgt_node();
-	    if (IS_NODE_VISITED(t, Aleph::Spanning_Tree)) 
-	      continue; // causaría ciclo ==> no se mete en heap  
+            auto t = it.get_tgt_node();
+            if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
+              continue; // causaría ciclo ==> no se mete en heap
 
-	    POT(a) = acc + ARC_DIST(a); // calcula potencial
-	    heap.put_arc(a, t);
-	  }
+            POT(a) = acc + ARC_DIST(a); // calcula potencial
+            heap.put_arc(a, t);
+          }
       }
 
     uninit<Destroy_Node, Destroy_Arc> ();
@@ -641,18 +645,18 @@ public:
       El resultado es indeterminado si end no está contenido dentro del
       grafo; es decir, se llamó previamente a
       paint_partial_min_paths_tree() con un nodo destino distinto a end
-      y el resultado no contiene a end. 
+      y el resultado no contiene a end.
 
       Una llamada previa a paint_min_paths_tree() o
-      paint_partial_min_paths_tree() almacena el grafo y nodo origen.  
-      
+      paint_partial_min_paths_tree() almacena el grafo y nodo origen.
+
       @param[in] end nodo destino del camino.
       @param[out] path camino donde se guardará el mínimo.
       @throw bad_alloc sino hay suficiente memoria.
       @throw domain_error si el grafo no ha sido previamente pintado
       mediante paint_min_paths_tree() o paint_partial_min_paths_tree().
    */
-      typename Distance::Distance_Type 
+      typename Distance::Distance_Type
   get_min_path(typename GT::Node * end, Path<GT> & path)
   {
     if (ptr_g == nullptr)
@@ -660,7 +664,7 @@ public:
 
     if (not painted)
       throw std::domain_error("Graph has not previously painted");
-      
+
     return Aleph::get_min_path<GT, Distance>(s, end, path);
   }
 
@@ -682,27 +686,27 @@ public:
       @throw bad_alloc si no hay suficiente memoria
       @see get_min_parth
    */
-      typename Distance::Distance_Type 
-  find_min_path(const GT & g, 
-		typename GT::Node * start, typename GT::Node * end, 
-		Path<GT> & min_path)
+      typename Distance::Distance_Type
+  find_min_path(const GT & g,
+                typename GT::Node * start, typename GT::Node * end,
+                Path<GT> & min_path)
   {
     min_path.empty();
     if (paint_partial_min_paths_tree(g, start, end))
       return get_min_path(end, min_path);
 
-    return numeric_limits<typename Distance::Distance_Type>::max(); 
+    return numeric_limits<typename Distance::Distance_Type>::max();
   }
-  
-      /** Calcula el árbol abarcador de todos los caminos mínimos desde
-          un nodo dado según el algoritmo de Dijkstra. 
 
-          El árbol abarcador tree de todos los caminos mínimos resultante
-          start_node está completamente mapeado con g. Por tanto, una
-          búsqueda de camino en profundidad, mediante
+      /** Calcula el árbol abarcador de todos los caminos mínimos
+          desde un nodo dado según el algoritmo de Dijkstra.
+
+          El árbol abarcador tree de todos los caminos mínimos
+          resultante start_node está completamente mapeado con g. Por
+          tanto, una búsqueda de camino en profundidad, mediante
           Find_Path_Depth_First, sobre tree encontrará y construirá
           cualquier camino mínimo desde start_node hasta un nodo
-          cualquiera. 
+          cualquiera.
 
           @param[in] g el grafo al cual se desea calcular el árbol
           abarcador mínimo.
@@ -712,8 +716,8 @@ public:
           desde el nodo start_node. Este grafo es limpiado antes del
           comienzo del algoritmo.
           @throw bad_alloc si no hay suficiente memoria para construir
-          tree; bien sea porque falla tree o por la cola interna. En este 
-          caso el valor de tree es indeterminado y no está limpio.  
+          tree; bien sea porque falla tree o por la cola interna. En este
+          caso el valor de tree es indeterminado y no está limpio.
        */
   void operator () (const GT & g, typename GT::Node * s, GT & tree)
   {
@@ -733,7 +737,7 @@ public:
       @param[out] tree el grafo donde se desea copiar el árbol abarcador
       @throw bad_alloc si no hay suficiente memoria.
   */
-      typename Distance::Distance_Type 
+      typename Distance::Distance_Type
   copy_painted_min_paths_tree(const GT & g, GT & tree)
   {
     if (not painted)
@@ -747,10 +751,10 @@ public:
   }
 
   /// \oveload find_min_path()
-  typename Distance::Distance_Type operator () (const GT & g, 
-						typename GT::Node * s, 
-						typename GT::Node * e,
-						Path<GT> & path)
+  typename Distance::Distance_Type operator () (const GT & g,
+                                                typename GT::Node * s,
+                                                typename GT::Node * e,
+                                                Path<GT> & path)
   {
     return find_min_path (g, s, e, path);
   }
@@ -759,7 +763,7 @@ public:
   struct Total
   {
     typename  Distance::Distance_Type dist;
-    
+
     Total() noexcept : dist(0) { /* empty */ }
 
     bool operator () (typename GT::Arc * a) noexcept
@@ -773,24 +777,24 @@ public:
       caminos mínimos previamente calculado.
 
       get_min_path() toma un árbol tree, previamente construido mediante
-      compute_min_paths_tree() o compute_partial_min_paths_tree() 
+      compute_min_paths_tree() o compute_partial_min_paths_tree()
       y extrae el camino mínimo hacia end guardándolo en path.
 
       El resultado es indeterminado si end no está contenido dentro del
       árbol; es decir, se llamó previamente a
       compute_partial_min_paths_tree() con un nodo destino distinto a end
-      y el resultado no contiene a end. 
+      y el resultado no contiene a end.
 
       @param[in] tree árbol de caminos mínimos el cual debe haber sido
       previamente calculado mediante compute_min_paths_tree() o
-      compute_partial_min_paths_tree(). 
+      compute_partial_min_paths_tree().
       @param[in] end nodo destino del camino.
       @param[out] path camino donde se guardará el mínimo.
       @throw bad_alloc sino hay suficiente memoria.
       @throw domain_error si el grafo no ha sido previamente pintado
       mediante paint_min_paths_tree() o paint_partial_min_paths_tree().
    */
-      typename Distance::Distance_Type 
+      typename Distance::Distance_Type
   get_min_path(const GT & tree, typename GT::Node * end, Path<GT> & path)
   {
     if (ptr_g == nullptr)
@@ -801,13 +805,13 @@ public:
 
     Path<GT> tree_path(tree);
     Total total;
-    (Find_Path_Depth_First<GT, Itor, Total> (total)) (tree, ts, te, tree_path); 
+    (Find_Path_Depth_First<GT, Itor, Total> (total)) (tree, ts, te, tree_path);
 
     path.empty();
     path.init(s);
     typename Path<GT>::Iterator it(tree_path);
-    for (it.next(); it.has_curr(); it.next())
-      path.append(mapped_node<GT>(it.get_current_node()));
+    for (it.next(); it.has_curr(); it.next_ne())
+      path.append(mapped_node<GT>(it.get_current_node_ne()));
 
     return total.dist;
   }

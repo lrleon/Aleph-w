@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef KRUSKAL_H
 # define KRUSKAL_H
@@ -164,9 +168,9 @@ public:
     // Recorrer arcos ordenados de g hasta que numero de arcos de
     // tree sea igual al numero de nodos de g 
     for (Arc_Iterator <GT, SA> it(g, sa); tree.get_num_blocks() > 1 and
-	   it.has_curr(); it.next()) 
+	   it.has_curr(); it.next_ne()) 
       {     // siguiente menor arco
-	auto arc = it.get_current_arc();
+	auto arc = it.get_current_arc_ne();
 	long i = NODE_COUNTER(g.get_src_node(arc));
 	long j = NODE_COUNTER(g.get_tgt_node(arc));
 	if (arc_is_in_tree(tree, i, j))
@@ -184,17 +188,17 @@ public:
     paint_min_spanning_tree(g);
     clear_graph(tree); // limpia grafo destino 
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr();
+	auto gp = it.get_curr_ne();
 	auto tp = tree.insert_node(gp->get_info());
 	GT::map_nodes(gp, tp);
       }
 
     typedef Paint_Filt<GT, SA> F;
-    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next()) 
+    for (Arc_Iterator<GT, F> it(g, F(sa)); it.has_curr(); it.next_ne()) 
       {
-	auto ga    = it.get_current_arc();
+	auto ga    = it.get_current_arc_ne();
 	auto tsrc = mapped_node<GT>(g.get_src_node(ga));
 	auto ttgt = mapped_node<GT>(g.get_tgt_node(ga));
 	auto ta   = tree.insert_arc(tsrc, ttgt, ga->get_info());

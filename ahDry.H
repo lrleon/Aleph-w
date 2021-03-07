@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef AHDRY_H
@@ -40,8 +44,8 @@ namespace Aleph
   template <class Operation>						\
   bool traverse(Operation & operation) const noexcept(noexcept(operation)) \
   {									\
-    for (Iterator it(*this); it.has_curr(); it.next())			\
-      if (not operation(it.get_curr()))					\
+    for (Iterator it(*this); it.has_curr(); it.next_ne())		\
+      if (not operation(it.get_curr_ne()))				\
 	return false;							\
     return true;							\
   }									\
@@ -49,8 +53,8 @@ namespace Aleph
   template <class Operation>						\
   bool traverse(Operation & operation) noexcept(noexcept(operation))	\
   {									\
-    for (Iterator it(*this); it.has_curr(); it.next())			\
-      if (not operation(it.get_curr()))					\
+    for (Iterator it(*this); it.has_curr(); it.next_ne())		\
+      if (not operation(it.get_curr_ne()))				\
 	return false;							\
     return true;							\
   }									\
@@ -106,6 +110,20 @@ namespace Aleph
     if (i != n + 1)							\
       throw std::out_of_range("index out of range");			\
     									\
+    return *ptr;							\
+  }									\
+									\
+  Type & nth_ne(const size_t n) const noexcept				\
+  {									\
+    Type * ptr = nullptr;						\
+    size_t i = 0;							\
+    this->traverse([&ptr, &i, &n] (Type & item)				\
+		   {							\
+		     if (i++ < n)					\
+		       return true;					\
+		     ptr = &item;					\
+		     return false;					\
+		   });							\
     return *ptr;							\
   }									\
   									\
@@ -288,7 +306,7 @@ namespace Aleph
     return exists<Operation>(operation);				\
   }									\
 									\
-  template <typename __Type                        = Type,			\
+  template <typename __Type                        = Type,		\
 	    template <typename> class Container = Aleph::DynList,	\
 	    class Operation = Dft_Map_Op<Type, __Type>>			\
   Container<__Type> maps(Operation & operation) const			\
@@ -303,15 +321,15 @@ namespace Aleph
 									\
   template < typename __Type                        = Type,		\
 	     template <typename> class Container = Aleph::DynList,	\
-	     class Operation = Dft_Map_Op<__Type, __Type>>			\
+	     class Operation = Dft_Map_Op<__Type, __Type>>		\
   Container<__Type> maps(Operation && operation = Operation()) const	\
   {									\
-    return maps<__Type, Container, Operation>(operation);			\
+    return maps<__Type, Container, Operation>(operation);		\
   }									\
 									\
   template <typename __Type = Type>					\
-  __Type foldl(const __Type & init,						\
-	    std::function<__Type(const __Type&, const Type &)> operation) const \
+  __Type foldl(const __Type & init,					\
+	       std::function<__Type(const __Type&, const Type &)> operation) const \
     noexcept(noexcept(operation))					\
   {									\
     auto ret_val = init;						\
@@ -486,20 +504,20 @@ namespace Aleph
   }
 
 
-# define Equal_To_Method(class_name)			\
-  bool equal_to(const class_name & r) const noexcept	\
-  {							\
-    if (this == &r)					\
-      return true;					\
-							\
-    if (this->size() != r.size())			\
-      return false;					\
-							\
-    return this->all(/* Lambda */ [&r] (const Key & k)	\
+# define Equal_To_Method(class_name)				\
+  bool equal_to(const class_name & r) const noexcept		\
+  {								\
+    if (this == &r)						\
+      return true;						\
+								\
+    if (this->size() != r.size())				\
+      return false;						\
+								\
+    return this->all([&r] (const Key & k)			\
 		     { return r.search(k) != nullptr; });	\
-  }							\
+  }								\
 							\
-  bool operator == (const class_name & r) const	noexcept	\
+  bool operator == (const class_name & r) const noexcept	\
   {							\
     return equal_to(r);					\
   }							\
@@ -596,10 +614,12 @@ std::string to_str(const Type & d)
   template <typename Key, typename Data, class Cmp = std::equal_to<Key>>
 	struct Dft_Pair_Cmp 
 	{
+	  Cmp cmp;
+	  Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
 	  bool operator () (const std::pair<Key, Data> & p1, 
-			    const std::pair<Key, Data> & p2) const
+			    const std::pair<Key, Data> & p2) const noexcept
 	  {
-	    return Cmp () (p1.first, p2.first);
+	    return cmp (p1.first, p2.first);
 	  }
 	};
 

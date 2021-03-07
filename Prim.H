@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef PRIM_H
 # define PRIM_H
@@ -178,10 +182,10 @@ private:
     NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visitado
 
     Simple_Heap heap(dist, Acc_Simple_Heap());
-    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * arc = it.get_current_arc();
-	heap.put_arc(arc, it.get_tgt_node());
+	typename GT::Arc * arc = it.get_current_arc_ne();
+	heap.put_arc(arc, it.get_tgt_node_ne());
       }
 
     const size_t V1 = g.get_num_nodes() - 1;
@@ -208,13 +212,13 @@ private:
 
 	    // insertar en heap arcos no visitados de tgt_node
 	for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr();
-	     it.next())
+	     it.next_ne())
 	  {
-	    typename GT::Arc * arc = it.get_current_arc();
+	    typename GT::Arc * arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
-	    typename GT::Node * tgt = it.get_tgt_node();
+	    typename GT::Node * tgt = it.get_tgt_node_ne();
 	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
 	      continue; // nodo visitado ==> causará ciclo 
 
@@ -241,10 +245,10 @@ private:
 
     Heap heap(dist, Acc_Heap()) ;
         // meter en heap arcos iniciales del primer nodo
-    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(first, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * arc = it.get_current_arc();
-	heap.put_arc(arc, it.get_tgt_node());
+	typename GT::Arc * arc = it.get_current_arc_ne();
+	heap.put_arc(arc, it.get_tgt_node_ne());
       }
 
     const size_t V1 = g.get_num_nodes() - 1;
@@ -270,13 +274,13 @@ private:
 
 	    // insertar en heap arcos no visitados de tgt_node
 	for (Node_Arc_Iterator<GT, SA> it(tgt_node, sa); it.has_curr(); 
-	     it.next())
+	     it.next_ne())
 	  {
-	    typename GT::Arc * arc = it.get_current_arc();
+	    typename GT::Arc * arc = it.get_current_arc_ne();
 	    if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
 	      continue;
 
-	    typename GT::Node * tgt = it.get_tgt_node();
+	    typename GT::Node * tgt = it.get_tgt_node_ne();
 	    if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree)) 
 	      continue; // nodo visitado ==> causará ciclo 
 

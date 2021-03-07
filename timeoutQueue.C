@@ -18,15 +18,15 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 
   pthread_cond_init(&cond, NULL);
 
-  const int status = 
-    pthread_create(&threadId, NULL , triggerEventThread, this); 
+  const int status =
+    pthread_create(&threadId, NULL , triggerEventThread, this);
 
   if (status != 0)
     EXIT("Cannot create triggerEventThread (error code = %d)", status);
 }
 
 
-TimeoutQueue::~TimeoutQueue() throw(domain_error)
+TimeoutQueue::~TimeoutQueue()
 {
   if (not isShutdown)
     EXIT("TimeoutQueue is not shut down");
@@ -38,7 +38,7 @@ TimeoutQueue::~TimeoutQueue() throw(domain_error)
 
 
 void TimeoutQueue::schedule_event(const Time &          trigger_time,
-				  TimeoutQueue::Event * event) 
+                                  TimeoutQueue::Event * event)
 {
   assert(event != NULL);
 
@@ -47,7 +47,7 @@ void TimeoutQueue::schedule_event(const Time &          trigger_time,
 }
 
 
-void TimeoutQueue::schedule_event(TimeoutQueue::Event * event) 
+void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
 {
   assert(event != NULL);
   assert(EVENT_NSEC(event) >= 0 and EVENT_NSEC(event) < NSEC);
@@ -68,7 +68,7 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
 }
 
 
-bool TimeoutQueue::cancel_event(TimeoutQueue::Event* event) 
+bool TimeoutQueue::cancel_event(TimeoutQueue::Event* event)
 {
   CRITICAL_SECTION(mutex);
 
@@ -95,7 +95,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   if (event->get_execution_status() == Event::In_Queue)
     prioQueue.remove(event);
 
-  if (event->get_execution_status() == Event::Executing) 
+  if (event->get_execution_status() == Event::Executing)
     event->set_execution_status(Event::To_Delete);
   else
     {
@@ -109,12 +109,12 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
 
 
 void TimeoutQueue::reschedule_event(const Time &          trigger_time,
-				    TimeoutQueue::Event * event) 
+                                    TimeoutQueue::Event * event)
 {
   assert(event != NULL);
 
   CRITICAL_SECTION(mutex);
-  
+
   if (event->get_execution_status() == Event::In_Queue)
     prioQueue.remove(event);
 
@@ -123,7 +123,7 @@ void TimeoutQueue::reschedule_event(const Time &          trigger_time,
   event->set_execution_status(Event::In_Queue);
 
   prioQueue.insert(event);
-  
+
   pthread_cond_signal(&cond);
 }
 
@@ -139,65 +139,65 @@ void * TimeoutQueue::triggerEvent()
 
     while (true)
       {
-	    /* sleep if there is no events */ 
-	while ((prioQueue.size() == 0) and (not isShutdown))
-	  pthread_cond_wait(&cond, &mutex);
+        /* sleep if there is no events */
+        while ((prioQueue.size() == 0) and (not isShutdown))
+          pthread_cond_wait(&cond, &mutex);
 
-	if (isShutdown)
-	  goto end; /* if shutdown is activated, get out */
+        if (isShutdown)
+          goto end; /* if shutdown is activated, get out */
 
-	    /* read the soonest event */ 
-	event_to_schedule = static_cast<Event*>(prioQueue.top());
-	    
-	    /* compute time when the event must triggered */ 
-	const Time & t = EVENT_TIME(event_to_schedule);
-	
-	do
-	  { /* sleep during t units of time, but be immune to signals
-	       interruptions (status will be EINTR in the case where the
-	       thread was signalized) */
-	    status = pthread_cond_timedwait(&cond, &mutex, &t);
+        /* read the soonest event */
+        event_to_schedule = static_cast<Event*>(prioQueue.top());
 
-	    if (isShutdown) 
-	      goto end;/* thread was signaled because shutdown was requested */
+        /* compute time when the event must triggered */
+        const Time & t = EVENT_TIME(event_to_schedule);
 
-	  } while (status == EINTR);
+        do
+          { /* sleep during t units of time, but be immune to signals
+               interruptions (status will be EINTR in the case where the
+               thread was signalized) */
+            status = pthread_cond_timedwait(&cond, &mutex, &t);
 
-	if (status == ETIMEDOUT) /* soonest event could be executed */
-	  {     /* event to execute could be changed if it was canceled */
-	    event_to_execute = static_cast<Event*>(prioQueue.getMin());
+            if (isShutdown)
+              goto end;/* thread was signaled because shutdown was requested */
 
-	    if (event_to_execute != event_to_schedule and
-		EVENT_TIME(event_to_execute) > EVENT_TIME(event_to_schedule))
-	      continue; /* go to schedule another event */
-	    
-	    event_to_execute->set_execution_status(Event::Executing); 
+          } while (status == EINTR);
 
-	    critical_section.leave(); 
+        if (status == ETIMEDOUT) /* soonest event could be executed */
+          {     /* event to execute could be changed if it was canceled */
+            event_to_execute = static_cast<Event*>(prioQueue.getMin());
 
-	    try { event_to_execute->EventFct(); } /* execute event */
-	    catch (...) { /* Exceptions are only cauthg */ }
+            if (event_to_execute != event_to_schedule and
+                EVENT_TIME(event_to_execute) > EVENT_TIME(event_to_schedule))
+              continue; /* go to schedule another event */
 
-	    critical_section.enter();  
+            event_to_execute->set_execution_status(Event::Executing);
 
-	    if (event_to_execute->get_execution_status() == Event::To_Delete)
-	      { 
-		event_to_execute->set_execution_status(Event::Deleted); 
+            critical_section.leave();
 
-		delete event_to_execute; 
-	      } 
+            try { event_to_execute->EventFct(); } /* execute event */
+            catch (...) { /* Exceptions are only cauthg */ }
 
-	    /* from this point, event cannot be longer acceded because
-	       it may delete itself */ 
-	  } /* end if (status == ETIMEDOUT) */
+            critical_section.enter();
+
+            if (event_to_execute->get_execution_status() == Event::To_Delete)
+              {
+                event_to_execute->set_execution_status(Event::Deleted);
+
+                delete event_to_execute;
+              }
+
+            /* from this point, event cannot be longer acceded because
+               it may delete itself */
+          } /* end if (status == ETIMEDOUT) */
       } /* end while (1) */
 
-  end: /* shutdown has been requested */ 
+  end: /* shutdown has been requested */
 
-        /* extract all events from priority queue */ 
+    /* extract all events from priority queue */
     while (prioQueue.size() > 0)
       static_cast<Event*>(prioQueue.getMin())->
-	set_execution_status(Event::Canceled);
+        set_execution_status(Event::Canceled);
   } /* end of critical section */
 
   pthread_exit(NULL);

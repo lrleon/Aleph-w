@@ -17,6 +17,20 @@
 ## 6. all-tests debe verificar si figlet está instalado
 - Created at   2017-10-05 11:37:19 -0400
 
-## 7. script que borre ejecutables
-- Created at   2017-10-05 19:56:59 -0400
+## 7. tests para binnode utils
+- Created at   2018-05-07 10:54:29 -0400
+
+## 8. test para HashSet y HashMap
+- Created at   2018-05-09 10:39:06 -0400
+- Completed at 2018-05-10 09:18:39 -0400
+
+## 9. generar makefile con makedepend en ruby
+- Created at   2018-05-10 09:18:53 -0400
+- Completed at 2018-05-11 15:56:57 -0400
+
+## 10. manejo de hash para pares
+- Created at   2018-05-10 19:23:22 -0400
+
+## 11. tal vez para Matrix sea mejor poner un hash explícito para pares
+- Created at   2018-05-10 22:04:18 -0400
 

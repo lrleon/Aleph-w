@@ -6,8 +6,8 @@ DEPEND = sh ./depend.sh
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
+RANLIB = llvm-ranlib
 LD = llvm-link
-
 CXX = clang++
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
@@ -70,13 +70,13 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
-FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
+FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline" -fpic
 
 DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
 
 NormalLibraryObjectRule()
 

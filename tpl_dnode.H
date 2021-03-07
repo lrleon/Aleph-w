@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_DNODE_H
@@ -32,7 +36,7 @@ using namespace Aleph;
 
 namespace Aleph {
 
-    /** Node belongig to a double circular linked list with header node.
+    /** Node belonging to a double circular linked list with header node.
 
         @ingroup Secuencias
         @see Dnode::Iterator
@@ -58,21 +62,53 @@ public:
   Dnode<T>* remove_next() noexcept { return (Dnode<T>*) Dlink::remove_next(); }
 
   /// Get the first node
-  Dnode<T> *& get_first() const noexcept { return get_next(); } 
+  Dnode<T> *& get_first_ne() const noexcept { return get_next(); } 
 
   /// Get the last node
-  Dnode<T> *& get_last() noexcept { return get_prev(); }
+  Dnode<T> *& get_last_ne() const noexcept { return get_prev(); }
+
+  /// Get the first node
+  Dnode<T> *& get_first() const
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return get_first_ne();
+  } 
+
+  /// Get the last node
+  Dnode<T> *& get_last() const
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return get_last_ne();
+  }
 
   /// Remove the last node and return its address
-  Dnode<T>* remove_last() noexcept 
+  Dnode<T>* remove_last_ne() noexcept 
   { 
     return static_cast<Dnode<T>*>(Dlink::remove_prev()); 
   }
 
   /// Remove the first node and return its address
-  Dnode<T>* remove_first() noexcept
+  Dnode<T>* remove_first_ne() noexcept
   {
     return static_cast<Dnode<T>*>(Dlink::remove_next()); 
+  }
+
+  /// Remove the last node and return its address
+  Dnode<T>* remove_last()
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return remove_last_ne();
+  }
+
+  /// Remove the first node and return its address
+  Dnode<T>* remove_first()
+  {
+    if (this->is_empty())
+      throw std::underflow_error("Dnode is empty");
+    return remove_first_ne();
   }
   
   Dnode() noexcept 
@@ -181,19 +217,20 @@ public:
 
     using Base::Base;
 
+        /// Return the current link guaranteeing no exception. Be careful.
+    Dnode<T> * get_curr_ne() const noexcept
+    {
+      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_curr_ne()); 
+    }
+
     /** Return a pointer to the current node.
 
 	\throw overflow_error if the iterator is not positioned on a
 	current node
     */
-    Dnode<T> * get_current() const 
+    Dnode<T> * get_curr() const 
     {
-      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_current()); 
-    }
-
-    Dnode<T> * get_curr() const  /// \overload get_current()
-    {
-      return Dnode<T>::Iterator::get_current(); 
+      return static_cast<Dnode<T>*>(this->Dlink::Iterator::get_curr()); 
     }
 
     /** Remove the current node of the list a return a pointer to the

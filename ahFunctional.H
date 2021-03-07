@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef AH_FUNCTIONAL_H
 # define AH_FUNCTIONAL_H
@@ -71,12 +75,86 @@ template <typename TR, typename TD>
 
 template <typename T> class DynList;
 
+  template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> range(const T start, const T end, const T step = 1)
+{
+  Container<T> ret_val;
+  for (T i = start; i <= end; i += step)
+    ret_val.append(i);
+  return ret_val;
+}
+
+    template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> nrange(const T start, const T end, const size_t n)
+{
+  if (n < 2)
+    throw std::domain_error("nrange: n must be greater than 1");
+  
+  const auto step = (end - start)/(n - 1);
+  Container<T> ret_val;
+  T val = start;
+  for (size_t i = 0; i < n; ++i, val += step)
+    ret_val.append(val);
+  return ret_val;
+}
+
+  template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> contiguous_range(T start, const size_t n)
+{
+  Container<T> ret_val;
+  for (size_t i = 0; i < n; ++i)
+    ret_val.append(start++);
+  return ret_val;
+}
+
+
+  /** Return a range 0, 1, ... n - 1
+
+      @param[in] n size of range
+      @return a container with the range (according to the template
+      parameter, which is DynList
+
+     @ingroup Funcional
+   */
+template <typename T = int, template <typename> class Container = DynList>
+inline Container<T> range(const T n)
+{
+  Container<T> ret_val;
+  for (T i = 0; i < n; ++i)
+    ret_val.append(i);
+  return ret_val;
+}
+
+
+  /** Create a sequence of repeated items
+
+      @param[in] n number of items
+      @param[in] item the valur to be repeated
+      @return a container with n instances of item value
+      
+     @ingroup Funcional
+   */
+template <typename T = int> inline
+DynList<T> rep(size_t n, const T & item)
+{
+  DynList<T> ret_val;
+  for (size_t i = 0; i < n; ++i)
+    ret_val.append(item);
+  return ret_val;
+}
+
+  template <typename T = int> inline
+DynList<T> rep(size_t n, T && item = T())
+{
+  return rep<T>(n, item);
+}
+
 template <class Container>
 DynList<typename Container::Item_Type*> pointers_list(Container & c)
 {
   DynList<typename Container::Item_Type*> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(&it.get_curr());
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(&it.get_curr_ne());
   return ret;
 }
 
@@ -86,53 +164,57 @@ pointers_list(const Container & c)
 {
   using T = const typename  Container::Item_Type * const;
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(const_cast<T>(&it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(const_cast<T>(&it.get_curr_ne()));
   return ret;
 }
 
-template <class Container>
-DynList<typename Container::Item_Type>
-sublist(const Container & c, size_t stride)
-{
-  DynList<typename Container::Item_Type> ret;
-  try
-    {
-      for (auto it = c.get_it(stride - 1); it.has_curr(); )
-	{
-	  ret.append(it.get_curr());
-	  for (size_t i = 0; i < stride; ++i)
-	    it.next();
-	}
-    }
-  catch (std::overflow_error) { /* nothing */ }
-
-  return ret;
-}
-
-  template <class Op>
-void each(size_t start, size_t end, Op & op)
+    template <class Op>
+void each(size_t start, size_t end, Op & op) noexcept(noexcept(op))
 {
   for (size_t i = start; i <= end; ++i)
     op();
 }
 
     template <class Op>
-void each(size_t start, size_t end, Op && op)
+void each(size_t start, size_t end, Op && op) noexcept(noexcept(op))
 {
   each(start, end, op);
 }
 
     template <class Op>
-void each(size_t n, Op & op)
+void each(size_t n, Op & op) noexcept(noexcept(op))
 {
   each(0, n - 1, op);
 }
 
     template <class Op>
-void each(size_t n, Op && op)
+void each(size_t n, Op && op) noexcept(noexcept(op))
 {
   each(n, op);
+}
+
+template <class Container>
+DynList<typename Container::Item_Type>
+sublist(const Container & c, size_t pos, size_t stride)
+{
+  DynList<typename Container::Item_Type> ret;
+  try
+    {
+      for (auto it = c.get_it(pos); it.has_curr();
+	   each(0, stride - 1, [&it] () { it.next(); }))
+	ret.append(it.get_curr());
+    }
+  catch (std::overflow_error) { /* nothing */ }
+
+  return ret;
+}
+
+  template <class Container>
+DynList<typename Container::Item_Type>
+sublist(const Container & c, size_t stride)
+{
+  return sublist(c, 0, stride);
 }
 
     template <class Container, class Operation> inline
@@ -178,8 +260,8 @@ void enum_for_each(const Container & container, Operation & operation)
     noexcept(noexcept(operation))
 {
   size_t i = 0;
-  for (auto it = container.get_it(); it.has_curr(); it.next(), ++i)
-    operation(it.get_curr(), i);
+  for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
+    operation(it.get_curr_ne(), i);
 }
 
   template <class Container, class Operation> inline
@@ -312,26 +394,22 @@ inline filter(const Container1 & container, Operation && operation)
   return filter<Container1, Container2, Operation>(container, operation);
 }
 
-/** This is the classic map on a sequence. 
+/** This is the classic map on a sequence.
 
     Return a new container with each element of container mapped to the
     result of operation(item)
 
     @note The name has been changed because clashes with the stl and
-    Aleph and std map containers. 
+    Aleph and std map containers.
     @ingroup Algos
 */
-template <typename                  Ta,
-	  template <typename> class Ca, 
-	  typename                  Tb = Ta,
-	  template <typename> class Cb = Ca> inline
-Cb<Tb> maps(const Ca<Ta> & ca, std::function<Tb(const Ta &)> operation)
+  template <typename T, class C, class Op>
+DynList<T> maps(const C & c, Op op)
 {
-  Cb<Tb> ret_val;
-  for (typename Ca<Ta>::Iterator it(ca); it.has_curr(); it.next())
-    ret_val.append(operation(it.get_curr()));
-
-  return ret_val;
+  DynList<T> ret;
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(op(it.get_curr_ne()));
+  return ret;
 }
 
 /** Classic foldl
@@ -343,29 +421,14 @@ Cb<Tb> maps(const Ca<Ta> & ca, std::function<Tb(const Ta &)> operation)
 
     @ingroup Algos
  */
-template <template <typename> class Container, 
-	  typename                  T, 
-	  class                     Operation> inline
-T foldl(const Container<T> & container, const T & init, Operation & operation)
+template < typename T, class Container, class Operation> inline
+T foldl(const Container & container, const T & init, Operation operation)
   noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
 {
   T ret_val = init;
-  for (typename Container<T>::Iterator it(container); it.has_curr(); it.next())
-    ret_val = operation(ret_val, it.get_curr());
-
+  for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+    ret_val = operation(ret_val, it.get_curr_ne());
   return ret_val;
-}
-
-
-template <template <typename> class Container, 
-	  typename                  T, 
-	  class                     Operation> inline
-T foldl(const Container<T> & container, 
-	const T &            init      = T(),
-	Operation &&         operation = Operation())
-  noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
-{
-  return foldl(container, operation, init) ;
 }
 
 
@@ -380,8 +443,8 @@ zip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
 }
@@ -398,8 +461,8 @@ tzip(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   return ret_val;
 }
@@ -416,8 +479,8 @@ zipEq(const Container1 & a, const Container2 & b)
   
   auto it1 = a.get_it();
   auto it2 = b.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
     throw std::length_error("Container sizes mismatch");
@@ -437,8 +500,8 @@ tzipEq(const Container1 & a, const Container2 & b)
   
   typename Container1::Iterator it1(a);
   typename Container2::Iterator it2(b);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
 
   if (it1.has_curr() or it2.has_curr())
     throw std::length_error("Container sizes mismatch");
@@ -446,58 +509,8 @@ tzipEq(const Container1 & a, const Container2 & b)
   return ret_val;
 }
 
-  template <class C1, class C2, class C3> inline
-DynList<std::tuple<typename C1::Item_Type, 
-		   typename C2::Item_Type,
-		   typename C3::Item_Type>> 
-  tzip(const C1 & c1, const C2 & c2, const C3 & c3)
-{
-  typedef typename C1::Item_Type T1;
-  typedef typename C2::Item_Type T2;
-  typedef typename C3::Item_Type T3;
-  DynList<std::tuple<T1, T2, T3>> ret_val;
-  
-  typename C1::Iterator it1(c1);
-  typename C2::Iterator it2(c2);
-  typename C3::Iterator it3(c3);
-  for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next(), it2.next(), it3.next())
-    ret_val.append(std::make_tuple(it1.get_curr(),
-				   it2.get_curr(),
-				   it3.get_curr()));
-
-  return ret_val;
-}
-
-  template <class C1, class C2, class C3> inline
-DynList<std::tuple<typename C1::Item_Type, 
-		   typename C2::Item_Type,
-		   typename C3::Item_Type>> 
-    tzipEq(const C1 & c1, const C2 & c2, const C3 & c3)
-{
-  typedef typename C1::Item_Type T1;
-  typedef typename C2::Item_Type T2;
-  typedef typename C3::Item_Type T3;
-  DynList<std::tuple<T1, T2, T3>> ret_val;
-  
-  typename C1::Iterator it1(c1);
-  typename C2::Iterator it2(c2);
-  typename C2::Iterator it3(c3);
-  for (; it1.has_curr() and it2.has_curr() and it3.has_curr();
-       it1.next(), it2.next(), it3.next())
-    ret_val.append(std::make_tuple(it1.get_curr(), it2.get_curr(),
-				   it3.get_curr()));
-
-  if (it1.has_curr() or it2.has_curr() or it3.has_curr())
-    throw std::length_error("Container sizes mismatch");
-
-  return ret_val;
-}
-
-
 template <class Container>
-DynList<std::pair<typename Container::Item_Type, size_t>> inline
-enumerate(const Container & c)
+auto inline enumerate(const Container & c)
 {
   using Item = typename Container::Item_Type;
   using Pair = std::pair<Item, size_t>;
@@ -508,47 +521,44 @@ enumerate(const Container & c)
 }
 
 
-  template <typename T,
-	    template <typename> class C1 = DynList,
-	    template <typename> class C2 = DynList,
-	    class Eq = std::equal_to<T>> inline 
-bool eq(const C1<T> & c1, const C2<T> & c2, Eq e = Eq())
+  template <class C1, class C2,
+	    class Eq = std::equal_to<typename C1::Item_Type>> inline 
+bool eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    if (not (e(it1.get_curr(), it2.get_curr())))
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
       return false;
 
   return not (it1.has_curr() or it2.has_curr());
+}
+
+  template <typename T> inline
+bool operator == (const DynList<T> & l1, const DynList<T> & l2)
+{
+  return eq(l1, l2);
 }
 
   template <class C1, class C2, class Eq> inline 
-bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
+bool containers_eq(const C1 & c1, const C2 & c2, Eq e) noexcept(noexcept(e))
 {
-  auto it1 = c1.get_it();
-  auto it2 = c2.get_it();;
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    if (not (e(it1.get_curr(), it2.get_curr())))
-      return false;
-
-  return not (it1.has_curr() or it2.has_curr());
+  return e1(c1, c2, e);
 }
 
-  template <typename T,
-	    template <typename> class C1 = DynList,
-	    template <typename> class C2 = DynList,
-	    class Eq = std::equal_to<T>> inline 
-    std::tuple<bool, size_t, T, T>
-are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
+  template <class C1, class C2,
+	    class Eq = std::equal_to<typename C1::Item_Type>> inline 
+    std::tuple<bool, size_t, typename C1::Item_Type, typename C2::Item_Type>
+are_eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
+  using T = typename C1::Item_Type;
   auto it1 = c1.get_it();
   auto it2 = c2.get_it();
   size_t n = 0;
-  for (; it1.has_curr() and it2.has_curr(); it1.next(), it2.next(), n++)
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne(), n++)
     {
-      auto i1 = it1.get_curr();
-      auto i2 = it2.get_curr();
+      auto & i1 = it1.get_curr_ne();
+      auto & i2 = it2.get_curr_ne();
       if (not (e(i1, i2)))
 	return std::make_tuple(false, n, i1, i2);
     }
@@ -556,16 +566,22 @@ are_eq(const C1<T> & c1, const C2<T> & c2, Eq && e = Eq())
   return std::make_tuple(c1.is_empty() == c2.is_empty(), n, T(), T());
 }
 
-  template <typename T, template <typename> class Container = Aleph::DynList, 
-	    class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
+  template <class C1, class C2,
+	    class Cmp = std::less<typename C1::Item_Type>> inline
+bool lesser(const C1 & c1, const C2 & c2, Cmp cmp = Cmp())
+    noexcept(noexcept(cmp))
 {
-  typename Container<T>::Iterator it1(c1), it2(c2);
-  for (/* nothing */; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-    if (cmp(it1.get_curr(), it2.get_curr()))
-      return true;
-    else if (cmp(it2.get_curr(), it1.get_curr()))
-      return false;
+  auto it1 = c1.get_it();
+  auto it2 = c2.get_it();
+  for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+    {
+      auto & curr1 = it1.get_curr_ne();
+      auto & curr2 = it2.get_curr_ne();
+      if (cmp(curr1, curr2))
+	return true;
+      else if (cmp(curr2, curr1))
+	return false;
+    }
 
   if (not it1.has_curr() and not it2.has_curr())
     return false;
@@ -573,43 +589,28 @@ bool lesser(const Container<T> & c1, const Container<T> & c2, Cmp & cmp)
   return it2.has_curr();
 }
 
-template <typename T, template <typename> class Container = DynList, 
-	  class Cmp = std::less<T>> inline
-bool lesser(const Container<T> & c1, const Container<T> & c2, 
-	    Cmp && cmp = Cmp())
+  template <class C1, class C2,
+	  class Eq = std::equal_to<typename C1::Item_Type>> inline
+bool diff(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
 {
-  return lesser<T, Container, Cmp>(c1, c2, cmp);
+  return not eq(c1, c2, e);
 }
 
-template <typename T, template <typename> class Container = DynList,
-	  class Eq = std::equal_to<T>> inline
-bool diff(const Container<T> & c1, const Container<T> & c2, Eq & e)
+template <class Container> inline
+auto unzip(const Container & l)
 {
-  return not eq<T, Container, Eq>(c1, c2, e);
-}
-
-template <typename T, template <typename> class Container = DynList,
-	  class Eq = std::equal_to<T>> inline
-bool diff(const Container<T> & c1, const Container<T> & c2, Eq && e = Eq())
-{
-  return diff<T, Container, Eq>(c1, c2, e);
-}
-
-template <template <typename> class Container, typename T1, typename T2>
-inline std::pair<Container<T1>, Container<T2>>
-unzip(const Container<std::pair<T1, T2>> & l)
-{
-  Container<T1> l1;
-  Container<T2> l2;
-  for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next())
+  using T1 = decltype(l.get_first().first);
+  using T2 = decltype(l.get_first().second);
+  DynList<T1> l1;
+  DynList<T2> l2;
+  for (auto it = l.get_it(); it.has_curr(); it.next_ne())
     {
-      std::pair<T1, T2> curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       l1.append(curr.first);
       l2.append(curr.second);
     }
 
-  return std::pair<Container<T1>, Container<T2>>(std::move(l1), std::move(l2));
+  return std::make_pair(std::move(l1), std::move(l2));
 }
 
 template <template <typename> class Container, typename T1, typename T2>
@@ -618,12 +619,11 @@ tunzip(const Container<std::tuple<T1, T2>> & l)
 {
   Container<T1> l1;
   Container<T2> l2;
-  for (typename Container<std::pair<T1, T2>>::Iterator it(l); it.has_curr();
-       it.next())
+  for (auto it = l.get_it(); it.has_curr(); it.next_ne())
     {
-      auto curr = it.get_curr();
-      l1.append(curr.first);
-      l2.append(curr.second);
+      auto & curr = it.get_curr_ne();
+      l1.append(std::get<0>(curr));
+      l2.append(std::get<1>(curr));
     }
 
   return std::make_tuple(std::move(l1), std::move(l2));
@@ -650,81 +650,6 @@ std::pair<TgtContainer<typename SrcContainer::Item_Type>,
 	   });
   return ret_val;
 }
-
-  template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> range(const T start, const T end, const T step = 1)
-{
-  Container<T> ret_val;
-  for (T i = start; i <= end; i += step)
-    ret_val.append(i);
-  return ret_val;
-}
-
-    template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> nrange(const T start, const T end, const size_t n)
-{
-  if (n < 2)
-    throw std::domain_error("nrange: n must be greater than 1");
-  
-  const auto step = (end - start)/(n - 1);
-  Container<T> ret_val;
-  T val = start;
-  for (size_t i = 0; i < n; ++i, val += step)
-    ret_val.append(val);
-  return ret_val;
-}
-
-  template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> contiguous_range(T start, const size_t n)
-{
-  Container<T> ret_val;
-  for (size_t i = 0; i < n; ++i)
-    ret_val.append(start++);
-  return ret_val;
-}
-
-
-  /** Return a range 0, 1, ... n - 1
-
-      @param[in] n size of range
-      @return a container with the range (according to the template
-      parameter, which is DynList
-
-     @ingroup Funcional
-   */
-template <typename T = int, template <typename> class Container = DynList>
-inline Container<T> range(const T n)
-{
-  Container<T> ret_val;
-  for (T i = 0; i < n; ++i)
-    ret_val.append(i);
-  return ret_val;
-}
-
-
-  /** Create a sequence of repeated items
-
-      @param[in] n number of items
-      @param[in] item the valur to be repeated
-      @return a container with n instances of item value
-      
-     @ingroup Funcional
-   */
-template <typename T = int> inline
-DynList<T> rep(size_t n, const T & item)
-{
-  DynList<T> ret_val;
-  for (size_t i = 0; i < n; ++i)
-    ret_val.append(item);
-  return ret_val;
-}
-
-  template <typename T = int> inline
-DynList<T> rep(size_t n, T && item = T())
-{
-  return rep<T>(n, item);
-}
-
 
 template <class Container> inline
 DynList<std::pair<size_t, typename Container::Key_Type>>
@@ -764,10 +689,10 @@ inline Container<T> reverse(const Container<T> & l)
   return ret_val;
 }
 
-/** Genera todas las tuplas secuenciales de tamaño contenidas en el
+/** Genera todas las tuplas secuenciales de tamaño n contenidas en el
     contenedor c.
 
-    Si por ejemplo c = { 1, 2, 3, 4, 5, 6 ..., n}
+    Si por ejemplo c = { 1, 2, 3, 4, 5, 6 ..., N}
 
     Entonces gen_seq_list_tuples(c, 4) = { (1,2,3,4), (2,3,4,5), ... }
 
@@ -780,20 +705,21 @@ inline Container<T> reverse(const Container<T> & l)
 
    @ingroup Algos
  */
-template <typename T, template <typename> class Container>
-DynList<DynList<T>> gen_seq_list_tuples(const Container<T> & c, size_t n)
+template <class Container>
+auto gen_seq_list_tuples(const Container & c, size_t n)
 {
-  typename Container<T>::Iterator it(c);
+  using T = typename Container::Item_Type;
+  typename Container::Iterator it(c);
   DynList<T> l;
   for (size_t i = 0; i < n; ++i, it.next())
     l.append(it.get_curr());
 	 
   DynList<DynList<T>> ret;
   ret.append(l);
-  for (; it.has_curr(); it.next())
+  for (; it.has_curr(); it.next_ne())
     {
       l.remove_first();
-      l.append(it.get_curr());
+      l.append(it.get_curr_ne());
       ret.append(l);
     }
 
@@ -835,9 +761,9 @@ sequential_groups(const Container<T> & c, Equal & eq)
   
   size_t count = 1; // count the number of groups
 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       if (not eq(curr, curr_item)) // group change?
         {
           curr_item = curr;
@@ -879,9 +805,9 @@ unique_sequential(const Container<T> & c, Equal & eq)
   
   size_t count = 1; // count the number of groups
 
-  for (it.next(); it.has_curr(); it.next())
+  for (it.next(); it.has_curr(); it.next_ne())
     {
-      auto & curr = it.get_curr();
+      auto & curr = it.get_curr_ne();
       if (not eq(curr, curr_item)) // group change?
         {
           curr_item = curr;
@@ -922,10 +848,21 @@ public:
     return std::make_pair(it1.get_curr(), it2.get_curr());
   }
 
+  auto get_curr_ne() const noexcept
+  {
+    return std::make_pair(it1.get_curr_ne(), it2.get_curr_ne());
+  }
+
   void next()
   {
     it1.next();
     it2.next();
+  }
+
+  void next_ne() noexcept
+  {
+    it1.next_ne();
+    it2.next_ne();
   }
 
   /// return true if the two iterator were completely traversed 
@@ -992,8 +929,8 @@ C build_container(Args ... args)
 TgtC assign_container(const SrcC & srcc)
 {
   TgtC ret;
-  for (auto it = srcc.get_it(); it.has_curr(); it.next())
-    ret.append(it.get_curr());
+  for (auto it = srcc.get_it(); it.has_curr(); it.next_ne())
+    ret.append(it.get_curr_ne());
 
   return ret;
 }
@@ -1064,11 +1001,11 @@ DynList<std::pair<T, size_t>> repeated_with_index(const Container<T> & c);
 DynList<T> flatten(const C2<C1<T>> & c)
 {
   DynList<T> ret;
-  for (auto it_c = c.get_it(); it_c.has_curr(); it_c.next())
+  for (auto it_c = c.get_it(); it_c.has_curr(); it_c.next_ne())
     {
-      auto & curr_c = it_c.get_curr();
-      for (auto it = curr_c.get_it(); it.has_curr(); it.next())
-	ret.append(it.get_curr());
+      auto & curr_c = it_c.get_curr_ne();
+      for (auto it = curr_c.get_it(); it.has_curr(); it.next_ne())
+	ret.append(it.get_curr_ne());
     }
   return ret;
 }
@@ -1080,8 +1017,8 @@ DynList<T> flatten(const C2<C1<T>> & c)
 DynList<T> flatten(const C3<C2<C1<T>>> & c)
 {
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(flatten(it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(flatten(it.get_curr_ne()));
   return ret;
 }
 
@@ -1093,8 +1030,8 @@ DynList<T> flatten(const C3<C2<C1<T>>> & c)
 DynList<T> flatten(const C4<C3<C2<C1<T>>>> & c)
 {
   DynList<T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    ret.append(flatten(it.get_curr()));
+  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    ret.append(flatten(it.get_curr_ne()));
   return ret;
 }
 

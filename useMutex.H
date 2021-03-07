@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef USEMUTEX_H
 # define USEMUTEX_H
@@ -27,14 +31,14 @@
 # include <errno.h>
 # include <ahDefs.H>
 # include <ahUtils.H>
- 
+
 extern void init_mutex(pthread_mutex_t *);
 
 extern void init_mutex(pthread_mutex_t &);
 
 extern void destroy_mutex(pthread_mutex_t *);
 
-extern void destroy_mutex(pthread_mutex_t &);  
+extern void destroy_mutex(pthread_mutex_t &);
 
 using namespace Aleph;
 
@@ -45,27 +49,27 @@ class UseMutex
 
 public:
 
-  void unlock() 
-  { 
+  void unlock()
+  {
     if (mutex == nullptr)
       throw std::domain_error("unlock: nullptr pointer to mutex");
 
-    pthread_mutex_unlock(mutex); 
+    pthread_mutex_unlock(mutex);
   }
 
-  void lock() 
+  void lock()
   {
     if (mutex == nullptr)
       throw std::domain_error("lock: nullptr pointer to mutex");
 
-    pthread_mutex_lock(mutex); 
+    pthread_mutex_lock(mutex);
   }
 
   UseMutex(pthread_mutex_t *m) : mutex(m), unlock_when_destroy(true)
   {
     lock();
   }
-	
+
   UseMutex(pthread_mutex_t & m): mutex(&m), unlock_when_destroy(true)
   {
     lock();
@@ -74,8 +78,8 @@ public:
   void enter() { lock(); }
 
   void leave() { unlock(); }
-	
-  ~UseMutex() throw(std::domain_error)
+
+  ~UseMutex()
   {
     if (unlock_when_destroy)
       unlock();

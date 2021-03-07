@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef EEPICGEOM_H
 # define EEPICGEOM_H
@@ -67,7 +71,7 @@ public:
       delete geom_object_ptr;
   }
 
- virtual void draw(Eepic_Plane *, ofstream &) const
+ virtual void draw(Eepic_Plane *, ostream &) const
   {
     if (geom_object_ptr == nullptr)
       throw std::domain_error("Eepic_Geom_Object is null");
@@ -226,16 +230,16 @@ public:
         // (más a la izquierad, a la derecha, alto y bajo
     DynDlist<Eepic_Geom_Object*>::Iterator it(list);
 
-    Eepic_Geom_Object * curr = it.get_current();
+    Eepic_Geom_Object * curr = it.get_curr();
 
     __lowest    = curr->lowest_point();
     __highest   = curr->highest_point();
     __leftmost  = curr->leftmost_point();
     __rightmost = curr->rightmost_point();
 
-    for (it.next(); it.has_current(); it.next())
+    for (it.next(); it.has_curr(); it.next_ne())
       {
-	curr = it.get_current();
+	curr = it.get_curr_ne();
 
 	if (curr->lowest_point().get_y() < __lowest.get_y())
 	  __lowest = curr->lowest_point();
@@ -309,7 +313,7 @@ private:
     assert(geom_height > 0 and geom_wide > 0);
   }
 
-  void draw_cartesian_axis(ofstream & output);
+  void draw_cartesian_axis(ostream & output);
 
 public:
 
@@ -340,7 +344,7 @@ public:
      tiempo de construcción. squarize == true garantiza que las figuras
      se dibujen sin deformación pero en detrimento del espacio aprovechado
   */
-  void draw(ofstream & output, const bool & squarize = true)
+  void draw(ostream & output, const bool & squarize = true)
   {
     compute_geom_plane(squarize);
     
@@ -370,9 +374,9 @@ public:
 
         // recorre cada objeto y lo dibuja
     for (DynDlist<Eepic_Geom_Object*>::Iterator it(list); 
-	 it.has_current(); it.next())
+	 it.has_curr(); it.next_ne())
       {
-	Eepic_Geom_Object * curr = it.get_current();
+	Eepic_Geom_Object * curr = it.get_curr_ne();
 	
     	    // reinicia cada vez al grosor por omisión de forma
 	output << "\\thinlines" << std::endl 
@@ -414,7 +418,7 @@ public:
   ~Eepic_Plane()
   {
     while (not list.is_empty())
-      delete list.remove_first();
+      delete list.remove_first_ne();
   }
 
   void put_cartesian_axis()
@@ -488,7 +492,7 @@ public:
 
       // escribe en el stream output el código eepic para dibujar el
       // punto p
-  void draw_point(const Point & p, ofstream & output)
+  void draw_point(const Point & p, ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
@@ -529,7 +533,7 @@ public:
 
       // escribe en el stream output el código eepic para dibujar el
       // segmento sg
-  void draw_segment(const Segment & sg, ofstream & output)
+  void draw_segment(const Segment & sg, ostream & output)
   {
     DRAW_SEGMENT(sg, output);
   }
@@ -587,7 +591,7 @@ public:
 
       // escribe en el stream output el código eepic para dibujar el
       // segmento sg con filos de flecha
-  void draw_arrow(const Segment & sg, ofstream & output)
+  void draw_arrow(const Segment & sg, ostream & output)
   {
     DRAW_ARROW(sg, output);
   }
@@ -606,7 +610,7 @@ public:
 
         // escribe en el stream output el código eepic para dibujar el
         // segmento puntillado sg
-  void draw_dotted_segment(const Segment & sg, ofstream & output)
+  void draw_dotted_segment(const Segment & sg, ostream & output)
   {
     DRAW_DOTTED_SEGMENT(sg, output);
   }
@@ -626,7 +630,7 @@ public:
 
       // escribe en el stream output el código eepic para dibujar el
       // segmento sg con línea partida
-  void draw_dash_segment(const Segment & sg, ofstream & output)
+  void draw_dash_segment(const Segment & sg, ostream & output)
   {
     DRAW_DASH_SEGMENT(sg, output);
   }
@@ -646,7 +650,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 
       // escribe en el stream output el código eepic para dibujar el
       // segmento puntillado sg con puntas de flecha
-  void draw_arrow_dotted_segment(const Segment & sg, ofstream & output)
+  void draw_arrow_dotted_segment(const Segment & sg, ostream & output)
   {
     DRAW_ARROW_DOTTED_SEGMENT(sg, output);
   }
@@ -666,14 +670,14 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 
       // escribe en el stream output el código eepic para dibujar el
       // segmento sg con línea partida y punta de flecha
-  void draw_arrow_dash_segment(const Segment & sg, ofstream & output)
+  void draw_arrow_dash_segment(const Segment & sg, ostream & output)
   {
     DRAW_ARROW_DASH_SEGMENT(sg, output);
   }
 
       // escribe en el stream output el código eepic para dibujar la
       // elipse e
-  void draw_ellipse(const Ellipse & e, ofstream & output)
+  void draw_ellipse(const Ellipse & e, ostream & output)
   {
     const Point & center = e.get_center();
 
@@ -700,7 +704,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // puntero permite usar una sola función para dibujar polígonos;
       // vistos sus lados como segmentos
   typedef void (Eepic_Plane::*Draw_Segment_Fct)(const Segment & poly, 
-						ofstream &     output);
+						ostream &     output);
 
 
       // escribe en el stream output el código eepic para dibujar el
@@ -711,10 +715,10 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // para dibujar polígonos regulares
         template <class Poly>
   void draw_polygon(Poly &           poly, 
-		    ofstream &       output,
+		    ostream &       output,
 		    Draw_Segment_Fct draw_sg_fct)
   {
-    for (typename Poly::Segment_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       (this->*draw_sg_fct)(it.get_current_segment(), output);
   }
 
@@ -726,13 +730,13 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // mucho más rápida que la versión de tres parámetros; aunque más
       // menos versátil (nada es sin costes; así es la vida)
     template <class Poly>
-  void draw_closed_polygon(Poly & poly, ofstream & output)
+  void draw_closed_polygon(Poly & poly, ostream & output)
   {
     output << "    % Drawing of polygon of " << poly.size() 
 	   << " sides" << endl
 	   << "\\shade\\path";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -743,12 +747,12 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // polígono con su interior sombreado y las líneas de sus lados
       // punteadas. Es independiente de que esté o no cerrado
     template <class Poly>
-  void draw_dotted_closed_polygon(Poly &  poly, ofstream & output)
+  void draw_dotted_closed_polygon(Poly &  poly, ostream & output)
   {
     output << "    % Drawing of dotted line Polygon" << endl
 	   << "\\shade\\dottedline{" << dotgap << "}";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -760,9 +764,9 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // poly. ATENCIÓN: NO DIBUJA LOS LADOS; SÓLO DIBUJA LOS
       // VÉRTICES 
     template <class Poly>
-  void draw_dots_from_polygon(Poly & poly, ofstream & output)
+  void draw_dots_from_polygon(Poly & poly, ostream & output)
   {
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       {
 	Vertex & vertex = it.get_current_vertex();
       
@@ -772,7 +776,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
 
       // genera código eepic en el stream output para el filo de flecha
       // del segmento sg
-  void draw_arrow_extreme(const Segment & sg, ofstream & output)
+  void draw_arrow_extreme(const Segment & sg, ostream & output)
   {    // ¡tal cual!
     COMPUTE_SEGMENT_EEPIC_COORDENATES();
     PUT_ARROW();
@@ -784,9 +788,9 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // LOS FILOS DE FLECHA DE LO QUE SON LOS LADOS DEL POLÍGONO
       // VISTOS COMO SEGMENTOS
       template <class Poly>
-  void draw_arrows_in_polygon(Poly & poly, ofstream & output)
+  void draw_arrows_in_polygon(Poly & poly, ostream & output)
   {
-    for (typename Poly::Segment_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       {
 	const Segment & sg = it.get_current_segment();
       
@@ -795,7 +799,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
   }
 
     template <class Poly>
-  void draw_closed_polygon_with_arrows(Poly & poly, ofstream & output)
+  void draw_closed_polygon_with_arrows(Poly & poly, ostream & output)
   {
     draw_closed_polygon(poly, output);
     draw_arrows_in_polygon(poly, output);
@@ -806,7 +810,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // "(x,y)". La coordenada y se desplaza ligeramente hacia arriba
       // en r de modo tal de dejar espacio para escribir el número de
       // vértice por debajo
-  void draw_point_text(const Point & p, ofstream & output)
+  void draw_point_text(const Point & p, ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
@@ -829,9 +833,9 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // cruce un lado ==> que se requiere el contexto de los lados ==>
       // que no se podría usar draw_point_text
     template <class Poly>
-  void draw_points_text_in_polygon(Poly & poly, ofstream & output)
+  void draw_points_text_in_polygon(Poly & poly, ostream & output)
   {
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       draw_point_text(it.get_current_vertex(), output);
   }
 
@@ -842,12 +846,12 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // se requiere el contexto de los lados ==> que no se podría usar
       // draw_point_text
     template <class Poly>
-  void draw_vertex_numbers_in_polygon(Poly & poly, ofstream & output)
+  void draw_vertex_numbers_in_polygon(Poly & poly, ostream & output)
   {
     int n = 0;
 
     for (typename Poly::Vertex_Iterator it(poly); 
-	 it.has_current(); it.next(), ++n)
+	 it.has_curr(); it.next_ne(), ++n)
       {
 	Vertex & vertex = it.get_current_vertex();
       
@@ -867,13 +871,13 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // curva spline caracterizada por los puntos del polígono y que
       // pasa por sus puntos extremos
     template <class Poly>
-  void draw_spline(Poly & poly, ofstream & output)
+  void draw_spline(Poly & poly, ostream & output)
   {
     output << "    % Drawing spline of " << poly.size() 
 	   << " points" << endl
 	   << "\\spline";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -884,13 +888,13 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // curva a línea partida caracterizada por los puntos del polígono
       // y que pasa por sus puntos extremos
     template <class Poly>
-  void draw_dash_spline(Poly & poly, ofstream & output)
+  void draw_dash_spline(Poly & poly, ostream & output)
   {
     output << "    % Drawing dash curve of " << poly.size() 
 	   << " points" << endl
 	   << "\\closecurve";
 
-    for (typename Poly::Vertex_Iterator it(poly); it.has_current(); it.next())
+    for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
@@ -902,7 +906,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // pasa por sus puntos extremos y cuyo último vértice tiene punta
       // de flecha
     template <class Poly>
-  void draw_spline_arrow(Poly & poly, ofstream & output)
+  void draw_spline_arrow(Poly & poly, ostream & output)
   {
     draw_spline(poly, output); // dibujamos primero la curva
 
@@ -917,7 +921,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
       // polígono y que pasa por sus puntos extremos y cuyo último
       // vértice tiene punta de flecha
     template <class Poly>
-  void draw_dash_spline_arrow(Poly & poly, ofstream & output)
+  void draw_dash_spline_arrow(Poly & poly, ostream & output)
   {
     draw_dash_spline(poly, output); // dibujamos primero la curva
 
@@ -927,7 +931,7 @@ output << "    %% Dotted arrow Segment from " << sg.get_src_point().to_string()\
     draw_arrow_extreme(poly.get_last_segment(), output);
   }
 
-  void draw_text(const Text & t, ofstream & output, 
+  void draw_text(const Text & t, ostream & output, 
 		 const double & hfactor, const double & vfactor)
   {
     const Point & p = t.get_point();
@@ -991,7 +995,7 @@ virtual Eepic_Geom_Object * clone() const \
   return new Eepic_##Type(static_cast<const Type&>(*geom_object_ptr)); \
 } \
 \
-virtual void draw(Eepic_Plane *, ofstream &) const;
+virtual void draw(Eepic_Plane *, ostream &) const;
 
 
     // Métodos comunes de Eepic_Type más el constructor copia

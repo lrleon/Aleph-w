@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef GRAPH_TRAVERSE_H
 # define GRAPH_TRAVERSE_H
@@ -58,9 +62,9 @@ public:
       return count;
 
     Q<typename GT::Arc*> q;
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -86,9 +90,9 @@ public:
 	if (not op(curr))
 	  return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -128,9 +132,9 @@ public:
     
     using Pair = tuple<typename GT::Node*, typename GT::Arc*>; 
     Q<Pair> q;
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -153,9 +157,9 @@ public:
 	if (not op(curr, arc))
 	  return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -195,9 +199,9 @@ public:
     if (not node_op(start))
       return make_tuple(1, 0);
 
-    for (Itor it(start, sa); it.has_curr(); it.next())
+    for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
+	typename GT::Arc * a = it.get_curr_ne();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -225,9 +229,9 @@ public:
 	if (not node_op(curr))
 	  return make_tuple(node_count, arc_count);
 
-	for (Itor it(curr, sa); it.has_curr(); it.next()) 
+	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr();
+	    typename GT::Arc * a  = it.get_curr_ne();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);

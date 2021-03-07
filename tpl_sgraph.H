@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_SGRAPH_H
 # define TPL_SGRAPH_H
@@ -345,7 +349,7 @@ public:
   {
   public:
 
-       /// Tipo de elemento que retorna get_current()
+       /// Tipo de elemento que retorna get_curr()
     using Item_Type = Node *;
 
        /// El tipo de conjunto sobre el cual se itera.
@@ -364,6 +368,11 @@ public:
     {
       return this->get_curr();
     }
+
+    Node * get_current_node_ne() const noexcept
+    {
+      return this->get_curr_ne();
+    }
   };
 
       /** Iterador de  arcos de un nodo de grafo.
@@ -379,7 +388,7 @@ public:
     
   public:
 
-        /// El tipo de dato que retorna get_current().
+        /// El tipo de dato que retorna get_curr().
     using Item_Type =  Arc *;
 
         /// El tipo de conjunto sobre el cual se itera.
@@ -395,19 +404,36 @@ public:
       // empty 
     }
 
-        /// Retorna el arco actual.
-    Arc * get_current_arc() const
+    /// Return get_current_arc() without exception
+    Arc * get_curr_ne() const noexcept
     {
-      return (Arc*) this->DynList<void*>::Iterator::get_curr();
+      return (Arc*) this->DynList<void*>::Iterator::get_curr_ne();
     }
 
-        ///\overload get_current_arc()
-    Arc * get_current() const { return get_current_arc(); }
+    /// Return get_current_arc()
+    Arc * get_curr() const
+    {
+      return  (Arc*) this->DynList<void*>::Iterator::get_curr();
+    }
 
-        ///\overload get_current_arc()
-    Arc * get_curr() const { return get_current_arc(); }
+    Arc * get_current_arc_ne() const noexcept
+    {
+      return get_curr_ne();
+    }
 
+    Arc * get_current_arc() const
+    {
+      return get_curr(); 
+    }    
+   
         /// Retorna el nodo destino del arco actual.
+    Node * get_tgt_node_ne() const noexcept
+    {
+      Arc * a = get_curr_ne();
+      return (Node*) a->get_connected_node(src_node);
+    }
+
+    /// Retorna el nodo destino del arco actual.
     Node * get_tgt_node() const
     {
       Arc * a = get_curr();
@@ -426,7 +452,7 @@ public:
   {
   public:
 
-        /// Tipo de elemento que retorna get_current()
+        /// Tipo de elemento que retorna get_curr()
     using Item_Type = Arc *;
 
        /// El tipo de conjunto sobre el cual se itera.
@@ -438,6 +464,24 @@ public:
       : DynSetArc::Iterator(_g.arc_list)
     {
       // empty
+    }
+
+    /// Retorna un puntero al arco actual
+    Arc * get_current_arc_ne() const noexcept
+    {
+      return this->get_curr_ne();
+    }
+
+        /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
+    Node * get_src_node_ne() const noexcept
+    {
+      return (Node*) get_current_arc_ne()->src_node;
+    }
+
+        /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
+    Node * get_tgt_node_ne() const noexcept
+    {
+      return (Node*) get_current_arc_ne()->tgt_node;
     }
 
         /// Retorna un puntero al arco actual
@@ -507,12 +551,12 @@ private:
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
 
-    src->arc_list.remove([arc] (auto a) { return a == arc; });
+    src->arc_list.remove_ne([arc] (auto a) { return a == arc; });
     src->num_arcs--;
 
     if (not this->digraph and src != tgt)
       {
-	tgt->arc_list.remove([arc] (auto a) { return a == arc; });
+	tgt->arc_list.remove_ne([arc] (auto a) { return a == arc; });
 	tgt->num_arcs--;
       }
   }

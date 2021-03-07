@@ -1,10 +1,15 @@
-/*
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-  2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef AH_DRY_H
@@ -63,8 +67,8 @@ struct GenericTraverse
   bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
-         it.has_curr(); it.next())
-      if (not operation(it.get_curr()))
+         it.has_curr(); it.next_ne())
+      if (not operation(it.get_curr_ne()))
         return false;
     return true;
   }
@@ -105,7 +109,7 @@ bool traverse(const Container & c, Operation && op = Operation())
 
 /** Common sequential searching methods on containers.
 
-    This classs implements common sequential searching on containers. 
+    This classs implements common sequential searching on containers.
 
     \note Take in account that any of these searches takes \f$O(n)\f$ of
     complexity for the worst case and that this is independent of type
@@ -118,10 +122,10 @@ bool traverse(const Container & c, Operation && op = Operation())
     \f$O(n)\f$ and when you cannot index with an adequate data
     structure.
 
-    \warning Be very careful about the fact that many of these primitives
-    return pointers or references to container's data. In many cases,
-    alteration of that data will corrupt the internal state of
-    container.
+    \warning Be very careful about the fact that many of these
+    primitives return pointers or references to container's data. In
+    many cases, alteration of that data will corrupt the internal
+    state of container.
 
     \ingroup Secuencias
 */
@@ -160,8 +164,28 @@ public:
     return ret;
   }
 
-  /// \overload get_it() 
+  /// \overload get_it()
   auto get_itor() const { return get_it(); }
+
+  Type & nth_ne(const size_t n) noexcept
+  {
+    Type * ptr = nullptr;
+    size_t i = 0;
+    me()->traverse([&ptr, &i, &n] (Type & item)
+                   {
+                     if (i++ < n)
+                       return true;
+                     ptr = &item;
+                     return false;
+                   });
+    return *ptr;
+  }
+
+  /// \overload nth()
+  const Type & nth_ne(const size_t n) const noexcept
+  {
+    return base()->nth_ne(n);
+  }
 
   /** Return the n-th item of container.
 
@@ -178,7 +202,7 @@ public:
       \return a valid reference to the item into the container.
       \throw out_of_range if n is greater or equal that the size of
       container.
-  */
+   */
   Type & nth(const size_t n)
   {
     Type * ptr = nullptr;
@@ -224,7 +248,7 @@ public:
       searching criteria.
       \return a valid pointer to an item if this was found or `nullptr`
       otherwise.
-  */
+   */
   template <class Operation>
   Type * find_ptr(Operation & operation) noexcept(noexcept(operation))
   {
@@ -276,16 +300,16 @@ public:
 
       bool operation(const typename Container::Item_Type & item)
 
-      \warning Frequent use of this method will definitively degrade the
-      performance. Try not to use this method inside loops. In general,
-      if you falls in this situation, the consider your design and
-      use a faster approach.
+      \warning Frequent use of this method will definitively degrade
+      the performance. Try not to use this method inside loops. In
+      general, if you falls in this situation, the consider your
+      design and use a faster approach.
 
       \param[in] `operation` to be performed on each item for matching a
       searching criteria.
       \return the last seen position. If the item is not found, then the
       number of items is returned.
-  */
+   */
   template <class Operation>
   size_t find_index(Operation & operation) const noexcept(noexcept(operation))
   {
@@ -632,8 +656,8 @@ public:
 
       Be very careful with the fact that this method allows to modify
       the elements themselves, what could badly alter the internal
-      state of container. This would be the case for heaps, binary trees
-      and hash tables.
+      state of container. This would be the case for heaps, binary
+      trees and hash tables.
 
       \param[in] `operation` to be done on each element.
       \return an reference to `this`
@@ -734,12 +758,13 @@ public:
   /** Map the elements of the container.
 
       `maps(op)` produces a dynamic list resulting of mapping of each
-      element of container `item` to the result of operation `op(item)`.
+      element of container `item` to the result of operation
+      `op(item)`.
 
-      `maps()` is a template method which receives as template parameters
-      the type `__T`, which is the type of target or range of mapping,
-      and the transforming operation. By default `__T` is the same type
-      of the elements stored in the container.
+      `maps()` is a template method which receives as template
+      parameters the type `__T`, which is the type of target or range
+      of mapping, and the transforming operation. By default `__T` is
+      the same type of the elements stored in the container.
 
       `operation` should have the following signature:
 
@@ -750,7 +775,7 @@ public:
 
       If `__T == `T`, which is common and by default, then you could
       specify a mapping without need of template specification. For
-      example, if the container has interger values, the a mapping of
+      example, if the container has integer values, the a mapping of
       item multiplied by 4 could be very simply written as follows:
 
       c.maps([] (int item) { return 4*i; });
@@ -760,14 +785,14 @@ public:
       method call. For example, if the range is `double` and you want to
       return the elements divided by 4, the could do as follows:
 
-      c.template maps<double>([] (int item) { return 1.0*item/4; });
+          c.template maps<double>([] (int item) { return 1.0*item/4; });
 
-      \param[in] op operation to be perfomed in order to do the
+      \param[in] op operation to be performed in order to do the
       transformation on an `item`
       \return a `DynList<__T> object containing the mapped items. The
       order of resulting list is the same than the order of visit of the
       iterator for the container.
-      \throw anything tnat could throw `op` or `bad_alloc` if there is
+      \throw anything that could throw `op` or `bad_alloc` if there is
       no enough memory
   */
   template <typename __T = T, class Operation = Dft_Map_Op<T, __T>>
@@ -792,7 +817,7 @@ public:
       the item is mapped through the function `op(item)`.
 
       \param[in] op operation to be perfomed in order to do the
-      transformation on an `item`
+      transformation on an `item`.
       \param[in] prop a lambda returning a `bool` which perform the
       logical test.
       \return a `DynList<__T> object containing the mapped items. The
@@ -802,7 +827,7 @@ public:
       no enough memory
   */
   template <typename __T = T, class Prop, class Operation>
-  DynList<__T> maps_if(Prop & prop, Operation & op) const
+  DynList<__T> maps_if(Prop prop, Operation & op) const
   {
     DynList<__T> ret_val;
     const_me()->for_each([&ret_val, &prop, &op] (const T & item)
@@ -815,11 +840,11 @@ public:
 
   /// \overload map(Prop & prop, Operation & op)
   template <typename __T = T, class Prop, class Operation>
-  DynList<__T> maps_if(Prop & prop, Operation && op) const
+  DynList<__T> maps_if(Prop prop, Operation && op) const
   {
     return maps<__T, Prop, Operation>(prop, op);
   }
- 
+
   DynList<T> to_dynlist() const
   {
     return maps([] (auto & item) { return item; });
@@ -833,7 +858,7 @@ public:
 
       acc = op(acc, op(acc, item);
 
-      So `acc` serves as a sort of accumulator. 
+      So `acc` serves as a sort of accumulator.
 
       `op` should have the following signature:
 
@@ -856,10 +881,10 @@ public:
       return std::min(acc, item);
 	    });
 
-      When the folded type is different than `T`, then you must specify
-      the folded type as template parameter. For example, if you want to
-      compute the sum of inversed elements, the you could do it as
-      follows: 
+      When the folded type is different than `T`, then you must
+      specify the folded type as template parameter. For example, if
+      you want to compute the sum of inversed elements, the you could
+      do it as follows:
 
       c.template foldl<double>(0, [] (double acc, int item)
 	    {
@@ -868,7 +893,7 @@ public:
 
       \param[in] init initial value of folded value (or accumulator).
       \param[in] op operation to be performed on each item and used for
-	    folding.  
+	    folding.
       \return the final folded computation.
       \throw anything that could throw `op`
   */
@@ -900,7 +925,7 @@ public:
     noexcept(noexcept(operation))
   {
     auto ret_val = init;
-    const_me()->for_each([&ret_val, &operation] (const T & item) 
+    const_me()->for_each([&ret_val, &operation] (const T & item)
                          {
                            ret_val = operation(ret_val, item);
                          });
@@ -949,7 +974,7 @@ public:
                          });
     return ret_val;
   }
-  
+
   /// \overload filter(Operation & operation)
   template <class Operation>
   DynList<T> filter(Operation && operation) const
@@ -997,11 +1022,11 @@ public:
   {
     return ptr_filter(operation);
   }
-  
+
   /**  Filter the elements of a container according to a matching
        criteria and determine its positions respect to the traversal
        of container.
-       
+
        `pfilter(operation)` is very similar to `filter()`, but instead
        of building a list of filtered elements, it builds a list of
        pairs with form `(item, pos)`, where `item` is a copy of
@@ -1125,7 +1150,7 @@ public:
                              r1.append(item);
                            else
                              r2.append(item);
-                         });
+			 });
     return std::tuple<DynList<T>, DynList<T>>(r1, r2);
   }
 
@@ -1179,7 +1204,7 @@ public:
       \throw bad_alloc if there is no enough memory or `out_of_range`
       if n is greater or equal than the number of elements in the
       container.
-  */
+   */
   DynList<T> take(const size_t n) const
   {
     size_t i = 0;
@@ -1206,11 +1231,14 @@ public:
       if n is greater or equal than the number of elements in the
       container.
   */
-  DynList<T> take(size_t i, size_t j) const
+  DynList<T> take(size_t i, size_t j, size_t step = 1) const
   {
     DynList<T> ret;
-    for (auto it = const_me()->get_it(i); i <= j and it.has_curr(); it.next(), ++i)
-      ret.append(it.get_curr());
+    if (step == 0)
+      return ret;
+    for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
+         it.next_ne(), i += step)
+      ret.append(it.get_curr_ne());
     return ret;
   }
 
@@ -1225,7 +1253,7 @@ public:
       \throw bad_alloc if there is no enough memory or `out_of_range`
       if n is greater or equal than `N` (the number of elements in the
       container).
-  */
+   */
   DynList<T> drop(const size_t n) const
   {
     size_t i = 0;
@@ -1450,8 +1478,9 @@ public:
   /** Return a container with the entire mapping where the range could
       be modified.
 
-      `items_ptr()` returns a container copy of an entire mapping. Each
-      element of returned mapping is a pair <key, pointer to value>.
+      `items_ptr()` returns a container copy of an entire
+      mapping. Each element of returned mapping is a pair <key,
+      pointer to value>.
 
       \return A new container, according the passed template parameter,
       containing all the pairs key,pointer-value of mapping.
@@ -1463,7 +1492,8 @@ public:
     C<Data> ret_val;
     const_me()->for_each([&ret_val] (std::pair<Key, Data> & p)
                          {
-                           ret_val.append(std::pair<Key,Data*>(p.first, p.second));
+                           ret_val.append(std::pair<Key,Data*>(p.first,
+                                                               p.second));
                          });
     return ret_val;
   }

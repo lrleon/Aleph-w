@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
  
 # include <iostream>
@@ -1048,9 +1052,9 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node * p)
   const double & yp = Y(p);
 
 
-  for (DynDlist<Tag_Data>::Iterator it(TAGS(p)); it.has_current(); it.next())
+  for (DynDlist<Tag_Data>::Iterator it(TAGS(p)); it.has_curr(); it.next())
     {
-      const Tag_Data & tag_data = it.get_current();
+      const Tag_Data & tag_data = it.get_curr();
 
       Point tag_point(xp, yp);
 
@@ -1338,7 +1342,7 @@ void generate_picture(ofstream & output, Graph * g)
 {
   Eepic_Plane plane(h_size, v_size, x_picture_offset, y_picture_offset); 
 
-  for (Graph::Node_Iterator it(*g); it.has_current(); it.next())
+  for (Graph::Node_Iterator it(*g); it.has_curr(); it.next())
     process_node(plane, it.get_current_node());
 
   for (int i = 0; i < ::arcs.size(); ++i)

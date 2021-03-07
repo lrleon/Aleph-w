@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_TEST_CYCLE_H
 # define TPL_TEST_CYCLE_H
@@ -55,9 +59,9 @@ class Test_For_Cycle
     NODE_BITS(curr).set_bit(Test_Cycle, true); // marque nodo
 
       // buscar caminos desde current_node a ver si llega a src_node 
-    for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_current(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * arc = it.get_current_arc();
+        typename GT::Arc * arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 
@@ -80,9 +84,9 @@ class Test_For_Cycle
     g.reset_bit_arcs(Test_Cycle);  // reiniciar Test_Cycle para arcos
 
       // explorar recursivamente por arcos adyacentes a src_node
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next())
+    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * arc = it.get_current_arc();
+        typename GT::Arc * arc = it.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 

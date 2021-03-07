@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef BITARRAY_H
@@ -61,7 +65,7 @@ public:
       default: assert(false);
       }
     return 0; // never reached
-  } 
+  }
 
   void write_bit(const unsigned int i, const unsigned int value) noexcept
   {
@@ -80,7 +84,7 @@ public:
       case 7 : b7 = value; break;
       default: assert(false);
       }
-  } 
+  }
 
   Byte() noexcept : b0(0), b1(0), b2(0), b3(0), b4(0), b5(0), b6(0), b7(0) {}
 
@@ -96,13 +100,13 @@ public:
     *ptr = i;
   }
 
-  Byte & operator |= (const Byte & rhs) 
+  Byte & operator |= (const Byte & rhs)
   {
     (unsigned char&) *this |= (unsigned char&) rhs;
     return *this;
   }
 
-  Byte & operator &= (const Byte & rhs) 
+  Byte & operator &= (const Byte & rhs)
   {
     (unsigned char&) *this &= (unsigned char&) rhs;
     return *this;
@@ -125,13 +129,13 @@ public:
         transformaciones de tipos adecuadas.
 
         @ingroup Secuencias
-	@author Alejandro Mujica
-	@author Leandro Rabindranath Leon
+        @author Alejandro Mujica
+        @author Leandro Rabindranath Leon
      */
 class BitArray
 {
   size_t         current_size;
-  DynArray<Byte> array_of_bytes; 
+  DynArray<Byte> array_of_bytes;
 
   size_t get_num_bytes() const noexcept
   {
@@ -158,13 +162,13 @@ class BitArray
       else
         byte_ptr = nullptr;
     }
-    
-    operator int () const 
+
+    operator int () const
     {
       if (index >= array->current_size)
         throw std::out_of_range("Index out of range");
 
-      return byte_ptr != nullptr ? byte_ptr->read_bit(bit_index) : 0; 
+      return byte_ptr != nullptr ? byte_ptr->read_bit(bit_index) : 0;
     }
 
     BitProxy & operator = (const size_t value)
@@ -204,14 +208,14 @@ public:
 
           @param[in] dim cantidad de bits. Por omisión es 256.
           @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes       
+          continuo de dim/8 bytes.
        */
-  BitArray(const size_t dim = 0) throw(std::exception, std::bad_alloc) 
+  BitArray(const size_t dim = 0)
     : current_size(dim), array_of_bytes(get_num_bytes())
   {
     array_of_bytes.set_default_initial_value(Byte());
   }
-  
+
   /** Reserva por adelantado memoria para el arreglo de bits a la
       dimensión dim.
 
@@ -229,30 +233,43 @@ public:
     int num_bytes = dim/8;
     if (dim % 8)
       ++num_bytes;
-    
+
     array_of_bytes.reserve(num_bytes);
   }
 
-      /// Retorna la dimensión del arreglo de bits 
+      /// Retorna la dimensión del arreglo de bits
   size_t size() const noexcept { return current_size; }
 
       /// Reajusta la dimensión del arreglo
-  void set_size(const size_t sz) 
+  void set_size(const size_t sz)
   {
     size_t array_size = sz / 8;
     if (array_size % 8)
       ++array_size;
-    
+
     array_of_bytes.adjust(array_size);
     current_size = sz;
   }
 
   BitProxy operator [] (const size_t i) const noexcept
-  { 
+  {
     return BitProxy(const_cast<BitArray&>(*this), i);
   }
 
   BitProxy operator [] (const size_t i) noexcept { return BitProxy(*this, i); }
+
+  int read_bit_ne(const size_t i) const noexcept
+  {
+    const int bit_index = i % 8;
+    auto ptr = array_of_bytes.test(i/8);
+    if (ptr)
+      {
+        const Byte & byte = *ptr;
+        return byte.read_bit(bit_index);
+      }
+    else
+      return 0;
+  }
 
        /** Lee el bit i.
 
@@ -264,7 +281,6 @@ public:
   {
     if (i >= current_size)
       throw std::out_of_range("index out of range");
-
     const int bit_index = i % 8;
     const Byte byte = array_of_bytes[i/8];
     return byte.read_bit(bit_index);
@@ -277,9 +293,9 @@ public:
            @param[in] i índice del bit a ser escrito.
            @param[in] value valor a ser escrito en la posición i.
            @note No se verifica fuera de rango y no verifica que value
-           tenga un valor binario. 
+           tenga un valor binario.
         */
-  void write_bit(const size_t i, const unsigned int value) 
+  void write_bit(const size_t i, const unsigned int value)
   {
     array_of_bytes.touch(i/8).write_bit(i%8, value);
     if (i >= current_size)
@@ -308,9 +324,9 @@ public:
       @param[in] i índice del bit a ser escrito.
       @param[in] value valor a ser escrito en la posición i.
       @note No se verifica fuera de rango y no verifica que value
-      tenga un valor binario. 
+      tenga un valor binario.
   */
-  void write(const size_t i, const unsigned int value) 
+  void write(const size_t i, const unsigned int value)
   {
     array_of_bytes.access(i/8).write_bit(i%8, value);
     if (i >= current_size)
@@ -322,7 +338,7 @@ public:
     return array_of_bytes.access(i/8).read_bit(i%8);
   }
 
-  void fast_write(const size_t i, const unsigned int value) 
+  void fast_write(const size_t i, const unsigned int value)
   {
     array_of_bytes.access(i/8).write_bit(i%8, value);
   }
@@ -353,11 +369,11 @@ public:
 
           @param[in] array el arreglo de bits a ser copiado.
           @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes       
+          continuo de dim/8 bytes.
       */
-  BitArray(const BitArray & array) throw(std::exception, std::bad_alloc)
+  BitArray(const BitArray & array)
     : current_size(array.current_size), array_of_bytes (array.array_of_bytes)
-  { 
+  {
     // empty
   }
 
@@ -367,12 +383,12 @@ public:
     array_of_bytes.swap(array.array_of_bytes);
   }
 
-  BitArray(BitArray && array) noexcept 
+  BitArray(BitArray && array) noexcept
     : BitArray()
   {
     swap(array);
   }
-		
+
   BitArray & operator = (BitArray && array) noexcept
   {
     current_size = 0;
@@ -382,7 +398,7 @@ public:
   }
 
   /// Lo convierte a una lista
-  DynList<char> bits_list() 
+  DynList<char> bits_list()
   {
     DynList<char> ret_val;
     for (size_t i = 0; i < current_size; ++i)
@@ -397,14 +413,13 @@ public:
 
           @param[in] array el arreglo de bits a ser copiado.
           @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes. 
+          continuo de dim/8 bytes.
           @note Si ocurre esta excepción, el estado de this permanece el
           mismo anterior a la asignación.
        */
-  BitArray & operator = (const BitArray & array) 
-    throw(std::exception, std::bad_alloc)
+  BitArray & operator = (const BitArray & array)
   {
-    if (this == &array) 
+    if (this == &array)
       return *this;
 
     current_size = array.current_size;
@@ -417,7 +432,7 @@ public:
 
           save() almacena en el archivo texto output, ya abierto, la secuencia
           de bits en formato decimal.
-     
+
           La primera línea siempre guarda el tamaño en bytes y en
           bits. Seguidamente se guardan en valor decimal los bytes secuenciales
           correspondientes al arreglo.
@@ -447,11 +462,11 @@ public:
 
           load(input) toma el archivo abierto en input, previamente
           guardado con el método load(), y restaura el arreglo al valro
-          guardado. 
+          guardado.
 
           @param[in] input stream de entrada donde se encuentra fguarado
           el arreglo y que debe haber sido previamente guardado con
-          save(). 
+          save().
        */
   void load(std::istream & input)
   {
@@ -488,14 +503,14 @@ public:
 
           @param[in] name nombre de la variable arreglo.
           @param[in] output stream de salida donde se desea guardar la
-          declaración. 
+          declaración.
        */
   void save_in_array_of_chars(const string & name, std::ostream & output)
   {
     const size_t & num_bytes = array_of_bytes.size();
 
     output << "// " << current_size << " bits declaration" << endl
-           << "const unsigned char " << name << " [" << num_bytes << "] = {" 
+           << "const unsigned char " << name << " [" << num_bytes << "] = {"
            << endl << "  ";
     for (size_t i = 0; i < num_bytes; i++)
       {
@@ -523,12 +538,12 @@ public:
           largo, y lo carga.
 
           @param[in] str el arreglo de caracteres donde se encuentra el de
-          bits. 
+          bits.
           @param[in] num_bits la cantidad de bits del arreglo. Note que no
           es la misma que la cantidad de bytes.
        */
-  void load_from_array_of_chars(const unsigned char str[], 
-				const size_t        num_bits)
+  void load_from_array_of_chars(const unsigned char str[],
+                                const size_t        num_bits)
   {
     array_of_bytes.cut();
 
@@ -536,7 +551,7 @@ public:
 
     if (num_bits % 8 != 0)
       num_bytes++;
-    
+
     for (size_t i = 0; i < num_bytes; i++)
       array_of_bytes.touch(i).set_int(str[i]);
 
@@ -670,11 +685,11 @@ public:
 
   template <typename T>
   void set_num(T n) // Paso copia porque es modificado adentro
-  {                                                    
+  {
     empty();
     const size_t num_bits = sizeof(T) * 8;
     reserve(num_bits);
-    for (int i = 0; i < num_bits; ++i)
+    for (size_t i = 0; i < num_bits; ++i)
       {
         write_bit(current_size - i - 1, n & 1);
         n >>= 1;
@@ -706,14 +721,14 @@ public:
     long ret_val = 0;
     for (size_t i = 0; i < current_size; ++i)
       ret_val += read_bit(current_size - i - 1) << i;
-    return ret_val;                                   
+    return ret_val;
   }
 
   void set_bit_str(const std::string & str)
   {
     empty();
     const size_t & str_size = str.size();
-    
+
     reserve(str_size);
 
     for (size_t i = 0; i < str_size; ++i)
@@ -755,10 +770,10 @@ public:
 
     if (size() < n)
       {
-	auto i = array_of_bytes.size();
-	set_size(rhs.size());
-	for (; i < rhs.array_of_bytes.size(); ++i)
-	  array_of_bytes(i) = rhs.array_of_bytes(i);
+        auto i = array_of_bytes.size();
+        set_size(rhs.size());
+        for (; i < rhs.array_of_bytes.size(); ++i)
+          array_of_bytes(i) = rhs.array_of_bytes(i);
       }
 
     return *this;
@@ -793,7 +808,7 @@ private:
   bool __traverse(Operation & operation) noexcept(noexcept(operation))
   {
     for (size_t i = 0; i < current_size; ++i)
-      if (not operation(read_bit(i)))
+      if (not operation(read_bit_ne(i)))
 	return false;
     return true;
   }
@@ -817,34 +832,38 @@ public:
 
     bool has_curr() const noexcept
     {
-      return curr_idx >= 0 and curr_idx < array_ptr->size(); 
+      return curr_idx >= 0 and curr_idx < array_ptr->size();
     }
 
-    bool has_current() const noexcept { return has_curr(); }
-
-    unsigned int get_curr() noexcept { return array_ptr->read_bit(curr_idx); }
-
-    unsigned int get_curr() const noexcept 
+    unsigned int get_curr_ne() const noexcept
     {
-      return array_ptr->read_bit(curr_idx); 
+      return array_ptr->read_bit(curr_idx);
+    }
+
+    unsigned int get_curr() const
+    {
+      if (not has_curr())
+        throw std::overflow_error("Iterator is at the end of the list");
+      return array_ptr->read_bit(curr_idx);
     }
 
     long get_pos() const noexcept { return curr_idx; }
 
-    void next() 
+    void next_ne() noexcept { ++curr_idx; }
+
+    void next()
     {
       if (curr_idx == array_ptr->size())
-	throw std::overflow_error("not current item in iterator");
-	  
-      ++curr_idx;
+        throw std::overflow_error("not current item in iterator");
+      next_ne();
     }
 
+    void prev_ne() noexcept { --curr_idx; }
     void prev()
     {
       if (curr_idx == -1)
-	throw std::underflow_error("not current item in iterator");
-
-      --curr_idx;
+        throw std::underflow_error("not current item in iterator");
+      prev_ne();
     }
 
     void reset_last() noexcept { curr_idx = array_ptr->size() - 1; }
@@ -859,13 +878,13 @@ public:
   template <class Operation>
   bool traverse(Operation & operation) const noexcept(noexcept(operation))
   {
-    return const_cast<BitArray&>(*this).__traverse(operation); 
+    return const_cast<BitArray&>(*this).__traverse(operation);
   }
 
   template <class Operation>
   bool traverse(Operation & operation) noexcept(noexcept(operation))
   {
-    return __traverse(operation); 
+    return __traverse(operation);
   }
 
   template <class Operation>
@@ -876,7 +895,7 @@ public:
   }
 
   template <class Operation>
-  bool traverse(Operation && operation = Operation()) 
+  bool traverse(Operation && operation = Operation())
     noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);

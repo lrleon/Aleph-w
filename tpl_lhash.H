@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_LHASH_H
@@ -51,25 +55,25 @@ using namespace Aleph;
 namespace Aleph {
 
   /** Tabla hash genérica con resolución de colisiones por
-      encadenamiento separado. 
+      encadenamiento separado.
 
       El tipo GenLhashTable implanta una tabla hash genérica con
       resolución de colisiones por encadenamiento separado en la cual el
-      tipo de cubeta es un parámetro tipo. 
+      tipo de cubeta es un parámetro tipo.
 
       Normalmente, este es destinado como back-end de los tipos
       LhashTable y LhashTableVtl, los cuales son fundamentalmente lo
       mismo, a excepción de que éstos ya tienen definidos su clases
-      cubetas sin o con destructor virtual. 
+      cubetas sin o con destructor virtual.
 
       @param Key clave de indización de la tabla.
       @param BucketType el tipo de cubeta.
       @param Cmp clase de comparación entre las claves.
 
-      @see LhashTable LhashTableVtl 
+      @see LhashTable LhashTableVtl
       @ingroup Hash
   */
-    template <typename Key, class BucketType, class Cmp> 
+    template <typename Key, class BucketType, class Cmp>
 class GenLhashTable : public HashStats<GenLhashTable<Key, BucketType, Cmp>>
 {
   friend class HashStats<GenLhashTable<Key, BucketType, Cmp>>;
@@ -78,7 +82,9 @@ public:
 
   using Bucket = BucketType;
 
-  typedef size_t (*Hash_Fct)(const Key &);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
   using Key_Type = Key;
 
@@ -116,30 +122,40 @@ public:
 
   const Cmp & get_compare() const { return cmp; }
 
-      /** Instancia una tabla hash genérica.
+ protected:
 
-          @param[in] __hash_fct la función hash.
-          @param[in] table_size el tamaño de la tabla.
-          @param[in] __remove_all_buckets si es true, entonces se
-          liberan todas las cubetas cuando se invoca al destructor.
-          @throw bad_alloc si no hay memoria para apartar la tabla.
-       */
-  GenLhashTable(size_t table_size         = Primes::DefaultPrime,
-		Hash_Fct __hash_fct       = Aleph::dft_hash_fct<Key>,
-		Cmp  __cmp                = Cmp(),
-		float __lower_alpha       = hash_default_lower_alpha,
-		float __upper_alpha       = hash_default_upper_alpha, 
-                bool __remove_all_buckets = true,
-		bool __with_resize        = true) 
-    throw(std::exception, std::bad_alloc) 
+  GenLhashTable(size_t table_size, Hash_Fct __hash_fct, Cmp  __cmp,
+		float __lower_alpha, float __upper_alpha,
+                bool __remove_all_buckets, bool __with_resize)
     : hash_fct(__hash_fct), table(nullptr),
       len(Primes::next_prime(table_size)), cmp(__cmp),
       lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
       N(0), busy_slots_counter(0), remove_all_buckets(__remove_all_buckets),
       with_resize(__with_resize)
-  { 
+  {
     table = new BucketList [len];
   }
+
+ public:
+
+  /** Instancia una tabla hash genérica.
+
+      @param[in] __hash_fct la función hash.
+      @param[in] table_size el tamaño de la tabla.
+      @param[in] __remove_all_buckets si es true, entonces se
+      liberan todas las cubetas cuando se invoca al destructor.
+      @throw bad_alloc si no hay memoria para apartar la tabla.
+  */
+  GenLhashTable(size_t table_size       = Primes::DefaultPrime,
+                Hash_Fct_Ptr hash_fct   = Aleph::dft_hash_fct<Key>,
+                Cmp cmp                 = Cmp(),
+                float lower_alpha       = hash_default_lower_alpha,
+                float upper_alpha       = hash_default_upper_alpha,
+                bool remove_all_buckets = true,
+                bool with_resize        = true)
+    : GenLhashTable(table_size, Hash_Fct(hash_fct), cmp,
+		    lower_alpha, upper_alpha, remove_all_buckets, with_resize)
+    {}
 
   void swap(GenLhashTable & other) noexcept
   {
@@ -158,20 +174,20 @@ public:
   {
     for (int i = 0; i < len; ++i)
       for (BucketItor itor(table[i]); itor.has_curr(); /* nada */)
-        delete (Bucket*) itor.del();
+        delete (Bucket*) itor.del_ne();
     busy_slots_counter = N = 0;
   }
 
 private:
 
-  Bucket * 
-  search_in_bucket_list(BucketList & list, const Key & key) const noexcept
+  Bucket *
+    search_in_bucket_list(BucketList & list, const Key & key) const noexcept
   {
-    for (BucketItor it(list); it.has_curr(); it.next())
+    for (BucketItor it(list); it.has_curr(); it.next_ne())
       {
-        Bucket * bucket = static_cast<Bucket*>(it.get_current());
-        if (cmp (key, bucket->get_key())) 
-          return bucket; 
+        Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+        if (cmp (key, bucket->get_key()))
+          return bucket;
       }
 
     return nullptr;
@@ -187,6 +203,11 @@ public:
     hash_fct = fct;
   }
 
+  void set_hash_fct(Hash_Fct_Ptr fct) noexcept
+  {
+    hash_fct = Hash_Fct(fct);
+  }
+
   /// return the current table load
   float current_alpha() const noexcept { return 1.0*N/len; }
 
@@ -194,7 +215,7 @@ public:
       /// la clave no está en la tabla; de lo contrario se retorna nullptr
   Bucket * insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -216,7 +237,7 @@ public:
   // dentro de la tabla. De lo contrario inserta y retorna bucket
   Bucket * search_or_insert(Bucket * bucket)
   {
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
     auto & list = table[i];
 
     if (list.is_empty()) // ¿está vacía la lista table[i]?
@@ -239,7 +260,7 @@ public:
     /// a la cubeta si se encuentra; nullptr de lo contrario.
   Bucket * search(const Key & key) const noexcept
   {
-    const auto i = (*hash_fct)(key) % len;
+    const auto i = hash_fct(key) % len;
     return search_in_bucket_list(table[i], key);
   }
 
@@ -263,7 +284,7 @@ public:
 
     /// Elimina de la tabla la cubeta bucket. Retorna la dirección de la
     /// cubeta. ATENCIÓN: no se verifica que la cubeta pertenezca a la
-    /// tabla. 
+    /// tabla.
   Bucket * remove(Bucket * bucket) noexcept
   {     // guarda próxima colisión
     remove_bucket(bucket);
@@ -277,12 +298,12 @@ public:
       /// Reajusta la dimensión de la tabla hash al valor new_size y
       /// reubica las claves. Dispara bad_alloc si no hay suficiente
       /// memoria para reubicar el arreglo.
-  size_t resize(size_t new_size) throw(std::exception, std::bad_alloc)
+  size_t resize(size_t new_size)
   {
     assert(len > 0);
 
     if (new_size == len or new_size == 0)
-      return len; 
+      return len;
 
     BucketList * new_table = new BucketList [new_size];
     BucketList * old_table = table; // guardar estado  tabla actual
@@ -294,7 +315,7 @@ public:
     for (int i = 0; i < old_size; ++i) // reinsertar cubetas
           // recorrer lista colisiones en old_table[i]
       for (BucketItor it(old_table[i]); it.has_curr(); /* Nada */)
-        insert((Bucket*) it.del()); // eliminar e insertar en table[]
+        insert((Bucket*) it.del_ne()); // eliminar e insertar en table[]
 
     delete [] old_table; // liberar memoria antigua tabla
 
@@ -309,7 +330,7 @@ public:
     if (remove_all_buckets)
       empty();
 
-    delete [] table; 
+    delete [] table;
   }
 
       /// retorna la próxima cubeta que colisiona con bucket. Si no
@@ -318,21 +339,21 @@ public:
   {
     assert(bucket != nullptr);
 
-    const auto i = (*hash_fct)(bucket->get_key()) % len;
+    const auto i = hash_fct(bucket->get_key()) % len;
 
-    BucketItor itor(table[i]); 
+    BucketItor itor(table[i]);
     itor.set(bucket);
 
     while (true)
       {
-        itor.next();
+        itor.next_ne();
 
-        if (not itor.has_curr()) 
+        if (not itor.has_curr())
           return nullptr;
 
-        Bucket * node = static_cast<Bucket*>(itor.get_curr());
+        Bucket * node = static_cast<Bucket*>(itor.get_curr_ne());
 
-        if (cmp(bucket->get_key(), node->get_key())) 
+        if (cmp(bucket->get_key(), node->get_key()))
           return node;
       }
   }
@@ -344,7 +365,7 @@ public:
   const size_t & size() const noexcept { return N; }
 
       /// Retorna la cantidad de entradas del arreglo que están ocupadas.
-  const size_t & 
+  const size_t &
   get_num_busy_slots() const noexcept { return busy_slots_counter; }
 
   bool is_empty() const noexcept { return N == 0; }
@@ -352,7 +373,7 @@ public:
       /** Iterador sobre una tabla hash GenLhasTable.
 
           @note La secuencia de observación arrojada por el iterador no
-          es ordenada. 
+          es ordenada.
           @ingroup Hash
        */
   class Iterator
@@ -362,10 +383,31 @@ public:
     long            curr_index = -1; // índice en table
     long            curr_pos   = 0;
     BucketItor      curr_itor;  // Iterador sobre table[curr_index]
-    GenLhashTable * hash_table = nullptr; 
+    GenLhashTable * hash_table = nullptr;
 
         // Avanza a próxima entrada de table
-    void locate_next_available_entry() 
+    void locate_next_available_entry_ne() noexcept
+    {
+      while (true)
+        {
+          if (curr_index == hash_table->len - 1)
+            {  // quedar en estado overflow
+              curr_index = hash_table->len;
+              return;
+            }
+
+          ++curr_index;
+
+          if (not hash_table->table[curr_index].is_empty())
+            {
+              BucketItor itor(hash_table->table[curr_index]);
+              curr_itor = itor;
+              return;
+            }
+        }
+    }
+
+    void locate_next_available_entry()
     {
       while (true)
         {
@@ -389,16 +431,45 @@ public:
         }
     }
 
-    void locate_next_available_bucket() 
+    void locate_next_available_bucket_ne() noexcept
+    {
+      curr_itor.next_ne();
+      if (not curr_itor.has_curr())
+        locate_next_available_entry_ne();
+      curr_pos++;
+    }
+
+    void locate_next_available_bucket()
     {
       curr_itor.next();
-
       if (not curr_itor.has_curr())
         locate_next_available_entry();
       curr_pos++;
     }
 
-    void locate_prev_available_entry() 
+    void locate_prev_available_entry_ne() noexcept
+    {
+      while (true)
+        {
+          if (curr_index == 0)
+            { // quedar en estado underflow
+              curr_index = -1;
+              return;
+            }
+
+          --curr_index;
+
+          if (not hash_table->table[curr_index].is_empty())
+            {
+              BucketItor itor(hash_table->table[curr_index]);
+              curr_itor = itor;
+              curr_itor.reset_last();
+              return;
+            }
+        }
+    }
+
+    void locate_prev_available_entry()
     {
       while (true)
         {
@@ -422,11 +493,18 @@ public:
             }
         }
     }
-    
-    void locate_prev_available_bucket() 
+
+    void locate_prev_available_bucket_ne() noexcept
+    {
+      curr_itor.prev_ne();
+      if (not curr_itor.has_curr())
+        locate_prev_available_entry_ne();
+      curr_pos--;
+    }
+
+    void locate_prev_available_bucket()
     {
       curr_itor.prev();
-
       if (not curr_itor.has_curr())
         locate_prev_available_entry();
       curr_pos--;
@@ -451,12 +529,12 @@ public:
       catch (std::overflow_error)
         { /* nothing to do */ }
     }
-    
+
         /// Instancia un iterador vacío.
     Iterator() noexcept { /* Empty */ }
 
         /// Reinicia el iterador sobre la primera cubeta.
-    void reset_first()
+    void reset_first() noexcept
     {
       curr_index = -1;
       curr_pos = 1;
@@ -464,17 +542,16 @@ public:
     }
 
         /// Reinicia el iterador sobre la última cubeta.
-    void reset_last()
-    { 
+    void reset_last() noexcept
+    {
       curr_index = hash_table->len;
       curr_pos = hash_table->N - 1;
       locate_prev_available_entry();
     }
 
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
         /// Retorna true si el iterador tiene cubeta actual.
@@ -482,15 +559,19 @@ public:
     {
       return curr_index >= 0 and curr_index < hash_table->len;
     }
-    
+
+    Bucket * get_curr_ne() noexcept
+    {
+      return static_cast<Bucket*>(curr_itor.get_curr_ne());
+    }
+
         /// Retorna la cubeta actual.
-    Bucket * get_curr() 
-      throw(std::exception, std::overflow_error, std::underflow_error)
+    Bucket * get_curr()
     {
       if (curr_index == -1)
         throw std::underflow_error ("hash table iterator underflow");
 
-      if (curr_index == hash_table->len) 
+      if (curr_index == hash_table->len)
         throw std::overflow_error ("hash table iterator overflow");
 
       return static_cast<Bucket*>(curr_itor.get_curr());
@@ -499,22 +580,30 @@ public:
     long get_pos() const noexcept { return curr_pos; }
 
         /// Avanza el iterador una cubeta.
-    void next() 
+    void next_ne() noexcept
     {
-      if (curr_index == hash_table->len) 
-        throw std::overflow_error ("hash table iterator overflow");
+      locate_next_available_bucket_ne();
+    }
 
-      locate_next_available_bucket();
-    }    
+    void next()
+    {
+      if (curr_index == hash_table->len)
+        throw std::overflow_error ("hash table iterator overflow");
+      next_ne();
+    }
 
         /// Retrocede el iterador una cubeta.
-    void prev() 
+    void prev_ne() noexcept
     {
-      if (curr_index == -1) 
-        throw std::underflow_error ("hash table iterator underflow");
+      locate_prev_available_bucket_ne();
+    }
 
+    void prev()
+    {
+      if (curr_index == -1)
+        throw std::underflow_error ("hash table iterator underflow");
       locate_prev_available_bucket();
-    }    
+    }
 
     Bucket * del()
     {
@@ -527,7 +616,7 @@ public:
 };
 
     /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado. 
+        de colisiones por encadenamiento separado.
 
         @param Key clave de búsqueda hash
         @see LhashTable
@@ -537,13 +626,13 @@ template <typename Key> using LhashBucket = Dnode<Key>;
 
 
     /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado. 
+        de colisiones por encadenamiento separado.
 
         @param Key clave de búsqueda hash
         @see LhashTable
         @ingroup Hash
      */
-template <typename Key> 
+template <typename Key>
 struct LhashBucketVtl : public Dnode<Key>
 {
   using Base = Dnode<Key>;
@@ -564,10 +653,10 @@ struct LhashBucketVtl : public Dnode<Key>
       @param Cmp clase de comparación entre las claves; debe retornar
       true si las claves son iguales.
 
-      @see GenLhashTable LhashTableVtl 
+      @see GenLhashTable LhashTableVtl
       @ingroup Hash
   */
-    template <typename Key, class Cmp = Aleph::equal_to<Key>> 
+    template <typename Key, class Cmp = Aleph::equal_to<Key>>
 struct LhashTable : public GenLhashTable<Key, LhashBucket<Key>, Cmp>
 {
   using Base = GenLhashTable<Key, LhashBucket<Key>, Cmp>;
@@ -585,10 +674,10 @@ struct LhashTable : public GenLhashTable<Key, LhashBucket<Key>, Cmp>
       @param Cmp clase de comparación entre las claves; debe retornar
       true si las claves son iguales.
 
-      @see GenLhashTable LhashTable 
+      @see GenLhashTable LhashTable
       @ingroup Hash
   */
-    template <typename Key, class Cmp = Aleph::equal_to<Key> > 
+    template <typename Key, class Cmp = Aleph::equal_to<Key> >
 struct LhashTableVtl : public GenLhashTable<Key, LhashBucketVtl<Key>, Cmp>
 {
   using Base = GenLhashTable<Key, LhashBucketVtl<Key>, Cmp>;

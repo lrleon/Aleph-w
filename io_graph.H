@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef IO_GRAPH_H
 # define IO_GRAPH_H
@@ -192,9 +196,10 @@ public:
         // tabla de pares <ptr nodo, orden de isnerción>
     DynMapTreap<typename GT::Node *, int> nodes_table;
 
-    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr(); it.next(), ++i)
+    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
+	 it.next_ne(), ++i)
       {
-	auto p = it.get_current();
+	auto p = it.get_curr_ne();
 
 	if (verbose)
 	  cout << i << " ";
@@ -212,9 +217,9 @@ public:
 
     output.write((const char*) &num_arcs, sizeof(num_arcs));
 
-    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_current();
+	auto a = it.get_curr_ne();
 
 	auto src = g.get_src_node(a);
 	auto tgt = g.get_tgt_node(a);
@@ -313,9 +318,10 @@ public:
         // tabla de pares <ptr nodo, orden de inserción>
     DynMapTreap<typename GT::Node *, int> nodes_table;
 
-    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr(); it.next(), ++i)
+    for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
+	 it.next_ne(), ++i)
       {
-	typename GT::Node * p = it.get_curr();
+	typename GT::Node * p = it.get_curr_ne();
 
 	if (verbose)
 	  cout << i << " ";
@@ -329,9 +335,9 @@ public:
       cout << " done " << endl 
 	   << "Storing " << num_arcs << " arcs ... " << endl;
 
-    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next())
+    for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
+	auto a = it.get_curr_ne();
 
 	auto src = g.get_src_node(a);
 	auto tgt = g.get_tgt_node(a);
@@ -369,7 +375,7 @@ public:
       cout << "Loading " << num_nodes << " nodes ...";
 
     DynArray<typename GT::Node*> nodes_table(num_nodes);
-    nodes_table.reserve(0, num_nodes - 1);
+    nodes_table.reserve(0, num_nodes - size_t(1));
 
     for (size_t i = 0; i < num_nodes; ++i)
       {

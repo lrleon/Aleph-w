@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TOPOLOGICAL_SORT_H
 # define TOPOLOGICAL_SORT_H
@@ -71,8 +75,8 @@ private:
     const auto & n = gptr->get_num_nodes();
 
       // visitar recursivamente en sufijo los nodos adyacentes a curr
-    for (Itor<GT,SA> it(curr,sa); it.has_curr() and list.size() < n; it.next()) 
-      topological_sort(it.get_tgt_node(), list);
+    for (Itor<GT,SA> it(curr,sa); it.has_curr() and list.size() < n; it.next_ne()) 
+      topological_sort(it.get_tgt_node_ne(), list);
 
     list.insert(curr); // inserción sufija de nodo que devino sumidero
   }
@@ -99,9 +103,9 @@ public:
         // recorrer todos los nodos
     const auto & n = gptr->get_num_nodes();
     for (auto it = g.get_node_it(); it.has_curr() and list.size() < n; 
-	 it.next())
+	 it.next_ne())
     {
-      auto curr = it.get_current_node();
+      auto curr = it.get_current_node_ne();
       if (not IS_NODE_VISITED(curr, Depth_First))
         topological_sort(curr, list);
     }
@@ -162,14 +166,14 @@ public:
     List<typename GT::Node*> list;
 
         // recorra todos los arcos y contar grados de entrada
-    for (Arc_Iterator<GT,SA> it(g, sa); it.has_curr(); it.next()) 
-      NODE_COUNTER(it.get_tgt_node())++; 
+    for (Arc_Iterator<GT,SA> it(g, sa); it.has_curr(); it.next_ne()) 
+      NODE_COUNTER(it.get_tgt_node_ne())++; 
 
       // buscar nodos con grado de entrada 0 y meterlos en cola
     DynListQueue<typename GT::Node*> q; // cola de fuentes
-    for (auto it = g.get_node_it(); it.has_curr(); it.next())
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_current_node();
+	auto p = it.get_current_node_ne();
 	if (NODE_COUNTER(p) == 0) // ¿es un nodo fuente?
 	  q.put(p); // sí ==> colocarlo en la cola
       }
@@ -183,9 +187,9 @@ public:
 	list.append(p); // insértelo en el orden topológico
 
           // decrementar grado de entrada de cada nodo adyacente a p
-	for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next())
+	for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
 	  {
-	    auto tgt = it.get_tgt_node();
+	    auto tgt = it.get_tgt_node_ne();
 	    if (--NODE_COUNTER(tgt) == 0) // ¿tgt deviene fuente?
 	      q.put(tgt); // sí ==> colóquelo en la cola
 	  }
@@ -213,15 +217,16 @@ public:
     g.reset_counter_nodes();
 
         // recorra todos los nodos para contabilizar grado de entrada
-    for (typename GT::Node_Iterator i(g); i.has_curr(); i.next()) 
-      for (Itor<GT, SA> j(i.get_current_node(), sa); j.has_curr(); j.next()) 
+    for (typename GT::Node_Iterator i(g); i.has_curr(); i.next_ne()) 
+      for (Itor<GT, SA> j(i.get_current_node_ne(), sa);
+	   j.has_curr(); j.next_ne())
 	NODE_COUNTER(j.get_tgt_node())++;
 
         // revisar nodos con grado de entrada 0 y meterlos en cola
     DynListQueue<typename GT::Node*> q; // cola de fuentes
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_current_node();
+	auto p = it.get_current_node_ne();
 	if (NODE_COUNTER(p) == 0) // ¿es un nodo fuente?
 	  q.put(p); // sí ==> colocarlo en la cola
       }
@@ -238,9 +243,9 @@ public:
 	    rank.append(p); // insértelo en el rango topológico
 
                 // decrementar grado entrada de cada nodo adyacente a p
-	    for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next())
+	    for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
 	      {
-		auto tgt = it.get_tgt_node();
+		auto tgt = it.get_tgt_node_ne();
 		if (--NODE_COUNTER(tgt) == 0) // ¿tgt deviene fuente?
 		  aq.put(tgt); // sí ==> colóquelo en cola auxiliar
 	      }

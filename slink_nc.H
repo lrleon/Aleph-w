@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef SLINK_NC_H
 # define SLINK_NC_H
@@ -121,6 +125,7 @@ namespace Aleph
       Slink_Nc * curr;
     
     public:
+      
       Iterator() : head(nullptr), curr(nullptr) { /* Empty */ }
 
       Iterator(Slink_Nc * head_ptr) : head(head_ptr), curr(head->get_next())
@@ -157,39 +162,40 @@ namespace Aleph
         curr = head->get_next();;
       }
 
-      bool has_current() const 
+      bool has_curr() const 
       {
         assert(head != nullptr);
         return curr != nullptr;
       }
 
-      // sinónimo de has_current()
-      bool has_curr() const { return has_current(); }
-
       /// Retorna dirección de nodo actual
-      Slink_Nc * get_current()  
+      Slink_Nc * get_curr_ne() noexcept
       {
         assert(curr != nullptr and head != nullptr);
-
-        if (not has_current())
-          throw std::overflow_error("Not element in list");
-
         return curr;
       }
 
-      // sinónimo de get_current()
-      Slink_Nc * get_curr() { return get_current(); }
+      Slink_Nc * get_curr()  
+      {
+        if (not has_curr())
+          throw std::overflow_error("Not element in list");
+	return get_curr_ne();
+      }
 
       /// Retorna true si iterador está sobre primer elemento
       bool is_in_first() const { return curr == head->next; }
 
       /// Avanza iterador en una posición 
+      void next_ne() noexcept
+      {
+        curr = curr->get_next();
+      }
+
       void next() throw(std::exception, std::overflow_error)
       {
-        if (not has_current())
+        if (not has_curr())
           throw std::overflow_error("Not next element in list");
-
-        curr = curr->get_next();
+	next_ne();
       }
 
       /// Retorna true si iteradores están sobre el mismo elemento.

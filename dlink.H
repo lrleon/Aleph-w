@@ -1,10 +1,15 @@
-/*
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef DLINK_H
@@ -133,10 +137,10 @@ public:
 
   /** Copy assignation
 
-	  \warning Be very careful with the possibility of `this` has
-	  items, because these will be lost
+      \warning Be very careful with the possibility of `this` has
+      items, because these will be lost
 
-          @param[in] l link to be copied
+      @param[in] l link to be copied
   */
   Dlink & operator = (const Dlink & l) noexcept
   {
@@ -248,6 +252,12 @@ public:
   }
 
     /// If `this` is a header node, it return the first node of `this`
+  Dlink *& get_first_ne() const noexcept { return next; }
+
+    /// If `this` is a header node, it return the last node of `this`
+  Dlink *& get_last_ne() const noexcept { return prev; }
+
+    /// If `this` is a header node, it return the first node of `this`
   Dlink *& get_first() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
@@ -343,9 +353,9 @@ public:
     /** Concatenate list `head` to list `this`
 
         `this` and `head` are both header nodes of
-        lists. `concat_list(head)` concatenates in constant time all the
-        list `head` after `this`. After the concatenation `head` becomes
-        empty.
+        lists. `concat_list(head)` concatenates in constant time all
+        the list `head` after `this`. After the concatenation `head`
+        becomes empty.
 
         @param head header node of list to concatenate
      */
@@ -431,6 +441,16 @@ public:
     return retValue;
   }
 
+  Dlink * remove_last_ne() noexcept /// \overload remove_prev()
+  {
+    return remove_prev();
+  }
+
+  Dlink * remove_first_ne() noexcept /// \overload remove_next()
+  {
+    return remove_next();
+  }
+
   Dlink * remove_last() noexcept /// \overload remove_prev()
   {
     return remove_prev();
@@ -456,10 +476,10 @@ public:
     return remove_next();
   }
 
-      /** Reverse the list.
+  /** Reverse the list.
 
-          @return the number of items that has the list
-      */
+      @return the number of items that has the list
+  */
   size_t reverse_list() noexcept
   {
     if (is_empty())
@@ -491,7 +511,7 @@ public:
        @return total number of nodes of both list (what is the same
        number of node that had `this` before the split
       */
-  size_t split_list(Dlink & l, Dlink & r) noexcept
+  size_t split_list_ne(Dlink & l, Dlink & r) noexcept
   {
     assert(l.is_empty() and r.is_empty()); // l y r deben estar vacías
 
@@ -509,6 +529,11 @@ public:
     return count;
   }
 
+  size_t split_list(Dlink & l, Dlink & r) noexcept
+  {
+    return split_list_ne(l, r);
+  }
+
   /**  Cut `this` from `link`.
 
        `cut_list(link)` takes a valid link to an item of the list and on
@@ -521,13 +546,13 @@ public:
        object, not a pointer.
 
        \warning if `link` belongs to a list, then this one will be in
-       an inconsistent state
+       an inconsistent state.
 
        @param[in] link pointer to the item from which the cut will be
        done
        @return a `Dlink` header of a new list containing the items from
        `link`
-      */
+  */
   Dlink cut_list(Dlink * link) noexcept
   {
     assert(not is_empty() and not link->is_empty() and link != this);
@@ -579,7 +604,7 @@ public:
       /** Initialize an iterator on the first item of the list pointed
           by `head_ptr`.
 
-          @param[in] head_ptr pointer to the list (hedaer node)
+          @param[in] head_ptr pointer to the list (hedaer node) 
         */
     Iterator(Dlink * head_ptr) noexcept
     : head(head_ptr), curr(head->get_next()) { /* */ }
@@ -624,25 +649,28 @@ public:
     }
 
         /// Put the iterator out of range
-    void end()
+    void end() noexcept
     {
-      reset_last();
-      next();
+      put_itor_at_the_end(*this);
     }
 
         /// Return `true` if the iterator has current item
-    bool has_current() const noexcept
+    bool has_curr() const noexcept
     {
       assert(curr != nullptr and head != nullptr);
       return curr != head;
     }
 
-    /// \overload has_current()
-    bool has_curr() const noexcept { return has_current(); }
-
     bool is_last() const noexcept
     {
       return head->is_empty() ? false : curr == head->prev;
+    }
+
+    /// Return the current link guaranteeing no exception. Be careful.
+    Dlink * get_curr_ne() const noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      return curr;
     }
 
     /** Return the current node of iterator
@@ -650,18 +678,13 @@ public:
         \return a pointer to the current node
         \throw overflow_error if there is not current node
     */
-    Dlink * get_current() const
+    Dlink * get_curr() const
     {
-      assert(curr != nullptr and head != nullptr);
-
-      if (not has_current())
+      if (not has_curr())
         throw std::overflow_error("Not element in list");
 
-      return curr;
+      return get_curr_ne();
     }
-
-    /// \overload get_current()
-    Dlink * get_curr() const { return get_current(); }
 
         ///  Return `true` if the iterator is positiones on the first item
     bool is_in_first() const noexcept
@@ -672,28 +695,34 @@ public:
         ///  Return `true` if the iterator is positiones on the last item
     bool is_in_last() const noexcept { return is_last(); }
 
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void prev_ne() noexcept { curr = curr->get_prev(); }
+
     /** Move the iterator one position backward
 
-	\throw underflow_error if there is no current item
+        \throw underflow_error if there is no current item
     */
-    void prev() throw(std::exception, std::underflow_error)
+    void prev()
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::underflow_error("Not previous element in list");
-
-      curr = curr->get_prev();
+      prev_ne();
     }
+
+    /// Move the iterator one position backward guaranteeing no
+    /// exception. Be careful.
+    void next_ne() noexcept { curr = curr->get_next(); }
 
     /** Move the iterator one position forward
 
         \throw overflow_error if there is no current item
     */
-    void next() throw(std::exception, std::overflow_error)
+    void next()
     {
-      if (not has_current())
+      if (not has_curr())
         throw std::overflow_error("Not next element in list");
-
-      curr = curr->get_next();
+      next_ne();
     }
 
     /// Return `true` if `this` and it are positioned on the same item
@@ -712,10 +741,21 @@ public:
     Dlink * del()
     {
       assert(curr != nullptr and head != nullptr);
-      assert(has_current());
+      assert(has_curr());
 
-      Dlink * current = get_current(); // obtener nodo actual
+      Dlink * current = get_curr(); // obtener nodo actual
       next(); // avanzar al siguiente nodo
+      current->del(); // eliminar de la lista antiguo nodo actual
+      return current;
+    }
+
+    Dlink * del_ne() noexcept
+    {
+      assert(curr != nullptr and head != nullptr);
+      assert(has_curr());
+
+      Dlink * current = get_curr_ne(); // obtener nodo actual
+      next_ne(); // avanzar al siguiente nodo
       current->del(); // eliminar de la lista antiguo nodo actual
       return current;
     }
@@ -761,11 +801,10 @@ public:
   void rotate_left(size_t n)
   {
     if (is_empty())
-      {
-        if (n == 0)
-          return;
+      if (n == 0)
+        return;
+      else
         throw std::domain_error("List is empty");
-      }
 
     for (size_t i = 0; i < n; ++i)
       append(remove_first());
@@ -775,11 +814,10 @@ public:
   void rotate_right(size_t n)
   {
     if (is_empty())
-      {
-        if (n == 0)
-          return;
+      if (n == 0)
+        return;
+      else
         throw std::domain_error("List is empty");
-      }
 
     for (size_t i = 0; i < n; ++i)
       insert(remove_last());
@@ -791,9 +829,9 @@ public:
     Iterator itor(this);
     Dlink* node;
 
-    for (/* nothing */; itor.has_current(); itor.next())
+    for (/* nothing */; itor.has_curr(); itor.next_ne())
       {
-        node = itor.get_current();
+        node = itor.get_curr_ne();
 
         if (not (node->get_next()->get_prev() == node))
           return false;
@@ -802,9 +840,9 @@ public:
           return false;
       }
 
-    for (itor.reset_last(); itor.has_current(); itor.prev())
+    for (itor.reset_last(); itor.has_curr(); itor.prev())
       {
-        node = itor.get_current();
+        node = itor.get_curr();
 
         if (not (node->get_next()->get_prev() == node))
           return false;
@@ -818,27 +856,27 @@ public:
 };
 
     /** Generate a conversion function from a `Dlink` field to a class
-	containing it.
+        containing it.
 
-	This macro is used when inside a class exists one o more `Dlink`
-	fields and it is needed to obtain from a `Dlink` field a pointer
-	to the class containing it.
+        This macro is used when inside a class exists one o more
+        `Dlink` fields and it is needed to obtain from a `Dlink` field
+        a pointer to the class containing it.
 
-	For example, suppose the following situation:
+        For example, suppose the following situation:
 
             struct Record
-	    {
-	      ...
-	      Dlink l;
-	      ...
-	    };
+            {
+            ...
+            Dlink l;
+            ...
+            };
 
         So, `DLINK_TO_TYPE(Record, l)` will generate the function:
 
             Record * dlink_to_Record(Dlink * link)
 
-        which receives a pointer to the `Dlink` field `l` and returns a
-        pointer to the class `Record` containing `l`.
+        which receives a pointer to the `Dlink` field `l` and returns
+        a pointer to the class `Record` containing `l`.
 
         @param type_name the name of class or struct containing the
         `Dlink` field
@@ -864,12 +902,12 @@ public:
         a class and it is desired to obtain pointers to the class from
         the `Dlink` fields. Consider for example,
 
-            struct Record
-	          {
-              ...
-              Dlink l1;
-              Dlink l2;
-              ...
+            struct Redcordgistro
+            {
+            ...
+            Dlink l1;
+            Dlink l2;
+            ...
             };
 
         So, `LINKNAME_TO_TYPE(Record, l1)` and
@@ -877,32 +915,32 @@ public:
 
             Record * l1_to_type(Dlink * link)
 
-	    Record * l2_to_type(Dlink * link)
+	          Record * l2_to_type(Dlink * link)
 
-	So for converting a `Dlink` pointer to `l1` to a pointer to
-	`Record` object which contains it, you use
-	`l1_to_type(link)`; analogously with `l2_to_type(link)`.
+      So for converting a `Dlink` pointer to `l1` to a pointer to
+      `Record` object which contains it, you use `l1_to_type(link)`;
+      analogously with `l2_to_type(link)`.
 
-        The idea is having naming schemes allowing to distinguish
-        several `Dlink` fields.
+      The idea is having naming schemes allowing to distinguish
+      several `Dlink` fields.
 
-	\note You could have several `Dlink` fields. This situation
-	arises if you want that the class simultaneously belongs to
-	several lists. In this case you would declare a `Dlink` field by
-	each different list.
+      \note You could have several `Dlink` fields. This situation
+      arises if you want that the class simultaneously belongs to
+      several lists. In this case you would declare a `Dlink` field by
+      each different list.
 
-        @param type_name the name of struct or class containing to the
-        `Dlink` object.
-        @param link_name the name of `Dlink` field
-        @ingroup Secuencias
+      @param type_name the name of struct or class containing to the
+      `Dlink` object.
+      @param link_name the name of `Dlink` field
+      @ingroup Secuencias
     */
-# define LINKNAME_TO_TYPE(type_name, link_name)				\
+# define LINKNAME_TO_TYPE(type_name, link_name)                         \
   inline static type_name * link_name##_to_##type_name(Dlink * link) noexcept \
-  {									\
-    type_name * ptr_zero = 0;						\
+  {                                                                     \
+    type_name * ptr_zero = 0;                                           \
     size_t offset_link = reinterpret_cast<size_t>(&(ptr_zero->link_name)); \
     char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
-    return reinterpret_cast<type_name *>(address_type);			\
+    return reinterpret_cast<type_name *>(address_type);                 \
   }
 
 
@@ -913,12 +951,12 @@ public:
         and from it it is desired to get a pointer to the class. For
         example, suppose some such as:
 
-	    struct Record
-	    {
-	      ...
-	      Dlink l;
-	      ...
-	    };
+            struct Record
+            {
+            ...
+            Dlink l;
+            ...
+            };
 
         Then `DLINK_TO_BASE(Record, l)` will produce the function:
 
@@ -932,14 +970,15 @@ public:
         @param link_name the name of `Dlink` field inside the class or struct
         @ingroup Secuencias
     */
-# define DLINK_TO_BASE(type_name, link_name)				\
+# define DLINK_TO_BASE(type_name, link_name)                      \
   inline static type_name * dlink_to_base(Dlink * link)	noexcept	\
-  {									\
-    type_name * ptr_zero = 0;						\
+  {                                                               \
+    type_name * ptr_zero = 0;                                           \
     size_t offset_link = reinterpret_cast<size_t>(&(ptr_zero->link_name)); \
     char * address_type = reinterpret_cast<char*>(link) - offset_link;	\
-    return reinterpret_cast<type_name *>(address_type);			\
+    return reinterpret_cast<type_name *>(address_type);                 \
   }
+
 }
 
 # endif /* DLINK_H */

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_DYNSETHASH_H
 # define TPL_DYNSETHASH_H
@@ -30,7 +34,7 @@
 # include <primes.H>
 # include <htlist.H>
 # include <tpl_dynArray.H>
-# include <tpl_dynSetOhash.H>
+# include <tpl_dynMapOhash.H>
 # include <tpl_dynLhash.H>
 # include <tpl_linHash.H>
 
@@ -52,16 +56,16 @@ namespace Aleph
 	@ingroup Hash
      */
   template <typename                          Key, 
-	    class                             Cmp       = Aleph::equal_to<Key>,
-	    template <typename,  class> class HashTable = LhashTable>
+	    template <typename,  class> class HashTable = LhashTable,
+	    class                             Cmp       = Aleph::equal_to<Key>>
 class DynHashTable 
     : public HashTable<Key, Cmp>,
-      public GenericTraverse<DynHashTable<Key, Cmp, HashTable>>,
-      public LocateFunctions<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public FunctionalMethods<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public GenericKeys<DynHashTable<Key, Cmp, HashTable>, Key>,
-      public EqualToMethod<DynHashTable<Key, Cmp, HashTable>>,
-      public StlAlephIterator<DynHashTable<Key, Cmp, HashTable>>
+      public GenericTraverse<DynHashTable<Key, HashTable, Cmp>>,
+      public LocateFunctions<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public FunctionalMethods<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public GenericKeys<DynHashTable<Key, HashTable, Cmp>, Key>,
+      public EqualToMethod<DynHashTable<Key, HashTable, Cmp>>,
+      public StlAlephIterator<DynHashTable<Key, HashTable, Cmp>>
 {
 protected:
 
@@ -73,6 +77,8 @@ public:
 
       /// El tipo de función hash.
   using Hash_Fct = typename Base::Hash_Fct;
+
+  using Hash_Fct_Ptr = typename Base::Hash_Fct_Ptr;
 
   using Key_Type = Key;
 
@@ -88,11 +94,18 @@ public:
 	  @param[in] upper_alpha umbral superior de carga;  tamaño de la
 	  tabla se expandirá si la carga es superior a este factor.
        */
-  DynHashTable(size_t   len         = Primes::DefaultPrime,
-	       Hash_Fct hash_fct    = Aleph::dft_hash_fct<Key>,
-	       Cmp      cmp         = Cmp(),
-	       float    lower_alpha = hash_default_lower_alpha,
-	       float    upper_alpha = hash_default_upper_alpha) 
+  DynHashTable(size_t   len          = Primes::DefaultPrime,
+	       Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
+	       Cmp      cmp          = Cmp(),
+	       float    lower_alpha  = hash_default_lower_alpha,
+	       float    upper_alpha  = hash_default_upper_alpha) 
+    : Base(len, hash_fct, cmp, lower_alpha, upper_alpha, true, true)
+    {
+      // empty
+    }
+
+  DynHashTable(size_t len, Hash_Fct hash_fct, Cmp cmp,
+	       float lower_alpha, float upper_alpha) 
     : Base(len, hash_fct, cmp, lower_alpha, upper_alpha, true, true)
     {
       // empty
@@ -102,9 +115,9 @@ private:
 
   void copy(const DynHashTable & other)
   {
-    for (typename Base::Iterator it(other); it.has_curr(); it.next())
+    for (typename Base::Iterator it(other); it.has_curr(); it.next_ne())
       {
-	Bucket * bucket = (Bucket*) it.get_curr();
+	Bucket * bucket = (Bucket*) it.get_curr_ne();
 	insert(bucket->get_key());
       }
   }
@@ -310,6 +323,16 @@ public:
 
     Iterator(const DynHashTable & table) : Base::Iterator(table) {} 
 
+    Key & get_curr_ne() noexcept
+    { 
+      return this->Base::Iterator::get_curr_ne()->get_key(); 
+    }
+
+    const Key & get_curr_ne() const noexcept
+    { 
+      return const_cast<Iterator*>(this)->get_curr_ne();
+    } 
+    
     const Key & get_curr() const
     { 
       return const_cast<Iterator*>(this)->get_curr();
@@ -321,7 +344,19 @@ public:
     } 
     
     void del() { delete this->Base::Iterator::del(); } 
-  }; 
+  };
+
+  Key & get_first() const
+  {
+    return this->get_it().get_curr();
+  }
+
+  Key & get_last() const
+  {
+    auto it = this->get_it();
+    it.reset_last();
+    return it.get_curr();
+  }  
 };
 
 /**
@@ -329,9 +364,9 @@ public:
    @ingroup Hash
  */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
-struct DynSetLhash : public DynHashTable<Key, Cmp, LhashTable>
+struct DynSetLhash : public DynHashTable<Key, LhashTable, Cmp>
 {
-  typedef DynHashTable<Key, Cmp, LhashTable> Base;
+  typedef DynHashTable<Key, LhashTable, Cmp> Base;
   using Base::Base;
 }; 
 
@@ -340,9 +375,9 @@ struct DynSetLhash : public DynHashTable<Key, Cmp, LhashTable>
    @ingroup Hash
  */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
-struct DynSetLinHash : public DynHashTable<Key, Cmp, LinearHashTable>
+struct DynSetLinHash : public DynHashTable<Key, LinearHashTable, Cmp>
 {
-  typedef DynHashTable<Key, Cmp, LinearHashTable> Base;
+  typedef DynHashTable<Key, LinearHashTable, Cmp> Base;
   using Base::Base;
 }; 
 
@@ -351,21 +386,23 @@ struct DynSetLinHash : public DynHashTable<Key, Cmp, LinearHashTable>
    @ingroup Hash
  */
 template <typename Key, class Cmp = Aleph::equal_to<Key>>
-  using DynSetHash = DynHashTable<Key, Cmp, LhashTable>;
+  using DynSetHash = DynHashTable<Key, LhashTable, Cmp>;
 
 /**
 
    @ingroup Hash
  */
 template <typename Key, typename Data, 
-	  class Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>,
-	  template <class, class> class HashTable = LhashTable>
+	  template <class, class> class HashTable = LhashTable,
+	  class Cmp = Aleph::equal_to<Key>>
 class DynMapHashTable 
-  : public DynHashTable<std::pair<Key, Data>, Cmp, HashTable>
+  : public DynHashTable<std::pair<Key, Data>,
+			HashTable, Dft_Pair_Cmp<Key, Data, Cmp>>
 {
   using Pair = std::pair<Key, Data>;
 
-  using Base = DynHashTable<std::pair<Key, Data>, Cmp, HashTable>;
+  using Base =
+  DynHashTable<std::pair<Key, Data>, HashTable, Dft_Pair_Cmp<Key, Data, Cmp>>;
 
   using Bucket = typename Base::Bucket;
 
@@ -384,21 +421,20 @@ public:
   using Value_Type = Data;
 
   // using Base::Base;  // no more need. But I don't remember why I put it
-  using Base::insert;
+  using Base::insert; // in this way, insert with a pair is exported
   using Iterator = typename Base::Iterator;
 
-  typedef size_t (*Hash_Fct)(const Pair&);
+  using Hash_Fct = std::function<size_t(const Key&)>;
+  using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-  DynMapHashTable(size_t len, Hash_Fct hash_fct, Cmp & cmp, 
-		  float lower_alpha, float upper_alpha)
-    : Base(len, hash_fct, cmp, lower_alpha, upper_alpha) {}
-
-  DynMapHashTable(size_t len        = Primes::DefaultPrime, 
-		  Hash_Fct hash_fct = map_dft_hash_fct, 
-		  Cmp && cmp        = Cmp(), 
-		  float lower_alpha = hash_default_lower_alpha, 
-		  float upper_alpha = hash_default_upper_alpha)
-    : DynMapHashTable(len, hash_fct, cmp, lower_alpha, upper_alpha) {}
+  DynMapHashTable(size_t len            = Primes::DefaultPrime, 
+		  Hash_Fct_Ptr hash_fct = dft_hash_fct, 
+		  Cmp cmp               = Cmp(), 
+		  float lower_alpha     = hash_default_lower_alpha, 
+		  float upper_alpha     = hash_default_upper_alpha)
+    : Base(len, std::bind(map_hash_fct<Key, Data, Hash_Fct>,
+			  hash_fct, std::placeholders::_1),
+	   Dft_Pair_Cmp<Key, Data, Cmp>(cmp), lower_alpha, upper_alpha) {}
 
   /// Inserta en el mapeo hash el par (key,record) indizado por la clave
   /// key. Retorna un puntero al registro dentro de la tabla. Dispara la
@@ -410,20 +446,20 @@ public:
 
   Pair * insert(const Key & key, Data && data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(key, 
-							      move(data))));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(key, forward<Data>(data))));
   }
 
   Pair * insert(Key && key, Data && data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(move(key), 
-							      move(data))));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(forward<Key>(key), forward<Data>(data))));
   }
 
   Pair * insert(Key && key, const Data & data)
   {
-    return this->insert_bucket(new typename Base::Bucket(Pair(move(key), 
-							      data)));
+    return this->insert_bucket
+    (new typename Base::Bucket(Pair(forward<Key>(key), data)));
   }
 
   /// Busca la clave key y, si se encuentra, entonces retorna un puntero
@@ -436,16 +472,16 @@ public:
 
   Pair * search(Key && key) const
   {
-    return this->Base::search(Pair(move(key), Data()));
+    return this->Base::search(Pair(forward<Key>(key), Data()));
   }
 
   bool has(const Key & key) const { return search(key) != nullptr; }
 
-  bool has(Key && key) const { return search(move(key)) != nullptr; }
+  bool has(Key && key) const { return search(forward<Key>(key)) != nullptr; }
 
   bool contains(const Key & key) const { return has(key); }
 
-  bool contains(Key && key) const { return has(move(key)); }
+  bool contains(Key && key) const { return has(forward<Key>(key)); }
 
   Data & find(const Key & key) 
   {
@@ -469,12 +505,12 @@ public:
 
   Data & operator [] (Key && key)
   { 
-    return this->search_or_insert(Pair(move(key), Data()))->second;
+    return this->search_or_insert(Pair(forward<Key>(key), Data()))->second;
   }
 
   const Data & operator [] (Key && key) const
   {
-    return this->find(move(key));
+    return this->find(forward<Key>(key));
   }
 
   /// Elimina de la tabla la clave key cuyo puntero debe ser
@@ -492,7 +528,7 @@ public:
 
   Data remove(Key && key)
   {
-    auto p = Base::remove(Pair(move(key), Data()));
+    auto p = Base::remove(Pair(forward<Key>(key), Data()));
     return p.second;
   }
 
@@ -509,16 +545,16 @@ public:
   DynList<Data*> values_ptr()
   {
     DynList<Data*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr().second);
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne().second);
     return ret;
   }
 
   DynList<Pair*> items_ptr()
   {
     DynList<Pair*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next())
-      ret.append(&it.get_curr());
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
+      ret.append(&it.get_curr_ne());
     return ret;
   }
 };
@@ -528,16 +564,16 @@ public:
    @ingroup Hash
  */
 template <typename Key, typename Data,
- 	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
-using DynMapLinHash = DynMapHashTable<Key, Data, Cmp, LinearHashTable>;
+ 	  class    Cmp = Aleph::equal_to<Key>>
+using DynMapLinHash = DynMapHashTable<Key, Data, LinearHashTable, Cmp>;
 
 /**
 
    @ingroup Hash
  */
 template <typename Key, typename Data,
- 	  class    Cmp = Dft_Pair_Cmp<Key, Data, Aleph::equal_to<Key>>>
-using DynMapHash = DynMapHashTable<Key, Data, Cmp, LhashTable>;
+ 	  class    Cmp = Aleph::equal_to<Key>>
+using DynMapHash = DynMapHashTable<Key, Data, LhashTable, Cmp>;
 
 
 // Implementation de coming from ahFunctional.H

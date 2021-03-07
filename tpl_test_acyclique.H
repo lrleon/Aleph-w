@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_TEST_ACYCLIQUE_H
 # define TPL_TEST_ACYCLIQUE_H
@@ -58,9 +62,9 @@ class Is_Graph_Acyclique
 
     NODE_BITS(curr).set_bit(Test_Cycle, true); // marcar nodo
 
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
       {
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue; 
 
@@ -86,9 +90,9 @@ class Is_Graph_Acyclique
     g.reset_bit_arcs(Test_Cycle);
     g.reset_bit_nodes(Test_Cycle);
 
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next()) 
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne()) 
     {
-      typename GT::Node * curr = it.get_current_node();
+      typename GT::Node * curr = it.get_current_node_ne();
       if (IS_NODE_VISITED(curr, Test_Cycle)) 
 	continue; 
 

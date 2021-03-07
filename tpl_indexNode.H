@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_INDEXNODE_H
 # define TPL_INDEXNODE_H
@@ -32,14 +36,14 @@ namespace Aleph
 {
 
   template <class GT>
-struct Dft_Node_Cmp
-{
-      bool
-  operator () (typename GT::Node * p1, typename GT::Node * p2) const
+  struct Dft_Node_Cmp
   {
-    return p1->get_info() < p2->get_info();
-  }
-};
+    bool
+    operator () (typename GT::Node * p1, typename GT::Node * p2) const
+    {
+      return p1->get_info() < p2->get_info();
+    }
+  };
 
   /** Construye un índice de nodos para su rápida búsqueda y recuperación.
 
@@ -49,18 +53,19 @@ struct Dft_Node_Cmp
       La clase recibe los siguientes parámetros tipo:
       -# GT: el tipo de grafo basado en List_Graph.
       -# Compare: clase de comparación para la clave de indización. El
-      contrato de esta clase es intrumentar el operador () así:  
+      contrato de esta clase es intrumentar el operador () así:
       \code
-          template <class GT>  
-	struct Dft_Node_Cmp  
-	{  
-            bool  
-          operator () (typename GT::Node * p1, typename GT::Node * p2) const 
-          {  
+      template <class GT>
+      struct Dft_Node_Cmp
+      {
+      bool
+      operator () (typename GT::Node * p1, typename GT::Node * p2) const
+      {
 	    // acceso a los nodos y comparación según el campo deseado 
-          }  
-      }; 
+      }
+      };
       \endcode
+
       IndexNode recibe esta clase por omisión programada para comparar
       el valor retornado por get_info() sobre cada nodo. Para ello, el
       operador < del tipo GT::Node_Type debe estar implementado.
@@ -74,190 +79,187 @@ struct Dft_Node_Cmp
       @author Leandro Rabindranath León (lrleon en ula punto ve)
       @author Alejandro Mujica (aledrums en gmail punto com)
   */
-  template
-  <class GT, 
-   class Compare = Dft_Node_Cmp<GT>,
-   template <class /* Key */, class /* Compare */> class Tree = Treap,
-   class SN = Dft_Show_Node<GT> >  
-class IndexNode
-{
-private:
-
-  typedef typename GT::Node GT_Node;
-  typedef typename GT::Node_Type GT_Node_Type;
-	
-  DynSetTree<GT_Node*, Tree, Compare> index;
-
-  GT & g;
-  SN & sn;
-		
-public:
-
-      /** Inserta el nodo p en índice.
-
-	  @param[in] p puntero al nodo que se desea guardar en el índice
-	  @throw bad_alloc si no hay suficiente memoria
-      */
-  GT_Node * insert(GT_Node * p)
+  template <class GT, class Compare = Dft_Node_Cmp<GT>,
+            template <class /* Key */, class /* Compare */> class Tree = Treap,
+            class SN = Dft_Show_Node<GT> >
+  class IndexNode
   {
-    index.put(p);
-    return p;
-  }
+  private:
 
-      /** Crea un nuevo nodo con contenido genérico info, lo inserta en
-	  el grafo y luego en el índice
+    typedef typename GT::Node GT_Node;
+    typedef typename GT::Node_Type GT_Node_Type;
 
-	  @param[in] info Contenido asociado al nuevo nodo.
-	  @return puntero al nodo
-	  @throw bad_alloc si no hay suficiente memoria
-      */
-  GT_Node * insert_in_graph(const GT_Node_Type & info)
-  {
-    GT_Node * ret_val = g.insert_node(info);
+    DynSetTree<GT_Node*, Tree, Compare> index;
 
-    try
-      {
-	insert(ret_val);
+    GT & g;
+    SN & sn;
 
-	return ret_val;
-      }
-    catch (...)
-      {
-	g.remove_node(ret_val);
-	throw;
-      }
-  }
+  public:
 
-  /// \overload insert_in_graph
-  GT_Node * insert_in_graph(GT_Node_Type && info = GT_Node_Type())
-  {
-    GT_Node * ret_val = g.insert_node(std::forward<GT_Node_Type>(info));
+    /** Inserta el nodo p en índice.
 
-    try
-      {
-	insert(ret_val);
+        @param[in] p puntero al nodo que se desea guardar en el índice
+        @throw bad_alloc si no hay suficiente memoria
+    */
+    GT_Node * insert(GT_Node * p)
+    {
+      index.put(p);
+      return p;
+    }
 
-	return ret_val;
-      }
-    catch (...)
-      {
-	g.remove_node(ret_val);
-	throw;
-      }
-  }
+    /** Crea un nuevo nodo con contenido genérico info, lo inserta en
+        el grafo y luego en el índice
 
-      /** Busca un nodo según el contenido de p.
+        @param[in] info Contenido asociado al nuevo nodo.
+        @return puntero al nodo
+        @throw bad_alloc si no hay suficiente memoria
+    */
+    GT_Node * insert_in_graph(const GT_Node_Type & info)
+    {
+      GT_Node * ret_val = g.insert_node(info);
 
-	  Tome en cuenta que el criterio de búsqueda está determinado
-	  por la clase parámetro de comparación Compare.
+      try
+        {
+          insert(ret_val);
 
-	  @param[in] p el nodo cuya información se desea buscar.
-	  @return puntero al nodo si es encontrado o nulo de lo
-	  contrario.
-      */
-  GT_Node * search(GT_Node * p)
-  {
-    GT_Node ** ret_val = index.search(p);
+          return ret_val;
+        }
+      catch (...)
+        {
+          g.remove_node(ret_val);
+          throw;
+        }
+    }
 
-    if (ret_val == nullptr)
-      return nullptr;
+    /// \overload insert_in_graph
+    GT_Node * insert_in_graph(GT_Node_Type && info = GT_Node_Type())
+    {
+      GT_Node * ret_val = g.insert_node(std::forward<GT_Node_Type>(info));
 
-    return *ret_val;
-  }
+      try
+        {
+          insert(ret_val);
 
-      /** Busca un nodo según la información info.
+          return ret_val;
+        }
+      catch (...)
+        {
+          g.remove_node(ret_val);
+          throw;
+        }
+    }
 
-	  Tome en cuenta que el criterio de búsqueda está determinado
-	  por la clase parámetro de comparación Compare.
+    /** Busca un nodo según el contenido de p.
 
-	  @param[in] info información según la cual se desea realizar la
-	  búsqueda (la cual depende de la clase parámetro de comparación
-	  Compare. 
-	  @return puntero al nodo si es encontrado o nulo de lo
-	  contrario.
-      */
-  GT_Node * search(const GT_Node_Type & info)
-  {
-    GT_Node dummy_node(info);
-    GT_Node * dummy_node_ptr = &dummy_node;
+        Tome en cuenta que el criterio de búsqueda está determinado
+        por la clase parámetro de comparación Compare.
 
-    return search(dummy_node_ptr);
-  }
+        @param[in] p el nodo cuya información se desea buscar.
+        @return puntero al nodo si es encontrado o nulo de lo
+        contrario.
+    */
+    GT_Node * search(GT_Node * p)
+    {
+      GT_Node ** ret_val = index.search(p);
 
-      /// Elimina del índice el nodo con dirección p.
-  void remove(GT_Node * p)
-  {
-    index.remove(p);
-  }
+      if (ret_val == nullptr)
+        return nullptr;
 
-      /** Elimina el nodo p del grafo y del ìndice.
+      return *ret_val;
+    }
 
-	  @param[in] p puntero al nodo a eliminar
-	  @throw domain_error si el nodo està insertado en el índice (lo
-	  que posiblemente signifique que tampoco en el grafo).
-   */
-  void remove_from_graph(GT_Node * p) throw(std::exception, std::domain_error)
-  {
-    index.find(p); // dispara excepción si p no está en el índice
-    index.remove(p);
-    g.remove_node(p);
-  }
+    /** Busca un nodo según la información info.
 
-      /// Borra el índice; todos los nodos son eliminados.
-  void clear_index()
-  {
-    index.empty();
-  }
+        Tome en cuenta que el criterio de búsqueda está determinado
+        por la clase parámetro de comparación Compare.
 
-      /// Inserta todos los nodos del grafo en el índice.
-  void build_index()
-  {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      {
-	GT_Node * p = it.get_curr();
+        @param[in] info información según la cual se desea realizar la
+        búsqueda (la cual depende de la clase parámetro de comparación
+        Compare.
+        @return puntero al nodo si es encontrado o nulo de lo
+        contrario.
+    */
+    GT_Node * search(const GT_Node_Type & info)
+    {
+      GT_Node dummy_node(info);
+      GT_Node * dummy_node_ptr = &dummy_node;
 
-	if (search(p) != p)
-	  insert(p);
-      }
-  }
+      return search(dummy_node_ptr);
+    }
 
-      /// Elimina todos los nodos del grafo y del índice.
-  void clear_graph()
-  {
-    clear_index();
-    g.clear_graph();
-  }
+    /// Elimina del índice el nodo con dirección p.
+    void remove(GT_Node * p)
+    {
+      index.remove(p);
+    }
 
-private: 
+    /** Elimina el nodo p del grafo y del ìndice.
 
-  void init()
-  {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next())
-      insert(it.get_curr());
-  }
+        @param[in] p puntero al nodo a eliminar
+        @throw domain_error si el nodo està insertado en el índice (lo
+        que posiblemente signifique que tampoco en el grafo).
+    */
+    void remove_from_graph(GT_Node * p)
+    {
+      index.find(p); // dispara excepción si p no está en el índice
+      index.remove(p);
+      g.remove_node(p);
+    }
 
-public:
+    /// Borra el índice; todos los nodos son eliminados.
+    void clear_index()
+    {
+      index.empty();
+    }
 
-  /** Crea un índice a partir de los nodos insertado en el grafo.
+    /// Inserta todos los nodos del grafo en el índice.
+    void build_index()
+    {
+      for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+        {
+          GT_Node * p = it.get_curr_ne();
+          if (search(p) != p)
+            insert(p);
+        }
+    }
 
-      @param[in] __g el grafo
-      \param[in] build_index indica si se debe construir el índice
-      durante la construcción 
-      @throw bad_alloc si no hay suficiente memoria.
-  */
-  IndexNode(GT & __g, SN && __sn = SN()) : g(__g), sn(__sn)
-  {
-    init();
-  }
+    /// Elimina todos los nodos del grafo y del índice.
+    void clear_graph()
+    {
+      clear_index();
+      g.clear_graph();
+    }
 
-  IndexNode(GT & __g, SN & __sn) : g(__g), sn(__sn) 
-  {
-    init();
-  }
+  private:
 
-      /// Retorna la cantidad de arcos que contiene el índice.
-  size_t size() const { return index.size(); }
-};
+    void init()
+    {
+      for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
+        insert(it.get_curr_ne());
+    }
+
+  public:
+
+    /** Crea un índice a partir de los nodos insertado en el grafo.
+
+        @param[in] __g el grafo
+        \param[in] build_index indica si se debe construir el índice
+        durante la construcción
+        @throw bad_alloc si no hay suficiente memoria.
+    */
+    IndexNode(GT & __g, SN && __sn = SN()) : g(__g), sn(__sn)
+    {
+      init();
+    }
+
+    IndexNode(GT & __g, SN & __sn) : g(__g), sn(__sn)
+    {
+      init();
+    }
+
+    /// Retorna la cantidad de arcos que contiene el índice.
+    size_t size() const { return index.size(); }
+  };
 
 }
 

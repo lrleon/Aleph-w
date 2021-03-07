@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <limits>
@@ -145,7 +149,7 @@ void imprimir_grafo(Grafo & g)
   cout << endl
        << "Listado de nodos (" << g.get_num_nodes() << ")" << endl;
 
-  for (Grafo::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Grafo::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     cout << INDENT << node_itor.get_current_node()->get_info().nombre << endl;
 
@@ -154,7 +158,7 @@ void imprimir_grafo(Grafo & g)
        << "Listado de arcos (" << g.get_num_arcs() << ")"
        << endl;
 
-  for (Grafo::Arc_Iterator arc_itor(g); arc_itor.has_current();
+  for (Grafo::Arc_Iterator arc_itor(g); arc_itor.has_curr();
        arc_itor.next())
     {
       Grafo::Arc * arc = arc_itor.get_current_arc();
@@ -168,13 +172,13 @@ void imprimir_grafo(Grafo & g)
        << endl
        << "Listado del grafo por nodos y en cada nodo por arcos" 
        << endl;
-  for (Grafo::Node_Iterator node_itor(g); node_itor.has_current(); 
+  for (Grafo::Node_Iterator node_itor(g); node_itor.has_curr(); 
        node_itor.next())
     {
       Grafo::Node * src_node = node_itor.get_current_node();
       cout << src_node->get_info().nombre << endl;
       for (Grafo::Node_Arc_Iterator itor(node_itor.get_current_node());
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
 	  Grafo::Arc * arc = itor.get_current_arc();
 	  cout << INDENT << arc->get_info().distancia << " " 
@@ -340,7 +344,7 @@ void imprimir_camino(Path<Grafo> & path)
 {
   cout << endl
        << "Camino: ";
-  for (Path<Grafo>::Iterator itor(path); itor.has_current(); itor.next())
+  for (Path<Grafo>::Iterator itor(path); itor.has_curr(); itor.next())
     cout << itor.get_current_node()->get_info().nombre << "-";
 
   cout << endl;

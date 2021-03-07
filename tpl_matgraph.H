@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_MAT_GRAPH_H
 # define TPL_MAT_GRAPH_H
@@ -339,19 +343,19 @@ void Map_Matrix_Graph<GT, SA>::copy_list_graph(GT & g)
   nodes.cut(); // limpiar arreglos dinámicos de contenidos anteriores
   mat.cut();
   int i = 0; 
-  for (typename GT::Node_Iterator it(g); it.has_curr(); it.next(), ++i)
-    nodes[i] = it.get_current_node();
+  for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
+    nodes[i] = it.get_current_node_ne();
 
   quicksort(nodes); // ordenar nodes para soportar búsqueda binaria
-  for (typename GT::Node_Iterator nit(g); nit.has_current(); nit.next())
+  for (typename GT::Node_Iterator nit(g); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node();
+      Node * src = nit.get_current_node_ne();
       const long src_idx = node_index<GT>(nodes, num_nodes, src);
 
           // para cada arco de src escribirlo en la matriz mat
-      for (Node_Arc_Iterator<GT, SA> ait(src, sa); ait.has_curr(); ait.next())
+      for (Node_Arc_Iterator<GT, SA> ait(src, sa); ait.has_curr(); ait.next_ne())
         {
-          Arc * arc = ait.get_current_arc();
+          Arc * arc = ait.get_current_arc_ne();
           Node * tgt = g.get_connected_node(arc, src);
           const long tgt_idx = node_index<GT>(nodes, num_nodes, tgt);
           write_matrix<Mat_Entry>(mat, src_idx, tgt_idx, num_nodes, arc);
@@ -449,8 +453,8 @@ private:
     DynArray<typename GT::Node *> ptr; // arreglo temporal 
 
     int i = 0;
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next(), ++i)
-      ptr[i] = it.get_current_node();
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
+      ptr[i] = it.get_current_node_ne();
 
     quicksort(ptr); // ordenar por si se relaciona con Map_Matrix_Graph
 
@@ -460,9 +464,9 @@ private:
       {
 	typename GT::Node * src = ptr[i];
 	nodes[i] = src->get_info();
-	for (Node_Arc_Iterator<GT, SA> it(src); it.has_current(); it.next())
+	for (Node_Arc_Iterator<GT, SA> it(src); it.has_curr(); it.next_ne())
 	  {
-	    typename GT::Arc * arc = it.get_current_arc();
+	    typename GT::Arc * arc = it.get_current_arc_ne();
 	    typename GT::Node * tgt = it.get_tgt_node();
 	    const long j = node_index<GT>(ptr, n, tgt);
 	    const long mat_index = index_array(i, j, n);
@@ -700,8 +704,8 @@ private:
 
           // coloca punteros a nodos en el arreglo nodes[]
     int i = 0;
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next(), ++i)
-      nodes[i] = it.get_current_node();
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
+      nodes[i] = it.get_current_node_ne();
 
     quicksort(nodes); // ordena para luego hacer búsqueda binaria
   }
@@ -848,7 +852,8 @@ public:
             @throw bad_alloc si no hay suficiente memoria.
             @see Ady_Mat::set_null_value() Ady_Mat::null_value()
         */
-  Ady_Mat(GT & g) : lgraph(&g), num_nodes(lgraph->get_num_nodes()) 
+  Ady_Mat(GT & g)
+    : lgraph(&g), num_nodes(lgraph->get_num_nodes())
   {
     copy_nodes(g); 
   }
@@ -992,15 +997,15 @@ public:
       template <class Operation>
 void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph()
 {      // recorrer todos los nodos del grafo
-  for (typename GT::Node_Iterator nit(*lgraph); nit.has_current(); nit.next())
+  for (typename GT::Node_Iterator nit(*lgraph); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node();
+      Node * src = nit.get_current_node_ne();
       const long src_idx = node_index<Graph_Type>(nodes, num_nodes, src);
 
             // recorrer todos los arcos del nodo origen
-      for (Node_Arc_Iterator<GT, SA> at(src); at.has_current(); at.next())
+      for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
 	{
-	  Arc * arc = at.get_current_arc();
+	  Arc * arc = at.get_current_arc_ne();
 	  const long tgt_idx = 
 	    node_index<Graph_Type>(nodes, num_nodes, arc->get_tgt_node());
 	  Entry_Type & entry = 
@@ -1033,15 +1038,15 @@ void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix()
       template <class Operation>
 void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph(void * ptr)
 {      // recorrer todos los nodos del grafo
-  for (typename GT::Node_Iterator nit(*lgraph); nit.has_current(); nit.next())
+  for (typename GT::Node_Iterator nit(*lgraph); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node();
+      Node * src = nit.get_current_node_ne();
       const long src_idx = node_index<Graph_Type>(nodes, num_nodes, src);
 
             // recorrer todos los arcos del nodo origen
-      for (Node_Arc_Iterator<GT, SA> at(src); at.has_current(); at.next())
+      for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
 	{
-	  Arc * arc = at.get_current_arc();
+	  Arc * arc = at.get_current_arc_ne();
 	  Node * tgt = lgraph->get_tgt_node(arc);
 	  const long tgt_idx = node_index<Graph_Type>(nodes, num_nodes, tgt);
 	  Entry_Type & entry = // asegurar acceso a mat(src_idx, tgt_idx)
@@ -1118,21 +1123,21 @@ private:
 
     // copiar todos los nodos de g al arreglo nodes[]
     int i = 0;
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next())
-      nodes[i++] = static_cast<typename GT::Node*>(it.get_current_node());
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+      nodes[i++] = static_cast<typename GT::Node*>(it.get_current_node_ne());
 
     quicksort(nodes); // ordenar para luego hacer búsqueda binaria
 
     // recorrer todos los nodos de g para asignar los arcos en bit_array
-    for (typename GT::Node_Iterator it(g); it.has_current(); it.next())
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	typename GT::Node * src = it.get_current_node();
+	typename GT::Node * src = it.get_current_node_ne();
 	const size_t src_idx = node_index<Graph_Type>(nodes, n, src);
           
 	// recorrer los arcos de src para asignar entrada en matriz
-	for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_current(); jt.next())
+	for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_curr(); jt.next_ne())
 	  { 
-	    typename GT::Node * tgt = jt.get_tgt_node();
+	    typename GT::Node * tgt = jt.get_tgt_node_ne();
 	    const size_t tgt_idx = node_index<Graph_Type>(nodes, n, tgt);
 	    bit_array[index_array(src_idx, tgt_idx, n)] = 1;
 	  }

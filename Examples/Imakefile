@@ -2,15 +2,11 @@ DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
 # compiler suite
-
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
-
-# now comment clang++ line and uncomment c++ line. Flag for standard could
-# change according to compiler version. This flag is for gcc 4.6.3. On
-# 4.7.x should work -std=c++11
+CCLINK = clang++ -fsanitize=address,undefined
 CXX = clang++
 
 SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
@@ -68,15 +64,14 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
-
-#FLAGS=-DNDEBUG -Ofast -D_REENTRANT -D__extern_always_inline="extern __always_inline"
-FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
+# remove -fsanitize=address,undefined if you are not using clang
+FLAGS=-fsanitize=address,undefined -DDEBUG -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
 DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
 
 AllTarget(btreepic)
 NormalProgramTarget(btreepic,btreepic.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))

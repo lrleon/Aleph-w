@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <iostream>
@@ -1444,9 +1448,9 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
       string comment;
 
       for (DynDlist<Tag_Data>::Iterator itor(TAGS(p)); 
-	   itor.has_current(); itor.next())
+	   itor.has_curr(); itor.next())
 	{
-	  tag_data = itor.get_current();
+	  tag_data = itor.get_curr();
 
 	  switch (tag_data.tag_option)
 	    {
@@ -1498,10 +1502,10 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
     }
 
       /* Dibujar arcos adicionales declarados con opción ARC o DASHED-ARC */
-  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_current(); 
+  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_curr(); 
        itor.next())
     {
-      Arc_Data arc_data = itor.get_current();
+      Arc_Data arc_data = itor.get_curr();
       
       long double lx = X(arc_data.target_node);
       long double ly = Y(arc_data.target_node);
@@ -1537,9 +1541,9 @@ void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
 
       // dibujar conexiones
   for (DynDlist<Connexion_Data>::Iterator itor(CONNEXIONS(p)); 
-       itor.has_current(); itor.next())
+       itor.has_curr(); itor.next())
     {
-      Connexion_Data connexion_data = itor.get_current();
+      Connexion_Data connexion_data = itor.get_curr();
 
       generate_curve(output, p, connexion_data.target_node, 
 		     connexion_data.is_left);

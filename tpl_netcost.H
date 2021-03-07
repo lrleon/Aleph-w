@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_MAXFLOW_MINCOST_H
 # define TPL_MAXFLOW_MINCOST_H
@@ -190,9 +194,9 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   Flow_Type flow_cost() const noexcept
   {
     Flow_Type total = 0;
-    for (Arc_Iterator<Net_MFMC> it(*this); it.has_current(); it.next())
+    for (Arc_Iterator<Net_MFMC> it(*this); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_current();
+	Arc * a = it.get_curr_ne();
 	total += a->flow_cost();
       }
 
@@ -203,9 +207,9 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   auto out_pars(Node * p) noexcept
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__Out_Iterator<Net> it(p); it.has_curr(); it.next())
+    for (__Out_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_curr();
+	Arc * a = it.get_curr_ne();
 	cap_sum += a->cap;
 	flow_sum += a->flow;
 	cost_sum += a->cost;
@@ -217,9 +221,9 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   auto in_pars(Node * p) noexcept
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__In_Iterator<Net> it(p); it.has_curr(); it.next())
+    for (__In_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_curr();
+	Arc * a = it.get_curr_ne();
 	cap_sum += a->cap;
 	flow_sum += a->flow;
 	cost_sum += a->cost;
@@ -326,17 +330,17 @@ build_residual_net(const Net & net,
   using Rnet = Residual_Net<typename Net::Flow_Type>;
 
       // recorre los nodos de net e inserta copias en la red residual
-  for (typename Net::Node_Iterator it(net); it.has_curr(); it.next())
+  for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_curr();
+      auto p = it.get_curr_ne();
       auto q = rnet.insert_node(); // TODO: borrar get_info
       map_nodes<Net, Rnet>(p, q); // mapeo temporal de nodos
     }
 
     // Recorre arcos de net y construye mapeo arcs
-  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next())
+  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto ga = it.get_curr();
+      auto ga = it.get_curr_ne();
       auto gsrc = (typename Net::Node*) ga->src_node;
       auto gtgt = (typename Net::Node*) ga->tgt_node;
 
@@ -566,9 +570,9 @@ Feasible_Tree<Net> build_feasible_spanning_tree(const Net & net)
 {
   using Arc = typename Net::Arc;
   DynList<Arc*> empty, full, partial;
-  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next())
+  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr();
+      auto a = it.get_curr_ne();
       if (a->flow == 0) // arco vacío?
 	empty.append(a);
       else if (a->flow == a->cap) // arco lleno?
@@ -584,9 +588,9 @@ template <class Net> static inline
 DynList<typename Net::Arc*> get_partial_arcs(const Net & net)
 {
   DynList<typename Net::Arc*> ret;
-  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next())
+  for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr();
+      auto a = it.get_curr_ne();
       if (a->flow > 0 and a->flow < a->cap)
 	ret.append(a);
     }
@@ -601,9 +605,9 @@ template <class Net>
 typename Net::Flow_Type rcost(typename Net::Node * src, 
 			      typename Net::Node * tgt)
 {
-  for (Out_Iterator<Net> it(src); it.has_curr(); it.next())
+  for (Out_Iterator<Net> it(src); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr();
+      auto a = it.get_curr_ne();
       if (a->tgt_node == tgt)
 	return a->cost - (POTENTIAL(src) - POTENTIAL(tgt));
     }

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_AGRAPH_H
 # define TPL_AGRAPH_H
@@ -130,7 +134,28 @@ public:
     return arc;
   }
 
-  void remove_arc(void * arc) 
+  void remove_arc_ne(void * arc) noexcept
+  {
+    bool removed = false;
+    for (size_t i = 0; i < this->num_arcs; ++i)
+      if (arc_array[i] == arc)
+	{
+	  arc_array[i] = arc_array[--(this->num_arcs)];
+	  removed = true;
+	  break;
+	}
+
+    if (this->num_arcs > contract_threshold)
+      return;
+	
+        // contraction 
+    size_t new_sz = arcs_dim >> 1; // num_arcs/2
+    arc_array = (void**) realloc(arc_array, new_sz*sizeof(void*));
+    arcs_dim = new_sz;
+    contract_threshold = arcs_dim/Contract_Factor;
+  }
+
+  void remove_arc(void * arc)
   {
     bool removed = false;
     for (size_t i = 0; i < this->num_arcs; ++i)
@@ -284,42 +309,6 @@ public:
       // empty
     }
   };
-  // class Arc_Iterator : public DynSetArc::Iterator
-  // {
-  // public:
-
-  //       /// Tipo de elemento que retorna get_current()
-  //   using Item_Type = Arc *;
-
-  //      /// El tipo de conjunto sobre el cual se itera.
-  //   using Set_Type = Array_Graph;
-
-  //   Arc_Iterator() noexcept { /* empty */ }
-
-  //   Arc_Iterator(const Array_Graph & _g) noexcept
-  //     : DynSetArc::Iterator(_g.arc_set)
-  //   {
-  //     // empty
-  //   }
-
-  //       /// Retorna un puntero al arco actual
-  //   Arc * get_current_arc() const
-  //   {
-  //     return this->get_curr();
-  //   }
-
-  //       /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
-  //   Node * get_src_node() noexcept 
-  //   {
-  //     return (Node*) get_current_arc()->src_node; 
-  //   }
-
-  //       /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
-  //   Node * get_tgt_node() noexcept
-  //   {
-  //     return (Node*) get_current_arc()->tgt_node; 
-  //   }
-  // };
   
   class Node_Arc_Iterator : public Array_Iterator<void*>
   {
@@ -327,7 +316,7 @@ public:
 
   public:
 
-        /// El tipo de dato que retorna get_current().
+        /// El tipo de dato que retorna get_curr().
     using Item_Type = Arc *;
 
         /// El tipo de conjunto sobre el cual se itera.
@@ -338,26 +327,38 @@ public:
 
         /// Instancia un iterador sobre el nodo _src_node
     Node_Arc_Iterator(Node * src) noexcept
-      : Array_Iterator<void*>(src->arc_array, src->arcs_dim, src->num_arcs), 
+      : Array_Iterator<void*>(no_exception_ctor,
+			      src->arc_array, src->arcs_dim, src->num_arcs), 
 	src_node(src)
     {
       // empty 
     }
 
-        /// Retorna el arco actual.
-    Arc * get_current_arc() const
+    Arc * get_curr() const
     {
       return (Arc*) const_cast<Node_Arc_Iterator*>(this)->
 	Array_Iterator<void*>::get_curr();
     }
 
-        ///\overload get_current_arc()
-    Arc * get_current() const { return get_current_arc(); }
+    Arc * get_curr_ne() const noexcept
+    {
+      return (Arc*) const_cast<Node_Arc_Iterator*>(this)->
+	Array_Iterator<void*>::get_curr_ne();
+    }
 
-        ///\overload get_current_arc()
-    Arc * get_curr() const { return get_current_arc(); }
+        /// Retorna el arco actual.
+    Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
+
+        /// Retorna el arco actual.
+    Arc * get_current_arc() const { return get_curr(); }
 
         /// Retorna el nodo destino del arco actual.
+    Node * get_tgt_node_ne() const
+    {
+      Arc * a = get_curr_ne();
+      return (Node*) a->get_connected_node(src_node);
+    }
+
     Node * get_tgt_node() const
     {
       Arc * a = get_curr();
@@ -378,8 +379,8 @@ public:
 
   void compress()
   {
-    for (Node_Iterator it(*this); it.has_curr(); it.next())
-      it.get_curr()->compress();
+    for (Node_Iterator it(*this); it.has_curr(); it.next_ne())
+      it.get_curr_ne()->compress();
   }
 
 private:
@@ -458,9 +459,9 @@ public:
     Node * src = (Node*) arc->src_node;
     Node * tgt = (Node*) arc->tgt_node;
 
-    src->remove_arc(arc);
+    src->remove_arc_ne(arc);
     if (not this->digraph and src != tgt)
-      tgt->remove_arc(arc);
+      tgt->remove_arc_ne(arc);
 
     arc->del(); // delete it from arc_set
     this->num_arcs--;
@@ -478,9 +479,9 @@ public:
     DynList<Arc*> arcs; // store arcs to delete
     if (this->digraph)
       // traverse all arcs of graph and store those whose source or target is p
-      for (Arc_Iterator it(*this); it.has_curr(); it.next())
+      for (Arc_Iterator it(*this); it.has_curr(); it.next_ne())
         {
-          Arc * arc = it.get_curr();
+          Arc * arc = it.get_curr_ne();
           if (this->get_src_node(arc) == p or this->get_tgt_node(arc) == p)
             arcs.append(arc);
         }

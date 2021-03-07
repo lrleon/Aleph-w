@@ -70,3 +70,9 @@
 - Comment      
 - Finished     
 
+## 13. script que borre ejecutables
+- Created at   2017-10-05 19:56:59 -0400
+- Completed at 2018-05-07 10:39:13 -0400
+- Comment      
+- Finished     
+

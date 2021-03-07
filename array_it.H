@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,24 +18,25 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef ARRAY_IT_H
 # define ARRAY_IT_H
 
 # include <cassert>
 # include <tuple>
+# include <aleph.H>
+# include <ahDefs.H>
 # include <htlist.H>
 
 namespace Aleph {
 
 template <typename T> class Array_Container;
-  
+
   /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
 
       @ingroups Secuencias
@@ -62,6 +68,14 @@ public:
        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
   }
 
+  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
+    : ptr(p), dim(sz), num_items(n), last(n - 1)
+  {
+    assert(ptr);
+    if (num_items > dim)
+      throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+  }
+
   Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
     : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
   {
@@ -74,16 +88,30 @@ public:
        throw std::domain_error("Array_Iterator(): last >= dim");
   }
 
+  /** Constructor no throwing exception.
+
+      It is similar to the previous buy it is guaranteed that no
+      exception will be thrown
+   */
+  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
+    : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+  {
+    assert(ptr);
+  }
+
   Array_Iterator(const Array_Container<T> & c)
     : Array_Iterator(c.base(), c.capacity(), c.size()) {}
 
   bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
 
-  bool has_current() const noexcept { return has_curr(); }
-
   bool is_last() const noexcept { return pos == num_items - 1; }
 
   long get_pos() const noexcept { return pos; }
+
+  T & get_curr_ne() const noexcept
+  {
+    return ptr[idx];
+  }
 
   T & get_curr() const
   {
@@ -93,47 +121,54 @@ public:
     if (pos >= num_items)
       throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
 
-    return ptr[idx]; 
+    return ptr[idx];
   }
 
-  T & get_current() const { return get_curr(); }
+  void next_ne() noexcept
+  {
+    if (++idx == dim)
+      idx = 0;
+    ++pos;
+  }
 
   void next()
   {
     if (num_items == 0 or pos >= num_items)
       throw std::overflow_error("MemArray::Iterator::next(): has not current");
-    if (++idx == dim)
-      idx = 0;
-    ++pos; 
+    next_ne();
+  }
+
+  void prev_ne() noexcept
+  {
+    if (--idx < 0)
+      idx = dim - 1;
+    --pos;
   }
 
   void prev()
   {
     if (num_items == 0 or pos < 0)
       throw std::underflow_error("MemArray::Iterator::prev(): has not current");
-    if (--idx < 0)
-      idx = dim - 1;
-    --pos; 
+    prev_ne();
   }
 
   void reset() noexcept
-  { 
+  {
     idx = first;
-    pos = 0; 
+    pos = 0;
   }
 
   void reset_first() noexcept { reset(); }
 
   void reset_last() noexcept
-  { 
-    idx = last; 
+  {
+    idx = last;
     pos = num_items - 1;
   }
 
   void end() noexcept
   {
-    reset_last();
-    next();
+    put_itor_at_the_end(*this);
   }
 };
 

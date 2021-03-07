@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <gsl/gsl_rng.h>
@@ -71,8 +75,7 @@ int main(int argc, char *argv[])
       return std::to_string(i);
     };
 
-  DynList<std::string> l1_str = 
-    maps<int, DynList, std::string>(l1, to_str);
+  DynList<std::string> l1_str = maps<std::string>(l1, to_str);
 
   print_seq(l1);
   print_seq(l2);
@@ -91,7 +94,7 @@ int main(int argc, char *argv[])
       l.append(gsl_rng_get(r));
 
     cout << endl
-	 << "building array copy of previuos list" << endl;
+	 << "building array copy of previous list" << endl;
     DynArray<long> a;
     l.for_each(/* Lambda */ [&a](long i)
 	       {

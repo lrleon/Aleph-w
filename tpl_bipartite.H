@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_BIPARTITE_H
 # define TPL_BIPARTITE_H
@@ -77,9 +81,9 @@ void compute_bipartite(const GT &                      g,
     if (not red.is_empty()) // ¿Hay rojo con arcos no mirados?
       {
 	typename GT::Node * p = red.get();
-	for (Node_Arc_Iterator<GT, SA> it(p); it.has_current(); it.next())
+	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
- 	    typename GT::Arc * a = it.get_current();
+ 	    typename GT::Arc * a = it.get_curr_ne();
  	    if (color<GT>(a) == Bp_Red)
  	      throw std::domain_error("Graph is not bipartite");
  	    else if (color<GT>(a) == Bp_Blue)
@@ -99,9 +103,9 @@ void compute_bipartite(const GT &                      g,
     else if (not blue.is_empty()) // ¿Hay azul con arcos no mirados?
       {
 	typename GT::Node * p = blue.get();
-	for (Node_Arc_Iterator<GT, SA> it(p); it.has_current(); it.next())
+	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
- 	    typename GT::Arc * a = it.get_current();
+ 	    typename GT::Arc * a = it.get_curr_ne();
  	    if (color<GT>(a) == Bp_Blue)
  	      throw std::domain_error("Graph is not bipartite");
  	    else if (color<GT>(a) == Bp_Red)
@@ -191,9 +195,9 @@ void compute_maximum_cardinality_bipartite_matching
   AN net;
 
       // recorrer nodos de g e insertar imagen en net
-  for (Node_Iterator<GT> it(g); it.has_current(); it.next())
+  for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
   {
-    typename GT::Node * p = it.get_current();
+    typename GT::Node * p = it.get_curr_ne();
     NODE_COOKIE(p) = net.insert_node();
     NODE_COOKIE((typename GT::Node *)NODE_COOKIE(p)) = p;
   }
@@ -202,15 +206,15 @@ void compute_maximum_cardinality_bipartite_matching
 
       // recorrer nodos de l, atarlos a fuente e insertar sus arcos
   for (typename DynDlist<typename GT::Node*>::Iterator i(l); 
-       i.has_current(); i.next())
+       i.has_curr(); i.next_ne())
     {
-      typename GT::Node * p = i.get_current();
+      typename GT::Node * p = i.get_curr_ne();
       typename AN::Node * src = mapped_node<GT, AN> (p);
       net.insert_arc(source, src, 1);
 
-      for (Node_Arc_Iterator<GT, SA> j(p); j.has_current(); j.next())
+      for (Node_Arc_Iterator<GT, SA> j(p); j.has_curr(); j.next_ne())
 	{
-	  typename GT::Arc * arc = j.get_current_arc();
+	  typename GT::Arc * arc = j.get_current_arc_ne();
 	  typename AN::Node * tgt = mapped_node <GT, AN> (g.get_tgt_node(arc));
 	  typename AN::Arc * a = net.insert_arc(src, tgt, 1);
 	  ARC_COOKIE(arc) = a;
@@ -222,17 +226,17 @@ void compute_maximum_cardinality_bipartite_matching
 
     // recorrer nodos de r y atarlos al sumidero
   for (typename DynDlist<typename GT::Node*>::Iterator it(r); 
-       it.has_current(); it.next())
+       it.has_curr(); it.next_ne())
     {
-      typename GT::Node * p = it.get_current();
+      typename GT::Node * p = it.get_curr_ne();
       net.insert_arc(mapped_node<GT, AN> (p), sink, 1);
     }
 
   Max_Flow <AN> () (net); 
 
-  for (Arc_Iterator<AN> it(net); it.has_curr(); it.next())
+  for (Arc_Iterator<AN> it(net); it.has_curr(); it.next_ne())
     {
-      typename AN::Arc * a = it.get_curr();
+      typename AN::Arc * a = it.get_curr_ne();
       if (a->flow == 0) 
 	continue;
 

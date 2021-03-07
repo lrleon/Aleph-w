@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef FLOYD_H
 # define FLOYD_H
@@ -47,17 +51,18 @@ namespace Aleph
           nodo en una representación con listas enlzadas derivada del
           tipo de grafo
           -# path: matriz de caminos mínimos. Cada entrada path(i,j)
-          almacena el nodo k que permitió al algoritmo de Floyd-Warshall 
-          encontrar  el mínimo valor de dist(i,j). De este modo, inspecciones 
+          almacena el nodo k que permitió al algoritmo de Floyd-Warshall
+          encontrar  el mínimo valor de dist(i,j). De este modo, inspecciones
           sucesivas a  dist(k,j) permiten encontrar y construir el camino
           hacia el nodo j. \n
           La función find_min_path(g,i,j,path) realiza la función
           anterior.
 
-          El algoritmo de Floyd-Warshall maneja pesos negativos, pero no 
-          opera correctamente si el grafo contiene ciclos
-          negativos. Úsese el algoritmo de Bellman-Ford 
-          q_bellman_ford_min_spanning_tree() si se sospecha su presencia.
+          El algoritmo de Floyd-Warshall maneja pesos negativos, pero
+          no opera correctamente si el grafo contiene ciclos
+          negativos. Úsese el algoritmo de Bellman-Ford
+          q_bellman_ford_min_spanning_tree() si se sospecha su
+          presencia.
 
           El algoritmo utiliza dos matrices internas adicionales.
 
@@ -72,7 +77,7 @@ namespace Aleph
             que retorna el valor del peso en el arco a.
             -# Distance<GT>::Max_Distance: constante estática
             correspondiente al valor de distancia máximo que un algoritmo
-            consideraría como valor infinito. 
+            consideraría como valor infinito.
             -# typename Distance<GT>::Zero_Distance: constante estática
             correspondiente al elemento neutro de la suma. Tradicionalmente,
             en la inmensa mayoría de casos, este será el cero.
@@ -80,15 +85,15 @@ namespace Aleph
           -# SA: filtro de arcos.
           .
 
-          @see dijkstra_min_spanning_tree() dijkstra_min_path() 
-          find_path_depth_first() 
-          find_min_path() bellman_ford_min_spanning_tree() 
-          q_bellman_ford_min_spanning_tree() 
+          @see dijkstra_min_spanning_tree() dijkstra_min_path()
+          find_path_depth_first()
+          find_min_path() bellman_ford_min_spanning_tree()
+          q_bellman_ford_min_spanning_tree()
           @ingroup Grafos
        */
-    template <class GT, 
-	      class Distance = Dft_Dist<GT>, 
-              class SA       = Dft_Show_Arc<GT>> 
+    template <class GT,
+              class Distance = Dft_Dist<GT>,
+              class SA       = Dft_Show_Arc<GT>>
 class Floyd_All_Shortest_Paths
 {
   typedef typename GT::Node Node;
@@ -110,7 +115,7 @@ public:
 
   const DynMatrix<long> & get_path_mat() const noexcept { return path_mat; }
 
-  const DynMatrix<Distance_Type> & get_dist_mat() const noexcept 
+  const DynMatrix<Distance_Type> & get_dist_mat() const noexcept
   {
     return dist;
   }
@@ -119,7 +124,7 @@ public:
 
   /// Retorna el nodo correspondiente al índice i en una matriz de
   /// adyacencia para el algoritmo de Floyd-Warshall
-  Node * select_node(long i) const noexcept { return nodes(i); }  
+  Node * select_node(long i) const noexcept { return nodes(i); }
 
   /// Retorna el ìndice dentro de una matriz de adyacencia que tendría
   /// el nodo p
@@ -133,15 +138,15 @@ public:
 
 public:
 
-  Floyd_All_Shortest_Paths(const GT & __g, SA & __sa) 
-  : g(const_cast<GT&>(__g)), n(g.get_num_nodes()), 
-    Inf(std::numeric_limits<Distance_Type>::max()), 
+  Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
+  : g(const_cast<GT&>(__g)), n(g.get_num_nodes()),
+    Inf(std::numeric_limits<Distance_Type>::max()),
     path_mat(n, n), dist(n, n), sa(__sa)
   {
     int i = 0;
     nodes.reserve(g.get_num_nodes());
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
-      nodes.access(i++) = it.get_curr();
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+      nodes.access(i++) = it.get_curr_ne();
     in_place_sort(nodes); // ordena por punteros a nodo
 
     dist.allocate();
@@ -151,63 +156,63 @@ public:
       IndexArc<GT, Rand_Tree, SA> arcs(g, true, sa);
 
       for (long i = 0; i < n; ++i)
-	{
-	  Node * src = nodes(i);
-	  for (long j = 0; j < n; ++j)
-	    {
-	      if (i == j)
-		{
-		  dist(i, j) = 0;
-		  continue;
-		}
+        {
+          Node * src = nodes(i);
+          for (long j = 0; j < n; ++j)
+            {
+              if (i == j)
+                {
+                  dist(i, j) = 0;
+                  continue;
+                }
 
-	      Node * tgt = nodes(j);
-	      Arc * arc  = arcs.search_directed(src, tgt);
-	      if (arc == nullptr)
-		{
-		  dist(i, j) = Inf;
-		  continue;
-		}
+              Node * tgt = nodes(j);
+              Arc * arc  = arcs.search_directed(src, tgt);
+              if (arc == nullptr)
+                {
+                  dist(i, j) = Inf;
+                  continue;
+                }
 
-	      dist(i, j) = Distance () (arc);
-	      path_mat(i, j) = j;
-	    }
-	}
+              dist(i, j) = Distance () (arc);
+              path_mat(i, j) = j;
+            }
+        }
     }
 
     for (long k = 0; k < n; ++k)
       for (long i = 0; i < n; ++i)
-	{
-	  const Distance_Type & dik = dist(i, k);
-	  for (long j = 0; j < n; ++j)
-	    { 
-	      const Distance_Type & dij = dist(i, j);
-	      if (dik == Inf) 
-		continue;
+        {
+          const Distance_Type & dik = dist(i, k);
+          for (long j = 0; j < n; ++j)
+            {
+              const Distance_Type & dij = dist(i, j);
+              if (dik == Inf)
+                continue;
 
-	      const Distance_Type & dkj = dist(k, j);
-	      if (dkj == Inf)
-		continue;
+              const Distance_Type & dkj = dist(k, j);
+              if (dkj == Inf)
+                continue;
 
     	          // calcule nueva distancia pasando por k
-	      Distance_Type new_dist = dik + dkj;
-	      if (new_dist < dij) 
-		{
-		  dist(i, j) = new_dist; // actualice menor distancia
-		  path_mat(i, j) = path_mat(i, k);
-		}
-	    }
-	}
-    
+              Distance_Type new_dist = dik + dkj;
+              if (new_dist < dij)
+                {
+                  dist(i, j) = new_dist; // actualice menor distancia
+                  path_mat(i, j) = path_mat(i, k);
+                }
+            }
+        }
+
     for (i = 0; i < n; ++i)
       if (dist(i, i) < 0) // ciclo negativo?
-	{
-	  negative_cycle = true;
-	  break;
-	}
+        {
+          negative_cycle = true;
+          break;
+        }
   }
 
-  Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA()) 
+  Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
     : Floyd_All_Shortest_Paths(g, sa) {}
 
   string entry(const Distance_Type & e)
@@ -226,12 +231,12 @@ public:
     const int n = dist.rows();
     for (int i = 0; i < n; ++i)
       {
-	for (int j = 0; j < n; ++j)
-	  if (dist.access(i,j) == Inf)
-	    cout << "inf ";
-	  else
-	    cout << dist.access(i,j) << " ";
-	cout << endl;
+        for (int j = 0; j < n; ++j)
+          if (dist.access(i,j) == Inf)
+            cout << "inf ";
+          else
+            cout << dist.access(i,j) << " ";
+        cout << endl;
       }
     cout << endl;
   }
@@ -243,24 +248,25 @@ public:
     Path<GT> path(g, src);
 
     if (src_idx == tgt_idx)
-      return path;      
-    
+      return path;
+
     long i = src_idx;
     while (true)
       {
-	const auto & k = path_mat(i, tgt_idx);
-	auto p = nodes(k);
-	path.append_directed(p);
-	if (k == tgt_idx)
-	  break;
-	else
-	  i = k;
+        const auto & k = path_mat(i, tgt_idx);
+        auto p = nodes(k);
+        path.append_directed(p);
+        if (k == tgt_idx)
+          break;
+        else
+          i = k;
       }
 
     return path;
   }
 
-  Path<GT> get_min_path(typename GT::Node * src, typename GT::Node * tgt) const
+  Path<GT> get_min_path(typename GT::Node * src,
+                        typename GT::Node * tgt) const
   {
     return get_min_path(index_node(src), index_node(tgt));
   }

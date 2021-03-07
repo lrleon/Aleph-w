@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_EUCLIDIAN_GRAPH_H
@@ -223,9 +227,9 @@ public:
   Node * Euclidian_Graph<Node, Arc>::search_node(const Point & point)
   {
     for (typename Euclidian_Graph<Node, Arc>::Node_Iterator it; 
-	 it.has_current(); it.next())
+	 it.has_curr(); it.next_ne())
       {
-        Euclidian_Graph<Node, Arc>::Node * curr = it.get_current();
+        Euclidian_Graph<Node, Arc>::Node * curr = it.get_curr_ne();
         if (curr->get_position() == point)
           return curr;
       }
@@ -267,13 +271,13 @@ public:
         return;
 
       typename __Euclidian_Graph::Node_Iterator itor(graph);
-      points.append(itor.get_current()->get_position());
+      points.append(itor.get_curr()->get_position());
       ptr_west_point = ptr_north_point = ptr_east_point = ptr_south_point = 
 	&points.access(0);
 
-      for (int i = 1 ; itor.has_current(); itor.next(), ++i)
+      for (int i = 1 ; itor.has_curr(); itor.next_ne(), ++i)
         {
-          const Point & p = itor.get_current()->get_position();
+          const Point & p = itor.get_curr_ne()->get_position();
           points.append(p);
           if (p.get_x() < ptr_west_point->get_x())
             ptr_west_point = &points.access(i);

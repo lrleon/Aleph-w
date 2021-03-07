@@ -16,29 +16,30 @@ istr = %{
 DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
-# compiler suite 
+# compiler suite
 
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
 
+CCLINK = clang++ -fsanitize=address,undefined
+
 # now comment clang++ line and uncomment c++ line. Flag for standard could
 # change according to compiler version. This flag is for gcc 4.6.3. On
 # 4.7.x should work -std=c++11
-CXX = clang++  
+CXX = clang++
 
 GTESTDIR=$(shell echo $$GOOGLETEST)
 
 SRCS=#{srcs}
 
-LOCALLIBS=	../libAleph.a $(GTESTDIR)/googletest/make/gtest_main.a \
-		$(GTESTDIR)/googlemock/make/gmock_main.a \
+LOCALLIBS=	../libAleph.a
 
-DEPLIBS=	../libAleph.a 
+DEPLIBS=	../libAleph.a
 
-SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
-#SYSLIBS=	 -lgmpxx -lgmp -lc++ -lpthread -lnana -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+#SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lgtest_main -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lgtest_main -lgtest -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
 
 INCLUDES=	-I../ -I$(GTESTDIR)/googletest/include \
 		-I$(GTESTDIR)/googlemock/include
@@ -47,10 +48,9 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
+FLAGS=-DDEBUG -fsanitize=address,undefined -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
-FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
-
-DEFINES=	-D_GLIBCXX__PTHREADS 
+DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 

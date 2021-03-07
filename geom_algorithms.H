@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef GEOM_ALGORITHMS_H
 # define GEOM_ALGORITHMS_H
@@ -43,7 +47,7 @@ public:
 
   bool diagonalie(const Polygon & p, const Segment & s)
   {
-    for (Polygon::Segment_Iterator it(p); it.has_current(); it.next())
+    for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
       {
 	Segment curr = it.get_current_segment();
 		
@@ -80,7 +84,7 @@ public:
   {
     EarsSet ret;
 
-    for (Polygon::Vertex_Iterator it(p); it.has_current(); it.next())
+    for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
       {
 	Vertex & curr = it.get_current_vertex();
 	const Vertex & prev = p.get_prev_vertex(curr);
@@ -174,7 +178,7 @@ class BruteForceConvexHull
 
   bool are_all_points_on_left(DynList<Point> & l, const Segment & s)
   {
-    for (PointIt it(l); it.has_curr(); it.next())
+    for (PointIt it(l); it.has_curr(); it.next_ne())
       {
 	const Point & p = it.get_curr();
 	
@@ -189,13 +193,13 @@ class BruteForceConvexHull
   {
     SegmentSet ret;
   
-    for (PointIt i(point_set); i.has_curr(); i.next())
+    for (PointIt i(point_set); i.has_curr(); i.next_ne())
       {
-	const Point & p_i = i.get_curr();
+	const Point & p_i = i.get_curr_ne();
 	
-	for (PointIt j(point_set); j.has_curr(); j.next())
+	for (PointIt j(point_set); j.has_curr(); j.next_ne())
 	  {
-	    const Point & p_j = j.get_curr();
+	    const Point & p_j = j.get_curr_ne();
 	    
 	    if (p_i == p_j)
 	      continue;
@@ -257,9 +261,9 @@ class GiftWrappingConvexHull
     Point * ret = &it.get_curr();
     it.next();
 
-    for ( /* nothing */; it.has_curr(); it.next())
+    for ( /* nothing */; it.has_curr(); it.next_ne())
       {
-	Point & p = it.get_curr();
+	Point & p = it.get_curr_ne();
 
 	if (p.get_y() < ret->get_y())
 	  ret = &p;
@@ -285,9 +289,9 @@ public:
 
 	double min_angle = std::numeric_limits<double>::max();
 
-	for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next())
+	for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
 	  {
-	    Point & p_j = it.get_curr();
+	    Point & p_j = it.get_curr_ne();
 
 	    if (p_j == *p_i)
 	      continue;
@@ -331,9 +335,9 @@ class QuickHull
     Geom_Number max_distance = 0;
     Point ret;
     
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next())
+    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+	const Point & p = it.get_curr_ne();
 
 	Segment s1 = s.get_perpendicular(p);
 
@@ -397,9 +401,9 @@ class QuickHull
     Point rightmost = it.get_curr();
     it.next();
 
-    for ( /* nothing */; it.has_curr(); it.next())
+    for ( /* nothing */; it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+	const Point & p = it.get_curr_ne();
 
 	if (p.get_x() < leftmost.get_x())
 	  leftmost = p;
@@ -416,9 +420,9 @@ class QuickHull
   {
     std::pair<DynList<Point>, DynList<Point>> ret;
     
-    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next())
+    for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+	const Point & p = it.get_curr_ne();
 
 	if (p.is_to_right_from(a, b))
 	  ret.first.append(p);
@@ -446,8 +450,8 @@ public:
     convex_set.append(e.second);
     convex_set.concat(s2);
 
-    for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next())
-      ret.add_vertex(it.get_curr());
+    for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
+      ret.add_vertex(it.get_curr_ne());
     
     ret.close();
     return ret;

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <fstream>
 # include <string>
@@ -105,9 +109,9 @@ void generate_dot_file(Digrafo & g, ostream & output)
     //	 << "rankdir = LR" << endl
     ;
 
-  for (Node_Iterator<Digrafo> it(g); it.has_current(); it.next())
+  for (Node_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Node * p = it.get_current();
+      Digrafo::Node * p = it.get_curr_ne();
       Info_Nodo & info = p->get_info();
       output << info.first << " [color=";
       DynDlist<string> & fields = info.second;
@@ -151,12 +155,12 @@ void generate_dot_file(Digrafo & g, ostream & output)
   if (with_cycle)
     {
       output << "// WARNING: Cycle detected in ";
-      for (Path<Digrafo>::Iterator it(p); it.has_current(); it.next())
+      for (Path<Digrafo>::Iterator it(p); it.has_curr(); it.next_ne())
 	{
-	  Info_Nodo & info = it.get_current_node()->get_info();
+	  Info_Nodo & info = it.get_current_node_ne()->get_info();
 	  output << "(" << info.first << ")" << info.second[6];
 	  if (not it.is_in_last())
-	    ooutput << "->";
+	    output << "->";
 	}
       output << endl;
     }
@@ -167,20 +171,20 @@ void generate_dot_file(Digrafo & g, ostream & output)
       Q_Topological_Sort <Digrafo> () (g, ranks);
 
       for (DynDlist<DynDlist<Digrafo::Node*>*>::Iterator it(ranks); 
-	   it.has_current(); it.next())
+	   it.has_curr(); it.next_ne())
 	{
-	  DynDlist<Digrafo::Node*> * l = it.get_current();
+	  DynDlist<Digrafo::Node*> * l = it.get_curr_ne();
 	  output << "{ rank = same; " << endl;
 	  for (DynDlist<Digrafo::Node*>::Iterator i(*l); 
-	       i.has_current(); i.next())
-	    output << i.get_current()->get_info().first << " ";
+	       i.has_curr(); i.next_ne())
+	    output << i.get_curr_ne()->get_info().first << " ";
 	  output << "}" << endl;
 	}
     }
   
-  for (Arc_Iterator<Digrafo> it(g); it.has_current(); it.next())
+  for (Arc_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Arc * a = it.get_current();
+      Digrafo::Arc * a = it.get_curr_ne();
       output << g.get_src_node(a)->get_info().first << " -> " 
 	     << g.get_tgt_node(a)->get_info().first << endl;
     }

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef KOSARAJU_H
 # define KOSARAJU_H
@@ -37,9 +41,9 @@ void __dfp(const GT & g, typename GT::Node * p,
   NODE_BITS(p).set_bit(Depth_First, true); 
 
       // recorre en profundidad los arcos de p 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
 
@@ -67,9 +71,9 @@ void __dfp(const GT & g, typename GT::Node * p, GT & blk, const int & color)
   NODE_COUNTER(q) = color;
   GT::map_nodes(p, q);
 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
       ARC_BITS(a).set_bit(Depth_First, true); 
@@ -122,9 +126,9 @@ void kosaraju_connected_components(const GT &                     g,
   DynArray<typename GT::Node*> df; // arreglo de df por sufijo
 
       // recorre en profundidad y marca en sufijo los nodos
-  for (auto it = g.get_node_it(); it.has_current() and df.size() < g.vsize();
-       it.next())
-    __dfp(g, it.get_current(), df);
+  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
+       it.next_ne())
+    __dfp(g, it.get_curr_ne(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 
@@ -145,9 +149,9 @@ void kosaraju_connected_components(const GT &                     g,
       assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
     }
 
-  for (auto it = g.get_arc_it(); it.has_current(); it.next())
+  for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
-      auto a  = it.get_current();
+      auto a  = it.get_curr_ne();
       auto gs = g.get_src_node(a);
       auto gt = g.get_tgt_node(a);
 
@@ -183,9 +187,9 @@ void __dfp(const GT & g,
 
   list.append(mapped_node<GT>(p));
 
-  for (auto it = g.get_out_it(p); it.has_current(); it.next())
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_current_arc();
+      auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
       ARC_BITS(a).set_bit(Depth_First, true); 
@@ -244,8 +248,8 @@ kosaraju_connected_components(const GT & g)
 
       // recorre en profundidad y marca en sufijo los nodos
   for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize(); 
-       it.next())
-    __dfp(g, it.get_current(), df);
+       it.next_ne())
+    __dfp(g, it.get_curr_ne(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 

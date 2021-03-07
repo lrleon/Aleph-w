@@ -2,27 +2,30 @@
 DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
-# compiler suite 
+# compiler suite
 
 CC = clang
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
 
+CCLINK = clang++ -fsanitize=address,undefined
+
 # now comment clang++ line and uncomment c++ line. Flag for standard could
 # change according to compiler version. This flag is for gcc 4.6.3. On
 # 4.7.x should work -std=c++11
-CXX = clang++  
+CXX = clang++
 
 GTESTDIR=$(shell echo $$GOOGLETEST)
 
-SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc
+SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc odhash.cc dynsetohash.cc hash-it.cc ah-zip.cc ah-functional.cc ah-dry.cc tree-it.cc al-domain.cc al-vector.cc al-matrix.cc
 
-LOCALLIBS=	../libAleph.a $(GTESTDIR)/googletest/make/gtest_main.a 		$(GTESTDIR)/googlemock/make/gmock_main.a 
-DEPLIBS=	../libAleph.a 
+LOCALLIBS=	../libAleph.a
 
-SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
-#SYSLIBS=	 -lgmpxx -lgmp -lc++ -lpthread -lnana -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc 
+DEPLIBS=	../libAleph.a
+
+#SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lgtest_main -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lgtest_main -lgtest -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
 
 INCLUDES=	-I../ -I$(GTESTDIR)/googletest/include 		-I$(GTESTDIR)/googlemock/include
 
@@ -30,10 +33,9 @@ MSG=-DMESSAGES
 
 WARN=	-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses
 
+FLAGS=-DDEBUG -fsanitize=address,undefined -O0 -g3 -D_REENTRANT -D__extern_always_inline="extern __always_inline"
 
-FLAGS=-DDEBUG -O0 -g3 -D_REENTRANT -DMEM_DEBUG  -D__extern_always_inline="extern __always_inline"
-
-DEFINES=	-D_GLIBCXX__PTHREADS 
+DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
@@ -88,6 +90,36 @@ NormalProgramTarget(bin-node,bin-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 AllTarget(tree-node)
 NormalProgramTarget(tree-node,tree-node.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(odhash)
+NormalProgramTarget(odhash,odhash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(dynsetohash)
+NormalProgramTarget(dynsetohash,dynsetohash.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(hash-it)
+NormalProgramTarget(hash-it,hash-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-zip)
+NormalProgramTarget(ah-zip,ah-zip.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-functional)
+NormalProgramTarget(ah-functional,ah-functional.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-dry)
+NormalProgramTarget(ah-dry,ah-dry.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(tree-it)
+NormalProgramTarget(tree-it,tree-it.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-domain)
+NormalProgramTarget(al-domain,al-domain.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-vector)
+NormalProgramTarget(al-vector,al-vector.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(al-matrix)
+NormalProgramTarget(al-matrix,al-matrix.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 
 DependTarget()

@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef POLYGON_H
 # define POLYGON_H
@@ -124,9 +128,9 @@ class Polygon : public Geom_Object
   {
     Dlink * list = const_cast<Dlink *>(&poly.vertex_list);
 
-    for (Dlink::Iterator it(list); it.has_current(); it.next())
+    for (Dlink::Iterator it(list); it.has_curr(); it.next_ne())
       vertex_list.
-	append(new Vertex(*Vertex::dlink_to_vertex(it.get_current())));
+	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr_ne())));
   }
 
   void copy_regular_polygon(const Regular_Polygon & poly);
@@ -229,7 +233,7 @@ public:
 
     Vertex & get_current_vertex()
     {
-      return *Vertex::dlink_to_vertex(get_current());
+      return *Vertex::dlink_to_vertex(get_curr());
     }
   };
 
@@ -246,12 +250,12 @@ public:
 	throw std::domain_error("Polygon has less than two vertex");
     }
 
-    bool has_current() const
+    bool has_curr() const
     {
       if (this->is_in_last())
 	return poly.is_closed() ? true : false;
 
-      return Dlink::Iterator::has_current();
+      return Dlink::Iterator::has_curr();
     }
 
     Segment get_current_segment() const 
@@ -260,7 +264,7 @@ public:
 	throw std::domain_error("Segment iterator is in the last point and "
 				"it is not closed");
       
-      Vertex * src = Vertex::dlink_to_vertex(this->get_current());
+      Vertex * src = Vertex::dlink_to_vertex(this->get_curr());
 
           // decidir punto tgt según que se esté en el último punto o no
       const Vertex & tgt = 
@@ -272,7 +276,7 @@ public:
 
   bool vertex_belong_polygon(const Vertex & v) const
   {
-    for (Vertex_Iterator it(*this); it.has_current(); it.next())
+    for (Vertex_Iterator it(*this); it.has_curr(); it.next_ne())
       if (&it.get_current_vertex() == &v)
 	return true;
     
@@ -337,7 +341,7 @@ public:
   bool intersects_with(const Segment & sg)
   {
         // recorrer todos los lados y verificar que no haya intersección
-    for (Segment_Iterator it(*this); it.has_current(); it.next())
+    for (Segment_Iterator it(*this); it.has_curr(); it.next_ne())
       {
 	const Segment & curr_side = it.get_current_segment();
 	if (curr_side.intersects_with(sg))
@@ -383,7 +387,7 @@ public:
 
 	    // verificar si hay intersección con los demás lados excepto el
 	    // penúltimo (con el cual comparte un punto)
-	for (Segment_Iterator it(*this); true; it.next())
+	for (Segment_Iterator it(*this); true; it.next_ne())
 	  {
 	    const Segment curr_side = it.get_current_segment();
 
@@ -435,7 +439,7 @@ public:
 
 	Segment_Iterator it(*this); 
 	
-	for (it.next(); true; it.next())
+	for (it.next(); true; it.next_ne())
 	  {
 	    const Segment curr_side = it.get_current_segment();
 
@@ -461,7 +465,7 @@ public:
 
     it.next();
     
-    for ( /* nothing */ ; it.has_current(); it.next())
+    for ( /* nothing */ ; it.has_curr(); it.next_ne())
       if (p.is_to_left_from(it.get_current_segment()) != test)
 	return false;
 
@@ -580,11 +584,11 @@ public:
       // empty 
     }
 
-    bool has_current() const { return curr < poly.size(); }
+    bool has_curr() const { return curr < poly.size(); }
 
     Vertex & get_current_vertex() 
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
 
       vertex = poly.get_vertex(curr);
@@ -592,19 +596,20 @@ public:
       return vertex;
     }
 
+    void next_ne() noexcept { ++curr; }
+
     void next()
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
-
-      ++curr;
+      next_ne();
     }
 
     void prev()
     {
       --curr;
 
-      if (not has_current())
+      if (not has_curr())
 	throw std::underflow_error("Iterator has not current");
     }
   };
@@ -625,30 +630,31 @@ public:
       // empty 
     }
 
-    bool has_current() const { return curr < poly.size(); }
+    bool has_curr() const { return curr < poly.size(); }
 
     const Segment get_current_segment() const
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
 
       return Segment(poly.get_vertex(curr), 
 		     poly.get_vertex((curr + 1) % poly.size()));
     }
 
+    void next_ne() noexcept { ++curr; }
+
     void next()
     {
-      if (not has_current())
+      if (not has_curr())
 	throw std::overflow_error("Iterator has not current");
-
-      ++curr;
+      next_ne();
     }
 
     void prev()
     {
       --curr;
 
-      if (not has_current())
+      if (not has_curr())
 	throw std::underflow_error("Iterator has not current");
     }
   };

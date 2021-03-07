@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # include <tpl_dynDlist.H>
@@ -60,9 +64,9 @@ class Polinomio
       return result;
 
     for (DynDlist<Termino>::Iterator it((DynDlist<Termino>&) terminos); 
-         it.has_current(); it.next())
-      result.terminos.append(Termino(it.get_current().coef * term.coef,
-                                     it.get_current().pot + term.pot) );
+         it.has_curr(); it.next())
+      result.terminos.append(Termino(it.get_curr().coef * term.coef,
+                                     it.get_curr().pot + term.pot) );
     return result;
   }
 
@@ -91,9 +95,9 @@ public:
       }
     Termino current_term;
     for (DynDlist<Termino>::Iterator it(const_cast<DynDlist<Termino>&>(terminos)); 
-         it.has_current(); it.next())
+         it.has_curr(); it.next())
       {
-        current_term = it.get_current();
+        current_term = it.get_curr();
         printf(" %c ", current_term.coef < 0 ? '-' : '+');
 
         if (abs(current_term.coef) not_eq 1)
@@ -128,21 +132,21 @@ Polinomio & Polinomio::operator += (const Polinomio& der)
     }
   DynDlist<Termino>::Iterator it_izq(terminos);
   DynDlist<Termino>::Iterator it_der(const_cast<DynDlist<Termino>&>(der.terminos));
-  while (it_izq.has_current() and it_der.has_current())
+  while (it_izq.has_curr() and it_der.has_curr())
     {
-      const size_t & izq = it_izq.get_current().pot;
-      const size_t & der = it_der.get_current().pot;
+      const size_t & izq = it_izq.get_curr().pot;
+      const size_t & der = it_der.get_curr().pot;
       if (izq < der)
         {     // insertar a la izquierda del actual de it_izq 
-          it_izq.append(Termino(it_der.get_current().coef, der)); 
+          it_izq.append(Termino(it_der.get_curr().coef, der)); 
           it_der.next(); // ver próximo término de polinomio derecho
           continue;
         }
       if (izq == der)
         {      // calcular coeficiente resultado
-          it_izq.get_current() += it_der.get_current(); // += Termino
+          it_izq.get_curr() += it_der.get_curr(); // += Termino
           it_der.next(); // avanzar a sig término polinomio derecho
-          if (it_izq.get_current().coef == 0) // ¿suma anula término?
+          if (it_izq.get_curr().coef == 0) // ¿suma anula término?
             {    // sí, borrarlo de polinomio izquierdo (coeficiente 0)
               it_izq.del();
               continue;
@@ -150,10 +154,10 @@ Polinomio & Polinomio::operator += (const Polinomio& der)
         }
       it_izq.next();
     }
-  while (it_der.has_current())
+  while (it_der.has_curr())
     {    // copia términos restantes derecho a izquierdo
-      terminos.append(Termino(it_der.get_current().coef, 
-                              it_der.get_current().pot));
+      terminos.append(Termino(it_der.get_curr().coef, 
+                              it_der.get_curr().pot));
       it_der.next();
     }
   return *this;
@@ -166,8 +170,8 @@ Polinomio Polinomio::operator * (const Polinomio & der) const
 
   for (DynDlist<Termino>::Iterator 
          it_izq(const_cast<DynDlist<Termino>&>(terminos)); 
-       it_izq.has_current(); it_izq.next())
-    result += der.multiplicado_por(it_izq.get_current());
+       it_izq.has_curr(); it_izq.next())
+    result += der.multiplicado_por(it_izq.get_curr());
 
   return result;
 }

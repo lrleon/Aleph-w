@@ -1,10 +1,15 @@
-/*
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-  2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_TREAP_H
@@ -50,7 +54,7 @@ namespace Aleph
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
-      The class internally uses the gsl random number generator of
+      The class internally uses the gsl random number generator of 
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
       system time.
@@ -63,7 +67,9 @@ namespace Aleph
   {
   public:
 
-    using Node = NodeType<Key>;  /// The type of node
+  using Node = NodeType<Key>;  /// The type of node
+
+private:
 
   private:
 
@@ -103,13 +109,13 @@ namespace Aleph
     /// \overload key_comp()
     Compare & get_compare() noexcept { return key_comp(); }
 
-    /// Initialize a treap with random `seed` and comparison criteria
-    /// `__cmp`
-    Gen_Treap(unsigned long seed, Compare & __cmp = Compare())
-      : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
-    {
-      init(seed);
-    }
+  /// Initialize a treap with random `seed` and comparison criteria
+  /// `__cmp`
+  Gen_Treap(unsigned long seed, Compare & __cmp = Compare())
+    : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
+  {
+    init(seed);
+  }
 
     /// Initialize a treap with random seed from system time and
     /// comparison criteria `cmp`

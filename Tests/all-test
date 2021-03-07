@@ -2,22 +2,47 @@
 # -*- coding: iso-8859-1 -*-
 
 require 'fileutils'
+require 'concurrent'
+
+ncpu = Concurrent.processor_count
 
 alephw = ENV['ALEPHW']
-gtestdir = ENV['GOOGLETEST']
 
 TestsFile = 'tests-list'
 
 fail "ALEPHW env var has not been defined" unless alephw
-fail "GOOGLETEST env var has not been defined" unless gtestdir
 
 fail 'file tests-list does not exist' unless File.exists? TestsFile
 
+def gen_imakefile
+  puts 'Generating Imakefile'
+  system './gen-make > Imakefile'
+end
+
+def gen_makefile
+  puts 'Generating Makefile'
+  system 'xmkmf'
+  system 'make depend'
+end
+
+if !File.exists?('Imakefile') ||
+   File.ctime('tests-list') > File.ctime('Imakefile')
+  gen_imakefile
+end
+
+if !File.exists?('Makefile') or
+  File.ctime('Imakefile') > File.ctime('Makefile')
+  gen_makefile
+end
+
 tests = File.open TestsFile
 
+status = system "make -j #{ncpu}"
+
+fail "Compilation failed" unless status
+
 tests.each do |name|
-  cmd = "./run-test -f #{name}"
-  status = system cmd
+  status = system "./#{name}"
   unless status
     system "figlet \"#{name} failed\""
     exit

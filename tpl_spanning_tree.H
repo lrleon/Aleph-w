@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_SPANNING_TREE_H
 # define TPL_SPANNING_TREE_H
@@ -73,9 +77,9 @@ class Find_Depth_First_Spanning_Tree
 
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
 	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes();
-	 i.next())
+	 i.next_ne())
       {
-        auto arc = i.get_current_arc();
+        auto arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Spanning_Tree)) 
           continue;
 
@@ -107,9 +111,9 @@ class Find_Depth_First_Spanning_Tree
   
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
 	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes(); 
-	 i.next())
+	 i.next_ne())
       {
-	auto arc = i.get_current_arc();
+	auto arc = i.get_current_arc_ne();
 	if (IS_ARC_VISITED(arc, Spanning_Tree)) 
 	  continue;
 
@@ -229,8 +233,8 @@ class Find_Breadth_First_Spanning_Tree
     GT::map_nodes(gp, tp_auto.release());
 
     DynListQueue<typename GT::Arc*> q; // insertar en cola arcos gp
-    for (Node_Arc_Iterator<GT, SA> i(gp, sa); i.has_curr(); i.next())
-      q.put(i.get_current_arc());
+    for (Node_Arc_Iterator<GT, SA> i(gp, sa); i.has_curr(); i.next_ne())
+      q.put(i.get_current_arc_ne());
 
     NODE_BITS(gp).set_bit(Spanning_Tree, true); 
 
@@ -264,9 +268,9 @@ class Find_Breadth_First_Spanning_Tree
 	  break; 
 
             // insertar en cola arcos de gtgt
-	for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next())
+	for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next_ne())
 	  {
-	    auto current_arc = i.get_current_arc();
+	    auto current_arc = i.get_current_arc_ne();
 	    if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
 	      continue;
 

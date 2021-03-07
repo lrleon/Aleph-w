@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TIMEOUTQUEUE_H
@@ -30,8 +34,7 @@
 # include <useMutex.H>
 # include <ah-time.H>
 
-
-class TimeoutQueue 
+class TimeoutQueue
 {
 public:
 
@@ -41,16 +44,16 @@ public:
 
   public:
 
-    enum Execution_Status 
-    {
-      Out_Queue, 
-      In_Queue, 
-      Canceled, 
-      Executing, 
-      Executed,
-      To_Delete,
-      Deleted
-    };
+    enum Execution_Status
+      {
+        Out_Queue,
+        In_Queue,
+        Canceled,
+        Executing,
+        Executed,
+        To_Delete,
+        Deleted
+      };
 
   private:
 
@@ -65,11 +68,11 @@ public:
     void set_execution_status(Execution_Status status)
     {
       execution_status = status;
-    }    
+    }
 
   protected:
 
-    Event(const Time& t) : 
+    Event(const Time& t) :
       BinHeapVtl<Time>::Node(t), execution_status(Out_Queue)
     {
       assert(EVENT_NSEC(this) >= 0 and EVENT_NSEC(this) < NSEC);
@@ -78,17 +81,17 @@ public:
     Event(long sec, long nsec) : execution_status(Out_Queue)
     {
       assert(nsec >= 0 and nsec < NSEC);
-      
+
       EVENT_SEC(this)  = sec;
       EVENT_NSEC(this) = nsec;
     }
 
   public:
 
-    virtual ~Event() 
-    { 
+    virtual ~Event()
+    {
       if (execution_status == In_Queue)
-	AH_ERROR("Attempting to delete an event in queue (0x%x)", this);
+        AH_ERROR("Attempting to delete an event in queue (0x%x)", this);
     }
 
     Execution_Status get_execution_status() const { return execution_status; }
@@ -111,7 +114,7 @@ private:
   bool             isShutdown;
 
   static int       instanceCounter;
-  
+
   void *triggerEvent();
 
   static void* triggerEventThread(void*);
@@ -120,13 +123,13 @@ public:
 
   TimeoutQueue();
 
-  ~TimeoutQueue() throw(domain_error);
+  ~TimeoutQueue();
 
   void schedule_event(const Time &, Event*);
 
   void schedule_event(Event*);
 
-  bool cancel_event(Event*); 
+  bool cancel_event(Event*);
 
   void reschedule_event(const Time &, Event*);
 

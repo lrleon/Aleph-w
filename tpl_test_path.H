@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TEST_PATH_H
 # define TEST_PATH_H
@@ -64,9 +68,9 @@ class Test_For_Path
     NODE_BITS(curr).set_bit(Find_Path, true); // pintar curr_node
 
     // buscar recursivamente a través de arcos de curr 
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
       { 
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Find_Path)) 
           continue; 
 
@@ -91,9 +95,9 @@ class Test_For_Path
     tgt = dest;
 
         // buscar recursivamente por arcos adyacentes a src
-    for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_current(); i.next())
+    for (Node_Arc_Iterator<GT, SA> i(src, sa); i.has_curr(); i.next_ne())
       {
-        typename GT::Arc * arc = i.get_current_arc();
+        typename GT::Arc * arc = i.get_current_arc_ne();
         ARC_BITS(arc).set_bit(Find_Path, true); // marcar arco
         if (test_path(i.get_tgt_node())) 
           return true; 

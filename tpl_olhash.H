@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 # ifndef TPL_OLHASH_H
@@ -82,7 +86,9 @@ public:
 
   using Item_Type = Key;
 
-  using Hash_Fct = size_t (*) (const Key&);
+  using Hash_Fct = std::function<size_t(const Key &)>;
+
+  using Hash_Fct_Ptr = size_t (*) (const Key&);
 
   enum Status { EMPTY, BUSY, DELETED };
 
@@ -133,14 +139,12 @@ public:
 
   Cmp & get_compare() { return cmp; }
 
+ protected:
+
       /// Instancia una tabla hash con función hash __hash_fct y
       /// dimensión len.
-  OLhashTable(size_t   __len      = Primes::DefaultPrime,
-	      Hash_Fct __hash_fct = Aleph::dft_hash_fct<Key>,
-	      Cmp __cmp           = Cmp(),
- 	      float __lower_alpha = hash_default_lower_alpha,
-	      float __upper_alpha = hash_default_upper_alpha,
-	      bool __with_resize  = true)
+  OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
+  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
     : table(nullptr), N(0), len(Primes::next_prime(__len)),
       lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
       hash_fct(__hash_fct), with_resize(__with_resize)
@@ -148,17 +152,33 @@ public:
     table = new Bucket [len];
   }
 
+  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, Cmp cmp,
+  	      float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}    
+
+ public:
+
+  OLhashTable(size_t len            = Primes::DefaultPrime,
+	      Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>, 
+	      Cmp cmp               = Cmp(),
+ 	      float lower_alpha     = hash_default_lower_alpha,
+	      float upper_alpha     = hash_default_upper_alpha,
+	      bool with_resize      = true)
+    : OLhashTable(len, Hash_Fct(hash_fct), cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
+
+  OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
+	      Cmp cmp, float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, Hash_fct(hash_fct), cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
+
   /** Constructor with two hash function for metaprogramming
       compatibility with ODhashTable
-
    */
-  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, 
- 	      const float & lower_alpha, const float & upper_alpha,
-	      const bool with_resize)
-    : OLhashTable(len, hash_fct, lower_alpha, upper_alpha, with_resize)
-  {
-    // empty
-  }
+  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
+  	      float lower_alpha, float upper_alpha, bool with_resize)
+    : OLhashTable(len, hash_fct, cmp,
+		  lower_alpha, upper_alpha, with_resize) {}
 
   Special_Ctors(OLhashTable, Key);
 
@@ -228,7 +248,7 @@ public:
      /// encuentra dentro de la tabla; de lo contrario, retorna nullptr.
   Key * search(const Key & key) const noexcept
   {   
-    long i = (*hash_fct)(key) % len, c = 0;
+    long i = hash_fct(key) % len, c = 0;
     while (c < len and table[i].status != EMPTY)
       {
 	if (table[i].status == BUSY and cmp(table[i].key, key))
@@ -248,7 +268,7 @@ protected:
   {
     assert(N < len);
 
-    size_t i = (*hash_fct)(key) % len; 
+    size_t i = hash_fct(key) % len; 
 
     while (table[i].status == BUSY) // find a slot that is not busy
       {
@@ -272,7 +292,7 @@ protected:
   {
     assert(N < len);
 
-    size_t i = (*hash_fct)(key) % len; 
+    size_t i = hash_fct(key) % len; 
     while (table[i].status == BUSY) // find a slot that is not busy
       {
 	if (cmp(key, table[i].key))
@@ -341,7 +361,7 @@ protected:
 	  {								
 	    ++num_busy;							
 	    const Key & key = table[i].key;				
-	    long i = (*hash_fct)(key) % len;				
+	    long i = hash_fct(key) % len;
 	    size_t count = 1;						
 									
 	    while (true)							

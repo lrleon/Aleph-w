@@ -1,10 +1,15 @@
-/* 
+
+/* Aleph-w
+
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
+
   This file is part of Aleph-w library
 
-  Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-                2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-  Leandro Rabindranath Leon / Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
   This program is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see
-  <https://www.gnu.org/licenses/>.
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef TPL_DYN_SLIST_NC_H
 # define TPL_DYN_SLIST_NC_H
@@ -178,12 +182,12 @@ namespace Aleph
         // empty
       }
 
-      T & get_current()
+      T & get_curr_n() const noexcept
       {
-        return Node::Iterator::get_current()->get_data();
+        return Node::Iterator::get_curr()->get_data();
       }
 
-      T & get_curr() { return Dyn_Slist_Nc::Iterator::get_current(); }
+      T & get_curr() const { return Dyn_Slist_Nc::Iterator::get_curr(); }
 
     };
 
@@ -197,8 +201,8 @@ namespace Aleph
     Dyn_Slist_Nc(const Dyn_Slist_Nc & l) : Node(l), head(this), num_items(0)
     {
       for (Iterator it(const_cast <Dyn_Slist_Nc &>(l));
-           it.has_current(); it.next())
-        append(it.get_current());
+           it.has_curr(); it.next_ne())
+        append(it.get_curr_ne());
     } 
 
     ~Dyn_Slist_Nc()
@@ -224,8 +228,8 @@ namespace Aleph
       assert(this->is_empty());
 
       for (Iterator it(const_cast<Dyn_Slist_Nc &>(list)); 
-           it.has_current(); it.next())
-        append(it.get_current()); 
+           it.has_curr(); it.next_ne())
+        append(it.get_curr_ne()); 
 
       return *this;
     }
@@ -233,7 +237,7 @@ namespace Aleph
     T & operator [] (const size_t & n)
     {
       Iterator it(*this);
-      for (int i = 0; i < n and it.has_current(); ++i, it.next());
+      for (int i = 0; i < n and it.has_curr(); ++i, it.next_ne());
 
       return it.get_curr();
     }

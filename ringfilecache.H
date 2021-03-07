@@ -1,10 +1,15 @@
-/*
+
+/* Aleph-w
+
+   / \  | | ___ _ __ | |__      __      __
+   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+   |_|
+
    This file is part of Aleph-w library
 
-   Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018
-
-   Leandro Rabindranath Leon / Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +18,11 @@
 
    This program is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
    General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see
-   <https://www.gnu.org/licenses/>.
+   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # ifndef RINGFILECACHE_H
 # define RINGFILECACHE_H
@@ -55,8 +59,8 @@ public:
     size_t n;    // Number of entries stored in cache
     size_t head; // next integral position ready for reading
     size_t tail; // next integral position ready for writing
-    size_t size_cache_file = 0; // num of chars of string (including '\0'
-    char cache_file_name[0]; // be careful with this field. DONT USE IT!
+    size_t size_cache_file = 0; // num of chars of string (including '\0')
+    char cache_file_name[0]; // be careful with this field. DON'T USE IT!
 
     string to_string() const
     {
@@ -82,7 +86,7 @@ private:
   fstream cache_stream; // the stream for the cache (read/write mode)
 
   size_t dim  = 0; // the maximum number of entries
-  size_t n    = 0; // the current number of entries stored
+  size_t n    = 0; // the current number of stored entries 
   size_t head = 0; // next integral position ready for reading
   size_t tail = 0; // next integral position ready for writing
 
@@ -478,7 +482,7 @@ public:
   /// Returns the number of entries stored in the cache
   size_t size() const noexcept { return n; }
 
-  /// Returns the maximum capacity
+  /// Returns the maximum capacity 
   size_t capacity() const noexcept { return dim; }
 
   /// Returns the number of available entries
@@ -722,8 +726,8 @@ public:
   {
     Array<T> ret;
     Iterator it(*this, pos);
-    for (size_t i = 0; i < m and it.has_curr(); ++i, it.next())
-      ret.append(it.get_curr());
+    for (size_t i = 0; i < m and it.has_curr(); ++i, it.next_ne())
+      ret.append(it.get_curr_ne());
 
     return ret;
   }
@@ -874,23 +878,27 @@ public:
       load_curr();
     }
 
+    T get_curr_ne() const noexcept { return curr; }
+
     T get_curr() const
     {
       if (not has_curr())
         throw overflow_error("RingFileCache::Iterator::get_curr()");
+      return get_curr_ne();
+    }
 
-      return curr;
+    void next_ne() noexcept
+    {
+      increase_pos();
+      if (has_curr())
+        load_curr();
     }
 
     void next()
     {
       if (not has_curr())
         throw overflow_error("RingFileCache::Iterator::next()");
-
-      increase_pos();
-
-      if (has_curr())
-        load_curr();
+      next_ne();
     }
   };
 
