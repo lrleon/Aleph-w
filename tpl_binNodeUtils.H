@@ -2045,8 +2045,8 @@ namespace Aleph {
     assert(p != Node::NullPtr and q != Node::NullPtr and
            pp != Node::NullPtr and pq != Node::NullPtr);
     assert(LLINK(pp) == p or RLINK(pp) == p);
-    assert(LLINK(pq) == q or RLINK(pq) == q)
-      assert(LLINK(q) == Node::NullPtr);
+    assert(LLINK(pq) == q or RLINK(pq) == q);
+    assert(LLINK(q) == Node::NullPtr);
 
     /* Set of pp to its new son q */
     if (LLINK(pp) == p)
