@@ -36,7 +36,7 @@ struct Data_Node
 
 typedef List_Graph<Graph_Node<int>, Graph_Arc<string> > Grafo;
 
-bool verbose = true; 
+bool verbose = true;
 
 struct Write_Arc
 {
@@ -85,8 +85,8 @@ Grafo build_graph()
       Grafo::Node * src = g.get_src_node(a);
       Grafo::Node * tgt = g.get_tgt_node(a);
 
-      a->get_info() = 
-	to_string(src->get_info()) + "--" + to_string(tgt->get_info());
+      a->get_info() =
+        to_string(src->get_info()) + "--" + to_string(tgt->get_info());
     }
 
   return g;
@@ -120,14 +120,14 @@ int main()
 
     cout << "saving graph ...";
 
-    IO_Graph<Grafo,Dft_Load_Node<Grafo>,Dft_Store_Node<Grafo>,Read_Arc,Write_Arc> 
-      (g).save (out); 
+    IO_Graph<Grafo,Dft_Load_Node<Grafo>,Dft_Store_Node<Grafo>,Read_Arc,Write_Arc>
+      (g).save (out);
 
     cout << " done" << endl << endl;
 
     print_graph(g);
   }
-  
+
   {
     ifstream in("test-random-graph.gra");
 
@@ -139,7 +139,7 @@ int main()
     cout << "loading graph ...";
 
     IO_Graph<Grafo,Dft_Load_Node<Grafo>,Dft_Store_Node<Grafo>,Read_Arc,Write_Arc> 
-      (g).load (in); 
+      (g).load (in);
 
     cout << " done" << endl << endl;
 

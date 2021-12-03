@@ -1033,9 +1033,18 @@ namespace Aleph
     mergesort<DynList<T>, Compare>(list, cmp);
   }
 
+
+  template <typename T, class Compare = Aleph::less<T>> inline
+  DynList<T> mergesort(DynList<T> && list, Compare cmp = Compare())
+  {
+    auto l = list;
+    mergesort<DynList<T>, Compare>(l, cmp);
+    return l;
+  }
+
   template <typename T, class Compare = Aleph::less<T>> inline
   int select_pivot(T * a, const int l, const int r, Compare cmp = Compare())
-    noexcept; 
+    noexcept;
 
 
   template <typename T, class Compare = Aleph::less<T>> inline

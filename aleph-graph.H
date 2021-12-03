@@ -51,21 +51,21 @@ static const long No_Visited = 0; // nodo o arco no ha sido visitado
 
       @ingroup Grafos
    */
-enum Graph_Bits 
+enum Graph_Bits
 {
-  Depth_First,   
-  Breadth_First, 
-  Test_Cycle,    
-  Find_Path,     
-  Euler,         
-  Maximum_Flow,  
-  Spanning_Tree, 
-  Build_Subtree, 
-  Convert_Tree,  
-  Cut,           
-  Min,           
+  Depth_First,
+  Breadth_First,
+  Test_Cycle,
+  Find_Path,
+  Euler,
+  Maximum_Flow,
+  Spanning_Tree,
+  Build_Subtree,
+  Convert_Tree,
+  Cut,
+  Min,
 
-  Num_Bits_Graph 
+  Num_Bits_Graph
 };
 
 

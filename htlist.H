@@ -828,7 +828,7 @@ public:
 
  //!\~English It divides 'this' into two equal lists without modifying
  //!elements order \~Spanish Divide this en dos listas equitativas sin
- //!alterar el orden de los elementos. 
+ //!alterar el orden de los elementos.
 
   /**
   \~English
