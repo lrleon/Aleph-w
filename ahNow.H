@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -68,12 +68,12 @@ namespace Aleph
     /// Precision for timing.
     enum class Precision
       {
-	Hours,
-	Minutes,
-	Seconds,
-	Milliseconds,
-	Microseconds,
-	Nanoseconds
+       Hours,
+       Minutes,
+       Seconds,
+       Milliseconds,
+       Microseconds,
+       Nanoseconds
       };
 
     static int to_int(Precision p)
@@ -108,8 +108,8 @@ namespace Aleph
      * @see Precision
      */
     static double compute_time_diff(const TimePointType & rtp,
-				    const TimePointType & ltp,
-				    const Precision & precision)
+                                    const TimePointType & ltp,
+                                    const Precision & precision)
     {
       DurationType et = std::chrono::duration_cast<nanoseconds>(rtp - ltp);
       return et.count() * precision_values[to_int(precision)];
@@ -131,7 +131,7 @@ namespace Aleph
       : tp(), precision(Precision::Milliseconds)
     {
       if (start_now)
-	start();
+        start();
     }
 
     /** \brief Builds a new object with parametric precision time.
@@ -150,7 +150,7 @@ namespace Aleph
       : tp(), precision(_precision)
     {
       if (start_now)
-	start();
+        start();
     }
 
     /** Gets the type of precision.
@@ -221,7 +221,7 @@ namespace Aleph
      *  @see Precision
      */
     static double elapsed(const TimePointType & tp,
-			  const Precision & precision = Precision::Milliseconds)
+                          const Precision & precision = Precision::Milliseconds)
     {
       return compute_time_diff(current_time_point(), tp, precision);
     }
@@ -233,7 +233,7 @@ namespace Aleph
      *               const Precision & precision = MILLISECONDS)
      */
     static double delta(const TimePointType & tp,
-			const Precision & precision = Precision::Milliseconds)
+                        const Precision & precision = Precision::Milliseconds)
     {
       return elapsed(tp, precision);
     }

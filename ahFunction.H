@@ -53,7 +53,7 @@
  */
 
 # ifndef AHFUNCTION_H
-# define AHFUNCTION_H 
+# define AHFUNCTION_H
 
 # include <utility>
 
@@ -63,8 +63,8 @@ namespace Aleph
       template <class _Arg, class _Result>
   struct unary_function
   {
-    typedef _Arg argument_type;  
-    typedef _Result result_type; 
+    typedef _Arg argument_type;
+    typedef _Result result_type;
   };
 
       template <class _Arg1, class _Arg2, class _Result>

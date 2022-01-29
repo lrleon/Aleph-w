@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -42,7 +42,7 @@
 # include <tpl_dynListStack.H>
 # include <tpl_dynarray_set.H>
 # include <tpl_random_queue.H>
- 
+
 using namespace std;
 
 using namespace Aleph;
@@ -76,10 +76,10 @@ void find_test()
   assert(not a.find_ptr([] (int i) { return i == 15; }));
   assert(get<0>(c.find_item([] (int i) { return i == 5; })));
   assert(get<0>(c.find_item([] (int i) { return i == 5; })) and
-  	 get<1>(c.find_item([] (int i) { return i == 5; })) == 5);
+         get<1>(c.find_item([] (int i) { return i == 5; })) == 5);
   assert(get<0>(a.find_item([] (int i) { return i == 5; })));
   assert(get<0>(a.find_item([] (int i) { return i == 5; })) and
-  	 get<1>(a.find_item([] (int i) { return i == 5; })) == 5);
+         get<1>(a.find_item([] (int i) { return i == 5; })) == 5);
 
 }
 
@@ -116,29 +116,29 @@ void functional_test()
   a.for_each([] (int i) { cout << " " << i; }); cout << endl;
 
   assert(c.all([&a] (int i) { return a.exists([i] (int k) 
-						  { return k == i; }); }));
+                                              { return k == i; }); }));
   assert(a.all([&c] (int i) { return c.exists([i] (int k)
-						{ return k == i; }); }));
+                                              { return k == i; }); }));
 
   assert(c.exists([] (int i) { return i == 9; }));
   assert(a.exists([] (int i) { return i == 9; }));
 
   assert(c.all([&c] (int i) 
-   		 { return c.exists([i] (int k) { return i == k; }); }));
+               { return c.exists([i] (int k) { return i == k; }); }));
   assert(a.all([&a] (int i) 
-		   { return a.exists([i] (int k) { return i == k; }); }));
+               { return a.exists([i] (int k) { return i == k; }); }));
 
   C cm = c.maps([] (int i) { return 10*i; });
   assert(cm.all([&c] (int k) 
-		{
-		  return c.exists([k] (int i) { return 10*i == k; });
-		}));
+                {
+                  return c.exists([k] (int i) { return 10*i == k; });
+                }));
 		
   const C ccm = a.maps([] (int i) { return 10*i; });
   assert(ccm.all([a] (int k) 
-		 {
-		   return a.exists([k] (int i) { return 10*i == k; });
-		 }));
+                 {
+                   return a.exists([k] (int i) { return 10*i == k; });
+                 }));
 
   {
     auto m = c.template maps<string>([] (int i) { return to_string(i); });
@@ -157,61 +157,61 @@ void functional_test()
        << endl;
   
   assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
-	    sort(c.filter([] (int i) { return i < 6; }))));
+            sort(c.filter([] (int i) { return i < 6; }))));
   assert(eq(build_dynlist<int>(0, 1, 2, 3, 4, 5),
-	    sort(a.filter([] (int i) { return i < 6; }))));
+            sort(a.filter([] (int i) { return i < 6; }))));
   
   c.pfilter([] (int i) { return i < 6; }).for_each([] (auto p)
-    {
-      cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
-    });
+                                                   {
+                                                     cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
+                                                   });
   cout << endl;
   a.pfilter([] (int i) { return i < 6; }).for_each([] (auto p)
-    {
-      cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
-    });
+                                                   {
+                                                     cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
+                                                   });
   cout << endl
        << endl;
 
   auto cmp_tup = [] (std::tuple<size_t,size_t> t1, std::tuple<size_t,size_t> t2)
-    {
-      return get<0>(t1) < get<0>(t2);
-    };
+                 {
+                   return get<0>(t1) < get<0>(t2);
+                 };
 
   auto l1 = sort(c.pfilter([] (int i) { return i < 6; }), cmp_tup);
   auto l2 = sort(a.pfilter([] (int i) { return i < 6; }), cmp_tup);
 
   l1.for_each([] (auto p)
-    {
-      cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
-    });
+              {
+                cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
+              });
   cout << endl;
   l2.for_each([] (auto p)
-    {
-      cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
-    });
+              {
+                cout << "(" << get<0>(p) << "," << get<1>(p) << ")";
+              });
   cout << endl
        << endl;
 
   auto eq_tup = [] (std::tuple<size_t,size_t> t1, std::tuple<size_t,size_t> t2)
-    {
-      return get<0>(t1) == get<0>(t2);
-    };
+                {
+                  return get<0>(t1) == get<0>(t2);
+                };
   assert(eq(l1 ,l2, eq_tup));
 
   auto p = c.partition([] (int i) { return i < 6; });
   assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and 
-	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
+         eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
   p = a.partition([] (int i) { return i < 6; });
   assert(eq(sort(p.first), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
-	 eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
+         eq(sort(p.second), build_dynlist<int>(6, 7, 8, 9)));
 
   auto t = c.tpartition([] (int i) { return i < 6; });
   assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
-	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
+         eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
   t = a.tpartition([] (int i) { return i < 6; });
   assert(eq(sort(get<0>(t)), build_dynlist<int>(0, 1, 2, 3, 4, 5)) and
-	 eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
+         eq(sort(get<1>(t)), build_dynlist<int>(6, 7, 8, 9)));
 
   assert(c.length() == 10);
   assert(a.length() == 10);

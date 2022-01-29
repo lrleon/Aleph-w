@@ -56,7 +56,10 @@ void test_tree(int n)
       s.insert(i, i);
 
     for (int i = 0; i < n; ++i)
-      s.remove(i);
+      {
+        assert(i == s[i]);
+        s.remove(i);
+      }
 
     assert(s.is_empty() and s.size() == 0);
   }
@@ -66,10 +69,13 @@ void test_tree(int n)
 
     for (int i = 0; i < n; ++i)
       {
-	int value = rand();
-	s.insert(i, value); 
+        int value = rand();
+        s.insert(i, value);
       }
-    
+
+    for (auto p : s)
+      assert(p.first == p.second);
+
     cout << s.size() << " nodes " << endl;
   }
 
@@ -78,18 +84,18 @@ void test_tree(int n)
 
     for (int i = 0; i < n; ++i)
       {
-	s[i]++;
-	s[i] += 2;
+        s[i]++;
+        s[i] += 2;
       }
 
     assert(s.all([] (auto p) { return p.second == 3; }));
-    
+
     cout << s.size() << " nodes " << endl;
   }
 }
 
 int main(int argn, char *argv[])
-{ 
+{
   int n = argn > 1 ? atoi(argv[1]) : 1000;
 
   unsigned int t = time(0);

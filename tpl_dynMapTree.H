@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -28,7 +28,7 @@
 # define TPL_DYNMAPTREE_H
 
 # include <tpl_dynSetTree.H>
- 
+
 using namespace Aleph;
 
 namespace Aleph {
@@ -45,7 +45,7 @@ namespace Aleph {
       instrumentar el mapeo. Los posibles tipos son BinTree Avl_Tree
       Splay_Tree Rb_Tree Treap y Rand_Tree.
       -# Key: tipo de clave de indización. También se le dice "dominio"
-      del mapeo. 
+      del mapeo.
       -# Data: tipo del rango.
       -# Compare: criterio de comparación entre las claves.
 
@@ -54,249 +54,249 @@ namespace Aleph {
 
       @see BinTree Avl_Tree Splay_Tree Rb_Tree Treap Rand_Tree
       @ingroup Arboles
-   */
-template <
-  typename Key, typename Data,
-  template <typename, class> class Tree = Avl_Tree,
-  class Compare                         = Aleph::less<Key>>
-class DynMapTree : 
+  */
+  template <
+    typename Key, typename Data,
+    template <typename, class> class Tree = Avl_Tree,
+    class Compare                         = Aleph::less<Key>>
+  class DynMapTree :
     public DynSetTree<std::pair<Key, Data>, Tree,
-		      Dft_Pair_Cmp<Key, Data, Compare>>
-{
-  using Pair = std::pair<Key, Data>;
-
-  using Base =
-    DynSetTree<std::pair<Key, Data>, Tree, Dft_Pair_Cmp<Key, Data, Compare>>;
-
-public:
-
-  using Base::Base;
-
-  DynMapTree(const DynList<Key> & keys)
+                      Dft_Pair_Cmp<Key, Data, Compare>>
   {
-    keys.for_each([this] (auto & k) { this->insert(make_pair(k, Data())); });
-  }
+    using Pair = std::pair<Key, Data>;
 
-  DynMapTree() {}
+    using Base =
+      DynSetTree<std::pair<Key, Data>, Tree, Dft_Pair_Cmp<Key, Data, Compare>>;
 
-  using Key_Type = Key;
+  public:
 
-  using Item_Type = Key;
+    using Base::Base;
 
-  using Value_Type = Data ;
+    DynMapTree(const DynList<Key> & keys)
+    {
+      keys.for_each([this] (auto & k) { this->insert(make_pair(k, Data())); });
+    }
 
-  // using Base::Base;  // no more need. But I don't remember why I put it
-  using Base::insert;
+    DynMapTree() {}
 
-  static Data & get_data(const Key & key) noexcept
-  {
-    return key_to_pair<Key, Data>(&const_cast<Key&>(key))->second;    
-  }
+    using Key_Type = Key;
 
-  static const Key & get_key(Data * data_ptr) noexcept
-  {
-    return data_to_pair<Key, Data>(data_ptr)->first;
-  }
+    using Item_Type = Key;
 
-      /** Inserta un par en el mapeo.
+    using Value_Type = Data ;
 
-          insert(key,data) inserta en el mapeo un nuevo par (key,data)
-          indizado por el valor de key. La operación no realiza inserción si
-          el valor de key ya está presente en el mapeo.
+    // using Base::Base;  // no more need. But I don't remember why I put it
+    using Base::insert;
 
-          @param[in] key clave a insertar.
-          @param[in] data valor a indizar por la clave key.
-          @return puntero al dato mapeado.
-          @throw bad_alloc si no hay suficiente memoria.
-      */
-  Pair * insert(const Key & key, const Data & data)
-  {
-    return this->Base::insert(Pair(key, data));
-  }
+    static Data & get_data(const Key & key) noexcept
+    {
+      return key_to_pair<Key, Data>(&const_cast<Key&>(key))->second;
+    }
 
-  Pair * insert(const Key & key, Data && data = Data())
-  {
-    return this->Base::insert(Pair(key, std::forward<Data>(data)));
-  }
-  
-  Pair * insert(Key && key, const Data & data)
-  {
-    return this->Base::insert(Pair(std::forward<Key>(key), data));
-  }
+    static const Key & get_key(Data * data_ptr) noexcept
+    {
+      return data_to_pair<Key, Data>(data_ptr)->first;
+    }
 
-  Pair * insert(Key && key, Data && data = Data())
-  {
-    return this->Base::insert(Pair(std::forward<Key>(key), 
-				   std::forward<Data>(data)));
-  }
+    /** Inserta un par en el mapeo.
 
-  Pair * append(const Key & key, const Data & data)
-  {
-    return this->Base::insert(Pair(key, data));
-  }
+        insert(key,data) inserta en el mapeo un nuevo par (key,data)
+        indizado por el valor de key. La operación no realiza inserción si
+        el valor de key ya está presente en el mapeo.
 
-  Pair * append(const Key & key, Data && data = Data())
-  {
-    return this->Base::insert(Pair(key, std::forward<Data>(data)));
-  }
-  
-  Pair * append(Key && key, const Data & data)
-  {
-    return this->Base::insert(Pair(std::forward<Key>(key), data));
-  }
+        @param[in] key clave a insertar.
+        @param[in] data valor a indizar por la clave key.
+        @return puntero al dato mapeado.
+        @throw bad_alloc si no hay suficiente memoria.
+    */
+    Pair * insert(const Key & key, const Data & data)
+    {
+      return this->Base::insert(Pair(key, data));
+    }
 
-  Pair * append(Key && key, Data && data = Data())
-  {
-    return this->Base::insert(Pair(std::forward<Key>(key), 
-				   std::forward<Data>(data)));
-  }
+    Pair * insert(const Key & key, Data && data = Data())
+    {
+      return this->Base::insert(Pair(key, std::forward<Data>(data)));
+    }
 
-      /** Inserta un par en el mapeo.
+    Pair * insert(Key && key, const Data & data)
+    {
+      return this->Base::insert(Pair(std::forward<Key>(key), data));
+    }
 
-          put(key,data) inserta en el mapeo un nuevo par (key,data)
-          indizado por el valor de key. La operación no realiza inserción si
-          el valor de key ya está presente en el mapeo.
+    Pair * insert(Key && key, Data && data = Data())
+    {
+      return this->Base::insert(Pair(std::forward<Key>(key),
+                                     std::forward<Data>(data)));
+    }
 
-          @param[in] key clave a insertar.
-          @param[in] data valor a indizar por la clave key.
-          @return número de elementos que contiene el mapeo.
-          @throw bad_alloc si no hay suficiente memoria.
-      */
-  Pair * put(const Key & key, const Data & data)
-  {
-    return insert(key, data);
-  }
+    Pair * append(const Key & key, const Data & data)
+    {
+      return this->Base::insert(Pair(key, data));
+    }
 
-  Pair * put(const Key & key, Data && data)
-  {
-    return insert(key, std::forward<Data>(data));
-  }
+    Pair * append(const Key & key, Data && data = Data())
+    {
+      return this->Base::insert(Pair(key, std::forward<Data>(data)));
+    }
 
-  Pair * put(Key && key, const Data & data)
-  {
-    return insert(std::forward<Key>(key), data);
-  }
+    Pair * append(Key && key, const Data & data)
+    {
+      return this->Base::insert(Pair(std::forward<Key>(key), data));
+    }
 
-  Pair * put(Key && key, Data && data)
-  {
-    return insert(std::forward<Key>(key), std::forward<Data>(data));
-  }
+    Pair * append(Key && key, Data && data = Data())
+    {
+      return this->Base::insert(Pair(std::forward<Key>(key),
+                                     std::forward<Data>(data)));
+    }
 
-      /** Deletes the pair `key,data`
+    /** Inserta un par en el mapeo.
 
-          `remove(key)` deletes from the mapping the pair associated to `key`
+        put(key,data) inserta en el mapeo un nuevo par (key,data)
+        indizado por el valor de key. La operación no realiza inserción si
+        el valor de key ya está presente en el mapeo.
 
-          @param[in] key to delete
-          @return the data associated to the removed key.
-	  @throw domain_error if key is not in the mapping
-      */
-  Data remove(const Key & key)
-  {
-    Pair p(key, Data());
-    return this->del(p).second;
-  }
+        @param[in] key clave a insertar.
+        @param[in] data valor a indizar por la clave key.
+        @return número de elementos que contiene el mapeo.
+        @throw bad_alloc si no hay suficiente memoria.
+    */
+    Pair * put(const Key & key, const Data & data)
+    {
+      return insert(key, data);
+    }
 
-  Data remove(Key && key)
-  {
-    return this->del(forward<Key>(key), Data()).second;
-  }
+    Pair * put(const Key & key, Data && data)
+    {
+      return insert(key, std::forward<Data>(data));
+    }
 
-      /** Retorna dato asociado a una clave.
+    Pair * put(Key && key, const Data & data)
+    {
+      return insert(std::forward<Key>(key), data);
+    }
 
-          search(key) retorna un puntero al valor del dato asociado a la
-          clave key.  
+    Pair * put(Key && key, Data && data)
+    {
+      return insert(std::forward<Key>(key), std::forward<Data>(data));
+    }
 
-          @param[in] key clave a buscar.
-          @return puntero al dato asociado a key si la clave existe en
-          mapeo; nullptr de lo contrario.
-          @see test
-      */
-  Pair * search(const Key & key) const noexcept
-  {
-    return this->Base::search(Pair(key, Data()));
-  }
+    /** Deletes the pair `key,data`
 
-  Pair * search(Key && key) const noexcept
-  {
-    return this->Base::search(Pair(move(key), Data()));
-  }
+        `remove(key)` deletes from the mapping the pair associated to `key`
 
-  bool has(const Key & key) const noexcept { return search(key) != nullptr; }
+        @param[in] key to delete
+        @return the data associated to the removed key.
+        @throw domain_error if key is not in the mapping
+    */
+    Data remove(const Key & key)
+    {
+      Pair p(key, Data());
+      return this->del(p).second;
+    }
 
-  bool has(Key && key) const noexcept { return search(move(key)) != nullptr; }
+    Data remove(Key && key)
+    {
+      return this->del(forward<Key>(key), Data()).second;
+    }
 
-  bool contains(const Key & key) const noexcept { return has(key); }
+    /** Retorna dato asociado a una clave.
 
-  bool contains(Key && key) const noexcept { return has(move(key)); }
-  
-      /** Retorna dato asociado a una clave.
+        search(key) retorna un puntero al valor del dato asociado a la
+        clave key.
 
-          search(key) retorna un puntero al valor del dato asociado a la
-          clave key.  
+        @param[in] key clave a buscar.
+        @return puntero al dato asociado a key si la clave existe en
+        mapeo; nullptr de lo contrario.
+        @see test
+    */
+    Pair * search(const Key & key) const noexcept
+    {
+      return this->Base::search(Pair(key, Data()));
+    }
 
-          @param[in] key clave a buscar.
-          @return puntero al dato asociado a key si la clave existe en
-          mapeo; nullptr de lo contrario.
-	  @throw domain_error si la clave no está dentro del mapeo
-       */
-  Data & find(const Key & key) 
-  { 
-    return this->Base::find(Pair(key, Data())).second;
-  }
+    Pair * search(Key && key) const noexcept
+    {
+      return this->Base::search(Pair(move(key), Data()));
+    }
 
-  const Data & find(const Key & key) const
-  { 
-    return this->Base::find(Pair(key, Data())).second;
-  }
+    bool has(const Key & key) const noexcept { return search(key) != nullptr; }
 
-  Data & operator [] (const Key & key)
-  { 
-    return this->search_or_insert(Pair(key, Data()))->second;
-  }
+    bool has(Key && key) const noexcept { return search(move(key)) != nullptr; }
 
-  const Data & operator [] (const Key & key) const
-  {
-    return this->find(key);
-  }
+    bool contains(const Key & key) const noexcept { return has(key); }
 
-  Data & operator [] (Key && key)
-  { 
-    return this->search_or_insert(Pair(move(key), Data()))->second;
-  }
+    bool contains(Key && key) const noexcept { return has(move(key)); }
 
-  const Data & operator [] (Key && key) const
-  {
-    return this->find(move(key));
-  }
+    /** Retorna dato asociado a una clave.
 
-  using Iterator = typename Base::Iterator;
+        search(key) retorna un puntero al valor del dato asociado a la
+        clave key.
 
-  DynList<Key> keys() const
-  {
-    return this->template maps<Key>([] (auto p) { return p.first; });
-  }
+        @param[in] key clave a buscar.
+        @return puntero al dato asociado a key si la clave existe en
+        mapeo; nullptr de lo contrario.
+        @throw domain_error si la clave no está dentro del mapeo
+    */
+    Data & find(const Key & key)
+    {
+      return this->Base::find(Pair(key, Data())).second;
+    }
 
-  DynList<Data> values() const
-  {
-    return this->template maps<Data>([] (auto p) { return p.second; });
-  }
+    const Data & find(const Key & key) const
+    {
+      return this->Base::find(Pair(key, Data())).second;
+    }
 
-  DynList<Data*> values_ptr()
-  {
-    DynList<Data*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next_ne())
-      ret.append(&it.get_curr_ne().second);
-    return ret;
-  }
+    Data & operator [] (const Key & key)
+    {
+      return this->search_or_insert(Pair(key, Data()))->second;
+    }
 
-  DynList<Pair*> items_ptr()
-  {
-    DynList<Pair*> ret;
-    for (Iterator it(*this); it.has_curr(); it.next_ne())
-      ret.append(&it.get_curr_ne());
-    return ret;
-  }
-};
+    const Data & operator [] (const Key & key) const
+    {
+      return this->find(key);
+    }
+
+    Data & operator [] (Key && key)
+    {
+      return this->search_or_insert(Pair(move(key), Data()))->second;
+    }
+
+    const Data & operator [] (Key && key) const
+    {
+      return this->find(move(key));
+    }
+
+    using Iterator = typename Base::Iterator;
+
+    DynList<Key> keys() const
+    {
+      return this->template maps<Key>([] (auto p) { return p.first; });
+    }
+
+    DynList<Data> values() const
+    {
+      return this->template maps<Data>([] (auto p) { return p.second; });
+    }
+
+    DynList<Data*> values_ptr()
+    {
+      DynList<Data*> ret;
+      for (Iterator it(*this); it.has_curr(); it.next_ne())
+        ret.append(&it.get_curr_ne().second);
+      return ret;
+    }
+
+    DynList<Pair*> items_ptr()
+    {
+      DynList<Pair*> ret;
+      for (Iterator it(*this); it.has_curr(); it.next_ne())
+        ret.append(&it.get_curr_ne());
+      return ret;
+    }
+  };
 } // end namespace Aleph
 
 
@@ -309,86 +309,86 @@ public:
 # include <tpl_splay_tree.H>
 
 namespace Aleph {
-/**
-   Mapeo dinámico implementado con árboles binario de búsqueda clásicos.
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda clásicos.
 
-   @see BinTree DynMapTree
-   @ingroup Arboles
- */
+     @see BinTree DynMapTree
+     @ingroup Arboles
+  */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapBinTree : public DynMapTree<Key, Type, BinTree, Compare> {};
 
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda AVL.
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda AVL.
 
-        @see Avl_Tree DynMapTree
-        @ingroup Arboles
-     */
+     @see Avl_Tree DynMapTree
+     @ingroup Arboles
+  */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapAvlTree : public DynMapTree<Key, Type, Avl_Tree, Compare> {};
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda rojo-negro.
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda rojo-negro.
 
-        @see Rb_Tree DynMapTree
-        @ingroup Arboles
-     */
-    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-    class DynMapRbTree : public DynMapTree<Key, Type, Rb_Tree, Compare>
-    { /* empty */ };
+     @see Rb_Tree DynMapTree
+     @ingroup Arboles
+  */
+  template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+  class DynMapRbTree : public DynMapTree<Key, Type, Rb_Tree, Compare>
+  { /* empty */ };
 
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda
-        aleatorizados. 
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda
+     aleatorizados.
 
-        @see Rand_Tree DynMapTree
-        @ingroup Arboles
-     */
-    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-    class DynMapRandTree : public DynMapTree<Key, Type, Rand_Tree, Compare>
-    { /* empty */ };
+     @see Rand_Tree DynMapTree
+     @ingroup Arboles
+  */
+  template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+  class DynMapRandTree : public DynMapTree<Key, Type, Rand_Tree, Compare>
+  { /* empty */ };
 
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda treaps. 
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda treaps.
 
-        @see Treap DynMapTree
-        @ingroup Arboles
-     */
-    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-    class DynMapTreap : public DynMapTree<Key, Type, Treap, Compare>
-    { /* empty */ };
+     @see Treap DynMapTree
+     @ingroup Arboles
+  */
+  template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+  class DynMapTreap : public DynMapTree<Key, Type, Treap, Compare>
+  { /* empty */ };
 
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda
-        treaps y con rango. Ofrece la operación position.
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda
+     treaps y con rango. Ofrece la operación position.
 
-        @see Treap_Rk DynMapTree
-        @ingroup Arboles
-     */
-    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-    class DynMapTreapRk : public DynMapTree<Key, Type, Treap_Rk, Compare>
-    { /* empty */ };
+     @see Treap_Rk DynMapTree
+     @ingroup Arboles
+  */
+  template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+  class DynMapTreapRk : public DynMapTree<Key, Type, Treap_Rk, Compare>
+  { /* empty */ };
 
-     /**
-        Mapeo dinámico implementado con árboles binario de búsqueda splay. 
+  /**
+     Mapeo dinámico implementado con árboles binario de búsqueda splay.
 
-        @see Splay_Tree DynMapTree
-        @ingroup Arboles
-     */
-    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
-    class DynMapSplayTree : public DynMapTree<Key, Type, Splay_Tree, Compare>
-    { /* empty */ };
+     @see Splay_Tree DynMapTree
+     @ingroup Arboles
+  */
+  template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+  class DynMapSplayTree : public DynMapTree<Key, Type, Splay_Tree, Compare>
+  { /* empty */ };
 
   template <typename T, class Op, class C>
-DynMapTree<typename C::Item_Type, T> map_unify(const C & c, Op op)
-{
-  DynMapTree<typename C::Item_Type, T> ret;
-  for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-    {
-      const auto & curr = it.get_curr_ne();
-      ret.insert(curr, op(curr));
-    }
-  return ret;
-}
+  DynMapTree<typename C::Item_Type, T> map_unify(const C & c, Op op)
+  {
+    DynMapTree<typename C::Item_Type, T> ret;
+    for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+      {
+        const auto & curr = it.get_curr_ne();
+        ret.insert(curr, op(curr));
+      }
+    return ret;
+  }
 
 } // end namespace Aleph
 

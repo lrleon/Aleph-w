@@ -324,8 +324,6 @@ namespace Aleph
 
     /** Inserta p como el hijo más a la izquierda de this.
 
-        Inserta p como el hijo más a la izquierda de this.
-
         @param[in] p nodo a insertar.
     */
     void insert_leftmost_child(Tree_Node * p) noexcept
@@ -365,8 +363,6 @@ namespace Aleph
     }
 
     /** Inserta p como el hijo más a la derecho de this.
-
-        Inserta p como el hijo más a la derecho de this.
 
         @param[in] p nodo a insertar.
     */
@@ -946,7 +942,7 @@ namespace Aleph
     if (not root->is_root())
       throw std::domain_error("root is not root");
 
-    for (/* nada */; root not_eq nullptr; root = root->get_right_sibling())
+    for (/* nothing */; root not_eq nullptr; root = root->get_right_sibling())
       {
         assert(root->is_root());
         __tree_postorder_traversal(root, 0, 0, visitFct);
@@ -972,10 +968,11 @@ namespace Aleph
 
     try
       {
-        return zipEq(t1->children_nodes(), t2->children_nodes()).all([] (auto p)
-          {
-            return are_tree_equal(p.first, p.second);
-          });
+        return zipEq(t1->children_nodes(), t2->children_nodes()).
+          all([] (auto p)
+              {
+                return are_tree_equal(p.first, p.second);
+              });
       }
     catch (std::length_error)
       {
@@ -1229,8 +1226,8 @@ namespace Aleph
       return BNode::NullPtr;
 
     BNode * result = new BNode (root->get_key());
-    LLINK(result) = forest_to_bin<TNode,BNode>(root->get_left_child());
-    RLINK(result) = forest_to_bin<TNode,BNode>(root->get_right_sibling());
+    LLINK(result) = (BNode*) forest_to_bin<TNode, BNode>(root->get_left_child());
+    RLINK(result) = forest_to_bin<TNode, BNode>(root->get_right_sibling());
 
     return result;
   }

@@ -1281,10 +1281,12 @@ public:
   void rotate_left(size_t n)
   {
     if (is_empty())
-      if (n == 0)
-        return;
-      else
-        throw std::domain_error("List is empty");
+      {
+        if (n == 0)
+          return;
+        else
+          throw std::domain_error("List is empty");
+      }
 
     for (size_t i = 0; i < n; ++i)
       append(remove_first());

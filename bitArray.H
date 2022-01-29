@@ -438,7 +438,7 @@ public:
           correspondientes al arreglo.
 
           @param[in] output stream de salida abierto donde se guardaría el
-          arreglo. 
+          arreglo.
       */
   void save(std::ostream & output)
   {
@@ -464,8 +464,8 @@ public:
           guardado con el método load(), y restaura el arreglo al valro
           guardado.
 
-          @param[in] input stream de entrada donde se encuentra fguarado
-          el arreglo y que debe haber sido previamente guardado con
+          @param[in] input stream de entrada donde se encuentra el
+          arreglo y que debe haber sido previamente guardado con
           save().
        */
   void load(std::istream & input)

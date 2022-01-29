@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -55,15 +55,15 @@ int main(int argn, char *argc[])
   cout << argc[0] << " " << n << " " << t << endl;
 
   map<int,int> map1;
-  
+
   for (int i = 0; i < n; i++)
     {
       map1.insert(make_pair(i, i*10));
       map1.insert(make_pair(i, i*100));
     }
-    
+
   cout << endl << "size map1: " << map1.size() << endl;
-  
+
   print_container(map1);
 
   cout << endl << "Hay " << map1.count(n/2) << " valores de " << n/2
@@ -74,9 +74,9 @@ int main(int argn, char *argc[])
   std::pair<int, int> _pair;
 
   _pair = *map1.find(n/2);
-  
+
   cout << _pair.first << endl;
-  
+
   _pair = *map1.lower_bound(n/2);
 
   cout << endl << "lower_bound de " << n/2 << " es: " << _pair.first  << endl;
@@ -126,7 +126,7 @@ int main(int argn, char *argc[])
   try
     {
       cout << "Esta es una lectura fallida map1[" << n << "] = " 
-	   << map1[n] << endl;
+           << map1[n] << endl;
     }
   catch (exception & e)
     {
@@ -142,7 +142,7 @@ int main(int argn, char *argc[])
   print_container(map3);
 
   cout << "map1 == map2: " << (map1 == map2 ? "true" : "false") << endl;
-  
+
   map1[n/2] = n;
 
   cout << "map1 == map2: " << (map1 == map2 ? "true" : "false") << endl;

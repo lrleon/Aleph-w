@@ -1600,13 +1600,15 @@ bool __split_key_rec(Node * root, const typename Node::key_type & key,
     }
 
   if (cmp(key, KEY(root)))
-    if (__split_key_rec(LLINK(root), key, ts, LLINK(root), cmp))
-      {
-        tg = root;
-        return true;
-      }
-    else
-      return false;
+    {
+      if (__split_key_rec(LLINK(root), key, ts, LLINK(root), cmp))
+        {
+          tg = root;
+          return true;
+        }
+      else
+        return false;
+    }
 
   if (cmp(KEY(root), key))
     if (__split_key_rec(RLINK(root), key, RLINK(root), tg, cmp))

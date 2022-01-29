@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -63,362 +63,366 @@ namespace Aleph {
 
       OLhashTable maneja tres parámetros tipo:
       -# Key: el tipo de dato que guarda la tabla.
-      -# Record: el tipo de dato a mapear por la clave. 
+      -# Record: el tipo de dato a mapear por la clave.
       -# Cmp: la clase de comparación entre claves. retorna true cuando
       las claves son iguales.
 
       @ingroup Hash
-   */
+  */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
-class OLhashTable
+  class OLhashTable
     : public OhashCommon<OLhashTable<Key, Cmp>, Key>,
       public GenericTraverse<OLhashTable<Key, Cmp>>,
       public LocateFunctions<OLhashTable<Key, Cmp>, Key>,
       public FunctionalMethods<OLhashTable<Key, Cmp>, Key>,
       public EqualToMethod<OLhashTable<Key, Cmp>>,
       public StlAlephIterator<OLhashTable<Key, Cmp>>
-{
-  friend class OhashCommon<OLhashTable<Key, Cmp>, Key>;
-
-public:
-
-  using Key_Type = Key;
-
-  using Item_Type = Key;
-
-  using Hash_Fct = std::function<size_t(const Key &)>;
-
-  using Hash_Fct_Ptr = size_t (*) (const Key&);
-
-  enum Status { EMPTY, BUSY, DELETED };
-
-  struct Bucket
   {
-    Key key;
-    char status = EMPTY;
+    friend class OhashCommon<OLhashTable<Key, Cmp>, Key>;
 
-    Bucket() noexcept : status(EMPTY) {}
-    void reset() noexcept { status = EMPTY; }
-  };
+  public:
 
-  static Bucket * key_to_bucket(Key * rec) noexcept
-  {
-    Bucket * ret_val = 0;
-    long offset = (long) &ret_val->key;
-    return (Bucket*) ((long) rec - offset); 
-  }
-  
-  Bucket *    table = nullptr;
-  size_t      N = 0;
+    using Key_Type = Key;
 
-protected:
+    using Item_Type = Key;
 
-  size_t len;
-  float  lower_alpha;
-  float  upper_alpha;
-  Cmp    cmp;
+    using Hash_Fct = std::function<size_t(const Key &)>;
 
-private:
+    using Hash_Fct_Ptr = size_t (*) (const Key&);
 
-  Hash_Fct hash_fct;
-  bool     with_resize;
+    enum Status { EMPTY, BUSY, DELETED };
 
-  bool is_valid_bucket(Bucket * bucket) const noexcept
-  {
-    if (bucket < &table[0] or bucket >= &table[len]) 
-      return false;
+    struct Bucket
+    {
+      Key key;
+      char status = EMPTY;
 
-    int offset_with_base = (char*) bucket - (char*) &table[0];
+      Bucket() noexcept : status(EMPTY) {}
+      void reset() noexcept { status = EMPTY; }
+    };
 
-    return offset_with_base % sizeof(*bucket) == 0;
-  }
+    static Bucket * key_to_bucket(Key * rec) noexcept
+    {
+      Bucket * ret_val = 0;
+      long offset = (long) &ret_val->key;
+      return (Bucket*) ((long) rec - offset);
+    }
 
-public:
+    Bucket *    table = nullptr;
+    size_t      N = 0;
 
-  const Cmp & get_compare() const { return cmp; }
+  protected:
 
-  Cmp & get_compare() { return cmp; }
+    size_t len;
+    float  lower_alpha;
+    float  upper_alpha;
+    Cmp    cmp;
 
- protected:
+  private:
 
-      /// Instancia una tabla hash con función hash __hash_fct y
-      /// dimensión len.
-  OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
-  	      float __lower_alpha, float __upper_alpha, bool __with_resize)
-    : table(nullptr), N(0), len(Primes::next_prime(__len)),
-      lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
-      hash_fct(__hash_fct), with_resize(__with_resize)
-  {
-    table = new Bucket [len];
-  }
+    Hash_Fct hash_fct;
+    bool     with_resize;
 
-  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, Cmp cmp,
-  	      float lower_alpha, float upper_alpha, bool with_resize)
-    : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}    
+    bool is_valid_bucket(Bucket * bucket) const noexcept
+    {
+      if (bucket < &table[0] or bucket >= &table[len])
+        return false;
 
- public:
+      int offset_with_base = (char*) bucket - (char*) &table[0];
 
-  OLhashTable(size_t len            = Primes::DefaultPrime,
-	      Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>, 
-	      Cmp cmp               = Cmp(),
- 	      float lower_alpha     = hash_default_lower_alpha,
-	      float upper_alpha     = hash_default_upper_alpha,
-	      bool with_resize      = true)
-    : OLhashTable(len, Hash_Fct(hash_fct), cmp,
-		  lower_alpha, upper_alpha, with_resize) {}
+      return offset_with_base % sizeof(*bucket) == 0;
+    }
 
-  OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
-	      Cmp cmp, float lower_alpha, float upper_alpha, bool with_resize)
-    : OLhashTable(len, Hash_fct(hash_fct), cmp,
-		  lower_alpha, upper_alpha, with_resize) {}
+  public:
 
-  /** Constructor with two hash function for metaprogramming
-      compatibility with ODhashTable
-   */
-  OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
-  	      float lower_alpha, float upper_alpha, bool with_resize)
-    : OLhashTable(len, hash_fct, cmp,
-		  lower_alpha, upper_alpha, with_resize) {}
+    const Cmp & get_compare() const { return cmp; }
 
-  Special_Ctors(OLhashTable, Key);
+    Cmp & get_compare() { return cmp; }
 
-      /// Libera toda la memoria ocupada.
-  ~OLhashTable()
-  {
-    if (table != nullptr)
-      delete [] table;
-  }
+  protected:
 
-  void swap(OLhashTable & other) noexcept
-  {
-    std::swap(table, other.table);
-    std::swap(N, other.N);
-    std::swap(len, other.len);
-    std::swap(cmp, other.cmp);
-    std::swap(hash_fct, other.hash_fct);
-    std::swap(lower_alpha, other.lower_alpha);
-    std::swap(upper_alpha, other.upper_alpha);
-    std::swap(with_resize, other.with_resize);
-  }
+    /// Instancia una tabla hash con función hash __hash_fct y
+    /// dimensión len.
+    OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
+                float __lower_alpha, float __upper_alpha, bool __with_resize)
+      : table(nullptr), N(0), len(Primes::next_prime(__len)),
+        lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
+        hash_fct(__hash_fct), with_resize(__with_resize)
+    {
+      table = new Bucket [len];
+    }
 
-  OLhashTable(const OLhashTable & other)
-    : OLhashTable(other.len, other.hash_fct, other.cmp,
-		  other.lower_alpha, other.upper_alpha, other.with_resize)
-  {
-    this->copy_from_table(other);
-  }
+    OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct, Cmp cmp,
+                float lower_alpha, float upper_alpha, bool with_resize)
+      : OLhashTable(len, hash_fct, cmp, lower_alpha, upper_alpha, with_resize) {}
 
-  OLhashTable(OLhashTable && other) noexcept : OLhashTable(other)
-  {
-    swap(other);
-  }
+  public:
 
-  OLhashTable & operator = (const OLhashTable & other)
-  {
-    if (this == &other)
+    OLhashTable(size_t len            = Primes::DefaultPrime,
+                Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
+                Cmp cmp               = Cmp(),
+                float lower_alpha     = hash_default_lower_alpha,
+                float upper_alpha     = hash_default_upper_alpha,
+                bool with_resize      = true)
+      : OLhashTable(len, Hash_Fct(hash_fct), cmp,
+                    lower_alpha, upper_alpha, with_resize) {}
+
+    OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
+                Cmp cmp, float lower_alpha, float upper_alpha, bool with_resize)
+      : OLhashTable(len, Hash_fct(hash_fct), cmp,
+                    lower_alpha, upper_alpha, with_resize) {}
+
+    /** Constructor with two hash function for metaprogramming
+        compatibility with ODhashTable
+    */
+    OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
+                float lower_alpha, float upper_alpha, bool with_resize)
+      : OLhashTable(len, hash_fct, cmp,
+                    lower_alpha, upper_alpha, with_resize) {}
+
+    Special_Ctors(OLhashTable, Key);
+
+    /// Libera toda la memoria ocupada.
+    ~OLhashTable()
+    {
+      if (table != nullptr)
+        delete [] table;
+    }
+
+    void swap(OLhashTable & other) noexcept
+    {
+      std::swap(table, other.table);
+      std::swap(N, other.N);
+      std::swap(len, other.len);
+      std::swap(cmp, other.cmp);
+      std::swap(hash_fct, other.hash_fct);
+      std::swap(lower_alpha, other.lower_alpha);
+      std::swap(upper_alpha, other.upper_alpha);
+      std::swap(with_resize, other.with_resize);
+    }
+
+    OLhashTable(const OLhashTable & other)
+      : OLhashTable(other.len, other.hash_fct, other.cmp,
+                    other.lower_alpha, other.upper_alpha, other.with_resize)
+    {
+      this->copy_from_table(other);
+    }
+
+    OLhashTable(OLhashTable && other) noexcept : OLhashTable(other)
+    {
+      swap(other);
+    }
+
+    OLhashTable & operator = (const OLhashTable & other)
+    {
+      if (this == &other)
+        return *this;
+
+      if (len > other.N)
+        this->clean_table();
+      else
+        {
+          Bucket * new_table = new Bucket [other.len];
+          delete [] table;
+          table = new_table;
+          N = 0;
+          len = other.len;
+          hash_fct = other.hash_fct;
+          cmp = other.cmp;
+          lower_alpha = other.lower_alpha;
+          upper_alpha = other.upper_alpha;
+        }
+
+      this->copy_from_table(other);
+
       return *this;
+    }
 
-    if (len > other.N)
-      this->clean_table();
-    else
-      {
-	Bucket * new_table = new Bucket [other.len];
-	delete [] table;
-	table = new_table;
-	N = 0;
-	len = other.len;
-	hash_fct = other.hash_fct;
-	cmp = other.cmp;
-	lower_alpha = other.lower_alpha;
-	upper_alpha = other.upper_alpha;
-      }
+    OLhashTable & operator = (OLhashTable && other) noexcept
+    {
+      swap(other);
+      return *this;
+    }
 
-    this->copy_from_table(other);
+    /// Busca la clave key y retorna el registro asociado si key se
+    /// encuentra dentro de la tabla; de lo contrario, retorna nullptr.
+    Key * search(const Key & key) const noexcept
+    {
+      long i = hash_fct(key) % len, c = 0;
+      while (c < len and table[i].status != EMPTY)
+        {
+          if (table[i].status == BUSY and cmp(table[i].key, key))
+            return &table[i].key;
 
-    return *this;
-  }
+          ++c;
+          if (++i == len)
+            i = 0;
+        }
 
-  OLhashTable & operator = (OLhashTable && other) noexcept
-  {
-    swap(other);
-    return *this;
-  }
+      return nullptr; // No se encuentra la clave
+    }
 
-     /// Busca la clave key y retorna el registro asociado si key se
-     /// encuentra dentro de la tabla; de lo contrario, retorna nullptr.
-  Key * search(const Key & key) const noexcept
-  {   
-    long i = hash_fct(key) % len, c = 0;
-    while (c < len and table[i].status != EMPTY)
-      {
-	if (table[i].status == BUSY and cmp(table[i].key, key))
-	  return &table[i].key;
+  protected:
 
-	++c;
-	if (++i == len)
-	  i = 0;
-      }
+    Bucket * allocate_bucket(const Key & key) noexcept
+    {
+      assert(N < len);
 
-    return nullptr; // No se encuentra la clave
-  }
+      size_t i = hash_fct(key) % len;
 
-protected:
+      while (table[i].status == BUSY) // find a slot that is not busy
+        {
+          if (cmp(key, table[i].key))
+            return nullptr;
 
-  Bucket * allocate_bucket(const Key & key) noexcept
-  {
-    assert(N < len);
+          if (++i == len)
+            i = 0;
+        }
 
-    size_t i = hash_fct(key) % len; 
+      Bucket * bucket = &table[i];
 
-    while (table[i].status == BUSY) // find a slot that is not busy
-      {
-	if (cmp(key, table[i].key))
-	  return nullptr;
+      // i contiene celda con DELETED o EMPTY ==> ocuparla
+      bucket->status = BUSY;
+      N++;
 
-	if (++i == len)
-	  i = 0;
-      }
+      return bucket;
+    }
 
-    Bucket * bucket = &table[i];
+    // Allocate a new bucket for storing key. It always returns a
+    // pointer to the bucket entry into the table. If the key is
+    // already inserted in the table, then second value is true,
+    // otherwise, not allocation is done and false is returned as second
+    tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
+    {
+      assert(N < len);
 
-        // i contiene celda con DELETED o EMPTY ==> ocuparla
-    bucket->status = BUSY;
-    N++;
+      size_t i = hash_fct(key) % len;
+      while (table[i].status == BUSY) // find a slot that is not busy
+        {
+          if (cmp(key, table[i].key))
+            return make_tuple(&table[i], true);
 
-    return bucket;
-  }
+          if (++i == len)
+            i = 0;
+        }
 
-  tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
-  {
-    assert(N < len);
+      Bucket * bucket = &table[i];
 
-    size_t i = hash_fct(key) % len; 
-    while (table[i].status == BUSY) // find a slot that is not busy
-      {
-	if (cmp(key, table[i].key))
-	  return make_tuple(&table[i], true);
+      // i contiene celda con DELETED o EMPTY ==> ocuparla
+      bucket->status = BUSY;
+      N++;
 
-	if (++i == len)
-	  i = 0;
-      }
-
-    Bucket * bucket = &table[i];
-
-        // i contiene celda con DELETED o EMPTY ==> ocuparla
-    bucket->status = BUSY;
-    N++;
-
-    return make_tuple(bucket, false);
-  }
+      return make_tuple(bucket, false);
+    }
 
     /// Elimina de la tabla el registro apuntado por record. Obviamente,
     /// record debe apuntar a una entrada arrojada por insert() o
     /// search(). Dispara excepciones invalid_argument si record no es una
     /// dirección dentro del rango de la tabla o domain_error si la cubeta
     /// del registro no está ocupada.
-  void deallocate_bucket(Bucket * bucket)
-  {
-    if (not is_valid_bucket(bucket))
-      throw std::invalid_argument("record address is not inside table's range");
+    void deallocate_bucket(Bucket * bucket)
+    {
+      if (not is_valid_bucket(bucket))
+        throw std::invalid_argument("record address is not inside table's range");
 
-    if (bucket->status != BUSY)
-      throw std::domain_error("Bucket containing record is not busy");
+      if (bucket->status != BUSY)
+        throw std::domain_error("Bucket containing record is not busy");
 
-    --N;
-    int i = bucket - &table[0]; // índice de brecha
-    table[i].status = DELETED;
-  }
+      --N;
+      int i = bucket - &table[0]; // índice de brecha
+      table[i].status = DELETED;
+    }
 
   public:
 
-  
-  /** 
 
-      Elimina la clave apuntada por key
-  */
-  void remove(const Key & key)
-  {
-    Key * key_ptr = search(key);
-    if (key_ptr == nullptr)
-      throw std::domain_error("Key not in hash table");
+    /**
 
-    this->remove_ptr(key_ptr);
-  }
+        Elimina la clave apuntada por key
+    */
+    void remove(const Key & key)
+    {
+      Key * key_ptr = search(key);
+      if (key_ptr == nullptr)
+        throw std::domain_error("Key not in hash table");
 
-  OHASH_COMMON(OLhashTable);
+      this->remove_ptr(key_ptr);
+    }
 
-  using Stats = typename OhashCommon<OLhashTable<Key, Cmp>, Key>::Stats;
+    OHASH_COMMON(OLhashTable);
 
-  Stats stats() const
-  {									
-    DynArray<size_t> lens;						
-    size_t num_busy = 0, num_deleted = 0, num_empty = 0;			
-    size_t max_len = std::numeric_limits<size_t>::min();			
-    for (int i = 0; i < len; ++i)					
-      switch (table[i].status)						
-	{								
-	case BUSY:							
-	  {								
-	    ++num_busy;							
-	    const Key & key = table[i].key;				
-	    long i = hash_fct(key) % len;
-	    size_t count = 1;						
+    using Stats = typename OhashCommon<OLhashTable<Key, Cmp>, Key>::Stats;
+
+    Stats stats() const
+    {									
+      DynArray<size_t> lens;						
+      size_t num_busy = 0, num_deleted = 0, num_empty = 0;			
+      size_t max_len = std::numeric_limits<size_t>::min();			
+      for (int i = 0; i < len; ++i)					
+        switch (table[i].status)						
+          {								
+          case BUSY:							
+            {								
+              ++num_busy;							
+              const Key & key = table[i].key;				
+              long i = hash_fct(key) % len;
+              size_t count = 1;						
 									
-	    while (true)							
-	      {								
-		if (table[i].status == BUSY and cmp(table[i].key, key)) 
-		  break;							
-		++count;							
-		if (++i == len)						
-		  i = 0;							
-	      }								
+              while (true)							
+                {								
+                  if (table[i].status == BUSY and cmp(table[i].key, key)) 
+                    break;							
+                  ++count;							
+                  if (++i == len)						
+                    i = 0;							
+                }								
 									
-	    max_len = std::max(max_len, count);				
-	    update_stat_len(lens, count);				
-	    break;							
-	  }								
-	case EMPTY:							
-	  ++num_empty;							
-	  update_stat_len(lens, 0);					
-	  break;								
-	case DELETED:							
-	  ++num_deleted;							
-	  break;								
-	}								
+              max_len = std::max(max_len, count);				
+              update_stat_len(lens, count);				
+              break;							
+            }								
+          case EMPTY:							
+            ++num_empty;							
+            update_stat_len(lens, 0);					
+            break;								
+          case DELETED:							
+            ++num_deleted;							
+            break;								
+          }								
  									
-    float avg = 0, sum = 0;						
-    for (int i = 0; i < lens.size(); ++i)				
-      {									
-	avg += lens(i)*i;						
-	sum += lens(i);							
-      }									
+      float avg = 0, sum = 0;						
+      for (int i = 0; i < lens.size(); ++i)				
+        {									
+          avg += lens(i)*i;						
+          sum += lens(i);							
+        }									
 									
-    avg /= sum;								
-    float var = 0;							
-    for (int i = 0; i < lens.size(); ++i)				
-      {									
-	float s = i - avg;						
-	var += lens(i)*s*s;						
-      }									
-    var /= sum;								
+      avg /= sum;								
+      float var = 0;							
+      for (int i = 0; i < lens.size(); ++i)				
+        {									
+          float s = i - avg;						
+          var += lens(i)*s*s;						
+        }									
+      var /= sum;								
    									
-    Stats stats;								
-    stats.num_busy = num_busy;						
-    stats.num_deleted = num_deleted;					
-    stats.num_empty = num_empty;						
-    std::swap(lens, stats.lens);						
-    stats.avg = avg;							
-    stats.var = var;							
-    stats.max_len = max_len;						
+      Stats stats;								
+      stats.num_busy = num_busy;						
+      stats.num_deleted = num_deleted;					
+      stats.num_empty = num_empty;						
+      std::swap(lens, stats.lens);						
+      stats.avg = avg;							
+      stats.var = var;							
+      stats.max_len = max_len;						
 									
-    return stats;						
-  }
-};
+      return stats;						
+    }
+  };
 
 
 
-template <typename Key, class Cmp = Aleph::equal_to<Key>>
-using SetOLhash = OLhashTable<Key, Cmp>;
+  template <typename Key, class Cmp = Aleph::equal_to<Key>>
+  using SetOLhash = OLhashTable<Key, Cmp>;
 
 								
 }

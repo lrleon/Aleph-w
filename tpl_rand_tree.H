@@ -94,17 +94,17 @@ namespace Aleph {
           if (result != Node::NullPtr) // p was inserted?
             {
               LLINK(root) = result;
-              ++COUNT(root); 
+              ++COUNT(root);
               return root;
             }
         }
       else if (cmp(KEY(root), KEY(p))) // KEY(p) > KEY(root) ?
         {
-          result = random_insert(RLINK(root), p); 
+          result = random_insert(RLINK(root), p);
           if (result != Node::NullPtr) // p was inserted?
-            { 
+            {
               RLINK(root) = result;
-              ++COUNT(root); 
+              ++COUNT(root);
               return root;
             }
         }
@@ -114,17 +114,17 @@ namespace Aleph {
 
     Node * random_insert_dup(Node * root, Node * p) noexcept
     {
-      const long & n = COUNT(root); 
+      const long & n = COUNT(root);
       const size_t rn = gsl_rng_uniform_int(r, n + 1);
       if (rn == n) // p wins the raffle?
-        return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p); 
+        return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
       if (cmp(KEY(p), KEY(root))) // KEY(p) < KEY(root) ?
-        LLINK(root) = random_insert_dup(LLINK(root), p); 
+        LLINK(root) = random_insert_dup(LLINK(root), p);
       else
-        RLINK(root) = random_insert_dup(RLINK(root), p); 
-      
-      ++COUNT(root); 
+        RLINK(root) = random_insert_dup(RLINK(root), p);
+
+      ++COUNT(root);
 
       return root;
     }
@@ -383,15 +383,15 @@ namespace Aleph {
         if this was in the tree and the parent node that the key would
         had. At this regard, there are three cases:
         1. if `key` is lesser than the minimum key of tree, then first is
-           -1 and the node is one with the smallest key.
+        -1 and the node is one with the smallest key.
 
         2. If `key` is greater than the maximum key in the tree, then
-           first is the number of keys and the node is one with the
-           maximum key in the tree.
+        first is the number of keys and the node is one with the
+        maximum key in the tree.
 
         3. For any other case, first is the inorder position that
-           would have `key` if this was in the tree and second is the
-           node whose key is inmediataly greater than `key`.
+        would have `key` if this was in the tree and second is the
+        node whose key is inmediataly greater than `key`.
 
         @param[in] key to be searched
         @return a pair with the inorder position and and related node
