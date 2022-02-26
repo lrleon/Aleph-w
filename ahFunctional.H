@@ -843,6 +843,10 @@ namespace Aleph
 
     bool has_curr() const noexcept { return it1.has_curr() and it2.has_curr(); }
 
+    bool has_curr1() const noexcept { return it1.has_curr; }
+
+    bool has_curr2() const noexcept { return it2.has_curr; }
+
     auto get_curr() const
     {
       return std::make_pair(it1.get_curr(), it2.get_curr());
@@ -1001,10 +1005,11 @@ namespace Aleph
   DynList<T> flatten(const C2<C1<T>> & c)
   {
     DynList<T> ret;
-    for (auto it_c = c.get_it(); it_c.has_curr(); it_c.next_ne())
+    for (typename C2<C1<T>>::Iterator it_c = c.get_it(); it_c.has_curr();
+         it_c.next_ne())
       {
-        auto & curr_c = it_c.get_curr_ne();
-        for (auto it = curr_c.get_it(); it.has_curr(); it.next_ne())
+        C1<T> & curr_c = it_c.get_curr_ne();
+        for (typename C1<T>::Iterator it = curr_c.get_it(); it.has_curr(); it.next_ne())
           ret.append(it.get_curr_ne());
       }
     return ret;
@@ -1017,7 +1022,7 @@ namespace Aleph
   DynList<T> flatten(const C3<C2<C1<T>>> & c)
   {
     DynList<T> ret;
-    for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    for (typename C3<C2<C1<T>>>::Iterator it = c.get_it(); it.has_curr(); it.next_ne())
       ret.append(flatten(it.get_curr_ne()));
     return ret;
   }
@@ -1030,7 +1035,8 @@ namespace Aleph
   DynList<T> flatten(const C4<C3<C2<C1<T>>>> & c)
   {
     DynList<T> ret;
-    for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+    for (typename C4<C3<C2<C1<T>>>>::Iterator it = c.get_it(); it.has_curr();
+         it.next_ne())
       ret.append(flatten(it.get_curr_ne()));
     return ret;
   }

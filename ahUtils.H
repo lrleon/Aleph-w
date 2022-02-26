@@ -128,24 +128,24 @@ inline int char_to_nibble(const char & c)
 }
 
 # define DERIVATE_ITERATOR(container_name,  base_it_name, it_name) \
-  struct it_name : public base_it_name				   \
-  {								   \
-    it_name() { /* empty */ }					   \
-								   \
-    it_name(container_name & c) : base_it_name(c)		   \
-      {								   \
-	/* empty */						   \
-      }								   \
-								   \
-    it_name(const it_name & it) : base_it_name(it)		   \
-      {								   \
-	/* empty */						   \
-      }								   \
-								   \
-    it_name & operator = (const it_name & it)			   \
-      {								   \
-	return base_it_name::operator = (it);			   \
-      }								   \
+  struct it_name : public base_it_name                             \
+  {                                                                \
+    it_name() { /* empty */ }                                      \
+		                                                               \
+    it_name(container_name & c) : base_it_name(c)                  \
+      {                                                            \
+        /* empty */                                                \
+      }                                                            \
+                                                                   \
+    it_name(const it_name & it) : base_it_name(it)                 \
+      {                                                            \
+        /* empty */                                                \
+      }                                                            \
+                                                                   \
+    it_name & operator = (const it_name & it)                      \
+    {                                                              \
+      return base_it_name::operator = (it);                        \
+    }                                                              \
   };
 
 

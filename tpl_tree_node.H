@@ -652,7 +652,7 @@ namespace Aleph
 
       using Item_Type = Tree_Node*;
 
-      void swap(Iterator & it)
+      void swap(Iterator & it) noexcept
       {
         std::swap(root, it.root);
         std::swap(curr, it.curr);
@@ -676,21 +676,9 @@ namespace Aleph
 
       Iterator(Iterator && it) { swap(it); }
 
-      Iterator & operator = (const Iterator & it)
+      Iterator & operator = (Iterator it)
       {
-        if (this == &it)
-          return *this;
-
-        root = it.root;
-        curr = it.curr;
-        pos = it.pos;
-        s = it.s;
-        return *this;
-      }
-
-      Iterator & operator = (Iterator && it)
-      {
-        swap(it);
+        it.swap(*this);
         return *this;
       }
 
@@ -1046,7 +1034,7 @@ namespace Aleph
     while (root != nullptr) // recorre los árboles de izquierda a derecha
       {
         Node * to_delete = root;          // respalda raíz
-        root = root->get_right_sibling(); // avanza a siguiente árbol
+        root = (Node*) root->get_right_sibling(); // avanza a siguiente árbol
         SIBLING_LIST(to_delete)->del();   // elimine de lista árboles
         destroy_tree(to_delete);          // Borre el árbol
       }

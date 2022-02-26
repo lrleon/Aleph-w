@@ -2345,8 +2345,8 @@ namespace Aleph
 
       Esta versión de quicksort ocupa espacio máximo de \f$O(\lg n)\f$.
 
-      El quicksort es un método probabilístico. En un muy mal caso 
-      -muy mala suerte- puede degradarse a 
+      El quicksort es un método probabilístico. En un muy mal caso
+      -muy mala suerte- puede degradarse a
       \f$O(n^2)\f$. Para paliar, en la medida de la suerte, los malos
       casos, use quicksort_insertion() que ejecuta heurísticas para
       paliar los malos casos e invoca al método de inserción para
@@ -2381,15 +2381,15 @@ namespace Aleph
           {
             push2(stack, l, i - 1); push2(stack, i + 1, r);
           }
-        else 
+        else
           {
-            push2(stack, i + 1, r); push2(stack, l, i - 1); 
-          } 
+            push2(stack, i + 1, r); push2(stack, l, i - 1);
+          }
       }
   }
 
   /** Búsqueda genérica en un arreglo dinámico de un elemento extremo.
-	
+
       search_extreme(a, l, r) busca secuencialmente en el arreglo
       a, entre los índices l y r, el elemento extremo, mínimo o
       máximo según el criterio de comparación Compare.
@@ -2402,7 +2402,7 @@ namespace Aleph
       \ingroup Algos
   */
   template <typename T, class Compare = Aleph::less<T>> inline
-  long search_extreme(const DynArray<T>& a, const long l, const long r, 
+  long search_extreme(const DynArray<T>& a, const long l, const long r,
                       Compare cmp = Compare())
   {
     long extreme_index = l;
@@ -2423,13 +2423,13 @@ namespace Aleph
                   Compare cmp = Compare())
   {
     return search_extreme<T, Compare>(a, l, r, cmp);
-  }  
+  }
 
   /** Búsqueda binaria sobre un arreglo dinámico ordenado.
 
       binary_search<T,Compare>(a,x,l,r) realiza la búsqueda de x
       en el arreglo a comprendida entre los límites inferior l y
-      superior r. 
+      superior r.
 
       La rutina es genérica y utiliza dos parámetros tipo:
       -# El tipo de dato que alberga el arreglo.
@@ -2443,7 +2443,7 @@ namespace Aleph
       [l..r]. Si el elemento es encontrado, entonces el valor de retorno
       es índice donde éste se encuentra; de lo contrario, se retorna
       el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.  
+      ordenado.
 
       @warning La rutina no falla si el arreglo está vacío, pero
       tenga cuidado con accederlo en esta situación
@@ -2457,12 +2457,12 @@ namespace Aleph
       @see sequential_search()
       \ingroup Algos
   */
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   long binary_search(const C<T> & a, const T & x, long l, long r,
                      Compare cmp = Compare()) noexcept
   {
-    if (l > r) 
+    if (l > r)
       return l;
 
     long m;
@@ -2478,14 +2478,14 @@ namespace Aleph
       }
 
     return m;
-  } 
+  }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   long binary_search(const C<T*> & a, const T & x, long l, long r,
                      Compare cmp = Compare()) noexcept
   {
-    if (l > r) 
+    if (l > r)
       return l;
 
     long m;
@@ -2501,11 +2501,11 @@ namespace Aleph
       }
 
     return m;
-  } 
+  }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
-  long binary_search(const C<T*> & a, const T & x, Compare && cmp = Compare()) 
+  long binary_search(const C<T*> & a, const T & x, Compare && cmp = Compare())
     noexcept
   {
     return binary_search(a, x, 0, a.size() - 1, cmp);
@@ -2514,7 +2514,7 @@ namespace Aleph
   /** Búsqueda binaria sobre un arreglo dinámico ordenado.
 
       binary_search(a,x) realiza la búsqueda de x
-      en el arreglo a comprendida entre 0 y <code>size()</code>. 
+      en el arreglo a comprendida entre 0 y <code>size()</code>.
 
       La rutina usa el algoritmo de la búsqueda binaria, lo que exige
       que el arreglo esté ordenado. Esta condición no se verifica en
@@ -2524,7 +2524,7 @@ namespace Aleph
       [0..size()). Si el elemento es encontrado, entonces el valor de
       retorno es el índice donde éste se encuentra; de lo contrario,
       se retorna el índice donde se insertaría x para que el arreglo
-      estuviese ordenado.  
+      estuviese ordenado.
 
       @warning La rutina no falla si el arreglo está vacío, pero
       tenga cuidado con accederlo en esta situación
@@ -2536,14 +2536,14 @@ namespace Aleph
       @see sequential_search()
       \ingroup Algos
   */
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   long binary_search(const C<T> & a, const T & x, Compare cmp = Compare()) noexcept
   {
     return binary_search(a, x, 0, a.size() - 1, cmp);
   }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   DynList<size_t> binary_search_dup(const C<T> & a, const T & x,
                                     Compare cmp = Compare()) noexcept
@@ -2666,7 +2666,7 @@ namespace Aleph
     return ret;
   }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   long binindex(const C<T> & a, const T & x, Compare cmp = Compare()) noexcept
   {
@@ -2745,7 +2745,7 @@ namespace Aleph
     return ret;
   }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   DynArray<size_t> build_index(const C<T> & a, Compare cmp = Compare())
   {
@@ -2753,14 +2753,14 @@ namespace Aleph
     DynArray<size_t> ret; ret.reserve(a.size());
     for (size_t i = 0; i < n; ++i)
       ret(i) = i;
-  
+
     quicksort_op(ret,
                  [&a, &cmp] (size_t i, size_t j) { return cmp(a(i), a(j)); });
 
     return ret;
   }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   DynArray<T*> build_index_ptr(const C<T> & a, Compare cmp = Compare())
   {
@@ -2768,14 +2768,14 @@ namespace Aleph
     DynArray<T*> ret; ret.reserve(a.size());
     for (size_t i = 0; i < n; ++i)
       ret(i) = &a(i);
-  
-    quicksort_op(ret, [&cmp] (const T * ptr1, const T * ptr2) 
+
+    quicksort_op(ret, [&cmp] (const T * ptr1, const T * ptr2)
                  { return cmp(*ptr1, *ptr2); });
 
     return ret;
   }
 
-  template <template <typename> class C, typename T, 
+  template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>> inline
   void quicksort_op(C<T> & a, Compare cmp = Compare(),
                     size_t threshold = Quicksort_Threshold) noexcept
@@ -2791,7 +2791,7 @@ namespace Aleph
         l = stack.pop(); r = stack.pop();
 
         size_t partition_size = r - l + 1;
-        if (partition_size <= 1)  
+        if (partition_size <= 1)
           continue;
 
         if (partition_size <= threshold)
@@ -2806,10 +2806,10 @@ namespace Aleph
           {
             push2(stack, l, i - 1); push2(stack, i + 1, r);
           }
-        else 
+        else
           {
-            push2(stack, i + 1, r); push2(stack, l, i - 1); 
-          } 
+            push2(stack, i + 1, r); push2(stack, l, i - 1);
+          }
       }
   }
 
@@ -2819,7 +2819,7 @@ namespace Aleph
 
       binary_search_rec<T,Compare>(a,x,l,r) realiza la búsqueda de x
       en el arreglo a comprendida entre los límites inferior l y
-      superior r. 
+      superior r.
 
       La rutina es genérica y utiliza dos parámetros tipo:
       -# El tipo de dato que alberga el arreglo.
@@ -2833,7 +2833,7 @@ namespace Aleph
       [l..r]. Si el elemento es encontrado, entonces el valor de retorno
       es índice donde éste se encuentra; de lo contrario, se retorna
       el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.  
+      ordenado.
 
       @param[in] a el arreglo sobre el cual realizar la búsqueda.
       @param[in] x el elemento a buscar.
@@ -2844,12 +2844,12 @@ namespace Aleph
       @see sequential_search()
       \ingroup Algos
   */
-  template <typename T, class Compare = Aleph::less<T>> inline 
+  template <typename T, class Compare = Aleph::less<T>> inline
   int binary_search_rec(T * a, const T & x, const long l, const long r,
                         Compare cmp = Compare()) noexcept
   {
     const long m = (l + r) / 2;
-    if (l > r) 
+    if (l > r)
       return m;
 
     if (cmp(x, a[m]))
@@ -2864,7 +2864,7 @@ namespace Aleph
 
       binary_search<T,Compare>(a,x,l,r) realiza la búsqueda de x
       en el arreglo a comprendida entre los límites inferior l y
-      superior r. 
+      superior r.
 
       La rutina es genérica y utiliza dos parámetros tipo:
       -# El tipo de dato que alberga el arreglo.
@@ -2878,7 +2878,7 @@ namespace Aleph
       [l..r]. Si el elemento es encontrado, entonces el valor de retorno
       es índice donde éste se encuentra; de lo contrario, se retorna
       el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.  
+      ordenado.
 
       @param[in] a el arreglo sobre el cual realizar la búsqueda.
       @param[in] x el elemento a buscar.
@@ -2901,10 +2901,10 @@ namespace Aleph
           r = m - 1;
         else if (cmp(a[m], x))
           l = m + 1;
-        else 
+        else
           break;
       }
-    return m; 
+    return m;
   }
 
 }

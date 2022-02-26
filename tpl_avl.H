@@ -462,8 +462,8 @@ public:
           tree is returned. Otherwise, `p` is inserted and its value
           returned,
 
-	  This method is very useful when it is required to search and
-	  eventually to inseert,
+          This method is very useful when it is required to search and
+          eventually to insert,
 
           @param[in] p the node whose key must be searched and
           eventually inserted,
@@ -477,17 +477,17 @@ public:
       return root = p;
 
     Node * pp = search_and_stack_avl(KEY(p));
-    if (cmp(KEY(p), KEY(pp))) 
+    if (cmp(KEY(p), KEY(pp)))
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
       RLINK(pp) = p;
     else
       { // clave duplicada
         clean_avl_stack();
-        return pp;  
+        return pp;
       }
 
-    restore_avl_after_insertion(p); 
+    restore_avl_after_insertion(p);
 
     return p;
   }

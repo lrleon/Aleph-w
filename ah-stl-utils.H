@@ -38,7 +38,7 @@
 
 template<class F, class...Ts, std::size_t...Is> inline
 void for_each_in_tuple(const std::tuple<Ts...> & tuple,
-		       F func, std::index_sequence<Is...>)
+                       F func, std::index_sequence<Is...>)
 {
   using expander = int[];
   (void)expander { 0, ((void)func(std::get<Is>(tuple)), 0)... };

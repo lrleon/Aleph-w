@@ -29,6 +29,6 @@
 
 # include <iterator>
 
-class StlZipIterator
+
 
 # endif

@@ -51,7 +51,7 @@ struct StlIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const
+  bool operator == (const Itor & it)
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -63,7 +63,7 @@ struct StlIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const
+  bool operator != (const Itor & it)
   {
     return not (*this == it);
   }
@@ -188,9 +188,9 @@ public:
     return const_iterator::cbegin(*const_me());
   }
 
-  const_iterator cend() noexcept 
+  const_iterator cend() noexcept
   {
-    return const_iterator::cend(*const_me()); 
+    return const_iterator::cend(*const_me());
   }
 
   friend const_iterator cbegin(const SetName & s) noexcept { return s.begin(); }
@@ -212,7 +212,7 @@ public:
     @ingroup Funcional
  */
 template <class Container> inline
-Aleph::DynList<typename Container::value_type> 
+Aleph::DynList<typename Container::value_type>
 extract_from_stl_container(const Container & c)
 {
   Aleph::DynList<typename Container::value_type> ret;

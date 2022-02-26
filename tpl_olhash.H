@@ -354,29 +354,29 @@ namespace Aleph {
     using Stats = typename OhashCommon<OLhashTable<Key, Cmp>, Key>::Stats;
 
     Stats stats() const
-    {									
-      DynArray<size_t> lens;						
-      size_t num_busy = 0, num_deleted = 0, num_empty = 0;			
-      size_t max_len = std::numeric_limits<size_t>::min();			
-      for (int i = 0; i < len; ++i)					
-        switch (table[i].status)						
-          {								
-          case BUSY:							
-            {								
-              ++num_busy;							
-              const Key & key = table[i].key;				
+    {
+      DynArray<size_t> lens;
+      size_t num_busy = 0, num_deleted = 0, num_empty = 0;
+      size_t max_len = std::numeric_limits<size_t>::min();
+      for (int i = 0; i < len; ++i)
+        switch (table[i].status)
+          {
+          case BUSY:
+            {
+              ++num_busy;
+              const Key & key = table[i].key;
               long i = hash_fct(key) % len;
-              size_t count = 1;						
-									
-              while (true)							
-                {								
-                  if (table[i].status == BUSY and cmp(table[i].key, key)) 
-                    break;							
-                  ++count;							
-                  if (++i == len)						
-                    i = 0;							
-                }								
-									
+              size_t count = 1;
+
+              while (true)
+                {
+                  if (table[i].status == BUSY and cmp(table[i].key, key))
+                    break;
+                  ++count;
+                  if (++i == len)
+                    i = 0;
+                }
+
               max_len = std::max(max_len, count);				
               update_stat_len(lens, count);				
               break;							
