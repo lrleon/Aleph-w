@@ -465,7 +465,7 @@ namespace Aleph {
         @param[out] t1 resulting tree with the keys lesser than `key`
         @param[out] t2 resulting tree with the keys greater or equal than `key`
     */
-    void spit_key_dup(const Key & key, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
+    void split_key_dup(const Key & key, Gen_Rand_Tree & t1, Gen_Rand_Tree & t2)
       noexcept
     {
       split_key_dup_rec_xt(tree_root, key, t1.getRoot(), t2.getRoot());

@@ -38,20 +38,20 @@ struct StlIterator : public SetType::Iterator
 
   using Itor::Itor;
 
-  Itor operator ++ ()
+  StlIterator operator ++ ()
   {
     this->next();
     return *this;
   }
 
-  Itor operator ++ (int)
+  StlIterator operator ++ (int)
   {
     Itor ret_val = *this;
     this->next();
     return ret_val;
   }
 
-  bool operator == (const Itor & it)
+  bool operator == (const StlIterator & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -63,7 +63,7 @@ struct StlIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it)
+  bool operator != (const StlIterator & it) const
   {
     return not (*this == it);
   }
@@ -109,7 +109,7 @@ struct StlConstIterator : public SetType::Iterator
     return ret_val;
   }
 
-  bool operator == (const Itor & it) const
+  bool operator == (const StlConstIterator & it) const
   {
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
@@ -120,7 +120,7 @@ struct StlConstIterator : public SetType::Iterator
     return false;
   }
 
-  bool operator != (const Itor & it) const
+  bool operator != (const StlConstIterator & it) const
   {
     return not (*this == it);
   }

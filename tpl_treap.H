@@ -54,10 +54,10 @@ namespace Aleph
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
-      The class internally uses the gsl random number generator of 
+      The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
-      system time. 
+      system time.
 
       @ingroup Arboles
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
@@ -120,7 +120,7 @@ private:
   Gen_Treap(Compare cmp = Compare())
     : Gen_Treap(time(nullptr), cmp) { /* empty */ }
 
-  ~Gen_Treap() 
+  ~Gen_Treap()
   {
     if (r != nullptr)
       gsl_rng_free(r);
@@ -148,14 +148,14 @@ private:
 
   Node * insert(Node * root, Node * p) noexcept
   {
-    if (root == Node::NullPtr) 
+    if (root == Node::NullPtr)
       return p;
 
     Node * insertion_result = nullptr;
-    if (cmp(KEY(p), KEY(root))) 
+    if (cmp(KEY(p), KEY(root)))
       {
         insertion_result = insert(LLINK(root), p);
-        if (insertion_result == Node::NullPtr) 
+        if (insertion_result == Node::NullPtr)
           return Node::NullPtr;
 
         LLINK(root) = insertion_result;
@@ -167,7 +167,7 @@ private:
     else if (cmp(KEY(root), KEY(p)))
       {
         insertion_result = insert(RLINK(root), p);
-        if (insertion_result == Node::NullPtr) 
+        if (insertion_result == Node::NullPtr)
           return Node::NullPtr;
 
         RLINK(root) = insertion_result;
@@ -200,7 +200,7 @@ private:
         if (ret == p) // p was inserted?
           if (PRIO(RLINK(root)) < PRIO(root))
             root = rotate_to_left (root);
-            
+
         return ret;
       }
 
@@ -209,10 +209,10 @@ private:
 
   Node * insert_dup(Node * root, Node * p) noexcept
   {
-    if (root == Node::NullPtr) 
+    if (root == Node::NullPtr)
       return p;
 
-    if (cmp(KEY(p), KEY(root))) 
+    if (cmp(KEY(p), KEY(root)))
       {
         Node * result = LLINK(root) = insert_dup(LLINK(root), p);
         if (PRIO(result) < PRIO(root))
@@ -247,12 +247,12 @@ private:
 
     PRIO(p)       = gsl_rng_get(r); // selección aleatoria de prioridad
     Node * result = insert(tree_root, p);
-    if (result == Node::NullPtr) 
+    if (result == Node::NullPtr)
       return nullptr;
 
     tree_root = result;
 
-    return p;  
+    return p;
   }
 
   /** Search or insert a key.
@@ -272,8 +272,8 @@ private:
     assert(p != Node::NullPtr);
 
     PRIO(p) = gsl_rng_get(r); // selección aleatoria de prioridad
-    
-    return search_or_insert(tree_root, p);  
+
+    return search_or_insert(tree_root, p);
   }
 
   /** Insert a node in the tree.
@@ -290,7 +290,7 @@ private:
     PRIO(p)   = gsl_rng_get(r); // selección aleatoria de prioridad
     tree_root = insert_dup(tree_root, p);
 
-    return p;  
+    return p;
   }
 
   /// Return `true` if `this` is a consistent treap
@@ -321,7 +321,7 @@ private:
       else
         break; // encontrada!
 
-    if (p == Node::NullPtr) 
+    if (p == Node::NullPtr)
       return nullptr; // clave no fue encontrada
 
         // rotar p hasta que devenga hoja

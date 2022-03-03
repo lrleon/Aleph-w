@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -38,7 +38,7 @@
 # include <ahAssert.H>
 # include <ahUtils.H>
 
-# include <gmpfrxx.h> 
+# include <gmpfrxx.h>
 
 typedef mpq_class Geom_Number;
 
@@ -131,16 +131,16 @@ class Point : public Geom_Object
   Geom_Number y;
 
 public:
-  
-  Point() : Geom_Object(), x(0), y(0) { /* empty */ } 
-  
+
+  Point() : Geom_Object(), x(0), y(0) { /* empty */ }
+
   /// Builds a new point in coordinates (__x, __y)
-  Point(const Geom_Number & __x, const Geom_Number & __y) 
+  Point(const Geom_Number & __x, const Geom_Number & __y)
     : Geom_Object(), x(__x), y(__y)
   {
     // empty
   }
-  
+
   /// Builds a copy of p.
   Point(const Point & p) : Geom_Object(*this), x(p.x), y(p.y)
   {
@@ -150,12 +150,12 @@ public:
   /// Builds a new point from polar coordinates.
   inline Point(const Polar_Point & pp);
 
-  bool operator == (const Point & point) const 
+  bool operator == (const Point & point) const
   {
-    return x == point.x and y == point.y; 
+    return x == point.x and y == point.y;
   }
-  
-  bool operator != (const Point & point) const 
+
+  bool operator != (const Point & point) const
   {
     return not (*this == point);
   }
@@ -169,7 +169,7 @@ public:
   {
     x += p.x;
     y += p.y;
-    
+
     return *this;
   }
 
@@ -182,22 +182,22 @@ public:
   {
     x -= p.x;
     y -= p.y;
-    
+
     return *this;
   }
 
   const Geom_Number & get_x() const /// Returns x value
   {
-    return x; 
+    return x;
   }
-  
+
   const Geom_Number & get_y() const /// Returns y value
-  { 
-    return y; 
+  {
+    return y;
   }
 
   /// Returns true if this is colinear with p1 and p2.
-  bool is_colinear_with(const Point & p1, const Point & p2) const 
+  bool is_colinear_with(const Point & p1, const Point & p2) const
   {
     return area_of_parallelogram(*this, p1, p2) == 0;
   }
@@ -228,7 +228,7 @@ public:
   {
     return not is_to_left_from(p1, p2);
   }
-  
+
   /// Returns true if the sequence this-p1-p2 is clockwise.
   bool is_clockwise_with(const Point & p1, const Point & p2) const
   {
@@ -249,12 +249,12 @@ public:
 
     if (p1.get_x() == p2.get_x())
       return ((p1.get_y() <= this->get_y()) and (this->get_y() <= p2.get_y()))
-	or ((p1.get_y() >= this->get_y()) and (this->get_y() >= p2.get_y()));  
-      
+        or ((p1.get_y() >= this->get_y()) and (this->get_y() >= p2.get_y()));  
+
     return ((p1.get_x() <= this->get_x()) and (this->get_x() <= p2.get_x()))
       or ((p1.get_x() >= this->get_x()) and (this->get_x() >= p2.get_x()));
   }
-  
+
   /// Return the nearest point (to this) between p1 and p2.
   const Point & nearest_point(const Point & p1, const Point & p2) const 
   {

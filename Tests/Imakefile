@@ -39,7 +39,7 @@ DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++14 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++20 $(INCLUDES) $(OPTIONS)
 AllTarget(array_utils)
 NormalProgramTarget(array_utils,array_utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 

@@ -271,7 +271,7 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs & ... cs)
     {
       auto t = it.get_curr_ne();
       if (prop(t))
-	ret.append(op(it.get_curr_ne()));
+        ret.append(op(it.get_curr_ne()));
     }
   return ret;
 }
@@ -295,7 +295,7 @@ auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
     {
       auto t = it.get_curr_ne();
       if (op(t))
-	ret.append(t);
+        ret.append(t);
     }
   return ret;
 }
@@ -304,9 +304,9 @@ auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
 
     Let us suppose 3 containers of the same internal type `T`. 
 
-        l1 = { 1, 2, 3};
-        l2 = { 1, 2, 3};
-        l3 = { 1, 2, 3};
+    l1 = { 1, 2, 3};
+    l2 = { 1, 2, 3};
+    l3 = { 1, 2, 3};
 
     This function, which receives a comparator `cmp(i1, i2)`, returns
     true if the elements of each tuple resulting of the zip of three
@@ -316,8 +316,8 @@ auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
     If any item of any list variates, then the result should be
     `false`. For example with `l2 = { 1, 4, 3}`.
 
-   @author Leandro Rabindranath Leon
- */
+    @author Leandro Rabindranath Leon
+*/
 template <class Cmp, class ... Cs>
 bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
 {
@@ -326,11 +326,11 @@ bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
       auto l = it.get_curr_list();
       auto curr = l.remove_first();
       while (not l.is_empty())
-	{
-	  if (not cmp(curr, l.get_first()))
-	    return false;
-	  curr = l.remove_first();
-	}
+        {
+          if (not cmp(curr, l.get_first()))
+            return false;
+          curr = l.remove_first();
+        }
     }
   return true;
 }
@@ -343,7 +343,7 @@ size_t zip_find_index(Op op, const Cs & ... cs) noexcept(noexcept(op))
     {
       auto t = it.get_curr_ne();
       if (op(t))
-	break;
+        break;
     }
   return i;
 }
@@ -359,15 +359,15 @@ auto zip_partition(Op op, const Cs & ... cs)
     {
       auto t = it.get_curr_ne();
       if (op(t))
-	{
-	  ret1.append(t);
-	  ++n1;
-	}
+        {
+          ret1.append(t);
+          ++n1;
+        }
       else
-	{
-	  ret2.append(t);
-	  ++n2;
-	}
+        {
+          ret2.append(t);
+          ++n2;
+        }
     }
   return make_tuple(ret1, n1, ret2, n2);
 }
@@ -540,7 +540,7 @@ auto t_enum_zip_eq(const Cs & ... cs)
 
 template<typename... Ts, size_t... is> static inline
 auto t_unzip_impl(const DynList<std::tuple<Ts...>> & l,
-		std::index_sequence<is...>)
+                  std::index_sequence<is...>)
 {
   std::tuple<DynList<Ts>...> ret;
   for (auto it = l.get_it(); it.has_curr(); it.next_ne())
@@ -560,8 +560,8 @@ auto t_unzip(const DynList<std::tuple<Ts...>> & l)
     list of lists
 
     Example: l1 = { 1, 2, 3, 4}
-             l2 = { 5, 6, 7, 8}
-	     l3 = { 9, 0, 10, 11}
+    l2 = { 5, 6, 7, 8}
+    l3 = { 9, 0, 10, 11}
 
     Where each li is a `DynList<int>` (but they could be
     heterogeneous; i.e. they could be DynList, DynSetTree, etc)
@@ -571,8 +571,8 @@ auto t_unzip(const DynList<std::tuple<Ts...>> & l)
 
     { {1, 5, 9}, {2, 6, 0}, {3, 7, 10}, {4, 8, 11} }
 
-   @ingroup Algos
- */
+    @ingroup Algos
+*/
 template <class C, typename ... Lists>
 auto zip_lists(const C & c, const Lists & ... lists)
 {
@@ -601,10 +601,4 @@ auto zip_lists_eq(const C & c, const Lists & ... lists)
 
 
 # endif // AH_ZIP_H
-
-
-
-
-
-
 

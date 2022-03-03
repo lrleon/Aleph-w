@@ -93,7 +93,7 @@ namespace Aleph {
 
         @param[in] tree el treap a intercambiar con this
     */
-    void swap(DynSetTree & dset)
+    void swap(DynSetTree & dset) noexcept
     {
       tree.swap(dset.tree);
       std::swap(num_nodes, dset.num_nodes);

@@ -239,7 +239,7 @@ public:
     iterator operator += (const size_type & n)
     {
       for (int i = 0; i < n; ++i)
-	forward();
+        forward();
 
       return *this;
     } 
@@ -248,19 +248,19 @@ public:
     iterator operator -= (const size_type & n)
     {
       for (int i = 0; i < n; ++i)
-	backward();
+        backward();
 
       return *this;
     } 
 
         /// Retorna true si los iteradores son iguales.
-    bool operator == (const iterator & __itor)
+    bool operator == (const iterator & __itor) const
     {
       return itor == __itor.itor;
     }
 
         /// Retorna true si los iteradores son distintos.
-    bool operator != (const iterator& __itor)
+    bool operator != (const iterator& __itor) const
     {
       return itor != __itor.itor;
     }
