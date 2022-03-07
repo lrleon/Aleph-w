@@ -1127,9 +1127,24 @@ public:
     return ret_val;
   }
 
+  std::pair<DynList<T>, DynList<T>> split_half() const
+  {
+    size_t i = 0;
+    std::pair<DynList<T>, DynList<T>> ret_val;
+    const_me()->for_each([&ret_val, &i] (const T & item)
+                         {
+                           if ((i % 2) == 0)
+                             ret_val.first.append(item);
+                           else
+                             ret_val.second.append(item);
+                           i++;
+                         });
+    return ret_val;
+  }
+
   /** Exclusive partition of container according to a filter criteria.
 
-      This methos has exactly the same semantic than
+      This method has exactly the same semantic than
       `partition(Operation & op)`, excepts than instead of returning a
       `std::pair` it returns a `std::tuple`.
 
@@ -1150,7 +1165,7 @@ public:
                              r1.append(item);
                            else
                              r2.append(item);
-			 });
+                         });
     return std::tuple<DynList<T>, DynList<T>>(r1, r2);
   }
 

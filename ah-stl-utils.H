@@ -165,5 +165,14 @@ inline Array<T> tuple_to_array(const std::tuple<T, U...> & t)
   return tuple_to_container<Array<T>>(t);
 }
 
+template <typename StlContainer>
+auto stl_container_to_dynList(const StlContainer & container)
+{
+  DynList<typename StlContainer::value_type> ret;
+  for (const auto & item : container)
+    ret.append(item);
+  return ret;
+}
+
 
 # endif // AH_STL_UTILS_H
