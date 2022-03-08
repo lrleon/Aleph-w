@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -32,46 +32,46 @@
 # include <tpl_dynDlist.H>
 # include <htlist.H>
 
-# define List_Sort(List)						\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> sort(const List<T> & c, Cmp & cmp)				\
-  {									\
-    List<T> ret_val = c;						\
-    mergesort<List, T, Cmp>(ret_val, cmp);				\
-    return ret_val;							\
-  }									\
-									\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> sort(const List<T> & c, Cmp && cmp = Cmp())			\
-  {									\
-    return sort<T, Cmp>(c, cmp);					\
-  }									\
-									\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> sort(List<T> && c, Cmp & cmp)				\
-  {									\
-    mergesort<List, T, Cmp>(c, cmp);					\
-    return move(c);							\
-  }									\
-									\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> sort(List<T> && c, Cmp && cmp = Cmp())			\
-  {									\
-    return sort<T, Cmp>(move(c), cmp);					\
-  }									\
-									\
-									\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> & in_place_sort(List<T> & c, Cmp & cmp) noexcept		\
-  {									\
-    mergeinsertsort(c, cmp);						\
-    return c;								\
-  }									\
-									\
-  template <typename T, class Cmp = Aleph::less<T>> inline		\
-    List<T> & in_place_sort(List<T> & c, Cmp && cmp = Cmp()) noexcept	\
-  {									\
-    return in_place_sort<T, Cmp>(c, cmp);				\
+# define List_Sort(List)                                            \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> sort(const List<T> & c, Cmp & cmp)                        \
+  {                                                                 \
+    List<T> ret_val = c;                                            \
+    mergesort<List, T, Cmp>(ret_val, cmp);                          \
+    return ret_val;                                                 \
+  }                                                                 \
+                                                                    \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> sort(const List<T> & c, Cmp && cmp = Cmp())               \
+  {                                                                 \
+    return sort<T, Cmp>(c, cmp);                                    \
+  }                                                                 \
+                                                                    \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> sort(List<T> && c, Cmp & cmp)                             \
+  {                                                                 \
+    mergesort<List, T, Cmp>(c, cmp);                                \
+    return move(c);                                                 \
+  }                                                                 \
+                                                                    \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> sort(List<T> && c, Cmp && cmp = Cmp())                    \
+  {                                                                 \
+    return sort<T, Cmp>(move(c), cmp);                              \
+  }                                                                 \
+                                                                    \
+                                                                    \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> & in_place_sort(List<T> & c, Cmp & cmp) noexcept          \
+  {                                                                 \
+    mergeinsertsort(c, cmp);                                        \
+    return c;                                                       \
+  }                                                                 \
+                                                                    \
+  template <typename T, class Cmp = Aleph::less<T>> inline          \
+  List<T> & in_place_sort(List<T> & c, Cmp && cmp = Cmp()) noexcept	\
+  {                                                                 \
+    return in_place_sort<T, Cmp>(c, cmp);                           \
   }
 
 namespace Aleph
@@ -81,7 +81,7 @@ namespace Aleph
   List_Sort(DynDlist);
 
   template <typename T, class Cmp = Aleph::less<T>> inline
-    DynArray<T> sort(const DynArray<T> & a, Cmp && cmp = Cmp()) 
+    DynArray<T> sort(const DynArray<T> & a, Cmp && cmp = Cmp())
   {
     DynArray<T> ret_val = a;
     quicksort_op(ret_val, cmp);
@@ -104,7 +104,7 @@ namespace Aleph
   }
 
   template <typename T, class Cmp = Aleph::less<T>> inline
-    Array<T> sort(Array<T> && a, Cmp cmp = Cmp()) 
+    Array<T> sort(Array<T> && a, Cmp cmp = Cmp())
   {
     quicksort_op(a, cmp);
     return move(a);
@@ -159,7 +159,7 @@ public:
   template <template <typename Type> class List>
   C<size_t> list_compute_ranks(const List<T> & c)
   {
-    C<T> items; 
+    C<T> items;
     size_t n = 0;
     c.for_each([this, &items, &n] (auto k)
 	       {
@@ -202,7 +202,7 @@ public:
 		 items.append(k);
 		 indexes.append(n++);
 	       });
-    quicksort_op(indexes, [&items] (auto i1, auto i2) 
+    quicksort_op(indexes, [&items] (auto i1, auto i2)
 		 {
 		   return items(i1) < items(i2);
 		 });

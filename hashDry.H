@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -45,12 +45,12 @@ public:
     assert(me()->N == 0 and me()->len >= other.N);
     for (long i = 0, c = 0; c < other.N; ++i)
       {
-	auto & bucket = other.table[i];
-	if (bucket.status != HashTbl::BUSY)
-	  continue;
+        auto & bucket = other.table[i];
+        if (bucket.status != HashTbl::BUSY)
+          continue;
 
-	me()->insert(bucket.key);
-	++c;
+        me()->insert(bucket.key);
+        ++c;
       }
     assert(me()->N == other.N);
   }
@@ -66,23 +66,23 @@ public:
   {
     auto bucket = me()->allocate_bucket(key);
     if (bucket == nullptr)
-     return nullptr;
+      return nullptr;
 
-   bucket->key = key;
+    bucket->key = key;
 
-   return me()->test_resize(bucket, key);
- }
+    return me()->test_resize(bucket, key);
+  }
 
- Key * insert(Key && key)
- {
-   auto bucket = me()->allocate_bucket(key);
-   if (bucket == nullptr)
-     return nullptr;
+  Key * insert(Key && key)
+  {
+    auto bucket = me()->allocate_bucket(key);
+    if (bucket == nullptr)
+      return nullptr;
 
-   std::swap(bucket->key, key);
+    std::swap(bucket->key, key);
 
-   return me()->test_resize(bucket, bucket->key);
- }
+    return me()->test_resize(bucket, bucket->key);
+  }
 
   Key * search_or_insert(const Key & key)
   {
@@ -92,7 +92,7 @@ public:
       return &bucket->key;
 
     bucket->key = key;
-    
+
     return me()->test_resize(bucket, bucket->key);
   }
 
@@ -108,31 +108,31 @@ public:
     return me()->test_resize(bucket, bucket->key);
   }
 
-  bool contains_or_insert(const Key & key)
+  pair<Key*, bool> contains_or_insert(const Key & key)
   {
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (get<1>(r))
-      return true;
+      return { &bucket->key, true };
 
     bucket->key = key;
-    me()->test_resize(bucket, bucket->key);
+    auto key_ptr = me()->test_resize(bucket, bucket->key);
 
-    return false;
+    return { key_ptr, false };
   }
 
- bool contains_or_insert(Key && key)
- {
-   auto r = me()->hard_allocate_bucket(key);
-   auto bucket = get<0>(r);
-   if (get<1>(r))
-     return true;
+  pair<Key*, bool> contains_or_insert(Key && key)
+  {
+    auto r = me()->hard_allocate_bucket(key);
+    auto bucket = get<0>(r);
+    if (get<1>(r))
+      return { &bucket->key, true };
 
-   std::swap(bucket->key, key);
-   me()->test_resize(bucket, bucket->key);
+    std::swap(bucket->key, key);
+    auto key_ptr = me()->test_resize(bucket, bucket->key);
 
-   return false;
- }
+    return { key_ptr, false };
+  }
 
   Key * append(const Key & key)
   {
@@ -192,8 +192,8 @@ public:
       return me()->len;
 
     if (me()->N > new_size)
-      throw std::overflow_error ("New size is not enough for current" 
-				 " number of entries"); 
+      throw std::overflow_error ("New size is not enough for current"
+                                 " number of entries");
 
     typename HashTbl::Bucket * new_table = new typename HashTbl::Bucket[new_size];
     typename HashTbl::Bucket * old_table = me()->table;
@@ -207,12 +207,12 @@ public:
 
     for (int i = 0, c = 0; i < old_len and c < old_N; ++i)
       if (old_table[i].status == HashTbl::BUSY)
-	{
-	  Key & key = old_table[i].key;
-	  auto bucket = me()->allocate_bucket(key);
-	  std::swap(bucket->key, key);
-	  ++c;
-	}
+        {
+          Key & key = old_table[i].key;
+          auto bucket = me()->allocate_bucket(key);
+          std::swap(bucket->key, key);
+          ++c;
+        }
 
     assert(old_N == me()->N);
 
@@ -233,12 +233,12 @@ public:
 
     for (int i = 0, c = 0; i < me()->len and c < old_N; ++i)
       if (old_table[i].status == HashTbl::BUSY)
-	{
-	  Key & key = old_table[i].key;
-	  auto bucket = me()->allocate_bucket(key);
-	  std::swap(bucket->key, key);
-	  ++c;
-	}
+        {
+          Key & key = old_table[i].key;
+          auto bucket = me()->allocate_bucket(key);
+          std::swap(bucket->key, key);
+          ++c;
+        }
 
     assert(old_N == me()->N);
 
@@ -269,14 +269,14 @@ public:
     {
       assert(table_ptr != nullptr);
       return (curr_idx >= 0 and curr_idx < (long) table_ptr->len) and
-	(ordinal >= -1 and ordinal <= (long) table_ptr->size());
+        (ordinal >= -1 and ordinal <= (long) table_ptr->size());
     }
 
     void locate_next_available_entry_ne() noexcept
     {
       assert(check());
       if (++ordinal == table_ptr->size())
-	return;
+        return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
@@ -285,7 +285,7 @@ public:
     {
       assert(check());
       if (--ordinal == -1)
-	return;
+        return;
 
       while (table_ptr->table[--curr_idx].status != HashTbl::BUSY);
     }
@@ -293,14 +293,14 @@ public:
     void locate_next_available_entry()
     {
       if (ordinal >= table_ptr->size())
-	throw std::overflow_error("Iterator next() overflow"); 
+        throw std::overflow_error("Iterator next() overflow"); 
       locate_next_available_entry_ne();
     }
 
     void locate_prev_available_entry()
     {
       if (ordinal <= -1)
-	throw std::underflow_error("Iterator next() underflow");
+        throw std::underflow_error("Iterator next() underflow");
       locate_prev_available_entry_ne();
     }
 
@@ -312,14 +312,14 @@ public:
       curr_idx = 0;
       ordinal = -1;
       if (table_ptr->is_empty())
-	{
-	  curr_idx = table_ptr->len;
-	  ordinal = 0;
-	  return;
-	}
+        {
+          curr_idx = table_ptr->len;
+          ordinal = 0;
+          return;
+        }
 
       while (table_ptr->table[curr_idx].status != HashTbl::BUSY)
-	++curr_idx;
+        ++curr_idx;
 
       ordinal = 0;
       assert(check());
@@ -329,15 +329,15 @@ public:
     {
       assert(table_ptr != nullptr);
       if (table_ptr->is_empty())
-	{
-	  curr_idx = -1;
-	  ordinal = -1;
-	  return;
-	}
+        {
+          curr_idx = -1;
+          ordinal = -1;
+          return;
+        }
 
       curr_idx = table_ptr->len - 1;
       while (table_ptr->table[curr_idx].status != HashTbl::BUSY)
-	--curr_idx;
+        --curr_idx;
 
       ordinal = table_ptr->size() - 1;
       assert(check());
@@ -364,10 +364,10 @@ public:
     Key & get_curr()
     {
       if (ordinal == table_ptr->size())
-	throw std::overflow_error("O hash::Iterator next() overflow");
+        throw std::overflow_error("O hash::Iterator next() overflow");
 
       if (ordinal == -1)
-	throw std::underflow_error("O hash::Iterator next() underflow");
+        throw std::underflow_error("O hash::Iterator next() underflow");
 
       assert(check());
 
@@ -383,7 +383,7 @@ public:
     {
       assert(table_ptr != nullptr);
       if (table_ptr->is_empty())
-	return false;
+        return false;
       return ordinal >= 0 and ordinal < table_ptr->size();
     }
 
@@ -406,11 +406,11 @@ public:
     void del()
     {
       if (not has_curr())
-	throw std::overflow_error("Overflow in del() of iterator");
+        throw std::overflow_error("Overflow in del() of iterator");
 
       table_ptr->deallocate_bucket(&table_ptr->table[curr_idx]);
       if (table_ptr->size() == 0)
-	return;
+        return;
 
       while (table_ptr->table[++curr_idx].status != HashTbl::BUSY);
     }
@@ -433,20 +433,20 @@ public:
     size_t max_len = 0;
 
     Stats() : max_len(std::numeric_limits<size_t>::min())
-      {
-	assert(lens.size() == 0);
-      }
+    {
+      assert(lens.size() == 0);
+    }
   };
 
   void print_stats(const Stats & stats) const
   {
     std::cout << "M             = " << this->capacity() << std::endl
-	      << "N             = " << this->size() << std::endl
-	      << "busy slots    = " << stats.num_busy << std::endl
-	      << "deleted slots = " << stats.num_deleted << std::endl
-	      << "empty slots   = " << stats.num_empty << std::endl
-	      << "alpha         = " << const_me()->current_alpha() << std::endl
-	      << "max lenght    = " << stats.max_len << std::endl;
+              << "N             = " << this->size() << std::endl
+              << "busy slots    = " << stats.num_busy << std::endl
+              << "deleted slots = " << stats.num_deleted << std::endl
+              << "empty slots   = " << stats.num_empty << std::endl
+              << "alpha         = " << const_me()->current_alpha() << std::endl
+              << "max lenght    = " << stats.max_len << std::endl;
     for (int i = 0; i < stats.lens.size(); ++i)
       cout << "    " << i << " = " << stats.lens(i) << endl;
   }
@@ -488,36 +488,36 @@ private:
     else
       lens.touch(i) = 1;
   }
-  
+
 public:
 
   Stats stats() const
-  { 
+  {
     DynArray<size_t> lens;
     for (int i = 0; i < const_me()->capacity(); ++i)
       {
-	Dlink & list = const_me()->table[i];
-	size_t count = 0;
-	for (typename HashTbl::BucketItor it(list); it.has_curr(); 
-	     it.next(), ++count)
-	  ;
+        Dlink & list = const_me()->table[i];
+        size_t count = 0;
+        for (typename HashTbl::BucketItor it(list); it.has_curr(); 
+             it.next(), ++count)
+          ;
 
-	update_stat_len(lens, count);
+        update_stat_len(lens, count);
       }
 
     float avg = 0, sum = 0;
     for (size_t i = 0; i < lens.size(); ++i)
       {
-	avg += lens(i)*i;
-	sum += lens(i);
+        avg += lens(i)*i;
+        sum += lens(i);
       }
     avg /= sum;
 
     float var = 0;
     for (size_t i = 0; i < lens.size(); ++i)
       {
-	float s = i - avg;
-	var += lens(i)*s*s;
+        float s = i - avg;
+        var += lens(i)*s*s;
       }
     var /= sum;
 
@@ -532,12 +532,12 @@ public:
   void print_stats(const Stats & stats) const
   {
     cout << "M          = " << const_me()->capacity() << endl
-	 << "N          = " << const_me()->size() << endl
-	 << "busy slots = " << busy_slots_counter << endl
-	 << "Average    = " << stats.avg << endl
-	 << "Desv       = " << sqrt(stats.var) << endl
-	 << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
-	 << endl;
+         << "N          = " << const_me()->size() << endl
+         << "busy slots = " << busy_slots_counter << endl
+         << "Average    = " << stats.avg << endl
+         << "Desv       = " << sqrt(stats.var) << endl
+         << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
+         << endl;
     for (int i = 0; i < stats.lens.size(); ++i)
       cout << "    " << i << " = " << stats.lens(i) << endl;
   }
@@ -546,7 +546,7 @@ public:
   {
     if (__upper_alpha <= lower_alpha)
       throw std::domain_error("upper_alpha lower than lower_alpha");
-    
+
     upper_alpha = __upper_alpha;
   }
 

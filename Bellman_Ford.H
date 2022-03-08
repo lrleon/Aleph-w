@@ -722,7 +722,7 @@ public:
       through the cookies with the graph.
    */
   void build_tree(GT & tree, bool with_map = true)
-  { 
+  {
     if (not painted and with_map)
       throw std::domain_error("Spanning tree has not been painted");
 
@@ -742,7 +742,7 @@ public:
 	auto gsrc = (Node*) NODE_COOKIE(gtgt);
 	if (gsrc == nullptr)
 	  continue; // Se trata del nodo origen del árbol abarcador
-	
+
 	auto garc_ptr = g.arcs(gsrc).find_ptr([gsrc, gtgt] (Arc * a)
 		{
 		  return a->src_node == gsrc and a->tgt_node == gtgt;
@@ -753,7 +753,7 @@ public:
 	auto tsrc_ptr = table.search(gsrc);
 	auto ttgt_ptr = table.search(gtgt);
 	assert(tsrc_ptr and ttgt_ptr);
-	auto tarc = tree.insert_arc(tsrc_ptr->second, ttgt_ptr->second, 
+	auto tarc = tree.insert_arc(tsrc_ptr->second, ttgt_ptr->second,
 				    garc->get_info());
 	if (with_map)
 	  GT::map_arcs(garc, tarc);
@@ -762,7 +762,7 @@ public:
     if (with_map)
       table.for_each([] (const auto & p) { GT::map_nodes(p.first, p.second); });
   }
-   
+
   bool test_negative_cycle(typename GT::Node * s, Path<GT> & cycle)
   {
     cycle = test_negative_cycle(s);

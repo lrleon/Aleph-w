@@ -1846,15 +1846,16 @@ bool __split_key_rec(Node * root, const typename Node::key_type & key,
       return true;
     }
 
-  template <class Node, class Compare> static inline
-  bool __split_key_rec(Node * root, const typename Node::key_type & key,
-                       Node *& ts, Node *& tg, Compare & cmp) noexcept
-  {
-    if (root == Node::NullPtr)
-      {    // key no se encuentra en árbol ==> split tendrï¿½ ï¿½xito
-        ts = tg = Node::NullPtr;
-        return true;
-      }
+  if (cmp(key, KEY(root)))
+    {
+      if (__split_key_rec(LLINK(root), key, ts, LLINK(root), cmp))
+        {
+          tg = root;
+          return true;
+        }
+      else
+        return false;
+    }
 
     if (cmp(key, KEY(root)))
       if (__split_key_rec(LLINK(root), key, ts, LLINK(root), cmp))

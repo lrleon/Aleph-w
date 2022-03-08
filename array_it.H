@@ -35,204 +35,204 @@
 
 namespace Aleph {
 
-template <typename T> class Array_Container;
+  template <typename T> class Array_Container;
 
   /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
 
       @ingroups Secuencias
   */
-    template <class T>
-class Array_Iterator
-{
-  T * ptr = nullptr;
-  long dim = 0;
-  long num_items = 0;
-  long idx = 0;
-  long first = 0;
-  long last = 0;
-  long pos = 0;
-
-public:
-
-  using Item_Type = T;
-
-  T * get_base() noexcept { return ptr; }
-
-  Array_Iterator() noexcept {}
-
-  Array_Iterator(T * p, size_t sz, size_t n)
-    : ptr(p), dim(sz), num_items(n), last(n - 1)
+  template <class T>
+  class Array_Iterator
   {
-    assert(ptr);
-     if (num_items > dim)
-       throw std::domain_error("Array_Iterator(): num_items greater tan dim");
-  }
+    T * ptr = nullptr;
+    long dim = 0;
+    long num_items = 0;
+    long idx = 0;
+    long first = 0;
+    long last = 0;
+    long pos = 0;
 
-  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
-    : ptr(p), dim(sz), num_items(n), last(n - 1)
-  {
-    assert(ptr);
-    if (num_items > dim)
-      throw std::domain_error("Array_Iterator(): num_items greater tan dim");
-  }
+  public:
 
-  Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
-    : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
-  {
-    assert(ptr);
-     if (num_items > dim)
-       throw std::domain_error("Array_Iterator(): num_items greater tan dim");
-     if (first >= dim)
-       throw std::domain_error("Array_Iterator(): first >= dim");
-     if (last >= dim)
-       throw std::domain_error("Array_Iterator(): last >= dim");
-  }
+    using Item_Type = T;
 
-  /** Constructor no throwing exception.
+    T * get_base() noexcept { return ptr; }
 
-      It is similar to the previous buy it is guaranteed that no
-      exception will be thrown
-   */
-  Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
-    : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
-  {
-    assert(ptr);
-  }
+    Array_Iterator() noexcept {}
 
-  Array_Iterator(const Array_Container<T> & c)
-    : Array_Iterator(c.base(), c.capacity(), c.size()) {}
+    Array_Iterator(T * p, size_t sz, size_t n)
+      : ptr(p), dim(sz), num_items(n), last(n - 1)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+    }
 
-  bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
+    Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
+      : ptr(p), dim(sz), num_items(n), last(n - 1)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+    }
 
-  bool is_last() const noexcept { return pos == num_items - 1; }
+    Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
+      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+      if (first >= dim)
+        throw std::domain_error("Array_Iterator(): first >= dim");
+      if (last >= dim)
+        throw std::domain_error("Array_Iterator(): last >= dim");
+    }
 
-  long get_pos() const noexcept { return pos; }
+    /** Constructor no throwing exception.
 
-  T & get_curr_ne() const noexcept
-  {
-    return ptr[idx];
-  }
+        It is similar to the previous buy it is guaranteed that no
+        exception will be thrown
+    */
+    Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
+      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+    {
+      assert(ptr);
+    }
 
-  T & get_curr() const
-  {
-    if (pos < 0)
-      throw std::underflow_error("MemArray::Iterator::get_curr(): has not current");
+    Array_Iterator(const Array_Container<T> & c)
+      : Array_Iterator(c.base(), c.capacity(), c.size()) {}
 
-    if (pos >= num_items)
-      throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
+    bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
 
-    return ptr[idx];
-  }
+    bool is_last() const noexcept { return pos == num_items - 1; }
 
-  void next_ne() noexcept
-  {
-    if (++idx == dim)
-      idx = 0;
-    ++pos;
-  }
+    long get_pos() const noexcept { return pos; }
 
-  void next()
-  {
-    if (num_items == 0 or pos >= num_items)
-      throw std::overflow_error("MemArray::Iterator::next(): has not current");
-    next_ne();
-  }
+    T & get_curr_ne() const noexcept
+    {
+      return ptr[idx];
+    }
 
-  void prev_ne() noexcept
-  {
-    if (--idx < 0)
-      idx = dim - 1;
-    --pos;
-  }
+    T & get_curr() const
+    {
+      if (pos < 0)
+        throw std::underflow_error("MemArray::Iterator::get_curr(): has not current");
 
-  void prev()
-  {
-    if (num_items == 0 or pos < 0)
-      throw std::underflow_error("MemArray::Iterator::prev(): has not current");
-    prev_ne();
-  }
+      if (pos >= num_items)
+        throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
 
-  void reset() noexcept
-  {
-    idx = first;
-    pos = 0;
-  }
+      return ptr[idx];
+    }
 
-  void reset_first() noexcept { reset(); }
+    void next_ne() noexcept
+    {
+      if (++idx == dim)
+        idx = 0;
+      ++pos;
+    }
 
-  void reset_last() noexcept
-  {
-    idx = last;
-    pos = num_items - 1;
-  }
+    void next()
+    {
+      if (num_items == 0 or pos >= num_items)
+        throw std::overflow_error("MemArray::Iterator::next(): has not current");
+      next_ne();
+    }
 
-  void end() noexcept
-  {
-    put_itor_at_the_end(*this);
-  }
-};
+    void prev_ne() noexcept
+    {
+      if (--idx < 0)
+        idx = dim - 1;
+      --pos;
+    }
 
-  template <typename T> inline
-Array_Iterator<T> get_array_it(const T * array, size_t n)
-{
-  return Array_Iterator<T>(array, n, n);
-}
+    void prev()
+    {
+      if (num_items == 0 or pos < 0)
+        throw std::underflow_error("MemArray::Iterator::prev(): has not current");
+      prev_ne();
+    }
 
-  template <typename T> inline
-Array_Container<T> get_array_it(const T * array, size_t n)
-{
-  return Array_Iterator<T>(array, n);
-}
+    void reset() noexcept
+    {
+      idx = first;
+      pos = 0;
+    }
 
+    void reset_first() noexcept { reset(); }
 
-template <typename T>
-class Array_Container 
-  : public GenericTraverse<Array_Container<T>>,
-    public LocateFunctions<Array_Container<T>, T>,
-    public FunctionalMethods<Array_Container<T>, T>,
-    public GenericKeys<Array_Container<T>, T>,
-    public EqualToMethod<Array_Container<T>>,
-    public StlAlephIterator<Array_Container<T>>
-{
-  T * base = nullptr;
-  const size_t n = 0;
+    void reset_last() noexcept
+    {
+      idx = last;
+      pos = num_items - 1;
+    }
 
-public:
-
-  T * get_base() const noexcept { return  base; }
-
-  Array_Container(T * base_ptr, const size_t d) : base(base_ptr), n(d) 
-  {
-    // empty
-  }
-
-  bool is_empty() const noexcept { return n == 0; }
-
-  size_t size() const noexcept { return n; }
-
-  size_t capacity() const noexcept { return n; }
-
-  T & get_first() const
-  {
-    if (n == 0)
-      throw std::underflow_error("Array_Container::get_first(): n == 0");
-    return base[0];
-  }
-
-  T & get_last() const
-  {
-    if (n == 0)
-      throw std::underflow_error("Array_Container::get_first(): n == 0");
-    return base[n - 1];
-  }
-
-  struct Iterator : public Array_Iterator<T>
-  {
-    Iterator(const Array_Container & c) : Array_Iterator<T>(c.base, c.n, c.n) {}
+    void end() noexcept
+    {
+      put_itor_at_the_end(*this);
+    }
   };
 
-  Iterator get_it() const { return Iterator(*this); }
-};
+  template <typename T> inline
+  Array_Iterator<T> get_array_it(const T * array, size_t n)
+  {
+    return Array_Iterator<T>(array, n, n);
+  }
+
+  template <typename T> inline
+  Array_Container<T> get_array_it(const T * array, size_t n)
+  {
+    return Array_Iterator<T>(array, n);
+  }
+
+
+  template <typename T>
+  class Array_Container
+    : public GenericTraverse<Array_Container<T>>,
+      public LocateFunctions<Array_Container<T>, T>,
+      public FunctionalMethods<Array_Container<T>, T>,
+      public GenericKeys<Array_Container<T>, T>,
+      public EqualToMethod<Array_Container<T>>,
+      public StlAlephIterator<Array_Container<T>>
+  {
+    T * base = nullptr;
+    const size_t n = 0;
+
+  public:
+
+    T * get_base() const noexcept { return  base; }
+
+    Array_Container(T * base_ptr, const size_t d) : base(base_ptr), n(d) 
+    {
+      // empty
+    }
+
+    bool is_empty() const noexcept { return n == 0; }
+
+    size_t size() const noexcept { return n; }
+
+    size_t capacity() const noexcept { return n; }
+
+    T & get_first() const
+    {
+      if (n == 0)
+        throw std::underflow_error("Array_Container::get_first(): n == 0");
+      return base[0];
+    }
+
+    T & get_last() const
+    {
+      if (n == 0)
+        throw std::underflow_error("Array_Container::get_first(): n == 0");
+      return base[n - 1];
+    }
+
+    struct Iterator : public Array_Iterator<T>
+    {
+      Iterator(const Array_Container & c) : Array_Iterator<T>(c.base, c.n, c.n) {}
+    };
+
+    Iterator get_it() const { return Iterator(*this); }
+  };
 
 } // end namespace Aleph
 

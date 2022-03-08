@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -64,7 +64,7 @@ namespace Aleph {
         @param[in] root of the tree
         @param[in] key to be searched
         @return a pointer to a node containing the key if this was found;
-        `Node::NullPtr` otherwise 
+        `Node::NullPtr` otherwise
     */
     Node * search(Node * root, const Key & key) noexcept
     {
@@ -76,7 +76,7 @@ namespace Aleph {
         @param[in] root of tree
         @param[in] key to search
         @param[out] parent pointer to parent node if key was
-        found. Otherwise value is indetermined 
+        found. Otherwise value is indetermined
         @return a valid pointer to a node containing `key` if this is
         found; otherwise, it returns a pointer to the last visited node
     */
@@ -119,7 +119,7 @@ namespace Aleph {
     */
     Node * insert(Node *& root, Node * p) noexcept
     {
-      if (root == Node::NullPtr) 
+      if (root == Node::NullPtr)
         return root = p;
 
       if (cmp(KEY(p), KEY(root)))        // ¿p < root?
@@ -142,7 +142,7 @@ namespace Aleph {
     */
     Node * insert_dup(Node *& root, Node * p) noexcept
     {
-      if (root == Node::NullPtr) 
+      if (root == Node::NullPtr)
         return root = p;
 
       if (cmp(KEY(p), KEY(root)))        // ¿p < root?
@@ -187,13 +187,15 @@ namespace Aleph {
         }
 
       if (cmp(key, KEY(root)) ) // ¿key < KEY(root)?
-        if (__split_key_rec(LLINK(root), key, ts, LLINK(root)))
-          {
-            tg = root;
-            return true;
-          }
-        else
-          return false;
+        {
+          if (__split_key_rec(LLINK(root), key, ts, LLINK(root)))
+            {
+              tg = root;
+              return true;
+            }
+          else
+            return false;
+        }
 
       if (cmp(KEY(root), key) ) // ¿key > KEY(root)?
         if (__split_key_rec(RLINK(root), key, RLINK(root), tg))
@@ -215,7 +217,7 @@ namespace Aleph {
 
         The split only is performed if `key` is not in the tree.
 
-        @param[in,out] root of tree 
+        @param[in,out] root of tree
         @param[in] key for slitting
         @param[out] ts tree with keys lesser than `key`
         @param[out] tg tree with keys greater than `key`
@@ -233,7 +235,7 @@ namespace Aleph {
 
   private:
 
-    void __split_key_dup_rec(Node * root, const typename Node::key_type & key, 
+    void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
                              Node *& ts, Node *& tg) noexcept
     {
       if (root == Node::NullPtr)
@@ -263,7 +265,7 @@ namespace Aleph {
         @param[out] ts tree with the keys lesser than `key`
         @param[out] tg tree with the keys greater or equal than `key`
     */
-    void split_key_dup_rec(Node * root, const typename Node::key_type & key, 
+    void split_key_dup_rec(Node * root, const typename Node::key_type & key,
                            Node *& ts, Node *& tg) noexcept
     {
       __split_key_dup_rec(root, key, ts, tg);
@@ -279,7 +281,7 @@ namespace Aleph {
     */
     Node * remove(Node *& root, const Key & key) noexcept
     {
-      if (root == Node::NullPtr) 
+      if (root == Node::NullPtr)
         return Node::NullPtr;
 
       if (cmp(key, KEY(root)))       // ¿key < KEY(root)?
@@ -287,7 +289,7 @@ namespace Aleph {
       else if (cmp(KEY(root), key))  // ¿key > KEY(root)?
         return remove(RLINK(root), key);
 
-      Node * ret_val = root; 
+      Node * ret_val = root;
       root = join_exclusive(LLINK(root), RLINK(root));
 
       ret_val->reset();
@@ -310,14 +312,14 @@ namespace Aleph {
     {
       Node * l = Node::NullPtr, * r = Node::NullPtr;
 
-      if (not split_key_rec(root, KEY(p), l, r)) 
-        return Node::NullPtr; 
+      if (not split_key_rec(root, KEY(p), l, r))
+        return Node::NullPtr;
 
       LLINK(p) = l;
       RLINK(p) = r;
       root = p;
 
-      return root; 
+      return root;
     }
 
     /** Insert node `p` as root of a binary search tree. The key of `p`
@@ -346,7 +348,7 @@ namespace Aleph {
     */
     Node * join_preorder(Node * t1, Node * t2, Node *& dup) noexcept
     {
-      if (t2 == Node::NullPtr) 
+      if (t2 == Node::NullPtr)
         return t1;
 
       Node * l = LLINK(t2);
@@ -374,10 +376,10 @@ namespace Aleph {
     */
     Node * join(Node * t1, Node * t2, Node *& dup) noexcept
     {
-      if (t1 == Node::NullPtr) 
+      if (t1 == Node::NullPtr)
         return t2;
 
-      if (t2 == Node::NullPtr) 
+      if (t2 == Node::NullPtr)
         return t1;
 
       Node * l = LLINK(t1);
@@ -385,7 +387,7 @@ namespace Aleph {
 
       t1->reset();
 
-      while (insert_root(t2, t1) == Node::NullPtr) 
+      while (insert_root(t2, t1) == Node::NullPtr)
         {
           Node * p = remove(t1, KEY(t1));
 
@@ -413,7 +415,7 @@ namespace Aleph {
     */
     void split_key(Node * root, const Key & key, Node *& l, Node *& r) noexcept
     {
-      if (root == Node::NullPtr) 
+      if (root == Node::NullPtr)
         {
           l = r = Node::NullPtr;
           return;
@@ -436,12 +438,12 @@ namespace Aleph {
         }
 
       Node * current = root;
-      while (current != Node::NullPtr) 
+      while (current != Node::NullPtr)
         {
           if (cmp (key, KEY(current)))
             { /* current must be in right side */
               if (not current_is_right)
-                { 
+                {
                   current_is_right = not current_is_right;
                   *pending_child   = *current_parent; /* change of side */
                   pending_child    = current_parent;
@@ -452,7 +454,7 @@ namespace Aleph {
           else
             { /* current must be in left side */
               if (current_is_right)
-                { 
+                {
                   current_is_right = not current_is_right;
                   *pending_child   = *current_parent; /* change of side */
                   pending_child    = current_parent;
@@ -519,7 +521,7 @@ namespace Aleph {
         return p; // insertion in empty tree
 
       if (cmp(KEY(p), KEY(root)))
-        {     // insert in left subtree 
+        {     // insert in left subtree
           Node * left_branch = search_or_insert_root_rec(LLINK(root), p);
           if (left_branch == p) // ¿hubo inserción?
             {
@@ -532,7 +534,7 @@ namespace Aleph {
           return left_branch; // no la hubo
         }
       else if (cmp(KEY(root), KEY(p)))
-        {     // insert in right subtree 
+        {     // insert in right subtree
           Node * right_branch = search_or_insert_root_rec(RLINK(root), p);
           if (right_branch == p) // ¿hubo inserción?
             {
@@ -563,7 +565,7 @@ namespace Aleph {
 
     using Key = typename Node::key_type;
 
-    /// Initialize the functor with comparison criteria `cmp` 
+    /// Initialize the functor with comparison criteria `cmp`
     BinTreeXt_Operation(Cmp cmp = Cmp()) noexcept
       : BinTree_Operation<Node, Cmp>(cmp)
     {
@@ -589,7 +591,7 @@ namespace Aleph {
 
       if (this->cmp(key, KEY(r)))
         return inorder_position(LLINK(r), key, p);
-      else if (this->cmp(KEY(r), key)) 
+      else if (this->cmp(KEY(r), key))
         {
           long ret = inorder_position(RLINK(r), key, p);
           if (ret != -1)
@@ -624,7 +626,7 @@ namespace Aleph {
         @param[in] r root of tree
         @param[in] key to be searched
         @param[out] p reference to pointer to node
-        @return the positions of `key` in the tree 
+        @return the positions of `key` in the tree
     */
     long find_position(Node * r, const Key & key, Node *& p) noexcept
     {
@@ -634,13 +636,13 @@ namespace Aleph {
       long pos = COUNT(LLINK(r));
 
       while (r != Node::NullPtr)
-        if (this->cmp(key, KEY(r)))  
+        if (this->cmp(key, KEY(r)))
           {
             parent = r;
             r = LLINK(r);
             pos -= (COUNT(RLINK(r)) + 1);
           }
-        else if (this->cmp(KEY(r), key)) 
+        else if (this->cmp(KEY(r), key))
           {
             parent = r;
             r = RLINK(r);

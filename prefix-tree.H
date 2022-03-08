@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -42,14 +42,14 @@ public:
 
   char symbol() const noexcept { return get_key(); }
 
-  DynList<Cnode*> children() const 
+  DynList<Cnode*> children() const
   {
     DynList<Cnode*> r;
     for_each_child([&r] (Tree_Node<char> * p) { r.append((Cnode*) p); });
     return r;
   }
 
-  string to_str() const 
+  string to_str() const
   {
     string ret(1, symbol());
     children().for_each([&ret] (Cnode * p) { ret += "(" + p->to_str() + ")"; });
@@ -90,7 +90,7 @@ public:
 
   Cnode * search_child(const char c) const noexcept
   {
-    for (Tree_Node * child = get_left_child(); child != nullptr; 
+    for (Tree_Node * child = get_left_child(); child != nullptr;
          child = child->get_right_sibling())
       if (child->get_key() == c)
         return (Cnode*) child;
@@ -100,7 +100,7 @@ public:
 
   Cnode * greater_child(const char c) const noexcept
   {
-    for (Tree_Node * child = get_left_child(); child != nullptr; 
+    for (Tree_Node * child = get_left_child(); child != nullptr;
          child = child->get_right_sibling())
       if (child->get_key() > c)
         return (Cnode*) child;
@@ -141,7 +141,7 @@ public:
 
   Cnode * insert_child(Cnode * child)
   {
-    assert(not children().exists([child] (Cnode * p) 
+    assert(not children().exists([child] (Cnode * p)
 				 { return p->symbol() == child->symbol(); }));
 
     Cnode * sibling = greater_child(child->symbol());
@@ -153,41 +153,41 @@ public:
     return child;
   }
 
-  bool insert_word(const string & word) 
+  bool insert_word(const string & word)
   {
     DynList<Cnode*> list;
     try
       {
-	tuple<const Cnode*, const char*> p = search_prefix(word.c_str());
-	const Cnode * pp = get<0>(p);
-	char * rem = const_cast<char*>(get<1>(p));
+        tuple<const Cnode*, const char*> p = search_prefix(word.c_str());
+        const Cnode * pp = get<0>(p);
+        char * rem = const_cast<char*>(get<1>(p));
 
-	if (*rem == '\0')
-	  {
-	    if (pp->is_end_word())
-	      return false;
-	    else
-	      {
-		const_cast<Cnode*>(pp)->mark_end_word();
-		return true;
-	      }
-	  }
+        if (*rem == '\0')
+          {
+            if (pp->is_end_word())
+              return false;
+            else
+              {
+                const_cast<Cnode*>(pp)->mark_end_word();
+                return true;
+              }
+          }
 
-	for (char *ptr = rem; *ptr; ptr++)
-	  list.append(new Cnode(*ptr));
+        for (char *ptr = rem; *ptr; ptr++)
+          list.append(new Cnode(*ptr));
 
-	Cnode * child = 
-	  const_cast<Cnode*>(pp)->insert_child(list.remove_first());
-	while (not list.is_empty())
-	  child = child->insert_child(list.remove_first());
+        Cnode * child =
+          const_cast<Cnode*>(pp)->insert_child(list.remove_first());
+        while (not list.is_empty())
+          child = child->insert_child(list.remove_first());
 
-	child->mark_end_word();
+        child->mark_end_word();
 
-	return true;
+        return true;
       }
     catch (invalid_argument & e)
       {
-	throw invalid_argument("word contains an invalid character");
+        throw invalid_argument("word contains an invalid character");
       }
   }
 
@@ -219,9 +219,9 @@ private:
     stack.push(symbol());
 
     for (Tree_Node<char> * child = get_left_child(); child != nullptr;
-	 child = child->get_right_sibling())
+         child = child->get_right_sibling())
       static_cast<Cnode*>(child)->words(stack, l);
- 
+
     stack.pop();
   }
 

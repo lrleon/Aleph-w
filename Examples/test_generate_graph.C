@@ -1,33 +1,33 @@
 
 /* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / \  | | ___ _ __ | |__      __      __
+   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+   |_|
 
-  This file is part of Aleph-w library
+   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+   General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+   You should have received a copy of the GNU General Public License
+   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <generate_graph.H>
 
 
-struct Nodo 
+struct Nodo
 {
   string str;
 
@@ -65,7 +65,7 @@ typedef List_Graph<Graph_Node<Nodo>, Graph_Arc<Arco> > Grafo;
 struct Nodo_String
 {
   string operator () (Grafo::Node * p) const
-  { 
+  {
     return p->get_info().str;
   }
 };
@@ -74,7 +74,7 @@ struct Nodo_String
 struct Arco_String
 {
   string operator () (Grafo::Arc * a) const
-  { 
+  {
     return to_string(a->get_info().w);
   }
 };
@@ -83,16 +83,16 @@ struct Arco_String
 Grafo::Node * bn(Grafo * g, const string & str)
 {
   return g->search_node([&str] (Grafo::Node * p)
-		      {
-			return p->get_info().str == str;
-		      });
+                        {
+                          return p->get_info().str == str;
+                        });
 }
 
 
 void insertar_arco(Grafo *        g,
-		   const string & s1, 
-		   const string & s2, 
-		   const int &    i)
+                   const string & s1,
+                   const string & s2,
+                   const int &    i)
 {
   Grafo::Node * src = bn(g, s1);
   Grafo::Node * tgt = bn(g, s2);
@@ -145,7 +145,7 @@ Grafo * build_graph()
   insertar_arco(g, "O", "J", 1);
   insertar_arco(g, "O", "P", 6);
 
-  return g;    
+  return g;
 }
 
 
@@ -162,5 +162,5 @@ int main()
     ofstream out("test.dot", ios::out);
     Generate_Graphviz <Grafo, Nodo_String, Arco_String> () (*g, out);
   }
-  
+
 }

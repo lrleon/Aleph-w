@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -44,7 +44,7 @@ gsl_rng * r = NULL;
 # define DEFAULT_N 100
 
 template <template <typename,class> class HashTable, typename Key,
-	  class Cmp = Aleph::equal_to<Key>> 
+          class Cmp = Aleph::equal_to<Key>> 
 HashTable<Key, Cmp> create_table(const HashTable<Key, Cmp> & s)
 {
   typedef HashTable<Key, Cmp> Hset;
@@ -56,7 +56,7 @@ HashTable<Key, Cmp> create_table(const HashTable<Key, Cmp> & s)
 }
 
 template <template <typename, class> class HashTable, typename Key,
-	  class Cmp = Aleph::equal_to<Key>>
+          class Cmp = Aleph::equal_to<Key>>
 void test_hash_table(size_t n)
 {
   typedef HashTable<Key, Cmp> Hset;
@@ -69,75 +69,75 @@ void test_hash_table(size_t n)
   for (int k = 0; k < 4; k++)
     {  
       cout << "k = " << k << endl
-	   << "testing insertions and initial searches" << endl;
+           << "testing insertions and initial searches" << endl;
 
       for (int i = 0; i < n; i++)
-	{
-	  while (true)
-	    {
-	      keys[i] = gsl_rng_get(r);
-	      if (table.search(keys(i)) == NULL)
-		break;
-	    }
+        {
+          while (true)
+            {
+              keys[i] = gsl_rng_get(r);
+              if (table.search(keys(i)) == NULL)
+                break;
+            }
 	  
-	  table.insert(keys(i));
-	}
+          table.insert(keys(i));
+        }
 
       cout << "done" << endl
-	   << endl;
+           << endl;
 
       table.print_stats(table.stats());
 
       cout << endl
-	   << "testing searches or previous inserted keys" << endl;
+           << "testing searches or previous inserted keys" << endl;
       Key * ptr;
       for (int i = 0; i < n; i++)
-	{
-	  const Key k = keys(i);
+        {
+          const Key k = keys(i);
 
-	  ptr = table.search(k);
+          ptr = table.search(k);
 
-	  assert(ptr != NULL);
-	  assert(*ptr == keys(i));
-	}
+          assert(ptr != NULL);
+          assert(*ptr == keys(i));
+        }
       cout << "done!" << endl
-	   << endl
-	   << "testing deletion ...." << endl;
+           << endl
+           << "testing deletion ...." << endl;
       for (int i = 0; i < n; i += 2)
-	{
-	  ptr = table.search(keys(i));
+        {
+          ptr = table.search(keys(i));
 	  
-	  assert(ptr != NULL);
+          assert(ptr != NULL);
 
-	  table.remove_ptr(ptr);
-	}
+          table.remove_ptr(ptr);
+        }
       cout << "done!" << endl
-	   << endl
-	   << "Reinserting others keys ...." << endl;
+           << endl
+           << "Reinserting others keys ...." << endl;
       for (int i = 0; i < n; i += 2)
-	{
-	  while (true)
-	    {
-	      keys[i] = gsl_rng_get(r);
-	      if (table.search(keys(i)) == NULL)
-		break;
-	    }
-	  table.insert(keys(i));
-	}
+        {
+          while (true)
+            {
+              keys[i] = gsl_rng_get(r);
+              if (table.search(keys(i)) == NULL)
+                break;
+            }
+          table.insert(keys(i));
+        }
       cout << "done!" << endl
-	   << endl
-	   << "Removing all the keys ...." << endl;
+           << endl
+           << "Removing all the keys ...." << endl;
       for (int i = 0; i < n; i++)
-	{
-	  const Key & key = keys(i);
-	  ptr = table.search(key);
-	  assert(ptr != NULL);
-	  table.remove_ptr(ptr);
-	}
+        {
+          const Key & key = keys(i);
+          ptr = table.search(key);
+          assert(ptr != NULL);
+          table.remove_ptr(ptr);
+        }
 
       assert(table.size() == 0);
       cout << "done! k = " << k << endl
-	   << endl;
+           << endl;
     }
 
   cout << "Sorting keys backup ...." << endl;
@@ -171,14 +171,14 @@ void test_hash_table(size_t n)
     it.reset_last();
     for (int i = 0; it.has_curr(); it.prev(), ++i, ++count)
       {
-	const Key & curr = it.get_curr();
-	int idx = binary_search(keys, curr);
-	assert(idx >= 0);
-	assert(curr == keys(idx));
+        const Key & curr = it.get_curr();
+        int idx = binary_search(keys, curr);
+        assert(idx >= 0);
+        assert(curr == keys(idx));
       }
     assert(count == table.size());
     cout << "done!" << endl
-	 << endl; 
+         << endl; 
   }
   cout << "done!" << endl
        << endl
@@ -211,7 +211,7 @@ void test_hash_table(size_t n)
       
       Key * ptr = table.search(key);
       if (ptr == NULL)
-	continue;
+        continue;
 
       table.remove_ptr(ptr);
     }
@@ -224,9 +224,9 @@ void test_hash_table(size_t n)
     assert(aux.size() == table.size());
     for (typename Hset::Iterator it(table); it.has_curr(); it.next())
       {
-	Key * key_ptr = aux.search(it.get_curr());
-	assert(key_ptr != NULL);
-	assert(*key_ptr == it.get_curr());
+        Key * key_ptr = aux.search(it.get_curr());
+        assert(key_ptr != NULL);
+        assert(*key_ptr == it.get_curr());
       }
     cout << "done!" << endl;
   }
@@ -242,7 +242,7 @@ void test_hash_table(size_t n)
     assert(aux == table);
 
     cout << "done!" << endl
-	 << endl;
+         << endl;
   }
 }
 

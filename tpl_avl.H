@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -60,10 +60,10 @@ public:
 private:
 
   FixedStack<Node *> avl_stack;
-  Node               head_node; 
-  Node *             head_ptr;  
-  Node *&            root;      
-  Compare            cmp;       
+  Node               head_node;
+  Node *             head_ptr;
+  Node *&            root;
+  Compare            cmp;
 
   bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
 
@@ -112,7 +112,7 @@ private:
     assert(DIFF(p) == 2);
     assert(RLINK(p) != Node::NullPtr);
 
-    Node * q = RLINK(p); 
+    Node * q = RLINK(p);
     RLINK(p) = LLINK(q);
     LLINK(q) = p;
 
@@ -132,7 +132,7 @@ private:
     assert(DIFF(p) == -2);
     assert(LLINK(p) != Node::NullPtr);
 
-    Node * q = LLINK(p); 
+    Node * q = LLINK(p);
     LLINK(p) = RLINK(q);
     RLINK(q) = p;
 
@@ -162,7 +162,7 @@ private:
     unsigned char b; // altura lógica de hijo izq de r
     unsigned char c; // altura lógica de hijo der de r
 
-        // Determinación de alturas lógicas de p, q y r 
+        // Determinación de alturas lógicas de p, q y r
     if (DIFF(r) == 1) // ==> c > b ==> c-b == 1
       {
         c = 1;
@@ -175,9 +175,9 @@ private:
       }
     else
       c = b = 1;
-            
+
         // ajuste de factores de equilibrio
-    DIFF(r) = 0; 
+    DIFF(r) = 0;
     DIFF(p) = b - 1; // altura lógica de hijo izq de p es 1
     DIFF(q) = 1 - c; // altura lógica de hijo der de q es 1
 
@@ -221,7 +221,7 @@ private:
     return r;
   }
 
-  enum Rotation_Type 
+  enum Rotation_Type
     { ROTATE_LEFT, ROTATE_RIGHT, DOUBLE_ROTATE_LEFT, DOUBLE_ROTATE_RIGHT };
 
   static Rotation_Type rotation_type(Node * p) noexcept
@@ -232,14 +232,14 @@ private:
     if (DIFF(p) == 2) // hacia la izquierda
       {
         pc = RLINK(p);
-        if (DIFF(pc) == 1 or DIFF(pc) == 0) 
+        if (DIFF(pc) == 1 or DIFF(pc) == 0)
           return ROTATE_LEFT;
 
         return DOUBLE_ROTATE_LEFT;
       }
 
     pc = LLINK(p);
-    if (DIFF(pc) == -1 or DIFF(pc) == 0) 
+    if (DIFF(pc) == -1 or DIFF(pc) == 0)
       return ROTATE_RIGHT;
 
     return DOUBLE_ROTATE_RIGHT;
@@ -256,7 +256,7 @@ private:
       case ROTATE_LEFT:         return *link = rotateLeft(p);
       case ROTATE_RIGHT:        return *link = rotateRight(p);
       case DOUBLE_ROTATE_LEFT:  return *link = doubleRotateLeft(p);
-      case DOUBLE_ROTATE_RIGHT: return *link = doubleRotateRight(p); 
+      case DOUBLE_ROTATE_RIGHT: return *link = doubleRotateRight(p);
 
       default:
         AH_ERROR("Invalid rotation type");
@@ -274,21 +274,21 @@ private:
     else
       DIFF(pp)++;
 
-    if (DIFF(pp) == 0) 
+    if (DIFF(pp) == 0)
       {    // en este caso, altura del ascendiente de pp no aumenta
-        clean_avl_stack();                      
+        clean_avl_stack();
         return;
       }
 
-    if (avl_stack_empty()) 
+    if (avl_stack_empty())
       return; // pp es raíz
 
     Node *gpp; // padre de pp
     do     // buscar nodo con factor igual a 0
       {
-        gpp = avl_stack.pop(); 
+        gpp = avl_stack.pop();
             // actualizar factores de equilibrio
-        if (LLINK(gpp) == pp) // AH_ERROR if (Compare () (key, KEY(gpp))) 
+        if (LLINK(gpp) == pp) // AH_ERROR if (Compare () (key, KEY(gpp)))
           DIFF(gpp)--;
         else
           DIFF(gpp)++;
@@ -310,10 +310,10 @@ private:
   }
 
   Node * swapWithSuccessor(Node * p, Node *& pp) noexcept
-  {   // Referencia al tope de la pila, pues p será intercambiado con 
+  {   // Referencia al tope de la pila, pues p será intercambiado con
       // sucesor y la posición en la pila la ocupará el sucesor de p
     Node *& ref_to_stack_top = avl_stack.top();
-        
+
     Node *fSucc = p;        // padre del sucesor
     Node *succ  = RLINK(p); // búsqueda comienza desde RLINK(p)
 
@@ -328,25 +328,25 @@ private:
       }
 
       // actualice antigua entrada de pila ocupada por p. Equivale
-      // a intercambiar antiguo tope (antes de buscar suc) con actual  
-    ref_to_stack_top = succ; 
-    avl_stack.top()  = p;   
+      // a intercambiar antiguo tope (antes de buscar suc) con actual
+    ref_to_stack_top = succ;
+    avl_stack.top()  = p;
     if (LLINK(pp) == p) // actualice el nuevo hijo de pp (sucesor)
       LLINK(pp) = succ;
     else
       RLINK(pp) = succ;
 
     LLINK(succ) = LLINK(p); // intercambie las ramas izquierdas
-    LLINK(p)    = Node::NullPtr; 
+    LLINK(p)    = Node::NullPtr;
     if (RLINK(p) == succ) // actualice ramas derechas
       { // sucesor es exactamente el hijo derecho de p
-        RLINK(p)    = RLINK(succ); 
+        RLINK(p)    = RLINK(succ);
         RLINK(succ) = p;
         pp          = succ;
       }
     else
       { // sucesor es el descendiente más a la izquierda de RLINK(p)
-        Node *succr  = RLINK(succ); 
+        Node *succr  = RLINK(succ);
         RLINK(succ)  = RLINK(p);
         LLINK(fSucc) = p;
         RLINK(p)     = succr;
@@ -394,14 +394,14 @@ public:
   Compare & get_compare() noexcept { return key_comp(); }
 
   Gen_Avl_Tree(Compare __cmp = Compare()) noexcept
-    : avl_stack(Node::MaxHeight), head_ptr(&head_node), 
+    : avl_stack(Node::MaxHeight), head_ptr(&head_node),
       root(RLINK (head_ptr)), cmp(__cmp)
   {
     avl_stack.push(head_ptr);
   }
 
   /** Swap in constant time all the items of `this` with the items of
-      `tree`. 
+      `tree`.
 
       @param[in] tree el treap a intercambiar con this
   */
@@ -420,7 +420,7 @@ public:
      /// node containing it is returned; otherwise `nullptr` is returned
   Node * search(const Key & key) const noexcept
   {
-    return searchInBinTree <Node, Compare> (root, key, cmp); 
+    return searchInBinTree <Node, Compare> (root, key, cmp);
   }
 
   /** Insert the node pointed by `p` in the tree.
@@ -432,7 +432,7 @@ public:
 
       @param[in] p the node to be inserted
       @return a the pointer `p` if `KEY(p)` is not found in the tree,
-      `nullptr` otherwise. 
+      `nullptr` otherwise.
   */
   Node * insert(Node * p) noexcept
   {
@@ -440,14 +440,14 @@ public:
       return root = p;
 
     Node *pp = search_and_stack_avl(KEY(p));
-    if (cmp (KEY(p), KEY(pp))) 
+    if (cmp (KEY(p), KEY(pp)))
       LLINK (pp) = p;
     else if (cmp (KEY(pp), KEY(p)))
       RLINK(pp) = p;
     else
       { // clave duplicada
         clean_avl_stack();
-        return nullptr;  
+        return nullptr;
       }
 
     restore_avl_after_insertion(p);
@@ -462,8 +462,8 @@ public:
           tree is returned. Otherwise, `p` is inserted and its value
           returned,
 
-	  This method is very useful when it is required to search and
-	  eventually to inseert,
+          This method is very useful when it is required to search and
+          eventually to insert,
 
           @param[in] p the node whose key must be searched and
           eventually inserted,
@@ -477,17 +477,17 @@ public:
       return root = p;
 
     Node * pp = search_and_stack_avl(KEY(p));
-    if (cmp(KEY(p), KEY(pp))) 
+    if (cmp(KEY(p), KEY(pp)))
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
       RLINK(pp) = p;
     else
       { // clave duplicada
         clean_avl_stack();
-        return pp;  
+        return pp;
       }
 
-    restore_avl_after_insertion(p); 
+    restore_avl_after_insertion(p);
 
     return p;
   }
@@ -499,12 +499,12 @@ public:
       return root = p;
 
     Node *pp = search_dup_and_stack_avl(KEY(p));
-    if (cmp (KEY(p), KEY(pp))) 
+    if (cmp (KEY(p), KEY(pp)))
       LLINK (pp) = p;
     else
       RLINK(pp) = p;
 
-    restore_avl_after_insertion(p); 
+    restore_avl_after_insertion(p);
 
     return p;
   }
@@ -525,25 +525,25 @@ public:
       }
 
     Node * pp = avl_stack.top(1); // obtener padre de p
-    bool left_deficit; // AH_ERROR Key removed_key = KEY(p); 
-    while (true) 
+    bool left_deficit; // AH_ERROR Key removed_key = KEY(p);
+    while (true)
       {
-        left_deficit = LLINK(pp) == p; 
+        left_deficit = LLINK(pp) == p;
         if (LLINK(p) == Node::NullPtr) // ¿incompleto por la izquierda?
-          {      // Sí, ate a pp el hijo de p 
+          {      // Sí, ate a pp el hijo de p
             if (LLINK(pp) == p)
               LLINK(pp) = RLINK(p);
             else
-              RLINK(pp) = RLINK(p); 
+              RLINK(pp) = RLINK(p);
             break;
           }
 
         if (RLINK(p) == Node::NullPtr) // ¿incompleto por la izquierda?
-          {     // Sí, ate a pp el hijo de p 
+          {     // Sí, ate a pp el hijo de p
             if (LLINK(pp) == p)
               LLINK(pp) = LLINK(p);
             else
-              RLINK(pp) = LLINK(p); 
+              RLINK(pp) = LLINK(p);
             break;
           }
 

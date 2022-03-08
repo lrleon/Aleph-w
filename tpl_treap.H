@@ -54,7 +54,7 @@ namespace Aleph
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
-      The class internally uses the gsl random number generator of 
+      The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
       By default, the Mersene twister is used and the seed is taken from
       system time.
@@ -122,11 +122,11 @@ private:
     Gen_Treap(Compare cmp = Compare())
       : Gen_Treap(time(nullptr), cmp) { /* empty */ }
 
-    ~Gen_Treap()
-    {
-      if (r != nullptr)
-        gsl_rng_free(r);
-    }
+  ~Gen_Treap()
+  {
+    if (r != nullptr)
+      gsl_rng_free(r);
+  }
 
     /// Get a pointer to gsl random number generator
     gsl_rng * gsl_rng_object() noexcept { return r;}
@@ -148,29 +148,29 @@ private:
 
   private:
 
-    Node * insert(Node * root, Node * p) noexcept
-    {
-      if (root == Node::NullPtr)
-        return p;
+  Node * insert(Node * root, Node * p) noexcept
+  {
+    if (root == Node::NullPtr)
+      return p;
 
-      Node * insertion_result = nullptr;
-      if (cmp(KEY(p), KEY(root)))
-        {
-          insertion_result = insert(LLINK(root), p);
-          if (insertion_result == Node::NullPtr)
-            return Node::NullPtr;
+    Node * insertion_result = nullptr;
+    if (cmp(KEY(p), KEY(root)))
+      {
+        insertion_result = insert(LLINK(root), p);
+        if (insertion_result == Node::NullPtr)
+          return Node::NullPtr;
 
-          LLINK(root) = insertion_result;
-          if (PRIO(insertion_result) < PRIO(root))
-            return rotate_to_right(root);
-          else
-            return root;
-        }
-      else if (cmp(KEY(root), KEY(p)))
-        {
-          insertion_result = insert(RLINK(root), p);
-          if (insertion_result == Node::NullPtr)
-            return Node::NullPtr;
+        LLINK(root) = insertion_result;
+        if (PRIO(insertion_result) < PRIO(root))
+          return rotate_to_right(root);
+        else
+          return root;
+      }
+    else if (cmp(KEY(root), KEY(p)))
+      {
+        insertion_result = insert(RLINK(root), p);
+        if (insertion_result == Node::NullPtr)
+          return Node::NullPtr;
 
           RLINK(root) = insertion_result;
           if (PRIO(insertion_result) < PRIO(root))
@@ -194,42 +194,42 @@ private:
             if (PRIO(LLINK(root)) < PRIO(root))
               root = rotate_to_right (root);
 
-          return ret;
-        }
-      else if (cmp(KEY(root), KEY(p)))
-        {
-          Node * ret = search_or_insert(RLINK(root), p);
-          if (ret == p) // p was inserted?
-            if (PRIO(RLINK(root)) < PRIO(root))
-              root = rotate_to_left (root);
+        return ret;
+      }
+    else if (cmp(KEY(root), KEY(p)))
+      {
+        Node * ret = search_or_insert(RLINK(root), p);
+        if (ret == p) // p was inserted?
+          if (PRIO(RLINK(root)) < PRIO(root))
+            root = rotate_to_left (root);
+
+        return ret;
+      }
 
           return ret;
         }
 
-      return root;
-    }
+  Node * insert_dup(Node * root, Node * p) noexcept
+  {
+    if (root == Node::NullPtr)
+      return p;
 
-    Node * insert_dup(Node * root, Node * p) noexcept
-    {
-      if (root == Node::NullPtr)
-        return p;
-
-      if (cmp(KEY(p), KEY(root)))
-        {
-          Node * result = LLINK(root) = insert_dup(LLINK(root), p);
-          if (PRIO(result) < PRIO(root))
-            return rotate_to_right(root);
-          else
-            return root;
-        }
-      else
-        {
-          Node * result = RLINK(root) = insert_dup(RLINK(root), p);
-          if (PRIO(result) < PRIO(root))
-            return rotate_to_left(root);
-          else
-            return root;
-        }
+    if (cmp(KEY(p), KEY(root)))
+      {
+        Node * result = LLINK(root) = insert_dup(LLINK(root), p);
+        if (PRIO(result) < PRIO(root))
+          return rotate_to_right(root);
+        else
+          return root;
+      }
+    else
+      {
+	Node * result = RLINK(root) = insert_dup(RLINK(root), p);
+	if (PRIO(result) < PRIO(root))
+	  return rotate_to_left(root);
+	else
+	  return root;
+      }
     }
 
   public:
@@ -247,15 +247,15 @@ private:
     {
       assert(p != Node::NullPtr);
 
-      PRIO(p)       = gsl_rng_get(r); // selección aleatoria de prioridad
-      Node * result = insert(tree_root, p);
-      if (result == Node::NullPtr)
-        return nullptr;
+    PRIO(p)       = gsl_rng_get(r); // selección aleatoria de prioridad
+    Node * result = insert(tree_root, p);
+    if (result == Node::NullPtr)
+      return nullptr;
 
       tree_root = result;
 
-      return p;
-    }
+    return p;
+  }
 
     /** Search or insert a key.
 
@@ -273,7 +273,10 @@ private:
     {
       assert(p != Node::NullPtr);
 
-      PRIO(p) = gsl_rng_get(r); // selección aleatoria de prioridad
+    PRIO(p) = gsl_rng_get(r); // selección aleatoria de prioridad
+
+    return search_or_insert(tree_root, p);
+  }
 
       return search_or_insert(tree_root, p);
     }
@@ -289,8 +292,8 @@ private:
     {
       assert(p != Node::NullPtr);
 
-      PRIO(p)   = gsl_rng_get(r); // selección aleatoria de prioridad
-      tree_root = insert_dup(tree_root, p);
+    return p;
+  }
 
       return p;
     }
@@ -309,19 +312,8 @@ private:
       Node ** pp = &RLINK(head_ptr);
       Node * p   = tree_root;
 
-      while (p != Node::NullPtr) // descender buscando la clave
-        if (cmp(key, KEY(p)))
-          {
-            pp = &LLINK(p);
-            p  = LLINK(p);
-          }
-        else if (cmp(KEY(p), key))
-          {
-            pp = &RLINK(p);
-            p  = RLINK(p);
-          }
-        else
-          break; // encontrada!
+    if (p == Node::NullPtr)
+      return nullptr; // clave no fue encontrada
 
       if (p == Node::NullPtr)
         return nullptr; // clave no fue encontrada

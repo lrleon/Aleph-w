@@ -86,7 +86,7 @@ void imprime_rangos(DynList<DynList<Digrafo::Node*>> & l)
       DynList<Digrafo::Node*> & l = i.get_curr();
       cout << level << ": ";
       for (DynList<Digrafo::Node*>::Iterator j(l); j.has_curr(); j.next())
-	cout << j.get_curr()->get_info() << " -> ";
+        cout << j.get_curr()->get_info() << " -> ";
       cout << endl;
     }
 }
@@ -100,7 +100,7 @@ int main()
     DynDlist<Digrafo::Node*> list;
     Topological_Sort <Digrafo> () (g, list);
 
-    imprime_lista(list);  
+    imprime_lista(list);
 
     list.empty();
   }

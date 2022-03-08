@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -41,67 +41,67 @@ namespace Aleph {
 
       @ingroup Secuencias
       @see Snode Slist DynSlist Dlink 
-   */
-class Slink
-{
-protected:
+  */
+  class Slink
+  {
+  protected:
 
     Slink * next;
 
-public:
+  public:
 
     /// Constructor vacío.
-  Slink() : next(this) { /* Empty */ }
+    Slink() : next(this) { /* Empty */ }
 
-      /// Reinicia enlace a que apunte a sí mismo
-  void reset() 
-  {
-    next = this; 
-  }
-      /// Retorna true si this está vacío (apunta a sí mismo)
-  bool is_empty() const 
-  {
-    return next == this; 
-  }
+    /// Reinicia enlace a que apunte a sí mismo
+    void reset() 
+    {
+      next = this; 
+    }
+    /// Retorna true si this está vacío (apunta a sí mismo)
+    bool is_empty() const 
+    {
+      return next == this; 
+    }
 
-      /// Retorna el siguiente enlace.
-  Slink *& get_next() 
-  {
-    return next; 
-  }
+    /// Retorna el siguiente enlace.
+    Slink *& get_next() 
+    {
+      return next; 
+    }
 
-      /** Inserta en enlace p después de this.
+    /** Inserta en enlace p después de this.
 
-          insert_next(p) inserta un nodo simple cuyo enlace es p después
-          del nodo cuyo enlace es this.
+        insert_next(p) inserta un nodo simple cuyo enlace es p después
+        del nodo cuyo enlace es this.
 
-          @param[in] p el enlace simple a insertar.
-       */
-  void insert_next(Slink * p)
-  {
-    assert(p not_eq nullptr);
-    assert(p->is_empty());
+        @param[in] p el enlace simple a insertar.
+    */
+    void insert_next(Slink * p)
+    {
+      assert(p not_eq nullptr);
+      assert(p->is_empty());
 
-    p->next = next;
-    next = p;
-  }
+      p->next = next;
+      next = p;
+    }
 
-      /** Elimina el enlace siguiente a this.
+    /** Elimina el enlace siguiente a this.
 
-          remove_next() elimina el nodo simple situado después
-          del nodo cuyo enlace es this y retorna la dirección del enlace 
-          eliminado.
+        remove_next() elimina el nodo simple situado después
+        del nodo cuyo enlace es this y retorna la dirección del enlace 
+        eliminado.
 
-          @return  el enlace eliminado.
-       */
-  Slink * remove_next()
-  {
-    Slink * ret_val = next;
-    next = ret_val->next;
-    ret_val->reset();
-    return ret_val;
-  }    
-};
+        @return  el enlace eliminado.
+    */
+    Slink * remove_next()
+    {
+      Slink * ret_val = next;
+      next = ret_val->next;
+      ret_val->reset();
+      return ret_val;
+    }    
+  };
   /** Genera función de conversión de nombre de enlace simple a 
       estructura que lo contenga. El nombre de la función es literalmente
       el parámetro que se instancie como link_name 
@@ -113,10 +113,10 @@ public:
       Si tenemos, por ejemplo:
       struct Registro
       {
-          ...
-          Slink l1;
-          Slink l2;
-          ...
+      ...
+      Slink l1;
+      Slink l2;
+      ...
       };
 
       Entonces slink_TO_TYPE(Registro, l1) y
@@ -125,7 +125,7 @@ public:
       -# Registro * l1_to_type(Slink * link), la cual recibe un
       apuntador al campo l1 del registro y retorna el
       puntero al registro.
-        
+
       -# Registro * l2_to_type(Slink * link), la cual recibe un
       apuntador al campo l2 del registro y retorna el
       puntero al registro.
@@ -138,14 +138,14 @@ public:
       @param link_name el nombre del campo del enlace doble dentro de
       la estructura.
       @ingroup Secuencias
-   */
-# define SLINK_TO_TYPE(type_name, link_name)				\
-  static type_name * slink_to_type(Slink * link)			\
-  {									\
-    type_name * ptr_zero = 0;						\
-    size_t offset_link = (size_t) &(ptr_zero->link_name);		\
+  */
+# define SLINK_TO_TYPE(type_name, link_name)                            \
+  static type_name * slink_to_type(Slink * link)                        \
+  {                                                                     \
+    type_name * ptr_zero = 0;                                           \
+    size_t offset_link = (size_t) &(ptr_zero->link_name);               \
     unsigned long address_type = ((unsigned long) link) - offset_link;	\
-    return (type_name *) address_type;					\
+    return (type_name *) address_type;                                  \
   } 
 
 } // end namespace Aleph

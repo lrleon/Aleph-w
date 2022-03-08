@@ -24,6 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
 
@@ -225,9 +226,9 @@ namespace Aleph
   
     for (size_t i = 0; i < len; i++) 
       {
-	h += p[i];
-	h += (h << 10);
-	h ^= (h >> 6);
+        h += p[i];
+        h += (h << 10);
+        h ^= (h >> 6);
       }
  
     h += (h << 3);
@@ -275,13 +276,13 @@ namespace Aleph
   
     for (size_t i = 0; i < len; i++) 
       {
-	h = (h << 4) + p[i];
-	g = h & 0xf0000000L;
+        h = (h << 4) + p[i];
+        g = h & 0xf0000000L;
  
-	if(g != 0)
-	  h ^= g >> 24;
+        if(g != 0)
+          h ^= g >> 24;
  
-	h &= ~g;
+        h &= ~g;
       }
  
     return h;
@@ -312,44 +313,44 @@ namespace Aleph
       considered to be one of the best and most thoroughly analyzed
       algorithms on the market presently. Unfortunately, it is also
       ridiculously complicated compared to the other hashes examined in
-      this tutorial" 
+      this tutorial"
 
       @author Julienne Walker
       @ingroup Hash
-  */ 
-  inline size_t jen_hash(void * key, size_t length, 
-			 unsigned initval = Default_Hash_Seed) noexcept
+  */
+  inline size_t jen_hash(void * key, size_t length,
+                         unsigned initval = Default_Hash_Seed) noexcept
   {
     unsigned char * k = (unsigned char *) key;
     size_t a, b;
     size_t c = initval;
     size_t len = length;
- 
+
     a = b = 0x9e3779b9;
- 
-    while (len >= 12) 
+
+    while (len >= 12)
       {
-	a += (k[0] +((size_t)k[1] << 8) + ((size_t)k[2] << 16) +
-	      ((size_t)k[3] << 24));
-	b += (k[4] +((size_t)k[5] << 8) + ((size_t)k[6] << 16) +
-	      ((size_t)k[7] << 24));
-	c += (k[8] +((size_t)k[9] << 8) +((size_t)k[10] << 16) +
-	      ((size_t)k[11] << 24));
- 
-	mix(a, b, c);
- 
-	k += 12;
-	len -= 12;
+        a += (k[0] +((size_t)k[1] << 8) + ((size_t)k[2] << 16) +
+              ((size_t)k[3] << 24));
+        b += (k[4] +((size_t)k[5] << 8) + ((size_t)k[6] << 16) +
+              ((size_t)k[7] << 24));
+        c += (k[8] +((size_t)k[9] << 8) +((size_t)k[10] << 16) +
+              ((size_t)k[11] << 24));
+
+        mix(a, b, c);
+
+        k += 12;
+        len -= 12;
       }
- 
+
     c += length;
- 
-    switch(len) 
+
+    switch(len)
       {
       case 11: c += ((size_t)k[10] << 24);
       case 10: c += ((size_t)k[9] << 16);
       case 9 : c += ((size_t)k[8] << 8);
-	/* First byte of c reserved for length */
+        /* First byte of c reserved for length */
       case 8 : b += ((size_t)k[7] << 24);
       case 7 : b += ((size_t)k[6] << 16);
       case 6 : b += ((size_t)k[5] << 8);
@@ -359,13 +360,13 @@ namespace Aleph
       case 2 : a += ((size_t)k[1] << 8);
       case 1 : a += k[0];
       }
- 
+
     mix(a, b, c);
- 
+
     return c;
   }
 
-  /* The following three functions were taken from 
+  /* The following three functions were taken from
 
      https://github.com/PeterScott/murmur3
 
@@ -404,7 +405,7 @@ namespace Aleph
     size_t ret;
     memcpy(&ret, &buf, sizeof(ret));
 
-    return ret;  
+    return ret;
   }
 
 
@@ -422,7 +423,7 @@ namespace Aleph
     size_t ret;
     memcpy(&ret, &buf, sizeof(ret));
 
-    return ret;  
+    return ret;
   }
 
   template <> inline
@@ -439,7 +440,7 @@ namespace Aleph
     size_t ret;
     memcpy(&ret, &buf, sizeof(ret));
 
-    return ret;  
+    return ret;
   }
 
 
@@ -451,14 +452,14 @@ namespace Aleph
   */
 
 #undef get16bits
-#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__)	\
+#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__)    \
   || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
 #define get16bits(d) (*((const uint16_t *) (d)))
 #endif
 
 #if !defined (get16bits)
 #define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)	\
-		      +(uint32_t)(((const uint8_t *)(d))[0]) )
+                      +(uint32_t)(((const uint8_t *)(d))[0]) )
 #endif
 
   /** Paul Hsieh super fast hash function.
@@ -466,46 +467,46 @@ namespace Aleph
       @author Paul Hsieh
       @ingroup Hash
   */
-  inline size_t SuperFastHash(void * key, size_t len) noexcept 
+  inline size_t SuperFastHash(void * key, size_t len) noexcept
   {
     const unsigned char * data = (unsigned char *) key;
     size_t hash = len, tmp;
     int rem;
 
-    if (len <= 0 || data == nullptr) 
+    if (len <= 0 || data == nullptr)
       return 0;
 
     rem = len & 3;
     len >>= 2;
 
     /* Main loop */
-    for (;len > 0; len--) 
+    for (;len > 0; len--)
       {
-	hash  += get16bits (data);
-	tmp    = (get16bits (data+2) << 11) ^ hash;
-	hash   = (hash << 16) ^ tmp;
-	data  += 2*sizeof (uint16_t);
-	hash  += hash >> 11;
+        hash  += get16bits (data);
+        tmp    = (get16bits (data+2) << 11) ^ hash;
+        hash   = (hash << 16) ^ tmp;
+        data  += 2*sizeof (uint16_t);
+        hash  += hash >> 11;
       }
 
     /* Handle end cases */
-    switch (rem) 
+    switch (rem)
       {
-      case 3: 
-	hash += get16bits (data);
-	hash ^= hash << 16;
-	hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
-	hash += hash >> 11;
-	break;
-      case 2: 
-	hash += get16bits (data);
-	hash ^= hash << 11;
-	hash += hash >> 17;
-	break;
-      case 1: 
-	hash += (signed char)*data;
-	hash ^= hash << 10;
-	hash += hash >> 1;
+      case 3:
+        hash += get16bits (data);
+        hash ^= hash << 16;
+        hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
+        hash += hash >> 11;
+        break;
+      case 2:
+        hash += get16bits (data);
+        hash ^= hash << 11;
+        hash += hash >> 17;
+        break;
+      case 1:
+        hash += (signed char)*data;
+        hash ^= hash << 10;
+        hash += hash >> 1;
       }
 
     /* Force "avalanching" of final 127 bits */
@@ -611,10 +612,10 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     while (*p)
       h = (h << 4) ^(h >> 28) ^ *p++;
-  
+
     return h;
   }
 
@@ -622,51 +623,51 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0;
-  
+
     while (*p)
       h = 33 * h ^ *p++;
-  
+
     return h;
   }
 
   inline size_t sax_hash(const char * key)
   {
     unsigned char *p = (unsigned char *) key;
-    size_t h = 0;  
-  
+    size_t h = 0;
+
     while (*p)
       h ^= (h << 5) +(h >> 2) + *p++;
-  
+
     return h;
   }
 
   inline size_t fnv_hash(const char * key) noexcept
   {
     unsigned char *p = (unsigned char *) key;
-    size_t h = 2166136261;  
-  
+    size_t h = 2166136261;
+
     while (*p)
       h = (h * 16777619) ^ *p++;
-  
+
     return h;
   }
 
   inline size_t oat_hash(const char * key) noexcept
   {
     unsigned char *p = (unsigned char *) key;
-    size_t h = 0;  
-  
+    size_t h = 0;
+
     while (*p)
       {
-	h += *p++;
-	h += (h << 10);
-	h ^= (h >> 6);
+        h += *p++;
+        h += (h << 10);
+        h ^= (h >> 6);
       }
- 
+
     h += (h << 3);
     h ^= (h >> 11);
     h += (h << 15);
- 
+
     return h;
   }
 
@@ -676,22 +677,22 @@ namespace Aleph
   {
     unsigned char *p = (unsigned char *) key;
     size_t h = 0, g;
-  
+
     while (*p)
       {
-	h =(h << 4) + *p++;
-	g = h & 0xf0000000L;
- 
-	if(g != 0)
-	  h ^= g >> 24;
- 
-	h &= ~g;
+        h =(h << 4) + *p++;
+        g = h & 0xf0000000L;
+
+        if(g != 0)
+          h ^= g >> 24;
+
+        h &= ~g;
       }
- 
+
     return h;
   }
 
-  inline size_t SuperFastHash(const char * key) noexcept 
+  inline size_t SuperFastHash(const char * key) noexcept
   {
     return SuperFastHash((void*) key, strlen(key));
   }

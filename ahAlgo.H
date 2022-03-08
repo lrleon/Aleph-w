@@ -813,7 +813,7 @@ Out_Itor unique_copy(In_Itor __first, In_Itor __last,
 }
 
 
-  template<class Itor, 
+  template<class Itor,
 	   class BinaryPredicate = Aleph::equal_to<typename Itor::value_type>
 	   > inline
 Itor unique(Itor __first, Itor __last, BinaryPredicate __binary_pred)
@@ -831,7 +831,7 @@ Itor unique(Itor __first, Itor __last, BinaryPredicate __binary_pred)
   while (++__first != __last)
     if (not __binary_pred(*__dest, *__first))
       *++__dest = *__first;
-  
+
   return ++__dest;
 }
 
@@ -856,7 +856,7 @@ Itor2 reverse_copy(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
       *destBeg = *sourceEnd;
       ++destBeg;
     }
-	
+
   return destBeg;
 }
 

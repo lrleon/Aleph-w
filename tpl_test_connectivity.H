@@ -5,7 +5,7 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
@@ -72,11 +72,11 @@ public:
     if (g.is_digraph()) // sólo es válida para grafos, no digrafos
       throw std::domain_error("test_connectivity() does not work on digraphs");
 
-    if (g.get_num_arcs() < g.get_num_nodes() - 1) 
+    if (g.get_num_arcs() < g.get_num_nodes() - 1)
       return false;
 
     Depth_First_Traversal <GT, Default_Visit_Op<GT>, SA> traversal(sa);
- 
+
     return traversal(g) == g.get_num_nodes();
   }
 

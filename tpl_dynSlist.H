@@ -135,7 +135,7 @@ namespace Aleph {
       while (not this->is_empty())
         delete this->remove_first_ne(); // remove_first de clase Slink
     }
-    
+
     /** Iterador sobre listas dinámicas implementadas con listas
         simplemente enlazadas.
 

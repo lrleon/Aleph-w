@@ -821,6 +821,9 @@ class Snodenc : public Slinknc
     return get_first();
   }
 
+ //!\~English It divides 'this' into two equal lists without modifying
+ //!elements order \~Spanish Divide this en dos listas equitativas sin
+ //!alterar el orden de los elementos.
        \~Spanish
        Elimina el elemnto cabecera de la lista.
 
@@ -1342,10 +1345,12 @@ class Snodenc : public Slinknc
   void rotate_left(size_t n)
   {
     if (is_empty())
-      if (n == 0)
-        return;
-      else
-        throw std::domain_error("List is empty");
+      {
+        if (n == 0)
+          return;
+        else
+          throw std::domain_error("List is empty");
+      }
 
          `del()` removes the current item of iterator and advaces it a
          position forward.

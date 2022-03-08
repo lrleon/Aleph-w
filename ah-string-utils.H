@@ -144,6 +144,19 @@ namespace Aleph
     return ret;
   }
 
+  inline string remove_symbols(const string & str, const string& symbols)
+  {
+    const size_t n = str.size();
+    std::string ret; ret.reserve(n + 1);
+    for (auto c : str)
+      {
+        string s; s.push_back(c);
+        if (not contains(symbols, s))
+          ret.push_back(c);
+      }
+    return ret;
+  }
+
   template <class C>
   inline ostream & join(const C & c, const string & sep, ostream & out)
   {
@@ -300,6 +313,10 @@ namespace Aleph
   template <template <typename> class Container = DynList>
   inline Container<string> split_string(const string & s, const string & delim)
   {
+    Container<string> elems;
+    if (s.empty())
+      return elems;
+
     char * buf = new char [s.size() + 1];
     char * ptr = buf;
     char ** p = &buf;
@@ -307,7 +324,6 @@ namespace Aleph
     string data = s;
     const char * d = delim.data();
     char * str = (char*) data.data();
-    Container<string> elems;
 
     try
       {
@@ -425,10 +441,10 @@ namespace Aleph
     return mat.maps<DynList<string>>([&lens] (const DynList<string> & l)
       {
         return zip(lens, l).template maps<string>([] (auto p)
-           {
-             const string blanks(p.first - p.second.size(), ' ');
-             return blanks + p.second + " ";
-           });
+          {
+            const string blanks(p.first - p.second.size(), ' ');
+            return blanks + p.second + " ";
+          });
       });
   }
 
@@ -438,11 +454,12 @@ namespace Aleph
     for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & row = it.get_curr_ne();
-        auto line = zip(lens, row).template maps<string>([] (auto p)
-          {
-            const string blanks(p.first - p.second.size(), ' ');
-            return blanks + p.second + " ";
-          });
+        auto line = zip(lens, row).
+          template maps<string>([] (auto p)
+                                {
+                                  const string blanks(p.first - p.second.size(), ' ');
+                                  return blanks + p.second + " ";
+                                });
         line.for_each([&out] (const auto & s) { out << s; });
         out << endl;
       }
@@ -460,10 +477,11 @@ namespace Aleph
     DynList<size_t> maxs =
       mat.foldl(ilens, [] (const DynList<size_t> & acu,
                            const DynList<string> & l)
-                {
-                  return zip(acu, l).maps<size_t>([] (auto p)
-                    { return max(p.first, p.second.size()); });
-                });
+                       {
+                         return zip(acu, l).
+                           maps<size_t>([] (auto p)
+                                        { return max(p.first, p.second.size()); });
+                       });
 
     return format_string(maxs, mat);
   }
