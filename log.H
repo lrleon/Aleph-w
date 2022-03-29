@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,42 +25,6 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef LOG_H
-# define LOG_H
-
-# include <sys/utsname.h>
-# include <errno.h>
-# include <stdio.h>
-# include <stdarg.h>
-# include <string.h>
-# include <useMutex.H>
-
-class Log_Manager
-{
-  static const short int Max_Log_Line_Length  = 512;
-  static const short int Max_Time_Line_Length = 61;
-
-  FILE * file_descriptor;
-
-  pthread_mutex_t mutex;
-
-  char print_buffer[Max_Log_Line_Length];
-
-  char time_buffer[Max_Time_Line_Length];
-
-  size_t num_lines;
-
-  size_t max_num_lines;
-
-  void get_time()
-  {
-        /* classic unix time (seconds from january 1, 1970) */
-    time_t unix_time;
-    time(&unix_time); /* get seconds from anuary 1, 1970) */
-      
-          /* libc broken time */
-    struct tm broken_time;
-        /* convert unix time to broken time */
     localtime_r(&unix_time, &broken_time); 
 
     strftime(time_buffer, Max_Time_Line_Length, "%a %b %d %G %r", 

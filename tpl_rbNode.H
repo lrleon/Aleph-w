@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,36 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# ifndef TPL_RBNODE_H
-# define TPL_RBNODE_H
-
-
-# include <tpl_binNode.H>
-
-
-# define Color        unsigned char
-
-
-# ifdef DEBUG
-# define RED          ('R')
-# define BLACK        ('B')
-# else
-# define RED          (0)
-# define BLACK        (1)
-# endif
-
-
-class RbNode_Data
-{
-private:
-  
-  Color  color; // color is either BLACK or RED 
-public:
-
-  RbNode_Data() noexcept : color(RED) { /* empty */ }
-
-  RbNode_Data(SentinelCtor) noexcept : color(BLACK) { /* empty */ }
+ }
 
   Color& getColor() noexcept { return color; }
 

@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,63 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# ifndef TPL_DYNLHASH_H
-# define TPL_DYNLHASH_H
-
-# include <tpl_lhash.H>
-
-using namespace Aleph;
-
-namespace Aleph {
-
-   /** Mapeo dinámico clave-rango instrumentado mediante una tabla hash con
-       resolución de colisiones por encadenamiento separado.
-
-       El tipo DynLhashTable<Key,Record> instrumenta un mapeo mediante
-       una tabla hash con resolución de colisiones por encadenamiento
-       separado. El tipo exporta observadores para conocer el radio de
-       uso y, eventualmente, reajustar el tamaño de la tabla, de modo
-       que ésta exhiba un mejor desempeño.
-
-       Pueden usarse de manera segura punteros a registros dentro de la
-       tabla.
-
-       Aparte los métodos tradicionales de inserción y búsqueda, el
-       operador [] funge a la vez como consulta e inserción. La
-       asignación tabla[key]=record se corresponde con una inserción;
-       mientras que cualquier expresión del tipo table[key] que
-       involucre lectura se corresponde con una búsqueda.
-
-       @param Key el tipo de clave de indización
-       @param Record el tipo de rango asociado a las claves.
-       @param Cmp clase de comparación entre las claves.
-
-       @ingroup Hash
-    */
-  template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
-class DynLhashTable : public LhashTable<Key>
-{
-private:
-
-  struct DLBucket : public LhashTable<Key>::Bucket
-  {
-    Record record;
-
-    DLBucket(const Key & key, const Record & _record)
-      : LhashTable<Key>::Bucket(key), record(_record) { /* Empty */ }
-
-    DLBucket(const Key & key, Record && _record)
-      : LhashTable<Key>::Bucket(key), record(std::forward<Record>(_record))
-    { /* Empty */ }
-
-    DLBucket(Key && key, const Record & _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)), record(_record)
-    { /* Empty */ }
-
-    DLBucket(Key && key, Record && _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)),
-        record(std::forward<Record>(_record)) { /* Empty */ }
+ }
   };
 
   static DLBucket * record_to_bucket(Record * rec)

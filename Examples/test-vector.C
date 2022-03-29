@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,85 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <time.h>
-# include <gsl/gsl_rng.h>
-# include <cassert>
-# include <al-vector.H>
-
-gsl_rng * r;
-
-const size_t N = 1000;
-
-Vector<int> create_domain(size_t n)
-{
-  Vector<int>::Domain domain;
-  for (int i = 0; i < n; ++i)
-    domain.insert(i);
-
-  return std::move(domain);
-}
-
-Vector<std::string> create_string_domain(size_t n)
-{
-  int m = 'Z' - 'A';
-  int num = n/m;
-  int rem = n%m;
-
-  std::string str = "";
-  Vector<string>::Domain domain;
-  
-  int k;
-  for (int i = 0; i < num; i += m)
-    {
-      for (k = 0; k < m; ++k)
-	domain.insert(str + string('A' + k, 1));
-
-      str += string('A' + k, 1);
-    }
-
-  for (int i = 0; i < rem; ++i)
-    domain.insert(str + string('A' + k + i, 1));
-
-  return std::move(domain);
-}
-
-int main(int argn, char * argc[])
-{
-  size_t n = argn > 1 ? atoi(argc[1]) : N;
-  unsigned long seed = argn > 2 ? atoi(argc[2]) : time(NULL);
-
-  cout << argc[0] << " " << n << " " << seed << endl;
-
-  r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, seed % gsl_rng_max(r));
-
-  Vector<int>::Domain d ({0,1,2,3,4,5,6,7,8,9});
-    
-  Vector<int> v1(d, {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9});
-  Vector<int> v2(d, {1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9});
-  Vector<int> v3(d, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
- 
-  cout << "v1 = " << endl
-       << v1.to_str() << endl
-       << endl
-       << "v2 = " << endl
-       << v2.to_str() << endl
-       << endl
-       << "(v1 + v2) = " << endl
-       << (v1 + v2).to_str() << endl
-       << endl
-       << "2.0*v1 = " << endl
-       << (2.0*v1).to_str() << endl
-       << endl
-       << "v2*-3 = " << endl
-       << (v2*-3.0).to_str() << endl
-       << endl
-       << "v1*v2 = " << v1*v2 << endl
-       << endl
-       << "v3*v3 = " << v3*v3 << endl
-       << endl
-       << "Domain from list = ";
-  v1.to_list().for_each(/* Lambda */ [] (const double & val)
+ [] (const double & val)
 			{
 			  cout << val << ", ";
 			});

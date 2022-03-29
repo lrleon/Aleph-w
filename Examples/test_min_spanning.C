@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,81 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# include <tpl_sgraph.H>
-# include <tpl_agraph.H>
-# include <random_graph.H>
-# include <generate_graph.H>
-# include <Kruskal.H>
-# include <Prim.H>
-
-//typedef List_SGraph<Graph_Snode<int>, Graph_Sarc<int>> Graph;
-typedef Array_Graph<Graph_Anode<int>, Graph_Aarc<int>> Graph;
-//typedef List_Graph<Graph_Node<int>, Graph_Arc<int>> Graph;
-
-template <class GT>
-struct Init_Node
-{
-  static int count;
-
-  void operator () (const GT&, typename GT::Node * p)
-  {
-    p->get_info() = count++;
-  }
-};
-
-template <class GT>
-int Init_Node<GT>::count = 0;
-
-
-template <class GT>
-struct Init_Arc
-{
-  static int count;
-
-  void operator () (const GT&, typename GT::Arc * a)
-  {
-    a->get_info() = count++;
-  }
-};
-
-template <class GT>
-struct NWnodo
-{
-  void operator () (const GT &, typename GT::Node * p, std::ostream & output) 
-  {
-    output << "label = \"" << p->get_info() << "\"";
-  }
-};
-
-template <class GT>
-struct NWarco
-{
-  void operator () (const GT & g, typename GT::Arc * a, std::ostream & output)
-  {
-    typename GT::Node * src = g.get_src_node(a);
-    typename GT::Node * tgt = g.get_tgt_node(a);
-    output << "label = \" " <<  a->get_info() << "\\n"
-	   << src->get_info() << "-" << tgt->get_info() << "\"";
-    if (IS_ARC_VISITED(a, Aleph::Spanning_Tree) or 
-	IS_ARC_VISITED(a, Aleph::Spanning_Tree))
-      output << " color = \"red\" ";
-
-    if (ARC_COOKIE(a) != NULL)
-       output << " color = \"red\" ";
-  }
-};
-
-template <class GT>
-int Init_Arc<GT>::count = 0;
-
-
-template <class GT>
-struct Total_Dist
-{
-  int dist;
-
-  Total_Dist () : dist(0) { /* empty */ }
+ }
 
   bool operator () (typename GT::Arc * a)
   {

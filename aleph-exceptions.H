@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,89 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef ALEPH_EXCEPTIONS_H
-# define ALEPH_EXCEPTIONS_H
 
-# include <exception>
-# include <sstream>
-
-# include <ahUtils.H>
-
-using namespace std;
-
-/** Aleph exception class
-
-   @author Leandro Rabindranath Leon 
-   @ingroup Exceptions
-   @note This class is not intended for public use. Instead use the
-   macro DEFINE_ALEPH_EXCEPTION 
- */
-struct AlephException : public std::runtime_error
-{
-  /// Line number of source file where the exception was thrown
-  const size_t line_number = 0;
-  
-  /// file name where the exception was thrown 
-  const string file_name = "No defined"; 
-
-  const string type = "No defined"; /// Type name
-  const string msg = "No defined"; /// Message describing the error
-
-protected:
-
-  string category_msg = "No defined";
-
-private:
-
-  static string make_what(const string & category_msg,
-			  size_t line_number,
-			  const string & file_name,
-			  const string & type,
-			  const string & msg)
-  {
-    ostringstream s;
-    s << category_msg << "|" << file_name << "|" << line_number
-      << "|" << type << "|" << msg;
-    return s.str();
-  }
-
-public:
-
-  AlephException() : runtime_error(msg) {}
-
-  AlephException(const string & category_msg,
-	       const size_t line_number,
-	       const string & file_name,
-	       const string & type,
-	       const string & msg)
-    : runtime_error(make_what(category_msg, line_number, file_name, type, msg)),
-      line_number(line_number), file_name(file_name), type(type) {}
-};
-
-/** Define a new exception
-
-    @param[in] name of the exception
-    @param[in] category_msg
-
-    @ingroup Exceptions
-    @author Leandro Rabindranath Leon 
- */
-# define DEFINE_ALEPH_EXCEPTION(name, category_msg)			\
-  struct name : public AlephException					\
-  {									\
-    name(const size_t line_number,					\
-	 const string & file_name,					\
-	 const string & type,						\
-	 const string & msg)						\
-      : AlephException(#category_msg, line_number, file_name, type, msg) {} \
-  };
-
-/** Macro for throwing an aleph exception
-   
-   @param[in] type aleph exception class name
-   @param[in] msg message describing the error
-   @ingroup Exceptions
- */
 # define ALEPHTHROW(type, msg) throw type(__LINE__, __FILE__, #type, msg)
 
 DEFINE_ALEPH_EXCEPTION(MinMaxReversed,

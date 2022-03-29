@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,63 +25,6 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef HASHPARS_H
-# define HASHPARS_H
-
-namespace HashParameters
-{
-  const unsigned int numPrimes = 28;
-
-  const unsigned long primeList[ /* numPrimes */ ] =
-  {
-    53,         97,           193,       389,       769,
-    1543,       3079,         6151,      12289,     24593,
-    49157,      98317,        196613,    393241,    786433,
-    1572869,    3145739,      6291469,   12582917,  25165843, 
-    50331653,   100663319,    201326611, 402653189, 805306457, 
-    1610612741, 3221225473UL, 4294967291UL 
-  };
-
-  const unsigned int DefaultIndex = 0; 
-
-  const unsigned long DefaultPrime = primeList[DefaultIndex];
-
-  /* 
-     Searches the next prime number immediately greater than
-     n. Returns -1 if not found. Otherwise, returns the index within
-     primeList 
-  */
-  inline int nextPrimeIndex(unsigned long n)
-    {
-      int i;
-
-      for (i = 0; i < numPrimes; i++)
-	if (primeList[i] > n)
-	  return i;
-      return -1;
-    }
-
-
-  /* 
-     Analogous to nextPrimeIndex but the immediately lesser than n 
-  */
-  inline int prevPrimeIndex(unsigned long n)
-    {
-      int i;
-
-      for (i = 1; i < numPrimes; i++)
-	if (primeList[i] > n)
-	  return i - 1;
-            
-      return -1;
-    }
-
-  
-}; /* namespace HashPars */
-
-
-
-# endif /* HASHPARS_H */
 
 
 

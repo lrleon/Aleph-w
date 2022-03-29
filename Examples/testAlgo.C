@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,83 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# include <iostream>
-# include <iterator>
-# include <ahFunction.H>
-# include <ahAlgo.H>
-# include <Vector.H>
-# include <Map.H>
-# include <Multiset.H>
-# include <Multimap.H>
-# include <Set.H>
-# include <List.H>
-# include "print_container.H"
-
-    template <class T>
-void print (const T & t)
-{
-  cout << t << " ";
-}
-
-
-    template <class T>
-struct Print_Pair
-{
-  void operator () (const std::pair<T, T> & p)
-  {
-    cout << "(" << p.first << "," << p.second << ") ";
-  }
-};
-
-    template <class T>
-struct Assign_Pair
-{
-  int counter;
-
-  Assign_Pair() : counter(0) { /* empty */ }
-
-  void operator () (std::pair<T, T> & p)
-  {
-    p.first = p.second = counter++;
-  }
-};
-
-struct Assign
-{
-  int counter;
-
-  Assign() : counter(0) { /* empty */ }
-
-  Assign(int count) : counter(count) { /* empty */ }
-
-  void operator () (int & d)
-  {
-    d = counter++;
-  }
-};
-
-    template <class T>
-struct Generate
-{
-  T data;
-
-  Generate () : data() { /* empty */ }
-
-  Generate (const T & d) : data (d) { /* empty */ }
-
-  T operator () ()
-  {
-    return data++;
-  }
-};
-
-    template <class T>
-struct Greater_Than
-{
-  T data;
-
-  Greater_Than(const T & d) : data(d) { /* empty */ }
+ }
 
   bool operator () (const T& d)
   {

@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,24 +25,6 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TREE_NODE_COMMON_H
-# define TREE_NODE_COMMON_H
-
-# include <gmock/gmock.h>
-
-# include <tpl_tree_node.H>
-
-using namespace testing;
-
-
-/* Build:
-                                    0
- 
-      1              2                3                 4                    5
-
-6 7 8 9 10     11 12 13 14 15  16 17 18 19 20     21 22 23 24 25 26   27 28 29 30 31
-
-*/
 Tree_Node<int> * sample_tree(size_t num_nodes_by_subtree, int key)
 {
   Tree_Node<int> * root = new Tree_Node<int>(key++);

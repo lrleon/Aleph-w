@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,44 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef BLOOM_FILTER_H
-# define BLOOM_FILTER_H
 
-# include <memory>
-# include <gsl/gsl_rng.h>
-# include <cmath>
-# include <iostream>
-# include <ahFunctional.H>
-# include <bitArray.H>
-# include <hash-fct.H>
-# include <tpl_dynSetHash.H>
-
-namespace Aleph 
-{
-
-template <typename T>
-class Bloom_Filter
-{
-public:
-
-  using Hash_Fct = size_t (*)(const T &, unsigned long seed);
-
-private:
-
-  BitArray bits;
-
-  mutable Hash_Fct hash_fct        = nullptr;  
-  mutable unsigned long num_hash   = 0;
-  unsigned long * seeds            = nullptr;
-  unsigned long * fst_seed         = nullptr;
-  unsigned long * last_seed        = nullptr;
-  size_t num_ins                   = 0;
-
-public:
-
-  /**
-
-   */
   static tuple<size_t, size_t> estimate(const size_t n, const double p)
   {
     assert(p > 0 and p < 1);

@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,96 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# include <tpl_dynDlist.H>
-
-class Polinomio
-{
-  struct Termino
-  {
-    int    coef;
-    size_t pot;
-    Termino() : coef(0), pot(0) {}
-
-    Termino(const int & c, const size_t & p) : coef(c), pot(p) {}
-    Termino& operator += (const Termino & der)
-    {
-
-      assert(pot == der.pot);
-
-      if (this == &der)
-        return *this;
-
-      coef += der.coef;
-      return *this;
-    }
-    Termino operator * (const Termino & der) const
-    {
-      return Termino(coef*der.coef, pot + der.pot);
-    }
-  };
-  DynDlist<Termino> terminos;
-  Polinomio(const Polinomio::Termino & termino)
-  {
-    terminos.append(termino);
-  }
-  Polinomio multiplicado_por(const Termino & term) const
-  {
-    Polinomio result;
-    if (terminos.is_empty() or term.coef == 0) 
-      return result;
-
-    for (DynDlist<Termino>::Iterator it((DynDlist<Termino>&) terminos); 
-         it.has_curr(); it.next())
-      result.terminos.append(Termino(it.get_curr().coef * term.coef,
-                                     it.get_curr().pot + term.pot) );
-    return result;
-  }
-
-public:
-
-  Polinomio();
-  Polinomio(const int& coef, const size_t & pot);
-  Polinomio operator + (const Polinomio&) const;
-  Polinomio& operator += (const Polinomio&);
-  Polinomio operator * (const Polinomio&) const;
-  Polinomio operator - (const Polinomio&) const;
-
-  Polinomio operator / (const Polinomio&) const;
-
-  Polinomio operator % (const Polinomio&) const;
-  const size_t & size() const;
-  size_t get_power(const size_t & i) const;
-  const int & get_coef(const size_t & i) const;
-  const size_t & get_degree() const;
-  void print() const
-  {
-    if (terminos.is_empty())
-      {
-        printf("0\n\n");
-        return;
-      }
-    Termino current_term;
-    for (DynDlist<Termino>::Iterator it(const_cast<DynDlist<Termino>&>(terminos)); 
-         it.has_curr(); it.next())
-      {
-        current_term = it.get_curr();
-        printf(" %c ", current_term.coef < 0 ? '-' : '+');
-
-        if (abs(current_term.coef) not_eq 1)
-          printf("%u", abs(current_term.coef));
-
-        printf("X^%zu", current_term.pot);
-      }
-
-    printf("\n\n");
-  }
-};
-Polinomio::Polinomio(const int & coef, const size_t & pot)
-{
-  terminos.append(Termino(coef, pot));
-}
-Polinomio::Polinomio() { /* empty */ }
+ }
 Polinomio Polinomio::operator + (const Polinomio & der) const
 {
   Polinomio ret_val(*this); // valor de retorno operando derecho

@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,79 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef XML_GRAPH_H
-# define XML_GRAPH_H
 
-# include <tpl_dynArray.H>
-# include <tpl_graph.H>
-# include <tpl_dynMapTree.H>
-
-# include <autosprintf.h>
-
-# include <libxml++/libxml++.h>
-# include <libxml++/parsers/textreader.h>
-# include <libxml++/nodes/node.h>
-# include <libxml++/document.h>
-
-using namespace Aleph;
-
-namespace Aleph
-{
-  struct Attr
-  {
-    std::string name;
-    std::string value;
-  };
-
-  template <class GT>
-  struct Dft_Node_Reader
-  {
-    void operator () (GT &, typename GT::Node *, DynArray <Attr> &)
-    {
-      // Empty
-    }
-  };
-
-  template <class GT>
-  struct Dft_Node_Writer
-  {
-    void operator () (GT &, typename GT::Node *, DynArray <Attr> &)
-    {
-      // Empty
-    }
-  };
-
-  template <class GT>
-  struct Dft_Arc_Reader
-  {
-    void operator () (GT &, typename GT::Arc *, DynArray <Attr> &)
-    {
-      // Empty
-    }
-  };
-
-  template <class GT>
-  struct Dft_Arc_Writer
-  {
-    void operator () (GT &, typename GT::Arc *, DynArray <Attr> &)
-    {
-      // Empty
-    }
-  };
-
-  /* TODO: le debo la explicación de los detalles de cada una de las clases de
-     lectura y escritura
-  */
-
-  /** Clase que escribe y lee un grafo (de forma muy elemental) en XML.
-   * 
-   *  @param GT el tipo de grafo.
-   *  @param Node_Reader la función de lectura de los atributos de un nodo.
-   *  @param Arc_Reader la función de lectura de los atributos de un arco.
-   *  @param Node_Writer la función de escritura de los atributos de un nodo.
-   *  @param Arc_Writer la función de escritura de los atributos de un arco.
-   *  @author Alejandro J. Mujica
-   */
   template <class GT,
             class Node_Reader = Dft_Node_Reader<GT>,
             class Arc_Reader = Dft_Arc_Reader<GT>,

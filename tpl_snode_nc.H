@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,61 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TPL_SNODE_NC_H
-# define TPL_SNODE_NC_H
-
-# include <slink_nc.H>
-
-namespace Aleph
-{
-  template <typename T> class Snode_Nc : public Slink_Nc
-  {
-    T data;
-
-  public:
-    /// Constructor vacío.
-    Snode_Nc() : Slink_Nc() { /* empty*/ }
-
-    /// Constructor que copia dato.
-    Snode_Nc(const T & _data) : Slink_Nc(), data(_data) { /* empty */ }
-
-    ~Snode_Nc() { /* empty */ }
-
-    /// Retorna una referencia al dato contenido en el nodo.
-    T & get_data() { return data; }
-  
-    /** Elimina el nodo siguiente a this.
-
-        remove_next() elimina el nodo enlazado después de this y retorna
-        su dirección de memoria.
-          
-        @return el nodo eliminado.
-    */
-    Snode_Nc * remove_next()
-    { 
-      return (Snode_Nc *) Slink_Nc::remove_next();
-    }
-    
-    /// Retorna el nodo siguiente a this
-    Snode_Nc *& get_next()
-    {
-      return (Snode_Nc *&) Slink_Nc::get_next();
-    }
-
-    class Iterator : public Slink_Nc::Iterator
-    {
-    public:
-      Iterator() { /* empty */ }
-
-      /// Instancia iterador en lista cuyo nodo cabecera es head_ptr 
-      Iterator(Snode_Nc<T> * head_ptr)
-        : Slink_Nc::Iterator(head_ptr)
-      {
-        // empty
-      }
-
-      /// Instancia iterador en lista cuyo nodo cabecera es head_ptr */
-      Iterator(Snode_Nc<T> & head) : Slink_Nc::Iterator(&head) { /* empty */ }
+ }
 
       // Instancia iterador en lista cuyo nodo cabecera es head_ptr y
       // coloca el elemento actual en el apuntado por curr_ptr 

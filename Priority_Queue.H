@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,39 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef AH_PRIORITY_QUEUE_H
-# define AH_PRIORITY_QUEUE_H
-
-# include <tpl_dynBinHeap.H>
-
-namespace Aleph {
-
-    /** Implantación Aleph del contenedor estándar prority_queue<T>.
-
-	En Aleph este contenedor estándar es implantado mediante una
-	la clase DynBinHeap, la cual, a su vez está basada en árboles
-	binarios. Esta implantación so se sustenta sobre un arreglo y es
-	altamente dinámica. Otras estructuras o algoritmos pueden
-	mantener sin riesgo punteros hacia los datos que contiene la cola de
-	prioridad.
-
-	Esta versión de Priority_Queue<T> no emplea un contenedor
-	genérico como parámetro tipo. Consecuentemente, los
-	constructores estándar están ligeramente modificados.
-
-	@see DynBinHeap
-	@ingroup stl
-     */
-    template <typename T, class Compare = Aleph::less<T> >
-class priority_queue : private Aleph::DynBinHeap<T, Compare>
-{
-public:
-
-      /// Tipo de valor que almacena la cola de prioridad.
-  typedef T value_type;
-
-      /// Instancia una cola de prioridad vacía
-  priority_queue() { /* empty */ }
+ }
 
       /// Instancia una cola con todos los elementos del contenedor cont.
       template <class Container>

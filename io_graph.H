@@ -1,184 +1,30 @@
 
-/* Aleph-w
 
-   / \  | | ___ _ __ | |__      __      __
-   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-   |_|
+/*
+                          Aleph_w
 
-   This file is part of Aleph-w library
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  This file is part of Aleph-w library
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-   You should have received a copy of the GNU General Public License
-   along with this program. If not, see <https://www.gnu.org/licenses/>.
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef IO_GRAPH_H
-# define IO_GRAPH_H
-
-# include <fstream>
-# include <iostream>
-# include <tpl_graph.H>
-
-extern bool verbose; // comunmente definida en main
-
-namespace Aleph {
-
-
-  template <class GT>
-  struct Dft_Store_Node
-  {
-    void operator () (ofstream & output, GT &, typename GT::Node * p)
-    {
-      output.write((char*) &p->get_info(), sizeof(typename GT::Node_Type));
-    }
-
-    void operator () (ostream & output, GT &, typename GT::Node * p)
-    {
-      output << p->get_info() << endl;
-    }
-  };
-
-  template <class GT>
-  struct Dft_Store_Arc
-  {
-    void operator () (ofstream & output, GT &, typename GT::Arc * a)
-    {
-      output.write((char*) &a->get_info(), sizeof(typename GT::Arc_Type));
-    }
-
-    void operator () (ostream & output, GT &, typename GT::Arc * a)
-    {
-      output << a->get_info() << endl;
-    }
-  };
-
-  template <class GT>
-  struct Dft_Load_Node
-  {
-    void operator () (ifstream & input, GT &, typename GT::Node * p)
-    {
-      input.read((char*) &p->get_info(), sizeof(typename GT::Node_Type));
-    }
-
-    void operator () (istream & input, GT &, typename GT::Node * p)
-    {
-      input >> p->get_info();
-    }
-  };
-
-  template <class GT>
-  struct Dft_Load_Arc
-  {
-    void operator () (ifstream & input, GT &, typename GT::Arc * a)
-    {
-      input.read((char*) &a->get_info(), sizeof(typename GT::Arc_Type));
-    }
-
-    void operator () (istream & input, GT &, typename GT::Arc * a)
-    {
-      input >> a->get_info();
-    }
-  };
-
-  /** Clase para guardar y recuperar grafos en y de memoria secundaria.
-
-      IO_Graph está diseñada para guardar y leer grafos en y desde
-      memoria secundaria, a través de objetos derivados de fstream.
-
-      La clase maneja 7 parámetros tipo
-      - GT: el grafo a guardar o leer.
-      - Load_Node: clase encargada de leer la información relacionada a
-      un nodo y cargarla a su contenido.
-      - Store_Node:  clase encargada de guardar la información relacionada a
-      un nodo y cargarla a su contenido. Por omisión se
-      escribe el valor arrojado por get_info() sobre el nodo.
-      - Load_Arc: clase encargada de leer la información relacionada a
-      un arco y cargarla a su contenido. Por omisión se lee en bruto
-      del stream y se carga a get_info() sobre el arco.
-      - Store_Arc:  clase encargada de guardar la información relacionada a
-      un arco y cargarla a su contenido. Por omisión se
-      escribe el valor arrojado por get_info() sobre el arco.
-      - NF: clase filtro de nodos; sólo se invoca para guardar el
-      grafo y sólo se guardan los nodos que pasen por el filtro.
-      - AF: clase filtro de arcos; sólo se invoca para guardar el
-      grafo y sólo se guardan los arcos que pasen por el filtro.
-
-      EL formato para guardar es:
-      -# Cantidad de nodos.
-      -# Contenido de los nodos escrito por Store_Node.
-      -# Cantidad de arcos.
-      -# Finalmente se escriben los arcos con el siguiente formato:
-      - Índice del nodo origen e índice del nodo destino según el
-      orden de aparición cuando se escribieron los nodos.
-      - Contenido del arco escrito por Store_Arc.
-      .
-
-      En el caso más común en el cual sólo se requiera guardar en
-      bruto los contenidos ofrecidos por get_info() en los nodos y
-      arcos, entonces, a través de las plantillas por omisión, es
-      suficiente con invocar a la clase IO_Graph<GT> sin el resto de
-      los parámetros tipo.
-
-      Según el compilador (en el caso de este autor gnu), los errores
-      de compilación si hay alguna falla de correspondencia con los
-      parámetros plantilla o con los parámetros de las funciones
-      pueden ser muy crípticos. Por esa razón, se recomienda
-      ampliamente que las clases de lectura y escritura sean hechas a
-      partir de las de omisión que se incluyen en el archivo.
-
-      @see Filter_Iterator 
-      @ingroup Grafos
-  */
-  template <class GT, 
-            class Load_Node  = Dft_Load_Node<GT>,
-            class Store_Node = Dft_Store_Node<GT>,
-            class Load_Arc   = Dft_Load_Arc<GT>,
-            class Store_Arc  = Dft_Store_Arc<GT>,
-            class NF         = Aleph::Dft_Show_Node<GT>, // Filtro de nodos
-            class AF         = Aleph::Dft_Show_Arc<GT> > // Filtro de arcos
-  class IO_Graph
-  {
-    GT & g;
-
-    Load_Node load_node   = Load_Node();
-    Store_Node store_node = Store_Node();
-    Load_Arc load_arc     = Load_Arc();
-    Store_Arc store_arc   = Store_Arc();
-
-    NF node_filter = NF();
-    AF arc_filter  = AF();
-
-  public:
-
-    void set_load_node(const Load_Node & ln) { load_node = ln; }
-
-    void set_store_node(const Store_Node & sn) { store_node = sn; }
-
-    void set_load_arc(const Load_Arc & la) { load_arc = la; }
-
-    void set_store_arc(const Store_Arc & sa) { store_arc = sa; }
-
-    void set_node_filter(const NF & nf) { node_filter = nf; }
-
-    void set_arc_filter(const AF & af) { arc_filter = af; }
-
-    /// Constructor con referencia a grafo
-    IO_Graph(GT & __g) noexcept : g(__g) { /* empty */ }
-
-    /// Constructor con puntero a grafo
-    IO_Graph(GT * gptr) noexcept : g(*gptr) { /* empty */ }
+ }
 
     /// Guarda el grafo en el stream output
     void save(ofstream & output)

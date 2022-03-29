@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 1.9d
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2022 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,105 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-# include <limits>
-# include <iostream>
-# include <tpl_matgraph.H>
-# include <mat_latex.H>
-# include <tpl_graph_utils.H>
-# include <Floyd.H>
-
-using namespace std;
-
-using namespace Aleph;
-
-# define INDENT "    "
-
-    template <typename M>
-struct C_i
-{
-  string operator () (M &, const long & i)
-  {
-    char buf[256];
-
-    snprintf(buf, 256, "%ld", i);
-
-    return string(buf);
-  }
-};
-
-
-
-    template <typename M>
-struct C_AM
-{
-  string operator () (M & mat, const long & i, const long & j)
-  {
-    typename M::Arc_Type::Distance_Type value = mat(i, j);
-
-    if (value == numeric_limits<double>::infinity())
-      return string("$\\infty$");
-
-    if (value == 0)
-      return string("$0$");
-
-    char buf[256]; 
-
-    snprintf(buf, 256, "$%.2f$", value);
-
-    return string(buf);
-  }
-};
-
-    template <typename M, class C_ij>
-void mat_latex(M & m)
-{
-  const long & n = m.get_num_nodes();
-
-  mat_to_latex<M, C_i<M>, C_i<M>, C_ij >(m, n, n, cout);
-}
-
-struct Ciudad
-{
-  string nombre;
-
-  Ciudad() {}
-
-  Ciudad(const string & str) : nombre(str) { /* empty */ }
-
-  Ciudad(const char * str) : nombre(str) { /* empty */ }
-
-  bool operator == (const Ciudad & der) const 
-  {
-    return nombre == der.nombre; 
-  }
-};
-
-
-struct Via
-{
-  typedef double Distance_Type;
-
-  static const double Max_Distance;
-
-  static const double Zero_Distance;
-
-  string nombre;
-
-  double distancia;
-
-  Via() : distancia(Max_Distance) { /* empty */ }
-
-  Via(const double & dist) 
-    : nombre("NO-DEFINIDO"), distancia(dist) 
-  {
-    /* empty */ 
-  }
-
-  Via(const string & n, const double & dist) 
-    : nombre(n), distancia(dist) 
-  {
-    /* empty */ 
+ 
   }
 
   const double & get_distance() const { return distancia; }
