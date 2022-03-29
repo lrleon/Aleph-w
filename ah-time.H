@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,80 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef AH_TIME_H
+# define AH_TIME_H
 
+# include <sys/time.h>
+# include <stdio.h>
+
+typedef struct timespec Time;
+
+
+# define MSEC 1000
+# define USEC 1000000
+# define NSEC 1000000000
+
+
+# define EVENT_TIME(e) ((e)->get_key())
+
+
+# define EVENT_SEC(e) (EVENT_TIME(e).tv_sec)
+# define EVENT_NSEC(e) (EVENT_TIME(e).tv_nsec)
+
+
+inline long msec_to_nsec(const long & msec)
+{
+  assert(msec >= 0 and msec < MSEC);
+
+  return msec*USEC;
+}
+
+
+inline long usec_to_nsec(const long & usec)
+{
+  assert(usec >= 0 and usec < USEC);
+
+  return usec*MSEC;
+}
+
+
+inline char * time_to_char(const Time & t, char * str)
+{
+  sprintf(str, "(%ld sec, %ld nsec)", t.tv_sec, t.tv_nsec);
+
+  return str;
+}
+
+
+inline Time timeval_to_time(const struct timeval & current_time)
+{
+  assert(current_time.tv_usec >= 0 and current_time.tv_usec < USEC);
+
+  Time ret_val;
+  ret_val.tv_sec = current_time.tv_sec;
+  ret_val.tv_nsec = usec_to_nsec(current_time.tv_usec);
+
+  assert(ret_val.tv_nsec >= 0 and ret_val.tv_nsec < NSEC);
+
+  return ret_val;
+}
+
+
+inline Time read_current_time()
+{
+  struct timeval current_time;
+  gettimeofday(&current_time, nullptr);
+
+  return timeval_to_time(current_time);
+}
+
+
+inline Time time_plus_msec(const Time & current_time, 
+				 const int &  msec)
+{
+  assert(current_time.tv_nsec >= 0 and current_time.tv_nsec < NSEC);
+
+  const long sec = msec/MSEC; /* compute seconds inside msec */
 
   const long remain = msec % MSEC;
 

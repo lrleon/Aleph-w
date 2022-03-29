@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,27 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+# ifndef TPL_DYNTREAP_H
+# define TPL_DYNTREAP_H
+
+# include <tpl_dynMapTree.H>
+# include <tpl_treap.H>
+
+namespace Aleph {
+
+/**
+   Dynamic mapping implemented with treap trees.
+
+ */
+    template <typename Key, typename Type, class Compare = Aleph::less<Key> >
+struct DynTreapTree : public DynMapTree<Key, Type, Treap, Compare>
+{
+  
+};
+
+} // end namespace Aleph
+
+# endif /* TPL_DYNTREAP_H */
 
 
 

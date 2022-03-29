@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,75 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef ARRAY_IT_H
+# define ARRAY_IT_H
 
+# include <cassert>
+# include <tuple>
+# include <aleph.H>
+# include <ahDefs.H>
+# include <htlist.H>
+
+namespace Aleph {
+
+  template <typename T> class Array_Container;
+
+  /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
+
+      @ingroups Secuencias
+  */
+  template <class T>
+  class Array_Iterator
+  {
+    T * ptr = nullptr;
+    long dim = 0;
+    long num_items = 0;
+    long idx = 0;
+    long first = 0;
+    long last = 0;
+    long pos = 0;
+
+  public:
+
+    using Item_Type = T;
+
+    T * get_base() noexcept { return ptr; }
+
+    Array_Iterator() noexcept {}
+
+    Array_Iterator(T * p, size_t sz, size_t n)
+      : ptr(p), dim(sz), num_items(n), last(n - 1)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+    }
+
+    Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
+      : ptr(p), dim(sz), num_items(n), last(n - 1)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+    }
+
+    Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
+      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+    {
+      assert(ptr);
+      if (num_items > dim)
+        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+      if (first >= dim)
+        throw std::domain_error("Array_Iterator(): first >= dim");
+      if (last >= dim)
+        throw std::domain_error("Array_Iterator(): last >= dim");
+    }
+
+    /** Constructor no throwing exception.
+
+        It is similar to the previous buy it is guaranteed that no
+        exception will be thrown
+    */
     Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
       : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
     {

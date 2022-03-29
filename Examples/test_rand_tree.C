@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,49 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+# include <aleph.H>
+# include <tpl_dynArray.H>
+# include <tpl_binNodeUtils.H>
+# include <tpl_rand_tree.H>
+# include <stdlib.h>
+# include <iostream>
+# include <time.h>
+
+
+using namespace Aleph;
+
+
+DynArray<unsigned long> rand_sequence;
+
+
+long aleatorio()
+{
+  // entre 1 y 1000
+  long r = 1+ (int) (1000.0*rand()/(RAND_MAX+1.0));
+
+  rand_sequence[rand_sequence.size()] = r;
+
+  return r;
+}
+
+void print_aleatorio_and_reset_dynarray()
+{
+  cout << endl
+       << "Secuencia aleatorios: ";
+  for (int i = 0; i < rand_sequence.size(); i++)
+    cout << " " << (unsigned long) rand_sequence[i];
+  
+  cout << endl;
+
+  rand_sequence.cut(0);
+}
+
+
+
+
+/* 
+ * ATENCION: DEBUG debe estar definido para que esta rutina funcione
+ */
 static void printNode(Rand_Tree_Vtl<int>::Node* node, int, int)
 { 
   cout << node->get_key() << " ";

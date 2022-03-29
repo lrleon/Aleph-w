@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,64 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+
+# include <iostream>
+
+# include <tpl_dynBinHeap.H>
+# include <tpl_dynListQueue.H>
+# include <tpl_graph.H>
+# include <tpl_graph_utils.H>
+# include <tpl_spanning_tree.H>
+# include <graph_to_tree.H>
+# include <generate_tree.H>
+
+# define INDENT "    "
+
+using namespace Aleph;
+
+struct Ciudad 
+{
+  enum Tipo_Ciudad { CAPITAL, CIUDAD, PUEBLO, CASERIO, CRUZ, DESCONOCIDO };
+
+  string nombre;
+
+  Tipo_Ciudad tipo;
+
+  Ciudad() : tipo(DESCONOCIDO) { /* empty */ }
+
+  Ciudad(const Ciudad & c) : nombre(c.nombre), tipo(c.tipo) { /* empty */ }
+
+  Ciudad(const char * nom) : nombre(nom), tipo(DESCONOCIDO) { /* empty */ }
+
+  Ciudad(char * nom) : nombre(nom), tipo(DESCONOCIDO) { /* empty */ }
+
+  Ciudad(const string & str) : nombre(str), tipo(DESCONOCIDO) { /* empty */ }
+
+  bool operator == (const Ciudad & c) const
+  {
+    return nombre == c.nombre;
+  }
+};
+
+struct Via
+{ 
+  enum Tipo_Via { AUTOPISTA, CARRETERA1, CARRETERA2, CARRETERA3, GRANZON,
+		  CHALANA, DESCONOCIDO };
+
+  string nombre;
+  int distancia; 
+  Tipo_Via tipo;
+
+  Via() : tipo(DESCONOCIDO) {}
+
+  Via(int d) 
+    : nombre("Desconocido"), distancia(d), tipo(DESCONOCIDO) { /* empty */ }
+
+  Via(char * nom, int d) 
+    : nombre(nom), distancia(d), tipo(DESCONOCIDO) { /* empty */ }
+
+  Via(const string& nom, int d) 
+    : nombre(nom), distancia(d), tipo(DESCONOCIDO) { /* empty */ }
 
   typedef int Distance_Type;
 

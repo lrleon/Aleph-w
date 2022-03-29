@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,41 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+# ifndef UID_H
+# define UID_H
+
+# include <stdint.h>
+# include <iostream>
+# include <aleph.H>
+
+using namespace Aleph;
+
+
+class Uid
+{
+  friend struct Uid_Offsets;
+
+private:
+
+  mutable Aleph::IPv4_Address ipAddr;
+  mutable uint32_t            port_number;
+  mutable uint64_t            counter;
+  mutable uint64_t            random_number;
+
+public:
+
+  static const int stringSize = 2*(sizeof(uint32_t) + sizeof(uint32_t) +
+				   sizeof(uint64_t) + sizeof(uint64_t)) + 1;
+
+private:
+
+  char * stringficate(char * buffer, const size_t & src_size) const;
+
+  void destringficate(char * str);
+
+public:
+
+  Uid() { /* empty */ }
 
   Uid(const IPv4_Address & _ipAddr,
       const unsigned int & _counter, 

@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,39 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+
+# ifndef PROTECTED_LHASH_H
+# define PROTECTED_LHASH_H
+
+
+# include <ahExceptions.H>
+# include <tpl_lhash.H>
+# include <useMutex.H>
+
+
+/* ProtectedLhashTable add a protection to the concurrent use of any
+   instance of LhashTable. In order to achive this, it use a mutex in
+   all operations related with the table */
+    template <class Key>
+class ProtectedLhashTable : private LhashTableVtl<Key>
+{
+private:
+      /// Mutex used in all operations.
+  pthread_mutex_t mutex;
+
+public:
+
+  /* This bucket is an specialization of the LhashTable<key>::Bucket. This
+     class allows to know if a bucket is busy when the table is used
+     concurrently  */
+  class Bucket : public LhashTableVtl<Key>::Bucket
+  {
+    // Says is a bucket is busy.
+    bool is_busy;
+
+  public:
+
+    Bucket() : is_busy(false) { /* Empty */ }
 
     Bucket(const Key& key) 
       : LhashTableVtl<Key>::Bucket(key), is_busy(false) 

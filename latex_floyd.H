@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,75 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+# ifndef FLOYD_H
+# define FLOYD_H
+
+# include <ahFunction.H>
+# include <tpl_matgraph.H>
+# include <mat_latex.H>
+
+namespace Aleph
+{
+
+
+    template <class AM>
+struct Initialize_Dist
+{
+  typedef typename AM::Graph_Type::Arc_Type Arc_Type;
+
+  typedef typename AM::Graph_Type GT;
+
+  typedef typename GT::Node Node;
+
+  typedef typename GT::Arc Arc;
+
+  typedef typename AM::Arc_Type::Distance_Type Distance_Type;
+
+  void operator () (AM &            mat,
+		    Node *          src,
+		    Node *          tgt,
+		    const long &    i,
+		    const long &    j,
+		    Distance_Type & entry,
+		    void *          p)
+  {
+    Ady_Mat<typename AM::Graph_Type, long> & path = 
+      * reinterpret_cast<Ady_Mat<typename AM::Graph_Type, long> *>(p);
+
+    if (i == j)
+      {
+	entry = AM::Graph_Type::Arc_Type::Zero_Distance;
+	path(i, j) = j;
+
+	return;
+      }
+
+    GT & g = mat.get_list_graph();
+
+    Arc * arc = search_arc(g, src, tgt);
+
+    if (arc == nullptr)
+      {
+	entry = AM::Graph_Type::Arc_Type::Max_Distance;
+	return;
+      }
+
+    entry = arc->get_info().get_distance();
+
+    path(i, j) = j;
+  }
+};
+
+
+  /*
+    GT::Arc_Type debe exportar el tipo GT::Arc_Type::Distance_Type y dos
+    constantes de ese tipo llamadas:
+
+    Max_Distance: correspondiente al infinito
+    Zero_Distance: correspondiente al nul
+
+        
+  */
 
     template <class GT, class Compare, class Plus> 
 void floyd_all_shortest_paths

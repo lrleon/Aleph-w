@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,43 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# include <gsl/gsl_rng.h> 
+# include <string.h>
+# include <iostream>
+# include <tpl_binNode.H>
+# include <tpl_binNodeUtils.H>
 
+using namespace std;
+
+gsl_rng * r = NULL;
+
+
+void init_random(int seed)
+{
+  r = gsl_rng_alloc (gsl_rng_mt19937);
+
+  if (r == NULL)
+    throw std::bad_alloc();
+
+  gsl_rng_set(r, seed % gsl_rng_max(r));
+}
+
+
+size_t get_rand(const size_t & n)
+{
+  return gsl_rng_uniform_int(r, n) + 1;
+}
+
+
+    template <class Node>
+Node * random_tree(const size_t & n)
+{
+  if (n == 0) 
+    return Node::NullPtr;
+
+  Node * root = new Node; // apartar memoria nodo 
+
+      /* sorteo que define aleatoriamente la posición infija de la raíz */
   const size_t i = get_rand(n);
 
   LLINK(root) = random_tree<Node>(i - 1); // aleatorio de r - 1 nodos

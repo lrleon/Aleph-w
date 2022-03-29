@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,28 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+
+# ifndef PROTECTED_ODHASH_H
+# define PROTECTED_ODHASH_H
+
+# include <ahExceptions.H>
+# include <tpl_odhash.H>
+# include <useMutex.H>
+
+    template <class Key, class Record>
+class Protected_OdHashTable
+{
+  struct Bucket
+  {
+    Record record;
+    bool   locked;
+
+    Bucket() : locked(false) { /* empty */ }
+
+    Bucket(const Record& _record) : 
+      record(_record),
+      locked(false) 
+    { /* empty */ }
   };
 
   static Bucket * record_to_bucket(Record * record)

@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,388 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-; num_elem < num; num_elem++)
+
+/*
+	Aleph implementation of vector C++ standard container
+*/
+
+# ifndef ALEPH_VECTOR_H
+# define ALEPH_VECTOR_H
+
+# include <tpl_dynArray.H>
+# include <ahIterator.H>
+# include <ah_stdc++_utils.H>
+
+namespace Aleph
+{
+
+template <class T> class vector;
+
+    template <typename T> 
+typename iterator_traits<typename vector<T>::iterator>::difference_type 
+distance(typename vector<T>::iterator, typename vector<T>::iterator);
+
+  /** Implantación Aleph del contenedor estándar C++ vector<T>.
+
+      Esta implantación, basada en el tipo DynArray, tiene como ventaja
+      sobre otras implantaciones de vector<T> su alta capacidad de
+      relocalización, la cual se comprende bajo dos bondades al momento
+      de que se requiera mayor capacidad:
+      -# Ninguna de las entradas por debajo de la capacidad actual
+      es relocalizada. Esto redunda en la posibilidad de mantener con
+      seguridad punteros a entradas dentro del vector.
+      -# La cantidad de memoria que se aparta cuando el vector crece es
+      proporcional a la diferencia entre las nueva y antigua
+      dimensiones. 
+      .
+
+      Las operaciones sobre un vector no efectúan verificación de
+      rango. 
+
+      Siendo derivado de DynArray, esta implantación es más lenta en
+      acceso que otra implantación basada estrictamente en vectores
+      contiguos de memoria.
+
+      @ingroup stl
+   */
+    template <typename T>
+class vector
+{
+public:
+
+      /// El tipo de dato que almacena el vector.
+  typedef T value_type;
+
+      /// Tipo referencia a una entrada del vector.
+  typedef typename vector::value_type & reference;
+
+      /// Tipo referencia constante a una entrada del vector.
+  typedef const typename vector::value_type & const_reference;
+
+      /// Tipo numérico utilizados para tamaños e índices del vector.
+  typedef size_t size_type;
+
+private:
+
+  mutable DynArray<T> array;
+
+  mutable size_type num_elem;
+
+public:
+
+  /** Iterador sobre un vector<T>.
+
+      @ingroup stl
+   */
+  class iterator 
+  { 
+    friend class vector<T>;
+    
+    static const int Invalid_Position = -1;
+
+    mutable DynArray<T> * dyn_array_ptr;
+
+    mutable size_type current_position;
+
+    T cookie_data;
+
+    iterator(const vector<T> & vec, const size_t & pos = 0)
+      :  dyn_array_ptr(&vec.array), current_position(pos) 
+    { 
+      /* empty */ 
+    }
+
+    void set_pos(const size_t &)
+    {
+      current_position = this->num_elem;
+    }
+
+    int get_position() const { return current_position; }
+
+    DynArray<T> * get_dyn_array_ptr() { return dyn_array_ptr; }
+
+    T & access(const size_type & i)
+    {
+      if (i >= dyn_array_ptr->size())
+	return cookie_data;
+
+      return dyn_array_ptr->access(i);
+    }
+
+  public:
+
+        /// El tipo de dato que almacena el vector.
+    typedef typename vector<T>::value_type   value_type;
+
+        /// Tipo numérico que representa diferencia entre posiciones de
+        /// iteradores. 
+    typedef int                              difference_type;
+
+        /// Tipo puntero a entrada dentro del vector.
+    typedef typename vector<T>::value_type * pointer;
+
+        /// Tipo referencia a un elemento dentro del vector.
+    typedef typename vector<T>::reference    reference;
+
+        /// Instancia un iterador sin contenedor asociado.
+    iterator() : dyn_array_ptr(nullptr), current_position(Invalid_Position) 
+    { 
+      /* empty */ 
+    }
+
+        /// Instancia un iterador copia de otro iterador
+    iterator(const iterator & itor)
+      : dyn_array_ptr(itor.dyn_array_ptr),
+	current_position(itor.current_position) 
+    { 
+      /* empty */ 
+    }
+    
+        /// Asigna un iterador.
+    iterator & operator = (const iterator & itor)
+    {
+      if (&itor == this)
+	return *this;
+
+      dyn_array_ptr = itor.dyn_array_ptr;
+      current_position  = itor.current_position;
+
+      return *this;
+    }
+
+        /// Acceso por posición; es equivalente al mismo acceso en el vector.
+    T & operator [] (const size_type & index)
+    {
+      current_position = index;
+
+      return access(index);
+    }
+
+        /// Asigna al elemento actual del iterador el valor
+        /// key. El iterador no cambia de posición.
+    iterator & operator = (const T & key)
+    {
+      access(current_position) = key;
+
+      return *this;
+    }
+
+        /// Retorna una referencia al elemento actual del iterador.
+    T & operator * ()
+    {
+      return dyn_array_ptr->access(current_position);
+    }
+    
+        /// Dereferencia el elemento actual del iterador.
+    T * operator -> ()
+    {
+      return & dyn_array_ptr->access(current_position);
+    }
+    
+        /// Avanza el iterador una posición adelante, luego carga el
+        /// elemento actual.
+    iterator operator ++ ()
+    {
+      current_position++;
+      return *this;
+    }
+
+        /// Carga el elemento actual y luego avanza el iterador hacia
+        /// delante. 
+    iterator operator ++ (int)
+    {
+      iterator return_value = *this;
+      current_position++;
+      return return_value;
+    }
+
+        /// Retrocede el iterador una posición atrá, luego carga el
+        /// elemento actual.
+    iterator operator -- ()
+    {
+      current_position--;
+      return *this;
+    }
+
+        /// Carga el elemento actual y luego retrocede  el iterador hacia
+        /// atrás. 
+    iterator operator -- (int)
+    {
+      iterator return_value = *this;
+      current_position--;
+      return return_value;
+    }
+
+        /// Avanza el iterador n posiciones hacia delante.
+    iterator operator += (const size_type & n)
+    {
+      current_position += n;
+      return *this;
+    }
+
+        /// Retrocede el iterador n posiciones hacia atrás.
+    iterator operator -= (const size_type & n)
+    {
+      current_position -= n;
+      return *this;
+    }
+
+        /// Retorna true si elemento actual de this es anterior al elemento
+        /// actual de itor.
+    bool operator < (const iterator & itor) const
+    {
+      return current_position < itor.current_position;
+    }
+    
+        /// Retorna true si elemento actual de this es anterior o igual
+        /// al elemento actual de itor.
+    bool operator <= (const iterator & itor) const
+    {
+      return current_position <= itor.current_position;
+    }
+
+        /// Retorna true si elemento actual de this es posterior al elemento
+        /// actual de itor.
+    bool operator > (const iterator & itor) const
+    {
+      return current_position > itor.current_position;
+    }
+    
+        /// Retorna true si elemento actual de this es posterior o igual
+        /// al elemento actual de itor.
+    bool operator >= (const iterator& itor) const
+    {
+      return current_position >= itor.current_position;
+    }
+    
+        /// Retorna true si la posición actual de this es igual a la de
+        /// itor. 
+    bool operator == (const iterator & itor) const
+    {
+      return current_position == itor.current_position;
+    }
+    
+        /// Retorna true si la posición actual de this es igual a la de
+        /// itor. 
+    bool operator != (const iterator & itor) const
+    {
+      return current_position != itor.current_position;
+    }    
+    
+        /// Retorna la diferencia de posiciones entre el iterador this e
+        /// itor. 
+    int operator - (const iterator & itor) const
+    {
+      return current_position - itor.current_position;
+    }
+
+        /// Retorna un iterador n posiciones adelante del elemento
+        /// actual.
+    iterator operator + (const int & n) const
+    {
+      iterator ret_val(*this);
+
+      ret_val.current_position += n;
+
+      return ret_val;
+    }
+
+    bool verify(const DynArray<T> & array) const
+    {
+      return &array == dyn_array_ptr;
+    }
+
+    bool verify(const iterator & it) const
+    {
+      return dyn_array_ptr == it.dyn_array_ptr;
+    }
+  };
+
+      /// Instancia un vector vacío.
+  vector() : array(0), num_elem(0) { /* empty */ }
+
+      /// Instancia un vector copia de v.
+  vector (const vector & c) : array(c.array), num_elem(c.num_elem)
+  {
+    // empty
+  }
+
+      /// Instancia un vector con capacidad inicial de num.
+  vector (const size_type & num) : array(num), num_elem(num)
+  {
+    array.reserve(0, num_elem - 1);
+  }
+
+      /// Instancia un nuevo vector con copia de los elementos comprendidos
+      /// en el rango [beg..end) de un contenedor. 
+      template <typename Itor> explicit 
+  vector (Itor beg, const Itor & end) : array(0), num_elem(0)
+  {
+    Aleph::verify_iterators(beg, end);
+
+    while (beg != end)
+      array[num_elem++] = *beg++;
+
+    assert(num_elem == array.size());
+  }
+
+      /// Instancia un nuevo vector de num elementos de valor value.
+  vector (const size_type & num, const T & value) : array(num), num_elem(num)
+  {
+    array.reserve(0, num_elem - 1);
+        
+    for(size_type i = 0; i < num; i++)
+      array.access(i) = value;
+  }
+
+  ~vector() { /* empty */ }
+
+      /// Retorna el número de elementos que tiene el vector.
+  const size_type & size() const { return num_elem; }
+
+      /// Retorna true si el vector está vacío.
+  bool empty() const { return num_elem == 0; }
+
+      /// Retorna la máxima dimensión que puede tener el vector.
+  size_type max_size() const { return array.max_size(); }
+
+      /// Retorna la capacidad (dimension actual) del vector.
+  size_type capacity() const { return array.size(); }  
+
+      /// Aumenta la capacidad del vector en num entradas.
+  void reserve (const size_type & num)
+  {
+    if (num < array.size())
+      return;
+
+    array.reserve(array.size(), array.size() + num);  
+  }
+
+      /// Reajusta la capacidad del vector a num entradas.
+  void resize (const size_type & num)
+  {
+    if (num < array.size())
+      {
+	num_elem = num;
+	return;
+      }
+
+    reserve(num - array.size());
+  }
+    
+      /// Reajusta la capacidad a num entradas con valor value (en caso
+      /// de que num sea mayor que la capacidad actual.
+  void resize (const size_type & num, const T & value)
+  {
+    if (num < array.size())
+      {
+	num_elem = num;
+	return;
+      }
+
+    reserve(num - array.size());
+
+    for (/* nothing */; num_elem < num; num_elem++)
       array.access(num_elem) = value;
   }
 

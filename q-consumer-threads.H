@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,67 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef Q_CONSUMER_THREADS_H
+# define Q_CONSUMER_THREADS_H
 
+# include <thread>
+# include <condition_variable>
+# include <mutex>
+# include <tpl_dynListQueue.H>
+
+using namespace std;
+
+template <typename T>
+class ConsumerQueueEvent
+{
+  enum class Status { Ready, Executing };
+
+  atomic<Status> status = { Status::Ready };
+
+public:
+
+  T item; /// this is a item extracted from the queue
+
+  /** Derived classes from this one implement the action that must
+      performed when the item is extracted from the queue.
+
+      After event execution this event return a bool. A `true` return
+      value indicates that the thread can continue consuming others
+      items form the queue. At the contrary, a `false` return value
+      indicates that the thread must finish
+  */
+  bool run() = 0;
+};
+
+/** Pool of consumer threads form a queue.
+
+    @ingroup utils
+ */
+template <typename T>
+class QueueTheadsPool
+{
+public:
+
+  class ConsumerQueueEvent
+  {
+    friend class QueueTheadsPool;
+
+    enum class Status { Ready, Executing };
+
+    Status status = Status::Ready;
+
+  public:
+
+    T item; /// this is a item extracted from the queue
+
+    /** Derived classes from this one implement the action that must
+	performed when the item is extracted from the queue.
+
+	After event execution this event return a bool. A `true` return
+	value indicates that the thread can continue consuming others
+	items form the queue. At the contrary, a `false` return value
+	indicates that the thread must finish
+    */
     virtual void run() = 0;
 
     virtual ~ConsumerQueueEvent() {}

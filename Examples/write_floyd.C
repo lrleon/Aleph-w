@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,93 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- 
+
+# include <limits>
+# include <iostream>
+# include <tpl_matgraph.H>
+# include <mat_latex.H>
+# include <tpl_graph_utils.H>
+# include <latex_floyd.H>
+
+using namespace std;
+
+using namespace Aleph;
+
+# define INDENT "    "
+
+    template <typename M>
+struct C_i
+{
+  string operator () (M & m, const long & i) const
+  {
+    return m(i)->get_info().nombre;
+  }
+};
+
+
+    template <typename M>
+struct C_ij
+{
+  string operator () (M & m, const long & i, const long & j)
+  {
+    return m(m(i, j))->get_info().nombre;
+  }
+};
+
+
+    template <typename M>
+struct Di_ij
+{
+  string operator () (M & mat, const long & i, const long & j)
+  {
+    typename M::Arc_Type::Distance_Type value = mat(i, j);
+
+    if (value == numeric_limits<double>::infinity())
+      return string("{$\\infty$}");
+
+    if (value == 0)
+      return string("{$0$}");
+
+    char buf[256]; 
+
+    snprintf(buf, 256, "{$%d$}", (int) value);
+
+    return string(buf);
+  }
+};
+
+struct Nodo
+{
+  string nombre;
+
+  Nodo() {}
+
+  Nodo(const string & str) : nombre(str) { /* empty */ }
+
+  Nodo(char * str) : nombre(str) { /* empty */ }
+
+  bool operator == (const Nodo & der) const 
+  {
+    return nombre == der.nombre; 
+  }
+};
+
+
+struct Arco
+{
+  typedef double Distance_Type;
+
+  static const double Max_Distance;
+
+  static const double Zero_Distance;
+
+  double distancia;
+
+  Arco() : distancia(Max_Distance) { /* empty */ }
+
+  Arco(const double & dist) : distancia(dist) 
+  {
+    /* empty */ 
   }
 
   const double & get_distance() const { return distancia; }

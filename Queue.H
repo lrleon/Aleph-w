@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,32 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+# ifndef AH_QUEUE_H
+# define AH_QUEUE_H
+
+# include <tpl_dynListQueue.H>
+
+namespace Aleph {
+
+    /** Implantación Aleph del contenedor estándar queue<T>.
+
+	En Aleph este contenedor estándar es implantado mediante una
+	lista circular simplemente enlazada. Consecuentemente, esta
+	versión de queue<T> no emplea un contenedor genérico como
+	parámetro.
+
+	@ingroup stl
+     */
+    template <class T>
+class queue : public Aleph::DynListQueue<T>
+{
+public:
+
+      /// El tipo numérico para representar el tamaño
+  typedef size_t size_type;
+
+      /// Instancia una cola vacía
+  queue() { /* empty */ }
 
        /// Instancia una cola con los elementos del contenedor cont.
       template <class Container>

@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,33 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-; itor.has_curr(); itor.next())
+
+# include <iostream>
+# include <aleph.H>
+# include <tpl_dynSlist.H>
+
+# define Num_Items 10
+
+using namespace std;
+
+int main()
+{
+  DynSlist<int> list;
+  DynSlist<int*> list_ptr;
+
+  for (int i = 0; i < Num_Items; i++)
+    {
+      list.insert(i, i);
+      list_ptr.insert(i, &i);
+    }
+
+  DynSlist<int>::Iterator itor(list);
+
+  DynSlist<int>::Iterator itor_aux(list);
+
+  itor_aux = itor;
+
+  for (/* nothing */; itor.has_curr(); itor.next())
     cout << itor.get_curr() << " ";
 
   cout << endl;

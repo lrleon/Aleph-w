@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,73 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef FLOYD_H
+# define FLOYD_H
 
+# include <sstream>
+# include <ahFunction.H>
+# include <ahSort.H>
+# include <tpl_indexArc.H>
+# include <tpl_dynMat.H>
+
+namespace Aleph
+{
+
+      /** Calcula las matriz de costes de los caminos mínimos
+          entre todos pares de nodos de un grafo g y la matriz de caminos
+          mínimos según el algoritmo de Floy-Warshall.
+
+          Esta clase utiliza el algoritmo de Floy-Warshall para
+          calcular dos matrices de tipo Ady_Mat que se especifican del
+          siguiente modo:
+          -# dist: matriz de costes mínimos entre todos los pares de
+          nodos. Cada entrada dist(i,j) almacena el coste total mínimo
+          para ir del nodo con índice i hacia el nodo con índice j. \n
+          Recuérdese que un índice de nodo en la matriz dist puede
+          calcularse mediante dist(node), donde node es un puntero a
+          nodo en una representación con listas enlzadas derivada del
+          tipo de grafo
+          -# path: matriz de caminos mínimos. Cada entrada path(i,j)
+          almacena el nodo k que permitió al algoritmo de Floyd-Warshall
+          encontrar  el mínimo valor de dist(i,j). De este modo, inspecciones
+          sucesivas a  dist(k,j) permiten encontrar y construir el camino
+          hacia el nodo j. \n
+          La función find_min_path(g,i,j,path) realiza la función
+          anterior.
+
+          El algoritmo de Floyd-Warshall maneja pesos negativos, pero
+          no opera correctamente si el grafo contiene ciclos
+          negativos. Úsese el algoritmo de Bellman-Ford
+          q_bellman_ford_min_spanning_tree() si se sospecha su
+          presencia.
+
+          El algoritmo utiliza dos matrices internas adicionales.
+
+          El procedimiento es parametrizado con las siguientes
+          especificaciones:
+          -# GT: el tipo de grafo
+          -# Distance<GT>: La clase de lectura del peso del arco  que debe
+          exportar los siguientes atributos:
+            -# typedef Distance<GT>::Distance_Type: el tipo de dato que
+            representa un peso en un arco.
+            -# Distance<GT>::Distance_Type operator()(typename GT::Arc *a):
+            que retorna el valor del peso en el arco a.
+            -# Distance<GT>::Max_Distance: constante estática
+            correspondiente al valor de distancia máximo que un algoritmo
+            consideraría como valor infinito.
+            -# typename Distance<GT>::Zero_Distance: constante estática
+            correspondiente al elemento neutro de la suma. Tradicionalmente,
+            en la inmensa mayoría de casos, este será el cero.
+            .
+          -# SA: filtro de arcos.
+          .
+
+          @see dijkstra_min_spanning_tree() dijkstra_min_path()
+          find_path_depth_first()
+          find_min_path() bellman_ford_min_spanning_tree()
+          q_bellman_ford_min_spanning_tree()
+          @ingroup Grafos
+       */
     template <class GT,
               class Distance = Dft_Dist<GT>,
               class SA       = Dft_Show_Arc<GT>>

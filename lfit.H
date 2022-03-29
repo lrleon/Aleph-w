@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,61 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/* Basic linear regression
+
+    Leandro Rabindranath Leon    
+ */
+# ifndef LFIT_H
+# define LFIT_H
+
+# include <gsl/gsl_statistics_double.h>
+# include <gsl/gsl_fit.h>
+
+# include <string>
+
+# include <ah-zip.H>
+# include <tpl_array.H>
+# include <ah-string-utils.H>
+
+# include <aleph-exceptions.H>
+
+
+/* Basic linear regression calculator class
+
+   This class receives a pair of arrays x and y and performs a linear
+   regression for computing the best fit; i.e. the straight with
+   minimum square sum.
+
+   @ingroup Utils
+ */
+struct LFit
+{
+  mutable double c = 0;     ///
+  mutable double m = 1;
+  mutable double cov00 = 0;
+  mutable double cov01 = 0;
+  mutable double cov11 = 0;
+  mutable double sumsq = 0;
+  mutable double r2 = 0;
+  mutable double sigma = 0;
+  mutable double mse = 0;
+
+  friend ostream & operator << (ostream & out, const LFit & f)
+  {
+    return out << "r2 = " << f.r2 << endl
+	       << "sumsq = " << f.sumsq << endl
+	       << "sigma = " << f.sigma << endl
+	       << "mse   = " << f.mse << endl
+	       << "c     = " << f.c << endl
+	       << "m     = " << f.m << endl;
+  }
+
+  /// Creates an invalid fit
+  LFit() noexcept {}
+
+  /**
+
+   */
   LFit(const Array<double> & x, const Array<double> & y)
   {
     const size_t & n = y.size();

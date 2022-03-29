@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,28 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef EULERIAN_H
+# define EULERIAN_H
 
+# include <tpl_graph.H>
+
+namespace Aleph
+{
+
+    /** Determina si un grafo o digrafo es euleriano
+
+	La clase Test_Eulerian efectúa verifica si el grafo o digrafo es
+	euleriano; es decir, si contiene un ciclo euleriano.
+
+	La clase recibe tres parámetros tipo:
+	-# GT: el grafo
+	-# SN: clase filtro para el iterador de nodos.
+	-# SA: clase filtro para el iterador de arcos.
+	.
+
+	@ingroup Grafos
+	@author Leandro R. León
+     */
 template <class GT, 
 	  class SN = Dft_Show_Node<GT>,
 	  class SA = Dft_Show_Arc<GT> >

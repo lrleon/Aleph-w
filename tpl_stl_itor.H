@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,102 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
- }
+# ifndef TPL_STD_ITRO_H
+# define TPL_STD_ITRO_H
+
+namespace Aleph {
+
+
+    /** Iterador sobre un un conjunto de la biblioteca estándar C++
+	implantado con Aleph.   
+
+	@ingroup Arboles Contenedores
+    */
+  template <class Tree_Type>
+class Tree_Iterator
+{
+private:
+
+  friend class Set_Type;
+    
+  typedef typename Tree_Type::Iterator Iterator;
+    
+  Iterator itor;
+  bool underflow;
+  bool overflow;
+
+  void init_flags ()
+  {
+    if (itor.has_current () )
+      underflow = overflow = false;
+    else
+      underflow = overflow = true;
+  }
+
+  void goto_begin ()
+  {
+    itor.reset_first ();
+    init_flags ();
+  }
+
+  void goto_last ()
+  {
+    itor.reset_last ();
+    init_flags ();
+  }
+
+  void goto_end ()
+  {
+    itor.reset_last ();
+    init_flags ();
+    overflow = true;
+    if (not size() != 0)
+      itor.next ();
+  }
+
+  void forward ()
+  {
+    if (underflow)
+      {
+	goto_begin ();
+	return;
+      }
+      
+    itor.next ();
+
+    if (not itor.has_current () )
+      overflow = true;
+  }
+
+  void backward ()
+  {
+    if (overflow)
+      {
+	goto_last ();
+	return;
+      }
+      
+    itor.prev ();
+
+    if (not itor.has_current () )
+      underflow = true;
+  }
+
+  iterator (Tree_Type & _tree, Node * node) 
+    : itor (_tree, node), underflow (false), overflow (false)
+  {
+    /* empty */
+  }
+
+public:
+
+  typedef typename map::value_type    value_type;
+  typedef typename map::size_type     difference_type;
+  typedef typename map::value_type *   pointer;
+  typedef typename map::reference     reference;
+
+  /// Constructor vacío; no tiene validez si no se asocia un conjunto
+  iterator () { /* empty */ }
 
   iterator (Tree_Type & tree) : itor (tree)
   {

@@ -1,15 +1,15 @@
 
+/* Aleph-w
 
-/*
-                          Aleph_w
-
-  Data structures & Algorithms
-  version 1.9d
-  https://github.com/lrleon/Aleph-w
+     / \  | | ___ _ __ | |__      __      __
+    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,149 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+# ifndef TPL_INDEXGRAPH
+# define TPL_INDEXGRAPH
 
+# include <tpl_indexNode.H>
+# include <tpl_indexArc.H>
+
+namespace Aleph
+{
+
+  /** Construye índices de nodos y arcos para su rápida búsqueda y recuperación.
+
+      Index_Graph indiza los nodos y arcos a efectos de su
+      recuperación rápida.
+
+      A efectos de facilitar el uso y hacer su uso más seguro,
+      Index_Graph ofrece las operaciones topológicas clásicas de un
+      grafo: insert_node(), insert_arc(), etc.
+
+      La clase recibe los siguientes parámetros tipo:
+      -# GT: el tipo de grafo basado en List_Graph
+      -# Compare: clase de comparación para la clave de indización de
+      los nodos. El contrato de esta clase es intrumentar el operador () así:
+      \code
+          template <class GT>
+          struct Dft_Node_Cmp
+          {
+            bool
+            operator () (typename GT::Node * p1, typename GT::Node * p2) const
+            {
+              // acceso a los nodos y comparación según el campo deseado
+            }
+         };
+      \endcode
+
+      Por omisión esta clase está programada para comparar
+      el valor retornado por get_info() sobre cada nodo. Para ello, el
+      operador < del tipo GT::Node_Type debe estar implementado
+      -# Tree: el tipo de árbol binario de búsqueda usado internamente
+      para indizar las claves. Por omisión se usan treaps
+      .
+
+      @see IndexArc IndexNode
+
+      @ingroup Grafos
+      @author Leandro Rabindranath León (lrleon en ula punto ve)
+      @author Alejandro Mujica (aledrums en gmail punto com)
+  */
+template <class GT, class Compare = Dft_Node_Cmp<GT>,
+          template <class /* Key */, class /* Compare */> class Tree = Treap>
+class Index_Graph
+{
+private:
+
+  typedef typename GT::Arc GT_Arc;
+  typedef typename GT::Node GT_Node;
+  typedef typename GT::Arc_Type GT_Arc_Type;
+  typedef typename GT::Node_Type GT_Node_Type;
+
+  IndexNode<GT, Compare, Tree> idx_node;
+  IndexArc<GT, Tree>           idx_arc;
+
+public:
+
+      /// Crea un índice del grafo: los nodos y arcos son indizados.
+  Index_Graph(GT & g) : idx_node(g), idx_arc(g)
+  {
+    // empty
+  }
+
+  /** Crea un nuevo nodo y lo inserta en grafo y en el índice.
+
+      @param[in] info información a copiarse en el nodo.
+      @return puntero al nuevo nodo.
+      @throw bad_alloc si no hay suficiente memoria.
+   */
+  GT_Node * insert_node(const GT_Node_Type & info)
+  {
+    return idx_node.insert_in_graph(info);
+  }
+
+  /** Crea un nuevo arco entre dos nodos y lo inserta en el grafo y en
+      el índice.
+
+      @param[in] src nodo origen.
+      @param[in] tgt nodo destino.
+      @param[in] info información a copiarse en el arco. Por omisión es
+      la que dé el constructor GT_Arc_Type().
+      @return puntero al nuevo arco.
+      @throw bad_alloc si no hay suficiente memoria.
+   */
+  GT_Arc * insert_arc(GT_Node * src, GT_Node * tgt,
+                      const GT_Arc_Type & info = GT_Arc_Type())
+  {
+    if (idx_node.search(src) == nullptr)
+      throw std::domain_error("src node not in index");
+
+    if (idx_node.search(tgt) == nullptr)
+      throw std::domain_error("tgt node not in index");
+
+    return idx_arc.insert_in_graph(src, tgt, info);
+  }
+
+  /** Busca en el índice un nodo.
+
+      @param[in] p puntero al nodo.
+      @return puntero al nodo en caso de encontrarse en el índice; nullptr
+      de lo contrario.
+  */
+  GT_Node * search_node(GT_Node * p)
+  {
+    return idx_node.search(p);
+  }
+
+  /** Busca en el índice un nodo.
+
+      @param[in] info información según la cual se buscará el nodo. 
+      @return puntero al nodo en caso de encontrarse en el índice; nullptr
+      de lo contrario.
+      @warning Tome en consideración que la búsqueda se realiza según la
+      implementación de la clase de comparación Compare pasada en tiempo
+      de instanciación.
+  */
+  GT_Node * search_node(const GT_Node_Type & info)
+  {
+    return idx_node.search(info);
+  }
+
+  /** Busca en el índice un arco dados dos nodos.
+
+      @param[in] src puntero al nodo origen.
+      @param[in] tgt puntero al nodo destino.
+      @return puntero al arco en caso de encontrarse en el índice; nullptr
+      de lo contrario.
+  */
+  GT_Arc * search_arc(GT_Node * src, GT_Node * tgt)
+  {
+    return idx_arc.search(src, tgt);
+  }
+
+  /** Elimina el nodo p del grafo y del índice.
+
+      @param[in] p puntero al nodo a eliminar
+  */
   void remove_node(GT_Node * p)
   {
     // eliminar del índice los arcos emanantes del nodo (ellos serán
