@@ -201,6 +201,11 @@ namespace Aleph {
       return this->del(forward<Key>(key), Data()).second;
     }
 
+    void remove_key(const Key & key)
+    {
+      Base::remove(key);
+    }
+
     /** Retorna dato asociado a una clave.
 
         search(key) retorna un puntero al valor del dato asociado a la
