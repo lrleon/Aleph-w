@@ -203,7 +203,7 @@ namespace Aleph {
 
     void remove_key(const Key & key)
     {
-      Base::remove(key);
+      Base::remove(Pair(key, Data()));
     }
 
     /** Retorna dato asociado a una clave.
