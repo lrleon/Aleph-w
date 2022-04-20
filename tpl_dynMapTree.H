@@ -81,7 +81,7 @@ namespace Aleph {
 
     using Key_Type = Key;
 
-    using Item_Type = Key;
+    using Item_Type = Pair;
 
     using Value_Type = Data ;
 
