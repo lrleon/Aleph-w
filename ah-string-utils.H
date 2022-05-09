@@ -259,6 +259,7 @@ namespace Aleph
     return ret;
   }
 
+ 
   inline DynList<string> split_camel_case(const string & str)
   {
     DynList<string> ret;
@@ -279,6 +280,7 @@ namespace Aleph
 
     return ret;
   }
+
 
   /** Fill all the content of string with a defined char.
 
@@ -345,6 +347,21 @@ namespace Aleph
                                             const string & delim)
   {
     return split_string<DynList>(s, delim);
+  }
+
+  inline std::string to_Pascalcase(const string & str)
+  {
+    DynList<string> tokens = split_to_list(str, " _-");
+
+    tokens.mutable_for_each([] (string & token)
+    {
+      token[0] = ::toupper(token[0]);
+    });
+
+    return tokens.foldl<string>("", [](const string & acu, const string & token)
+    {
+      return acu + token;
+    });
   }
 
   inline Array<std::string> split_to_array(const string & s,
