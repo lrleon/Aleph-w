@@ -246,7 +246,7 @@ namespace Aleph {
     };
 
     template <class Operation>
-    bool traverse(Operation & operation) noexcept(noexcept(operation))
+    bool traverse(Operation & operation)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
         if (not operation(it.get_curr_ne()))
@@ -255,14 +255,13 @@ namespace Aleph {
     }
 
     template <class Operation>
-    bool traverse(Operation & operation) const noexcept(noexcept(operation))
+    bool traverse(Operation & operation) const
     {
       return const_cast<DynArrayHeap&>(*this).traverse<Operation>(operation);
     }
 
     template <class Operation>
     bool traverse(Operation && operation = Operation()) const
-      noexcept(noexcept(operation))
     {
 
       return traverse<Operation>(operation);
@@ -270,7 +269,6 @@ namespace Aleph {
 
     template <class Operation>
     bool traverse(Operation && operation = Operation())
-      noexcept(noexcept(operation))
     {
       return traverse<Operation>(operation);
     }

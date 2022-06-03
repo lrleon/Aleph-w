@@ -266,7 +266,6 @@ namespace Aleph
   public:
 
     Compare_Tnode(Compare __cmp = Compare()) 
-      noexcept(std::is_nothrow_move_assignable<Compare>::value)
       : cmp(__cmp) { /* empty */ }
 
     bool operator () (Tlink * l1, Tlink * l2) const noexcept
@@ -294,7 +293,6 @@ namespace Aleph
   struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
   {
     Compare_Dnode(Compare cmp = Compare()) 
-      noexcept(std::is_nothrow_move_assignable<Compare>::value)
       : Compare_Tnode<Dlink, Dnode, T, Compare> (std::forward<Compare>(cmp)) 
     { /* empty */ }
   };

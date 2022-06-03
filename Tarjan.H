@@ -72,7 +72,6 @@ namespace Aleph {
   public:
 
     Tarjan_Connected_Components(SA  __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
   private:
@@ -698,11 +697,9 @@ namespace Aleph {
   public:
 
     Compute_Cycle_In_Digraph(SA && __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     Compute_Cycle_In_Digraph(SA & __sa)
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     /** Invoca al cálculo de un ciclo en un digrafo.

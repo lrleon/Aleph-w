@@ -161,7 +161,7 @@ bool equal_length(const Cs & ... cs) noexcept
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
@@ -170,13 +170,13 @@ bool zip_traverse(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse(Op && op, const Cs & ... cs)
 {
   return zip_traverse(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse_eq(Op & op, const Cs & ... cs)
 {
   auto it = zip_it(cs...);
   for (;it.has_curr(); it.next_ne())
@@ -186,20 +186,20 @@ bool zip_traverse_eq(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse_eq(Op && op, const Cs & ... cs)
 {
   return zip_traverse_eq(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+void zip_for_each(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     op(it.get_curr_ne());
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+void zip_for_each(Op && op, const Cs & ... cs)
 {
   zip_for_each<Op, Cs...>(op, cs ...);
 }
@@ -222,7 +222,7 @@ void zip_for_each_eq(Op && op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_all(Op & op, const Cs & ... cs)
 {
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
@@ -233,13 +233,13 @@ bool zip_all(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_all(Op && op, const Cs & ... cs)
 {
   return zip_all(op, cs...);
 }
 
 template <class Op, class ... Cs> inline
-bool zip_exists(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_exists(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     if (op(it.get_curr_ne()))
@@ -249,7 +249,7 @@ bool zip_exists(Op & op, const Cs & ... cs) noexcept(noexcept(op))
 }
 
 template <class Op, class ... Cs> inline
-bool zip_exists(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_exists(Op && op, const Cs & ... cs)
 {
   return zip_exists(op, cs...);
 }
@@ -277,7 +277,7 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs & ... cs)
 }
 
 template <typename T, class Op, class ... Cs>
-T zip_foldl(const T & init, Op op, const Cs & ... cs) noexcept(noexcept(op))
+T zip_foldl(const T & init, Op op, const Cs & ... cs)
 {
   T acu = init;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
@@ -286,7 +286,7 @@ T zip_foldl(const T & init, Op op, const Cs & ... cs) noexcept(noexcept(op))
 }
 
 template <class Op, class ... Cs>
-auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
+auto zip_filter(Op op, const Cs & ... cs)
 {
   using ZipType = decltype(zip_it(cs...).get_curr_ne());
 
@@ -319,7 +319,7 @@ auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
     @author Leandro Rabindranath Leon
 */
 template <class Cmp, class ... Cs>
-bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
+bool zip_cmp(Cmp cmp, const Cs & ... cs)
 {
   for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
     {
@@ -336,7 +336,7 @@ bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
 }
 
 template <class Op, class ... Cs>
-size_t zip_find_index(Op op, const Cs & ... cs) noexcept(noexcept(op))
+size_t zip_find_index(Op op, const Cs & ... cs)
 {
   size_t i = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)

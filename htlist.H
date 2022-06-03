@@ -298,7 +298,7 @@ public:
   */
   const T & get_data() const noexcept { return data; }
 
-  Snodenc() noexcept(std::is_nothrow_constructible<T>::value)
+  Snodenc()
   {
     static_assert(std::is_default_constructible<T>::value,
                   "No default constructor for T");
@@ -307,7 +307,7 @@ public:
   /** \~English Construct with copy of `item`
       \~Spanish Constructor con copia de `item`
   */
-  Snodenc(const T & item) noexcept(noexcept(T(item))) : data(item)
+  Snodenc(const T & item) : data(item)
   {
     static_assert(std::is_copy_constructible<T>::value,
                   "No copy constructor for T");
@@ -317,7 +317,6 @@ public:
       \~Spanish Construye moviendo `ìtem`
   */
   Snodenc(T && item)
-    noexcept(noexcept(std::is_move_constructible<T>::value))
     : data(std::forward<T>(item))
   {
     static_assert(std::is_move_constructible<T>::value,
@@ -1352,7 +1351,7 @@ class DynList : public HTList,
   }
 
   //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
-  DynList() noexcept(std::is_nothrow_constructible<T>::value) { /* empty */ }
+  DynList() { /* empty */ }
 
   //!\~English  Initialize a list with a copy of all the items of list
   //!`l` \~Spanish Inicializa una lista con una copia de todos los
@@ -1441,13 +1440,13 @@ public:
   T & push(T && item) { return insert(std::forward<T>(item)); }
 
   /// \overload insert(const T & item)
-  T & put(const T & item) noexcept(noexcept(T(item)))
+  T & put(const T & item)
   {
     return push(item);
   }
 
   /// \overload insert(T && item)
-  T & put(T && item) noexcept(noexcept(std::forward<T>(item)))
+  T & put(T && item)
   {
     return push(std::forward<T>(item));
   }
@@ -1855,7 +1854,7 @@ public:
       \param[in] l list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
-  DynList & append(const DynList & list) noexcept(noexcept(DynList(list)))
+  DynList & append(const DynList & list)
   {
     DynList copy = list;
     HTList::append(copy);
@@ -1870,7 +1869,7 @@ public:
       \param[in] l list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
-  DynList & insert(const DynList & list) noexcept(noexcept(DynList(list)))
+  DynList & insert(const DynList & list)
   {
     DynList tmp = list;
     HTList::insert(tmp);

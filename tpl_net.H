@@ -55,10 +55,9 @@ namespace Aleph {
     /// valor de flujo
     Flow_Type flow; 
 
-    Net_Arc_Info() noexcept(std::is_nothrow_constructible<Arc_Info>::value) {}
+    Net_Arc_Info() {}
 
     Net_Arc_Info(const Arc_Info & info, Flow_Type __cap, Flow_Type __flow)
-      noexcept(noexcept(Arc_Info(info)))
       : Arc_Info(info), cap(__cap), flow(__flow)
     {
       // empty
@@ -97,11 +96,9 @@ namespace Aleph {
     bool check_arc() const noexcept { return flow >= 0 and flow <= cap; }
 
     Net_Arc(const Arc_Info & info) 
-      noexcept(noexcept(Base(info)))
       : Base(info) { /* empty */ } 
 
     Net_Arc(const Net_Arc & arc) 
-      noexcept(noexcept(Base(arc.arc_info)))
       : Base(arc.arc_info), cap(arc.cap), flow(arc.flow)
     {
       // empty
@@ -110,7 +107,6 @@ namespace Aleph {
     Net_Arc() { /* empty */ }
 
     Net_Arc & operator = (const Net_Arc & arc)
-      noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
     {
       if (this == &arc) 
         return *this;

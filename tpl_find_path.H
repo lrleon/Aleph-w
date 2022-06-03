@@ -147,12 +147,9 @@ class Find_Path_Depth_First
 public:
 
   Find_Path_Depth_First(SA && __sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value and
-	   std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
   Find_Path_Depth_First(SA & __sa) 
-  noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
   /** Invoca a la búsqueda de camino en profundidad.
@@ -332,12 +329,9 @@ class Find_Path_Breadth_First
 public:
 
   Find_Path_Breadth_First(SA & _sa) 
-  noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(_sa) { /* Empty */ }
 
   Find_Path_Breadth_First(SA && _sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value and
-	   std::is_nothrow_copy_assignable<SA>::value)
     : sa(_sa) { /* Empty */ }
  
   /** Invoca a la búsqueda de camino en amplitud.

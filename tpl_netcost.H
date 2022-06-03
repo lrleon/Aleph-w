@@ -68,11 +68,10 @@ struct Net_Cost_Arc : public Net_Arc<Arc_Info, F_Type>
       /// Retorna el coste del flujo circulante
   Flow_Type flow_cost() const noexcept { return this->flow*cost; }
 
-  Net_Cost_Arc(const Net_Cost_Arc & a) noexcept(noexcept(Base(a)))
+  Net_Cost_Arc(const Net_Cost_Arc & a)
     : Base(a), cost(a->cost) {}
 
   Net_Cost_Arc & operator = (const Net_Cost_Arc & a) 
-  noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
   {
     if (&a == this)
       return *this;

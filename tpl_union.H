@@ -234,7 +234,6 @@ class Relation_T : public Relation
     Pair() noexcept {}
 
     Pair(const T & __item, size_t __i) 
-    noexcept(std::is_nothrow_copy_assignable<T>::value)
       : item(__item), i(__i) { /* empty */ }
   };
 

@@ -276,7 +276,6 @@ public:
    */
   Dijkstra_Min_Paths(Distance dist = Distance(),
                      SA         __sa = SA())
-  noexcept(std::is_nothrow_move_assignable<SA>::value)
     : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()),
       painted(false), ptr_g(nullptr), s(nullptr)
   {

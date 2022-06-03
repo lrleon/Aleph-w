@@ -52,7 +52,6 @@ namespace Aleph {
   public:
 
     Build_Subgraph(SA __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
   private:
@@ -211,7 +210,6 @@ namespace Aleph {
   public:
 
     Inconnected_Components(SA __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     template <template <class> class List>

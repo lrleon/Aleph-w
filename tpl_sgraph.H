@@ -95,27 +95,24 @@ struct Graph_Snode : public GTNodeCommon<Node_Info>
         @note Debe estar definido el constructor copia de la clase Node_Info.
     */
   Graph_Snode(const Node_Info & info) 
-  noexcept(std::is_nothrow_copy_constructible<Node_Info>::value) : Base(info)
+    : Base(info)
   { 
     /* empty */ 
   }
 
   Graph_Snode(Node_Info && info = Node_Info()) 
-  noexcept(std::is_nothrow_move_constructible<Node_Info>::value) 
-  : Base(move(info))
+    : Base(move(info))
   { 
     /* empty */ 
   }
 
   Graph_Snode(const Graph_Snode & node) 
-  noexcept(std::is_nothrow_copy_constructible<Node_Info>::value)
     : Graph_Snode(node.node_info) 
   {
     /* empty */ 
   }
 
   Graph_Snode & operator = (const Graph_Snode & node)
-  noexcept(std::is_nothrow_copy_assignable<Node_Info>::value)
   {
     if (&node == this)
       return *this;
@@ -139,7 +136,6 @@ struct Graph_Snode : public GTNodeCommon<Node_Info>
         @note La instancia creada es un nodo distinto de \c node.
     */
   Graph_Snode(Graph_Snode * node) 
-  noexcept(std::is_nothrow_copy_assignable<Node_Info>::value)
     : Base(node->get_info())
   { 
     /* empty */ 
@@ -190,28 +186,24 @@ class Graph_Sarc : public GTArcCommon<Arc_Info>
 public:
 
   Graph_Sarc(const Arc_Info & info) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
     : Base(info)
   { 
     /* empty */ 
   }
 
   Graph_Sarc(Arc_Info && info = Arc_Info()) 
-  noexcept(std::is_nothrow_move_constructible<Arc_Info>::value)
-  : Base(move(info))
+    : Base(move(info))
   { 
     /* empty */ 
   }
 
   Graph_Sarc(const Graph_Sarc & arc) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
     : Graph_Sarc(arc.arc_info) 
   {
     /* empty */ 
   }
 
   Graph_Sarc & operator = (const Graph_Sarc & arc)
-  noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
   {
     if (&arc == this)
       return *this;
@@ -220,14 +212,12 @@ public:
   }
 
   Graph_Sarc(void * src, void * tgt, const Arc_Info & data) 
-    noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
   : Base(src, tgt, data)
   { 
     // empty
   }
 
   Graph_Sarc(void * src, void * tgt, Arc_Info && data) 
-    noexcept(std::is_nothrow_move_constructible<Arc_Info>::value)
   : Base(src, tgt, move(data))
   { 
     // empty
@@ -634,12 +624,9 @@ private:
     Cmp & cmp;
 
     Cmp_Arc(Cmp && __cmp = Cmp()) 
-    noexcept(std::is_nothrow_constructible<Cmp>::value and
-	     std::is_nothrow_move_assignable<Cmp>::value)
       : cmp(__cmp) { /* empty */ }
 
     Cmp_Arc(Cmp & __cmp) 
-    noexcept(std::is_nothrow_constructible<Cmp>::value)
       : cmp(__cmp) { /* empty */ }
 
     bool operator () (Slinknc * s1, Slinknc * s2) const noexcept

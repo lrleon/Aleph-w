@@ -52,11 +52,9 @@ namespace Aleph {
   public:
 
     Topological_Sort(SA && __sa = SA()) 
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa), gptr(nullptr) { /* empty */ }
 
     Topological_Sort(SA & __sa) 
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa), gptr(nullptr)  { /* empty */ }
 
   private:
@@ -140,11 +138,9 @@ namespace Aleph {
   public:
 
     Q_Topological_Sort(SA && __sa = SA()) 
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     Q_Topological_Sort(SA & __sa) 
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     /** Retorna un ordenamiento topológico en amplitud.

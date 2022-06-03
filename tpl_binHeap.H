@@ -485,7 +485,7 @@ namespace Aleph {
     }
 
     template <class Operation>
-    bool preorder_traverse(Node * p, Operation op) const noexcept(noexcept(op))
+    bool preorder_traverse(Node * p, Operation op) const
     {
       if (p == nullptr)
         return true;
@@ -499,7 +499,7 @@ namespace Aleph {
   public:
 
     template <class Operation>
-    bool preorder_traverse(Operation op) const noexcept(noexcept(op))
+    bool preorder_traverse(Operation op) const
     {
       return preorder_traverse(getRoot(), op);
     }

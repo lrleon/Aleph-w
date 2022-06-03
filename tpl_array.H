@@ -245,14 +245,14 @@ public:
       otherwise the traversal stops
    */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return array.traverse(operation);
   }
@@ -260,7 +260,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
-    noexcept(noexcept(operation))
   {
     return array.traverse(operation);
   }
@@ -268,7 +267,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return array.traverse(operation);
   }

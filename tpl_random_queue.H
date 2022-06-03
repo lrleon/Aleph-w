@@ -237,15 +237,14 @@ public:
       `true` the the traversing continues; otherwise stops.
   */
   template <class Operation>
-    bool traverse(Operation & operation) 
-    noexcept(noexcept(array.traverse(operation)))
+  bool traverse(Operation & operation) 
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<Random_Set*>(this)->traverse(operation);
   }
@@ -253,7 +252,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
-    noexcept(noexcept(operation))
   {
     return traverse(operation);
   }
@@ -261,7 +259,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return traverse(operation);
   }

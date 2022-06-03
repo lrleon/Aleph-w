@@ -805,10 +805,10 @@ public:
 private:
 
   template <class Operation>
-  bool __traverse(Operation & operation) noexcept(noexcept(operation))
+  bool __traverse(Operation & operation)
   {
     for (size_t i = 0; i < current_size; ++i)
-      if (not operation(read_bit_ne(i)))
+      if (not operation(read_bit(i)))
 	return false;
     return true;
   }
@@ -876,27 +876,25 @@ public:
   };
 
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<BitArray&>(*this).__traverse(operation);
   }
 
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     return __traverse(operation);
   }
 
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
-    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }
 
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }

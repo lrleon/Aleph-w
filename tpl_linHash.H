@@ -35,12 +35,11 @@ namespace Aleph {
 public:                                         \
                                                 \
  BUCKETNAME(const BUCKETNAME & bucket)                                \
-   noexcept(std::is_nothrow_constructible<Dnode<Key>>::value)         \
    : Dnode<Key>(bucket) {}                                            \
                                                                       \
- BUCKETNAME() noexcept(std::is_nothrow_constructible<Key>::value) {}	\
+ BUCKETNAME() {}						      \
                                                                       \
- BUCKETNAME(const Key & key) noexcept(noexcept(Dnode<Key>(key)))      \
+ BUCKETNAME(const Key & key)					      \
    : Dnode<Key>(key) {}                                               \
                                                                       \
  Key & get_key() noexcept { return this->get_data(); }                \
@@ -171,7 +170,6 @@ protected:
 private:
 
   size_t call_hash_fct(const Key & key) const
-    noexcept(noexcept(hash_fct(key)))
   {
     const auto hash = hash_fct(key);
     const auto i = hash % M;

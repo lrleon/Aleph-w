@@ -197,14 +197,14 @@ public:
       `false` otherwise.
   */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     return q.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return q.traverse(operation);
   }
@@ -212,7 +212,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
-    noexcept(noexcept(operation))
   {
     return q.traverse(std::forward<Operation>(operation));
   }
@@ -220,7 +219,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) 
-    noexcept(noexcept(operation))
   {
     return q.traverse(std::forward<Operation>(operation));
   }

@@ -134,7 +134,6 @@ namespace Aleph {
     }
 
     Graph_Node & operator = (const Graph_Node & node)
-      noexcept(std::is_nothrow_copy_assignable<Node_Info>::value)
     {
       if (&node == this)
         return *this;
@@ -158,7 +157,6 @@ namespace Aleph {
         @note La instancia creada es un nodo distinto de \c node.
     */
     Graph_Node(Graph_Node * node)
-      noexcept(std::is_nothrow_copy_assignable<Node_Info>::value)
       : Base(node->get_info())
     {
       /* empty */
@@ -217,7 +215,6 @@ namespace Aleph {
         @note The copy constructor of `Arc_Info` must be defined
     */
     Graph_Arc(const Arc_Info & info)
-      noexcept(noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value))
       : Base(info)
     {
       /* empty */
@@ -233,21 +230,18 @@ namespace Aleph {
         @note The move constructor of `Arc_Info` must be defined
     */
     Graph_Arc(Arc_Info && info = Arc_Info())
-      noexcept(noexcept(std::is_nothrow_move_constructible<Arc_Info>::value))
       : Base(move(info))
     {
       /* empty */
     }
 
     Graph_Arc(const Graph_Arc & arc)
-      noexcept(noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value))
       : Graph_Arc(arc.arc_info)
     {
       /* empty */
     }
 
     Graph_Arc & operator = (const Graph_Arc & arc)
-      noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
     {
       if (&arc == this)
         return *this;
@@ -1198,7 +1192,6 @@ namespace Aleph {
         @param[in] sa the filter
     */
     Node_Arc_Iterator(typename GT::Node * p, Show_Arc sa = Show_Arc()) 
-      noexcept(noexcept(Itor(p, sa)))
       : Itor(p, sa) 
     {
       // empty
@@ -1238,7 +1231,6 @@ namespace Aleph {
         @param[in] sa filter functor
     */
     Arc_Iterator(const GT & g, Show_Arc sa = Show_Arc())
-      noexcept(noexcept(Itor(g, sa)))
       : Itor(g, sa)
     {
       // empty
@@ -1286,7 +1278,6 @@ namespace Aleph {
         @param[in] sn the node filter
     */
     Node_Iterator(const GT & g, Show_Node sn = Show_Node())
-      noexcept(noexcept(Itor(g, sn)))
       : Itor (g, sn) 
     {
       /* empty */ 
@@ -1306,7 +1297,6 @@ namespace Aleph {
   void for_each_node(const GT & g, 
                      std::function<void(typename GT::Node*)> operation,
                      SN sn = SN())
-    noexcept(noexcept(operation) and noexcept(sn))
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       operation(it.get_curr_ne());
@@ -1325,7 +1315,6 @@ namespace Aleph {
   void for_each_arc(const GT & g,
                     std::function<void(typename GT::Arc*)> operation,
                     SA sa = SA())
-    noexcept(noexcept(operation) and noexcept(sa))
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       operation(it.get_curr_ne());
@@ -1346,7 +1335,6 @@ namespace Aleph {
                     typename GT::Node *                    p, 
                     std::function<void(typename GT::Arc*)> operation,
                     SA                                     sa = SA())
-    noexcept(noexcept(operation) and noexcept(sa))
   {
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       operation(it.get_curr_ne());
@@ -1366,7 +1354,6 @@ namespace Aleph {
   bool forall_node(const GT &                              g, 
                    std::function<bool(typename GT::Node*)> cond,
                    SN                                      sn = SN())
-    noexcept(noexcept(cond) and noexcept(sn))
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       if (not cond(it.get_curr_ne()))
@@ -1388,7 +1375,6 @@ namespace Aleph {
   bool forall_arc(const GT &                             g, 
                   std::function<bool(typename GT::Arc*)> cond,
                   SA                                     sa = SA())
-    noexcept(noexcept(cond) and noexcept(sa))
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       if (not cond(it.get_curr_ne()))
@@ -1410,7 +1396,6 @@ namespace Aleph {
   bool forall_arc(typename GT::Node *                    p, 
                   std::function<bool(typename GT::Arc*)> cond,
                   SA                                     sa = SA())
-    noexcept(noexcept(cond) and noexcept(sa))
   {
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       if (not cond(it.get_curr_ne()))
@@ -1508,8 +1493,6 @@ namespace Aleph {
   T foldl_nodes(GT & g, const T & init, 
                 std::function<T(const T&, typename GT::Node*)> operation,
                 SN sn = SN())
-    noexcept(noexcept(operation) and noexcept(sn) and
-             std::is_nothrow_copy_assignable<T>::value)
   {
     T ret_val = init;
     for_each_node<GT, SN>(g, [&ret_val, &operation] (typename GT::Node * p)
@@ -1532,8 +1515,6 @@ namespace Aleph {
   T foldl_arcs(GT & g, const T & init,
                std::function<T(const T&, typename GT::Arc*)> operation,
                SA sa = SA())
-    noexcept(noexcept(operation) and noexcept(sa) and
-             std::is_nothrow_copy_assignable<T>::value)
   {
     T ret_val = init;
     for_each_arc<GT, SA>(g, [&ret_val, &operation] (typename GT::Arc* a)
@@ -1558,8 +1539,6 @@ namespace Aleph {
                const T & init,
                std::function<T(const T&, typename GT::Arc*)> operation,
                SA sa = SA())
-    noexcept(noexcept(operation) and noexcept(sa) and
-             std::is_nothrow_copy_assignable<T>::value)
   {
     T ret_val = init;
     for_each_arc<GT, SA>(g, p, [&ret_val, &operation] (typename GT::Arc* a)
@@ -1706,7 +1685,6 @@ namespace Aleph {
 
     /// Initialize an iterator on adjacent arcs (incoming or outcoming) of `p`
     Digraph_Iterator(typename GT::Node * p) 
-      noexcept(noexcept(Filter(p)) and noexcept(Itor(p, filt)))
       : filt(p), it(p, filt) 
     {
       // empty
@@ -2015,7 +1993,6 @@ namespace Aleph {
   */
   template <class GT, class Itor, class Operation> inline
   bool traverse_arcs(typename GT::Node * p, Operation op = Operation())
-    noexcept(noexcept(op))
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
       if (not op(it.get_curr_ne()))
@@ -2042,7 +2019,6 @@ namespace Aleph {
   */
   template <class GT, class Itor, class Operation> inline
   void for_each_arc(typename GT::Node * p, Operation op = Operation())
-    noexcept(noexcept(op))
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
       op(it.get_curr_ne());
@@ -2062,7 +2038,6 @@ namespace Aleph {
   */
   template <class GT, class Op> inline
   bool traverse_in_arcs(typename GT::Node * p, Op op = Op())
-    noexcept(noexcept(op))
   {
     return traverse_arcs<GT, __In_Iterator<GT>, Op>(p, op);
   }
@@ -2074,7 +2049,7 @@ namespace Aleph {
       @ingroup Grafos
   */
   template <class GT, class Op> inline
-  void for_each_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  void for_each_in_arc(typename GT::Node * p, Op op = Op())
   {
     for_each_arc<GT, __In_Iterator<GT>, Op>(p, op);
   }
@@ -2090,7 +2065,7 @@ namespace Aleph {
       \result `true` if `op` returns `true` for all the incoming arcs
   */
   template <class GT, class Op> inline
-  bool all_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  bool all_in_arc(typename GT::Node * p, Op op = Op())
   {
     return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
   }
@@ -2106,7 +2081,7 @@ namespace Aleph {
       \result `true` if there is at least an arc satisfying the operation
   */
   template <class GT, class Op> inline
-  bool exists_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  bool exists_in_arc(typename GT::Node * p, Op op = Op())
   {
     return not traverse_in_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
   }
@@ -2123,7 +2098,7 @@ namespace Aleph {
       found; `nullptr` otherwise
   */
   template <class GT, class Op> inline
-  auto search_in_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  auto search_in_arc(typename GT::Node * p, Op op = Op())
   {
     typename GT::Arc * ret = nullptr;
     traverse_in_arcs(p, [&op, &ret] (auto a)
@@ -2153,7 +2128,6 @@ namespace Aleph {
   */
   template <class GT, typename T> inline
   auto map_in_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
-    noexcept(noexcept(op))
   {
     DynList<T> ret;
     for_each_in_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
@@ -2179,7 +2153,6 @@ namespace Aleph {
   template <class GT, typename T> inline
   T foldl_in_arcs(typename GT::Node * p, const T & init,
                   std::function<T(const T&, typename GT::Arc*)> op)
-    noexcept(noexcept(op))
   {
     T ret = init;
     for_each_in_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2194,7 +2167,6 @@ namespace Aleph {
   */
   template <class GT, class Op> inline
   DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op cond)
-    noexcept(noexcept(cond))
   {
     DynList<typename GT::Arc*> ret;
     for_each_in_arc(p, [&ret, &cond] (auto a) 
@@ -2219,7 +2191,6 @@ namespace Aleph {
   */
   template <class GT, class Op> inline
   bool traverse_out_arcs(typename GT::Node * p, Op op = Op())
-    noexcept(noexcept(op))
   {
     return traverse_arcs<GT, __Out_Iterator<GT>, Op>(p, op);
   }
@@ -2232,7 +2203,6 @@ namespace Aleph {
   */
   template <class GT, class Op> inline
   void for_each_out_arc(typename GT::Node * p, Op op = Op())
-    noexcept(noexcept(op))
   {
     for_each_arc<GT, __Out_Iterator<GT>, Op>(p, op);
   }
@@ -2248,7 +2218,7 @@ namespace Aleph {
       \result `true` if `op` returns `true` for all the incoming arcs
   */
   template <class GT, class Op> inline
-  bool all_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  bool all_out_arc(typename GT::Node * p, Op op = Op())
   {
     return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
   }
@@ -2264,7 +2234,7 @@ namespace Aleph {
       \result `true` if there is at least an arc satisfying the operation
   */
   template <class GT, class Op> inline
-  bool exists_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  bool exists_out_arc(typename GT::Node * p, Op op = Op())
   {
     return not traverse_out_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
   }
@@ -2281,7 +2251,7 @@ namespace Aleph {
       found; `nullptr` otherwise
   */
   template <class GT, class Op> inline
-  auto search_out_arc(typename GT::Node * p, Op op = Op()) noexcept(noexcept(op))
+  auto search_out_arc(typename GT::Node * p, Op op = Op())
   {
     typename GT::Arc * ret = nullptr;
     __traverse_out_arcs(p, [&op, &ret] (auto a)
@@ -2311,7 +2281,6 @@ namespace Aleph {
   */
   template <class GT, typename T> inline
   auto map_out_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
-    noexcept(noexcept(op))
   {
     DynList<T> ret;
     for_each_out_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
@@ -2337,7 +2306,6 @@ namespace Aleph {
   template <class GT, typename T> inline
   T foldl_out_arcs(typename GT::Node * p, const T & init,
                    std::function<T(const T&, typename GT::Arc*)> op)
-    noexcept(noexcept(op))
   {
     T ret = init;
     for_each_out_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
@@ -2352,7 +2320,6 @@ namespace Aleph {
   */
   template <class GT, class Op> inline
   DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op cond)
-    noexcept(noexcept(cond))
   {
     DynList<typename GT::Arc*> ret;
     for_each_out_arc(p, [&ret, &cond] (auto a)
@@ -2498,7 +2465,6 @@ namespace Aleph {
 
     /// Initialize the functor with the filter `sa`
     Operate_On_Nodes(SN __sn = SN())
-      noexcept(std::is_nothrow_constructible<SN>::value)
       : sn(__sn) { /* empty */ }
 
     /** Call to `operation` on each node.
@@ -2507,7 +2473,6 @@ namespace Aleph {
         @param[in] op the operation
     */
     void operator () (const GT & g, Operation op = Operation())
-      noexcept(noexcept(op))
     {
       for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
         op (g, it.get_curr_ne());
@@ -2518,7 +2483,7 @@ namespace Aleph {
         @param[in] g the graph
         @param[in] op the operation
     */
-    void operator () (GT & g, Operation op = Operation()) noexcept(noexcept(op))
+    void operator () (GT & g, Operation op = Operation())
     {
       for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
         op (g, it.get_curr_ne());
@@ -2545,7 +2510,6 @@ namespace Aleph {
 
     /// Initialize the functor with the filter `sa`
     Operate_On_Arcs(SA __sa = SA())
-      noexcept(std::is_nothrow_constructible<SA>::value)
       : sa(__sa) { /* empty */ }
 
     /** Call to `op on each arc
@@ -2554,14 +2518,12 @@ namespace Aleph {
         @param[in] op the operation
     */
     void operator () (const GT & g, Operation op = Operation()) const
-      noexcept(noexcept(op))
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         op (g, it.get_curr_ne());
     }
 
     void operator () (GT & g, Operation op = Operation()) const
-      noexcept(noexcept(op))
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         op (g, it.get_curr_ne());
@@ -2574,7 +2536,7 @@ namespace Aleph {
         @param[in] op the operation
     */
     void operator () (const GT & g, typename GT::Node * p,
-                      Operation op = Operation()) const noexcept(noexcept(op))
+                      Operation op = Operation()) const
     {
       for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
         op (g, it.get_current_arc_ne());
@@ -2582,7 +2544,6 @@ namespace Aleph {
 
     void operator () (GT & g, typename GT::Node * p,
                       Operation op = Operation()) const
-      noexcept(noexcept(op))
     {
       for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
         op (g, it.get_current_arc_ne());
@@ -3102,7 +3063,7 @@ namespace Aleph {
         \return pointer to the extracted node
         \throw overlow_error if path is empty
     */
-    Node * remove_last_node() noexcept(noexcept(list.remove_last()))
+    Node * remove_last_node()
     {
       auto d = list.remove_last();
       list.get_last().arc = nullptr;
@@ -3114,7 +3075,7 @@ namespace Aleph {
         \return pointer to the extracted node
         \throw overlow_error if path is empty
     */
-    Node * remove_first_node() noexcept(noexcept(list.remove_first()))
+    Node * remove_first_node()
     {
       auto d = list.remove_first();
       return d.node;
@@ -3251,7 +3212,7 @@ namespace Aleph {
         \param[in] op operation 
     */
     template <class Operation> 
-    void for_each_node(Operation op = Operation()) const noexcept(noexcept(op))
+    void for_each_node(Operation op = Operation()) const
     {
       for (Iterator it(*this); it.has_current_node(); it.next_ne())
         op (it.get_current_node_ne());
@@ -3262,7 +3223,7 @@ namespace Aleph {
         \param[in] op operation 
     */
     template <class Operation> 
-    void for_each_arc(Operation op = Operation()) const noexcept(noexcept(op))
+    void for_each_arc(Operation op = Operation()) const
     {
       for (Iterator it(*this); it.has_current_arc(); it.next_ne())
         op (it.get_current_arc_ne());

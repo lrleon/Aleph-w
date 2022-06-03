@@ -118,14 +118,14 @@ public:
   }
 
       /// Construct a node with a copy of `item`
-  Dnode(const T & item) noexcept(noexcept(T(item))) : data(item) 
+  Dnode(const T & item) : data(item) 
   {
     static_assert(std::is_copy_constructible<T>::value, 
 		  "No copy constructor for T");
   }
 
   /// Construct a new node with the item moved
-  Dnode(T && item) noexcept(noexcept(std::swap(data, item)))
+  Dnode(T && item)
   {
     static_assert(std::is_move_constructible<T>::value,
 		  "No move constructor for T");
@@ -133,7 +133,7 @@ public:
   }
 
   /// Swap `this` with `p`
-  Dnode & swap(Dnode & p) noexcept(noexcept(std::swap(data, p.data)))
+  Dnode & swap(Dnode & p)
   {
     
     Dlink::swap(p);
@@ -142,7 +142,7 @@ public:
   }
 
   /// Copy constructor
-  Dnode(const Dnode & node) noexcept(std::is_nothrow_copy_assignable<T>::value)
+  Dnode(const Dnode & node)
   : Dlink(node), data(node.data) 
   {
     static_assert(std::is_copy_constructible<T>::value, 
@@ -150,7 +150,7 @@ public:
   }
 
   /// Move constructor
-  Dnode(Dnode && node) noexcept(noexcept(std::forward<T>(node.data)))
+  Dnode(Dnode && node)
   : Dlink(node), data(std::forward<T>(node.data))
   {
     /* empty */ 
@@ -158,7 +158,6 @@ public:
 
   /// Copy assigment
   Dnode & operator = (const Dnode & p) 
-  noexcept(std::is_nothrow_copy_assignable<T>::value)
   {
      static_assert(std::is_copy_assignable<T>::value,
 		  "No copy assign for T");
@@ -168,7 +167,6 @@ public:
 
   /// Move asignment
   Dnode & operator = (Dnode && p) 
-  noexcept(std::is_nothrow_move_assignable<T>::value)
   {
     std::swap(data, p.data);
     return *this;

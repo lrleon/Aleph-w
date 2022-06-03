@@ -170,26 +170,26 @@ namespace Aleph
   }
 
   template <class Op>
-  void each(size_t start, size_t end, Op & op) noexcept(noexcept(op))
+  void each(size_t start, size_t end, Op & op)
   {
     for (size_t i = start; i <= end; ++i)
       op();
   }
 
   template <class Op>
-  void each(size_t start, size_t end, Op && op) noexcept(noexcept(op))
+  void each(size_t start, size_t end, Op && op)
   {
     each(start, end, op);
   }
 
   template <class Op>
-  void each(size_t n, Op & op) noexcept(noexcept(op))
+  void each(size_t n, Op & op)
   {
     each(0, n - 1, op);
   }
 
   template <class Op>
-  void each(size_t n, Op && op) noexcept(noexcept(op))
+  void each(size_t n, Op && op)
   {
     each(n, op);
   }
@@ -219,7 +219,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   Container & for_each(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     container.traverse([&operation] (const auto & item)
                        {
@@ -231,7 +230,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   const Container & for_each(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     container.traverse([&operation] (const auto & item)
                        {
@@ -243,21 +241,18 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   Container& for_each(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return for_each<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline const Container &
   for_each(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return for_each<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     size_t i = 0;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
@@ -266,35 +261,30 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation && operation)
-    noexcept(noexcept(operation))
   {
     enum_for_each(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool all(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return container.template traverse(operation);
   }
 
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return container.template traverse<Operation>(operation);
   }
 
   template <class Container, class Operation> inline
   bool all(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return all<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return all<Container, Operation>(container, operation);
   }
@@ -302,7 +292,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return not
       container.traverse([&operation] (const auto & item)
@@ -313,7 +302,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return not
       container.traverse([&operation] (const auto & item)
@@ -324,14 +312,12 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return exists<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return exists<Container, Operation>(container, operation);
   }
@@ -423,7 +409,6 @@ namespace Aleph
   */
   template < typename T, class Container, class Operation> inline
   T foldl(const Container & container, const T & init, Operation operation)
-    noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
   {
     T ret_val = init;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne())
@@ -523,7 +508,7 @@ namespace Aleph
 
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
-  bool eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  bool eq(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     auto it1 = c1.get_it();
     auto it2 = c2.get_it();
@@ -541,7 +526,7 @@ namespace Aleph
   }
 
   template <class C1, class C2, class Eq> inline
-  bool containers_eq(const C1 & c1, const C2 & c2, Eq e) noexcept(noexcept(e))
+  bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
   {
     return e1(c1, c2, e);
   }
@@ -549,7 +534,7 @@ namespace Aleph
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
   std::tuple<bool, size_t, typename C1::Item_Type, typename C2::Item_Type>
-  are_eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  are_eq(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     using T = typename C1::Item_Type;
     auto it1 = c1.get_it();
@@ -569,7 +554,6 @@ namespace Aleph
   template <class C1, class C2,
             class Cmp = std::less<typename C1::Item_Type>> inline
   bool lesser(const C1 & c1, const C2 & c2, Cmp cmp = Cmp())
-    noexcept(noexcept(cmp))
   {
     auto it1 = c1.get_it();
     auto it2 = c2.get_it();
@@ -591,7 +575,7 @@ namespace Aleph
 
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
-  bool diff(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  bool diff(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     return not eq(c1, c2, e);
   }

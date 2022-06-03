@@ -191,7 +191,7 @@ int postOrderRec(Node * root, void (*visitFct)(Node*, int, int))
 class For_Each_In_Order
 {
   template <class Op>
-  static void for_each_inorder(Node * root, Op & op) noexcept(noexcept(op))
+  static void for_each_inorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -205,21 +205,21 @@ public:
 
   /// Invoke to traversal from root node
   template <class Op>
-  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  void traverse(Node * root, Op & op) const
   {
     for_each_inorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
+  void operator () (Node * root, Op & op) const
   {
     for_each_inorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op) const noexcept(noexcept(op))
+  void operator () (Node * root, Op && op) const
   {
     for_each_inorder<Op>(root, op);
   }
@@ -232,7 +232,7 @@ public:
     @ingroup Arboles
 */
   template <class Node, class Op> inline
-void for_each_in_order(Node * root, Op && op) noexcept(noexcept(op))
+void for_each_in_order(Node * root, Op && op)
 {
   return For_Each_In_Order<Node>().template traverse<Op>(root, op);
 }
@@ -256,7 +256,7 @@ void for_each_in_order(Node * root, Op && op) noexcept(noexcept(op))
 class For_Each_Preorder
 {
   template <class Op>
-  static void preorder(Node * root, Op & op) noexcept(noexcept(op))
+  static void preorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -270,21 +270,21 @@ public:
 
   /// Invoke the traversal
   template <class Op>
-  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  void traverse(Node * root, Op & op) const
   {
     return preorder(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
+  void operator () (Node * root, Op & op) const
   {
     preorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op = Op()) const noexcept(noexcept(op))
+  void operator () (Node * root, Op && op = Op()) const
   {
     preorder<Op>(root, op);
   }
@@ -322,7 +322,7 @@ void for_each_preorder(Node * root, Op && op)
 class For_Each_Postorder
 {
   template <class Op>
-  static void postorder(Node * root, Op & op) noexcept(noexcept(op))
+  static void postorder(Node * root, Op & op)
   {
     if (root == Node::NullPtr)
       return;
@@ -336,21 +336,21 @@ public:
 
 /// Invoke the traversal
   template <class Op>
-  void traverse(Node * root, Op & op) const noexcept(noexcept(op))
+  void traverse(Node * root, Op & op) const
   {
     return postorder(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op & op) const noexcept(noexcept(op))
+  void operator () (Node * root, Op & op) const
   {
     postorder<Op>(root, op);
   }
 
   /// \overload traverse(Node * root, Op & op)
   template <class Op>
-  void operator () (Node * root, Op && op = Op()) const noexcept(noexcept(op))
+  void operator () (Node * root, Op && op = Op()) const
   {
     postorder<Op>(root, op);
   }
@@ -2403,7 +2403,7 @@ public:
       @ingroup Arboles
   */
 template <class Node, class Op>
-bool prefix_traverse(Node * root, Op op) noexcept(noexcept(op))
+bool prefix_traverse(Node * root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
@@ -2431,7 +2431,7 @@ bool prefix_traverse(Node * root, Op op) noexcept(noexcept(op))
       \throw anything that can throw `operation`
    */
 template <class Node, class Op>
-void prefix_for_each(Node * root, Op op) noexcept(noexcept(op))
+void prefix_for_each(Node * root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
     op(it.get_curr_ne());
@@ -2616,7 +2616,7 @@ public:
       @ingroup Arboles
   */
 template <class Node, class Op>
-bool infix_traverse(Node * root, Op op) noexcept(noexcept(op))
+bool infix_traverse(Node * root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
     if (not op(it.get_curr_ne()))
@@ -2629,7 +2629,7 @@ bool infix_traverse(Node * root, Op op) noexcept(noexcept(op))
     @ingroup Arboles
  */
 template <class Node, class Op>
-bool traverse(Node * root, Op op) noexcept(noexcept(op))
+bool traverse(Node * root, Op op)
 {
   return infix_traverse(root, op);
 }
@@ -2653,7 +2653,7 @@ bool traverse(Node * root, Op op) noexcept(noexcept(op))
       \throw anything that can throw `operation`
    */
 template <class Node, class Op>
-void infix_for_each(Node * root, Op op) noexcept(noexcept(op))
+void infix_for_each(Node * root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
     op(it.get_curr_ne());
