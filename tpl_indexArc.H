@@ -221,7 +221,7 @@ namespace Aleph
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         {
-          GT_Arc * a = it.get_curr_ne();
+          GT_Arc * a = it.get_curr();
           if (search(a) != a)
             insert(a);
         }
@@ -232,7 +232,7 @@ namespace Aleph
     void init()
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        insert(it.get_curr_ne());
+        insert(it.get_curr());
     }
 
   public:

@@ -170,7 +170,7 @@ public:
         for (Node_Iterator<Net_Cap_Graph> it(*this); it.has_curr();
 	     it.next_ne())
           {
-            Node * p = it.get_curr_ne();
+            Node * p = it.get_curr();
             typename Aux_Net::Node * src = aux_net->insert_node();
             typename Aux_Net::Node * tgt = aux_net->insert_node();
             typename Aux_Net::Arc  * arc = 
@@ -181,7 +181,7 @@ public:
         for (Arc_Iterator<Net_Cap_Graph> it(*this); it.has_curr();
 	     it.next_ne())
           {
-            Arc * arc = it.get_curr_ne();
+            Arc * arc = it.get_curr();
             typename Aux_Net::Arc * src_arc = 
               (typename Aux_Net::Arc *) NODE_COOKIE(get_src_node(arc));
             typename Aux_Net::Arc * tgt_arc = 
@@ -222,7 +222,7 @@ public:
     for (Arc_Iterator<Aux_Net, No_Res_Arc<Aux_Net> > it(*aux_net); 
          it.has_curr(); it.next_ne())
       {
-        typename Aux_Net::Arc * arc = it.get_curr_ne();
+        typename Aux_Net::Arc * arc = it.get_curr();
         if (arc->get_info())
           {
             Node * p = (Node*) ARC_COOKIE(arc);

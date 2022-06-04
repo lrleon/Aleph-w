@@ -68,7 +68,7 @@ struct GenericTraverse
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
          it.has_curr(); it.next_ne())
-      if (not operation(it.get_curr_ne()))
+      if (not operation(it.get_curr()))
         return false;
     return true;
   }
@@ -1245,7 +1245,7 @@ public:
       return ret;
     for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
          it.next_ne(), i += step)
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 

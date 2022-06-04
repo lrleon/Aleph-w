@@ -111,7 +111,7 @@ void generate_dot_file(Digrafo & g, ostream & output)
 
   for (Node_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Node * p = it.get_curr_ne();
+      Digrafo::Node * p = it.get_curr();
       Info_Nodo & info = p->get_info();
       output << info.first << " [color=";
       DynDlist<string> & fields = info.second;
@@ -173,18 +173,18 @@ void generate_dot_file(Digrafo & g, ostream & output)
       for (DynDlist<DynDlist<Digrafo::Node*>*>::Iterator it(ranks); 
 	   it.has_curr(); it.next_ne())
 	{
-	  DynDlist<Digrafo::Node*> * l = it.get_curr_ne();
+	  DynDlist<Digrafo::Node*> * l = it.get_curr();
 	  output << "{ rank = same; " << endl;
 	  for (DynDlist<Digrafo::Node*>::Iterator i(*l); 
 	       i.has_curr(); i.next_ne())
-	    output << i.get_curr_ne()->get_info().first << " ";
+	    output << i.get_curr()->get_info().first << " ";
 	  output << "}" << endl;
 	}
     }
   
   for (Arc_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Arc * a = it.get_curr_ne();
+      Digrafo::Arc * a = it.get_curr();
       output << g.get_src_node(a)->get_info().first << " -> " 
 	     << g.get_tgt_node(a)->get_info().first << endl;
     }

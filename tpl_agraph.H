@@ -374,7 +374,7 @@ public:
   void compress()
   {
     for (Node_Iterator it(*this); it.has_curr(); it.next_ne())
-      it.get_curr_ne()->compress();
+      it.get_curr()->compress();
   }
 
 private:
@@ -475,7 +475,7 @@ public:
       // traverse all arcs of graph and store those whose source or target is p
       for (Arc_Iterator it(*this); it.has_curr(); it.next_ne())
         {
-          Arc * arc = it.get_curr_ne();
+          Arc * arc = it.get_curr();
           if (this->get_src_node(arc) == p or this->get_tgt_node(arc) == p)
             arcs.append(arc);
         }

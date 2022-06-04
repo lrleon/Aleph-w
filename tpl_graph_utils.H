@@ -606,7 +606,7 @@ namespace Aleph {
     g.reset_bit_arcs(Test_Cycle);
     for (auto it = g.get_arc_it(src); it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_curr_ne();
+        auto arc = it.get_curr();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 
@@ -632,7 +632,7 @@ namespace Aleph {
 
     for (auto it = g.get_arc_it(curr); it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_curr_ne();
+        auto arc = it.get_curr();
         if (IS_ARC_VISITED(arc, Test_Cycle)) 
           continue;
 
@@ -1046,7 +1046,7 @@ namespace Aleph {
 
     DynListQueue<typename GT::Arc*> q; // queue of arcs
     for (auto it = g.get_arc_it(gp); it.has_curr(); it.next_ne())
-      q.put(it.get_curr_ne());
+      q.put(it.get_curr());
 
     while (not q.is_empty()) 
       {
@@ -1452,7 +1452,7 @@ namespace Aleph {
 
     // Recorrer cada nodo de corte y pintar sus bloques
     for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
-      __paint_from_cut_node(g, it.get_curr_ne(), current_color);
+      __paint_from_cut_node(g, it.get_curr(), current_color);
 
     return current_color;
   }
@@ -1573,7 +1573,7 @@ namespace Aleph {
 
     for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
       {
-        auto gp = it.get_curr_ne();
+        auto gp = it.get_curr();
 
         assert(is_a_cut_node <GT> (gp));
 
@@ -1646,7 +1646,7 @@ namespace Aleph {
 
     for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
       {
-        auto arc   = it.get_curr_ne();
+        auto arc   = it.get_curr();
 
         auto ssrc = g.get_src_node(arc); 
         auto rsrc = mapped_node<GT> (ssrc);
@@ -1709,7 +1709,7 @@ namespace Aleph {
 
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         {
-          auto arc  = it.get_curr_ne();
+          auto arc  = it.get_curr();
 
           auto ssrc = g.get_src_node(arc); 
           auto rsrc = mapped_node<GT> (ssrc);

@@ -249,7 +249,7 @@ namespace Aleph {
     bool traverse(Operation & operation)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-        if (not operation(it.get_curr_ne()))
+        if (not operation(it.get_curr()))
           return false;
       return true;
     }

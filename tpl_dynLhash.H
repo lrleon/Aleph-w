@@ -170,7 +170,7 @@ private:
     for (typename LhashTable<Key>::Iterator it(table); it.has_curr();
          it.next_ne())
       {
-        DLBucket * Bucket = (DLBucket*) it.get_curr_ne();
+        DLBucket * Bucket = (DLBucket*) it.get_curr();
         insert(Bucket->get_key(), Bucket->record);
       }
   }

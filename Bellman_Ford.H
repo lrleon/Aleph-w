@@ -91,7 +91,7 @@ class Bellman_Ford
     typename GT::Node_Iterator it(g);
     for (int i = 0; it.has_curr(); ++i, it.next_ne())
       {
-        auto p = it.get_curr_ne();
+        auto p = it.get_curr();
         g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
         auto ptr = new Sni;
         ptr->acum = Inf;
@@ -110,7 +110,7 @@ class Bellman_Ford
     for (int i = 0; it.has_curr(); ++i, it.next_ne())
       {
 	arcs(i) = nullptr;
-        auto p = it.get_curr_ne();
+        auto p = it.get_curr();
         g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
         auto ptr = new Ni;
         ptr->acum = Inf;
@@ -132,7 +132,7 @@ class Bellman_Ford
   {
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	delete (Info_Type*) NODE_COOKIE(p);
 	NODE_COOKIE(p) = nullptr;
       }
@@ -142,7 +142,7 @@ class Bellman_Ford
   {
     auto num_arcs = 0;
     for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      if (IS_ARC_VISITED(it.get_curr_ne(), Aleph::Spanning_Tree))
+      if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
 	++num_arcs;
 
     return num_arcs == g.get_num_nodes() - 1 or num_arcs == g.get_num_nodes();
@@ -165,7 +165,7 @@ private:
     for (int i = 0; i < n - 1; ++i)
       for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne()) 
 	{
-	  auto arc = it.get_curr_ne();
+	  auto arc = it.get_curr();
 	  auto src  = g.get_src_node(arc);
 	  const auto & acum_src = acum(src);
 	  if (acum_src == Inf)
@@ -205,7 +205,7 @@ private:
   {
     for (NAit<GT, SA> it(src, sa); it.has_curr(); it.next_ne()) 
         {
-          auto arc = it.get_curr_ne();
+          auto arc = it.get_curr();
 	  auto src  = g.get_src_node(arc);
           const auto & acum_src = acum(src);
           if (acum_src == Inf)
@@ -252,7 +252,7 @@ private:
     bool negative_cycle = false;
     for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr_ne();
+	auto arc = it.get_curr();
 	auto src = g.get_src_node(arc);
 	auto & acum_src = acum(src);
 	if (acum_src == Inf)
@@ -277,7 +277,7 @@ private:
   {
     for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr_ne();
+	auto arc = it.get_curr();
 	auto src  = g.get_src_node(arc);
 	auto & acum_src = acum(src);
 	if (acum_src == Inf)
@@ -391,7 +391,7 @@ private:
     s = const_cast<GT&>(g).insert_node(typename GT::Node_Type());
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	if (p == s)
 	  continue;
 	auto a = const_cast<GT&>(g).insert_arc(s, p);
@@ -444,7 +444,7 @@ private:
      DynMapTree<Node*, Node*> table; 
      for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
        {
-	 auto p = it.get_curr_ne();
+	 auto p = it.get_curr();
 	 table.insert(p, (Node*) NODE_COOKIE(p));
        }
 
@@ -731,14 +731,14 @@ public:
     DynMapTree<Node*, Node*> table;
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr_ne();
+	auto gp = it.get_curr();
 	auto tp = tree.insert_node(gp->get_info());
 	table.insert(gp, tp);
       }
 
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gtgt = it.get_curr_ne();
+	auto gtgt = it.get_curr();
 	auto gsrc = (Node*) NODE_COOKIE(gtgt);
 	if (gsrc == nullptr)
 	  continue; // Se trata del nodo origen del árbol abarcador
@@ -835,7 +835,7 @@ public:
     if (not negative_cycle)
       for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
 	{
-	  auto p = it.get_curr_ne();
+	  auto p = it.get_curr();
 	  ret.insert(p, acum(p));
 	}
 

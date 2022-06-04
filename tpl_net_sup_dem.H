@@ -178,7 +178,7 @@ Net_Sup_Dem_Graph * compute_aux_net()
       // recorrer nodos y atar arcos a fuente o sumidero según signo provisión
   for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
     {
-      Node * p = it.get_curr_ne();
+      Node * p = it.get_curr();
       if (p->supply_flow > 0) // ¿nodo proveedor?
 	{
  	  if (p->out_cap < p->supply_flow)
@@ -222,7 +222,7 @@ bool is_feasible() const
     throw std::domain_error("Auxiliar net has not been computed");
   for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
     {
-      Node * p = it.get_curr_ne();
+      Node * p = it.get_curr();
       Flow_Type & supply_flow = p->supply_flow;
       if (supply_flow == 0)
 	continue;
@@ -253,7 +253,7 @@ void non_feasible_nodes(DynDlist<Node *> & supply_list, DynDlist<Node *> & deman
 {
   for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())
     {
-      Node * p = it.get_curr_ne();
+      Node * p = it.get_curr();
       Flow_Type & supply_flow = p->supply_flow;
       if (supply_flow == 0)
 	continue;

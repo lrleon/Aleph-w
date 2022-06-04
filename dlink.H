@@ -754,7 +754,7 @@ namespace Aleph {
         assert(curr != nullptr and head != nullptr);
         assert(has_curr());
 
-        Dlink * current = get_curr_ne(); // obtener nodo actual
+        Dlink * current = get_curr(); // obtener nodo actual
         next_ne(); // avanzar al siguiente nodo
         current->del(); // eliminar de la lista antiguo nodo actual
         return current;
@@ -835,7 +835,7 @@ namespace Aleph {
 
       for (/* nothing */; itor.has_curr(); itor.next_ne())
         {
-          node = itor.get_curr_ne();
+          node = itor.get_curr();
 
           if (not (node->get_next()->get_prev() == node))
             return false;

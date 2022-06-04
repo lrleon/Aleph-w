@@ -154,7 +154,7 @@ namespace Aleph
   {
     DynList<typename Container::Item_Type*> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(&it.get_curr_ne());
+      ret.append(&it.get_curr());
     return ret;
   }
 
@@ -165,7 +165,7 @@ namespace Aleph
     using T = const typename  Container::Item_Type * const;
     DynList<T> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(const_cast<T>(&it.get_curr_ne()));
+      ret.append(const_cast<T>(&it.get_curr()));
     return ret;
   }
 
@@ -256,7 +256,7 @@ namespace Aleph
   {
     size_t i = 0;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
-      operation(it.get_curr_ne(), i);
+      operation(it.get_curr(), i);
   }
 
   template <class Container, class Operation> inline
@@ -394,7 +394,7 @@ namespace Aleph
   {
     DynList<T> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(op(it.get_curr_ne()));
+      ret.append(op(it.get_curr()));
     return ret;
   }
 
@@ -412,7 +412,7 @@ namespace Aleph
   {
     T ret_val = init;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne())
-      ret_val = operation(ret_val, it.get_curr_ne());
+      ret_val = operation(ret_val, it.get_curr());
     return ret_val;
   }
 
@@ -429,7 +429,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
     return ret_val;
   }
@@ -447,7 +447,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
     return ret_val;
   }
@@ -465,7 +465,7 @@ namespace Aleph
     auto it1 = a.get_it();
     auto it2 = b.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
       throw std::length_error("Container sizes mismatch");
@@ -486,7 +486,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
       throw std::length_error("Container sizes mismatch");
@@ -513,7 +513,7 @@ namespace Aleph
     auto it1 = c1.get_it();
     auto it2 = c2.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
+      if (not (e(it1.get_curr(), it2.get_curr())))
         return false;
 
     return not (it1.has_curr() or it2.has_curr());
@@ -542,8 +542,8 @@ namespace Aleph
     size_t n = 0;
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne(), n++)
       {
-        auto & i1 = it1.get_curr_ne();
-        auto & i2 = it2.get_curr_ne();
+        auto & i1 = it1.get_curr();
+        auto & i2 = it2.get_curr();
         if (not (e(i1, i2)))
           return std::make_tuple(false, n, i1, i2);
       }
@@ -559,8 +559,8 @@ namespace Aleph
     auto it2 = c2.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
       {
-        auto & curr1 = it1.get_curr_ne();
-        auto & curr2 = it2.get_curr_ne();
+        auto & curr1 = it1.get_curr();
+        auto & curr2 = it2.get_curr();
         if (cmp(curr1, curr2))
           return true;
         else if (cmp(curr2, curr1))
@@ -589,7 +589,7 @@ namespace Aleph
     DynList<T2> l2;
     for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         l1.append(curr.first);
         l2.append(curr.second);
       }
@@ -605,7 +605,7 @@ namespace Aleph
     Container<T2> l2;
     for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         l1.append(std::get<0>(curr));
         l2.append(std::get<1>(curr));
       }
@@ -703,7 +703,7 @@ namespace Aleph
     for (; it.has_curr(); it.next_ne())
       {
         l.remove_first();
-        l.append(it.get_curr_ne());
+        l.append(it.get_curr());
         ret.append(l);
       }
 
@@ -747,7 +747,7 @@ namespace Aleph
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         if (not eq(curr, curr_item)) // group change?
           {
             curr_item = curr;
@@ -791,7 +791,7 @@ namespace Aleph
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         if (not eq(curr, curr_item)) // group change?
           {
             curr_item = curr;
@@ -918,7 +918,7 @@ namespace Aleph
   {
     TgtC ret;
     for (auto it = srcc.get_it(); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
 
     return ret;
   }
@@ -992,9 +992,9 @@ namespace Aleph
     for (typename C2<C1<T>>::Iterator it_c = c.get_it(); it_c.has_curr();
          it_c.next_ne())
       {
-        C1<T> & curr_c = it_c.get_curr_ne();
+        C1<T> & curr_c = it_c.get_curr();
         for (typename C1<T>::Iterator it = curr_c.get_it(); it.has_curr(); it.next_ne())
-          ret.append(it.get_curr_ne());
+          ret.append(it.get_curr());
       }
     return ret;
   }
@@ -1007,7 +1007,7 @@ namespace Aleph
   {
     DynList<T> ret;
     for (typename C3<C2<C1<T>>>::Iterator it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(flatten(it.get_curr_ne()));
+      ret.append(flatten(it.get_curr()));
     return ret;
   }
 
@@ -1021,7 +1021,7 @@ namespace Aleph
     DynList<T> ret;
     for (typename C4<C3<C2<C1<T>>>>::Iterator it = c.get_it(); it.has_curr();
          it.next_ne())
-      ret.append(flatten(it.get_curr_ne()));
+      ret.append(flatten(it.get_curr()));
     return ret;
   }
 

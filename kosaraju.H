@@ -128,7 +128,7 @@ void kosaraju_connected_components(const GT &                     g,
       // recorre en profundidad y marca en sufijo los nodos
   for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
        it.next_ne())
-    __dfp(g, it.get_curr_ne(), df);
+    __dfp(g, it.get_curr(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 
@@ -151,7 +151,7 @@ void kosaraju_connected_components(const GT &                     g,
 
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
-      auto a  = it.get_curr_ne();
+      auto a  = it.get_curr();
       auto gs = g.get_src_node(a);
       auto gt = g.get_tgt_node(a);
 
@@ -249,7 +249,7 @@ kosaraju_connected_components(const GT & g)
       // recorre en profundidad y marca en sufijo los nodos
   for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize(); 
        it.next_ne())
-    __dfp(g, it.get_curr_ne(), df);
+    __dfp(g, it.get_curr(), df);
 
   GT gi = invert_digraph(g); // gi es el grafo invertido de g
 

@@ -496,7 +496,7 @@ namespace Aleph {
       else    // Scan all the arcs and remove those related to node
         for (Arc_Iterator it(*this); it.has_curr();)
           {
-            Arc * a = it.get_curr_ne();
+            Arc * a = it.get_curr();
             if (this->get_src_node(a) == node or this->get_tgt_node(a) == node)
               {
                 it.next_ne();
@@ -1299,7 +1299,7 @@ namespace Aleph {
                      SN sn = SN())
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      operation(it.get_curr_ne());
+      operation(it.get_curr());
   }
 
   /** Traverse all the arcs of graph filtering some ones according to a
@@ -1317,7 +1317,7 @@ namespace Aleph {
                     SA sa = SA())
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr_ne());
+      operation(it.get_curr());
   }
 
   /** Traverse all the arcs adjacent to a node filtering some ones
@@ -1337,7 +1337,7 @@ namespace Aleph {
                     SA                                     sa = SA())
   {
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr_ne());
+      operation(it.get_curr());
   }
 
   /** Return `true` if condition `cond` is met on every filtered node of
@@ -1356,7 +1356,7 @@ namespace Aleph {
                    SN                                      sn = SN())
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr_ne()))
+      if (not cond(it.get_curr()))
         return false;
     return true;
   }
@@ -1377,7 +1377,7 @@ namespace Aleph {
                   SA                                     sa = SA())
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr_ne()))
+      if (not cond(it.get_curr()))
         return false;
     return true;
   }
@@ -1398,7 +1398,7 @@ namespace Aleph {
                   SA                                     sa = SA())
   {
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr_ne()))
+      if (not cond(it.get_curr()))
         return false;
     return true;
   }
@@ -1841,7 +1841,7 @@ namespace Aleph {
   {
     DynList<typename GT::Arc*> ret;
     for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 
@@ -1857,7 +1857,7 @@ namespace Aleph {
   {
     DynList<typename GT::Arc*> ret;
     for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 
@@ -1872,7 +1872,7 @@ namespace Aleph {
   {
     DynList<typename GT::Arc *> ret;
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 
@@ -1888,7 +1888,7 @@ namespace Aleph {
     DynList<ArcPair<GT>> ret;
     for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * a = it.get_curr_ne();
+        typename GT::Arc * a = it.get_curr();
         ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -1907,7 +1907,7 @@ namespace Aleph {
     DynList<ArcPair<GT>> ret;
     for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * a = it.get_curr_ne();
+        typename GT::Arc * a = it.get_curr();
         ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -1995,7 +1995,7 @@ namespace Aleph {
   bool traverse_arcs(typename GT::Node * p, Operation op = Operation())
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr_ne()))
+      if (not op(it.get_curr()))
         return false;
     return true;
   }
@@ -2021,7 +2021,7 @@ namespace Aleph {
   void for_each_arc(typename GT::Node * p, Operation op = Operation())
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr_ne());
+      op(it.get_curr());
   }
 
 
@@ -2380,7 +2380,7 @@ namespace Aleph {
 
     for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
       {
-        typename GT::Arc * a = it.get_curr_ne();
+        typename GT::Arc * a = it.get_curr();
         if (a->src_node == src and a->tgt_node == tgt)
           return a;
       }
@@ -2475,7 +2475,7 @@ namespace Aleph {
     void operator () (const GT & g, Operation op = Operation())
     {
       for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-        op (g, it.get_curr_ne());
+        op (g, it.get_curr());
     }
 
     /** Call to `operation` on each node.
@@ -2486,7 +2486,7 @@ namespace Aleph {
     void operator () (GT & g, Operation op = Operation())
     {
       for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-        op (g, it.get_curr_ne());
+        op (g, it.get_curr());
     }
   };
 
@@ -2520,13 +2520,13 @@ namespace Aleph {
     void operator () (const GT & g, Operation op = Operation()) const
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        op (g, it.get_curr_ne());
+        op (g, it.get_curr());
     }
 
     void operator () (GT & g, Operation op = Operation()) const
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        op (g, it.get_curr_ne());
+        op (g, it.get_curr());
     }
 
     /** Call to `op on each arc of a node
@@ -3308,7 +3308,7 @@ namespace Aleph {
 
     for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
       {
-        auto next_arc = it.get_curr_ne();
+        auto next_arc = it.get_curr();
         if (IS_ARC_VISITED(next_arc, Find_Path)) 
           continue;
 
@@ -3620,7 +3620,7 @@ namespace Aleph {
           // fase 1: recorrer nodos de src_graph e insertar copia en this
           for (Node_Iterator<GT, SN> it(gsrc, sn); it.has_curr(); it.next_ne())
             {
-              typename GT::Node * src_node = it.get_curr_ne();
+              typename GT::Node * src_node = it.get_curr();
               unique_ptr<typename GT::Node>
                 tgt_node(new typename GT::Node(src_node));
               map.insert(src_node, tgt_node.get());
@@ -3636,7 +3636,7 @@ namespace Aleph {
           // arco que conecte a los nodos mapeados de map
           for (Arc_Iterator<GT, SA> it(gsrc, sa); it.has_curr(); it.next_ne())
             {
-              typename GT::Arc * src_arc = it.get_curr_ne();
+              typename GT::Arc * src_arc = it.get_curr();
 
               // obtener imágenes de nodos en el grafo destino y crear arco
               typename GT::Node * src_node = map[gsrc.get_src_node(src_arc)];

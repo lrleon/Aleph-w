@@ -166,7 +166,7 @@ namespace Aleph
     auto & last = c.get_last();
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         out << curr;
         if (&curr != &last)
           out << sep;
@@ -436,7 +436,7 @@ namespace Aleph
     DynList<DynList<T>> ret;
     for (auto it = zip_it(m, sizes); it.has_curr(); it.next_ne())
       {
-        auto t = it.get_curr_ne();
+        auto t = it.get_curr();
         DynList<T> & l = get<0>(t);
         size_t sz = get<1>(t);
         long n = max_sz - sz;
@@ -470,7 +470,7 @@ namespace Aleph
   {
     for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & row = it.get_curr_ne();
+        const auto & row = it.get_curr();
         auto line = zip(lens, row).
           template maps<string>([] (auto p)
                                 {
@@ -509,12 +509,12 @@ namespace Aleph
     DynList<DynList<string>> ret;
     for (auto row_it = mat.get_it(); row_it.has_curr(); row_it.next_ne())
       {
-        const DynList<string> & curr_row = row_it.get_curr_ne();
+        const DynList<string> & curr_row = row_it.get_curr();
         const string & last = curr_row.get_last();
         DynList<string> row;
         for (auto it = curr_row.get_it(); it.has_curr(); it.next_ne())
           {
-            const string & s = it.get_curr_ne();
+            const string & s = it.get_curr();
             if (&s == &last)
               row.append(s);
             else
@@ -556,7 +556,7 @@ namespace Aleph
     ostringstream s;
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & line = it.get_curr_ne();
+        const auto & line = it.get_curr();
         s << line;
         if (line != lines.get_last())
           s << endl;
@@ -668,7 +668,7 @@ namespace Aleph
     auto lines = split_to_list(str, "\n");
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & line = it.get_curr_ne();
+        const auto & line = it.get_curr();
         s << fill << line;
         if (line != lines.get_last())
           s << endl;
@@ -716,7 +716,7 @@ namespace Aleph
     ostringstream s;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         s << curr;
         if (&curr != &last)
           s << sep;

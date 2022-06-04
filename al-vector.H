@@ -120,7 +120,7 @@ namespace Aleph
 
       for (auto it = zip_it(domain_ptr->keys(), l); it.has_curr(); it.next_ne())
         {
-          auto t = it.get_curr_ne();
+          auto t = it.get_curr();
           set_entry(get<0>(t), get<1>(t));
         }
     }

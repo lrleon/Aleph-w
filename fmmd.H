@@ -192,11 +192,11 @@ write_to_stream(BinNode<Key> * root, ofstream & output_stream)
   Dlist<pre_in<Key> >::Iterator a(l);
   for(a.reset_first(); a.has_curr(); a.next_ne())
     output_stream<<
-      stringficate(reinterpret_cast<void *>(&(a.get_curr_ne()->get_data().data)),size,buffer)
+      stringficate(reinterpret_cast<void *>(&(a.get_curr()->get_data().data)),size,buffer)
 		 <<endl;
   
   for(a.reset_first();a.has_curr();a.next_ne())
-    output_stream<<a.get_curr_ne()->get_data().inorder_pos+1<<endl;
+    output_stream<<a.get_curr()->get_data().inorder_pos+1<<endl;
   
   
 }

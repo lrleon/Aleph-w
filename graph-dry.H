@@ -1010,7 +1010,7 @@ public:
   bool traverse_nodes(Operation & op) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr_ne()))
+      if (not op(it.get_curr()))
 	return false;
     return true;
   }
@@ -1075,7 +1075,7 @@ public:
   bool traverse_arcs(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr_ne()))
+      if (not op(it.get_curr()))
 	return false;
     return true;
   }
@@ -1142,7 +1142,7 @@ public:
   bool traverse_arcs(Node * p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr_ne()))
+      if (not op(it.get_curr()))
 	return false;
     return true; 
   }
@@ -1182,7 +1182,7 @@ public:
   void for_each_node(Operation & operation) const
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      operation(it.get_curr_ne());
+      operation(it.get_curr());
   }
 
   /// \overload for_each_node()
@@ -1220,7 +1220,7 @@ public:
   void for_each_arc(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
-      op(it.get_curr_ne());
+      op(it.get_curr());
   }
 
   /// \overload for_each_arc(Operation & operation)
@@ -1267,7 +1267,7 @@ public:
   void for_each_arc(Node * p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr_ne());
+      op(it.get_curr());
   }
 
   /// \overlaod for_each_arc(Node * p, Operation & operation)
@@ -1923,7 +1923,7 @@ public:
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	if (op(p))
 	  return p;
       }
@@ -1974,7 +1974,7 @@ public:
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr_ne();
+	auto a = it.get_curr();
 	if (op(a))
 	  return a;
       }
@@ -2027,7 +2027,7 @@ public:
   { 
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	Arc * arc = it.get_curr_ne();
+	Arc * arc = it.get_curr();
 	if (op(arc))
 	  return arc;
       }
@@ -2068,7 +2068,7 @@ public:
   {
     for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node_ne() == tgt)
-	return it.get_curr_ne();
+	return it.get_curr();
     return nullptr;
   }
 
@@ -2469,7 +2469,7 @@ public:
   {
     for (typename GT::Out_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node() == tgt)
-	return it.get_curr_ne();
+	return it.get_curr();
     return nullptr;
   }
 
@@ -2522,7 +2522,7 @@ public:
   {
     DynList<Arc*> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 
@@ -2538,7 +2538,7 @@ public:
   {
     DynList<Arc*> ret;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 
@@ -2562,7 +2562,7 @@ public:
     DynList<ArcPair> ret;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr_ne();
+	auto a = it.get_curr();
 	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -2585,7 +2585,7 @@ public:
     DynList<ArcPair> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr_ne();
+	auto a = it.get_curr();
 	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
       }
     return ret;
@@ -2657,7 +2657,7 @@ public:
   bool traverse_arcs(Node * p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr_ne()))
+      if (not op(it.get_curr()))
 	return false;
     return true;
   }
@@ -2667,7 +2667,7 @@ public:
   void for_each_arc(Node * p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      operation(it.get_curr_ne());
+      operation(it.get_curr());
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned

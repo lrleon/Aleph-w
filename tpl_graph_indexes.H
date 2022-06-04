@@ -107,7 +107,7 @@ class Nodes_Index : public DynSetTree <typename GT::Node *, Tree, Compare>
   void init()
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      this->insert(it.get_curr_ne());
+      this->insert(it.get_curr());
   }
 
 public:
@@ -292,7 +292,7 @@ class Arcs_Index : public DynSetTree <typename GT::Arc *, Tree, Compare>
   void init()
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      this->insert(it.get_curr_ne());
+      this->insert(it.get_curr());
   }
 
 public:

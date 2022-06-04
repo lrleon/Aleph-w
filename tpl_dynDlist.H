@@ -671,7 +671,7 @@ public:
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr(); itor.next_ne())
-      this->append(itor.get_curr_ne());
+      this->append(itor.get_curr());
 
     return *this;
   }
@@ -689,7 +689,7 @@ public:
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr();itor.next_ne())
-      this->append(itor.get_curr_ne());
+      this->append(itor.get_curr());
   }
 
   /**  Move constructor; all items of `list` are moved.
@@ -747,7 +747,7 @@ public:
   {
     DynDlist<T> ret;
     for (auto it = this->get_it(); it.has_curr(); it.next_ne())
-      ret.insert(it.get_curr_ne());
+      ret.insert(it.get_curr());
     return ret;
   }
 

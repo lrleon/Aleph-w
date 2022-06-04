@@ -45,7 +45,7 @@ namespace Aleph
   bool traverse(Operation & operation) const				\
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr_ne()))                              \
+      if (not operation(it.get_curr()))					\
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
@@ -54,7 +54,7 @@ namespace Aleph
   bool traverse(Operation & operation)					\
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr_ne()))                              \
+      if (not operation(it.get_curr()))					\
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
@@ -75,7 +75,7 @@ namespace Aleph
   template <template <typename> class List>                         \
   Set_Type(const List<Type> & l) : Set_Type()                       \
   {                                                                 \
-    l.for_each([this] (const Type & item) { this->append(item); });	\
+    l.for_each([this] (const Type & item) { this->append(item); }); \
   }                                                                 \
                                                                     \
   template <class It>                                               \

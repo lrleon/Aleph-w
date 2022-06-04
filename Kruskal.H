@@ -185,7 +185,7 @@ public:
 
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr_ne();
+	auto gp = it.get_curr();
 	auto tp = tree.insert_node(gp->get_info());
 	GT::map_nodes(gp, tp);
       }

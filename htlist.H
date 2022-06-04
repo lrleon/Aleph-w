@@ -1697,7 +1697,7 @@ public:
   {
     for (Iterator it(*this); true; it.next_ne())
       {
-        const T & item = it.get_curr_ne();
+        const T & item = it.get_curr();
         if (not eq(item))
           continue;
         T ret = item; // performs a copy
@@ -1733,7 +1733,7 @@ public:
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
         {
-          const T & item = it.get_curr_ne();
+          const T & item = it.get_curr();
           if (eq(item))
             {
               T ret = item; // performs a copy
@@ -1782,7 +1782,7 @@ public:
     empty();
 
     for (typename DynList::Iterator it(l); it.has_curr(); it.next_ne())
-      append(it.get_curr_ne());
+      append(it.get_curr());
 
     return *this;
   }
@@ -1884,7 +1884,7 @@ public:
 
     for (size_t __i = 0 ; it.has_curr() and __i < i; it.next_ne(), ++__i);
 
-    return it.get_curr_ne();
+    return it.get_curr();
   }
 
   /// \overload get(const size_t & i)

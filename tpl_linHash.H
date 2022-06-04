@@ -189,7 +189,7 @@ private:
                   // recorrer lista colisiones y mover cubetas de table[p+M]
               for (BucketItor it(*src_list_ptr); it.has_curr(); /* nada */)
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr());
 
                   it.next_ne(); // avance al siguiente elemento de la lista
 
@@ -392,11 +392,11 @@ public:
 private:
 
   Bucket *
-  search_in_bucket_list(BucketList * list, const Key & key) const noexcept
+  search_in_bucket_list(BucketList * list, const Key & key) const
   {
     for (BucketItor it(*list); it.has_curr(); it.next_ne())
       {
-        Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+        Bucket * bucket = static_cast<Bucket*>(it.get_curr());
         if (cmp (key, bucket->get_key()))
           return bucket;
       }
@@ -527,7 +527,7 @@ public:
             if (not list.is_empty())
               for (BucketItor it(list); it.has_curr(); it.next_ne())
                 {
-                  Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+                  Bucket * bucket = static_cast<Bucket*>(it.get_curr());
                   const Key & key = bucket->get_key();
                   cout << key << ",";
                 }

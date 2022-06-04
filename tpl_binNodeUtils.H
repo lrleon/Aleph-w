@@ -2406,7 +2406,7 @@ template <class Node, class Op>
 bool prefix_traverse(Node * root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
-    if (not op(it.get_curr_ne()))
+    if (not op(it.get_curr()))
       return false;
   return true;
 }
@@ -2434,7 +2434,7 @@ template <class Node, class Op>
 void prefix_for_each(Node * root, Op op)
 {
   for (BinNodePrefixIterator<Node> it(root); it.has_curr(); it.next_ne())
-    op(it.get_curr_ne());
+    op(it.get_curr());
 }
 
 
@@ -2619,7 +2619,7 @@ template <class Node, class Op>
 bool infix_traverse(Node * root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
-    if (not op(it.get_curr_ne()))
+    if (not op(it.get_curr()))
       return false;
   return true;
 }
@@ -2656,7 +2656,7 @@ template <class Node, class Op>
 void infix_for_each(Node * root, Op op)
 {
   for (BinNodeInfixIterator<Node> it(root); it.has_curr(); it.next_ne())
-    op(it.get_curr_ne());
+    op(it.get_curr());
 }
 
 } // end Aleph

@@ -756,12 +756,12 @@ namespace Aleph
   {
     using It = typename Node::Children_Iterator;
     for (It it(src); it.has_curr(); it.next_ne())
-      tgt->insert_rightmost_child(new Node(it.get_curr_ne()->get_key()));
+      tgt->insert_rightmost_child(new Node(it.get_curr()->get_key()));
 
     using PItor = Pair_Iterator<It>;
     for (PItor itor{It(*src), It(*tgt)}; itor.has_curr(); itor.next_ne())
       {
-        auto p = itor.get_curr_ne();
+        auto p = itor.get_curr();
         clone_tree(p.first, p.second);
       }
   }
