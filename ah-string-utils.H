@@ -117,6 +117,20 @@ namespace Aleph
     return ret;
   }
 
+  inline string & mutable_tolower(string & str)
+  {
+    for (auto & c : str)
+      c = ::tolower(c);
+    return str;
+  }
+
+  inline string & mutable_toupper(string & str)
+  {
+    for (auto & c : str)
+      c = ::toupper(c);
+    return str;
+  }
+
   inline std::string only_alpha(const std::string & str)
   {
     std::string ret; ret.reserve(str.size() + 1);
