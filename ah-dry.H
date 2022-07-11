@@ -67,8 +67,8 @@ struct GenericTraverse
   bool traverse(Operation & operation)
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
-         it.has_curr(); it.next)
-      if (not operation(it.get_curr))
+         it.has_curr(); it.next())
+      if (not operation(it.get_curr()))
         return false;
     return true;
   }
