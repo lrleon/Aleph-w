@@ -199,7 +199,7 @@ namespace Aleph {
       for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
            it.next_ne(), ++i)
         {
-          auto p = it.get_curr_ne();
+          auto p = it.get_curr();
 
           if (verbose)
             cout << i << " ";
@@ -219,7 +219,7 @@ namespace Aleph {
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
-          auto a = it.get_curr_ne();
+          auto a = it.get_curr();
 
           auto src = g.get_src_node(a);
           auto tgt = g.get_tgt_node(a);
@@ -321,7 +321,7 @@ namespace Aleph {
       for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
            it.next_ne(), ++i)
         {
-          typename GT::Node * p = it.get_curr_ne();
+          typename GT::Node * p = it.get_curr();
 
           if (verbose)
             cout << i << " ";
@@ -337,7 +337,7 @@ namespace Aleph {
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
-          auto a = it.get_curr_ne();
+          auto a = it.get_curr();
 
           auto src = g.get_src_node(a);
           auto tgt = g.get_tgt_node(a);

@@ -238,14 +238,14 @@ public:
       otherwise the traversal stops
    */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return array.traverse(operation);
   }
@@ -253,7 +253,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
-    noexcept(noexcept(operation))
   {
     return array.traverse(operation);
   }
@@ -261,7 +260,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return array.traverse(operation);
   }
@@ -490,7 +488,7 @@ public:
       otherwise the traversal stops
    */
   template <class Operation>
-    bool traverse(Operation & operation) noexcept(noexcept(operation))
+    bool traverse(Operation & operation)
   {
     for (int i = 0; i < head; i++)
       if (not operation(array[i]))
@@ -501,15 +499,14 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-    bool traverse(Operation & operation) const noexcept(noexcept(operation))
+    bool traverse(Operation & operation) const
   {
     return const_cast<FixedStack*>(this)->traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation = Operation())
-    const noexcept(noexcept(operation))
+  bool traverse(Operation && operation = Operation()) const
   {
     return traverse<Operation>(operation);
   }
@@ -517,7 +514,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }

@@ -60,7 +60,7 @@ class Karger_Min_Cut
 
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	auto q = kg.insert_node();
 	q->get_info().append(p);
 	g.map_nodes(p, q);
@@ -68,7 +68,7 @@ class Karger_Min_Cut
 
     for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr_ne();
+	auto a = it.get_curr();
 	auto s = mapped_node<GT, Kgraph>(g.get_src_node(a));
 	auto t = mapped_node<GT, Kgraph>(g.get_tgt_node(a));
 	auto ka = kg.insert_arc(s, t, a);
@@ -81,7 +81,7 @@ class Karger_Min_Cut
   {
     for (typename Kgraph::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto pa = it.get_curr_ne();
+	auto pa = it.get_curr();
 	auto tgt = it.get_tgt_node_ne();
 	
 	arcs.remove(pa); // se elimina del índice; del grafo cuando se
@@ -152,7 +152,7 @@ class Karger_Min_Cut
 	    // recorremos los arcos de los super nodos (son los del corte)
 	for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
 	  {
-	    auto ka = it.get_curr_ne();
+	    auto ka = it.get_curr();
       	    assert(kg.get_src_node(ka) != kg.get_tgt_node(ka));
 
 	    cut.append(ka->get_info());
@@ -222,7 +222,7 @@ class Karger_Min_Cut
 
     for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
       {
-        auto ka = it.get_curr_ne();
+        auto ka = it.get_curr();
 	assert(kg.get_src_node(ka) != kg.get_tgt_node(ka));
         cut.append(ka->get_info());
       }

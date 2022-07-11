@@ -55,10 +55,9 @@ namespace Aleph {
     /// valor de flujo
     Flow_Type flow; 
 
-    Net_Arc_Info() noexcept(std::is_nothrow_constructible<Arc_Info>::value) {}
+    Net_Arc_Info() {}
 
     Net_Arc_Info(const Arc_Info & info, Flow_Type __cap, Flow_Type __flow)
-      noexcept(noexcept(Arc_Info(info)))
       : Arc_Info(info), cap(__cap), flow(__flow)
     {
       // empty
@@ -97,11 +96,9 @@ namespace Aleph {
     bool check_arc() const noexcept { return flow >= 0 and flow <= cap; }
 
     Net_Arc(const Arc_Info & info) 
-      noexcept(noexcept(Base(info)))
       : Base(info) { /* empty */ } 
 
     Net_Arc(const Net_Arc & arc) 
-      noexcept(noexcept(Base(arc.arc_info)))
       : Base(arc.arc_info), cap(arc.cap), flow(arc.flow)
     {
       // empty
@@ -110,7 +107,6 @@ namespace Aleph {
     Net_Arc() { /* empty */ }
 
     Net_Arc & operator = (const Net_Arc & arc)
-      noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
     {
       if (this == &arc) 
         return *this;
@@ -267,20 +263,20 @@ namespace Aleph {
     }
 
     /// Retorna la capacidad total de entrada del nodo node.
-    Flow_Type get_in_cap(Node * node) const noexcept
+    Flow_Type get_in_cap(Node * node) const
     {
       Flow_Type sum = 0.0;
       for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr_ne()->cap;
+        sum += it.get_curr()->cap;
       return sum;
     }
 
     /// Retorna la capacidad total de salida del nodo node.
-    Flow_Type get_out_cap(Node * node) const noexcept 
+    Flow_Type get_out_cap(Node * node) const
     {
       Flow_Type sum = 0.0;
       for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr_ne()->cap;
+        sum += it.get_curr()->cap;
       return sum;
     }
 
@@ -299,20 +295,20 @@ namespace Aleph {
     }
 
     /// Retorna el valor de flujo de salida del nodo.
-    Flow_Type get_out_flow(Node * node) const noexcept
+    Flow_Type get_out_flow(Node * node) const
     {
       Flow_Type sum = 0;
       for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr_ne()->flow;
+        sum += it.get_curr()->flow;
       return sum;
     }
 
     /// Retorna el valor de flujo de entrada del nodo.
-    Flow_Type get_in_flow(Node * node) const noexcept
+    Flow_Type get_in_flow(Node * node) const
     {
       Flow_Type sum = 0;
       for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
-        sum += it.get_curr_ne()->flow;
+        sum += it.get_curr()->flow;
       return sum;
     }
 
@@ -763,10 +759,10 @@ namespace Aleph {
     /// Retorna el valor de flujo de un arco.
     const Flow_Type & get_cap(Arc * arc) const noexcept { return arc->cap; }
 
-    void reset() noexcept
+    void reset()
     {
       for (Arc_Iterator<Net_Graph> it(*this); it.has_curr(); it.next_ne())
-        it.get_curr_ne()->flow = 0;
+        it.get_curr()->flow = 0;
     }
 
     /** Verifica si una red capacitada satisface las condiciones de
@@ -856,7 +852,7 @@ namespace Aleph {
     for (typename DynList<Parc<Net>>::Iterator it(sp); it.has_curr();
          it.next_ne())
       {
-        const Parc<Net> & pa = it.get_curr_ne();
+        const Parc<Net> & pa = it.get_curr();
         auto a = get<0>(pa);
         auto s = (typename Net::Node *) a->src_node;
         auto t = (typename Net::Node *) a->tgt_node;
@@ -952,7 +948,7 @@ namespace Aleph {
     for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr(); 
          it.next_ne())
       {
-        auto p = it.get_curr_ne();
+        auto p = it.get_curr();
         auto arc = get<0>(p);
         if (get<1>(p)) // es arco de normal?
           arc->flow += slack; 
@@ -1010,7 +1006,7 @@ namespace Aleph {
       Q<typename Net::Arc*> q;
       for (Itor it(start); it.has_curr(); it.next_ne())
         {
-          auto a = it.get_curr_ne();
+          auto a = it.get_curr();
           if (remaining_flow<Net>(start, a) < min_slack)
             continue;
           auto tgt = net.get_connected_node(a, start);
@@ -1042,7 +1038,7 @@ namespace Aleph {
 
           for (Itor it(curr); it.has_curr(); it.next_ne())
             {
-              auto a = it.get_curr_ne();
+              auto a = it.get_curr();
               if (remaining_flow<Net>(curr, a) < min_slack)
                 continue;
               a->set_state(Processing);
@@ -1424,7 +1420,7 @@ namespace Aleph {
 
     for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
       {
-        auto p = it.get_curr_ne();
+        auto p = it.get_curr();
         auto q = rnet.insert_node();
         q->in_flow = net.get_in_flow(p);
         q->out_flow = net.get_out_flow(p);
@@ -1432,7 +1428,7 @@ namespace Aleph {
       }
 
     for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
-      create_residual_arc(net, rnet, it.get_curr_ne());
+      create_residual_arc(net, rnet, it.get_curr());
 
     return make_tuple(std::move(rnet),
                       (typename Rnet::Node*) NODE_COOKIE(net.get_source()),
@@ -1444,7 +1440,7 @@ namespace Aleph {
   {
     for (typename Rnet::Arc_Iterator it(rnet); it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_curr_ne();
+        auto arc = it.get_curr();
         auto img = arc->img;
         if (img == nullptr)
           continue;
@@ -1697,7 +1693,7 @@ namespace Aleph {
     Q_Type q;
     for (Itor it(source); it.has_curr(); it.next_ne()) // initial preflow
       {
-        auto arc  = it.get_curr_ne();
+        auto arc  = it.get_curr();
         arc->flow = arc->cap; // saturate arc
         auto tgt = net.get_tgt_node(arc);
         put_in_active_queue(q, tgt);
@@ -1711,7 +1707,7 @@ namespace Aleph {
         bool was_eligible_arc = false;
         for (Itor it(src); it.has_curr() and excess > 0; it.next_ne())
           {
-            auto arc = it.get_curr_ne();
+            auto arc = it.get_curr();
             auto tgt = net.get_connected_node(arc, src);
             if (node_height<Net>(src) != node_height<Net>(tgt) + 1)
               {
@@ -2021,14 +2017,14 @@ namespace Aleph {
     for (Node_Iterator<Net> it(net); it.has_curr() and 
            vt.size() < size_vt; it.next_ne())
       {
-        auto p = it.get_curr_ne();
+        auto p = it.get_curr();
         if (p->state() == Unprocessed)
           vt.insert(p);
       }     
 
     for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
       {
-        auto arc = it.get_curr_ne();
+        auto arc = it.get_curr();
         if (arc->flow == 0) // ¿candidato a arco de retroceso?
           if (vt.contains(net.get_src_node(arc)) and // ¿de vt hacia vs?
               vs.contains(net.get_tgt_node(arc)) > 0)

@@ -117,7 +117,7 @@ namespace Aleph
     {
       for (typename Base::Iterator it(other); it.has_curr(); it.next_ne())
         {
-          Bucket * bucket = (Bucket*) it.get_curr_ne();
+          Bucket * bucket = (Bucket*) it.get_curr();
           insert(bucket->get_key());
         }
     }
@@ -546,7 +546,7 @@ namespace Aleph
     {
       DynList<Data*> ret;
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-        ret.append(&it.get_curr_ne().second);
+        ret.append(&it.get_curr().second);
       return ret;
     }
 
@@ -554,7 +554,7 @@ namespace Aleph
     {
       DynList<Pair*> ret;
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-        ret.append(&it.get_curr_ne());
+        ret.append(&it.get_curr());
       return ret;
     }
   };

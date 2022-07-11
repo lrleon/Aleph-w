@@ -202,7 +202,7 @@ namespace Aleph
     {
       for (Iterator it(const_cast <Dyn_Slist_Nc &>(l));
            it.has_curr(); it.next_ne())
-        append(it.get_curr_ne());
+        append(it.get_curr());
     } 
 
     ~Dyn_Slist_Nc()
@@ -229,7 +229,7 @@ namespace Aleph
 
       for (Iterator it(const_cast<Dyn_Slist_Nc &>(list)); 
            it.has_curr(); it.next_ne())
-        append(it.get_curr_ne()); 
+        append(it.get_curr()); 
 
       return *this;
     }

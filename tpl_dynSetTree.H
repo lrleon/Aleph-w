@@ -1057,7 +1057,7 @@ namespace Aleph {
   {
     DynSetTree<T> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.insert(op(it.get_curr_ne()));
+      ret.insert(op(it.get_curr()));
     return ret;
   }
 

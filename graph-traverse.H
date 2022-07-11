@@ -64,7 +64,7 @@ public:
     Q<typename GT::Arc*> q;
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr_ne();
+	typename GT::Arc * a = it.get_curr();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -92,7 +92,7 @@ public:
 
 	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr_ne();
+	    typename GT::Arc * a  = it.get_curr();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -134,7 +134,7 @@ public:
     Q<Pair> q;
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr_ne();
+	typename GT::Arc * a = it.get_curr();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -159,7 +159,7 @@ public:
 
 	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr_ne();
+	    typename GT::Arc * a  = it.get_curr();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);
@@ -201,7 +201,7 @@ public:
 
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr_ne();
+	typename GT::Arc * a = it.get_curr();
 	typename GT::Node * tgt = g.get_connected_node(a, start);
 	a->set_state(Processing);
 	tgt->set_state(Processing);
@@ -231,7 +231,7 @@ public:
 
 	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
 	  {
-	    typename GT::Arc * a  = it.get_curr_ne();
+	    typename GT::Arc * a  = it.get_curr();
 	    if (a->state() != Unprocessed) 
 	      continue;
 	    typename GT::Node * tgt = g.get_connected_node(a, curr);

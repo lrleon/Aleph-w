@@ -226,7 +226,7 @@ private:
       i = 1;
       for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne(), i++)
         {
-          T * rest = it.get_curr_ne();
+          T * rest = it.get_curr();
 
           for (int j = 0; j < num_var; j++)
             m->write(i, j, rest[j]);
@@ -316,7 +316,7 @@ public:
     int i = 1;
     for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       if (i == rest_num)
-        return it.get_curr_ne();
+        return it.get_curr();
   }
 
     /** Define una restricción mediante un arreglo dinámico.
@@ -422,7 +422,7 @@ public:
   {
     for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       {
-        T * rest = it.get_curr_ne();
+        T * rest = it.get_curr();
         T sum = 0;
         for (int j = 0; j < num_var; j++)
           sum += rest[j]*solution[j];
@@ -499,7 +499,7 @@ public:
 
     for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
       {
-        T * rest = it.get_curr_ne();
+        T * rest = it.get_curr();
 
         for (int i = 0; i < num_rest; i++)
           {

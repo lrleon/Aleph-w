@@ -101,7 +101,7 @@ struct LFit
     Array<double> error;
     for (auto it = zip_it(x, y); it.has_curr(); it.next_ne())
       {
-	auto t = it.get_curr_ne();
+	auto t = it.get_curr();
 	auto diff = get<0>(t) - get<1>(t);
 	auto e = fabs(diff);
 	error.append(e);

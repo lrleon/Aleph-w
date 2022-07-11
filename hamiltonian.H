@@ -65,13 +65,13 @@ class Test_Hamiltonian_Sufficiency
 
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr_ne();
+	typename GT::Node * src = i.get_curr();
 	const size_t & nsrc = g.get_num_arcs(src);
 
 	i.next_ne();
 
 	for (Node_Iterator<GT, SN> j(i); j.has_curr(); j.next_ne())
-	  if (nsrc + g.get_num_arcs(j.get_curr_ne()) < n)
+	  if (nsrc + g.get_num_arcs(j.get_curr()) < n)
 	    return false;
       }
 
@@ -92,11 +92,11 @@ class Test_Hamiltonian_Sufficiency
 
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr_ne();
+	typename GT::Node * src = i.get_curr();
 
 	for (Node_Iterator<GT, SN> j(g, sn); j.has_curr(); j.next_ne())
 	  {
-	    typename GT::Node * tgt = j.get_curr_ne();
+	    typename GT::Node * tgt = j.get_curr();
 
 	    if (src == tgt)
 	      continue;

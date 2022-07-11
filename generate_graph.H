@@ -522,10 +522,10 @@ namespace Aleph {
         out << "subgraph rank_" << rank << endl
             << "{" << endl
             <<  "label = \"rank " << rank << "\"" << endl;
-        for (auto it = rank_it.get_curr_ne().get_it(); it.has_curr();
+        for (auto it = rank_it.get_curr().get_it(); it.has_curr();
              it.next_ne(), ++i)
           {
-            auto p = it.get_curr_ne();
+            auto p = it.get_curr();
             nodes_table.insert(p, i);
             out << i << " [ ";
             node_attr(g, p, out);

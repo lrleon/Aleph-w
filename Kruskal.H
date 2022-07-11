@@ -92,16 +92,12 @@ public:
   */
   Kruskal_Min_Spanning_Tree(Distance && __dist = Distance(),  
 			    SA             __sa   = SA()) 
-  noexcept(std::is_nothrow_move_assignable<Distance>::value and
-	   std::is_nothrow_move_assignable<SA>::value)
     : dist(__dist), sa(__sa), painted(false)
   { 
     /* empty */ 
   }
 
   Kruskal_Min_Spanning_Tree(Distance & __dist, SA __sa = SA()) 
-  noexcept(std::is_nothrow_copy_assignable<Distance>::value and
-	   std::is_nothrow_copy_assignable<SA>::value)
     : dist(__dist), sa(__sa), painted(false)
   { 
     /* empty */ 
@@ -116,8 +112,7 @@ public:
     GT_SA & sa;
 
     Paint_Filt(GT_SA & __sa) 
-    noexcept(std::is_nothrow_copy_assignable<SA>::value)
-    : sa(__sa) { /* empty */ }
+      : sa(__sa) { /* empty */ }
 
     bool operator () (typename G::Arc * a) const noexcept
     {
@@ -190,7 +185,7 @@ public:
 
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr_ne();
+	auto gp = it.get_curr();
 	auto tp = tree.insert_node(gp->get_info());
 	GT::map_nodes(gp, tp);
       }

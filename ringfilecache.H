@@ -727,7 +727,7 @@ public:
     Array<T> ret;
     Iterator it(*this, pos);
     for (size_t i = 0; i < m and it.has_curr(); ++i, it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
 
     return ret;
   }

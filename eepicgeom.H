@@ -239,7 +239,7 @@ public:
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-	curr = it.get_curr_ne();
+	curr = it.get_curr();
 
 	if (curr->lowest_point().get_y() < __lowest.get_y())
 	  __lowest = curr->lowest_point();
@@ -376,7 +376,7 @@ public:
     for (DynDlist<Eepic_Geom_Object*>::Iterator it(list); 
 	 it.has_curr(); it.next_ne())
       {
-	Eepic_Geom_Object * curr = it.get_curr_ne();
+	Eepic_Geom_Object * curr = it.get_curr();
 	
     	    // reinicia cada vez al grosor por omisión de forma
 	output << "\\thinlines" << std::endl 

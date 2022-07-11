@@ -1065,8 +1065,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           const size_t & n1 = kdata1.num_reps;
           const size_t & n2 = kdata2.num_reps;
@@ -1099,8 +1099,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           const size_t & n1 = kdata1.num_reps;
           const size_t & n2 = kdata2.num_reps;
@@ -1132,8 +1132,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           if (kdata1.num_reps != kdata2.num_reps)
             return false;

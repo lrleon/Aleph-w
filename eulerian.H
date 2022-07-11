@@ -59,7 +59,7 @@ class Test_Eulerian
     assert(not g.is_digraph());
 
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      if ((g.get_num_arcs(it.get_curr_ne()) % 2) == 1)
+      if ((g.get_num_arcs(it.get_curr()) % 2) == 1)
 	return false;
 
     return true;
@@ -77,7 +77,7 @@ class Test_Eulerian
 
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
-	typename GT::Node * p = it.get_curr_ne();
+	typename GT::Node * p = it.get_curr();
 	if (g.get_num_arcs(p) != NODE_COUNTER(p))
 	  return false;
       }

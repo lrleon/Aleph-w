@@ -130,7 +130,7 @@ class Polygon : public Geom_Object
 
     for (Dlink::Iterator it(list); it.has_curr(); it.next_ne())
       vertex_list.
-	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr_ne())));
+	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr())));
   }
 
   void copy_regular_polygon(const Regular_Polygon & poly);

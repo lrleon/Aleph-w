@@ -597,7 +597,7 @@ public:
       `false` otherwise.
    */
   template <class Operation>
-    bool traverse(Operation & operation) noexcept(noexcept(operation))
+    bool traverse(Operation & operation)
   {
     if (num_items == 0)
       return true;
@@ -609,15 +609,14 @@ public:
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<FixedQueue*>(this)->traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation = Operation())
-    const noexcept(noexcept(operation))
+  bool traverse(Operation && operation = Operation()) const
   {
     return traverse<Operation>(operation);
   }
@@ -625,7 +624,6 @@ public:
   /// \overload traverse(Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }

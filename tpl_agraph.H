@@ -91,7 +91,6 @@ public:
   }
 
   Graph_Anode & operator = (const Graph_Anode & node)
-  noexcept(std::is_nothrow_copy_assignable<Node_Info>::value)
   {
     if (&node == this)
       return *this;
@@ -206,24 +205,21 @@ class Graph_Aarc
 public:
 
   Graph_Aarc(const Arc_Info & info) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value) : Base(info)
+    : Base(info)
   { 
     /* empty */ 
   }
 
   Graph_Aarc(Arc_Info && info = Arc_Info()) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
-  : Base(move(info))
+    : Base(move(info))
   { 
     /* empty */ 
   }
 
   Graph_Aarc(const Graph_Aarc & arc) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
     : Graph_Aarc(arc.arc_info) { /* empty */ }
 
   Graph_Aarc & operator = (const Graph_Aarc & arc)
-  noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
   {
     if (&arc == this)
       return *this;
@@ -232,15 +228,13 @@ public:
   }
 
   Graph_Aarc(void * src, void * tgt, const Arc_Info & data) 
-    noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value) 
-  : Base(src, tgt, data)
+    : Base(src, tgt, data)
   { 
     // empty
   }
 
   Graph_Aarc(void * src, void * tgt, Arc_Info && data = Arc_Info()) 
-  noexcept(std::is_nothrow_copy_constructible<Arc_Info>::value)
-  : Base(src, tgt, move(data))
+    : Base(src, tgt, move(data))
   { 
     // empty
   }
@@ -380,7 +374,7 @@ public:
   void compress()
   {
     for (Node_Iterator it(*this); it.has_curr(); it.next_ne())
-      it.get_curr_ne()->compress();
+      it.get_curr()->compress();
   }
 
 private:
@@ -481,7 +475,7 @@ public:
       // traverse all arcs of graph and store those whose source or target is p
       for (Arc_Iterator it(*this); it.has_curr(); it.next_ne())
         {
-          Arc * arc = it.get_curr_ne();
+          Arc * arc = it.get_curr();
           if (this->get_src_node(arc) == p or this->get_tgt_node(arc) == p)
             arcs.append(arc);
         }
@@ -586,11 +580,9 @@ private:
     Cmp & cmp;
 
     Cmp_Arc(Cmp && __cmp = Cmp()) 
-    noexcept(std::is_nothrow_constructible<Cmp>::value and
-	     std::is_nothrow_move_assignable<Cmp>::value)
       : cmp(__cmp) { /* empty */ }
 
-    Cmp_Arc(Cmp & __cmp) noexcept(std::is_nothrow_copy_assignable<Cmp>::value)
+    Cmp_Arc(Cmp & __cmp)
       : cmp(__cmp) { /* empty */ }
 
     bool operator () (Arc * a1, Arc * a2) const noexcept

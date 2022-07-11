@@ -251,7 +251,7 @@ public:
 			});
     for (auto it = get_pair_it(*src, *tgt); it.has_curr(); it.next_ne()) 
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	clone(p.first, p.second);
       }
   }

@@ -81,7 +81,7 @@ public:
   bool operator () (GT & g)
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      if (not test_node(it.get_curr_ne()))
+      if (not test_node(it.get_curr()))
 	return false;
 
     return true;

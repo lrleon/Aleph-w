@@ -286,7 +286,7 @@ private:
     for (typename Dnode<T>::Iterator it(_list.dlist); 
 	 it.has_curr(); it.next_ne())
       {
-	Node * node = new Node(it.get_curr_ne()->get_data());
+	Node * node = new Node(it.get_curr()->get_data());
 
 	dlist.append(node);
 	++num_elem;
@@ -392,7 +392,7 @@ public:
 
     while (it_l.has_curr() and it_r.has_curr())
       {
-	if (it_l.get_curr_ne()->get_data() != it_r.get_curr_ne()->get_data())
+	if (it_l.get_curr()->get_data() != it_r.get_curr()->get_data())
 	  return false;
 
 	it_l.next_ne();
@@ -424,7 +424,7 @@ public:
 
     while (it_l.has_curr() and it_r.has_curr())
       {
-	if (it_l.get_curr_ne()->get_data() < it_r.get_curr_ne()->get_data())
+	if (it_l.get_curr()->get_data() < it_r.get_curr()->get_data())
 	  return true;
 	else if (it_r.get_curr()->get_data() < 
 		 it_l.get_curr()->get_data())
@@ -633,7 +633,7 @@ public:
   void remove(const T & value)
   {
     for (typename Dnode<T>::Iterator it(dlist); it.has_curr(); /* nothing */)
-      if (it.get_curr_ne()->get_data() == value)
+      if (it.get_curr()->get_data() == value)
 	{
 	  delete it.del();
 	  --num_elem;
@@ -743,7 +743,7 @@ public:
 	typename Dnode<T>::Iterator it2(it1); it2.next_ne();
 
 	while (it2.has_curr())
-	  if (op(it1.get_curr_ne()->get_data(), it2.get_curr_ne()->get_data()))
+	  if (op(it1.get_curr()->get_data(), it2.get_curr()->get_data()))
 	    delete it2.del();
 	  else
 	    break;
