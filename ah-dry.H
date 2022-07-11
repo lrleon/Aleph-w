@@ -64,32 +64,32 @@ struct GenericTraverse
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
-         it.has_curr(); it.next_ne())
-      if (not operation(it.get_curr_ne()))
+         it.has_curr(); it.next)
+      if (not operation(it.get_curr))
         return false;
     return true;
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation) const noexcept(noexcept(operation))
+  bool traverse(Operation && operation) const
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation) noexcept(noexcept(operation))
+  bool traverse(Operation && operation)
   {
     return traverse<Operation>(operation);
   }
