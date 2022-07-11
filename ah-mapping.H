@@ -39,7 +39,7 @@ class AHMapping
 
 public:
 
-  AHMapping() {}
+  AHMapping() {} 
 
   template <typename ... Pairs>
   AHMapping(const Key & key, const ValueType & value, Pairs ... pairs)
