@@ -240,7 +240,8 @@ namespace Aleph
   }
 
   template <class Container, class Operation> inline
-  Container& for_each(Container & container, Operation && operation = Operation())
+  Container& for_each(Container & container,
+		      Operation && operation = Operation())
   {
     return for_each<Container, Operation>(container, operation);
   }
