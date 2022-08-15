@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -181,11 +181,11 @@ namespace Aleph {
   private:
 
     Bucket *
-    search_in_bucket_list(BucketList & list, const Key & key) const noexcept
+    search_in_bucket_list(BucketList & list, const Key & key) const
     {
       for (BucketItor it(list); it.has_curr(); it.next_ne())
         {
-          Bucket * bucket = static_cast<Bucket*>(it.get_curr_ne());
+          Bucket * bucket = static_cast<Bucket*>(it.get_curr());
           if (cmp (key, bucket->get_key()))
             return bucket;
         }
@@ -335,7 +335,7 @@ namespace Aleph {
 
     /// retorna la próxima cubeta que colisiona con bucket. Si no
     /// existe, entonces se retorna nullptr.
-    Bucket * search_next(Bucket * bucket) const noexcept
+    Bucket * search_next(Bucket * bucket) const
     {
       assert(bucket != nullptr);
 
@@ -351,7 +351,7 @@ namespace Aleph {
           if (not itor.has_curr())
             return nullptr;
 
-          Bucket * node = static_cast<Bucket*>(itor.get_curr_ne());
+          Bucket * node = static_cast<Bucket*>(itor.get_curr());
 
           if (cmp(bucket->get_key(), node->get_key()))
             return node;

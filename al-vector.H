@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,7 +120,7 @@ namespace Aleph
 
       for (auto it = zip_it(domain_ptr->keys(), l); it.has_curr(); it.next_ne())
         {
-          auto t = it.get_curr_ne();
+          auto t = it.get_curr();
           set_entry(get<0>(t), get<1>(t));
         }
     }

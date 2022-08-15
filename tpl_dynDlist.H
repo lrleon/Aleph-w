@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -671,7 +671,7 @@ public:
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr(); itor.next_ne())
-      this->append(itor.get_curr_ne());
+      this->append(itor.get_curr());
 
     return *this;
   }
@@ -689,7 +689,7 @@ public:
 
     for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr();itor.next_ne())
-      this->append(itor.get_curr_ne());
+      this->append(itor.get_curr());
   }
 
   /**  Move constructor; all items of `list` are moved.
@@ -747,7 +747,7 @@ public:
   {
     DynDlist<T> ret;
     for (auto it = this->get_it(); it.has_curr(); it.next_ne())
-      ret.insert(it.get_curr_ne());
+      ret.insert(it.get_curr());
     return ret;
   }
 

@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -485,7 +485,7 @@ namespace Aleph {
     }
 
     template <class Operation>
-    bool preorder_traverse(Node * p, Operation op) const noexcept(noexcept(op))
+    bool preorder_traverse(Node * p, Operation op) const
     {
       if (p == nullptr)
         return true;
@@ -499,7 +499,7 @@ namespace Aleph {
   public:
 
     template <class Operation>
-    bool preorder_traverse(Operation op) const noexcept(noexcept(op))
+    bool preorder_traverse(Operation op) const
     {
       return preorder_traverse(getRoot(), op);
     }

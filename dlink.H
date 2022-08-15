@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -754,7 +754,7 @@ namespace Aleph {
         assert(curr != nullptr and head != nullptr);
         assert(has_curr());
 
-        Dlink * current = get_curr_ne(); // obtener nodo actual
+        Dlink * current = get_curr(); // obtener nodo actual
         next_ne(); // avanzar al siguiente nodo
         current->del(); // eliminar de la lista antiguo nodo actual
         return current;
@@ -835,7 +835,7 @@ namespace Aleph {
 
       for (/* nothing */; itor.has_curr(); itor.next_ne())
         {
-          node = itor.get_curr_ne();
+          node = itor.get_curr();
 
           if (not (node->get_next()->get_prev() == node))
             return false;

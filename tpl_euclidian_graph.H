@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -229,7 +229,7 @@ public:
     for (typename Euclidian_Graph<Node, Arc>::Node_Iterator it; 
 	 it.has_curr(); it.next_ne())
       {
-        Euclidian_Graph<Node, Arc>::Node * curr = it.get_curr_ne();
+        Euclidian_Graph<Node, Arc>::Node * curr = it.get_curr();
         if (curr->get_position() == point)
           return curr;
       }
@@ -277,7 +277,7 @@ public:
 
       for (int i = 1 ; itor.has_curr(); itor.next_ne(), ++i)
         {
-          const Point & p = itor.get_curr_ne()->get_position();
+          const Point & p = itor.get_curr()->get_position();
           points.append(p);
           if (p.get_x() < ptr_west_point->get_x())
             ptr_west_point = &points.access(i);

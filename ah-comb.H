@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,17 +45,17 @@ namespace Aleph
       const HTList & lrow = l.get_first();
       Array<Snodenc<T>*> row;
       for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++ncol)
-        row.append(static_cast<Snodenc<T>*>(it.get_curr_ne()));
+        row.append(static_cast<Snodenc<T>*>(it.get_curr()));
       mat.append(move(row));
     }
 
     size_t nrow = 1;
     for (auto row_it = l.get_it(1); row_it.has_curr(); row_it.next_ne(), ++nrow)
       {
-        const HTList & lrow = row_it.get_curr_ne();
+        const HTList & lrow = row_it.get_curr();
         Array<Snodenc<T>*> row; row.reserve(ncol);
         for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne())
-          row.append(static_cast<Snodenc<T>*>(it.get_curr_ne()));
+          row.append(static_cast<Snodenc<T>*>(it.get_curr()));
 
         mat.append(move(row));
       }
@@ -79,7 +79,7 @@ namespace Aleph
     Array<Array<T>> mat;
 
     for (auto it = l.get_it(); it.has_curr(); it.next_ne())
-      mat.append(it.get_curr_ne());
+      mat.append(it.get_curr());
 
     const size_t nrow = mat.size();
     const size_t ncol = mat[0].size();
@@ -170,7 +170,7 @@ namespace Aleph
     auto itor = its.remove_first();
     for (auto it = itor; it.has_curr(); it.next_ne())
       {
-        auto item = it.get_curr_ne();
+        auto item = it.get_curr();
         sample.insert(item);
         if (not traverse_perm(sample, its, op))
           return false;

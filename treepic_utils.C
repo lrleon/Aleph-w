@@ -2,8 +2,8 @@
 # include <cmath>
 # include <treepic_utils.H>
 
-const long double sin_45 = sin(M_PI_4l);
-const long double cos_45 = cos(M_PI_4l);
+const long double sin_45 = sin(M_PI_4);
+const long double cos_45 = cos(M_PI_4);
 
 const char * const font_wrapper = "\\texttt{"; 
 const char * fill_type = "shade";
@@ -284,8 +284,8 @@ void draw_arc(ofstream& output,
   long double dx1 = l*cos(phi - tetha);
   long double dy1 = l*sin(phi - tetha);
 
-  long double dx2 = l*sin(M_PI_2l - (phi + tetha));
-  long double dy2 = l*cos(M_PI_2l - (phi + tetha));
+  long double dx2 = l*sin(M_PI_2 - (phi + tetha));
+  long double dy2 = l*cos(M_PI_2 - (phi + tetha));
 
   if (tgt_x > src_x)
     {
@@ -330,8 +330,8 @@ void draw_arc_tikz(ofstream& output,
   long double dx1 = l*cos(phi - tetha);
   long double dy1 = l*sin(phi - tetha);
 
-  long double dx2 = l*sin(M_PI_2l - (phi + tetha));
-  long double dy2 = l*cos(M_PI_2l - (phi + tetha));
+  long double dx2 = l*sin(M_PI_2 - (phi + tetha));
+  long double dy2 = l*cos(M_PI_2 - (phi + tetha));
 
   if (tgt_x > src_x)
     {

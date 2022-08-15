@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ namespace Aleph {
       for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
            it.next_ne(), ++i)
         {
-          auto p = it.get_curr_ne();
+          auto p = it.get_curr();
 
           if (verbose)
             cout << i << " ";
@@ -219,7 +219,7 @@ namespace Aleph {
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
-          auto a = it.get_curr_ne();
+          auto a = it.get_curr();
 
           auto src = g.get_src_node(a);
           auto tgt = g.get_tgt_node(a);
@@ -321,7 +321,7 @@ namespace Aleph {
       for (Node_Iterator<GT,NF> it(g, node_filter); it.has_curr();
            it.next_ne(), ++i)
         {
-          typename GT::Node * p = it.get_curr_ne();
+          typename GT::Node * p = it.get_curr();
 
           if (verbose)
             cout << i << " ";
@@ -337,7 +337,7 @@ namespace Aleph {
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
-          auto a = it.get_curr_ne();
+          auto a = it.get_curr();
 
           auto src = g.get_src_node(a);
           auto tgt = g.get_tgt_node(a);

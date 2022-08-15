@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,41 +49,41 @@ namespace Aleph
 #define ah_range_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::range_error>(),                        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_runtime_error_unless(C)                                      \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::runtime_error>(),                      \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_logic_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::logic_error>(),                        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_domain_error_unless(C)                                       \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_if(C)                                            \
   if (__builtin_expect((C), 0))                                         \
     Aleph::ExceptionBuilder<std::range_error>(),                        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_runtime_error_if(C)                                          \
   if (__builtin_expect((C), 0))                                         \
     Aleph::ExceptionBuilder<std::runtime_error>(),                      \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_logic_error_if(C)                                            \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::logic_error>(),                        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_domain_error_if(C)                                           \
   if (__builtin_expect((C), 0))                                         \
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") "
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 # endif

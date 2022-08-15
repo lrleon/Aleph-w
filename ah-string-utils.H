@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -117,6 +117,20 @@ namespace Aleph
     return ret;
   }
 
+  inline string & mutable_tolower(string & str)
+  {
+    for (auto & c : str)
+      c = ::tolower(c);
+    return str;
+  }
+
+  inline string & mutable_toupper(string & str)
+  {
+    for (auto & c : str)
+      c = ::toupper(c);
+    return str;
+  }
+
   inline std::string only_alpha(const std::string & str)
   {
     std::string ret; ret.reserve(str.size() + 1);
@@ -166,7 +180,7 @@ namespace Aleph
     auto & last = c.get_last();
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         out << curr;
         if (&curr != &last)
           out << sep;
@@ -259,6 +273,7 @@ namespace Aleph
     return ret;
   }
 
+ 
   inline DynList<string> split_camel_case(const string & str)
   {
     DynList<string> ret;
@@ -279,6 +294,7 @@ namespace Aleph
 
     return ret;
   }
+
 
   /** Fill all the content of string with a defined char.
 
@@ -345,6 +361,21 @@ namespace Aleph
                                             const string & delim)
   {
     return split_string<DynList>(s, delim);
+  }
+
+  inline std::string to_Pascalcase(const string & str)
+  {
+    DynList<string> tokens = split_to_list(str, " _-");
+
+    tokens.mutable_for_each([] (string & token)
+    {
+      token[0] = ::toupper(token[0]);
+    });
+
+    return tokens.foldl<string>("", [](const string & acu, const string & token)
+    {
+      return acu + token;
+    });
   }
 
   inline Array<std::string> split_to_array(const string & s,
@@ -419,7 +450,7 @@ namespace Aleph
     DynList<DynList<T>> ret;
     for (auto it = zip_it(m, sizes); it.has_curr(); it.next_ne())
       {
-        auto t = it.get_curr_ne();
+        auto t = it.get_curr();
         DynList<T> & l = get<0>(t);
         size_t sz = get<1>(t);
         long n = max_sz - sz;
@@ -453,7 +484,7 @@ namespace Aleph
   {
     for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & row = it.get_curr_ne();
+        const auto & row = it.get_curr();
         auto line = zip(lens, row).
           template maps<string>([] (auto p)
                                 {
@@ -492,12 +523,12 @@ namespace Aleph
     DynList<DynList<string>> ret;
     for (auto row_it = mat.get_it(); row_it.has_curr(); row_it.next_ne())
       {
-        const DynList<string> & curr_row = row_it.get_curr_ne();
+        const DynList<string> & curr_row = row_it.get_curr();
         const string & last = curr_row.get_last();
         DynList<string> row;
         for (auto it = curr_row.get_it(); it.has_curr(); it.next_ne())
           {
-            const string & s = it.get_curr_ne();
+            const string & s = it.get_curr();
             if (&s == &last)
               row.append(s);
             else
@@ -539,7 +570,7 @@ namespace Aleph
     ostringstream s;
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & line = it.get_curr_ne();
+        const auto & line = it.get_curr();
         s << line;
         if (line != lines.get_last())
           s << endl;
@@ -651,7 +682,7 @@ namespace Aleph
     auto lines = split_to_list(str, "\n");
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
-        const auto & line = it.get_curr_ne();
+        const auto & line = it.get_curr();
         s << fill << line;
         if (line != lines.get_last())
           s << endl;
@@ -699,7 +730,7 @@ namespace Aleph
     ostringstream s;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         s << curr;
         if (&curr != &last)
           s << sep;

@@ -664,7 +664,6 @@ public:
 
   /// \overload set_default_initial_value(const T & value)
   void set_default_initial_value(T && value = T())
-    noexcept(noexcept(std::swap(default_initial_value, value)))
   {
     std::swap(default_initial_value, value);
     default_initial_value_ptr = &default_initial_value;
@@ -1338,7 +1337,7 @@ private:
 
     // super fast array traversal
   template <class Operation>
-  bool __traverse(Operation & operation) noexcept(noexcept(operation))
+  bool __traverse(Operation & operation)
   {
     size_t dir_idx = 0, seg_idx = 0, block_idx = 0;
     for (size_t i = 0; i < current_dim; ++i)
@@ -1376,28 +1375,27 @@ public:
       @return `true` if all items are traversed; `false` otherwise
   */
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<DynArray&>(*this).__traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     return __traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation>
-  bool traverse(Operation && operation) const noexcept(noexcept(operation))
+  bool traverse(Operation && operation) const
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse(Operation & operation)
   template <class Operation> bool traverse(Operation && operation)
-    noexcept(noexcept(operation))
   {
     return traverse<Operation>(operation);
   }

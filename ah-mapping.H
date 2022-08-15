@@ -24,45 +24,55 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef AH_DISPATCHER_H
-#define AH_DISPATCHER_H
+#ifndef AH_MAPPING_H
+#define AH_MAPPING_H
 
 # include <iostream>
+# include <ah-errors.H>
 # include <tpl_dynMapTree.H>
 # include <tpl_odhash.H>
 
-template <typename Key, class Operation>
-class AHDispatcher
+template <typename Key, class ValueType>
+class AHMapping
 {
-  DynMapTree<Key, Operation> tbl;
+  DynMapTree<Key, ValueType> tbl;
 
 public:
 
-  AHDispatcher() {}
+  AHMapping() {} 
 
   template <typename ... Pairs>
-  AHDispatcher(const Key & key, Operation op, Pairs ... pairs)
-    : AHDispatcher(pairs...)
+  AHMapping(const Key & key, const ValueType & value, Pairs ... pairs)
+    : AHMapping(pairs...)
   {
-    tbl.insert(key, op);
+    tbl.insert(key, value);
   }
 
-  void insert(const Key & key, Operation op)
+  AHMapping(const AHMapping & mapping)
+    : tbl(mapping.tbl) {}
+
+  void insert(const Key & key, ValueType value)
   {
-    tbl.insert(key, op);
+    tbl.insert(key, value);
   }
 
-  template <typename ... Args>
-  auto run(const Key & key, Args && ... args) const
+  ValueType operator [] (const Key & key) const
   {
     auto ptr = tbl.search(key);
-    if (ptr == nullptr)
+    ah_domain_error_if(ptr == nullptr) << "key not found";
+    return ptr->second;
+  }
+
+  AHMapping<ValueType, Key> inverse() const
+  {
+    AHMapping<ValueType, Key> ret;
+    for (auto it = tbl.get_it(); it.has_curr(); it.next())
       {
-        cerr << "Tried to run dispatcher with a key"
-             << " which has not been registered" << endl;
-        abort();
+	auto curr = it.get_curr();
+	ret.insert(curr.second, curr.first);
       }
-    return (*ptr->second)(args...);
+
+    return ret;
   }
 
   void remove(const Key & key)
@@ -73,45 +83,6 @@ public:
   bool valid_key(const Key & key) { return tbl.has(key); }
 
   DynList<string> keys() const { return tbl.keys(); }
-};
-
-
-template <typename Key, class Operation>
-class AhHashDispatcher
-{
-  using P = pair<Key, Operation>;
-
-  struct Equal
-  {
-    bool operator () (const P & p1, const P & p2) const
-    {
-      return p1.first == p2.first;
-    }
-  };
-
-  static size_t fst_hash(const P & p) { return dft_hash_fct(p.first); }
-  static size_t snd_hash(const P & p) { return snd_hash_fct(p.first); }
-
-  ODhashTable<P, Equal> tbl;
-
-public:
-
-  void insert(const Key & key, Operation op)
-  {
-    tbl.insert(P(key, op));
-  }
-
-  template <typename ... Args>
-  auto run(const Key & key, Args ... args) const
-  {
-    P p; p.first = key;
-    return tbl.find(p).second (args...);
-  }
-
-  void remove(const Key & key)
-  {
-    tbl.remove(key);
-  }
 };
 
 

@@ -1,6 +1,6 @@
 -I.
--IAleph-w
--std=c++17
+-I/home/lrleon/Aleph-w
+-std=c++20
 -Wall
 -Wextra
 -DDEBUG

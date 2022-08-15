@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ void generate_dot_file(Digrafo & g, ostream & output)
 
   for (Node_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Node * p = it.get_curr_ne();
+      Digrafo::Node * p = it.get_curr();
       Info_Nodo & info = p->get_info();
       output << info.first << " [color=";
       DynDlist<string> & fields = info.second;
@@ -173,18 +173,18 @@ void generate_dot_file(Digrafo & g, ostream & output)
       for (DynDlist<DynDlist<Digrafo::Node*>*>::Iterator it(ranks); 
 	   it.has_curr(); it.next_ne())
 	{
-	  DynDlist<Digrafo::Node*> * l = it.get_curr_ne();
+	  DynDlist<Digrafo::Node*> * l = it.get_curr();
 	  output << "{ rank = same; " << endl;
 	  for (DynDlist<Digrafo::Node*>::Iterator i(*l); 
 	       i.has_curr(); i.next_ne())
-	    output << i.get_curr_ne()->get_info().first << " ";
+	    output << i.get_curr()->get_info().first << " ";
 	  output << "}" << endl;
 	}
     }
   
   for (Arc_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
-      Digrafo::Arc * a = it.get_curr_ne();
+      Digrafo::Arc * a = it.get_curr();
       output << g.get_src_node(a)->get_info().first << " -> " 
 	     << g.get_tgt_node(a)->get_info().first << endl;
     }

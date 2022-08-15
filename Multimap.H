@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1065,8 +1065,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           const size_t & n1 = kdata1.num_reps;
           const size_t & n2 = kdata2.num_reps;
@@ -1099,8 +1099,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           const size_t & n1 = kdata1.num_reps;
           const size_t & n2 = kdata2.num_reps;
@@ -1132,8 +1132,8 @@ namespace Aleph
       K_Itor kit2(const_cast<multimap&>(rhs).k_tree);
       for (; kit1.has_curr() and kit2.has_curr(); kit1.next_ne(), kit2.next_ne())
         {
-          Kdata & kdata1 = KEY(kit1.get_curr_ne());
-          Kdata & kdata2 = KEY(kit2.get_curr_ne());
+          Kdata & kdata1 = KEY(kit1.get_curr());
+          Kdata & kdata2 = KEY(kit2.get_curr());
 
           if (kdata1.num_reps != kdata2.num_reps)
             return false;

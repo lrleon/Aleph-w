@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ void compute_bipartite(const GT &                      g,
 	typename GT::Node * p = red.get();
 	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
- 	    typename GT::Arc * a = it.get_curr_ne();
+ 	    typename GT::Arc * a = it.get_curr();
  	    if (color<GT>(a) == Bp_Red)
  	      throw std::domain_error("Graph is not bipartite");
  	    else if (color<GT>(a) == Bp_Blue)
@@ -105,7 +105,7 @@ void compute_bipartite(const GT &                      g,
 	typename GT::Node * p = blue.get();
 	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
- 	    typename GT::Arc * a = it.get_curr_ne();
+ 	    typename GT::Arc * a = it.get_curr();
  	    if (color<GT>(a) == Bp_Blue)
  	      throw std::domain_error("Graph is not bipartite");
  	    else if (color<GT>(a) == Bp_Red)
@@ -197,7 +197,7 @@ void compute_maximum_cardinality_bipartite_matching
       // recorrer nodos de g e insertar imagen en net
   for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
   {
-    typename GT::Node * p = it.get_curr_ne();
+    typename GT::Node * p = it.get_curr();
     NODE_COOKIE(p) = net.insert_node();
     NODE_COOKIE((typename GT::Node *)NODE_COOKIE(p)) = p;
   }
@@ -208,7 +208,7 @@ void compute_maximum_cardinality_bipartite_matching
   for (typename DynDlist<typename GT::Node*>::Iterator i(l); 
        i.has_curr(); i.next_ne())
     {
-      typename GT::Node * p = i.get_curr_ne();
+      typename GT::Node * p = i.get_curr();
       typename AN::Node * src = mapped_node<GT, AN> (p);
       net.insert_arc(source, src, 1);
 
@@ -228,7 +228,7 @@ void compute_maximum_cardinality_bipartite_matching
   for (typename DynDlist<typename GT::Node*>::Iterator it(r); 
        it.has_curr(); it.next_ne())
     {
-      typename GT::Node * p = it.get_curr_ne();
+      typename GT::Node * p = it.get_curr();
       net.insert_arc(mapped_node<GT, AN> (p), sink, 1);
     }
 
@@ -236,7 +236,7 @@ void compute_maximum_cardinality_bipartite_matching
 
   for (Arc_Iterator<AN> it(net); it.has_curr(); it.next_ne())
     {
-      typename AN::Arc * a = it.get_curr_ne();
+      typename AN::Arc * a = it.get_curr();
       if (a->flow == 0) 
 	continue;
 

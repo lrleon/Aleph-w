@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,34 +147,31 @@ public:                                                               \
  Name *& getR() noexcept { return rLink; }                            \
  const Name * getL() const noexcept { return lLink; }                 \
  const Name * getR() const noexcept { return rLink; }                 \
- Name(const Key& k) noexcept(noexcept(Key(key)))                      \
+ Name(const Key& k)						      \
    : key(k), lLink(NullPtr), rLink(NullPtr)                           \
  {                                                                    \
    static_assert(std::is_copy_constructible<Key>::value,              \
                  "No copy constructor for Key");                      \
  }                                                                    \
  Name(Key && k)                                                       \
-   noexcept(noexcept(std::is_move_constructible<Key>::value))         \
    : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)                \
  {                                                                    \
    static_assert(std::is_move_constructible<Key>::value,              \
                  "No move constructor for Key");                      \
  }                                                                    \
  Name(const Control_Data & control_data, const Key & k)               \
-   noexcept(noexcept(Key(k)))                                         \
    : Control_Data(control_data),                                      \
      key(k), lLink(NullPtr), rLink(NullPtr)                           \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name(const Name & node) noexcept(noexcept(Key(node.key)))            \
+ Name(const Name & node)					      \
    : Control_Data(node),                                              \
      key(node.key), lLink(NullPtr), rLink(NullPtr)                    \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
  Name(Name && node)                                                   \
-   noexcept(noexcept(std::forward<Key>(node).key))                    \
    : Control_Data(std::forward<Control_Data>(node)),                  \
      key(std::forward<Key>(node).key), lLink(NullPtr), rLink(NullPtr)	\
  {                                                                    \
@@ -186,7 +183,7 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name() noexcept(std::is_nothrow_constructible<Key>::value)           \
+ Name()								      \
  : lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \
    static_assert(std::is_default_constructible<Key>::value,           \

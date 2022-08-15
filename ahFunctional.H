@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ namespace Aleph
   {
     DynList<typename Container::Item_Type*> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(&it.get_curr_ne());
+      ret.append(&it.get_curr());
     return ret;
   }
 
@@ -165,31 +165,31 @@ namespace Aleph
     using T = const typename  Container::Item_Type * const;
     DynList<T> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(const_cast<T>(&it.get_curr_ne()));
+      ret.append(const_cast<T>(&it.get_curr()));
     return ret;
   }
 
   template <class Op>
-  void each(size_t start, size_t end, Op & op) noexcept(noexcept(op))
+  void each(size_t start, size_t end, Op & op)
   {
     for (size_t i = start; i <= end; ++i)
       op();
   }
 
   template <class Op>
-  void each(size_t start, size_t end, Op && op) noexcept(noexcept(op))
+  void each(size_t start, size_t end, Op && op)
   {
     each(start, end, op);
   }
 
   template <class Op>
-  void each(size_t n, Op & op) noexcept(noexcept(op))
+  void each(size_t n, Op & op)
   {
     each(0, n - 1, op);
   }
 
   template <class Op>
-  void each(size_t n, Op && op) noexcept(noexcept(op))
+  void each(size_t n, Op && op)
   {
     each(n, op);
   }
@@ -219,7 +219,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   Container & for_each(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     container.traverse([&operation] (const auto & item)
                        {
@@ -231,7 +230,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   const Container & for_each(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     container.traverse([&operation] (const auto & item)
                        {
@@ -242,59 +240,52 @@ namespace Aleph
   }
 
   template <class Container, class Operation> inline
-  Container& for_each(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
+  Container& for_each(Container & container,
+		      Operation && operation = Operation())
   {
     return for_each<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline const Container &
   for_each(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return for_each<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     size_t i = 0;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
-      operation(it.get_curr_ne(), i);
+      operation(it.get_curr(), i);
   }
 
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation && operation)
-    noexcept(noexcept(operation))
   {
     enum_for_each(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool all(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return container.template traverse(operation);
   }
 
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return container.template traverse<Operation>(operation);
   }
 
   template <class Container, class Operation> inline
   bool all(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return all<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return all<Container, Operation>(container, operation);
   }
@@ -302,7 +293,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return not
       container.traverse([&operation] (const auto & item)
@@ -313,7 +303,6 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation & operation)
-    noexcept(noexcept(operation))
   {
     return not
       container.traverse([&operation] (const auto & item)
@@ -324,14 +313,12 @@ namespace Aleph
 
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return exists<Container, Operation>(container, operation);
   }
 
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation && operation = Operation())
-    noexcept(noexcept(operation))
   {
     return exists<Container, Operation>(container, operation);
   }
@@ -408,7 +395,7 @@ namespace Aleph
   {
     DynList<T> ret;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(op(it.get_curr_ne()));
+      ret.append(op(it.get_curr()));
     return ret;
   }
 
@@ -423,11 +410,10 @@ namespace Aleph
   */
   template < typename T, class Container, class Operation> inline
   T foldl(const Container & container, const T & init, Operation operation)
-    noexcept(noexcept(operation) and std::is_nothrow_copy_assignable<T>::value)
   {
     T ret_val = init;
     for (auto it = container.get_it(); it.has_curr(); it.next_ne())
-      ret_val = operation(ret_val, it.get_curr_ne());
+      ret_val = operation(ret_val, it.get_curr());
     return ret_val;
   }
 
@@ -444,7 +430,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
     return ret_val;
   }
@@ -462,7 +448,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
     return ret_val;
   }
@@ -480,7 +466,7 @@ namespace Aleph
     auto it1 = a.get_it();
     auto it2 = b.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(std::pair<T1, T2>(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
       throw std::length_error("Container sizes mismatch");
@@ -501,7 +487,7 @@ namespace Aleph
     typename Container1::Iterator it1(a);
     typename Container2::Iterator it2(b);
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      ret_val.append(Tuple(it1.get_curr_ne(), it2.get_curr_ne()));
+      ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
       throw std::length_error("Container sizes mismatch");
@@ -523,12 +509,12 @@ namespace Aleph
 
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
-  bool eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  bool eq(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     auto it1 = c1.get_it();
     auto it2 = c2.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
-      if (not (e(it1.get_curr_ne(), it2.get_curr_ne())))
+      if (not (e(it1.get_curr(), it2.get_curr())))
         return false;
 
     return not (it1.has_curr() or it2.has_curr());
@@ -541,7 +527,7 @@ namespace Aleph
   }
 
   template <class C1, class C2, class Eq> inline
-  bool containers_eq(const C1 & c1, const C2 & c2, Eq e) noexcept(noexcept(e))
+  bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
   {
     return e1(c1, c2, e);
   }
@@ -549,7 +535,7 @@ namespace Aleph
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
   std::tuple<bool, size_t, typename C1::Item_Type, typename C2::Item_Type>
-  are_eq(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  are_eq(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     using T = typename C1::Item_Type;
     auto it1 = c1.get_it();
@@ -557,8 +543,8 @@ namespace Aleph
     size_t n = 0;
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne(), n++)
       {
-        auto & i1 = it1.get_curr_ne();
-        auto & i2 = it2.get_curr_ne();
+        auto & i1 = it1.get_curr();
+        auto & i2 = it2.get_curr();
         if (not (e(i1, i2)))
           return std::make_tuple(false, n, i1, i2);
       }
@@ -569,14 +555,13 @@ namespace Aleph
   template <class C1, class C2,
             class Cmp = std::less<typename C1::Item_Type>> inline
   bool lesser(const C1 & c1, const C2 & c2, Cmp cmp = Cmp())
-    noexcept(noexcept(cmp))
   {
     auto it1 = c1.get_it();
     auto it2 = c2.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
       {
-        auto & curr1 = it1.get_curr_ne();
-        auto & curr2 = it2.get_curr_ne();
+        auto & curr1 = it1.get_curr();
+        auto & curr2 = it2.get_curr();
         if (cmp(curr1, curr2))
           return true;
         else if (cmp(curr2, curr1))
@@ -591,7 +576,7 @@ namespace Aleph
 
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> inline
-  bool diff(const C1 & c1, const C2 & c2, Eq e = Eq()) noexcept(noexcept(e))
+  bool diff(const C1 & c1, const C2 & c2, Eq e = Eq())
   {
     return not eq(c1, c2, e);
   }
@@ -605,7 +590,7 @@ namespace Aleph
     DynList<T2> l2;
     for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         l1.append(curr.first);
         l2.append(curr.second);
       }
@@ -621,7 +606,7 @@ namespace Aleph
     Container<T2> l2;
     for (auto it = l.get_it(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         l1.append(std::get<0>(curr));
         l2.append(std::get<1>(curr));
       }
@@ -719,7 +704,7 @@ namespace Aleph
     for (; it.has_curr(); it.next_ne())
       {
         l.remove_first();
-        l.append(it.get_curr_ne());
+        l.append(it.get_curr());
         ret.append(l);
       }
 
@@ -763,7 +748,7 @@ namespace Aleph
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         if (not eq(curr, curr_item)) // group change?
           {
             curr_item = curr;
@@ -807,7 +792,7 @@ namespace Aleph
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        auto & curr = it.get_curr_ne();
+        auto & curr = it.get_curr();
         if (not eq(curr, curr_item)) // group change?
           {
             curr_item = curr;
@@ -934,7 +919,7 @@ namespace Aleph
   {
     TgtC ret;
     for (auto it = srcc.get_it(); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
 
     return ret;
   }
@@ -1008,9 +993,9 @@ namespace Aleph
     for (typename C2<C1<T>>::Iterator it_c = c.get_it(); it_c.has_curr();
          it_c.next_ne())
       {
-        C1<T> & curr_c = it_c.get_curr_ne();
+        C1<T> & curr_c = it_c.get_curr();
         for (typename C1<T>::Iterator it = curr_c.get_it(); it.has_curr(); it.next_ne())
-          ret.append(it.get_curr_ne());
+          ret.append(it.get_curr());
       }
     return ret;
   }
@@ -1023,7 +1008,7 @@ namespace Aleph
   {
     DynList<T> ret;
     for (typename C3<C2<C1<T>>>::Iterator it = c.get_it(); it.has_curr(); it.next_ne())
-      ret.append(flatten(it.get_curr_ne()));
+      ret.append(flatten(it.get_curr()));
     return ret;
   }
 
@@ -1037,7 +1022,7 @@ namespace Aleph
     DynList<T> ret;
     for (typename C4<C3<C2<C1<T>>>>::Iterator it = c.get_it(); it.has_curr();
          it.next_ne())
-      ret.append(flatten(it.get_curr_ne()));
+      ret.append(flatten(it.get_curr()));
     return ret;
   }
 

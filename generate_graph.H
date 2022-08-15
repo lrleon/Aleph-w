@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -522,10 +522,10 @@ namespace Aleph {
         out << "subgraph rank_" << rank << endl
             << "{" << endl
             <<  "label = \"rank " << rank << "\"" << endl;
-        for (auto it = rank_it.get_curr_ne().get_it(); it.has_curr();
+        for (auto it = rank_it.get_curr().get_it(); it.has_curr();
              it.next_ne(), ++i)
           {
-            auto p = it.get_curr_ne();
+            auto p = it.get_curr();
             nodes_table.insert(p, i);
             out << i << " [ ";
             node_attr(g, p, out);

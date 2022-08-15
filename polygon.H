@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@ class Polygon : public Geom_Object
 
     for (Dlink::Iterator it(list); it.has_curr(); it.next_ne())
       vertex_list.
-	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr_ne())));
+	append(new Vertex(*Vertex::dlink_to_vertex(it.get_curr())));
   }
 
   void copy_regular_polygon(const Regular_Polygon & poly);

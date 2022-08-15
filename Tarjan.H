@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@ namespace Aleph {
   public:
 
     Tarjan_Connected_Components(SA  __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
   private:
@@ -117,7 +116,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               scc_by_blocks(w);
@@ -154,7 +153,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               scc_by_lists(w);
@@ -185,7 +184,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               scc_by_len(w);
@@ -228,7 +227,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (has_cycle(w))
@@ -288,7 +287,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (build_cycle(w))
@@ -326,13 +325,13 @@ namespace Aleph {
     	    // terminanos de construir el bloque con los arcos
           for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
             {
-              auto bsrc = j.get_curr_ne();
+              auto bsrc = j.get_curr();
               auto gsrc = table.find(bsrc);
 
     	        // recorrer los arcos de gsrc
               for (Itor <GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
                 {
-                  auto ga   = k.get_curr_ne();
+                  auto ga   = k.get_curr();
                   auto gtgt = g_ptr->get_tgt_node(ga);
                   auto ptr  = table.search(gtgt);
                   if (ptr == nullptr) // ¿arco del bloque?
@@ -360,7 +359,7 @@ namespace Aleph {
       // recorrer en profundidad todos los nodos conectados a v
       for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr_ne());
+          auto w = g_ptr->get_tgt_node(it.get_curr());
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (not is_connected(w))
@@ -421,7 +420,7 @@ namespace Aleph {
 
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First))
             scc_by_blocks(v);
         }
@@ -431,16 +430,16 @@ namespace Aleph {
       // recorrer cada uno de subgrafos parciales y añadir sus arcos
       for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next_ne())
         {     // recorrer todos los nodos del bloque
-          GT & blk = i.get_curr_ne();
+          GT & blk = i.get_curr();
           for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
             {
-              auto bsrc = j.get_curr_ne();
+              auto bsrc = j.get_curr();
               auto gsrc = mapped_node<GT>(bsrc);
 
               // recorrer arcos de gsrc
               for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
                 {
-                  auto ga   = k.get_curr_ne();
+                  auto ga   = k.get_curr();
                   auto gtgt = g_ptr->get_tgt_node(ga);
                   if (NODE_COUNTER(gsrc) != NODE_COUNTER(gtgt))
                     {   // arco inter-bloque ==> añádalo a arc_list
@@ -498,7 +497,7 @@ namespace Aleph {
       list_list_ptr = &blks;
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First))
             scc_by_lists(v);
         }
@@ -539,7 +538,7 @@ namespace Aleph {
       list_len_ptr = &blks;
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First))
             scc_by_len(v);
         }
@@ -576,14 +575,14 @@ namespace Aleph {
 
       for (typename DynList<GT>::Iterator it(blist); it.has_curr(); it.next_ne())
         {
-          GT & curr = it.get_curr_ne();
+          GT & curr = it.get_curr();
           GT & block = blk_list.append(GT());
           curr.swap(block);
         }
 
       for (typename DynList<typename GT::Arc*>::Iterator it(alist);
            it.has_curr(); it.next_ne())
-        arc_list.append(it.get_curr_ne());
+        arc_list.append(it.get_curr());
     }
 
     /// \overload connected_components
@@ -598,7 +597,7 @@ namespace Aleph {
         {
           auto & tgt_list = blks.append(DynDlist<typename GT::Node*>());
 
-          auto & blk = it.get_curr_ne();
+          auto & blk = it.get_curr();
           while (not blk.is_empty())
             tgt_list.append(blk.remove_first());
         }
@@ -610,7 +609,7 @@ namespace Aleph {
       init_tarjan(g);
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First))
             if (has_cycle(v))
               return true;
@@ -633,7 +632,7 @@ namespace Aleph {
 
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First)) // ¿p visitado?
             if (build_cycle(v))
               return true;
@@ -656,7 +655,7 @@ namespace Aleph {
       init_tarjan(g);
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         {
-          auto v = it.get_curr_ne();
+          auto v = it.get_curr();
           if (not IS_NODE_VISITED(v, Aleph::Depth_First))
             if (not is_connected(v))
               return false;
@@ -698,11 +697,9 @@ namespace Aleph {
   public:
 
     Compute_Cycle_In_Digraph(SA && __sa = SA())
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     Compute_Cycle_In_Digraph(SA & __sa)
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     /** Invoca al cálculo de un ciclo en un digrafo.

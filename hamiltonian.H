@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -65,13 +65,13 @@ class Test_Hamiltonian_Sufficiency
 
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr_ne();
+	typename GT::Node * src = i.get_curr();
 	const size_t & nsrc = g.get_num_arcs(src);
 
 	i.next_ne();
 
 	for (Node_Iterator<GT, SN> j(i); j.has_curr(); j.next_ne())
-	  if (nsrc + g.get_num_arcs(j.get_curr_ne()) < n)
+	  if (nsrc + g.get_num_arcs(j.get_curr()) < n)
 	    return false;
       }
 
@@ -92,11 +92,11 @@ class Test_Hamiltonian_Sufficiency
 
     for (Node_Iterator<GT, SN> i(g, sn); i.has_curr(); i.next_ne())
       {
-	typename GT::Node * src = i.get_curr_ne();
+	typename GT::Node * src = i.get_curr();
 
 	for (Node_Iterator<GT, SN> j(g, sn); j.has_curr(); j.next_ne())
 	  {
-	    typename GT::Node * tgt = j.get_curr_ne();
+	    typename GT::Node * tgt = j.get_curr();
 
 	    if (src == tgt)
 	      continue;

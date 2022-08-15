@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,15 +47,15 @@ class ZipIterator : public ZipIterator<TailC...>
 
 public:
 
-  ZipIterator(const HeadC & head, const TailC & ...tail) noexcept
+  ZipIterator(const HeadC & head, const TailC & ...tail)
     : ZipIterator<TailC...>(tail...), it(head) {}
 
-  bool has_curr() const noexcept
+  bool has_curr() const
   {
     return it.has_curr() and ZipIterator<TailC...>::has_curr();
   }
 
-  bool completed() const noexcept
+  bool completed() const
   {
     return not it.has_curr() and ZipIterator<TailC...>::completed();
   }
@@ -101,7 +101,7 @@ public:
 
   using T = typename C::Item_Type;
 
-  ZipIterator(const C & c) noexcept : C::Iterator(c) {}
+  ZipIterator(const C & c) : C::Iterator(c) {}
 
   std::tuple<T> get_curr() const
   {
@@ -116,15 +116,15 @@ public:
   DynList<T> get_curr_list() const
   {
     DynList<T> l;
-    l.append(C::Iterator::get_curr_ne());
+    l.append(C::Iterator::get_curr());
     return l;
   }
 
-  bool completed() const noexcept { return not this->has_curr(); }
+  bool completed() const { return not this->has_curr(); }
 };
 
 template <class ... Cs> inline
-ZipIterator<Cs...> get_zip_it(const Cs & ... cs) noexcept
+ZipIterator<Cs...> get_zip_it(const Cs & ... cs)
 {
   return ZipIterator<Cs...>(cs...);
 }
@@ -139,7 +139,7 @@ ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-ZipIterator<Cs...> zip_it(const Cs & ... cs) noexcept
+ZipIterator<Cs...> zip_it(const Cs & ... cs)
 {
   return get_zip_it(cs...);
 }
@@ -151,7 +151,7 @@ ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-bool equal_length(const Cs & ... cs) noexcept
+bool equal_length(const Cs & ... cs)
 {
   auto it = get_zip_it(cs...);
   for (/* already initalized */; it.has_curr(); it.next_ne())
@@ -161,45 +161,45 @@ bool equal_length(const Cs & ... cs) noexcept
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-    if (not op(it.get_curr_ne()))
+    if (not op(it.get_curr()))
       return false;
   return true;
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse(Op && op, const Cs & ... cs)
 {
   return zip_traverse(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse_eq(Op & op, const Cs & ... cs)
 {
   auto it = zip_it(cs...);
   for (;it.has_curr(); it.next_ne())
-    if (not op(it.get_curr_ne()))
+    if (not op(it.get_curr()))
       return false;
   return it.completed();
 }
 
 template <class Op, class ... Cs> inline
-bool zip_traverse_eq(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_traverse_eq(Op && op, const Cs & ... cs)
 {
   return zip_traverse_eq(op, cs ...);
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+void zip_for_each(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-    op(it.get_curr_ne());
+    op(it.get_curr());
 }
 
 template <class Op, class ... Cs> inline
-void zip_for_each(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+void zip_for_each(Op && op, const Cs & ... cs)
 {
   zip_for_each<Op, Cs...>(op, cs ...);
 }
@@ -209,7 +209,7 @@ void zip_for_each_eq(Op & op, const Cs & ... cs)
 {
   auto it = get_zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
-    op(it.get_curr_ne());
+    op(it.get_curr());
 
   if (not it.completed())
     throw std::length_error("zip_for_each_eq() containers sizes mismatch");
@@ -222,34 +222,34 @@ void zip_for_each_eq(Op && op, const Cs & ... cs)
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_all(Op & op, const Cs & ... cs)
 {
   auto it = zip_it(cs...);
   for (; it.has_curr(); it.next_ne())
-    if (not op(it.get_curr_ne()))
+    if (not op(it.get_curr()))
       return false;
 
   return it.completed();
 }
 
 template <class Op, class ... Cs> inline
-bool zip_all(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_all(Op && op, const Cs & ... cs)
 {
   return zip_all(op, cs...);
 }
 
 template <class Op, class ... Cs> inline
-bool zip_exists(Op & op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_exists(Op & op, const Cs & ... cs)
 {
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-    if (op(it.get_curr_ne()))
+    if (op(it.get_curr()))
       return true;
 
   return false;
 }
 
 template <class Op, class ... Cs> inline
-bool zip_exists(Op && op, const Cs & ... cs) noexcept(noexcept(op))
+bool zip_exists(Op && op, const Cs & ... cs)
 {
   return zip_exists(op, cs...);
 }
@@ -259,7 +259,7 @@ DynList<T> zip_maps(Op op, const Cs & ... cs)
 {
   DynList<T> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-    ret.append(op(it.get_curr_ne()));
+    ret.append(op(it.get_curr()));
   return ret;
 }
 
@@ -269,31 +269,31 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs & ... cs)
   DynList<T> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
-      auto t = it.get_curr_ne();
+      auto t = it.get_curr();
       if (prop(t))
-        ret.append(op(it.get_curr_ne()));
+        ret.append(op(it.get_curr()));
     }
   return ret;
 }
 
 template <typename T, class Op, class ... Cs>
-T zip_foldl(const T & init, Op op, const Cs & ... cs) noexcept(noexcept(op))
+T zip_foldl(const T & init, Op op, const Cs & ... cs)
 {
   T acu = init;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
-    acu = op(acu, it.get_curr_ne());
+    acu = op(acu, it.get_curr());
   return acu;
 }
 
 template <class Op, class ... Cs>
-auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
+auto zip_filter(Op op, const Cs & ... cs)
 {
-  using ZipType = decltype(zip_it(cs...).get_curr_ne());
+  using ZipType = decltype(zip_it(cs...).get_curr());
 
   DynList<ZipType> ret;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
-      auto t = it.get_curr_ne();
+      auto t = it.get_curr();
       if (op(t))
         ret.append(t);
     }
@@ -319,7 +319,7 @@ auto zip_filter(Op op, const Cs & ... cs) noexcept(noexcept(op))
     @author Leandro Rabindranath Leon
 */
 template <class Cmp, class ... Cs>
-bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
+bool zip_cmp(Cmp cmp, const Cs & ... cs)
 {
   for (auto it = get_zip_it(cs...); it.has_curr(); it.next_ne())
     {
@@ -336,12 +336,12 @@ bool zip_cmp(Cmp cmp, const Cs & ... cs) noexcept(noexcept(cmp))
 }
 
 template <class Op, class ... Cs>
-size_t zip_find_index(Op op, const Cs & ... cs) noexcept(noexcept(op))
+size_t zip_find_index(Op op, const Cs & ... cs)
 {
   size_t i = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne(), ++i)
     {
-      auto t = it.get_curr_ne();
+      auto t = it.get_curr();
       if (op(t))
         break;
     }
@@ -351,13 +351,13 @@ size_t zip_find_index(Op op, const Cs & ... cs) noexcept(noexcept(op))
 template <class Op, class ... Cs>
 auto zip_partition(Op op, const Cs & ... cs)
 {
-  using ZipType = decltype(zip_it(cs...).get_curr_ne());
+  using ZipType = decltype(zip_it(cs...).get_curr());
 
   DynList<ZipType> ret1, ret2;
   size_t n1 = 0, n2 = 0;
   for (auto it = zip_it(cs...); it.has_curr(); it.next_ne())
     {
-      auto t = it.get_curr_ne();
+      auto t = it.get_curr();
       if (op(t))
         {
           ret1.append(t);
@@ -376,10 +376,10 @@ template <class ... Cs> inline
 auto t_zip(const Cs & ... cs)
 {
   auto it = zip_it(cs...);
-  using T = decltype(it.get_curr_ne());
+  using T = decltype(it.get_curr());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
-    ret.append(it.get_curr_ne());
+    ret.append(it.get_curr());
 
   return ret;
 }
@@ -388,10 +388,10 @@ template <class ... Cs> inline
 auto t_zip_eq(const Cs & ... cs)
 {
   auto it = zip_it(cs...);
-  using T = decltype(it.get_curr_ne());
+  using T = decltype(it.get_curr());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
-    ret.append(it.get_curr_ne());
+    ret.append(it.get_curr());
 
   if (not it.completed())
     throw std::length_error("Container sizes mismatch");
@@ -408,15 +408,15 @@ class EnumZipIterator : public EnumZipIterator<TailC...>
 
 public:
 
-  EnumZipIterator(const HeadC & head, const TailC & ...tail) noexcept
+  EnumZipIterator(const HeadC & head, const TailC & ...tail)
     : EnumZipIterator<TailC...>(tail...), it(head) {}
 
-  bool has_curr() const noexcept
+  bool has_curr() const
   {
     return it.has_curr() and EnumZipIterator<TailC...>::has_curr();
   }
 
-  bool completed() const noexcept
+  bool completed() const
   {
     return not it.has_curr() and EnumZipIterator<TailC...>::completed();
   }
@@ -467,7 +467,7 @@ public:
 
   using T = typename C::Item_Type;
 
-  EnumZipIterator(const C & c) noexcept : C::Iterator(c) {}
+  EnumZipIterator(const C & c) : C::Iterator(c) {}
 
   std::tuple<T, size_t> get_curr() const
   {
@@ -479,11 +479,11 @@ public:
     return std::tuple<T, size_t>(C::Iterator::get_curr_ne(), i);
   }
 
-  bool completed() const noexcept { return not this->has_curr(); }
+  bool completed() const { return not this->has_curr(); }
 };
 
 template <class ... Cs> inline
-EnumZipIterator<Cs...> get_enum_zip_it(const Cs & ... cs) noexcept
+EnumZipIterator<Cs...> get_enum_zip_it(const Cs & ... cs)
 {
   return EnumZipIterator<Cs...>(cs...);
 }
@@ -500,7 +500,7 @@ get_enum_zip_it_pos(size_t pos, const C & c, const Cs & ... cs)
 }
 
 template <class ... Cs> inline
-EnumZipIterator<Cs...> enum_zip_it(const Cs & ... cs) noexcept
+EnumZipIterator<Cs...> enum_zip_it(const Cs & ... cs)
 {
   return EnumZipIterator<Cs...>(cs...);
 }
@@ -515,10 +515,10 @@ template <class ... Cs> inline
 auto t_enum_zip(const Cs & ... cs)
 {
   auto it = get_enum_zip_it(cs...);
-  using T = decltype(it.get_curr_ne());
+  using T = decltype(it.get_curr());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
-    ret.append(it.get_curr_ne());
+    ret.append(it.get_curr());
 
   return ret;
 }
@@ -527,10 +527,10 @@ template <class ... Cs> inline
 auto t_enum_zip_eq(const Cs & ... cs)
 {
   auto it = get_enum_zip_it(cs...);
-  using T = decltype(it.get_curr_ne());
+  using T = decltype(it.get_curr());
   DynList<T> ret;
   for (; it.has_curr(); it.next_ne())
-    ret.append(it.get_curr_ne());
+    ret.append(it.get_curr());
 
   if (not it.completed())
     throw std::length_error("Container sizes mismatch");
@@ -545,7 +545,7 @@ auto t_unzip_impl(const DynList<std::tuple<Ts...>> & l,
   std::tuple<DynList<Ts>...> ret;
   for (auto it = l.get_it(); it.has_curr(); it.next_ne())
     std::initializer_list<int> {
-      (std::get<is>(ret).append(std::get<is>(it.get_curr_ne())), 0)... };
+      (std::get<is>(ret).append(std::get<is>(it.get_curr())), 0)... };
 
   return ret;
 }

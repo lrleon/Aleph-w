@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -192,11 +192,11 @@ write_to_stream(BinNode<Key> * root, ofstream & output_stream)
   Dlist<pre_in<Key> >::Iterator a(l);
   for(a.reset_first(); a.has_curr(); a.next_ne())
     output_stream<<
-      stringficate(reinterpret_cast<void *>(&(a.get_curr_ne()->get_data().data)),size,buffer)
+      stringficate(reinterpret_cast<void *>(&(a.get_curr()->get_data().data)),size,buffer)
 		 <<endl;
   
   for(a.reset_first();a.has_curr();a.next_ne())
-    output_stream<<a.get_curr_ne()->get_data().inorder_pos+1<<endl;
+    output_stream<<a.get_curr()->get_data().inorder_pos+1<<endl;
   
   
 }

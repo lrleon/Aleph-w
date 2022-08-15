@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ class Compute_Cut_Nodes
     bool p_is_cut_node = false;
     for (Node_Arc_Iterator <GT, SA> i(p, sa); i.has_curr(); i.next_ne())
       {
-        auto arc = i.get_curr_ne();
+        auto arc = i.get_curr();
         if (arc == a) 
           continue; // a es el padre de arc ==> ignorarlo
 
@@ -185,7 +185,7 @@ public:
 	if (IS_NODE_VISITED(tgt, Depth_First)) 
 	  continue; 
 
-	auto arc = it.get_curr_ne();
+	auto arc = it.get_curr();
 	if (IS_ARC_VISITED(arc, Depth_First)) 
 	  continue;
 
@@ -216,7 +216,7 @@ private:
 
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr_ne();
+	auto arc = it.get_curr();
 	if (is_arc_painted <GT> (arc))
           continue;
 
@@ -236,7 +236,7 @@ private:
         // pintar recursivamente con dif colores bloques conectados a p
     for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
-	auto arc = it.get_curr_ne();
+	auto arc = it.get_curr();
 
 	assert(not is_arc_painted <GT> (arc));
 
@@ -286,7 +286,7 @@ private:
         // recorrer arcos de gsrc y añadir a sg los del color de interés
     for (Node_Arc_Iterator <GT, SA> i(gsrc, sa); i.has_curr(); i.next_ne())
       {
-        auto garc = i.get_curr_ne();
+        auto garc = i.get_curr();
         if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
           continue; // arco es de otro color o ya está visitado 
 
@@ -370,7 +370,7 @@ public:
         // Recorrer cada nodo de corte y pintar sus bloques
     for (typename DynDlist<typename GT::Node*>::Iterator i(*list_ptr); 
 	 i.has_curr(); i.next_ne())
-      paint_from_cut_node(i.get_curr_ne());
+      paint_from_cut_node(i.get_curr());
 
     state = Painted;
 
@@ -398,8 +398,8 @@ public:
     typename GT::Node * first = nullptr; // busque primer nodo con color
 
     for (typename GT::Node_Iterator it(*gptr); it.has_curr(); it.next_ne())
-      if (get_color <GT> (it.get_curr_ne()) == color)
-        first = it.get_curr_ne();
+      if (get_color <GT> (it.get_curr()) == color)
+        first = it.get_curr();
 
     if (first == nullptr) // Encontró el color?
       throw std::domain_error("Color does not exist in the graph");
@@ -447,7 +447,7 @@ public:
     for (typename DynDlist<typename GT::Node*>::Iterator it(*list_ptr);
 	 it.has_curr(); it.next_ne())
       {
-	auto gp = it.get_curr_ne();
+	auto gp = it.get_curr();
 
 	assert(is_a_cut_node <GT> (gp));
 
@@ -460,7 +460,7 @@ public:
         // cross_arc_list = {arcos de cruce}
     for (Arc_Iterator <GT, SA> it(*gptr, sa); it.has_curr(); it.next_ne())
       {
-	auto garc = it.get_curr_ne();
+	auto garc = it.get_curr();
 	if (is_a_cross_arc <GT> (garc))
 	  {
 	    cross_arc_list.append(garc); 
@@ -527,7 +527,7 @@ public:
         // Recorrer los nodos y copiar y mapear según color
     for (typename GT::Node_Iterator it(*gptr); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr_ne();
+	auto p = it.get_curr();
 	if (IS_NODE_VISITED(p, Build_Subtree))
 	  continue;
 

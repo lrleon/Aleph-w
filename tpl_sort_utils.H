@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ namespace Aleph
     typename Container<T>::Iterator it(cont); it.next_ne();
     for (; it.has_curr(); it.next_ne())
       {
-        const T & curr = it.get_curr_ne();
+        const T & curr = it.get_curr();
         if (not cmp(item, curr))
           return false;
 
@@ -90,7 +90,7 @@ namespace Aleph
     size_t n = 0;
     for (; it.has_curr(); it.next_ne(), ++n)
       {
-        const T & curr = it.get_curr_ne();
+        const T & curr = it.get_curr();
         if (not cmp(item, curr))
           return make_pair(false, n);
 
@@ -116,7 +116,7 @@ namespace Aleph
     typename Container<T>::Iterator it(cont); it.next_ne();
     for (; it.has_curr(); it.next_ne())
       {
-        const T & curr = it.get_curr_ne();
+        const T & curr = it.get_curr();
         if (not cmp(curr, item))
           return false;
 
@@ -134,7 +134,7 @@ namespace Aleph
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   pair<bool, size_t>
-  test_sorted(const Container<T> & cont, Compare cmp = Compare()) noexcept
+  test_sorted(const Container<T> & cont, Compare cmp = Compare())
   {
     if (cont.is_empty())
       return pair<bool, size_t>(true, 0);
@@ -143,7 +143,7 @@ namespace Aleph
     typename Container<T>::Iterator it(cont); it.next_ne();
     for (size_t i = 1; it.has_curr(); it.next_ne(), ++i)
       {
-        const T & curr = it.get_curr_ne();
+        const T & curr = it.get_curr();
         if (cmp(curr, item))
           return pair<bool, size_t>(false, i);
 
@@ -207,7 +207,7 @@ namespace Aleph
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        Link * curr = it.get_curr_ne();
+        Link * curr = it.get_curr();
         if (cmp(curr, extreme))
           extreme = curr;
       } 
@@ -266,7 +266,6 @@ namespace Aleph
   public:
 
     Compare_Tnode(Compare __cmp = Compare()) 
-      noexcept(std::is_nothrow_move_assignable<Compare>::value)
       : cmp(__cmp) { /* empty */ }
 
     bool operator () (Tlink * l1, Tlink * l2) const noexcept
@@ -294,7 +293,6 @@ namespace Aleph
   struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
   {
     Compare_Dnode(Compare cmp = Compare()) 
-      noexcept(std::is_nothrow_move_assignable<Compare>::value)
       : Compare_Tnode<Dlink, Dnode, T, Compare> (std::forward<Compare>(cmp)) 
     { /* empty */ }
   };
@@ -401,12 +399,12 @@ namespace Aleph
   }
 
   template <class Link, typename T, class Equal>
-  Link * sequential_search(const Link & list, const T & x, Equal & eq) noexcept
+  Link * sequential_search(const Link & list, const T & x, Equal & eq)
   {
     for (typename Link::Iterator it(const_cast<Link&>(list)); 
          it.has_curr(); it.next_ne())
       {
-        Link * curr = it.get_curr_ne();
+        Link * curr = it.get_curr();
         if (eq(curr, x)) 
           return curr;
       }
@@ -661,20 +659,20 @@ namespace Aleph
       \ingroup Algos
   */
   template <class Compare> inline 
-  void insert_sorted(Dlink & list, Dlink * p, Compare & cmp) noexcept
+  void insert_sorted(Dlink & list, Dlink * p, Compare & cmp)
   {
     typename Dlink::Iterator it(list); 
-    while (it.has_curr() and cmp(it.get_curr_ne(), p)) 
+    while (it.has_curr() and cmp(it.get_curr(), p)) 
       it.next_ne();
 
     if (it.has_curr())
-      it.get_curr_ne()->append(p); // insertar antes de current
+      it.get_curr()->append(p); // insertar antes de current
     else
       list.append(p); 
   }
 
   template <class Compare> inline
-  void insert_sorted(HTList & list, Slinknc * p, Compare & cmp) noexcept
+  void insert_sorted(HTList & list, Slinknc * p, Compare & cmp)
   {
     Slinknc * first = list.get_first();
     if (cmp(p, first) or not cmp(first, p)) // p <= first?
@@ -694,7 +692,7 @@ namespace Aleph
     typename HTList::Iterator it(list); 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-        Slinknc * curr = it.get_curr_ne();
+        Slinknc * curr = it.get_curr();
         if (cmp(p, curr)) // p < curr
           {
             prev->insert(p);

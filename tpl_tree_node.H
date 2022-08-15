@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,11 +151,9 @@ namespace Aleph
 
     /// Constructor con valor de dato __data
     Tree_Node(const T & __data)
-      noexcept(std::is_nothrow_copy_constructible<T>::value)
       : data(__data) { /* empty */ }
 
     Tree_Node(T && __data)
-      noexcept(std::is_nothrow_move_constructible<T>::value)
       : data(std::move(__data)) { /* empty */ }
 
     /// Retorna hermano izquierdo de this.
@@ -758,12 +756,12 @@ namespace Aleph
   {
     using It = typename Node::Children_Iterator;
     for (It it(src); it.has_curr(); it.next_ne())
-      tgt->insert_rightmost_child(new Node(it.get_curr_ne()->get_key()));
+      tgt->insert_rightmost_child(new Node(it.get_curr()->get_key()));
 
     using PItor = Pair_Iterator<It>;
     for (PItor itor{It(*src), It(*tgt)}; itor.has_curr(); itor.next_ne())
       {
-        auto p = itor.get_curr_ne();
+        auto p = itor.get_curr();
         clone_tree(p.first, p.second);
       }
   }
@@ -943,7 +941,6 @@ namespace Aleph
   */
   template <class Node, class Eq>
   inline bool are_tree_equal(Node * t1, Node * t2, Eq & eq)
-    noexcept(noexcept(eq(t1->get_key(), t2->get_key())))
   {
     if (t1 == nullptr)
       return t2 == nullptr;
@@ -971,7 +968,6 @@ namespace Aleph
   template <class Node,
             class Eq = std::equal_to<typename Node::key_type>>
   inline bool are_tree_equal(Node * t1, Node * t2, Eq && eq = Eq())
-    noexcept(noexcept(are_tree_equal<Node, Eq>(t1, t2, eq)))
   {
     return are_tree_equal<Node, Eq>(t1, t2, eq);
   }

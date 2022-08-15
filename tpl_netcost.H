@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -68,11 +68,10 @@ struct Net_Cost_Arc : public Net_Arc<Arc_Info, F_Type>
       /// Retorna el coste del flujo circulante
   Flow_Type flow_cost() const noexcept { return this->flow*cost; }
 
-  Net_Cost_Arc(const Net_Cost_Arc & a) noexcept(noexcept(Base(a)))
+  Net_Cost_Arc(const Net_Cost_Arc & a)
     : Base(a), cost(a->cost) {}
 
   Net_Cost_Arc & operator = (const Net_Cost_Arc & a) 
-  noexcept(std::is_nothrow_copy_assignable<Arc_Info>::value)
   {
     if (&a == this)
       return *this;
@@ -191,12 +190,12 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   // }
 
   /// Calcula el coste total del flujo circulante por la red
-  Flow_Type flow_cost() const noexcept
+  Flow_Type flow_cost() const
   {
     Flow_Type total = 0;
     for (Arc_Iterator<Net_MFMC> it(*this); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_curr_ne();
+	Arc * a = it.get_curr();
 	total += a->flow_cost();
       }
 
@@ -204,12 +203,12 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   }
 
   /// retorna una tripleta de capacidad, flujo y costo saliente
-  auto out_pars(Node * p) noexcept
+  auto out_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
     for (__Out_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_curr_ne();
+	Arc * a = it.get_curr();
 	cap_sum += a->cap;
 	flow_sum += a->flow;
 	cost_sum += a->cost;
@@ -218,12 +217,12 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   }
 
     /// retorna una tripleta de capacidad, flujo y costo saliente
-  auto in_pars(Node * p) noexcept
+  auto in_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
     for (__In_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
-	Arc * a = it.get_curr_ne();
+	Arc * a = it.get_curr();
 	cap_sum += a->cap;
 	flow_sum += a->flow;
 	cost_sum += a->cost;
@@ -332,7 +331,7 @@ build_residual_net(const Net & net,
       // recorre los nodos de net e inserta copias en la red residual
   for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto p = it.get_curr_ne();
+      auto p = it.get_curr();
       auto q = rnet.insert_node(); // TODO: borrar get_info
       map_nodes<Net, Rnet>(p, q); // mapeo temporal de nodos
     }
@@ -340,7 +339,7 @@ build_residual_net(const Net & net,
     // Recorre arcos de net y construye mapeo arcs
   for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto ga = it.get_curr_ne();
+      auto ga = it.get_curr();
       auto gsrc = (typename Net::Node*) ga->src_node;
       auto gtgt = (typename Net::Node*) ga->tgt_node;
 
@@ -572,7 +571,7 @@ Feasible_Tree<Net> build_feasible_spanning_tree(const Net & net)
   DynList<Arc*> empty, full, partial;
   for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr_ne();
+      auto a = it.get_curr();
       if (a->flow == 0) // arco vacío?
 	empty.append(a);
       else if (a->flow == a->cap) // arco lleno?
@@ -590,7 +589,7 @@ DynList<typename Net::Arc*> get_partial_arcs(const Net & net)
   DynList<typename Net::Arc*> ret;
   for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr_ne();
+      auto a = it.get_curr();
       if (a->flow > 0 and a->flow < a->cap)
 	ret.append(a);
     }
@@ -607,7 +606,7 @@ typename Net::Flow_Type rcost(typename Net::Node * src,
 {
   for (Out_Iterator<Net> it(src); it.has_curr(); it.next_ne())
     {
-      auto a = it.get_curr_ne();
+      auto a = it.get_curr();
       if (a->tgt_node == tgt)
 	return a->cost - (POTENTIAL(src) - POTENTIAL(tgt));
     }

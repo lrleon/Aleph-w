@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -195,11 +195,11 @@ class BruteForceConvexHull
   
     for (PointIt i(point_set); i.has_curr(); i.next_ne())
       {
-	const Point & p_i = i.get_curr_ne();
+	const Point & p_i = i.get_curr();
 	
 	for (PointIt j(point_set); j.has_curr(); j.next_ne())
 	  {
-	    const Point & p_j = j.get_curr_ne();
+	    const Point & p_j = j.get_curr();
 	    
 	    if (p_i == p_j)
 	      continue;
@@ -263,7 +263,7 @@ class GiftWrappingConvexHull
 
     for ( /* nothing */; it.has_curr(); it.next_ne())
       {
-	Point & p = it.get_curr_ne();
+	Point & p = it.get_curr();
 
 	if (p.get_y() < ret->get_y())
 	  ret = &p;
@@ -291,7 +291,7 @@ public:
 
 	for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
 	  {
-	    Point & p_j = it.get_curr_ne();
+	    Point & p_j = it.get_curr();
 
 	    if (p_j == *p_i)
 	      continue;
@@ -337,7 +337,7 @@ class QuickHull
     
     for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr_ne();
+	const Point & p = it.get_curr();
 
 	Segment s1 = s.get_perpendicular(p);
 
@@ -403,7 +403,7 @@ class QuickHull
 
     for ( /* nothing */; it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr_ne();
+	const Point & p = it.get_curr();
 
 	if (p.get_x() < leftmost.get_x())
 	  leftmost = p;
@@ -422,7 +422,7 @@ class QuickHull
     
     for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr_ne();
+	const Point & p = it.get_curr();
 
 	if (p.is_to_right_from(a, b))
 	  ret.first.append(p);
@@ -451,7 +451,7 @@ public:
     convex_set.concat(s2);
 
     for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
-      ret.add_vertex(it.get_curr_ne());
+      ret.add_vertex(it.get_curr());
     
     ret.close();
     return ret;

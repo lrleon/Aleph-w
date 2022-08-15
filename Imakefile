@@ -3,12 +3,12 @@ DEPEND = sh ./depend.sh
 # just delete or comment these four lines if you wish to use gnu
 # compiler suite
 
-CC = clang
-AS = llvm-as
-AR = llvm-ar clq
-RANLIB = llvm-ranlib
-LD = llvm-link
-CXX = clang++
+CC = cc
+AS = as
+AR = ar cq
+RANLIB = ranlib
+LD = link
+CXX = c++
 
 # Perform make OPTIONS="-Ofast -DNDEBUG -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"" libAleph.a if you want
 # to generate optimized libAleph.a. If you use clang compiler, then you

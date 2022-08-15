@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -147,12 +147,9 @@ class Find_Path_Depth_First
 public:
 
   Find_Path_Depth_First(SA && __sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value and
-	   std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
   Find_Path_Depth_First(SA & __sa) 
-  noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(__sa) { /* empty */ }
 
   /** Invoca a la búsqueda de camino en profundidad.
@@ -332,12 +329,9 @@ class Find_Path_Breadth_First
 public:
 
   Find_Path_Breadth_First(SA & _sa) 
-  noexcept(std::is_nothrow_copy_assignable<SA>::value)
     : sa(_sa) { /* Empty */ }
 
   Find_Path_Breadth_First(SA && _sa = SA()) 
-  noexcept(std::is_nothrow_constructible<SA>::value and
-	   std::is_nothrow_copy_assignable<SA>::value)
     : sa(_sa) { /* Empty */ }
  
   /** Invoca a la búsqueda de camino en amplitud.

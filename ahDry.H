@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,33 +42,31 @@ namespace Aleph
 
 # define Generic_Traverse(Type)                                         \
   template <class Operation>                                            \
-  bool traverse(Operation & operation) const noexcept(noexcept(operation)) \
+  bool traverse(Operation & operation) const				\
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr_ne()))                              \
+      if (not operation(it.get_curr()))					\
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  bool traverse(Operation & operation) noexcept(noexcept(operation))    \
+  bool traverse(Operation & operation)					\
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr_ne()))                              \
+      if (not operation(it.get_curr()))					\
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool traverse(Operation && operation = Operation()) const             \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return traverse<Operation>(operation);                              \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool traverse(Operation && operation = Operation())                   \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return traverse<Operation>(operation);                              \
   }
@@ -77,7 +75,7 @@ namespace Aleph
   template <template <typename> class List>                         \
   Set_Type(const List<Type> & l) : Set_Type()                       \
   {                                                                 \
-    l.for_each([this] (const Type & item) { this->append(item); });	\
+    l.for_each([this] (const Type & item) { this->append(item); }); \
   }                                                                 \
                                                                     \
   template <class It>                                               \
@@ -128,7 +126,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  Type * find_ptr(Operation & operation) noexcept(noexcept(operation))  \
+  Type * find_ptr(Operation & operation)				\
   {                                                                     \
     Type * ptr = nullptr;                                               \
     this->traverse([&ptr,&operation] (Type & item)                      \
@@ -144,7 +142,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  Type * find_ptr(Operation & operation) const noexcept(noexcept(operation)) \
+  Type * find_ptr(Operation & operation) const				\
   {                                                                     \
     Type * ptr = nullptr;                                               \
     this->traverse([&ptr, &operation] (Type & item)                     \
@@ -161,21 +159,18 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   Type * find_ptr(Operation && operation = Operation()) const           \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return find_ptr<Operation>(operation);                              \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   Type * find_ptr(Operation && operation = Operation())                 \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return find_ptr<Operation>(operation);                              \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   std::tuple<bool, Type> find_item(Operation & operation)               \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     auto ptr = find_ptr(operation);                                     \
     return ptr ? std::make_tuple(true, *ptr) : std::make_tuple(false, Type()); \
@@ -183,7 +178,6 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   std::tuple<bool, Type> find_item(Operation & operation) const         \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     auto ptr = find_ptr(operation);                                     \
     return ptr ? std::make_tuple(true, *ptr) : std::make_tuple(false, Type()); \
@@ -191,14 +185,12 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   std::tuple<bool, Type> find_item(Operation && operation = Operation()) \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return find_item(operation);                                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   std::tuple<bool, Type> find_item(Operation && operation = Operation()) const \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return find_item(operation);                                        \
   }
@@ -206,7 +198,6 @@ namespace Aleph
 # define Functional_Methods(Type)                                       \
   template <class Operation>                                            \
   auto for_each(Operation & operation) const                            \
-    noexcept(noexcept(operation))-> decltype(*this)                     \
   {                                                                     \
     this->traverse([&operation] (const Type & item)                     \
                    {                                                    \
@@ -217,7 +208,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  auto for_each(Operation & operation) noexcept(noexcept(operation))    \
+  auto for_each(Operation & operation)					\
     -> decltype(*this)                                                  \
   {                                                                     \
     this->traverse([&operation] (const Type & item)                     \
@@ -230,21 +221,21 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   auto for_each(Operation && operation = Operation()) const             \
-    noexcept(noexcept(operation)) -> decltype(*this)                    \
+    -> decltype(*this)							\
   {                                                                     \
     return this->for_each<Operation>(operation);                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   auto for_each(Operation && operation = Operation())                   \
-    noexcept(noexcept(operation)) -> decltype(*this)                    \
+    -> decltype(*this)							\
   {                                                                     \
     return this->for_each<Operation>(operation);                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   auto mutable_for_each(Operation & operation)                          \
-    noexcept(noexcept(operation)) -> decltype(*this)                    \
+    -> decltype(*this)							\
   {                                                                     \
     this->traverse([&operation] (Type & item)                           \
                    {                                                    \
@@ -256,42 +247,37 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   auto mutable_for_each(Operation && operation = Operation())           \
-    noexcept(noexcept(operation)) -> decltype(*this)                    \
+    -> decltype(*this)							\
   {                                                                     \
     return this->mutable_for_each<Operation>(operation);                \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool all(Operation & operation) const                                 \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return this->template traverse<Operation>(operation);               \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool all(Operation && operation = Operation()) const                  \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return all<Operation>(operation);                                   \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool forall(Operation & operation) const                              \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return all<Operation>(operation);                                   \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool forall(Operation && operation = Operation()) const               \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return all<Operation>(operation);                                   \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   bool exists(Operation & operation) const                              \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return not this->traverse([&operation] (const Type & item)          \
                               {                                         \
@@ -301,7 +287,6 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   bool exists(Operation && operation = Operation()) const               \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return exists<Operation>(operation);                                \
   }                                                                     \
@@ -330,7 +315,6 @@ namespace Aleph
   template <typename __Type = Type>                                     \
   __Type foldl(const __Type & init,                                     \
                std::function<__Type(const __Type&, const Type &)> operation) const \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     auto ret_val = init;                                                \
     this->for_each([&ret_val, &operation] (const Type & item)           \
@@ -342,7 +326,6 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   Type fold(const Type & init, Operation & operation) const             \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     auto ret_val = init;                                                \
     this->for_each([&ret_val, &operation] (const Type & item)           \
@@ -354,7 +337,6 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   Type fold(const Type & init, Operation && operation = Operation()) const \
-    noexcept(noexcept(operation))                                       \
   {                                                                     \
     return fold<Operation>(init, operation);                            \
   }                                                                     \

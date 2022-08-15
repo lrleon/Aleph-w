@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -64,32 +64,32 @@ struct GenericTraverse
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool traverse(Operation & operation) noexcept(noexcept(operation))
+  bool traverse(Operation & operation)
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
-         it.has_curr(); it.next_ne())
-      if (not operation(it.get_curr_ne()))
+         it.has_curr(); it.next())
+      if (not operation(it.get_curr()))
         return false;
     return true;
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation & operation) const noexcept(noexcept(operation))
+  bool traverse(Operation & operation) const
   {
     return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation) const noexcept(noexcept(operation))
+  bool traverse(Operation && operation) const
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation) noexcept(noexcept(operation))
+  bool traverse(Operation && operation)
   {
     return traverse<Operation>(operation);
   }
@@ -250,7 +250,7 @@ public:
       otherwise.
    */
   template <class Operation>
-  Type * find_ptr(Operation & operation) noexcept(noexcept(operation))
+  Type * find_ptr(Operation & operation)
   {
     Type * ptr = nullptr;
     me()->traverse([&ptr,&operation] (Type & item)
@@ -268,7 +268,6 @@ public:
   /// \overload find_ptr()
   template <class Operation>
   const Type * find_ptr(Operation & operation) const
-    noexcept(noexcept(operation))
   {
     return base()->find_ptr(operation);
   }
@@ -276,14 +275,13 @@ public:
   /// \overload find_ptr()
   template <class Operation>
   const Type * find_ptr(Operation && operation) const
-    noexcept(noexcept(operation))
   {
     return find_ptr<Operation>(operation);
   }
 
   /// \overload find_ptr()
   template <class Operation>
-  Type * find_ptr(Operation && operation) noexcept(noexcept(operation))
+  Type * find_ptr(Operation && operation)
   {
     return find_ptr(operation);
   }
@@ -311,7 +309,7 @@ public:
       number of items is returned.
    */
   template <class Operation>
-  size_t find_index(Operation & operation) const noexcept(noexcept(operation))
+  size_t find_index(Operation & operation) const
   {
     size_t i = 0;
     const_me()->traverse([&i,&operation] (Type & item)
@@ -326,7 +324,7 @@ public:
 
   /// \overload find_index()
   template <class Operation>
-  size_t find_index(Operation && operation) const noexcept(noexcept(operation))
+  size_t find_index(Operation && operation) const
   {
     return find_index<Operation>(operation);
   }
@@ -353,7 +351,6 @@ public:
   */
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation & operation)
-    noexcept(noexcept(operation))
   {
     using TT = std::tuple<bool, Type>;
     auto ptr = find_ptr(operation);
@@ -363,7 +360,6 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation & operation) const
-    noexcept(noexcept(operation))
   {
     using TT = std::tuple<bool, Type>;
     auto ptr = find_ptr(operation);
@@ -373,7 +369,6 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation && operation)
-    noexcept(noexcept(operation))
   {
     return find_item(operation);
   }
@@ -381,7 +376,6 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation && operation) const
-    noexcept(noexcept(operation))
   {
     return find_item(operation);
   }
@@ -586,7 +580,7 @@ public:
       \throw anything that can throw `operation`
   */
   template <class Operation>
-  void for_each(Operation & operation) noexcept(noexcept(operation))
+  void for_each(Operation & operation)
   {
     me()->traverse([&operation] (const T & item)
                    {
@@ -597,49 +591,49 @@ public:
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void for_each(Operation & operation) const noexcept(noexcept(operation))
+  void for_each(Operation & operation) const
   {
     base()->for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void for_each(Operation && operation) const noexcept(noexcept(operation))
+  void for_each(Operation && operation) const
   {
     for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void for_each(Operation && operation) noexcept(noexcept(operation))
+  void for_each(Operation && operation)
   {
     for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void each(Operation & operation) noexcept(noexcept(operation))
+  void each(Operation & operation)
   {
     for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void each(Operation & operation) const noexcept(noexcept(operation))
+  void each(Operation & operation) const
   {
     for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void each(Operation && operation) const noexcept(noexcept(operation))
+  void each(Operation && operation) const
   {
     for_each(operation);
   }
 
   /// \overload for_each(Operation & operation)
   template <class Operation>
-  void each(Operation && operation) noexcept(noexcept(operation))
+  void each(Operation && operation)
   {
     for_each(operation);
   }
@@ -687,7 +681,7 @@ public:
   }
 
   template <class Operation>
-  void mutable_for_each(Operation & operation) noexcept(noexcept(operation))
+  void mutable_for_each(Operation & operation)
   {
     me()->traverse([&operation] (T & item)
                    {
@@ -698,7 +692,7 @@ public:
 
   /// \overload mutable_for_each(Operation & operation)
   template <class Operation>
-  void mutable_for_each(Operation && operation) noexcept(noexcept(operation))
+  void mutable_for_each(Operation && operation)
   {
     mutable_for_each(operation);
   }
@@ -716,14 +710,14 @@ public:
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool all(Operation & operation) const noexcept(noexcept(operation))
+  bool all(Operation & operation) const
   {
     return const_me()->traverse(operation);
   }
 
   /// \overload all(Operation & operation)
   template <class Operation>
-  bool all(Operation && operation) const noexcept(noexcept(operation))
+  bool all(Operation && operation) const
   {
     return all(operation);
   }
@@ -742,7 +736,7 @@ public:
       \throw anything that could throw `op`
   */
   template <class Operation>
-  bool exists(Operation & op) const noexcept(noexcept(op))
+  bool exists(Operation & op) const
   {
     return not const_me()->
       traverse([&op] (const T & i) { return not op(i); });
@@ -750,7 +744,7 @@ public:
 
   /// \overload exists(Operation & op)
   template <class Operation>
-  bool exists(Operation && op) const noexcept(noexcept(op))
+  bool exists(Operation && op) const
   {
     return exists(op);
   }
@@ -898,7 +892,7 @@ public:
       \throw anything that could throw `op`
   */
   template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
-  __T foldl(const __T & init, Op & op) const noexcept(noexcept(op))
+  __T foldl(const __T & init, Op & op) const
   {
     __T ret_val = init;
     const_me()->for_each([&ret_val, &op] (const T & item)
@@ -910,7 +904,7 @@ public:
 
   /// \overload foldl(const __T & init, Op & op)
   template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
-  __T foldl(const __T & init, Op && op = Op()) const noexcept(noexcept(op))
+    __T foldl(const __T & init, Op && op = Op()) const
   {
     return foldl(init, op);
   }
@@ -922,7 +916,6 @@ public:
   */
   template <class Operation>
   T fold(const T & init, Operation & operation) const
-    noexcept(noexcept(operation))
   {
     auto ret_val = init;
     const_me()->for_each([&ret_val, &operation] (const T & item)
@@ -935,7 +928,6 @@ public:
   /// \overload fold(const T & init, Operation & operation)
   template <class Operation>
   T fold(const T & init, Operation && operation) const
-    noexcept(noexcept(operation))
   {
     return fold(init, operation);
   }
@@ -1253,7 +1245,7 @@ public:
       return ret;
     for (auto it = const_me()->get_it(i); i <= j and it.has_curr();
          it.next_ne(), i += step)
-      ret.append(it.get_curr_ne());
+      ret.append(it.get_curr());
     return ret;
   }
 

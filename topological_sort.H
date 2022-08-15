@@ -3,13 +3,13 @@
 
    / \  | | ___ _ __ | |__      __      __
    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
    /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
    |_|         
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,11 +52,9 @@ namespace Aleph {
   public:
 
     Topological_Sort(SA && __sa = SA()) 
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa), gptr(nullptr) { /* empty */ }
 
     Topological_Sort(SA & __sa) 
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa), gptr(nullptr)  { /* empty */ }
 
   private:
@@ -140,11 +138,9 @@ namespace Aleph {
   public:
 
     Q_Topological_Sort(SA && __sa = SA()) 
-      noexcept(std::is_nothrow_move_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     Q_Topological_Sort(SA & __sa) 
-      noexcept(std::is_nothrow_copy_assignable<SA>::value)
       : sa(__sa) { /* empty */ }
 
     /** Retorna un ordenamiento topológico en amplitud.

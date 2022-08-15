@@ -3,13 +3,13 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9b
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|         
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon & Alejandro Mujica
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -107,7 +107,7 @@ class Nodes_Index : public DynSetTree <typename GT::Node *, Tree, Compare>
   void init()
   {
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      this->insert(it.get_curr_ne());
+      this->insert(it.get_curr());
   }
 
 public:
@@ -292,7 +292,7 @@ class Arcs_Index : public DynSetTree <typename GT::Arc *, Tree, Compare>
   void init()
   {
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      this->insert(it.get_curr_ne());
+      this->insert(it.get_curr());
   }
 
 public:
