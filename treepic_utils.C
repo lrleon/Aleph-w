@@ -284,8 +284,8 @@ void draw_arc(ofstream& output,
   long double dx1 = l*cos(phi - tetha);
   long double dy1 = l*sin(phi - tetha);
 
-  long double dx2 = l*sin(M_PI_2l - (phi + tetha));
-  long double dy2 = l*cos(M_PI_2l - (phi + tetha));
+  long double dx2 = l*sin(M_PI_2 - (phi + tetha));
+  long double dy2 = l*cos(M_PI_2 - (phi + tetha));
 
   if (tgt_x > src_x)
     {
@@ -330,8 +330,8 @@ void draw_arc_tikz(ofstream& output,
   long double dx1 = l*cos(phi - tetha);
   long double dy1 = l*sin(phi - tetha);
 
-  long double dx2 = l*sin(M_PI_2l - (phi + tetha));
-  long double dy2 = l*cos(M_PI_2l - (phi + tetha));
+  long double dx2 = l*sin(M_PI_2 - (phi + tetha));
+  long double dy2 = l*cos(M_PI_2 - (phi + tetha));
 
   if (tgt_x > src_x)
     {
