@@ -22,11 +22,11 @@ void daemonize(const char * pname, int facility)
     AH_ERROR("cannot fork process");
 
   if (pid != 0)
-    exit(0);       // parent terminates  
+    exit(0);       // parent terminates
 
-  /* 1st child continues and become sesion leader */
+  /* 1st child continues and become session leader */
   setsid();
-  
+
   Signal signalHandler(SIGHUP, SIG_IGN);
 
   pid = fork();
@@ -41,7 +41,7 @@ void daemonize(const char * pname, int facility)
 
   for (i = 0; i < MAXIMUM_FILE_DESC; i++)
     close(i);
-  
+
   openlog(pname, LOG_PID, facility);
 
   Aleph::daemonized = true;

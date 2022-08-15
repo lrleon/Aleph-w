@@ -60,7 +60,7 @@ LIBCSRCS=	ran_array.c mpfr_mul_d.c
 
 SRCLIST=	 $(HLIST) $(TESTSRCS) $(LIBSRCS)
 
-SRCS=           $(LIBCSRCS) $(LIBCCCSRCS)
+SRCS= 	$(LIBCSRCS) $(LIBCCCSRCS)
 
 BASIC_OBJS= 	$(LIBCCCSRCS:.C=.o) $(LIBCSRCS:.c=.o)
 

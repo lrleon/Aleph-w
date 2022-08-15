@@ -1007,4 +1007,3 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p,
 } // end namespace Aleph
 
 # endif // TPL_BINNODEXT_H
-

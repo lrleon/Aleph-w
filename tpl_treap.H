@@ -574,4 +574,3 @@ struct Treap_Vtl : public Gen_Treap<TreapNodeVtl, Key, Compare>
 
 } // end namespace Aleph
 # endif // TPL_TREAP_H
-

@@ -625,7 +625,7 @@ public:
 
       @param[in] m the number of entries to be read from the queue
       `head` side
-      @param[in] entries a array where the read entries will be put. 
+      @param[in] entries a array where the read entries will be put.
       @return true if the `m` entries were read; `false` otherwise, what
       only happens if `m` is greater than the current number of stored
       elements.

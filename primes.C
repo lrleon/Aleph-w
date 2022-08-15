@@ -43,7 +43,7 @@ static size_t prevPrimeIndex(unsigned long n)
 
 const unsigned long DefaultPrime = primeList[0];
 
-unsigned long next_prime(unsigned long n)
+size_t next_prime(unsigned long n)
 {
   unsigned int prime_index = nextPrimeIndex(n);
 

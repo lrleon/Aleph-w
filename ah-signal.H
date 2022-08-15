@@ -47,33 +47,33 @@ public:
     : restartCalls(_restartcalls)
   {
     struct sigaction    act, oact;
-	  
+
     signalNumber = signo;
     act.sa_handler = func;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
 
-    if (signo == SIGALRM) 
+    if (signo == SIGALRM)
       {
 #ifdef  SA_INTERRUPT
-	act.sa_flags |= SA_INTERRUPT;   
+        act.sa_flags |= SA_INTERRUPT;
 #endif
-      } 
-    else 
+      }
+    else
       {
-	if (restartCalls)
-	  {
+        if (restartCalls)
+          {
 #ifdef  SA_RESTART
-	    act.sa_flags |= SA_RESTART;    
+            act.sa_flags |= SA_RESTART;
 #endif
-	  }
+          }
       }
 
     if (sigaction(signo, &act, &oact) < 0)
       {
-	cerr << "Cannot modify the action associated with the signal " 
-	     << signo << endl;
-	abort();
+        cerr << "Cannot modify the action associated with the signal "
+             << signo << endl;
+        abort();
       }
 
     oldSigaction = oact;
@@ -83,9 +83,9 @@ public:
   {
     if (sigaction(signalNumber, &oldSigaction, nullptr) < 0)
       {
-	cerr << "Cannot modify the action associated with the %d signal " 
-	     << signalNumber << endl;
-	abort();
+        cerr << "Cannot modify the action associated with the %d signal "
+             << signalNumber << endl;
+        abort();
       }
   }
 };
