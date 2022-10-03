@@ -77,7 +77,7 @@ namespace Aleph {
       delete p;
     }
 
-    virtual ~DftTreeNodeAllocator<Node>() { /* empty */ }
+    virtual ~DftTreeNodeAllocator() { /* empty */ }
   };
     
 
