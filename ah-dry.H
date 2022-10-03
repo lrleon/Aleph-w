@@ -661,7 +661,7 @@ public:
   void each(size_t pos, size_t slice, Operation & operation) const
   {
     auto it = const_me()->get_it(pos);
-    for (size_t i = pos; true; i += slice)
+    while (true)
       {
         operation(it.get_curr());
         for (size_t k = 0; k < slice; ++k)

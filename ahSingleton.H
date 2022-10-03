@@ -28,7 +28,19 @@
 # ifndef AHSINGLETON_H
 # define AHSINGLETON_H
 
+# define Make_Singleton(name)                   \
+  public:                                       \
+                                                \
+  static const name & get_instance()            \
+  {                                             \
+    static name instance;                       \
+    return instance;                            \
+  }                                             \
+                                                \
+  name(const name&) = delete;                   \
+  void operator = (const name&) = delete;
 
+                                                
 class Singleton
 {
 public:

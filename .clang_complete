@@ -1,5 +1,6 @@
 -I.
 -I/home/lrleon/Aleph-w
+-I/home/lrleon/.local/include
 -std=c++20
 -Wall
 -Wextra

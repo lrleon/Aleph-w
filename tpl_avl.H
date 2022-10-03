@@ -467,7 +467,7 @@ public:
 
           @param[in] p the node whose key must be searched and
           eventually inserted,
-          @return if `p` is inserted, the this value is retuened;
+          @return if `p` is inserted, the this value is returned;
           otherwise, a pointer to the node containing `KEY(p)` is returned.
 
        */
