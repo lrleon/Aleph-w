@@ -25,8 +25,8 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef MM_STRING_H
-# define MM_STRING_H
+# ifndef AH_MAP_ARENA_H
+# define AH_MAP_ARENA_H
 
 # include <unistd.h>
 # include <cstdlib>
