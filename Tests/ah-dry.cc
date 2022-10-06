@@ -65,7 +65,7 @@ struct Container : public testing::Test
   }
 };
 
-TYPED_TEST_CASE_P(Container);
+TYPED_TEST_SUITE_P(Container);
 
 TYPED_TEST_P(Container, traverse)
 {
@@ -292,10 +292,10 @@ TYPED_TEST_P(Container, filter_ops)
 	    build_dynlist<int>(8, 9, 10, 11, 12));
 }
 
-REGISTER_TYPED_TEST_CASE_P(Container, traverse, for_each, find_ptr,
-			   find_index_nth, find_item, iterator_operations,
-			   nappend, ninsert, all, exists, maps, foldl,
-			   filter_ops);
+REGISTER_TYPED_TEST_SUITE_P(Container, traverse, for_each, find_ptr,
+                            find_index_nth, find_item, iterator_operations,
+                            nappend, ninsert, all, exists, maps, foldl,
+                            filter_ops);
 
 typedef
 Types< DynList<int>, DynDlist<int>,  DynArray<int>,
@@ -311,7 +311,7 @@ Types< DynList<int>, DynDlist<int>,  DynArray<int>,
       >
   Ctypes;
 
-INSTANTIATE_TYPED_TEST_CASE_P(traverses, Container, Ctypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(traverses, Container, Ctypes);
 
 template <class C>
 struct CtorContainer : public ::testing::Test
@@ -334,7 +334,7 @@ struct CtorContainer : public ::testing::Test
   }
 };
 
-TYPED_TEST_CASE_P(CtorContainer);
+TYPED_TEST_SUITE_P(CtorContainer);
 
 TYPED_TEST_P(CtorContainer, ctor)
 {
@@ -359,6 +359,6 @@ TYPED_TEST_P(CtorContainer, ctor)
   ASSERT_EQ(sort(l3), r3);
 }
 
-REGISTER_TYPED_TEST_CASE_P(CtorContainer, ctor);
+REGISTER_TYPED_TEST_SUITE_P(CtorContainer, ctor);
 
-INSTANTIATE_TYPED_TEST_CASE_P(Ctors, CtorContainer, Ctypes);
+INSTANTIATE_TYPED_TEST_SUITE_P(Ctors, CtorContainer, Ctypes);

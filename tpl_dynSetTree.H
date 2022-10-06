@@ -151,7 +151,8 @@ namespace Aleph {
 
     /// Instancia un conjunto dinámico copia de srcTree.
     DynSetTree(const DynSetTree & srcTree)
-      : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
+      : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes),
+        allocator_ptr(new DftTreeNodeAllocator<Node>)
     {
       Node * srcRoot = srcTree.tree.getRoot();
       try
@@ -167,7 +168,9 @@ namespace Aleph {
 
     Special_Ctors(DynSetTree, Key);
 
-    DynSetTree(DynSetTree && srcTree) : num_nodes(0)
+    DynSetTree(DynSetTree && srcTree)
+      : num_nodes(0),
+        allocator_ptr(new DftTreeNodeAllocator<Node>)
     {
       swap(srcTree);
     }

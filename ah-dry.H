@@ -150,8 +150,7 @@ public:
   /// item on the container
   auto get_it() const
   {
-    auto ret = typename Container::Iterator(*const_me());
-    return ret;
+    return typename Container::Iterator(*const_me());
   }
 
   /// Return an properly initialized iterator positioned at the `pos`
