@@ -79,6 +79,12 @@ namespace Aleph {
 
     DynMapTree() {}
 
+    DynMapTree(const char * base_addr, const size_t & sz)
+      : Base(base_addr, sz)
+    {
+      // empty
+    }
+
     using Key_Type = Key;
 
     using Item_Type = Pair;

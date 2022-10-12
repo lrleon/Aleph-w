@@ -2,6 +2,7 @@
 # define AH_ARENA_H
 
 # include <aleph.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -14,7 +15,6 @@ namespace Aleph
     const char * _curr_addr = nullptr;
     const char * _end_addr = nullptr;
     bool _was_allocated = false;
-    mutex _m;
 
   public:
 
@@ -26,6 +26,17 @@ namespace Aleph
         _end_addr(base_addr + sz)
     {
       // empty
+    }
+
+    AhArenaAllocator(const size_t sz = 1024*1024)
+    {
+      _base_addr = (char*) malloc(sz);
+      ah_runtime_error_if(_base_addr == nullptr)
+        << "cannot allocate " << sz << " bytes";
+
+      _curr_addr = _base_addr;
+      _end_addr = _base_addr + sz;
+      _was_allocated = true;
     }
 
     void * alloc(const size_t sz)
@@ -53,7 +64,7 @@ namespace Aleph
 
     virtual ~AhArenaAllocator()
     {
-      if (_was_allocated and _base_addr == nullptr)
+      if (_was_allocated and _base_addr != nullptr)
         free((void*) _base_addr);
     }
 
@@ -112,6 +123,6 @@ namespace Aleph
   {
     arena.dealloc<T>(AhArenaAllocator::TemplateType::TEMPLATE, ptr);
   }
-}
+ }
 
 # endif

@@ -103,27 +103,34 @@ TEST_F(StaticArenaFixture, random_allocs)
   gsl_rng_free(r);
 }
 
-TEST_F(StaticArenaFixture, object_alloc)
+struct Foo
 {
-  struct Foo
+  string * data_ptr = nullptr;
+  int i = -1;
+
+  Foo(const char * data, int i)
+    : data_ptr(new string(data)), i(i)
   {
-    string * data_ptr = nullptr;
-    int i = -1;
+    cout << "Foo Constructor" << endl;
+  }
 
-    Foo(const char * data, int i)
-      : data_ptr(new string(data)), i(i)
-    {
-      cout << "Foo Constructor" << endl;
-    }
+  Foo() {}
 
-    ~Foo()
-    {
-      if (data_ptr != nullptr)
-        delete data_ptr;
-      cout << "Foo Destructor" << endl;
-    }
-  };
+  ~Foo()
+  {
+    if (data_ptr != nullptr)
+      delete data_ptr;
+    cout << "Foo Destructor" << endl;
+  }
 
+  bool operator < (const Foo rhs) const
+  {
+    return i < rhs.i;
+  }
+};
+
+TEST_F(StaticArenaFixture, object_alloc)
+{  
   DynList<Foo*> chunks;
   for (int i = 0; true; ++i)
     {
@@ -145,6 +152,39 @@ TEST_F(StaticArenaFixture, object_alloc)
 
   ASSERT_EQ(arena.allocated_size(), 0);
   ASSERT_EQ(arena.available_size(), sz);
+}
+
+TEST(Tree, tree)
+{
+  gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
+  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
+
+  size_t n = 1024;
+  char buf[1024];
+  DynSetTree<int> tree(buf, 1024);
+  
+  for (int i = 0; true; ++i)
+    {
+      try
+        {
+          int * ptr = tree.insert(i);
+          if (ptr == nullptr)
+            break;
+
+          cout << "Allocated " << i << " node" << endl;
+        }
+      catch (bad_alloc & e)
+        {
+          cout << "Arena limit reached" << endl
+               << "Allocated ="  << tree.arena_allocated_size() << endl
+               << "Available = " << tree.arena_available_size() << endl;
+          break;
+        }
+    }
+
+  cout << "Inserted " << tree.size() << " entries" << endl;
+
+  gsl_rng_free(r);
 }
 
 int main(int argc, char **argv)

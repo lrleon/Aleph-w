@@ -31,6 +31,7 @@
 # include <typeinfo>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
+# include <ah-arena.H>
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
 # include <tpl_binTree.H>
@@ -50,7 +51,8 @@ namespace Aleph {
   class AbstractTreeNodeAllocator
   {
   public:
-    
+
+    AbstractTreeNodeAllocator() {}
     virtual Node * alloc_lval(const typename Node::key_type & key) = 0;
     virtual Node * alloc_rval(typename Node::key_type && key) = 0;
     virtual void unalloc(Node *) = 0;
@@ -78,6 +80,48 @@ namespace Aleph {
     }
 
     virtual ~DftTreeNodeAllocator() { /* empty */ }
+  };
+
+  template <typename Node>
+  struct ArenaTreeAllocator : public AbstractTreeNodeAllocator<Node>
+  {
+    AhArenaAllocator arena;
+
+    ArenaTreeAllocator(const size_t & sz = 1024*1024)
+      : arena(sz)
+    {
+      // empty
+    }
+
+    ArenaTreeAllocator(const char * base_addr, const size_t & sz)
+      : arena(base_addr, sz)
+    {
+      // empty
+    }
+
+    virtual Node * alloc_lval(const typename Node::key_type & key)
+    {
+      Node * ptr = allocate<Node>(arena, key);
+      if (ptr == nullptr)
+        throw bad_alloc();
+      return ptr;
+    }
+    
+    virtual Node * alloc_rval(typename Node::key_type && key)
+    {
+      Node * ptr =
+        allocate<Node>(arena, forward<typename Node::key_type>(key));
+      if (ptr == nullptr)
+        throw bad_alloc();
+      return ptr;
+    }
+
+    virtual void unalloc(Node * p)
+    {
+      dealloc<Node>(arena, p);
+    }
+
+    ~ArenaTreeAllocator() { /* empty */ }
   };
     
 
@@ -116,6 +160,8 @@ namespace Aleph {
     size_t num_nodes;
 
     AbstractTreeNodeAllocator<Node> * allocator_ptr = nullptr;
+    bool arena_allocator = false;
+    bool I_must_free_arena_allocator = true;
 
   public:
 
@@ -125,9 +171,11 @@ namespace Aleph {
 
     typedef Key Key_Type;
 
-    void set_allocator(AbstractTreeNodeAllocator<Node> * alloc_ptr)
+    void set_arena_allocator(const size_t & sz)
     {
-      allocator_ptr = alloc_ptr;
+      delete allocator_ptr;
+      allocator_ptr = new ArenaTreeAllocator<Node>(sz);
+      arena_allocator = true;
     }
 
     /** Intercambia todos los elementos del treap this con el treap tree
@@ -149,6 +197,15 @@ namespace Aleph {
       // empty
     }
 
+    DynSetTree(const char * base_addr, const size_t & sz,
+               Compare cmp = Compare())
+      : tree(cmp), num_nodes(0),
+        allocator_ptr(new ArenaTreeAllocator<Node>(base_addr, sz)),
+        arena_allocator(true)
+    {
+      // empty
+    }
+
     /// Instancia un conjunto dinámico copia de srcTree.
     DynSetTree(const DynSetTree & srcTree)
       : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes),
@@ -166,6 +223,24 @@ namespace Aleph {
         }
     }
 
+    size_t arena_allocated_size() const
+    {
+      ah_domain_error_unless(arena_allocator)
+        << "This tree does not handle arena based allocation";
+
+      return static_cast<ArenaTreeAllocator<Node>*>(allocator_ptr)->
+        arena.allocated_size();
+    }
+
+    size_t arena_available_size() const
+    {
+      ah_domain_error_unless(arena_allocator)
+        << "This tree does not handle arena based allocation";
+
+      return static_cast<ArenaTreeAllocator<Node>*>(allocator_ptr)->
+        arena.available_size();
+    }
+
     Special_Ctors(DynSetTree, Key);
 
     DynSetTree(DynSetTree && srcTree)
@@ -178,7 +253,10 @@ namespace Aleph {
     /// Elimina todos los elementos del conjunto
     void empty()
     {
-      destroyRec(tree.getRoot());
+      if (arena_allocator)
+        callKeyDestructorsRec(tree.getRoot());
+      else
+        destroyRec(tree.getRoot());
       num_nodes = 0;
     }
 
@@ -213,7 +291,8 @@ namespace Aleph {
     /// Destructor; todos los elementos son liberados.
     virtual ~DynSetTree()
     {
-      empty();
+      empty(); // TODO: if allocator_ptr is arena ==> we do not need
+               // to traverse the tree
       if (allocator_ptr != nullptr)
         delete allocator_ptr;
     }

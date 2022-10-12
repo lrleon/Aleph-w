@@ -29,6 +29,7 @@
 # define AH_ERRORS_H
 
 # include <stdexcept>
+# include <new>
 # include <sstream>
 
 namespace Aleph
@@ -43,8 +44,9 @@ namespace Aleph
       return 0;
     }
   };
-
+  
 }
+
 
 #define ah_range_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
@@ -85,5 +87,6 @@ namespace Aleph
   if (__builtin_expect((C), 0))                                         \
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
 
 # endif
