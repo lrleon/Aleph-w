@@ -159,9 +159,6 @@ namespace Aleph {
     mutable Tree<Key, Compare> tree;
     size_t num_nodes;
 
-    AbstractTreeNodeAllocator<Node> * allocator_ptr = nullptr;
-    bool arena_allocator = false;
-    bool I_must_free_arena_allocator = true;
 
   public:
 
@@ -170,13 +167,6 @@ namespace Aleph {
     typedef Key Item_Type;
 
     typedef Key Key_Type;
-
-    void set_arena_allocator(const size_t & sz)
-    {
-      delete allocator_ptr;
-      allocator_ptr = new ArenaTreeAllocator<Node>(sz);
-      arena_allocator = true;
-    }
 
     /** Intercambia todos los elementos del treap this con el treap tree
         en tiempo contante (y extremadamente rápido).
@@ -191,25 +181,21 @@ namespace Aleph {
 
     /// Instancia un conjunto dinámico
     DynSetTree(Compare cmp = Compare())
-      : tree(cmp), num_nodes(0),
-        allocator_ptr(new DftTreeNodeAllocator<Node>)
+      : tree(cmp), num_nodes(0)
     {
       // empty
     }
 
     DynSetTree(const char * base_addr, const size_t & sz,
                Compare cmp = Compare())
-      : tree(cmp), num_nodes(0),
-        allocator_ptr(new ArenaTreeAllocator<Node>(base_addr, sz)),
-        arena_allocator(true)
+      : tree(cmp), num_nodes(0)
     {
       // empty
     }
 
     /// Instancia un conjunto dinámico copia de srcTree.
     DynSetTree(const DynSetTree & srcTree)
-      : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes),
-        allocator_ptr(new DftTreeNodeAllocator<Node>)
+      : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
     {
       Node * srcRoot = srcTree.tree.getRoot();
       try
@@ -223,29 +209,10 @@ namespace Aleph {
         }
     }
 
-    size_t arena_allocated_size() const
-    {
-      ah_domain_error_unless(arena_allocator)
-        << "This tree does not handle arena based allocation";
-
-      return static_cast<ArenaTreeAllocator<Node>*>(allocator_ptr)->
-        arena.allocated_size();
-    }
-
-    size_t arena_available_size() const
-    {
-      ah_domain_error_unless(arena_allocator)
-        << "This tree does not handle arena based allocation";
-
-      return static_cast<ArenaTreeAllocator<Node>*>(allocator_ptr)->
-        arena.available_size();
-    }
-
     Special_Ctors(DynSetTree, Key);
 
     DynSetTree(DynSetTree && srcTree)
-      : num_nodes(0),
-        allocator_ptr(new DftTreeNodeAllocator<Node>)
+      : num_nodes(0)
     {
       swap(srcTree);
     }
@@ -253,10 +220,7 @@ namespace Aleph {
     /// Elimina todos los elementos del conjunto
     void empty()
     {
-      if (arena_allocator)
-        callKeyDestructorsRec(tree.getRoot());
-      else
-        destroyRec(tree.getRoot());
+      destroyRec(tree.getRoot());
       num_nodes = 0;
     }
 
@@ -291,10 +255,7 @@ namespace Aleph {
     /// Destructor; todos los elementos son liberados.
     virtual ~DynSetTree()
     {
-      empty(); // TODO: if allocator_ptr is arena ==> we do not need
-               // to traverse the tree
-      if (allocator_ptr != nullptr)
-        delete allocator_ptr;
+      empty();
     }
 
   private:
@@ -321,11 +282,11 @@ namespace Aleph {
     */
     Key * insert(const Key & key)
     {
-      Node * p = allocator_ptr->alloc_lval(key);
+      Node * p = new Node(key);
       Key * key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         {
-          allocator_ptr->unalloc(p);
+          delete p;
           return nullptr;
         }
 
@@ -334,11 +295,11 @@ namespace Aleph {
 
     Key * insert(Key && key)
     {
-      Node * p = allocator_ptr->alloc_rval(forward<Key>(key));
+      Node * p = new Node(std::forward<Key>(key));
       Key * key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         {
-          allocator_ptr->unalloc(p);
+          delete p;
           return nullptr;
         }
 
@@ -361,8 +322,8 @@ namespace Aleph {
     {
       Node * q = tree.search_or_insert(p);
       if (q != p) // waw there an insertion?
-        allocator_ptr->unalloc(p); // No (KEY(p) is already in the tree) ==>
-                                   // free allocated node
+        delete p; // No (KEY(p) is already in the tree) ==> free
+                  // allocated node
       else
         ++num_nodes;
 
@@ -374,7 +335,7 @@ namespace Aleph {
       Node * q = tree.search_or_insert(p);
       if (q != p)
         { // KEY(p) is already inside the tree
-          allocator_ptr->unalloc(p);
+          delete p;
           return pair<Node*, bool>(q, true);
         }
       ++num_nodes;
@@ -397,13 +358,13 @@ namespace Aleph {
     */
     Key * search_or_insert(const Key & key)
     {
-      return __search_or_insert(allocator_ptr->alloc_lval(key));
+      return __search_or_insert(new Node(key));
     }
 
     Key * search_or_insert(Key && key)
     {
       return
-        __search_or_insert(allocator_ptr->alloc_rval(forward<Key>(key)));
+        __search_or_insert(new Node(forward<Key>(key)));
     }
 
     /* Busca la clave <code>key</code> en el árbol binario de búsqueda y
@@ -421,14 +382,13 @@ namespace Aleph {
     */
     pair<Key*, bool> contains_or_insert(const Key & key)
     {
-      auto p = __contains_or_insert(allocator_ptr->alloc_lval(key));
+      auto p = __contains_or_insert(new Node(key));
       return pair<Key*, bool>(&p.first->get_key(), p.second);
     }
 
     pair<Key*, bool> contains_or_insert(Key && key)
     {
-      auto p =
-        __contains_or_insert(allocator_ptr->alloc_rval(forward<Key>(key)));
+      auto p = __contains_or_insert(new Node(forward<Key>(key)));
       return pair<Key*, bool>(&p.first->get_key(), p.second);
     }
 
@@ -445,12 +405,12 @@ namespace Aleph {
 
     Key * insert_dup(const Key & key)
     {
-      return __insert_dup(allocator_ptr->alloc_lval(key));
+      return __insert_dup(new Node(key));
     }
 
     Key * insert_dup(Key && key)
     {
-      return __insert_dup(allocator_ptr->alloc_rval(forward<Key>(key)));
+      return __insert_dup(new Node(forward<Key>(key)));
     }
 
     Key * put(const Key & key)
@@ -477,7 +437,7 @@ namespace Aleph {
       if (p == nullptr)
         return num_nodes;
 
-      allocator_ptr->unalloc(p);
+      delete p;
 
       return --num_nodes;
     }
@@ -501,7 +461,7 @@ namespace Aleph {
 
       auto ret_val = p->get_key();
 
-      allocator_ptr->unalloc(p);
+      delete p;
 
       --num_nodes;
 
@@ -520,7 +480,7 @@ namespace Aleph {
       Node * p = static_cast<Node*>(tree.remove_pos(i));
       const Key ret_val = KEY(p);
 
-      allocator_ptr->unalloc(p);
+      delete p;
 
       --num_nodes;
 
