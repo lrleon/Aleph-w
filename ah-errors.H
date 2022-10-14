@@ -79,7 +79,7 @@ namespace Aleph
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_logic_error_if(C)                                            \
-  if (__builtin_expect(!(C), 0))                                        \
+  if (__builtin_expect((C), 0))                                        \
     Aleph::ExceptionBuilder<std::logic_error>(),                        \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
