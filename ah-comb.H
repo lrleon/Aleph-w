@@ -244,13 +244,13 @@ namespace Aleph
   void for_each_perm(const DynList<DynList<T>> & l, Op & op)
   {
     traverse_perm(l, [&op] (const auto & row)
-                     {
-                       op(row);
-                       return true;
-                     });
+    {
+      op(row);
+      return true;
+    });
   }
 
-  /// \overload traverse_perm
+  /// \overloadf traverse_perm
   template <typename T, class Op> inline
   void for_each_perm(const DynList<DynList<T>> & l, Op && op)
   {
@@ -270,10 +270,10 @@ namespace Aleph
   {
     T acu = init;
     traverse_perm(l, [&op, &acu] (const auto & l)
-                     {
-                       acu = op(acu, l);
-                       return true;
-                     });
+    {
+      acu = op(acu, l);
+      return true;
+    });
     return acu;
   }
 
