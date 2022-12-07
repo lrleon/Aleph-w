@@ -871,7 +871,7 @@ public:
 
       c.foldl(std::numeric_limits<int>::min(), [] (int acc, int item)
 	    {
-      return std::min(acc, item);
+              return std::min(acc, item);
 	    });
 
       When the folded type is different than `T`, then you must
@@ -881,7 +881,7 @@ public:
 
       c.template foldl<double>(0, [] (double acc, int item)
 	    {
-      return acu + 1.0/item;
+              return acu + 1.0/item;
 	    });
 
       \param[in] init initial value of folded value (or accumulator).
