@@ -335,7 +335,7 @@ namespace Aleph {
       Node * q = tree.search_or_insert(p);
       if (q != p)
         { // KEY(p) is already inside the tree
-          delete p;
+          delete p; 
           return pair<Node*, bool>(q, true);
         }
       ++num_nodes;
