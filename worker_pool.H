@@ -16,14 +16,14 @@ class WorkersSet
 {
 public:
 
-  using WorkerFct = bool (*)(ParsDesc pars_ptr);
+  using WorkerFct = bool (*)(ParsDesc & pars_ptr);
 
 private:
 
   WorkerFct worker_fct = nullptr;  size_t num_workers = 0;
   mutex m;
   condition_variable cond;
-  DynListQueue<ParsDesc> q;
+  DynListQueue<ParsDesc*> q;
   DynList<thread> threads;
   bool shut_down = false;
 
@@ -39,11 +39,13 @@ private:
         if (q.is_empty())
           continue;
 
+        ParsDesc * pars_ptr = q.get();
+
         lock.unlock();
 
         try
           {
-            shut_down = (*worker_fct)(q.get());
+            shut_down = (*worker_fct)(*pars_ptr);
           }
          catch (...) { /* Exceptions are only cauthg */ }
 
@@ -66,18 +68,23 @@ public:
       threads.append(thread(&WorkersSet::worker_handler, this));
   }
 
-  ~WorkersSet()
+  void shutdown()
   {
-    lock_guard<mutex> lock(m);
+    unique_lock<mutex> lock(m);
     shut_down = true;
     cond.notify_all();
+  }
+
+  ~WorkersSet()
+  {
+    shutdown();
     threads.mutable_for_each([] (thread & th) { th.join(); });
   }
 
-  void call(ParsDesc pars_desc_ptr)
+  void call(ParsDesc & pars)
   {
-    lock_guard<mutex> lock(m);
-    q.put(&pars_desc_ptr);
+    unique_lock<mutex> lock(m);
+    q.put(&pars);
     cond.notify_one();
   }
 };
