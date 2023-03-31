@@ -32,6 +32,7 @@
 # include <cmath>
 # include <stdexcept>
 
+# include <ah-errors.H>
 # include <ahUtils.H>
 # include <ahDry.H>
 # include <ahIterator.H>
@@ -371,8 +372,7 @@ namespace Aleph
 
       T & top() const
       {
-        if (n == 0)
-          throw std::underflow_error("top(): MemArray is empty");
+        ah_domain_error_if(n == 0) << "top(): MemArray is empty";
 
         return ptr[0];
       }
@@ -380,8 +380,7 @@ namespace Aleph
       /// Remove first item. Gap is closed
       T remove_first()
       {
-        if (n == 0)
-          throw std::underflow_error("remove_first(): MemArray is empty");
+        ah_domain_error_if(n == 0) << "remove_first(): MemArray is empty";
         assert(ptr);
         T ret = move(ptr[0]);
         close_gap(0);
@@ -503,9 +502,8 @@ namespace Aleph
       {
         assert(ptr);
         long idx = n - i;
-        if (idx < 0)
-          throw std::underflow_error("MemArray::get(): deleted more entries"
-                                     " than capacity");
+        ah_domain_error_if(idx < 0)
+          << "MemArray::get(): deleted more entries than capacity";
 
         n = idx;
         T ret = std::move(ptr[n]);
@@ -533,8 +531,7 @@ namespace Aleph
       /// Return a modifiable reference to the last element
       T & last() const
       {
-        if (n == 0)
-          throw std::underflow_error("MemArray::last(): empty array");
+        ah_domain_error_if(n == 0) << "MemArray::last(): empty array";
         return ptr[n - 1];
       }
 
