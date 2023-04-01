@@ -29,8 +29,8 @@ private:
 
   DynListQueue<void*> q;
   DynList<thread> threads;
-  atomic<bool> shut_down = false;
-  atomic<bool> job_done = false;
+  bool shut_down = false;
+  bool job_done = false;
 
   condition_variable job_done_cond;
   mutex job_done_mutex;
@@ -40,46 +40,47 @@ private:
     unique_lock<mutex> lock(m);
     while (true)
       {
-        //cout << this_thread::get_id() << " will block" << endl;
-        cond.wait(lock, [this] { return not q.is_empty() or shut_down; });
-        //        cond.wait(lock, [this] { return num_workers > 0; });
-        if (shut_down)
+        cond.wait(lock, [this] { return num_workers > 0 or shut_down; });
+         if (shut_down)
           return;
 
-        assert(not q.is_empty());
-        
-        void * pars_ptr = q.get();
+         while (num_workers > 0)
+           {
+             cond.wait(lock,
+                       [this]
+                       {
+                         return (not q.is_empty()) or shut_down;
+                  });
+             
+             if (shut_down)
+               return;
 
-        if (not job_done)
-          {
-            lock.unlock();
-            try
-              {
-                job_done = (*worker_fct)(pars_ptr);
-              }
-            catch (...) { /* Exceptions are only caught and hidden */ }
-            lock.lock();
-          }
+             if (not q.is_empty())
+               {
+                 void * pars_ptr = q.get();
 
-        --num_workers;
-        free(pars_ptr);
+                 if (not job_done)
+                   {
+                     lock.unlock();
+                     try
+                       {
+                         job_done = (*worker_fct)(pars_ptr);
+                       }
+                     catch (exception & e)
+                       {
+                         cout << "Warning: workers exception "
+                              << e.what() << endl;
+                       }
+                     lock.lock();
+                     free(pars_ptr);
+                   }
+                 --num_workers;
+               }
+           }
 
-        if (num_workers == 0)
-          {
-            assert(q.is_empty());
-            job_done_cond.notify_one();
-            continue;
-          }
-
-        if (job_done)
-          {
-            while (num_workers > 0);
-
-            assert(q.is_empty());
-            
-            job_done_cond.notify_one();
-            continue;
-          }       
+         assert(q.is_empty());
+         job_done_cond.notify_one();
+         continue;
       }
   }
   
@@ -107,6 +108,7 @@ public:
 
   void prepare_num_workers(size_t n)
   {
+    unique_lock<mutex> lock(m);
     num_workers = n;
   }
 
@@ -130,11 +132,10 @@ public:
 
   void wait_until_all_workers_finished_or_job_is_done()
   {
-    unique_lock<mutex> lock(job_done_mutex);
-    job_done_cond.wait(lock);
-
-    ah_domain_error_if(num_workers > 0)
-      << "Inconsistency: " << num_workers << " workers still pending";
+    {
+      unique_lock<mutex> lock(job_done_mutex);
+      job_done_cond.wait(lock);
+    }
   }
 };
 
