@@ -7,7 +7,7 @@
 # include <memory>
 
 # include <ah-errors.H>
-# include <tpl_dynListQueue.H>
+# include <tpl_arrayQueue.H>
 
 using namespace std;
 using namespace Aleph;
@@ -27,7 +27,7 @@ private:
 
   atomic<size_t> num_workers = 0;
 
-  DynListQueue<void*> q;
+  FixedQueue<void*> q;
   DynList<thread> threads;
   bool shut_down = false;
   bool job_done = false;
@@ -86,8 +86,9 @@ private:
   
 public:
   
-  WorkersSet(WorkerFct worker_fct, const size_t n = 16)
-    : worker_fct(worker_fct), num_threads(n)
+  WorkersSet(WorkerFct worker_fct,
+             const size_t qsize, const size_t n = 16)
+    : worker_fct(worker_fct), num_threads(n), q(qsize)
   {
     for (size_t i = 0; i < n; ++i)
       threads.append(thread(&WorkersSet::worker_handler, this));

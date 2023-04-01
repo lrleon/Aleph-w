@@ -39,6 +39,11 @@ namespace Aleph
       _was_allocated = true;
     }
 
+    void reset()
+    {
+      _curr_addr = _base_addr;
+    }
+
     void * alloc(const size_t sz)
     {
       if (sz == 0)
