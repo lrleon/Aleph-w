@@ -508,6 +508,25 @@ void destroyRec(Node *& root) noexcept
   root = Node::NullPtr;
 }
 
+/** Traverses recursively the tree and calls key's destructors
+
+        @param[in] root of tree to free
+        @ingroup Arboles
+     */
+    template <class Node> inline
+void callKeyDestructorsRec(Node *& root) noexcept
+{
+  if (root == Node::NullPtr)
+    return;
+
+  using Key = typename Node::key_type;
+
+  callKeyDestructorsRec(LLINK(root));
+  callKeyDestructorsRec(RLINK(root));
+  root->get_key().~Key();
+  root = Node::NullPtr;
+}
+
     /** Copy recursively a tree
 
         @param[in] root of tre to be copied

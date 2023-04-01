@@ -215,16 +215,14 @@ namespace Aleph
   template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
     struct MapOLhash : public MapOpenHash<Key, Data, Cmp, OLhashTable>
     {
-      using Base = MapOpenHash<Key, Data, Cmp, OLhashTable>;
-      using Base::Base;
+      using MapOpenHash<Key, Data, Cmp, OLhashTable>::MapOpenHash;
     };
   
   
   template <typename Key, typename Data, class Cmp = Aleph::equal_to<Key>>
     struct MapODhash : public MapOpenHash<Key, Data, Cmp, ODhashTable>
     {
-      using Base = MapOpenHash<Key, Data, Cmp, ODhashTable>;
-      using Base::Base;
+      using MapOpenHash<Key, Data, Cmp, ODhashTable>::MapOpenHash;
     };
   
 } // end namespace Aleph

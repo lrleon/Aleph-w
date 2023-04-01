@@ -32,6 +32,8 @@
 
 int keys [] = { 36, 32, 4, 12, 52, 59, 2, 2, 26, 1 };
 
+int * keys_ptr = keys;
+
 using namespace std;
 using namespace Aleph;
 
@@ -64,6 +66,8 @@ void inorder(int v[], int n, int i)
 }
 
 
+
+
 int main(int argn, char* argc[])
 {
   srand(time(0));
@@ -71,6 +75,13 @@ int main(int argn, char* argc[])
 
   if (argn > 1)
     n = atoi(argc[1]);
+
+  {
+    // ArrayHeap<int*> heap(n, [] (int * ptr1, int * ptr2)
+    // {
+    //   return *ptr1 < *ptr2;
+    // });
+  }
 
   {
     ArrayHeap<int> heap(n);

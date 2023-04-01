@@ -228,7 +228,7 @@ namespace Aleph {
     Args_Ctor(ArrayHeap, T);
 
     /// Constructor con dimensión por omisión.
-    ArrayHeap(const size_t d = 1024, Compare __cmp = Compare())
+    ArrayHeap(const size_t d = 1024, Compare && __cmp = Compare())
       : array(nullptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
     {
       array = new T [d + 1];
@@ -236,7 +236,7 @@ namespace Aleph {
     }
 
     /// Constructor con arreglo y dimensión.
-    ArrayHeap(T * ptr, const size_t & d, Compare __cmp = Compare())
+    ArrayHeap(T * ptr, const size_t & d, Compare && __cmp = Compare())
       : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
     {
       // empty

@@ -150,8 +150,7 @@ public:
   /// item on the container
   auto get_it() const
   {
-    auto ret = typename Container::Iterator(*const_me());
-    return ret;
+    return typename Container::Iterator(*const_me());
   }
 
   /// Return an properly initialized iterator positioned at the `pos`
@@ -661,7 +660,7 @@ public:
   void each(size_t pos, size_t slice, Operation & operation) const
   {
     auto it = const_me()->get_it(pos);
-    for (size_t i = pos; true; i += slice)
+    while (true)
       {
         operation(it.get_curr());
         for (size_t k = 0; k < slice; ++k)
@@ -872,7 +871,7 @@ public:
 
       c.foldl(std::numeric_limits<int>::min(), [] (int acc, int item)
 	    {
-      return std::min(acc, item);
+              return std::min(acc, item);
 	    });
 
       When the folded type is different than `T`, then you must
@@ -882,7 +881,7 @@ public:
 
       c.template foldl<double>(0, [] (double acc, int item)
 	    {
-      return acu + 1.0/item;
+              return acu + 1.0/item;
 	    });
 
       \param[in] init initial value of folded value (or accumulator).

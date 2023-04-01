@@ -18,7 +18,7 @@ CXX = clang++
 
 GTESTDIR=$(shell echo $$GOOGLETEST)
 
-SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc odhash.cc dynsetohash.cc hash-it.cc ah-zip.cc ah-functional.cc ah-dry.cc tree-it.cc al-domain.cc al-vector.cc al-matrix.cc
+SRCS=array_utils.cc array-it.cc memarray.cc slinknc.cc snodenc.cc htlist.cc dynlist.cc dlink.cc dnode.cc dyndlist.cc arraystack.cc fixedstack.cc dynliststack.cc arrayqueue.cc dynlistqueue.cc bin-node.cc tree-node.cc odhash.cc dynsetohash.cc hash-it.cc ah-zip.cc ah-functional.cc ah-dry.cc tree-it.cc al-domain.cc al-vector.cc al-matrix.cc ah-arena.cc
 
 LOCALLIBS=	../libAleph.a
 
@@ -120,6 +120,9 @@ NormalProgramTarget(al-vector,al-vector.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 AllTarget(al-matrix)
 NormalProgramTarget(al-matrix,al-matrix.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(ah-arena)
+NormalProgramTarget(ah-arena,ah-arena.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 
 DependTarget()

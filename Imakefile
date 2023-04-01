@@ -76,7 +76,7 @@ DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++20 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
 
 NormalLibraryObjectRule()
 

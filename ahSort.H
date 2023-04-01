@@ -133,7 +133,6 @@ namespace Aleph
     return c;
   }
 
-
   template <typename T, template <typename> class C>
   class Compute_Ranks
   {

@@ -28,24 +28,24 @@ using namespace Aleph;
 
 namespace Aleph {
 
-# define LINBUCKET_BODY(BUCKETNAME)             \
-                                                \
-  Dlink link;                                   \
-                                                \
-public:                                         \
-                                                \
- BUCKETNAME(const BUCKETNAME & bucket)                                \
-   : Dnode<Key>(bucket) {}                                            \
-                                                                      \
- BUCKETNAME() {}						      \
-                                                                      \
- BUCKETNAME(const Key & key)					      \
-   : Dnode<Key>(key) {}                                               \
-                                                                      \
- Key & get_key() noexcept { return this->get_data(); }                \
-                                                                      \
- Dlink * get_link() noexcept { return &link; }                        \
-                                                                      \
+# define LINBUCKET_BODY(BUCKETNAME)                     \
+                                                        \
+  Dlink link;                                           \
+                                                        \
+public:                                                 \
+                                                        \
+ BUCKETNAME(const BUCKETNAME & bucket)                  \
+   : Dnode<Key>(bucket) {}                              \
+                                                        \
+ BUCKETNAME() {}                                        \
+                                                        \
+ BUCKETNAME(const Key & key)                            \
+   : Dnode<Key>(key) {}                                 \
+                                                        \
+ Key & get_key() noexcept { return this->get_data(); }  \
+                                                        \
+ Dlink * get_link() noexcept { return &link; }          \
+                                                        \
  DLINK_TO_BASE(BUCKETNAME, link);
 
 

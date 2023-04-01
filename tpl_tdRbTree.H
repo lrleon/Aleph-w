@@ -37,9 +37,6 @@
 # include <rbNode.H>
 
 
-using namespace BinNode_Utils;
-
-
     template <template <class> class NodeType, class Key>
 class GenTdRbTree 
 {

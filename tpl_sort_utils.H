@@ -633,10 +633,12 @@ namespace Aleph
       \ingroup Algos
   */
   template <typename T, class Compare = Aleph::less<T>> inline
-  void insertion_sort(T * a, const size_t l, const size_t r,
+  void insertion_sort(T * a, const int l, const int r,
                       Compare cmp = Compare()) noexcept
   {
-    for (size_t i = l, j; i <= r; ++i)
+    if (l >= r)
+      return;
+    for (int i = l, j; i <= r; ++i)
       {
         T tmp = a[i]; // memorice a[i], pues será sobre escrito
         for (j = i; j > l and cmp(tmp, a[j - 1]); --j)

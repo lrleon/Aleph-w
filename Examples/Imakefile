@@ -50,7 +50,7 @@ SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
 	writeAvl.C writeBalance.C writeBinTree.C write_floyd.C		\
 	writeHeap.C write_huffman.C writeInsertRoot.C writeJoin.C	\
 	writeRandTree.C writeRankTree.C writeRb.C writeSplay.C		\
-	writeTreap.C testSplayRk1.C testSplayTree.C
+	writeTreap.C testSplayRk1.C testSplayTree.C workersTest.C
 
 LOCALLIBS=	../libAleph.a
 
@@ -564,6 +564,9 @@ NormalProgramTarget(testSplayRk1,testSplayRk1.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIB
 
 AllTarget(testSplayTree)
 NormalProgramTarget(testSplayTree,testSplayTree.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
+
+AllTarget(workersTest)
+NormalProgramTarget(workersTest,workersTest.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
 DependTarget()
 

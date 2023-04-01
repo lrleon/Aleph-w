@@ -42,6 +42,7 @@ status = system "make -j #{ncpu}"
 fail "Compilation failed" unless status
 
 tests.each do |name|
+  puts "Running test #{name}"
   status = system "./#{name}"
   unless status
     system "figlet \"#{name} failed\""

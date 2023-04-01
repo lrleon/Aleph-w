@@ -75,14 +75,17 @@ TEST(HTList, Basic_operations)
   EXPECT_EQ(static_cast<Snodenc<int>*>(list.get_first())->get_data(), 1);
   EXPECT_EQ(static_cast<Snodenc<int>*>(list.get_last())->get_data(), 2);
 
-  list.insert(new Snodenc<int>(0));
-  list.append(new Snodenc<int>(3));
+  auto p1 = new Snodenc<int>(0);
+  auto p2 = new Snodenc<int>(3);
+  list.insert(p1);
+  list.append(p2);
   EXPECT_EQ(list.get_first()->to_snodenc<int>()->get_data(), 0);
   EXPECT_EQ(list.get_last()->to_snodenc<int>()->get_data(), 3);
 
   // list = { 0, 1, 2, 3} 
 
   auto fst = list.remove_first(); // remove 0
+  EXPECT_EQ(fst, p1);
   EXPECT_EQ(fst->to_snodenc<int>()->get_data(), 0);
   delete fst;
   EXPECT_EQ(list.size(), 3);
@@ -109,6 +112,7 @@ TEST(HTList, Basic_operations)
 
   fst = list.remove_first(); // remove 3
   EXPECT_EQ(fst->to_data<int>(), 3);
+  delete fst;
   EXPECT_TRUE(list.is_empty());
   EXPECT_EQ(list.size(), 0);
 
@@ -131,6 +135,8 @@ TEST(HTList, Simple_append_and_insert_of_list)
   EXPECT_EQ(list.size(), 2);
   EXPECT_EQ(list.get_first()->to_data<int>(), 1);
   EXPECT_EQ(list.get_last()->to_data<int>(), 2);
+
+  list.remove_all_and_delete();
 }
 
 TEST_F(List_of_25_nodes, Basic_operations)
@@ -210,6 +216,8 @@ TEST_F(List_of_25_nodes, swap)
   int i = 1;
   for (HTList::Iterator it = laux; it.has_curr(); it.next(), ++i)
     EXPECT_EQ(it.get_curr()->to_data<int>(), i);
+
+  laux.remove_all_and_delete();
 }
 
 TEST_F(List_of_25_nodes, cut_and_concat)

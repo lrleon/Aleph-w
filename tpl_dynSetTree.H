@@ -31,6 +31,7 @@
 # include <typeinfo>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
+# include <ah-arena.H>
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
 # include <tpl_binTree.H>
@@ -39,12 +40,90 @@
 # include <tpl_avl.H>
 # include <tpl_rand_tree.H>
 # include <tpl_rb_tree.H>
-//# include <tpl_tdRbTree.H>
+# include <tpl_tdRbTree.H>
 # include <tpl_splay_tree.H>
 
 using namespace Aleph;
 
 namespace Aleph {
+
+  template <typename Node>
+  class AbstractTreeNodeAllocator
+  {
+  public:
+
+    AbstractTreeNodeAllocator() {}
+    virtual Node * alloc_lval(const typename Node::key_type & key) = 0;
+    virtual Node * alloc_rval(typename Node::key_type && key) = 0;
+    virtual void unalloc(Node *) = 0;
+    virtual ~AbstractTreeNodeAllocator() {};
+  };
+
+  template <typename Node>
+  class DftTreeNodeAllocator : public AbstractTreeNodeAllocator<Node>
+  {
+  public:
+
+    virtual Node * alloc_lval(const typename Node::key_type & key)
+    {
+      return new Node(key);
+    }
+    
+    virtual Node * alloc_rval(typename Node::key_type && key)
+    {
+      return new Node(forward<typename Node::key_type>(key));
+    }
+
+    virtual void unalloc(Node * p)
+    {
+      delete p;
+    }
+
+    virtual ~DftTreeNodeAllocator() { /* empty */ }
+  };
+
+  template <typename Node>
+  struct ArenaTreeAllocator : public AbstractTreeNodeAllocator<Node>
+  {
+    AhArenaAllocator arena;
+
+    ArenaTreeAllocator(const size_t & sz = 1024*1024)
+      : arena(sz)
+    {
+      // empty
+    }
+
+    ArenaTreeAllocator(const char * base_addr, const size_t & sz)
+      : arena(base_addr, sz)
+    {
+      // empty
+    }
+
+    virtual Node * alloc_lval(const typename Node::key_type & key)
+    {
+      Node * ptr = allocate<Node>(arena, key);
+      if (ptr == nullptr)
+        throw bad_alloc();
+      return ptr;
+    }
+    
+    virtual Node * alloc_rval(typename Node::key_type && key)
+    {
+      Node * ptr =
+        allocate<Node>(arena, forward<typename Node::key_type>(key));
+      if (ptr == nullptr)
+        throw bad_alloc();
+      return ptr;
+    }
+
+    virtual void unalloc(Node * p)
+    {
+      dealloc<Node>(arena, p);
+    }
+
+    ~ArenaTreeAllocator() { /* empty */ }
+  };
+    
 
   /** Conjunto dinámico de elementos de tipo genérico T implementado
       mediante una clase de árboles binarios.
@@ -80,6 +159,7 @@ namespace Aleph {
     mutable Tree<Key, Compare> tree;
     size_t num_nodes;
 
+
   public:
 
     typedef DynSetTree Set_Type;
@@ -103,7 +183,14 @@ namespace Aleph {
     DynSetTree(Compare cmp = Compare())
       : tree(cmp), num_nodes(0)
     {
-      /* empty */
+      // empty
+    }
+
+    DynSetTree(const char * base_addr, const size_t & sz,
+               Compare cmp = Compare())
+      : tree(cmp), num_nodes(0)
+    {
+      // empty
     }
 
     /// Instancia un conjunto dinámico copia de srcTree.
@@ -124,7 +211,8 @@ namespace Aleph {
 
     Special_Ctors(DynSetTree, Key);
 
-    DynSetTree(DynSetTree && srcTree) : num_nodes(0)
+    DynSetTree(DynSetTree && srcTree)
+      : num_nodes(0)
     {
       swap(srcTree);
     }
@@ -194,12 +282,28 @@ namespace Aleph {
     */
     Key * insert(const Key & key)
     {
-      return __insert(new Node(key));
+      Node * p = new Node(key);
+      Key * key_p = __insert(p);
+      if (key_p == nullptr) // was there insertion?
+        {
+          delete p;
+          return nullptr;
+        }
+
+      return key_p;
     }
 
     Key * insert(Key && key)
     {
-      return __insert(new Node(std::forward<Key>(key)));
+      Node * p = new Node(std::forward<Key>(key));
+      Key * key_p = __insert(p);
+      if (key_p == nullptr) // was there insertion?
+        {
+          delete p;
+          return nullptr;
+        }
+
+      return key_p;
     }
 
     Key * append(const Key & key)
@@ -217,8 +321,9 @@ namespace Aleph {
     Key * __search_or_insert(Node * p)
     {
       Node * q = tree.search_or_insert(p);
-      if (q != p)
-        delete p;
+      if (q != p) // waw there an insertion?
+        delete p; // No (KEY(p) is already in the tree) ==> free
+                  // allocated node
       else
         ++num_nodes;
 
@@ -230,7 +335,7 @@ namespace Aleph {
       Node * q = tree.search_or_insert(p);
       if (q != p)
         { // KEY(p) is already inside the tree
-          delete p;
+          delete p; 
           return pair<Node*, bool>(q, true);
         }
       ++num_nodes;
@@ -258,7 +363,8 @@ namespace Aleph {
 
     Key * search_or_insert(Key && key)
     {
-      return __search_or_insert(new Node(std::forward<Key>(key)));
+      return
+        __search_or_insert(new Node(forward<Key>(key)));
     }
 
     /* Busca la clave <code>key</code> en el árbol binario de búsqueda y
@@ -282,7 +388,7 @@ namespace Aleph {
 
     pair<Key*, bool> contains_or_insert(Key && key)
     {
-      auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
+      auto p = __contains_or_insert(new Node(forward<Key>(key)));
       return pair<Key*, bool>(&p.first->get_key(), p.second);
     }
 
@@ -304,7 +410,7 @@ namespace Aleph {
 
     Key * insert_dup(Key && key)
     {
-      return __insert_dup(new Node(std::forward<Key>(key)));
+      return __insert_dup(new Node(forward<Key>(key)));
     }
 
     Key * put(const Key & key)
