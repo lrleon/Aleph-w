@@ -46,11 +46,10 @@ private:
 
          while (num_workers > 0)
            {
-             cond.wait(lock,
-                       [this]
-                       {
-                         return (not q.is_empty()) or shut_down;
-                  });
+             cond.wait(lock, [this]
+             {
+               return (not q.is_empty()) or shut_down;
+             });
              
              if (shut_down)
                return;
@@ -133,10 +132,8 @@ public:
 
   void wait_until_all_workers_finished_or_job_is_done()
   {
-    {
-      unique_lock<mutex> lock(job_done_mutex);
-      job_done_cond.wait(lock);
-    }
+    unique_lock<mutex> lock(job_done_mutex);
+    job_done_cond.wait(lock);
   }
 };
 
