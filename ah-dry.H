@@ -153,6 +153,11 @@ public:
     return typename Container::Iterator(*const_me());
   }
 
+  // auto get_it()
+  // {
+  //   return typename Container::Iterator(*me());
+  // }
+
   /// Return an properly initialized iterator positioned at the `pos`
   /// item on the container
   auto get_it(size_t pos) const

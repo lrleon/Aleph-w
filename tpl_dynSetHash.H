@@ -177,16 +177,16 @@ namespace Aleph
       return &ret_val->get_key();
     }
 
-    tuple<Key*, bool> search_or_insert_bucket(Bucket * bucket)
+    pair<Key*, bool> search_or_insert_bucket(Bucket * bucket)
     {
       Bucket * ret_val = (Bucket*) this->Base::search_or_insert(bucket);
       if (ret_val != bucket) // is the key in the table?
         {    // yes! ==> free bucket
           delete bucket;
-          return make_tuple(&ret_val->get_key(), true);
+          return { &ret_val->get_key(), true };
         }
 
-      return make_tuple(&ret_val->get_key(), false);
+      return { &ret_val->get_key(), false };
     }
 
   public:
