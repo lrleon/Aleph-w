@@ -28,11 +28,14 @@
 # ifndef AH_ITERATOR_H
 # define AH_ITERATOR_H
 
+# include <iterator>
+
 template <class SetType>
 struct StlIterator : public SetType::Iterator
 {
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
+  using iterator_category = std::forward_iterator_tag;
 
   using value_type = T;
 
@@ -91,6 +94,7 @@ struct StlConstIterator : public SetType::Iterator
 {
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
+  using iterator_category = std::forward_iterator_tag;
 
   using value_type = T;
 
