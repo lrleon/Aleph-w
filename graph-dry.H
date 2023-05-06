@@ -2410,10 +2410,12 @@ public:
   // template <class Filt> using Filter_Iterator = Digraph_Iterator<Filt>;
 
   // /** Iterator on incoming arcs of node */
-  // using In_Iterator = Digraph_Iterator<In_Filt>;
+  template <class Filt>
+  using In_Iterator = Digraph_Iterator<In_Filt>;
 
   // /** Iterator on incoming arcs of node */
-  // using Out_Iterator = Digraph_Iterator<Out_Filt>;
+  template <class Filt>
+  using Out_Iterator = Digraph_Iterator<Out_Filt>;
 
   /** Return an input iterator on the incoming arcs to `p`
 
