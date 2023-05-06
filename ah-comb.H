@@ -276,7 +276,7 @@ namespace Aleph
     DynSetTree<DynList<T>, Avl_Tree, CmpContainer<DynList<T>, T>> combs;
     for (auto it = perms.get_it(); it.has_curr(); it.next())
       {
-        DynList<T> perm = Aleph::sort(it.get_curr());
+        DynList<T> perm = sort(it.get_curr());
         combs.insert(perm);
       }
 
