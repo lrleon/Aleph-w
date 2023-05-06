@@ -2435,7 +2435,8 @@ public:
       @return an instantiated input iterator on the arcs positioned at the
       first arc.
   */
-  In_Iterator get_in_it(Node * p) const noexcept { return In_Iterator(p); }
+  template <class Filt>
+  In_Iterator<Filt> get_in_it(Node * p) const noexcept { return In_Iterator(p); }
 
   /** Return an output iterator on the incoming nodes to `p`
 
@@ -2455,7 +2456,8 @@ public:
       @return an instantiated output iterator on the arcs positioned at the
       first arc.
   */
-  Out_Iterator get_out_it(Node * p) const noexcept { return Out_Iterator(p); }
+  template <class Filt>
+  Out_Iterator<Filt> get_out_it(Node * p) const noexcept { return Out_Iterator(p); }
 
   /** Search a directed arc linking two nodes.
 
