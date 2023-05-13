@@ -1171,7 +1171,7 @@ public:
   T & insert(const T & item)
   {
     this->append();
-    Aleph::open_gap(*this, current_dim);
+    open_gap(*this, current_dim);
     T & ret = access(0);
     ret = item;
     return ret;
@@ -1180,7 +1180,7 @@ public:
   T & insert(T && item)
   {
     this->append();
-    Aleph::open_gap(*this, current_dim);
+    open_gap(*this, current_dim);
     T & ret = access(0);
     ret = std::forward<T>(item);
     return ret;
