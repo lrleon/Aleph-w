@@ -39,7 +39,7 @@
 # include <array_it.H>
 # include <array_utils.H>
 
-using namespace Aleph;
+//using namespace Aleph;
 
 namespace Aleph
 {
