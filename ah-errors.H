@@ -44,9 +44,27 @@ namespace Aleph
       return 0;
     }
   };
+
+
+  template <class E>
+  struct WarningBuilder
+  {
+    int operator, (const std::ostream &s)
+    {
+      throw E(static_cast<const std::ostringstream &>(s).str());
+      return 0;
+    }
+  };
   
 }
 
+#define ah_warning_unless(out, C)                                       \
+  if (__builtin_expect(!(C), 0))                                        \
+    out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_warning_if(out, C)                                          \
+  if (__builtin_expect((C), 0))                                        \
+    out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \

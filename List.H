@@ -730,8 +730,8 @@ public:
     insert(itor, num - num_elem, t);
   }
 
-      /// Elimina de la lista todos los elementos duplicados
-      /// consecutivos cuyo criterio op sea true.
+  // Remove from the list all consecutive duplicate elements whose
+  // opposite criterion is true
       template <class Op>
   void unique(const Op & op) 
   {
