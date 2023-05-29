@@ -45,17 +45,6 @@ namespace Aleph
     }
   };
 
-
-  template <class E>
-  struct WarningBuilder
-  {
-    int operator, (const std::ostream &s)
-    {
-      throw E(static_cast<const std::ostringstream &>(s).str());
-      return 0;
-    }
-  };
-  
 }
 
 #define ah_warning_unless(out, C)                                       \
