@@ -2411,11 +2411,17 @@ public:
 
   // /** Iterator on incoming arcs of node */
   template <class Filt>
-  using In_Iterator = Digraph_Iterator<In_Filt>;
+  struct In_Iterator : Digraph_Iterator<In_Filt>
+  {
+    using Digraph_Iterator<In_Filt>::Digraph_Iterator;
+  };
 
   // /** Iterator on incoming arcs of node */
   template <class Filt>
-  using Out_Iterator = Digraph_Iterator<Out_Filt>;
+  struct Out_Iterator : Digraph_Iterator<Out_Filt>
+  {
+    using Digraph_Iterator<Out_Filt>::Digraph_Iterator;
+  };
 
   /** Return an input iterator on the incoming arcs to `p`
 

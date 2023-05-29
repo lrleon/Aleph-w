@@ -1774,9 +1774,9 @@ namespace Aleph {
   struct Out_Iterator : public
   Filter_Iterator<typename GT::Node*, typename GT::Out_Iterator, Show_Arc>
   {
-    using Base =
-      Filter_Iterator<typename GT::Node*, typename GT::Out_Iterator, Show_Arc>;
-    using Base::Base;
+    using Filter_Iterator<typename GT::Node*,
+      typename GT::Out_Iterator,
+                          Show_Arc>::Filter_Iterator;
   };
 
 
@@ -1788,9 +1788,8 @@ namespace Aleph {
   class In_Iterator : public
   Filter_Iterator<typename GT::Node*, typename GT::In_Iterator, SA>
   {
-    using Base =
-      Filter_Iterator<typename GT::Node*, typename GT::In_Iterator, SA>;
-    using Base::Base;
+    using Filter_Iterator<typename GT::Node*,
+                          typename GT::In_Iterator, SA>::Filter_Iterator;
   };
 
 
