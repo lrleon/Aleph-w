@@ -645,7 +645,7 @@ namespace Aleph
     size_t i = 0;
 
     return c.Container:: template maps<Pair>([&i] (const T & d)
-                                             { return Pair(i++, d); });
+    { return Pair(i++, d); });
   }
 
 
@@ -657,9 +657,9 @@ namespace Aleph
     using Tuple = std::tuple<size_t, typename Container::Key_Type>;
     size_t i = 0;
     return c.Container::template maps<std::tuple<size_t, T>>([&i] (const T & d)
-                                                             {
-                                                               return Tuple(i++, d);
-                                                             });
+    {
+      return Tuple(i++, d);
+    });
   }
 
 

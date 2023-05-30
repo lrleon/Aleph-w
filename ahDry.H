@@ -473,7 +473,7 @@ namespace Aleph
   template <template <typename> class Container = DynList>            \
   Container<Type> keys() const                                        \
   {                                                                   \
-    return this->template maps<Type, Container>([] (const Type & key)	\
+    return this->template maps<Type, Container>([] (const Type & key) \
                                                 { return key; });     \
   }
 

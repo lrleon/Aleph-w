@@ -55,6 +55,9 @@ namespace Aleph
   if (__builtin_expect((C), 0))                                        \
     out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
+#define ah_warning(out)                                         \
+  out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
+
 #define ah_range_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::range_error>(),                        \
