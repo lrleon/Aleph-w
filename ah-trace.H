@@ -39,4 +39,12 @@
   if (__builtin_expect((C), 0))                                        \
     out << __FILE__ << ":" << __LINE__ << " | "
 
+#define ah_msg_if(out, C)                       \
+  if (__builtin_expect((C), 0))                 \
+    out << ""
+
+#define ah_msg_unless(out, C)                       \
+  if (__builtin_expect(!(C), 0))                    \
+    out << ""
+
 # endif

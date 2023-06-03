@@ -93,9 +93,14 @@ namespace Aleph
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
-#define ah_fatal_error()                                       \
+#define ah_domain_error_unless(C)                                           \
+  if (__builtin_expect(!(C), 0))                                         \
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_fatal_error()                                                \
+  Aleph::ExceptionBuilder<std::domain_error>(),                         \
+    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 
 # endif
