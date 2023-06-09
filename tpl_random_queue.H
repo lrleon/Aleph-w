@@ -222,7 +222,9 @@ public:
       throw std::underflow_error("Random set is empty");
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    return array.access(pos);
+    T ret_val = array.access(pos);
+    std::swap(array.access(pos), array.access(0));
+    return ret_val;
   }
 
   /// Return `true` if the queue is empty
