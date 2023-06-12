@@ -40,6 +40,10 @@ class OhashCommon
 
 public:
 
+  float get_lower_alpha() const noexcept { return const_me()->lower_alpha; }
+
+  float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+
   void copy_from_table(const HashTbl & other)
   {
     assert(me()->N == 0 and me()->len >= other.N);

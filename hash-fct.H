@@ -480,7 +480,7 @@ namespace Aleph
     len >>= 2;
 
     /* Main loop */
-    for (;len > 0; len--)
+    for (;len > 0; --len)
       {
         hash  += get16bits (data);
         tmp    = (get16bits (data+2) << 11) ^ hash;
