@@ -40,12 +40,6 @@
 
    @author <a href="http://webdelprofesor.ula.ve/ingenieria/lrleon/" target="_blank">Leandro Rabindranath León</a> (lrleon en ula punto ve)   
 
-   Con las contribuciones esenciales de:
-   - <a href="http://webdelprofesor.ula.ve/ingenieria/alejandromujica/" target="_blank">Alejandro Mujica</a> (aledrums at gmail point com): grafos, geometría
-     computacional, interfaces gráficas y muchísimas y diversas mejoras y
-     correcciones 
-   - \ref Autores
-
    \ref Licencia
 */
 
@@ -58,7 +52,6 @@
 <br/>
 
 <p>Leandro Rabindranath León</p>
-<p>Alejandro Mujica</p>
 <br/>
 <p>All rights reserved.</p>
 

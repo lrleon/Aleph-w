@@ -298,7 +298,7 @@ namespace Aleph {
       Node * p = new Node(key);
       Key * key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
-        {
+        { // No (KEY(p) is already in the tree) ==> free p and return nullptr
           delete p;
           return nullptr;
         }
