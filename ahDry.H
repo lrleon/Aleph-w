@@ -324,6 +324,13 @@ namespace Aleph
     return ret_val;                                                     \
   }                                                                     \
                                                                         \
+  template <typename __Type = Type>                                     \
+  __Type fold_left(std::function<__Type(const __Type&, const Type &)> operation, \
+                   const __Type & init                                 ) const \
+  {                                                                     \
+    return foldl<__Type>(init, operation);                              \
+  }                                                                     \
+                                              \
   template <class Operation>                                            \
   Type fold(const Type & init, Operation & operation) const             \
   {                                                                     \

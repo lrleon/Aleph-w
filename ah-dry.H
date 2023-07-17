@@ -913,6 +913,19 @@ public:
     return foldl(init, op);
   }
 
+  template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
+  __T fold_left(const __T & init, Op & op) const
+  {
+    return const_me()->template foldl<__T>(init, op);
+  }
+
+  /// \overload fold_left(Op & op, const __T & init)
+  template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
+  __T fold_left(const __T & init, Op && op = Op()) const
+  {
+    return const_me()->template foldl<__T>(init, op);
+  }
+
   /** Simplified version of foldl() where the folded type is the same
       type of elements stored in the container.
 

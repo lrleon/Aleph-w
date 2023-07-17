@@ -98,6 +98,26 @@ namespace Aleph
     return ret_val;
   }
 
+  template <typename T = int, template <typename> class Container = DynList,
+            class Op>
+  inline auto set_range(const T start, const T end, const T step, Op & op)
+    -> Container<decltype(op(start))>
+  {
+    Container<decltype(op(start))> ret_val;
+    for (T i = start; i <= end; i += step)
+      ret_val.append(op(i));
+    return ret_val;
+  }
+
+  template <typename T = int, template <typename> class Container = DynList,
+            class Op>
+  inline auto set_range(const T start, const T end,
+                        const T step = 1, Op && op = Op())
+    -> Container<decltype(op(start))>
+  {
+    return set_range<T, Container, Op>(start, end, 1, op);
+  }
+
   template <typename T = int, template <typename> class Container = DynList>
   inline Container<T> contiguous_range(T start, const size_t n)
   {
