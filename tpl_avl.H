@@ -416,6 +416,9 @@ public:
       /// Return a modifiable reference to tree's root
   Node *& getRoot() noexcept { return root; }
 
+      /// Return a modifiable reference to tree's root
+  Node * getRoot() const noexcept { return root; }
+
      /// Search a node containing `key`; if found, then a pointer to the
      /// node containing it is returned; otherwise `nullptr` is returned
   Node * search(const Key & key) const noexcept
@@ -581,6 +584,8 @@ public:
   struct Iterator : public BinNodeInfixIterator<Node>
   {
     Iterator(Gen_Avl_Tree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+    Iterator(const Gen_Avl_Tree & tree)
+      : BinNodeInfixIterator<Node>(tree.getRoot()) {}
   };
 };
 

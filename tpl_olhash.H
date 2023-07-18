@@ -335,11 +335,10 @@ namespace Aleph {
 
   public:
 
-
-    /**
-
-        Elimina la clave apuntada por key
-    */
+    /** Remove the key referenced by key. key must be a valid refernce
+        to the key previously inserted or retrieved in the table. If
+        the key is not in the table, then a domain_error exception is
+        thrown. */
     void remove(const Key & key)
     {
       Key * key_ptr = search(key);

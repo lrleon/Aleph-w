@@ -29,13 +29,14 @@
 
 # include <cmath>
 # include <ahDefs.H>
+# include <ah-errors.H>
 
 namespace Primes
 {
 
   extern const unsigned long DefaultPrime;
 
-  extern const unsigned int numPrimes;
+  extern const size_t numPrimes;
 
   extern const unsigned long primeList[];
 
@@ -43,21 +44,52 @@ namespace Primes
 
   extern bool check_primes_database();
 
-inline bool is_prime(unsigned long n)
-{
-  if (n <= 3)
-    return true;
-  
-  if (n % 2 == 0 or n % 3 == 0)
-    return false;
-
-  for (unsigned long d = 5; d*d <= n; d += 6)
-    if (n % d == 0 or n % (d + 2) == 0)
+  // return true if n is a prime number
+  inline bool is_prime(unsigned long n)
+  {
+    if (n <= 1) 
       return false;
+    
+    for (int i = 2; i <= sqrt(n); i++) 
+      if (n % i == 0) 
+        return false;
+    
+    return true;
+  }
 
-  return true;
-}
+  // return the next prime number greater than n. Throws an
+  // overflow_error if n is too large
+  inline unsigned long next_prime_number_greater_than(unsigned long n)
+  {
+    if (n <= 1)
+      return 2;
 
+    if (n == 2)
+      return 3;
+
+    const unsigned long max = std::numeric_limits<unsigned long>::max();
+
+    ah_domain_error_if(n == max)
+      << "next_prime_number_greater_than: overflow error";
+
+    // if n is even, add 1
+    if (n % 2 == 0)
+      ++n;
+
+    ah_domain_error_if(n == max)
+      << "next_prime_number_greater_than: overflow error";
+
+    unsigned long p = n + 2;
+    while (not is_prime(p))
+      {
+        ah_domain_error_if(p + 1 == max or p + 2 == max)
+          << "next_prime_number_greater_than: overflow error";
+        p += 2;
+      }
+
+    return p;
+  }
+  
 }; /* namespace Primes */
 
 # endif /* PRIMES_H */

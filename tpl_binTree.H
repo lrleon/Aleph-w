@@ -109,7 +109,10 @@ public:
   bool verify() const { return check_bst<Node, Compare>(root); }
 
     /// Return the root of tree
-  Node *& getRoot() { return root; }
+  Node *& getRoot() noexcept { return root; }
+
+    /// Return the root of tree
+  Node * getRoot() const noexcept { return root; }
 
   /// \overload verify()
   bool verifyBin() const { return check_bst<Node, Compare>(root); } 
@@ -254,6 +257,8 @@ public:
   struct Iterator : public BinNodeInfixIterator<Node>
   {
     Iterator(GenBinTree & tree) : BinNodeInfixIterator<Node>(tree.getRoot()) {}
+    Iterator(const GenBinTree & tree)
+      : BinNodeInfixIterator<Node>(tree.getRoot()) {}
   };
 };
 

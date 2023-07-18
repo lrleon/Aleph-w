@@ -39,7 +39,7 @@
 # include <array_it.H>
 # include <array_utils.H>
 
-using namespace Aleph;
+//using namespace Aleph;
 
 namespace Aleph
 {
@@ -335,12 +335,12 @@ namespace Aleph
       void open_gap(size_t pos = 0, size_t num_entries = 1)
       {
         putn(num_entries);
-        Aleph::open_gap(ptr, n, pos, num_entries);
+        open_gap(ptr, n, pos, num_entries);
       }
 
       void close_gap(size_t pos, size_t num_entries = 1)
       {
-        Aleph::close_gap(ptr, n, pos, num_entries);
+        close_gap(ptr, n, pos, num_entries);
         get(num_entries);
       }
 

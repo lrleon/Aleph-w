@@ -153,6 +153,11 @@ public:
     return typename Container::Iterator(*const_me());
   }
 
+  // auto get_it()
+  // {
+  //   return typename Container::Iterator(*me());
+  // }
+
   /// Return an properly initialized iterator positioned at the `pos`
   /// item on the container
   auto get_it(size_t pos) const
@@ -906,6 +911,19 @@ public:
     __T foldl(const __T & init, Op && op = Op()) const
   {
     return foldl(init, op);
+  }
+
+  template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
+  __T fold_left(const __T & init, Op & op) const
+  {
+    return const_me()->template foldl<__T>(init, op);
+  }
+
+  /// \overload fold_left(Op & op, const __T & init)
+  template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
+  __T fold_left(const __T & init, Op && op = Op()) const
+  {
+    return const_me()->template foldl<__T>(init, op);
   }
 
   /** Simplified version of foldl() where the folded type is the same

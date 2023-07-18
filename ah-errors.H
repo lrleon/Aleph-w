@@ -44,9 +44,19 @@ namespace Aleph
       return 0;
     }
   };
-  
+
 }
 
+#define ah_warning_unless(out, C)                                       \
+  if (__builtin_expect(!(C), 0))                                        \
+    out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_warning_if(out, C)                                          \
+  if (__builtin_expect((C), 0))                                        \
+    out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_warning(out)                                         \
+  out << "WARNING (" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
@@ -61,11 +71,6 @@ namespace Aleph
 #define ah_logic_error_unless(C)                                        \
   if (__builtin_expect(!(C), 0))                                        \
     Aleph::ExceptionBuilder<std::logic_error>(),                        \
-      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
-
-#define ah_domain_error_unless(C)                                       \
-  if (__builtin_expect(!(C), 0))                                        \
-    Aleph::ExceptionBuilder<std::domain_error>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_range_error_if(C)                                            \
@@ -87,6 +92,15 @@ namespace Aleph
   if (__builtin_expect((C), 0))                                         \
     Aleph::ExceptionBuilder<std::domain_error>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_domain_error_unless(C)                                           \
+  if (__builtin_expect(!(C), 0))                                         \
+    Aleph::ExceptionBuilder<std::domain_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_fatal_error()                                                \
+  Aleph::ExceptionBuilder<std::domain_error>(),                         \
+    std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 
 # endif

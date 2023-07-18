@@ -50,11 +50,10 @@ HLIST=	tpl_dynSetTree.H tpl_arrayHeap.H tpl_binHeap.H tpl_netcost.H	\
 HXX=	$(HLIST:.H=.hxx)
 
 LIBCCCSRCS=	ahAssert.C primes.C ahDefs.C  useMutex.C ahDaemonize.C	\
-		socket_wrappers.C parse_utils.C timeoutQueue.C uid.C	\
-		gmpfrxx.C eepicgeom.C point.C treepic_utils.C \
-		euclidian-graph-common.C ahUtils.C tpl_sort_utils.C	\
-		hash-fct.C hash-dry.C aleph-graph.C tpl_sort_utils.C \
-		geom_algorithms.C ahNow.C
+		socket_wrappers.C parse_utils.C timeoutQueue.C uid.C 	\
+		gmpfrxx.C euclidian-graph-common.C ahUtils.C 		\
+		tpl_sort_utils.C hash-fct.C hash-dry.C aleph-graph.C 	\
+		tpl_sort_utils.C ahNow.C
 
 LIBCSRCS=	ran_array.c mpfr_mul_d.c
 
@@ -76,7 +75,7 @@ DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++17 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++20 $(INCLUDES) $(OPTIONS)
 
 NormalLibraryObjectRule()
 

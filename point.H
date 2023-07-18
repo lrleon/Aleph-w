@@ -107,7 +107,7 @@ inline Geom_Number square_root(const Geom_Number & x)
 
 struct Geom_Object 
 { 
-  Geom_Object(const Geom_Object & ) { /* empty */ }
+  //  Geom_Object(const Geom_Object & ) { /* empty */ }
 
   Geom_Object() { /* empty */ }
 
@@ -142,10 +142,10 @@ public:
   }
 
   /// Builds a copy of p.
-  Point(const Point & p) : Geom_Object(*this), x(p.x), y(p.y)
-  {
-    // empty
-  }
+  // Point(const Point & p) : Geom_Object(*this), x(p.x), y(p.y)
+  // {
+  //   // empty
+  // }
 
   /// Builds a new point from polar coordinates.
   inline Point(const Polar_Point & pp);
@@ -460,11 +460,11 @@ public:
 
   Segment() { /* empty */ }
 
-  Segment(const Segment & s) 
-    : Geom_Object(), src(s.src), tgt(s.tgt)
-  {
-    // empty
-  }
+  // Segment(const Segment & s) 
+  //   : Geom_Object(), src(s.src), tgt(s.tgt)
+  // {
+  //   // empty
+  // }
 
   Segment(const Point & __src, const Point & __tgt)
     : Geom_Object(), src(__src), tgt(__tgt)
@@ -1160,7 +1160,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
       if (t.contains_to(p[i]))
 	++i; // intersección detectada
     }
-  catch (std::domain_error)
+  catch (std::domain_error&)
     {
       // No hay intersección con el segmento anterior. Proseguimos ...
     }
@@ -1172,7 +1172,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
       if (t.contains_to(p[i]))
 	++i;// intersección detectada
     }
-  catch (std::domain_error)
+  catch (std::domain_error&)
     {
       // No hay intersección con el segmento anterior. Proseguimos ...
     }
@@ -1185,7 +1185,7 @@ inline Segment Segment::intersection_with(const Triangle & t) const
     {    // revisa si hay intersección con el lado p3-p1
       p[i] = this->intersection_with(Segment(t.get_p3(), t.get_p1()));
     }
-  catch (std::domain_error)
+  catch (std::domain_error&)
     {
       throw; // algo serio debe ocurrir si hay excepción aquí. Esto es
 	     // un bug pues previamente se preguntó 

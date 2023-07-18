@@ -324,6 +324,13 @@ namespace Aleph
     return ret_val;                                                     \
   }                                                                     \
                                                                         \
+  template <typename __Type = Type>                                     \
+  __Type fold_left(std::function<__Type(const __Type&, const Type &)> operation, \
+                   const __Type & init                                 ) const \
+  {                                                                     \
+    return foldl<__Type>(init, operation);                              \
+  }                                                                     \
+                                              \
   template <class Operation>                                            \
   Type fold(const Type & init, Operation & operation) const             \
   {                                                                     \
@@ -473,7 +480,7 @@ namespace Aleph
   template <template <typename> class Container = DynList>            \
   Container<Type> keys() const                                        \
   {                                                                   \
-    return this->template maps<Type, Container>([] (const Type & key)	\
+    return this->template maps<Type, Container>([] (const Type & key) \
                                                 { return key; });     \
   }
 

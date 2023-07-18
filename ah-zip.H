@@ -598,6 +598,19 @@ auto zip_lists_eq(const C & c, const Lists & ... lists)
   return ret;
 }
 
+// build a zi vector from two containers
+template <typename C1, typename C2>
+auto std_zip(const C1 & c1, const C2 & c2)
+{
+  using T = typename C1::value_type;
+  using U = typename C2::value_type;
+  std::vector<std::pair<T, U>> result;
+  auto it1 = c1.begin();
+  auto it2 = c2.begin();
+  for (; it1 != c1.end() and it2 != c2.end(); ++it1, ++it2)
+    result.emplace_back(*it1, *it2);
+  return result;
+}
 
 
 # endif // AH_ZIP_H

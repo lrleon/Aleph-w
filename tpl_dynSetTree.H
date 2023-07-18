@@ -31,6 +31,7 @@
 # include <typeinfo>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
+# include <ah-zip.H>
 # include <ah-arena.H>
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
@@ -123,7 +124,19 @@ namespace Aleph {
 
     ~ArenaTreeAllocator() { /* empty */ }
   };
-    
+
+  template <typename Container, typename T>
+  struct CmpContainer
+  {
+    bool operator () (const Container & c1, const Container & c2) const
+    {
+      return lexicographical_compare(c1.begin(), c1.end(), c2.begin(), c2.end(),
+                                     [] (const T & item1, const T & item2)
+                                     {
+                                       return item1 < item2;
+                                     });
+    }
+  };
 
   /** Conjunto dinámico de elementos de tipo genérico T implementado
       mediante una clase de árboles binarios.
@@ -285,7 +298,7 @@ namespace Aleph {
       Node * p = new Node(key);
       Key * key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
-        {
+        { // No (KEY(p) is already in the tree) ==> free p and return nullptr
           delete p;
           return nullptr;
         }

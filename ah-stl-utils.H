@@ -66,6 +66,15 @@ DynList<T> to_DynList(const std::vector<T> & v)
   return vector_to_DynList(v);
 }
 
+// auto to_DynList(auto begin, auto end)
+// {
+//   DynList<decltype(*begin)> ret;
+//   for (auto it = begin; it != end; ++it)
+//     ret.append(*it);
+
+//   return ret;
+// }
+
 template <typename T> inline
 Array<T> to_Array(const std::vector<T> & v)
 {

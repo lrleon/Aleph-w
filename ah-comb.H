@@ -31,6 +31,8 @@
 # include <tpl_dynDlist.H>
 # include <tpl_dynArray.H>
 # include <tpl_array.H>
+# include <tpl_dynSetTree.H>
+# include <ahSort.H>
 
 namespace Aleph
 {
@@ -265,6 +267,23 @@ namespace Aleph
     return ret;
   }
 
+  template <typename T>
+  DynList<DynList<T>> build_combs(const DynList<DynList<T>> & l)
+  {
+    DynList<DynList<T>> perms;
+    for_each_perm(l, [&perms] (const DynList<T> & perm) { perms.append(perm); });
+
+    DynSetTree<DynList<T>, Avl_Tree, CmpContainer<DynList<T>, T>> combs;
+    for (auto it = perms.get_it(); it.has_curr(); it.next())
+      {
+        DynList<T> perm = sort(it.get_curr());
+        combs.insert(perm);
+      }
+
+    return combs.
+      template maps<DynList<T>>([] (const DynList<T> & comb) { return comb; });
+  }
+
   template <typename T, typename Tc, class Op = Dft_Fold_Op<Tc, T>>
   T fold_perm(const T & init, const DynList<DynList<Tc>> & l, Op & op)
   {
@@ -283,12 +302,6 @@ namespace Aleph
     return fold_perm(init, l, op);
   }
 
-
-  // template <typename T> inline
-  // DynList<DynList<T>> comb(const DynList<T> & items, const size_t n)
-  // {
-  
-  // }
 
 }
 

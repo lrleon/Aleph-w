@@ -2407,13 +2407,21 @@ public:
   };
 
   /** Alias for `Digraph_Iterator` */
-  template <class Filt> using Filter_Iterator = Digraph_Iterator<Filt>;
+  // template <class Filt> using Filter_Iterator = Digraph_Iterator<Filt>;
 
-  /** Iterator on incoming arcs of node */
-  using In_Iterator = Digraph_Iterator<In_Filt>;
+  // /** Iterator on incoming arcs of node */
+  template <class Filt>
+  struct In_Iterator : Digraph_Iterator<In_Filt>
+  {
+    using Digraph_Iterator<In_Filt>::Digraph_Iterator;
+  };
 
-  /** Iterator on incoming arcs of node */
-  using Out_Iterator = Digraph_Iterator<Out_Filt>;
+  // /** Iterator on incoming arcs of node */
+  template <class Filt>
+  struct Out_Iterator : Digraph_Iterator<Out_Filt>
+  {
+    using Digraph_Iterator<Out_Filt>::Digraph_Iterator;
+  };
 
   /** Return an input iterator on the incoming arcs to `p`
 
@@ -2433,7 +2441,8 @@ public:
       @return an instantiated input iterator on the arcs positioned at the
       first arc.
   */
-  In_Iterator get_in_it(Node * p) const noexcept { return In_Iterator(p); }
+  template <class Filt>
+  In_Iterator<Filt> get_in_it(Node * p) const noexcept { return In_Iterator(p); }
 
   /** Return an output iterator on the incoming nodes to `p`
 
@@ -2453,7 +2462,8 @@ public:
       @return an instantiated output iterator on the arcs positioned at the
       first arc.
   */
-  Out_Iterator get_out_it(Node * p) const noexcept { return Out_Iterator(p); }
+  template <class Filt>
+  Out_Iterator<Filt> get_out_it(Node * p) const noexcept { return Out_Iterator(p); }
 
   /** Search a directed arc linking two nodes.
 

@@ -215,6 +215,18 @@ public:
     return ret_val;
   }
 
+  // pick() is like get() but without removing the item
+  T pick() const
+  {
+    if (array.size() == 0)
+      throw std::underflow_error("Random set is empty");
+
+    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    T ret_val = array.access(pos);
+    std::swap(array.access(pos), array.access(0));
+    return ret_val;
+  }
+
   /// Return `true` if the queue is empty
   bool is_empty() const { return array.size() == 0; }
 

@@ -135,12 +135,10 @@ public:
 
   void remove_arc_ne(void * arc) noexcept
   {
-    bool removed = false;
     for (size_t i = 0; i < this->num_arcs; ++i)
       if (arc_array[i] == arc)
 	{
 	  arc_array[i] = arc_array[--(this->num_arcs)];
-	  removed = true;
 	  break;
 	}
 
