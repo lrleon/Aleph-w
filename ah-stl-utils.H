@@ -86,12 +86,33 @@ Array<T> to_Array(const std::vector<T> & v)
 }
 
 template <typename C> inline
-std::vector<typename C::Item_Type> to_vector(const C & c)
+vector<typename C::Item_Type> to_vector(const C & l)
 {
-  std::vector<typename C::Item_Type> ret;
-  c.for_each([&ret] (const auto & i) { ret.push_back(i); });
+  vector<typename C::Item_Type> ret;
+  for (auto & item : l)
+    ret.push_back(item);
+
   return ret;
 }
+
+// this code convert a parameter pack to a DynList
+// Base case: When no arguments are left to process, the recursion stops.
+template<typename T> inline static
+vector<T> variadic_to_vector(DynList<T>&) { return DynList<T>(); }
+
+template <typename T, typename Arg, typename... Args>
+vector<T> variadic_to_vector(Arg&& arg, Args&&... args)
+{
+    return { forward<Arg>(arg), forward<Args>(args)... };
+}
+
+template <typename T, typename... Args> inline
+DynList<T> variadic_to_DynList(Args&&... args)
+{
+  return to_DynList<T>(variadic_to_vector<T>(forward<Args>(args)...));
+}
+
+
 
 /* Boost Software License - Version 1.0 - August 17th, 2003 Permission
    is hereby granted, free of charge, to any person or organization
