@@ -243,6 +243,13 @@ namespace Aleph
     return strncmp(str.data(), prefix.data(), prefix.size()) == 0;
   }
 
+  inline string remove_prefix(string & str, const string & prefix)
+  {
+    if (is_prefix(str, prefix))
+      str = str.substr(prefix.size());
+    return str;
+  }
+
   inline std::string to_lower(const std::string & str)
   {
     string ret;

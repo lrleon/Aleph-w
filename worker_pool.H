@@ -12,12 +12,19 @@
 using namespace std;
 using namespace Aleph;
 
+// this class implement a pool of worket threads. The client set how
+// many threads wants to use. This number. among the actual number of
+// cpus, limits the parallelism of the application.
+//
+// The client set a function parameterized function to be executed by
+// the workers. This function is part of the class template. The
+// function could have an arbitrary number of parameters, but must
+// return a bool. If the function returns true, the workers will stop,
+// otherwise they will continue to execute the function.
+
+template <class WorkerFct>
 class WorkersSet
 {
-public:
-
-  using WorkerFct = bool (*)(void*);
-
 private:
 
   WorkerFct worker_fct = nullptr;
