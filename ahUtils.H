@@ -42,9 +42,9 @@
 # include <typeinfo>
 
 # include <ahFunction.H>
-//# include <ah-convert.H>
-// # include <htlist.H>
-// # include <tpl_array.H>
+
+// build a string with the file name and line number
+# define POSITION_TRACE (std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
 using namespace std;
 
