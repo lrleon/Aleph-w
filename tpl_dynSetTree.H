@@ -72,7 +72,7 @@ namespace Aleph {
     
     virtual Node * alloc_rval(typename Node::key_type && key)
     {
-      return new Node(forward<typename Node::key_type>(key));
+      return new Node(std::forward<typename Node::key_type>(key));
     }
 
     virtual void unalloc(Node * p)
@@ -111,7 +111,7 @@ namespace Aleph {
     virtual Node * alloc_rval(typename Node::key_type && key)
     {
       Node * ptr =
-        allocate<Node>(arena, forward<typename Node::key_type>(key));
+        allocate<Node>(arena, std::forward<typename Node::key_type>(key));
       if (ptr == nullptr)
         throw bad_alloc();
       return ptr;
@@ -377,7 +377,7 @@ namespace Aleph {
     Key * search_or_insert(Key && key)
     {
       return
-        __search_or_insert(new Node(forward<Key>(key)));
+        __search_or_insert(new Node(std::forward<Key>(key)));
     }
 
     /* Busca la clave <code>key</code> en el árbol binario de búsqueda y
@@ -401,7 +401,7 @@ namespace Aleph {
 
     pair<Key*, bool> contains_or_insert(Key && key)
     {
-      auto p = __contains_or_insert(new Node(forward<Key>(key)));
+      auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
       return pair<Key*, bool>(&p.first->get_key(), p.second);
     }
 
@@ -423,7 +423,7 @@ namespace Aleph {
 
     Key * insert_dup(Key && key)
     {
-      return __insert_dup(new Node(forward<Key>(key)));
+      return __insert_dup(new Node(std::forward<Key>(key)));
     }
 
     Key * put(const Key & key)

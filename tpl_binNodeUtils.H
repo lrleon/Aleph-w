@@ -2499,6 +2499,17 @@ class BinNodeInfixIterator
 
 public:
 
+   /// Return `true` if the iterator is on the first node
+  bool is_in_first() const noexcept
+  {
+    return curr != nullptr and LLINK(curr) == nullptr and s.is_empty();
+  }
+  
+  bool is_last() const noexcept
+  {
+    return curr != nullptr and RLINK(curr) == nullptr and s.is_empty();
+  }
+
   void swap(BinNodeInfixIterator & it)
   {
     std::swap(root, it.root);
@@ -2567,12 +2578,7 @@ public:
   /// Return `true` the iterator has current node
   bool has_curr() const noexcept { return curr != Node::NullPtr; }
 
-  bool is_last() const noexcept
-  {
-    return curr != nullptr and RLINK(curr) == nullptr and s.is_empty();
-  }
-
-  /// Return the current link guaranteeing no exception. Be careful.
+   /// Return the current link guaranteeing no exception. Be careful.
   Node * get_curr_ne() const noexcept { return curr; }
 
   /// Return the current node. Throw `overflow_error` if there is no current

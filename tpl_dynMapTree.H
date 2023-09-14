@@ -223,16 +223,16 @@ namespace Aleph {
 
     Pair * search(Key && key) const noexcept
     {
-      return this->Base::search(Pair(move(key), Data()));
+      return this->Base::search(Pair(std::move(key), Data()));
     }
 
     bool has(const Key & key) const noexcept { return search(key) != nullptr; }
 
-    bool has(Key && key) const noexcept { return search(move(key)) != nullptr; }
+    bool has(Key && key) const noexcept { return search(std::move(key)) != nullptr; }
 
     bool contains(const Key & key) const noexcept { return has(key); }
 
-    bool contains(Key && key) const noexcept { return has(move(key)); }
+    bool contains(Key && key) const noexcept { return has(std::move(key)); }
 
     /** Retorna dato asociado a una clave.
 
@@ -266,12 +266,12 @@ namespace Aleph {
 
     Data & operator [] (Key && key)
     {
-      return this->search_or_insert(Pair(move(key), Data()))->second;
+      return this->search_or_insert(Pair(std::move(key), Data()))->second;
     }
 
     const Data & operator [] (Key && key) const
     {
-      return this->find(move(key));
+      return this->find(std::move(key));
     }
 
     using Iterator = typename Base::Iterator;

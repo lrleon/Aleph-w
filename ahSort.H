@@ -51,13 +51,13 @@
   List<T> sort(List<T> && c, Cmp & cmp)					\
   {									\
     mergesort<List, T, Cmp>(c, cmp);					\
-    return move(c);							\
+    return std::move(c);							\
   }									\
 									\
   template <typename T, class Cmp = Aleph::less<T>> inline		\
   List<T> sort(List<T> && c, Cmp && cmp = Cmp())			\
   {									\
-    return sort<T, Cmp>(move(c), cmp);					\
+    return sort<T, Cmp>(std::move(c), cmp);					\
   }									\
 									\
 									\
@@ -92,7 +92,7 @@ namespace Aleph
   DynArray<T> sort(DynArray<T> && a, Cmp && cmp = Cmp())
   {
     quicksort_op(a, cmp);
-    return move(a);
+    return std::move(a);
   }
 
   template <typename T, class Cmp = Aleph::less<T>> inline
@@ -107,7 +107,7 @@ namespace Aleph
   Array<T> sort(Array<T> && a, Cmp cmp = Cmp())
   {
     quicksort_op(a, cmp);
-    return move(a);
+    return std::move(a);
   }
 
   template <typename Container,

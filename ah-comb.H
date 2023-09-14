@@ -48,7 +48,7 @@ namespace Aleph
       Array<Snodenc<T>*> row;
       for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++ncol)
         row.append(static_cast<Snodenc<T>*>(it.get_curr()));
-      mat.append(move(row));
+      mat.append(std::move(row));
     }
 
     size_t nrow = 1;
@@ -59,7 +59,7 @@ namespace Aleph
         for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne())
           row.append(static_cast<Snodenc<T>*>(it.get_curr()));
 
-        mat.append(move(row));
+        mat.append(std::move(row));
       }
 
     DynList<DynList<T>> ret;
@@ -69,7 +69,7 @@ namespace Aleph
         for (size_t i = 0; i < nrow; ++i)
           row.append(mat(i)(j)->get_data());
 
-        ret.append(move(row));
+        ret.append(std::move(row));
       }
 
     return ret;
@@ -94,7 +94,7 @@ namespace Aleph
         for (size_t i = 0; i < nrow; ++i)
           row.append(mat(i)(j));
 
-        ret.append(move(row));
+        ret.append(std::move(row));
       }
 
     return ret;
@@ -116,8 +116,8 @@ namespace Aleph
         C<T> row;
         row.reserve(nrow);
         for (size_t i = 0; i < nrow; ++i)
-          row.append(move(l(i)(j)));
-        mat.append(move(row));
+          row.append(std::move(l(i)(j)));
+        mat.append(std::move(row));
       }
     l.swap(mat);
   }
@@ -133,7 +133,7 @@ namespace Aleph
       Array<Slinknc*> row;
       for (; not lrow.is_empty(); ++ncol)
         row.append(lrow.remove_head());
-      mat.append(move(row));
+      mat.append(std::move(row));
     }
 
     size_t nrow = 1;
@@ -144,7 +144,7 @@ namespace Aleph
         while (not lrow.is_empty())
           row.append(lrow.remove_head());
 
-        mat.append(move(row));
+        mat.append(std::move(row));
       }
 
     assert(l.is_empty());
@@ -157,7 +157,7 @@ namespace Aleph
             Slinknc * node_ptr = mat(i)(j);
             row.HTList::append(static_cast<Snodenc<T>*>(node_ptr));
           }
-        l.append(move(row));
+        l.append(std::move(row));
       }
   }
 
