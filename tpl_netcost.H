@@ -206,7 +206,7 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   auto out_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__Out_Iterator<Net> it(p); it.has_curr(); it.next_ne())
+    for (_Out_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
 	Arc * a = it.get_curr();
 	cap_sum += a->cap;
@@ -220,7 +220,7 @@ struct Net_Cost_Graph : public Net_Graph<NodeT, ArcT>
   auto in_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__In_Iterator<Net> it(p); it.has_curr(); it.next_ne())
+    for (_In_Iterator<Net> it(p); it.has_curr(); it.next_ne())
       {
 	Arc * a = it.get_curr();
 	cap_sum += a->cap;

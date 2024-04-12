@@ -27,7 +27,7 @@
 # ifndef AH_SIGNAL_H
 # define AH_SIGNAL_H
 
-# include <signal.h>
+# include <csignal>
 # include <iostream>
 # include <aleph.H>
 
@@ -35,7 +35,7 @@ using namespace std;
 
 class Signal
 {
-  typedef void Sigfunc(int);
+  using Sigfunc = void (int);
 
   struct sigaction oldSigaction;
   int              signalNumber;
@@ -46,7 +46,8 @@ public:
   Signal(const int & signo, Sigfunc *func, const bool & _restartcalls = true)
     : restartCalls(_restartcalls)
   {
-    struct sigaction    act, oact;
+    struct sigaction    act;
+    struct sigaction oact;
 
     signalNumber = signo;
     act.sa_handler = func;

@@ -39,8 +39,8 @@
 
     In `Aleph-w` (\f$\aleph_\omega\f$) the binary trees are managed by
     nodes, not by the keys that these contain. Many tree operations,
-    concretlly those modifiying them, take as parameters nodes. For
-    example, ig you have a binary search `tree` of intergers and you
+    concretely those modifying them, take as parameters nodes. For
+    example, ig you have a binary search `tree` of integers and you
     want to insert 10, then you must first allocate the node, put it the
     key and then insert into the tree. Some such as:
 
@@ -49,7 +49,7 @@
 
     This usage is some complicated and tedious most of the
     time. However, it simplifies enormously the tree algorithms, since
-    these do not neet to worry by memory management. Eventually, it
+    these do not need to worry by memory management. Eventually, it
     could also simplificate the user's life and definitively improve the
     performance. Suppose for example that you have two trees and you
     need to remove a key from one and insert it into the another. In
@@ -107,21 +107,24 @@
 */
 
 
-namespace Aleph {
+namespace Aleph
+{
 
-  struct Empty_Node
+struct Empty_Node {
+  Empty_Node () noexcept
+  { /* empty */ }
+
+  explicit Empty_Node (SentinelCtor) noexcept
+  { /* empty */ }
+
+  void reset () noexcept
+  { /* empty */ }
+
+  Empty_Node & get_data ()
   {
-    Empty_Node() noexcept { /* empty */ }
-
-    Empty_Node(SentinelCtor) noexcept { /* empty */ }
-
-    void reset() noexcept { /* empty */ }
-
-    Empty_Node & get_data()
-    {
-      throw std::domain_error("Empty_Node has not data");
-    }
-  };
+    throw std::domain_error ("Empty_Node has not data");
+  }
+};
 
 # define INIT_CLASS_BINNODE(Name, height, Control_Data)               \
   template <typename Key>                                             \
@@ -147,13 +150,13 @@ public:                                                               \
  Name *& getR() noexcept { return rLink; }                            \
  const Name * getL() const noexcept { return lLink; }                 \
  const Name * getR() const noexcept { return rLink; }                 \
- Name(const Key& k)						      \
+ Name(const Key& k)                              \
    : key(k), lLink(NullPtr), rLink(NullPtr)                           \
  {                                                                    \
    static_assert(std::is_copy_constructible<Key>::value,              \
                  "No copy constructor for Key");                      \
  }                                                                    \
- Name(Key && k)                                                       \
+ Name(Key && k) noexcept                                              \
    : key(std::move(k)), lLink(NullPtr), rLink(NullPtr)                \
  {                                                                    \
    static_assert(std::is_move_constructible<Key>::value,              \
@@ -165,7 +168,7 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name(const Name & node)					      \
+ Name(const Name & node)                          \
    : Control_Data(node),                                              \
      key(node.key), lLink(NullPtr), rLink(NullPtr)                    \
  {                                                                    \
@@ -173,7 +176,7 @@ public:                                                               \
  }                                                                    \
  Name(Name && node)                                                   \
    : Control_Data(std::forward<Control_Data>(node)),                  \
-     key(std::forward<Key>(node).key), lLink(NullPtr), rLink(NullPtr)	\
+     key(std::forward<Key>(node).key), lLink(NullPtr), rLink(NullPtr)    \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
@@ -183,7 +186,7 @@ public:                                                               \
  {                                                                    \
    /* Empty */                                                        \
  }                                                                    \
- Name()								      \
+ Name()                                      \
  : lLink(NullPtr), rLink(NullPtr)                                     \
  {                                                                    \
    static_assert(std::is_default_constructible<Key>::value,           \
@@ -203,29 +206,29 @@ public:                                                               \
  }
 
 
-  /** Specify tree node for a binary tree.
+/** Specify tree node for a binary tree.
 
-      `DECLARE_BINNODE(Name, height, Control_Data)` generates two
-      classes of binary nodes called `Name` and `NameVtl`,
-      respectevely. The only difference is expressed by the fact that
-      for `NameVtl` its destructor is virtual.
+    `DECLARE_BINNODE(Name, height, Control_Data)` generates two
+    classes of binary nodes called `Name` and `NameVtl`,
+    respectevely. The only difference is expressed by the fact that
+    for `NameVtl` its destructor is virtual.
 
-      Each node has an attribute called `key`, accessible through
-      `KEY(p)` or `p->get_key()`, where `p` is a pointer to the node.
+    Each node has an attribute called `key`, accessible through
+    `KEY(p)` or `p->get_key()`, where `p` is a pointer to the node.
 
-      A binary node has two static attributes:
+    A binary node has two static attributes:
 
-      -# `NullPtr` which represents to the empty tree
-      -# `MaxHeight`: an estimated value of maximun height of tree. This
-      value is used as helper for recursive and stack based
-      algorithms for allocate enough stack space.
+    -# `NullPtr` which represents to the empty tree
+    -# `MaxHeight`: an estimated value of maximum height of tree. This
+    value is used as helper for recursive and stack based
+    algorithms for allocate enough stack space.
 
-      @param Name the name of class defining the node.
-      @param height maximun height that could have the tree
-      @param Control_Data control data according to tree type
-      @see DECLARE_BINNODE_SENTINEL
-      @ingroup Arboles
-  */
+    @param Name the name of class defining the node.
+    @param height maximum height that could have the tree
+    @param Control_Data control data according to tree type
+    @see DECLARE_BINNODE_SENTINEL
+    @ingroup Arboles
+*/
 # define DECLARE_BINNODE(Name, height, Control_Data)                    \
   INIT_CLASS_BINNODE(Name, height, Control_Data)                        \
 };                                                                      \
@@ -237,35 +240,35 @@ public:                                                               \
   const Name##Vtl<Key>::NullPtr = nullptr
 
 
-  /**  Specify tree node for a binary tree.
+/**  Specify tree node for a binary tree.
 
-       `DECLARE_BINNODE_SENTINEL(Name, height, Control_Data)` generates
-       two classes of binary nodes called `Name` and `NameVtl`,
-       respectevely. The only difference is expressed by the fact that
-       for `NameVtl` its destructor is virtual.
+     `DECLARE_BINNODE_SENTINEL(Name, height, Control_Data)` generates
+     two classes of binary nodes called `Name` and `NameVtl`,
+     respectively. The only difference is expressed by the fact that
+     for `NameVtl` its destructor is virtual.
 
-       In this version, a special static member called `sentinel_node` is
-       declared. In this context, a sentinel node is a node representing
-       the empty tree whose state is initialized by the call to
-       `Control_Data(sentinelCtor)`.
+     In this version, a special static member called `sentinel_node` is
+     declared. In this context, a sentinel node is a node representing
+     the empty tree whose state is initialized by the call to
+     `Control_Data(sentinelCtor)`.
 
-       Each node has an attribute called `key`, accessible through
-       `KEY(p)` or `p->get_key()`, where `p` is a pointer to the node.
+     Each node has an attribute called `key`, accessible through
+     `KEY(p)` or `p->get_key()`, where `p` is a pointer to the node.
 
-       A binary node has two static attributes:
+     A binary node has two static attributes:
 
-       -# `NullPtr` which represents to the empty tree
-       -# `MaxHeight`: an estimated value of maximun height of tree. This
-       value is used as helper for recursive and stack based
-       algorithms for allocate enough stack space.
+     -# `NullPtr` which represents to the empty tree
+     -# `MaxHeight`: an estimated value of maximun height of tree. This
+     value is used as helper for recursive and stack based
+     algorithms for allocate enough stack space.
 
-       @param Name the name of class defining the node.
-       @param height maximun height that could have the tree
-       @param Control_Data control data according to tree type
+     @param Name the name of class defining the node.
+     @param height maximun height that could have the tree
+     @param Control_Data control data according to tree type
 
-       @see DECLARE_BINNODE
-       @ingroup Arboles
-  */
+     @see DECLARE_BINNODE
+     @ingroup Arboles
+*/
 # define DECLARE_BINNODE_SENTINEL(Name, height, Control_Data)       \
   INIT_CLASS_BINNODE(Name, height, Control_Data)                    \
   Name(SentinelCtor) :                                              \
@@ -275,7 +278,7 @@ public:                                                               \
   template <typename Key>                                           \
   Name<Key> Name<Key>::sentinel_node(sentinelCtor);                 \
   template <typename Key>                                           \
-  Name<Key> * const Name<Key>::NullPtr = &Name<Key>::sentinel_node;	\
+  Name<Key> * const Name<Key>::NullPtr = &Name<Key>::sentinel_node;    \
   INIT_CLASS_BINNODE(Name##Vtl, height, Control_Data)               \
   virtual ~Name##Vtl() { /* empty */ }                              \
 private:                                                            \
@@ -292,27 +295,30 @@ private:                                                            \
 /** Return a pointer to left subtree
     @ingroup Arboles
 */
-template <class Node> inline Node *& LLINK(Node * p) noexcept
+template<class Node>
+inline Node *& LLINK (Node *p) noexcept
 {
-  return p->getL();
+  return p->getL ();
 }
 
 /** Return the right tree of p
 
     @ingroup Arboles
 */
-template <class Node> inline Node *& RLINK(Node * p) noexcept
+template<class Node>
+inline Node *& RLINK (Node *p) noexcept
 {
-  return p->getR();
+  return p->getR ();
 }
-
 
 /** Return a modifiable reference to the key stored in the node.
 
     @ingroup Arboles
 */
-template <class Node> inline
-typename Node::Key_Type & KEY(Node * p) noexcept { return p->get_key(); }
+template<class Node>
+inline
+typename Node::Key_Type & KEY (Node *p) noexcept
+{ return p->get_key (); }
 
 /** \brief Node for binary search tree
 
@@ -321,7 +327,6 @@ typename Node::Key_Type & KEY(Node * p) noexcept { return p->get_key(); }
     @ingroup Arboles
 */
 DECLARE_BINNODE(BinNode, 2048, Empty_Node);
-
 
 } // end namespace Aleph
 # endif

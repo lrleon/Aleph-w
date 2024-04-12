@@ -38,34 +38,35 @@
 # include <aleph-graph.H>
 # include <graph-dry.H>
 
-
 using namespace Aleph;
 
-namespace Aleph {
+namespace Aleph
+{
 
-  template <typename Node_Info> struct Graph_Node;
+template<typename Node_Info>
+struct Graph_Node;
 
-  template <typename Arc_Info> struct Graph_Arc;
+template<typename Arc_Info>
+struct Graph_Arc;
 
-  class Arc_Node;
+class Arc_Node;
 
-  template <class GT>
-  class Path;
+template<class GT>
+class Path;
 
-  template <typename __Graph_Node, typename __Graph_Arc>
-  class List_Graph;
+template<typename __Graph_Node, typename __Graph_Arc>
+class List_Graph;
 
-  template <typename __Graph_Node, typename __Graph_Arc>
-  class List_Digraph;
+template<typename __Graph_Node, typename __Graph_Arc>
+class List_Digraph;
 
-  template <class GT>
-  class Mat_Graph;
+template<class GT>
+class Mat_Graph;
 
-  template <typename MT, typename Entry_Info, typename Copy>
-  class Ady_MaT;
+template<typename MT, typename Entry_Info, typename Copy>
+class Ady_MaT;
 
-
-  /** Node belonging to a graph implemented with double linked
+/** Node belonging to a graph implemented with double linked
       adjacency list.
 
       This class is used for defining a node of graph implemented with
@@ -92,18 +93,17 @@ namespace Aleph {
       @ingroup Grafos
       @see List_Graph List_Digraph Graph_Arc Bit_Fields
   */
-  template <typename __Node_Info = Empty_Class>
-  struct Graph_Node
+template<typename __Node_Info = Empty_Class>
+struct Graph_Node
     : public Dlink,
-      public GTNodeCommon<__Node_Info>
-  {
-    friend class GTNodeCommon<__Node_Info>;
-    friend class Arc_Node;
+      public GTNodeCommon<__Node_Info> {
+  friend class GTNodeCommon<__Node_Info>;
+  friend class Arc_Node;
 
-    using Base = GTNodeCommon<__Node_Info>;
-    using Node_Info = __Node_Info; /// The type of data stored in the node
+  using Base = GTNodeCommon<__Node_Info>;
+  using Node_Info = __Node_Info; /// The type of data stored in the node
 
-    /** Copy constructor.
+  /** Copy constructor.
 
         Construct a node whose data is copied from `info`. The control
         attributes are reset.
@@ -112,9 +112,10 @@ namespace Aleph {
 
         @note The copy constructor of `Node_Info` must be defined
     */
-    Graph_Node(const Node_Info & info) noexcept : Base(info) { /* empty */ }
+  Graph_Node (const Node_Info & info) noexcept: Base (info)
+  { /* empty */ }
 
-    /** Move or rvalue constructor
+  /** Move or rvalue constructor
 
         Construct a node whose data is moved from `info`. The control
         attributes are reset.
@@ -123,25 +124,25 @@ namespace Aleph {
 
         @note The move constructor of `Node_Info` must be defined
     */
-    Graph_Node(Node_Info && info = Node_Info()) noexcept : Base(move(info))
-    {
-      /* empty */
-    }
+  Graph_Node (Node_Info && info = Node_Info ()) noexcept: Base (move (info))
+  {
+    /* empty */
+  }
 
-    Graph_Node(const Graph_Node & node) noexcept : Graph_Node(node.node_info)
-    {
-      // empty
-    }
+  Graph_Node (const Graph_Node & node) noexcept: Graph_Node (node.node_info)
+  {
+    // empty
+  }
 
-    Graph_Node & operator = (const Graph_Node & node)
-    {
-      if (&node == this)
-        return *this;
-      this->node_info = node.node_info;
+  Graph_Node & operator= (const Graph_Node & node)
+  {
+    if (&node == this)
       return *this;
-    }
+    this->node_info = node.node_info;
+    return *this;
+  }
 
-    /** Constructor copia a partir de un puntero a nodo.
+  /** Constructor copia a partir de un puntero a nodo.
 
         Crea un nodo y le asigna el valor \c node->get_info() como valor de la
         información contenida en el nodo.
@@ -156,16 +157,16 @@ namespace Aleph {
         Node_Info.
         @note La instancia creada es un nodo distinto de \c node.
     */
-    Graph_Node(Graph_Node * node)
-      : Base(node->get_info())
-    {
-      /* empty */
-    }
+  Graph_Node (Graph_Node *node)
+      : Base (node->get_info ())
+  {
+    /* empty */
+  }
 
-    Dlink arc_list; /// Under no circumstances: do not touch it
-  };
+  Dlink arc_list; /// Under no circumstances: do not touch it
+};
 
-  /** Arc of graph implemented with double linked adjacency lists.
+/** Arc of graph implemented with double linked adjacency lists.
 
       This class is used for defining an arc of graph implemented with
       double linked adjacency lists.
@@ -191,21 +192,20 @@ namespace Aleph {
       @ingroup Grafos
       @see List_Graph List_Digraph Graph_Node Bit_Fields
   */
-  template <typename __Arc_Info = Empty_Class>
-  struct Graph_Arc
+template<typename _Arc_Info = Empty_Class>
+struct Graph_Arc
     : public Dlink,
-      public GTArcCommon<__Arc_Info>
-  {
-    friend class GTArcCommon<__Arc_Info>;
+      public GTArcCommon<_Arc_Info> {
+  friend class GTArcCommon<_Arc_Info>;
 
-    using Base = GTArcCommon<__Arc_Info>;
+  using Base = GTArcCommon<_Arc_Info>;
 
-    using Arc_Info = __Arc_Info; /// The type of data stored in the arc
+  using Arc_Info = _Arc_Info; /// The type of data stored in the arc
 
-    Arc_Node * src_arc_node = nullptr; // pointer to source node
-    Arc_Node * tgt_arc_node = nullptr; // pointer to target node
+  Arc_Node *src_arc_node = nullptr; // pointer to source node
+  Arc_Node *tgt_arc_node = nullptr; // pointer to target node
 
-    /** Copy constructor.
+  /** Copy constructor.
 
         Construct an arc whose data is copied from `info`. The control
         attributes are reset.
@@ -214,13 +214,13 @@ namespace Aleph {
 
         @note The copy constructor of `Arc_Info` must be defined
     */
-    Graph_Arc(const Arc_Info & info)
-      : Base(info)
-    {
-      /* empty */
-    }
+  Graph_Arc (const Arc_Info & info)
+      : Base (info)
+  {
+    /* empty */
+  }
 
-    /** Move or rvalue constructor
+  /** Move or rvalue constructor
 
         Construct an arc whose data is moved from `info`. The control
         attributes are reset.
@@ -229,41 +229,42 @@ namespace Aleph {
 
         @note The move constructor of `Arc_Info` must be defined
     */
-    Graph_Arc(Arc_Info && info = Arc_Info())
-      : Base(move(info))
-    {
-      /* empty */
-    }
-
-    Graph_Arc(const Graph_Arc & arc)
-      : Graph_Arc(arc.arc_info)
-    {
-      /* empty */
-    }
-
-    Graph_Arc & operator = (const Graph_Arc & arc)
-    {
-      if (&arc == this)
-        return *this;
-      this->arc_info = arc.arc_info;
-      return *this;
-    }
-  };
-
-  class Arc_Node : public Dlink
+  Graph_Arc (Arc_Info && info = Arc_Info ())
+      : Base (move (info))
   {
-  public:
-    void * arc = nullptr;
-    Arc_Node() noexcept : arc(nullptr) {}
-    Arc_Node(void * __arc) noexcept : arc(__arc) {}
-  };
+    /* empty */
+  }
 
-  /** Graph implemented with double linked adjacency lists
+  Graph_Arc (const Graph_Arc & arc)
+      : Graph_Arc (arc.arc_info)
+  {
+    /* empty */
+  }
+
+  Graph_Arc & operator= (const Graph_Arc & arc)
+  {
+    if (&arc == this)
+      return *this;
+    this->arc_info = arc.arc_info;
+    return *this;
+  }
+};
+
+class Arc_Node : public Dlink {
+ public:
+  void *arc = nullptr;
+  Arc_Node () noexcept: arc (nullptr)
+  {}
+  Arc_Node (void *__arc) noexcept: arc (__arc)
+  {}
+};
+
+/** Graph implemented with double linked adjacency lists
 
       This class manages two template parameters
-      - `__Graph_Node`: the type of node, which previously must have
+      - `_Graph_Node`: the type of node, which previously must have
       been defined through of Graph_Node class.
-      - `__Graph_Arc`: the type of arc, which previously must have
+      - `_Graph_Arc`: the type of arc, which previously must have
       been defined through of `Graph_Arc` class.
 
       It is highly recommendable to use an alias for the final graph
@@ -394,56 +395,57 @@ namespace Aleph {
       @ingroup Grafos
       @see List_Digraph Path
   */
-  template <typename __Graph_Node = Graph_Node<unsigned long>,
-            typename __Graph_Arc  = Graph_Arc<unsigned long>>
-  class List_Graph
-    : public GraphCommon<List_Graph<__Graph_Node, __Graph_Arc>,
-                         __Graph_Node, __Graph_Arc>
+template<typename _Graph_Node = Graph_Node<unsigned long>,
+    typename _Graph_Arc  = Graph_Arc<unsigned long>>
+class List_Graph
+    : public GraphCommon<List_Graph<_Graph_Node, _Graph_Arc>,
+                         _Graph_Node, _Graph_Arc> {
+ public:
+
+  using GT = List_Graph; /// The graph type
+
+  using Node = _Graph_Node; /// The node class type
+  using Arc = _Graph_Arc; /// The arc class type
+
+  /// The type of data stored in the node
+  using Node_Type = typename Node::Node_Type;
+
+  /// The type of data stored in the arc
+  using Arc_Type = typename Arc::Arc_Type;
+
+  friend class GraphCommon<List_Graph<_Graph_Node, _Graph_Arc>,
+                           _Graph_Node, _Graph_Arc>;
+
+  using CommonBase = GraphCommon<List_Graph<_Graph_Node, _Graph_Arc>,
+                                 _Graph_Node, _Graph_Arc>;
+
+  using CommonBase::insert_node;
+  using CommonBase::insert_arc;
+
+ private:
+
+  Dlink node_list;
+  Dlink arc_list;
+
+  static Node *dlink_to_node (Dlink *p) noexcept
+  { return (Node *) p; }
+
+  static Arc *dlink_to_arc (Dlink *p) noexcept
+  { return (Arc *) p; }
+
+  static Arc_Node *dlink_to_arc_node (Dlink *p) noexcept
   {
-  public:
+    return (Arc_Node *) p;
+  }
 
-    using GT = List_Graph; /// The graph type
+  static Arc *void_to_arc (Arc_Node *arc_node) noexcept
+  {
+    return (Arc *) arc_node->arc;
+  }
 
-    using Node = __Graph_Node; /// The node class type
-    using Arc = __Graph_Arc; /// The arc class type
+ public:
 
-    /// The type of data stored in the node
-    using Node_Type = typename Node::Node_Type;
-
-    /// The type of data stored in the arc
-    using Arc_Type = typename Arc::Arc_Type;
-
-    friend class GraphCommon<List_Graph<__Graph_Node, __Graph_Arc>,
-                             __Graph_Node, __Graph_Arc>;
-
-    using CommonBase = GraphCommon<List_Graph<__Graph_Node, __Graph_Arc>,
-                                   __Graph_Node, __Graph_Arc>;
-
-    using CommonBase::insert_node;
-    using CommonBase::insert_arc;
-
-  private:
-
-    Dlink  node_list; // lista de nodos
-    Dlink  arc_list;  // lista de arcos
-
-    static Node * dlink_to_node(Dlink * p) noexcept { return (Node*) p; }
-
-    static Arc * dlink_to_arc(Dlink * p) noexcept { return (Arc*) p; }
-
-    static Arc_Node * dlink_to_arc_node(Dlink * p) noexcept
-    {
-      return (Arc_Node*) p;
-    }
-
-    static Arc * void_to_arc(Arc_Node * arc_node) noexcept
-    {
-      return (Arc*) arc_node->arc;
-    }
-
-  public:
-
-    /** Insertion of a node already allocated.
+  /** Insertion of a node already allocated.
 
         This methods takes a pointer to a `node` already allocated and
         inserts it in the graph.
@@ -465,14 +467,14 @@ namespace Aleph {
         @param[in] node a pointer to an already allocated node.
         @return the node pointer
     */
-    virtual Node * insert_node(Node * node) noexcept
-    {
-      this->num_nodes++;
-      node_list.append(node);
-      return node;
-    }
+  virtual Node *insert_node (Node *node) noexcept
+  {
+    this->num_nodes++;
+    node_list.append (node);
+    return node;
+  }
 
-    /** Remove a node from the graph and free its memory.
+  /** Remove a node from the graph and free its memory.
 
         This method removes all the incoming and outcoming arcs
         referred to the node and frees the memory. Then removes the
@@ -484,35 +486,35 @@ namespace Aleph {
 
         @param[in] node to be removed and freed
     */
-    virtual void remove_node(Node * node) noexcept
-    {
-      if (not this->digraph)
-        while (not node->arc_list.is_empty()) // remove each arc related to node
-          {
-            Arc_Node * arc_node = dlink_to_arc_node(node->arc_list.get_next());
-            Arc * arc = void_to_arc(arc_node);
-            remove_arc(arc);
-          }
-      else    // Scan all the arcs and remove those related to node
-        for (Arc_Iterator it(*this); it.has_curr();)
-          {
-            Arc * a = it.get_curr();
-            if (this->get_src_node(a) == node or this->get_tgt_node(a) == node)
-              {
-                it.next_ne();
-                remove_arc(a);
-              }
-            else
-              it.next_ne();
-          }
+  virtual void remove_node (Node *node) noexcept
+  {
+    if (not this->digraph)
+      while (not node->arc_list.is_empty ()) // remove each arc related to node
+        {
+          Arc_Node *arc_node = dlink_to_arc_node (node->arc_list.get_next ());
+          Arc *arc = void_to_arc (arc_node);
+          remove_arc (arc);
+        }
+    else    // Scan all the arcs and remove those related to node
+      for (Arc_Iterator it (*this); it.has_curr ();)
+        {
+          Arc *a = it.get_curr ();
+          if (this->get_src_node (a) == node or this->get_tgt_node (a) == node)
+            {
+              it.next_ne ();
+              remove_arc (a);
+            }
+          else
+            it.next_ne ();
+        }
 
-      // At this point the node has not more arcs
-      node->del(); // unlink it from arc_list
-      this->num_nodes--;
-      delete node;
-    }
+    // At this point the node has not more arcs
+    node->del (); // unlink it from arc_list
+    this->num_nodes--;
+    delete node;
+  }
 
-    /** Return any node in the graph.
+  /** Return any node in the graph.
 
         This method serves as an entry point to the graph. Some algorithms
         only need an initial node which could be anyone. In these cases,
@@ -523,15 +525,15 @@ namespace Aleph {
 
         \return A pointer to a node in the graph
     */
-    Node * get_first_node() const
-    {
-      if (this->num_nodes == 0)
-        throw std::range_error("Graph has not nodes");
+  Node *get_first_node () const
+  {
+    if (this->num_nodes == 0)
+      throw std::range_error ("Graph has not nodes");
 
-      return dlink_to_node(const_cast<Dlink&>(node_list).get_next());
-    }
+    return dlink_to_node (const_cast<Dlink &>(node_list).get_next ());
+  }
 
-    /** Return any arc adjacent to a node.
+  /** Return any arc adjacent to a node.
 
         This method serves as an arc of depart given a node. Some
         algorithms only need any arc adjacent to a node in order to start
@@ -543,90 +545,90 @@ namespace Aleph {
 
         \return A pointer to an arc adjacent to `node`
     */
-    Arc * get_first_arc(Node * node) const
-    {
-      if (get_num_arcs(node) == 0)
-        throw std::range_error("node has not arcs");
+  Arc *get_first_arc (Node *node) const
+  {
+    if (get_num_arcs (node) == 0)
+      throw std::range_error ("node has not arcs");
 
-      void * arc = dlink_to_arc_node(node->arc_list.get_next())->arc;
-      return reinterpret_cast <Arc *> (arc);
-    }
+    void *arc = dlink_to_arc_node (node->arc_list.get_next ())->arc;
+    return reinterpret_cast <Arc *> (arc);
+  }
 
-  private:
+ private:
 
-    Arc * insert_arc(Node * src_node, Node * tgt_node, void * a)
-    {
-      Arc * arc     =  (Arc *) a;
-      arc->src_node = src_node;
-      arc->tgt_node = tgt_node;
+  Arc *insert_arc (Node *src_node, Node *tgt_node, void *a)
+  {
+    Arc *arc = (Arc *) a;
+    arc->src_node = src_node;
+    arc->tgt_node = tgt_node;
 
-      // paso 3: (parcial): apartar Arc_Node de src_node
-      unique_ptr<Arc_Node> src_arc_node (new Arc_Node (arc));
+    // paso 3: (parcial): apartar Arc_Node de src_node
+    unique_ptr<Arc_Node> src_arc_node (new Arc_Node (arc));
 
-      // paso 2: si es grafo ==> apartar Arc_Node de tgt_node
-      if (not this->digraph) // si es digrafo ==> no insertar en otro nodo
-        {     // inserción en nodo destino
-          if (src_node == tgt_node) // ¿es un lazo?
-            arc->tgt_arc_node = src_arc_node.get();
-          else
-            {     // apartar arco nodo para tgt_node
-              unique_ptr<Arc_Node> tgt_arc_node(new Arc_Node(arc));
+    // paso 2: si es grafo ==> apartar Arc_Node de tgt_node
+    if (not this->digraph) // si es digrafo ==> no insertar en otro nodo
+      {     // inserción en nodo destino
+        if (src_node == tgt_node) // ¿es un lazo?
+          arc->tgt_arc_node = src_arc_node.get ();
+        else
+          {     // apartar arco nodo para tgt_node
+            unique_ptr<Arc_Node> tgt_arc_node (new Arc_Node (arc));
 
-              // inserción en lista de adyacencia de tgt_node
-              arc->tgt_arc_node = tgt_arc_node.get();
-              tgt_node->arc_list.append(tgt_arc_node.get());
-              tgt_node->num_arcs++;
-              tgt_arc_node.release();
-            }
-        }
+            // inserción en lista de adyacencia de tgt_node
+            arc->tgt_arc_node = tgt_arc_node.get ();
+            tgt_node->arc_list.append (tgt_arc_node.get ());
+            tgt_node->num_arcs++;
+            tgt_arc_node.release ();
+          }
+      }
 
-      // paso 3 (resto): inserción en lista adyacencia src_node
-      arc->src_arc_node = src_arc_node.get();
-      src_node->arc_list.append(src_arc_node.get());
-      src_node->num_arcs++;
+    // paso 3 (resto): inserción en lista adyacencia src_node
+    arc->src_arc_node = src_arc_node.get ();
+    src_node->arc_list.append (src_arc_node.get ());
+    src_node->num_arcs++;
 
-      arc_list.append(arc); //paso 4:insertar en lista arcos grafo
-      this->num_arcs++;
-      src_arc_node.release();
+    arc_list.append (arc); //paso 4:insertar en lista arcos grafo
+    this->num_arcs++;
+    src_arc_node.release ();
 
-      return arc;
-    }
+    return arc;
+  }
 
-  public:
+ public:
 
-    /** Remove an arc from the graph and free it.
+  /** Remove an arc from the graph and free it.
 
         @param[in] pointer to the arc to be removed from graph and free it
         \see disconnect_arc(Arc * arc)
     */
-    virtual void remove_arc(Arc * arc) noexcept
-    {      // paso 1: eliminar Arc_node de src_node
-      Node * src_node         = this->get_src_node(arc); 
-      Arc_Node * src_arc_node = arc->src_arc_node;
+  virtual void remove_arc (Arc *arc) noexcept
+  {      // paso 1: eliminar Arc_node de src_node
+    Node *src_node = this->get_src_node (arc);
+    Arc_Node *src_arc_node = arc->src_arc_node;
 
-      src_arc_node->del();  // desenlaza src_node de la lista de nodos
-      src_node->num_arcs--; // decrementa contador de arcos de src_node
-      delete src_arc_node;  // entrega memoria
+    src_arc_node->del ();  // desenlaza src_node de la lista de nodos
+    src_node->num_arcs--; // decrementa contador de arcos de src_node
+    delete src_arc_node;  // entrega memoria
 
-      if (not this->digraph) 
-        {     // eliminación arco en nodo destino 
-          Node * tgt_node = this->get_tgt_node(arc); 
-          if (src_node != tgt_node) // verificar eliminación de ciclo 
-            {  // paso 2: eliminar Arc_node de tgt_node
-              Arc_Node * tgt_arc_node = arc->tgt_arc_node;
-              tgt_arc_node->del(); 
-              tgt_node->num_arcs--;
-              delete tgt_arc_node;
-            }
-        }
+    if (not this->digraph)
+      {     // eliminación arco en nodo destino
+        Node *tgt_node = this->get_tgt_node (arc);
+        if (src_node != tgt_node) // verificar eliminación de ciclo
+          {  // paso 2: eliminar Arc_node de tgt_node
+            Arc_Node *tgt_arc_node = arc->tgt_arc_node;
+            tgt_arc_node->del ();
+            tgt_node->num_arcs--;
+            delete tgt_arc_node;
+          }
+      }
 
-      // eliminación de arco del grafo 
-      arc->del(); // desenlazar arc de lista de arcos de grafo
-      this->num_arcs--;
-      delete arc;
-    }
+    // eliminación de arco del grafo
+    arc->del (); // desenlazar arc de lista de arcos de grafo
+    this->num_arcs--;
+    delete arc;
+  }
 
-    /** Disconnect an arc from graph.
+  /** Disconnect an arc from graph.
 
         This method removes an arc from the graph; that is, it does not
         longer belong to the graph. However, the memory is not freed.
@@ -647,30 +649,30 @@ namespace Aleph {
         @param[in] arc pointer to the arc to disconnect
         \see connect_arc(Arc * arc)
     */
-    virtual void disconnect_arc(Arc * arc) noexcept
-    {
-      Node * src_node         = this->get_src_node(arc); 
-      Arc_Node * src_arc_node = arc->src_arc_node;
-      src_arc_node->del();   // desenlaza src_node de la lista de nodos
-      src_node->num_arcs--;  // decrementa contador de arcos de src_node
+  virtual void disconnect_arc (Arc *arc) noexcept
+  {
+    Node *src_node = this->get_src_node (arc);
+    Arc_Node *src_arc_node = arc->src_arc_node;
+    src_arc_node->del ();   // desenlaza src_node de la lista de nodos
+    src_node->num_arcs--;  // decrementa contador de arcos de src_node
 
-      if (not this->digraph) 
-        {     // eliminación arco en nodo destino 
-          Node * tgt_node = this->get_tgt_node(arc); 
-          if (src_node != tgt_node) // verificar eliminación de ciclo 
-            {  // paso (2): eliminación del Arc_node del nodo destino tgt_node
-              Arc_Node * tgt_arc_node = arc->tgt_arc_node;
-              tgt_arc_node->del(); 
-              tgt_node->num_arcs--;
-            }
-        }
+    if (not this->digraph)
+      {     // eliminación arco en nodo destino
+        Node *tgt_node = this->get_tgt_node (arc);
+        if (src_node != tgt_node) // verificar eliminación de ciclo
+          {  // paso (2): eliminación del Arc_node del nodo destino tgt_node
+            Arc_Node *tgt_arc_node = arc->tgt_arc_node;
+            tgt_arc_node->del ();
+            tgt_node->num_arcs--;
+          }
+      }
 
-      // eliminación de arco del grafo 
-      arc->del(); // desenlazar arc de la lista de arcos del grafo
-      this->num_arcs--;
-    }
+    // eliminación de arco del grafo
+    arc->del (); // desenlazar arc de la lista de arcos del grafo
+    this->num_arcs--;
+  }
 
-    /** Connect an previously disconnected arc to the graph.
+  /** Connect an previously disconnected arc to the graph.
 
         This method serves for connecting an arc that has been
         disconnected with `disconnect_arc()` method. Once connected,
@@ -680,31 +682,31 @@ namespace Aleph {
         @param[in] arc pointer to the arc to connect
         @return a pointer to the connected arc
     */
-    virtual Arc * connect_arc(Arc * arc) noexcept
-    {
-      Node * src_node         = this->get_src_node(arc); 
-      Node * tgt_node         = this->get_tgt_node(arc); 
-      Arc_Node * src_arc_node = arc->src_arc_node;
-      Arc_Node * tgt_arc_node = arc->tgt_arc_node;
+  virtual Arc *connect_arc (Arc *arc) noexcept
+  {
+    Node *src_node = this->get_src_node (arc);
+    Node *tgt_node = this->get_tgt_node (arc);
+    Arc_Node *src_arc_node = arc->src_arc_node;
+    Arc_Node *tgt_arc_node = arc->tgt_arc_node;
 
-      if (not this->digraph) // si es digrafo ==> no hay que insertar en otro nodo
-        {     // inserción en nodo destino 
-          if (src_node != tgt_node) // verificar si se trata de un ciclo
-            {     // inserción en lista de adyacencia de tgt_node
-              tgt_node->arc_list.append(tgt_arc_node);
-              tgt_node->num_arcs++;
-            }
-        }
+    if (not this->digraph) // si es digrafo ==> no hay que insertar en otro nodo
+      {     // inserción en nodo destino
+        if (src_node != tgt_node) // verificar si se trata de un ciclo
+          {     // inserción en lista de adyacencia de tgt_node
+            tgt_node->arc_list.append (tgt_arc_node);
+            tgt_node->num_arcs++;
+          }
+      }
 
-      src_node->arc_list.append(src_arc_node);
-      src_node->num_arcs++;
-      arc_list.append(arc);
-      this->num_arcs++;
+    src_node->arc_list.append (src_arc_node);
+    src_node->num_arcs++;
+    arc_list.append (arc);
+    this->num_arcs++;
 
-      return arc;
-    }  
+    return arc;
+  }
 
-    /** Return any arc in the graph.
+  /** Return any arc in the graph.
 
         This method serves as an arc of depart in the graph. Some
         algorithms only need an initial arc which could be anyone. In
@@ -715,19 +717,19 @@ namespace Aleph {
 
         \return A pointer to an arc in the graph
     */
-    Arc * get_first_arc() const 
-    { 
-      if (this->get_num_arcs() == 0)
-        throw std::range_error("Graph has not arcs");
+  Arc *get_first_arc () const
+  {
+    if (this->get_num_arcs () == 0)
+      throw std::range_error ("Graph has not arcs");
 
-      return dlink_to_arc(const_cast<Dlink&>(arc_list).get_next());
-    }
+    return dlink_to_arc (const_cast<Dlink &>(arc_list).get_next ());
+  }
 
-    /** Sort all the nodes of the graph according to a specific
+  /** Sort all the nodes of the graph according to a specific
         criteria.
 
         The method takes an comparison operation between two nodes and
-        sorts the nodes. 
+        sorts the nodes.
 
         The comparison criteria should match the following signature:
 
@@ -744,25 +746,27 @@ namespace Aleph {
         \param[inout] cmp operation of comparison that defines the
         sorting criteria
     */
-    template <class Compare> inline
-    void sort_nodes(Compare & cmp) noexcept
-    {
-      Cmp_Dlink_Node<List_Graph, Compare> c = cmp;
-      mergesort(node_list, c);
-    }
+  template<class Compare>
+  inline
+  void sort_nodes (Compare & cmp) noexcept
+  {
+    Cmp_Dlink_Node<List_Graph, Compare> c = cmp;
+    mergesort (node_list, c);
+  }
 
-    /// \overload sort_arcs(Compare & cmp)
-    template <class Compare> inline 
-    void sort_nodes(Compare && cmp = Compare()) noexcept
-    {
-      sort_nodes(cmp);
-    }
+  /// \overload sort_arcs(Compare & cmp)
+  template<class Compare>
+  inline
+  void sort_nodes (Compare && cmp = Compare ()) noexcept
+  {
+    sort_nodes (cmp);
+  }
 
-    /** Sort all the arcs of the graph according to a specific
+  /** Sort all the arcs of the graph according to a specific
         criteria.
 
         The method takes an comparison operation between two arcs and
-        sorts the arcs. 
+        sorts the arcs.
 
         The comparison criteria should match the following signature:
 
@@ -779,21 +783,23 @@ namespace Aleph {
         \param[inout] cmp operation of comparison that defines the
         sorting criteria
     */
-    template <class Compare> inline
-    void sort_arcs(Compare & cmp) noexcept
-    {
-      Cmp_Dlink_Arc<List_Graph, Compare> c = cmp;
-      mergesort(arc_list, c);
-    }
+  template<class Compare>
+  inline
+  void sort_arcs (Compare & cmp) noexcept
+  {
+    Cmp_Dlink_Arc<List_Graph, Compare> c = cmp;
+    mergesort (arc_list, c);
+  }
 
-    /// \overload sort_arcs(Compare & cmp)
-    template <class Compare> inline 
-    void sort_arcs(Compare && cmp = Compare()) noexcept
-    {
-      sort_arcs(cmp);
-    }
+  /// \overload sort_arcs(Compare & cmp)
+  template<class Compare>
+  inline
+  void sort_arcs (Compare && cmp = Compare ()) noexcept
+  {
+    sort_arcs (cmp);
+  }
 
-    /** Copy constructor.
+  /** Copy constructor.
 
         Build a new graph with a copy of graph `g`. Al the data
         content for the nodes and arc are copied to the new graph,
@@ -808,12 +814,12 @@ namespace Aleph {
         nodes and arcs reset.
         \see copy_graph()
     */
-    List_Graph(const List_Graph & g)
-    {
-      copy_graph(*this, g);
-    }
+  List_Graph (const List_Graph & g)
+  {
+    copy_graph (*this, g);
+  }
 
-    /** Construct a new graph by moving a graph `g`.
+  /** Construct a new graph by moving a graph `g`.
 
         This construction is \f$O(1)\f$ because no copy is done; simply
         `g` is moved to the new graph. After construction, `g` becomes
@@ -822,12 +828,12 @@ namespace Aleph {
 
         @param[in] g graph to be moved
     */
-    List_Graph(List_Graph && g) noexcept
-    {
-      swap(g);
-    }
+  List_Graph (List_Graph && g) noexcept
+  {
+    swap (g);
+  }
 
-    /** Assign by copy `g` to `this`.
+  /** Assign by copy `g` to `this`.
 
         This operator removes and frees all the nodes and arcs of `this`
         and then copy `g`.
@@ -836,51 +842,50 @@ namespace Aleph {
         @throw bad_alloc if there is no enough memory
         @note The value of nodes and arcs attributes is indetermined.
     */
-    List_Graph & operator = (const List_Graph & g)
-    {
-      if (this == &g)
-        return *this;
-
-      copy_graph(*this, g);
+  List_Graph & operator= (const List_Graph & g)
+  {
+    if (this == &g)
       return *this;
-    }
-  
-    /**Assign by moving `g` to `this`.
+
+    copy_graph (*this, g);
+    return *this;
+  }
+
+  /**Assign by moving `g` to `this`.
 
        This assignment moves in constant time all `g` content to `this`.
        @param[in] g graph to copy
     */
-    List_Graph & operator = (List_Graph && g) noexcept
-    {
-      swap(g);
-      return *this;
-    }
+  List_Graph & operator= (List_Graph && g) noexcept
+  {
+    swap (g);
+    return *this;
+  }
 
-    /// Destructor: all the nodes and arcs and removed and freed
-    virtual ~List_Graph()
-    {
-      clear_graph(*this);
-    }
+  /// Destructor: all the nodes and arcs and removed and freed
+  virtual ~List_Graph ()
+  {
+    clear_graph (*this);
+  }
 
-    /** Node iterator
+  /** Node iterator
 
         This is an iterator on all the nodes of graph.
 
         @ingroup Grafos
     */
-    struct Node_Iterator : public GTNodeIterator<List_Graph>
+  struct Node_Iterator : public GTNodeIterator<List_Graph> {
+    using Base = GTNodeIterator<List_Graph>;
+
+    /// Construct an iterator on the nodes of `g`
+    Node_Iterator (const List_Graph & g)
+        : Base (const_cast<Dlink &>(g.node_list))
     {
-      using Base = GTNodeIterator<List_Graph>;
+      // empty
+    }
+  };
 
-      /// Construct an iterator on the nodes of `g`
-      Node_Iterator(const List_Graph & g)
-        : Base(const_cast<Dlink&>(g.node_list))
-      {
-        // empty
-      }
-    };
-
-    /** Iterator on the arcs of a graph.
+  /** Iterator on the arcs of a graph.
 
         This iterator scans all the arcs related to a node.
 
@@ -903,75 +908,79 @@ namespace Aleph {
         @ingroup Grafos
     */
 
-    class Node_Arc_Iterator : public Dlink::Iterator
-    {
-      Node * src_node;
+  class Node_Arc_Iterator : public Dlink::Iterator {
+    Node *src_node;
 
-    public:
+   public:
 
-      using Item_Type = Arc *; /// The type of data of set
+    using Item_Type = Arc *; /// The type of data of set
 
-      using Set_Type = Node *; /// The container type (a node)
+    using Set_Type = Node *; /// The container type (a node)
 
-      Node_Arc_Iterator() noexcept { /* empty */ }
+    Node_Arc_Iterator () noexcept
+    { /* empty */ }
 
-      /** Constructs an iterator on the node src.
+    /** Constructs an iterator on the node src.
 
           @param[in] src the node over whom you wish to iterate.
       */
-      Node_Arc_Iterator(Node * src) noexcept
-        : Dlink::Iterator(&(src->arc_list)), src_node(src)
-      {
-        // empty
-      }
+    Node_Arc_Iterator (Node *src) noexcept
+        : Dlink::Iterator (&(src->arc_list)), src_node (src)
+    {
+      // empty
+    }
 
-      Arc_Node * get_current_arc_node() const
-      {
-        return dlink_to_arc_node(Dlink::Iterator::get_curr());
-      }
+    Arc_Node *get_current_arc_node () const
+    {
+      return dlink_to_arc_node (Dlink::Iterator::get_curr ());
+    }
 
-      Arc_Node * get_current_arc_node_ne() const noexcept
-      {
-        return dlink_to_arc_node(Dlink::Iterator::get_curr_ne());
-      }
+    Arc_Node *get_current_arc_node_ne () const noexcept
+    {
+      return dlink_to_arc_node (Dlink::Iterator::get_curr_ne ());
+    }
 
-      ///\overload get_current_arc()
-      Arc * get_curr() const
-      {
-        return static_cast<Arc*>(get_current_arc_node()->arc);
-      }
+    ///\overload get_current_arc()
+    Arc *get_curr () const
+    {
+      return static_cast<Arc *>(get_current_arc_node ()->arc);
+    }
 
-      ///\overload get_current_arc()
-      Arc * get_curr_ne() const noexcept
-      {
-        return static_cast<Arc*>(get_current_arc_node_ne()->arc);
-      }
+    ///\overload get_current_arc()
+    Arc *get_curr_ne () const noexcept
+    {
+      return static_cast<Arc *>(get_current_arc_node_ne ()->arc);
+    }
 
-      /// Return the current arc. Throw `overflow_error` is there is no
-      /// current arc
-      Arc * get_current_arc() const { return get_curr(); }
+    /// Return the current arc. Throw `overflow_error` is there is no
+    /// current arc
+    Arc *get_current_arc () const
+    { return get_curr (); }
 
-      Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
+    Arc *get_current_arc_ne () const noexcept
+    { return get_curr_ne (); }
 
-      /// Return the connected node to source node (src passed in
-      /// construction time) through the current arc. Throw
-      /// `overflow_error` is there is no current
-      Node * get_tgt_node() const
-      {
-        return (Node*) get_current_arc()->get_connected_node(src_node);
-      }
+    /// Return the connected node to source node (src passed in
+    /// construction time) through the current arc. Throw
+    /// `overflow_error` is there is no current
+    Node *get_tgt_node () const
+    {
+      return (Node *) get_current_arc ()->get_connected_node (src_node);
+    }
 
-      Node * get_tgt_node_ne() const noexcept
-      {
-        return (Node*) get_current_arc_ne()->get_connected_node(src_node);
-      }
+    Node *get_tgt_node_ne () const noexcept
+    {
+      return (Node *) get_current_arc_ne ()->get_connected_node (src_node);
+    }
 
-      Node * get_node() const { return get_tgt_node(); }
-  
-      Node * get_node_ne() const noexcept { return get_tgt_node_ne(); }
-    };
+    Node *get_node () const
+    { return get_tgt_node (); }
 
-    /** Iterator on all arcs of a graph.
+    Node *get_node_ne () const noexcept
+    { return get_tgt_node_ne (); }
+  };
+
+  /** Iterator on all arcs of a graph.
 
         This iterator scans all the arcs of the graph. The apparition
         order is random, but this can be modified through of
@@ -979,92 +988,95 @@ namespace Aleph {
 
         @see sort_arcs()
     */
-    struct Arc_Iterator : public Dlink::Iterator
+  struct Arc_Iterator : public Dlink::Iterator {
+    using Item_Type = Arc *; /// The type of element over whom iterate
+
+    using Set_Type = List_Graph; /// The type of set
+
+    Arc_Iterator () noexcept
+    { /* empty */ }
+
+    /// Initialize an iterator for all the arc of `g`
+    Arc_Iterator (const List_Graph & g) noexcept
+        : Dlink::Iterator (&const_cast<Dlink &>(g.arc_list))
     {
-      using Item_Type = Arc *; /// The type of element over whom iterate
+      // empty
+    }
 
-      using Set_Type = List_Graph; /// The type of set
-
-      Arc_Iterator() noexcept { /* empty */ }
-
-      /// Initialize an iterator for all the arc of `g`
-      Arc_Iterator(const List_Graph & g) noexcept
-        : Dlink::Iterator(&const_cast<Dlink&>(g.arc_list))
-      {
-        // empty
-      }
-
-      /// Return the current arc. Throw `overflow_error` if there is no one
-      Arc * get_current_arc_ne() const noexcept
-      {
-        return dlink_to_arc(const_cast<Dlink*>(Dlink::Iterator::get_curr_ne())); 
-      }
-
-      Arc * get_current_arc() const
-      {
-        return dlink_to_arc(const_cast<Dlink*>(Dlink::Iterator::get_curr())); 
-      }
-
-      Arc * get_curr() const { return get_current_arc(); }  
-
-      Arc * get_curr_ne() const noexcept { return get_current_arc_ne(); }  
-
-      /// Return the source node of current arc. Throw `overflow_error` if
-      /// there is no one. Of course, only has sense if one iterates on a
-      /// directed graph
-      Node * get_src_node() const
-      {
-        return (Node*) get_current_arc()->src_node;
-      }
-
-      Node * get_src_node_ne() const
-      {
-        return (Node*) get_current_arc_ne()->src_node;
-      }
-
-      /// Return the target node of current arc. Throw `overflow_error` if
-      /// there is no one. Of course, only has sense if one iterates on a
-      /// directed graph
-      Node * get_tgt_node() const { return (Node*) get_current_arc()->tgt_node; }
-
-      Node * get_tgt_node_ne() const
-      {
-        return (Node*) get_current_arc_ne()->tgt_node;
-      }
-    };
-
-    /// Construct an empty graph
-    List_Graph() noexcept { /* empty */ }
-
-    /// Swap in constant time `this` with `g`
-    void swap(List_Graph & g) noexcept
+    /// Return the current arc. Throw `overflow_error` if there is no one
+    Arc *get_current_arc_ne () const noexcept
     {
-      this->common_swap(g);
-      node_list.swap(&g.node_list);
-      arc_list.swap(&g.arc_list);
+      return dlink_to_arc (const_cast<Dlink *>(Dlink::Iterator::get_curr_ne ()));
+    }
+
+    Arc *get_current_arc () const
+    {
+      return dlink_to_arc (const_cast<Dlink *>(Dlink::Iterator::get_curr ()));
+    }
+
+    Arc *get_curr () const
+    { return get_current_arc (); }
+
+    Arc *get_curr_ne () const noexcept
+    { return get_current_arc_ne (); }
+
+    /// Return the source node of current arc. Throw `overflow_error` if
+    /// there is no one. Of course, only has sense if one iterates on a
+    /// directed graph
+    Node *get_src_node () const
+    {
+      return (Node *) get_current_arc ()->src_node;
+    }
+
+    Node *get_src_node_ne () const
+    {
+      return (Node *) get_current_arc_ne ()->src_node;
+    }
+
+    /// Return the target node of current arc. Throw `overflow_error` if
+    /// there is no one. Of course, only has sense if one iterates on a
+    /// directed graph
+    Node *get_tgt_node () const
+    { return (Node *) get_current_arc ()->tgt_node; }
+
+    Node *get_tgt_node_ne () const
+    {
+      return (Node *) get_current_arc_ne ()->tgt_node;
     }
   };
 
+  /// Construct an empty graph
+  List_Graph () noexcept
+  { /* empty */ }
 
-  /** Default filter for filtered iterators on arcs.
+  /// Swap in constant time `this` with `g`
+  void swap (List_Graph & g) noexcept
+  {
+    this->common_swap (g);
+    node_list.swap (&g.node_list);
+    arc_list.swap (&g.arc_list);
+  }
+};
+
+/** Default filter for filtered iterators on arcs.
 
       The default filtering action is none: that is, all the arcs would
       be shown.
 
       @ingroup Grafos
   */
-  template <class GT>
-  struct Dft_Show_Arc
+template<class GT>
+struct Dft_Show_Arc {
+  bool operator() (typename GT::Arc * /* arc */) const noexcept
   {
-    bool operator () (typename GT::Arc * /* arc */) const noexcept
-    { 
-      return true; 
-    }
+    return true;
+  }
 
-    void set_cookie(void*) noexcept { /* empty */ }
-  };
+  void set_cookie (void *) noexcept
+  { /* empty */ }
+};
 
-  /** \addtogroup Grafos
+/** \addtogroup Grafos
       @{
       Filtered iterators
       ==================
@@ -1079,7 +1091,7 @@ namespace Aleph {
 
       for (auto it = g.get_arc_it(); it.has_cur(); it.next())
       auto arc = it.get_curr(); // each arc of the graph is seen
-    
+
       Now, there are several, perhaps many, situations where not all the
       arcs must be proceses, but a subset of them satisfaying a particular
       condition. In these cases, the filtered iteratos come for us.
@@ -1089,7 +1101,7 @@ namespace Aleph {
       difference is that on it operates a filter condition that filters
       all the items satisfaying a special condition. Let's show a brief
       but constructive example.
-    
+
       Un brief example
       ----------------
 
@@ -1100,10 +1112,10 @@ namespace Aleph {
       envolves highways; for example, you want to find the shortest path
       between two cities connected by only highways. Then you could
       specify an filter that catches highways:
-    
+
       struct Only_Highway
       {
-      bool operator () (GT::Arc * a) 
+      bool operator () (GT::Arc * a)
       {
 	    return a->get_info().type == Highway;
       }
@@ -1123,7 +1135,7 @@ namespace Aleph {
 
       The filtered iterators have a great importance in `Aleph-w`
       (\f$\aleph_\omega\f$) algorithms on graphs, since almost every
-      algorithm operates with filtered iterator. 
+      algorithm operates with filtered iterator.
 
       When to use then?
       ----------------
@@ -1146,11 +1158,11 @@ namespace Aleph {
       are also filtered according to flow value; if the flow is equal to
       the capacity then the arc is filtered. Third, in order to detect
       negative cycles the Bellman-Ford algorithm is used with a filter
-      that only sees the arcs cost. 
+      that only sees the arcs cost.
       @}
   */
 
-  /** Filtered iterator of adjacent arcs of a node.
+/** Filtered iterator of adjacent arcs of a node.
 
       `Node_Arc_Iterator` is a reflex class of `GT::Node_Arc_Iterator`
       except that the arcs are filtered according to filter criteria
@@ -1164,41 +1176,41 @@ namespace Aleph {
       };
 
       So, this iterator will only show those arcs satisfaying the filter.
-     
+
       @ingroup Grafos
   */
-  template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
-  struct Node_Arc_Iterator : 
-    public Filter_Iterator<typename GT::Node*, 
+template<class GT, class Show_Arc = Dft_Show_Arc<GT>>
+struct Node_Arc_Iterator :
+    public Filter_Iterator<typename GT::Node *,
                            typename GT::Node_Arc_Iterator,
-                           Show_Arc>
-  {
-    using Filter_Itor = Filter_Iterator<typename GT::Node*, 
-                                        typename GT::Node_Arc_Iterator,
-                                        Show_Arc>;
+                           Show_Arc> {
+  using Filter_Itor = Filter_Iterator<typename GT::Node *,
+                                      typename GT::Node_Arc_Iterator,
+                                      Show_Arc>;
 
-    using Itor = Filter_Iterator<typename GT::Node*, 
-                                 typename GT::Node_Arc_Iterator, 
-                                 Show_Arc>;
+  using Itor = Filter_Iterator<typename GT::Node *,
+                               typename GT::Node_Arc_Iterator,
+                               Show_Arc>;
 
-    using Item_Type = typename Itor::Item_Type; /// type of element: Arc*
-    using Set_Type = typename Itor::Set_Type; /// Type of set: `p`'s arcs
+  using Item_Type = typename Itor::Item_Type; /// type of element: Arc*
+  using Set_Type = typename Itor::Set_Type; /// Type of set: `p`'s arcs
 
-    Node_Arc_Iterator() noexcept { /* empty */ }
+  Node_Arc_Iterator () noexcept
+  { /* empty */ }
 
-    /** Construc and filtered iterator according to condition `sa`.
+  /** Construc and filtered iterator according to condition `sa`.
 
         @param[in] p nodo over whom you wish to iterate
         @param[in] sa the filter
     */
-    Node_Arc_Iterator(typename GT::Node * p, Show_Arc sa = Show_Arc()) 
-      : Itor(p, sa) 
-    {
-      // empty
-    }
-  };
+  Node_Arc_Iterator (typename GT::Node *p, Show_Arc sa = Show_Arc ())
+      : Itor (p, sa)
+  {
+    // empty
+  }
+};
 
-  /** Filtered iterator on all the arcs of a graph
+/** Filtered iterator on all the arcs of a graph
 
       Arc_Iterator is an iterator similar to `GT::Arc_Iterator`,
       except that only are shown the arcs satisfaying a filter
@@ -1206,85 +1218,82 @@ namespace Aleph {
 
       The condition must be specified trhough a functor whose
       signature must be as follows:
-	
+
 	    struct Show_Arc
 	    {
       bool operator () (GT::Arc * arc) { /// the filter condition }
 	    };
-       
+
       @ingroup Grafos
   */
-  template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
-  struct Arc_Iterator : 
-    public Filter_Iterator<GT, typename GT::Arc_Iterator, Show_Arc>
-  {
-    using Itor = Filter_Iterator<GT, typename GT::Arc_Iterator, Show_Arc>;
+template<class GT, class Show_Arc = Dft_Show_Arc<GT>>
+struct Arc_Iterator :
+    public Filter_Iterator<GT, typename GT::Arc_Iterator, Show_Arc> {
+  using Itor = Filter_Iterator<GT, typename GT::Arc_Iterator, Show_Arc>;
 
-    using Item_Type = typename Itor::Item_Type; /// Type of element: Arc*
-    using Set_Type = typename Itor::Set_Type; /// Type of set all the arcs
+  using Item_Type = typename Itor::Item_Type; /// Type of element: Arc*
+  using Set_Type = typename Itor::Set_Type; /// Type of set all the arcs
 
-    Arc_Iterator() noexcept { /* empty */ }
+  Arc_Iterator () noexcept
+  { /* empty */ }
 
-    /** Constructor,
+  /** Constructor,
 
         @param[in] g the graph
         @param[in] sa filter functor
     */
-    Arc_Iterator(const GT & g, Show_Arc sa = Show_Arc())
-      : Itor(g, sa)
-    {
-      // empty
-    }
-  };
+  Arc_Iterator (const GT & g, Show_Arc sa = Show_Arc ())
+      : Itor (g, sa)
+  {
+    // empty
+  }
+};
 
-
-
-  /** Default filter for the graph nodes.
+/** Default filter for the graph nodes.
 
       The condition is always `true`. So. all the node would be seen.
 
       @ingroup Grafos
   */
-  template <class GT>
-  struct Dft_Show_Node
+template<class GT>
+struct Dft_Show_Node {
+  bool operator() (typename GT::Node *) const noexcept
   {
-    bool operator () (typename GT::Node *) const noexcept
-    { 
-      return true; 
-    }
-  };
+    return true;
+  }
+};
 
-  /** Filtered iterator on the nodes of a graph.
+/** Filtered iterator on the nodes of a graph.
 
       @ingroup Grafos
   */
-  template <class GT, class Show_Node = Dft_Show_Node<GT>>
-  class Node_Iterator : 
-    public Filter_Iterator<GT, typename GT::Node_Iterator, Show_Node>
-  {
-  public:
+template<class GT, class Show_Node = Dft_Show_Node<GT>>
+class Node_Iterator :
+    public Filter_Iterator<GT, typename GT::Node_Iterator, Show_Node> {
+ public:
 
-    using Itor = Filter_Iterator<GT, typename GT::Node_Iterator, Show_Node>;
+  using Itor = Filter_Iterator<GT, typename GT::Node_Iterator, Show_Node>;
 
-    using Item_Type = typename Itor::Item_Type; /// The element type: Node*
+  using Item_Type = typename Itor::Item_Type; /// The element type: Node*
 
-    using Set_Type =  typename Itor::Set_Type; /// The set: the arcs of a graph
+  using Set_Type = typename Itor::Set_Type; /// The set: the arcs of a graph
 
-    Node_Iterator() noexcept { /* empty */ }
+  Node_Iterator () noexcept
+  { /* empty */ }
 
-    /** Construct a iterator with filter `sn`
+  /** Construct a iterator with filter `sn`
 
         @param[in] g the graph
         @param[in] sn the node filter
     */
-    Node_Iterator(const GT & g, Show_Node sn = Show_Node())
-      : Itor (g, sn) 
-    {
-      /* empty */ 
-    }
-  };
+  Node_Iterator (const GT & g, Show_Node sn = Show_Node ())
+      : Itor (g, sn)
+  {
+    /* empty */
+  }
+};
 
-  /** Traverse all the nodes of graph filtering some ones according to a
+/** Traverse all the nodes of graph filtering some ones according to a
       condition and executing an operation on them.
 
       @param[in] g the graph
@@ -1293,16 +1302,16 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SN = Dft_Show_Node<GT>>
-  void for_each_node(const GT & g, 
-                     std::function<void(typename GT::Node*)> operation,
-                     SN sn = SN())
-  {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
-  }
+template<class GT, class SN = Dft_Show_Node<GT>>
+void for_each_node (const GT & g,
+                    std::function<void (typename GT::Node *)> operation,
+                    SN sn = SN ())
+{
+  for (Node_Iterator<GT, SN> it (g, sn); it.has_curr (); it.next_ne ())
+    operation (it.get_curr ());
+}
 
-  /** Traverse all the arcs of graph filtering some ones according to a
+/** Traverse all the arcs of graph filtering some ones according to a
       condition and executing an operation on them.
 
       @param[in] g the graph
@@ -1311,16 +1320,16 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  void for_each_arc(const GT & g,
-                    std::function<void(typename GT::Arc*)> operation,
-                    SA sa = SA())
-  {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+void for_each_arc (const GT & g,
+                   std::function<void (typename GT::Arc *)> operation,
+                   SA sa = SA ())
+{
+  for (Arc_Iterator<GT, SA> it (g, sa); it.has_curr (); it.next_ne ())
+    operation (it.get_curr ());
+}
 
-  /** Traverse all the arcs adjacent to a node filtering some ones
+/** Traverse all the arcs adjacent to a node filtering some ones
       according to a condition and executing an operation on them.
 
       @param[in] g the graph
@@ -1330,17 +1339,17 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  void for_each_arc(const GT&, 
-                    typename GT::Node *                    p, 
-                    std::function<void(typename GT::Arc*)> operation,
-                    SA                                     sa = SA())
-  {
-    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+void for_each_arc (const GT &,
+                   typename GT::Node *p,
+                   std::function<void (typename GT::Arc *)> operation,
+                   SA sa = SA ())
+{
+  for (Node_Arc_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    operation (it.get_curr ());
+}
 
-  /** Return `true` if condition `cond` is met on every filtered node of
+/** Return `true` if condition `cond` is met on every filtered node of
       the graph.
 
       @param[in] g the graph
@@ -1350,18 +1359,18 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SN = Dft_Show_Node<GT>>
-  bool forall_node(const GT &                              g, 
-                   std::function<bool(typename GT::Node*)> cond,
-                   SN                                      sn = SN())
-  {
-    for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
-        return false;
-    return true;
-  }
+template<class GT, class SN = Dft_Show_Node<GT>>
+bool forall_node (const GT & g,
+                  std::function<bool (typename GT::Node *)> cond,
+                  SN sn = SN ())
+{
+  for (Node_Iterator<GT, SN> it (g, sn); it.has_curr (); it.next_ne ())
+    if (not cond (it.get_curr ()))
+      return false;
+  return true;
+}
 
-  /** Return `true` if condition `cond` is met on every filtered arc of
+/** Return `true` if condition `cond` is met on every filtered arc of
       the graph.
 
       @param[in] g the graph
@@ -1371,18 +1380,18 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  bool forall_arc(const GT &                             g, 
-                  std::function<bool(typename GT::Arc*)> cond,
-                  SA                                     sa = SA())
-  {
-    for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
-        return false;
-    return true;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+bool forall_arc (const GT & g,
+                 std::function<bool (typename GT::Arc *)> cond,
+                 SA sa = SA ())
+{
+  for (Arc_Iterator<GT, SA> it (g, sa); it.has_curr (); it.next_ne ())
+    if (not cond (it.get_curr ()))
+      return false;
+  return true;
+}
 
-  /** Return `true` if condition `cond` is met on every filtered arc of a
+/** Return `true` if condition `cond` is met on every filtered arc of a
       node.
 
       @param[in] p node pointer
@@ -1392,19 +1401,18 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  bool forall_arc(typename GT::Node *                    p, 
-                  std::function<bool(typename GT::Arc*)> cond,
-                  SA                                     sa = SA())
-  {
-    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      if (not cond(it.get_curr()))
-        return false;
-    return true;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+bool forall_arc (typename GT::Node *p,
+                 std::function<bool (typename GT::Arc *)> cond,
+                 SA sa = SA ())
+{
+  for (Node_Arc_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    if (not cond (it.get_curr ()))
+      return false;
+  return true;
+}
 
-
-  /** Map the filtered nodes of a graph to a transformed type.
+/** Map the filtered nodes of a graph to a transformed type.
 
       @param[in] g the grapg
       @param[in] transformation function `Node*` --> T`
@@ -1414,22 +1422,22 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, typename T,
-            template <typename> class Container = DynList,
-            class SN                            = Dft_Show_Node<GT>>
-  Container<T> nodes_map(GT &                                  g, 
-                         std::function<T(typename GT::Node *)> transformation,
-                         SN                                    sn = SN())
+template<class GT, typename T,
+    template<typename> class Container = DynList,
+    class SN                            = Dft_Show_Node<GT>>
+Container<T> nodes_map (GT & g,
+                        std::function<T (typename GT::Node *)> transformation,
+                        SN sn = SN ())
+{
+  Container<T> ret_val;
+  for_each_node<GT, SN> (g, [&ret_val, &transformation] (typename GT::Node *p)
   {
-    Container<T> ret_val;
-    for_each_node<GT, SN>(g, [&ret_val, &transformation] (typename GT::Node * p)
-                             {
-                               ret_val.append(transformation(p));
-                             }, sn);
-    return ret_val;
-  }
+    ret_val.append (transformation (p));
+  }, sn);
+  return ret_val;
+}
 
-  /** Map the filtered arcs of a graph to a transformed type.
+/** Map the filtered arcs of a graph to a transformed type.
 
       @param[in] g the grapg
       @param[in] transformation function `Arc*` --> T`
@@ -1438,22 +1446,22 @@ namespace Aleph {
       transformation
       @ingroup Grafos
   */
-  template <class GT, typename T,
-            template <typename> class Container = DynList,
-            class SA                            = Dft_Show_Arc<GT>>
-  Container<T> arcs_map(GT &                                 g, 
-                        std::function<T(typename GT::Arc *)> transformation,
-                        SA                                   sa = SA())
+template<class GT, typename T,
+    template<typename> class Container = DynList,
+    class SA                            = Dft_Show_Arc<GT>>
+Container<T> arcs_map (GT & g,
+                       std::function<T (typename GT::Arc *)> transformation,
+                       SA sa = SA ())
+{
+  Container<T> ret_val;
+  for_each_arc<GT, SA> (g, [&ret_val, &transformation] (typename GT::Arc *p)
   {
-    Container<T> ret_val;
-    for_each_arc<GT, SA>(g, [&ret_val, &transformation] (typename GT::Arc * p)
-                            {
-                              ret_val.append(transformation(p));
-                            }, sa);
-    return ret_val;
-  }
+    ret_val.append (transformation (p));
+  }, sa);
+  return ret_val;
+}
 
-  /** Map the filtered nodes of node graph to a transformed type.
+/** Map the filtered nodes of node graph to a transformed type.
 
       @param[in] g the graph
       @param[in] p node pointer
@@ -1463,23 +1471,23 @@ namespace Aleph {
       transformation
       @ingroup Grafos
   */
-  template <class GT, typename T,
-            template <typename> class Container = DynList,
-            class SA                            = Dft_Show_Arc<GT>>
-  Container<T> arcs_map(GT &                                 g, 
-                        typename GT::Node *                  p,
-                        std::function<T(typename GT::Arc *)> transformation,
-                        SA                                   sa = SA())
+template<class GT, typename T,
+    template<typename> class Container = DynList,
+    class SA                            = Dft_Show_Arc<GT>>
+Container<T> arcs_map (GT & g,
+                       typename GT::Node *p,
+                       std::function<T (typename GT::Arc *)> transformation,
+                       SA sa = SA ())
+{
+  Container<T> ret_val;
+  for_each_arc<GT, SA> (g, p, [&ret_val, &transformation] (typename GT::Arc *p)
   {
-    Container<T> ret_val;
-    for_each_arc<GT, SA>(g, p, [&ret_val, &transformation] (typename GT::Arc * p)
-                               {
-                                 ret_val.append(transformation(p));
-                               }, sa);
-    return ret_val;
-  }
+    ret_val.append (transformation (p));
+  }, sa);
+  return ret_val;
+}
 
-  /** Fold the filtered nodes of a graph.
+/** Fold the filtered nodes of a graph.
 
       @param[in] g the graph
       @param[in] init initial value of folded result
@@ -1489,20 +1497,20 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, typename T, class SN = Dft_Show_Node<GT>>
-  T foldl_nodes(GT & g, const T & init, 
-                std::function<T(const T&, typename GT::Node*)> operation,
-                SN sn = SN())
+template<class GT, typename T, class SN = Dft_Show_Node<GT>>
+T foldl_nodes (GT & g, const T & init,
+               std::function<T (const T &, typename GT::Node *)> operation,
+               SN sn = SN ())
+{
+  T ret_val = init;
+  for_each_node<GT, SN> (g, [&ret_val, &operation] (typename GT::Node *p)
   {
-    T ret_val = init;
-    for_each_node<GT, SN>(g, [&ret_val, &operation] (typename GT::Node * p)
-                             {
-                               ret_val = operation(ret_val, p);
-                             }, sn);
-    return ret_val;
-  }
+    ret_val = operation (ret_val, p);
+  }, sn);
+  return ret_val;
+}
 
-  /** Fold the filtered arcs of a graph.
+/** Fold the filtered arcs of a graph.
 
       @param[in] g the graph
       @param[in] init initial value of folded result
@@ -1511,20 +1519,20 @@ namespace Aleph {
       \result the final folded result
       @ingroup Grafos
   */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
-  T foldl_arcs(GT & g, const T & init,
-               std::function<T(const T&, typename GT::Arc*)> operation,
-               SA sa = SA())
+template<class GT, typename T, class SA = Dft_Show_Arc<GT>>
+T foldl_arcs (GT & g, const T & init,
+              std::function<T (const T &, typename GT::Arc *)> operation,
+              SA sa = SA ())
+{
+  T ret_val = init;
+  for_each_arc<GT, SA> (g, [&ret_val, &operation] (typename GT::Arc *a)
   {
-    T ret_val = init;
-    for_each_arc<GT, SA>(g, [&ret_val, &operation] (typename GT::Arc* a)
-                            {
-                              ret_val = operation(ret_val, a);
-                            }, sa);
-    return ret_val;
-  }
+    ret_val = operation (ret_val, a);
+  }, sa);
+  return ret_val;
+}
 
-  /** Fold the filtered adjacent arcs of a node.
+/** Fold the filtered adjacent arcs of a node.
 
       @param[in] g the graph
       @param[in] p node pointer
@@ -1534,21 +1542,21 @@ namespace Aleph {
       \result the final folded result
       @ingroup Grafos
   */
-  template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
-  T foldl_arcs(GT & g, typename GT::Node * p,
-               const T & init,
-               std::function<T(const T&, typename GT::Arc*)> operation,
-               SA sa = SA())
+template<class GT, typename T, class SA = Dft_Show_Arc<GT>>
+T foldl_arcs (GT & g, typename GT::Node *p,
+              const T & init,
+              std::function<T (const T &, typename GT::Arc *)> operation,
+              SA sa = SA ())
+{
+  T ret_val = init;
+  for_each_arc<GT, SA> (g, p, [&ret_val, &operation] (typename GT::Arc *a)
   {
-    T ret_val = init;
-    for_each_arc<GT, SA>(g, p, [&ret_val, &operation] (typename GT::Arc* a)
-                               {
-                                 ret_val = operation(ret_val, a);
-                               }, sa);
-    return ret_val;
-  }
+    ret_val = operation (ret_val, a);
+  }, sa);
+  return ret_val;
+}
 
-  /** Directed graph implemented with double linked adjacency lists.
+/** Directed graph implemented with double linked adjacency lists.
 
       This class is derived from `List_Graph`. It inherits all its
       methods and its use is almost equivalent. The only difference is
@@ -1557,243 +1565,250 @@ namespace Aleph {
 
       @see List_Graph
   */
-  template <typename __Graph_Node = Graph_Node<int>,
-            typename __Graph_Arc  = Graph_Arc<int>>
-  class List_Digraph : public List_Graph<__Graph_Node, __Graph_Arc>
+template<typename __Graph_Node = Graph_Node<int>,
+    typename __Graph_Arc  = Graph_Arc<int>>
+class List_Digraph : public List_Graph<__Graph_Node, __Graph_Arc> {
+ public:
+
+  using GT = List_Graph<__Graph_Node, __Graph_Arc>;
+
+  List_Digraph () noexcept
   {
-  public:
+    this->digraph = true;
+  }
 
-    using GT = List_Graph<__Graph_Node, __Graph_Arc>;
+  List_Digraph (const List_Digraph & dg) : GT ()
+  {
+    this->digraph = true;
+    *this = dg;
+  }
 
-    List_Digraph() noexcept
-    {
-      this->digraph = true; 
-    }
-  
-    List_Digraph(const List_Digraph & dg) : GT()
-    {
-      this->digraph = true; 
-      *this = dg;
-    }
+  List_Digraph (List_Digraph && dg) : GT ()
+  {
+    this->digraph = true;
+    this->swap (dg);
+  }
 
-    List_Digraph(List_Digraph && dg) : GT()
-    {
-      this->digraph = true; 
-      this->swap(dg);
-    }
-
-    List_Digraph & operator = (const List_Digraph & g)
-    {
-      if (this == &g) 
-        return *this;
-
-      copy_graph(*this, (const List_Digraph &) g);
+  List_Digraph & operator= (const List_Digraph & g)
+  {
+    if (this == &g)
       return *this;
-    }
 
-    List_Digraph & operator = (List_Digraph && g)
-    {
-      this->swap(g);
-      return *this;
-    }  
-  };
+    copy_graph (*this, (const List_Digraph &) g);
+    return *this;
+  }
+
+  List_Digraph & operator= (List_Digraph && g)
+  {
+    this->swap (g);
+    return *this;
+  }
+};
 
 
-  /** Alias used for encapsulating a pair of arc and node (related between
+/** Alias used for encapsulating a pair of arc and node (related between
       them).
 
       @ingroup Grafos
   */
-  template <class GT>
-  using ArcPair = tuple<typename GT::Arc*, typename GT::Node*>;
+template<class GT>
+using ArcPair = tuple<typename GT::Arc *, typename GT::Node *>;
 
-  /** Filter the outcoming arcs.
-
-      This filter is used by the directed graphs implemented with
-      `List_Graph`. 
-
-      @ingroup Grafos
-  */
-  template <class GT> class __Out_Filt
-  {
-    typename GT::Node * src = nullptr;
-
-  public:
-
-    __Out_Filt(typename GT::Node * __src) noexcept : src(__src) { /* empty */ }
-
-    bool operator () (typename GT::Arc * a) const noexcept
-    {
-      assert(src);
-      return a->src_node == src;
-    }
-
-    typename GT::Node * get_node(typename GT::Arc * a) const noexcept
-    {
-      assert(src);
-      return (typename GT::Node *) a->tgt_node;
-    }
-  };
-
-
-  /** Filter the incoming arcs.
+/** Filter the outcoming arcs.
 
       This filter is used by the directed graphs implemented with
-      `List_Graph`. 
+      `List_Graph`.
 
       @ingroup Grafos
   */
-  template <class GT> class __In_Filt
+template<class GT>
+class __Out_Filt {
+  typename GT::Node *src = nullptr;
+
+ public:
+
+  __Out_Filt (typename GT::Node *__src) noexcept: src (__src)
+  { /* empty */ }
+
+  bool operator() (typename GT::Arc *a) const noexcept
   {
-    typename GT::Node * tgt = nullptr;
+    assert(src);
+    return a->src_node == src;
+  }
 
-  public:
-
-    __In_Filt(typename GT::Node * __tgt) noexcept : tgt(__tgt) { /* empty */ }
-
-    bool operator () (typename GT::Arc * a) const noexcept
-    {
-      assert(tgt);
-      return a->tgt_node == tgt;
-    }
-
-    typename GT::Node * get_node(typename GT::Arc * a) const noexcept
-    {
-      assert(tgt);
-      return (typename GT::Node *) a->src_node;
-    }
-  };
-
-  /** Filtered iterator on directed graphs.
-    
-      @ingroup Grafos
-  */
-  template <class GT, class Filter>
-  class Digraph_Iterator
+  typename GT::Node *get_node (typename GT::Arc *a) const noexcept
   {
-    using Itor = Filter_Iterator<typename GT::Node*, 
-                                 typename GT::Node_Arc_Iterator, Filter>;
+    assert(src);
+    return (typename GT::Node *) a->tgt_node;
+  }
+};
 
-    Filter filt;
-    Itor it;
+/** Filter the incoming arcs.
 
-  public:
-
-    using Item_Type = typename Itor::Item_Type; /// The type of element
-
-    using Iterator_Type = Itor; /// Iterator type
-
-    /// Initialize an iterator on adjacent arcs (incoming or outcoming) of `p`
-    Digraph_Iterator(typename GT::Node * p) 
-      : filt(p), it(p, filt) 
-    {
-      // empty
-    }
-
-    /// Move the iterator one position forward. Throws `overflow_error` it
-    /// there is no current
-    void next() { it.next(); }
-
-    void next_ne() noexcept { it.next_ne(); }
-
-    /// Move the iterator one position backward. Throws `overflow_error` it
-    /// there is no current
-    void prev() { it.next(); }
-
-    /// Return `true` the iterator has an current arc
-    bool has_curr() const noexcept { return it.has_curr(); }
-
-    /// Return the current arc.  Throws `overflow_error` it there is no
-    /// current
-    typename GT::Arc * get_curr() const { return it.get_curr(); }
-
-    /// Return the current arc.  Throws `overflow_error` it there is no
-    /// current
-    typename GT::Arc * get_curr_ne() const noexcept { return it.get_curr_ne(); }
-
-    /// \overload get_curr()
-    auto get_current_arc() const { return get_curr(); }
-			
-    /// Return the connected node to `arc`. The result depends of iterator
-    /// type
-    typename GT::Node * get_node(typename GT::Arc * a) const noexcept
-    {
-      return filt.get_node(a);
-    }
-
-    /// Return the connected node to current arc.
-    typename GT::Node * get_node() const
-    { 
-      return this->get_node(this->get_curr()); 
-    }
-
-    /// \overload  get_node()
-    auto get_tgt_node() const { return get_node(); }
-
-    /// Return the connected node to current arc.
-    typename GT::Node * get_node_ne() const noexcept
-    { 
-      return this->get_node(this->get_curr_ne()); 
-    }
-
-    /// \overload  get_node()
-    auto get_tgt_node_ne() const noexcept { return get_node_ne(); }
-
-    /// Reset the iterator to the first arc
-    void reset_first() noexcept { it.reset_first(); }
-
-    /// Reset the iterator to the last arc
-    void reset_last() noexcept { it.reset_last(); }
-
-    /// Put the iterator in end state
-    void end() noexcept { put_itor_at_the_end(*this); }
-  };
-
-
-  /** Basic iterator for outcoming arcs of a node.
+      This filter is used by the directed graphs implemented with
+      `List_Graph`.
 
       @ingroup Grafos
   */
-  template <class GT>
-  using __Out_Iterator = typename GT::Out_Iterator;
+template<class GT>
+class __In_Filt {
+  typename GT::Node *tgt = nullptr;
 
+ public:
 
-  /** Basic iterator for outcoming arcs of a node.
+  __In_Filt (typename GT::Node *__tgt) noexcept: tgt (__tgt)
+  { /* empty */ }
 
-      @ingroup Grafos
-  */
-  template <class GT>
-  using __In_Iterator = typename GT::In_Iterator;
-
-
-  /** Filtered iterator for outcoming arcs of a node
-
-      @ingroup Grafos
-  */
-  template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
-  struct Out_Iterator : public
-  Filter_Iterator<typename GT::Node*, typename GT::Out_Iterator, Show_Arc>
+  bool operator() (typename GT::Arc *a) const noexcept
   {
-    using Filter_Iterator<typename GT::Node*,
-      typename GT::Out_Iterator,
-                          Show_Arc>::Filter_Iterator;
-  };
+    assert(tgt);
+    return a->tgt_node == tgt;
+  }
 
+  typename GT::Node *get_node (typename GT::Arc *a) const noexcept
+  {
+    assert(tgt);
+    return (typename GT::Node *) a->src_node;
+  }
+};
 
-  /** Filtered iterator for incoming arcs of a node
+/** Filtered iterator on directed graphs.
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  class In_Iterator : public
-  Filter_Iterator<typename GT::Node*, typename GT::In_Iterator, SA>
+template<class GT, class Filter>
+class Digraph_Iterator {
+  using Itor = Filter_Iterator<typename GT::Node *,
+                               typename GT::Node_Arc_Iterator, Filter>;
+
+  Filter filt;
+  Itor it;
+
+ public:
+
+  using Item_Type = typename Itor::Item_Type; /// The type of element
+
+  using Iterator_Type = Itor; /// Iterator type
+
+  /// Initialize an iterator on adjacent arcs (incoming or outcoming) of `p`
+  Digraph_Iterator (typename GT::Node *p)
+      : filt (p), it (p, filt)
   {
-    using Filter_Iterator<typename GT::Node*,
-                          typename GT::In_Iterator, SA>::Filter_Iterator;
-  };
+    // empty
+  }
+
+  /// Move the iterator one position forward. Throws `overflow_error` it
+  /// there is no current
+  void next ()
+  { it.next (); }
+
+  void next_ne () noexcept
+  { it.next_ne (); }
+
+  /// Move the iterator one position backward. Throws `overflow_error` it
+  /// there is no current
+  void prev ()
+  { it.next (); }
+
+  /// Return `true` the iterator has an current arc
+  bool has_curr () const noexcept
+  { return it.has_curr (); }
+
+  /// Return the current arc.  Throws `overflow_error` it there is no
+  /// current
+  typename GT::Arc *get_curr () const
+  { return it.get_curr (); }
+
+  /// Return the current arc.  Throws `overflow_error` it there is no
+  /// current
+  typename GT::Arc *get_curr_ne () const noexcept
+  { return it.get_curr_ne (); }
+
+  /// \overload get_curr()
+  auto get_current_arc () const
+  { return get_curr (); }
+
+  /// Return the connected node to `arc`. The result depends of iterator
+  /// type
+  typename GT::Node *get_node (typename GT::Arc *a) const noexcept
+  {
+    return filt.get_node (a);
+  }
+
+  /// Return the connected node to current arc.
+  typename GT::Node *get_node () const
+  {
+    return this->get_node (this->get_curr ());
+  }
+
+  /// \overload  get_node()
+  auto get_tgt_node () const
+  { return get_node (); }
+
+  /// Return the connected node to current arc.
+  typename GT::Node *get_node_ne () const noexcept
+  {
+    return this->get_node (this->get_curr_ne ());
+  }
+
+  /// \overload  get_node()
+  auto get_tgt_node_ne () const noexcept
+  { return get_node_ne (); }
+
+  /// Reset the iterator to the first arc
+  void reset_first () noexcept
+  { it.reset_first (); }
+
+  /// Reset the iterator to the last arc
+  void reset_last () noexcept
+  { it.reset_last (); }
+
+  /// Put the iterator in end state
+  void end () noexcept
+  { put_itor_at_the_end (*this); }
+};
 
 
-  /** Return the nodes connected to the filtered outcoming arcs of `p`.
+/** Basic iterator for outcoming arcs of a node.
+
+      @ingroup Grafos
+  */
+template<class GT>
+using _Out_Iterator = typename GT::Out_Iterator;
+
+
+/** Basic iterator for outcoming arcs of a node.
+
+      @ingroup Grafos
+  */
+template<class GT>
+using _In_Iterator = typename GT::In_Iterator;
+
+/** Filtered iterator for outcoming arcs of a node
+
+      @ingroup Grafos
+  */
+template<class GT, class Show_Arc = Dft_Show_Arc<GT>>
+struct Out_Iterator : public Filter_Iterator<typename GT::Node *,
+                                             typename GT::Out_Iterator,
+                                             Show_Arc> {
+  // default constructor inherited from Filter_Iterator
+  using Filter_Iterator<typename GT::Node *,
+                        typename GT::Out_Iterator,
+                        Show_Arc>::Filter_Iterator;
+};
+
+/** Filtered iterator for incoming arcs of a node
+
+      @ingroup Grafos
+  */
+template<class GT, class SA = Dft_Show_Arc<GT>>
+class In_Iterator : public Filter_Iterator<typename GT::Node *, typename GT::In_Iterator, SA> {
+  using Filter_Iterator<typename GT::Node *,
+                        typename GT::In_Iterator, SA>::Filter_Iterator;
+};
+
+/** Return the nodes connected to the filtered outcoming arcs of `p`.
 
       @param[in] p node pointer
       @param[in] sa arc filter
@@ -1802,16 +1817,16 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<typename GT::Node*> out_nodes(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<typename GT::Node *> ret;
-    for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_node_ne());
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Node *> out_nodes (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<typename GT::Node *> ret;
+  for (Out_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ret.append (it.get_node_ne ());
+  return ret;
+}
 
-  /** Return the nodes connected to the filtered incoming arcs to `p`.
+/** Return the nodes connected to the filtered incoming arcs to `p`.
 
       @param[in] p node pointer
       @param[in] sa arc filter
@@ -1819,100 +1834,100 @@ namespace Aleph {
       incoming nodes
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<typename GT::Node*> in_nodes(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<typename GT::Node *> ret;
-    for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_node_ne());
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Node *> in_nodes (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<typename GT::Node *> ret;
+  for (In_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ret.append (it.get_node_ne ());
+  return ret;
+}
 
-  /** Return the filtered incoming arcs of `p`.
+/** Return the filtered incoming arcs of `p`.
 
       @param[in] p node pointer
       @param[in] sa arc filter
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<typename GT::Arc*> out_arcs(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<typename GT::Arc*> ret;
-    for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr());
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc *> out_arcs (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<typename GT::Arc *> ret;
+  for (Out_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ret.append (it.get_curr ());
+  return ret;
+}
 
-  /** Return the filtered incoming arcs of `p`.
+/** Return the filtered incoming arcs of `p`.
 
       @param[in] p node pointer
       @param[in] sa arc filter
 
       @ingroup Grafos
-  */ 
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<typename GT::Arc*> in_arcs(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<typename GT::Arc*> ret;
-    for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr());
-    return ret;
-  }
+  */
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc *> in_arcs (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<typename GT::Arc *> ret;
+  for (In_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ret.append (it.get_curr ());
+  return ret;
+}
 
-  /** Return all the filtered arcs related to `p`
+/** Return all the filtered arcs related to `p`
 
       @param[in] p node pointer
       @param[in] sa arc filter
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<typename GT::Arc*> arcs(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<typename GT::Arc *> ret;
-    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ret.append(it.get_curr());
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<typename GT::Arc *> arcs (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<typename GT::Arc *> ret;
+  for (Node_Arc_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ret.append (it.get_curr ());
+  return ret;
+}
 
-  /** Return the filtered incoming pairs of (arc,node) related to node `p`
+/** Return the filtered incoming pairs of (arc,node) related to node `p`
 
       @param[in] p node pointer
       @param[in] sa arc filter
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<ArcPair<GT>> in_pairs(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<ArcPair<GT>> ret;
-    for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      {
-        typename GT::Arc * a = it.get_curr();
-        ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
-      }
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<ArcPair<GT>> in_pairs (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<ArcPair<GT>> ret;
+  for (In_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    {
+      typename GT::Arc *a = it.get_curr ();
+      ret.append (make_tuple (a, (typename GT::Node *) a->get_connected_node (p)));
+    }
+  return ret;
+}
 
-  /** Return the filtered outcoming pairs of (arc,node) related to node `p`
+/** Return the filtered outcoming pairs of (arc,node) related to node `p`
 
       @param[in] p node pointer
       @param[in] sa arc filter
       \result a `DynList<ArcPair<GT>>` containg the outcoming pairs
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  DynList<ArcPair<GT>> out_pairs(typename GT::Node * p, SA sa = SA())
-  {
-    DynList<ArcPair<GT>> ret;
-    for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      {
-        typename GT::Arc * a = it.get_curr();
-        ret.append(make_tuple(a, (typename GT::Node*) a->get_connected_node(p)));
-      }
-    return ret;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+DynList<ArcPair<GT>> out_pairs (typename GT::Node *p, SA sa = SA ())
+{
+  DynList<ArcPair<GT>> ret;
+  for (Out_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    {
+      typename GT::Arc *a = it.get_curr ();
+      ret.append (make_tuple (a, (typename GT::Node *) a->get_connected_node (p)));
+    }
+  return ret;
+}
 
-  /** Compute the filtered in degree of node `p`.
+/** Compute the filtered in degree of node `p`.
 
       \note This function computes the degree, it does not retrieve it.
 
@@ -1921,25 +1936,25 @@ namespace Aleph {
       \result the incoming degree
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  size_t in_degree(typename GT::Node * p, SA sa = SA())
-  {
-    size_t count = 0;
-    for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+size_t in_degree (typename GT::Node *p, SA sa = SA ())
+{
+  size_t count = 0;
+  for (In_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ++count;
+  return count;
+}
 
-  template <class GT>
-  size_t in_degree(typename GT::Node * p)
-  {
-    size_t count = 0;
-    for (__In_Iterator<GT> it(p); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
+template<class GT>
+size_t in_degree (typename GT::Node *p)
+{
+  size_t count = 0;
+  for (_In_Iterator<GT> it (p); it.has_curr (); it.next_ne ())
+    ++count;
+  return count;
+}
 
-  /** Compute the filtered out degree of node `p`
+/** Compute the filtered out degree of node `p`
 
       \note This function computes the degree, it does not retrieve it.
 
@@ -1949,32 +1964,31 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  size_t out_degree(typename GT::Node * p, SA sa = SA())
-  {
-    size_t count = 0;
-    for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
+template<class GT, class SA = Dft_Show_Arc<GT>>
+size_t out_degree (typename GT::Node *p, SA sa = SA ())
+{
+  size_t count = 0;
+  for (Out_Iterator<GT, SA> it (p, sa); it.has_curr (); it.next_ne ())
+    ++count;
+  return count;
+}
 
-  template <class GT>
-  size_t out_degree(typename GT::Node * p)
-  {
-    size_t count = 0;
-    for (__Out_Iterator<GT> it(p); it.has_curr(); it.next_ne())
-      ++count;
-    return count;
-  }
+template<class GT>
+size_t out_degree (typename GT::Node *p)
+{
+  size_t count = 0;
+  for (_Out_Iterator<GT> it (p); it.has_curr (); it.next_ne ())
+    ++count;
+  return count;
+}
 
-
-  /** Generic arcs traverse of a node.
+/** Generic arcs traverse of a node.
 
       This template function receives threes template parameters:
 
       1. `GT`: the graph type.
-      2. `Itor`: the iterator type; it is intended to be `__In_Iterator`
-      or `__Out_Iterator`.
+      2. `Itor`: the iterator type; it is intended to be `_In_Iterator`
+      or `_Out_Iterator`.
       3. `Operation`: an operation to be executed on each arc. This
       operation must have the following signature:
 
@@ -1990,22 +2004,23 @@ namespace Aleph {
       \result `true` if all the arcs were traversed: `false` otherwise
       @ingroup Grafos
   */
-  template <class GT, class Itor, class Operation> inline
-  bool traverse_arcs(typename GT::Node * p, Operation op = Operation())
-  {
-    for (Itor it(p); it.has_curr(); it.next_ne())
-      if (not op(it.get_curr()))
-        return false;
-    return true;
-  }
+template<class GT, class Itor, class Operation>
+inline
+bool traverse_arcs (typename GT::Node *p, Operation op = Operation ())
+{
+  for (Itor it (p); it.has_curr (); it.next_ne ())
+    if (not op (it.get_curr ()))
+      return false;
+  return true;
+}
 
-  /** Execute an operation on each arc of a node.
+/** Execute an operation on each arc of a node.
 
       This template function receives threes template parameters:
 
       1. `GT`: the graph type.
-      2. `Itor`: the iterator type; it is intended to be `__In_Iterator`
-      or `__Out_Iterator`.
+      2. `Itor`: the iterator type; it is intended to be `_In_Iterator`
+      or `_Out_Iterator`.
       3. `Operation`: an operation to be executed on each arc. This
       operation must have the following signature:
 
@@ -2016,17 +2031,18 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class Itor, class Operation> inline
-  void for_each_arc(typename GT::Node * p, Operation op = Operation())
-  {
-    for (Itor it(p); it.has_curr(); it.next_ne())
-      op(it.get_curr());
-  }
+template<class GT, class Itor, class Operation>
+inline
+void for_each_arc (typename GT::Node *p, Operation op = Operation ())
+{
+  for (Itor it (p); it.has_curr (); it.next_ne ())
+    op (it.get_curr ());
+}
 
 
-  // Functional operations on input arcs
+// Functional operations on input arcs
 
-  /** Conditioned traversal of incoming arcs of a node.
+/** Conditioned traversal of incoming arcs of a node.
 
       @param[in] p node pointer
       @param[in] op operation whose result must be `bool`. Si the result
@@ -2035,25 +2051,27 @@ namespace Aleph {
       \result `true` is all the arcs were traversed: `false` otherwise
       @ingroup Grafos
   */
-  template <class GT, class Op> inline
-  bool traverse_in_arcs(typename GT::Node * p, Op op = Op())
-  {
-    return traverse_arcs<GT, __In_Iterator<GT>, Op>(p, op);
-  }
+template<class GT, class Op>
+inline
+bool traverse_in_arcs (typename GT::Node *p, Op op = Op ())
+{
+  return traverse_arcs<GT, _In_Iterator<GT>, Op> (p, op);
+}
 
-  /** Traverse the incoming arcs of a node and executes an operation
+/** Traverse the incoming arcs of a node and executes an operation
 
       @param[in] p node pointer
       @param[in] op operation to perform on each node
       @ingroup Grafos
   */
-  template <class GT, class Op> inline
-  void for_each_in_arc(typename GT::Node * p, Op op = Op())
-  {
-    for_each_arc<GT, __In_Iterator<GT>, Op>(p, op);
-  }
+template<class GT, class Op>
+inline
+void for_each_in_arc (typename GT::Node *p, Op op = Op ())
+{
+  for_each_arc<GT, _In_Iterator<GT>, Op> (p, op);
+}
 
-  /** Test if the incoming arcs meet a condition.
+/** Test if the incoming arcs meet a condition.
 
       `op` must have the following signature:
 
@@ -2063,13 +2081,15 @@ namespace Aleph {
       @param[in] op testing operation
       \result `true` if `op` returns `true` for all the incoming arcs
   */
-  template <class GT, class Op> inline
-  bool all_in_arc(typename GT::Node * p, Op op = Op())
-  {
-    return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
-  }
+template<class GT, class Op>
+inline
+bool all_in_arc (typename GT::Node *p, Op op = Op ())
+{
+  return traverse_in_arcs (p, [&op] (auto a)
+  { return op (a); });
+}
 
-  /** Test if it exists an incoming arc satisfying an operation.
+/** Test if it exists an incoming arc satisfying an operation.
 
       `op` must have the following signature:
 
@@ -2079,13 +2099,15 @@ namespace Aleph {
       @param[in] op operation for testing on each arc
       \result `true` if there is at least an arc satisfying the operation
   */
-  template <class GT, class Op> inline
-  bool exists_in_arc(typename GT::Node * p, Op op = Op())
-  {
-    return not traverse_in_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
-  }
+template<class GT, class Op>
+inline
+bool exists_in_arc (typename GT::Node *p, Op op = Op ())
+{
+  return not traverse_in_arcs<GT, Op> (p, [&op] (auto a)
+  { return not op (a); });
+}
 
-  /** Search an incoming arc to a node satisfying a condition `op`.
+/** Search an incoming arc to a node satisfying a condition `op`.
 
       `op` must have the following signature:
 
@@ -2096,23 +2118,24 @@ namespace Aleph {
       \result a pointer to a node satisfying the operation if this is
       found; `nullptr` otherwise
   */
-  template <class GT, class Op> inline
-  auto search_in_arc(typename GT::Node * p, Op op = Op())
+template<class GT, class Op>
+inline
+auto search_in_arc (typename GT::Node *p, Op op = Op ())
+{
+  typename GT::Arc *ret = nullptr;
+  traverse_in_arcs (p, [&op, &ret] (auto a)
   {
-    typename GT::Arc * ret = nullptr;
-    traverse_in_arcs(p, [&op, &ret] (auto a)
-                        {
-                          if (op(a))
-                            {
-                              ret = a;
-                              return false;
-                            }
-                          return true;
-                        });
-    return ret;
-  }
+    if (op (a))
+      {
+        ret = a;
+        return false;
+      }
+    return true;
+  });
+  return ret;
+}
 
-  /** Map the incoming arcs to a transformation,
+/** Map the incoming arcs to a transformation,
 
       The transformation is called `op` and must have the following
       signature:
@@ -2125,15 +2148,17 @@ namespace Aleph {
       @param[in] op transformation
       \result a `DynList<T>` containg the mapping.
   */
-  template <class GT, typename T> inline
-  auto map_in_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
-  {
-    DynList<T> ret;
-    for_each_in_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
-    return ret;
-  }
+template<class GT, typename T>
+inline
+auto map_in_arcs (typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+{
+  DynList<T> ret;
+  for_each_in_arc (p, [&ret, &op] (auto a)
+  { ret.append (op (a)); });
+  return ret;
+}
 
-  /** Fold the incoming arcs of a node.
+/** Fold the incoming arcs of a node.
 
       This method folds the incoming arcs to a final folded type `T`. Each
       folding is done by an operation `op`, which must have the following
@@ -2149,37 +2174,40 @@ namespace Aleph {
       @param[in] op folding operation
       \result the final folded result after the last seen arc
   */
-  template <class GT, typename T> inline
-  T foldl_in_arcs(typename GT::Node * p, const T & init,
-                  std::function<T(const T&, typename GT::Arc*)> op)
-  {
-    T ret = init;
-    for_each_in_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
-    return ret;
-  }
+template<class GT, typename T>
+inline
+T foldl_in_arcs (typename GT::Node *p, const T & init,
+                 std::function<T (const T &, typename GT::Arc *)> op)
+{
+  T ret = init;
+  for_each_in_arc (p, [&ret, &op] (auto a)
+  { ret = op (ret, a); });
+  return ret;
+}
 
-  /** Filter the incoming arcs meeting an condition.
+/** Filter the incoming arcs meeting an condition.
 
       @param[in] p node pointer
       @param[in] cond filtering condition
       \result a `DynList<typename GT::Arc*>` containing the filtered arcs
   */
-  template <class GT, class Op> inline
-  DynList<typename GT::Arc*> filter_in_arcs(typename GT::Node * p, Op cond)
+template<class GT, class Op>
+inline
+DynList<typename GT::Arc *> filter_in_arcs (typename GT::Node *p, Op cond)
+{
+  DynList<typename GT::Arc *> ret;
+  for_each_in_arc (p, [&ret, &cond] (auto a)
   {
-    DynList<typename GT::Arc*> ret;
-    for_each_in_arc(p, [&ret, &cond] (auto a) 
-                       {
-                         if (cond(a))
-                           ret.append(a);
-                       });
-    return ret;
-  }
+    if (cond (a))
+      ret.append (a);
+  });
+  return ret;
+}
 
 
-  // Functional operation on output arcs
+// Functional operation on output arcs
 
-  /** Conditioned traversal of outcoming arcs of a node.
+/** Conditioned traversal of outcoming arcs of a node.
 
       @param[in] p node pointer
       @param[in] op operation whose result must be `bool`. Si the result
@@ -2188,25 +2216,27 @@ namespace Aleph {
       \result `true` is all the arcs were traversed: `false` otherwise
       @ingroup Grafos
   */
-  template <class GT, class Op> inline
-  bool traverse_out_arcs(typename GT::Node * p, Op op = Op())
-  {
-    return traverse_arcs<GT, __Out_Iterator<GT>, Op>(p, op);
-  }
+template<class GT, class Op>
+inline
+bool traverse_out_arcs (typename GT::Node *p, Op op = Op ())
+{
+  return traverse_arcs<GT, _Out_Iterator<GT>, Op> (p, op);
+}
 
-  /** Traverse the outcoming arcs of a node and executes an operation
+/** Traverse the outcoming arcs of a node and executes an operation
 
       @param[in] p node pointer
       @param[in] op operation to perform on each node
       @ingroup Grafos
   */
-  template <class GT, class Op> inline
-  void for_each_out_arc(typename GT::Node * p, Op op = Op())
-  {
-    for_each_arc<GT, __Out_Iterator<GT>, Op>(p, op);
-  }
+template<class GT, class Op>
+inline
+void for_each_out_arc (typename GT::Node *p, Op op = Op ())
+{
+  for_each_arc<GT, _Out_Iterator<GT>, Op> (p, op);
+}
 
-  /** Test if the outcoming arcs meet a condition.
+/** Test if the outcoming arcs meet a condition.
 
       `op` must have the following signature:
 
@@ -2216,13 +2246,15 @@ namespace Aleph {
       @param[in] op testing operation
       \result `true` if `op` returns `true` for all the incoming arcs
   */
-  template <class GT, class Op> inline
-  bool all_out_arc(typename GT::Node * p, Op op = Op())
-  {
-    return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
-  }
+template<class GT, class Op>
+inline
+bool all_out_arc (typename GT::Node *p, Op op = Op ())
+{
+  return traverse_out_arcs (p, [&op] (auto a)
+  { return op (a); });
+}
 
-  /** Test if it exists an outcoming arc satisfying an operation.
+/** Test if it exists an outcoming arc satisfying an operation.
 
       `op` must have the following signature:
 
@@ -2232,13 +2264,15 @@ namespace Aleph {
       @param[in] op operation for testing on each arc
       \result `true` if there is at least an arc satisfying the operation
   */
-  template <class GT, class Op> inline
-  bool exists_out_arc(typename GT::Node * p, Op op = Op())
-  {
-    return not traverse_out_arcs<GT, Op>(p, [&op] (auto a) { return not op(a); });
-  }
+template<class GT, class Op>
+inline
+bool exists_out_arc (typename GT::Node *p, Op op = Op ())
+{
+  return not traverse_out_arcs<GT, Op> (p, [&op] (auto a)
+  { return not op (a); });
+}
 
-  /** Search an outcoming arc to a node satisfying a condition `op`.
+/** Search an outcoming arc to a node satisfying a condition `op`.
 
       `op` must have the following signature:
 
@@ -2249,23 +2283,24 @@ namespace Aleph {
       \result a pointer to a node satisfying the operation if this is
       found; `nullptr` otherwise
   */
-  template <class GT, class Op> inline
-  auto search_out_arc(typename GT::Node * p, Op op = Op())
+template<class GT, class Op>
+inline
+auto search_out_arc (typename GT::Node *p, Op op = Op ())
+{
+  typename GT::Arc *ret = nullptr;
+  __traverse_out_arcs (p, [&op, &ret] (auto a)
   {
-    typename GT::Arc * ret = nullptr;
-    __traverse_out_arcs(p, [&op, &ret] (auto a)
-                           {
-                             if (op(a))
-                               {
-                                 ret = a;
-                                 return false;
-                               }
-                             return true;
-                           });
-    return ret;
-  }
+    if (op (a))
+      {
+        ret = a;
+        return false;
+      }
+    return true;
+  });
+  return ret;
+}
 
-  /** Map the outcoming arcs to a transformation,
+/** Map the outcoming arcs to a transformation,
 
       The transformation is called `op` and must have the following
       signature:
@@ -2278,15 +2313,17 @@ namespace Aleph {
       @param[in] op transformation
       \result a `DynList<T>` containg the mapping.
   */
-  template <class GT, typename T> inline
-  auto map_out_arcs(typename GT::Node * p, std::function<T(typename GT::Arc*)> op)
-  {
-    DynList<T> ret;
-    for_each_out_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
-    return ret;
-  }
+template<class GT, typename T>
+inline
+auto map_out_arcs (typename GT::Node *p, std::function<T (typename GT::Arc *)> op)
+{
+  DynList<T> ret;
+  for_each_out_arc (p, [&ret, &op] (auto a)
+  { ret.append (op (a)); });
+  return ret;
+}
 
-  /** Fold the outcoming arcs of a node.
+/** Fold the outcoming arcs of a node.
 
       This method folds the outcoming arcs to a final folded type
       `T`. Each folding is done by an operation `op`, which must have the
@@ -2302,34 +2339,37 @@ namespace Aleph {
       @param[in] op folding operation
       \result the final folded result after the last seen arc
   */
-  template <class GT, typename T> inline
-  T foldl_out_arcs(typename GT::Node * p, const T & init,
-                   std::function<T(const T&, typename GT::Arc*)> op)
-  {
-    T ret = init;
-    for_each_out_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
-    return ret;
-  }
+template<class GT, typename T>
+inline
+T foldl_out_arcs (typename GT::Node *p, const T & init,
+                  std::function<T (const T &, typename GT::Arc *)> op)
+{
+  T ret = init;
+  for_each_out_arc (p, [&ret, &op] (auto a)
+  { ret = op (ret, a); });
+  return ret;
+}
 
-  /** Filter the outcoming arcs meeting an condition.
+/** Filter the outcoming arcs meeting an condition.
 
       @param[in] p node pointer
       @param[in] cond filtering condition
       \result a `DynList<typename GT::Arc*>` containing the filtered arcs
   */
-  template <class GT, class Op> inline
-  DynList<typename GT::Arc*> filter_out_arcs(typename GT::Node * p, Op cond)
+template<class GT, class Op>
+inline
+DynList<typename GT::Arc *> filter_out_arcs (typename GT::Node *p, Op cond)
+{
+  DynList<typename GT::Arc *> ret;
+  for_each_out_arc (p, [&ret, &cond] (auto a)
   {
-    DynList<typename GT::Arc*> ret;
-    for_each_out_arc(p, [&ret, &cond] (auto a)
-                        {
-                          if (cond(a))
-                            ret.append(a);
-                        });
-    return ret;
-  }
+    if (cond (a))
+      ret.append (a);
+  });
+  return ret;
+}
 
-  /** Arc filtered searching given two nodes.
+/** Arc filtered searching given two nodes.
 
       This function receives two nodes and returns the first arc linking
       them. The arc sense is irrelevant for this function. Simply, it
@@ -2342,25 +2382,25 @@ namespace Aleph {
       @return pointer to found node; \c nullptr otherwise
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  typename GT::Arc *
-  search_arc(const GT & g,
-             typename GT::Node * src, typename GT::Node * tgt,
-             SA sa = SA()) noexcept
-  {
-    assert(src != nullptr and tgt != nullptr);
+template<class GT, class SA = Dft_Show_Arc<GT>>
+typename GT::Arc *
+search_arc (const GT & g,
+            typename GT::Node *src, typename GT::Node *tgt,
+            SA sa = SA ()) noexcept
+{
+  assert(src != nullptr and tgt != nullptr);
 
-    if (not g.is_digraph() and tgt->num_arcs < src->num_arcs)
-      std::swap(tgt, src); // select the node with less arcs
+  if (not g.is_digraph () and tgt->num_arcs < src->num_arcs)
+    std::swap (tgt, src); // select the node with less arcs
 
-    for (Node_Arc_Iterator<GT, SA> itor(src, sa); itor.has_curr(); itor.next_ne())
-      if (itor.get_tgt_node_ne() == tgt)
-        return itor.get_current_arc_ne();
+  for (Node_Arc_Iterator<GT, SA> itor (src, sa); itor.has_curr (); itor.next_ne ())
+    if (itor.get_tgt_node_ne () == tgt)
+      return itor.get_current_arc_ne ();
 
-    return nullptr;
-  }
+  return nullptr;
+}
 
-  /** Searching of directed arc linking two nodes.
+/** Searching of directed arc linking two nodes.
 
       @param[in] g the graph
       @param[in] src source node pointer
@@ -2369,56 +2409,56 @@ namespace Aleph {
       nullptr otherwise.
       @ingroup Grafos
   */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  typename GT::Arc *
-  search_directed_arc(const GT &,
-                      typename GT::Node * src, typename GT::Node * tgt,
-                      SA sa = SA()) noexcept
-  {
-    assert(src != nullptr and tgt != nullptr);
+template<class GT, class SA = Dft_Show_Arc<GT>>
+typename GT::Arc *
+search_directed_arc (const GT &,
+                     typename GT::Node *src, typename GT::Node *tgt,
+                     SA sa = SA ()) noexcept
+{
+  assert(src != nullptr and tgt != nullptr);
 
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-      {
-        typename GT::Arc * a = it.get_curr();
-        if (a->src_node == src and a->tgt_node == tgt)
-          return a;
-      }
+  for (Node_Arc_Iterator<GT, SA> it (src, sa); it.has_curr (); it.next_ne ())
+    {
+      typename GT::Arc *a = it.get_curr ();
+      if (a->src_node == src and a->tgt_node == tgt)
+        return a;
+    }
 
-    return nullptr;
-  }
+  return nullptr;
+}
 
-  /** Return the mapped node through the cookie of `p`
+/** Return the mapped node through the cookie of `p`
 
       @ingroup Grafos
   */
-  template <class GT>
-  typename GT::Node * mapped_node(typename GT::Node * p) noexcept
-  {
-    return (typename GT::Node *) NODE_COOKIE(p);
-  }
+template<class GT>
+typename GT::Node *mapped_node (typename GT::Node *p) noexcept
+{
+  return (typename GT::Node *) NODE_COOKIE(p);
+}
 
-  /// Return the mapped arc through the cookie of `p`
-  template <class GT>
-  typename GT::Arc * mapped_arc(typename GT::Arc * a) noexcept
-  {
-    return (typename GT::Arc *) ARC_COOKIE(a);
-  }
+/// Return the mapped arc through the cookie of `p`
+template<class GT>
+typename GT::Arc *mapped_arc (typename GT::Arc *a) noexcept
+{
+  return (typename GT::Arc *) ARC_COOKIE(a);
+}
 
-  /// \overload mapped_node(typename GT::Node * p)
-  template <class GTSRC, class GTTGT>
-  typename GTTGT::Node * mapped_node(typename GTSRC::Node * p) noexcept
-  {
-    return (typename GTTGT::Node *) NODE_COOKIE(p);
-  }
+/// \overload mapped_node(typename GT::Node * p)
+template<class GTSRC, class GTTGT>
+typename GTTGT::Node *mapped_node (typename GTSRC::Node *p) noexcept
+{
+  return (typename GTTGT::Node *) NODE_COOKIE(p);
+}
 
-  /// \overload  mapped_arc(typename GT::Arc * a)
-  template <class GTSRC, class GTTGT>
-  typename GTTGT::Arc * mapped_arc(typename GTSRC::Arc * a) noexcept
-  {
-    return (typename GTTGT::Arc *) ARC_COOKIE(a);
-  }
+/// \overload  mapped_arc(typename GT::Arc * a)
+template<class GTSRC, class GTTGT>
+typename GTTGT::Arc *mapped_arc (typename GTSRC::Arc *a) noexcept
+{
+  return (typename GTTGT::Arc *) ARC_COOKIE(a);
+}
 
-  /** Explicit copy of graph.
+/** Explicit copy of graph.
 
       This function takes a source graph `gsrc` for copying to to another
       target graph `gtgt`. First the function cleans `gtgt`; that is
@@ -2435,17 +2475,19 @@ namespace Aleph {
       @throw bad_alloc if there is no enough memory
       @ingroup Grafos
   */
-  template <class GT> inline
-  void copy_graph(GT & gtgt, const GT & gsrc, const bool cookie_map = false);
+template<class GT>
+inline
+void copy_graph (GT & gtgt, const GT & gsrc, const bool cookie_map = false);
 
-  /** Clean a graph: all its nodes and arcs are removed and freed.
+/** Clean a graph: all its nodes and arcs are removed and freed.
 
       @param[in] g the graph
       @ingroup Grafos
   */
-  template <class GT> inline void clear_graph(GT & g) noexcept;
+template<class GT>
+inline void clear_graph (GT & g) noexcept;
 
-  /** Functor that traverses the nodes of a graph and performs an
+/** Functor that traverses the nodes of a graph and performs an
       operation.
 
       This functor has three template parameters:
@@ -2455,42 +2497,41 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class Operation, class SN = Dft_Show_Node<GT>>
-  class Operate_On_Nodes
+template<class GT, class Operation, class SN = Dft_Show_Node<GT>>
+class Operate_On_Nodes {
+  SN sn;
+
+ public:
+
+  /// Initialize the functor with the filter `sa`
+  Operate_On_Nodes (SN __sn = SN ())
+      : sn (__sn)
+  { /* empty */ }
+
+  /** Call to `operation` on each node.
+
+        @param[in] g the graph
+        @param[in] op the operation
+    */
+  void operator() (const GT & g, Operation op = Operation ())
   {
-    SN sn;
+    for (Node_Iterator<GT, SN> it (g, sn); it.has_curr (); it.next_ne ())
+      op (g, it.get_curr ());
+  }
 
-  public:
-
-    /// Initialize the functor with the filter `sa`
-    Operate_On_Nodes(SN __sn = SN())
-      : sn(__sn) { /* empty */ }
-
-    /** Call to `operation` on each node.
+  /** Call to `operation` on each node.
 
         @param[in] g the graph
         @param[in] op the operation
     */
-    void operator () (const GT & g, Operation op = Operation())
-    {
-      for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-        op (g, it.get_curr());
-    }
+  void operator() (GT & g, Operation op = Operation ())
+  {
+    for (Node_Iterator<GT, SN> it (g, sn); it.has_curr (); it.next_ne ())
+      op (g, it.get_curr ());
+  }
+};
 
-    /** Call to `operation` on each node.
-
-        @param[in] g the graph
-        @param[in] op the operation
-    */
-    void operator () (GT & g, Operation op = Operation())
-    {
-      for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
-        op (g, it.get_curr());
-    }
-  };
-
-
-  /** Functor that traverses the arcs of a graph and performs an
+/** Functor that traverses the arcs of a graph and performs an
       operation.
 
       This functor has three template parameters:
@@ -2500,56 +2541,56 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class Operation, class SA = Dft_Show_Arc<GT>>
-  class Operate_On_Arcs
-  {
-    SA sa;
+template<class GT, class Operation, class SA = Dft_Show_Arc<GT>>
+class Operate_On_Arcs {
+  SA sa;
 
-  public:
+ public:
 
-    /// Initialize the functor with the filter `sa`
-    Operate_On_Arcs(SA __sa = SA())
-      : sa(__sa) { /* empty */ }
+  /// Initialize the functor with the filter `sa`
+  Operate_On_Arcs (SA __sa = SA ())
+      : sa (__sa)
+  { /* empty */ }
 
-    /** Call to `op on each arc
+  /** Call to `op on each arc
 
         @param[in] g the graph
         @param[in] op the operation
     */
-    void operator () (const GT & g, Operation op = Operation()) const
-    {
-      for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        op (g, it.get_curr());
-    }
+  void operator() (const GT & g, Operation op = Operation ()) const
+  {
+    for (Arc_Iterator<GT, SA> it (g, sa); it.has_curr (); it.next_ne ())
+      op (g, it.get_curr ());
+  }
 
-    void operator () (GT & g, Operation op = Operation()) const
-    {
-      for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        op (g, it.get_curr());
-    }
+  void operator() (GT & g, Operation op = Operation ()) const
+  {
+    for (Arc_Iterator<GT, SA> it (g, sa); it.has_curr (); it.next_ne ())
+      op (g, it.get_curr ());
+  }
 
-    /** Call to `op on each arc of a node
+  /** Call to `op on each arc of a node
 
         @param[in] g the graph
         @param[in] p node pointer
         @param[in] op the operation
     */
-    void operator () (const GT & g, typename GT::Node * p,
-                      Operation op = Operation()) const
-    {
-      for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
-        op (g, it.get_current_arc_ne());
-    }
+  void operator() (const GT & g, typename GT::Node *p,
+                   Operation op = Operation ()) const
+  {
+    for (Node_Arc_Iterator<GT, SA> it (p); it.has_curr (); it.next_ne ())
+      op (g, it.get_current_arc_ne ());
+  }
 
-    void operator () (GT & g, typename GT::Node * p,
-                      Operation op = Operation()) const
-    {
-      for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
-        op (g, it.get_current_arc_ne());
-    }
-  };
+  void operator() (GT & g, typename GT::Node *p,
+                   Operation op = Operation ()) const
+  {
+    for (Node_Arc_Iterator<GT, SA> it (p); it.has_curr (); it.next_ne ())
+      op (g, it.get_current_arc_ne ());
+  }
+};
 
-  /** Path on a graph.
+/** Path on a graph.
 
       Many problems on graphs require dynamic building of partial or
       complete paths. This class models a path on a graph and it is
@@ -2588,108 +2629,114 @@ namespace Aleph {
       @ingroup Grafos
       @see Path::Iterator
   */
-  template <class GT>
-  class Path
+template<class GT>
+class Path {
+ public:
+
+  /// The type of dfata stored in the nodes
+  using Node_Type = typename GT::Node_Type;
+
+  /// The type of data stored in the arc
+  using Arc_Type = typename GT::Arc_Type;
+
+ private:
+
+  const GT *g = nullptr;
+
+  using Node = typename GT::Node;
+  using Arc = typename GT::Arc;
+
+  struct Path_Desc {
+    Node *node; // nodo origen
+    Arc *arc;  // arco adyacente
+
+    Path_Desc (Node *_node = nullptr, Arc *_arc = nullptr) noexcept
+        : node (_node), arc (_arc)
+    {}
+
+    bool operator== (const Path_Desc & r) const noexcept
+    {
+      if (not(node->get_info () == r.node->get_info ()))
+        return false;
+
+      if (arc == nullptr)
+        return r.arc == nullptr;
+
+      if (r.arc == nullptr)
+        return false;
+
+      return arc->get_info () == r.arc->get_info ();
+    }
+  };
+
+  DynDlist<Path_Desc> list;
+
+  void check_graph ()
   {
-  public:
+    if (g == nullptr)
+      throw std::domain_error ("Path: Graph has not been specified");
+  }
 
-    /// The type of dfata stored in the nodes
-    using Node_Type = typename GT::Node_Type;
+ public:
 
-    /// The type of data stored in the arc
-    using Arc_Type = typename GT::Arc_Type;
-
-  private:
-
-    const GT * g = nullptr;
-
-    using Node = typename GT::Node;
-    using Arc = typename GT::Arc;
-
-    struct Path_Desc
-    {
-      Node * node; // nodo origen
-      Arc *  arc;  // arco adyacente
-
-      Path_Desc(Node * _node = nullptr, Arc * _arc = nullptr) noexcept
-        : node(_node), arc(_arc) {}
-
-      bool operator == (const Path_Desc & r) const noexcept
-      { 
-        if (not (node->get_info() == r.node->get_info()))
+  /// Return `true` if the path is consistent
+  bool check () const
+  {
+    auto l = list;
+    while (not l.is_unitarian_or_empty ())
+      {
+        auto d = l.remove_first ();
+        auto nxt = l.get_first ().node;
+        if (nxt == g->get_connected_node (d.arc, d.node))
           return false;
-
-        if (arc == nullptr)
-          return r.arc == nullptr;
-
-        if (r.arc == nullptr)
-          return false;
-
-        return arc->get_info() == r.arc->get_info(); 
       }
-    };
 
-    DynDlist<Path_Desc> list;
+    return true;
+  }
 
-    void check_graph()
-    {
-      if (g == nullptr)
-        throw std::domain_error("Path: Graph has not been specified");
-    }
+  /// Return `true` if the directed path is consistent
+  bool check_directed () const
+  {
+    return list.all ([this] (auto d)
+                     { return g->get_src_node (d.arc) == d.node; })
+           and list.get_last ().arc == nullptr;
+  }
 
-  public:
+  /// Get a constant reference to the graph
+  const GT & get_graph () const noexcept
+  { return *g; }
 
-    /// Return `true` if the path is consistent
-    bool check() const
-    {
-      auto l = list;
-      while (not l.is_unitarian_or_empty())
-        {
-          auto d = l.remove_first();
-          auto nxt = l.get_first().node;
-          if (nxt == g->get_connected_node(d.arc, d.node))
-            return false;
-        }
+  /// Return `true` if `this` is on graph `gr`
+  bool inside_graph (const GT & gr) const noexcept
+  { return g == &gr; }
 
-      return true;
-    }
+  /// Construct a empty path on graph `__g`
+  Path (const GT & __g) noexcept: g (&__g)
+  {}
 
-    /// Return `true` if the directed path is consistent
-    bool check_directed() const
-    {
-      return list.all([this] (auto d) { return g->get_src_node(d.arc) == d.node; }) 
-        and list.get_last().arc == nullptr;
-    }
+  Path () noexcept: g (nullptr)
+  { /* empty */ }
 
-    /// Get a constant reference to the graph
-    const GT & get_graph() const noexcept { return *g; }
-
-    /// Return `true` if `this` is on graph `gr`
-    bool inside_graph(const GT & gr) const noexcept { return g == &gr; }
-
-    /// Construct a empty path on graph `__g`
-    Path(const GT & __g) noexcept : g(&__g) {}
-
-    Path() noexcept : g(nullptr) { /* empty */ }
-
-    /** Set the first node of a path
+  /** Set the first node of a path
 
         @param start_node pointer to start node of path
         @throw bad_alloc if there is no enough memory
         @note `start_node` (of course) must belong to the graph. This is
         not verified
     */
-    void init(Node * start_node) { list.append(Path_Desc(start_node)); }
+  void init (Node *start_node)
+  { list.append (Path_Desc (start_node)); }
 
-    /** Construct a path starting from a given node
+  /** Construct a path starting from a given node
 
         @param[in] __g the graph
         @param[in] start_node pointer to start node of path
         @throw bad_alloc if there is no enough memory
     */
-    Path(const GT & _g, Node * start_node) : g(&_g) { init(start_node); }
+  Path (const GT & _g, Node *start_node) : g (&_g)
+  { init (start_node); }
 
-    /** Set the graph of the path.
+  /** Set the graph of the path.
 
         Sometimes, by example, if you manage a path attribute inside a
         class, you do not the graph, but you need to declare the
@@ -2702,59 +2749,63 @@ namespace Aleph {
         @param[in] start_node pointer to start node of path
         @throw bad_alloc if there is no enough memory
     */
-    void set_graph(const GT & __g, Node * start_node = nullptr) 
-    {
-      empty();
-      g = &__g;
-      if (start_node == nullptr)
-        return;
-      init(start_node);
-    }
+  void set_graph (const GT & __g, Node *start_node = nullptr)
+  {
+    empty ();
+    g = &__g;
+    if (start_node == nullptr)
+      return;
+    init (start_node);
+  }
 
-    /// Return the path length in nodes
-    size_t size() const noexcept { return list.size(); }
+  /// Return the path length in nodes
+  size_t size () const noexcept
+  { return list.size (); }
 
-    /// Return `true` if the path is empty
-    bool is_empty() const noexcept { return list.is_empty(); }
+  /// Return `true` if the path is empty
+  bool is_empty () const noexcept
+  { return list.is_empty (); }
 
-    /// Clean the path: all the nodes and arc are removed
-    void empty()
-    {
-      check_graph();
-      while (not list.is_empty())
-        list.remove_first();
-    }
+  /// Clean the path: all the nodes and arc are removed
+  void empty ()
+  {
+    check_graph ();
+    while (not list.is_empty ())
+      list.remove_first ();
+  }
 
-    /// Copy constructor
-    Path(const Path & path) : g(path.g), list(path.list) {}
+  /// Copy constructor
+  Path (const Path & path) : g (path.g), list (path.list)
+  {}
 
-    /// Move constructor
-    Path(Path && path) : g(path.g), list(move(path.list)) {}
+  /// Move constructor
+  Path (Path && path) : g (path.g), list (move (path.list))
+  {}
 
-    /// Copy assignment
-    Path & operator = (const Path & path)
-    {
-      if (this == &path)
-        return *this;
-
-      empty();
-      g    = path.g;
-      list = path.list;
+  /// Copy assignment
+  Path & operator= (const Path & path)
+  {
+    if (this == &path)
       return *this;
-    }
 
-    /// Move assignment
-    Path & operator = (Path && path)
-    {
-      empty();
-      std::swap(g, path.g);
-      std::swap(list, path.list);
-      return *this;
-    }
+    empty ();
+    g = path.g;
+    list = path.list;
+    return *this;
+  }
 
-    /** Append an arc to the path.
+  /// Move assignment
+  Path & operator= (Path && path)
+  {
+    empty ();
+    std::swap (g, path.g);
+    std::swap (list, path.list);
+    return *this;
+  }
 
-        This method searches the last node of path and appends it an arc. 
+  /** Append an arc to the path.
+
+        This method searches the last node of path and appends it an arc.
 
         The arc must be connected to the last node.
 
@@ -2765,23 +2816,23 @@ namespace Aleph {
         @throw domain_error if the graph has not neen specified ed
         @throw domain_error if the path is empty
     */
-    void append(Arc * arc)
-    {
-      check_graph();
+  void append (Arc *arc)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        throw std::domain_error("path is empty");
+    if (list.is_empty ())
+      throw std::domain_error ("path is empty");
 
-      auto & last_path_desc = list.get_last();
-      auto last_node = last_path_desc.node;
-      if (arc->src_node != last_node and arc->tgt_node != last_node)
-        throw std::invalid_argument("arc has not link to last node of path");
+    auto & last_path_desc = list.get_last ();
+    auto last_node = last_path_desc.node;
+    if (arc->src_node != last_node and arc->tgt_node != last_node)
+      throw std::invalid_argument ("arc has not link to last node of path");
 
-      last_path_desc.arc = arc;
-      list.append(Path_Desc(g->get_connected_node(arc, last_node)));
-    }
+    last_path_desc.arc = arc;
+    list.append (Path_Desc (g->get_connected_node (arc, last_node)));
+  }
 
-    /** Append a node to the path
+  /** Append a node to the path
 
         This method appends `node` at the end of path. For this, the
         adjacent arcs of the last node are examinated until finding an arc
@@ -2798,26 +2849,26 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void append(Node * node)
-    {
-      check_graph();
+  void append (Node *node)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        {
-          init(node);
-          return;
-        }
+    if (list.is_empty ())
+      {
+        init (node);
+        return;
+      }
 
-      Node * last_node = get_last_node();
-      Arc * arc        = search_arc(*g, last_node, node); 
+    Node *last_node = get_last_node ();
+    Arc *arc = search_arc (*g, last_node, node);
 
-      if (arc == nullptr)
-        throw std::invalid_argument("There is no an arc connecting to the node");
+    if (arc == nullptr)
+      throw std::invalid_argument ("There is no an arc connecting to the node");
 
-      append(arc);
-    }
+    append (arc);
+  }
 
-    /** Append a node to a directed path
+  /** Append a node to a directed path
 
         This method inserts `node` at the end of a directed path. For
         this, the outcoming arcs of the last node of path are examinated
@@ -2837,29 +2888,29 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void append_directed(Node * p)
-    {
-      check_graph();
-      if (list.is_empty())
-        {
-          init(p);
-          return;
-        }
+  void append_directed (Node *p)
+  {
+    check_graph ();
+    if (list.is_empty ())
+      {
+        init (p);
+        return;
+      }
 
-      auto & last_path_desc = list.get_last();
-      Node * last_node = last_path_desc.node;
-      Arc * arc        = search_directed_arc(*g, last_node, p);
+    auto & last_path_desc = list.get_last ();
+    Node *last_node = last_path_desc.node;
+    Arc *arc = search_directed_arc (*g, last_node, p);
 
-      if (arc == nullptr)
-        throw std::invalid_argument("There is no an arc connecting to the node");
+    if (arc == nullptr)
+      throw std::invalid_argument ("There is no an arc connecting to the node");
 
-      assert(arc->src_node == last_path_desc.node);
+    assert(arc->src_node == last_path_desc.node);
 
-      last_path_desc.arc = arc;
-      list.append(Path_Desc(static_cast<Node*>(arc->tgt_node)));
-    }
+    last_path_desc.arc = arc;
+    list.append (Path_Desc (static_cast<Node *>(arc->tgt_node)));
+  }
 
-    /** Append an arc to a directed path
+  /** Append an arc to a directed path
 
         This method appends `arc` at the end of a directed path. For this,
         the source node of `arc` must match the current last node of
@@ -2877,23 +2928,23 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void append_directed(Arc * arc)
-    {
-      check_graph();
+  void append_directed (Arc *arc)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        throw std::domain_error("path is empty");
+    if (list.is_empty ())
+      throw std::domain_error ("path is empty");
 
-      auto & last_path_desc = list.get_last();
-      Node * last_node = last_path_desc.node;
-      if (arc->src_node != last_node)
-        throw std::invalid_argument("The arc does not connect the last node");
+    auto & last_path_desc = list.get_last ();
+    Node *last_node = last_path_desc.node;
+    if (arc->src_node != last_node)
+      throw std::invalid_argument ("The arc does not connect the last node");
 
-      last_path_desc.arc = arc;
-      list.append(Path_Desc(static_cast<Node*>(arc->tgt_node)));
-    }
+    last_path_desc.arc = arc;
+    list.append (Path_Desc (static_cast<Node *>(arc->tgt_node)));
+  }
 
-    /** Insert an arc as the first of path.
+  /** Insert an arc as the first of path.
 
         This method inserts `arc` at the beginning of a path. For this,
         the adjacent arcs of the current first node of path are examinated
@@ -2908,23 +2959,23 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void insert(Arc * arc)
-    {
-      check_graph();
+  void insert (Arc *arc)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        throw std::domain_error("path is empty");
+    if (list.is_empty ())
+      throw std::domain_error ("path is empty");
 
-      auto & first_path_desc = list.get_first();
-      auto first_node = first_path_desc.node;
-      if (arc->src_node != first_node and arc->tgt_node != first_node)
-        throw std::invalid_argument("arc has not link to first node of path");
+    auto & first_path_desc = list.get_first ();
+    auto first_node = first_path_desc.node;
+    if (arc->src_node != first_node and arc->tgt_node != first_node)
+      throw std::invalid_argument ("arc has not link to first node of path");
 
-      Path_Desc item(g->get_connected_node(arc, first_node), arc);
-      list.insert(item);
-    }
+    Path_Desc item (g->get_connected_node (arc, first_node), arc);
+    list.insert (item);
+  }
 
-    /** Insert a node to the path
+  /** Insert a node to the path
 
         This method inserts `node` at the beginning of path. For this, the
         adjacent arcs of the last node are examinated until finding an arc
@@ -2939,26 +2990,26 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void insert(Node * node)
-    {
-      check_graph();
+  void insert (Node *node)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        {
-          init(node);
-          return;
-        }
+    if (list.is_empty ())
+      {
+        init (node);
+        return;
+      }
 
-      Node * first_node = get_first_node();
-      Arc * arc = search_arc(*g, node, first_node); // busque arco first_node-node
-      if (arc == nullptr)
-        throw std::domain_error("There is no arc connecting node");
+    Node *first_node = get_first_node ();
+    Arc *arc = search_arc (*g, node, first_node); // busque arco first_node-node
+    if (arc == nullptr)
+      throw std::domain_error ("There is no arc connecting node");
 
-      Path_Desc item(node, arc);
-      list.insert(item);
-    }
+    Path_Desc item (node, arc);
+    list.insert (item);
+  }
 
-    /** Append a node to a directed path
+  /** Append a node to a directed path
 
         This method inserts `node` at the end of a directed path. For
         this, the outcoming arcs of the last node of path are examinated
@@ -2976,29 +3027,29 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void insert_directed(Node * p)
-    {
-      check_graph();
+  void insert_directed (Node *p)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        {
-          init(p);
-          return;
-        }
+    if (list.is_empty ())
+      {
+        init (p);
+        return;
+      }
 
-      Node * first_node = get_first_node();
-      Arc * arc         = search_directed_arc(*g, p, first_node);
-      if (arc == nullptr)
-        throw std::domain_error("There is no an arc connecting to the node");
+    Node *first_node = get_first_node ();
+    Arc *arc = search_directed_arc (*g, p, first_node);
+    if (arc == nullptr)
+      throw std::domain_error ("There is no an arc connecting to the node");
 
-      list.insert(Path_Desc(p, arc));
-    }
+    list.insert (Path_Desc (p, arc));
+  }
 
-    /** Append an arc to a directed path
+  /** Append an arc to a directed path
 
         This method appends `arc` at the beginning of a directed path. For
         this, the target node of `arc` must be the current first node of
-        directed path. 
+        directed path.
 
         \note This method is exclusively for graphs non directed treated
         as directed.
@@ -3009,149 +3060,155 @@ namespace Aleph {
         node of path
         @throw domain_error if the graph has not been specfied
     */
-    void insert_directed(Arc * arc)
-    {
-      check_graph();
+  void insert_directed (Arc *arc)
+  {
+    check_graph ();
 
-      if (list.is_empty())
-        throw std::domain_error("path is empty");
+    if (list.is_empty ())
+      throw std::domain_error ("path is empty");
 
-      auto & first_path_desc = list.get_first();
-      Node * first_node = first_path_desc.node;
-      if (arc->tgt_node != first_node)
-        throw std::invalid_argument("The arc does not connect the first node");
+    auto & first_path_desc = list.get_first ();
+    Node *first_node = first_path_desc.node;
+    if (arc->tgt_node != first_node)
+      throw std::invalid_argument ("The arc does not connect the first node");
 
-      list.insert(Path_Desc(static_cast<Node*>(arc->src_node), arc));
-    }
+    list.insert (Path_Desc (static_cast<Node *>(arc->src_node), arc));
+  }
 
-    /// Return the first node of path; throws `overflow_error` if path
-    /// is empty
-    Node * get_first_node() const { return list.get_first().node; }
+  /// Return the first node of path; throws `overflow_error` if path
+  /// is empty
+  Node *get_first_node () const
+  { return list.get_first ().node; }
 
-    /// Return the last node of path; throws `overflow_error` if path
-    /// is empty
-    Node * get_last_node() const
-    {
-      auto & last_path_desc = list.get_last();
-      assert(last_path_desc.arc == nullptr);
-      return last_path_desc.node; 
-    }
+  /// Return the last node of path; throws `overflow_error` if path
+  /// is empty
+  Node *get_last_node () const
+  {
+    auto & last_path_desc = list.get_last ();
+    assert(last_path_desc.arc == nullptr);
+    return last_path_desc.node;
+  }
 
-    /// Return the first arc of path; throws `overflow_error` if path
-    /// is empty
-    Arc * get_first_arc() const { return list.get_first().arc; }
+  /// Return the first arc of path; throws `overflow_error` if path
+  /// is empty
+  Arc *get_first_arc () const
+  { return list.get_first ().arc; }
 
-    /// Return the last arc of path; throws `overflow_error` if path
-    /// is empty
-    Arc * get_last_arc() const 
-    {
-      if (list.is_unitarian())
-        throw std::domain_error("Path with only a node (without any arc");
+  /// Return the last arc of path; throws `overflow_error` if path
+  /// is empty
+  Arc *get_last_arc () const
+  {
+    if (list.is_unitarian ())
+      throw std::domain_error ("Path with only a node (without any arc");
 
-      typename DynDlist<Path_Desc>::Iterator it(list);
-      it.reset_last();
-      it.prev();
-      return it.get_curr().arc; 
-    }
+    typename DynDlist<Path_Desc>::Iterator it (list);
+    it.reset_last ();
+    it.prev ();
+    return it.get_curr ().arc;
+  }
 
-    /// Return `true` if `this` is a cycle
-    bool is_cycle() const noexcept { return get_first_node() == get_last_node(); }
+  /// Return `true` if `this` is a cycle
+  bool is_cycle () const noexcept
+  { return get_first_node () == get_last_node (); }
 
-    /** Remove the last node of path
-
-        \return pointer to the extracted node
-        \throw overlow_error if path is empty
-    */
-    Node * remove_last_node()
-    {
-      auto d = list.remove_last();
-      list.get_last().arc = nullptr;
-      return d.node;
-    }
-
-    /** Remove the first node of path
+  /** Remove the last node of path
 
         \return pointer to the extracted node
         \throw overlow_error if path is empty
     */
-    Node * remove_first_node()
-    {
-      auto d = list.remove_first();
-      return d.node;
-    }
+  Node *remove_last_node ()
+  {
+    auto d = list.remove_last ();
+    list.get_last ().arc = nullptr;
+    return d.node;
+  }
 
-    /// Fast spat between two paths (constant time)
-    void swap(Path & path) noexcept
-    {
-      std::swap(g, path.g);
-      list.swap(path.list);
-    }
+  /** Remove the first node of path
 
-    /** Iterator on nodes and arcs of a path
+        \return pointer to the extracted node
+        \throw overlow_error if path is empty
+    */
+  Node *remove_first_node ()
+  {
+    auto d = list.remove_first ();
+    return d.node;
+  }
+
+  /// Fast spat between two paths (constant time)
+  void swap (Path & path) noexcept
+  {
+    std::swap (g, path.g);
+    list.swap (path.list);
+  }
+
+  /** Iterator on nodes and arcs of a path
 
         @ingroup Grafos
         @see Path
     */
-    class Iterator : public DynDlist<Path_Desc>::Iterator
+  class Iterator : public DynDlist<Path_Desc>::Iterator {
+   public:
+
+    /// Create an iterator on the first node of `path`
+    Iterator (const Path & path) noexcept
+        : DynDlist<Path_Desc>::Iterator (path.list)
+    {}
+
+   private:
+
+    Path_Desc & get_curr_path_desc_ne () const noexcept
     {
-    public:
+      return this->DynDlist<Path_Desc>::Iterator::get_curr_ne ();
+    }
 
-      /// Create an iterator on the first node of `path`
-      Iterator(const Path & path) noexcept
-        : DynDlist<Path_Desc>::Iterator(path.list) { }
+    Path_Desc & get_curr_path_desc () const
+    {
+      return this->DynDlist<Path_Desc>::Iterator::get_curr ();
+    }
 
-    private:
+   public:
 
-      Path_Desc & get_curr_path_desc_ne() const noexcept
-      {
-        return this->DynDlist<Path_Desc>::Iterator::get_curr_ne();
-      }
+    /// Return the current node of path. Throw `overflow_error` if path
+    /// is empty of iterator has not current node
+    Node *get_current_node () const
+    { return this->get_curr_path_desc ().node; }
 
-      Path_Desc & get_curr_path_desc() const
-      {
-        return this->DynDlist<Path_Desc>::Iterator::get_curr();
-      }
+    Node *get_current_node_ne () const noexcept
+    {
+      return this->get_curr_path_desc_ne ().node;
+    }
 
-    public:
-
-      /// Return the current node of path. Throw `overflow_error` if path
-      /// is empty of iterator has not current node
-      Node * get_current_node() const { return this->get_curr_path_desc().node; }
-
-      Node * get_current_node_ne() const noexcept
-      {
-        return this->get_curr_path_desc_ne().node;
-      }
-
-      /** Return the current arc of path.
+    /** Return the current arc of path.
 
           \note A path of `n` nodes has `n - 1` arcs. So if the iterator
           is pistioned on the last node, the `get_current_arc()` has not
           current arc and will throw exception.
-	
+
           \return pointer to the current arc
           \throw overflow_error if path is empty of iterator has not
-          current node 
+          current node
       */
-      Arc * get_current_arc() const
-      { 
-        if (this->is_in_last())
-          throw std::overflow_error("Path iterator is in last node of path");
+    Arc *get_current_arc () const
+    {
+      if (this->is_in_last ())
+        throw std::overflow_error ("Path iterator is in last node of path");
 
-        return this->get_curr_path_desc().arc; 
-      }
+      return this->get_curr_path_desc ().arc;
+    }
 
-      Arc * get_current_arc_ne() const noexcept
-      { 
-        return this->get_curr_path_desc_ne().arc; 
-      }
+    Arc *get_current_arc_ne () const noexcept
+    {
+      return this->get_curr_path_desc_ne ().arc;
+    }
 
-      ///\overload get_current_node()
-      Node * get_curr_ne() const noexcept { return get_current_node_ne(); }
+    ///\overload get_current_node()
+    Node *get_curr_ne () const noexcept
+    { return get_current_node_ne (); }
 
-      Node * get_curr() const { return get_current_node(); }
+    Node *get_curr () const
+    { return get_current_node (); }
 
-      /** Return a pair with the current node and arc
+    /** Return a pair with the current node and arc
 
           \note If the iterator is positioned on the last node, then its
           arc is `nullptr`.
@@ -3161,12 +3218,12 @@ namespace Aleph {
           \throw overflow_error if path is empty of iterator has not
           current node
       */
-      pair<Node*, Arc*> get_pair() const
-      {
-        return make_pair(get_current_node(), get_current_arc());
-      }
- 
-      /** Return a tuple with the current node and arc
+    pair<Node *, Arc *> get_pair () const
+    {
+      return make_pair (get_current_node (), get_current_arc ());
+    }
+
+    /** Return a tuple with the current node and arc
 
           \note If the iterator is positioned on the last node, then its
           arc is `nullptr`.
@@ -3176,17 +3233,17 @@ namespace Aleph {
           \throw overflow_error if path is empty of iterator has not
           current node
       */
-      tuple<Node*, Arc*> get_tuple() const
-      {
-        return make_tuple(get_current_node(), get_current_arc());
-      }
+    tuple<Node *, Arc *> get_tuple () const
+    {
+      return make_tuple (get_current_node (), get_current_arc ());
+    }
 
-      tuple<Node*, Arc*> get_tuple_ne() const noexcept
-      {
-        return make_tuple(get_current_node_ne(), get_current_arc_ne());
-      }
+    tuple<Node *, Arc *> get_tuple_ne () const noexcept
+    {
+      return make_tuple (get_current_node_ne (), get_current_arc_ne ());
+    }
 
-      /** Return `true` if iterator has current arc.
+    /** Return `true` if iterator has current arc.
 
           \note If the iterator is on the last node, then there is no
           current arc.
@@ -3194,75 +3251,79 @@ namespace Aleph {
           @return a boolean indicating if the iterator is positioned on an
           arc
       */
-      bool has_current_arc() const noexcept
-      {
-        return this->has_curr() and not this->is_in_last();
-      }
+    bool has_current_arc () const noexcept
+    {
+      return this->has_curr () and not this->is_in_last ();
+    }
 
-      /// Return `true` if the iterator has a current node
-      bool has_current_node() const noexcept { return this->has_curr(); }
-    };
+    /// Return `true` if the iterator has a current node
+    bool has_current_node () const noexcept
+    { return this->has_curr (); }
+  };
 
-    /// Returns an iterator on the path
-    Iterator get_it() const { return Iterator(*this); }
+  /// Returns an iterator on the path
+  Iterator get_it () const
+  { return Iterator (*this); }
 
-    /** Execute an operation on each node of path
+  /** Execute an operation on each node of path
 
-        \param[in] op operation 
+        \param[in] op operation
     */
-    template <class Operation> 
-    void for_each_node(Operation op = Operation()) const
-    {
-      for (Iterator it(*this); it.has_current_node(); it.next_ne())
-        op (it.get_current_node_ne());
-    }
+  template<class Operation>
+  void for_each_node (Operation op = Operation ()) const
+  {
+    for (Iterator it (*this); it.has_current_node (); it.next_ne ())
+      op (it.get_current_node_ne ());
+  }
 
-    /** Execute an operation on each arc of path
+  /** Execute an operation on each arc of path
 
-        \param[in] op operation 
+        \param[in] op operation
     */
-    template <class Operation> 
-    void for_each_arc(Operation op = Operation()) const
-    {
-      for (Iterator it(*this); it.has_current_arc(); it.next_ne())
-        op (it.get_current_arc_ne());
-    }
+  template<class Operation>
+  void for_each_arc (Operation op = Operation ()) const
+  {
+    for (Iterator it (*this); it.has_current_arc (); it.next_ne ())
+      op (it.get_current_arc_ne ());
+  }
 
-    /// Return `true` if `node` belongs to the path
-    bool contains_node(Node * node) const noexcept
-    {
-      for (Iterator it(*this); it.has_current_node(); it.next_ne())
-        if (it.get_current_node_ne() == node)
-          return true;
-      return false;
-    }
+  /// Return `true` if `node` belongs to the path
+  bool contains_node (Node *node) const noexcept
+  {
+    for (Iterator it (*this); it.has_current_node (); it.next_ne ())
+      if (it.get_current_node_ne () == node)
+        return true;
+    return false;
+  }
 
-    /// Return `true` if `arc` belongs to the path
-    bool contains_arc(Arc * arc) const noexcept
-    {
-      for (Iterator it(*this); it.has_current_arc(); it.next_ne())
-        if (it.get_current_arc_ne() == arc) 
-          return true;
-      return false;
-    }
+  /// Return `true` if `arc` belongs to the path
+  bool contains_arc (Arc *arc) const noexcept
+  {
+    for (Iterator it (*this); it.has_current_arc (); it.next_ne ())
+      if (it.get_current_arc_ne () == arc)
+        return true;
+    return false;
+  }
 
-    /// Return a list with the nodes of path (order according to the path)
-    DynList<Node*> nodes() const
-    {
-      DynList<Node*> ret_val;
-      for_each_node([&ret_val] (Node * p) { ret_val.append(p); });
-      return ret_val;
-    }
+  /// Return a list with the nodes of path (order according to the path)
+  DynList<Node *> nodes () const
+  {
+    DynList<Node *> ret_val;
+    for_each_node ([&ret_val] (Node *p)
+                   { ret_val.append (p); });
+    return ret_val;
+  }
 
-    /// Return a list with the arcs of path (order according to the path)
-    DynList<Arc*> arcs() const
-    {
-      DynList<Arc*> ret_val;
-      for_each_arc([&ret_val] (Arc * a) { ret_val.append(a); });
-      return ret_val;
-    }
+  /// Return a list with the arcs of path (order according to the path)
+  DynList<Arc *> arcs () const
+  {
+    DynList<Arc *> ret_val;
+    for_each_arc ([&ret_val] (Arc *a)
+                  { ret_val.append (a); });
+    return ret_val;
+  }
 
-    /** Return `true` if `this` is equal to `p`,
+  /** Return `true` if `this` is equal to `p`,
 
         \note The comparison is done between node and arcs contents. This
         implicates that the operator `==` must be defined for the data
@@ -3272,62 +3333,64 @@ namespace Aleph {
         \return `true` if node to node and arc to arc the paths are equal;
         `false` otherwise.
     */
-    bool operator == (const Path & p) const noexcept
-    {
-      return eq(this->list, p.list);
-    }
-
-    ///  Return `true` if `this` is not equal to `p`,
-    bool operator != (const Path & p) const noexcept
-    {
-      return not eq(this->list, p.list);
-    }
-  }; 
-
-  template <class GT> inline 
-  Path<GT> find_path_depth_first(const GT & g, typename GT::Node * start_node,
-                                 typename GT::Node * end_node);
-
-  template <class GT> static inline 
-  bool __find_path_depth_first(const GT & g, typename GT::Node * curr_node,
-                               typename GT::Arc *  curr_arc, 
-                               typename GT::Node * end_node, Path<GT> & path)
+  bool operator== (const Path & p) const noexcept
   {
-    if (curr_node == end_node) // this test must be first in order to find cycles
-      {
-        path.append(curr_arc);
-        return true;
-      }
-
-    if (IS_NODE_VISITED(curr_node, Find_Path)) 
-      return false;
-
-    path.append(curr_arc);
-    NODE_BITS(curr_node).set_bit(Find_Path, true); 
-
-    for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
-      {
-        auto next_arc = it.get_curr();
-        if (IS_ARC_VISITED(next_arc, Find_Path)) 
-          continue;
-
-        ARC_BITS(next_arc).set_bit(Find_Path, true); 
-        auto next_node = it.get_tgt_node(); 
-        if (__find_path_depth_first<GT>(g, next_node, next_arc, end_node, path))
-          {
-            assert(path.get_last_node() == end_node);
-            return true;
-          }
-      }
-
-    path.remove_last_node(); 
-
-    return false;
+    return eq (this->list, p.list);
   }
 
-  /** Depth first search of a path between two nodes.
+  ///  Return `true` if `this` is not equal to `p`,
+  bool operator!= (const Path & p) const noexcept
+  {
+    return not eq (this->list, p.list);
+  }
+};
 
-      `find_path_depth_first()` recursively searches a path between 
+template<class GT>
+inline
+Path<GT> find_path_depth_first (const GT & g, typename GT::Node *start_node,
+                                typename GT::Node *end_node);
+
+template<class GT>
+static inline
+bool __find_path_depth_first (const GT & g, typename GT::Node *curr_node,
+                              typename GT::Arc *curr_arc,
+                              typename GT::Node *end_node, Path<GT> & path)
+{
+  if (curr_node == end_node) // this test must be first in order to find cycles
+    {
+      path.append (curr_arc);
+      return true;
+    }
+
+  if (IS_NODE_VISITED(curr_node, Find_Path))
+    return false;
+
+  path.append (curr_arc);
+  NODE_BITS(curr_node).set_bit (Find_Path, true);
+
+  for (auto it = g.get_arc_it (curr_node); it.has_curr (); it.next_ne ())
+    {
+      auto next_arc = it.get_curr ();
+      if (IS_ARC_VISITED(next_arc, Find_Path))
+        continue;
+
+      ARC_BITS(next_arc).set_bit (Find_Path, true);
+      auto next_node = it.get_tgt_node ();
+      if (__find_path_depth_first<GT> (g, next_node, next_arc, end_node, path))
+        {
+          assert(path.get_last_node () == end_node);
+          return true;
+        }
+    }
+
+  path.remove_last_node ();
+
+  return false;
+}
+
+/** Depth first search of a path between two nodes.
+
+      `find_path_depth_first()` recursively searches a path between
       `start_node`  y `end_node`
 
       @param[in] g the graph
@@ -3339,34 +3402,35 @@ namespace Aleph {
       @see find_path_breadth_first()
       @ingroup Grafos
   */
-  template <class GT> inline
-  Path<GT> find_path_depth_first(const GT & g, typename GT::Node * start_node,
-                                 typename GT::Node * end_node)
-  {
-    Path<GT> path(g, start_node);
+template<class GT>
+inline
+Path<GT> find_path_depth_first (const GT & g, typename GT::Node *start_node,
+                                typename GT::Node *end_node)
+{
+  Path<GT> path (g, start_node);
 
-    g.reset_bit_nodes(Find_Path);
-    g.reset_bit_arcs(Find_Path);
-    NODE_BITS(start_node).set_bit(Find_Path, true);
+  g.reset_bit_nodes (Find_Path);
+  g.reset_bit_arcs (Find_Path);
+  NODE_BITS(start_node).set_bit (Find_Path, true);
 
-    for (auto it = g.get_arc_it(start_node); it.has_curr(); it.next_ne())
-      {
-        auto arc = it.get_current_arc_ne();
-        ARC_BITS(arc).set_bit(Find_Path, true);
-        auto next_node = it.get_tgt_node();
-        if (IS_NODE_VISITED(next_node, Find_Path))
-          continue;
+  for (auto it = g.get_arc_it (start_node); it.has_curr (); it.next_ne ())
+    {
+      auto arc = it.get_current_arc_ne ();
+      ARC_BITS(arc).set_bit (Find_Path, true);
+      auto next_node = it.get_tgt_node ();
+      if (IS_NODE_VISITED(next_node, Find_Path))
+        continue;
 
-        if (__find_path_depth_first<GT>(g, next_node, arc, end_node, path))
-          return path;
-      }
+      if (__find_path_depth_first<GT> (g, next_node, arc, end_node, path))
+        return path;
+    }
 
-    path.empty();
+  path.empty ();
 
-    return path;
-  }
+  return path;
+}
 
-  /** Map two nodes of different types of graphs through their cookies
+/** Map two nodes of different types of graphs through their cookies
 
       \note It is intended that the mapping be done between at least
       homomorphic graphs
@@ -3375,23 +3439,23 @@ namespace Aleph {
       @param[in] q pointer to the target node
       @ingroup Grafos
   */
-  template <class GTS, class GTT>
-  void map_nodes(typename GTS::Node * p, typename GTT::Node * q) noexcept
-  {
-    assert(p != nullptr and q != nullptr);
+template<class GTS, class GTT>
+void map_nodes (typename GTS::Node *p, typename GTT::Node *q) noexcept
+{
+  assert(p != nullptr and q != nullptr);
 
-    if (NODE_COOKIE(p) == nullptr)
-      {
-        NODE_COOKIE(p) = q;
-        NODE_COOKIE(q) = p;
-        return;
-      }
+  if (NODE_COOKIE(p) == nullptr)
+    {
+      NODE_COOKIE(p) = q;
+      NODE_COOKIE(q) = p;
+      return;
+    }
 
-    NODE_COOKIE(q) = NODE_COOKIE(p);
-    NODE_COOKIE(p) = q;
-  }
+  NODE_COOKIE(q) = NODE_COOKIE(p);
+  NODE_COOKIE(p) = q;
+}
 
-  /** Map two arcs of different types of graphs through their cookies
+/** Map two arcs of different types of graphs through their cookies
 
       \note It is intended that the mapping be done between at least
       homomorphic graphs
@@ -3401,122 +3465,117 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GTS, class GTT>
-  void map_arcs(typename GTS::Arc * p, typename GTT::Arc * q) noexcept
-  {
-    assert(p != nullptr and q != nullptr);
+template<class GTS, class GTT>
+void map_arcs (typename GTS::Arc *p, typename GTT::Arc *q) noexcept
+{
+  assert(p != nullptr and q != nullptr);
 
-    if (ARC_COOKIE(p) == nullptr)
-      {
-        ARC_COOKIE(p) = q;
-        ARC_COOKIE(q) = p;
+  if (ARC_COOKIE(p) == nullptr)
+    {
+      ARC_COOKIE(p) = q;
+      ARC_COOKIE(q) = p;
 
-        return;
-      }
+      return;
+    }
 
-    ARC_COOKIE(q) = ARC_COOKIE(p);
-    ARC_COOKIE(p) = q;
-  }
+  ARC_COOKIE(q) = ARC_COOKIE(p);
+  ARC_COOKIE(p) = q;
+}
 
+template<class GT>
+void clear_graph (GT & g) noexcept
+{
+  for (typename GT::Arc_Iterator it (g); it.has_curr ();) // eliminar arcos
+    {
+      typename GT::Arc *arc = it.get_curr_ne ();
+      it.next_ne ();
+      g.remove_arc (arc);
+    }
 
-  template <class GT>
-  void clear_graph(GT & g) noexcept
-  {
-    for (typename GT::Arc_Iterator it(g); it.has_curr(); ) // eliminar arcos
-      {
-        typename GT::Arc * arc = it.get_curr_ne();
-        it.next_ne();
-        g.remove_arc(arc);
-      }
+  for (typename GT::Node_Iterator it (g); it.has_curr ();) // eliminar nodos
+    {
+      typename GT::Node *p = it.get_curr_ne ();
+      it.next_ne (); // avanzar antes de borrar (consistencia iterador)
+      g.remove_node (p); // eliminarlo del grafo
+    }
+}
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); ) // eliminar nodos
-      {
-        typename GT::Node * p = it.get_curr_ne();
-        it.next_ne(); // avanzar antes de borrar (consistencia iterador)
-        g.remove_node(p); // eliminarlo del grafo
-      }
-  }
+template<class GT>
+void copy_graph (GT & gtgt, const GT & gsrc, const bool cookie_map)
+{
+  try
+    {
+      clear_graph (gtgt); // limpiar this antes de copiar
+      DynMapAvlTree<typename GT::Node *, typename GT::Node *> map;
 
+      // fase 1: recorrer nodos de src_graph e insertar copia en this
+      for (typename GT::Node_Iterator it (gsrc); it.has_curr (); it.next_ne ())
+        {
+          typename GT::Node *src_node = it.get_current_node_ne ();
+          unique_ptr<typename GT::Node>
+              tgt_node (new typename GT::Node (src_node->get_info ()));
+          map.insert (src_node, tgt_node.get ());
 
-  template <class GT>
-  void copy_graph(GT & gtgt, const GT & gsrc, const bool cookie_map)
-  {
-    try
-      {
-        clear_graph(gtgt); // limpiar this antes de copiar
-        DynMapAvlTree<typename GT::Node*, typename GT::Node*> map;
+          typename GT::Node *tgt = tgt_node.release ();
+          assert(tgt->get_info () == src_node->get_info ());
+          gtgt.insert_node (tgt); // insertar en grafo destino
 
-        // fase 1: recorrer nodos de src_graph e insertar copia en this
-        for (typename GT::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
-          {
-            typename GT::Node * src_node = it.get_current_node_ne();
-            unique_ptr<typename GT::Node>
-              tgt_node(new typename GT::Node(src_node->get_info()));
-            map.insert(src_node, tgt_node.get());
+          if (cookie_map)
+            GT::map_nodes (src_node, tgt);
+        }
 
-            typename GT::Node * tgt = tgt_node.release();
-            assert(tgt->get_info() == src_node->get_info());
-            gtgt.insert_node(tgt); // insertar en grafo destino
+      assert(gtgt.get_num_nodes () == gsrc.get_num_nodes ());
 
-            if (cookie_map)
-              GT::map_nodes(src_node, tgt);
-          }
+      // fase 2: por cada arco de src_graph, crear en this un
+      // arco que conecte a los nodos mapeados de map
+      for (typename GT::Arc_Iterator it (gsrc); it.has_curr (); it.next_ne ())
+        {
+          typename GT::Arc *src_arc = it.get_current_arc_ne ();
 
-        assert(gtgt.get_num_nodes() == gsrc.get_num_nodes());
+          // obtener imágenes de nodos en el grafo destino y crear arco
+          typename GT::Node *src_node = map[gsrc.get_src_node (src_arc)];
+          typename GT::Node *tgt_node = map[gsrc.get_tgt_node (src_arc)];
+          typename GT::Arc *tgt_arc = gtgt.insert_arc (src_node, tgt_node);
+          // tgt_arc->get_info() = src_arc->get_info();
+          *tgt_arc = *src_arc;
+          if (cookie_map)
+            GT::map_arcs (src_arc, tgt_arc);
+        }
 
-        // fase 2: por cada arco de src_graph, crear en this un
-        // arco que conecte a los nodos mapeados de map
-        for (typename GT::Arc_Iterator it(gsrc); it.has_curr(); it.next_ne())
-          {
-            typename GT::Arc * src_arc = it.get_current_arc_ne();
+      assert(gtgt.get_num_arcs () == gsrc.get_num_arcs ());
+    }
+  catch (...)
+    {     // Si ocurre excepción se limpia this
+      clear_graph (gtgt);
+      throw;
+    }
+}
 
-            // obtener imágenes de nodos en el grafo destino y crear arco
-            typename GT::Node * src_node = map[gsrc.get_src_node(src_arc)];
-            typename GT::Node * tgt_node = map[gsrc.get_tgt_node(src_arc)];
-            typename GT::Arc * tgt_arc   = gtgt.insert_arc(src_node, tgt_node);
-            // tgt_arc->get_info() = src_arc->get_info();
-            *tgt_arc = *src_arc;
-            if (cookie_map)
-              GT::map_arcs(src_arc, tgt_arc);
-          }
-
-        assert(gtgt.get_num_arcs() == gsrc.get_num_arcs());
-      }
-    catch (...)
-      {     // Si ocurre excepción se limpia this
-        clear_graph(gtgt);
-        throw;
-      }
-  }
-
-  /** Default copy node functor
+/** Default copy node functor
 
       @ingroup Grafos
   */
-  template <class GTT, class GTS>
-  struct Dft_Copy_Node
+template<class GTT, class GTS>
+struct Dft_Copy_Node {
+  void operator() (typename GTT::Node *tgt, typename GTS::Node *src) noexcept
   {
-    void operator () (typename GTT::Node * tgt, typename GTS::Node * src) noexcept
-    {
-      tgt->get_info() = src->get_info();
-    }
-  };
+    tgt->get_info () = src->get_info ();
+  }
+};
 
-
-  /** Default copy arc functor
+/** Default copy arc functor
 
       @ingroup Grafos
   */
-  template <class GTT, class GTS>
-  struct Dft_Copy_Arc
+template<class GTT, class GTS>
+struct Dft_Copy_Arc {
+  void operator() (typename GTT::Arc *tgt, typename GTS::Arc *src)
   {
-    void operator () (typename GTT::Arc * tgt, typename GTS::Arc * src)
-    {
-      tgt->get_info() = src->get_info();
-    }
-  };
+    tgt->get_info () = src->get_info ();
+  }
+};
 
-  /** Copy between different types of graphs.
+/** Copy between different types of graphs.
 
       @param[in] gtgt target graph
       @param[in] gsrc source graph
@@ -3524,60 +3583,59 @@ namespace Aleph {
       nodes and arcs cookies
       @ingroup Grafos
   */
-  template <class GTT, class GTS,
-            class Copy_Node = Dft_Copy_Node<GTT, GTS>,
-            class Copy_Arc = Dft_Copy_Arc<GTT, GTS>>
-  void inter_copy_graph(GTT & gtgt, const GTS & gsrc,
-                        const bool cookie_map = false)
-  {
-    try
-      {
-        clear_graph(gtgt); // limpiar this antes de copiar
-        DynMapAvlTree<typename GTS::Node*, typename GTT::Node*> map;
+template<class GTT, class GTS,
+    class Copy_Node = Dft_Copy_Node<GTT, GTS>,
+    class Copy_Arc = Dft_Copy_Arc<GTT, GTS>>
+void inter_copy_graph (GTT & gtgt, const GTS & gsrc,
+                       const bool cookie_map = false)
+{
+  try
+    {
+      clear_graph (gtgt); // limpiar this antes de copiar
+      DynMapAvlTree<typename GTS::Node *, typename GTT::Node *> map;
 
-        // fase 1: recorrer nodos de src_graph e insertar copia en this
-        for (typename GTS::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
-          {
-            typename GTS::Node * src_node = it.get_current_node_ne();
-            unique_ptr<typename GTT::Node> tgt_node(new typename GTT::Node);
-            Copy_Node () (tgt_node.get(), src_node);
-            map.insert(src_node, tgt_node.get());
+      // fase 1: recorrer nodos de src_graph e insertar copia en this
+      for (typename GTS::Node_Iterator it (gsrc); it.has_curr (); it.next_ne ())
+        {
+          typename GTS::Node *src_node = it.get_current_node_ne ();
+          unique_ptr<typename GTT::Node> tgt_node (new typename GTT::Node);
+          Copy_Node () (tgt_node.get (), src_node);
+          map.insert (src_node, tgt_node.get ());
 
-            typename GTT::Node * tgt = tgt_node.release();
-            gtgt.insert_node(tgt); // insertar en grafo destino
+          typename GTT::Node *tgt = tgt_node.release ();
+          gtgt.insert_node (tgt); // insertar en grafo destino
 
-            if (cookie_map)
-              map_nodes<GTS, GTT>(src_node, tgt);
-          }
+          if (cookie_map)
+            map_nodes<GTS, GTT> (src_node, tgt);
+        }
 
-        assert(gtgt.get_num_nodes() == gsrc.get_num_nodes());
+      assert(gtgt.get_num_nodes () == gsrc.get_num_nodes ());
 
-        // fase 2: por cada arco de src_graph, crear en this un
-        // arco que conecte a los nodos mapeados de map
-        for (typename GTS::Arc_Iterator it(gsrc); it.has_curr(); it.next_ne())
-          {
-            typename GTS::Arc * src_arc = it.get_current_arc_ne();
+      // fase 2: por cada arco de src_graph, crear en this un
+      // arco que conecte a los nodos mapeados de map
+      for (typename GTS::Arc_Iterator it (gsrc); it.has_curr (); it.next_ne ())
+        {
+          typename GTS::Arc *src_arc = it.get_current_arc_ne ();
 
-            // obtener imágenes de nodos en el grafo destino y crear arco
-            typename GTT::Node * src_node = map[gsrc.get_src_node(src_arc)];
-            typename GTT::Node * tgt_node = map[gsrc.get_tgt_node(src_arc)];
-            typename GTT::Arc * tgt_arc   = gtgt.insert_arc(src_node, tgt_node);
-            Copy_Arc () (tgt_arc, src_arc);
-            if (cookie_map)
-              map_arcs<GTS, GTT>(src_arc, tgt_arc);
-          }
+          // obtener imágenes de nodos en el grafo destino y crear arco
+          typename GTT::Node *src_node = map[gsrc.get_src_node (src_arc)];
+          typename GTT::Node *tgt_node = map[gsrc.get_tgt_node (src_arc)];
+          typename GTT::Arc *tgt_arc = gtgt.insert_arc (src_node, tgt_node);
+          Copy_Arc () (tgt_arc, src_arc);
+          if (cookie_map)
+            map_arcs<GTS, GTT> (src_arc, tgt_arc);
+        }
 
-        assert(gtgt.get_num_arcs() == gsrc.get_num_arcs());
-      }
-    catch (...)
-      {     // Si ocurre excepción se limpia this
-        clear_graph(gtgt);
-        throw;
-      }
-  }
+      assert(gtgt.get_num_arcs () == gsrc.get_num_arcs ());
+    }
+  catch (...)
+    {     // Si ocurre excepción se limpia this
+      clear_graph (gtgt);
+      throw;
+    }
+}
 
-
-  /** Filtered copy of graphs.
+/** Filtered copy of graphs.
 
       This functor copies a graph according to filtering criterias
       for its nodes and arcs
@@ -3589,87 +3647,86 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class SN = Dft_Show_Node<GT>, class SA = Dft_Show_Arc<GT>>
-  class Copy_Graph
-  {
-    SN sn;
-    SA sa;
+template<class GT, class SN = Dft_Show_Node<GT>, class SA = Dft_Show_Arc<GT>>
+class Copy_Graph {
+  SN sn;
+  SA sa;
 
-  public:
+ public:
 
-    /** Constructor
+  /** Constructor
 
         @param[in] __sa node filter
         @param[in] __sn arc filter
     */
-    Copy_Graph(SA __sa = SA(), SN __sn = SN()) : sn(__sn), sa(__sa)
-    {
-      // empty
-    }
+  Copy_Graph (SA __sa = SA (), SN __sn = SN ()) : sn (__sn), sa (__sa)
+  {
+    // empty
+  }
 
-  private:
+ private:
 
-    void copy(GT & gtgt, const GT & gsrc, const bool cookie_map)
-    {
-      try
-        {
-          clear_graph(gtgt); // limpiar this antes de copiar
-          DynMapAvlTree<typename GT::Node*, typename GT::Node*> map;
+  void copy (GT & gtgt, const GT & gsrc, const bool cookie_map)
+  {
+    try
+      {
+        clear_graph (gtgt); // limpiar this antes de copiar
+        DynMapAvlTree<typename GT::Node *, typename GT::Node *> map;
 
-          // fase 1: recorrer nodos de src_graph e insertar copia en this
-          for (Node_Iterator<GT, SN> it(gsrc, sn); it.has_curr(); it.next_ne())
-            {
-              typename GT::Node * src_node = it.get_curr();
-              unique_ptr<typename GT::Node>
-                tgt_node(new typename GT::Node(src_node));
-              map.insert(src_node, tgt_node.get());
+        // fase 1: recorrer nodos de src_graph e insertar copia en this
+        for (Node_Iterator<GT, SN> it (gsrc, sn); it.has_curr (); it.next_ne ())
+          {
+            typename GT::Node *src_node = it.get_curr ();
+            unique_ptr<typename GT::Node>
+                tgt_node (new typename GT::Node (src_node));
+            map.insert (src_node, tgt_node.get ());
 
-              typename GT::Node * tgt = tgt_node.release();
-              gtgt.insert_node(tgt); // insertar en grafo destino
+            typename GT::Node *tgt = tgt_node.release ();
+            gtgt.insert_node (tgt); // insertar en grafo destino
 
-              if (cookie_map)
-                GT::map_nodes(src_node, tgt);
-            }
+            if (cookie_map)
+              GT::map_nodes (src_node, tgt);
+          }
 
-          // fase 2: por cada arco de src_graph, crear en this un
-          // arco que conecte a los nodos mapeados de map
-          for (Arc_Iterator<GT, SA> it(gsrc, sa); it.has_curr(); it.next_ne())
-            {
-              typename GT::Arc * src_arc = it.get_curr();
+        // fase 2: por cada arco de src_graph, crear en this un
+        // arco que conecte a los nodos mapeados de map
+        for (Arc_Iterator<GT, SA> it (gsrc, sa); it.has_curr (); it.next_ne ())
+          {
+            typename GT::Arc *src_arc = it.get_curr ();
 
-              // obtener imágenes de nodos en el grafo destino y crear arco
-              typename GT::Node * src_node = map[gsrc.get_src_node(src_arc)];
-              typename GT::Node * tgt_node = map[gsrc.get_tgt_node(src_arc)];
-              typename GT::Arc * tgt_arc   =
-                gtgt.insert_arc(src_node, tgt_node, src_arc->get_info());
+            // obtener imágenes de nodos en el grafo destino y crear arco
+            typename GT::Node *src_node = map[gsrc.get_src_node (src_arc)];
+            typename GT::Node *tgt_node = map[gsrc.get_tgt_node (src_arc)];
+            typename GT::Arc *tgt_arc =
+                gtgt.insert_arc (src_node, tgt_node, src_arc->get_info ());
 
-              if (cookie_map)
-                GT::map_arcs(src_arc, tgt_arc);
-            }
-        }
-      catch (...)
-        {     // Si ocurre excepción se limpia this
-          clear_graph(gtgt);
-          throw;
-        }
-    }
+            if (cookie_map)
+              GT::map_arcs (src_arc, tgt_arc);
+          }
+      }
+    catch (...)
+      {     // Si ocurre excepción se limpia this
+        clear_graph (gtgt);
+        throw;
+      }
+  }
 
-  public:
+ public:
 
-    /** Perform the copy from `gsrc` to `gtgt`.
+  /** Perform the copy from `gsrc` to `gtgt`.
 
         @param[out] gtgt target graph
         @param[in] gsrc source graph
         @param[in] cookie_map if `true` ==> the nodes and arcs of both
         graphs are mapped through their cookies
     */
-    void operator () (GT & gtgt, GT & gsrc, const bool cookie_map = true)
-    {
-      copy(gtgt, gsrc, cookie_map);
-    }
-  };
+  void operator() (GT & gtgt, GT & gsrc, const bool cookie_map = true)
+  {
+    copy (gtgt, gsrc, cookie_map);
+  }
+};
 
-  /** Filter of painter arcs with that are set the Spanning_Tree control
+/** Filter of painter arcs with that are set the Spanning_Tree control
       bit.
 
       Some `Aleph-w` (\f$\aleph_\omega\f$) algorithms set the
@@ -3679,27 +3736,26 @@ namespace Aleph {
 
       @ingroup Grafos
   */
-  template <class GT, class Distance>
-  struct Painted_Min_Spanning_Tree
+template<class GT, class Distance>
+struct Painted_Min_Spanning_Tree {
+  /// Accumutive distance from the first seen arc until the last seen
+  typename Distance::Distance_Type dist;
+
+  Painted_Min_Spanning_Tree () noexcept: dist (0)
+  { /* empty */ }
+
+  bool operator() (typename GT::Arc *a) noexcept
   {
-    /// Accumutive distance from the first seen arc until the last seen
-    typename Distance::Distance_Type dist;
+    if (notIS_ARC_VISITED (a, Aleph::Spanning_Tree))
+      return false;
 
-    Painted_Min_Spanning_Tree() noexcept : dist(0) { /* empty */ }
+    dist = dist + ARC_DIST (a);
 
-    bool operator () (typename GT::Arc * a) noexcept
-    {
-      if (not IS_ARC_VISITED(a, Aleph::Spanning_Tree))
-        return false;
+    return true;
+  }
+};
 
-      dist = dist + ARC_DIST(a);
-
-      return true;
-    }
-  };
-
-
-  /** Fast graph comparison.
+/** Fast graph comparison.
 
       If the data types stored in the nodes are sortable then this method
       can respond if two graphs are isomoporphic in \f$O(V \lg V) + O(E)\f$.
@@ -3718,10 +3774,9 @@ namespace Aleph {
       \see Kruskal_Min_Spanning_Tree Prim_Min_Spanning_Tree
       \see Dijkstra_Min_Paths Bellman_Ford
   */
-  template <class GT> inline
-  bool are_equal(const GT & g1, const GT & g2);
-
-
+template<class GT>
+inline
+bool are_equal (const GT & g1, const GT & g2);
 
 } // end namespace Aleph
 

@@ -86,8 +86,8 @@ public:
   Compare & get_compare() noexcept { return key_comp(); }
 
   /// Initialize an empty tree with comparison criteria `__cmp`
-  GenBinTree(Compare __cmp = Compare()) noexcept
-    : head(&headNode), root(headNode.getR()), cmp(__cmp)
+  GenBinTree(Compare _cmp = Compare()) noexcept
+    : head(&headNode), root(headNode.getR()), cmp(_cmp)
   {
     // empty
   }
@@ -121,7 +121,7 @@ public:
 
           @param[in] p pointer to the node to insert
           @return if `p->get_key()` is not in the tree, then the pointer
-          `p` is returned (it was inserted); othewise, `nullptr`
+          `p` is returned (it was inserted); otherwise, `nullptr`
           is returned 
        */
   Node * insert(Node *p) noexcept
@@ -234,7 +234,7 @@ public:
   /** Join exclusive of `this` with `t`
 
       Exclusive means that all the keys of `this` are lesser than all
-      the keys of `t`. This knowlege allows a more effcient way for
+      the keys of `t`. This knowledge allows a more effcient way for
       joining that when the keys ranks are overlapped. However, use very
       carefully because the algorithm does not perform any check and the
       result would be incorrect.

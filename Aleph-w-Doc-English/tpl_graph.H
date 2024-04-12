@@ -1506,21 +1506,21 @@ struct Digraph_Iterator
 
 
 template <class GT>
-using __Out_Iterator = Digraph_Iterator<GT, __Out_Filt<GT>>;
+using _Out_Iterator = Digraph_Iterator<GT, __Out_Filt<GT>>;
 
 
 template <class GT>
-using __In_Iterator = Digraph_Iterator<GT, __In_Filt<GT>>;
+using _In_Iterator = Digraph_Iterator<GT, __In_Filt<GT>>;
 
 
 template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
 using Out_Iterator = 
-  Filter_Iterator<typename GT::Node*, __Out_Iterator<GT>, Show_Arc>;
+  Filter_Iterator<typename GT::Node*, _Out_Iterator<GT>, Show_Arc>;
 
 
 template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
 using In_Iterator = 
-  Filter_Iterator<typename GT::Node*, __In_Iterator<GT>, Show_Arc>;
+  Filter_Iterator<typename GT::Node*, _In_Iterator<GT>, Show_Arc>;
 
 
 /** 
@@ -1533,7 +1533,7 @@ template <class GT>
 DynList<typename GT::Node*> __out_nodes(typename GT::Node * p)
 {
   DynList<typename GT::Node *> ret;
-  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_Out_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_node());
   return ret;
 }
@@ -1572,7 +1572,7 @@ template <class GT>
 DynList<typename GT::Node*> __in_nodes(typename GT::Node * p)
 {
   DynList<typename GT::Node *> ret;
-  for (__In_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_In_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_node());
   return ret;
 }
@@ -1608,7 +1608,7 @@ template <class GT>
 DynList<typename GT::Arc*> __out_arcs(typename GT::Node * p)
 {
   DynList<typename GT::Arc *> ret;
-  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_Out_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_curr());
   return ret;
 }
@@ -1645,7 +1645,7 @@ template <class GT>
 DynList<typename GT::Arc*> __in_arcs(typename GT::Node * p)
 {
   DynList<typename GT::Arc *> ret;
-  for (__In_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_In_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_curr());
   return ret;
 }
@@ -1696,7 +1696,7 @@ template <class GT>
 DynList<ArcPair<GT>> __in_pairs(typename GT::Node * p)
 {
   DynList<ArcPair<GT>> ret;
-  for (__In_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_In_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_curr());
   return ret;
 }
@@ -1732,7 +1732,7 @@ template <class GT>
 DynList<ArcPair<GT>> __out_pairs(typename GT::Node * p)
 {
   DynList<ArcPair<GT>> ret;
-  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_Out_Iterator<GT> it(p); it.has_curr(); it.next())
     ret.append(it.get_curr());
   return ret;
 }
@@ -1770,7 +1770,7 @@ template <class GT>
 size_t __in_degree(typename GT::Node * p)
 {
   size_t count = 0;
-  for (__In_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_In_Iterator<GT> it(p); it.has_curr(); it.next())
     ++count;
   return count;
 }
@@ -1807,7 +1807,7 @@ template <class GT>
 size_t __out_degree(typename GT::Node * p)
 {
   size_t count = 0;
-  for (__Out_Iterator<GT> it(p); it.has_curr(); it.next())
+  for (_Out_Iterator<GT> it(p); it.has_curr(); it.next())
     ++count;
   return count;
 }

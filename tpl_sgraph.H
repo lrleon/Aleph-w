@@ -231,9 +231,9 @@ public:
         representados mediante listas de adyacencia.
 
         La clase maneja dos parámetros tipo fundamentales:
-        - __Graph_Node: el tipo de los nodos que debe estar definido
+        - _Graph_Node: el tipo de los nodos que debe estar definido
           mediante la clase Graph_Snode.
-        - __Graph_Arc: el tipo de los nodos que debe estar definido
+        - _Graph_Arc: el tipo de los nodos que debe estar definido
           mediante la clase Graph_Sarc.
 
         Estas clases deben haberse definido previamente.
@@ -244,10 +244,10 @@ public:
         - List_SGraph<Node, Arc>::Arc
        
         @param __Graph_Node El tipo de nodo. Debe estar definido a
-        partir de la clase \c __Graph_Node, bien sea por inclusión de
+        partir de la clase \c _Graph_Node, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @param __Graph_Arc El tipo de arco. Debe estar definido a
-        partir de la clase \c __Graph_Arc, bien sea por inclusión de
+        partir de la clase \c _Graph_Arc, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @see Graph_SNode Graph_SArc
         @ingroup Grafos
@@ -664,7 +664,7 @@ public:
         partir de la clase \c __Graph_Snode, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @param __Graph_Arc El tipo de arco. Debe estar definido a
-        partir de la clase \c __Graph_Arc, bien sea por inclusión de
+        partir de la clase \c _Graph_Arc, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @see Graph_Snode Graph_Sarc
         @ingroup Grafos

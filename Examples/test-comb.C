@@ -28,8 +28,6 @@
 # include <iostream>
 
 # include <ah-comb.H>
-# include <htlist.H>
-# include <tpl_dynDlist.H>
 
 using namespace std;
 

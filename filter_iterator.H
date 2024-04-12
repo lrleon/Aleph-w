@@ -95,7 +95,7 @@ class Filter_Iterator : public It
 	      return ;
 	  }
       }
-    catch (std::overflow_error) { /* seguir en overflow; no propagar */ }
+    catch (std::overflow_error) { /* continue in overflow; do not propagate */ }
   }
 
   void goto_last_valid_item()
@@ -133,9 +133,9 @@ public:
       /// Retorna el iterador de fondo.
   It & get_iterator() { return *this; }
 
-      /// Retorna una referencia a la clase filtro. Úsese esta función
-      /// si se requiere obtener el estado del filtro (recuérdese que se
-      /// perderá cuando se invoque al destructor ~Filter_Iterator()
+      /// Returns a reference to the filter class. Use this function
+      /// if it is required to obtain the filter status (remember that
+      /// will lose when the ~Filter_Iterator() destructor is called
   Show_Item & get_filter() { return show_item; }
 
   void set_filter(Show_Item si)

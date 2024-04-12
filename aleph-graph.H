@@ -151,7 +151,7 @@ public:
           @return the logical value of bit
           @throw out_of_range if bit is greater or equal than Num_Bits_Graph.
        */
-  bool get_bit(int bit) const noexcept
+  [[nodiscard]] bool get_bit(int bit) const noexcept
   {
     switch (bit)
       {
@@ -203,19 +203,19 @@ public:
   }
 
   /// Return the state value
-  unsigned int get_state() const noexcept { return state; }
+  [[nodiscard]] unsigned int get_state() const noexcept { return state; }
 
-  /// Return a stringficated version of state
-  std::string str_state() const 
+  /// Return a stringification version of state
+  [[nodiscard]] std::string str_state() const
   {
     switch (state)
       {
-      case 0: return std::string("Unprocessed");
-      case 1: return std::string("Processing");
-      case 2: return std::string("Processed");
+      case 0: return {"Unprocessed"};
+      case 1: return {"Processing"};
+      case 2: return {"Processed"};
       default: break;
       }
-    return std::string("Undefined");
+    return {"Undefined"};
   }
 
   /// Set the state to the value `s`

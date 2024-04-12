@@ -38,7 +38,7 @@ namespace Aleph
 {
 
   template <typename T> inline
-  DynList<DynList<T>> __transpose(const DynList<DynList<T>> & l)
+  DynList<DynList<T>> _transpose(const DynList<DynList<T>> & l)
   {
     Array<Array<Snodenc<T>*>> mat;
 
@@ -224,7 +224,7 @@ namespace Aleph
     using IT = typename DynList<T>::Iterator;
     DynList<IT> its;
 
-    { // This block allows to get a constant copy of l and then reverse
+    { // This block allows getting a constant copy of l and then reverse
       // it. At the end of block lcpy memory is freed
       const DynList<IT> lcpy =
         l.template maps<IT>([] (const auto & l) { return l.get_it(); });

@@ -150,7 +150,7 @@ namespace Aleph {
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
+      // depth traversal all nodes connected to v
       for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
@@ -160,14 +160,14 @@ namespace Aleph {
               low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before p
             low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
-        {     // sí ==> saque los nodos del bloque que están en pila
+      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+        {     // yes pop out block nodes that are on stack
           auto & l = list_list_ptr->append(DynList<typename GT::Node*>());
-          while (true) // sacar bloque de pila hasta llegar a v
+          while (true) // remove block from stack until reaching v
             {
               auto p = pop_from_stack();
               l.append(p);
@@ -181,7 +181,7 @@ namespace Aleph {
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
+      // depth traverse all nodes connected to v
       for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
@@ -191,14 +191,14 @@ namespace Aleph {
               low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before p
             low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
-        {     // sí ==> saque los nodos del bloque que están en pila
+      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+        {     // yes, pop out block nodes that are on stack
           size_t count = 0;
-          while (true) // sacar bloque de pila hasta llegar a v
+          while (true) // remove block from stack until reaching v
             {
               auto p = pop_from_stack();
               ++count;
@@ -213,18 +213,18 @@ namespace Aleph {
     void init_tarjan(const GT & g)
     {
       Operate_On_Nodes <GT, Init_Tarjan_Node> () (g); // inicia bits, df y low
-      df_count = 0; // contador de visitas
+      df_count = 0; // visitor counter
       stack.empty();
       n = g.get_num_nodes();
       g_ptr = &const_cast<GT&>(g);
     }
 
-    // retorna true si se encuentra un ciclo desde v
+    // returns true if a cycle from v is found
     bool has_cycle(typename GT::Node * v)
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
+      // depth traverse all nodes connected to v
       for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
@@ -236,30 +236,30 @@ namespace Aleph {
               low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before p
             low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado de bloque?
-        {     // sí ==> verifique si tiene dos o más nodos
+      if (low<GT>(v) == df<GT>(v)) // first visited node of block?
+        {     // yes, check if you have two or more nodes
           int i = 0;
-          for (; i < 2; ++i) // sacar bloque de la pila hasta sacar a v
+          for (; i < 2; ++i) // remove block from stack until v is removed
             if (pop_from_stack() == v)
               break;
 
           return i >= 2; // si i>= 2 ==> hay un ciclo
         }
 
-      return false; // se recorrió todo v sin encontrar ciclo
+      return false; //everything was covered without finding a cycle
     }
 
-    // Toma el bloque block, que está mapeado del grafo original, que es
-    // fuertemente conexo, y construye en path_ptr el ciclo
+    // Take the block, which is mapped from the original graph, which is
+    // strongly connected, and build the loop in path_ptr
     void
     build_path(const GT &                                             block, 
                DynMapAvlTree<typename GT::Node*, typename GT::Node*> & table)
     {
-      // buscar ciclo en blk.
+      // search cycle in blk.
       auto a     = block.get_first_arc();
       auto start = block.get_tgt_node(a);
       auto end   = block.get_src_node(a);
@@ -268,9 +268,9 @@ namespace Aleph {
       auto aux_path = Directed_Find_Path<GT, Itor, SA>(block, sa).dfs(start, end);
       assert(not aux_path.is_empty()); // como es conexo debe encontrarse
 
-      // aux_path es sobre el bloque mapeado. Pero nosotros necesitamos
-      // que el camino sea sobre el grafo original. Los nodos del grafo
-      // original se recuperan del mapeo table
+      // aux_path is about the mapped block. But we need
+      // that the path is on the original graph. The nodes of the graph
+      // original are retrieved from the table mapping
       path_ptr->empty();
       for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next_ne())
         path_ptr->append_directed(table.find(i.get_current_node_ne()));
@@ -278,13 +278,14 @@ namespace Aleph {
       path_ptr->append_directed(path_ptr->get_first_node());
     }
 
-    // retorna true si encuentra un ciclo, en cuyo caso lo pone en
-    // path. De lo contrario, retorna false y path queda intacto
+    // Returns true if it finds a loop, in which case it puts it into
+    // the path.
+    // Otherwise, it returns false and path is left intact.
     bool build_cycle(typename GT::Node * v)
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
+      // depth traverse all nodes connected to v
       for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
@@ -296,15 +297,15 @@ namespace Aleph {
               low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before p
             low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
+      if (low<GT>(v) == df<GT>(v)) //first visited node of the block?
         {
-          GT blk; // grafo auxiliar
+          GT blk; // auxiliary graph
 
-          // mapeo de nodos de g con blk (los cookies están ocupados)
+          //g node mapping to blk (cookies are busy)
           DynMapAvlTree<typename GT::Node*, typename GT::Node*> table;
 
           // saque nodos de pila e insertelos en bloque auxiliar

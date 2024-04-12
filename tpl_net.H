@@ -266,7 +266,7 @@ namespace Aleph {
     Flow_Type get_in_cap(Node * node) const
     {
       Flow_Type sum = 0.0;
-      for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->cap;
       return sum;
     }
@@ -275,7 +275,7 @@ namespace Aleph {
     Flow_Type get_out_cap(Node * node) const
     {
       Flow_Type sum = 0.0;
-      for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->cap;
       return sum;
     }
@@ -298,7 +298,7 @@ namespace Aleph {
     Flow_Type get_out_flow(Node * node) const
     {
       Flow_Type sum = 0;
-      for (__Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->flow;
       return sum;
     }
@@ -307,7 +307,7 @@ namespace Aleph {
     Flow_Type get_in_flow(Node * node) const
     {
       Flow_Type sum = 0;
-      for (__In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
+      for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->flow;
       return sum;
     }

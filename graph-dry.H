@@ -113,7 +113,7 @@ struct GTArcIterator : public Dlink::Iterator
   /// Return the current arc without exception
   Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
 
-  /// Return the sourcenode of current arc (if it is a directed graph) 
+  /// Return the source node of current arc (if it is a directed graph)
   Node * get_src_node_ne() const noexcept 
   {
     return (Node*) get_curr_ne()->src_node; 
@@ -125,7 +125,7 @@ struct GTArcIterator : public Dlink::Iterator
     return (Node*) get_curr_ne()->tgt_node; 
   }
 
-  /// Return the sourcenode of current arc (if it is a directed graph) 
+  /// Return the source node of current arc (if it is a directed graph)
   Node * get_src_node() const 
   {
     return (Node*) get_curr()->src_node; 
@@ -232,7 +232,7 @@ public:
 
   using Node_Type = NodeInfo; /// another alias for set type
 
-  GTNodeCommon() noexcept {}
+  GTNodeCommon() noexcept = default;
 
   GTNodeCommon(const NodeInfo & info) : node_info(info) {}
 

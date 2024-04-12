@@ -43,11 +43,11 @@
   out << ""
 
 #define ah_msg_if(out, C)                       \
-  if (__builtin_expect((C), 0))                 \
-    out << ""
+  if (C)                 \
+    [[unlikely]](out) << ""
 
 #define ah_msg_unless(out, C)                       \
-  if (__builtin_expect(!(C), 0))                    \
-    out << ""
+  if (not (C))                    \
+    [[unlikely]]out << ""
 
 # endif

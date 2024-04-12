@@ -251,7 +251,7 @@ outgoing flow and cost. */
   Pars out_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__Out_Iterator<Net> it(p); it.has_curr(); it.next())
+    for (_Out_Iterator<Net> it(p); it.has_curr(); it.next())
       {
 	Arc * a = it.get_curr();
 	cap_sum += a->cap;
@@ -266,7 +266,7 @@ outgoing flow and cost. */
   Pars in_pars(Node * p)
   {
     Flow_Type cap_sum = 0, flow_sum = 0, cost_sum = 0;
-    for (__In_Iterator<Net> it(p); it.has_curr(); it.next())
+    for (_In_Iterator<Net> it(p); it.has_curr(); it.next())
       {
 	Arc * a = it.get_curr();
 	cap_sum += a->cap;

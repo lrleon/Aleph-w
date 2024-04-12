@@ -670,7 +670,7 @@ public:
         partir de la clase \c __Graph_Snode, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @param __Graph_Arc El tipo de arco. Debe estar definido a
-        partir de la clase \c __Graph_Arc, bien sea por inclusión de
+        partir de la clase \c _Graph_Arc, bien sea por inclusión de
         atributos, por derivación o por combinación de ambos
         @see Graph_Snode Graph_Sarc
         @ingroup Grafos
