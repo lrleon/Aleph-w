@@ -141,8 +141,8 @@ namespace Aleph {
 
   protected:
 
-    /// Instancia una tabla hash con función hash __hash_fct y
-    /// dimensión len.
+    /// Instantiate a hash table with hash function __hash_fct and
+    /// dimension len.
     OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
                 float __lower_alpha, float __upper_alpha, bool __with_resize)
       : table(nullptr), N(0), len(Primes::next_prime(__len)),
@@ -173,7 +173,7 @@ namespace Aleph {
                     lower_alpha, upper_alpha, with_resize) {}
 
     /** Constructor with two hash function for metaprogramming
-        compatibility with ODhashTable
+        compatibility with ODhashTable type
     */
     OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
                 float lower_alpha, float upper_alpha, bool with_resize)
@@ -182,7 +182,7 @@ namespace Aleph {
 
     Special_Ctors(OLhashTable, Key);
 
-    /// Libera toda la memoria ocupada.
+    /// Release all occupied memory.
     ~OLhashTable()
     {
       if (table != nullptr)
