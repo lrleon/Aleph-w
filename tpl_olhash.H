@@ -244,11 +244,12 @@ namespace Aleph {
       return *this;
     }
 
-    /// Busca la clave key y retorna el registro asociado si key se
-    /// encuentra dentro de la tabla; de lo contrario, retorna nullptr.
+    /// Finds the key key and returns the associated record if key is
+    /// find inside the table; otherwise, nullptr is returned.
     Key * search(const Key & key) const noexcept
     {
-      long i = hash_fct(key) % len, c = 0;
+      long i = hash_fct(key) % len;
+      long c = 0;
       while (c < len and table[i].status != EMPTY)
         {
           if (table[i].status == BUSY and cmp(table[i].key, key))
@@ -259,7 +260,7 @@ namespace Aleph {
             i = 0;
         }
 
-      return nullptr; // No se encuentra la clave
+      return nullptr; // Key not found
     }
 
   protected:
