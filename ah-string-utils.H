@@ -56,6 +56,18 @@ namespace Aleph
                     [](int ch) { return not isspace(ch); }).base(), s.end());
   }
 
+
+
+  // fast concatenation of several strings
+  template <class ... Args>
+  inline string concat(string str, const Args &... args)
+  {
+    auto add = [&str] (const string & s) { str += s; };
+    (add(args), ...);
+    cout << "str: " << str << endl;
+    return str;
+  }
+
   // trim from both ends (in place)
   inline string trim(const string & s)
   {
