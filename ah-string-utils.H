@@ -62,9 +62,15 @@ namespace Aleph
   template <class ... Args>
   inline string concat(string str, const Args &... args)
   {
-    auto add = [&str] (const string & s) { str += s; };
+    size_t sz = str.size();
+    auto add_size = [&sz] (const string_view & s) { sz += s.size(); };
+    (add_size(args), ...); // put in sz the final size of the string
+
+    str.reserve(sz); // thus, we avoid additional reallocations
+
+    auto add = [&str] (const string_view & s) { str += s; };
     (add(args), ...);
-    cout << "str: " << str << endl;
+
     return str;
   }
 
@@ -84,7 +90,7 @@ namespace Aleph
     return s;
   }
 
-  inline bool contains(const string & str, const string & substr)
+  inline bool contains(const string_view & str, const string_view & substr)
   {
     return str.find(substr) != std::string::npos;
   }
