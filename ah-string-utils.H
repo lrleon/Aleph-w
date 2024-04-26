@@ -56,8 +56,6 @@ namespace Aleph
                     [](int ch) { return not isspace(ch); }).base(), s.end());
   }
 
-
-
   // fast concatenation of several strings
   template <class ... Args>
   inline string concat(string str, const Args &... args)
