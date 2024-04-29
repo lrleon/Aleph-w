@@ -28,7 +28,7 @@ namespace Aleph
       // empty
     }
 
-    AhArenaAllocator(const size_t sz = 1024*1024)
+    explicit AhArenaAllocator(const size_t sz = 1024*1024)
     {
       _base_addr = (char*) malloc(sz);
       ah_runtime_error_if(_base_addr == nullptr)
@@ -58,7 +58,7 @@ namespace Aleph
       return (void*) ret_addr;
     }
 
-    void dealloc(void * addr, size_t sz = 0)
+    void dealloc(const void * addr, size_t sz = 0)
     {
       if (sz == 0)
         return;
@@ -73,12 +73,12 @@ namespace Aleph
         free((void*) _base_addr);
     }
 
-    size_t allocated_size() const noexcept
+    [[nodiscard]] size_t allocated_size() const noexcept
     {
       return _curr_addr - _base_addr;
     }
 
-    size_t available_size() const noexcept
+    [[nodiscard]] size_t available_size() const noexcept
     {
       return _end_addr - _curr_addr;
     }
