@@ -612,6 +612,24 @@ auto std_zip(const C1 & c1, const C2 & c2)
   return result;
 }
 
+// Receive a variadic list of std containers and build a list of tuples from them
+template <typename C1, typename C2, typename C3, typename C4> inline auto
+tzip_std(const C1 & c1, const C2 & c2, const C3 & c3, const C4 & c4)
+{
+  using T1 = typename C1::value_type;
+  using T2 = typename C2::value_type;
+  using T3 = typename C3::value_type;
+  using T4 = typename C4::value_type;
+  vector<std::tuple<T1, T2, T3, T4>> ret;
+  auto it1 = c1.begin();
+  auto it2 = c2.begin();
+  auto it3 = c3.begin();
+  auto it4 = c4.begin();
+  for (; it1 != c1.end() and it2 != c2.end() and it3 != c3.end() and it4 != c4.end();
+       ++it1, ++it2, ++it3, ++it4)
+    ret.push_back(std::make_tuple(*it1, *it2, *it3, *it4));
+  return ret;
+}
 
 # endif // AH_ZIP_H
 
