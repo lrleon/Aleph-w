@@ -621,7 +621,7 @@ tzip_std(const C1 & c1, const C2 & c2, const C3 & c3, const C4 & c4)
   using T2 = typename C2::value_type;
   using T3 = typename C3::value_type;
   using T4 = typename C4::value_type;
-  vector<std::tuple<T1, T2, T3, T4>> ret;
+  std::vector<std::tuple<T1, T2, T3, T4>> ret;
   auto it1 = c1.begin();
   auto it2 = c2.begin();
   auto it3 = c3.begin();
