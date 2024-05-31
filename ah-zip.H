@@ -30,6 +30,7 @@
 
 # include <type_traits>
 # include <tuple>
+# include <vector>
 
 # include <htlist.H>
 # include <ahFunctional.H>
