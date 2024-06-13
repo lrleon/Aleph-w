@@ -70,7 +70,7 @@ public:
   Array(const Array & s) : array(s.array) { /* empty */ }
 
       /// Move constructor
-  Array(Array && s) : array(std::forward<MemArray<T>>(s.array)) { /* empty */ }
+  Array(Array && s) noexcept : array(std::forward<MemArray<T>>(s.array)) { /* empty */ }
 
   Special_Ctors(Array, T);
 
@@ -167,7 +167,10 @@ public:
       @param[in] n number of cells to reserve
       @throw bad_alloc if there is no enough memory
   */
-  void putn(const size_t n) { array.putn(n); }
+  void putn(const size_t n)
+  {
+    array.putn(n);
+  }
 
   /** Reserves `cap` cells into the array.
 
@@ -191,12 +194,12 @@ public:
   /// Return the internal capacity
   size_t capacity() const noexcept { return array.capacity(); }
 
-  /// return a modifiable reference to the first element. No bound check
-  /// is perfomed
+  /// return a modifiable reference to the first element. No bound_statics check
+  /// is performed
   T & get_first() const { return array.first(); }
 
-  /// return a modifiable reference to the last element. No bound check
-  /// is perfomed
+  /// return a modifiable reference to the last element. No bound_statics check
+  /// is performed
   T & get_last() const { return array.last(); }
 
   T remove_last() { return array.remove_last(); }
@@ -210,7 +213,7 @@ public:
     return array[i];
   }
 
-  /// Return a reference to the ith element. It does not perform bound checks
+  /// Return a reference to the ith element. It does not perform bound_statics checks
   T & operator () (const size_t i) const noexcept
   {
     return array(i);

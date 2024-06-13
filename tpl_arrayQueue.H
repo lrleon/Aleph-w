@@ -51,7 +51,7 @@ namespace Aleph {
 
       @ingroup Secuencias
       @note If you are sure of knowing the bounds, then use `FixedStack`,
-      which is faster because it does not perform bound checks,
+      which is faster because it does not perform bound_statics checks,
    */
     template <typename T>
 class ArrayQueue : public MemArray<T>,
@@ -361,7 +361,7 @@ public:
       to the next two power immediately greater.
 
       This queue is the fastest of `Aleph-w` (\f$\aleph_\omega\f$), but
-      take in account that no bound cheks are performed. You must be
+      take in account that no bound_statics cheks are performed. You must be
       sure that you usage is correct.
 
       @see ArrayQueue DynListQueue

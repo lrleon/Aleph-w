@@ -557,7 +557,7 @@ namespace Aleph
         return *this;
       }
 
-      /// Return a modifiable reference to the ith element. No bound check
+      /// Return a modifiable reference to the ith element. No bound_statics check
       /// is performed
       T & access(const size_t i) const noexcept
       {
