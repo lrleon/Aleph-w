@@ -64,7 +64,7 @@ class ArrayQueue : public MemArray<T>,
 private:
 
   size_t front_index; // items are extracted from this point
-  size_t rear_index;  // new item are inserted by this point
+  size_t rear_index;  // new item is inserted by this point
 
   void increase_index(size_t & i, const size_t inc = 1) const noexcept
   {
