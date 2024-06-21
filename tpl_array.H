@@ -186,13 +186,13 @@ public:
   void empty() noexcept { array.empty(); }
 
     /// Return `true` if stack is empty
-  bool is_empty() const noexcept { return array.size() == 0; }
+  [[nodiscard]] bool is_empty() const noexcept { return array.size() == 0; }
 
     /// Return the number of elements stored in the stack
-  size_t size() const noexcept { return array.size(); }
+  [[nodiscard]] size_t size() const noexcept { return array.size(); }
 
   /// Return the internal capacity
-  size_t capacity() const noexcept { return array.capacity(); }
+  [[nodiscard]] size_t capacity() const noexcept { return array.capacity(); }
 
   /// return a modifiable reference to the first element. No bound_statics check
   /// is performed
@@ -274,7 +274,7 @@ public:
     return array.traverse(operation);
   }
 
-  bool is_valid() const noexcept { return array.is_valid(); }
+  [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
 
   /** Iterator on the items of array.
 
@@ -287,7 +287,7 @@ public:
     using Set_Type = Array;
 
     /// Initialize an iterator on array `s`
-    Iterator(const Array<T> & s) noexcept : Base(s.array) {}
+    explicit Iterator(const Array<T> & s) noexcept : Base(s.array) {}
   };
 };
 
