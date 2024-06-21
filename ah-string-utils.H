@@ -295,7 +295,6 @@ namespace Aleph
 
     return ret;
   }
-
  
   inline DynList<string> split_camel_case(const string & str)
   {
@@ -317,7 +316,6 @@ namespace Aleph
 
     return ret;
   }
-
 
   /** Fill all the content of string with a defined char.
 
