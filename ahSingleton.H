@@ -53,7 +53,7 @@ public:
   
 private:
   
-  Singleton() {};
+  Singleton() = default;
 
 public:
   
