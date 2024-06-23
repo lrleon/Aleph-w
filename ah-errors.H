@@ -36,15 +36,15 @@
 namespace Aleph
 {
 
-template<class E>
-struct ExceptionBuilder
-{
-  int operator, (const std::ostream & s)
+  template<class E>
+  struct ExceptionBuilder
   {
-    throw E (static_cast<const std::ostringstream &>(s).str ());
-    return 0;
-  }
-};
+    int operator,(const std::ostream &s)
+    {
+      throw E(static_cast<const std::ostringstream &>(s).str());
+      return 0;
+    }
+  };
 
 }
 
@@ -97,6 +97,16 @@ struct ExceptionBuilder
 #define ah_domain_error_unless(C)                                           \
   if (not (C))                                        \
     [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_out_of_range_error_if(C)\
+  if (C)                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_out_of_range_error_unless(C)\
+  if (not (C))                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::out_of_range>(),                       \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
 #define ah_fatal_error()                                                \
