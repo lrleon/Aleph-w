@@ -32,31 +32,33 @@
 # include <tpl_dynMapTree.H>
 # include <tpl_odhash.H>
 
-template <typename Key, class ValueType>
+template<typename Key, class ValueType>
 class AHMapping
 {
   DynMapTree<Key, ValueType> tbl;
 
 public:
 
-  AHMapping() {} 
+  AHMapping()
+  {}
 
-  template <typename ... Pairs>
-  AHMapping(const Key & key, const ValueType & value, Pairs ... pairs)
+  template<typename ... Pairs>
+  AHMapping(const Key &key, const ValueType &value, Pairs ... pairs)
     : AHMapping(pairs...)
   {
     tbl.insert(key, value);
   }
 
-  AHMapping(const AHMapping & mapping)
-    : tbl(mapping.tbl) {}
+  AHMapping(const AHMapping &mapping)
+    : tbl(mapping.tbl)
+  {}
 
-  void insert(const Key & key, ValueType value)
+  void insert(const Key &key, ValueType value)
   {
     tbl.insert(key, value);
   }
 
-  ValueType operator [] (const Key & key) const
+  ValueType operator[](const Key &key) const
   {
     auto ptr = tbl.search(key);
     ah_domain_error_if(ptr == nullptr) << "key not found";
@@ -68,24 +70,23 @@ public:
     AHMapping<ValueType, Key> ret;
     for (auto it = tbl.get_it(); it.has_curr(); it.next())
       {
-	auto curr = it.get_curr();
-	ret.insert(curr.second, curr.first);
+        auto curr = it.get_curr();
+        ret.insert(curr.second, curr.first);
       }
 
     return ret;
   }
 
-  void remove(const Key & key)
+  void remove(const Key &key)
   {
     tbl.remove(key);
   }
 
-  bool valid_key(const Key & key) { return tbl.has(key); }
+  bool valid_key(const Key &key)
+  { return tbl.has(key); }
 
-  DynList<string> keys() const { return tbl.keys(); }
+  DynList<string> keys() const
+  { return tbl.keys(); }
 };
-
-
-
 
 #endif
