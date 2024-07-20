@@ -1077,33 +1077,33 @@ namespace Aleph
     return i;
   }
 
-  /** Ordena un arreglo por el método quicksort.
+  /** Sorts an array using the quicksort method.
 
-      quicksort_rec(a,l,r) ordena el arreglo a entre los índices l y r
-      según el método quicksort según criterio de comparación Compare.
+      quicksort_rec(a,l,r) sorts the array a between indices l and r
+      according to the quicksort method according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      Esta versión de quicksort puede ocupar espacio \f$O(n)\f$.
-      Utilice quicksort_rec_min() si se desea garantizar un consumo 
-      máximo de espacio de \f$O(\lg n)\f$ en detrimento de un poco más
-      de tiempo constante.
+      This version of quicksort can take up \f$O(n)\f$ space.
+      Use quicksort_rec_min() if you want to guarantee consumption
+      maximum space of \f$O(\lg n)\f$ at the expense of a little more
+      of constant time.
 
-      El quicksort es un método probabilístico. En un muy mal caso 
-      -muy mala suerte- puede degradarse a 
-      \f$O(n^2)\f$. Para paliar, en la medida de la suerte, los malos
-      casos, use quicksort_insertion() que ejecuta heurísticas para
-      paliar los malos casos e invoca al método de inserción para
-      particiones del arreglo pequeñas.
+      Quicksort is a probabilistic method. In a very bad case
+      -very bad luck- can be degraded to
+      \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
+      cases, use quicksort_insertion() which runs heuristics to
+      alleviate the bad cases and invoke the insert method to
+      small array partitions.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice inferior.
-      @param[in] r índice superior.
+      @param[in,out] to the array to sort.
+      @param[in] the lower index.
+      @param[in] r top index.
 
       @see selection_sort() insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort()
@@ -1138,18 +1138,18 @@ namespace Aleph
     goto start;
   }
 
-  /** Ordena un arreglo según el método quicksort con mínimo
-      consumo de espacio.
+  /** Sorts an array according to the quicksort method with minimum
+      space consumption.
 
-      El quicksort puramente recursivo puede consumir pila proporcional
-      al tamaño del arreglo a ordenar. Para evitar este problema, 
-      en detrimento de un ligero coste de ejecución, quicksort_rec_min()
-      siempre ordena de primero la partición más pequeña. Por los demás,
-      las mismas consideraciones que para quicksort_rec() aplican.
+      Purely recursive quicksort can consume proportional stack
+      to the size of the arrangement to be ordered. To avoid this problem,
+      at the expense of a slight execution cost, quicksort_rec_min()
+      always sorts the smallest partition first. For others,
+      The same considerations as for quicksort_rec() apply.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice inicial por donde se ordena.
-      @param[in] r índice final por donde se ordena.
+      @param[in,out] to the array to sort.
+      @param[in] the initial index by which to sort.
+      @param[in] r final index by which to sort.
       @see quicksort_rec() quicksort() quicksort_insertion()
       \ingroup Algos
   */
@@ -1188,33 +1188,33 @@ namespace Aleph
     return cmp (a[r], a[m]) ? r : p; // retornar min(a[r], a[m])
   }
 
-  /** Ordena un arreglo por el método quicksort sin recursión.
+  /** Sorts an array by the quicksort method without recursion.
 
-      quicksort_rec(a,l,r) ordena el arreglo a entre los índices l y r
-      según el método quicksort según criterio de comparación Compare.
+      quicksort_rec(a,l,r) sorts the array a between indices l and r
+      according to the quicksort method according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      Esta versión de quicksort puede ocupar espacio \f$O(n)\f$.
-      Utilice quicksort_rec_min() si se desea garantizar un consumo 
-      máximo de espacio de \f$O(\lg n)\f$ en detrimento de un poco más
-      de tiempo constante.
+      This version of quicksort can take up \f$O(n)\f$ space.
+      Use quicksort_rec_min() if you want to guarantee consumption
+      maximum space of \f$O(\lg n)\f$ at the expense of a little more
+      of constant time.
 
-      El quicksort es un método probabilístico. En un muy mal caso 
-      -muy mala suerte- puede degradarse a 
-      \f$O(n^2)\f$. Para paliar, en la medida de la suerte, los malos
-      casos, use quicksort_insertion() que ejecuta heurísticas para
-      paliar los malos casos e invoca al método de inserción para
-      particiones del arreglo pequeñas.
+      Quicksort is a probabilistic method. In a very bad case
+      -very bad luck- can be degraded to
+      \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
+      cases, use quicksort_insertion() which runs heuristics to
+      alleviate the bad cases and invoke the insert method to
+      small array partitions.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice inferior.
-      @param[in] r índice superior.
+      @param[in,out] to the array to sort.
+      @param[in] the lower index.
+      @param[in] r top index.
 
       @see selection_sort() insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort_rec()
@@ -1264,15 +1264,15 @@ namespace Aleph
       }
   }
 
-  /** Ordena una lista enlazada por el método quicksort.
+  /** Sorts a linked list by the quicksort method.
 
-      quicksort(list) ordena una lista
-      según el método quicksort según criterio de comparación Compare.
+      quicksort(list) sorts a list
+      according to the quicksort method according to comparison criteria Compare.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      @param[in,out] list la lista a ordenar.
+      @param[in,out] list the list to sort.
 
       \ingroup Algos
   */
@@ -1302,21 +1302,21 @@ namespace Aleph
     list.concat_list(&bigger);
   } 
 
-  /** Ordena una lista por el método quicksort.
+  /** Sorts a list by the quicksort method.
 
-      quicksort(list) ordena  una lista mediante el método
-      quicksort según criterio de comparación Compare.
+      quicksort(list) sorts a list using the method
+      quicksort according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      Esta primitiva puede usarse para listas de tipo Dlist y DynDlist.
+      This primitive can be used for lists of type Dlist and DynDlist.
 
-      @param[in,out] list la lista a ordenar.
+      @param[in,out] list the list to sort.
 
       @see Dnode Dlist DynDlist
 
@@ -1360,37 +1360,37 @@ namespace Aleph
     quicksort<T, Compare>((HTList&) list, cmp);
   }
 
-  /** Ordena un arreglo por el método quicksort mejorado.
+  /** Sorts an array by the improved quicksort method.
 
-      quicksort_insertion(a,l,r) ordena el arreglo a entre los 
-      índices l y r según el método quicksort según criterio de
-      comparación Compare. 
+      quicksort_insertion(a,l,r) sorts the array a among the
+      indexes l and r according to the quicksort method according to criteria
+      comparison Compare.
 
-      El procedimiento combina diversas técnicas para acelerar el
-      ordenamiento y a la vez evitar degradación por malos casos. 
+      The procedure combines various techniques to accelerate the
+      ordering and at the same time avoid degradation due to bad cases.
 
-      Los malos casos son tratados mediante una selección del pivote 
-      consistente de la mediana entre l, r y el centro de la partición.
+      Bad cases are treated by pivot selection
+      consisting of the median between l, r and the center of the partition.
 
-      Para asegurar un consumo máximo de pila de \f$O(\lg n)\f$, 
-      el método siempre procede recursivamente a ordenar la partición
-      más pequeña.
+      To ensure a maximum battery consumption of \f$O(\lg n)\f$,
+      the method always proceeds recursively to sort the partition
+      smaller.
 
-      Cuando la partición alcanza un tamaño menor o igual a la
-      constante global Aleph::Insertion_Threshold, entonces 
-      la partición es ordenada por el método de inserción, el cual
-      es más rápido que el quicksort para tamaños pequeños.
+      When the partition reaches a size less than or equal to the
+      global constant Aleph::Insertion_Threshold, then
+      The partition is sorted by the insert method, which
+      It is faster than quicksort for small sizes.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice inferior.
-      @param[in] r índice superior.
+      @param[in,out] to the array to sort.
+      @param[in] the lower index.
+      @param[in] r top index.
 
       @see insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort()
@@ -1451,32 +1451,32 @@ namespace Aleph
       }
   }    
 
-  /** Búsqueda aleatoria de un elemento en un arreglo.
+  /** Random search for an element in an array.
 
-      random_search(a,x,l,r) se vale del algoritmo de partición del
-      quicksort para buscar el elemento x en el arreglo a comprendido 
-      entre los límites l y r.
+      random_search(a,x,l,r) uses the partition algorithm
+      quicksort to find element x in the array a
+      between the limits l and r.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      El procedimiento tiene una complejidad esperada de 
-      \f$O(n \; \lg n)\f$, que es mayor que la mera búsqueda 
-      secuencial, pero con el añadido de que luego de la
-      búsqueda el arreglo queda parcialmente ordenado y, puesto que
-      la selección del pivote es la mediana entre l, r y el centro 
-      del arreglo, la búsqueda tiende a ser lineal a medida que
-      se hacen más búsquedas aleatorias.
+      The procedure has an expected complexity of
+      \f$O(n \; \lg n)\f$, which is greater than mere search
+      sequential, but with the addition that after the
+      search the arrangement is partially ordered and, since
+      the pivot selection is the median between l, r and the center
+      of the arrangement, the search tends to be linear as
+      more random searches are done.
 
-      @param[in,out] a arreglo a buscar; es parcialmente modificado
-      luego de la búsqueda.
-      @param[in] x elemento a buscar.
-      @param[in] l índice inferior de comienzo de la búsqueda.
-      @param[in] r índice superior de término de la búsqueda.
-      @return índice de una entrada del arreglo contentiva del
-      valor x si ésta se encuentra dentro del arreglo; 
-      Not_Found (por general -1) de lo contrario.
+      @param[in,out] an array to search for; is partially modified
+      after the search.
+      @param[in] x element to search for.
+      @param[in] the lower index of the start of the search.
+      @param[in] r top index of search term.
+      @return index of an array entry containing the
+      value x if it is within the array;
+      Not_Found (usually -1) otherwise.
 
       \ingroup Algos
       @see sequential_search() binary_search_rec()
@@ -1515,26 +1515,26 @@ namespace Aleph
     return pivot; // elemento encontrado en el índice x
   }
 
-  /** Búsqueda aleatoria de un elemento en una lista dlink.
+  /** Random search for an element in a dlink list.
 
-      dlink_random_search(list,x) se vale del algoritmo 
-      de partición del quicksort para buscar el elemento x 
-      en la lista list.
+      dlink_random_search(list,x) uses the algorithm
+      quicksort partition to find element x
+      in the list list.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      El procedimiento tiene una complejidad esperada de 
-      \f$O(n \; \lg n)\f$, que es mayor que la mera búsqueda 
-      secuencial, pero con el añadido de que luego de la
-      búsqueda la lista queda parcialmente ordenada.
+      The procedure has an expected complexity of
+      \f$O(n \; \lg n)\f$, which is greater than mere search
+      sequential, but with the addition that after the
+      search the list is partially ordered.
 
-      @param[in,out] list lista en la cual se realiza la búsqueda; 
-      es parcialmente modificada luego de la búsqueda.
-      @param[in] x elemento a buscar.
-      @return puntero al nodo contentivo del valor x si ésta
-      se encuentra dentro en la lista; nullptr de lo contrario.
+      @param[in,out] list list in which the search is performed;
+      is partially modified after the search.
+      @param[in] x element to search for.
+      @return pointer to the node containing the value x if it is
+      is found within the list; nullptr otherwise.
 
       @see random_search(Dlink&list,const T&x)
 
@@ -1581,29 +1581,29 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Búsqueda aleatoria de un elemento en una lista Dnode<T>.
+  /** Random search for an element in a Dnode<T> list.
 
-      random_search(list,x) se vale del algoritmo de partición del
-      quicksort para buscar el elemento x en la lista list.
+      random_search(list,x) uses the partition algorithm
+      quicksort to find element x in the list list.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      El procedimiento tiene una complejidad esperada de 
-      \f$O(n \; \lg n)\f$, que es mayor que la mera búsqueda 
-      secuencial, pero con el añadido de que luego de la
-      búsqueda la lista queda parcialmente ordenada.
+      The procedure has an expected complexity of
+      \f$O(n \; \lg n)\f$, which is greater than mere search
+      sequential, but with the addition that after the
+      search the list is partially ordered.
 
-      Una especialización usa la relación "menor que" como 
-      criterio de comparación y ahorra la escritura de esa
-      clase.
+      A specialization uses the "less than" relationship as
+      comparison criterion and saves writing that
+      class.
 
-      @param[in,out] list lista en la cual se realiza la búsqueda; 
-      es parcialmente modificada luego de la búsqueda.
-      @param[in] x elemento a buscar.
-      @return puntero al nodo contentivo del valor x si ésta
-      se encuentra dentro en la lista; nullptr de lo contrario.
+      @param[in,out] list list in which the search is performed;
+      is partially modified after the search.
+      @param[in] x element to search for.
+      @return pointer to the node containing the value x if it is
+      is found within the list; nullptr otherwise.
 
       @see dlink_random_search
 
@@ -1616,29 +1616,29 @@ namespace Aleph
     return dlink_random_search <T, Compare_Dnode<T, Compare>> (list, x, cmp);
   }
 
-  /** Búsqueda aleatoria de un elemento en una lista dinámica.
+  /** Random search for an element in a dynamic list.
 
-      random_search(list,x) se vale del algoritmo de partición del
-      quicksort para buscar el elemento x en la lista dinámica list.
+      random_search(list,x) uses the partition algorithm
+      quicksort to find element x in the dynamic list list.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      El procedimiento tiene una complejidad esperada de 
-      \f$O(n \; \lg n)\f$, que es mayor que la mera búsqueda 
-      secuencial, pero con el añadido de que luego de la
-      búsqueda la lista queda parcialmente ordenada.
+      The procedure has an expected complexity of
+      \f$O(n \; \lg n)\f$, which is greater than mere search
+      sequential, but with the addition that after the
+      search the list is partially ordered.
 
-      Una especialización usa la relación "menor que" como 
-      criterio de comparación y ahorra la escritura de esa
-      clase.
+      A specialization uses the "less than" relationship as
+      comparison criterion and saves writing that
+      class.
 
-      @param[in,out] list lista dinámica en la cual se realiza 
-      la búsqueda; es parcialmente modificada luego de la búsqueda.
-      @param[in] x elemento a buscar.
-      @return puntero x dentro de la lista si ésta
-      se encuentra dentro de ella; nullptr de lo contrario.
+      @param[in,out] list dynamic list in which to perform
+      the search; is partially modified after the search.
+      @param[in] x element to search for.
+      @return pointer x inside the list if it
+      is found within it; nullptr otherwise.
 
       @see DynDlist 
 
@@ -1668,8 +1668,8 @@ namespace Aleph
       return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
 
-  /** Selecciona un elemento pivote de un DynArray como la mediana entre
-      los extremos y el centro.
+  /** Selects a pivot element of a DynArray as the median between
+      the ends and the center.
 
       @ingrouop Algos
   */
@@ -1702,8 +1702,8 @@ namespace Aleph
     return r;
   }
 
-  /** Selecciona un elemento pivote de un DynArray como la mediana entre
-      los extremos y el centro.
+  /** Selects a pivot element of a DynArray as the median between
+      the ends and the center.
 
       @ingrouop Algos
   */
@@ -1716,9 +1716,9 @@ namespace Aleph
     if (r - l <= 5)
       return r;
 
-    const long m = (l + r)/2; // elemento central
+    const long m = (l + r)/2; // central element
 
-    // Accede las entradas del arreglo una sola vez
+    // Access array entries only once
     T & la = a(l); 
     T & ra = a(r);
     T & ma = a(m);
@@ -1743,8 +1743,8 @@ namespace Aleph
     if (l == r)
       return l;
 
-    long i = l - 1, 
-      j = r;
+    long i = l - 1;
+    long j = r;
 
     T & pivot       = a(r);
     long pivot_idx  = select_pivot_op<T, Compare>(a, l, r, cmp);
@@ -1777,8 +1777,8 @@ namespace Aleph
     if (l == r)
       return l;
 
-    long i = l - 1, 
-      j = r;
+    long i = l - 1;
+    long j = r;
 
     T & pivot       = a(r);
     long pivot_idx  = select_pivot_op<T, Compare>(a, l, r, cmp);
@@ -1858,26 +1858,26 @@ namespace Aleph
     return __random_select<T, Compare>(a, i, 0, n, cmp);
   }
 
-  /** Selección aleatoria del i-ésimo elemento de un arreglo.
+  /** Random selection of the ith element of an array.
 
-      random_select(a,i,n) retorna el i-ésimo menor elemento 
-      contenido en el arreglo a de dimensión n.
+      random_select(a,i,n) returns the ith smallest element
+      contained in the array a of dimension n.
 
-      La rutina se sirve de la partición del quicksort para
-      buscar la posición i en tiempo \f$O(n \; \lg n)\f$, lo cual
-      es un tiempo substancialmente mejor que el de la búsqueda
-      secuencial (\f$O(n^2)\f$).
+      The routine uses the quicksort partition to
+      search for position i in time \f$O(n \; \lg n)\f$, which
+      It is a substantially better time than the search
+      sequential (\f$O(n^2)\f$).
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a arreglo donde se buscará el i-ésimo elemento. 
-      El arreglo queda semi-ordenado a través de las sucesivas
-      particiones que se hayan realizado.
-      @param[in] i posición que se desea acceder.
-      @param[in] n dimensión del arreglo
-      @throw out_of_range si i es mayor o igual a n.
+      @param[in,out] an array where the ith element will be searched.
+      The arrangement remains semi-ordered through the successive
+      partitions that have been made.
+      @param[in] i position to be accessed.
+      @param[in] n dimension of the array
+      @throw out_of_range if i is greater than or equal to n.
 
       \ingroup Algos
   */
@@ -1898,24 +1898,24 @@ namespace Aleph
     return random_select<T, Compare>(a, i, n, cmp);
   }
 
-  /** Selección aleatoria del i-ésimo elemento de una lista basada 
-      sobre Dlink.
+  /** Random selection of the ith element from a list based
+      about Dlink.
 
-      random_select(list,i) retorna el i-ésimo menor elemento 
-      contenido en la lista list según criterio de orden 
-      determinado por la clase Compare.
+      random_select(list,i) returns the ith smallest element
+      content in the list list according to order criteria
+      determined by the Compare class.
 
-      La rutina se sirve de la partición del quicksort para
-      buscar la posición i en tiempo \f$O(n \; \lg n)\f$, lo cual
-      es un tiempo substancialmente mejor que el de la búsqueda
-      secuencial (\f$O(n^2)\f$).
+      The routine uses the quicksort partition to
+      search for position i in time \f$O(n \; \lg n)\f$, which
+      It is a substantially better time than the search
+      sequential (\f$O(n^2)\f$).
 
-      @param[in,out] list lista donde se buscará el i-ésimo elemento. 
-      La lista queda semi-ordenado a través de las sucesivas
-      particiones que se hayan realizado.
-      @param[in] i posición que se desea acceder.
-      @return puntero a Dlink correspondiente a la posición i dentro
-      de la lista; 
+      @param[in,out] list list where the ith element will be searched.
+      The list is left semi-ordered through successive
+      partitions that have been made.
+      @param[in] i position to be accessed.
+      @return pointer to Dlink corresponding to position i inside
+      of the list;
 
       \ingroup Algos
   */
@@ -1926,8 +1926,8 @@ namespace Aleph
     if (list.is_empty()) 
       return nullptr;
 
-    Dlink smaller; // lista de los menores que pivot
-    Dlink bigger;  // lista de los mayores que pivot
+    Dlink smaller; // list of minors than pivot
+    Dlink bigger;  // list of majors than pivot
 
     size_t smaller_count = 0, // cantidad de elementos de smaller
       bigger_count  = 0; // cantidad de elementos de bigger
@@ -1961,27 +1961,27 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Selección aleatoria del i-ésimo elemento de una lista basada 
-      sobre Dlink.
+  /** Random selection of the ith element from a list based
+      about Dlink.
 
-      random_select(list,i) retorna el i-ésimo menor elemento 
-      contenido en la lista list.
+      random_select(list,i) returns the ith smallest element
+      content in the list list.
 
-      La rutina se sirve de la partición del quicksort para
-      buscar la posición i en tiempo \f$O(n \; \lg n)\f$, lo cual
-      es un tiempo substancialmente mejor que el de la búsqueda
-      secuencial (\f$O(n^2)\f$).
+      The routine uses the quicksort partition to
+      search for position i in time \f$O(n \; \lg n)\f$, which
+      It is a substantially better time than the search
+      sequential (\f$O(n^2)\f$).
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] list lista donde se buscará el i-ésimo elemento. 
-      La lista queda semi-ordenado a través de las sucesivas
-      particiones que se hayan realizado.
-      @param[in] i posición que se desea acceder.
-      @return puntero a Dlink correspondiente a la posición i dentro
-      de la lista; nullptr si i está fuera de rango.
+      @param[in,out] list list where the ith element will be searched.
+      The list is left semi-ordered through successive
+      partitions that have been made.
+      @param[in] i position to be accessed.
+      @return pointer to Dlink corresponding to position i inside
+      of the list; nullptr if i is out of range.
 
       \ingroup Algos
   */
@@ -1992,27 +1992,27 @@ namespace Aleph
       dlink_random_select<Compare_Dnode<T, Compare>> (list, i, cmp);
   }
 
-  /** Selección aleatoria del i-ésimo elemento de una lista dinámica.
+  /** Random selection of the ith element from a dynamic list.
 
-      random_select(list,i) retorna el i-ésimo menor elemento 
-      contenido en la lista dinámica list.
+      random_select(list,i) returns the ith smallest element
+      content in the dynamic list list.
 
-      La rutina se sirve de la partición del quicksort para
-      buscar la posición i en tiempo \f$O(n \; \lg n)\f$, lo cual
-      es un tiempo substancialmente mejor que el de la búsqueda
-      secuencial (\f$O(n^2)\f$).
+      The routine uses the quicksort partition to
+      search for position i in time \f$O(n \; \lg n)\f$, which
+      It is a substantially better time than the search
+      sequential (\f$O(n^2)\f$).
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] list lista dinámica donde se buscará el 
-      i-ésimo elemento. La lista queda semi-ordenado a través 
-      de las sucesivas
-      particiones que se hayan realizado.
-      @param[in] i posición que se desea acceder.
-      @return puntero al elemento de la lista dinámica correspondiente
-      a la posición i dentro de la lista; nullptr si i está fuera de rango.
+      @param[in,out] list dynamic list where the
+      ith element. The list is semi-sorted through
+      of the successive
+      partitions that have been made.
+      @param[in] i position to be accessed.
+      @return pointer to the corresponding dynamic list element
+      to position i within the list; nullptr if i is out of range.
 
       \ingroup Algos
   */
@@ -2026,21 +2026,21 @@ namespace Aleph
     return p != nullptr ? &(p->get_data()) : nullptr;
   }
   
-  /** Ordena un arreglo dinámico por el método de selección.
+  /** Sorts a dynamic array by the selection method.
 
-      selection_sort(a) emplea el método de selección para ordenar
-      el arreglo dinámico de n elementos.
+      selection_sort(a) uses the selection method to sort
+      the dynamic array of n elements.
 
-      El método de selección tiene un desempeño de \f$O(n^2)\f$. 
-      Debido a su simplicidad de implantación, su coste constante
-      es bajo, por lo que es	un buen método para arreglos de
-      dimensión muy pequeña.
+      The selection method has a performance of \f$O(n^2)\f$.
+      Due to its simplicity of implementation, its constant cost
+      is low, so it is a good method for arrangements of
+      very small dimension.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
+      @param[in,out] to the array to sort.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2062,20 +2062,20 @@ namespace Aleph
       }
   }
 
-  /** Ordena un arreglo dinámico por el método de la burbuja.
+  /** Sorts a dynamic array by the bubble method.
 
-      bubble_sort(a) emplea el método de la burbuja para ordenar
-      el arreglo dinámico de n elementos.
+      bubble_sort(a) uses the bubble method to sort
+      the dynamic array of n elements.
 
-      El método de la burbuja tiene un desempeño de
-      \f$O(n^2)\f$. Posiblemente es el método más ineficiente de todos
-      los existentes.
+      The bubble method has a performance of
+      \f$O(n^2)\f$. It is possibly the most inefficient method of all
+      the existing ones.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
+      @param[in,out] to the array to sort.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2090,28 +2090,28 @@ namespace Aleph
           std::swap(a(j - 1), a(j));
   }
 
-  /** Ordena un arreglo dinámico por el método de inserción.
+  /** Sorts a dynamic array by the insert method.
 
-      insertion_sort(a) emplea el método de selección para ordenar
-      el arreglo dinámico a.
+      insertion_sort(a) uses the selection method to sort
+      the dynamic arrangement a.
 
-      El método de inserción tiene un desempeño de \f$O(n^2)\f$. 
-      Es un método simple, por lo que consume poco tiempo constante.
-      En promedio realiza la mitad de los intercambios que el método
-      de selección. Su tiempo tiende a ser lineal si el arreglo está 
-      semi-ordenado. Es un buen método para arreglos pequeños y para 
-      particiones realizadas por métodos superiores pero con 
-      mayores tiempos constantes.
+      The insert method has a performance of \f$O(n^2)\f$.
+      It is a simple method, so it consumes little constant time.
+      On average it performs half as many exchanges as the method
+      of selection. Its time tends to be linear if the arrangement is
+      semi-ordered. It is a good method for small arrangements and for
+      partitions made by superior methods but with
+      longer constant times.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice izquierdo de la árte del arreglo que se
-      desea ordenar 
-      @param[in] r índice derecho de la parte del arreglo que se desea
-      ordenar. 
+      @param[in,out] to the array to sort.
+      @param[in] the left index of the array art to be
+      would you like to order
+      @param[in] r right index of the desired part of the array
+      order.
       @see selection_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2141,19 +2141,19 @@ namespace Aleph
     insertion_sort(a, 0, a.size() - 1, cmp);
   }
 
-  /** Ordena un arreglo dinámico por el método de shell.
+  /** Sorts a dynamic array by the shell method.
 
-      shellsort(a) emplea el método de selección para ordenar
-      el arreglo dinámico a.
+      shellsort(a) uses the select method to sort
+      the dynamic arrangement a.
 
-      El método shell tiende a  un desempeño de \f$O(n^2)\f$, pero en
-      la práctica es considerablemente menor.
+      The shell method tends toward \f$O(n^2)\f$ performance, but in
+      the practice is considerably less.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
+      @param[in,out] to the array to sort.
       @see selection_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2243,18 +2243,17 @@ namespace Aleph
     }
   };
 
-  /** Ordena un arreglo dinámico por el método heapsort.
+  /** Sorts a dynamic array by the heapsort method.
 
-      heapsort(a) emplea el método de heapsort para ordenar
-      el arreglo a de n elementos.
+      heapsort(a) uses the heapsort method to sort
+      the arrangement a of n elements.
 
-      El heapsort tiene un desempeño garantizado de \f$O(n \; \lg n)\f$
-      y es estable.
-	
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The heapsort has a guaranteed performance of \f$O(n \; \lg n)\f$
+      and it is stable.
 
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
       @param[in,out] a el arreglo a ordenar.
       @see insertion_sort() quicksort_rec() mergesort() 
       @see selection_sort() faster_heapsort()
@@ -2286,8 +2285,8 @@ namespace Aleph
     if (l == r)
       return l;
 
-    long i = l - 1, 
-      j = r;
+    long i = l - 1;
+    long j = r;
     const T & pivot = a(r);
 
     while (true)
@@ -2331,29 +2330,28 @@ namespace Aleph
 
 # define push2(stack, a, b)  stack.push(b); stack.push(a);
 
-  /** Ordena un arreglo dinámico por el método quicksort sin recursión.
+  /** Sorts a dynamic array by the quicksort method without recursion.
 
-      quicksort(a) ordena el arreglo dinámico según el método
-      quicksort según criterio de comparación Compare.
+      quicksort(a) sorts the dynamic array according to the method
+      quicksort according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño esperado de \f$O(n \; \lg n)\f$ 
-      y es considerado el método de ordenamiento más veloz. 
+      This method has an expected performance of \f$O(n \; \lg n)\f$
+      and is considered the fastest ordering method.
 
-      Esta versión de quicksort ocupa espacio máximo de \f$O(\lg n)\f$.
+      This version of quicksort takes up maximum space of \f$O(\lg n)\f$.
 
-      El quicksort es un método probabilístico. En un muy mal caso
-      -muy mala suerte- puede degradarse a
-      \f$O(n^2)\f$. Para paliar, en la medida de la suerte, los malos
-      casos, use quicksort_insertion() que ejecuta heurísticas para
-      paliar los malos casos e invoca al método de inserción para
-      particiones del arreglo pequeñas.
+      Quicksort is a probabilistic method. In a very bad case
+      -very bad luck- can be degraded to
+      \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
+      cases, use quicksort_insertion() which runs heuristics to
+      alleviate the bad cases and invoke the insert method to
+      small array partitions.
 
-      @param[in,out] a el arreglo a ordenar.
-
+      @param[in,out] to the array to sort.
       @see selection_sort() insertion_sort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort_rec()
 
@@ -2388,17 +2386,17 @@ namespace Aleph
       }
   }
 
-  /** Búsqueda genérica en un arreglo dinámico de un elemento extremo.
+  /** Generic search in a dynamic array of an extreme element.
 
-      search_extreme(a, l, r) busca secuencialmente en el arreglo
-      a, entre los índices l y r, el elemento extremo, mínimo o
-      máximo según el criterio de comparación Compare.
+      search_extreme(a, l, r) searches the array sequentially
+      a, between the indices l and r, the extreme, minimum or element
+      maximum according to the comparison criterion Compare.
 
-      @param[in] a el arreglo sobre el cual realizar la búsqueda.
-      @param[in] l índice de comienzo de la búsqueda.
-      @param[in] r índice de término de la búsqueda.
-      @return índice contentivo del extremo.
-      @note No se verifica si la secuencia está vacía.
+      @param[in] to the array on which to search.
+      @param[in] the starting index of the search.
+      @param[in] r search term index.
+      @return containing index of the endpoint.
+      @note There is no checking if the stream is empty.
       \ingroup Algos
   */
   template <typename T, class Compare = Aleph::less<T>> inline
@@ -2414,7 +2412,7 @@ namespace Aleph
     return extreme_index;
   }
 
-  /** Retorna el máximo elemento del arreglo a entre l y r.
+  /** Returns the maximum element of the array a between l and r.
 
       \ingroup Algos
   */
@@ -2425,35 +2423,35 @@ namespace Aleph
     return search_extreme<T, Compare>(a, l, r, cmp);
   }
 
-  /** Búsqueda binaria sobre un arreglo dinámico ordenado.
+  /**Binary search on a dynamic ordered array.
 
-      binary_search<T,Compare>(a,x,l,r) realiza la búsqueda de x
-      en el arreglo a comprendida entre los límites inferior l y
-      superior r.
+      binary_search<T,Compare>(a,x,l,r) performs search for x
+      in the arrangement a comprised between the lower limits l and
+      upper r.
 
-      La rutina es genérica y utiliza dos parámetros tipo:
-      -# El tipo de dato que alberga el arreglo.
-      -# La clase de comparación.
+      The routine is generic and uses two type parameters:
+      -# The type of data that the array contains.
+      -# The comparison class.
 
-      La rutina usa el algoritmo de la búsqueda binaria, lo que exige
-      que el arreglo esté ordenado. Esta condición no se verifica en
-      el algoritmo.
+      The routine uses the binary search algorithm, which requires
+      that the arrangement is orderly. This condition is not verified in
+      the algorithm.
 
-      El método siempre retorna un entero comprendido entre
-      [l..r]. Si el elemento es encontrado, entonces el valor de retorno
-      es índice donde éste se encuentra; de lo contrario, se retorna
-      el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.
+      The method always returns an integer between
+      [l..r]. If the element is found, then the return value
+      It is the index where it is located; otherwise, it returns
+      the index where x would be inserted so that the array was
+      tidy.
 
-      @warning La rutina no falla si el arreglo está vacío, pero
-      tenga cuidado con accederlo en esta situación
+      @warning The routine does not fail if the array is empty, but
+      be careful about accessing it in this situation
 
-      @param[in] a el arreglo dinámico sobre el cual realizar la búsqueda.
-      @param[in] x el elemento a buscar.
-      @param[in] l índice izquierdo de búsqueda.
-      @param[in] r índice derecho de búsqueda.
-      @return índice del elemento donde se encuentra x o el índice de
-      la posición donde se insertaría x.
+      @param[in] to the dynamic array on which to perform the search.
+      @param[in] x the element to search for.
+      @param[in] the left search index.
+      @param[in] r search right index.
+      @return index of the element where x is located or the index of
+      the position where x would be inserted.
       @see sequential_search()
       \ingroup Algos
   */
@@ -2511,28 +2509,28 @@ namespace Aleph
     return binary_search(a, x, 0, a.size() - 1, cmp);
   }
 
-  /** Búsqueda binaria sobre un arreglo dinámico ordenado.
+  /** Binary search on a dynamic ordered array.
 
-      binary_search(a,x) realiza la búsqueda de x
-      en el arreglo a comprendida entre 0 y <code>size()</code>.
+      binary_search(a,x) searches for x
+      in the array a between 0 and <code>size()</code>.
 
-      La rutina usa el algoritmo de la búsqueda binaria, lo que exige
-      que el arreglo esté ordenado. Esta condición no se verifica en
-      el algoritmo.
+      The routine uses the binary search algorithm, which requires
+      that the arrangement is orderly. This condition is not verified in
+      the algorithm.
 
-      El método siempre retorna un entero comprendido entre
-      [0..size()). Si el elemento es encontrado, entonces el valor de
-      retorno es el índice donde éste se encuentra; de lo contrario,
-      se retorna el índice donde se insertaría x para que el arreglo
-      estuviese ordenado.
+      The method always returns an integer between
+      [0..size()). If the element is found, then the value of
+      return is the index where this is located; otherwise,
+      the index where x would be inserted is returned so that the array
+      was ordered.
 
-      @warning La rutina no falla si el arreglo está vacío, pero
-      tenga cuidado con accederlo en esta situación
+      @warning The routine does not fail if the array is empty, but
+      be careful about accessing it in this situation
 
-      @param[in] a el arreglo dinámico sobre el cual realizar la búsqueda.
-      @param[in] x el elemento a buscar.
-      @return índice del elemento donde se encuentra x o el índice de
-      la posición donde se insertaría x.
+      @param[in] to the dynamic array on which to perform the search.
+      @param[in] x the element to search for.
+      @return index of the element where x is located or the index of
+      the position where x would be inserted.
       @see sequential_search()
       \ingroup Algos
   */
@@ -2815,32 +2813,32 @@ namespace Aleph
 
 # undef push2
 
-  /** Búsqueda binaria recursiva sobre un arreglo ordenado.
+  /** Recursive binary search on an ordered array.
 
-      binary_search_rec<T,Compare>(a,x,l,r) realiza la búsqueda de x
-      en el arreglo a comprendida entre los límites inferior l y
-      superior r.
+      binary_search_rec<T,Compare>(a,x,l,r) performs search for x
+      in the arrangement a comprised between the lower limits l and
+      upper r.
 
-      La rutina es genérica y utiliza dos parámetros tipo:
-      -# El tipo de dato que alberga el arreglo.
-      -# La clase de comparación.
+      The routine is generic and uses two type parameters:
+      -# The type of data that the array contains.
+      -# The comparison class.
 
-      La rutina usa el algoritmo de la búsqueda binaria, lo que exige
-      que el arreglo esté ordenado. Esta condición no se verifica en
-      el algoritmo.
+      The routine uses the binary search algorithm, which requires
+      that the arrangement is orderly. This condition is not verified in
+      the algorithm.
 
-      El método siempre retorna un entero comprendido entre
-      [l..r]. Si el elemento es encontrado, entonces el valor de retorno
-      es índice donde éste se encuentra; de lo contrario, se retorna
-      el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.
+      The method always returns an integer between
+      [l..r]. If the element is found, then the return value
+      It is the index where it is located; otherwise, it returns
+      the index where x would be inserted so that the array was
+      tidy.
 
-      @param[in] a el arreglo sobre el cual realizar la búsqueda.
-      @param[in] x el elemento a buscar.
-      @param[in] l índice izquierdo de búsqueda.
-      @param[in] r índice derecho de búsqueda.
-      @return índice del elemento donde se encuentra x o el índice de
-      la posición donde se insertaría x.
+      @param[in] to the array on which to search.
+      @param[in] x the element to search for.
+      @param[in] the left search index.
+      @param[in] r search right index.
+      @return index of the element where x is located or the index of
+      the position where x would be inserted.
       @see sequential_search()
       \ingroup Algos
   */
@@ -2860,32 +2858,32 @@ namespace Aleph
     return m; // encontrado
   }
 
-  /** Búsqueda binaria iterativa sobre un arreglo ordenado.
+  /** Iterative binary search over an ordered array.
 
-      binary_search<T,Compare>(a,x,l,r) realiza la búsqueda de x
-      en el arreglo a comprendida entre los límites inferior l y
-      superior r.
+      binary_search<T,Compare>(a,x,l,r) performs search for x
+      in the arrangement a comprised between the lower limits l and
+      upper r.
 
-      La rutina es genérica y utiliza dos parámetros tipo:
-      -# El tipo de dato que alberga el arreglo.
-      -# La clase de comparación.
+      The routine is generic and uses two type parameters:
+      -# The type of data that the array contains.
+      -# The comparison class.
 
-      La rutina usa el algoritmo de la búsqueda binaria, lo que exige
-      que el arreglo esté ordenado. Esta condición no se verifica en
-      el algoritmo.
+      The routine uses the binary search algorithm, which requires
+      that the arrangement is orderly. This condition is not verified in
+      the algorithm.
 
-      El método siempre retorna un entero comprendido entre
-      [l..r]. Si el elemento es encontrado, entonces el valor de retorno
-      es índice donde éste se encuentra; de lo contrario, se retorna
-      el índice donde se insertaría x para que el arreglo estuviese
-      ordenado.
+      The method always returns an integer between
+      [l..r]. If the element is found, then the return value
+      It is the index where it is located; otherwise, it returns
+      the index where x would be inserted so that the array was
+      tidy.
 
-      @param[in] a el arreglo sobre el cual realizar la búsqueda.
-      @param[in] x el elemento a buscar.
-      @param[in] l índice izquierdo de búsqueda.
-      @param[in] r índice derecho de búsqueda.
-      @return índice del elemento donde se encuentra x o el índice de
-      la posición donde se insertaría x.
+      @param[in] to the array on which to search.
+      @param[in] x the element to search for.
+      @param[in] the left search index.
+      @param[in] r search right index.
+      @return index of the element where x is located or the index of
+      the position where x would be inserted.
       @see sequential_search()
       \ingroup Algos
   */
