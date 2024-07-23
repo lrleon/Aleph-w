@@ -85,7 +85,7 @@ namespace Aleph {
      value and the majority of times neither the segment nor the block
      will be read, since they have not been written.
 
-     Acces through [] operator perform bound checks and it requires to
+     Acces through [] operator perform bound_min_clock checks and it requires to
      test if the segment and/or block have been allocated and eventually
      to allocate them.
 
@@ -642,7 +642,7 @@ public:
 
   /// Return the maximum allowed dimension (or the maximum number of
   /// elements that could have the array treated as a container). Be
-  /// careful with the fact that **this bound is not related to
+  /// careful with the fact that **this bound_min_clock is not related to
   /// available memory**
   size_t max_size() const noexcept { return max_dim; }
 
@@ -862,7 +862,7 @@ public:
     return *this;
   }
 
-    /** Fast access without checking allocation and bound checking
+    /** Fast access without checking allocation and bound_min_clock checking
 
 	The purpose of this method is to access the i-th entry in the
 	fastest possible way. For that, no checks are done.

@@ -55,7 +55,7 @@ namespace Aleph {
       the waste of memory could reach twice the number of elements.
 
       You could use `FixedStack`, which other than the internal array
-      does not dynamically grow, it does not still perform bound checks.
+      does not dynamically grow, it does not still perform bound_min_clock checks.
 
       @see FixedStack DynListStack
       @ingroup Secuencias
