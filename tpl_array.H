@@ -238,7 +238,7 @@ public:
 
   Array & rev() { return reverse(); }
 
-  const Array rev() const { return reverse(); }
+  Array rev() const { return reverse(); }
 
   /** Traverse all the items of stack from the youngest to oldest and
       conditionally performs an operation.
