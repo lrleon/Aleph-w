@@ -295,27 +295,33 @@ namespace Aleph
 
     return ret;
   }
- 
-  inline DynList<string> split_camel_case(const string & str)
+
+  inline DynList<string> split_camel_case(const char * const str)
   {
     DynList<string> ret;
-
-    const char * ptr = str.data();
+    const char * ptr = str;
     string curr(1, *ptr);
-    for (size_t i = 1; i < str.size(); ++i)
-      if (isupper(ptr[i]))
+    while (*++ptr)
+      if (isupper(*ptr))
         {
           ret.append(curr);
-          curr = string(1, ptr[i]);
+          curr = string(1, *ptr);
         }
       else
-        curr.push_back(ptr[i]);
+        curr.push_back(*ptr);
 
-    if (curr.size() > 0)
+    if (not curr.empty())
       ret.append(curr);
 
     return ret;
   }
+
+ 
+  inline DynList<string> split_camel_case(const string & str)
+  {
+    return split_camel_case(str.data());
+  }
+
 
   /** Fill all the content of string with a defined char.
 
