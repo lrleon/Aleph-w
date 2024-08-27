@@ -95,7 +95,18 @@ vector<typename C::Item_Type> to_vector(const C & l)
   return ret;
 }
 
-// this code convert a parameter pack to a DynList
+template <typename SrcContainer, class Op> inline
+auto map_to_vector(const SrcContainer & l, Op op)
+{
+  using T = decltype(op(*l.begin()));
+  vector<T> ret;
+  for (auto & item : l)
+    ret.push_back(op(item));
+
+  return ret;
+}
+
+// this code converts a parameter pack to a DynList
 // Base case: When no arguments are left to process, the recursion stops.
 template<typename T> inline static
 vector<T> variadic_to_vector(DynList<T>&) { return DynList<T>(); }

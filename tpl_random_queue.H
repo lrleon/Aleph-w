@@ -67,13 +67,13 @@ public:
   using Item_Type = T; /// The type of data contained in the queue
 
   /// Return a pointer to random number generator
-  gsl_rng * get_rng() const { return r; }
+  [[nodiscard]] gsl_rng * get_rng() const { return r; }
 
-  /// Set the seed of ramdom number generator
+  /// Set the seed of random number generator
   void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
-  /// Return the number of items inthe queue
-  size_t size() const { return array.size(); }
+  /// Return the number of items in the queue
+  [[nodiscard]] size_t size() const { return array.size(); }
   
   Random_Set() : array(0), r(nullptr)
   {
@@ -91,14 +91,14 @@ public:
     std::swap(r, s.r);
   }
 
-  /// Copy constrcutor
+  /// Copy constructor
   Random_Set(const Random_Set & s) : Random_Set()
   {
     s.for_each([this] (auto item) { this->append(item); });
   }
 
   /// Move constructor
-  Random_Set(Random_Set && s) { swap(s); }
+  Random_Set(Random_Set && s)  noexcept { swap(s); }
 
   Random_Set & operator = (const Random_Set & s)
   {
@@ -126,7 +126,7 @@ public:
     l.for_each([this] (const T & item) { append(item); });
   }
 
-  /// Initialize the ramdom queue with the items between `b` and `e`
+  /// Initialize the random queue with the items between `b` and `e`
   /// where these parameters are stl iterators
   template <class It> Random_Set(It b, It e) : Random_Set()
   {
@@ -174,7 +174,7 @@ public:
 
       `append(item)` perform a random choice. Use this method if you
       must to obtain fastly a random array. Ypu simply append the items
-      tothe queue and afterward yo get the array reference.
+      to the queue and afterward yo get the array reference.
 
       @param[in] item reference to the item to be inserted
       @throw bad_alloc if there is no enough memory
@@ -190,7 +190,7 @@ public:
 
       `append(item)` perform a random choice. Use this method if you
       must to obtain fastly a random array. Ypu simply append the items
-      tothe queue and afterward yo get the array reference.
+      to the queue and afterward yo get the array reference.
 
       @param[in] item rvalue reference to the item to be inserted
       @throw bad_alloc if there is no enough memory
@@ -232,7 +232,7 @@ public:
 
   /** Iterator of the items of the queue.
 
-      The order will be ramdom if the insertion were performed with
+      The order will be random if the insertion were performed with
       `append()`: otherwise, the order will be the same that the put order.
 
       @ingroup Secuencias 
@@ -243,7 +243,7 @@ public:
     using Base::Base;
   };
 
-  /** Conditinal traversing of the ramdom queue
+  /** Conditional traversing of the random queue
 
       @param[in] operation to be performed on each item. If it return
       `true` the the traversing continues; otherwise stops.
