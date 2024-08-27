@@ -95,12 +95,12 @@ vector<typename C::Item_Type> to_vector(const C & l)
   return ret;
 }
 
-template <typename SrcContainer, class Op> inline
-auto map_to_vector(const SrcContainer & l, Op op)
+template <class Op> inline
+auto map_vector(const auto & v, Op op)
 {
-  using T = decltype(op(*l.begin()));
+  using T = decltype(op(v[0]));
   vector<T> ret;
-  for (auto & item : l)
+  for (auto & item : v)
     ret.push_back(op(item));
 
   return ret;
