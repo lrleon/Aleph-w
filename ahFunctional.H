@@ -132,7 +132,7 @@ namespace Aleph
 
       @param[in] n size of range
       @return a container with the range (according to the template
-      parameter, which is DynList
+      parameter, which is DynList)
 
       @ingroup Funcional
   */
