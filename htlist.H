@@ -142,7 +142,7 @@ public:
 
   /** Convert `this` to a `Snodenc<T>.
 
-      @note Undefined and probably buggy behavior if `this` is not a
+      @note Invalid and probably buggy behavior if `this` is not a
       valid pointer
   */
   template <typename T> inline
