@@ -287,7 +287,7 @@ public:
     using Set_Type = Array;
 
     /// Initialize an iterator on array `s`
-    explicit Iterator(const Array<T> & s) noexcept : Base(s.array) {}
+    Iterator(const Array<T> & s) noexcept : Base(s.array) {}
   };
 };
 
