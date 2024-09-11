@@ -46,27 +46,31 @@ namespace Aleph
   inline void ltrim(string & s)
   {
     s.erase(s.begin(), find_if(s.begin(), s.end(),
-                               [] (int ch) { return not isspace(ch); }));
+                               [](int ch)
+                               { return not isspace(ch); }));
   }
 
   // trim from end
   inline void rtrim(string & s)
   {
     s.erase(find_if(s.rbegin(), s.rend(),
-                    [](int ch) { return not isspace(ch); }).base(), s.end());
+                    [](int ch)
+                    { return not isspace(ch); }).base(), s.end());
   }
 
   // fast concatenation of several strings
   template <class ... Args>
-  inline string concat(string str, const Args &... args)
+  inline string concat(string str, const Args & ... args)
   {
     size_t sz = str.size();
-    auto add_size = [&sz] (const string_view & s) { sz += s.size(); };
+    auto add_size = [&sz](const string_view & s)
+    { sz += s.size(); };
     (add_size(args), ...); // put in sz the final size of the string
 
     str.reserve(sz); // thus, we avoid additional reallocations
 
-    auto add = [&str] (const string_view & s) { str += s; };
+    auto add = [&str](const string_view & s)
+    { str += s; };
     (add(args), ...);
 
     return str;
@@ -119,7 +123,7 @@ namespace Aleph
   {
     string ret;
     ret.reserve(str.size());
-    for (auto & c : str)
+    for (auto & c: str)
       ret.push_back(::tolower(c));
     return ret;
   }
@@ -128,37 +132,43 @@ namespace Aleph
   {
     string ret;
     ret.reserve(str.size());
-    for (auto & c : str)
+    for (auto & c: str)
       ret.push_back(::toupper(c));
     return ret;
   }
 
   inline string & mutable_tolower(string & str)
   {
-    for (auto & c : str)
+    for (auto & c: str)
       c = ::tolower(c);
     return str;
   }
 
   inline string & mutable_toupper(string & str)
   {
-    for (auto & c : str)
+    for (auto & c: str)
       c = ::toupper(c);
     return str;
   }
 
   inline std::string only_alpha(const std::string & str)
   {
-    std::string ret; ret.reserve(str.size() + 1);
+    std::string ret;
+    ret.reserve(str.size() + 1);
     for (size_t i = 0, n = str.size(); i < n; ++i)
       {
         auto c = str[i];
         switch (c)
           {
-          case '0'...'9':
-          case 'a'...'z': ret.push_back(c); break;
-          case 'A'...'Z': ret.push_back(::tolower(c)); break;
-          default: break;
+            case '0'...'9':
+            case 'a'...'z':
+              ret.push_back(c);
+            break;
+            case 'A'...'Z':
+              ret.push_back(::tolower(c));
+            break;
+            default:
+              break;
           }
       }
     return ret;
@@ -167,20 +177,23 @@ namespace Aleph
   inline string remove_spaces(const string & str)
   {
     const size_t n = str.size();
-    std::string ret; ret.reserve(n + 1);
-    for (auto c : str)
+    std::string ret;
+    ret.reserve(n + 1);
+    for (auto c: str)
       if (not isspace(c))
         ret.push_back(c);
     return ret;
   }
 
-  inline string remove_symbols(const string & str, const string& symbols)
+  inline string remove_symbols(const string & str, const string & symbols)
   {
     const size_t n = str.size();
-    std::string ret; ret.reserve(n + 1);
-    for (auto c : str)
+    std::string ret;
+    ret.reserve(n + 1);
+    for (auto c: str)
       {
-        string s; s.push_back(c);
+        string s;
+        s.push_back(c);
         if (not contains(symbols, s))
           ret.push_back(c);
       }
@@ -212,29 +225,47 @@ namespace Aleph
     return s.str();
   }
 
+  // return true if str can be converted to a double
   inline bool is_double(const string & str)
   {
-    char* endptr = 0;
-    long n = strtod(str.data(), &endptr);
-    if(*endptr != '\0' || endptr == str.data())
+    char *end;
+    errno = 0;
+
+    // Convert string to float
+    float val = strtof(str.c_str(), &end);
+
+    // Check for errors
+    if (errno == ERANGE or val == numeric_limits<float>::infinity() or
+        val == -numeric_limits<float>::infinity())
+      return false;  // Out of range or overflow
+
+    // Check if no valid conversion was performed
+    if (end == str.c_str())
       return false;
-    return n >= 0;
+
+    // Check if the whole string was converted
+    return *end == '\0';
+//    char* endptr = 0;
+//    long n = strtod(str.data(), &endptr);
+//    if(*endptr != '\0' || endptr == str.data())
+//      return false;
+//    return n >= 0;
   }
 
   inline bool is_long(const string & str)
   {
-    char* endptr = 0;
+    char *endptr = 0;
     strtol(str.data(), &endptr, 10);
-    if(*endptr != '\0' || endptr == str.data())
+    if (*endptr != '\0' || endptr == str.data())
       return false;
     return true;
   }
 
   inline bool is_size_t(const string & str)
   {
-    char* endptr = 0;
+    char *endptr = 0;
     strtol(str.data(), &endptr, 10);
-    if(*endptr != '\0' || endptr == str.data())
+    if (*endptr != '\0' || endptr == str.data())
       return false;
     return true;
   }
@@ -269,7 +300,7 @@ namespace Aleph
   inline std::string to_lower(const std::string & str)
   {
     string ret;
-    for (char c : str)
+    for (char c: str)
       ret.push_back(::tolower(c));
     return ret;
   }
@@ -277,7 +308,7 @@ namespace Aleph
   inline std::string to_upper(const std::string & str)
   {
     string ret;
-    for (char c : str)
+    for (char c: str)
       ret.push_back(::toupper(c));
     return ret;
   }
@@ -296,10 +327,10 @@ namespace Aleph
     return ret;
   }
 
-  inline DynList<string> split_camel_case(const char * const str)
+  inline DynList<string> split_camel_case(const char *const str)
   {
     DynList<string> ret;
-    const char * ptr = str;
+    const char *ptr = str;
     string curr(1, *ptr);
     while (*++ptr)
       if (isupper(*ptr))
@@ -316,12 +347,10 @@ namespace Aleph
     return ret;
   }
 
- 
   inline DynList<string> split_camel_case(const string & str)
   {
     return split_camel_case(str.data());
   }
-
 
   /** Fill all the content of string with a defined char.
 
@@ -330,13 +359,12 @@ namespace Aleph
   */
   inline void fill_string(std::string & str, char sym)
   {
-    for (char & c : str)
+    for (char & c: str)
       c = sym;
   }
 
-
   inline std::vector<std::string> &
-  split(const std::string &s, char delim, std::vector<std::string> & elems)
+  split(const std::string & s, char delim, std::vector<std::string> & elems)
   {
     std::stringstream ss(s);
     std::string item;
@@ -360,24 +388,24 @@ namespace Aleph
     if (s.empty())
       return elems;
 
-    char * buf = new char [s.size() + 1];
-    char * ptr = buf;
-    char ** p = &buf;
+    char *buf = new char[s.size() + 1];
+    char *ptr = buf;
+    char **p = &buf;
 
     string data = s;
-    const char * d = delim.data();
-    char * str = (char*) data.data();
+    const char *d = delim.data();
+    char *str = (char *) data.data();
 
     try
       {
-        for (char * token = strtok_r(str, d, p); token;
+        for (char *token = strtok_r(str, d, p); token;
              token = strtok_r(NULL, d, p))
           elems.append(token);
-        delete [] ptr;
+        delete[] ptr;
       }
     catch (...)
       {
-        delete [] ptr;
+        delete[] ptr;
         throw;
       }
 
@@ -394,10 +422,10 @@ namespace Aleph
   {
     DynList<string> tokens = split_to_list(str, " _-");
 
-    tokens.mutable_for_each([] (string & token)
-    {
-      token[0] = ::toupper(token[0]);
-    });
+    tokens.mutable_for_each([](string & token)
+                            {
+                              token[0] = ::toupper(token[0]);
+                            });
 
     return tokens.foldl<string>("", [](const string & acu, const string & token)
     {
@@ -421,8 +449,8 @@ namespace Aleph
         throw range_error(s.str());
       }
 
-    const char * ptr = str.data();
-    const char * end1 = ptr + pos;
+    const char *ptr = str.data();
+    const char *end1 = ptr + pos;
 
     string s1;
     while (ptr != end1)
@@ -447,7 +475,7 @@ namespace Aleph
 
     size_t sz = str.size() / n;
 
-    const char * ptr = str.data();
+    const char *ptr = str.data();
 
     DynList<string> ret;
 
@@ -467,7 +495,7 @@ namespace Aleph
   {
     size_t max_sz = 0;
     DynList<size_t> sizes =
-      m.template maps<size_t>([&max_sz] (auto & l)
+      m.template maps<size_t>([&max_sz](auto & l)
                               {
                                 const size_t sz = l.size();
                                 max_sz = max(max_sz, sz);
@@ -496,14 +524,15 @@ namespace Aleph
   format_string(const DynList<size_t> & lens,
                 const DynList<DynList<string>> & mat)
   {
-    return mat.maps<DynList<string>>([&lens] (const DynList<string> & l)
-      {
-        return zip(lens, l).template maps<string>([] (auto p)
-          {
-            const string blanks(p.first - p.second.size(), ' ');
-            return blanks + p.second + " ";
-          });
-      });
+    return mat.maps<DynList<string>>([&lens](const DynList<string> & l)
+                                     {
+                                       return zip(lens, l).template maps<string>([](auto p)
+                                                                                 {
+                                                                                   const string blanks(
+                                                                                     p.first - p.second.size(), ' ');
+                                                                                   return blanks + p.second + " ";
+                                                                                 });
+                                     });
   }
 
   inline ostream & format_string(ostream & out, const DynList<size_t> & lens,
@@ -513,12 +542,13 @@ namespace Aleph
       {
         const auto & row = it.get_curr();
         auto line = zip(lens, row).
-          template maps<string>([] (auto p)
+          template maps<string>([](auto p)
                                 {
                                   const string blanks(p.first - p.second.size(), ' ');
                                   return blanks + p.second + " ";
                                 });
-        line.for_each([&out] (const auto & s) { out << s; });
+        line.for_each([&out](const auto & s)
+                      { out << s; });
         out << endl;
       }
 
@@ -533,13 +563,13 @@ namespace Aleph
 
     DynList<size_t> ilens = rep<size_t>(mat.nth(0).size(), 0);
     DynList<size_t> maxs =
-      mat.foldl(ilens, [] (const DynList<size_t> & acu,
-                           const DynList<string> & l)
-                       {
-                         return zip(acu, l).
-                           maps<size_t>([] (auto p)
-                                        { return max(p.first, p.second.size()); });
-                       });
+      mat.foldl(ilens, [](const DynList<size_t> & acu,
+                          const DynList<string> & l)
+      {
+        return zip(acu, l).
+          maps<size_t>([](auto p)
+                       { return max(p.first, p.second.size()); });
+      });
 
     return format_string(maxs, mat);
   }
@@ -570,9 +600,10 @@ namespace Aleph
   inline string to_string(const DynList<DynList<string>> & mat)
   {
     ostringstream s;
-    mat.for_each([&s] (const auto & row)
+    mat.for_each([&s](const auto & row)
                  {
-                   row.for_each([&s] (const string & str) { s << str; });
+                   row.for_each([&s](const string & str)
+                                { s << str; });
                    s << endl;
                  });
     return s.str();
@@ -615,7 +646,7 @@ namespace Aleph
           {
             pos = line.find_first_not_of(' ', pos);
             line.insert(pos, " ");
-            pos = line.find_first_of(' ', pos+1);
+            pos = line.find_first_of(' ', pos + 1);
             if (pos == string::npos)
               pos = line.find_first_of(' ');
           }
@@ -631,7 +662,7 @@ namespace Aleph
 
     ostringstream s;
     string line;
-    for (const string & word : words)
+    for (const string & word: words)
       if (line.size() + word.size() + 1 > width)
         {    // next word doesn't fit into the line
           s << string(left_margin, ' ') << justify_line(line, width) << endl;
@@ -671,7 +702,7 @@ namespace Aleph
     const string margin(left_margin, ' ');
     ostringstream s;
     string line;
-    for (const string & word : words)
+    for (const string & word: words)
       if (line.size() + word.size() + 1 > page_width)
         {    // next word doesn't fit into the line
           s << margin << line << endl;
@@ -717,7 +748,8 @@ namespace Aleph
     return s.str();
   }
 
-  inline void build_pars_list(string &) {}
+  inline void build_pars_list(string &)
+  {}
 
   template <typename T>
   inline void build_pars_list(string & str, const T & item)
