@@ -228,35 +228,18 @@ namespace Aleph
   // return true if str can be converted to a double
   inline bool is_double(const string & str)
   {
-    char *end;
-    errno = 0;
-
-    // Convert string to float
-    float val = strtof(str.c_str(), &end);
-
-    // Check for errors
-    if (errno == ERANGE or val == numeric_limits<float>::infinity() or
-        val == -numeric_limits<float>::infinity())
-      return false;  // Out of range or overflow
-
-    // Check if no valid conversion was performed
-    if (end == str.c_str())
+    char* endptr = 0;
+    long n = strtod(str.data(), &endptr);
+    if(*endptr != '\0' or endptr == str.data())
       return false;
-
-    // Check if the whole string was converted
-    return *end == '\0';
-//    char* endptr = 0;
-//    long n = strtod(str.data(), &endptr);
-//    if(*endptr != '\0' || endptr == str.data())
-//      return false;
-//    return n >= 0;
+    return n >= 0;
   }
 
   inline bool is_long(const string & str)
   {
     char *endptr = 0;
     strtol(str.data(), &endptr, 10);
-    if (*endptr != '\0' || endptr == str.data())
+    if (*endptr != '\0' or endptr == str.data())
       return false;
     return true;
   }
@@ -265,7 +248,7 @@ namespace Aleph
   {
     char *endptr = 0;
     strtol(str.data(), &endptr, 10);
-    if (*endptr != '\0' || endptr == str.data())
+    if (*endptr != '\0' or endptr == str.data())
       return false;
     return true;
   }
