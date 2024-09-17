@@ -139,6 +139,7 @@ ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs & ... cs)
   return ret;
 }
 
+// TODO: why it does not work with rvalues?
 template <class ... Cs> inline
 ZipIterator<Cs...> zip_it(const Cs & ... cs)
 {
