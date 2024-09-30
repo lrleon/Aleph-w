@@ -323,7 +323,6 @@ public:
     return insert_dup(tree_root, p);
   }
 
-
   /** Search or insert a key.
 
       `search_or_insert(p)` searches in the tree the key `KEY(p)`. If

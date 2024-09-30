@@ -110,31 +110,30 @@ namespace Aleph
     return to_string(d, numeric_limits<double>::max_digits10);
   }
 
-  // inline bool read_line(istream & in, istringstream & s)
-  // {
-  //   string line;
-  //   if (not getline(in, line))
-  //     return false;
-  //   s = istringstream(line);
-  //   return true;
-  // }
+  inline string tolower(const char * str)
+  {
+    string ret;
+    for (const char * ptr = str; *ptr; ++ptr)
+      ret.push_back(::tolower(*ptr));
+    return ret;
+  }
+
+  inline string toupper(const char * str)
+  {
+    string ret;
+    for (const char * ptr = str; *ptr; ++ptr)
+      ret.push_back(::toupper(*ptr));
+    return ret;
+  }
 
   inline string tolower(const string & str)
   {
-    string ret;
-    ret.reserve(str.size());
-    for (auto & c: str)
-      ret.push_back(::tolower(c));
-    return ret;
+    return tolower(str.c_str());
   }
 
   inline string toupper(const string & str)
   {
-    string ret;
-    ret.reserve(str.size());
-    for (auto & c: str)
-      ret.push_back(::toupper(c));
-    return ret;
+    return toupper(str.c_str());
   }
 
   inline string & mutable_tolower(string & str)
