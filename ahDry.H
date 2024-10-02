@@ -38,23 +38,23 @@
 namespace Aleph
 {
 
-  template <typename T> class DynList;
+template<typename T> class DynList;
 
 # define Generic_Traverse(Type)                                         \
   template <class Operation>                                            \
-  bool traverse(Operation & operation) const				\
+  bool traverse(Operation & operation) const        \
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr()))					\
+      if (not operation(it.get_curr()))          \
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  bool traverse(Operation & operation)					\
+  bool traverse(Operation & operation)          \
   {                                                                     \
     for (Iterator it(*this); it.has_curr(); it.next_ne())               \
-      if (not operation(it.get_curr()))					\
+      if (not operation(it.get_curr()))          \
         return false;                                                   \
     return true;                                                        \
   }                                                                     \
@@ -91,7 +91,6 @@ namespace Aleph
       this->append(item);                                           \
   }
 
-
 # define Locate_Functions(Type)                                         \
   Type & nth(const size_t n) const                                      \
   {                                                                     \
@@ -126,7 +125,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  Type * find_ptr(Operation & operation)				\
+  Type * find_ptr(Operation & operation)        \
   {                                                                     \
     Type * ptr = nullptr;                                               \
     this->traverse([&ptr,&operation] (Type & item)                      \
@@ -142,7 +141,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  Type * find_ptr(Operation & operation) const				\
+  Type * find_ptr(Operation & operation) const        \
   {                                                                     \
     Type * ptr = nullptr;                                               \
     this->traverse([&ptr, &operation] (Type & item)                     \
@@ -208,7 +207,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
-  auto for_each(Operation & operation)					\
+  auto for_each(Operation & operation)          \
     -> decltype(*this)                                                  \
   {                                                                     \
     this->traverse([&operation] (const Type & item)                     \
@@ -221,21 +220,21 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   auto for_each(Operation && operation = Operation()) const             \
-    -> decltype(*this)							\
+    -> decltype(*this)              \
   {                                                                     \
     return this->for_each<Operation>(operation);                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   auto for_each(Operation && operation = Operation())                   \
-    -> decltype(*this)							\
+    -> decltype(*this)              \
   {                                                                     \
     return this->for_each<Operation>(operation);                        \
   }                                                                     \
                                                                         \
   template <class Operation>                                            \
   auto mutable_for_each(Operation & operation)                          \
-    -> decltype(*this)							\
+    -> decltype(*this)              \
   {                                                                     \
     this->traverse([&operation] (Type & item)                           \
                    {                                                    \
@@ -247,7 +246,7 @@ namespace Aleph
                                                                         \
   template <class Operation>                                            \
   auto mutable_for_each(Operation && operation = Operation())           \
-    -> decltype(*this)							\
+    -> decltype(*this)              \
   {                                                                     \
     return this->mutable_for_each<Operation>(operation);                \
   }                                                                     \
@@ -437,7 +436,7 @@ namespace Aleph
   }                                                                     \
                                                                         \
   template <template <typename> class Container = Aleph::DynList>       \
-  Container<Type> rev()	const                                           \
+  Container<Type> rev()  const                                           \
   {                                                                     \
     Container<Type> ret_val;                                            \
     for_each([&ret_val] (const Type & item)                             \
@@ -488,10 +487,9 @@ namespace Aleph
   template <template <typename> class Container = DynList>              \
   Container<Type> items() const                                         \
   {                                                                     \
-    return this->template maps<Type, Container> ([] (const Type & key)	\
+    return this->template maps<Type, Container> ([] (const Type & key)  \
                                                  { return key; });      \
   }
-
 
 # define Equal_To_Method(class_name)                      \
   bool equal_to(const class_name & r) const noexcept      \
@@ -503,23 +501,22 @@ namespace Aleph
       return false;                                       \
                                                           \
     return this->all([&r] (const Key & k)                 \
-                     { return r.search(k) != nullptr; });	\
+                     { return r.search(k) != nullptr; });  \
   }                                                       \
                                                           \
-  bool operator == (const class_name & r) const noexcept	\
+  bool operator == (const class_name & r) const noexcept  \
   {                                                       \
     return equal_to(r);                                   \
   }                                                       \
                                                           \
-  bool operator != (const class_name & r) const	noexcept	\
+  bool operator != (const class_name & r) const  noexcept  \
   {                                                       \
     return not equal_to(r);                               \
   }
 
-
 # define Map_Sequences_Methods()                                        \
   template <template <typename> class Container = ::DynList>            \
-  Container<Key> keys()	const                                           \
+  Container<Key> keys()  const                                           \
   {                                                                     \
     Container<Key> ret_val;                                             \
     this->for_each([&ret_val] (const std::pair<Key, Data> & p)          \
@@ -578,7 +575,7 @@ namespace Aleph
     return this->find(key);                                             \
   }                                                                     \
 
-# define Generate_Proxy_Operator(Class_Name)				\
+# define Generate_Proxy_Operator(Class_Name)        \
   const Data & operator [] (const Key & key) const  \
   {                                                 \
     return find(key);                               \
@@ -589,42 +586,40 @@ namespace Aleph
     return find(key);                               \
   }
 
-  template <typename Type> inline
-  std::string to_str(const Type & d)
+template<typename Type> inline
+std::string to_str(const Type &d)
+{
+  std::ostringstream os;
+  os << d;
+  return os.str();
+}
+
+// This class wrappes the compare class passed to DynMapLinHash which
+// has form cpm<Key>
+template<typename Key, typename Data, class Cmp = std::equal_to<Key>>
+struct Dft_Pair_Cmp
+{
+  Cmp cmp;
+  Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
+  bool operator()(const std::pair<Key, Data> &p1,
+                  const std::pair<Key, Data> &p2) const noexcept
   {
-    std::ostringstream os;
-    os << d;
-    return os.str();
+    return cmp(p1.first, p2.first);
   }
+};
 
+template<typename Key, typename Data>
+std::pair<Key, Data> *key_to_pair(Key *ptr)
+{
+  return (std::pair<Key, Data> *) ptr;
+}
 
-  // This class wrappes the compare class passed to DynMapLinHash which
-  // has form cpm<Key>
-  template <typename Key, typename Data, class Cmp = std::equal_to<Key>>
-	struct Dft_Pair_Cmp
-	{
-	  Cmp cmp;
-	  Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
-	  bool operator () (const std::pair<Key, Data> & p1,
-                      const std::pair<Key, Data> & p2) const noexcept
-	  {
-	    return cmp (p1.first, p2.first);
-	  }
-	};
-
-  template <typename Key, typename Data>
-  std::pair<Key, Data> * key_to_pair(Key * ptr)
-  {
-    return (std::pair<Key, Data>*) ptr;
-  }
-
-  template <typename Key, typename Data>
-  std::pair<Key, Data> * data_to_pair(Data * ptr)
-  {
-    std::pair<Key, Data> * zero = 0;
-    return (std::pair<Key, Data>*) ((long) ptr - (long) &zero->second);
-  }
-
+template<typename Key, typename Data>
+std::pair<Key, Data> *data_to_pair(Data *ptr)
+{
+  std::pair<Key, Data> *zero = 0;
+  return (std::pair<Key, Data> *) ((long) ptr - (long) &zero->second);
+}
 
 } // end namespace Aleph
 

@@ -2,12 +2,12 @@ DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
 # compiler suite
-CC = clang
+CC = cc
 AS = llvm-as
 AR = llvm-ar clq
 LD = llvm-link
-CCLINK = clang++ -fsanitize=address,undefined
-CXX = clang++
+CCLINK = g++ -fsanitize=address,undefined
+CXX = g++
 
 SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
 	gen_rand_graph.C graphpic.C joseph.C ntreepic.C polinom.C 	\
