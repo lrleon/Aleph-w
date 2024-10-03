@@ -1405,7 +1405,6 @@ public:
   }
 
   /**
-      \~English
       Insert a new item by movement.
 
       Allocate memory for a new item, move the item and insert into the
@@ -1414,16 +1413,6 @@ public:
 
       \return a modifiable reference to the item in the list
       \throw  `bad_alloc` if there is no enough memory
-
-      \~Spanish
-      Inserta un nuevo elemento por movimiento.
-
-      Asigna memoria para un nuevo elemento, mueve el elemento y lo inserta
-      en la lista como el primer elemento. Esta operación puede ser más
-      rápida que la equivalente con copia.
-
-      \return una referencia modificable al objeto en la lista
-      \throw `bad_alloc` si no hay suficiente memoria
    */
   T & insert(T && item)
   {

@@ -206,7 +206,7 @@ namespace Aleph
       /// Return `true` is the array is empty
       bool is_empty() const noexcept { return n == 0; }
 
-      /** Construct an array con capacity equal or greater than `__dim`.
+      /** Construct an array con capacity equal or gre+ater than `__dim`.
 
           @param[in] __dim proposed dimension of array which could be
           adjusted to the next two power greater than `__dim`
