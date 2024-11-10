@@ -53,19 +53,19 @@ using namespace Aleph;
 
 namespace Aleph {
 
-  /** Tabla hash con resolución de colisiones por direccionamiento
-      abierto y sondeo lineal de cubetas disponibles.
+  /** Hash table with addressing collision resolution
+      open and linear probing of available buckets.
 
-      Este tipo instrumenta una tabla hash cerrada (el arreglo es
-      contiguo en memoria), que guarda las colisiones dentro de la misma
-      tabla. Cuando hay una colisión, se sondea linealmente la primera
-      cubeta a partir del índice dado por la función hash.
+      This type implements a closed hash table (the arrangement is
+      contiguous memory), which saves collisions within the same
+      board. When there is a collision, the first one is polled linearly.
+      bucket from the index given by the hash function.
 
-      OLhashTable maneja tres parámetros tipo:
-      -# Key: el tipo de dato que guarda la tabla.
-      -# Record: el tipo de dato a mapear por la clave.
-      -# Cmp: la clase de comparación entre claves. retorna true cuando
-      las claves son iguales.
+      OLhashTable handles three type parameters:
+      -# Key: the type of data that the table saves.
+      -# Record: the type of data to be mapped by the key.
+      -# Cmp: the comparison class between keys. returns true when
+      the keys are the same.
 
       @ingroup Hash
   */
@@ -222,7 +222,7 @@ namespace Aleph {
         this->clean_table();
       else
         {
-          Bucket * new_table = new Bucket [other.len];
+          auto * new_table = new Bucket [other.len];
           delete [] table;
           table = new_table;
           N = 0;
@@ -282,7 +282,7 @@ namespace Aleph {
 
       Bucket * bucket = &table[i];
 
-      // i contiene celda con DELETED o EMPTY ==> ocuparla
+      // i contains cell with DELETED or EMPTY ==> occupy it
       bucket->status = BUSY;
       N++;
 
@@ -309,18 +309,18 @@ namespace Aleph {
 
       Bucket * bucket = &table[i];
 
-      // i contiene celda con DELETED o EMPTY ==> ocuparla
+      // i contains cell with DELETED or EMPTY ==> occupy it
       bucket->status = BUSY;
       N++;
 
       return make_tuple(bucket, false);
     }
 
-    /// Elimina de la tabla el registro apuntado por record. Obviamente,
-    /// record debe apuntar a una entrada arrojada por insert() o
-    /// search(). Dispara excepciones invalid_argument si record no es una
-    /// dirección dentro del rango de la tabla o domain_error si la cubeta
-    /// del registro no está ocupada.
+    /// Removes the record pointed to by record from the table. Obviously,
+    /// record must point to an entry returned by insert() or
+    /// search(). Fires invalid_argument exceptions if record is not a
+    /// address within table range or domain_error if bucket
+    /// of the registry is not busy.
     void deallocate_bucket(Bucket * bucket)
     {
       if (not is_valid_bucket(bucket))
@@ -330,7 +330,7 @@ namespace Aleph {
         throw std::domain_error("Bucket containing record is not busy");
 
       --N;
-      int i = bucket - &table[0]; // índice de brecha
+      int i = bucket - &table[0]; // gap index
       table[i].status = DELETED;
     }
 
@@ -356,7 +356,9 @@ namespace Aleph {
     Stats stats() const
     {
       DynArray<size_t> lens;
-      size_t num_busy = 0, num_deleted = 0, num_empty = 0;
+      size_t num_busy = 0;
+      size_t num_deleted = 0;
+      size_t num_empty = 0;
       size_t max_len = std::numeric_limits<size_t>::min();
       for (int i = 0; i < len; ++i)
         switch (table[i].status)
@@ -390,7 +392,8 @@ namespace Aleph {
             break;								
           }								
  									
-      float avg = 0, sum = 0;						
+      float avg = 0;
+      float sum = 0;
       for (int i = 0; i < lens.size(); ++i)				
         {									
           avg += lens(i)*i;						
@@ -418,7 +421,6 @@ namespace Aleph {
       return stats;						
     }
   };
-
 
 
   template <typename Key, class Cmp = Aleph::equal_to<Key>>

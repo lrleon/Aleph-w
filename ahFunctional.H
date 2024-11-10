@@ -694,19 +694,19 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Genera todas las tuplas secuenciales de tamaño n contenidas en el
-      contenedor c.
+  /** Generates all sequential tuples of size n contained in the
+      container c.
 
-      Si por ejemplo c = { 1, 2, 3, 4, 5, 6 ..., N}
+      If for example c = { 1, 2, 3, 4, 5, 6 ..., N}
 
-      Entonces gen_seq_list_tuples(c, 4) = { (1,2,3,4), (2,3,4,5), ... }
+      Then gen_seq_list_tuples(c, 4) = { (1,2,3,4), (2,3,4,5), ... }
 
-      @param[in] c contenedor a partir del cual, secuencialzado, se desea
-      generar las tuplas
+      @param[in] c container from which, sequentially, is desired
+      generate the tuples
 
-      @param[in] n tamaño de cada tupla.
-      @return Listas de listas. Cada lista tiene tamañao n y contiene una
-      tupla.
+      @param[in] n size of each tuple.
+      @return Lists of lists. Each list has size n and contains a
+      tuple.
 
       @ingroup Algos
   */
