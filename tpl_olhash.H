@@ -172,7 +172,7 @@ namespace Aleph {
       : OLhashTable(len, Hash_fct(hash_fct), cmp,
                     lower_alpha, upper_alpha, with_resize) {}
 
-    /** Constructor with two hash function for metaprogramming
+    /** Constructor with two hash functions for metaprogramming
         compatibility with ODhashTable type
     */
     OLhashTable(size_t len, Hash_Fct hash_fct, Hash_Fct_Ptr, Cmp cmp,
