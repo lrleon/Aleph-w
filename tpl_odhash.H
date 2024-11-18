@@ -405,7 +405,7 @@ namespace Aleph {
         }
 
       size_t i = i_snd; 
-      // sondeo lineal a partir de índice de 2da función hash
+      // Linear polling from index of 2nd hash function
       for (size_t count = 0; count < len; ++count)
         {
           index_forward(i);
