@@ -292,7 +292,7 @@ namespace Aleph {
     // Allocate a new bucket for storing key. It always returns a
     // pointer to the bucket entry into the table. If the key is
     // already inserted in the table, then second value is true,
-    // otherwise, not allocation is done and false is returned as second
+    // otherwise, not allocation is done, and false is returned as second
     tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
     {
       assert(N < len);
