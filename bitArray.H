@@ -204,11 +204,11 @@ public:
 
   using Item_Type = unsigned char;
 
-      /** Constructor de arreglo de dim bits.
+      /** Bbit array constructor.
 
-          @param[in] dim cantidad de bits. Por omisión es 256.
-          @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes.
+          @param[in] dim number of bits. By default it is 256.
+          @throw bad_alloc if there is not enough memory for a block
+          continuous dim/8 bytes.
        */
   BitArray(const size_t dim = 0)
     : current_size(dim), array_of_bytes(get_num_bytes())
@@ -216,15 +216,15 @@ public:
     array_of_bytes.set_default_initial_value(Byte());
   }
 
-  /** Reserva por adelantado memoria para el arreglo de bits a la
-      dimensión dim.
+  /** Reserve memory in advance for the bit array
+      dim dimension
 
-      reserve() aparta por adelantado la memoria suficiente para guardar
-      dim bits. De este modo, los accesos de escritura o lectura pueden
-      hacerse directa y más rápidamente mediante los métodos read() y
+      reserve() sets aside enough memory in advance to save
+      dim bits. In this way, write or read accesses can
+      be done directly and more quickly using the read() and
       write().
 
-      @throw bad_alloc si no hay suficiente memoria
+      @throw bad_alloc if not enough memory
    */
   void reserve(size_t dim)
   {
@@ -237,10 +237,10 @@ public:
     array_of_bytes.reserve(num_bytes);
   }
 
-      /// Retorna la dimensión del arreglo de bits
+      /// Returns the dimension of the bit array
   size_t size() const noexcept { return current_size; }
 
-      /// Reajusta la dimensión del arreglo
+      /// Resets the dimension of the array
   void set_size(const size_t sz)
   {
     size_t array_size = sz / 8;
@@ -271,11 +271,11 @@ public:
       return 0;
   }
 
-       /** Lee el bit i.
+      /** Read bit i.
 
-           @param[in] i índice del bit a ser leído.
-           @return el valor del bit i
-           @note No se verifica fuera de rango.
+           @param[in] i index of the bit to be read.
+           @return the value of bit i
+           @note No checking out of range.
         */
   int read_bit(const size_t i) const
   {
@@ -288,12 +288,12 @@ public:
 
   int operator () (const size_t i) const { return read_bit(i); }
 
-       /** Escribe el bit i con el valor value
+       /** Write bit i with the value value
 
-           @param[in] i índice del bit a ser escrito.
-           @param[in] value valor a ser escrito en la posición i.
-           @note No se verifica fuera de rango y no verifica que value
-           tenga un valor binario.
+           @param[in] i index of the bit to be written.
+           @param[in] value value to be written at position i.
+           @note It doesn't check out of range and it doesn't check that value
+           have a binary value.
         */
   void write_bit(const size_t i, const unsigned int value)
   {
@@ -302,13 +302,13 @@ public:
       current_size = i + 1;
   }
 
-  /** Lectura rápida del bit i.
+  /** Quick read of bit i.
 
-      Lee el bit i sin verificar memoria
+      Read bit i without checking memory
 
-      @param[in] i índice del bit a ser leído.
-      @return el valor del bit i
-      @note No se verifica fuera de rango.
+      @param[in] i index of the bit to be read.
+      @return the value of bit i
+      @note No checking out of range.
   */
   int read(const size_t i) const
   {
@@ -319,12 +319,12 @@ public:
     return array_of_bytes.access(i/8).read_bit(bit_index);
   }
 
-  /** Escribe el bit i con el valor value sin verificación de memoria.
+  /** Writes bit i with value value without memory check.
 
-      @param[in] i índice del bit a ser escrito.
-      @param[in] value valor a ser escrito en la posición i.
-      @note No se verifica fuera de rango y no verifica que value
-      tenga un valor binario.
+      @param[in] i index of the bit to be written.
+      @param[in] value value to be written at position i.
+      @note It doesn't check out of range and it doesn't check that value
+      have a binary value.
   */
   void write(const size_t i, const unsigned int value)
   {
@@ -343,33 +343,33 @@ public:
     array_of_bytes.access(i/8).write_bit(i%8, value);
   }
 
-    /// Inserta al final del arreglo el valor value.
+    /// Inserts the value value at the end of the array.
   void push(const unsigned int value)
   {
     write_bit(current_size, value);
   }
 
-    /// Elimina el último bit del arreglo.
+   /// Removes the last bit of the array.
   void pop()
   {
     current_size--;
     array_of_bytes.cut(get_num_bytes());
   }
 
-      /// Elimina todos los bits insertados
+      /// Delete all inserted bits
   void empty() noexcept
   {
     current_size = 0;
     array_of_bytes.cut();
   }
 
-      /** Constructor copia.
+      /** Copy constructor.
 
-          Instancia un arreglo de bits copia exacta de array.
+          Instantiates an array of bits exact copy of array.
 
-          @param[in] array el arreglo de bits a ser copiado.
-          @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes.
+          @param[in] array the array of bits to be copied.
+          @throw bad_alloc if there is not enough memory for a block
+          continuous dim/8 bytes.
       */
   BitArray(const BitArray & array)
     : current_size(array.current_size), array_of_bytes (array.array_of_bytes)
@@ -406,16 +406,16 @@ public:
     return ret_val;
   }
 
-      /** Asignación de arreglo de bits.
+     /** Bit array allocation.
 
-          Libera toda la memoria de this, aparta nueva memoria para
-          albergar array y copia exactamente los bits de array a this.
+          Release all memory of this, set aside new memory for
+          host array and exactly copies the bits of array to this.
 
-          @param[in] array el arreglo de bits a ser copiado.
-          @throw bad_alloc si no hay suficiente memoria para un bloque
-          continuo de dim/8 bytes.
-          @note Si ocurre esta excepción, el estado de this permanece el
-          mismo anterior a la asignación.
+          @param[in] array the array of bits to be copied.
+          @throw bad_alloc if there is not enough memory for a block
+          continuous dim/8 bytes.
+          @note If this exception occurs, the state of this remains the
+          same prior to assignment.
        */
   BitArray & operator = (const BitArray & array)
   {
@@ -428,17 +428,17 @@ public:
     return *this;
   }
 
-      /** Guarda en un archivo texto la secuencia de bits.
+      /** Saves the bit sequence in a text file.
 
-          save() almacena en el archivo texto output, ya abierto, la secuencia
-          de bits en formato decimal.
+          save() stores the sequence in the output text file, already opened,
+          of bits in decimal format.
 
-          La primera línea siempre guarda el tamaño en bytes y en
-          bits. Seguidamente se guardan en valor decimal los bytes secuenciales
-          correspondientes al arreglo.
+          The first line always saves the size in bytes and in
+          bits. The sequential bytes are then saved as a decimal value.
+          corresponding to the arrangement.
 
-          @param[in] output stream de salida abierto donde se guardaría el
-          arreglo.
+          @param[in] output open output stream where the
+          arrangement.
       */
   void save(std::ostream & output)
   {
@@ -458,14 +458,14 @@ public:
     output << endl;
   }
 
-      /** Carga desde un archivo un arreglo de bits.
+      /** Loads an array of bits from a file.
 
-          load(input) toma el archivo abierto en input, previamente
-          guardado con el método load(), y restaura el arreglo al valro
-          guardado.
+          load(input) takes the file opened in input, previously
+          saved with the load() method, and restores the array to the value
+          saved.
 
-          @param[in] input stream de entrada donde se encuentra el
-          arreglo y que debe haber sido previamente guardado con
+          @param[in] input stream where the
+          arrangement and that must have been previously saved with
           save().
        */
   void load(std::istream & input)
@@ -483,27 +483,27 @@ public:
       }
   }
 
-      /// Construye un nuevo arreglo de bits a partir de un archivo
-      /// construido mediante el método save().
+     /// Build a new array of bits from a file
+      /// constructed using the save() method.
   BitArray(std::ifstream & input)
   {
     load(input);
   }
 
-      /** Guarda en un archivo texto una declaración estática de cadena de
-          carateres que representa el arreglo.
+      /**Saves a static string declaration to a text file.
+          characters representing the arrangement.
 
-          save_in_array_of_chars(name, output) genera una declaración del
-          tipo:
+          save_in_array_of_chars(name, output) generates a declaration of the
+          guy:
 
-          char name [ size ] = { valores del arreglo separados con comas };
+          char name [ size ] = { comma-separated array values };
 
-          La declaración es guardada en el stream de salida output y el
-          nombre del arreglo es name.
+          The declaration is saved in the output stream and the
+          array name is name.
 
-          @param[in] name nombre de la variable arreglo.
-          @param[in] output stream de salida donde se desea guardar la
-          declaración.
+          @param[in] name name of the array variable.
+          @param[in] output output stream where you want to save the
+          statement.
        */
   void save_in_array_of_chars(const string & name, std::ostream & output)
   {
@@ -531,16 +531,16 @@ public:
     output << endl << "};" << endl << endl;
   }
 
-      /** Lee un arreglo de bits guardado en un arreglo de caracteres.
+     /** Reads an array of bits saved in a character array.
 
-          load_from_array_of_chars(str, num_bits) toma un arreglo str,
-          previamente generado con save_in_array_of_chars, de num_bits de
-          largo, y lo carga.
+          load_from_array_of_chars(str, num_bits) takes an array str,
+          previously generated with save_in_array_of_chars, of num_bits
+          long, and loads it.
 
-          @param[in] str el arreglo de caracteres donde se encuentra el de
+          @param[in] str the character array where the of is located
           bits.
-          @param[in] num_bits la cantidad de bits del arreglo. Note que no
-          es la misma que la cantidad de bytes.
+          @param[in] num_bits the number of bits in the array. Note that not
+          is the same as the number of bytes.
        */
   void load_from_array_of_chars(const unsigned char str[],
                                 const size_t        num_bits)
@@ -558,12 +558,12 @@ public:
     current_size = num_bits;
   }
 
-  /** Desplaza los bits n posiciones a la izquierda.
+  /** Shifts the bits n positions to the left.
 
-      Los bits son desplazados y se considera al arreglo de tamaño fijo,
-      es decir, los n primeros bits se pierden.
+      The bits are shifted and the array is considered a fixed size,
+      that is, the first n bits are lost.
 
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void left_shift(const size_t n = 1) noexcept
   {
@@ -577,11 +577,10 @@ public:
   }
 
   /** Desplaza los bits n posiciones a la derecha.
+The bits are shifted and the array is considered a fixed size,
+      that is, the last n bits are lost.
 
-      Los bits son desplazados y se considera al arreglo de tamaño fijo,
-      es decir, los últimos n bits se pierden.
-
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void right_shift(const size_t n = 1) noexcept
   {
@@ -594,12 +593,12 @@ public:
       write_bit(i - 1, 0);
   }
 
-  /** Desplaza los bits n posiciones a la izquierda dinámicamente.
+ /** Shifts bits n positions to the left dynamically.
 
-      Los bits son desplazados sin perderse ninguno y el arreglo crece
-      agregando n ceros a la derecha.
+      The bits are shifted without losing any and the array grows
+      adding n zeros to the right.
 
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void dyn_left_shift(const size_t n = 1)
   {
@@ -607,12 +606,12 @@ public:
       push(0);
   }
 
-  /** Desplaza los bits n posiciones a la derecha dinámicamente.
+  /** Shifts bits n positions to the right dynamically.
 
-      Los bits son desplazados sin perderse ninguno y el arreglo decrece
-      eliminando los n ceros que quedarían a la izquierda
+      The bits are shifted without losing any and the array is decremented.
+      eliminating the n zeros that would be on the left
 
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void dyn_right_shift(const size_t n = 1)
   {
@@ -631,12 +630,12 @@ public:
     *this = array;
   }
 
-  /** Desplaza los bits n posiciones a la izquierda circularmente.
+  /**Shifts the bits n positions to the left circularly.
 
-      Los bits son desplazados sin perderse ninguno, los n primeros bits
-      pasan a ocupar las últimas n posiciones del arreglo.
+      The bits are shifted without losing any, the first n bits
+      They begin to occupy the last n positions in the arrangement.
 
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void circular_left_shift(const size_t n = 1) noexcept
   {
@@ -657,12 +656,12 @@ public:
       write_bit(current_size - real_n + i, array.read_bit(i));
   }
 
-  /** Desplaza los bits n posiciones a la derecha circularmente.
+  /**Shifts the bits n positions to the right circularly.
 
-      Los bits son desplazados sin perderse ninguno, los últimos n bits
-      pasan a ocupar las primeras n posiciones del arreglo.
+      The bits are shifted without losing any, the last n bits
+      They come to occupy the first n positions in the arrangement.
 
-      @param[in] n la cantidad de posiciones que se van a desplazar los bits.
+      @param[in] n the number of positions to shift the bits.
   */
   void circular_right_shift(const size_t n = 1) noexcept
   {
@@ -684,7 +683,7 @@ public:
   }
 
   template <typename T>
-  void set_num(T n) // Paso copia porque es modificado adentro
+  void set_num(T n) //Copy step because it is modified inside
   {
     empty();
     const size_t num_bits = sizeof(T) * 8;
@@ -755,8 +754,8 @@ public:
     return out;
   }
 
-      /// Construye un nuevo arreglo de bits a partir de un arreglo de
-      /// caracteres previamente generado con load_from_array_of_chars
+      /// Constructs a new array of bits from an array of
+      /// characters previously generated with load_from_array_of_chars
   BitArray(const unsigned char str[], const size_t num_bits)
   {
     load_from_array_of_chars(str, num_bits);
