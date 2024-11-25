@@ -153,22 +153,22 @@ namespace Aleph
   }
 
 
-  /** Ordena un arreglo por el método de selección.
+  /** Sorts an array by the selection method.
 
-      selection_sort(a,n) emplea el método de selección para ordenar
-      el arreglo a de n elementos.
+      selection_sort(a,n) uses the selection method to sort
+      the arrangement a of n elements.
 
-      El método de selección tiene un desempeño de \f$O(n^2)\f$. 
-      Debido a su simplicidad de implantación, su coste constante
-      es bajo, por lo que es	un buen método para arreglos de
-      dimensión muy pequeña.
+      The selection method has a performance of \f$O(n^2)\f$.
+      Due to its simplicity of implementation, its constant cost
+      is low, so it is a good method for arrangements of
+      very small dimension.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] n la dimensión del arreglo.
+      @param[in,out] to the array to sort.
+      @param[in] n the dimension of the array.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -227,19 +227,19 @@ namespace Aleph
     return search_extreme<Slinknc, Compare>(list, cmp);
   }
 
-  /** Ordena por el método de selección una lista doblemente enlazada.
+  /** Sorts a doubly linked list by selection method.
 
-      selection_sort(list) sobre una lista derivada de Dlink ordena
-      mediante el método de selección la lista list.
+      selection_sort(list) on a list derived from Dlink sort
+      using the list selection method.
 
-      La rutina requiere el parámetro tipo Compare que instrumenta la 
-      comparación entre los miembros de la lista. Compare se invoca como 
-      Compare()(l1,l2), donde l1 y l2 son dos enlaces de tipo Dlink. El
-      usuario es responsable de instrumentar adecuadamente Compare()() 
-      de modo que se accedan los campos de interés y se efectúe la 
-      comparación.
+      The routine requires the Compare type parameter that implements the
+      comparison between the members of the list. Compare is invoked as
+      Compare() (l1,l2), where l1 and l2 are two links of type Dlink. He
+      User is responsible for properly instrumenting Compare()()
+      so that the fields of interest are accessed and the
+      comparison.
 
-      @param[in,out] list lista a ser ordenada.
+      @param[in,out] list list to be sorted.
       \ingroup Algos
   */
   template <class Compare> inline 
@@ -301,20 +301,20 @@ namespace Aleph
   using Compare_Snodenc = Compare_Tnode<Slinknc, Snodenc, T, Compare>;
 
 
-  /** Ordena una lista enlazada de tipo Dnode<T> mediante 
-      el método de selección.
+  /** Sorts a linked list of type Dnode<T> using
+      the selection method.
 
-      Ordena la lista list, con nodos de tipo Dnode<T> 
-      según el método de selección. 
-	
-      El método de selección tiene un desempeño de \f$O(n^2)\f$. 
-      Debido a su simplicidad de implantación su coste constante
-      es bajo, por lo que es	un buen método para arreglos de
-      dimensión muy pequeña.
+      Sorts the list list, with nodes of type Dnode<T>
+      depending on the selection method.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The selection method has a performance of \f$O(n^2)\f$.
+      Due to its simplicity of implementation and its constant cost
+      is low, so it is a good method for arrangements of
+      very small dimension.
+
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
       @param[in,out] list ka lista a ser ordenada.
       \ingroup Algos
@@ -326,22 +326,22 @@ namespace Aleph
       (list, Compare_Dnode<T, Compare>(cmp));
   }
 
-  /** Búsqueda secuencial sobre un arreglo.
+  /** Sequential search on an array.
 
-      sequential_search(a,x,l,r) busca secuencialmente, 
-      en el arreglo a, entre los índices l y r, respectivamente,
-      la primera ocurrencia de x.
+      sequential_search(a,x,l,r) search sequentially,
+      in array a, between indices l and r, respectively,
+      the first occurrence of x.
 
-      La función maneja dos parámetros tipo:
-      -# T: el tipo de datos que alberga el arreglo.
-      -# Equal: clase comparación entre los elementos.
+      The function handles two type parameters:
+      -# T: the type of data held by the array.
+      -# Equal: comparison class between elements.
 
-      @param[in] a el arreglo sobre el cual se realiza la búsqueda.
-      @param[in] x el elemento a buscar.
-      @param[in] l índice izquierdo donde comienza la búsqueda.
-      @param[in] r índice derecho donde termina la búsqueda.
-      @return índice de la primera posición en arreglo que contiene
-      el elemento x; -1 de lo contrario.
+      @param[in] a the array on which the search is performed.
+      @param[in] x the element to search for.
+      @param[in] the left index where the search begins.
+      @param[in] r right index where the search ends.
+      @return index of first position in containing array
+      element x; -1 otherwise.
       \ingroup Algos
   */
   template <typename T, class Equal = Aleph::equal_to<T>> inline 
@@ -354,35 +354,35 @@ namespace Aleph
     return Not_Found;
   }
 
-  /** Búsqueda secuencial sobre un arreglo dinámico.
+  /** Sequential search on a dynamic array.
 
-      sequential_search(a,x,l,r) busca secuencialmente, 
-      en el arreglo a, entre los índices l y r, respectivamente,
-      la primera ocurrencia de x.
+      sequential_search(a,x,l,r) search sequentially,
+      in array a, between indices l and r, respectively,
+      the first occurrence of x.
 
-      La función maneja dos parámetros tipo:
-      -# T: el tipo de datos que alberga el arreglo.
-      -# Equal: clase comparación entre los elementos.
+      The function handles two type parameters:
+      -# T: the type of data held by the array.
+      -# Equal: comparison class between elements.
 
-      Esta versión sobre arreglos dinámicos salta las posiciones 
-      que con certeza no han sido escritas. Sin embargo, tómese
-      en consideración que, según el tamaño del bloque, pueden 
-      haber entradas no escritas pero circunscritas en direcciones
-      de memoria válidas. En este sentido, es posible que dentro de
-      aquella clase de entradas se encuentre un elemento con valor x.
+      This version of dynamic arrangements skips positions
+      that have certainly not been written. However, take
+      taking into consideration that, depending on the size of the block, they may
+      there are entries not written but limited to addresses
+      valid memory. In this sense, it is possible that within
+      that class of entries an element with value x is found.
 
-      @param[in] a el arreglo dinámico sobre el cual se realiza 
-      la búsqueda.
-      @param[in] x el elemento a buscar.
-      @param[in] l índice izquierdo donde comienza la búsqueda.
-      @param[in] r índice derecho donde termina la búsqueda.
-      @return índice de la primera posición en arreglo que contiene
-      el elemento x; -1 de lo contrario.
-      @note La búsqueda no puede distinguir si una entrada válida ha
-      sido escrita o no. La programación de la clase Equal puede 
-      considerar un valor especial que represente que la entrada no
-      ha sido escrita. Se garantiza que entrada que no haya sido 
-      mapeada en un bloque no será accedida.
+      @param[in] to the dynamic array on which it is performed
+      the search.
+      @param[in] x the element to search for.
+      @param[in] the left index where the search begins.
+      @param[in] r right index where the search ends.
+      @return index of first position in containing array
+      element x; -1 otherwise.
+      @note Search cannot distinguish whether a valid entry has
+      been written or not. Programming the Equal class can
+      consider a special value that represents that the entry does not
+      has been written. It is guaranteed that input that has not been
+      mapped to a block will not be accessed.
       @see DynArray
       \ingroup Algos
   */
@@ -426,21 +426,21 @@ namespace Aleph
     return sequential_search <Slinknc, T, Equal>(list, x, eq);
   }
 
-  /** Búsqueda secuencial sobre una lista de nodos.
+  /** Sequential search over a list of nodes.
 
-      sequential_search(list,x) busca secuencialmente, 
-      en la lista de nodos de tipo Dnode<T> list la primera
-      ocurrencia de x.
+      sequential_search(list,x) search sequentially,
+      in the list of nodes of type Dnode<T> list the first
+      occurrence of x.
 
-      La función maneja dos parámetros tipo:
-      -# T: el tipo de datos que alberga el arreglo.
-      -# Equal: clase comparación entre los elementos.
+      The function handles two type parameters:
+      -# T: the type of data held by the array.
+      -# Equal: comparison class between elements.
 
-      @param[in] list la lista sobre el cual se realiza 
-      la búsqueda.
-      @param[in] x el elemento a buscar.
-      @return puntero al primer nodo que contiene
-      el elemento x; nullptr de lo contrario.
+      @param[in] list the list on which to perform
+      the search.
+      @param[in] x the element to search for.
+      @return pointer to the first containing node
+      element x; nullptr otherwise.
       @see Dnode
       \ingroup Algos
   */
@@ -462,21 +462,21 @@ namespace Aleph
     return sequential_search<T, Equal>(list, x, eq);
   }
 
-  /** Búsqueda secuencial sobre una lista dinámica DynDlist.
+  /** Sequential search on a dynamic list DynDlist.
 
-      sequential_search(list,x) busca secuencialmente, 
-      en la lista dinámica list (DynDlist<T>) la primera
-      ocurrencia de x.
+      sequential_search(list,x) search sequentially,
+      in the dynamic list list (DynDlist<T>) the first
+      occurrence of x.
 
-      La función maneja dos parámetros tipo:
-      -# T: el tipo de datos que alberga el arreglo.
-      -# Equal: clase comparación entre los elementos.
+      The function handles two type parameters:
+      -# T: the type of data held by the array.
+      -# Equal: comparison class between elements.
 
-      @param[in] list la lista dinámica sobre el cual se realiza 
-      la búsqueda.
-      @param[in] x el elemento a buscar.
-      @return puntero al primer elemento con valor igual a x;
-      nullptr de lo contrario.
+      @param[in] list the dynamic list on which to perform
+      the search.
+      @param[in] x the element to search for.
+      @return pointer to the first element with value equal to x;
+      nullptr otherwise.
       @see DynDlist
       \ingroup Algos
   */
@@ -502,17 +502,17 @@ namespace Aleph
   }
 
 
-  /** Búsqueda genérica en un arreglo de un elemento extremo.
-	
-      search_extreme(a, l, r) busca secuencialmente en el arreglo
-      a, entre los índices l y r, el elemento extremo, mínimo o
-      máximo según el criterio de comparación Compare.
+  /** Generic search in an array of an extreme element.
 
-      @param[in] a el arreglo sobre el cual realizar la búsqueda.
-      @param[in] l índice de comienzo de la búsqueda.
-      @param[in] r índice de término de la búsqueda.
-      @return índice contentivo del extremo.
-      @note No se verifica si la secuencia está vacía.
+      search_extreme(a, l, r) searches the array sequentially
+      a, between the indices l and r, the extreme, minimum or element
+      maximum according to the comparison criterion Compare.
+
+      @param[in] a the array on which to search.
+      @param[in] the starting index of the search.
+      @param[in] r search term index.
+      @return containing index of the endpoint.
+      @note There is no checking if the stream is empty.
       \ingroup Algos
   */
   template <typename T, class Compare = Aleph::less<T>> inline
@@ -526,7 +526,7 @@ namespace Aleph
     return extreme_index;
   }
 
-  /** Retorna el mínimo elemento del arreglo a entre l y r.
+  /** Returns the smallest element of the array a between l and r.
 
       \ingroup Algos
   */
@@ -536,7 +536,7 @@ namespace Aleph
     return search_extreme<T, Compare> (a, l, r, cmp);
   }
 
-  /** Retorna el máximo elemento del arreglo a entre l y r.
+  /** Returns the maximum element of the array a between l and r.
 
       \ingroup Algos
   */
@@ -559,16 +559,16 @@ namespace Aleph
     return static_cast <Dnode<T>*> (ret);
   }
 
-  /** Búsqueda genérica de un elemento extremo en una lista
-      de nodos (Dlist<T>).
-		
-      search_extreme(list) busca secuencialmente en la lista de nodos
-      list el elemento extremo, mínimo o
-      máximo según el criterio de comparación Compare.
+  /** Generic search for an extreme element in a list
+      of nodes (Dlist<T>).
 
-      @param[in] list la lista sobre la cual realizar la búsqueda.
-      @return puntero al nodo contentivo del elemento extremo.
-      @note No se verifica si la lista está vacía.
+      search_extreme(list) searches sequentially in the list of nodes
+      list the extreme, minimum or element
+      maximum according to the comparison criterion Compare.
+
+      @param[in] list the list to search on.
+      @return pointer to the containing node of the extreme element.
+      @note There is no checking if the list is empty.
       \ingroup Algos
   */
   template <typename T, class Compare = Aleph::less<T>> inline
@@ -589,7 +589,7 @@ namespace Aleph
     return ret != nullptr ? &(((Snodenc<T>*)ret)->get_data()) : nullptr;
   }
 
-  /** Retorna el mínimo elemento de la lista list.
+  /** Returns the minimum element of the list list.
 
       \ingroup Algos
   */
@@ -599,7 +599,7 @@ namespace Aleph
     return search_extreme<T, Compare> (list, cmp);
   }
 
-  /** Retorna el máximo elemento de la lista list.
+  /** Returns the maximum element of the list list.
 
       \ingroup Algos
   */
@@ -609,26 +609,26 @@ namespace Aleph
     return search_extreme<T, Compare> (list, cmp);
   }
 
-  /** Ordena un arreglo por el método de inserción.
+  /** Sorts an array by the insert method.
 
-      insertion_sort(a,l,r) emplea el método de selección para ordenar
-      el arreglo a entre los índices l y r.
+      insertion_sort(a,l,r) uses the selection method to sort
+      the arrangement a between the indices l and r.
 
-      El método de inserción tiene un desempeño de \f$O(n^2)\f$. 
-      Es un método simple, por lo que consume poco tiempo constante.
-      En promedio realiza la mitad de los intercambios que el método
-      de selección. Su tiempo tiende a ser lineal si el arreglo está 
-      semi-ordenado. Es un buen método para arreglos pequeños y para 
-      particiones realizadas por métodos superiores pero con 
-      mayores tiempos constantes.
+      The insert method has a performance of \f$O(n^2)\f$.
+      It is a simple method, so it consumes little constant time.
+      On average it performs half as many exchanges as the method
+      of selection. Its time tends to be linear if the arrangement is
+      semi-ordered. It is a good method for small arrangements and for
+      partitions made by superior methods but with
+      longer constant times.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice izquierdo del arreglo.
-      @param[in] r índice derecho del arreglo.
+      @param[in,out] a the array to sort.
+      @param[in] l left index of the array.
+      @param[in] r right index of the array.
       @see selection_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -648,15 +648,15 @@ namespace Aleph
       }
   }
 
-  /** Inserta un nodo ordenadamente en una lista doblemente enlazada.
+  /** Inserts a node orderly into a doubly linked list.
 
-      insert_sorted(list,p) inserta en una lista basada sobre Dlink el
-      nodo apuntado por p.
+      insert_sorted(list,p) inserts into a list based on Dlink the
+      node pointed to by p.
 
-      El criterio de orden está dado por la clase de comparación Compare.
+      The ordering criterion is given by the comparison class Compare.
 
-      @param[in,out] list la lista a la cual se le insertará p.
-      @param[in] p el nodo a ser insertado.
+      @param[in,out] list the list to which p will be inserted.
+      @param[in] p the node to be inserted.
       @see Dlink 
       \ingroup Algos
   */
@@ -705,12 +705,12 @@ namespace Aleph
     assert(false); // it should be unreachable
   }
 
-  /** Ordena según el método de inserción una lista de nodos simples
+  /** Sorts a list of simple nodes by insertion method
 
-      insertion_sort(list) ordena según el método de inserción la
-      lista enlazada list 
+      insertion_sort(list) sorts by insertion method
+      linked list list
 
-      El método de inserción tiene un desempeño de \f$O(n^2)\f$. 
+      The insert method has a performance of \f$O(n^2)\f$.
 	
       @param[in,out] list la lista a ordenar.
       \ingroup Algos
@@ -745,14 +745,14 @@ namespace Aleph
     return move(l);
   }
 
-  /** Ordena la lista list por el método de inserción.
+  /** Sorts the list by insertion method.
 
-      Ordena la lista list basada en Dnode<T> por el método de 
-      inserción según criterio de comparación Compare.
+      Sorts the list based on Dnode<T> by the
+      insertion according to comparison criterion Compare.
 
-      El método de inserción tiene un desempeño de \f$O(n^2)\f$. 
+      The insert method has a performance of \f$O(n^2)\f$.
 
-      @param[in,out] list la lista a ordenar.
+      @param[in,out] list the list to sort.
       @see Dnode selection_sort(Dlink * link)
   */
   template <typename T, class Compare = Aleph::less<T>> 
@@ -763,16 +763,16 @@ namespace Aleph
     list_insertion_sort <Dlink, Cmp> (list, c);
   }
 
-  /** Mezcla dos particiones ordenadas almacenadas en un arreglo.
+  /** Merges two ordered partitions stored in an array.
 
-      merge() asume como entrada dos particiones ordenadas entre los
-      rangos [l..m] y [m+1..r] y las mezcla en un ordenamiento entre
+      merge() assumes as input two partitions ordered between the
+      ranges [l..m] and [m+1..r] and mixes them in an ordering between
       [l..r].
 
-      @param[in] a el arreglo
-      @param[in] l índice izquierdo del arreglo
-      @param[in] m centro del arreglo, de la partición
-      @param[in] r índice derecho del arreglo
+      @param[in] a the array
+      @param[in] l left index of the array
+      @param[in] m center of the array, of the partition
+      @param[in] r right index of the array
 
       \ingroup Algos
   */
@@ -797,21 +797,21 @@ namespace Aleph
         a[k] = b[j--];
   }
 
-  /** Ordena un arreglo por el método de mezcla.
+  /** Sorts an arrangement by the shuffle method.
 
-      mergesort(a,l,r) ordena el arreglo a entre los índices l y r
-      según el método de mezcla según criterio de comparación Compare.
+      mergesort(a,l,r) sorts the array a between indices l and r
+      according to the mixing method according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño de \f$O(n \; \lg n)\f$, pero
-      un consumo de espacio de \f$O(n)\f$.
+      This method has a performance of \f$O(n \; \lg n)\f$, but
+      a space consumption of \f$O(n)\f$.
 
-      @param[in,out] a el arreglo a ordenar.
-      @param[in] l índice inferior.
-      @param[in] r índice superior.
+      @param[in,out] a the array to sort.
+      @param[in] l lower index.
+      @param[in] r top index.
 
       @see selection_sort() insertion_sort() quicksort_rec() heapsort()
 
@@ -835,18 +835,18 @@ namespace Aleph
     merge<T, Compare>(a, l, m, r, cmp);
   }
 
-  /** Mezcla dos listas ordenadas en una sola.
- 
-      merge_lists(l1,l2,result) toma dos listas ordenadas l1 y l2 
-      y las fusiona en una sola lista ordenada result según 
-      criterio de comparación Compare.
+  /** Merge two ordered lists into one.
 
-      No se verifica si las listas l1 y l2 están ordenadas. 
-      Resultados serán incorrectos si no se cumple esta premisa.
+      merge_lists(l1,l2,result) takes two sorted lists l1 and l2
+      and merges them into a single ordered list result according to
+      comparison criterion Compare.
 
-      @param[in,out] l1 una lista ordenada a fusionar.
-      @param[in,out] l2 una lista ordenada a fusionar.
-      @param[out] result la lista donde se colocará el resultado.
+      It is not checked whether lists l1 and l2 are sorted.
+      Results will be incorrect if this premise is not met.
+
+      @param[in,out] l1 an ordered list to merge.
+      @param[in,out] l2 an ordered list to merge.
+      @param[out] result the list where the result will be placed.
 	
       \ingroup Algos
   */
@@ -870,18 +870,18 @@ namespace Aleph
     assert(l1.is_empty() and l2.is_empty());
   }
 
-  /** Mezcla dos listas ordenadas de tipo Dnode en una sola.
- 
-      merge_lists(l1,l2,result) toma dos listas ordenadas l1 y l2 
-      y las fusiona en una sola lista ordenada result según 
-      criterio de comparación Compare.
+  /** Merge two sorted lists of type Dnode into one.
 
-      No se verifica si las listas l1 y l2 están ordenadas. 
-      Resultados serán incorrectos si no se cumple esta premisa.
+      merge_lists(l1,l2,result) takes two sorted lists l1 and l2
+      and merges them into a single ordered list result according to
+      comparison criterion Compare.
 
-      @param[in,out] l1 una lista ordenada a fusionar.
-      @param[in,out] l2 una lista ordenada a fusionar.
-      @param[out] result la lista donde se colocará el resultado.
+      It is not checked whether lists l1 and l2 are sorted.
+      Results will be incorrect if this premise is not met.
+
+      @param[in,out] l1 an ordered list to merge.
+      @param[in,out] l2 an ordered list to merge.
+      @param[out] result the list where the result will be placed.
 	
       \ingroup Algos
   */
@@ -892,19 +892,18 @@ namespace Aleph
     merge_lists<Dnode<T>, Compare_Dnode<T, Compare>>(l1, l2, result, cmp);
   }
 
-  /** Ordena una lista según el método de mezcla (mergesort).
+  /** Sorts a list according to the mergesort method.
 
-      Ordena mediante el método de mezcla (mergesort) una lista
-      basada en Dlink, según criterio de comparación Compare.
+      Sort a list using the mergesort method
+      based on Dlink, according to comparison criteria Compare.
 
-      Este método tiene un desempeño determinista de \f$O(n \; \lg n)\f$
-      y un consumo de espacio de \f$O(1)\f$. Es un muy buen método
-      para listas.
+      This method has a deterministic performance of \f$O(n \; \lg n)\f$
+      and a space consumption of \f$O(1)\f$. It is a very good method
+      for lists.
 
-      @param[in,out] list la lista a ser ordenada.
+      @param[in,out] list the list to be sorted.
 
-      @see mergesort(Dnode<T> & list) 
-
+      @see mergesort(Dnode<T> & list)
       \ingroup Algos
   */
   template <typename Tlist, class Compare> inline 
@@ -922,17 +921,17 @@ namespace Aleph
     merge_lists <Tlist, Compare> (l, r, list, cmp); // mezclarlas 
   }
 
-  /** Ordena una lista según el método de mezcla (mergesort)
-      combinado con el método de inserción.
+  /** Sort a list by mergesort
+      combined with the insert method.
 
-      Ordena mediante el método de mezcla (mergesort) una lista
-      dinámica (DynList o DynDlist) según criterio de comparación Compare.
+      Sort a list using the mergesort method
+      dynamic (DynList or DynDlist) according to comparison criteria Compare.
 
-      Este método tiene un desempeño determinista de \f$O(n \; \lg n)\f$
-      y un consumo de espacio de \f$O(1)\f$. Es un muy buen método
-      para listas.
+      This method has a deterministic performance of \f$O(n \; \lg n)\f$
+      and a space consumption of \f$O(1)\f$. It is a very good method
+      for lists.
 
-      @param[in,out] list la lista a ser ordenada.
+      @param[in,out] list the list to be sorted.
 
       @see mergesort(Dnode<T> & list) 
 
@@ -977,20 +976,20 @@ namespace Aleph
     merge_lists <Tlist<T>, Compare> (l, r, list, cmp); // mezclarlas 
   }
 
-  /** Ordena una lista según el método de mezcla (mergesort).
+  /** Sorts a list according to the mergesort method.
 
-      Ordena mediante el método de mezcla (mergesort) una lista
-      basada en Dnode<T>, según criterio de comparación Compare.
+      Sort a list using the mergesort method
+      based on Dnode<T>, according to comparison criteria Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño determinista de \f$O(n \; \lg n)\f$
-      y un consumo de espacio de \f$O(1)\f$. Es un muy buen método
-      para listas.
+      This method has a deterministic performance of \f$O(n \; \lg n)\f$
+      and a space consumption of \f$O(1)\f$. It is a very good method
+      for lists.
 
-      @param[in,out] list la lista a ser ordenada.
+      @param[in,out] list the list to be sorted.
 
       @see mergesort(Dlink & list) quicksort(Dnode<T>)
 
@@ -1002,20 +1001,20 @@ namespace Aleph
     mergesort <Dnode<T>, Compare_Dnode<T, Compare>> (list, cmp);
   }
 
-  /** Ordena una lista dinámica según el método de mezcla (mergesort).
+  /** Sorts a dynamic list based on the mergesort method.
 
-      Ordena mediante el método de mezcla (mergesort) una lista
-      dinámica según criterio de comparación Compare.
+      Sort a list using the mergesort method
+      dynamics according to comparison criterion Compare.
 
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
+      The method uses two type parameters:
+      -# T: the type of elements that the array has.
+      -# Compare: comparison class.
 
-      Este método tiene un desempeño determinista de \f$O(n \; \lg n)\f$
-      y un consumo de espacio de \f$O(1)\f$. Es un muy buen método
-      para listas.
+      This method has a deterministic performance of \f$O(n \; \lg n)\f$
+      and a space consumption of \f$O(1)\f$. It is a very good method
+      for lists.
 
-      @param[in,out] list la lista a ser ordenada.
+      @param[in,out] list the list to be sorted.
 
       @see quicksort(DynDlist<T> & list)
 
@@ -1101,8 +1100,8 @@ namespace Aleph
       alleviate the bad cases and invoke the insert method to
       small array partitions.
 
-      @param[in,out] to the array to sort.
-      @param[in] the lower index.
+      @param[in,out] a the array to sort.
+      @param[in] l lower index.
       @param[in] r top index.
 
       @see selection_sort() insertion_sort() mergesort() heapsort()
@@ -1147,8 +1146,8 @@ namespace Aleph
       always sorts the smallest partition first. For others,
       The same considerations as for quicksort_rec() apply.
 
-      @param[in,out] to the array to sort.
-      @param[in] the initial index by which to sort.
+      @param[in,out] a the array to sort.
+      @param[in] l initial index by which to sort.
       @param[in] r final index by which to sort.
       @see quicksort_rec() quicksort() quicksort_insertion()
       \ingroup Algos
@@ -1233,7 +1232,7 @@ namespace Aleph
 
     typedef typename std::pair<int, int> Partition; 
     FixedStack<Partition> stack(64);
-    stack.push(Partition(l, r)); // todo el arreglo como partición inicial
+    stack.push(Partition(l, r));
 
     while (stack.size() > 0)
       {
@@ -1469,10 +1468,10 @@ namespace Aleph
       of the arrangement, the search tends to be linear as
       more random searches are done.
 
-      @param[in,out] an array to search for; is partially modified
+      @param[in,out] a  array to search for; is partially modified
       after the search.
       @param[in] x element to search for.
-      @param[in] the lower index of the start of the search.
+      @param[in] l lower index of the start of the search.
       @param[in] r top index of search term.
       @return index of an array entry containing the
       value x if it is within the array;
@@ -1495,7 +1494,7 @@ namespace Aleph
     else if (cmp(a[pivot], x))
       return random_search<T, Compare>(a, x, pivot + 1, r, cmp);
 
-    return pivot; // elemento encontrado en el índice x
+    return pivot; // element found at index x
   }
 
   template <typename T, class Compare = Aleph::less<T>> inline
@@ -1512,7 +1511,7 @@ namespace Aleph
     else if (cmp(a(pivot), x))
       return random_search<T, Compare>(a, x, pivot + 1, r, cmp);
 
-    return pivot; // elemento encontrado en el índice x
+    return pivot; // element found at index x
   }
 
   /** Random search for an element in a dlink list.
@@ -1815,7 +1814,7 @@ namespace Aleph
     if (i == pivot) 
       return a(i);
 
-    if (i < pivot) // ¿está en partición izquierda?
+    if (i < pivot) // is it in left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     else
       return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
@@ -1832,7 +1831,7 @@ namespace Aleph
     if (i == pivot) 
       return a(i);
 
-    if (i < pivot) // ¿está en partición izquierda?
+    if (i < pivot) // Is it in left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     else
       return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
@@ -2040,7 +2039,7 @@ namespace Aleph
       -# T: the type of elements that the array has.
       -# Compare: comparison class.
 
-      @param[in,out] to the array to sort.
+      @param[in,out] A the array to sort.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2075,7 +2074,7 @@ namespace Aleph
       -# T: the type of elements that the array has.
       -# Compare: comparison class.
 
-      @param[in,out] to the array to sort.
+      @param[in,out] A the array to sort.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       \ingroup Algos
   */
@@ -2254,7 +2253,7 @@ namespace Aleph
       The method uses two type parameters:
       -# T: the type of elements that the array has.
       -# Compare: comparison class.
-      @param[in,out] a el arreglo a ordenar.
+      @param[in,out] a the array to be ordered.
       @see insertion_sort() quicksort_rec() mergesort() 
       @see selection_sort() faster_heapsort()
       \ingroup Algos

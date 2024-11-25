@@ -275,6 +275,7 @@ int main()
   tests<DynListQueue<int>>();
   tests<DynArray_Set<int>>();
   tests<Random_Set<int>>();
+  tests<Array<int>>();
 }
 
 

@@ -118,7 +118,7 @@ Node * select_rec(Node * r, const size_t i)
 Node * select_ne(Node * r, const size_t pos) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
-  for (size_t i = pos; i != COUNT(LLINK(r)); /* nada */)
+  for (size_t i = pos; i != COUNT(LLINK(r)); /* nothing */)
     {
       assert(i < COUNT(r) and
 	     COUNT(LLINK(r)) + COUNT(RLINK(r)) + 1 == COUNT(r));
@@ -135,7 +135,7 @@ Node * select_ne(Node * r, const size_t pos) noexcept
   return r;
 }
 
-      /** Iterative selection of a node according to inorder psoition
+      /** Iterative selection of a node according to inorder position
 
         @param[in] r root of tree
         @param[in] pos position inorder whose node wants to be located

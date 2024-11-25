@@ -51,12 +51,12 @@ public:
   ZipIterator(const HeadC & head, const TailC & ...tail)
     : ZipIterator<TailC...>(tail...), it(head) {}
 
-  bool has_curr() const
+  [[nodiscard]] bool has_curr() const
   {
     return it.has_curr() and ZipIterator<TailC...>::has_curr();
   }
 
-  bool completed() const
+  [[nodiscard]] bool completed() const
   {
     return not it.has_curr() and ZipIterator<TailC...>::completed();
   }
@@ -104,14 +104,14 @@ public:
 
   ZipIterator(const C & c) : C::Iterator(c) {}
 
-  std::tuple<T> get_curr() const
+  std::tuple<T&> get_curr() const
   {
-    return std::tuple<T>(C::Iterator::get_curr());
+    return std::tuple<T&>(C::Iterator::get_curr());
   }
 
-  std::tuple<T> get_curr_ne() const noexcept
+  std::tuple<T&> get_curr_ne() const noexcept
   {
-    return std::tuple<T>(C::Iterator::get_curr_ne());
+    return std::tuple<T&>(C::Iterator::get_curr_ne());
   }
 
   DynList<T> get_curr_list() const
@@ -121,7 +121,7 @@ public:
     return l;
   }
 
-  bool completed() const { return not this->has_curr(); }
+  [[nodiscard]] virtual bool completed() const { return not this->has_curr(); }
 };
 
 template <class ... Cs> inline
@@ -139,6 +139,7 @@ ZipIterator<Cs...> get_zip_it_pos(size_t pos, const Cs & ... cs)
   return ret;
 }
 
+// TODO: why it does not work with rvalues?
 template <class ... Cs> inline
 ZipIterator<Cs...> zip_it(const Cs & ... cs)
 {
@@ -155,7 +156,7 @@ template <class ... Cs> inline
 bool equal_length(const Cs & ... cs)
 {
   auto it = get_zip_it(cs...);
-  for (/* already initalized */; it.has_curr(); it.next_ne())
+  for (/* already initialized */; it.has_curr(); it.next_ne())
     /* empty */;
 
   return it.completed();

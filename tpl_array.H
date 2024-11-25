@@ -40,24 +40,25 @@ using namespace std;
 
 using namespace Aleph;
 
-namespace Aleph {
+namespace Aleph
+{
 
-  /** Simple array implemented with a simple dynamic array
+/** Simple array implemented with a simple dynamic array
 
-      `Array<T>` instruments a simple array of elements of generic type
-      `T`. The array is stored into an internal continuous array which
-      grows and ungrows dynamically according to the number of elements.
+    `Array<T>` instruments a simple array of elements of generic type
+    `T`. The array is stored into an internal continuous array which
+    grows and ungrows dynamically according to the number of elements.
 
-      @ingroup Secuencias
-   */
-    template <typename T>
+    @ingroup Secuencias
+ */
+template<typename T>
 class Array : public LocateFunctions<Array<T>, T>,
               public FunctionalMethods<Array<T>, T>,
               public GenericKeys<Array<T>, T>,
               public EqualToMethod<Array<T>>,
               public StlAlephIterator<Array<T>>
 {
-  MemArray<T> array;
+  MemArray <T> array;
 
 public:
 
@@ -66,18 +67,19 @@ public:
   /// Initializes a stack with a capacity of `dim`
   Array(size_t dim = 32) : array(dim) { /* empty */ }
 
-      /// Copy constructor
-  Array(const Array & s) : array(s.array) { /* empty */ }
+  /// Copy constructor
+  Array(const Array &s) : array(s.array) { /* empty */ }
 
-      /// Move constructor
-  Array(Array && s) noexcept : array(std::forward<MemArray<T>>(s.array)) { /* empty */ }
+  /// Move constructor
+  Array(Array &&s) noexcept: array(std::forward<MemArray < T>>
+  (s.array)) { /* empty */ }
 
   Special_Ctors(Array, T);
 
   Args_Ctor(Array, T);
 
-      /// Assign by copy `s` to `this`
-  Array & operator = (const Array & s)
+  /// Assign by copy `s` to `this`
+  Array &operator=(const Array &s)
   {
     if (this == &s)
       return *this;
@@ -88,13 +90,13 @@ public:
   }
 
   /// Swap `this` with `s`
-  void swap(Array & s) noexcept
+  void swap(Array &s) noexcept
   {
     array.swap(s.array);
   }
 
   /// Assign by moving `s` to `this`
-  Array & operator = (Array && s) noexcept
+  Array &operator=(Array &&s) noexcept
   {
     array.swap(s.array);
     return *this;
@@ -106,7 +108,7 @@ public:
       @return a modifiable reference to the copy of inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & append(const T & data)
+  T &append(const T &data)
   {
     return array.put(data);
   }
@@ -117,18 +119,18 @@ public:
       @return a modifiable reference to the moved inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & append(T && data)
+  T &append(T &&data)
   {
     return array.put(std::forward<T>(data));
   }
 
-  Array & append(const Array & a)
+  Array &append(const Array &a)
   {
     array.append(a.array);
     return *this;
   }
 
-  Array append(const Array & a) const
+  Array append(const Array &a) const
   {
     Array ret = *this;
     return ret.append(a);
@@ -141,7 +143,7 @@ public:
       @return a modifiable reference to the copy of inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & insert(const T & data)
+  T &insert(const T &data)
   {
     return array.push(data);
   }
@@ -153,20 +155,20 @@ public:
       @return a modifiable reference to the moved inserted `data`
       @throw bad_alloc if there is no enough memory
   */
-  T & insert(T && data)
+  T &insert(T &&data)
   {
     return array.push(std::forward<T>(data));
   }
 
-    /** Put `n` cells into the array.
+  /** Put `n` cells into the array.
 
-      `putn(more)` is functionally equivalent to perform `more` puts of
-      `T()` in constant time. The idea is to reserve enough space for
-      later use.
+    `putn(more)` is functionally equivalent to perform `more` puts of
+    `T()` in constant time. The idea is to reserve enough space for
+    later use.
 
-      @param[in] n number of cells to reserve
-      @throw bad_alloc if there is no enough memory
-  */
+    @param[in] n number of cells to reserve
+    @throw bad_alloc if there is no enough memory
+*/
   void putn(const size_t n)
   {
     array.putn(n);
@@ -180,15 +182,15 @@ public:
   void reserve(size_t cap) { array.reserve(cap); }
 
   /// Return a modifiable reference to first element of array
-  T & base() const noexcept { return *array.get_ptr(); }
+  T &base() const noexcept { return *array.get_ptr(); }
 
-    /// Empty the stack
+  /// Empty the stack
   void empty() noexcept { array.empty(); }
 
-    /// Return `true` if stack is empty
+  /// Return `true` if stack is empty
   [[nodiscard]] bool is_empty() const noexcept { return array.size() == 0; }
 
-    /// Return the number of elements stored in the stack
+  /// Return the number of elements stored in the stack
   [[nodiscard]] size_t size() const noexcept { return array.size(); }
 
   /// Return the internal capacity
@@ -196,11 +198,11 @@ public:
 
   /// return a modifiable reference to the first element. No bound_statics check
   /// is performed
-  T & get_first() const { return array.first(); }
+  T &get_first() const { return array.first(); }
 
   /// return a modifiable reference to the last element. No bound_statics check
   /// is performed
-  T & get_last() const { return array.last(); }
+  T &get_last() const { return array.last(); }
 
   T remove_last() { return array.remove_last(); }
 
@@ -208,19 +210,19 @@ public:
 
   /// Return a reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  T & operator [] (size_t i) const
+  T &operator[](size_t i) const
   {
     return array[i];
   }
 
   /// Return a reference to the ith element. It does not perform bound_statics checks
-  T & operator () (const size_t i) const noexcept
+  T &operator()(const size_t i) const noexcept
   {
     return array(i);
   }
 
-    /// Reverse the order of items in array
-  Array & reverse()
+  /// Reverse the order of items in array
+  Array &reverse()
   {
     array.reverse();
     return *this;
@@ -229,16 +231,16 @@ public:
   /// Return a copy of this with its items reversed
   Array reverse() const
   {
-    const size_t & n = array.size();
+    const size_t &n = array.size();
     Array ret(n);
     for (size_t i = 0; i < n; ++i)
       ret.append(array(n - i - 1));
     return ret;
   }
 
-  Array & rev() { return reverse(); }
+  Array &rev() { return reverse(); }
 
-  const Array rev() const { return reverse(); }
+  Array rev() const { return reverse(); }
 
   /** Traverse all the items of stack from the youngest to oldest and
       conditionally performs an operation.
@@ -247,29 +249,29 @@ public:
       returns `true`, the the traversal continues to the next item;
       otherwise the traversal stops
    */
-  template <class Operation>
-  bool traverse(Operation & operation)
+  template<class Operation>
+  bool traverse(Operation &operation)
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation & operation) const
+  template<class Operation>
+  bool traverse(Operation &operation) const
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation && operation = Operation()) const
+  template<class Operation>
+  bool traverse(Operation &&operation = Operation()) const
   {
     return array.traverse(operation);
   }
 
   /// \overload traverse(Operation & operation)
-  template <class Operation>
-  bool traverse(Operation && operation = Operation())
+  template<class Operation>
+  bool traverse(Operation &&operation = Operation())
   {
     return array.traverse(operation);
   }
@@ -287,16 +289,15 @@ public:
     using Set_Type = Array;
 
     /// Initialize an iterator on array `s`
-    explicit Iterator(const Array<T> & s) noexcept : Base(s.array) {}
+    Iterator(const Array<T> &s) noexcept: Base(s.array) {}
   };
 };
 
-    template <typename T, typename ... Args>
+template<typename T, typename ... Args>
 Array<T> build_array(Args ... args)
 {
   return build_container<Array<T>>(args...);
 }
-
 
 } // end namespace Aleph
 

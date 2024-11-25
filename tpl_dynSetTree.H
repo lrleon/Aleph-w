@@ -138,12 +138,12 @@ namespace Aleph {
     }
   };
 
-  /** Conjunto dinámico de elementos de tipo genérico T implementado
-      mediante una clase de árboles binarios.
+  /** Dynamic set of elements of generic type T implemented
+      through a class of binary trees.
 
-      DynSetTree define una tabla de elementos de tipo Key que está
-      instrumentada con la clase de árbol binario de búsqueda Tree<Key> y
-      ordenado mediante el criterio Compare()().
+      DynSetTree defines a table of elements of type Key that is
+      instrumented with the Tree<Key> binary search tree class and
+      sorted using the Compare()() criterion.
 
       @ingroup Arboles
   */
@@ -159,8 +159,8 @@ namespace Aleph {
   {
   public:
 
-    /// Tipo de nodo binario empleado por el árbol binario de búsqueda
-    /// interno.
+    /// Type of binary node used by the binary search tree
+    /// internal.
     using Node = typename Tree<Key, Compare>::Node;
 
     using Tree_Type = Tree<Key, Compare>;
@@ -181,10 +181,10 @@ namespace Aleph {
 
     typedef Key Key_Type;
 
-    /** Intercambia todos los elementos del treap this con el treap tree
-        en tiempo contante (y extremadamente rápido).
+    /** Exchange all elements of the treap this with the treap tree
+        in constant time (and extremely fast).
 
-        @param[in] tree el treap a intercambiar con this
+        @param[in] tree the treap to exchange with this
     */
     void swap(DynSetTree & dset) noexcept
     {
@@ -192,7 +192,7 @@ namespace Aleph {
       std::swap(num_nodes, dset.num_nodes);
     }
 
-    /// Instancia un conjunto dinámico
+    /// Instantiate a dynamic set
     DynSetTree(Compare cmp = Compare())
       : tree(cmp), num_nodes(0)
     {
@@ -206,7 +206,7 @@ namespace Aleph {
       // empty
     }
 
-    /// Instancia un conjunto dinámico copia de srcTree.
+    /// instantiates a dynamic copy of srctree
     DynSetTree(const DynSetTree & srcTree)
       : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
     {
@@ -230,7 +230,7 @@ namespace Aleph {
       swap(srcTree);
     }
 
-    /// Elimina todos los elementos del conjunto
+    /// remove all elements from the set
     void empty()
     {
       destroyRec(tree.getRoot());
@@ -242,7 +242,7 @@ namespace Aleph {
       return *this = DynSetTree(list);
     }
 
-    /// Asigna a this el conjunto dinámico srcTree.
+    /// assigns this to the dynamic array srctree
     DynSetTree & operator = (const DynSetTree & srcTree)
     {
       if (this == &srcTree)
@@ -265,7 +265,7 @@ namespace Aleph {
       return *this;
     }
 
-    /// Destructor; todos los elementos son liberados.
+    /// Destroyer; all elements are released.
     virtual ~DynSetTree()
     {
       empty();
@@ -285,13 +285,13 @@ namespace Aleph {
 
   public:
 
-    /** Inserta una clave en el conjunto dinámico.
+    /** Inserts a key into the dynamic set.
 
-        Inserta la clave key en el conjunto dinámico.
+        Inserts the key key into the dynamic set.
 
-        @param[in] key clave a insertar.
-        @return puntero a la clave insertada si ésta no está dentro
-        del árbol; nullptr de lo contrario.
+        @param[in] key key to insert.
+        @return pointer to the inserted key if it is not inside
+        of the tree; nullptr otherwise.
     */
     Key * insert(const Key & key)
     {
@@ -357,17 +357,17 @@ namespace Aleph {
 
   public:
 
-    /** Busca la clave <code>key</code> en el árbol binario de búsqueda o
-        lo inserta en caso de no encontrarse.
+    /** Look for the key <code>key</code> in the binary search tree or
+        inserts it if it is not found.
 
-        <code>search_or_insert(key)</code> busca en el árbol binario un
-        nodo cuya clave sea <code>KEY(p)</code>. Si la clave se
-        encuentra, entonces se retorna un puntero a ella; de lo
-        contrario se inserta <code>key</code> en el árbol binario de
-        búsqueda this.
+        <code>search_or_insert(key)</code> searches the binary tree for a
+        node whose key is <code>KEY(p)</code>. If the key is
+        finds, then a pointer to it is returned; of what
+        Otherwise <code>key</code> is inserted into the binary tree of
+        search this.
 
-        @param[in] key la clave a buscar o insertar.
-        @return puntero a la clave dentro del árbol
+        @param[in] key the key to search or insert.
+        @return pointer to the key inside the tree
     */
     Key * search_or_insert(const Key & key)
     {
@@ -380,16 +380,16 @@ namespace Aleph {
         __search_or_insert(new Node(std::forward<Key>(key)));
     }
 
-    /* Busca la clave <code>key</code> en el árbol binario de búsqueda y
-       eventualmente lo inserta en caso de no encontrarse.
+    /* Look for the key <code>key</code> in the binary search tree and
+       eventually inserts it if it is not found.
 
-       <code>contains_or_insert(key)</code> busca en el árbol la clave
-       <code>key</code>. Si la clave ya se encuentra, entonces se retorna
-       true. De lo contrario la clave es insertada y se retorna false.
+       <code>contains_or_insert(key)</code> searches the tree for the key
+       <code>key</code>. If the key is already found, then it is returned
+       true. Otherwise, the key is inserted and false is returned.
 
-       @param[in] key clave a encontrar o a insertar
+       @param[in] key key to find or insert
        @return a pair whose first field is a pointer to the found or
-       inserted key and the second field is a boolean whose value is
+       inserted key, and the second field is a boolean whose value is
        `false` if the key was inserted; `true` otherwise, that is if the
        key is already present in the tree.
     */
@@ -436,12 +436,12 @@ namespace Aleph {
       return insert(std::forward<Key>(key));
     }
 
-    /** Elimina una clave del conjunto dinámico.
+    /** Removes a key from the dynamic set.
 
-        remove(key) busca la clave key del conjunto y la elimina.
+        remove(key) finds the key key in the set and removes it.
 
-        @param[in] key clave a eliminar
-        @return número de elementos que tiene el conjunto.
+        @param[in] key key to delete
+        @return number of elements that the set has.
     */
     size_t remove(const Key & key)
     {
@@ -481,12 +481,12 @@ namespace Aleph {
       return ret_val;
     }
 
-    /** Elimina una clave del conjunto dinámico.
+    /** Removes a key from the dynamic set.
 
-        remove(key) busca la clave key del conjunto y la elimina.
+        remove(key) finds the key key in the set and removes it.
 
-        @param[in] key clave a eliminar
-        @return número de elementos que tiene el conjunto.
+        @param[in] key key to delete
+        @return number of elements that the set has.
     */
     Key remove_pos(const size_t i)
     {
@@ -500,7 +500,7 @@ namespace Aleph {
       return ret_val;
     }
 
-    /// Retorna true si key pertenece al conjunto dinámico.
+    /// Returns true if key belongs to the dynamic set.
     bool exist(const Key & key) const
     {
       return const_cast<DynSetTree&>(*this).search(key) != nullptr;
@@ -516,19 +516,19 @@ namespace Aleph {
       return exist(key);
     }
 
-    /** Retorna una referencia modificable a un elemento dentro del
-        conjunto.
+    /** Returns a modifiable reference to an element within the
+        set.
 
-        find(key) busca la clave key en el conjunto y retorna una
-        referencia modificable hacia el valor contenido en el conjunto.
+        find(key) looks for the key key in the set and returns a
+        modifiable reference to the value contained in the set.
 
-        @param[in] key clave a buscar.
-        @return referencia modificable a la clave key contenida dentro
-        del conjunto.
-        @throw domain_error si key no está dentro del conjunto.
+        @param[in] key key to search for.
+        @return modifiable reference to the key contained within
+        of the set.
+        @throw domain_error if key is not within the set.
 
-        @note Téngase sumo cuidado con  alterar el orden de búsqueda,
-        pues la referencia es modificable.
+        @note Be very careful with altering the search order,
+        since the reference is modifiable.
     */
     Key & find(const Key & key) const
     {
@@ -540,19 +540,19 @@ namespace Aleph {
       return node->get_key();
     }
 
-    /** Retorna la posición infija (ordenada) de la clave key o lo que
-        seria su posición de pertenecer al árbol.
+    /** Returns the infix (ordinate) position of the key key or whatever
+        It would be your position of belonging to the tree.
 
-        find_position(key) busca en el árbol extendido la clave key
-        (lo cual toma tiempo \f$O(\lg n)\f$) y retorna la posición
-        infija del nodo que contiene la clave.
+        find_position(key) searches the extended tree for the key key
+        (which takes time \f$O(\lg n)\f$) and returns the position
+        infix of the node containing the key.
 
-        @param[in] key clave a buscar y a determinar posición infija.
-        @return posición infija de la clave key dentro del conjunto
-        ordenado si ésta se encuentra o, de lo contrario, la posición
-        donde se encontraría de pertenecer al árbol.
+        @param[in] key key to search for and determine infix position.
+        @return infix position of the key within the set
+        ordered if it is found or, otherwise, the position
+        where it would be if it belonged to the tree.
 
-        @warning Sólo funciona si el árbol maneja rangos.
+        @warning It only works if the tree handles ranges.
     */
     std::pair<int, Key*> find_position(const Key & key) const
     {
@@ -564,19 +564,19 @@ namespace Aleph {
       return std::pair<int, Key*> (p.first, &p.second->get_key());
     }
 
-    /** Busca un elemento en el conjunto.
+    /** Find an element in the set.
 
-        search(key) busca la clave key en el conjunto. Si el
-        elemento se encuentra en el conjunto, entonces se retorna un
-        puntero al valor contenido en el conjunto; de lo contrario
-        se retrona nullptr.
+        search(key) searches for the key key in the set. If he
+        element is found in the set, then a
+        pointer to the value contained in the set; otherwise
+        nullptr is returned.
 
-        @param[in] key clave a buscar.
-        @return puntero al elemento en en el conjunto si éste se
-        encuentra en el mismo; nullptr de l contrario.
+        @param[in] key key to search for.
+        @return pointer to the element in the set if it is
+        found in it; nullptr of the opposite.
 
-        @note Téngase sumo cuidado con  alterar el orden de búsqueda,
-        pues  a través del puntero la clave es modificable.
+        @note Be very careful with altering the search order,
+        because through the pointer the key is modifiable.
     */
     Key * search(const Key & key) const
     {
@@ -588,8 +588,8 @@ namespace Aleph {
       return &(node->get_key());
     }
 
-    /// Retorna la menor clave contenida en el conjunto según el criterio
-    /// de comparación dado.
+    /// Returns the smallest key contained in the set according to the criterion
+    /// comparison given.
     const Key & min() const
     {
       if (num_nodes == 0)
@@ -601,8 +601,8 @@ namespace Aleph {
     /// \overload min
     const Key & get_first() const { return min(); }
 
-    /// Retorna la mayor clave contenida en el conjunto según el criterio
-    /// de comparación dado.
+    /// Returns the largest key contained in the set according to the criteria
+    /// comparison given.
     const Key & max() const
     {
       if (num_nodes == 0)
@@ -617,14 +617,14 @@ namespace Aleph {
     /// Sinónimo de max
     const Key & get() const { return max(); }
 
-    /// Retorna la cardinalidad del conjunto.
+    /// Returns the cardinality of the set.
     const size_t & size() const { return num_nodes; }
 
-    /// Retorna true si el conjunto está vacío.
+    /// returns true if the set is empty
     bool is_empty() const { return num_nodes == 0; }
 
-    /// Calcula y retorna la longitud del camino interno del árbol
-    /// binario de búsqueda.
+    /// Calculates and returns the length of the internal path of the tree
+    /// search binary.
     size_t internal_path_length() const
     {
       return Aleph::internal_path_length(tree.getRoot());
@@ -639,14 +639,14 @@ namespace Aleph {
       return KEY(tree.getRoot());
     }
 
-    /// Retorna un elemento cualquiera del conjunto
+    /// Returns any element of the set
     const Key & get_item() const { return get_root(); }
 
-    /// Calcula y retorna la altura del árbol binario de búsqueda.
+    /// Calculates and returns the height of the binary search tree.
     size_t height() const { return computeHeightRec(tree.getRoot()); }
 
-    /// Efectúa un recorrido prefijo sobre todas los nodos del árbol e
-    /// invoca la operación <code>visitFct</code> en cada visita
+    /// Performs a prefix traversal over all nodes in the tree and
+    /// invokes the <code>visitFct</code> operation on each visit
     template <class Op>
     void for_each_in_preorder(void (*visitFct)(Node*, int, int))
     {
@@ -654,17 +654,17 @@ namespace Aleph {
       preOrderRec(root, visitFct);
     }
 
-    /** Retorna la posición infija (ordenada) de la clave key.
+    /** Returns the infix (ordered) position of the key key.
 
-        position(key) busca en el treap extendido la clave key (lo
-        cual toma tiempo \f$O(\lg n)\f$) y retorna la posición
-        infija del nodo que contiene la clave.
+        position(key) searches the extended treap for the key key (what
+        which takes time \f$O(\lg n)\f$) and returns the position
+        infix of the node containing the key.
 
-        @param[in] key clave a buscar y a determinar posición infija.
-        @return posición infija de la clave key dentro del conjunto
-        ordenado si la clave se encuentra; -1 de lo contrario
+        @param[in] key key to search for and determine infix position.
+        @return infix position of the key within the set
+        sorted if key found; -1 otherwise
 
-        @warning Sólo funciona si el árbol maneja rangos.
+        @warning It only works if the tree handles ranges.
     */
     long position(const Key & key) const
     {
@@ -672,10 +672,10 @@ namespace Aleph {
       return p.first;
     }
 
-    /** Retorna el i-ésimo nodo en posición infija
+    /** Returns the ith node in infix position
 
-        @param[in] i posición deseada
-        @return referencia a la i-esima clave insertada en el conjunto
+        @param[in] i desired position
+        @return reference to the ith key inserted into the set
     */
     Key & select(const size_t & i)
     {
@@ -885,15 +885,15 @@ namespace Aleph {
       return join(t, dup);
     }
 
-    /** Unión de dos árboles binarios de búsqueda.
+    /** Union of two binary search trees.
 
-        join_dup(t) construye un árbol binario de búsqueda
-        correspondiente a la unión de this con t en la cual pueden haber
-        claves duplicadas.
+        join_dup(t) builds a binary search tree
+        corresponding to the union of this with t in which there may be
+        duplicate keys.
 
-        @param[in] t árbol binario de búsqueda que se quiere unir a this.
-        @note Luego de las llamadas el árbol t deviene vacíos y this deviene
-        la unión de ambos árboles;
+        @param[in] t binary search tree that you want to join to this.
+        @note After the calls the t-tree becomes empty and this becomes
+        the union of both trees;
         @return this
         @ingroup Arboles
     */
@@ -906,20 +906,20 @@ namespace Aleph {
       return *this;
     }
 
-    /** Particiona el árbol binario de búsqueda según una clave.
+    /** Partitions the binary search tree based on a key.
 
-        split_key(key,l,r) particiona, según la clave key, el
-        árbol binario de búsqueda this en dos árboles l y r. Luego de la
-        operación el árbol this deviene vacío, l contiene
-        todas las claves menores que key y r las mayores.
+        split_key(key,l,r) partitions, according to the key key, the
+        binary search tree this in two trees l and r. After the
+        operation the tree this becomes empty, l contains
+        all keys less than key and r the major ones.
 
-        @param[in] key clave de partición.
-        @param[out] l árbol con las claves menores que key.
-        @param[out] r árbol con las claves mayores que key.
-        @return true si key no está dentro del árbol binario; en cuyo
-        caso la partición fue hecha exitosamente. De lo contrario, si
-        key se encuentra dentro del árbol, el árbol no se particiona y el
-        resultado es false.
+        @param[in] key partition key.
+        @param[out] l tree with keys less than key.
+        @param[out] r tree with keys greater than key.
+        @return true if key is not inside the binary tree; in which
+        case the partition was done successfully. Otherwise, yes
+        key is located inside the tree, the tree is not partitioned and the
+        result is false.
     */
     bool split_key(const Key & key, DynSetTree & l, DynSetTree & r)
     {

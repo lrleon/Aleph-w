@@ -54,26 +54,26 @@ namespace Aleph {
 # endif
 
 
-  /** Tabla hash cerrada con resolución de colisiones por doble función
+  /** Open Addressing hash table with collision resolution by double function
       hash.
 
-      Este tipo instrumenta una tabla hash cerrada (el arreglo es
-      contiguo en memoria), que guarda las colisiones dentro de la misma
-      tabla. Cuando ocurre una colisión, se invoca una segunda función
-      hash que para sondear una cubeta disponible. Si se encuentra,
-      entonces la clave y el registro se colocan en la cubeta
-      disponible; de lo  contrario, se sondea linealmente  a partir del
-      índice dado por la segunda función hash.
+      This type implements a closed hash table (the arrangement is
+      contiguous memory), which saves collisions within the same
+      board. When a collision occurs, a second function is called
+      hash than to poll an available bucket. If found,
+      then the key and registry are placed in the bucket
+      available; otherwise, it is polled linearly from the
+      index given by the second hash function.
 
-      La tabla emplea un método que elimina sin relocalización y en
-      tiempo constante las cubetas eliminadas que están en el medio de
-      una cadena de búsqueda.
+      The table uses a method that eliminates without relocation and in
+      constant time the removed buckets that are in the middle of
+      a search string.
 
-      ODhashTable maneja dos parámetros tipo:
-      -# Key: el tipo de dato que guarda la tabla.
-      -# Record: el tipo de dato a mapear por la clave.
-      -# Cmp clase de comparación entre las claves; debe retornar
-      true si las claves son iguales.
+      OHashTable handles two type parameters:
+      -# Key: the type of data that the table saves.
+      -# Record: the type of data to be mapped by the key.
+      -# Cmp comparison class between keys; must return
+      true if the keys are the same.
 
       @ingroup Hash
   */
@@ -104,10 +104,10 @@ namespace Aleph {
 
     struct Bucket
     {
-      Key           key;                // clave
+      Key           key;
       unsigned char status     = EMPTY; // status EMPTY, DELETED o BUSY
       unsigned char probe_type = NO_PROBED; // FIRST_PROBE SECOND_PROBE LINEAR_PROBE
-      unsigned int  probe_counter = 0; // contador de sondeos
+      unsigned int  probe_counter = 0;
 
       Bucket() noexcept
       : key(), status(EMPTY), probe_type(NO_PROBED), probe_counter(0)
@@ -377,9 +377,8 @@ namespace Aleph {
 
     OHASH_COMMON(ODhashTable);
 
-
-    /// busca en la tabla la clave key. Retorna un puntero al registro
-    /// asociado a key dentro de la tabla; nullptr de lo contrario.
+    /// searches the table for the key key. Return a pointer to the record
+    /// associated with key within the table; nullptr otherwise.
     Key * search(const Key & key) const noexcept
     {
       const size_t i_fst = hash_fct(key) % len; // 1er sondeo (1ra fun hash)
@@ -406,7 +405,7 @@ namespace Aleph {
         }
 
       size_t i = i_snd; 
-      // sondeo lineal a partir de índice de 2da función hash
+      // Linear polling from index of 2nd hash function
       for (size_t count = 0; count < len; ++count)
         {
           index_forward(i);
@@ -553,11 +552,11 @@ namespace Aleph {
       return tuple<Bucket*, bool>((Bucket*)nullptr, false);
     }
 
-    /// Elimina de la tabla el registro record. record debe pertenecer a
-    /// la tabla y debe haberse determinado previamente mediante una
-    /// inserción o búsqueda. Se dispara la excepción invalid_argument si
-    /// el registro no corresponde a una cubeta de la tabla. Se dispara
-    /// domain_error si el registro en la tabla no contiene un elemento.
+    /// Delete the record record from the table. record must belong to
+    /// the table and must have been previously determined by a
+    /// insert or search. The invalid_argument exception is raised if
+    /// the record does not correspond to a bucket in the table. It shoots
+    /// domain_error if the record in the table does not contain an element.
     void remove_bucket(Bucket * bucket)
     {
       if (not is_valid_bucket(bucket))

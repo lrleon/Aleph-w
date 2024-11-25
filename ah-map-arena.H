@@ -31,7 +31,7 @@
 # include <unistd.h>
 # include <cstdlib>
 # include <cassert>
-# include <experimental/filesystem>
+# include <filesystem>
 # include <fcntl.h>
 # include <ah-errors.H>
 # include <string>
@@ -39,7 +39,7 @@
 
 # include <gtest/gtest.h>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 namespace Aleph
 {
@@ -85,7 +85,7 @@ public:
 
   /// Initialize `this` which should have been instantiated with empty
   /// constructor
-  void init(const std::string & file_path_name)
+  void init(const std::string & file_path_name, void * addr = nullptr)
   {
     end_ = 0;
     if (fs::exists(fs::path(file_path_name)))
@@ -115,7 +115,47 @@ public:
           << "cannot truncate the file to " << rgn_size << " error = " << errno;
       }
 
-    void *ptr = mmap(NULL, rgn_size, PROT_READ | PROT_WRITE,
+    void *ptr = mmap(addr, rgn_size, PROT_READ | PROT_WRITE,
+                     MAP_SHARED | MAP_POPULATE, fd, 0);
+    ah_runtime_error_unless(ptr != (void *)-1)
+        << "Cannot mmap. Error = " << errno;
+
+    rgn_ptr = (char *) ptr;
+  }
+
+  /// Initialize `this` which should have been instantiated with empty
+  /// constructor on the fixed address `addr`
+  void init(void * addr)
+  {
+    end_ = 0;
+    if (fs::exists(fs::path(file_path_name)))
+      {
+        fd = open(file_path_name.c_str(), O_RDWR, (mode_t) 0600);
+        ah_runtime_error_unless(fd >= 0) << "cannot open " << file_path_name;
+
+        // read end_ value stored in the begin of file
+        auto status = read(fd, &end_, sizeof(end_));
+        ah_runtime_error_unless(status != -1)
+            << "Cannot read file length of" << file_path_name;
+
+        // Determine file size (maybe it is preferable to compute by
+        // page size rounding according to the value of end_ instead
+        // of this lseek, or worse, a system call)
+        auto file_size = lseek(fd, 0, SEEK_END);
+        ah_runtime_error_unless(file_size != (off_t)-1)
+            << "Cannot determine file length of" << file_path_name;
+        rgn_size = file_size;
+      }
+    else
+      {
+        fd = open(file_path_name.c_str(), O_RDWR | O_CREAT, (mode_t)0600);
+        ah_runtime_error_unless(fd >= 0) << "cannot open " << file_path_name;
+        auto status = ftruncate(fd, rgn_size);
+        ah_runtime_error_unless(status == 0)
+            << "cannot truncate the file to " << rgn_size << " error = " << errno;
+      }
+
+    void *ptr = mmap(addr, rgn_size, PROT_READ | PROT_WRITE,
                      MAP_SHARED | MAP_POPULATE, fd, 0);
     ah_runtime_error_unless(ptr != (void *)-1)
         << "Cannot mmap. Error = " << errno;
