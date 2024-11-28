@@ -797,6 +797,11 @@ namespace Aleph
       return ret_val;
     }
 
+    string to_string() const
+    {
+      return get_bit_str();
+    }
+
     friend ostream &operator<<(ostream &out, const BitArray &array)
     {
       for (size_t i = 0; i < array.current_size; ++i)
@@ -849,6 +854,18 @@ namespace Aleph
       BitArray ret = op1;
       ret &= op2;
       return ret;
+    }
+
+    bool operator==(const BitArray &rhs) const
+    {
+      if (size() != rhs.size())
+        return false;
+
+      for (size_t i = 0; i < size(); ++i)
+        if (read_bit(i) != rhs.read_bit(i))
+          return false;
+
+      return true;
     }
 
    private:
@@ -958,12 +975,12 @@ namespace Aleph
 
     int count_ones() const noexcept
     {
-      return fold(0, [](int acc, int x) { return acc + x; });
+      return foldl<int>(0, [](int acc, int x) { return acc + x; });
     }
 
     int count_zeros() const noexcept
     {
-      return fold(0, [](int acc, int x) { return acc + (x == 0); });
+      return foldl<int>(0, [](int acc, int x) { return acc + (x == 0); });
     }
   };
 
