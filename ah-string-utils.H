@@ -234,6 +234,15 @@ namespace Aleph
     return n >= 0;
   }
 
+  inline bool is_float(const string & str)
+  {
+    char* endptr = 0;
+    strtof(str.data(), &endptr);
+    if(*endptr != '\0' or endptr == str.data())
+      return false;
+    return true;
+  }
+
   inline bool is_long(const string & str)
   {
     char *endptr = 0;
