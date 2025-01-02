@@ -187,16 +187,16 @@ namespace Aleph
   }
 
 
-  /** Búsqueda genérica de un elemento extremo en una lista
-      de nodos Dlink.
+  /** Generic search for an extreme element in a list
+      of Dlink nodes.
 
-      search_extreme(list) busca secuencialmente en la lista de nodos
-      list el elemento extremo, mínimo o
-      máximo según el criterio de comparación Compare.
+      search_extreme(list) searches sequentially in the list of nodes
+      list the extreme, minimum or element
+      maximum according to the comparison criterion Compare.
 
-      @param[in] list la lista sobre la cual realizar la búsqueda.
-      @return puntero al nodo contentivo del elemento extremo.
-      @note No se verifica si la lista está vacía.
+      @param[in] list the list to search on.
+      @return pointer to the node containing the extreme element.
+      @note There is no checking if the list is empty.
       \ingroup Algos
   */
   template <class Link, class Compare> inline 
@@ -1052,23 +1052,23 @@ namespace Aleph
     const int p = select_pivot <T, Compare> (a, l, r, cmp);
     std::swap(a[p], a[r]);
 
-    T pivot = a[r]; // elemento pivot
-    int i = l - 1,  // índice primer elemento a la izquierda > que pivot
-      j = r;      // índice primer elemento a la derecha < que pivot
+    T pivot = a[r]; // pivot element
+    int i = l - 1,  // index first element to the left > which pivot
+      j = r;      // index first element to the right < that pivot
     while (true)
       {
-        // avance mientras a[i] < a[pivot]
+        // advance while a[i] < a[pivot]
         while (cmp(a[++i], pivot)) { /* no hay cuerpo */ }
 
-        while (cmp(pivot, a[--j])) // avance mientras a[pivot]< a[j] 
-          if (j == l) // ¿se alcanzó el borde izquierdo?
-            break; // sí ==> hay que terminar la iteración
+        while (cmp(pivot, a[--j])) // advance while a[pivot]< a[j]
+          if (j == l) // Has the left edge been reached?
+            break; // yes ==> the iteration must be finished
 
         if (i >= j) 
           break;
 
-        // En este punto hay una inversión a[i] > a[pivot] > a[j] 
-        std::swap(a[i], a[j]); // Eliminar la inversión
+        // At this point there is an inversion a[i] > a[pivot] > a[j]
+        std::swap(a[i], a[j]); //Eliminate inversion
       }
 
     std::swap(a[i], a[r]);
@@ -1405,46 +1405,46 @@ namespace Aleph
 
     const int pivot = partition<T, Compare>(a, l, r, cmp);
 
-    const int l_size = pivot - l; // tamaño partición izquierda
-    const int r_size = r - pivot; // tamaño partición derecha
-    bool left_done  = false; // true si partición izq está ordenada
-    bool right_done = false; // true si partición der está ordenada
+    const int l_size = pivot - l; // left partition size
+    const int r_size = r - pivot; // right partition size
+    bool left_done = false; // true if left partition is sorted
+    bool right_done = false; // true if der partition is sorted
 
     if (l_size <= Aleph::Insertion_Threshold) 
-      {     // ordene partición izq por inserción
+      {     // sort left partition by insertion
         insertion_sort<T, Compare>(a, l, pivot - 1, cmp);  
         left_done = true;
       }
 
     if (r_size <= Aleph::Insertion_Threshold) 
-      {     // ordene partición der  por inserción
+      {     // sort der partition by insertion
         insertion_sort<T, Compare>(a, pivot + 1, r, cmp);
         right_done = true;
       }
 
     if (left_done and right_done) 
-      return; // ambas particiones ordenadas por inserción
+      return; //both partitions sorted by insertion
 
-    if (left_done) // ¿partición izq ordenada por inserción?
-      { // sí; sólo resta ordenar recursivamente partición der
+    if (left_done) // left partition sorted by insertion?
+      { // Yeah; It only remains to recursively sort the right partition
         quicksort_insertion<T, Compare>(a, pivot + 1, r, cmp);
         return;
       }
 
-    if (right_done) // ¿partición der ordenada por inserción?
-      { // sí; sólo resta ordenar recursivamente partición izq
+    if (right_done) // der partition sorted by insertion?
+      { // Yeah; It only remains to recursively sort the left partition
         quicksort_insertion<T, Compare>(a, l, pivot - 1, cmp);
         return;
       }
 
-    // aquí, ambas particiones no fueron ordenadas por inserción
-    if (l_size < r_size) // ordenar primero partición más pequeña 
-      {     // partición izquierda más pequeña
+    // here, both partitions were not insertion sorted
+    if (l_size < r_size) // sort smallest partition first
+      {     //smaller left partition
         quicksort_insertion <T, Compare> (a, l, pivot - 1, cmp);
         quicksort_insertion <T, Compare> (a, pivot + 1, r, cmp);
       }
     else
-      {     // partición derecha más pequeña
+      {     // smaller right partition
         quicksort_insertion <T, Compare> (a, pivot + 1, r, cmp);
         quicksort_insertion <T, Compare> (a, l, pivot - 1, cmp);
       }
@@ -1661,7 +1661,7 @@ namespace Aleph
     if (i == pivot) 
       return a[i];
 
-    if (i < pivot) // ¿está en partición izquierda?
+    if (i < pivot) // Is it in left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     else
       return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
@@ -1681,9 +1681,9 @@ namespace Aleph
     if (r - l <= 5)
       return r;
 
-    const long m = (l + r)/2; // elemento central
+    const long m = (l + r)/2; // central element
 
-    // Accede las entradas del arreglo una sola vez
+    // Access array entries only once
     T & la = a(l); 
     T & ra = a(r);
     T & ma = a(m);
@@ -2494,7 +2494,7 @@ namespace Aleph
         else if (cmp(*a(m), x))
           l = m + 1;
         else
-          return m; // clave encontrada
+          return m; // found key
       }
 
     return m;
