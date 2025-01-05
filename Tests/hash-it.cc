@@ -24,7 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <ahFunctional.H>
 # include <ahSort.H>
@@ -45,7 +45,8 @@ struct OHashTest : public ::testing::Test
   DynList<size_t> items;
   OHashTest() : items(range(size_t(0), N - 1))
   {
-    items.for_each([this] (auto i) { tbl.emplace(i, to_string(i)); });
+    items.for_each([this](auto i)
+                   { tbl.emplace(i, to_string(i)); });
   }
 };
 
@@ -55,9 +56,11 @@ struct EmptyOHashTest : public ::testing::Test
   HashTbl tbl;
 };
 
-TYPED_TEST_CASE_P(OHashTest);
+TYPED_TEST_CASE_P
+(OHashTest);
 
-TYPED_TEST_CASE_P(EmptyOHashTest);
+TYPED_TEST_CASE_P
+(EmptyOHashTest);
 
 TYPED_TEST_P(EmptyOHashTest, With_exception)
 {
@@ -82,26 +85,34 @@ TYPED_TEST_P(OHashTest, Without_exception)
   for (; it.has_curr(); it.next_ne())
     l.append(it.get_curr_ne());
   EXPECT_FALSE(it.has_curr());
-  auto ll = l.maps<size_t>([] (auto & p) { return p.first; });
+  auto ll = l.maps<size_t>([](auto &p)
+                           { return p.first; });
   EXPECT_EQ(sort(ll), this->items);
 
   l.empty();
   EXPECT_NO_THROW(it.reset_last());
   for (; it.has_curr(); it.prev_ne())
     l.append(it.get_curr_ne());
-  ll = l.maps<size_t>([] (auto & p) { return p.first; });
+  ll = l.maps<size_t>([](auto &p)
+                      { return p.first; });
   EXPECT_EQ(sort(ll), this->items);
 }
 
-REGISTER_TYPED_TEST_CASE_P(EmptyOHashTest, With_exception);
-REGISTER_TYPED_TEST_CASE_P(OHashTest, Without_exception);
+REGISTER_TYPED_TEST_CASE_P
+(EmptyOHashTest, With_exception);
+REGISTER_TYPED_TEST_CASE_P
+(OHashTest, Without_exception);
 
-typedef Types<MapODhash<size_t, string>,
-              MapOLhash<size_t, string>,
-              DynMapLinHash<size_t, string>,
-              DynMapHash<size_t, string>> HashTypes;
+using HashTypes =
+  Types<MapODhash<size_t, string>,
+    MapOLhash<size_t, string>,
+    DynMapLinHash<size_t, string>,
+    DynMapHash<size_t, string>
+    >;
 
-INSTANTIATE_TYPED_TEST_CASE_P(Empty, EmptyOHashTest, HashTypes);
-INSTANTIATE_TYPED_TEST_CASE_P(NoEmpty, OHashTest, HashTypes);
+INSTANTIATE_TYPED_TEST_CASE_P
+(Empty, EmptyOHashTest, HashTypes);
+INSTANTIATE_TYPED_TEST_CASE_P
+(NoEmpty, OHashTest, HashTypes);
 
 

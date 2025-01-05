@@ -47,8 +47,9 @@ struct CompleteGroup : public testing::Test
   static constexpr size_t N = 5;
   DynList<int> l1 = range<int>(0, N - 1);
   DynSetTree<int> l2 = range<int>(0, N - 1);
-  DynArray<string> l3 =
+  DynArray<string> strs =
     range<int>(0, N - 1).maps<string>([] (auto i) { return to_string(i); });
+  DynArray<const char * > l3 = strs.maps<const char *>([] (auto & s) { return s.c_str(); });
 };
 
 struct InCompleteGroup : public testing::Test
@@ -216,7 +217,8 @@ TEST_F(CompleteGroup, ml_operations)
 		       { return a + get<0>(t) + get<1>(t); }, l1, l2, l3);
   EXPECT_EQ(sum, N*(N- 1));
 
-  auto lfilt = zip_filter([] (auto t) { return get<1>(t) != 2; }, l1, l2, l3);
+  auto lfilt = zip_filter([] (auto t)
+    { return get<1>(t) != 2; }, l1, l2, l3);
   DynList<tuple<int, int, string>> expl =
     { make_tuple(0, 0, "0"), make_tuple(1, 1, "1"),
       make_tuple(3, 3, "3"), make_tuple(4, 4, "4") };

@@ -145,7 +145,7 @@ public:
 
   Key * append(Key && key)
   {
-    return this->insert(std::forward<Key>(key));
+    return this->insert(std::move(key));
   }
 
   bool has(const Key & key) const noexcept

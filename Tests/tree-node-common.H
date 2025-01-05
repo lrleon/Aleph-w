@@ -28,7 +28,7 @@
 # ifndef TREE_NODE_COMMON_H
 # define TREE_NODE_COMMON_H
 
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <tpl_tree_node.H>
 

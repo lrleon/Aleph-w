@@ -25,7 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <tpl_dnode.H>
 
@@ -36,15 +36,15 @@ TEST(Dnode, conversion_from_slinknc)
   {
     Dnode<int> node = 10;
     Dlink * ptr = &node;
-    EXPECT_THAT(ptr->to_dnode<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    EXPECT_EQ(ptr->to_dnode<int>(), &node);
+    EXPECT_EQ(ptr->to_data<int>(), 10);
   }
 
   {
     const Dnode<int> node = 10;
     const Dlink * ptr = &node;
-    EXPECT_THAT(ptr->to_dnode<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    EXPECT_EQ(ptr->to_dnode<int>(), &node);
+    EXPECT_EQ(ptr->to_data<int>(), 10);
   }
 }
 
@@ -71,8 +71,8 @@ struct List_of_5_nodes : public Test
 
 TEST_F(List_of_5_nodes, Basic_operations)
 {
-  EXPECT_THAT(list.get_next()->get_data(), 1);
-  EXPECT_THAT(list.get_prev()->get_data(), 5);
+  EXPECT_EQ(list.get_next()->get_data(), 1);
+  EXPECT_EQ(list.get_prev()->get_data(), 5);
 
   int i = 1;
   for (Dnode<int>::Iterator it = list; it.has_curr(); it.next(), ++i)

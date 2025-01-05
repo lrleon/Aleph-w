@@ -25,13 +25,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <iostream>
 
 # include <array_utils.H>
 # include <ah-string-utils.H>
-# include <htlist.H>
 
 using namespace std;
 using namespace testing;
@@ -117,7 +116,7 @@ TEST_F(SimpleArray, close_gap_by_copy_left)
   close_gap(a, n, 0, 1);
   for (size_t i = 0; i < n - 1; ++i)
     EXPECT_EQ(a[i], i + 1);
-  EXPECT_THAT(a[n-1], n - 1);
+  EXPECT_EQ(a[n-1], n - 1);
 }
 
 TEST_F(SimpleArray, close_gap_by_copy_right)
@@ -126,8 +125,8 @@ TEST_F(SimpleArray, close_gap_by_copy_right)
   close_gap(a, n, n - 2, 1);
   for (size_t i = 0; i < n - 2; ++i)
     EXPECT_EQ(a[i], i);
-  EXPECT_THAT(a[n - 1], n - 1);
-  EXPECT_THAT(a[n - 1], n - 1);
+  EXPECT_EQ(a[n - 1], n - 1);
+  EXPECT_EQ(a[n - 1], n - 1);
 }
 
 TEST_F(SimpleArray, n_close_gap_by_copy_left)

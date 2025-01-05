@@ -26,10 +26,9 @@
 */
 
 
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <tpl_dynListStack.H>
-# include <ahFunctional.H>
 
 using namespace std;
 using namespace testing;

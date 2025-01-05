@@ -24,7 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <gmock/gmock.h>
+# include <gtest/gtest.h>
 
 # include <tpl_dynMapOhash.H>
 # include <tpl_dynSetHash.H>
