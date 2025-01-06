@@ -155,7 +155,7 @@ TEST(HTList, Iterator_on_empty_list)
 {
   HTList l;
   HTList::Iterator it(l);
-  EXPECT_THAT(it.has_curr(), false);
+  ASSERT_EQ(it.has_curr(), false);
   EXPECT_THROW(it.get_curr(), std::overflow_error);
   EXPECT_FALSE(it.is_in_last());
   EXPECT_FALSE(it.is_in_first());

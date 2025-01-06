@@ -41,7 +41,7 @@ bool is_power_of_two(size_t x)
 struct Default_MemArray : public Test
 {
   const size_t n = 64;
-  MemArray<int> m = { n };
+  MemArray<int> m = {n};
 };
 
 struct MemArray_with_30_items : public Test
@@ -129,7 +129,7 @@ TEST_F(Default_MemArray, growing_in_2_powers)
   EXPECT_EQ(m.capacity(), n);
 
   m.append(n); // this append would cause expansion
-  EXPECT_EQ(m.capacity(), 2*n);
+  EXPECT_EQ(m.capacity(), 2 * n);
   EXPECT_EQ(m.size(), n + 1);
   EXPECT_EQ(m.get_first(), 0);
   EXPECT_EQ(m.get_last(), n);
@@ -141,7 +141,7 @@ TEST_F(Default_MemArray, growing_in_2_powers)
 
   EXPECT_THROW(m[m.size()], out_of_range);
   EXPECT_THROW(m[m.capacity()], out_of_range);
-  
+
   { // Testing operator [] in read mode
     int k = -1;
     for (size_t i = 0; i < m.size(); ++i, ++k)
@@ -166,8 +166,8 @@ TEST_F(Default_MemArray, putn)
 
   m.putn(dim + 1); // This will cause expansion
 
-  EXPECT_EQ(m.capacity(), 2*dim); // Verify expansion
-  EXPECT_FALSE(m.is_empty()); 
+  EXPECT_EQ(m.capacity(), 2 * dim); // Verify expansion
+  EXPECT_FALSE(m.is_empty());
   EXPECT_EQ(m.size(), dim + 1);
 
   for (size_t i = 0; i < m.size(); ++i)
@@ -235,12 +235,12 @@ TEST_F(Default_MemArray, access_operator)
 
   // Now we cause an expansion
   k = 0;
-  for (size_t i = m.size(); i < 2*cap1; ++i, ++k)
+  for (size_t i = m.size(); i < 2 * cap1; ++i, ++k)
     m.append(i);
 
   EXPECT_EQ(k, cap1);
-  EXPECT_EQ(m.capacity(), 2*cap1);
-  EXPECT_EQ(m.size(), 2*cap1);
+  EXPECT_EQ(m.capacity(), 2 * cap1);
+  EXPECT_EQ(m.size(), 2 * cap1);
 
   k = 0;
   for (size_t i = 0; i < m.size(); ++i, ++k)
@@ -258,8 +258,8 @@ TEST_F(Default_MemArray, reserve)
   EXPECT_NE(m.capacity(), 0);
   EXPECT_EQ(m.size(), 0);
 
-  m.reserve(2*cap + 1); // this should expand to 4*cap
-  EXPECT_EQ(m.capacity(), 4*cap);
+  m.reserve(2 * cap + 1); // this should expand to 4*cap
+  EXPECT_EQ(m.capacity(), 4 * cap);
 }
 
 TEST_F(MemArray_with_30_items, copy_and_assigment)
@@ -360,7 +360,7 @@ TEST(MemArray, insertion_with_rvalues)
       DynList<int> l;
       EXPECT_TRUE(l.is_empty());
       for (size_t k = 0; k < 10; ++k, ++N)
-	l.append(N);
+        l.append(N);
       EXPECT_FALSE(l.is_empty());
       m.insert(move(l));
       EXPECT_TRUE(l.is_empty());
@@ -369,10 +369,10 @@ TEST(MemArray, insertion_with_rvalues)
   size_t n = 0;
   for (long i = 9; i >= 0; --i) // descending for matching values of N
     {
-      const DynList<int> & l = m[i];
+      const DynList<int> &l = m[i];
       EXPECT_FALSE(l.is_empty());
       for (auto it = l.get_it(); it.has_curr(); it.next(), ++n)
-	EXPECT_EQ(it.get_curr(), n);
+        EXPECT_EQ(it.get_curr(), n);
     }
 }
 
@@ -386,7 +386,7 @@ TEST(MemArray, remove_with_rvalues)
       DynList<int> l;
       EXPECT_TRUE(l.is_empty());
       for (size_t k = 0; k < num_items; ++k, ++N)
-	l.insert(N);
+        l.insert(N);
       EXPECT_FALSE(l.is_empty());
       m.insert(move(l));
       EXPECT_TRUE(l.is_empty());
@@ -398,7 +398,7 @@ TEST(MemArray, remove_with_rvalues)
       DynList<int> l = m.remove_first();
       auto it = l.get_it();
       for (size_t k = 0; k < 10; ++k, it.next(), --n)
-	EXPECT_EQ(it.get_curr(), n);
+        EXPECT_EQ(it.get_curr(), n);
       assert(num_items - i < m.capacity()); // hard assert. Better leave it!
       EXPECT_TRUE(m(num_items - i - 1).is_empty()); // verify moving
     }
@@ -416,11 +416,11 @@ TEST_F(Default_MemArray, contraction)
   for (size_t i = 0; i < n; ++i)
     {
       EXPECT_EQ(m.remove_last(), n - i - 1);
-      if (m.size() == N/4 - 1 and m.size() > m.contract_threshold)
-	{
-	  N /= 2;
-	  EXPECT_EQ(m.capacity(), N); // valid if contraction was done!
-	}
+      if (m.size() == N / 4 - 1 and m.size() > m.contract_threshold)
+        {
+          N /= 2;
+          EXPECT_EQ(m.capacity(), N); // valid if contraction was done!
+        }
     }
 }
 
@@ -445,7 +445,7 @@ TEST(MemArray, as_stack)
     EXPECT_EQ(m.pop(), i - 1);
 
   EXPECT_TRUE(m.is_empty());
-  EXPECT_THAT(m.size(), 0);
+  ASSERT_EQ(m.size(), 0);
   EXPECT_THROW(m.top(), underflow_error);
   EXPECT_THROW(m.pop(), underflow_error);
 }
@@ -487,7 +487,11 @@ TEST(MemArray, traverse_on_empty_container)
 {
   MemArray<int> m;
   size_t n = 0;
-  auto ret = m.traverse([&n] (int) { ++n; return true; });
+  auto ret = m.traverse([&n](int)
+                        {
+                          ++n;
+                          return true;
+                        });
   EXPECT_TRUE(ret);
   EXPECT_EQ(n, 0);
 }
@@ -495,7 +499,11 @@ TEST(MemArray, traverse_on_empty_container)
 TEST_F(Default_MemArray, traverse)
 {
   int N = 0;
-  auto ret = m.traverse([&N, this] (int i) { ++N; return i == n/2; }); // m is empty
+  auto ret = m.traverse([&N, this](int i)
+                        {
+                          ++N;
+                          return i == n / 2;
+                        }); // m is empty
   EXPECT_TRUE(ret);
   EXPECT_EQ(N, 0);
 
@@ -505,11 +513,11 @@ TEST_F(Default_MemArray, traverse)
   EXPECT_EQ(N, 0);
   EXPECT_TRUE(m.size() > 0);
   EXPECT_EQ(m.size(), n);
-  ret = m.traverse([&N, this] (int i)
-		   {
-		     ++N;
-		     return i < n/2;
-		   });
+  ret = m.traverse([&N, this](int i)
+                   {
+                     ++N;
+                     return i < n / 2;
+                   });
   EXPECT_FALSE(ret);
-  EXPECT_EQ(N, n/2 + 1);
+  EXPECT_EQ(N, n / 2 + 1);
 }

@@ -43,7 +43,8 @@ struct OHashTest : public ::testing::Test
 {
   HashTbl tbl;
   DynList<size_t> items;
-  OHashTest() : items(range(size_t(0), N - 1))
+  OHashTest()
+  : tbl(N),  items(range(size_t(0), N - 1))
   {
     items.for_each([this](auto i)
                    { tbl.emplace(i, to_string(i)); });

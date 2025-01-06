@@ -84,14 +84,14 @@ struct GenericTraverse
   template <class Operation>
   bool traverse(Operation && operation) const
   {
-    return traverse<Operation>(forward<Operation>(operation));
+    return traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
   bool traverse(Operation && operation)
   {
-    return traverse<Operation>(forward<Operation>(operation));
+    return traverse<Operation>(operation);
   }
 };
 
@@ -104,12 +104,12 @@ bool traverse(const Container & c, Operation & op)
 template <class Container, class Operation>
 bool traverse(const Container & c, Operation && op = Operation())
 {
-  return traverse<Container, Operation>(c, forward<Operation>(op));
+  return traverse<Container, Operation>(c, op);
 }
 
 /** Common sequential searching methods on containers.
 
-    This class implements common sequential searching on containers.
+    This classs implements common sequential searching on containers.
 
     \note Take in account that any of these searches takes \f$O(n)\f$ of
     complexity for the worst case and that this is independent of type
@@ -482,14 +482,14 @@ public:
   template <typename ...Args>
   void emplace(Args && ... args)
   {
-    me()->append(T(forward<Args>(args...)));
+    me()->append(T(args...));
   }
 
   /// \overload emplace(Args && ... args)
   template <typename ...Args>
   void emplace_end(Args && ... args)
   {
-    me()->append(T(forward<Args>(args...)));
+    me()->append(T(args...));
   }
 
   /** Insert a new element into the container by constructing it
@@ -698,7 +698,7 @@ public:
   template <class Operation>
   void mutable_for_each(Operation && operation)
   {
-    mutable_for_each(forward<Operation>(operation));
+    mutable_for_each(operation);
   }
 
   /** Check if all the elements of container satisfy a condition.
@@ -723,7 +723,7 @@ public:
   template <class Operation>
   bool all(Operation && operation) const
   {
-    return all(forward<Operation>(operation));
+    return all(operation);
   }
 
   /** Test for existence in the container of an element satisfying a

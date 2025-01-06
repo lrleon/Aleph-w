@@ -151,21 +151,21 @@ namespace Aleph {
       }
     };
 
-    Bucket * table           = nullptr; // arreglo de cubetas
-    Hash_Fct hash_fct        = nullptr; // primera función hash
-    Hash_Fct second_hash_fct = nullptr; // segunda función hash
+    Bucket * table           = nullptr; //bucket arrangement
+    Hash_Fct hash_fct = nullptr; // first hash function
+    Hash_Fct second_hash_fct = nullptr; // second hash function
 
     Cmp cmp;
 
   protected:
 
-    size_t len;                       // tamaño de la tabla
+    size_t len;                       // table size
     float  lower_alpha;
     float  upper_alpha;
 
   private:
 
-    size_t   N;                       // número de cubetas ocupadas
+    size_t   N;                       // number of buckets occupied
     bool     with_resize;
 
     Bucket * allocate_bucket(Bucket & bucket, unsigned char probe_type) noexcept

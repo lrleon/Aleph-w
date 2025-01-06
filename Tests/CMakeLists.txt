@@ -92,3 +92,14 @@ target_link_libraries(hash-it PRIVATE Aleph
         GTest::gtest_main GTest::gtest
 gsl)
 
+add_executable(htlist htlist.cc)
+target_link_libraries(htlist PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(memarray memarray.cc)
+target_link_libraries(memarray PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+

@@ -155,7 +155,7 @@ TEST_F(List_of_10_items, copy_and_assignment)
     auto it1 = list10.get_it();
     auto it2 = tmp.get_it();
     for (; it1.has_curr() and it2.has_curr(); it1.next(), it2.next())
-      EXPECT_THAT(it1.get_curr(), it2.get_curr());
+      ASSERT_EQ(it1.get_curr(), it2.get_curr());
 
     EXPECT_FALSE(it1.has_curr());
     EXPECT_FALSE(it2.has_curr());
@@ -171,7 +171,7 @@ TEST_F(List_of_10_items, copy_and_assignment)
     EXPECT_EQ(tmp.size(), 10);
     int i = 1;
     for (auto it = tmp.get_it(); it.has_curr(); it.next(), ++i)
-      EXPECT_THAT(it.get_curr(), i);
+      ASSERT_EQ(it.get_curr(), i);
     EXPECT_EQ(i, 11);
     list10.swap(tmp);
   }
@@ -182,7 +182,7 @@ TEST_F(List_of_10_items, copy_and_assignment)
   EXPECT_EQ(aux.size(), 10);
   int i = 1;
   for (auto it = aux.get_it(); it.has_curr(); it.next(), ++i)
-    EXPECT_THAT(it.get_curr(), i);
+    ASSERT_EQ(it.get_curr(), i);
   EXPECT_EQ(i, 11);
 
   aux.empty();
@@ -194,7 +194,7 @@ TEST_F(List_of_10_items, copy_and_assignment)
 
   i = 1;
   for (auto it = aux.get_it(); it.has_curr(); it.next(), ++i)
-    EXPECT_THAT(it.get_curr(), i);
+    ASSERT_EQ(it.get_curr(), i);
   EXPECT_EQ(i, 11);
 
   list10 = move(aux);
@@ -203,7 +203,7 @@ TEST_F(List_of_10_items, copy_and_assignment)
   EXPECT_EQ(list10.size(), 10);
   i = 1;
   for (auto it = list10.get_it(); it.has_curr(); it.next(), ++i)
-    EXPECT_THAT(it.get_curr(), i);
+    ASSERT_EQ(it.get_curr(), i);
   EXPECT_EQ(i, 11);
 }
 

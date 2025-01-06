@@ -89,6 +89,26 @@ namespace Aleph
     [[unlikely]]Aleph::ExceptionBuilder<std::logic_error>(),                        \
       std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
 
+# define ah_underflow_error_if(C)                                        \
+  if (C)                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_underflow_error_unless(C)                                        \
+  if (not (C))                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::underflow_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+# define ah_overflow_error_if(C)                                        \
+  if (C)                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
+#define ah_overflow_error_unless(C)                                        \
+  if (not (C))                                        \
+    [[unlikely]]Aleph::ExceptionBuilder<std::overflow_error>(),                       \
+      std::stringstream() << "(" << __FILE__ << ":" << __LINE__ << ") | "
+
 #define ah_domain_error_if(C)                                           \
   if (C)                                        \
     [[unlikely]]Aleph::ExceptionBuilder<std::domain_error>(),                       \

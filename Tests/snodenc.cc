@@ -57,21 +57,21 @@ TEST(Snodenc, conversion_from_slinknc)
   {
     Snodenc<int> node = 10;
     Slinknc * ptr = &node;
-    EXPECT_THAT(ptr->to_snodenc<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    ASSERT_EQ(ptr->to_snodenc<int>(), &node);
+    ASSERT_EQ(ptr->to_data<int>(), 10);
   }
 
   {
     const Snodenc<int> node = 10;
     const Slinknc * ptr = &node;
-    EXPECT_THAT(ptr->to_snodenc<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    ASSERT_EQ(ptr->to_snodenc<int>(), &node);
+    ASSERT_EQ(ptr->to_data<int>(), 10);
   }
 }
 
 TEST_F(List_of_5_nodes, Basic_operations)
 {
-  EXPECT_THAT(list.get_next()->get_data(), 1);
+  ASSERT_EQ(list.get_next()->get_data(), 1);
 
   int i = 1;
   for (Snodenc<int>::Iterator it = list; it.has_curr(); it.next())
