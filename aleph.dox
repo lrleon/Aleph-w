@@ -2187,7 +2187,7 @@ INCLUDED_BY_GRAPH      = YES
 CALL_GRAPH             = YES
 
 # If the CALLER_GRAPH tag is set to YES then doxygen will generate a caller
-# dependency graph for every global function or class method.
+# dependency graph for every global_id function or class method.
 #
 # Note that enabling this option will significantly increase the time of a run.
 # So in most cases it will be better to enable caller graphs for selected
