@@ -27,10 +27,14 @@
 # ifndef AHSORT_H
 # define AHSORT_H
 
+# include <algorithm>
+# include <ranges>
+
 # include <ahFunctional.H>
 # include <tpl_sort_utils.H>
 # include <tpl_dynDlist.H>
 # include <htlist.H>
+# include <ah-zip.H>
 
 # define List_Sort(List)            \
   template <typename T, class Cmp = Aleph::less<T>> inline    \
@@ -80,7 +84,7 @@ namespace Aleph
 
   List_Sort(DynDlist);
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   DynArray<T> sort(const DynArray<T> &a, Cmp &&cmp = Cmp())
   {
@@ -89,7 +93,7 @@ namespace Aleph
     return ret_val;
   }
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   DynArray<T> sort(DynArray<T> &&a, Cmp &&cmp = Cmp())
   {
@@ -97,7 +101,7 @@ namespace Aleph
     return std::move(a);
   }
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   Array<T> sort(const Array<T> &a, Cmp &&cmp = Cmp()) noexcept
   {
@@ -106,7 +110,7 @@ namespace Aleph
     return ret_val;
   }
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   Array<T> sort(Array<T> &&a, Cmp cmp = Cmp())
   {
@@ -114,7 +118,7 @@ namespace Aleph
     return std::move(a);
   }
 
-  template<typename Container,
+  template <typename Container,
     class Cmp = std::less<typename Container::value_type>>
   inline
   Container stdsort(const Container &c, Cmp cmp = Cmp())
@@ -124,7 +128,7 @@ namespace Aleph
     return ret;
   }
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   DynArray<T> &in_place_sort(DynArray<T> &c, Cmp cmp = Cmp()) noexcept
   {
@@ -132,7 +136,7 @@ namespace Aleph
     return c;
   }
 
-  template<typename T, class Cmp = Aleph::less<T>>
+  template <typename T, class Cmp = Aleph::less<T>>
   inline
   Array<T> &in_place_sort(Array<T> &c, Cmp cmp = Cmp()) noexcept
   {
@@ -140,14 +144,14 @@ namespace Aleph
     return c;
   }
 
-  template<typename T, template<typename> class C>
+  template <typename T, template <typename> class C>
   class Compute_Ranks
   {
     using P = std::pair<T, size_t>;
 
     C<size_t> indexes;
 
-  public:
+   public:
 
     C<size_t> compute_ranks(const C<T> &c)
     {
@@ -155,7 +159,8 @@ namespace Aleph
       indexes.reserve(n);
       for (size_t i = 0; i < n; ++i)
         indexes(i) = i;
-      quicksort_op(indexes, [&c](auto i1, auto i2) { return c(i1) < c(i2); });
+      quicksort_op(indexes, [&c](auto i1, auto i2)
+      { return c(i1) < c(i2); });
       C<size_t> ret;
       ret.reserve(n);
       for (size_t i = 0; i < n; ++i)
@@ -163,7 +168,7 @@ namespace Aleph
       return ret;
     }
 
-    template<template<typename Type> class List>
+    template <template <typename Type> class List>
     C<size_t> list_compute_ranks(const List<T> &c)
     {
       C<T> items;
@@ -190,7 +195,8 @@ namespace Aleph
       indexes.reserve(n);
       for (size_t i = 0; i < n; ++i)
         indexes(i) = i;
-      quicksort_op(indexes, [&c](auto i1, auto i2) { return c(i1) < c(i2); });
+      quicksort_op(indexes, [&c](auto i1, auto i2)
+      { return c(i1) < c(i2); });
       C<P> ret;
       ret.reserve(n);
       for (size_t i = 0; i < n; ++i)
@@ -201,7 +207,7 @@ namespace Aleph
       return ret;
     }
 
-    template<template<typename Type> class List>
+    template <template <typename Type> class List>
     C<P> list_pair_ranks(const List<T> &c)
     {
       C<T> items; // array copy of c for direct access
@@ -226,54 +232,90 @@ namespace Aleph
     }
   };
 
-  template<typename T>
+  template <typename T>
   Array<size_t> ranks(const Array<T> &array)
   {
     return Compute_Ranks<T, Array>().compute_ranks(array);
   }
 
-  template<typename T>
+  template <typename T>
   DynArray<size_t> ranks(const DynArray<T> &array)
   {
     return Compute_Ranks<T, DynArray>().compute_ranks(array);
   }
 
-  template<typename T>
+  template <typename T>
   DynArray<size_t> ranks(const DynList<T> &l)
   {
     return Compute_Ranks<T, DynArray>().list_compute_ranks(l);
   }
 
-  template<typename T>
+  template <typename T>
   DynArray<size_t> ranks(const DynDlist<T> &l)
   {
     return Compute_Ranks<T, DynArray>().list_compute_ranks(l);
   }
 
-  template<typename T>
+  template <typename T>
   auto pair_ranks(const Array<T> &c)
   {
     return Compute_Ranks<T, Array>().compute_pair_ranks(c);
   }
 
-  template<typename T>
+  template <typename T>
   auto pair_ranks(const DynArray<T> &c)
   {
     return Compute_Ranks<T, DynArray>().compute_pair_ranks(c);
   }
 
-  template<typename T>
+  template <typename T>
   auto pair_ranks(const DynList<T> &l)
   {
     Compute_Ranks<T, DynArray> func;
     return func.list_pair_ranks(l);
   }
 
-  template<typename T>
+  template <typename T>
   auto pair_ranks(const DynDlist<T> &l)
   {
     Compute_Ranks<T, DynArray> func;
     return func.list_pair_ranks(l);
+  }
+
+  template <typename Cmp, typename C, typename ... Args>
+  inline
+  void in_place_multisort(C & first, Args & ... args)
+  {
+    // get the type of the sequence
+    using T = decltype(first[0]);
+    using P = std::pair<T, int>;
+
+    // create a sequence of pairs' value/index
+    vector<P> p;
+    int i = 0;
+
+    cout << "first[0]: " << first[0] << endl;
+    for (const auto & val : first)
+      p.emplace_back(T(val), i++);
+//    const size_t n = p.size();
+//
+    ranges::sort(p, [](auto &p1, auto &p2)
+    {
+      return Cmp()(p1.first, p2.first);
+    });
+
+    // now, pairs second element is the index of the original sequence from
+    // where the value will be taken to be sorted
+
+
+//    for (i = 0; i < n; ++i)
+//      {
+//        first[i] = pairs[i].first;
+//        (void)std::initializer_list<int>
+//          {
+//            (args[i] = pairs[i].first, 0)...
+//          };
+//      }
   }
 
 } // end namespace Aleph

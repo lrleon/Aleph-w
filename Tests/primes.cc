@@ -33,7 +33,7 @@ using namespace Primes;
 
 TEST(Prime, test_prime)
 {
-  ASSERT_TRUE(is_prime(1));
+  ASSERT_FALSE(is_prime(1));
   ASSERT_TRUE(is_prime(2));
   ASSERT_TRUE(is_prime(3));
   ASSERT_TRUE(is_prime(5));

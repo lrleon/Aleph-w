@@ -102,4 +102,40 @@ target_link_libraries(memarray PRIVATE Aleph
         GTest::gtest_main GTest::gtest
 gsl)
 
+add_executable(odhash odhash.cc)
+target_link_libraries(odhash PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(primes primes.cc)
+target_link_libraries(primes PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(slinknc slinknc.cc)
+target_link_libraries(slinknc PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(snodenc snodenc.cc)
+target_link_libraries(snodenc PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(tree-node tree-node.cc)
+target_link_libraries(tree-node PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(tree-it tree-it.cc)
+target_link_libraries(tree-it PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+add_executable(sort_arrays sort_arrays.cc)
+target_link_libraries(sort_arrays PRIVATE Aleph
+        GTest::gtest_main GTest::gtest
+gsl)
+
+
 
