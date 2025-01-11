@@ -60,20 +60,11 @@ namespace Aleph
 
   // fast concatenation of several strings
   template <class ... Args>
-  inline string concat(string str, const Args & ... args)
+  inline string concat(const Args & ... args)
   {
-    size_t sz = str.size();
-    auto add_size = [&sz](const string_view & s)
-    { sz += s.size(); };
-    (add_size(args), ...); // put in sz the final size of the string
-
-    str.reserve(sz); // thus, we avoid additional reallocations
-
-    auto add = [&str](const string_view & s)
-    { str += s; };
-    (add(args), ...);
-
-    return str;
+    ostringstream s;
+    (s << ... << args);
+    return s.str();
   }
 
   // trim from both ends (in place)

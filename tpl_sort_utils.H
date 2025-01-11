@@ -1376,7 +1376,7 @@ namespace Aleph
       smaller.
 
       When the partition reaches a size less than or equal to the
-      global_id constant Aleph::Insertion_Threshold, then
+      sim_id constant Aleph::Insertion_Threshold, then
       The partition is sorted by the insert method, which
       It is faster than quicksort for small sizes.
 

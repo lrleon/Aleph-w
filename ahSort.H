@@ -297,8 +297,8 @@ namespace Aleph
     cout << "first[0]: " << first[0] << endl;
     for (const auto & val : first)
       p.emplace_back(T(val), i++);
-//    const size_t n = p.size();
-//
+    const size_t n = p.size();
+
     ranges::sort(p, [](auto &p1, auto &p2)
     {
       return Cmp()(p1.first, p2.first);
@@ -307,15 +307,21 @@ namespace Aleph
     // now, pairs second element is the index of the original sequence from
     // where the value will be taken to be sorted
 
+    for (i = 0; i < n; ++i)
+      {
+        first[i] = p[i].first;
 
-//    for (i = 0; i < n; ++i)
-//      {
-//        first[i] = pairs[i].first;
-//        (void)std::initializer_list<int>
-//          {
-//            (args[i] = pairs[i].first, 0)...
-//          };
-//      }
+        // now, we have to sort the other sequences. This implies that we have
+        // the parameter pack of sequences. We can use the fold expression to
+        // do this.
+
+
+        // (void) std::initializer_list<int>
+        //   {
+        //     std::swap(args[i], p[i].second)...
+        //     //(args[i] = p[i].first, 0)...
+        //   };
+      }
   }
 
 } // end namespace Aleph
