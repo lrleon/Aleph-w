@@ -63,6 +63,7 @@ class Array : public LocateFunctions<Array<T>, T>,
 public:
 
   using Item_Type = T; /// The type of element
+  using Key_Type = T;  /// The type of key
 
   /// Initializes a stack with a capacity of `dim`
   Array(size_t dim = 32) : array(dim) { /* empty */ }
@@ -298,6 +299,17 @@ Array<T> build_array(Args ... args)
 {
   return build_container<Array<T>>(args...);
 }
+
+template <class Container>
+inline std::vector<typename Container::Item_Type>
+to_vector(const Container & c)
+{
+  vector<typename Container::Item_Type> ret(c.size());
+  for (size_t i = 0; i < c.size(); ++i)
+    ret[i] = c(i);
+  return ret;
+}
+
 
 } // end namespace Aleph
 
