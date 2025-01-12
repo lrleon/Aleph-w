@@ -284,6 +284,27 @@ auto pair_ranks(const DynDlist <T> &l)
   return func.list_pair_ranks(l);
 }
 
+/**
+ * Sorts multiple arrays in place, using the first array as the key.
+ *
+ * This uses the stable sort algorithm, and is suitable for sorting multiple
+ * arrays that are to be kept in sync.
+ *
+ * @param cmp a comparison functor that takes elements of the first array as
+ *            arguments, and returns true if the first element should be sorted
+ *            before the second element.
+ * @param first the first array to be sorted
+ * @param args additional arrays to be sorted
+ *
+ * The sorting is done in a stable manner, so that the relative order of equal
+ * elements is preserved.
+ *
+ * @warning The algorithm assumes that the size of all the arrays given as
+ *          arguments is the same.
+ *
+ * @note This algorithm has a time complexity of O(n log n), where n is the size
+ *       of the arrays.
+ */
 template<typename C, typename... Args,
   typename Cmp = std::less <typename C::value_type>>
 inline
