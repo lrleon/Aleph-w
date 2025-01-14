@@ -178,7 +178,11 @@ namespace Aleph
       return true;
     }
 
-    // if dim == 2^k returns dim; else next two power 2^k > dim
+    /// Initialize the dimension of the array to `d` or to the next two power if `d` is not a two power.
+    ///
+    /// If `d` is 0 then `d` is set to `Min_Dim`.
+    ///
+    /// @param[in] d the proposed dimension of array
     void init_dim(size_t d) noexcept
     {
       if (d == 0)

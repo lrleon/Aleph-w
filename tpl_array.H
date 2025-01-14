@@ -180,7 +180,13 @@ public:
       @param[in] cap new dimension
       @throw bad_alloc if there is no enough memory
    */
-  void reserve(size_t cap) { array.reserve(cap); }
+  void reserve(size_t cap)
+  {
+    if (not is_power_of_2(cap))
+      cap = next_power_of_2(cap);
+
+    array.reserve(cap);
+  }
 
   /// Return a modifiable reference to first element of array
   T &base() const noexcept { return *array.get_ptr(); }
