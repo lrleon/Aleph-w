@@ -308,7 +308,7 @@ Array<T> build_array(Args ... args)
 
 template <class Container>
 inline std::vector<typename Container::Item_Type>
-to_vector(const Container & c)
+to_stdvector(const Container & c)
 {
   vector<typename Container::Item_Type> ret(c.size());
   for (size_t i = 0; i < c.size(); ++i)
