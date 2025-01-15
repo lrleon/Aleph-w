@@ -182,9 +182,6 @@ public:
    */
   void reserve(size_t cap)
   {
-    if (not is_power_of_2(cap))
-      cap = next_power_of_2(cap);
-
     array.reserve(cap);
   }
 

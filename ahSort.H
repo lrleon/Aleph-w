@@ -315,7 +315,7 @@ void in_place_multisort_arrays(Cmp cmp, C &first, Args &... args)
     indices.emplace_back(i);
   const size_t n = indices.size();
 
-  ranges::sort(indices, [&first, &cmp](int i1, int i2)
+  sort(indices.begin(), indices.end(), [&first, &cmp](int i1, int i2)
   {
     return cmp(first[i1], first[i2]);
   });

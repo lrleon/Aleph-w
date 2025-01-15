@@ -255,7 +255,7 @@ namespace Aleph
         ptr[i] = a.ptr[i];
     }
 
-    /// Construct a array moved of rvalue `a`
+    /// Construct an array moved of rvalue `a`
     MemArray(MemArray &&a) noexcept
       : ptr(nullptr), dim(0), n(0), contract_threshold(0)
     {
@@ -271,8 +271,8 @@ namespace Aleph
 
       assert(a.ptr);
 
-      T *newptr = new T[a.dim];    // allocate new array
-      for (int i = 0; i < a.n; ++i)  // copy items to new array
+      T *newptr = new T[a.dim];    // allocate a new array
+      for (int i = 0; i < a.n; ++i)  // copy items to a new array
         newptr[i] = a.ptr[i];
 
       if (ptr != nullptr)
@@ -465,15 +465,6 @@ namespace Aleph
       return *this;
     }
 
-    /*
-      MemArray & insert(const MemArray & a)
-      {
-      const size_t old_n = n;
-      const size_t & num_entries = a.size();
-      Aleph::open_gap(ptr, n);
-      }
-    */
-
     /** Reserves `cap` cells into the array.
 
         @param[in] cap new dimension
@@ -500,10 +491,10 @@ namespace Aleph
 
     /// Remove `i` elements from the end. Return the value of the last
     /// removed element
-    T get(size_t i = 1)
+    T get(const size_t i = 1)
     {
       assert(ptr);
-      long idx = n - i;
+      const long idx = n - i;
       ah_underflow_error_if(idx < 0)
           << "MemArray::get(): deleted more entries than capacity";
 
@@ -518,7 +509,7 @@ namespace Aleph
     T get_ne(size_t i = 1) noexcept
     {
       assert(ptr);
-      long idx = n - i;
+      const long idx = n - i;
       n = idx;
       T ret = std::move(ptr[n]);
 
