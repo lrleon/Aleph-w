@@ -142,9 +142,21 @@ namespace Aleph
       return *this;
     }
 
+    // int count_ones() const noexcept
+    // {
+    //   return popcount(*((unsigned char *) this));
+    // }
+
     int count_ones() const noexcept
     {
-      return popcount(*((unsigned char *) this));
+      int count = 0;
+      unsigned char byte = *((unsigned char *) this);
+      while (byte)
+        {
+          count += byte & 1;
+          byte >>= 1;
+        }
+      return count;
     }
 
     int count_zeros() const noexcept
