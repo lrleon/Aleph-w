@@ -34,27 +34,27 @@ using namespace Aleph;
 
 namespace Aleph {
 
-   /** Mapeo dinámico clave-rango instrumentado mediante una tabla hash con
-       resolución de colisiones por encadenamiento separado.
+   /** Key dynamic mapping implemented through a hash table with
+       Collisions resolution for separate chain.
 
-       El tipo DynLhashTable<Key,Record> instrumenta un mapeo mediante
-       una tabla hash con resolución de colisiones por encadenamiento
-       separado. El tipo exporta observadores para conocer el radio de
-       uso y, eventualmente, reajustar el tamaño de la tabla, de modo
-       que ésta exhiba un mejor desempeño.
+       The Dynlhashable <key type, record> implements a mapping through
+       A hash table with collision resolution by chain
+       separate. The export type observers to know the radius of
+       Use and, eventually, readjust the size of the table, so
+       that it exhibits better performance.
 
-       Pueden usarse de manera segura punteros a registros dentro de la
-       tabla.
+       They can be used safely to records within the
+       board.
 
-       Aparte los métodos tradicionales de inserción y búsqueda, el
-       operador [] funge a la vez como consulta e inserción. La
-       asignación tabla[key]=record se corresponde con una inserción;
-       mientras que cualquier expresión del tipo table[key] que
-       involucre lectura se corresponde con una búsqueda.
+       Apart from the traditional methods of insertion and search, the
+       Operator [] FUNGES AT THE TIME AS A CONSULTATION AND INSERTION. The
+       Table assignment [key] = record corresponds to an insertion;
+       While any expression of the Table Type [Key] that
+       Involve reading corresponds to a search.
 
-       @param Key el tipo de clave de indización
-       @param Record el tipo de rango asociado a las claves.
-       @param Cmp clase de comparación entre las claves.
+       @Param Key the type of indexing key
+       @Param Record the type of range associated with the keys.
+       @param CMP Comparison class between the keys.
 
        @ingroup Hash
     */
@@ -145,7 +145,7 @@ private:
 
 public:
 
-    /// El tipo de función hash.
+    /// The type of hash function.
   using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
 
   void swap(DynLhashTable & table)
@@ -153,9 +153,9 @@ public:
     this->LhashTable<Key>::swap(table);
   }
 
-    /// Instancia un mapeo hash dinámico con función hash hash_fct y
-    /// tabla de longitud len. Dispara excepción bad_alloc si no hay
-    /// memoria para apartar la tabla interna.
+    /// Instance a dynamic hash mapping with hash hash_fct and
+    /// Len length table. Exception Bad_alloc shoots if there is no
+    /// Memory to separate the internal table.
   DynLhashTable(size_t len           = DefaultPrime,
                 Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
     : LhashTable<Key>(len, hash_fct)
@@ -215,9 +215,9 @@ private:
 
 public:
 
-    /// Inserta en el mapeo hash el par (key,record) indizado por la clave
-    /// key. Retorna un puntero al registro dentro de la tabla. Dispara la
-    /// excepción bad_alloc si no hay suficiente memoria.
+    /// Insert in the hash the pair (Key, Record) indisted by the key
+    /// Key. Returns a pointer to the registration within the table. Try the
+    /// Exception Bad_alloc if there is not enough memory.
   Record * insert(const Key & key, const Record & record)
   {
     return __insert(new DLBucket (key, record));
@@ -239,17 +239,17 @@ public:
                                  std::forward<Record>(record)));
   }
 
-    /// Busca la clave key y, si se encuentra, entonces retorna un puntero
-    /// dentro de la tabla al registro asociado. De lo contrario -no se
-    /// encuentra la clave-, se retorna nullptr:
+    /// Look for the key key and, if you are, then a pointer returns
+    /// Within the table to the associated record. Otherwise -I don't know
+    /// Find the key-, Nullptr is returned:
   Record * search(const Key & key)
   {
     DLBucket * bucket = (DLBucket*) LhashTable<Key>::search(key);
     return bucket != nullptr ? &bucket->record : nullptr;
   }
 
-    /// Elimina de la tabla el registro record (que debe haber sido
-    /// obtenido mediante la inserción o búsqueda.
+    /// Eliminate the record record from the table (which must have been
+    /// obtained by insertion or search.Dyb
   void remove(Record * record)
   {
     DLBucket* bucket = record_to_bucket(record);
