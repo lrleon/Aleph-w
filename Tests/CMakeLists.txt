@@ -1,141 +1,121 @@
-# This file handles building each task as sub-project.
-#
-# Each task becomes an independent project in which you can experiment.
-#
-# Tasks are added as separate sub-projects so as compilation errors in
-# one task don't affect another task.
-
 cmake_minimum_required(VERSION 3.18)
-project(Aleph-w)
 
+project(Aleph-Tests CXX)
+
+# Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-link_directories(..)
-include_directories(..)
+# Compiler flags
+set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"")
 
+# Debug flags with sanitizers (optional)
+option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+if(USE_SANITIZERS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
+
+# Include parent directory for Aleph headers
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+# Find Google Test
 find_package(GTest REQUIRED)
 
-link_directories(..)
+# Note: You may need to set GOOGLETEST environment variable or specify the path
+# export GOOGLETEST=/path/to/googletest
+# or set it in CMake: cmake -DGOOGLETEST=/path/to/googletest ..
 
-add_executable(array_utils array_utils.cc)
-target_link_libraries(array_utils Aleph GTest::GTest GTest::Main)
+if(DEFINED ENV{GOOGLETEST})
+    include_directories($ENV{GOOGLETEST}/googletest/include)
+    include_directories($ENV{GOOGLETEST}/googlemock/include)
+endif()
 
-add_executable(array-it array-it.cc)
+# Find required libraries
+find_package(Threads REQUIRED)
+find_package(X11 REQUIRED)
 
-add_executable(ah-arena ah-arena.cc)
-add_executable(ah-dry ah-dry.cc)
-add_executable(ah-functional ah-functional.cc)
-add_executable(ah-string-utils ah-string-utils.cc)
-target_link_libraries(ah-string-utils PRIVATE GTest::gtest_main GTest::gtest)
+# System libraries (matching Imakefile)
+set(SYSLIBS
+    gmpxx
+    gmp
+    pthread
+    asprintf
+    mpfr
+    gsl
+    gslcblas
+    m
+    ${X11_LIBRARIES}
+)
 
-#add_executable(ah-zip ah-zip.cc)
+# List of all test programs from Imakefile
+set(TEST_PROGRAMS
+    array_utils
+    array-it
+    memarray
+    slinknc
+    snodenc
+    htlist
+    dynlist
+    dlink
+    dnode
+    dyndlist
+    arraystack
+    fixedstack
+    dynliststack
+    arrayqueue
+    dynlistqueue
+    bin-node
+    tree-node
+    odhash
+    dynsetohash
+    hash-it
+    ah-zip
+    ah-functional
+    ah-dry
+    tree-it
+    al-domain
+    al-vector
+    al-matrix
+    ah-arena
+    ah-string-utils
+    sort_arrays
+    primes
+    generate_tree
+    fixedqueue
+)
 
-add_executable(al-domain al-domain.cc)
-target_link_libraries(al-domain PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
+# Create executable for each test program
+foreach(test_program ${TEST_PROGRAMS})
+    # Check if source file exists
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
+        add_executable(${test_program} ${test_program}.cc)
 
-add_executable(al-matrix al-matrix.cc)
-target_link_libraries(al-matrix PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
+        # Link with Aleph library and system libraries
+        target_link_libraries(${test_program} PRIVATE
+            Aleph
+            GTest::gtest_main
+            GTest::gtest
+            ${SYSLIBS}
+        )
 
-add_executable(arrayqueue arrayqueue.cc)
+        # Add test to CTest
+        add_test(NAME ${test_program} COMMAND ${test_program})
 
-add_executable(bin-node bin-node.cc)
-target_link_libraries(bin-node PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
+        # Optional: Install test executable
+        # install(TARGETS ${test_program} DESTINATION bin/tests)
+    else()
+        message(WARNING "Source file not found for test: ${test_program}.cc")
+    endif()
+endforeach()
 
-add_executable(dlink dlink.cc)
-target_link_libraries(dlink PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
+# Enable CTest
+enable_testing()
 
-add_executable(dnode dnode.cc)
-target_link_libraries(dnode PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(dynlist dynlist.cc)
-target_link_libraries(dynlist PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(dynliststack dynliststack.cc)
-target_link_libraries(dynliststack PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(dynlistqueue dynlistqueue.cc)
-target_link_libraries(dynlistqueue PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(fixedqueue fixedqueue.cc)
-target_link_libraries(fixedqueue PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(fixedstack fixedstack.cc)
-target_link_libraries(fixedstack PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(generate_tree generate_tree.cc)
-target_link_libraries(generate_tree PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(hash-it hash-it.cc)
-target_link_libraries(hash-it PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(htlist htlist.cc)
-target_link_libraries(htlist PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(memarray memarray.cc)
-target_link_libraries(memarray PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(odhash odhash.cc)
-target_link_libraries(odhash PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(primes primes.cc)
-target_link_libraries(primes PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(slinknc slinknc.cc)
-target_link_libraries(slinknc PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(snodenc snodenc.cc)
-target_link_libraries(snodenc PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(tree-node tree-node.cc)
-target_link_libraries(tree-node PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(tree-it tree-it.cc)
-target_link_libraries(tree-it PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-add_executable(sort_arrays sort_arrays.cc)
-target_link_libraries(sort_arrays PRIVATE Aleph
-        GTest::gtest_main GTest::gtest
-gsl)
-
-
-
+message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
+message(STATUS "  Total test programs: ${CMAKE_PROJECT_NAME}")
+message(STATUS "  Use 'make test' or 'ctest' to run all tests")
