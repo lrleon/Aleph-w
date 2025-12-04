@@ -30,8 +30,6 @@
 
 # include <aleph.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
   template <typename T> class Dnode; // Forward declaration of derived class
@@ -54,10 +52,14 @@ namespace Aleph {
 
   public:
 
-    template <typename T> inline Dnode<T> * to_dnode() noexcept;
-    template <typename T> inline const Dnode<T> * to_dnode() const noexcept;
-    template <typename T> inline T& to_data() noexcept;
-    template <typename T> inline const T& to_data() const noexcept;
+    template <typename T>
+    Dnode<T> * to_dnode() noexcept;
+    template <typename T>
+    const Dnode<T> * to_dnode() const noexcept;
+    template <typename T>
+    T& to_data() noexcept;
+    template <typename T>
+    const T& to_data() const noexcept;
 
     /// Initialize a node or an empty list
     Dlink() noexcept : prev(this), next(this) { assert(is_empty()); }
@@ -194,7 +196,7 @@ namespace Aleph {
     /// Return `true` if `this` (as header node) has exactly one element
     bool is_unitarian() const noexcept { return this != next and next == prev; }
 
-    /// Return `true` if `this` (as header node) has zeor or one element
+    /// Return `true` if `this` (as header node) has zero or one element
     bool is_unitarian_or_empty() const noexcept { return next == prev; }
 
     /** Insert `node` after `this`.
@@ -220,9 +222,9 @@ namespace Aleph {
       insert(node);
     }
 
-    /** Insert `node`before `this`.
+    /** Insert `node` before `this`.
 
-        @param[in] node pointer to an empty node (it must no be
+        @param[in] node pointer to an empty node (it must not be
         inserted in another list)
     */
     void append(Dlink * node) noexcept
@@ -465,14 +467,14 @@ namespace Aleph {
     Dlink * top()
     {
       if (is_empty())
-        throw std::underflow_error("Dlink as stack is not empty");
+        throw std::underflow_error("Dlink as stack is empty");
       return get_next();
     }
 
     Dlink * pop() /// \overload remove_next()
     {
       if (is_empty())
-        throw std::underflow_error("Dlink as stack is not empty");
+        throw std::underflow_error("Dlink as stack is empty");
       return remove_next();
     }
 
@@ -504,12 +506,12 @@ namespace Aleph {
          cuts the list in two lists `l` and `r` respectively. After the
          operation, `this` becomes empty.
 
-         \note `l`
+         \note `l` and `r` must be empty before calling this method.
 
          @param[out] l first n/2 items of `this`
          @param[out] r last  n/2 items of `this`
-         @return total number of nodes of both list (what is the same
-         number of node that had `this` before the split
+         @return total number of nodes of both lists (which is the same
+         number of nodes that `this` had before the split)
     */
     size_t split_list_ne(Dlink & l, Dlink & r) noexcept
     {
