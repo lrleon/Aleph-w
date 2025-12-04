@@ -23,6 +23,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
 # Include parent directory for Aleph headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+# Link directory for Aleph library
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
+
 # Find Google Test
 find_package(GTest REQUIRED)
 
@@ -89,6 +92,12 @@ set(TEST_PROGRAMS
     fixedqueue
 )
 
+# Exhaustive tests (files ending in _test.cc)
+set(EXHAUSTIVE_TESTS
+    dlink_test
+    htlist_test
+)
+
 # Create executable for each test program
 foreach(test_program ${TEST_PROGRAMS})
     # Check if source file exists
@@ -113,9 +122,30 @@ foreach(test_program ${TEST_PROGRAMS})
     endif()
 endforeach()
 
+# Create executable for each exhaustive test program (files ending in _test.cc)
+# These tests are for header-only classes and need minimal dependencies
+foreach(test_program ${EXHAUSTIVE_TESTS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
+        add_executable(${test_program} ${test_program}.cc)
+
+        # Header-only tests only need gtest and pthread
+        target_link_libraries(${test_program} PRIVATE
+            GTest::gtest_main
+            GTest::gtest
+            Threads::Threads
+        )
+
+        add_test(NAME ${test_program} COMMAND ${test_program})
+    else()
+        message(WARNING "Source file not found for exhaustive test: ${test_program}.cc")
+    endif()
+endforeach()
+
 # Enable CTest
 enable_testing()
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
-message(STATUS "  Total test programs: ${CMAKE_PROJECT_NAME}")
+message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
+message(STATUS "  Exhaustive test programs: ${EXHAUSTIVE_TESTS}")
 message(STATUS "  Use 'make test' or 'ctest' to run all tests")
+message(STATUS "  Use 'ctest -R _test' to run only exhaustive tests")
