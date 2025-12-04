@@ -125,11 +125,10 @@ public:
   }
 
   /// Construct a new node with the item moved
-  Dnode(T && item)
+  Dnode(T && item) : data(std::move(item))
   {
     static_assert(std::is_move_constructible<T>::value,
 		  "No move constructor for T");
-    std::swap(data, item);
   }
 
   /// Swap `this` with `p`
@@ -150,8 +149,8 @@ public:
   }
 
   /// Move constructor
-  Dnode(Dnode && node)
-  : Dlink(node), data(std::forward<T>(node.data))
+  Dnode(Dnode && node) noexcept
+  : Dlink(std::move(node)), data(std::move(node.data))
   {
     /* empty */ 
   }
@@ -241,6 +240,10 @@ public:
     */
     Dnode * del() 
     { return static_cast<Dnode*>(Dlink::Iterator::del()); }
+
+    /// Same as del() but without exception check
+    Dnode * del_ne() noexcept
+    { return static_cast<Dnode*>(Dlink::Iterator::del_ne()); }
   };
 };
 
