@@ -38,8 +38,6 @@
 
 # define NEXT(p) (p->get_next())
 
-using namespace Aleph;
-
 namespace Aleph {
 
 template <typename T> class Snodenc; // forward declaration
@@ -171,7 +169,7 @@ public:
     Slinknc * head;
     Slinknc * curr;
 
-    void init()
+    void init() noexcept
     {
       curr = head->is_empty() ? nullptr : head->next;
     }
@@ -313,8 +311,8 @@ public:
                   "No copy constructor for T");
   }
 
-  /** \~English Costruct by moving `item`
-      \~Spanish Construye moviendo `ìtem`
+  /** \~English Construct by moving `item`
+      \~Spanish Construye moviendo `item`
   */
   Snodenc(T && item)
     : data(std::forward<T>(item))
@@ -456,7 +454,7 @@ public:
       //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
   HTList() noexcept : head(nullptr), tail(nullptr) { /* empty */ }
 
-  void reset()
+  void reset() noexcept
   {
     head = tail = nullptr;
   }
@@ -481,7 +479,7 @@ public:
   //!cabeza de la lista (el primer elemento)
   Slinknc * get_head() const noexcept { return head; }
 
- //!\~English Return list tail (first element) \~Spanish Retorna la
+ //!\~English Return list tail (last element) \~Spanish Retorna la
  //!cola de la lista (el último elemento)
   Slinknc * get_tail() const noexcept { return tail; }
 
@@ -679,8 +677,16 @@ public:
    */
   void insert(Slinknc * link, HTList & list) noexcept
   {
-    NEXT(link) = list.head;
-    tail = list.tail;
+    if (list.is_empty())
+      return;
+
+    Slinknc * link_next = NEXT(link); // save what was after link
+    NEXT(link) = list.head;           // link now points to list's head
+    NEXT(list.tail) = link_next;      // list's tail points to what was after link
+
+    if (link == tail)                 // if link was the tail, update tail
+      tail = list.tail;
+
     list.head = list.tail = nullptr;
   }
 
@@ -897,7 +903,7 @@ public:
     return split_list(l, r);
   }
 
-      /// \overload split_listHTList & l, HTList & r)
+      /// \overload split_list(HTList & l, HTList & r)
   size_t split(HTList & l, HTList & r) noexcept
   {
     return split_list(l, r);
@@ -1684,22 +1690,23 @@ public:
   template <class Equal = std::equal_to<T>>
   T remove_ne(Equal eq) noexcept
   {
-    for (Iterator it(*this); true; it.next_ne())
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
       {
-        const T & item = it.get_curr();
+        const T & item = it.get_curr_ne();
         if (not eq(item))
           continue;
         T ret = item; // performs a copy
         it.del_ne();
         return ret;
       }
+    return T(); // not found, return default constructed T
   }
 
   /** Remove the first element matching an equality criteria.
 
       `remove(eq)` sequentially traverses the list and on each current
       element `curr` it calls to `eq(curr)`. If the test is `true`,
-      then `curr` is removed from the list and a copy of `ciirr` is
+      then `curr` is removed from the list and a copy of `curr` is
       returned. Otherwise, if no element matches with `eq()` test,
       then exception `domain_error` is thrown.
 
