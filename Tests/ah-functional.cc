@@ -35,6 +35,7 @@
 # include <tpl_dynArray.H>
 
 using namespace std;
+using namespace Aleph;
 
 TEST(range, range_combs)
 {

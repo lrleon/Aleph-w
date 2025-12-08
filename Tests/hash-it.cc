@@ -33,6 +33,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 using P = pair<size_t, string>;
 

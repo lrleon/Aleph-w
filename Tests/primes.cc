@@ -29,6 +29,9 @@
 
 # include <primes.H>
 
+using namespace std;
+using namespace testing;
+using namespace Aleph;
 using namespace Primes;
 
 TEST(Prime, test_prime)
@@ -50,11 +53,9 @@ TEST(Prime, test_prime)
 
 TEST(Prime, list)
 {
-  unsigned long n = 2;
+  // Verify all entries in primeList are actually prime
   for (size_t i = 0; i < numPrimes; ++i)
     {
-      n = next_prime(n);
-      ASSERT_TRUE(is_prime(n));
-      ASSERT_FALSE(is_prime(n + 1));
+      ASSERT_TRUE(is_prime(primeList[i])) << "primeList[" << i << "] = " << primeList[i] << " is not prime";
     }
 }

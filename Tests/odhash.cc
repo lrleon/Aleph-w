@@ -28,6 +28,10 @@
 
 # include <tpl_odhash.H>
 
+using namespace std;
+using namespace testing;
+using namespace Aleph;
+
 TEST(ODhashTable, Simplest)
 {
   ODhashTable<int> tbl(100);

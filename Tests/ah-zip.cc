@@ -34,6 +34,7 @@
 # include <tpl_dynArray.H>
 
 using namespace std;
+using namespace Aleph;
 
 struct EmptyGroup : public testing::Test
 {
@@ -47,9 +48,8 @@ struct CompleteGroup : public testing::Test
   static constexpr size_t N = 5;
   DynList<int> l1 = range<int>(0, N - 1);
   DynSetTree<int> l2 = range<int>(0, N - 1);
-  DynArray<string> strs =
+  DynArray<string> l3 =
     range<int>(0, N - 1).maps<string>([] (auto i) { return to_string(i); });
-  DynArray<const char * > l3 = strs.maps<const char *>([] (auto & s) { return s.c_str(); });
 };
 
 struct InCompleteGroup : public testing::Test

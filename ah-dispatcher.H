@@ -38,7 +38,7 @@ class AHDispatcher
 
 public:
 
-  AHDispatcher() {}
+  AHDispatcher() = default;
 
   template <typename ... Pairs>
   AHDispatcher(const Key & key, Operation op, Pairs ... pairs)

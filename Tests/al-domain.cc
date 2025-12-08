@@ -29,6 +29,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 TEST(Domain, basic)
 {

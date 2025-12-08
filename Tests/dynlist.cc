@@ -30,6 +30,7 @@
 # include <htlist.H>
 
 using namespace testing;
+using namespace Aleph;
 
 struct List_of_25_items : public Test
 {

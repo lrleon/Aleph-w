@@ -32,6 +32,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 bool is_power_of_two(size_t x)
 {

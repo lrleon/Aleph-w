@@ -31,6 +31,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 # define Declare_list_n_items(num)            \
   struct List_of_##num##_items : public Test	\

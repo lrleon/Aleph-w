@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -36,6 +35,7 @@
 # include <ahFunctional.H>
 
 using namespace std;
+using namespace Aleph;
 
 /**
 
@@ -46,7 +46,7 @@ class ZipIterator : public ZipIterator<TailC...>
 {
   typename HeadC::Iterator it;
 
-  using T = typename HeadC::Item_Type;
+  using T = std::decay_t<typename HeadC::Item_Type>;
 
  public:
 
@@ -102,18 +102,18 @@ class ZipIterator<C> : public C::Iterator
 {
  public:
 
-  using T = typename C::Item_Type;
+  using T = std::decay_t<typename C::Item_Type>;
 
   ZipIterator(const C &c) : C::Iterator(c) {}
 
-  tuple<T &> get_curr() const
+  tuple<T> get_curr() const
   {
-    return tuple<T &>(C::Iterator::get_curr());
+    return tuple<T>(C::Iterator::get_curr());
   }
 
-  tuple<T &> get_curr_ne() const noexcept
+  tuple<T> get_curr_ne() const noexcept
   {
-    return tuple<T &>(C::Iterator::get_curr_ne());
+    return tuple<T>(C::Iterator::get_curr_ne());
   }
 
   DynList<T> get_curr_list() const
@@ -584,12 +584,7 @@ template <class... Ts>
 inline
 auto t_unzip(const DynList<tuple<Ts...>> &tuples)
 {
-  auto result = t_unzip_impl(tuples, std::index_sequence_for<Ts...>{});
-  for (const auto & t : tuples)
-    apply([&result](const auto &... args)
-          {
-            initializer_list<int>{(get<decay_t<decltype(args)>>(result).append(args), 0)...};
-          }, t);
+  return t_unzip_impl(tuples, std::index_sequence_for<Ts...>{});
 }
 
 /** Take several container of same type and some length and builds a

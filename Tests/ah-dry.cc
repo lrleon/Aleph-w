@@ -47,6 +47,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 template <class Ctype>
 struct Container : public testing::Test

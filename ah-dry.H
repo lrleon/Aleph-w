@@ -109,7 +109,7 @@ bool traverse(const Container & c, Operation && op = Operation())
 
 /** Common sequential searching methods on containers.
 
-    This classs implements common sequential searching on containers.
+    This class implements common sequential searching on containers.
 
     \note Take in account that any of these searches takes \f$O(n)\f$ of
     complexity for the worst case and that this is independent of type
@@ -146,7 +146,7 @@ class LocateFunctions
 
 public:
 
-  /// Return an properly initialized iterator positioned at the first
+  /// Return a properly initialized iterator positioned at the first
   /// item on the container
   auto get_it() const
   {
@@ -158,7 +158,7 @@ public:
   //   return typename Container::Iterator(*me());
   // }
 
-  /// Return an properly initialized iterator positioned at the `pos`
+  /// Return a properly initialized iterator positioned at the `pos`
   /// item on the container
   auto get_it(size_t pos) const
   {
@@ -246,7 +246,7 @@ public:
       \warning Frequent use of this method will definitively degrade the
       performance. Try not to use this method inside loops. In general,
       if you falls in thie situation, the consider your design and to
-      use an faster approach.
+      use a faster approach.
 
       \param[in] `operation` to be performed on each item for matching a
       searching criteria.
@@ -407,11 +407,11 @@ struct SpecialCtors
 
   SpecialCtors(const SpecialCtors&) {}
 
-  SpecialCtors(SpecialCtors&&) {}
+  SpecialCtors(SpecialCtors&&) noexcept {}
 
   SpecialCtors & operator = (const SpecialCtors&) { return *this; }
 
-  SpecialCtors & operator = (SpecialCtors&&) { return *this; }
+  SpecialCtors & operator = (SpecialCtors&&) noexcept { return *this; }
 
   /// Build the container by inserting all item of list `l`
   SpecialCtors(const DynList<T> & l)
@@ -657,6 +657,8 @@ public:
       state of container. This would be the case for heaps, binary
       trees and hash tables.
 
+      \param pos
+      \param slice
       \param[in] `operation` to be done on each element.
       \return an reference to `this`
       \throw anything that can throw `operation`

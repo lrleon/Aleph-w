@@ -28,8 +28,11 @@
 # include <gtest/gtest.h>
 
 # include <generate_tree.H>
-
 # include "tree-node-common.H"
+
+using namespace std;
+using namespace testing;
+using namespace Aleph;
 
 TEST_F(Simple_Tree, Generate_ntreepic)
 {

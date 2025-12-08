@@ -30,6 +30,7 @@
 # include <tpl_dnode.H>
 
 using namespace testing;
+using namespace Aleph;
 
 TEST(Dnode, conversion_from_slinknc)
 {

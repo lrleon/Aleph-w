@@ -29,7 +29,9 @@
 
 # include <htlist.H>
 
+using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 TEST(Slinknc, Initialized_in_nullptr)
 {

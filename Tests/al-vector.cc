@@ -31,6 +31,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 struct SmallDomain : public testing::Test
 {

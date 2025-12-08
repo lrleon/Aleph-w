@@ -66,8 +66,15 @@ public:
     me()->N = 0;
   }
 
+  void check_resize_before_insert()
+  {
+    if (me()->with_resize and me()->N >= me()->len)
+      me()->resize(Primes::next_prime(2 * me()->len));
+  }
+
   Key * insert(const Key & key)
   {
+    check_resize_before_insert();
     auto bucket = me()->allocate_bucket(key);
     if (bucket == nullptr)
       return nullptr;
@@ -79,6 +86,7 @@ public:
 
   Key * insert(Key && key)
   {
+    check_resize_before_insert();
     auto bucket = me()->allocate_bucket(key);
     if (bucket == nullptr)
       return nullptr;
@@ -90,6 +98,7 @@ public:
 
   Key * search_or_insert(const Key & key)
   {
+    check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (get<1>(r))
@@ -102,6 +111,7 @@ public:
 
   Key * search_or_insert(Key && key)
   {
+    check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
     if (get<1>(r))

@@ -29,6 +29,10 @@
 
 # include <array_it.H>
 
+using namespace std;
+using namespace testing;
+using namespace Aleph;
+
 TEST(Array_Container, empty_array)
 {
   Array_Container<int> a(nullptr, 0);
