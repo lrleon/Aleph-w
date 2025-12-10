@@ -58,6 +58,7 @@ set(SYSLIBS
 set(TEST_PROGRAMS
     array_utils
     array-it
+    dynarray
     memarray
     slinknc
     snodenc

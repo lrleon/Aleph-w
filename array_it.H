@@ -37,7 +37,7 @@ namespace Aleph {
 
   template <typename T> class Array_Container;
 
-  /** Wrapper que provee la interfaz de un iterador para un arreglo C++.
+  /** Wrapper that provides the interface of an iterator for a C++ array.
 
       @ingroups Secuencias
   */
@@ -52,40 +52,65 @@ namespace Aleph {
     long last = 0;
     long pos = 0;
 
+    static void ensure_base_pointer(T * p, size_t sz)
+    {
+      if (sz > 0 and p == nullptr)
+        throw std::invalid_argument("Array_Iterator(): ptr == nullptr with dim > 0");
+    }
+
+    static void ensure_num_items(size_t sz, size_t n)
+    {
+      if (n > sz)
+        throw std::domain_error("Array_Iterator(): num_items greater than dim");
+    }
+
+    static void ensure_index_in_range(size_t sz, long value, const char * msg)
+    {
+      if (value < 0 or static_cast<size_t>(value) >= sz)
+        throw std::domain_error(msg);
+    }
+
+    static long compute_last_index(size_t n) noexcept
+    {
+      return n == 0 ? 0 : static_cast<long>(n - 1);
+    }
+
   public:
 
     using Item_Type = T;
 
     T * get_base() noexcept { return ptr; }
 
+    const T * get_base() const noexcept { return ptr; }
+
     Array_Iterator() noexcept {}
 
     Array_Iterator(T * p, size_t sz, size_t n)
-      : ptr(p), dim(sz), num_items(n), last(n - 1)
+      : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
     {
-      assert(ptr);
-      if (num_items > dim)
-        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+      ensure_base_pointer(ptr, sz);
+      ensure_num_items(sz, n);
     }
 
     Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
-      : ptr(p), dim(sz), num_items(n), last(n - 1)
+      : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
     {
       assert(ptr);
-      if (num_items > dim)
-        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
+      assert(num_items <= dim);
     }
 
     Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
-      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
     {
-      assert(ptr);
-      if (num_items > dim)
-        throw std::domain_error("Array_Iterator(): num_items greater tan dim");
-      if (first >= dim)
-        throw std::domain_error("Array_Iterator(): first >= dim");
-      if (last >= dim)
-        throw std::domain_error("Array_Iterator(): last >= dim");
+      ensure_base_pointer(ptr, sz);
+      ensure_num_items(sz, n);
+      if (dim == 0 and num_items > 0)
+        throw std::domain_error("Array_Iterator(): dim == 0 but num_items > 0");
+      if (dim > 0)
+        {
+          ensure_index_in_range(dim, first, "Array_Iterator(): first >= dim");
+          ensure_index_in_range(dim, last, "Array_Iterator(): last >= dim");
+        }
     }
 
     /** Constructor no throwing exception.
@@ -94,13 +119,16 @@ namespace Aleph {
         exception will be thrown
     */
     Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
-      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(l)
+      : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
     {
       assert(ptr);
+      assert(num_items <= dim);
+      assert(dim == 0 or (first >= 0 and first < dim));
+      assert(dim == 0 or (last >= 0 and last < dim));
     }
 
     Array_Iterator(const Array_Container<T> & c)
-      : Array_Iterator(c.base(), c.capacity(), c.size()) {}
+      : Array_Iterator(c.get_base(), c.capacity(), c.size()) {}
 
     bool has_curr() const noexcept { return pos >= 0 and pos < num_items; }
 
@@ -116,10 +144,10 @@ namespace Aleph {
     T & get_curr() const
     {
       if (pos < 0)
-        throw std::underflow_error("MemArray::Iterator::get_curr(): has not current");
+        throw std::underflow_error("Array_Iterator::get_curr(): no current item");
 
       if (pos >= num_items)
-        throw std::overflow_error("MemArray::Iterator::get_curr(): has not current");
+        throw std::overflow_error("Array_Iterator::get_curr(): no current item");
 
       return ptr[idx];
     }
@@ -134,7 +162,7 @@ namespace Aleph {
     void next()
     {
       if (num_items == 0 or pos >= num_items)
-        throw std::overflow_error("MemArray::Iterator::next(): has not current");
+        throw std::overflow_error("Array_Iterator::next(): no current item");
       next_ne();
     }
 
@@ -148,7 +176,7 @@ namespace Aleph {
     void prev()
     {
       if (num_items == 0 or pos < 0)
-        throw std::underflow_error("MemArray::Iterator::prev(): has not current");
+        throw std::underflow_error("Array_Iterator::prev(): no current item");
       prev_ne();
     }
 
@@ -179,9 +207,9 @@ namespace Aleph {
   }
 
   template <typename T> inline
-  Array_Container<T> get_array_it(const T * array, size_t n)
+  Array_Container<T> make_array_container(T * array, size_t n)
   {
-    return Array_Iterator<T>(array, n);
+    return Array_Container<T>(array, n);
   }
 
 

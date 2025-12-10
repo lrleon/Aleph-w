@@ -5,6 +5,7 @@
 # include <math.h>
 
 # include <string>
+# include <vector>
 # include <aleph.H>
 # include <ahIterator.H>
 # include <array_utils.H>
@@ -26,13 +27,13 @@ namespace Aleph {
       ===============================
 
       This class implements a very versatile dynamic array which would
-      represent a good trade off between fast and constant access time
+      represent a good trade-off between fast and constant access time
       and memory consumption. The array is lazy in the sense that the
       dimension grows dynamically and the required memory for a cell
       could be allocated at the first writing.
 
       The data structure consists of three array types. A first array
-      type is called block and it is a contiguous chunk of `block_size`
+      type is called block, and it is a contiguous chunk of `block_size`
       data entries. if an array occupies n entries then there are
       n/block_size + 1 blocks allocated. The blocks are indexed by
       segments of `seg_size` blocks which in turn are indexed by a
@@ -93,15 +94,15 @@ namespace Aleph {
      --------------------------------
 
      If you know (you are absolutely sure of) that the entry has already
-     been written and consequentely it has already its block allocated,
-     the you could use the operator () for direct access.
+     been written, and consequently it has already its block allocated,
+     then you could use the operator () for direct access.
 
      Access with () operator does not perform any check (bounds and
      blocks and segement existence). This way is faster but unsure.
 
      () operator is an alias of `access(i)` method.
 
-     In order to assure that an range of entries is already allocated,
+     In order to assure that a range of entries is already allocated,
      you could use `reserve(l, r)` method, which test and eventually
      allocates the needed memory for the entries comprised in the range
      \f$[l,r]\f$.
@@ -131,22 +132,22 @@ namespace Aleph {
      very limited.
 
      Note that a memory manager could have enough memory dispersed
-     through the total of available chunks but it could not exists an
+     through the total of available chunks, but it could not exist a
      contiguous block of a given size. The more large is the block size,
      the higher is the probability for failing to allocate. So, there
-     are circunstances where you could be interested in setting a small
-     block size, so as to facilitate thge block's allocation. 
+     are circumstances where you could be interested in setting a small
+     block size, to facilitate the block's allocation.
 
      Of course, these settings restrict the maximum dimension, which
-     eventually could be compesed with a larger directory. As example,
+     eventually could be composed with a larger directory. As example,
      consider a directory of 1024 segments of 512 blocks of 4096
      entries. This gives a total of
 
      \f$1024 \times 512 \times 4096 = 2147483648\f$ entries.
 
-     Now suppose that you think that 4096 is too much for a block, the
+     Now suppose that you think that 4096 is too much for a block, then
      you could set the block to 128 and displace the difference to the
-     diretory. This gives sizes of 32768, 512 and 128 respectively and
+     directory. This gives sizes of 32768, 512 and 128 respectively and
      thus to obtain the same maximum capacity.
 
      You could think that failure probability is displaced to the
@@ -320,7 +321,7 @@ private:
 
   void allocate_dir()
   {
-    dir = (T***) malloc(dir_size*sizeof(T**));
+    dir = static_cast<T ***>(malloc(dir_size * sizeof(T **)));
     if (dir == nullptr)
       throw std::bad_alloc();
 
@@ -336,7 +337,7 @@ private:
       ++new_pow_dir;
 
     const size_t new_dir_sz = two_raised(new_pow_dir);
-    T *** new_dir = (T***) realloc(dir, new_dir_sz*sizeof(T**));
+    T *** new_dir = static_cast<T ***>(realloc(dir, new_dir_sz * sizeof(T **)));
     if (new_dir == nullptr)
       throw std::bad_alloc();
 
@@ -405,6 +406,12 @@ private:
     release_segment(seg);
   }
 
+  void ensure_not_empty(const char * context) const
+  {
+    if (is_empty())
+      throw std::underflow_error(context);
+  }
+
   void release_all_segments_and_blocks() noexcept
   {
     assert(dir != nullptr);
@@ -431,7 +438,7 @@ private:
 
   static size_t next2Pow(const size_t number)  noexcept
   {
-    return (size_t) ceil( log((float) number)/ log(2.0) );
+    return static_cast<size_t>(ceil(log(static_cast<float>(number)) / log(2.0)));
   }
 
   size_t divide_by_block_size(const size_t number) const noexcept
@@ -503,7 +510,7 @@ private:
         ref_seg(_array.dir[pos_in_dir]), block (nullptr), array(_array)
     {
       if (ref_seg != nullptr)
-        block = ref_seg[pos_in_seg]; // ya existe bloque para entrada i
+        block = ref_seg[pos_in_seg]; // Entry block already exists
     }
 
     operator T & ()
@@ -517,22 +524,22 @@ private:
     {
       bool seg_was_allocated_in_current_call = false;
 
-      if (ref_seg == nullptr) // hay segmento?
-        {     // No ==> apartarlo!
+      if (ref_seg == nullptr) // Is there a segment?
+        {     // No ==> allocate it!
           array.allocate_segment(ref_seg);
           seg_was_allocated_in_current_call = true;
         }
 
       if (block == nullptr) // test if block is allocated
         {
-          try // tratar apartar bloque
+          try
             {
               array.allocate_block(block);
               ref_seg[pos_in_seg] = block;
 
               assert(array.dir[pos_in_dir] == ref_seg);
             }
-          catch (...) // Ocurre una falla en el apartado del bloque
+          catch (...)
             {
               if (seg_was_allocated_in_current_call)
                 array.release_segment(ref_seg);
@@ -550,22 +557,22 @@ private:
     Proxy & operator = (const T & data)
     {
       bool seg_was_allocated_in_current_call = false;
-      if (ref_seg == nullptr) // hay segmento?
-        {     // No ==> apartarlo!
+      if (ref_seg == nullptr) // Is there a segment?
+        {     // No ==> allocate ii!
           array.allocate_segment(ref_seg);
           seg_was_allocated_in_current_call = true;
         }
 
       if (block == nullptr) // test if block is allocated
         {
-          try // tratar apartar bloque
+          try
             {
               array.allocate_block(block);
               ref_seg[pos_in_seg] = block;
 
               assert(array.dir[pos_in_dir] == ref_seg);
             }
-          catch (...) // Ocurre una falla en el apartado del bloque
+          catch (...)
             {
               if (seg_was_allocated_in_current_call)
                 array.release_segment(ref_seg);
@@ -584,29 +591,29 @@ private:
 
     Proxy & operator = (const Proxy & proxy)
     {
-      if (proxy.block == nullptr) // ¿operando derecho puede leerse?
+      if (proxy.block == nullptr) // Can right operand be read?
         throw std::domain_error("right entry has not been still written");
 
       if (&proxy == this)
         return *this;
 
       bool seg_was_allocated_in_current_call = false;
-      if (ref_seg == nullptr) // hay segmento?
-        {     // No ==> apartarlo!
+      if (ref_seg == nullptr) // Is there a segment?
+        {     // No ==> allocate it!
           array.allocate_segment(ref_seg);
           seg_was_allocated_in_current_call = true;
         }
 
       if (block == nullptr) // test if block is allocated
         {
-          try // tratar apartar bloque
+          try
             {
               array.allocate_block(block);
               ref_seg[pos_in_seg] = block;
 
               assert(array.dir[pos_in_dir] == ref_seg);
             }
-          catch (...) // Ocurre una falla en el apartado del bloque
+          catch (...)
             {
               if (seg_was_allocated_in_current_call)
                 array.release_segment(ref_seg);
@@ -700,13 +707,13 @@ public:
       num_segs            ( 0                                        ),
       num_blocks          ( 0                                        )
   {
-    static_assert(std::is_copy_constructible<T>::value,
+    static_assert(std::is_copy_constructible_v<T>,
 		  "No copy constructor for T");
-    static_assert(std::is_move_constructible<T>::value,
+    static_assert(std::is_move_constructible_v<T>,
 		  "No move constructor for T");
-    static_assert(std::is_copy_assignable<T>::value,
+    static_assert(std::is_copy_assignable_v<T>,
 		  "No copy assign for T");
-    static_assert(std::is_move_assignable<T>::value,
+    static_assert(std::is_move_assignable_v<T>,
 		  "No move assign for T");
     assert(Max_Dim_Allowed > 0);
 
@@ -917,7 +924,7 @@ public:
 
           `test(i)` inspects if the entry i is already allocated. If
           affirmative, then a pointer to the entry in the array is
-          returned. Otherwise `nullptr` is returned.
+          returned. Otherwise, `nullptr` is returned.
 
           @param[in] i index to test.
           @return `nullptr` if the entry is not allocated; a valid
@@ -942,7 +949,7 @@ public:
       /** Touch the entry i.
 
           `touch(i)` testes if the block that would contain to i is
-          allready allocated. If this is not the case, then the block,
+          already allocated. If this is not the case, then the block,
           and eventually the segment, is allocated. If everything is ok,
           the method returns a valid pointer to the entry inside the
           array.
@@ -960,8 +967,12 @@ public:
       resize_dir(i);
 
     const size_t pos_in_dir = index_in_dir(i);
+    bool new_segment = false;
     if (dir[pos_in_dir] == nullptr)
-      allocate_segment(dir[pos_in_dir]);
+      {
+        allocate_segment(dir[pos_in_dir]);
+        new_segment = true;
+      }
 
     const size_t pos_in_seg = index_in_seg(i);
     if (dir[pos_in_dir][pos_in_seg] == nullptr)
@@ -972,7 +983,8 @@ public:
           }
         catch (...)
           {
-            release_segment(dir[pos_in_dir]);
+            if (new_segment && dir[pos_in_dir] != nullptr)
+              release_segment(dir[pos_in_dir]);
             throw;
           }
       }
@@ -1007,12 +1019,18 @@ public:
     const size_t first_block = index_in_seg(l);
     const size_t last_block  = index_in_seg(r);
 
+    std::vector<size_t> new_segments;
+    std::vector<std::pair<size_t, size_t>> new_blocks;
+
     try
       {
         for (size_t seg_idx = first_seg; seg_idx <= last_seg; ++seg_idx)
           {
             if (dir[seg_idx] == nullptr)
-              allocate_segment(dir[seg_idx]);
+              {
+                allocate_segment(dir[seg_idx]);
+                new_segments.push_back(seg_idx);
+              }
 
             size_t block_idx = (seg_idx == first_seg) ? first_block : 0;
             const size_t final_block =
@@ -1021,22 +1039,36 @@ public:
             while (block_idx <= final_block)
               {
                 if (dir[seg_idx][block_idx] == nullptr)
-                  allocate_block(dir[seg_idx][block_idx]);
+                  {
+                    allocate_block(dir[seg_idx][block_idx]);
+                    new_blocks.emplace_back(seg_idx, block_idx);
+                  }
 
                 ++block_idx;
               }
           } // end for (...)
-
-        if (r + 1 > current_dim)
-          current_dim = r + 1;
       }
     catch (...)
       {
-        if (r + 1 > current_dim)
-          current_dim = r + 1;
+        for (auto it = new_blocks.rbegin(); it != new_blocks.rend(); ++it)
+          {
+            const auto [seg_idx, block_idx] = *it;
+            if (dir[seg_idx] != nullptr and dir[seg_idx][block_idx] != nullptr)
+              release_block(dir[seg_idx][block_idx]);
+          }
+
+        for (auto it = new_segments.rbegin(); it != new_segments.rend(); ++it)
+          {
+            const auto seg_idx = *it;
+            if (dir[seg_idx] != nullptr)
+              release_segment(dir[seg_idx]);
+          }
 
         throw;
       }
+
+    if (r + 1 > current_dim)
+      current_dim = r + 1;
   }
 
       /** Assure that the range between 0 and dim is allocated
@@ -1072,9 +1104,9 @@ public:
          --idx_seg) // recorre descendentemente los segmentos
       {
         if (dir[idx_seg] == nullptr) // ¿hay un segmento?
-          continue; // no ==> avance al siguiente
+          continue; // no ==> Advance to the next
 
-        long idx_block =  // primer bloque a liberar
+        long idx_block =  // First block to be released
           idx_seg == idx_first_seg ? idx_first_block : seg_size - 1;
 
             // Libera descendentemente los bloques reservados del segmento
@@ -1203,14 +1235,15 @@ public:
 
       @param[in] item valid reference to the item to remove
    */
-  void remove(T & item) noexcept
+  void remove(T & item)
   {
+    ensure_not_empty("DynArray::remove(): empty array");
     std::swap(item, this->access(this->size() - 1));
     this->cut_ne(this->size() - 1);
   }
 
   /// \overload remove(T & item)
-  void erase(T & item) noexcept { remove(item); }
+  void erase(T & item) { remove(item); }
 
   /// Return `true` if the array is empty
   bool is_empty() const noexcept { return this->size() == 0; }
@@ -1227,6 +1260,7 @@ public:
   /// Remove the last item of array (as if this was a stack)
   T pop()
   {
+    ensure_not_empty("DynArray::pop(): empty array");
     T ret_val = std::move(this->access(this->size() - 1));
     cut(size() - 1);
 
@@ -1234,15 +1268,27 @@ public:
   }
 
   /// Return a modifiable reference to the last item of stack
-  T & top() const { return (*this)[size() - 1]; }
+  T & top() const
+  {
+    ensure_not_empty("DynArray::top(): empty array");
+    return (*this)[size() - 1];
+  }
 
   /// Return a modifiable reference to the first item of array (as if
   /// this was a queue)
-  T & get_first() const { return (*this)[0]; }
+  T & get_first() const
+  {
+    ensure_not_empty("DynArray::get_first(): empty array");
+    return (*this)[0];
+  }
 
   /// Return a modifiable reference to the last item of array (as if
   /// this was a queue)
-  T & get_last() const { return (*this)[size() - 1]; }
+  T & get_last() const
+  {
+    ensure_not_empty("DynArray::get_last(): empty array");
+    return (*this)[size() - 1];
+  }
 
   /** Iterator on the elements of array.
 
@@ -1331,11 +1377,37 @@ public:
 
     /// Reset the iterator to the first item
     void reset_first() noexcept { curr_idx = 0; }
+
+    void set_pos(long pos) noexcept { curr_idx = pos; }
   };
+
+  Iterator get_it()
+  {
+    return Iterator(*this);
+  }
+
+  Iterator get_it() const
+  {
+    return Iterator(*this);
+  }
+
+  Iterator get_it(size_t pos)
+  {
+    if (pos >= size())
+      throw std::out_of_range("DynArray::get_it(pos): pos >= size()");
+    Iterator it(*this);
+    it.set_pos(static_cast<long>(pos));
+    return it;
+  }
+
+  Iterator get_it(size_t pos) const
+  {
+    return const_cast<DynArray*>(this)->get_it(pos);
+  }
 
 private:
 
-    // super fast array traversal
+    // superfast array traversal
   template <class Operation>
   bool __traverse(Operation & operation)
   {
@@ -1369,7 +1441,7 @@ public:
       \endcode
 
       If \code operation() \endcode returns `false` then the traversal is
-      stopped; otherwise the the traverse move to the next item.
+      stopped; otherwise the traverse move to the next item.
 
       @param[in] operation
       @return `true` if all items are traversed; `false` otherwise

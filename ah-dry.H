@@ -29,6 +29,7 @@
 # define AH_DRY_H
 
 # include "ahFunctional.H"
+# include <utility>
 
 /**  Generic traversal of the container through its iterator.
 
@@ -44,6 +45,15 @@
 template <class Container>
 struct GenericTraverse
 {
+private:
+  template <class Operation>
+  static constexpr bool traverse_is_noexcept() noexcept
+  {
+    return noexcept(std::declval<Operation&>()(
+      std::declval<typename Container::Item_Type&>()));
+  }
+
+public:
   /** Traverse the container via its iterator and performs a conditioned
       operation on each item.
 
@@ -64,7 +74,7 @@ struct GenericTraverse
       \throw anything that could throw `operation`
   */
   template <class Operation>
-  bool traverse(Operation & operation)
+  bool traverse(Operation & operation) noexcept(traverse_is_noexcept<Operation>())
   {
     for (typename Container::Iterator it(*static_cast<Container*>(this));
          it.has_curr(); it.next())
@@ -75,21 +85,21 @@ struct GenericTraverse
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation & operation) const
+  bool traverse(Operation & operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation) const
+  bool traverse(Operation && operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
   }
 
   /// \overload traverse()
   template <class Operation>
-  bool traverse(Operation && operation)
+  bool traverse(Operation && operation) noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
   }
@@ -97,14 +107,16 @@ struct GenericTraverse
 
 template <class Container, class Operation>
 bool traverse(const Container & c, Operation & op)
+  noexcept(noexcept(c.traverse(op)))
 {
   return c.traverse(op);
 }
 
 template <class Container, class Operation>
-bool traverse(const Container & c, Operation && op = Operation())
+bool traverse(const Container & c, Operation && op)
+  noexcept(noexcept(c.traverse(std::forward<Operation>(op))))
 {
-  return traverse<Container, Operation>(c, op);
+  return c.traverse(std::forward<Operation>(op));
 }
 
 /** Common sequential searching methods on containers.
@@ -142,6 +154,12 @@ class LocateFunctions
   LocateFunctions<Container, Type> * base() const
   {
     return const_cast<LocateFunctions*>(this);
+  }
+
+  template <class Operation>
+  static constexpr bool operation_is_noexcept() noexcept
+  {
+    return noexcept(std::declval<Operation&>()(std::declval<Type&>()));
   }
 
 public:
@@ -255,6 +273,7 @@ public:
    */
   template <class Operation>
   Type * find_ptr(Operation & operation)
+    noexcept(operation_is_noexcept<Operation>())
   {
     Type * ptr = nullptr;
     me()->traverse([&ptr,&operation] (Type & item)
@@ -272,6 +291,7 @@ public:
   /// \overload find_ptr()
   template <class Operation>
   const Type * find_ptr(Operation & operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     return base()->find_ptr(operation);
   }
@@ -279,6 +299,7 @@ public:
   /// \overload find_ptr()
   template <class Operation>
   const Type * find_ptr(Operation && operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr<Operation>(operation);
   }
@@ -286,6 +307,7 @@ public:
   /// \overload find_ptr()
   template <class Operation>
   Type * find_ptr(Operation && operation)
+    noexcept(operation_is_noexcept<Operation>())
   {
     return find_ptr(operation);
   }
@@ -314,6 +336,7 @@ public:
    */
   template <class Operation>
   size_t find_index(Operation & operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     size_t i = 0;
     const_me()->traverse([&i,&operation] (Type & item)
@@ -329,6 +352,7 @@ public:
   /// \overload find_index()
   template <class Operation>
   size_t find_index(Operation && operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     return find_index<Operation>(operation);
   }
@@ -355,6 +379,7 @@ public:
   */
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation & operation)
+    noexcept(operation_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
     auto ptr = find_ptr(operation);
@@ -364,6 +389,7 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation & operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     using TT = std::tuple<bool, Type>;
     auto ptr = find_ptr(operation);
@@ -373,6 +399,7 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation && operation)
+    noexcept(operation_is_noexcept<Operation>())
   {
     return find_item(operation);
   }
@@ -380,6 +407,7 @@ public:
   /// \overload find_item(Operation & operation)
   template <class Operation>
   std::tuple<bool, Type> find_item(Operation && operation) const
+    noexcept(operation_is_noexcept<Operation>())
   {
     return find_item(operation);
   }
@@ -482,14 +510,14 @@ public:
   template <typename ...Args>
   void emplace(Args && ... args)
   {
-    me()->append(T(args...));
+    me()->append(T(std::forward<Args>(args)...));
   }
 
   /// \overload emplace(Args && ... args)
   template <typename ...Args>
   void emplace_end(Args && ... args)
   {
-    me()->append(T(args...));
+    me()->append(T(std::forward<Args>(args)...));
   }
 
   /** Insert a new element into the container by constructing it
@@ -513,7 +541,7 @@ public:
   template <typename ...Args>
   void emplace_ins(Args && ... args)
   {
-    me()->insert(T(args...));
+    me()->insert(T(std::forward<Args>(args)...));
   }
 
 private:
@@ -872,7 +900,7 @@ public:
       specifies the final folded type. By default, this type is `T` (the
       type of elements stored in the container). The second parameter is
       the operation. If the folded type is the same than `T` (the type
-      of item stored), the you can simply write a `foldl()`. For
+      of item stored), then you can simply write a `foldl()`. For
       example, if the container stores integer, in order to determine
       the maximum of all elements you could do:
 

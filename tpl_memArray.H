@@ -216,13 +216,13 @@ namespace Aleph
     */
     MemArray(size_t __dim = Min_Dim) : ptr(nullptr), n(0)
     {
-      static_assert(std::is_copy_constructible<T>::value,
+      static_assert(std::is_copy_constructible_v<T>,
                     "No copy constructor for T");
-      static_assert(std::is_move_constructible<T>::value,
+      static_assert(std::is_move_constructible_v<T>,
                     "No move constructor for T");
-      static_assert(std::is_copy_assignable<T>::value,
+      static_assert(std::is_copy_assignable_v<T>,
                     "No copy assign for T");
-      static_assert(std::is_move_assignable<T>::value,
+      static_assert(std::is_move_assignable_v<T>,
                     "No move assign for T");
       init_dim(__dim);
       allocate();
@@ -426,13 +426,13 @@ namespace Aleph
         `T()` in constant time. The idea is to reserve enough space for
         later use.
 
-        @param[in] n number of cells to reserve
+        @param[in] more umber of cells to reserve
         @throw bad_alloc if there is no enough memory
     */
     void putn(const size_t more)
     {
       assert(ptr);
-      size_t new_n = n + more;
+      const size_t new_n = n + more;
       if (new_n <= dim)
         {
           n = new_n;
@@ -506,7 +506,7 @@ namespace Aleph
       return ret;
     }
 
-    T get_ne(size_t i = 1) noexcept
+    T get_ne(const size_t i = 1) noexcept
     {
       assert(ptr);
       const long idx = n - i;
