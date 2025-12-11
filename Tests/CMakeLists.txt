@@ -26,6 +26,22 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 # Link directory for Aleph library
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+# When this directory is configured standalone (without the root
+# CMakeLists setting ALEPH_SYSTEM_LIBS), define the same defaults here so
+# that tests depending on Aleph's transitive libraries link correctly.
+if(NOT DEFINED ALEPH_SYSTEM_LIBS)
+    set(ALEPH_SYSTEM_LIBS
+        gmpxx
+        gmp
+        pthread
+        mpfr
+        gsl
+        gslcblas
+        m
+        X11
+        Threads::Threads)
+endif()
+
 # Find Google Test
 find_package(GTest REQUIRED)
 
@@ -76,6 +92,7 @@ set(TEST_PROGRAMS
     primes
     generate_tree
     fixedqueue
+    randomqueue
 )
 
 # Exhaustive tests (files ending in _test.cc)

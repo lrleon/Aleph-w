@@ -32,6 +32,7 @@
 # include <htlist.H>
 # include <ah-dry.H>
 # include <tpl_dynArray.H>
+# include <utility>
 
 namespace Aleph {
 
@@ -70,7 +71,7 @@ public:
   [[nodiscard]] gsl_rng * get_rng() const { return r; }
 
   /// Set the seed of random number generator
-  void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+  void set_seed(unsigned long seed) const noexcept { gsl_rng_set(r, seed); }
 
   /// Return the number of items in the queue
   [[nodiscard]] size_t size() const { return array.size(); }
@@ -114,7 +115,7 @@ public:
     return *this;
   }
 
-  Random_Set & operator = (Random_Set && s) 
+  Random_Set & operator = (Random_Set && s) noexcept
   {
     swap(s);
     return *this;
@@ -156,7 +157,12 @@ public:
       @param[in] item reference to the item to be inserted
       @throw bad_alloc if there is no enough memory
   */
-  void put(const T & item) { array.append(item); }
+  void put(const T & item)
+  {
+    static_assert(std::is_copy_constructible_v<T>,
+                  "Random_Set::put requires copyable T");
+    array.append(item);
+  }
 
   
   /** Insert an item by moving
@@ -168,38 +174,48 @@ public:
       @param[in] item rvalue reference to the item to be moved
       @throw bad_alloc if there is no enough memory
   */
-  void put(T && item) { array.append(std::forward<T>(item)); }
+  void put(T && item)
+  {
+    static_assert(std::is_move_constructible_v<T>,
+                  "Random_Set::put requires moveable T");
+    array.append(std::forward<T>(item));
+  }
 
   /** Insert randomly an item by copy.
 
-      `append(item)` perform a random choice. Use this method if you
-      must to obtain fastly a random array. Ypu simply append the items
-      to the queue and afterward yo get the array reference.
+      `append(item)` performs a random choice. Use this method if you
+      must obtain fastly a random array. It returns a reference to the
+      stored element so callers can mutate it in place, same as other
+      Aleph sequences.
 
       @param[in] item reference to the item to be inserted
+      @return reference to the inserted item inside the queue
       @throw bad_alloc if there is no enough memory
   */
-  void append(const T & item)
+  T & append(const T & item)
   {
     put(item);
-    auto pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    std::swap(array(pos), array(array.size() - 1));
+    const size_t last_index = array.size() - 1;
+    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    if (pos != last_index)
+      std::swap(array(pos), array(last_index));
+    return array(pos);
   }
 
    /** Insert randomly an item by moving.
 
-      `append(item)` perform a random choice. Use this method if you
-      must to obtain fastly a random array. Ypu simply append the items
-      to the queue and afterward yo get the array reference.
-
       @param[in] item rvalue reference to the item to be inserted
+      @return reference to the inserted item inside the queue
       @throw bad_alloc if there is no enough memory
   */
-  void append(T && item)
+  T & append(T && item)
   {
-    put(move(item));
-    auto pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    std::swap(array(pos), array(array.size() - 1));
+    put(std::forward<T>(item));
+    const size_t last_index = array.size() - 1;
+    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    if (pos != last_index)
+      std::swap(array(pos), array(last_index));
+    return array(pos);
   }
 
   /// Extract randomly an item 
@@ -246,7 +262,7 @@ public:
   /** Conditional traversing of the random queue
 
       @param[in] operation to be performed on each item. If it return
-      `true` the the traversing continues; otherwise stops.
+      `true` then the traversing continues; otherwise stops.
   */
   template <class Operation>
   bool traverse(Operation & operation) 
