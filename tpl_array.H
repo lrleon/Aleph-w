@@ -29,16 +29,14 @@
 # define TPL_ARRAY_H
 
 # include <iostream>
+# include <utility>
+# include <vector>
 # include <aleph.H>
 # include <htlist.H>
 # include <tpl_dynDlist.H>
 # include <ah-dry.H>
 # include <ah-args-ctor.H>
 # include <tpl_memArray.H>
-
-using namespace std;
-
-using namespace Aleph;
 
 namespace Aleph
 {
@@ -161,11 +159,9 @@ public:
     return array.push(std::forward<T>(data));
   }
 
-  /** Put `n` cells into the array.
-
-    `putn(more)` is functionally equivalent to perform `more` puts of
-    `T()` in constant time. The idea is to reserve enough space for
-    later use.
+  /** Reserve `n` additional logical slots in the array without
+      value-initializing them. The caller must assign to the new
+      positions before reading them.
 
     @param[in] n number of cells to reserve
     @throw bad_alloc if there is no enough memory
@@ -185,8 +181,18 @@ public:
     array.reserve(cap);
   }
 
-  /// Return a modifiable reference to first element of array
-  T &base() const noexcept { return *array.get_ptr(); }
+  /// Return a reference to first element of array
+  T &base()
+  {
+    ah_underflow_error_if(is_empty()) << "Array::base(): empty array";
+    return *array.get_ptr();
+  }
+
+  const T &base() const
+  {
+    ah_underflow_error_if(is_empty()) << "Array::base(): empty array";
+    return *array.get_ptr();
+  }
 
   /// Empty the stack
   void empty() noexcept { array.empty(); }
@@ -202,11 +208,19 @@ public:
 
   /// return a modifiable reference to the first element. No bound_statics check
   /// is performed
-  T &get_first() const { return array.first(); }
+  T &get_first() { return array.first(); }
+
+  /// return a constant reference to the first element. No bound_statics check
+  /// is performed
+  const T &get_first() const { return array.first(); }
 
   /// return a modifiable reference to the last element. No bound_statics check
   /// is performed
-  T &get_last() const { return array.last(); }
+  T &get_last() { return array.last(); }
+
+  /// return a constant reference to the last element. No bound_statics check
+  /// is performed
+  const T &get_last() const { return array.last(); }
 
   T remove_last() { return array.remove_last(); }
 
@@ -214,13 +228,26 @@ public:
 
   /// Return a reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  T &operator[](size_t i) const
+  T &operator[](size_t i)
+  {
+    return array[i];
+  }
+
+  /// Return a constant reference to the ith element. Throws
+  /// `range_error` if `i` is out of range
+  const T &operator[](size_t i) const
   {
     return array[i];
   }
 
   /// Return a reference to the ith element. It does not perform bound_statics checks
-  T &operator()(const size_t i) const noexcept
+  T &operator()(const size_t i) noexcept
+  {
+    return array(i);
+  }
+
+  /// Return a constant reference to the ith element. It does not perform bound_statics checks
+  const T &operator()(const size_t i) const noexcept
   {
     return array(i);
   }
@@ -250,7 +277,7 @@ public:
       conditionally performs an operation.
 
       @param[in] operation to perform on the current element. If it
-      returns `true`, the the traversal continues to the next item;
+      returns `true`, then the traversal continues to the next item;
       otherwise the traversal stops
    */
   template<class Operation>
@@ -270,14 +297,14 @@ public:
   template<class Operation>
   bool traverse(Operation &&operation = Operation()) const
   {
-    return array.traverse(operation);
+    return array.traverse(std::forward<Operation>(operation));
   }
 
   /// \overload traverse(Operation & operation)
   template<class Operation>
   bool traverse(Operation &&operation = Operation())
   {
-    return array.traverse(operation);
+    return array.traverse(std::forward<Operation>(operation));
   }
 
   [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
@@ -307,7 +334,7 @@ template <class Container>
 inline std::vector<typename Container::Item_Type>
 to_stdvector(const Container & c)
 {
-  vector<typename Container::Item_Type> ret(c.size());
+  std::vector<typename Container::Item_Type> ret(c.size());
   for (size_t i = 0; i < c.size(); ++i)
     ret[i] = c(i);
   return ret;

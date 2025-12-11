@@ -909,9 +909,9 @@ public:
               return std::min(acc, item);
 	    });
 
-      When the folded type is different than `T`, then you must
+      When the folded type is different from `T`, then you must
       specify the folded type as template parameter. For example, if
-      you want to compute the sum of inversed elements, the you could
+      you want to compute the sum of inverted elements, then you could
       do it as follows:
 
       c.template foldl<double>(0, [] (double acc, int item)
@@ -991,7 +991,7 @@ public:
       If `operation` return `true` then `item` matches the criteria;
       otherwise, `operation` must return `false`.
 
-      For example, if the container has integer, the the following
+      For example, if the container has integer, then the following
       code snippet would return a list containing the items greater
       than 100:
 
@@ -1033,7 +1033,7 @@ public:
       If `operation` return `true` then `item` matches the criteria;
       otherwise, `operation` must return `false`.
 
-      For example, if the container has integer, the the following
+      For example, if the container has integer, then the following
       code snippet would return a list containing the items greater
       than 100:
 
@@ -1111,7 +1111,7 @@ public:
       second list. When all the container is traversed, a pair
       containing these lists is returned.
 
-      The `op` requirements are the same than for `filter()`.
+      The `op` requirements are the same as for `filter()`.
 
       \param[in] op operation instrumenting the filter criteria
       \return a `std::pair<DynList<T>, DynList<T>>. `first` contains the
@@ -1183,7 +1183,7 @@ public:
 
   /** Exclusive partition of container according to a filter criteria.
 
-      This method has exactly the same semantic than
+      This method has exactly the same semantic as
       `partition(Operation & op)`, excepts than instead of returning a
       `std::pair` it returns a `std::tuple`.
 
@@ -1220,9 +1220,9 @@ public:
       This method counts the number of elements stored in the container.
 
       \note Take in account that this method computes; it does not
-      retrieve. Consequently it always takes \f$O(n)\f$. However, for
+      retrieve. Consequently, it always takes \f$O(n)\f$. However, for
       many containers this number is already stored and retrievable in
-      \f$O(1)\f$ through the methos `size()`
+      \f$O(1)\f$ through the method `size()`
 
       \return the number of elements stored in the container.
   */
@@ -1236,7 +1236,7 @@ public:
   /** Return a list with the elements of container in reverse order
       respect to its traversal order.
 
-      \return a `DynList<T>` inversely ordered accordirg to the
+      \return a `DynList<T>` inversely ordered according to the
       traversal order.
       \throw bad_alloc if there is no enough memory
   */
@@ -1443,7 +1443,7 @@ public:
   /** Return the domain set of container.
 
       This is a template method whose unique parameter is the type of
-      container where the domain set will be stored. By default this
+      container where the domain set will be stored. By default, this
       type is `DynList`.
 
       Often the elements of domain are called "keys" and those of codomain

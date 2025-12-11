@@ -38,24 +38,9 @@ if(DEFINED ENV{GOOGLETEST})
     include_directories($ENV{GOOGLETEST}/googlemock/include)
 endif()
 
-# Find required libraries
-find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
-
-# System libraries (matching Imakefile)
-set(SYSLIBS
-    gmpxx
-    gmp
-    pthread
-    mpfr
-    gsl
-    gslcblas
-    m
-    ${X11_LIBRARIES}
-)
-
 # List of all test programs from Imakefile
 set(TEST_PROGRAMS
+    array
     array_utils
     array-it
     dynarray
@@ -109,7 +94,7 @@ foreach(test_program ${TEST_PROGRAMS})
             Aleph
             GTest::gtest_main
             GTest::gtest
-            ${SYSLIBS}
+            ${ALEPH_SYSTEM_LIBS}
         )
 
         # Add test to CTest

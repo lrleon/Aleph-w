@@ -420,13 +420,14 @@ namespace Aleph
       return push(std::forward<T>(item));
     }
 
-    /** Put `n` cells into the array.
+    /** Reserve `more` additional logical slots in the array.
 
-        `putn(more)` is functionally equivalent to perform `more` puts of
-        `T()` in constant time. The idea is to reserve enough space for
-        later use.
+        `putn(more)` only adjusts the logical size and grows the backing
+        storage if necessary; it does **not** value-initialize the new
+        entries. Callers must assign to the returned positions before
+        reading them.
 
-        @param[in] more umber of cells to reserve
+        @param[in] more number of cells to reserve
         @throw bad_alloc if there is no enough memory
     */
     void putn(const size_t more)

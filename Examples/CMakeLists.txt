@@ -1,44 +1,12 @@
-cmake_minimum_required(VERSION 3.18)
+# Examples share configuration from the parent project; only add targets here
 
-project(Aleph-Examples CXX)
+set(EXAMPLES_WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
+set(EXAMPLES_COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"")
 
-# Set C++20 standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Compiler flags
-set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"")
-
-# Debug flags with sanitizers (optional)
-option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
-if(USE_SANITIZERS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
-endif()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARN_FLAGS} ${COMMON_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXAMPLES_WARN_FLAGS} ${EXAMPLES_COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
 
-# Include parent directory for Aleph headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
-
-# Find required libraries
-find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
-
-# System libraries
-set(SYSLIBS
-    gmpxx
-    gmp
-    pthread
-    asprintf
-    mpfr
-    gsl
-    gslcblas
-    m
-    ${X11_LIBRARIES}
-)
 
 # List of all example programs from Imakefile
 set(EXAMPLE_PROGRAMS
@@ -213,11 +181,15 @@ function(get_source_file program_name out_var)
     # Then try with .cc extension
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${program_name}.cc")
         set(${out_var} "${program_name}.cc" PARENT_SCOPE)
-    # Try with underscores replaced by dashes
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${program_name}.C")
-        set(${out_var} "${program_name}.C" PARENT_SCOPE)
     else()
-        set(${out_var} "" PARENT_SCOPE)
+        string(REPLACE "-" "_" alt_name ${program_name})
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${alt_name}.C")
+            set(${out_var} "${alt_name}.C" PARENT_SCOPE)
+        elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${alt_name}.cc")
+            set(${out_var} "${alt_name}.cc" PARENT_SCOPE)
+        else()
+            set(${out_var} "" PARENT_SCOPE)
+        endif()
     endif()
 endfunction()
 
@@ -228,10 +200,7 @@ foreach(program ${EXAMPLE_PROGRAMS})
     if(source_file)
         add_executable(${program} ${source_file})
 
-        target_link_libraries(${program}
-            Aleph
-            ${SYSLIBS}
-        )
+        target_link_libraries(${program} PRIVATE Aleph ${ALEPH_SYSTEM_LIBS})
 
         # Optional: Install the example executable
         # install(TARGETS ${program} DESTINATION bin/examples)
