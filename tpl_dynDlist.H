@@ -33,6 +33,7 @@
 # include <ahIterator.H>
 # include <ah-iterator.H>
 # include <tpl_dnode.H>
+# include <stdexcept>
 
 using namespace Aleph;
 
@@ -374,11 +375,17 @@ public:
   void split_list_ne(DynDlist & l, DynDlist & r) noexcept
   {
     Dlink::split_list(l, r);
-    l.num_elem = r.num_elem = num_elem/2;
 
-    if (num_elem % 2 == 1) // ¿es num_elem impar?
-      l.num_elem++;
+    const auto count_nodes = [] (const DynDlist & list) noexcept -> size_t
+    {
+      size_t count = 0;
+      for (auto it = list.get_it(); it.has_curr(); it.next_ne())
+        ++count;
+      return count;
+    };
 
+    l.num_elem = count_nodes(l);
+    r.num_elem = count_nodes(r);
     num_elem = 0;
   }
 
@@ -466,7 +473,7 @@ public:
       pos = list_ptr->num_elem - 1;
     }
 
-    /// Put theiterator at the end state (where there is no current item)
+    /// Put the iterator at the end state (where there is no current item)
     void end() noexcept
     {
       put_itor_at_the_end(*this);
@@ -720,13 +727,17 @@ public:
     return *this;
   }
 
-  /// Return a modifiable reference to the i-th item of the list. Throw
-  /// `overflow_error` if `n` is greater than the list size
-  T & operator [] (const size_t & n) const
+  /// Return a modifiable reference to the i-th item of the list.
+  /// @throw out_of_range if `n` is greater than or equal to the list size.
+  T & operator [] (size_t n) const
   {
-    typename DynDlist<T>::Iterator it(*this);
+    auto it = this->get_it();
+    size_t i = 0;
+    for (; i < n && it.has_curr(); ++i)
+      it.next_ne();
 
-    for (int i = 0; i < n and it.has_curr(); i++, it.next_ne()) ;
+    if (not it.has_curr())
+      throw std::out_of_range("DynDlist index out of range");
 
     return it.get_curr();
   }

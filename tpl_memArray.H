@@ -85,8 +85,6 @@ namespace Aleph
 
     mutable size_t contract_threshold;
 
-   public:
-
     /// Return the current base of array.
     T *get_ptr() const noexcept { return ptr; }
 

@@ -74,7 +74,14 @@ private:
 
   T & rear_item(const size_t i = 0) const noexcept
   {
-    return this->access((size_t) (rear_index - i - 1) % this->dim);
+    const size_t offset = (rear_index + this->dim - (i + 1) % this->dim) % this->dim;
+    return this->access(offset);
+  }
+
+  void recenter_indices() noexcept
+  {
+    front_index = 0;
+    rear_index = this->n;
   }
 
 public:
@@ -106,11 +113,12 @@ public:
   }
 
   /// Move constructor
-  ArrayQueue(ArrayQueue && q)
-    : MemArray<T>(std::forward<ArrayQueue>(q)),
+  ArrayQueue(ArrayQueue && q) noexcept
+    : MemArray<T>(std::move(q)),
       front_index(q.front_index), rear_index(q.rear_index)
   {
-    // empty
+    q.front_index = 0;
+    q.rear_index = 0;
   }
 
   Special_Ctors(ArrayQueue, T);
@@ -159,10 +167,7 @@ public:
   T & put(const T & item)
   {
     if (this->expand(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
     this->access(rear_index) = item;
     return complete_put();
   }
@@ -171,10 +176,7 @@ public:
   T & put(T && item)
   {
     if (this->expand(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
     this->access(rear_index) = std::forward<T>(item);
     return complete_put();
   }
@@ -210,16 +212,23 @@ public:
     if (sz > max_sz)
       throw std::overflow_error("Maximum putn size reached");
 
-    const int avail_n = this->dim - this->n;
-    if (avail_n <= sz)
+    size_t remaining = sz;
+    while (remaining > 0)
       {
-        sz -= this->dim - this->n;
-        this->n = this->dim;
-        this->expand(front_index);
+        const size_t available = this->dim - this->n;
+        if (available == 0)
+          {
+            if (this->expand(front_index))
+              recenter_indices();
+            continue;
+          }
+
+        const size_t delta = remaining < available ? remaining : available;
+        increase_index(rear_index, delta);
+        this->n += delta;
+        remaining -= delta;
       }
 
-    increase_index(rear_index, sz);
-    this->n += sz;
     return rear_item();
   }
 
@@ -233,15 +242,12 @@ public:
     if (this->n == 0)
       throw std::underflow_error ("queue is empty");
 
-    T ret_val = std::forward<T>(this->access(front_index));
+    T ret_val = std::move(this->access(front_index));
     this->n--;
     increase_index(front_index);
 
     if (this->contract(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
 
     return ret_val;
   }
@@ -261,10 +267,7 @@ public:
     increase_index(front_index, i);
 
     if (this->contract(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
 
     return this->access(front_index);
   }
@@ -424,7 +427,7 @@ public:
           The resulting capacity will be the first number such \f$2^k
           \geq d\f$,
 
-          @param[in] minimum capacity
+          @param[in] d minimum capacity
        */
   FixedQueue(size_t d = 1024)
     // Don't change the default value because you would risk of

@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
    / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,30 +34,29 @@
 
 using namespace Aleph;
 
-namespace Aleph {
-
+namespace Aleph
+{
   class BinHeapNode_Data
   {
-    struct Control_Fields // Definición de banderas de control
+    struct Control_Fields //Defining Control Flags
     {
-      int is_leaf : 4; // true si el nodo es hoja
-      int is_left : 4; // true si el nodo es hijo izquierdo
+      int is_leaf: 4; // true If the node is leaf
+      int is_left: 4; // true if the node is a left child
     };
 
-    BinHeapNode_Data * pLink; // puntero al padre
+    BinHeapNode_Data *pLink; // Pointer to the parent
     Control_Fields control_fields;
 
   public:
-
     BinHeapNode_Data() noexcept : pLink(nullptr)
     {
       control_fields.is_leaf = true;
       control_fields.is_left = true;
     }
 
-    BinHeapNode_Data *& getU() noexcept { return pLink; }
+    BinHeapNode_Data *&getU() noexcept { return pLink; }
 
-    Control_Fields & get_control_fields() noexcept { return control_fields; }
+    Control_Fields &get_control_fields() noexcept { return control_fields; }
 
     void reset() noexcept
     {
@@ -78,21 +76,21 @@ namespace Aleph {
 
   /** Heap genérico de nodos.
 
-      La clase GenBinHeap instrumenta un heap de nodos. Este heap no
-      está implementado mediante un arreglo, sino con un árbol binario.
-      Esto proporciona la gran ventaja de ser altamente dinámico.
-      La memoria empleada es pues proporcional a la cantidad de
-      nodos del heap.
+      The GenBinHeap class instruments a node heap. This team doesn't
+      is implemented by array, but with a binary tree.
+      This provides the great advantage of being highly dynamic.
+      The memory used is therefore proportional to the amount of
+      nodes of the HEAP.
 
-      Esta clase no está destinada a uso público. Su fin es proveer
-      la funcionalidad básica a las clases BinHeap, BinHeapVtl y
+This class is not intended for public use. Its purpose is to provide
+      basic functionality to the BinHeap, BinHeapVtl, and
       DynBinHeap.
 
-      @param NodeType el tipo de nodo que usa el heap; éste será con
-      o sin destructor virtual.
-      @param Key la clave que guarda cada nodo.
-      @param Compare el criterio de comparación entre las claves de los
-      nodos.
+      @param NodeType the type of node the HEAP uses; this will be with
+      or without a virtual destroyer.
+      @param Key the key that each node keeps.
+      @param Compare the criterion of comparison between the keys of the
+      Nodes.
 
       @see BinHeap BinHeapVtl DynBinHeap
 
@@ -103,27 +101,23 @@ namespace Aleph {
   class GenBinHeap
   {
   protected:
-
     Compare cmp;
 
   public:
-
     using Node = NodeType<Key>;
 
-    Compare & key_comp() noexcept { return cmp; }
+    Compare &key_comp() noexcept { return cmp; }
 
-    Compare & get_compare() noexcept { return cmp; }
+    Compare &get_compare() noexcept { return cmp; }
 
   private:
-
-    Node     head_node;
-    Node *   head;
-    Node *&  root;
-    Node *   last;
-    size_t   num_nodes;
+    Node head_node;
+    Node *head;
+    Node *& root;
+    Node *last;
+    size_t num_nodes;
 
   public:
-
     void swap(GenBinHeap & h) noexcept
     {
       std::swap(root, h.root);
@@ -133,8 +127,7 @@ namespace Aleph {
     }
 
   private:
-
-    static bool is_in_list(Node * p) noexcept
+    static bool is_in_list(Node *p) noexcept
     {
       if (IS_LEAF(p))
         return true;
@@ -142,12 +135,12 @@ namespace Aleph {
       return ULINK(LLINK(p)) == RLINK(LLINK(p));
     }
 
-    static bool has_sibling(Node * p) noexcept
+    static bool has_sibling(Node *p) noexcept
     {
       return ULINK(p) != RLINK(p);
     }
 
-    void swap_with_parent(Node * p) noexcept
+    void swap_with_parent(Node *p) noexcept
     {
       assert(num_nodes >= 2);
       assert(p != root);
@@ -155,18 +148,18 @@ namespace Aleph {
       Node *pp = ULINK(p); // padre de p
 
       const bool p_has_sibling = has_sibling(p);
-      const bool p_is_in_list  = is_in_list(p);  // p está en último nivel?
+      const bool p_is_in_list = is_in_list(p); // p is it in the last level?
       const bool pp_is_in_list = is_in_list(pp); // p == last & LLINK(pp) == last?
-      const bool p_has_child   = not IS_LEAF(p); // p tiene hijos?
+      const bool p_has_child = not IS_LEAF(p); // Does p have children?
 
-      std::swap(CTRL_BITS(pp), CTRL_BITS(p)); // swap de banderas
+      std::swap(CTRL_BITS(pp), CTRL_BITS(p));
 
       if (pp == root)
         root = p;
 
       Node *ppp = ULINK(pp); // abuelo de p; padre de pp
 
-      ULINK(pp) = p;  // Actualizar ULINK
+      ULINK(pp) = p; // Actualizar ULINK
       ULINK(p) = ppp;
 
       if (LLINK(ppp) == pp)
@@ -174,7 +167,7 @@ namespace Aleph {
       else
         RLINK(ppp) = p;
 
-      Node *sp = nullptr;  // guarda hermano de p
+      Node *sp = nullptr; // guarda hermano de p
       if (p_has_sibling)
         {
           sp = p == LLINK(pp) ? RLINK(pp) : LLINK(pp); // hermano de p
@@ -196,14 +189,14 @@ namespace Aleph {
           if (RLINK(pp) == p)
             {
               LLINK(lcp) = RLINK(lcp) = pp;
-              RLINK(pp)  = lcp;
-              RLINK(p)   = pp;
+              RLINK(pp) = lcp;
+              RLINK(p) = pp;
             }
           else
             {
               LLINK(rcp) = RLINK(rcp) = pp;
-              LLINK(pp)  = rcp;
-              LLINK(p)   = pp;
+              LLINK(pp) = rcp;
+              LLINK(p) = pp;
             }
 
           return;
@@ -248,8 +241,8 @@ namespace Aleph {
           else
             {
               assert(LLINK(pp) == sp);
-              RLINK(p)  = pp;
-              LLINK(p)  = LLINK(pp);
+              RLINK(p) = pp;
+              LLINK(p) = LLINK(pp);
             }
 
           LLINK(pp) = lcp;
@@ -258,30 +251,30 @@ namespace Aleph {
           return;
         }
 
-      RLINK(lcp)       = pp;
+      RLINK(lcp) = pp;
       LLINK(RLINK(pp)) = p;
-      LLINK(pp)        = lcp;
-      RLINK(p)         = RLINK(pp);
-      RLINK(pp)        = p;
-      LLINK(p)         = pp;
+      LLINK(pp) = lcp;
+      RLINK(p) = RLINK(pp);
+      RLINK(pp) = p;
+      LLINK(p) = pp;
     }
 
-    virtual void sift_up(Node * p) noexcept
+    virtual void sift_up(Node *p) noexcept
     {
-      while (p != root and cmp (KEY(p), KEY(ULINK(p))))
+      while (p != root and cmp(KEY(p), KEY(ULINK(p))))
         swap_with_parent(p);
     }
 
-    virtual void sift_down(Node * p) noexcept
+    virtual void sift_down(Node *p) noexcept
     {
       while (not IS_LEAF(p))
         {
-          Node * cp = LLINK(p);  // guarda el menor hijo de p
+          Node *cp = LLINK(p); // guarda el menor hijo de p
           if (has_sibling(cp))
-            if (cmp (KEY(RLINK(p)), KEY(LLINK(p))))
+            if (cmp(KEY(RLINK(p)), KEY(LLINK(p))))
               cp = RLINK(p);
 
-          if (cmp (KEY(p), KEY(cp)))
+          if (cmp(KEY(p), KEY(cp)))
             return;
 
           swap_with_parent(cp);
@@ -297,11 +290,11 @@ namespace Aleph {
 
       if (num_nodes > 3) // caso general
         {
-          Node * lRoot     = LLINK(root);
-          Node * rRoot     = RLINK(root);
-          Node * f_last    = ULINK(last);
-          Node * prev_last = LLINK(last);
-          Node * next_last = RLINK(last);
+          Node *lRoot = LLINK(root);
+          Node *rRoot = RLINK(root);
+          Node *f_last = ULINK(last);
+          Node *prev_last = LLINK(last);
+          Node *next_last = RLINK(last);
 
           if (LLINK(f_last) == last)
             LLINK(f_last) = root;
@@ -337,7 +330,7 @@ namespace Aleph {
           ULINK(last) = ULINK(root);
           ULINK(root) = last;
 
-          Node *s_last  = LLINK(last);
+          Node *s_last = LLINK(last);
           ULINK(s_last) = last;
 
           LLINK(last) = s_last;
@@ -365,18 +358,18 @@ namespace Aleph {
       assert(last != root and num_nodes > 0);
       assert(IS_LEAF(last));
 
-      Node * ret_val  = last;
-      Node * pp       = ULINK(last);
-      Node * new_last = LLINK(last);
+      Node *ret_val = last;
+      Node *pp = ULINK(last);
+      Node *new_last = LLINK(last);
 
       if (IS_LEFT(last))
         {
           IS_LEAF(pp) = true;
-          LLINK(pp)   = new_last;
+          LLINK(pp) = new_last;
         }
       else
         {
-          RLINK(pp)          = RLINK(last);
+          RLINK(pp) = RLINK(last);
           LLINK(RLINK(last)) = pp;
         }
 
@@ -388,15 +381,15 @@ namespace Aleph {
       return ret_val;
     }
 
-    void replace_node(Node * node, Node * new_node) noexcept
+    void replace_node(Node *node, Node *new_node) noexcept
     {
       assert(node != new_node);
       assert(node != last);
 
       // guardar los parientes inmediatos de node
-      Node * parent = ULINK(node);
-      Node * left_child  = LLINK(node);
-      Node * right_child = RLINK(node);
+      Node *parent = ULINK(node);
+      Node *left_child = LLINK(node);
+      Node *right_child = RLINK(node);
 
       // actualizar los punteros pertenecientes a new_node
       ULINK(new_node) = parent;
@@ -415,22 +408,22 @@ namespace Aleph {
           RLINK(parent) = new_node;
         }
 
-      // actualizar hijos
+      // Update children
       if (IS_LEAF(node))
         {
-          RLINK(left_child)  = new_node;
+          RLINK(left_child) = new_node;
           LLINK(right_child) = new_node;
         }
       else
         {
           ULINK(left_child) = new_node;
 
-          if (ULINK(right_child) == node) // node pudiera tener sólo un hijo
+          if (ULINK(right_child) == node) // Node could have only one child
             ULINK(right_child) = new_node;
           else
             {
               assert(left_child == last);
-              RLINK(left_child)  = new_node;
+              RLINK(left_child) = new_node;
               LLINK(right_child) = new_node;
             }
         }
@@ -438,7 +431,7 @@ namespace Aleph {
       CTRL_BITS(new_node) = CTRL_BITS(node);
     }
 
-    static void __postorder_delete(Node * p, Node * incomplete_node) noexcept
+    static void __postorder_delete(Node *p, Node *incomplete_node) noexcept
     {
       if (IS_LEAF(p))
         {
@@ -455,15 +448,14 @@ namespace Aleph {
     }
 
   public:
-
     Node * getRoot() noexcept { return root; }
 
-    Node * getRoot() const noexcept { return const_cast<Node*>(root); }
+    Node * getRoot() const noexcept { return const_cast<Node *>(root); }
 
   private:
-
-    template <class Operation> static
-    void __for_each_in_preorder(Node * p, Operation & operation)
+    template <class Operation>
+    static
+    void __for_each_in_preorder(Node *p, Operation & operation)
     {
       if (p == nullptr)
         return;
@@ -473,8 +465,9 @@ namespace Aleph {
       __for_each_in_preorder(advance_right(p), operation);
     }
 
-    template <class Operation> static
-    void __for_each_in_inorder(Node * p, Operation & operation)
+    template <class Operation>
+    static
+    void __for_each_in_inorder(Node *p, Operation & operation)
     {
       if (p == nullptr)
         return;
@@ -485,7 +478,7 @@ namespace Aleph {
     }
 
     template <class Operation>
-    bool preorder_traverse(Node * p, Operation op) const
+    bool preorder_traverse(Node *p, Operation op) const
     {
       if (p == nullptr)
         return true;
@@ -497,7 +490,6 @@ namespace Aleph {
     }
 
   public:
-
     template <class Operation>
     bool preorder_traverse(Operation op) const
     {
@@ -529,24 +521,23 @@ namespace Aleph {
     }
 
   private:
-
     template <class Op>
-    bool __level_traverse(Node * root, Op & operation) const
+    bool __level_traverse(Node *root, Op & operation) const
     {
       if (root == nullptr)
         return true;
 
-      DynListQueue<Node*> queue;
+      DynListQueue<Node *> queue;
       queue.put(root);
 
       while (not queue.is_empty())
         {
-          Node * p = queue.get();
+          Node *p = queue.get();
 
           if (not operation(p))
             return false;
 
-          Node * c = advance_left(p);
+          Node *c = advance_left(p);
           if (c == nullptr)
             continue;
 
@@ -561,7 +552,6 @@ namespace Aleph {
     }
 
   public:
-
     template <class Op>
     bool level_traverse(Op operation = Op()) const
     {
@@ -575,7 +565,9 @@ namespace Aleph {
       // empty
     }
 
-    virtual ~GenBinHeap() noexcept { /* empty */ }
+    virtual ~GenBinHeap() noexcept
+    { /* empty */
+    }
 
     /** Inserta un nodo en un heap.
 
@@ -584,48 +576,48 @@ namespace Aleph {
         @param[in] p el nodo a insertar.
         @return puntero al nodo insertado.
     */
-    Node * insert(Node * p) noexcept
+    Node * insert(Node *p) noexcept
     {
       assert(IS_LEAF(p));
 
-      if (root == nullptr) // ¿heap está vacío?
-        { // Sí, inicialice
+      if (root == nullptr) // Is HEAP empty?
+        { // Yes, initialize
 
           assert(num_nodes == 0);
 
-          root       = p;
-          LLINK(p)   = RLINK(p) = p;
-          ULINK(p)   = head;
+          root = p;
+          LLINK(p) = RLINK(p) = p;
+          ULINK(p) = head;
           IS_LEAF(p) = true;
           IS_LEFT(p) = false; /* root is right child of header node */
-          last      = root;
+          last = root;
           num_nodes = 1;
           return p;
         }
       // inserción general
-      Node * pp = RLINK(last); // padre de actual last
+      Node *pp = RLINK(last); // padre de actual last
       LLINK(p) = last;
       ULINK(p) = pp;
 
       if (IS_LEFT(last))
         { // p será hijo derecho
-          IS_LEFT(p)       = false;
-          RLINK(p)         = RLINK(pp);
+          IS_LEFT(p) = false;
+          RLINK(p) = RLINK(pp);
           LLINK(RLINK(pp)) = p;
-          RLINK(pp)        = p;
+          RLINK(pp) = p;
         }
       else
         { // p será hijo izquierdo
           IS_LEFT(p) = true;
-          RLINK(p)   = pp;
+          RLINK(p) = pp;
           IS_LEAF(pp) = false; // si p es izquierdo ==> pp era hoja
-          LLINK(pp)   = p;
+          LLINK(pp) = p;
         }
 
       assert(not IS_LEAF(pp));
 
       RLINK(last) = p;
-      last        = p;
+      last = p;
       num_nodes++;
       sift_up(last);
       return p;
@@ -653,7 +645,7 @@ namespace Aleph {
 
     /** Elimina del heap el nodo de menor prioridad.
 
-        getMIn() extrae del heap this el nodo que contenga el menor 
+        getMIn() extrae del heap this el nodo que contenga el menor
         valor de prioridad según el criterio de comparación definido
         en la declaración.
 
@@ -663,7 +655,7 @@ namespace Aleph {
     Node * getMin()
     {
       if (root == nullptr)
-        throw std::underflow_error ("Heap is empty");
+        throw std::underflow_error("Heap is empty");
       return getMin_ne();
     }
 
@@ -683,7 +675,7 @@ namespace Aleph {
         @param[in] p puntero al nodo que se desea actualizar
         @see insert()
     */
-    void update(Node * p) noexcept
+    void update(Node *p) noexcept
     {
       sift_down(p);
       sift_up(p);
@@ -698,10 +690,10 @@ namespace Aleph {
         @return puntero al nodo eliminado
         @note No se verifica si node pertenece al heap.
     */
-    Node * remove(Node * node)
+    Node * remove(Node *node)
     {
       if (root == nullptr)
-        throw std::underflow_error ("Heap is empty");
+        throw std::underflow_error("Heap is empty");
 
       if (node == root)
         return getMin_ne();
@@ -709,7 +701,7 @@ namespace Aleph {
       if (node == last)
         return remove_last();
 
-      Node * p = remove_last();
+      Node *p = remove_last();
 
       if (node == last)
         {
@@ -754,20 +746,25 @@ namespace Aleph {
     Node * top()
     {
       if (root == nullptr)
-        throw std::underflow_error ("Heap is empty");
+        throw std::underflow_error("Heap is empty");
 
       return root;
     }
 
-    /// Retorna la cardinalidad del heap.
-    const size_t & size() const noexcept { return num_nodes; }
+    Node * top() const
+    {
+      if (root == nullptr)
+        throw std::underflow_error("Heap is empty");
 
-    /// Retorna true si el heap está vacío.
+      return const_cast<Node *>(root);
+    }
+
+    const size_t &size() const noexcept { return num_nodes; }
+
     bool is_empty() const noexcept { return size() == 0; }
 
   protected:
-
-    static Node * advance_left(Node * p) noexcept
+    static Node * advance_left(Node *p) noexcept
     {
       if (IS_LEAF(p))
         return nullptr;
@@ -775,7 +772,7 @@ namespace Aleph {
       return LLINK(p);
     }
 
-    static Node * advance_right(Node * p) noexcept
+    static Node * advance_right(Node *p) noexcept
     {
       if (IS_LEAF(p))
         return nullptr;
@@ -786,30 +783,29 @@ namespace Aleph {
       return RLINK(p);
     }
 
-    virtual bool verify_heap(Node * p) const
+    virtual bool verify_heap(Node *p) const
     {
-      Node * left_link = advance_left(p);
+      Node *left_link = advance_left(p);
       if (left_link == nullptr)
         {
           assert(IS_LEAF(p));
           return true;
         }
 
-      if (cmp (KEY(left_link), KEY(p)))
+      if (cmp(KEY(left_link), KEY(p)))
         return false;
 
-      Node * right_link = advance_right(p);
+      Node *right_link = advance_right(p);
       if (right_link == nullptr)
         return verify_heap(left_link);
 
-      if (cmp (KEY(right_link), KEY(p)))
+      if (cmp(KEY(right_link), KEY(p)))
         return false;
 
       return verify_heap(right_link);
     }
 
   public:
-
     bool verify_heap() const
     {
       if (root == nullptr)
@@ -822,15 +818,14 @@ namespace Aleph {
     {
       static const size_t Stack_Size = 64;
 
-      GenBinHeap * heap_ptr = nullptr;
-      FixedStack<Node*> s;
-      Node * curr = nullptr;
+      GenBinHeap *heap_ptr = nullptr;
+      FixedStack<Node *> s;
+      Node *curr = nullptr;
       size_t pos = 0;
 
     public:
-
       Iterator(const GenBinHeap & h)
-        : heap_ptr(&const_cast<GenBinHeap&>(h)), s(Stack_Size)
+        : heap_ptr(&const_cast<GenBinHeap &>(h)), s(Stack_Size)
       {
         if (h.is_empty())
           return;
@@ -920,23 +915,23 @@ namespace Aleph {
     };
   };
 
-  /** Heap de nodos sin destructor virtual.
+  /** Node heap without virtual destructor.
 
-      La clase BinHeap instrumenta un heap de nodos. Este heap no
-      está implementado mediante un arreglo, sino con un árbol binario.
-      Esto proporciona la gran ventaja de ser altamente dinámico. 
-      La memoria empleada es pues proporcional a la cantidad de
-      nodos del heap.
+      The BinHeap class instruments a node heap. This team doesn't
+      is implemented by array, but with a binary tree.
+      This provides the great advantage of being highly dynamic.
+      The memory used is therefore proportional to the amount of
+      nodes of the HEAP.
 
-      @param Key la clave que guarda cada nodo.
-      @param Compare el criterio de comparación entre las claves de los
-      nodos; por omisión es la relación "menor que".
+      @param Key the key that each node keeps.
+      @param Compare the criterion of comparison between the keys of the
+      Nodes; by default is the relationship "less than".
 
       @see BinHeapVtl DynBinHeap
 
       @ingroup Arboles
   */
-  template <class Key, typename Compare = Aleph::less<Key> >
+  template <class Key, typename Compare = Aleph::less<Key>>
   struct BinHeap : public GenBinHeap<BinHeapNode, Key, Compare>
   {
     /// El tipo de nodo del heap.
@@ -944,24 +939,24 @@ namespace Aleph {
     using GenBinHeap<BinHeapNode, Key, Compare>::GenBinHeap;
   };
 
-  /** Heap de nodos con destructor virtual.
+  /** Heap of nodes with virtual destroyer.
 
-      La clase BinHeapVtl instrumenta un heap de nodos con destructor
-      virtual. Este heap no
-      está implementado mediante un arreglo, sino con un árbol binario.
-      Esto proporciona la gran ventaja de ser altamente dinámico. 
-      La memoria empleada es pues proporcional a la cantidad de
-      nodos del heap.
+      The BinHeapVtl class instruments a node heap with a destroyer
+      virtual. This team doesn't
+      is implemented by array, but with a binary tree.
+      This provides the great advantage of being highly dynamic.
+      The memory used is therefore proportional to the amount of
+      nodes of the HEAP.
 
-      @param Key la clave que guarda cada nodo.
-      @param Compare el criterio de comparación entre las claves de los
-      nodos; por omisión es la relación "menor que".
+      @param Key the key that each node keeps.
+      @param Compare the criterion of comparison between the keys of the
+      Nodes; by default is the relationship "less than".
 
       @see BinHeap DynBinHeap
 
       @ingroup Arboles
   */
-  template <class Key, typename Compare = Aleph::less<Key> >
+  template <class Key, typename Compare = Aleph::less<Key>>
   struct BinHeapVtl : public GenBinHeap<BinHeapNodeVtl, Key, Compare>
   {
     /// El tipo de nodo del heap.
@@ -977,4 +972,3 @@ namespace Aleph {
 # undef CTRL_BITS
 } // end namespace Aleph
 # endif //  TPL_BINHEAP_H
-

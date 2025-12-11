@@ -38,18 +38,14 @@ using namespace Aleph;
 
 namespace Aleph {
 
-  /** Heap dinámico de elementos de tipo genérico T con criterio de
-      comparación Compare.
+  /** Dynamic heap of elements of type @p T ordered by a comparison functor.
 
-      DynBinHeap instrumenta un heap dinámico de elementos de tipo T
-      ordenados según criterio de comparación Compare()().
-
-      Por dinámico se entiende que el heap puede crecer o disminuir en
-      función de los recursos. Dicho de otro modo, no está supeditado
-      por el uso de un arreglo interno.
+      `DynBinHeap` stores items in a binary heap whose nodes are allocated
+      dynamically (no backing array), so the structure can grow or shrink as
+      needed.
 
       @ingroup Arboles
-      @author Leandro Rabindranath León (lrleon en ula punto ve)
+      @author Leandro Rabindranath León
   */
   template <class T, class Compare = Aleph::less<T>>
   class DynBinHeap : public BinHeap<T, Compare>,
@@ -61,10 +57,8 @@ namespace Aleph {
   {
   public:
 
-    /// El tipo de conjunto sobre el cual se itera.
     using Set_Type = DynBinHeap;
 
-    /// El tipo de elemento que retorna get_curr().
     using Item_Type = T;
 
     using Key_Type = T;
@@ -127,14 +121,11 @@ namespace Aleph {
       return *this;
     }
 
-    /** Inserta en el heap una copia de item.
+    /** Insert a copy of @p item into the heap.
 
-        Inserta una copia de item en el heap dinámico.
-
-        @param[in] item elemento a insertar en el heap.
-        @return una referencia modificable al elemento copiado e
-        insertado en el heap.
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] item value to insert.
+        @return reference to the stored element.
+        @throw bad_alloc if allocation fails.
     */
     T & insert(const T & item)
     {
@@ -156,15 +147,7 @@ namespace Aleph {
       return __insert(new Node (std::forward<T>(item)));
     }
 
-    /** Inserta en el heap una copia de item.
-
-        Sinónimo de insert();
-
-        @param[in] item elemento a insertar en el heap.
-        @return una referencia modificable al elemento copiado e
-        insertado en el heap.
-        @throw bad_alloc si no hay suficiente memoria.
-    */
+    /** Synonym of insert(). */
     T & put(const T & item)
     {
       return insert(item);
@@ -175,11 +158,10 @@ namespace Aleph {
       return insert(std::forward<T>(item));
     }
 
-    /** Elimina el menor elemento de un heap dinámico y retorna una
-        copia.
+    /** Remove the minimum element (according to @p Compare) and return it.
 
-        @return una copia del elemento eliminado
-        @throw underflow_error si el heap está vacío.
+        @return copy of the removed element.
+        @throw underflow_error if the heap is empty.
     */
     T getMin()
     {
@@ -198,29 +180,16 @@ namespace Aleph {
       return getMin();
     }
 
-    /** Elimina el menor elemento de un heap dinámico y retorna una
-        copia.
-
-        @return una copia del elemento eliminado
-        @throw underflow_error si el heap está vacío.
-    */
+    /** Alias for getMin(). */
     T get()
     {
       return getMin();
     }
 
-    /** Actualiza una prioridad en el heap.
+    /** Adjust the position of an element after mutating its priority.
 
-        update(data) toma una referencia a un elemento del heap, cuya
-        prioridad ha sido presumiblemente modificada, y actualiza su
-        posición en el heap.
-
-        @param[in] data referencia modificable a un elemento dentro del
-        heap.
-
-        @note La referencia debe ser válida en el sentido de que debe
-        tratarse de una referencia retornada por insert(). No se hacen
-        verificaciones al respecto.
+        @param[in] data reference previously returned by insert().
+        @note Behavior is undefined if @p data does not belong to this heap.
     */
     void update(T & data) noexcept
     {
@@ -228,42 +197,41 @@ namespace Aleph {
       BinHeap<T, Compare>::update(node);
     }
 
-    /** Elimina un elemento arbitrario del heap.
+    /** Remove an arbitrary element belonging to the heap.
 
-        remove(data) elimina un elemento cualquiera que esté dentro
-        del heap.
+        The reference must have been obtained from insert(). The underlying
+        node is freed.
 
-        `data` debe pertenecer al heap.
-
-        Esta operación es útil cuando de alguna manera, según la
-        aplicación, el elemento data pierda vigencia dentro del
-        heap. Por ejemplo, la cancelación de un evento.
-
-        @param data el elemento a eliminar.
-
-        @note Resultados inesperados si data no pertenece al heap.
+        @param data element to erase.
+        @return true if a node was removed.
     */
-    void remove(T & data) noexcept
+    bool remove(T & data) noexcept
     {
+      if (this->is_empty())
+        return false;
+
       Node * node = BinHeap<T, Compare>::Node::key_to_node(data);
-      BinHeap<T, Compare>::remove(node);
+      Node * removed = BinHeap<T, Compare>::remove(node);
+      if (removed == nullptr)
+        return false;
+
+      delete removed;
+      return true;
     }
 
-    /// Sinónimo de remove.
-    void erase(T & data) noexcept
+    /// Alias for remove().
+    bool erase(T & data) noexcept
     {
-      remove(data);
+      return remove(data);
     }
 
-    /// Retorna una referencia modificable al menor elemento dentro
-    /// del heap dinámico según el orden determinado por el criterio
-    /// de comparación dado en la declaración.
+    /// Return a reference to the smallest element.
     T & top() const
     {
       return BinHeap<T, Compare>::top()->get_key();
     }
 
-    /// Vacía todos los elementos del heap dinámico.
+    /// Remove every element.
     void empty() noexcept
     {
       this->remove_all_and_delete();

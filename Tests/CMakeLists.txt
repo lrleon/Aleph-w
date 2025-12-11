@@ -58,6 +58,7 @@ set(TEST_PROGRAMS
     arrayqueue
     dynlistqueue
     bin-node
+    binheap
     tree-node
     odhash
     dynsetohash

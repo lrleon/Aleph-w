@@ -378,3 +378,172 @@ TEST_F(List_of_25_items, traverse)
   EXPECT_FALSE(ret);
   EXPECT_EQ(N, n/2);
 }
+
+TEST(DynDlist, RemoveAndEraseByReference)
+{
+  DynDlist<int> list;
+  for (int i = 1; i <= 4; ++i)
+    list.append(i);
+
+  int &middle = list[2];
+  list.remove(middle);
+  ASSERT_EQ(list.size(), 3u);
+  int expected_after_remove[] = {1, 2, 4};
+  int idx = 0;
+  for (auto it = list.get_it(); it.has_curr(); it.next(), ++idx)
+    EXPECT_EQ(it.get_curr(), expected_after_remove[idx]);
+
+  int &first = list.get_first();
+  list.erase(first);
+  EXPECT_EQ(list.size(), 2u);
+  EXPECT_EQ(list.get_first(), 2);
+  EXPECT_EQ(list.get_last(), 4);
+}
+
+TEST(DynDlist, OperatorIndexEnforcesBounds)
+{
+  DynDlist<int> list;
+  for (int i = 0; i < 5; ++i)
+    list.append(i);
+
+  list[2] = 99;
+  EXPECT_EQ(list[2], 99);
+
+  const DynDlist<int> &clist = list;
+  EXPECT_EQ(clist[0], 0);
+
+  EXPECT_THROW(list[5], std::out_of_range);
+  EXPECT_THROW(list[10], std::out_of_range);
+
+  DynDlist<int> empty;
+  EXPECT_THROW(empty[0], std::out_of_range);
+}
+
+TEST_F(List_of_10_items, ConstReverseReturnsIndependentCopy)
+{
+  const DynDlist<int> &cref = list10;
+  auto reversed = cref.reverse();
+
+  int expected_desc = 10;
+  for (auto it = reversed.get_it(); it.has_curr(); it.next(), --expected_desc)
+    EXPECT_EQ(it.get_curr(), expected_desc);
+  EXPECT_EQ(expected_desc, 0);
+
+  int expected_orig = 1;
+  for (auto it = cref.get_it(); it.has_curr(); it.next(), ++expected_orig)
+    EXPECT_EQ(it.get_curr(), expected_orig);
+  EXPECT_EQ(expected_orig, 11);
+
+  auto reversed_alias = cref.rev();
+  int expected_desc_alias = 10;
+  for (auto it = reversed_alias.get_it(); it.has_curr(); it.next(), --expected_desc_alias)
+    EXPECT_EQ(it.get_curr(), expected_desc_alias);
+  EXPECT_EQ(expected_desc_alias, 0);
+}
+
+TEST(DynDlist, IteratorInsertAndAppendOperations)
+{
+  DynDlist<int> list = {1, 3};
+  auto it = list.get_it();
+  ASSERT_TRUE(it.has_curr());
+
+  it.insert(2);
+  int expected_after_insert[] = {1, 2, 3};
+  int idx = 0;
+  for (auto iter = list.get_it(); iter.has_curr(); iter.next(), ++idx)
+    EXPECT_EQ(iter.get_curr(), expected_after_insert[idx]);
+
+  it.reset_first();
+  it.append(0);
+  int expected_after_append[] = {0, 1, 2, 3};
+  idx = 0;
+  for (auto iter = list.get_it(); iter.has_curr(); iter.next(), ++idx)
+    EXPECT_EQ(iter.get_curr(), expected_after_append[idx]);
+
+  auto at_end = list.get_it();
+  at_end.end();
+  EXPECT_THROW(at_end.insert(42), std::overflow_error);
+  EXPECT_THROW(at_end.append(42), std::overflow_error);
+}
+
+TEST(DynDlist, IteratorListOperations)
+{
+  DynDlist<int> base = {1, 4};
+  DynDlist<int> middle = {2, 3};
+  DynDlist<int> head = {-1, 0};
+
+  auto it = base.get_it();
+  ASSERT_TRUE(it.has_curr());
+  it.insert_list(middle);
+  EXPECT_TRUE(middle.is_empty());
+
+  int expected_after_insert_list[] = {1, 2, 3, 4};
+  int idx = 0;
+  for (auto iter = base.get_it(); iter.has_curr(); iter.next(), ++idx)
+    EXPECT_EQ(iter.get_curr(), expected_after_insert_list[idx]);
+
+  it.reset_first();
+  it.append_list(head);
+  EXPECT_TRUE(head.is_empty());
+
+  int expected_after_append_list[] = {-1, 0, 1, 2, 3, 4};
+  idx = 0;
+  for (auto iter = base.get_it(); iter.has_curr(); iter.next(), ++idx)
+    EXPECT_EQ(iter.get_curr(), expected_after_append_list[idx]);
+}
+
+TEST(DynDlist, IteratorListOperationsRequireCurrent)
+{
+  DynDlist<int> base = {1, 2, 3};
+  DynDlist<int> extra = {4, 5};
+
+  auto it = base.get_it();
+  it.end();
+  EXPECT_THROW(it.insert_list(extra), std::overflow_error);
+  EXPECT_THROW(it.append_list(extra), std::overflow_error);
+
+  // ni la lista base ni la extra deberían alterarse tras los errores
+  int expected_base[] = {1, 2, 3};
+  int idx = 0;
+  for (auto iter = base.get_it(); iter.has_curr(); iter.next(), ++idx)
+    EXPECT_EQ(iter.get_curr(), expected_base[idx]);
+  EXPECT_FALSE(extra.is_empty());
+  EXPECT_EQ(extra.size(), 2u);
+}
+
+TEST(DynDlist, SplitRequiresEmptyDestination)
+{
+  DynDlist<int> source = {1, 2, 3};
+  DynDlist<int> left;
+  DynDlist<int> right;
+
+  left.append(42);
+  EXPECT_THROW(source.split(left, right), std::domain_error);
+
+  left.empty();
+  right.append(99);
+  EXPECT_THROW(source.split(left, right), std::domain_error);
+}
+
+TEST(DynDlist, StackAndQueueAliases)
+{
+  DynDlist<int> list;
+  list.push(3);
+  list.push(2);
+  list.push(1);
+
+  EXPECT_EQ(list.top(), 1);
+  EXPECT_EQ(list.pop(), 1);
+  EXPECT_EQ(list.top(), 2);
+
+  list.put(99);
+  EXPECT_EQ(list.rear(), 99);
+  EXPECT_EQ(list.front(), 2);
+  EXPECT_EQ(list.get(), 2);
+  EXPECT_EQ(list.front(), 3);
+
+  list.pop();
+  list.pop();
+  EXPECT_TRUE(list.is_empty());
+  EXPECT_THROW(list.pop(), std::underflow_error);
+}

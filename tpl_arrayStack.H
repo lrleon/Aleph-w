@@ -80,8 +80,8 @@ public:
   ArrayStack(const ArrayStack & s) : array(s.array) { /* empty */ }
 
       /// Move constructor
-  ArrayStack(ArrayStack && s)
-    : array(std::forward<MemArray<T>>(s.array)) { /* empty */ }
+  ArrayStack(ArrayStack && s) noexcept
+    : array(std::move(s.array)) { /* empty */ }
 
   Special_Ctors(ArrayStack, T);
 
@@ -99,7 +99,7 @@ public:
   /// Swap `this` with `s`
   void swap(ArrayStack & s) noexcept
   {
-    std::swap(*this, s);
+    array.swap(s.array);
   }
 
   /// Assign by moving `s` to `this`
