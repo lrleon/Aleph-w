@@ -76,7 +76,7 @@ namespace Aleph {
         @param[in] root of tree
         @param[in] key to search
         @param[out] parent pointer to parent node if key was
-        found. Otherwise value is indetermined
+        found. Otherwise, value is undetermined
         @return a valid pointer to a node containing `key` if this is
         found; otherwise, it returns a pointer to the last visited node
     */
@@ -127,7 +127,7 @@ namespace Aleph {
       else if (cmp(KEY(root), KEY(p)))   // ¿p > root?
         return insert(RLINK(root), p);
 
-      return Node::NullPtr; // clave repetida ==> no hay inserción
+      return Node::NullPtr; // Repeated key ==> no insertion
     }
 
     /** Insert a node `p` in a binary search tree
@@ -265,7 +265,7 @@ namespace Aleph {
         @param[out] ts tree with the keys lesser than `key`
         @param[out] tg tree with the keys greater or equal than `key`
     */
-    void split_key_dup_rec(Node * root, const typename Node::key_type & key,
+    void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
                            Node *& ts, Node *& tg) noexcept
     {
       __split_key_dup_rec(root, key, ts, tg);

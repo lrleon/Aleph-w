@@ -29,15 +29,18 @@
 # define TPL_DYNSLIST_H
 
 # include <tpl_slist.H>
+# include <cstddef>
+# include <stdexcept>
+# include <utility>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** Lista dinámica de elementos de tipo T instrumentada mediante una lista
-      simplemente enlazada.
+  /** Dynamic list of elements of type `T` implemented with a singly
+      linked list of nodes.
 
-      @param T el tipo de dato de los elementos de la lista.
+      @tparam T data type stored in each node
 
       @see Slist Snode Slink
       @ingroup Secuencias
@@ -46,19 +49,20 @@ namespace Aleph {
   class DynSlist : public Slist<T>
   {
     size_t num_items;
-    int        current_pos;
+    size_t      current_pos;
     Snode<T> * current_node;
-    typename Slist<T>::Node * get_previous_to_pos(const int & pos)
+    typename Slist<T>::Node *
+    get_previous_to_pos(size_t pos, bool allow_equal)
     {
-      if (pos > num_items)
+      if (pos > num_items || (not allow_equal and pos == num_items))
         throw std::out_of_range ("position out of range");
 
-      if (pos < current_pos) // hay que retroceder?
-        { // Si, reinicie posición actual
+      if (pos < current_pos)
+        {
           current_pos  = 0;
           current_node = this;
         }
-      while (current_pos < pos)  // avanzar hasta nodo predecesor a pos
+      while (current_pos < pos)
         {
           current_node = current_node->get_next();
           ++current_pos;
@@ -74,59 +78,64 @@ namespace Aleph {
       // Empty
     }
 
-    /** Acceso al i-ésimo elemento de la lista.
+    /** Access the element at position `i`.
 
-        El operador [i] sobre una lista accede al elemento cuya posición
-        es i.
+        Access is `O(i)` because it requires traversing `i` nodes.
 
-        El acceso a la posición i requiere recorrer secuencialmente los i - 1
-        elementos previos.
-
-        @param[in] i posición del elemento que se desea acceder.
-        @throw out_of_range_error si i es mayor que la cantidad de
-        elementos de la lista.
-        @return una referencia constante al elemento i dentro de la lista.
-        @note En términos de desempeño, este operador no es el mismo que
-        el acceso sobre un arreglo.
+        @param[in] i zero-based index to access
+        @throw std::out_of_range if `i` is outside `[0, size()]`
+        @return reference to the element at position `i`
     */
-    T & operator [] (const size_t & i)
+    T & operator [] (size_t i)
     {
-      return get_previous_to_pos(i)->get_next()->get_data();
+      return get_previous_to_pos(i, false)->get_next()->get_data();
     }
 
-    /// Retorna la cantidad de elementos que tiene la lista.
-    size_t size() const { return num_items; }
+    /// Const overload of `operator[]`.
+    const T & operator[](size_t i) const
+    {
+      return const_cast<DynSlist&>(*this)[i];
+    }
 
-    /** Inserta un elemento en la posición pos dentro de una lista
-        dinámica.
+    /// Return the number of stored elements.
+    size_t size() const noexcept { return num_items; }
 
-        insert(pos, data) inserta en la posición pos de la lista this el
-        elemento cuyo valor es data.
+    /** Insert an element at position `pos`.
 
-        @param[in] pos posición de inserción.
-        @param[in] data valor del elemento a insertar.
-        @throw bad_alloc si no hay suficiente memoria.
-        @throw out_of_range si pos está fuera de rango.
+        @param[in] pos insertion position in `[0, size()]`
+        @param[in] data value to store
+        @throw std::out_of_range if `pos` is invalid
+        @throw std::bad_alloc on memory exhaustion
     */
-    void insert(const int & pos, const T & data)
-    {      // apartar nodo para nuevo elemento
-      typename Slist<T>::Node * node = new typename Slist<T>::Node (data);
-      typename Slist<T>::Node * prev = get_previous_to_pos(pos);
+    void insert(int pos, const T & data)
+    {
+      auto * node = new typename Slist<T>::Node (data);
+      auto * prev = get_previous_to_pos(static_cast<size_t>(pos), true);
       prev->insert_next(node);
       ++num_items;
     }
 
-    /** Elimina de la lista el elemento es la posición pos.
+    /// Insert an element by moving the provided value.
+    void insert(int pos, T && data)
+    {
+      auto * node = new typename Slist<T>::Node (std::move(data));
+      auto * prev = get_previous_to_pos(static_cast<size_t>(pos), true);
+      prev->insert_next(node);
+      ++num_items;
+    }
 
-        @param[in] pos posición del elemento a eliminar.
-        @throw out_of_range si pos está fuera de rango.
+    /** Remove the node at position `pos`.
+
+        @param[in] pos zero-based position to erase
+        @throw std::out_of_range if `pos` is invalid
     */
-    void remove(const int & pos)
-    {      // obtener nodo predecesor al nuevo elemento
-      typename Slist<T>::Node * prev = get_previous_to_pos(pos);
-      typename Slist<T>::Node * node_to_delete = prev->remove_next();
+    void remove(int pos)
+    {
+      auto * prev = get_previous_to_pos(static_cast<size_t>(pos), false);
+      auto * node_to_delete = prev->remove_next();
       delete node_to_delete;
       --num_items;
+      current_node = prev;
     }
 
     /// Destructor.
@@ -136,24 +145,29 @@ namespace Aleph {
         delete this->remove_first_ne(); // remove_first de clase Slink
     }
 
-    /** Iterador sobre listas dinámicas implementadas con listas
-        simplemente enlazadas.
+    /** Iterator specialized for `DynSlist` returning payload references.
 
-        @ingroup Secuencias
+        @ingroup Sequences
     */
     class Iterator : public Slist<T>::Iterator
     {
     public:
-      /// El tipo de conjunto sobre el cual se itera.
+      /// Type of the data structure being iterated.
       typedef Slist<T> Set_Type;
-      /// El tipo de elemento que retorna get_curr().
+      /// Type returned by `get_curr()`.
       typedef T Item_Type;
 
       /// Constructor.
-      Iterator(DynSlist & list) : Slist<T>::Iterator(list) { /* Empty */ } 
+      explicit Iterator(DynSlist & list) : Slist<T>::Iterator(list) { }
 
-      /// retorna una referencia al elemento actual.
+      /// Return a reference to the current payload.
       T & get_curr() { return Slist<T>::Iterator::get_curr()->get_data(); }
+
+      /// Return a const reference to the current payload.
+      const T & get_curr() const
+      {
+        return Slist<T>::Iterator::get_curr()->get_data();
+      }
     };
   };
 

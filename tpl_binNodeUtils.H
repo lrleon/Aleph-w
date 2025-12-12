@@ -56,16 +56,16 @@ void __inorder_rec(Node * node, const int& level, int & position,
 
   /** Traverse recursively inorder a binary tree.
 
-      `inOrderRec(root,visit)` performs a inorder traversal of tree
-      rooted by `root` and on each node exceutes a visit function with
+      `inOrderRec(root,visit)` performs an inorder traversal of tree
+      rooted by `root` and on each node executes a visit function with
       the following signature:
 
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
-      -# `p`: pointer to visted node.
+      -# `p`: pointer to visited node.
       -# `level`: level of node `p`.
-      -# `pos`: ordinal indicating the visitt order
+      -# `pos`: ordinal indicating the visited order
 
       \deprecated Probably this function will be removed in future
       versions. Use the functor `For_Each_In_Order` or `traverse()` instead
@@ -626,7 +626,7 @@ inline bool areEquivalents(Node * t1, Node * t2, Equal && op = Equal()) noexcept
 
           void (*visitFct)(Node* p, int level, bool is_left)
 
-      Donde:
+      Where:
       -# `p`: pointer to currently visited node
       -# `pos`: ordinal indicating the visit order
       -# `is_left`: `true` if `p` is a left child; `false` otherwise
@@ -845,18 +845,18 @@ void inOrderThreaded(Node * root, void (*visitFct)(Node*))
     {
       q = LLINK(p);
       if (q == Node::NullPtr)
-        { // No hay rama izq ==> visitar p
+        { // No left branch ==> visit p
           (*visitFct)(p);
           r = p;
           p = RLINK(p);
           continue;
         }
 
-          // avanzar hacia el nodo mï¿½s a la derecha de la rama izquierda
+          // Move towards the rightmost node of the left branch
       while (q != r and RLINK(q) != Node::NullPtr)
         q = RLINK(q);
 
-      if (q != r) // tiene p un predecesor?
+      if (q != r) // Does p have a predecessor?
         { // si ==> dejar un hilo para luego subir a visitar p
           RLINK(q) = p; // Aquï¿½ se coloca el hilo
           p = LLINK(p); // Seguir bajando por la izquierda
@@ -1424,7 +1424,7 @@ Node * find_successor(Node * p, Node *& pp) noexcept
 Node* find_predecessor(Node * p, Node *& pp) noexcept
 {
   assert(p != Node::NullPtr);
-  assert(LLINK(pp) != Node::NullPtr);
+  assert(LLINK(p) != Node::NullPtr);
 
   pp = p;
   p  = LLINK(p);
@@ -1682,9 +1682,15 @@ void __split_key_dup_rec(Node * root, const typename Node::key_type & key,
     }
 
   if (cmp(KEY(root), key))
-    __split_key_dup_rec(RLINK(root), key, RLINK(root), tg, cmp);
+    {
+      __split_key_dup_rec(RLINK(root), key, RLINK(root), tg, cmp);
+      ts = root;
+    }
   else
-    __split_key_dup_rec(LLINK(root), key, ts, LLINK(root), cmp);
+    {
+      __split_key_dup_rec(LLINK(root), key, ts, LLINK(root), cmp);
+      tg = root;
+    }
 }
 
 
@@ -1712,7 +1718,7 @@ void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
 }
 
 
-/** Exclusive join of two biry trees
+/** Exclusive join of two binary trees
 
     `join_exclusive(ts, tg)` joins `ts` and `ts`. The exclusive sense
     means that all the keys of `ts` are lesser that all the keys of `tg`
@@ -1720,7 +1726,7 @@ void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
     @param[in] ts tree with keys lesser than `tg`
     @param[in] tg tree with keys greater than `ts`
     @return the root of resulting joined tree
-    @warning No validation about the exlcusive ranges is done
+    @warning No validation about the exclusive ranges is done
 
     @ingroup Arboles
     @see remove_from_bst()
@@ -1763,9 +1769,9 @@ Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
     return Node::NullPtr;
 
   if (cmp(key, KEY(root)))
-    return remove_from_bst(LLINK(root), key);
-  else if (cmp(KEY(root), key))
-    return remove_from_bst(RLINK(root), key);
+    return remove_from_bst(LLINK(root), key, cmp);
+  if (cmp(KEY(root), key))
+    return remove_from_bst(RLINK(root), key, cmp);
 
   Node * ret_val = root; // respaldar root que se va a borrar
   root = join_exclusive(LLINK(root), RLINK(root));
@@ -2502,12 +2508,12 @@ public:
    /// Return `true` if the iterator is on the first node
   bool is_in_first() const noexcept
   {
-    return curr != nullptr and LLINK(curr) == nullptr and s.is_empty();
+    return curr != Node::NullPtr and LLINK(curr) == Node::NullPtr and s.is_empty();
   }
   
   bool is_last() const noexcept
   {
-    return curr != nullptr and RLINK(curr) == nullptr and s.is_empty();
+    return curr != Node::NullPtr and RLINK(curr) == Node::NullPtr and s.is_empty();
   }
 
   void swap(BinNodeInfixIterator & it)

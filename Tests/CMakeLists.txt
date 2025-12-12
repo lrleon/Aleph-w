@@ -74,6 +74,9 @@ set(TEST_PROGRAMS
     arrayqueue
     dynlistqueue
     bin-node
+    bin-node-utils
+    bintree
+    avl
     binheap
     tree-node
     odhash
@@ -93,6 +96,13 @@ set(TEST_PROGRAMS
     generate_tree
     fixedqueue
     randomqueue
+    slink
+    snode
+    slist
+    dynslist
+    arrayheap
+    arrayheap_algos
+    dynarrayheap
 )
 
 # Exhaustive tests (files ending in _test.cc)

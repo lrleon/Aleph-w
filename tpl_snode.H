@@ -29,17 +29,18 @@
 # define TPL_SNODE_H
 
 # include <slink.H>
+# include <utility>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** Nodo simple con dato de tipo de T de una lista simplemente enlazada.
+  /** Singly linked node that stores data of type `T`.
 
-      La clase Snode hereda toda la interfaz de Slink y define
-      genéricamente el dato que contiene el nodo.
+      `Snode` inherits the `Slink` interface and adds the payload held
+      by the node.
 
-      @param T el tipo dato que guarda el nodo.
+      @tparam T type of the stored value
 
       @see DynSlist Snode Slink
       @ingroup Secuencias
@@ -47,46 +48,43 @@ namespace Aleph {
 template <typename T> 
 class Snode : public Slink
 {
-private:
 
   T data;
 
 public:
 
-      /// Retorna una referencia al dato contenido en el nodo.
+  /// Return a modifiable reference to the stored data.
   T & get_data() { return data; }
 
-      /// Constructor vacío. 
-  Snode() { /* empty*/ }
+  /// Return a constant reference to the stored data.
+  const T & get_data() const { return data; }
 
-      /// Constructor que copia dato.
+  /// Default constructor.
+  Snode() = default;
+
+  /// Constructor that copies the value.
   Snode(const T & _data) : data(_data) { /* empty */ }
 
-  Snode(const T && _data) : data(_data) { /* empty */ }
+  /// Constructor that moves the value.
+  Snode(T && _data) : data(std::move(_data)) { /* empty */ }
 
-      /** Elimina el nodo siguiente a this.
+  /** Remove the node right after `this` and return it. */
+  Snode * remove_next() { return static_cast<Snode*>(Slink::remove_next()); }
 
-          remove_next() elimina el nodo enlazado después de this y retorna
-          su dirección de memoria.
-          
-          @return el nodo eliminado.
-       */
-  Snode * remove_next() { return (Snode*) Slink::remove_next(); }
+  /// Return the next node after `this`.
+  Snode *& get_next() { return reinterpret_cast<Snode*&>(Slink::get_next()); }
 
-      /// Retorna el nodo siguiente a this
-  Snode *& get_next() { return (Snode*&) Slink::get_next(); }
+  /// Return the next node after `this` (const overload).
+  const Snode * get_next() const
+  {
+    return reinterpret_cast<const Snode*>(Slink::get_next());
+  }
 
-      /** Elimina el nodo siguiente a this.
+  /// Remove and return the first node (for symmetry with list front).
+  Snode * remove_first() { return remove_next(); }
 
-          remove_next() elimina el nodo enlazado después de this y retorna
-          su dirección de memoria.
-          
-          @return el nodo eliminado.
-       */
-  Snode * remove_first() { return Snode::remove_next(); }
-
-      /// Retorna el nodo siguiente a this
-  Snode *& get_first() const { return Snode::get_next(); }
+  /// Return the first node (const alias of `get_next`).
+  const Snode * get_first() const { return get_next(); }
 };
 
 } // end namespace Aleph

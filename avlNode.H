@@ -33,8 +33,6 @@
 class AvlNode_Data
 {
 
-private:
-
   signed char diff = 0; // diferencia de altura
 
 public:
@@ -65,12 +63,10 @@ bool is_avl(Node* p)
   const int hL = computeHeightRec(LLINK(p));
   const int hR = computeHeightRec(RLINK(p));
 
-  int diff = hR - hL;
-
-  if (diff > 1 or diff < -1)
+  if (const int diff = hR - hL; diff > 1 or diff < -1)
     return false;
 
-  if (((int) DIFF(p)) != hR - hL)
+  if (static_cast<int>(DIFF(p)) != hR - hL)
     return false;
 
   if (not is_avl(LLINK(p)))

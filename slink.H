@@ -29,17 +29,18 @@
 # define SLINK_H
 
 # include <aleph.H>
+# include <cstddef>
+# include <cstdint>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** Enlace simple a lista de nodos.
+  /** Singly linked handle to list nodes.
 
-      Slink modeliza un puntero a un nodo dentro de una lista
-      simplemente enlazada. 
+      `Slink` models a pointer to a node inside a singly linked list.
 
-      @ingroup Secuencias
+      @ingroup Sequences
       @see Snode Slist DynSlist Dlink 
   */
   class Slink
@@ -50,32 +51,38 @@ namespace Aleph {
 
   public:
 
-    /// Constructor vacío.
+    /// Default constructor.
     Slink() : next(this) { /* Empty */ }
 
-    /// Reinicia enlace a que apunte a sí mismo
+    /// Reset the link so it points to itself.
     void reset() 
     {
       next = this; 
     }
-    /// Retorna true si this está vacío (apunta a sí mismo)
+    /// Return true if this link is empty (points to itself).
     bool is_empty() const 
     {
       return next == this; 
     }
 
-    /// Retorna el siguiente enlace.
-    Slink *& get_next() 
+    /// Return the next link.
+    Slink *& get_next() noexcept
     {
       return next; 
     }
 
-    /** Inserta en enlace p después de this.
+    /// Return the next link (const overload).
+    const Slink * get_next() const noexcept
+    {
+      return next;
+    }
 
-        insert_next(p) inserta un nodo simple cuyo enlace es p después
-        del nodo cuyo enlace es this.
+    /** Insert link `p` right after `this`.
 
-        @param[in] p el enlace simple a insertar.
+        `insert_next(p)` inserts the single link `p` after the node
+        whose link is `this`.
+
+        @param[in] p single link to insert
     */
     void insert_next(Slink * p)
     {
@@ -86,31 +93,31 @@ namespace Aleph {
       next = p;
     }
 
-    /** Elimina el enlace siguiente a this.
+    /** Remove the link right after `this`.
 
-        remove_next() elimina el nodo simple situado después
-        del nodo cuyo enlace es this y retorna la dirección del enlace 
-        eliminado.
+        `remove_next()` removes the next single link and returns its
+        address.
 
-        @return  el enlace eliminado.
+        @return pointer to the removed link
     */
     Slink * remove_next()
     {
+      assert(not is_empty());
       Slink * ret_val = next;
       next = ret_val->next;
       ret_val->reset();
       return ret_val;
     }    
   };
-  /** Genera función de conversión de nombre de enlace simple a 
-      estructura que lo contenga. El nombre de la función es literalmente
-      el parámetro que se instancie como link_name 
+  /** Generate a conversion function from the link name to the enclosing
+      structure. The function name is literally the parameter provided
+      as `link_name`.
 
-      Este macro se utiliza cuando se tiene dos o más Slink que son
-      parte de una estructura y se desea obtener un apuntador a la
-      estructura desde algunos de los enlaces. 
+      This macro is useful whenever a structure stores two or more
+      `Slink` members and we need to retrieve the owning structure from
+      a given link pointer.
 
-      Si tenemos, por ejemplo:
+      For example:
       struct Registro
       {
       ...
@@ -119,25 +126,21 @@ namespace Aleph {
       ...
       };
 
-      Entonces slink_TO_TYPE(Registro, l1) y
-      SLINK_TO_TYPE(Registro, l2) generará las funciones:
+      Then `SLINK_TO_TYPE(Registro, l1)` and
+      `SLINK_TO_TYPE(Registro, l2)` produce the following functions:
 
-      -# Registro * l1_to_type(Slink * link), la cual recibe un
-      apuntador al campo l1 del registro y retorna el
-      puntero al registro.
+      -# `Registro * l1_to_type(Slink * link)`, which receives a pointer
+      to the field `l1` and returns the pointer to the owning record.
 
-      -# Registro * l2_to_type(Slink * link), la cual recibe un
-      apuntador al campo l2 del registro y retorna el
-      puntero al registro.
+      -# `Registro * l2_to_type(Slink * link)`, which receives a pointer
+      to the field `l2` and returns the pointer to the owning record.
 
-      La idea es disponer de esquemas de nombramiento que prmitan
-      hacer la distición entre los campos.
+      The goal is to have naming schemes that allow distinguishing the
+      different link fields.
 
-      @param type_name el tipo de la estructura (struct o class) que
-      contiene al Slink.
-      @param link_name el nombre del campo del enlace doble dentro de
-      la estructura.
-      @ingroup Secuencias
+      @param type_name type of the enclosing structure (struct or class)
+      @param link_name name of the link field inside the structure
+      @ingroup Sequences
   */
 # define SLINK_TO_TYPE(type_name, link_name)                            \
   static type_name * slink_to_type(Slink * link)                        \

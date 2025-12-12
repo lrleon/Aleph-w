@@ -530,7 +530,7 @@ public:
       successively forwarded and finally, at its target place in the
       container, is moved, avoiding thus unnecessary copies.
 
-      \note The semantic of `insert()` depends of container. In general,
+      \note The semantic of `insert()` depends on container. In general,
       this has some sense for lists and arrays and it means insertion at
       the beginning of sequence. On other type of container `append()`
       is equivalent to `insert()`.

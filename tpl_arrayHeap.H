@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +27,11 @@
 # ifndef TPL_ARRAYHEAP_H
 # define TPL_ARRAYHEAP_H
 
+# include <algorithm>
+# include <cstddef>
+# include <stdexcept>
+# include <utility>
+
 # include <ahFunction.H>
 # include <ahUtils.H>
 # include <ahDefs.H>
@@ -41,152 +45,141 @@
 
 using namespace Aleph;
 
-namespace Aleph {
-
-
-  template <typename T, class Compare> inline
-  T & sift_up(T * ptr, const size_t l, const size_t r, Compare & cmp)
+namespace Aleph
+{
+  template <typename T, class Compare>
+  inline
+  T &sift_up(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
     size_t i = r;
     for (size_t p; i > l; i = p)
       {
-        p = u_index(i); // índice del padre (c = i/2)
-        if (cmp(ptr[p], ptr[i])) // ¿cumple propiedad orden?
-          return ptr[i]; // si, todo el arreglo es un heap
+        p = u_index(i); // parent index (c = i / 2)
+        if (cmp(ptr[p], ptr[i])) // does the heap property hold?
+          return ptr[i]; // yes, the entire range is already a heap
 
-        std::swap(ptr[p], ptr[i]); // intercambie y restaure nivel p
+        std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
       }
 
     return ptr[i];
   }
 
-  template <typename T, class Compare> inline
-  void sift_down(T * ptr, const size_t l, const size_t r, Compare & cmp)
+  template <typename T, class Compare>
+  inline
+  void sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
     size_t i = l, c;
     while (true)
       {
-        c = l_index(i); // índice del hijo izquierdo (c = i/2)
-        if (c > r) // ¿hay hijo izquierdo?
-          return; // no ==> termine
+        c = l_index(i); // left child index (c = i / 2)
+        if (c > r) // does it have a left child?
+          return; // no ==> stop
 
-        if (c + 1 <= r) // ¿hay hijo derecho?
-          if (cmp (ptr[c + 1], ptr[c])) // sí ==> escoja menor
+        if (c + 1 <= r) // does it have a right child?
+          if (cmp(ptr[c + 1], ptr[c])) // yes ==> pick the smaller child
             c++;
 
-        if (cmp (ptr[i], ptr[c])) // ¿cumple propiedad orden?
-          return;  // sí ==> termine
+        if (cmp(ptr[i], ptr[c])) // does the heap property hold?
+          return; // yes ==> stop
 
         std::swap(ptr[c], ptr[i]);
         i = c;
       }
   }
 
-  template <typename T, class Compare> inline
-  void sift_down_up(T * ptr, const size_t l, const size_t i, const size_t r,
+  template <typename T, class Compare>
+  inline
+  void sift_down_up(T *ptr, const size_t l, const size_t i, const size_t r,
                     Compare & cmp)
   {
-    sift_down <T, Compare> (ptr, i, r, cmp);
-    sift_up <T, Compare> (ptr, l, i, cmp);
+    sift_down<T, Compare>(ptr, i, r, cmp);
+    sift_up<T, Compare>(ptr, l, i, cmp);
   }
 
-  /** Ordena un arreglo por el método heapsort.
+  /** Sort an array using the heapsort algorithm.
 
-      heapsort(array,n) emplea el método de heapsort para ordenar
-      el arreglo a de n elementos.
+      `heapsort(array, n)` builds a heap on top of the range and performs
+      repeated extractions. The running time is \f$O(n \log n)\f$ and does
+      not require additional memory.
 
-      El heapsort tiene un desempeño garantizado de \f$O(n \; \lg n)\f$
-      y es estable.
-
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
-
-      Una versión sobrecargada heapsort() especializa la comparación
-      al operador "menor que" sobre el tipo T.
-
-      @param[in,out] array el arreglo a ordenar.
-      @param[in] n la dimensión del arreglo.
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in,out] array pointer to the first element to sort
+      @param[in] n number of elements in the range
       @see insertion_sort() quicksort_rec() mergesort()
       @see selection_sort() faster_heapsort()
       @ingroup Algos
   */
-  template <typename T, class Compare = Aleph::less<T>> inline
-  void heapsort(T * array, const size_t n, Compare cmp = Compare())
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void heapsort(T *array, const size_t n, Compare cmp = Compare())
   {
     Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
-    --array; //desplazar posición hacia atrás ==> array[1] == primero
+    --array; // shift backwards so array[1] is the first element
     for (size_t i = 2; i <= n; ++i)
-      sift_up <T, Aleph::Inversed_Compare<T, Compare>> (array, 1, i, inv_cmp);
+      sift_up<T, Aleph::Inversed_Compare<T, Compare>>(array, 1, i, inv_cmp);
     for (size_t i = n; i > 1; --i)
       {
-        std::swap(array[1], array[i]); // poner en raíz i-ésimo item
-        sift_down<T,Aleph::Inversed_Compare<T,Compare>>(array, 1, i - 1, inv_cmp);
+        std::swap(array[1], array[i]); // place the i-th item at the root
+        sift_down<T, Aleph::Inversed_Compare<T, Compare>>(array, 1, i - 1, inv_cmp);
       }
   }
 
-  /** Ordena un arreglo por el método heapsort mejorado.
+  /** Optimized version of heapsort.
 
-      faster_heapsort(array,n) emplea una versión substancialmente
-      mejorada del heapsort para ordenar el arreglo a de n elementos.
+      `faster_heapsort(array, n)` builds the heap bottom-up (starting at
+      `n / 2`) and therefore performs fewer comparisons during the build
+      phase.
 
-      El heapsort tiene un desempeño garantizado de \f$O(n \; \lg n)\f$
-      y es estable.
-
-      El método emplea dos parámetros tipo:
-      -# T: el tipo de elementos que tiene el arreglo.
-      -# Compare: clase de comparación.
-
-      Una versión sobrecargada faster_heapsort() especializa la
-      comparación al operador "menor que" sobre el tipo T.
-
-      @param[in,out] array el arreglo a ordenar.
-      @param[in] n la dimensión del arreglo.
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in,out] array pointer to the first element to sort
+      @param[in] n number of elements in the range
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
-      @see selection_sort() heapsort()
+      @see selection_sort()
       @ingroup Algos
   */
-  template <typename T, class Compare = Aleph::less<T>> inline
-  void faster_heapsort(T * array, const size_t n, Compare cmp = Compare())
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void faster_heapsort(T *array, const size_t n, Compare cmp = Compare())
   {
     Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
-    --array; // desplazar posición hacia atrás ==> array[1] == primero
-    for (size_t i = n/2; i >= 1; --i)
+    --array; // shift backwards so array[1] is the first element
+    for (size_t i = n / 2; i >= 1; --i)
       sift_down(array, i, n, inv_cmp);
     for (size_t i = n; i > 1; --i)
       {
-        std::swap(array[1], array[i]); // poner en raíz i-ésimo item
+        std::swap(array[1], array[i]); // place the i-th item at the root
         sift_down(array, 1, i - 1, inv_cmp);
       }
   }
 
-  /// Retorna true si array entre l y r es un heap con criterio de
-  /// comparación Compare()()
+  /// Returns true if the array between l and r is a heap under comparator
+  /// Compare()()
   template <typename T, class Compare = Aleph::less<T>>
-  bool valid_heap(T * array, const size_t l, const size_t r,
+  bool valid_heap(T *array, const size_t l, const size_t r,
                   Compare cmp = Compare())
   {
     size_t i;
     for (i = l_index(l) /* i = 2*l */; i <= r; i++)
-      if (cmp(array[i], array[u_index (i)]))
+      if (cmp(array[i], array[u_index(i)]))
         break;
     return i > r;
   }
 
-  /** Heap o cola de prioridad implementada con arreglos.
+  /** Fixed-capacity binary heap backed by a raw array.
 
-      ArrayHeap define un heap instrumentado mediante un arreglo
-      estático cuya dimensión es especificada en tiempo de
-      construcción.
+      The heap stores elements from index 1 to `num_items` and keeps
+      index 0 as sentinel, which simplifies the `parent/child`
+      arithmetic.
 
-      @param T el tipo de elementos que tiene el heap.  @param Compare
-      el criterio de comparación entre los elementos el cual determina
-      el tipo de orden y prioridad.
+      @tparam T element type
+      @tparam Compare comparator defining the priority order
 
-      @see BinHeap DynBinHeap
-      @ingroup Arboles
+      @see DynArrayHeap BinHeap DynBinHeap
+      @ingroup Trees
   */
   template <typename T, class Compare = Aleph::less<T>>
   class ArrayHeap : public LocateFunctions<ArrayHeap<T, Compare>, T>,
@@ -195,22 +188,36 @@ namespace Aleph {
                     public EqualToMethod<ArrayHeap<T, Compare>>,
                     public StlAlephIterator<ArrayHeap<T, Compare>>
   {
-    T *            array = nullptr;
-    mutable size_t dim;
-    size_t         num_items = 0;
+    T * array = nullptr;
+    mutable size_t dim = 0;
+    size_t num_items = 0;
 
-    mutable bool array_allocated = true;
+    mutable bool array_allocated = false;
 
     Compare cmp;
 
     static size_t r_index(const size_t & i)
     {
-      return (i << 1) + 1; // multiplica i por 2 y suma 1
+      return (i << 1) + 1; // multiply i by 2 and add 1
     }
 
   public:
+    void allocate_storage(size_t new_dim)
+    {
+      if (new_dim == 0)
+        throw std::invalid_argument("Heap capacity must be positive");
 
-    void swap(ArrayHeap & h)
+      T * ptr = new T[new_dim + 1];
+      if (array_allocated)
+        delete [] array;
+
+      array = ptr;
+      dim = new_dim;
+      num_items = 0;
+      array_allocated = true;
+    }
+
+    void swap(ArrayHeap & h) noexcept
     {
       std::swap(array, h.array);
       std::swap(dim, h.dim);
@@ -225,27 +232,26 @@ namespace Aleph {
 
     Special_Ctors(ArrayHeap, T);
 
-    Args_Ctor(ArrayHeap, T);
-
-    /// Constructor con dimensión por omisión.
+    /// Constructor with default capacity.
     ArrayHeap(const size_t d = 1024, Compare && __cmp = Compare())
-      : array(nullptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
+      : array(nullptr), dim(0), num_items(0), array_allocated(false), cmp(__cmp)
     {
-      array = new T [d + 1];
-      array_allocated = true;
+      allocate_storage(d);
     }
 
-    /// Constructor con arreglo y dimensión.
-    ArrayHeap(T * ptr, const size_t & d, Compare && __cmp = Compare())
+    /// Constructor with external buffer and explicit capacity.
+    ArrayHeap(T *ptr, const size_t & d, Compare && __cmp = Compare())
       : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
     {
-      // empty
+      if (ptr == nullptr || d == 0)
+        throw std::invalid_argument("ArrayHeap requires non-null buffer");
     }
 
     ArrayHeap(const ArrayHeap & h)
-      : dim(h.dim), num_items(h.num_items), cmp(h.cmp)
+      : array(nullptr), dim(0), num_items(0), array_allocated(false), cmp(h.cmp)
     {
-      array = new T [dim + 1];
+      allocate_storage(h.dim);
+      num_items = h.num_items;
       for (size_t i = 1; i <= num_items; ++i)
         array[i] = h.array[i];
     }
@@ -256,30 +262,24 @@ namespace Aleph {
       swap(h);
     }
 
-    ArrayHeap & operator = (const ArrayHeap & h)
+    ArrayHeap &operator =(const ArrayHeap & h)
     {
       if (this == &h)
         return *this;
 
       if (dim < h.dim)
-        {
-          T * ptr = new T [h.dim + 1];
-          if (array_allocated)
-            delete [] array;
-          array = ptr;
-          array_allocated = true;
-          dim = h.dim;
-        }
+        allocate_storage(h.dim);
 
-      for (size_t i = 1; i <= h.num_items; ++i)
-        array[i] = h.array[i];
       num_items = h.num_items;
+      for (size_t i = 1; i <= num_items; ++i)
+        array[i] = h.array[i];
       cmp = h.cmp;
 
       return *this;
     }
 
-    ArrayHeap & operator = (ArrayHeap && h)
+    ArrayHeap &operator =(ArrayHeap && h)
+      noexcept
     {
       swap(h);
       return *this;
@@ -292,7 +292,7 @@ namespace Aleph {
         delete [] array;
     }
 
-    /// Retorna el menor elemento del heap.
+    /// Return the smallest element in the heap.
     T & top()
     {
       if (num_items == 0)
@@ -301,26 +301,34 @@ namespace Aleph {
       return array[1];
     }
 
-    T & insert_ne(const T & key) noexcept
+    /// Return the smallest element in the heap (const overload).
+    const T & top() const
     {
-      array[++num_items] = key;  // colocar nuevo elemento
+      if (num_items == 0)
+        throw std::underflow_error("Heap is empty");
+
+      return array[1];
+    }
+
+    T & insert_ne(const T & key)
+    {
+      array[++num_items] = key; // place the new element
       return sift_up(array, 1, num_items, cmp);
     }
 
-    T & insert_ne(T && key) noexcept
+    T & insert_ne(T && key)
     {
-      array[++num_items] = std::move(key);  // colocar nuevo elemento
+      array[++num_items] = std::move(key); // place the new element
       return sift_up(array, 1, num_items, cmp);
     }
 
-    /** Inserta un elemento en el heap.
+    /** Insert an element into the heap.
 
-        insert(key) inserta en el heap la clave una copia de la clave
-        key.
+        `insert(key)` stores a copy of `key` inside the heap.
 
-        @param[in] key clave a insertar.
-        @return una referencia modificable al elemento insertado.
-        @throw overflow_error si el arreglo interno está lleno.
+        @param[in] key value to insert.
+        @return a mutable reference to the inserted element.
+        @throw overflow_error if the internal array is full.
     */
     T & insert(const T & key)
     {
@@ -333,25 +341,24 @@ namespace Aleph {
     {
       if (num_items >= dim)
         throw std::overflow_error("Heap out of capacity");
-      return insert_ne(std::forward<T>(key));
+      return insert_ne(std::move(key));
     }
 
-    T & put(const T & key) { return insert(key); }
+    T &put(const T & key) { return insert(key); }
 
-    T & append(const T & key) { return insert(key); }
+    T &append(const T & key) { return insert(key); }
 
-    T & put(T && key) { return insert(std::forward<T>(key)); }
+    T &put(T && key) { return insert(std::move(key)); }
 
-    T & append(T && key) { return insert(std::forward<T>(key)); }
+    T &append(T && key) { return insert(std::move(key)); }
 
-    /** Elimina el menor elemento del heap y retorna una copia del valor
-        eliminado.
+    /** Remove the smallest element in the heap and return a copy of its value.
 
-        getMin() extrae del heap el elemento con menor valor según sea
-        el criterio de comparación especificado.
+        `getMin()` extracts the element with the lowest value according to the
+        configured comparator.
 
-        @throw underflow_error si el heap está vacío.
-        @return una copia del valor eliminado.
+        @throw underflow_error if the heap is empty.
+        @return a copy of the removed value.
     */
     T getMin()
     {
@@ -360,7 +367,8 @@ namespace Aleph {
 
       T ret_val = array[1];
       array[1] = array[num_items--];
-      sift_down(array, 1, num_items, cmp);
+      if (num_items > 0)
+        sift_down(array, 1, num_items, cmp);
       return ret_val;
     }
 
@@ -370,52 +378,71 @@ namespace Aleph {
       return getMin();
     }
 
-    /// \overload getMin() para usar si se invierte el orden de prioridad
+    /// \overload getMin() to use when the priority order is inverted
     T getMax()
     {
       return getMin();
     }
 
-    /// Retorna la cantidad de elementos
-    const size_t & size() const { return num_items; }
+    /// Return the number of elements
+    size_t size() const noexcept { return num_items; }
 
-    /// Retorna true si el heap está vacío
-    bool is_empty() const { return num_items == 0; }
+    /// Return true if the heap is empty
+    bool is_empty() const noexcept { return num_items == 0; }
 
-    /** Actualiza prioridad de una referencia contenida en el heap.
+    /// Return the total capacity of the heap (excluding sentinel slot).
+    size_t capacity() const noexcept { return dim; }
 
-        update(data) toma una referencia a un elemento dentro del heap,
-        presumiblemente modificada, y actualiza su prioridad dentro del
-        heap. La idea es que si por alguna razón una prioridad debe ser
-        modificada, entonces ésta pueda actualizarse.
+    /** Update the priority of an element stored in the heap.
 
-        La referencia debe haberse obtenido mediante una llamada previa
-        a insert().
+        `update(data)` takes a reference to an element inside the heap,
+        presumably modified, and updates its priority inside the heap.
 
-        @param[in] data referencia a la entrada dentro del heap que se
-        desea actualizar
+        The reference must have been obtained via a previous call to
+        `insert()`.
+
+        @param[in] data reference to the element inside the heap to update
         @see insert()
-        @note Es esencial que data sea una referencia válida al heap. 
-        Resultados son impredecibles (y probablemente fatales) si este
-        no es el caso.
+        @note It is essential that `data` is a valid reference into this heap.
+        Results are unpredictable (and probably fatal) if this is not the case.
     */
     void update(T & data)
     {
-      assert(&data >= &array[0] and &data <= &array[dim]);
+      if (num_items == 0)
+        throw std::underflow_error("Heap is empty");
 
-      const size_t i = &data - array;
+      assert(&data >= array + 1 and &data <= array + num_items);
+
+      const size_t i = static_cast<size_t>(&data - array);
       sift_down_up(array, 1, i, num_items, cmp);
-      sift_up(array, i, num_items, cmp);
     }
 
     void remove(T & item)
     {
-      item = array[num_items--];
-      update(item);
+      if (num_items == 0)
+        throw std::underflow_error("Heap is empty");
+
+      assert(&item >= array + 1 and &item <= array + num_items);
+
+      const size_t idx = static_cast<size_t>(&item - array);
+      if (idx == num_items)
+        {
+          --num_items;
+          return;
+        }
+
+      array[idx] = std::move(array[num_items--]);
+      sift_down_up(array, 1, idx, num_items, cmp);
     }
 
-    /// Retorna la i-ésima entrada del heap.
-    T & operator [] (const size_t i)
+    /// Return the i-th entry in the heap.
+    T & operator [](const size_t i)
+    {
+      return array[i];
+    }
+
+    /// Const overload of operator[]
+    const T & operator [](const size_t i) const
     {
       return array[i];
     }
@@ -424,11 +451,11 @@ namespace Aleph {
     {
       Iterator(const ArrayHeap & h) noexcept
         : Array_Iterator<T>(no_exception_ctor, h.array + 1, h.dim, h.num_items)
-      { /* empty */ }
+      { /* empty */
+      }
     };
 
   private:
-
     // super fast array traversal
     template <class Operation>
     bool __traverse(Operation & operation)
@@ -441,11 +468,10 @@ namespace Aleph {
     }
 
   public:
-
     template <class Operation>
     bool traverse(Operation & operation) const
     {
-      return const_cast<ArrayHeap&>(*this).__traverse(operation);
+      return const_cast<ArrayHeap &>(*this).__traverse(operation);
     }
 
     template <class Operation>
@@ -457,7 +483,7 @@ namespace Aleph {
     template <class Operation>
     bool traverse(Operation && operation = Operation()) const
     {
-      return const_cast<ArrayHeap&>(*this).__traverse(operation);
+      return const_cast<ArrayHeap &>(*this).__traverse(operation);
     }
 
     template <class Operation>
@@ -466,7 +492,5 @@ namespace Aleph {
       return traverse(operation);
     }
   };
-
 } // end namespace Aleph
 # endif /* TPL_ARRAYHEAP_H */
-

@@ -27,6 +27,11 @@
 # ifndef TPL_DYNARRAYHEAP_H
 # define TPL_DYNARRAYHEAP_H
 
+# include <algorithm>
+# include <cstddef>
+# include <stdexcept>
+# include <utility>
+
 # include <tpl_dynArray.H>
 
 namespace Aleph {
@@ -78,17 +83,12 @@ namespace Aleph {
   }
 
 
-  /** Heap o cola de prioridad implementada con arreglos.
+  /** Dynamic heap (priority queue) backed by `DynArray`.
 
-      ArrayHeap define un heap instrumentado mediante un arreglo
-      estático cuya dimensión es especificada en tiempo de
-      construcción.
+      @tparam T element type stored in the heap
+      @tparam Compare comparator defining the priority order
 
-      @param T el tipo de elementos que tiene el heap.
-      @param Compare el criterio de comparación entre los
-      elementos el cual determina el tipo de orden y prioridad.
-
-      @see BinHeap DynBinHeap
+      @see BinHeap DynBinHeap ArrayHeap
       @ingroup Arboles
   */
   template <typename T, class Compare = Aleph::less<T>>
@@ -112,7 +112,7 @@ namespace Aleph {
 
     using Item_Type = T;
 
-    /// Constructor con dimensión por omisión.
+    /// Default constructor.
     DynArrayHeap(Compare __cmp = Compare()) : num_items(0), cmp(__cmp)
     {
       // empty
@@ -122,8 +122,17 @@ namespace Aleph {
 
     Args_Ctor(DynArrayHeap, T);
 
-    /// Retorna el menor elemento del heap.
+    /// Return the smallest element.
     T & top()
+    {
+      if (num_items == 0)
+        throw std::underflow_error("Heap is empty");
+
+      return array.access(1);
+    }
+
+    /// Return the smallest element (const overload).
+    const T & top() const
     {
       if (num_items == 0)
         throw std::underflow_error("Heap is empty");
@@ -149,7 +158,7 @@ namespace Aleph {
 
     T & insert(T && key)
     {
-      array.touch(++num_items) = move(key);  // colocar nuevo elemento
+      array.touch(++num_items) = std::move(key);  // colocar nuevo elemento
       sift_up(array, 1, num_items, cmp); // restaurar propiedad orden
       return array.access(num_items);
     }
@@ -157,20 +166,20 @@ namespace Aleph {
     void reserve(size_t n)
     {
       if (num_items > n)
-        throw out_of_range("DynArrayHeap: n is greater than current heap size");
+        throw std::out_of_range("DynArrayHeap::reserve: n smaller than size");
       array.reserve(n);
     }
 
-    T & insert_direct(const T & key) noexcept
+    T & insert_direct(const T & key)
     {
       array(++num_items) = key;  // colocar nuevo elemento
       sift_up(array, 1, num_items, cmp); // restaurar propiedad orden
       return array.access(num_items);
     }
 
-    T & insert_direct(T && key) noexcept
+    T & insert_direct(T && key)
     {
-      array(++num_items) = move(key);  // colocar nuevo elemento
+      array(++num_items) = std::move(key);  // colocar nuevo elemento
       sift_up(array, 1, num_items, cmp); // restaurar propiedad orden
       return array.access(num_items);
     }
@@ -198,9 +207,17 @@ namespace Aleph {
         throw std::underflow_error("Heap is empty");
 
       T & a1 = array(1);
-      T ret_val = move(a1);
-      a1 = move(array(num_items--));
-      sift_down(array, 1, num_items, cmp); // propiedad orden
+      T ret_val = std::move(a1);
+      if (num_items > 1)
+        {
+          a1 = std::move(array(num_items));
+          --num_items;
+          sift_down(array, 1, num_items, cmp); // propiedad orden
+        }
+      else
+        {
+          --num_items;
+        }
 
       array.cut(num_items + 1);
 
@@ -220,7 +237,7 @@ namespace Aleph {
     }
 
     /// Retorna la cantidad de elementos
-    const size_t & size() const noexcept { return num_items; }
+    size_t size() const noexcept { return num_items; }
 
     /// Retorna true si el heap está vacío
     bool is_empty() const noexcept { return num_items == 0; }

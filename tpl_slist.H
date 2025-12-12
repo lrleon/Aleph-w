@@ -35,12 +35,12 @@ using namespace Aleph;
 
 namespace Aleph {
 
-  /** Lista simplemente enlazada de nodos conteniendo datos de tipo T.
+  /** Singly linked list of nodes that store values of type `T`.
 
-      Slist<T> es una lista cuyos elementos son nodos. Cada nodo
-      contiene un dato de tipo genérico T.
+      `Slist<T>` is a node-based list where each element is a `Snode<T>`
+      storing the payload of type `T`.
 
-      @param T el tipo de dato que alberga cada nodo.
+      @tparam T data type held by each node
       @ingroup Secuencias
   */
   template <typename T> class Slist : public Snode<T>
@@ -50,15 +50,12 @@ namespace Aleph {
 
     typedef Snode<T> Node;
 
-    /// Constructor vacío.
-    Slist() { /* empty */ }
+    /// Default constructor.
+    Slist() = default;
 
-    /** Inserta un nodo después de this.
+    /** Insert `node` right after this sentinel (at the beginning).
 
-        insert_first(node) inserta el nodo justamente después del nodo
-        this.
-
-        @param[in] node el nodo a insertar.
+        @param[in] node pointer to the node to insert
     */
     void insert_first(Node * node)
     {
@@ -68,17 +65,16 @@ namespace Aleph {
       this->insert_next(node);
     }
 
+    /// Remove and return the first node without checking emptiness.
     Node * remove_first_ne() noexcept
     {
       return this->remove_next();
     }
 
-    /** Elimina el primer nodo de la lista y retorna su dirección.
+    /** Remove the first node of the list.
 
-        Elimina el primer nodo de la lista.
-
-        @throw underflow_error si la lista está vacía.
-        @return un puntero al nodo eliminado.
+        @throw underflow_error if the list is empty
+        @return pointer to the removed node
     */
     Node * remove_first()
     {
@@ -88,7 +84,7 @@ namespace Aleph {
       return this->remove_next();
     }
 
-    /// Retorna el primer nodo de la lista.
+    /// Return a pointer to the first node; throw if the list is empty.
     Node * get_first()
     {
       if (this->is_empty())
@@ -97,12 +93,29 @@ namespace Aleph {
       return this->get_next();
     }
 
-    /** Iterador sobre lista de nodos simples.
+    /// Return a pointer to the first node (const overload).
+    const Node * get_first() const
+    {
+      if (this->is_empty())
+        throw std::underflow_error ("list is empty");
 
-        Esta clase define un iterador sobre una lista simplemente enlazada
-        de nodos.
+      return reinterpret_cast<const Node*>(this->Slink::get_next());
+    }
 
-        @ingroup Secuencias
+    /// Return the first node without checking emptiness.
+    Node * get_first_ne() noexcept { return this->get_next(); }
+
+    /// Return the first node without checking emptiness (const overload).
+    const Node * get_first_ne() const noexcept
+    {
+      return reinterpret_cast<const Node*>(this->Slink::get_next());
+    }
+
+    /** Iterator over singly linked nodes.
+
+        This iterator walks the list from the head sentinel forward.
+
+        @ingroup Sequences
         @see Slist
     */
     class Iterator
@@ -114,58 +127,56 @@ namespace Aleph {
       Node  * current;
 
     public:
-      /// El tipo de conjunto sobre el cual se itera.
+      /// Type of the set being iterated.
       typedef Snode<T> Set_Type;
-      /// El tipo de elemento que retorna get_curr().
+      /// Type of the element returned by get_curr().
       typedef Snode<T> * Item_Type;
 
-      /** Constructor.
+      /** Construct an iterator over `list`.
 
-          Construye un iterador sobre la lista de nodos list.
-
-          @param[in] _list la lista sobre la cual se desea iterar.
+          @param[in] _list list to traverse
       */
-      Iterator(Slist & _list) : list(&_list), current(list->get_first()) {}
+      explicit Iterator(Slist & _list) noexcept
+        : list(&_list), current(_list.is_empty() ? &_list
+                                                 : _list.get_first_ne())
+      {
+      }
 
-      /// Retorna true si el iterador tiene nodo actual.
-      bool has_curr() const { return current != list; }
+      /// Return true if the iterator currently points to a node.
+      bool has_curr() const noexcept { return current != list; }
 
-      /** Retorna el nodo actual sobre el cual está posicionado el iterador.
+      /** Return the current node.
 
-          @return un apuntador al elemento actual.
-          @throw overflow_error si el iterador no está posicionado sobre
-          un elemento.
+          @return pointer to the current node
+          @throw overflow_error if the iterator is not positioned on a node
       */
       Node * get_curr()
       {
         if (not this->has_curr())
-          throw std::overflow_error ("");
+          throw std::overflow_error ("Slist::Iterator overflow");
 
         return current;
       }
-      /** Avanza el iterador hacia adelante.
+      /** Advance the iterator to the next node.
 
-          Avanza el iterador hacia el elemento siguiente del actual.
-
-          Si el iterador se encuentra en el último elemento de la secuencia,
-          entonces éste queda en un estado en que no hay elemento actual.
-
-          @throw overflow_error si el iterador no se encuentra sobre un elemento
-          actual.
+          @throw overflow_error if the iterator is not positioned on a node
       */
       void next()
 
       {
         if (not this->has_curr())
-          throw std::overflow_error ("");
+          throw std::overflow_error ("Slist::Iterator overflow");
 
         current = current->get_next();
       }
-      /// Coloca el iterador en el primer elemento de la lista.
-      void reset_first() { current = list->get_next(); }
+      /// Reset the iterator to the first node of the list.
+      void reset_first() noexcept
+      {
+        current = list->is_empty() ? list : list->get_first_ne();
+      }
       Iterator & operator = (Node * node)
       {
-        if (this == node)
+        if (current == node)
           return *this;
 
         current = node;

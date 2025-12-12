@@ -28,6 +28,8 @@
 # ifndef TPL_BINTREE_H
 # define TPL_BINTREE_H
 
+# include <utility>
+
 # include <tpl_binTreeOps.H>
 
 using namespace Aleph;
@@ -41,7 +43,7 @@ namespace Aleph {
 	performance depends on whether keys insertion order.
 
 	In general, if the insertion order is random and there is no
-	many removals, the this tree is very good and its operations
+	many removals, this tree is very good and its operations
 	trend to be \f$O(\lg n)\f$. If there are many removals, the
 	performance is lightly degraded trending to be \f$O(\sqrt(n)\f$.
 
@@ -65,6 +67,27 @@ private:
   Node  *   head;
   Node *&   root;
   Compare   cmp;
+
+  template <class Inserter>
+  static void move_all(Node *& src, Inserter inserter) noexcept
+  {
+    auto rec = [&] (auto && self, Node * n) noexcept -> void
+    {
+      if (n == Node::NullPtr)
+        return;
+
+      Node * l = LLINK(n);
+      Node * r = RLINK(n);
+      n->reset();
+      inserter(n);
+      self(self, l);
+      self(self, r);
+    };
+
+    Node * n = src;
+    src = Node::NullPtr;
+    rec(rec, n);
+  }
 
 public:
 
@@ -103,10 +126,10 @@ public:
     return BinTree_Operation<Node, Compare>(cmp).search(root, key);
   }
 
-  virtual ~GenBinTree() noexcept { /* Empty */ }
+  virtual ~GenBinTree() = default;
 
   /// Return `true` if the tree is a consistent (correct) binary search tree
-  bool verify() const { return check_bst<Node, Compare>(root); }
+  bool verify() const { return check_bst<Node, Compare>(root, cmp); }
 
     /// Return the root of tree
   Node *& getRoot() noexcept { return root; }
@@ -115,7 +138,7 @@ public:
   Node * getRoot() const noexcept { return root; }
 
   /// \overload verify()
-  bool verifyBin() const { return check_bst<Node, Compare>(root); } 
+  bool verifyBin() const { return check_bst<Node, Compare>(root, cmp); } 
 
       /** Insert a node in the tree
 
@@ -189,8 +212,7 @@ public:
   */
   void split_dup(const Key & key, GenBinTree & l, GenBinTree & r) noexcept
   {
-    BinTree_Operation<Node, Compare>(cmp).
-      split_key_dup_rec(root, key, l.root, r.root);
+    Aleph::split_key_dup_rec<Node, Compare>(root, key, l.root, r.root, cmp);
   }
 
   /** Remove a key from the tree
@@ -213,8 +235,12 @@ public:
        */
   void join(GenBinTree & tree, GenBinTree & dup) noexcept
   {
-    root = BinTree_Operation<Node, Compare>(cmp).join(root, tree.root, dup);
-    tree.root = Node::NullPtr;
+    auto op = BinTree_Operation<Node, Compare>(cmp);
+    move_all(tree.root, [&] (Node * n) noexcept
+             {
+               if (op.insert(root, n) == Node::NullPtr)
+                 op.insert(dup.root, n);
+             });
   }
 
   /** Join `this` with `t` independently of the presence of duplicated keys
@@ -227,8 +253,8 @@ public:
   */
   void join_dup(GenBinTree & t) noexcept
   {
-    root = BinTree_Operation<Node, Compare>(cmp).join_dup(root, t.root);
-    t.tree_root = Node::NullPtr;
+    auto op = BinTree_Operation<Node, Compare>(cmp);
+    move_all(t.root, [&] (Node * n) noexcept { op.insert_dup(root, n); });
   }
 
   /** Join exclusive of `this` with `t`
@@ -244,7 +270,7 @@ public:
   */
   void join_exclusive(GenBinTree & t) noexcept
   {
-    root = join_exclusive(root, t.root);    
+    root = Aleph::join_exclusive<Node>(root, t.root);
     t.root = Node::NullPtr;
   }
 

@@ -40,7 +40,7 @@ namespace Aleph {
 
    /** AVL balanced binary search tree.
 
-       An AVL tree is an binary search tree deterministically
+       An AVL tree is a binary search tree deterministically
        balanced. The maximum height of AVL tree of \f$n\f$ nodes is
        \f$ 1.4404 \lg{(n + 2)} \ - \ 0.3277\f$. So this number bounds
        the maximum number of visited nodes in a unsuccessful search,
@@ -74,15 +74,15 @@ private:
     assert(avl_stack_empty());
 
     Node * p = root;
-    do // desciende en búsqueda de key y empila camino de búsqueda
+    do // descend searching for key and push the search path
       {
         avl_stack.push(p);
-        if (cmp(key, KEY(p))) // ¿key < KEY(p)?
+        if (cmp(key, KEY(p))) // key < KEY(p)?
           p = LLINK(p);
-        else if (cmp(KEY(p), key)) // ¿key > KEY(p)?
+        else if (cmp(KEY(p), key)) // key > KEY(p)?
           p = RLINK(p);
         else
-          return p; // clave duplicada
+          return p; // duplicated key
       }
     while (p != Node::NullPtr);
 
@@ -94,10 +94,10 @@ private:
     assert(avl_stack_empty());
 
     Node * p = root;
-    do // desciende en búsqueda de key y empila camino de búsqueda
+    do // descend searching for key and push the search path
       {
         avl_stack.push(p);
-        if (cmp(key, KEY(p))) // ¿key < KEY(p)?
+        if (cmp(key, KEY(p))) // key < KEY(p)?
           p = LLINK(p);
         else // key >= KEY(p)
           p = RLINK(p);
@@ -116,8 +116,8 @@ private:
     RLINK(p) = LLINK(q);
     LLINK(q) = p;
 
-    if (DIFF(q) == 0)      // ajuste de los factores de equilibrio
-      { // este caso ocurre durante la eliminación
+    if (DIFF(q) == 0)      // balance factors adjustment
+      { // this case happens during deletion
         DIFF(q) = -1;
         DIFF(p) = 1;
       }
@@ -136,8 +136,8 @@ private:
     LLINK(p) = RLINK(q);
     RLINK(q) = p;
 
-    if (DIFF(q) == 0)       // ajuste de los factores de equilibrio
-      { // este caso ocurre durante la eliminación
+    if (DIFF(q) == 0)       // balance factors adjustment
+      { // this case happens during deletion
         DIFF(q) = 1;
         DIFF(p) = -1;
       }
@@ -159,10 +159,10 @@ private:
     LLINK(r) = p;
     RLINK(r) = q;
 
-    unsigned char b; // altura lógica de hijo izq de r
-    unsigned char c; // altura lógica de hijo der de r
+    unsigned char b; // logical height of r's left child
+    unsigned char c; // logical height of r's right child
 
-        // Determinación de alturas lógicas de p, q y r
+        // Determine logical heights of p, q and r
     if (DIFF(r) == 1) // ==> c > b ==> c-b == 1
       {
         c = 1;
@@ -176,10 +176,10 @@ private:
     else
       c = b = 1;
 
-        // ajuste de factores de equilibrio
+        // balance factors adjustment
     DIFF(r) = 0;
-    DIFF(p) = b - 1; // altura lógica de hijo izq de p es 1
-    DIFF(q) = 1 - c; // altura lógica de hijo der de q es 1
+    DIFF(p) = b - 1; // logical height of p's left child is 1
+    DIFF(q) = 1 - c; // logical height of q's right child is 1
 
     return r;
   }
@@ -196,10 +196,10 @@ private:
     RLINK(r) = p;
     LLINK(r) = q;
 
-    unsigned char b; // altura lógica de hijo izq de r
-    unsigned char c; // altura lógica de hijo der de r
+    unsigned char b; // logical height of r's left child
+    unsigned char c; // logical height of r's right child
 
-        // determinación de alturas lógicas de hijos de p, q y r
+        // determine logical heights of children of p, q and r
     if (DIFF(r) == 1) // ==> c > b ==> c-b == 1
       {
         c = 1;
@@ -213,10 +213,10 @@ private:
     else
       c = b = 1;
 
-        // ajuste de factores de equilibrio
+        // balance factors adjustment
     DIFF(r) = 0;
-    DIFF(p) = 1 - c; // altura lógica de hijo der de p es 1
-    DIFF(q) = b - 1; // altura lógica de hijo izq de p es 1
+    DIFF(p) = 1 - c; // logical height of p's right child is 1
+    DIFF(q) = b - 1; // logical height of p's left child is 1
 
     return r;
   }
@@ -228,8 +228,8 @@ private:
   {
     assert(DIFF(p) == 2 or DIFF(p) == -2);
 
-    Node * pc; // guarda hijo de p
-    if (DIFF(p) == 2) // hacia la izquierda
+    Node * pc; // saves p's child
+    if (DIFF(p) == 2) // to the left
       {
         pc = RLINK(p);
         if (DIFF(pc) == 1 or DIFF(pc) == 0)
@@ -268,41 +268,39 @@ private:
 
   void restore_avl_after_insertion(Node * p) noexcept
   {
-    Node * pp  = avl_stack.pop(); // padre del nodo insertado
-    if (LLINK(pp) == p) // ajuste el factor del padre del nodo insertado OJO
-      DIFF(pp)--;
+    Node * pp  = avl_stack.pop(); // parent of the inserted node
+    if (LLINK(pp) == p) // adjust parent's balance factor
+      --DIFF(pp);
     else
-      DIFF(pp)++;
+      ++DIFF(pp);
 
     if (DIFF(pp) == 0)
-      {    // en este caso, altura del ascendiente de pp no aumenta
+      {    // in this case, the height of pp's ancestor does not increase
         clean_avl_stack();
         return;
       }
 
     if (avl_stack_empty())
-      return; // pp es raíz
-
-    Node *gpp; // padre de pp
-    do     // buscar nodo con factor igual a 0
+      return; // pp is the root
+    do     // search a node whose balance factor becomes 0
       {
-        gpp = avl_stack.pop();
-            // actualizar factores de equilibrio
+        Node *gpp = avl_stack.pop(); // parent of pp
+            // update balance factors
         if (LLINK(gpp) == pp) // AH_ERROR if (Compare () (key, KEY(gpp)))
-          DIFF(gpp)--;
+          --DIFF(gpp);
         else
-          DIFF(gpp)++;
+          ++DIFF(gpp);
 
         if (DIFF(gpp) == 0)
-          break; // no se necesita reajuste
-        else if (DIFF(gpp) == -2 or DIFF(gpp) == 2)// ¿es AVL?
-          {      // sí ==> se requiere reajuste
+          break; // no rebalancing is needed
+        if (DIFF(gpp) == -2 or DIFF(gpp) == 2)// AVL violation?
+          {      // yes ==> rebalancing is required
             Node *ggpp = avl_stack.pop();
             restore_avl(gpp, ggpp);
             break;
           }
 
-        pp = gpp; // AH_ERROR; añadir
+        pp = gpp; // AH_ERROR; add
       }
     while (not avl_stack_empty());
 
@@ -310,42 +308,42 @@ private:
   }
 
   Node * swapWithSuccessor(Node * p, Node *& pp) noexcept
-  {   // Referencia al tope de la pila, pues p será intercambiado con
-      // sucesor y la posición en la pila la ocupará el sucesor de p
+  {   // Reference to the stack top, since p will be swapped with its
+      // successor and the successor will take p's position in the stack
     Node *& ref_to_stack_top = avl_stack.top();
 
-    Node *fSucc = p;        // padre del sucesor
-    Node *succ  = RLINK(p); // búsqueda comienza desde RLINK(p)
+    Node *fSucc = p;        // successor's parent
+    Node *succ  = RLINK(p); // search starts from RLINK(p)
 
     avl_stack.push(succ);
 
-        // encuentre el sucesor a la vez que actualiza la pila
-    while (LLINK(succ) != Node::NullPtr) // descender lo más a la izq
+        // find the successor while updating the stack
+    while (LLINK(succ) != Node::NullPtr) // descend as far left as possible
       {
         fSucc = succ;
         succ  = LLINK(succ);
         avl_stack.push(succ);
       }
 
-      // actualice antigua entrada de pila ocupada por p. Equivale
-      // a intercambiar antiguo tope (antes de buscar suc) con actual
+      // update old stack entry occupied by p: it is equivalent to swapping
+      // the old top (before searching succ) with the current one
     ref_to_stack_top = succ;
     avl_stack.top()  = p;
-    if (LLINK(pp) == p) // actualice el nuevo hijo de pp (sucesor)
+    if (LLINK(pp) == p) // update pp's new child (successor)
       LLINK(pp) = succ;
     else
       RLINK(pp) = succ;
 
-    LLINK(succ) = LLINK(p); // intercambie las ramas izquierdas
+    LLINK(succ) = LLINK(p); // swap left subtrees
     LLINK(p)    = Node::NullPtr;
-    if (RLINK(p) == succ) // actualice ramas derechas
-      { // sucesor es exactamente el hijo derecho de p
+    if (RLINK(p) == succ) // update right subtrees
+      { // successor is exactly p's right child
         RLINK(p)    = RLINK(succ);
         RLINK(succ) = p;
         pp          = succ;
       }
     else
-      { // sucesor es el descendiente más a la izquierda de RLINK(p)
+      { // successor is the leftmost descendant of RLINK(p)
         Node *succr  = RLINK(succ);
         RLINK(succ)  = RLINK(p);
         LLINK(fSucc) = p;
@@ -353,30 +351,30 @@ private:
         pp           = fSucc;
       }
 
-    DIFF(succ) = DIFF(p); // intercambie factores de equilibrio
+    DIFF(succ) = DIFF(p); // swap balance factors
 
     return succ;
   }
 
   void restore_avl_after_deletion(bool left_deficit) noexcept
   {
-    Node * pp  = avl_stack.top(1);  // padre de p
-    Node * ppp = avl_stack.popn(3); // elimina de pila p, padre y abuelo
+    Node * pp  = avl_stack.top(1);  // parent of p
+    Node * ppp = avl_stack.popn(3); // remove from stack p, parent and grandparent
     while (true)
-      {    // actualice factores de equilibrio
+      {    // update balance factors
         if (left_deficit) // AH_ERROR Compare () (key, KEY(pp)))
-          DIFF(pp)++;
+          ++DIFF(pp);
         else
-          DIFF(pp)--;
+          --DIFF(pp);
 
-        if (DIFF(pp) == -2 or DIFF(pp) == 2) // ¿es válido?
-          pp = restore_avl(pp, ppp); // no!
+        if (DIFF(pp) == -2 or DIFF(pp) == 2) // still valid?
+          pp = restore_avl(pp, ppp); // no
 
         if (DIFF(pp) != 0 or pp == root)
-          break; // altura global de árbol no ha cambiado ==> terminar
+          break; // global tree height has not changed ==> stop
 
         left_deficit = LLINK(ppp) == pp;
-        pp  = ppp; // avance al próximo ascendiente
+        pp  = ppp; // advance to next ancestor
         ppp = avl_stack.pop();
       }
 
@@ -403,7 +401,7 @@ public:
   /** Swap in constant time all the items of `this` with the items of
       `tree`.
 
-      @param[in] tree el treap a intercambiar con this
+      @param[in] tree the tree to swap with this
   */
   void swap(Gen_Avl_Tree & tree) noexcept
   {
@@ -442,13 +440,12 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node *pp = search_and_stack_avl(KEY(p));
-    if (cmp (KEY(p), KEY(pp)))
+    if (Node *pp = search_and_stack_avl(KEY(p)); cmp (KEY(p), KEY(pp)))
       LLINK (pp) = p;
     else if (cmp (KEY(pp), KEY(p)))
       RLINK(pp) = p;
     else
-      { // clave duplicada
+      { // duplicated key
         clean_avl_stack();
         return nullptr;
       }
@@ -472,20 +469,18 @@ public:
           eventually inserted,
           @return if `p` is inserted, the this value is returned;
           otherwise, a pointer to the node containing `KEY(p)` is returned.
-
        */
   Node * search_or_insert(Node * p) noexcept
   {
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * pp = search_and_stack_avl(KEY(p));
-    if (cmp(KEY(p), KEY(pp)))
+    if (Node * pp = search_and_stack_avl(KEY(p)); cmp(KEY(p), KEY(pp)))
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
       RLINK(pp) = p;
     else
-      { // clave duplicada
+      { // duplicated key
         clean_avl_stack();
         return pp;
       }
@@ -501,8 +496,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node *pp = search_dup_and_stack_avl(KEY(p));
-    if (cmp (KEY(p), KEY(pp)))
+    if (Node *pp = search_dup_and_stack_avl(KEY(p)); cmp (KEY(p), KEY(pp)))
       LLINK (pp) = p;
     else
       RLINK(pp) = p;
@@ -512,9 +506,8 @@ public:
     return p;
   }
 
-      /// Elimina de un árbol AVL el nodo que contiene la clave
-      /// key. Retorna el nodo eliminado si se encuentra la clave; nullptr de
-      /// lo contrario.
+      /// Remove from an AVL tree the node containing key `key`.
+      /// Returns the removed node if the key is found; `nullptr` otherwise.
   Node * remove(const Key & key) noexcept
   {
     if (root == Node::NullPtr)
@@ -522,18 +515,18 @@ public:
 
     Node * p = search_and_stack_avl(key);
     if (no_equals<Key, Compare> (KEY(p), key, cmp))
-      {     // clave no fue encontrada
+      {     // key was not found
         clean_avl_stack();
         return nullptr;
       }
 
-    Node * pp = avl_stack.top(1); // obtener padre de p
+    Node * pp = avl_stack.top(1); // get parent of p
     bool left_deficit; // AH_ERROR Key removed_key = KEY(p);
     while (true)
       {
         left_deficit = LLINK(pp) == p;
-        if (LLINK(p) == Node::NullPtr) // ¿incompleto por la izquierda?
-          {      // Sí, ate a pp el hijo de p
+        if (LLINK(p) == Node::NullPtr) // missing left child?
+          {      // yes: link pp to p's child
             if (LLINK(pp) == p)
               LLINK(pp) = RLINK(p);
             else
@@ -541,8 +534,8 @@ public:
             break;
           }
 
-        if (RLINK(p) == Node::NullPtr) // ¿incompleto por la izquierda?
-          {     // Sí, ate a pp el hijo de p
+        if (RLINK(p) == Node::NullPtr) // missing right child?
+          {     // yes: link pp to p's child
             if (LLINK(pp) == p)
               LLINK(pp) = LLINK(p);
             else
@@ -550,20 +543,20 @@ public:
             break;
           }
 
-            // aquí p es un nodo completo ==> intercambiar por sucesor 
+            // here p is a full node ==> swap with successor
         swapWithSuccessor(p, pp);
-        //    removed_key = KEY(succ); // AH_ERROR eliminar
+        //    removed_key = KEY(succ); // AH_ERROR remove
       }
 
      p->reset();
 
-    if (pp == head_ptr) // verifique si se eliminó la raíz
-      { // factores quedan inalterados ==> no se viola condición AVL   
+    if (pp == head_ptr) // check if the root was removed
+      { // balance factors unchanged ==> AVL condition is not violated
         clean_avl_stack();
         return p;
       }
 
-    restore_avl_after_deletion(left_deficit); // ERROR
+    restore_avl_after_deletion(left_deficit);
 
     return p;
   }
@@ -573,11 +566,11 @@ public:
     return is_avl(root);
   }
 
-  /** Iterador sobre los nodos.
+  /** Iterator over the nodes.
 
-      Esta clase permite recorrer los nodos del árbol en forma
-      ordenada según el criterio de comparación especificado en el
-      momento de instanciación del árbol.
+      This class allows traversing the tree nodes in sorted order
+      according to the comparison criterion specified at tree
+      instantiation.
 
      @ingroup Arboles
   */
@@ -590,19 +583,17 @@ public:
 };
 
 
-   /** Árbol binario de búsqueda AVL con nodos sin destructor virtual.
+   /** AVL binary search tree with nodes without virtual destructor.
 
-       Un árbol binario de búsqueda AVL es un árbol binario de búsqueda
-       cuya altura está acotada a \f$O(\lg n)\f$ y sus operaciones de
-       modificación acotadas en tiempo por \f$O(\lg n)\f$ nodos
-       inspeccionados. 
+       An AVL binary search tree is a binary search tree whose height is
+       bounded by \f$O(\lg n)\f$ and whose update operations are bounded
+       in time by inspecting \f$O(\lg n)\f$ nodes.
 
-       Esta clase maneja nodos sin destructor virtual.
+       This class uses nodes without a virtual destructor.
 
-       @param Key el tipo de clave que albergan los nodos del árbol.
-       @param Compare clase de comparación entre las claves; por
-       omisión, esta clase es el operador relacional menor que para el
-       tipo Key.
+       @param Key the key type stored in the tree nodes.
+       @param Compare key comparison class; by default, this is the
+       less-than relational operator for type Key.
        @see Avl_Tree_Vtl
        @ingroup Arboles
     */
@@ -614,19 +605,17 @@ struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
 };
 
 
-   /** Árbol binario de búsqueda AVL con destructor virtual en sus nodos.
+   /** AVL binary search tree with virtual destructor in its nodes.
 
-       Un árbol binario de búsqueda AVL es un árbol binario de búsqueda
-       cuya altura está acotada a \f$O(\lg n)\f$ y sus operaciones de
-       modificación acotadas en tiempo por \f$O(\lg n)\f$ nodos
-       inspeccionados. 
+       An AVL binary search tree is a binary search tree whose height is
+       bounded by \f$O(\lg n)\f$ and whose update operations are bounded
+       in time by inspecting \f$O(\lg n)\f$ nodes.
 
-       Esta clase maneja nodos con destructor virtual.
+       This class uses nodes with a virtual destructor.
 
-       @param Key el tipo de clave que albergan los nodos del árbol.
-       @param Compare clase de comparación entre las claves; por
-       omisión, esta clase es el operador relacional menor que para el
-       tipo Key.
+       @param Key the key type stored in the tree nodes.
+       @param Compare key comparison class; by default, this is the
+       less-than relational operator for type Key.
        @see Avl_Tree
        @ingroup Arboles
     */
