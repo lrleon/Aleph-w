@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -29,14 +28,17 @@
 
 # include <tpl_dynArray.H>
 # include <tpl_dynSetTree.H>
-		
+
+# include <limits>
+# include <stdexcept>
+
 
 /** Binary relation between a set of integers.
 
     This class implements a static relation of equivalence between a set
-    of n integer from 0 until n - 1.
+    of n integers from 0 until n - 1.
 
-    By static is understood that the number of items canno0t change.
+    By static is understood that the number of items cannot change.
 
     The used algorithm is the quick weighted fast union which is very
     fast, bounded by \f$O(\lg n)\f$ but in the practice trends to be
@@ -47,40 +49,55 @@
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroups Grafos
+    @ingroup Grafos
  */
-class Fixed_Relation 
+class Fixed_Relation
 {
 protected:
-
   DynArray<size_t> id;
   DynArray<size_t> sz;
-  size_t           num_blocks;
+  size_t num_blocks;
+
+  void verify_index(const size_t i) const
+  {
+    if (i >= id.size())
+      throw std::out_of_range("index out of range");
+  }
 
   virtual size_t root(size_t i)
   {
+    verify_index(i);
     while (i != id(i))
       {
-	id(i) = id(id(i));
-	i = id(i);
+        id(i) = id(id(i));
+        i = id(i);
       }
-    
-    return i;			
+
+    return i;
   }
 
-  size_t depth(size_t i) noexcept
+  size_t depth(size_t i) const
   {
-    const int & parent = id(i);
-    if (parent == i)
-      return 1;
-
-    return 1 + depth(parent);
+    verify_index(i);
+    size_t d = 0;
+    while (true)
+      {
+        ++d;
+        const size_t parent = id(i);
+        verify_index(parent);
+        if (parent == i)
+          return d;
+        i = parent;
+        if (d > id.size())
+          throw std::logic_error("cycle detected in union-find structure");
+      }
   }
 
 public:
+  virtual ~Fixed_Relation() = default;
 
   /// Initialize an empty binary relation of integers between 0 and n - 1 
-  Fixed_Relation(size_t n = 0) : num_blocks(n)
+  Fixed_Relation(const size_t n = 0) : num_blocks(n)
   {
     if (num_blocks == 0)
       return;
@@ -89,27 +106,42 @@ public:
     sz.reserve(num_blocks);
     for (size_t i = 0; i < num_blocks; ++i)
       {
-	id(i) = i;
-	sz(i) = 1;
+        id(i) = i;
+        sz(i) = 1;
       }
   }
 
   /** Set the number of items of the relation.
 
-      The advantage of this method is that it allows to construc A
-      Fixed_relation without need forknowing the number of
-      items. Afterward, when threse are known this number could be set
+      The advantage of this method is that it allows constructing a
+      Fixed_Relation without needing to know the number of
+      items. Afterward, when these are known, this number could be set
       with this method.
 
       @param[in] n the number of items.
-      @throw bad_alloc if there is no enough memory
+      @throw bad_alloc if there is not enough memory
    */
-  void set_n(size_t n) { new (this) Fixed_Relation(n); }
+  void set_n(size_t n)
+  {
+    id.empty();
+    sz.empty();
+    num_blocks = n;
+    if (num_blocks == 0)
+      return;
 
-  /// Return the number of items of set (not of relation)
+    id.reserve(num_blocks);
+    sz.reserve(num_blocks);
+    for (size_t i = 0; i < num_blocks; ++i)
+      {
+        id(i) = i;
+        sz(i) = 1;
+      }
+  }
+
+  /// Return the number of items of the set (not of relation)
   size_t size() const noexcept { return id.size(); }
 
-  /// Return the number ob connected blocks, which is the number of
+  /// Return the number of connected blocks, which is the number of
   /// equivalence classes
   size_t get_num_blocks() const noexcept { return num_blocks; }
 
@@ -125,7 +157,7 @@ public:
       @param[in] j an item index
       @return true if `i` is related to `j`; `false` otherwise
    */
-  bool are_connected(size_t i, size_t j) noexcept
+  bool are_connected(size_t i, size_t j)
   {
     return root(i) == root(j);
   }
@@ -136,7 +168,7 @@ public:
       @param[in] i an item index
       @param[in] j an item index
    */
-  void join(size_t i, size_t j)	noexcept
+  void join(size_t i, size_t j)
   {
     i = root(i);
     j = root(j);
@@ -145,13 +177,13 @@ public:
 
     if (sz(i) < sz(j))
       {
-	id(i) = j;
-	sz(j) += sz(i);
+        id(i) = j;
+        sz(j) += sz(i);
       }
     else
       {
-	id(j) = i;
-	sz(i) += sz(j);
+        id(j) = i;
+        sz(i) += sz(j);
       }
     --num_blocks;
   }
@@ -161,9 +193,9 @@ public:
 /** Binary relation between a set of integers.
 
     This class implements a dynamic relation of equivalence between a set
-    of n integer from 0 until n - 1.
+    of n integers from 0 until n - 1.
 
-    By static is understood that the number of items can grow.
+    By dynamic is understood that the number of items can grow.
 
     The used algorithm is the quick weighted fast union which is very
     fast, bounded by \f$O(\lg n)\f$ but in the practice trends to be
@@ -174,40 +206,39 @@ public:
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroups Grafos
+    @ingroup Grafos
  */
 class Relation : public Fixed_Relation
 {
-  void verify_if_add_new_points(size_t n)
+  void verify_if_add_new_points(const size_t n)
   {
-    size_t l = size();
+    const size_t l = size();
     if (n < l)
       return;
-    
+
     id.reserve(l, n);
     sz.reserve(l, n);
-    for (int i = l; i <= n; ++i)
+    for (size_t i = l; i <= n; ++i)
       {
-	id(i) = i;
-	sz(i) = 1;
+        id(i) = i;
+        sz(i) = 1;
       }
     num_blocks += n - l + 1;
   }
 
-  virtual size_t root(size_t i)
+  size_t root(size_t i) override
   {
     verify_if_add_new_points(i);
     return Fixed_Relation::root(i);
   }
 
 public:
-
-      /// Intialize an empty relation of n elementos between [0..n)
-  Relation(size_t n = 0) : Fixed_Relation(n) {}
+  /// Initialize an empty relation of n elements between [0..n)
+  Relation(const size_t n = 0) : Fixed_Relation(n) {}
 };
 
 
-/** Binary relation between a set of integers.
+/** Binary relation between a set of items.
 
     This class implements a dynamic relation of equivalence between a set
     of n different items of type T
@@ -221,57 +252,63 @@ public:
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroups Grafos
+    @ingroup Grafos
  */
-    template <typename T, class Compare = Aleph::less<T>>
+template <typename T, class Compare = Aleph::less<T>>
 class Relation_T : public Relation
 {
   struct Pair
   {
-    T      item;
+    T item;
     size_t i;
 
     Pair() noexcept {}
 
-    Pair(const T & __item, size_t __i) 
-      : item(__item), i(__i) { /* empty */ }
+    Pair(const T & __item, size_t __i)
+      : item(__item), i(__i)
+    { /* empty */
+    }
   };
 
   struct Cmp
   {
-    bool operator () (const Pair & p1, const Pair & p2) const noexcept
+    bool operator ()(const Pair & p1, const Pair & p2) const noexcept
     {
-      return Compare() (p1.item, p2.item);
+      return Compare()(p1.item, p2.item);
     }
   };
 
   DynSetAvlTree<Pair, Cmp> items_tree;
 
-  // retorna el id del item; sea porque lo encuentra o porque lo inserta
-  size_t test_and_insert_new_item(const T & item) 
+  // returns the item ID; either because it is found or because it is inserted
+  size_t test_and_insert_new_item(const T & item)
   {
-    size_t N = size();
-    Pair p(item, N);
-    Pair * ptr = items_tree.search_or_insert(p);
+    Pair p(item, std::numeric_limits<size_t>::max());
+    Pair *ptr = items_tree.search_or_insert(p);
+    if (ptr->i == std::numeric_limits<size_t>::max())
+      {
+        const size_t new_id = size();
+        ptr->i = new_id;
+        Relation::are_connected(new_id, new_id);
+      }
     return ptr->i;
   }
 
 public:
-
-      /// Retorna true is i y j están conectados
+  /// Return true if p and q are connected; inserts missing items into the relation
   bool are_connected(const T & p, const T & q)
   {
-    size_t i = test_and_insert_new_item(p);
-    size_t j = test_and_insert_new_item(q);
+    const size_t i = test_and_insert_new_item(p);
+    const size_t j = test_and_insert_new_item(q);
 
     return Relation::are_connected(i, j);
   }
 
-      /// Une p con q
+  /// Join p with q; inserts missing items into the relation
   void join(const T & p, const T & q)
   {
-    size_t i = test_and_insert_new_item(p);
-    size_t j = test_and_insert_new_item(q);
+    const size_t i = test_and_insert_new_item(p);
+    const size_t j = test_and_insert_new_item(q);
     Relation::join(i, j);
   }
 };

@@ -60,6 +60,7 @@ set(TEST_PROGRAMS
     array_utils
     array-it
     dynarray
+    union
     sort_utils
     memarray
     slinknc

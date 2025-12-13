@@ -1384,8 +1384,8 @@ private:
 
   T & __insert(Snodenc<T> * p) noexcept
   {
-    static_assert(std::is_copy_constructible<T>::value or
-                  std::is_move_constructible<T>::value,
+    static_assert(std::is_copy_constructible_v<T> or
+                  std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::insert(p);
     return p->get_data();
@@ -1393,8 +1393,8 @@ private:
 
   T & __append(Snodenc<T> * p) noexcept
   {
-    static_assert(std::is_copy_constructible<T>::value or
-                  std::is_move_constructible<T>::value,
+    static_assert(std::is_copy_constructible_v<T> or
+                  std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::append(p);
     return p->get_data();
@@ -1518,7 +1518,7 @@ public:
   T remove_ne() noexcept
   {
     Slinknc * l = this->HTList::remove_head_ne();
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (l);
+    auto * p = static_cast<Snodenc<T>*> (l);
     T ret_val = std::move(p->get_data());
     delete p;
 
@@ -1533,7 +1533,7 @@ public:
   T remove()
   {
     Slinknc * l = this->HTList::remove_head();
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (l);
+    auto * p = static_cast<Snodenc<T>*> (l);
     T ret_val = std::move(p->get_data());
     delete p;
 
@@ -1564,7 +1564,7 @@ public:
   */
   T & get_last_ne() const noexcept
   {
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    auto * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
     return p->get_data();
   }
 
@@ -1614,8 +1614,8 @@ public:
       return;
 
         // a very fast deletion
-    Snodenc<T> * last = static_cast<Snodenc<T>*> (this->HTList::get_last());
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_first());
+    auto * last = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    auto * p = static_cast<Snodenc<T>*> (this->HTList::get_first());
     while (p != last)
       {
         Snodenc<T> * q = p;
@@ -1675,7 +1675,7 @@ public:
     */
     T del()
     {
-      Snodenc<T> * p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
+      auto * p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
       T ret_val = std::move(p->get_data());
       delete p;
       return ret_val;
