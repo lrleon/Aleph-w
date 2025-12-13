@@ -1093,3 +1093,124 @@ TEST(DynListEdgeCases, SplitAndMerge)
   EXPECT_EQ(l.size(), 10);
 }
 
+TEST(HTListRemoveByPointer, HeadMiddleTailAndNotFound)
+{
+  HTList list;
+  auto * n1 = new Snodenc<int>(1);
+  auto * n2 = new Snodenc<int>(2);
+  auto * n3 = new Snodenc<int>(3);
+
+  list.append(n1);
+  list.append(n2);
+  list.append(n3);
+
+  EXPECT_TRUE(list.remove(n1));
+  delete n1;
+  EXPECT_EQ(list.get_first()->to_data<int>(), 2);
+
+  EXPECT_TRUE(list.remove(n2));
+  delete n2;
+  EXPECT_TRUE(list.is_unitarian());
+  EXPECT_EQ(list.get_first()->to_data<int>(), 3);
+  EXPECT_EQ(list.get_last()->to_data<int>(), 3);
+
+  EXPECT_TRUE(list.remove(n3));
+  delete n3;
+  EXPECT_TRUE(list.is_empty());
+
+  auto * stray = new Snodenc<int>(99);
+  EXPECT_THROW(list.remove(stray), std::underflow_error);
+  delete stray;
+}
+
+TEST(HTListIterator, ResetLastEndAndAssignmentCopiesPos)
+{
+  HTList list;
+  list.append(new Snodenc<int>(1));
+  list.append(new Snodenc<int>(2));
+  list.append(new Snodenc<int>(3));
+
+  HTList::Iterator it(list);
+  it.reset_last();
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr()->to_data<int>(), 3);
+  EXPECT_TRUE(it.is_last());
+  EXPECT_EQ(it.get_pos(), 2);
+
+  it.end();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+
+  HTList::Iterator a(list);
+  a.next();
+  ASSERT_TRUE(a.has_curr());
+  EXPECT_EQ(a.get_curr()->to_data<int>(), 2);
+  EXPECT_EQ(a.get_pos(), 1);
+
+  HTList::Iterator b(list);
+  b.reset_last();
+  b = a;
+  EXPECT_TRUE(b.has_curr());
+  EXPECT_EQ(b.get_curr()->to_data<int>(), 2);
+  EXPECT_EQ(b.get_pos(), 1);
+
+  list.remove_all_and_delete();
+}
+
+TEST(HTListSynonyms, PutConcatListSplitListNeReverseListCutList)
+{
+  HTList list;
+  list.put(new Snodenc<int>(1));
+  list.put(new Snodenc<int>(2));
+  list.put(new Snodenc<int>(3));
+  EXPECT_EQ(list.size(), 3);
+  EXPECT_EQ(list.get_first()->to_data<int>(), 1);
+  EXPECT_EQ(list.get_last()->to_data<int>(), 3);
+
+  HTList l, r;
+  list.split_list_ne(l, r);
+  EXPECT_TRUE(list.is_empty());
+  EXPECT_EQ(l.size() + r.size(), 3);
+
+  l.concat_list(r);
+  EXPECT_TRUE(r.is_empty());
+  EXPECT_EQ(l.size(), 3);
+
+  EXPECT_EQ(l.reverse_list(), 3u);
+  EXPECT_EQ(l.get_first()->to_data<int>(), 3);
+  EXPECT_EQ(l.get_last()->to_data<int>(), 1);
+
+  HTList::Iterator it(l);
+  it.next();
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr()->to_data<int>(), 2);
+
+  HTList cut;
+  l.cut_list(it.get_curr(), cut);
+  EXPECT_EQ(l.get_last()->to_data<int>(), 2);
+  EXPECT_EQ(cut.get_first()->to_data<int>(), 1);
+
+  l.remove_all_and_delete();
+  cut.remove_all_and_delete();
+}
+
+TEST(SlinkncIterator, TraversalAndOverflow)
+{
+  Slinknc head;
+  Slinknc n1;
+  Slinknc n2;
+
+  head.insert(&n1);
+  head.insert(&n2);
+
+  Slinknc::Iterator it(head);
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), &n2);
+  it.next();
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), &n1);
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+}
+

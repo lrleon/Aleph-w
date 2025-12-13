@@ -205,7 +205,7 @@ public:
 
       @param[in] list to insert after `this`
   */
-  void append(const DynDlist & list) noexcept
+  void append(const DynDlist & list)
   {
     auto l = list; // perform a copy of list
     __append(l);
@@ -334,7 +334,7 @@ public:
 
         \warning Unpredictable results if the reference is not valid. So
         be sure that you do not pass a reference to a copy of the
-        item. It must be a reference to the item returned by some of
+        item. It must be a reference to the item returned by some
         accessor methods of this class.
 
         \param[in] data valid reference to the item in the list.
@@ -368,8 +368,8 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containg the first n/2 first items
-      \param[out] l list containg the last n/2 first items
+      \param[out] l list containing the first n/2 first items
+      \param[out] l list containing the last n/2 first items
       @throw domain_error any of the lists is noty empty
      */
   void split_list_ne(DynDlist & l, DynDlist & r) noexcept
@@ -396,8 +396,8 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containg the first n/2 first items
-      \param[out] l list containg the last n/2 first items
+      \param[out] l list containing the first n/2 first items
+      \param[out] l list containing the last n/2 first items
       @throw domain_error any of the lists is noty empty
      */
   void split_list(DynDlist & l, DynDlist & r)
@@ -676,7 +676,7 @@ public:
 
     empty();
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+    for (Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr(); itor.next_ne())
       this->append(itor.get_curr());
 
@@ -694,7 +694,7 @@ public:
   {
     assert(this->is_empty());
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+    for (Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr();itor.next_ne())
       this->append(itor.get_curr());
   }
@@ -732,8 +732,7 @@ public:
   T & operator [] (size_t n) const
   {
     auto it = this->get_it();
-    size_t i = 0;
-    for (; i < n && it.has_curr(); ++i)
+    for (size_t i = 0; i < n && it.has_curr(); ++i)
       it.next_ne();
 
     if (not it.has_curr())

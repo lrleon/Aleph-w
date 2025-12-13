@@ -60,6 +60,7 @@ set(TEST_PROGRAMS
     array_utils
     array-it
     dynarray
+    sort_utils
     memarray
     slinknc
     snodenc

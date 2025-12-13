@@ -60,6 +60,8 @@ class Slinknc
 
 public:
 
+  virtual ~Slinknc() = default;
+
   /// Return `true` if `this` is empty
   bool is_empty() const noexcept { return next == nullptr; }
 
@@ -340,13 +342,16 @@ public:
       */
   Snodenc * remove_next() noexcept
   {
-    return (Snodenc*) Slinknc::remove_next();
+    return static_cast<Snodenc *>(Slinknc::remove_next());
   }
 
   /** \~English Return the node following to `this`
       \~Spanish Retorna el nodo siguiente a `this`
   */
-  Snodenc *& get_next() noexcept { return (Snodenc*&) Slinknc::get_next(); }
+  Snodenc *& get_next() noexcept
+  {
+    return reinterpret_cast<Snodenc *&>(Slinknc::get_next());
+  }
 
   /// \overload remove_next()
   Snodenc * remove_first() noexcept{ return Snodenc::remove_next(); }
@@ -773,6 +778,8 @@ public:
     if (link == head)
       {
         head = NEXT(head);
+        if (head == nullptr)
+          tail = nullptr;
         link->reset();
         return true;
       }
@@ -887,11 +894,15 @@ public:
         q = NEXT(q); ++count;
       }
 
+    Slinknc * r_head = NEXT(p);
+
     l.head = head;
     l.tail = p;
 
-    r.head = NEXT(p);
-    r.tail = tail;
+    r.head = r_head;
+    r.tail = r_head == nullptr ? nullptr : tail;
+
+    NEXT(l.tail) = nullptr;
 
     head = tail = nullptr;
 
@@ -957,7 +968,7 @@ public:
     assert(list.is_empty());
 
     list.head = NEXT(link);
-    list.tail = tail;
+    list.tail = list.head == nullptr ? nullptr : tail;
 
     tail = link;
     NEXT(link) = nullptr;
@@ -1019,11 +1030,13 @@ public:
 
   public:
 
+    Iterator() noexcept = default;
+
     //!\~English Initialize iterator on at the first item of `list`
     //!\~Spanish Inicializa un iterador sobre el primer elemento de
     //!`list`
     Iterator(const HTList & list) noexcept
-      : lptr(& (HTList&) list), curr(lptr->head), prev(curr)
+      : lptr(& const_cast<HTList &>(list)), curr(lptr->head), prev(curr)
     { /* empty */ }
 
     //!\~English Reset the iterator at the first item \~Reestablece el
@@ -1069,6 +1082,7 @@ public:
         lptr = it.lptr;
         curr = it.curr;
         prev = it.prev;
+        pos  = it.pos;
         return *this;
       }
 
@@ -1289,8 +1303,7 @@ public:
       {
         if (n == 0)
           return;
-        else
-          throw std::domain_error("List is empty");
+        throw std::domain_error("List is empty");
       }
 
     for (size_t i = 0; i < n; ++i)
@@ -1342,6 +1355,9 @@ class DynList : public HTList,
   //!\~English The type of item \~Spanish el tipo de elemento
   using Key_Type = T;
 
+  Slinknc * get_head() const noexcept = delete;
+  Slinknc * get_tail() const noexcept = delete;
+
   /**
      \~English
      Swap this with l. All items of each list are swapped in constant
@@ -1353,7 +1369,7 @@ class DynList : public HTList,
    */
   DynList & swap(DynList & l) noexcept
   {
-    return (DynList&) HTList::swap(l);
+    return static_cast<DynList &>(HTList::swap(l));
   }
 
   //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
@@ -1626,7 +1642,7 @@ public:
 
     using Set_Type = DynList; /// The type of container
 
-    Iterator() noexcept { /* empty */ }
+    Iterator() noexcept = default;
 
     /// Initiliaze an iterator on the first item of `list`
     Iterator(const DynList & list) noexcept
@@ -1635,7 +1651,7 @@ public:
         /// Return the current link guaranteeing no exception. Be careful.
     T & get_curr_ne() const noexcept
     {
-      return ((Snodenc<T>*) (HTList::Iterator::get_curr_ne()))->get_data();
+      return static_cast<Snodenc<T> *>(HTList::Iterator::get_curr_ne())->get_data();
     }
 
     /** Return the current item
@@ -1645,7 +1661,7 @@ public:
     */
     T & get_curr() const
     {
-      return ((Snodenc<T>*) (HTList::Iterator::get_curr()))->get_data();
+      return static_cast<Snodenc<T> *>(HTList::Iterator::get_curr())->get_data();
     }
 
     /** Remove the current item of the iterator.
@@ -1659,7 +1675,7 @@ public:
     */
     T del()
     {
-      Snodenc<T> * p = (Snodenc<T> *) this->HTList::Iterator::del();
+      Snodenc<T> * p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
       T ret_val = std::move(p->get_data());
       delete p;
       return ret_val;
@@ -1696,7 +1712,8 @@ public:
         if (not eq(item))
           continue;
         T ret = item; // performs a copy
-        it.del_ne();
+        auto * removed = static_cast<Snodenc<T> *>(it.del_ne());
+        delete removed;
         return ret;
       }
     return T(); // not found, return default constructed T
@@ -1728,15 +1745,13 @@ public:
   template <class Equal = std::equal_to<T>> T remove(Equal eq)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-        {
-          const T & item = it.get_curr();
-          if (eq(item))
+          if (const T & item = it.get_curr(); eq(item))
             {
               T ret = item; // performs a copy
-              it.del();
+              auto * removed = static_cast<Snodenc<T> *>(it.HTList::Iterator::del());
+              delete removed;
               return ret;
             }
-        }
 
       throw std::domain_error("DynList::remove(Equal &): item not found");
     }
@@ -1799,7 +1814,7 @@ public:
    */
   DynList & operator = (DynList && l) noexcept
   {
-    return (DynList&) this->swap(l);
+    return static_cast<DynList &>(this->swap(l));
   }
 
   /** Append `list `at the end of `this` by movement.
