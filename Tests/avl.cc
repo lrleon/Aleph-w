@@ -252,8 +252,7 @@ TEST(AvlTree, Property_OracleSet_MatchesInorder)
         }
       else
         {
-          auto * removed = t.remove(k);
-          if (removed != nullptr)
+          if (auto * removed = t.remove(k); removed != nullptr)
             {
               oracle.erase(k);
               pool.forget(removed);

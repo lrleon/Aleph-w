@@ -75,6 +75,7 @@ set(TEST_PROGRAMS
     dynlistqueue
     bin-node
     bin-node-utils
+    bin-node-xt
     bintree
     avl
     binheap

@@ -159,7 +159,7 @@ Node * select(Node * r, const size_t pos)
     /** Iterative selection of a node according to inorder psoition and
 	determination of parent of selected node
 
-        @param[in] r root of tree
+        @param[in] root root of tree
         @param[in] pos position inorder whose node wants to be located
         @param[out] parent of selected node
         @return a pointer to the node at the inorder position pos
@@ -218,18 +218,15 @@ long inorder_position(Node * r,
 
   if (cmp(key, KEY(r)))
     return inorder_position(LLINK(r), key, p, cmp);
-  else if (cmp(KEY(r), key))
+  if (cmp(KEY(r), key))
     {
       long ret = inorder_position(RLINK(r), key, p, cmp);
       if (ret != -1)
         return ret + COUNT(LLINK(r)) + 1;
       return ret;
     }
-  else
-    {
-      p = r;
-      return COUNT(LLINK(r));
-    }
+  p = r;
+  return COUNT(LLINK(r));
 }
 
 /// \overload inorder_position()
@@ -275,7 +272,7 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
         maximum key in the tree.
         -# For any other case, the returned value is the position that
         would have `key` if this was in the tree and `p` is the node
-        whose key is inmediataly greater than `key`.
+        whose key is immediately greater than `key`.
 
         @param[in] r root of tree
         @param[in] key to be searched
@@ -292,31 +289,34 @@ long find_position(Node * r, const typename Node::key_type & key,
 {
   assert(COUNT(Node::NullPtr) == 0);
 
-  Node * parent = nullptr;
-  long pos = COUNT(LLINK(r));
+  long offset = 0;
+  Node * candidate = Node::NullPtr;
 
   while (r != Node::NullPtr)
-    if (cmp(key, KEY(r)))
-      {
-        parent = r;
-        r = LLINK(r);
-        pos -= (COUNT(RLINK(r)) + 1);
-      }
-    else if (cmp(KEY(r), key))
-      {
-        parent = r;
-        r = RLINK(r);
-        pos += COUNT(LLINK(r)) + 1;
-      }
-    else
-      {
-        p = r;
-        return pos;
-      }
+      if (cmp(key, KEY(r)))
+        {
+          candidate = r;
+          r = LLINK(r);
+        }
+      else if (cmp(KEY(r), key))
+        {
+          offset += static_cast<long>(COUNT(LLINK(r)) + 1);
+          r = RLINK(r);
+        }
+      else
+        {
+          p = r;
+          return offset + static_cast<long>(COUNT(LLINK(r)));
+        }
 
-  p = parent;
+  if (candidate != Node::NullPtr)
+    {
+      p = candidate;
+      return offset + static_cast<long>(COUNT(LLINK(candidate))) - 1;
+    }
 
-  return pos;
+  p = Node::NullPtr;
+  return offset - 1;
 }
 
 template <class Node,
@@ -410,7 +410,7 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
       noexcept
 {
-  return insert_by_key_xt(r, p, cmp);
+  return insert_dup_by_key_xt(r, p, cmp);
 }
 
 /** Search or insert a node in an extended binary search tree.
@@ -436,14 +436,14 @@ Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
   Node * q;
   if (cmp(KEY(p), KEY(r)))
     {
-      q = insert_by_key_xt(LLINK(r), p, cmp);
-      if (q != Node::NullPtr)
+      q = search_or_insert_by_key_xt(LLINK(r), p, cmp);
+      if (q == p)
         ++COUNT(r);
     }
   else if (cmp(KEY(r), KEY(p)))
     {
-      q = insert_by_key_xt(RLINK(r), p, cmp);
-      if (q != Node::NullPtr)
+      q = search_or_insert_by_key_xt(RLINK(r), p, cmp);
+      if (q == p)
         ++COUNT(r);
     }
   else
@@ -494,10 +494,10 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
   return true;
 }
 
-/** Split an extended binary search tree accoding to a key
+/** Split an extended binary search tree according to a key
 
     `split_key_rec_xt(root, key, l, r, cmp)` splits a tree according a
-    non existing key
+    non-existing key
 
     @param[in,out] root pointer to tree root
     @param[in] key for splitting
@@ -512,7 +512,7 @@ template <class Node, class Compare> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
                       Node *& l, Node *& r, Compare & cmp) noexcept
 {
-  bool ret = __split_key_rec_xt(root, key, l, r, cmp);
+  const bool ret = __split_key_rec_xt(root, key, l, r, cmp);
   if (ret)
     root = Node::NullPtr;
   return ret;
@@ -554,7 +554,7 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
 }
 
 
-/** Split an extended binary search tree accoding to a key which can be
+/** Split an extended binary search tree according to a key which can be
     in the tree.
 
     `split_key__dup_rec_xt(root, key, l, r, cmp)` splits a tree according a
@@ -596,7 +596,7 @@ void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
         @param[in] p pointer to the node to insert
         @param[in] cmp comparison criteria
         @return if the key contained in `p` is not in tree, then returns
-        `p`, since this was inserted and has became the root. Otherwise,
+        `p`, since this was inserted and has become the root. Otherwise,
         it returns `Node::NullPtr`
 
         @ingroup Arboles
@@ -646,7 +646,11 @@ Node * insert_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
 Node * insert_dup_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
-    return p;
+    {
+      COUNT(p) = 1;
+      LLINK(p) = RLINK(p) = Node::NullPtr;
+      return root = p;
+    }
 
   split_key_dup_rec_xt(root, KEY(p), LLINK(p), RLINK(p), cmp);
   COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
@@ -793,7 +797,7 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
     @param[in] key to search and eventually to remove
     @param[in] cmp comparison criteria
     @return if key is found, then a pointer to the removed node is
-    returned. Otherwise the function returns `Node::NullPtr`
+    returned. Otherwise, the function returns `Node::NullPtr`
 
     @see join_exclusive_xt()
     @ingroup Arboles
@@ -803,8 +807,6 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
 Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 			Compare & cmp) noexcept
 {
-  assert(root != Node::NullPtr);
-
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -817,7 +819,7 @@ Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 
       return ret_val;
     }
-  else if (cmp(KEY(root), key))
+  if (cmp(KEY(root), key))
     {
       ret_val = remove_by_key_xt(RLINK(root), key, cmp);
       if (ret_val != Node::NullPtr)
@@ -966,7 +968,7 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
 
   if (cmp(KEY(p), KEY(root)))
     { // insert in left subtree
-      Node * left_branch = search_or_insert_root_rec_xt(LLINK(root), p, cmp);
+      Node * left_branch = search_or_insert_root_rec_xt<Node, Key>(LLINK(root), p, cmp);
       if (left_branch == p) // p was inserted?
         {
           ++COUNT(root);
@@ -977,9 +979,9 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
 
         return left_branch;
     }
-  else if (cmp(KEY(root), KEY(p)))
+  if (cmp(KEY(root), KEY(p)))
     { // insert in right subtree
-      Node * right_branch = search_or_insert_root_rec_xt(RLINK(root), p, cmp);
+      Node * right_branch = search_or_insert_root_rec_xt<Node, Key>(RLINK(root), p, cmp);
       if (right_branch == p) // p was inserted?
         {
           ++COUNT(root);
@@ -1000,7 +1002,7 @@ template <class Node, class Key,
 Node * search_or_insert_root_rec_xt(Node * root, Node * p,
                                     Compare && cmp = Compare()) noexcept
 {
-  return search_or_insert_root_rec_xt(root, p, cmp);
+  return search_or_insert_root_rec_xt<Node, Key>(root, p, cmp);
 }
 
 
