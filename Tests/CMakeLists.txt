@@ -78,6 +78,10 @@ set(TEST_PROGRAMS
     bin-node
     bin-node-utils
     bin-node-xt
+    splay-tree
+    splay-tree-rk
+    rb-tree
+    rand-tree
     bintree
     avl
     binheap

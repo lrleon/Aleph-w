@@ -27,7 +27,9 @@
 # define AHSORT_H
 
 # include <algorithm>
+# include <numeric>
 # include <ranges>
+# include <stdexcept>
 
 # include <ahFunctional.H>
 # include <tpl_sort_utils.H>
@@ -148,12 +150,11 @@ class Compute_Ranks
 {
   using P = std::pair <T, size_t>;
 
-  C <size_t> indexes;
-
   public:
     C <size_t> compute_ranks(const C <T> &c)
     {
       const size_t n = c.size();
+      C <size_t> indexes;
       indexes.reserve(n);
       for (size_t i = 0; i < n; ++i)
         indexes(i) = i;
@@ -169,15 +170,16 @@ class Compute_Ranks
     }
 
     template<template <typename Type> class List>
-    C <size_t> list_compute_ranks(const List <T> &c)
+  C <size_t> list_compute_ranks(const List <T> &c)
+  {
+    C <T> items;
+    size_t n = 0;
+    C <size_t> indexes;
+    c.for_each([&items, &n, &indexes](auto k)
     {
-      C <T> items;
-      size_t n = 0;
-      c.for_each([this, &items, &n](auto k)
-      {
-        items.append(k);
-        indexes.append(n++);
-      });
+      items.append(k);
+      indexes.append(n++);
+    });
       quicksort_op(indexes, [&items](auto i1, auto i2)
       {
         return items(i1) < items(i2);
@@ -189,16 +191,17 @@ class Compute_Ranks
       return ret;
     }
 
-    C <P> compute_pair_ranks(const C <T> &c)
+  C <P> compute_pair_ranks(const C <T> &c)
+  {
+    const size_t n = c.size();
+    C <size_t> indexes;
+    indexes.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+      indexes(i) = i;
+    quicksort_op(indexes, [&c](auto i1, auto i2)
     {
-      const size_t n = c.size();
-      indexes.reserve(n);
-      for (size_t i = 0; i < n; ++i)
-        indexes(i) = i;
-      quicksort_op(indexes, [&c](auto i1, auto i2)
-      {
-        return c(i1) < c(i2);
-      });
+      return c(i1) < c(i2);
+    });
       C <P> ret;
       ret.reserve(n);
       for (size_t i = 0; i < n; ++i)
@@ -210,15 +213,16 @@ class Compute_Ranks
     }
 
     template<template <typename Type> class List>
-    C <P> list_pair_ranks(const List <T> &c)
+  C <P> list_pair_ranks(const List <T> &c)
+  {
+    C <T> items; // array copy of c for direct access
+    size_t n = 0;
+    C <size_t> indexes;
+    c.for_each([&items, &n, &indexes](auto k) // copy elements of c to item
     {
-      C <T> items; // array copy of c for direct access
-      size_t n = 0;
-      c.for_each([this, &items, &n](auto k) // copy elements of c to item
-      {
-        items.append(k);
-        indexes.append(n++);
-      });
+      items.append(k);
+      indexes.append(n++);
+    });
       quicksort_op(indexes, [&items](auto i1, auto i2)
       {
         return items(i1) < items(i2);
@@ -310,24 +314,31 @@ template<typename C, typename... Args,
 inline
 void in_place_multisort_arrays(Cmp cmp, C &first, Args &... args)
 {
-  vector <int> indices;
-  for (int i = 0; i < first.size(); ++i)
-    indices.emplace_back(i);
-  const size_t n = indices.size();
+  const size_t n = first.size();
+  if (n == 0)
+    return;
 
-  sort(indices.begin(), indices.end(), [&first, &cmp](int i1, int i2)
+  const bool all_same_size = ((args.size() == n) && ...);
+  if (not all_same_size)
+    throw std::invalid_argument("all arrays must have the same size");
+
+  std::vector<size_t> indices(n);
+  std::iota(indices.begin(), indices.end(), static_cast<size_t>(0));
+
+  std::stable_sort(indices.begin(), indices.end(), [&first, &cmp](size_t i1, size_t i2)
   {
     return cmp(first[i1], first[i2]);
   });
 
-  for (int i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     {
-      const int idx = indices[i];
-      if (idx != -1)
+      size_t idx = indices[i];
+      while (idx != i)
         {
           swap(first[i], first[idx]);
           (swap(args[i], args[idx]), ...);
-          indices[idx] = -1;
+          std::swap(indices[i], indices[idx]);
+          idx = indices[i];
         }
     }
 }

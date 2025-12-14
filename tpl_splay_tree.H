@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +27,7 @@
  *			    Top Dowm Splay Trees
  */
 
-/* This code is a c++ adaptation of Danny Sleator code. It can be loaded from 
+/* This code is a c++ adaptation of Danny Sleator code. It can be loaded from
 
    http://www.link.cs.cmu.edu/link/ftp-site/splaying/SplayTree.java
 
@@ -43,81 +42,78 @@
 using namespace Aleph;
 
 
-    template <template <class> class NodeType, typename Key, class Compare>
-class GenTdSplayTree 
+template <template <class> class NodeType, typename Key, class Compare>
+class GenTdSplayTree
 {
 public:
-
   using Node = NodeType<Key>;
 
 private:
-
-  Node headnode; 
-  Node * head, *& root;
+  Node headnode;
+  Node *head, *&root;
   Compare cmp;
 
 public:
-  
-      /// El tipo de clave que contiene el nodo
+  /// The key type stored in the node
   using key_type = Key;
 
-      /// Retorna una referencia al criterio de comparación
-  Compare & key_comp() noexcept { return cmp; }
+  /// Returns a reference to the comparison criteria
+  Compare &key_comp() noexcept { return cmp; }
 
-      /// \overload key_comp()
-  Compare & get_compare() noexcept { return key_comp(); }
+  /// \overload key_comp()
+  Compare &get_compare() noexcept { return key_comp(); }
 
   /** search key within tree and splay that node, if not found it return
-      Node::NullPtr */ 
+      Node::NullPtr */
   void splay(const Key & key) noexcept
   {
     Node headNode;
-    Node * l = &headNode;
-    Node * r = &headNode;
-    Node * t = root;
+    Node *l = &headNode;
+    Node *r = &headNode;
+    Node *t = root;
 
     while (true)
       if (cmp(key, KEY(t)))
-	{     
-	  if (LLINK(t) == Node::NullPtr)
-	    break;
+        {
+          if (LLINK(t) == Node::NullPtr)
+            break;
 
-	  if (cmp(key, KEY(LLINK(t))))
-	    {
-	      t = rotate_to_right(t);
-	      if (LLINK(t) == Node::NullPtr)
-		break;
-	    }
+          if (cmp(key, KEY(LLINK(t))))
+            {
+              t = rotate_to_right(t);
+              if (LLINK(t) == Node::NullPtr)
+                break;
+            }
 
-	  LLINK(r) = t;
-	  r        = t;
-	  t        = LLINK(t);
-	}
+          LLINK(r) = t;
+          r = t;
+          t = LLINK(t);
+        }
       else if (cmp(KEY(t), key))
-	{   
-	  if (RLINK(t) == Node::NullPtr)
-	    break;
+        {
+          if (RLINK(t) == Node::NullPtr)
+            break;
 
-	  if (cmp(KEY(RLINK(t)), key))
-	    {
-	      t = rotate_to_left(t);
-	      if (RLINK(t) == Node::NullPtr)
-		break;
-	    }
+          if (cmp(KEY(RLINK(t)), key))
+            {
+              t = rotate_to_left(t);
+              if (RLINK(t) == Node::NullPtr)
+                break;
+            }
 
-	  RLINK(l) = t;
-	  l        = t;
-	  t        = RLINK(t);
-	}
+          RLINK(l) = t;
+          l = t;
+          t = RLINK(t);
+        }
       else
-	break;
+        break;
 
     /* reassembling of sub trees in one with current as root */
     RLINK(l) = LLINK(t);
     LLINK(r) = RLINK(t);
     LLINK(t) = headNode.getR();
     RLINK(t) = headNode.getL();
-		 
+
     root = t;
   }
 
@@ -128,46 +124,46 @@ public:
     // Empty
   }
 
-  void swap(GenTdSplayTree & tree)
+  void swap(GenTdSplayTree & tree) noexcept
   {
     std::swap(root, tree.root);
     std::swap(cmp, tree.cmp);
   }
 
   /// Destructor
-  virtual ~GenTdSplayTree() { /* empty */ }
+  virtual ~GenTdSplayTree()
+  { /* empty */
+  }
 
 private:
-
-  Node * __insert(Node * p) noexcept
+  Node * __insert(Node *p) noexcept
   {
     if (cmp(KEY(p), KEY(root)))
       { /* root is predecessor of p */
-	LLINK(p)    = LLINK(root);
-	RLINK(p)    = root;
-	LLINK(root) = Node::NullPtr;
+        LLINK(p) = LLINK(root);
+        RLINK(p) = root;
+        LLINK(root) = Node::NullPtr;
       }
-    else 
+    else
       { /* root is successor of p */
-	RLINK(p)    = RLINK(root);
-	LLINK(p)    = root;
-	RLINK(root) = Node::NullPtr;
+        RLINK(p) = RLINK(root);
+        LLINK(p) = root;
+        RLINK(root) = Node::NullPtr;
       }
     return root = p; // inserted node become root
   }
 
 public:
-
-  /** Inserts a node in a top down splay tree.
+  /** Inserts a node in a top-down splay tree.
 
       @return a pointer to the inserted node if node is not found in tree;
       nullptr otherwise.
       @param p a pointer to the node to be inserted
   */
-  Node * insert(Node * p) noexcept
+  Node * insert(Node *p) noexcept
   {
     assert(p != Node::NullPtr);
-    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);  
+    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);
 
     /* test insertion in empty tree */
     if (root == Node::NullPtr)
@@ -183,10 +179,10 @@ public:
     return __insert(p);
   }
 
-  Node * insert_dup(Node * p) noexcept
+  Node * insert_dup(Node *p) noexcept
   {
     assert(p != Node::NullPtr);
-    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);  
+    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);
 
     /* test insertion in empty tree */
     if (root == Node::NullPtr)
@@ -198,7 +194,7 @@ public:
   }
 
   /**
-     Searches a key in a top down splay tree.
+     Searches a key in a top-down splay tree.
 
      @return a pointer to the node containing the key if the key is found;
      nullptr otherwise.
@@ -211,10 +207,10 @@ public:
       
     splay(key);
 
-    return are_equals<Key, Compare>(KEY(root), key) ? root : nullptr;
+    return are_equals<Key, Compare>(KEY(root), key, cmp) ? root : nullptr;
   }
 
-  Node * search_or_insert(Node * p) noexcept
+  Node * search_or_insert(Node *p) noexcept
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -231,7 +227,7 @@ public:
      Remove a key from a top down splay tree.
 
      Searches a key in a top down splay tree and remove the containing
-     the key if this is found. 
+     the key if this is found.
 
      @return a pointer to node containing the removed key.
      @param key to search
@@ -242,20 +238,20 @@ public:
       return nullptr;
 
     splay(key);
-      
+
     if (no_equals<Key, Compare>(KEY(root), key, cmp))
       return nullptr; /* key not found */
 
-    Node * ret_val = root; /* store node to delete */
+    Node *ret_val = root; /* store node to delete */
 
     if (LLINK(root) == Node::NullPtr)
       root = RLINK(root);
     else
       {
-	Node * p = RLINK(root);
-	root = LLINK(root);
-	splay(key);
-	RLINK(root) = p;
+        Node *p = RLINK(root);
+        root = LLINK(root);
+        splay(key);
+        RLINK(root) = p;
       }
 
     ret_val->reset();
@@ -263,22 +259,21 @@ public:
     return ret_val;
   }
 
-  /// Get the top down splay tree's root
-  Node *& getRoot() noexcept
+  /// Get the top-down splay tree's root
+  Node *&getRoot() noexcept
   {
     return root;
-  } 
+  }
 
-  bool verify() const { return true; }
+  bool verify() const { return check_bst(root, cmp); }
 
-    /** Iterador sobre los nodos.
+  /** Iterator over the nodes.
 
-      Esta clase permite recorrer los nodos del árbol en forma
-      ordenada según el criterio de comparación especificado en el
-      momento de instanciación del árbol.
+    This class allows traversing the tree nodes in sorted order according
+    to the comparison criteria specified when the tree is instantiated.
 
-     @ingroup Arboles
-  */
+   @ingroup Arboles
+*/
   struct Iterator : public BinNodeInfixIterator<Node>
   {
     Iterator(GenTdSplayTree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
@@ -286,7 +281,7 @@ public:
 };
 
 
-    template <typename Key, class Compare = Aleph::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
 struct Splay_Tree : public GenTdSplayTree<BinNode, Key, Compare>
 {
   using Base = GenTdSplayTree<BinNode, Key, Compare>;
@@ -294,7 +289,7 @@ struct Splay_Tree : public GenTdSplayTree<BinNode, Key, Compare>
 };
 
 
-    template <typename Key, class Compare = Aleph::less<Key>>
+template <typename Key, class Compare = Aleph::less<Key>>
 struct Splay_Tree_Vtl : public GenTdSplayTree<BinNodeVtl, Key, Compare>
 {
   using Base = GenTdSplayTree<BinNodeVtl, Key, Compare>;

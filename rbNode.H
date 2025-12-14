@@ -88,18 +88,30 @@ bool is_red_black(Node * node)
       return false; 
 
   int max = -1;
-  const int bh  = 0;
-  
-  return test_black_condition(node, max, bh);
+
+  return test_black_condition(node, max, 0);
 }
 
     template <class Node>
 bool is_red_black_tree(Node * node)
 {
-  if (is_red_black(node))
-    return is_red_black(LLINK(node)) and is_red_black(RLINK(node));
+  if (not is_red_black(node))
+    return false;
 
-  return false;
+  if (not is_red_black(LLINK(node)) or not is_red_black(RLINK(node)))
+    return false;
+
+  return true;
+}
+
+    /// Verifies that tree rooted at node is a valid red-black BST
+    template <class Node, class Compare>
+bool is_red_black_bst(Node * node, Compare & cmp)
+{
+  if (not is_red_black_tree(node))
+    return false;
+
+  return check_bst(node, cmp);
 }
 # endif // TPL_RBNODE_H
 

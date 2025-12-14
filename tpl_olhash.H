@@ -29,6 +29,8 @@
 # define TPL_OLHASH_H
 
 # include <iostream>
+# include <cstddef>
+# include <cstdint>
 # include <primes.H>
 # include <dlink.H>
 # include <ahDry.H>
@@ -106,9 +108,9 @@ namespace Aleph
 
     static Bucket *key_to_bucket(Key *rec) noexcept
     {
-      Bucket *ret_val = 0;
-      long offset = (long) &ret_val->key;
-      return (Bucket *) ((long) rec - offset);
+      const auto base = reinterpret_cast<std::uintptr_t>(rec);
+      const auto offset = offsetof(Bucket, key);
+      return reinterpret_cast<Bucket *>(base - offset);
     }
 
     Bucket *table = nullptr;
@@ -128,10 +130,18 @@ namespace Aleph
 
     bool is_valid_bucket(Bucket *bucket) const noexcept
     {
-      if (bucket < &table[0] or bucket >= &table[len])
+      if (table == nullptr)
         return false;
 
-      int offset_with_base = (char *) bucket - (char *) &table[0];
+      const auto begin = reinterpret_cast<std::uintptr_t>(&table[0]);
+      const auto end   = reinterpret_cast<std::uintptr_t>(&table[len]);
+      const auto addr  = reinterpret_cast<std::uintptr_t>(bucket);
+
+      if (addr < begin or addr >= end)
+        return false;
+
+      const auto offset_with_base =
+        static_cast<std::ptrdiff_t>(addr - begin);
 
       return offset_with_base % sizeof(*bucket) == 0;
     }
@@ -146,11 +156,11 @@ namespace Aleph
 
     /// Instantiate a hash table with hash function __hash_fct and
     /// dimension len.
-    OLhashTable(size_t __len, Hash_Fct __hash_fct, Cmp __cmp,
-                float __lower_alpha, float __upper_alpha, bool __with_resize)
-      : table(nullptr), N(0), len(Primes::next_prime(__len)),
-        lower_alpha(__lower_alpha), upper_alpha(__upper_alpha), cmp(__cmp),
-        hash_fct(__hash_fct), with_resize(__with_resize)
+    OLhashTable(const size_t l, Hash_Fct hash_f, Cmp cmp_f,
+                const float l_alpha, const float u_alpha, const bool resize)
+      : table(nullptr), N(0), len(Primes::next_prime(l)),
+        lower_alpha(l_alpha), upper_alpha(u_alpha), cmp(cmp_f),
+        hash_fct(hash_f), with_resize(resize)
     {
       table = new Bucket[len];
     }
@@ -170,7 +180,7 @@ namespace Aleph
 
     OLhashTable(size_t len, Hash_Fct_Ptr hash_fct, Hash_Fct_Ptr,
                 Cmp cmp, float lower_alpha, float upper_alpha, bool with_resize)
-      : OLhashTable(len, Hash_fct(hash_fct), cmp,
+      : OLhashTable(len, Hash_Fct(hash_fct), cmp,
                     lower_alpha, upper_alpha, with_resize) {}
 
     /** Constructor with two hash functions for metaprogramming
@@ -331,8 +341,8 @@ namespace Aleph
         throw std::domain_error("Bucket containing record is not busy");
 
       --N;
-      int i = bucket - &table[0]; // gap index
-      table[i].status = DELETED;
+      const size_t idx = static_cast<size_t>(bucket - &table[0]); // gap index
+      table[idx].status = DELETED;
     }
 
    public:
@@ -361,14 +371,14 @@ namespace Aleph
       size_t num_deleted = 0;
       size_t num_empty = 0;
       size_t max_len = std::numeric_limits<size_t>::min();
-      for (int i = 0; i < len; ++i)
+      for (size_t i = 0; i < len; ++i)
         switch (table[i].status)
           {
             case BUSY:
               {
                 ++num_busy;
                 const Key &key = table[i].key;
-                long i = hash_fct(key) % len;
+                size_t i = hash_fct(key) % len;
                 size_t count = 1;
 
                 while (true)
@@ -395,7 +405,7 @@ namespace Aleph
 
       float avg = 0;
       float sum = 0;
-      for (int i = 0; i < lens.size(); ++i)
+      for (size_t i = 0; i < lens.size(); ++i)
         {
           avg += lens(i) * i;
           sum += lens(i);
@@ -403,7 +413,7 @@ namespace Aleph
 
       avg /= sum;
       float var = 0;
-      for (int i = 0; i < lens.size(); ++i)
+      for (size_t i = 0; i < lens.size(); ++i)
         {
           float s = i - avg;
           var += lens(i) * s * s;
@@ -428,4 +438,3 @@ namespace Aleph
 
 }
 # endif // TPL_OLHASH_H
-

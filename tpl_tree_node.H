@@ -54,12 +54,12 @@
 namespace Aleph
 {
 
-  /** Árboles m-rios genéricos.
+  /** Generic m-ary trees.
 
-      La clase Tree_Node<Key> define árboles generales de cualquier
-      orden representados mediante listas enlazadas.
+      The Tree_Node<Key> class defines general trees of any order,
+      represented by linked lists.
 
-      @param Key el tipo de dato que contiene cada nodo del árbol.
+      @param Key the data type stored in each tree node.
 
       @ingroup Arboles
   */
@@ -109,33 +109,33 @@ namespace Aleph
 
     using Item_Type = Tree_Node*;
 
-    /// retorna referencia modificable al contenido del nodo.
+    /// Returns a modifiable reference to the node contents.
     T & get_key() noexcept { return get_data(); }
 
     const T & get_key() const noexcept { return get_data(); }
 
-    /// retorna referencia modificable al contenido del nodo.
+    /// Returns a modifiable reference to the node contents.
     T & get_data() noexcept { return data; }
 
     const T & get_data() const noexcept { return data; }
 
-    /// Tipo de dato genérico que contiene el nodo.
+    /// Generic data type stored in the node.
     using key_type = T;
 
     Dlink * get_child_list() noexcept { return &child; }
 
     Dlink * get_sibling_list() noexcept { return &sibling; }
 
-    /// Retorna true si this es la raíz del árbol general.
+    /// Returns true if this is the root of the general tree.
     bool is_root() const noexcept { return flags.is_root; }
 
-    /// Retorna true si this es un nodo hoja.
+    /// Returns true if this is a leaf node.
     bool is_leaf() const noexcept { return flags.is_leaf; }
 
-    /// Retorna true si this es el nodo más a la izquierda de sus hermanos.
+    /// Returns true if this is the leftmost node among its siblings.
     bool is_leftmost() const noexcept { return flags.is_leftmost; }
 
-    /// Retorna true si this es el nodo más a la derecha de sus hermanos.
+    /// Returns true if this is the rightmost node among its siblings.
     bool is_rightmost() const noexcept { return flags.is_rightmost; }
 
     void set_is_root(bool value) noexcept { flags.is_root = value; }
@@ -146,17 +146,17 @@ namespace Aleph
 
     void set_is_rightmost(bool value) noexcept { flags.is_rightmost = value; }
 
-    /// Constructor vacío (clave indefinida).
-    Tree_Node() noexcept { /* empty */ }
+    /// Empty constructor (undefined key).
+    Tree_Node() = default;
 
-    /// Constructor con valor de dato __data
-    Tree_Node(const T & __data)
-      : data(__data) { /* empty */ }
+    /// Constructor with data value __data
+    Tree_Node(const T & d)
+      : data(d) { /* empty */ }
 
-    Tree_Node(T && __data)
-      : data(std::move(__data)) { /* empty */ }
+    Tree_Node(T && d)
+      : data(std::move(d)) { /* empty */ }
 
-    /// Retorna hermano izquierdo de this.
+    /// Returns the left sibling of this.
     Tree_Node * get_left_sibling() const noexcept
     {
       if (is_leftmost())
@@ -165,7 +165,7 @@ namespace Aleph
       return left_link();
     }
 
-    /// Retorna hermano derecho de this.
+    /// Returns the right sibling of this.
     Tree_Node * get_right_sibling() const noexcept
     {
       if (is_rightmost())
@@ -174,7 +174,7 @@ namespace Aleph
       return right_link();
     }
 
-    /// retorna el hijo más a la izquierda de this.
+    /// Returns the leftmost child of this.
     Tree_Node * get_left_child() const noexcept
     {
       if (is_leaf())
@@ -183,43 +183,43 @@ namespace Aleph
       return lower_link();
     }
 
-    /// retorna el hijo más a la derecha de this.
+    /// Returns the rightmost child of this.
     Tree_Node * get_right_child() const noexcept
     {
       if (is_leaf())
         return nullptr;
 
-      Tree_Node * left_child = lower_link();
+      const Tree_Node * left_child = lower_link();
 
       assert(ISLEFTMOST(left_child));
 
       return left_child->left_link();
     }
 
-    /** Retorna el i-ésimo hijo de this.
+    /** Returns the i-th child of this.
 
-        Retorna el i-ésimo hijo de this.
+        Returns the i-th child of this.
 
-        @param[in] i ordinal del hijo al que se desea acceder.
-        @return puntero al i-ésimo hijo de this; nullptr si no existe.
+        @param[in] i ordinal of the child to access.
+        @return pointer to the i-th child of this; nullptr if it does not exist.
     */
     Tree_Node * get_child(const size_t i) const noexcept
     {
       Tree_Node * c = get_left_child();
-      for (int j = 0; c != nullptr and j < i; ++j)
+      for (size_t j = 0; c != nullptr and j < i; ++j)
         c = c->get_right_sibling();
 
       return c;
     }
 
-    /// Retorna el padre de this.
+    /// Returns the parent of this.
     Tree_Node * get_parent() const noexcept
     {
       if (is_root())
         return nullptr;
 
-      Tree_Node *  p = const_cast<Tree_Node*>(this);
-      while (not ISLEFTMOST(p)) // baje hasta el nodo más a la izquierda
+      auto *  p = const_cast<Tree_Node*>(this);
+      while (not ISLEFTMOST(p)) // go down to the leftmost node
         p = p->left_link();
 
       assert(not ISROOT(p));
@@ -228,11 +228,11 @@ namespace Aleph
       return p->upper_link();
     }
 
-    /** Inserta p como hermano derecho de this.
+    /** Inserts p as the right sibling of this.
 
-        Inserta p como hermano derecho de this.
+        Inserts p as the right sibling of this.
 
-        @param[in] p nodo a insertar como hermano derecho.
+        @param[in] p node to insert as right sibling.
     */
     void insert_right_sibling(Tree_Node * p) noexcept
     {
@@ -263,11 +263,11 @@ namespace Aleph
       this->sibling.insert(SIBLING_LIST(p));
     }
 
-    /** Inserta p como hermano izquierdo de this.
+    /** Inserts p as the left sibling of this.
 
-        Inserta p como hermano izquierdo de this.
+        Inserts p as the left sibling of this.
 
-        @param[in] p nodo a insertar como hermano izquierdo.
+        @param[in] p node to insert as left sibling.
     */
     void insert_left_sibling(Tree_Node * p)
     {
@@ -292,12 +292,12 @@ namespace Aleph
           p->set_is_leftmost(false);
         }
       else
-        { // this es más a la izq ==> p debe a ser primogénito
+        { // this is the leftmost ==> p must become the first child
           assert(this->is_leftmost());
 
           Tree_Node * parent = this->get_parent();
 
-          // Busca la raíz del árbol. Para ello buscamnos la hoja de this
+          // Find the tree root. To do so, we look for the leaf of this
           Tree_Node * leaf = this;
           while (not leaf->is_leaf())
             {
@@ -320,9 +320,9 @@ namespace Aleph
       this->sibling.append(SIBLING_LIST(p));
     }
 
-    /** Inserta p como el hijo más a la izquierda de this.
+    /** Inserts p as the leftmost child of this.
 
-        @param[in] p nodo a insertar.
+        @param[in] p node to insert.
     */
     void insert_leftmost_child(Tree_Node * p) noexcept
     {
@@ -360,9 +360,9 @@ namespace Aleph
       assert(p->is_leftmost());
     }
 
-    /** Inserta p como el hijo más a la derecho de this.
+    /** Inserts p as the rightmost child of this.
 
-        @param[in] p nodo a insertar.
+        @param[in] p node to insert.
     */
     void insert_rightmost_child(Tree_Node * p) noexcept
     {
@@ -449,7 +449,7 @@ namespace Aleph
       SIBLING_LIST(this)->insert(SIBLING_LIST(tree));
     }
 
-    /// Retorna el árbol a la izquierda de this.
+    /// Returns the tree to the left of this.
     Tree_Node * get_left_tree() const noexcept
     {
       if (is_leftmost())
@@ -458,7 +458,7 @@ namespace Aleph
       return left_link();
     }
 
-    /// Retorna el árbol a la derecha de this.
+    /// Returns the tree to the right of this.
     Tree_Node * get_right_tree() const noexcept
     {
       if (is_rightmost())
@@ -468,9 +468,8 @@ namespace Aleph
       return right_link();
     }
 
-    /// Retorna el árbol más a la derecha de la arborescencia
-    /// this. Dispara excepción range_error si this no es el árbol más a
-    /// la izquierda de toda la arborescencia.
+    /// Returns the rightmost tree of the forest containing this.
+    /// Throws range_error if this is not the leftmost tree of the forest.
     Tree_Node * get_last_tree() const
     {
       if (not is_leftmost())
@@ -490,8 +489,7 @@ namespace Aleph
       return ret;
     }
 
-    /// Visita cada hijo de this y ejecuta la operación operation sobre el
-    /// nodo hijo
+    /// Visits each child of this and executes the operation on the child node.
     template <typename Operation>
     void for_each_child(Operation & op) const
     {
@@ -506,7 +504,7 @@ namespace Aleph
       for_each_child<Operation>(op);
     }
 
-    /// Retorna una lista de los nodos hijos de this
+    /// Returns a list with the child nodes of this.
     template <template <typename> class Container = DynList>
     Container<Tree_Node*> children_nodes() const
     {
@@ -515,7 +513,7 @@ namespace Aleph
       return ret_val;
     }
 
-    /// Retorna una lista de los contenidos de los hijos de this.
+    /// Returns a list with the contents of the children of this.
     template <template <typename> class Container = DynList>
     Container<T> children() const
     {
@@ -548,7 +546,7 @@ namespace Aleph
 
   public:
 
-    /// Recorre en prefijo todos los nodos y ejecuta op
+    /// Preorder traversal over all nodes executing op.
     template <class Operation>
     bool traverse(Operation op)
     {
@@ -572,7 +570,7 @@ namespace Aleph
             return false;
           p->for_each_child([&q] (auto cptr) { q.put(cptr); });
         }
-      return false;
+      return true;
     }
 
     template <class Op> bool level_traverse(Op op) const
@@ -582,7 +580,7 @@ namespace Aleph
 
     Functional_Methods(Tree_Node*);
 
-    /** Iterator sobre los hijos de this
+    /** Iterator over the children of this
 
      */
     class Children_Iterator
@@ -629,7 +627,7 @@ namespace Aleph
       return Children_Iterator(*this);
     }
 
-    struct Children_Set // truco para usar Pair_Iterator
+    struct Children_Set // trick to use Pair_Iterator
     {
       Children_Set(const Tree_Node &&) {}
       Children_Set(const Tree_Node &) {}
@@ -658,8 +656,8 @@ namespace Aleph
         s.swap(it.s);
       }
 
-      Iterator(Tree_Node * __root = nullptr) noexcept
-        : root(__root), curr(root)
+      Iterator(Tree_Node * r = nullptr) noexcept
+        : root(r), curr(root)
       {
         // empty
       }
@@ -672,7 +670,11 @@ namespace Aleph
         // empty
       }
 
-      Iterator(Iterator && it) { swap(it); }
+      Iterator(Iterator && it) noexcept
+        : root(nullptr), curr(nullptr), pos(0), s()
+      {
+        swap(it);
+      }
 
       Iterator & operator = (Iterator it)
       {
@@ -683,6 +685,7 @@ namespace Aleph
       void reset_first() noexcept
       {
         s.empty();
+        pos = 0;
         curr = root;
       }
 
@@ -748,7 +751,7 @@ namespace Aleph
   template <typename T>
   struct Tree_Node_Vtl : public Tree_Node<T>
   {
-    virtual ~Tree_Node_Vtl() {}
+    virtual ~Tree_Node_Vtl() = default;
   };
 
   template <class Node> static inline
@@ -787,26 +790,26 @@ namespace Aleph
       __tree_preorder_traversal(child, level + 1, i, visitFct);
   }
 
-  /** Recorre en prefijo un árbol.
+  /** Preorder traversal of a tree.
 
-      tree_preorder_traversal((root,visit) realiza un recorrido prefijo
-      sobre el árbol con raíz root. Si visitFct es especificado,
-      entonces, por cada nodo visitado, se invoca la función.
+      tree_preorder_traversal((root,visit) performs a preorder traversal
+      over the tree rooted at root. If visitFct is specified,
+      then for each visited node the function is invoked.
 
-      La función de vista tiene la siguiente especificación:
+      The visit function has the following specification:
 
       void (*visitFct)(Node* p, int level, int pos)
 
-      Donde:
-      -# p: puntero al nodo actualmente visitado.
-      -# level: el nivel de p en el árbol.
-      -# child_index: índice de p dentro de sus hermanos.
+      Where:
+      -# p: pointer to the currently visited node.
+      -# level: the level of p in the tree.
+      -# child_index: index of p among its siblings.
 
-      @param[in] root raíz del árbol a visitar.
-      @param[in] visitFct puntero a la función de visita.
+      @param[in] root root of the tree to traverse.
+      @param[in] visitFct pointer to the visit function.
       @see forest_preorder_traversal() tree_postorder_traversal()
       @see forest_postorder_traversal()
-      @throw domain_error si root no es un nodo raíz de un árbol.
+      @throw domain_error if root is not a root node of a tree.
       @ingroup Arboles
   */
   template <class Node> inline
@@ -819,24 +822,24 @@ namespace Aleph
     __tree_preorder_traversal(root, 0, 0, visitFct);
   }
 
-  /** Recorre en prefijo una arborescencia.
+  /** Preorder traversal of a forest.
 
-      forest_preorder_traversal((root,visit) realiza un recorrido prefijo
-      sobre la arborescencia root. Si visitFct es especificado,
-      entonces, por cada nodo visitado, se invoca la función.
+      forest_preorder_traversal((root,visit) performs a preorder traversal
+      over the forest whose first tree is root. If visitFct is specified,
+      then for each visited node the function is invoked.
 
-      La función de vista tiene la siguiente especificación:
+      The visit function has the following specification:
 
       void (*visitFct)(Node* p, int level, int pos)
 
-      Donde:
-      -# p: puntero al nodo actualmente visitado.
-      -# level: el nivel de p en el árbol.
-      -# child_index: índice de p dentro de sus hermanos.
+      Where:
+      -# p: pointer to the currently visited node.
+      -# level: the level of p in the tree.
+      -# child_index: index of p among its siblings.
 
-      @param[in] root raíz del árbol primer árbol en la arborescencia.
-      @param[in] visitFct puntero a la función de visita.
-      @throw domain_error si root no es un nodo raíz de un árbol.
+      @param[in] root root of the first tree in the forest.
+      @param[in] visitFct pointer to the visit function.
+      @throw domain_error if root is not a root node of a tree.
       @see tree_preorder_traversal() tree_postorder_traversal()
       @see forest_postorder_traversal()
       @ingroup Arboles
@@ -848,7 +851,7 @@ namespace Aleph
     if (not root->is_root())
       throw std::domain_error("root is not root");
 
-    for (/* nada */; root != nullptr; root = root->get_right_tree())
+    for (/* nothing */; root != nullptr; root = root->get_right_tree())
       {
         assert(root->is_root());
         __tree_preorder_traversal(root, 0, 0, visitFct);
@@ -869,23 +872,23 @@ namespace Aleph
     (*visitFct)(node, level, child_index);
   }
 
-  /** Recorre en sufijo un árbol.
+  /** Postorder traversal of a tree.
 
-      tree_postorder_traversal((root,visit) realiza un recorrido prefijo
-      sobre el árbol con raíz root. Si visitFct es especificado,
-      entonces, por cada nodo visitado, se invoca la función.
+      tree_postorder_traversal((root,visit) performs a postorder traversal
+      over the tree rooted at root. If visitFct is specified,
+      then for each visited node the function is invoked.
 
-      La función de vista tiene la siguiente especificación:
+      The visit function has the following specification:
 
       void (*visitFct)(Node* p, int level, int pos)
 
-      Donde:
-      -# p: puntero al nodo actualmente visitado.
-      -# level: el nivel de p en el árbol.
-      -# child_index: índice de p dentro de sus hermanos.
+      Where:
+      -# p: pointer to the currently visited node.
+      -# level: the level of p in the tree.
+      -# child_index: index of p among its siblings.
 
-      @param[in] root raíz del árbol a visitar.
-      @param[in] visitFct puntero a la función de visita.
+      @param[in] root root of the tree to traverse.
+      @param[in] visitFct pointer to the visit function.
       @see forest_preorder_traversal() tree_preorder_traversal()
       @see forest_postorder_traversal()
       @ingroup Arboles
@@ -896,27 +899,27 @@ namespace Aleph
     __tree_postorder_traversal(root, 0, 0, visitFct);
   }
 
-  /** Recorre en sufijo una arborescencia.
+  /** Postorder traversal of a forest.
 
-      forest_postorder_traversal((root,visit) realiza un recorrido sufijo
-      sobre el árbol con raíz root. Si visitFct es especificado,
-      entonces, por cada nodo visitado, se invoca la función.
+      forest_postorder_traversal((root,visit) performs a postorder traversal
+      over the forest whose first tree is root. If visitFct is specified,
+      then for each visited node the function is invoked.
 
-      La función de vista tiene la siguiente especificación:
+      The visit function has the following specification:
 
       void (*visitFct)(Node* p, int level, int pos)
 
-      Donde:
-      -# p: puntero al nodo actualmente visitado.
-      -# level: el nivel de p en el árbol.
-      -# child_index: índice de p dentro de sus hermanos.
+      Where:
+      -# p: pointer to the currently visited node.
+      -# level: the level of p in the tree.
+      -# child_index: index of p among its siblings.
 
-      @param[in] root raíz del árbol a visitar.
-      @param[in] visitFct puntero a la función de visita.
+      @param[in] root root of the tree to traverse.
+      @param[in] visitFct pointer to the visit function.
       @see forest_preorder_traversal() tree_preorder_traversal()
       @see tree_postorder_traversal()
-      @throw domain_error si root no es nodo raíz del árbol más a la
-      izquierda de la arborescencia.
+      @throw domain_error if root is not the root node of the leftmost tree
+      of the forest.
       @ingroup Arboles
   */
   template <class Node> inline
@@ -935,7 +938,7 @@ namespace Aleph
       }
   }
 
-  /** Retorna true si t1 es igual a t2
+  /** Returns true if t1 is equal to t2
 
       @ingroup Arboles
   */
@@ -954,12 +957,12 @@ namespace Aleph
     try
       {
         return zipEq(t1->children_nodes(), t2->children_nodes()).
-          all([] (auto p)
+          all([&eq] (auto p)
               {
-                return are_tree_equal(p.first, p.second);
+                return are_tree_equal(p.first, p.second, eq);
               });
       }
-    catch (std::length_error)
+    catch (const std::length_error &)
       {
         return false;
       }
@@ -972,12 +975,12 @@ namespace Aleph
     return are_tree_equal<Node, Eq>(t1, t2, eq);
   }
 
-  /** Destruye (libera memoria) el árbol cuya raíz es root.
+  /** Destroys (frees memory) the tree whose root is root.
 
-      destroy_tree(root) libera toda la memoria ocupada por el
-      árbol cuya raíz es root.
+      destroy_tree(root) frees all the memory occupied by the
+      tree whose root is root.
 
-      @param[in] root raíz del árbol que se desea liberar.
+      @param[in] root root of the tree to be freed.
       @ingroup Arboles
   */
   template <class Node> inline
@@ -987,32 +990,31 @@ namespace Aleph
       return;
 
     if (not IS_UNIQUE_SIBLING(root))
-      SIBLING_LIST(root)->del(); // no ==> sacarlo de lista hermanos
+      SIBLING_LIST(root)->del(); // no ==> remove from sibling list
 
-    // recorrer los subárboles de derecha a izquierda
-    for (Node * p = (Node*) root->get_right_child(); p != nullptr; /* nada */)
+    // traverse subtrees from right to left
+    for (Node * p = static_cast<Node *>(root->get_right_child()); p != nullptr; /* nada */)
       {
-        Node * to_delete = p;      // respaldar subárbol a borrar p
-        p = (Node*) p->get_left_sibling(); // Avanzar p a hermano izquierdo
-        destroy_tree(to_delete);   // eliminar recursivamente árbol
+        Node * to_delete = p;      // backup subtree to delete
+        p = static_cast<Node *>(p->get_left_sibling()); // advance to left sibling
+        destroy_tree(to_delete);   // recursively delete tree
       }
 
-    if (root->is_leftmost()) // ¿sacar lista hijos?
+    if (root->is_leftmost()) // remove children list?
       CHILD_LIST(root)->del();
 
     delete root;
   }
 
-  /** Destruye (libera memoria) la arborescencia cuya primer
-      árbol es root.
+  /** Destroys (frees memory) the forest whose first tree is root.
 
-      destroy_forest(root) libera toda la memoria ocupada por el
-      la arborescencia cuyo primer árbol tiene raíz root.
+      destroy_forest(root) frees all the memory occupied by the
+      forest whose first tree has root as its root.
 
-      @param[in] root raíz del primer árbol de la arborescencia
-      que se desea destruir.
-      @throw domain_error si root no es nodo raíz del árbol más a la
-      izquierda de la arborescencia.
+      @param[in] root root of the first tree of the forest
+      to be destroyed.
+      @throw domain_error if root is not the root node of the leftmost
+      tree of the forest.
       @ingroup Arboles
   */
   template <class Node> inline
@@ -1027,19 +1029,19 @@ namespace Aleph
     if (not root->is_root())
       throw std::domain_error("root is not root");
 
-    while (root != nullptr) // recorre los árboles de izquierda a derecha
+    while (root != nullptr) // traverse trees from left to right
       {
-        Node * to_delete = root;          // respalda raíz
-        root = (Node*) root->get_right_sibling(); // avanza a siguiente árbol
-        SIBLING_LIST(to_delete)->del();   // elimine de lista árboles
-        destroy_tree(to_delete);          // Borre el árbol
+        Node * to_delete = root;          // backup root
+        root = (Node*) root->get_right_sibling(); // advance to next tree
+        SIBLING_LIST(to_delete)->del();   // remove from tree list
+        destroy_tree(to_delete);          // delete the tree
       }
   }
 
-  /** Calcula la altura del árbol root.
+  /** Computes the height of the tree root.
 
-      @param[in] root raíz del árbol.
-      @return altura del árbol en raíz root.
+      @param[in] root tree root.
+      @return height of the tree rooted at root.
       @ingroup Arboles
   */
   template <class Node>
@@ -1064,30 +1066,30 @@ namespace Aleph
     if (node == nullptr)
       return nullptr;
 
-    if (idx > size)
+    if (static_cast<size_t>(idx) >= size)
       throw std::out_of_range("index out of maximum range");
 
-    if (path[idx] < 0) // verifique si se ha alcanzado el nodo
+    if (path[idx] < 0) // check whether the node has been reached
       return node;
-    // avance hasta el próximo hijo path[0]
+    // advance to the next child path[0]
     Node * child = node->get_left_child();
     for (int i = 0; i < path[idx] and child != nullptr; ++i)
       child = child->get_right_sibling();
 
-    return __deway_search(child, path, idx + 1, size); // próximo nivel
+    return __deway_search(child, path, idx + 1, size); // next level
   }
 
-  /** Retorna un nodo de una arborescencia dado su número de Deway.
+  /** Returns a node of a forest given its Dewey number.
 
-      deway_search(root,path,size) toma el número de Deway guardado
-      en path, de longitud size y busca en la arborescencia cuyo primer
-      árbol es root un nodo que se corresponda con el número de Deway dado.
+      deway_search(root,path,size) takes the Dewey number stored
+      in path, of length size, and searches in the forest whose first
+      tree is root for the node that corresponds to the given Dewey number.
 
-      @param[in] root raíz del primer árbol de la arborescencia.
-      @param[in] path arreglo que contiene el número de Deway.
-      @param[in] size tamaño del número de deway.
-      @return puntero al nodo correspondiente al número de Deway
-      dado; nullptr si no existe,
+      @param[in] root root of the first tree of the forest.
+      @param[in] path array containing the Dewey number.
+      @param[in] size length of the Dewey number.
+      @return pointer to the node corresponding to the given Dewey number;
+      nullptr if it does not exist,
       @ingroup Arboles
   */
   template <class Node> inline
@@ -1105,26 +1107,24 @@ namespace Aleph
                         const size_t & current_level, int deway [],
                         const size_t & size, size_t & n);
 
-  /** Busca key en arborescencia y calcula el número de Deway del
-      nodo contentivo de la clave key.
+  /** Searches key in a forest and computes the Dewey number of the
+      node containing the key.
 
-      search_deway(root,key,deway,n) busca en la arborescencia
-      cuyo primer árbol es root un nodo que contenga la clave key.
-      Si el nodo es encontrado, entonces la rutina guarda en deway[]
-      el número de Deway del nodo encontrado.
+      search_deway(root,key,deway,n) searches in the forest
+      whose first tree is root a node containing the key.
+      If the node is found, then the routine stores in deway[]
+      the Dewey number of the found node.
 
-      La búsqueda se realiza con criterio de igualdad Equal()().
+      The search is performed using the equality criterion Equal()().
 
-      @param[in] root raíz del primer árbol de la arborescencia.
-      @param[in] key clave a buscar
-      @param[out] deway arreglo que contiene el número de Deway.
-      @param[in] size tamaño máximo del número de deway.
-      @param[out] n tamaño del número de Deway calculado (si se
-      encuentra el nodo).
-      @return puntero al nodo contentivo de la clave key;
-      nullptr si no existe ningún nodo con clave key,
-      @throw overflow_error si size no es suficiente para almacenar la
-      secuencia de Deway.
+      @param[in] root root of the first tree of the forest.
+      @param[in] key key to search.
+      @param[out] deway array that stores the Dewey number.
+      @param[in] size maximum length of the Dewey number.
+      @param[out] n length of the computed Dewey number (if the node is found).
+      @return pointer to the node containing key;
+      nullptr if there is no node with key,
+      @throw overflow_error if size is not sufficient to store the Dewey sequence.
       @ingroup Arboles
   */
   template <class Node,
@@ -1132,7 +1132,7 @@ namespace Aleph
   Node * search_deway(Node * root, const typename Node::key_type & key,
                       int deway [], const size_t & size, size_t & n)
   {
-    n = 1; // valor inicial de longitud de número de Deway
+    n = 1; // initial length value of the Dewey number
 
     if (size < n)
       throw std::overflow_error("there is no enough space for deway array");
@@ -1164,7 +1164,7 @@ namespace Aleph
 
     if (Equal()(root->get_key(), key))
       {
-        n = current_level + 1; // longitud del arreglo deway
+        n = current_level + 1; // length of deway array
         return root;
       }
 
@@ -1172,6 +1172,8 @@ namespace Aleph
     for (int i = 0; child != nullptr;
          i++, child = child->get_right_sibling())
       {
+        if (current_level + 1 >= size)
+          throw std::overflow_error("there is no enough space for deway array");
         deway[current_level + 1] = i;
         Node * result = __search_deway <Node, Equal>
           (child, key, current_level + 1, deway, size, n);
@@ -1183,23 +1185,21 @@ namespace Aleph
     return nullptr;
   }
 
-  /** Convierte una arborescencia a su árbol binario equivalente.
+  /** Converts a forest to its equivalent binary tree.
 
-      forest_to_bin(root) toma una arborescencia derivada de Tree_Node
-      y lo convierte a su equivalente árbol binario.
+      forest_to_bin(root) takes a forest derived from Tree_Node
+      and converts it to its equivalent binary tree.
 
-      La rutina maneja dos parámetros tipo:
-      -# TNode: tipo de árbol basado en Tree_Node.
-      -# BNode: tipo de árbol binario basado en BinNode.
+      The routine takes two type parameters:
+      -# TNode: tree type based on Tree_Node.
+      -# BNode: binary tree type based on BinNode.
 
-      El procedimiento asume que ambos tipos comparten el mismo
-      tipo de clave.
+      The procedure assumes that both types share the same key type.
 
-      @param[in] root raíz del primer árbol perteneciente a
-      la arborescencia a convertir.
-      @return raíz del árbol binario equivalente a la arborescencia
-      dada.
-      @throw bad_alloc si no hay suficiente memoria.
+      @param[in] root root of the first tree belonging to
+      the forest to convert.
+      @return root of the binary tree equivalent to the given forest.
+      @throw bad_alloc if there is not enough memory.
       @see bin_to_forest()
       @ingroup Arboles
   */
@@ -1209,8 +1209,8 @@ namespace Aleph
     if (root == nullptr)
       return BNode::NullPtr;
 
-    BNode * result = new BNode (root->get_key());
-    LLINK(result) = (BNode*) forest_to_bin<TNode, BNode>(root->get_left_child());
+    auto * result = new BNode (root->get_key());
+    LLINK(result) = static_cast<BNode *>(forest_to_bin<TNode, BNode>(root->get_left_child()));
     RLINK(result) = forest_to_bin<TNode, BNode>(root->get_right_sibling());
 
     return result;
@@ -1222,7 +1222,7 @@ namespace Aleph
     if (lnode == BNode::NullPtr)
       return;
 
-    TNode * child = new TNode(KEY(lnode));
+    auto * child = new TNode(KEY(lnode));
     tree_node->insert_leftmost_child(child);
   }
 
@@ -1232,7 +1232,7 @@ namespace Aleph
     if (rnode == BNode::NullPtr)
       return;
 
-    TNode * sibling = new TNode(KEY(rnode));
+    auto * sibling = new TNode(KEY(rnode));
     tree_node->insert_right_sibling(sibling);
   }
 
@@ -1253,22 +1253,20 @@ namespace Aleph
     bin_to_tree(RLINK(broot), right_sibling);
   }
 
-  /** Convierte un árbol binario a su arborescencia equivalente.
+  /** Converts a binary tree to its equivalent forest.
 
-      bin_to_forest(root) toma un árbol binario derivado de BinNode
-      y lo convierte a su arborescencia equivalente.
+      bin_to_forest(root) takes a binary tree derived from BinNode
+      and converts it to its equivalent forest.
 
-      La rutina maneja dos parámetros tipo:
-      -# TNode: tipo de árbol basado en Tree_Node.
-      -# BNode: tipo de árbol binario basado en BinNode.
+      The routine takes two type parameters:
+      -# TNode: tree type based on Tree_Node.
+      -# BNode: binary tree type based on BinNode.
 
-      El procedimiento asume que ambos tipos comparten el mismo
-      tipo de clave.
+      The procedure assumes that both types share the same key type.
 
-      @param[in] broot raíz del árbol binario a convertir.
-      @return raíz del primer árbol equivalente a árbol binario
-      dado.
-      @throw bad_alloc si no hay suficiente memoria.
+      @param[in] broot root of the binary tree to convert.
+      @return root of the first tree equivalent to the given binary tree.
+      @throw bad_alloc if there is not enough memory.
       @see forest_to_bin()
       @ingroup Arboles
   */
@@ -1278,12 +1276,12 @@ namespace Aleph
     if (broot == BNode::NullPtr)
       return nullptr;
 
-    TNode * troot = new TNode (KEY(broot));
+    auto * troot = new TNode (KEY(broot));
     bin_to_tree(broot, troot);
     return troot;
   }
 
-} // fin namespace Aleph
+} // end namespace Aleph
 
 # endif // TPL_TREE_H
 

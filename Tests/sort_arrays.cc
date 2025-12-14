@@ -13,6 +13,7 @@
 # include <iostream>
 # include <ranges>
 # include <numeric>
+# include <stdexcept>
 # include <gtest/gtest.h>
 
 # include <ah-string-utils.H>
@@ -74,4 +75,25 @@ TEST_F(TenVectors, sort)
   auto duration = duration_cast <milliseconds>(stop - start);
   cout << "Time taken by function: "
     << duration.count() << " milliseconds" << endl;
+}
+
+TEST(MultiSortArrays, stable_with_duplicates)
+{
+  vector<int> keys   = {2, 1, 2, 1, 2};
+  vector<char> aux   = {'a', 'b', 'c', 'd', 'e'};
+  vector<int> expect_keys = {1, 1, 2, 2, 2};
+  vector<char> expect_aux = {'b', 'd', 'a', 'c', 'e'}; // stable order within equal keys
+
+  in_place_multisort_arrays(std::less<int>(), keys, aux);
+
+  EXPECT_EQ(keys, expect_keys);
+  EXPECT_EQ(aux, expect_aux);
+}
+
+TEST(MultiSortArrays, size_mismatch_throws)
+{
+  vector<int> keys = {1, 0};
+  vector<int> aux  = {10};
+
+  EXPECT_THROW(in_place_multisort_arrays(std::less<int>(), keys, aux), std::invalid_argument);
 }

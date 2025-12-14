@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
    / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
    This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+   Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +27,7 @@
 # ifndef TPL_RAND_TREE_H
 # define TPL_RAND_TREE_H
 
-# include <limits.h>
+# include <climits>
 # include <gsl/gsl_rng.h>
 # include <ahUtils.H>
 # include <ahFunction.H>
@@ -37,15 +36,15 @@
 
 using namespace Aleph;
 
-namespace Aleph {
-
+namespace Aleph
+{
   /** Randomized binary sarch tree.
 
       This class implements a randomized binary search tree. It is shown
       that this type of tree always is equivalent to a classic binary
       search tree built from a random insertion sequence. Consequently, all
       the operations of this tree are \f$O(\lg n)\f$ expected case,
-      independentely of insertion order and of removals are interleaved
+      independently of insertion order and of removals are interleaved
       with insertions.
 
       In addition, these trees support `select()` and `position()`
@@ -71,23 +70,20 @@ namespace Aleph {
   class Gen_Rand_Tree
   {
   public:
-
-    using Node = NodeType<Key>;  /// The type of node
+    using Node = NodeType<Key>; /// The type of node
 
   private:
+    Node *tree_root;
+    gsl_rng *r;
+    Compare cmp;
 
-    Node *    tree_root;
-    gsl_rng * r;
-    Compare   cmp;
-
-    Node * random_insert(Node * root, Node * p) noexcept
+    Node * random_insert(Node *root, Node *p) noexcept
     {
       const long & n = COUNT(root);
-      const size_t rn = gsl_rng_uniform_int(r, n + 1);
-      if (rn == n) // p wins the raffle?
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) // p wins the raffle?
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
 
-      Node * result;
+      Node *result;
       if (cmp(KEY(p), KEY(root))) // KEY(p) < KEY(root) ?
         {
           result = random_insert(LLINK(root), p);
@@ -112,11 +108,10 @@ namespace Aleph {
       return Node::NullPtr; // duplicated key ==> no insertion
     }
 
-    Node * random_insert_dup(Node * root, Node * p) noexcept
+    Node * random_insert_dup(Node *root, Node *p) noexcept
     {
       const long & n = COUNT(root);
-      const size_t rn = gsl_rng_uniform_int(r, n + 1);
-      if (rn == n) // p wins the raffle?
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) // p wins the raffle?
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
       if (cmp(KEY(p), KEY(root))) // KEY(p) < KEY(root) ?
@@ -129,11 +124,12 @@ namespace Aleph {
       return root;
     }
 
-    Gen_Rand_Tree& operator = (const Gen_Rand_Tree&);
+    Gen_Rand_Tree(const Gen_Rand_Tree &) = delete;
+    Gen_Rand_Tree &operator =(const Gen_Rand_Tree &) = delete;
 
-    void init(unsigned long seed)
+    void init(const unsigned long seed)
     {
-      r = gsl_rng_alloc (gsl_rng_mt19937);
+      r = gsl_rng_alloc(gsl_rng_mt19937);
 
       if (r == nullptr)
         throw std::bad_alloc();
@@ -142,22 +138,27 @@ namespace Aleph {
     }
 
   public:
-
     /// return the comparison criteria
-    Compare & key_comp() noexcept { return cmp; }
+    Compare &key_comp() noexcept { return cmp; }
+
+    /// \overload key_comp() const version
+    const Compare &key_comp() const noexcept { return cmp; }
 
     /// \overload key_comp()
-    Compare & get_compare() noexcept { return key_comp(); }
+    Compare &get_compare() noexcept { return key_comp(); }
+
+    /// \overload get_compare() const version
+    const Compare &get_compare() const noexcept { return cmp; }
 
     /// Get a pointer to gsl random number generator
-    gsl_rng * gsl_rng_object() noexcept { return r;}
+    gsl_rng * gsl_rng_object() noexcept { return r; }
 
     /// Set the random number generator seed
-    void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+    void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
     /// Initialize a random tree with random `seed` and comparison criteria
     /// `__cmp`
-    Gen_Rand_Tree(unsigned int seed, Compare __cmp = Compare()) noexcept
+    Gen_Rand_Tree(const unsigned int seed, Compare __cmp = Compare()) noexcept
       : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
     {
       init(seed);
@@ -166,7 +167,9 @@ namespace Aleph {
     /// Initialize a random tree with random seed from system time and
     /// comparison criteria `cmp`
     Gen_Rand_Tree(Compare cmp = Compare()) noexcept
-      : Gen_Rand_Tree(time(nullptr), cmp) { /* empty */ }
+      : Gen_Rand_Tree(time(nullptr), cmp)
+    { /* empty */
+    }
 
     /// Swap in constant time all the nodes of `this` with `tree`
     void swap(Gen_Rand_Tree & tree) noexcept
@@ -188,13 +191,13 @@ namespace Aleph {
         @return if `p->get_key()` is not in the tree, then the pointer
         `p` is returned (it was inserted); othewise, `nullptr` is returned
     */
-    Node * insert(Node * p) noexcept
+    Node * insert(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
       assert(COUNT(p) == 1);
 
-      Node * result = random_insert(tree_root, p);
+      Node *result = random_insert(tree_root, p);
       if (result == Node::NullPtr)
         return nullptr;
 
@@ -208,7 +211,7 @@ namespace Aleph {
         @param[in] p pointer to the node to insert
         @return the `p` pointer
     */
-    Node * insert_dup(Node * p) noexcept
+    Node * insert_dup(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert((LLINK(p) == Node::NullPtr) and (RLINK(p) == Node::NullPtr));
@@ -218,8 +221,7 @@ namespace Aleph {
     }
 
   private:
-
-    Node * random_join_exclusive(Node * tl, Node * tr) noexcept
+    Node * random_join_exclusive(Node *tl, Node *tr) noexcept
     {
       if (tl == Node::NullPtr)
         return tr;
@@ -229,19 +231,15 @@ namespace Aleph {
 
       const size_t & m = COUNT(tl);
       const size_t & n = COUNT(tr);
-      const size_t rn = 1 + gsl_rng_uniform_int(r, m + n);
-      if (rn <= m)
-        {    // left subtree wins
+      if (const size_t rn = 1 + gsl_rng_uniform_int(r, m + n); rn <= m)
+        { // left subtree wins
           COUNT(tl) += COUNT(tr);
           RLINK(tl) = random_join_exclusive(RLINK(tl), tr);
           return tl;
         }
-      else
-        {
-          COUNT(tr) += COUNT(tl);
-          LLINK(tr) = random_join_exclusive(tl, LLINK(tr));
-          return tr;
-        }
+      COUNT(tr) += COUNT(tl);
+      LLINK(tr) = random_join_exclusive(tl, LLINK(tr));
+      return tr;
     }
 
     Node * random_remove(Node *& root, const Key & key) noexcept
@@ -249,20 +247,20 @@ namespace Aleph {
       if (root == Node::NullPtr)
         return Node::NullPtr;
 
-      Node * ret_val;
+      Node *ret_val;
       if (cmp(key, KEY(root)))
         {
           ret_val = random_remove(LLINK(root), key);
           if (ret_val != Node::NullPtr)
-            COUNT(root)--;
+            --COUNT(root);
 
           return ret_val;
         }
-      else if (cmp(KEY(root), key))
+      if (cmp(KEY(root), key))
         {
           ret_val = random_remove(RLINK(root), key);
           if (ret_val != Node::NullPtr)
-            COUNT(root)--;
+            --COUNT(root);
 
           return ret_val;
         }
@@ -276,7 +274,6 @@ namespace Aleph {
     }
 
   public:
-
     /** Remove a key from the tree
 
         @param[in] key to remove
@@ -285,7 +282,7 @@ namespace Aleph {
     */
     Node * remove(const Key & key) noexcept
     {
-      Node * ret_val = random_remove(tree_root, key);
+      Node *ret_val = random_remove(tree_root, key);
 
       return ret_val != Node::NullPtr ? ret_val : nullptr;
     }
@@ -298,7 +295,7 @@ namespace Aleph {
     */
     Node * search(const Key & key) const noexcept
     {
-      Node * retVal = searchInBinTree<Node, Compare>(tree_root, key, cmp);
+      Node *retVal = searchInBinTree<Node, Compare>(tree_root, key, cmp);
       return retVal == Node::NullPtr ? nullptr : retVal;
     }
 
@@ -314,12 +311,12 @@ namespace Aleph {
         to the containing key in the tree is returned. Otherwise, `p`
         is inserted and returned
     */
-    Node * search_or_insert(Node * p) noexcept
+    Node * search_or_insert(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert(COUNT(p) == 1);
 
-      Node * result = search(KEY(p));
+      Node *result = search(KEY(p));
       if (result != nullptr)
         return result;
 
@@ -335,7 +332,7 @@ namespace Aleph {
     }
 
     /// Return the tree's root
-    Node *& getRoot() noexcept { return tree_root; }
+    Node *&getRoot() noexcept { return tree_root; }
 
     /** Return the i-th node in inorder sense
 
@@ -346,11 +343,14 @@ namespace Aleph {
     */
     Node * select(const size_t i) const
     {
-      return Aleph::select(tree_root, i); 
+      return Aleph::select(tree_root, i);
     }
 
     /// Return the number of nodes that have the tree
     size_t size() const noexcept { return COUNT(tree_root); }
+
+    /// Return true if the tree is empty
+    bool is_empty() const noexcept { return tree_root == Node::NullPtr; }
 
     /** Compute the inorder position of a key
 
@@ -361,11 +361,11 @@ namespace Aleph {
 
         @ingroup Arboles
     */
-    std::pair<long, Node*> position(const Key & key) noexcept
+    std::pair<long, Node *> position(const Key & key) const noexcept
     {
-      std::pair<long, Node*> ret_val;
-      ret_val.first = BinTreeXt_Operation<Node, Compare> (cmp).
-        inorder_position(tree_root, key, ret_val.second);
+      std::pair<long, Node *> ret_val;
+      ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
+          inorder_position(tree_root, key, ret_val.second);
 
       return ret_val;
     }
@@ -396,23 +396,22 @@ namespace Aleph {
         @param[in] key to be searched
         @return a pair with the inorder position and and related node
     */
-    std::pair<long, Node*> find_position(const Key & key) noexcept
+    std::pair<long, Node *> find_position(const Key & key) const noexcept
     {
-      std::pair<long, Node*> r(-2, nullptr);
+      std::pair<long, Node *> r(-2, nullptr);
 
-      r.first = BinTreeXt_Operation<Node, Compare> (cmp) .
-        find_position(tree_root, key, r.second);
+      r.first = BinTreeXt_Operation<Node, Compare>(cmp).
+          find_position(tree_root, key, r.second);
 
       return r;
     }
 
   private:
-
     Node * remove_pos(Node *& root, const size_t pos) noexcept
     {
       if (pos == COUNT(LLINK(root)))
         {
-          Node * ret_val = root;
+          Node *ret_val = root;
           root = random_join_exclusive(LLINK(ret_val), RLINK(ret_val));
           return ret_val;
         }
@@ -425,7 +424,6 @@ namespace Aleph {
     }
 
   public:
-
     /** Remove the key at inorder position `i`
 
         @param[in] i inorder position to be removed
@@ -433,7 +431,7 @@ namespace Aleph {
         \throw out_of_range if `i` is greater or equal than the number of
         nodes of tree
     */
-    Node * remove_pos(const size_t i) noexcept
+    Node * remove_pos(const size_t i)
     {
       if (i >= COUNT(tree_root))
         throw std::out_of_range("infix position out of range");
@@ -488,8 +486,7 @@ namespace Aleph {
     }
 
   private:
-
-    Node * random_join(Node * t1, Node * t2, Node *& dup)
+    Node * random_join(Node *t1, Node *t2, Node *& dup)
     {
       if (t1 == Node::NullPtr)
         return t2;
@@ -497,13 +494,12 @@ namespace Aleph {
       if (t2 == Node::NullPtr)
         return t1;
 
-      Node * ret = Node::NullPtr;
+      Node *ret = Node::NullPtr;
       const size_t & m = COUNT(t1);
       const size_t & n = COUNT(t2);
-      const size_t rn = 1 + gsl_rng_uniform_int(r, m + n);
-      if (rn <= m)
-        {      // root of t1 wins
-          Node * l = LLINK(t1), * r = RLINK(t1);
+      if (const size_t rn = 1 + gsl_rng_uniform_int(r, m + n); rn <= m)
+        { // root of t1 wins
+          Node *l = LLINK(t1), *r = RLINK(t1);
           t1->reset();
         t1_wins:
           ret = insert_root_xt(t2, t1, cmp);
@@ -520,8 +516,8 @@ namespace Aleph {
             }
         }
       else
-        {     // root of t2 wins
-          Node * l = LLINK(t2), * r = RLINK(t2);
+        { // root of t2 wins
+          Node *l = LLINK(t2), *r = RLINK(t2);
           t2->reset();
         t2_wins:
           ret = insert_root_xt(t1, t2, cmp);
@@ -541,7 +537,7 @@ namespace Aleph {
       return ret;
     }
 
-    Node * random_join(Node * t1, Node * t2)
+    Node * random_join(Node *t1, Node *t2)
     {
       if (t1 == Node::NullPtr)
         return t2;
@@ -549,24 +545,23 @@ namespace Aleph {
       if (t2 == Node::NullPtr)
         return t1;
 
-      Node * ret = Node::NullPtr;
+      Node *ret = Node::NullPtr;
       const size_t & m = COUNT(t1);
       const size_t & n = COUNT(t2);
       const size_t total = m + n;
-      const size_t rn = 1 + gsl_rng_uniform_int(r, total);
-      if (rn <= m)
-        {     // root of t1 wins
-          Node * l = LLINK(t1), * r = RLINK(t1);
+      if (const size_t rn = 1 + gsl_rng_uniform_int(r, total); rn <= m)
+        { // root of t1 wins
+          Node *l = LLINK(t1), *r = RLINK(t1);
           t1->reset();
-          ret  = insert_dup_root_xt(t2, t1, cmp);
+          ret = insert_dup_root_xt(t2, t1, cmp);
           LLINK(ret) = random_join(LLINK(ret), l);
           RLINK(ret) = random_join(RLINK(ret), r);
         }
       else
-        {     // root of t2 wins
-          Node * l = LLINK(t2), * r = RLINK(t2);
+        { // root of t2 wins
+          Node *l = LLINK(t2), *r = RLINK(t2);
           t2->reset();
-          ret  = insert_dup_root_xt(t1, t2, cmp);
+          ret = insert_dup_root_xt(t1, t2, cmp);
           LLINK(ret) = random_join(l, LLINK(ret));
           RLINK(ret) = random_join(r, RLINK(ret));
         }
@@ -576,7 +571,6 @@ namespace Aleph {
     }
 
   public:
-
     /** Join `this` with `t` filtering the duplicated keys
 
         `join(t, dup)` produces a random tree result of join of `this` and
@@ -710,14 +704,11 @@ namespace Aleph {
       @ingroup Arboles
   */
   template <typename Key, class Compare = Aleph::less<Key>>
-  struct Rand_Tree_Vtl : public Gen_Rand_Tree<RandNodeVtl,Key,Compare>
+  struct Rand_Tree_Vtl : public Gen_Rand_Tree<RandNodeVtl, Key, Compare>
   {
-    using Base = Gen_Rand_Tree<RandNodeVtl,Key,Compare>;
+    using Base = Gen_Rand_Tree<RandNodeVtl, Key, Compare>;
     using Base::Base;
   };
-
-
 } // end namespace Aleph
 
 # endif // TPL_RAND_TREE_H
-

@@ -280,10 +280,10 @@ TEST(Tree_Node, clone_on_extreme_cases)
 TEST_F(Simple_Tree, level_traversal)
 {
   int i = 0;
-  root->level_traverse([&i] (auto p)
-		       {
-			 return p->get_key() == i++;
-		       });
+  ASSERT_TRUE(root->level_traverse([&i] (auto p)
+			       {
+				 return p->get_key() == i++;
+			       }));
   ASSERT_EQ(i, 31);
 }
 
@@ -304,7 +304,7 @@ TEST(Tree_Node, traverse_on_extreme_cases)
 {
   {
     Tree_Node<int> * root = nullptr;
-    ASSERT_TRUE(root->traverse([] (auto) { return false; }));
+    ASSERT_EQ(root, nullptr);
   }
   {
     Tree_Node<int> root(5);
@@ -312,6 +312,35 @@ TEST(Tree_Node, traverse_on_extreme_cases)
     ASSERT_TRUE(root.traverse([&k] (auto p) { k++; return p->get_key() == 5; }));
     ASSERT_EQ(k, 1);
   }
+}
+
+TEST(Tree_Node, are_tree_equal_uses_custom_comparator_recursively)
+{
+  using Node = Tree_Node<std::string>;
+
+  auto * t1 = new Node("root");
+  t1->insert_rightmost_child(new Node("A"));
+  t1->insert_rightmost_child(new Node("B"));
+
+  auto * t2 = new Node("ROOT");
+  t2->insert_rightmost_child(new Node("a"));
+  t2->insert_rightmost_child(new Node("b"));
+
+  auto nocase = [] (const std::string & a, const std::string & b)
+  {
+    if (a.size() != b.size())
+      return false;
+    for (size_t i = 0; i < a.size(); ++i)
+      if (std::tolower(static_cast<unsigned char>(a[i])) !=
+          std::tolower(static_cast<unsigned char>(b[i])))
+        return false;
+    return true;
+  };
+
+  ASSERT_TRUE((are_tree_equal<Node, decltype(nocase)>(t1, t2, nocase)));
+
+  destroy_tree(t1);
+  destroy_tree(t2);
 }
 
 TEST_F(Simple_Tree, traverse)

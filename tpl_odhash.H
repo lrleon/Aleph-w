@@ -29,6 +29,8 @@
 # define TPL_ODHASH_H
 
 # include <iostream>
+# include <cstddef>
+# include <cstdint>
 
 # include <primes.H>
 # include <dlink.H>
@@ -175,7 +177,7 @@ namespace Aleph {
       ++N;
       bucket.status     = BUSY;
       bucket.probe_type = probe_type;
-      bucket.probe_counter++;
+      ++bucket.probe_counter;
 
       return &bucket;
     }
@@ -184,7 +186,7 @@ namespace Aleph {
     {
       assert(bucket->status == BUSY or bucket->status == DELETED);
 
-      bucket->probe_counter--;
+      --bucket->probe_counter;
       if (bucket->probe_counter == 0) // <marcar EMPTY sobre la cubeta?
         bucket->status = EMPTY;
     }
@@ -248,17 +250,25 @@ namespace Aleph {
 
     static Bucket * key_to_bucket(Key * rec) noexcept
     {
-      Bucket * ret_val = 0;
-      const long offset = (long) &ret_val->key;
-      return (Bucket*) ((long) rec - offset);
+      const auto base = reinterpret_cast<std::uintptr_t>(rec);
+      const auto offset = static_cast<std::uintptr_t>(offsetof(Bucket, key));
+      return reinterpret_cast<Bucket *>(base - offset);
     }
 
     bool is_valid_bucket(Bucket * bucket) noexcept
     {
-      if (bucket < &table[0] or bucket >= &table[len])
+      if (table == nullptr)
         return false;
 
-      const int offset_with_base = (char*) bucket - (char*) &table[0];
+      const auto begin = reinterpret_cast<std::uintptr_t>(&table[0]);
+      const auto end   = reinterpret_cast<std::uintptr_t>(&table[len]);
+      const auto addr  = reinterpret_cast<std::uintptr_t>(bucket);
+
+      if (addr < begin or addr >= end)
+        return false;
+
+      const auto offset_with_base =
+        static_cast<std::ptrdiff_t>(addr - begin);
       return offset_with_base % sizeof(*bucket) == 0;
     }
 
@@ -351,7 +361,7 @@ namespace Aleph {
         this->clean_table();
       else
         {
-          Bucket * new_table = new Bucket [other.len];
+          auto * new_table = new Bucket [other.len];
           delete [] table;
           table = new_table;
           N = 0;
@@ -460,7 +470,7 @@ namespace Aleph {
       const size_t i_snd = second_hash_fct(key) % len; // 2do hash
       if (table[i_snd].status != BUSY) // ¿cubeta disponible?
         {
-          table[i_fst].probe_counter++;
+          ++table[i_fst].probe_counter;
           return allocate_bucket(table[i_snd], SECOND_PROBE);
         }
 
@@ -479,19 +489,19 @@ namespace Aleph {
                   for (size_t k = 0; k < c; ++k)
                     {
                       index_backward(i);
-                      table[i].probe_counter--;
+                      --table[i].probe_counter;
                     }
                   return nullptr;
                 }
               break;
             case DELETED:
             case EMPTY:
-              table[i_fst].probe_counter++;
-              table[i_snd].probe_counter++;
+              ++table[i_fst].probe_counter;
+              ++table[i_snd].probe_counter;
               return allocate_bucket(table[i], LINEAR_PROBE);
             default: AH_ERROR("ODhashTable: Invalid bucket status"); break;
             }
-          table[i].probe_counter++;
+          ++table[i].probe_counter;
         }
 
       return nullptr;
@@ -513,7 +523,7 @@ namespace Aleph {
       const size_t i_snd = second_hash_fct(key) % len; // 2do hash
       if (table[i_snd].status != BUSY) // ¿cubeta disponible?
         {
-          table[i_fst].probe_counter++;
+          ++table[i_fst].probe_counter;
           return tuple<Bucket*, bool>(allocate_bucket(table[i_snd], SECOND_PROBE),
                                       false);
         }
@@ -541,15 +551,15 @@ namespace Aleph {
               break;
             case DELETED:
             case EMPTY:
-              table[i_fst].probe_counter++;
-              table[i_snd].probe_counter++;
+              ++table[i_fst].probe_counter;
+              ++table[i_snd].probe_counter;
               return make_tuple(allocate_bucket(table[i], LINEAR_PROBE), false);
             default: AH_ERROR("ODhashTable: Invalid bucket status"); break;
             }
-          table[i].probe_counter++;
+          ++table[i].probe_counter;
         }
       assert(false); // never must reach this point
-      return tuple<Bucket*, bool>((Bucket*)nullptr, false);
+      return tuple<Bucket*, bool>(static_cast<Bucket *>(nullptr), false);
     }
 
     /// Delete the record record from the table. record must belong to
@@ -607,7 +617,7 @@ namespace Aleph {
             return;
 
           size_t i = i_snd;
-          for (size_t c = 0; i < len; ++c)
+          for (size_t c = 0; c < len; ++c)
             {
               index_forward(i);
               if (process_entry_for_remove(&table[i], key))
@@ -688,8 +698,8 @@ namespace Aleph {
       avg /= sum;								
       float var = 0;							
       for (size_t i = 0; i < lens.size(); ++i)				
-        {									
-          float s = i - avg;						
+        {
+          const float s = i - avg;
           var += lens(i)*s*s;						
         }									
       var /= sum;								
@@ -733,4 +743,3 @@ namespace Aleph {
 } // end namespace Aleph
 
 # endif // TPL_ODHASH_H
-

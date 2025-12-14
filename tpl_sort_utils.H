@@ -363,10 +363,10 @@ namespace Aleph
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  int sequential_search(T *a, const T & x, const int l, const int r,
-                        Equal eq = Equal())
+  long sequential_search(T *a, const T & x, const long l, const long r,
+                         Equal eq = Equal())
   {
-    for (int i = l; i <= r; i++)
+    for (long i = l; i <= r; ++i)
       if (eq(a[i], x)) return i;
 
     return Not_Found;
@@ -407,15 +407,15 @@ namespace Aleph
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
-  int sequential_search(const DynArray<T> & a, const T & x,
-                        const int l, const int r, Equal eq = Equal())
+  long sequential_search(const DynArray<T> & a, const T & x,
+                         const long l, const long r, Equal eq = Equal())
   {
-    for (int i = l; i <= r; i++)
+    for (long i = l; i <= r; ++i)
       if (a.exist(i))
         if (eq(a(i), x))
           return i;
 
-    return -1;
+    return Not_Found;
   }
 
   template <class Link, typename T, class Equal>
@@ -558,10 +558,10 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int search_extreme(T *a, const int l, const int r, Compare cmp = Compare())
+  long search_extreme(T *a, const long l, const long r, Compare cmp = Compare())
   {
-    int extreme_index = l;
-    for (int i = l + 1; i <= r; i++)
+    long extreme_index = l;
+    for (long i = l + 1; i <= r; ++i)
       if (cmp(a[i], a[extreme_index])) // is there a new minimum?
         extreme_index = i; // yes
 
@@ -574,7 +574,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int search_min(T *a, const int l, const int r, Compare cmp = Compare())
+  long search_min(T *a, const long l, const long r, Compare cmp = Compare())
   {
     return search_extreme<T, Compare>(a, l, r, cmp);
   }
@@ -585,7 +585,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::greater<T>>
   inline
-  int search_max(T *a, const int l, const int r, Compare cmp = Compare())
+  long search_max(T *a, const long l, const long r, Compare cmp = Compare())
   {
     return search_extreme<T, Compare>(a, l, r, cmp);
   }
@@ -696,12 +696,12 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void insertion_sort(T *a, const int l, const int r,
+  void insertion_sort(T *a, const long l, const long r,
                       Compare cmp = Compare())
   {
     if (l >= r)
       return;
-    for (int i = l, j; i <= r; ++i)
+    for (long i = l, j; i <= r; ++i)
       {
         T tmp = a[i]; // store a[i], since it will be overwritten
         for (j = i; j > l and cmp(tmp, a[j - 1]); --j)
@@ -811,7 +811,7 @@ namespace Aleph
     using Cmp = Compare_Snodenc<T, Compare>;
     Cmp c(cmp);
     list_insertion_sort<HTList, Cmp>(l, c);
-    return move(l);
+    return std::move(l);
   }
 
   /** Sorts the list by insertion method.
@@ -837,20 +837,20 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void merge(T *a, const int l, const int m, const int r,
+  void merge(T *a, const long l, const long m, const long r,
              std::vector<T> & buf, Compare cmp = Compare())
   {
     buf.clear();
-    int i, j;
+    long i, j;
 
     for (i = l; i <= m; ++i) buf.push_back(std::move(a[i]));
     for (j = r; j > m; --j) buf.push_back(std::move(a[j]));
 
-    const int s = r - l + 1;
+    const long s = r - l + 1;
     i = 0;
     j = s - 1;
 
-    for (int k = l; k <= r; ++k)
+    for (long k = l; k <= r; ++k)
       if (cmp(buf[i], buf[j]))
         a[k] = std::move(buf[i++]);
       else
@@ -873,7 +873,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void merge(T *a, const int l, const int m, const int r,
+  void merge(T *a, const long l, const long m, const long r,
              Compare cmp = Compare())
   {
     std::vector<T> buf;
@@ -882,12 +882,12 @@ namespace Aleph
   }
 
   template <typename T, class Compare>
-  void mergesort(T *a, const int l, const int r, std::vector<T> & buf, Compare cmp)
+  void mergesort(T *a, const long l, const long r, std::vector<T> & buf, Compare cmp)
   {
     if (l >= r)
       return;
 
-    const int m = l + (r - l) / 2;
+    const long m = l + (r - l) / 2;
 
     mergesort<T, Compare>(a, l, m, buf, cmp);
     mergesort<T, Compare>(a, m + 1, r, buf, cmp);
@@ -920,7 +920,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void mergesort(T *a, const int l, const int r, Compare cmp = Compare())
+  void mergesort(T *a, const long l, const long r, Compare cmp = Compare())
   {
     if (l >= r)
       return;
@@ -1149,19 +1149,19 @@ namespace Aleph
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int select_pivot(T *a, int l, int r, Compare cmp = Compare());
+  long select_pivot(T *a, long l, long r, Compare cmp = Compare());
 
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int partition(T *a, const int l, const int r, Compare cmp = Compare())
+  long partition(T *a, const long l, const long r, Compare cmp = Compare())
   {
-    const int p = select_pivot<T, Compare>(a, l, r, cmp);
+    const long p = select_pivot<T, Compare>(a, l, r, cmp);
     std::swap(a[p], a[r]);
 
     T pivot = a[r]; // pivot element
-    int i = l - 1, // index first element to the left > which pivot
-        j = r; // index first element to the right < that pivot
+    long i = l - 1; // index first element to the left > pivot
+    long j = r;     // index first element to the right < pivot
     while (true)
       {
         // advance while a[i] < a[pivot]
@@ -1218,12 +1218,12 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void quicksort_rec(T *a, const int l, const int r, Compare cmp = Compare())
+  void quicksort_rec(T *a, const long l, const long r, Compare cmp = Compare())
   {
     if (l >= r)
       return;
 
-    const int pivot = partition<T, Compare>(a, l, r, cmp);
+    const long pivot = partition<T, Compare>(a, l, r, cmp);
 
     quicksort_rec<T, Compare>(a, l, pivot - 1, cmp);
     quicksort_rec<T, Compare>(a, pivot + 1, r, cmp);
@@ -1231,14 +1231,26 @@ namespace Aleph
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void quicksort_no_tail(T *a, int l, int r, Compare cmp = Compare())
+  void quicksort_no_tail(T *a, long l, long r, Compare cmp = Compare())
   {
     while (l < r)
-    {
-      const int pivot = partition<T, Compare>(a, l, r, cmp);
-      quicksort_no_tail<T, Compare>(a, l, pivot - 1, cmp);
-      l = pivot + 1;
-    }
+      {
+        const long pivot = partition<T, Compare>(a, l, r, cmp);
+        const long left_size = pivot - l;
+        const long right_size = r - pivot;
+
+        // Recurse on the smaller partition to ensure O(log n) stack depth.
+        if (left_size < right_size)
+          {
+            quicksort_no_tail<T, Compare>(a, l, pivot - 1, cmp);
+            l = pivot + 1; // tail recurse on the right by looping
+          }
+        else
+          {
+            quicksort_no_tail<T, Compare>(a, pivot + 1, r, cmp);
+            r = pivot - 1; // tail recurse on the left by looping
+          }
+      }
   }
 
   /** Sorts an array according to the quicksort method with minimum
@@ -1258,13 +1270,13 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void quicksort_rec_min(T *a, const int l, const int r,
+  void quicksort_rec_min(T *a, const long l, const long r,
                          Compare cmp = Compare())
   {
     if (r <= l)
       return;
 
-    if (const int pivot = partition<T, Compare>(a, l, r, cmp); pivot - l < r - pivot)
+    if (const long pivot = partition<T, Compare>(a, l, r, cmp); pivot - l < r - pivot)
     // which partition is smaller?
       { // left partition is smaller
         quicksort_rec_min<T, Compare>(a, l, pivot - 1, cmp);
@@ -1279,9 +1291,9 @@ namespace Aleph
 
   template <typename T, class Compare>
   inline
-  int select_pivot(T *a, const int l, const int r, Compare cmp)
+  long select_pivot(T *a, const long l, const long r, Compare cmp)
   {
-    const int m = l + (r - l) / 2;
+    const long m = l + (r - l) / 2;
 
     if (cmp(a[r], a[l]))
       std::swap(a[l], a[r]);
@@ -1329,7 +1341,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void quicksort(T *a, const int l, const int r, Compare cmp = Compare())
+  void quicksort(T *a, const long l, const long r, Compare cmp = Compare())
   {
     if (r - l < Quicksort_Threshold)
       {
@@ -1337,7 +1349,7 @@ namespace Aleph
         return;
       }
 
-    typedef std::pair<int, int> Partition;
+    typedef std::pair<long, long> Partition;
     FixedStack<Partition> stack(64);
     stack.push(Partition(l, r));
 
@@ -1355,7 +1367,7 @@ namespace Aleph
             continue;
           }
 
-        if (const int pivot = partition<T, Compare>(a, p.first, p.second, cmp); pivot - p.first < p.second - pivot)
+        if (const long pivot = partition<T, Compare>(a, p.first, p.second, cmp); pivot - p.first < p.second - pivot)
         // which one is smaller?
           { // left partition is smaller
             stack.push(Partition(pivot + 1, p.second));
@@ -1503,16 +1515,16 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void quicksort_insertion(T *a, const int l, const int r,
+  void quicksort_insertion(T *a, const long l, const long r,
                            Compare cmp = Compare())
   {
     if (r <= l)
       return;
 
-    const int pivot = partition<T, Compare>(a, l, r, cmp);
+    const long pivot = partition<T, Compare>(a, l, r, cmp);
 
-    const int l_size = pivot - l; // left partition size
-    const int r_size = r - pivot; // right partition size
+    const long l_size = pivot - l; // left partition size
+    const long r_size = r - pivot; // right partition size
     bool left_done = false; // true if left partition is sorted
     bool right_done = false; // true if der partition is sorted
 
@@ -1590,8 +1602,8 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int random_search(T *a, const T & x, const long l, const long r,
-                    Compare cmp = Compare())
+  long random_search(T *a, const T & x, const long l, const long r,
+                     Compare cmp = Compare())
   {
     if (l > r)
       return Not_Found;
@@ -1608,8 +1620,8 @@ namespace Aleph
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  int random_search(DynArray<T> & a, const T & x, const long l, const long r,
-                    Compare cmp = Compare())
+  long random_search(DynArray<T> & a, const T & x, const long l, const long r,
+                     Compare cmp = Compare())
   {
     if (l > r)
       return Not_Found;
@@ -1928,7 +1940,11 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(DynArray<T> & a, const long i, Compare cmp = Compare())
   {
-    const int n = a.size() - 1;
+    const auto n_sz = a.size();
+    if (n_sz == 0 || i < 0)
+      throw std::out_of_range("index out of range");
+
+    const long n = static_cast<long>(n_sz) - 1;
     if (i > n)
       throw std::out_of_range("index out of range");
 
@@ -1938,7 +1954,11 @@ namespace Aleph
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(Array<T> & a, const long i, Compare cmp = Compare())
   {
-    const int n = a.size() - 1;
+    const auto n_sz = a.size();
+    if (n_sz == 0 || i < 0)
+      throw std::out_of_range("index out of range");
+
+    const long n = static_cast<long>(n_sz) - 1;
     if (i > n)
       throw std::out_of_range("index out of range");
 
@@ -2150,13 +2170,15 @@ namespace Aleph
   inline
   void selection_sort(DynArray<T> & a, Compare cmp = Compare())
   {
-    const int n = a.size();
+    const long n = static_cast<long>(a.size());
+    if (n < 2)
+      return;
 
-    for (int i = 0; i < n - 1; i++)
+    for (long i = 0; i < n - 1; ++i)
       {
-        int min = i;
+        long min = i;
 
-        for (int j = i + 1; j < n; j++)
+        for (long j = i + 1; j < n; ++j)
           if (cmp(a(j), a(min)))
             min = j;
 
@@ -2187,10 +2209,12 @@ namespace Aleph
   inline
   void bubble_sort(DynArray<T> & a, Compare cmp = Compare())
   {
-    const int n = a.size();
+    const long n = static_cast<long>(a.size());
+    if (n < 2)
+      return;
 
-    for (int i = 0; i < n - 1; i++)
-      for (int j = n - 1; j > i; --j)
+    for (long i = 0; i < n - 1; ++i)
+      for (long j = n - 1; j > i; --j)
         if (cmp(a(j), a(j - 1)))
           std::swap(a(j - 1), a(j));
   }
@@ -2353,6 +2377,7 @@ namespace Aleph
     }
 
     bool operator ()(const T & e1, const T & e2) const
+      noexcept(noexcept(std::declval<const Compare &>()(e2, e1)))
     {
       return cmp(e2, e1);
     }
@@ -2364,7 +2389,7 @@ namespace Aleph
       the arrangement a of n elements.
 
       The heapsort has a guaranteed performance of \f$O(n \; \lg n)\f$
-      and it is stable.
+      but it is not a stable sorting algorithm.
 
       The method uses two type parameters:
       -# T: the type of elements that the array has.
@@ -2489,7 +2514,7 @@ namespace Aleph
   {
     long l = 0, r = a.size() - 1;
 
-    FixedStack<long> stack(40);
+    FixedStack<long> stack(64);
 
     push2(stack, l, r);
 
@@ -2632,7 +2657,11 @@ namespace Aleph
   inline
   long binary_search(const C<T *> & a, const T & x, Compare && cmp = Compare())
   {
-    return binary_search(a, x, 0, a.size() - 1, cmp);
+    const auto n = a.size();
+    if (n == 0)
+      return 0;
+
+    return binary_search(a, x, 0, static_cast<long>(n) - 1, cmp);
   }
 
   /** Binary search on a dynamic ordered array.
@@ -2666,7 +2695,11 @@ namespace Aleph
   inline
   long binary_search(const C<T> & a, const T & x, Compare cmp = Compare())
   {
-    return binary_search(a, x, 0, a.size() - 1, cmp);
+    const auto n = a.size();
+    if (n == 0)
+      return 0;
+
+    return binary_search(a, x, 0, static_cast<long>(n) - 1, cmp);
   }
 
   template <template <typename> class C, typename T,
@@ -2676,7 +2709,11 @@ namespace Aleph
                                     Compare cmp = Compare())
   {
     DynList<size_t> ret;
-    long idx = binary_search(a, x, 0, a.size() - 1, cmp);
+    const auto n = a.size();
+    if (n == 0)
+      return ret;
+
+    long idx = binary_search(a, x, 0, static_cast<long>(n) - 1, cmp);
     if (idx < 0)
       return ret;
 
@@ -2766,7 +2803,11 @@ namespace Aleph
   DynList<T *> bsearch_dup(const C<T *> & a, const T & x, Compare cmp = Compare())
   {
     DynList<T *> ret;
-    long idx = binary_search(a, x, cmp);
+    const auto n = a.size();
+    if (n == 0)
+      return ret;
+
+    long idx = binary_search(a, x, 0, static_cast<long>(n) - 1, cmp);
     if (idx < 0)
       return ret;
 
@@ -2795,7 +2836,6 @@ namespace Aleph
     return ret;
   }
 
-/* <<<<<<<<<<<<<<  ✨ Windsurf Command 🌟 >>>>>>>>>>>>>>>> */
   /** Returns the index where a value appears (or should be inserted) in
       a sorted container.
 
@@ -3034,7 +3074,7 @@ namespace Aleph
 
     size_t l = 0, r = n - 1;
 
-    FixedStack<size_t> stack(40);
+    FixedStack<size_t> stack(64);
 
     push2(stack, l, r);
 
