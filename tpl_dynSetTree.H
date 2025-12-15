@@ -29,6 +29,9 @@
 # define TPL_DYNSETTREE_H
 
 # include <typeinfo>
+ # include <type_traits>
+ # include <utility>
+ # include <stdexcept>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
 # include <ah-zip.H>
@@ -167,6 +170,128 @@ namespace Aleph {
 
   private:
 
+    template <typename T>
+    struct Has_Range_Methods
+    {
+      template <typename U>
+      static auto test_select(int)
+        -> decltype(std::declval<const U &>().select(std::declval<size_t>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_select(...);
+
+      template <typename U>
+      static auto test_remove_pos(int)
+        -> decltype(std::declval<U &>().remove_pos(std::declval<size_t>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_remove_pos(...);
+
+      template <typename U>
+      static auto test_split_pos(int)
+        -> decltype(std::declval<U &>().split_pos(std::declval<size_t>(),
+                                                 std::declval<U &>(),
+                                                 std::declval<U &>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_split_pos(...);
+
+      template <typename U>
+      static auto test_position(int)
+        -> decltype(std::declval<const U &>().position(std::declval<const Key &>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_position(...);
+
+      template <typename U>
+      static auto test_find_position(int)
+        -> decltype(std::declval<const U &>().find_position(std::declval<const Key &>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_find_position(...);
+
+      static constexpr bool has_select =
+        std::is_same<decltype(test_select<T>(0)), std::true_type>::value;
+      static constexpr bool has_remove_pos =
+        std::is_same<decltype(test_remove_pos<T>(0)), std::true_type>::value;
+      static constexpr bool has_split_pos =
+        std::is_same<decltype(test_split_pos<T>(0)), std::true_type>::value;
+      static constexpr bool has_position =
+        std::is_same<decltype(test_position<T>(0)), std::true_type>::value;
+      static constexpr bool has_find_position =
+        std::is_same<decltype(test_find_position<T>(0)), std::true_type>::value;
+    };
+
+    template <typename T>
+    static auto call_select(const T & t, const size_t i, int)
+      -> decltype(t.select(i))
+    {
+      return t.select(i);
+    }
+
+    template <typename T>
+    static Node * call_select(const T &, const size_t, ...)
+    {
+      throw std::domain_error("select is not supported by underlying tree");
+    }
+
+    template <typename T>
+    static auto call_remove_pos(T & t, const size_t i, int)
+      -> decltype(t.remove_pos(i))
+    {
+      return t.remove_pos(i);
+    }
+
+    template <typename T>
+    static Node * call_remove_pos(T &, const size_t, ...)
+    {
+      throw std::domain_error("remove_pos is not supported by underlying tree");
+    }
+
+    template <typename T>
+    static auto call_split_pos(T & t, const size_t pos, T & l, T & r, int)
+      -> decltype(t.split_pos(pos, l, r), void())
+    {
+      t.split_pos(pos, l, r);
+    }
+
+    template <typename T>
+    static void call_split_pos(T &, const size_t, T &, T &, ...)
+    {
+      throw std::domain_error("split_pos is not supported by underlying tree");
+    }
+
+    template <typename T>
+    static auto call_position(const T & t, const Key & key, int)
+      -> decltype(t.position(key))
+    {
+      return t.position(key);
+    }
+
+    template <typename T>
+    static std::pair<long, Node*> call_position(const T &, const Key &, ...)
+    {
+      throw std::domain_error("position is not supported by underlying tree");
+    }
+
+    template <typename T>
+    static auto call_find_position(const T & t, const Key & key, int)
+      -> decltype(t.find_position(key))
+    {
+      return t.find_position(key);
+    }
+
+    template <typename T>
+    static std::pair<long, Node*> call_find_position(const T &, const Key &, ...)
+    {
+      throw std::domain_error("find_position is not supported by underlying tree");
+    }
+
     static const size_t dim = 13;
 
     mutable Tree<Key, Compare> tree;
@@ -181,12 +306,13 @@ namespace Aleph {
 
     typedef Key Key_Type;
 
-    /** Exchange all elements of the treap this with the treap tree
+    /** Exchange all elements of this set with dset
         in constant time (and extremely fast).
 
-        @param[in] tree the treap to exchange with this
+        @param[in] dset the set to exchange with this
     */
-    void swap(DynSetTree & dset) noexcept
+    void swap(DynSetTree & dset) noexcept(noexcept(tree.swap(dset.tree)) &&
+                                         noexcept(std::swap(num_nodes, dset.num_nodes)))
     {
       tree.swap(dset.tree);
       std::swap(num_nodes, dset.num_nodes);
@@ -258,9 +384,13 @@ namespace Aleph {
       return *this;
     }
 
-    /// Asigna a this el conjunto dinámico srcTree.
+    /// Assigns the dynamic set srcTree to this.
     DynSetTree & operator = (DynSetTree && srcTree)
     {
+      if (this == &srcTree)
+        return *this;
+
+      empty();
       swap(srcTree);
       return *this;
     }
@@ -275,7 +405,18 @@ namespace Aleph {
 
     Key * __insert(Node * p)
     {
-      if (tree.search_or_insert(p) != p)
+      Node * q = nullptr;
+      try
+        {
+          q = tree.search_or_insert(p);
+        }
+      catch (...)
+        {
+          delete p;
+          throw;
+        }
+
+      if (q != p)
         return nullptr;
 
       ++num_nodes;
@@ -333,8 +474,17 @@ namespace Aleph {
 
     Key * __search_or_insert(Node * p)
     {
-      Node * q = tree.search_or_insert(p);
-      if (q != p) // waw there an insertion?
+      Node * q = nullptr;
+      try
+        {
+          q = tree.search_or_insert(p);
+        }
+      catch (...)
+        {
+          delete p;
+          throw;
+        }
+      if (q != p) // was there an insertion?
         delete p; // No (KEY(p) is already in the tree) ==> free
                   // allocated node
       else
@@ -345,7 +495,16 @@ namespace Aleph {
 
     pair<Node*, bool> __contains_or_insert(Node * p)
     {
-      Node * q = tree.search_or_insert(p);
+      Node * q = nullptr;
+      try
+        {
+          q = tree.search_or_insert(p);
+        }
+      catch (...)
+        {
+          delete p;
+          throw;
+        }
       if (q != p)
         { // KEY(p) is already inside the tree
           delete p; 
@@ -409,9 +568,17 @@ namespace Aleph {
 
     Key * __insert_dup(Node * q)
     {
-      Node * p = tree.insert_dup(q);
-      ++num_nodes;
-      return &p->get_key();
+      try
+        {
+          Node * p = tree.insert_dup(q);
+          ++num_nodes;
+          return &p->get_key();
+        }
+      catch (...)
+        {
+          delete q;
+          throw;
+        }
     }
 
   public:
@@ -490,7 +657,15 @@ namespace Aleph {
     */
     Key remove_pos(const size_t i)
     {
-      Node * p = static_cast<Node*>(tree.remove_pos(i));
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_remove_pos)
+        throw std::domain_error("remove_pos is not supported by underlying tree");
+
+      if (i >= num_nodes)
+        throw std::out_of_range("remove_pos index out of range");
+
+      Node * p = static_cast<Node*>(call_remove_pos(tree, i, 0));
+      if (p == nullptr)
+        throw std::logic_error("remove_pos returned nullptr");
       const Key ret_val = KEY(p);
 
       delete p;
@@ -503,7 +678,7 @@ namespace Aleph {
     /// Returns true if key belongs to the dynamic set.
     bool exist(const Key & key) const
     {
-      return const_cast<DynSetTree&>(*this).search(key) != nullptr;
+      return search(key) != nullptr;
     }
 
     bool has(const Key & key) const
@@ -554,14 +729,20 @@ namespace Aleph {
 
         @warning It only works if the tree handles ranges.
     */
-    std::pair<int, Key*> find_position(const Key & key) const
+    std::pair<long, Key*> find_position(const Key & key) const
     {
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_find_position)
+        throw std::domain_error("find_position is not supported by underlying tree");
+
       if (num_nodes == 0)
-        return std::pair<int, Key*> (0, nullptr);
+        return std::pair<long, Key*> (0, nullptr);
 
-      std::pair<int, Node*> p = tree.find_position(key);
+      auto p = call_find_position(tree, key, 0);
+      if (p.second == nullptr)
+        return std::pair<long, Key*> (static_cast<long>(p.first), nullptr);
 
-      return std::pair<int, Key*> (p.first, &p.second->get_key());
+      return std::pair<long, Key*> (static_cast<long>(p.first),
+                                   &p.second->get_key());
     }
 
     /** Find an element in the set.
@@ -656,9 +837,9 @@ namespace Aleph {
 
     /** Returns the infix (ordered) position of the key key.
 
-        position(key) searches the extended treap for the key key (what
-        which takes time \f$O(\lg n)\f$) and returns the position
-        infix of the node containing the key.
+        position(key) searches the tree for the key key (which
+        takes time \f$O(\lg n)\f$) and returns the infix position
+        of the node containing the key.
 
         @param[in] key key to search for and determine infix position.
         @return infix position of the key within the set
@@ -668,8 +849,11 @@ namespace Aleph {
     */
     long position(const Key & key) const
     {
-      std::pair<long, Node*> p = tree.position(key);
-      return p.first;
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_position)
+        throw std::domain_error("position is not supported by underlying tree");
+
+      auto p = call_position(tree, key, 0);
+      return static_cast<long>(p.first);
     }
 
     /** Returns the ith node in infix position
@@ -679,12 +863,30 @@ namespace Aleph {
     */
     Key & select(const size_t & i)
     {
-      return tree.select(i)->get_key();
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_select)
+        throw std::domain_error("select is not supported by underlying tree");
+
+      if (i >= num_nodes)
+        throw std::out_of_range("select index out of range");
+
+      Node * p = call_select(tree, i, 0);
+      if (p == nullptr)
+        throw std::logic_error("select returned nullptr");
+      return p->get_key();
     }
 
     const Key & select(const size_t & i) const
     {
-      return tree.select(i)->get_key();
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_select)
+        throw std::domain_error("select is not supported by underlying tree");
+
+      if (i >= num_nodes)
+        throw std::out_of_range("select index out of range");
+
+      Node * p = call_select(tree, i, 0);
+      if (p == nullptr)
+        throw std::logic_error("select returned nullptr");
+      return p->get_key();
     }
 
     Key & operator () (const size_t & i)
@@ -707,7 +909,7 @@ namespace Aleph {
       return select(i);
     }
 
-    bool verify()
+    bool verify() const
     {
       return tree.verify() and check_bst(tree.getRoot());
     }
@@ -735,28 +937,28 @@ namespace Aleph {
 
   public:
 
-    /** Efectúa un recorrido prefijo sobre todas las claves del conjunto e
-        invoca la operacion Op.
+    /** Performs a prefix traversal over all keys in the set and
+        invokes operation Op.
 
-        <code>Op(p)</code> tiene la siguiente estructura:
+        <code>Op(p)</code> has the following structure:
         \code
         struct Key_Op
         {
-        // atributos de estado que se deseen mantener
+        // state attributes to maintain
 
-        Key_Op(...) // constructor opcional si es necesario inicializar
+        Key_Op(...) // optional constructor if initialization is needed
         {
-        // inicialización
+        // initialization
         }
 
         void operator () (const Key & key)
         {
-        // operación sobre clave key
+        // operation on key
         }
         };
         \endcode
 
-        @param[in] key_op operación a ejecutar sobre cada clave
+        @param[in] key_op operation to execute on each key
         \see For_Each_Preorder
     */
     template <class Key_Op>
@@ -776,28 +978,28 @@ namespace Aleph {
       for_each_preorder<Key_Op>(key_op);
     }
 
-    /** Efectúa un recorrido infijo sobre todas las claves del conjunto e
-        invoca la operacion Op.
+    /** Performs an infix traversal over all keys in the set and
+        invokes operation Op.
 
-        <code>Op(p)</code> tiene la siguiente estructura:
+        <code>Op(p)</code> has the following structure:
         \code
         struct Key_Op
         {
-        // atributos de estado que se deseen mantener
+        // state attributes to maintain
 
-        Key_Op(...) // constructor opcional si es necesario inicializar
+        Key_Op(...) // optional constructor if initialization is needed
         {
-        // inicialización
+        // initialization
         }
 
         void operator () (const Key & key)
         {
-        // operación sobre clave key
+        // operation on key
         }
         };
         \endcode
 
-        @param[in] key_op operación a ejecutar sobre cada clave
+        @param[in] key_op operation to execute on each key
         \see For_Each_In_Order
     */
     template <class Key_Op>
@@ -817,34 +1019,34 @@ namespace Aleph {
       for_each_inorder<Key_Op>(key_op);
     }
 
-    /** Efectúa un recorrido sufijo sobre todas las claves del conjunto e
-        invoca la operacion Op.
+    /** Performs a postfix traversal over all keys in the set and
+        invokes operation Op.
 
-        <code>Op(p)</code> tiene la siguiente estructura:
+        <code>Op(p)</code> has the following structure:
         \code
         struct Key_Op
         {
-        // atributos de estado que se deseen mantener
+        // state attributes to maintain
 
-        Key_Op(...) // constructor opcional si es necesario inicializar
+        Key_Op(...) // optional constructor if initialization is needed
         {
-        // inicialización
+        // initialization
         }
 
         void operator () (const Key & key)
         {
-        // operación sobre clave key
+        // operation on key
         }
         };
         \endcode
 
-        @param[in] key_op operación a ejecutar sobre cada clave
+        @param[in] key_op operation to execute on each key
         \see For_Each_Postorder
     */
     template <class Key_Op>
-    void for_each_postorder(Key_Op & key_op)
+    void for_each_postorder(Key_Op & key_op) const
     {
-      Node * root = (Node *) tree.getRoot();
+      Node * root = static_cast<Node *>(tree.getRoot());
 
       Node_Op <Key_Op> node_op(const_cast<Key_Op&>(key_op));
 
@@ -853,29 +1055,30 @@ namespace Aleph {
 
     /// \overload for_each_postorder
     template <class Key_Op>
-    void for_each_postorder(Key_Op && key_op = Key_Op())
+    void for_each_postorder(Key_Op && key_op = Key_Op()) const
     {
       for_each_postorder<Key_Op>(key_op);
     }
 
-    /** Unión de dos árboles binarios de búsqueda.
+    /** Union of two binary search trees.
 
-        join(t,dup) construye un árbol binario de búsqueda
-        correspondiente a la unión de this con t. Las claves duplicadas
-        se inserta, en dup.
+        join(t,dup) builds a binary search tree corresponding to the
+        union of this with t. Duplicate keys are inserted in dup.
 
-        @param[in] t árbol binario de búsqueda que se quiere unir a this.
-        @param[out] dup árbol binario de búsqueda con las claves
-        duplicadas de t.
-        @note Luego de las llamadas el árbol t deviene vacíos y this deviene
-        la unión de ambos árboles;
-        sin embargo los valores de t1 y t2 no se modifican.
+        @param[in] t binary search tree to join with this.
+        @param[out] dup binary search tree with duplicate keys from t.
+        @note After the calls, tree t becomes empty and this becomes
+        the union of both trees.
         @return this
         @ingroup Arboles
     */
     DynSetTree & join(DynSetTree & t, DynSetTree & dup)
     {
       tree.join(t.tree, dup.tree);
+      t.tree.getRoot() = Node::NullPtr;
+      t.num_nodes = 0;
+      num_nodes = compute_cardinality_rec(tree.getRoot());
+      dup.num_nodes = compute_cardinality_rec(dup.tree.getRoot());
       return *this;
     }
 
@@ -902,7 +1105,7 @@ namespace Aleph {
       tree.join_dup(t.tree);
       t.num_nodes = 0;
       t.tree.getRoot() = Node::NullPtr;
-      num_nodes = COUNT(tree.getRoot());
+      num_nodes = compute_cardinality_rec(tree.getRoot());
       return *this;
     }
 
@@ -928,52 +1131,60 @@ namespace Aleph {
 
       tree.getRoot() = Node::NullPtr;
       num_nodes = 0;
-      l.num_nodes = COUNT(l.tree.getRoot());
-      r.num_nodes = COUNT(r.tree.getRoot());
+      l.num_nodes = compute_cardinality_rec(l.tree.getRoot());
+      r.num_nodes = compute_cardinality_rec(r.tree.getRoot());
 
       return true;
     }
 
-    /** Particiona el árbol binario de búsqueda según una posición
-        infija.
+    /** Partitions the binary search tree based on an infix position.
 
-        split_pos(pos,l,r) particiona árbol binario de búsqueda this
-        en dos árboles l y r. Luego de la operación el árbol this
-        deviene vacío, l contiene las pos primeras claves y r las
-        restantes.
+        split_pos(pos,l,r) partitions the binary search tree this
+        into two trees l and r. After the operation, tree this
+        becomes empty, l contains the first pos+1 keys and r the
+        remaining ones.
 
-        @param[in] pos posición de partición
-        @param[out] l árbol con las claves entre intervalo [0,pos]
-        @param[out] r árbol con las claves en el intervalo (pos,N),
-        donde N es el número de claves
+        @param[in] pos partition position
+        @param[out] l tree with keys in interval [0,pos]
+        @param[out] r tree with keys in interval (pos,N),
+        where N is the number of keys
     */
     void split_pos(const size_t pos, DynSetTree & l, DynSetTree & r)
     {
-      tree.split_pos(pos, l.tree, r.tree);
+      if constexpr (not Has_Range_Methods<Tree_Type>::has_split_pos)
+        throw std::domain_error("split_pos is not supported by underlying tree");
+
+      if (pos >= num_nodes)
+        throw std::out_of_range("split_pos position out of range");
+
+      // Underlying split_pos splits at [0, pos) and [pos, N)
+      // But we want [0, pos] and (pos, N), so we split at pos+1
+      call_split_pos(tree, pos + 1, l.tree, r.tree, 0);
+      tree.getRoot() = Node::NullPtr;
       num_nodes = 0;
-      l.num_nodes = COUNT(l.tree.getRoot());
-      r.num_nodes = COUNT(r.tree.getRoot());
+      l.num_nodes = compute_cardinality_rec(l.tree.getRoot());
+      r.num_nodes = compute_cardinality_rec(r.tree.getRoot());
     }
 
-    /** Particiona el árbol binario de búsqueda según una clave que
-        puede estar presente en el árbol.
+    /** Partitions the binary search tree based on a key that
+        may be present in the tree.
 
-        split_dup(key,l,r) particiona, según la clave key, el
-        árbol binario de búsqueda this en dos árboles l y r. Luego de la
-        operación el árbol this deviene vacío, l contiene
-        todas las claves menores que key y r las mayores o iguales.
+        split_key_dup(key,l,r) partitions, according to key, the
+        binary search tree this into two trees l and r. After the
+        operation, tree this becomes empty, l contains all keys
+        less than key and r contains keys greater than or equal to key.
 
-        @param[in] key clave de partición.
-        @param[out] l árbol con las claves menores que key.
-        @param[out] r árbol con las claves mayores o iguales que key.
+        @param[in] key partition key.
+        @param[out] l tree with keys less than key.
+        @param[out] r tree with keys greater than or equal to key.
     */
     void split_key_dup(const Key & key, DynSetTree & l, DynSetTree & r)
     {
       tree.split_key_dup(key, l.tree, r.tree);
       tree.getRoot() = Node::NullPtr;
       num_nodes = 0;
-      l.num_nodes = COUNT(l.tree.getRoot());
-      r.num_nodes = COUNT(r.tree.getRoot());
+      l.num_nodes = compute_cardinality_rec(l.tree.getRoot());
+      r.num_nodes = compute_cardinality_rec(r.tree.getRoot());
     }
 
     struct Iterator : public Tree_Type::Iterator
@@ -1055,8 +1266,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      de tipo BinTree<Key>.
+  /** Dynamic set implemented using binary search trees
+      of type BinTree<Key>.
 
       @see DynSetTree DynMapTree BinTree<Key>
       @ingroup Arboles
@@ -1070,8 +1281,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      AVL de tipo Avl_Tree<Key>.
+  /** Dynamic set implemented using AVL binary search trees
+      of type Avl_Tree<Key>.
 
       @see DynSetTree DynMapTree Avl_Tree<Key>
       @ingroup Arboles
@@ -1085,8 +1296,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      splay de tipo Splay_Tree<Key>.
+  /** Dynamic set implemented using splay binary search trees
+      of type Splay_Tree<Key>.
 
       @see DynSetTree DynMapTree Splay_Tree<Key>
       @ingroup Arboles
@@ -1100,8 +1311,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      aleatorios de tipo Rand_Tree<Key>.
+  /** Dynamic set implemented using randomized binary search trees
+      of type Rand_Tree<Key>.
 
       @see DynSetTree DynMapTree Rand_Tree<Key>
       @ingroup Arboles
@@ -1126,8 +1337,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      aleatorios treaps de tipo Treap<Key>.
+  /** Dynamic set implemented using randomized treap binary search trees
+      of type Treap<Key>.
 
       @see DynSetTree DynMapTree Treap<Key>
       @ingroup Arboles
@@ -1140,10 +1351,10 @@ namespace Aleph {
     using Base::Base;
   };
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      aleatorios treaps de tipo Treap<Key>.
+  /** Dynamic set implemented using extended treap binary search trees
+      with rank support of type Treap_Rk<Key>.
 
-      @see DynSetTree DynMapTree Treap<Key>
+      @see DynSetTree DynMapTree Treap_Rk<Key>
       @ingroup Arboles
   */
   template  <typename Key, class Compare = Aleph::less<Key>>
@@ -1156,8 +1367,8 @@ namespace Aleph {
   };
 
 
-  /** Conjunto dinámico implementado mediante árboles binarios de búsqueda
-      aleatorios treaps de tipo Rb_Tree<Key>.
+  /** Dynamic set implemented using Red-Black binary search trees
+      of type Rb_Tree<Key>.
 
       @see DynSetTree DynMapTree Rb_Tree<Key>
       @ingroup Arboles

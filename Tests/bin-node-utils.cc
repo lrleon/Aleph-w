@@ -638,7 +638,7 @@ TEST(BinNodeUtils, TreeToBitsAndBitsToTreeRoundtripShapeAndKeys)
 
   // Build a small explicit shape:
   //     2
-  //    / \\
+  //    /  right
   //   1   3
   auto * root = pool.make(2);
   LLINK(root) = pool.make(1);

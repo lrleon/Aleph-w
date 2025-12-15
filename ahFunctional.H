@@ -225,7 +225,7 @@ namespace Aleph
              each(0, stride - 1, [&it] () { it.next(); }))
           ret.append(it.get_curr());
       }
-    catch (std::overflow_error) { /* nothing */ }
+    catch (const std::overflow_error &) { /* nothing */ }
 
     return ret;
   }

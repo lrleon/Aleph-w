@@ -72,7 +72,7 @@ TEST(DynBinHeapTest, UpdateReordersAfterPriorityChange)
   DynBinHeap<int> heap;
   auto &high = heap.insert(50);
   auto &low = heap.insert(5);
-  auto &mid = heap.insert(20);
+  heap.insert(20);
 
   high = 1; // becomes the best priority
   heap.update(high);

@@ -64,7 +64,7 @@ public:
 
   DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
 
-  /** Extended treap (a special type of ramdomized binary search tree)
+  /** Extended treap (a special type of randomized binary search tree)
       which manages selection and splitting for inorder position.
 
       The treap is a binary search tree whose very high performance is
@@ -72,32 +72,32 @@ public:
       value in each node which is randomly chosen. By the side of keys,
       the tree a binary search, but by the side of priorities, the tree
       is a heap. It is shown that this class of tree has an expected
-      perfomance of \f$O(\lg n)\f$ for the majority of its
+      performance of \f$O(\lg n)\f$ for the majority of its
       operations. In addition, this extended tree uses and second
       integer for storing subtrees sizes.
 
       The treap is faster than the randomized tree by a constant time
       (both approaches are logarithmic). Since the priority is chosen
-      just one time and the adjustements are done in a botton-top way
+      just one time and the adjustments are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
       Although tgus approach trends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
       because each node requires 2 additional integers to the data
-      (priority and counter) in constrast with the radomized which only
-      requieres one interger (the counter).
+      (priority and counter) in contrast with the randomized which only
+      requires one integer (the counter).
 
       For splitting and join of independent and large data sets the
-      ramdomized option trends to be faster. The split is equivalent,
+      randomized option trends to be faster. The split is equivalent,
       but the join is definitively faster. The join of two trees of n
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
+      it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
       addition,
 
       The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersene twister is used and the seed is taken from
+      By default, the Mersenne twister is used and the seed is taken from
       system time.
 
       @ingroup Arboles
@@ -132,7 +132,7 @@ private:
 public:
 
    /// Set the random number generator seed
-  void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+  void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
 
   /// return the comparison criteria
   Compare & key_comp() noexcept { return cmp; }
@@ -142,7 +142,7 @@ public:
 
   /// Initialize a treap with random `seed` and comparison criteria
   /// `__cmp`
-  Gen_Treap_Rk(unsigned long seed, Compare __cmp = Compare())
+  Gen_Treap_Rk(const unsigned long seed, Compare __cmp = Compare())
     : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
   {
     init(seed);
@@ -242,7 +242,7 @@ private:
 
         return ret;
       }
-    else if (cmp(KEY(root), KEY(p)))
+    if (cmp(KEY(root), KEY(p)))
       {
         Node * ret = search_or_insert(RLINK(root), p);
         if (ret == p) // insertion done?
@@ -363,12 +363,9 @@ private:
         RLINK(t1) = join_exclusive(RLINK(t1), t2);
         return t1;
       }
-    else
-      {
-        COUNT(t2) += COUNT(t1);
-        LLINK(t2) = join_exclusive(t1, LLINK(t2) );
-        return t2;
-      }
+    COUNT(t2) += COUNT(t1);
+    LLINK(t2) = join_exclusive(t1, LLINK(t2) );
+    return t2;
   }
 
   Node * remove(Node *& root, const Key & key) noexcept
@@ -455,8 +452,7 @@ private:
     --COUNT(root);
     if (pos < COUNT(LLINK(root)))
       return remove_pos(LLINK(root), pos);
-    else
-      return remove_pos(RLINK(root), pos - COUNT(LLINK(root)) - 1);
+    return remove_pos(RLINK(root), pos - COUNT(LLINK(root)) - 1);
   }
 
 public:
@@ -598,7 +594,7 @@ private:
 
     Node * l = LLINK(t2), * r = RLINK(t2);
     t2->reset();
-    t1 = insert_dup(t1, t2);
+    insert_dup(t1, t2);  // insert_dup modifies t1 by reference
     join_dup(t1, l);
     join_dup(t1, r);
   }
@@ -611,14 +607,14 @@ private:
     Node * l = LLINK(t2), * r = RLINK(t2);
     t2->reset();
   ins:
-    Node * ret = insert(t1, t2);
-    if (ret == Node::NullPtr)
+    const bool inserted = insert(t1, t2);
+    if (not inserted)
       {
-        dup = insert_dup(dup, remove(t1, KEY(t2)));
+        Node * removed = remove(t1, KEY(t2));
+        removed->reset();
+        insert_dup(dup, removed);
         goto ins;
       }
-
-    t1 = ret;
     join(t1, l, dup);
     join(t1, r, dup);
   }
@@ -688,9 +684,9 @@ public:
     mutable Node *         curr;
     mutable int            curr_pos;
 
-    static const int Pos_Not_Current     = -1;
-    static const int Pos_Empty_Container = -2;
-    static const int Pos_Not_Updated     = -3;
+    static constexpr int Pos_Not_Current     = -1;
+    static constexpr int Pos_Empty_Container = -2;
+    static constexpr int Pos_Not_Updated     = -3;
 
   private:
 
@@ -709,7 +705,7 @@ public:
       return curr != nullptr;
     }
 
-    bool is_updated() noexcept
+    bool is_updated() const noexcept
     {
       return pos_updated() and curr_updated();
     }
@@ -748,7 +744,7 @@ public:
       curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
     }
 
-    /// Initialize an iterator startin from node `__curr`
+    /// Initialize an iterator starting from node `__curr`
     Iterator(const Gen_Treap_Rk & __tree, Node * __curr) noexcept
       : tree_ptr(&const_cast<Gen_Treap_Rk&>(__tree)),
         curr(__curr), curr_pos(Pos_Not_Updated)
@@ -805,10 +801,10 @@ public:
 
     /** Put the iterator to a node according to specific key
 
-        If `key` is not present, the the iterator is put on the node
+        If `key` is not present, then the iterator is put on the node
 
         @param[in] key to  guide the position
-        @throw domain_error si la clave no está contenida en el árbol.
+        @throw domain_error if the key is not contained in the tree.
     */
     void reset_to_key(const Key & key) noexcept
     {
@@ -818,7 +814,7 @@ public:
 
     /** Put the current node to a specific node
 
-        @param[in] node toput as current
+        @param[in] node to put as current
         @note Obviously the node must belong to the tree
     */
     void reset_to_node(Node * node) noexcept
@@ -828,7 +824,7 @@ public:
     }
 
     /// Put the current to the position pos
-    void reset_to_pos(size_t pos) noexcept
+    void reset_to_pos(const size_t pos) noexcept
     {
       curr = nullptr;
       curr_pos = pos;
@@ -966,7 +962,7 @@ public:
   }; // end class Iterator
 };
 
-/** Extended treap (a special type of ramdomized binary search tree)
+/** Extended treap (a special type of randomized binary search tree)
       which manages selection and splitting for inorder position.
 
       The treap is a binary search tree whose very high performance is
@@ -974,32 +970,32 @@ public:
       value in each node which is randomly chosen. By the side of keys,
       the tree a binary search, but by the side of priorities, the tree
       is a heap. It is shown that this class of tree has an expected
-      perfomance of \f$O(\lg n)\f$ for the majority of its
+      performance of \f$O(\lg n)\f$ for the majority of its
       operations. In addition, this extended tree uses and second
       integer for storing subtrees sizes.
 
       The treap is faster than the randomized tree by a constant time
       (both approaches are logarithmic). Since the priority is chosen
-      just one time and the adjustements are done in a botton-top way
+      just one time and the adjustments are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
-      Although tgus approach trends to be faster than the randomized
+      Although this approach tends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
       because each node requires 2 additional integers to the data
-      (priority and counter) in constrast with the radomized which only
-      requieres one interger (the counter).
+      (priority and counter) in contrast with the randomized which only
+      requires one integer (the counter).
 
       For splitting and join of independent and large data sets the
-      ramdomized option trends to be faster. The split is equivalent,
+      randomized option trends to be faster. The split is equivalent,
       but the join is definitively faster. The join of two trees of n
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
+      it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
       addition,
 
       The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersene twister is used and the seed is taken from
+      By default, the Mersenne twister is used and the seed is taken from
       system time.
 
       @ingroup Arboles
@@ -1012,7 +1008,7 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
   using Base::Base;
 };
 
-/** Extended treap (a special type of ramdomized binary search tree)
+/** Extended treap (a special type of randomized binary search tree)
       which manages selection and splitting for inorder position.
 
       The treap is a binary search tree whose very high performance is
@@ -1020,32 +1016,32 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
       value in each node which is randomly chosen. By the side of keys,
       the tree a binary search, but by the side of priorities, the tree
       is a heap. It is shown that this class of tree has an expected
-      perfomance of \f$O(\lg n)\f$ for the majority of its
+      performance of \f$O(\lg n)\f$ for the majority of its
       operations. In addition, this extended tree uses and second
       integer for storing subtrees sizes.
 
       The treap is faster than the randomized tree by a constant time
       (both approaches are logarithmic). Since the priority is chosen
-      just one time and the adjustements are done in a botton-top way
+      just one time and the adjustments are done in a botton-top way
       (by contrast with the randomized which is top-bottom), the treap
       takes less time.
 
-      Although tgus approach trends to be faster than the randomized
+      Although this approach trends to be faster than the randomized
       trees, takes in account that this treap is more space consuming
       because each node requires 2 additional integers to the data
-      (priority and counter) in constrast with the radomized which only
-      requieres one interger (the counter).
+      (priority and counter) in contrast with the randomized which only
+      requires one integer (the counter).
 
       For splitting and join of independent and large data sets the
-      ramdomized option trends to be faster. The split is equivalent,
+      randomized option trends to be faster. The split is equivalent,
       but the join is definitively faster. The join of two trees of n
       and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with radomized trees. In
+      it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
       addition,
 
       The class internally uses the gsl random number generator of
       [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersene twister is used and the seed is taken from
+      By default, the Mersenne twister is used and the seed is taken from
       system time.
 
       @ingroup Arboles

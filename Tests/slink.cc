@@ -24,8 +24,8 @@ void push_front(Slink & head, TestNode & node)
 TEST(Slink, BasicInsertRemove)
 {
   Slink head;
-  TestNode n1{1};
-  TestNode n2{2};
+  TestNode n1{1, {}};
+  TestNode n2{2, {}};
 
   ASSERT_TRUE(head.is_empty());
   ASSERT_TRUE(n1.link.is_empty());
@@ -51,7 +51,7 @@ TEST(Slink, BasicInsertRemove)
 TEST(Slink, MacroConversionRetrievesOwningNode)
 {
   Slink head;
-  TestNode nodes[] = {{10}, {20}, {30}};
+  TestNode nodes[] = {{10, {}}, {20, {}}, {30, {}}};
 
   for (auto & node : nodes)
     push_front(head, node);
@@ -79,7 +79,7 @@ TEST(Slink, MacroConversionRetrievesOwningNode)
 TEST(Slink, ConstGetNextMatchesMutable)
 {
   Slink head;
-  TestNode node{42};
+  TestNode node{42, {}};
   push_front(head, node);
 
   const Slink & cref = head;

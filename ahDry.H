@@ -197,6 +197,7 @@ template<typename T> class DynList;
 # define Functional_Methods(Type)                                       \
   template <class Operation>                                            \
   auto for_each(Operation & operation) const                            \
+    -> decltype(*this)                                                  \
   {                                                                     \
     this->traverse([&operation] (const Type & item)                     \
                    {                                                    \

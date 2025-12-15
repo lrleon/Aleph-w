@@ -187,7 +187,7 @@ namespace Aleph {
       assert(bucket->status == BUSY or bucket->status == DELETED);
 
       --bucket->probe_counter;
-      if (bucket->probe_counter == 0) // <marcar EMPTY sobre la cubeta?
+      if (bucket->probe_counter == 0) // <mark EMPTY on the bucket?
         bucket->status = EMPTY;
     }
 
@@ -296,28 +296,28 @@ namespace Aleph {
 
   protected:
 
-    ODhashTable(size_t __len, Hash_Fct __first_hash_fct,
-                Hash_Fct __second_hash_fct, Cmp __cmp,
-                float __lower_alpha, float __upper_alpha, bool __with_resize)
-      : table(nullptr), hash_fct(__first_hash_fct),
-        second_hash_fct(__second_hash_fct), cmp(__cmp),
-        len(Primes::next_prime(__len)),
-        lower_alpha(__lower_alpha), upper_alpha(__upper_alpha),
-        N(0), with_resize(__with_resize)
+    ODhashTable(const size_t l, Hash_Fct fst_hash_fct,
+                Hash_Fct snd_hash_fct, Cmp cpm_fct,
+                const float lower, const float upper, const bool resize)
+      : table(nullptr), hash_fct(fst_hash_fct),
+        second_hash_fct(snd_hash_fct), cmp(cpm_fct),
+        len(Primes::next_prime(l)),
+        lower_alpha(lower), upper_alpha(upper),
+        N(0), with_resize(resize)
     {
       table = new Bucket[len];
     }
 
   public:
 
-    /** Instancia una tabla hash cerrada con resolución de colisiones por
-        doble hash.
+    /** Instantiate a closed hash table with collision resolution by
+        double hashing.
 
-        @param[in] __first_hash_fct función hash para el primer sondeo.
-        @param[in] __second_hash_fct función hash para el segundo sondeo.
-        @param[in] len tamaño de la tabla.
+        @param[in] __first_hash_fct hash function for the first probe.
+        @param[in] __second_hash_fct hash function for the second probe.
+        @param[in] len table size.
 
-        @throw bad_alloc si no hay memoria para la tabla de cubetas.
+        @throw bad_alloc if there is no memory for the bucket table.
     */
     ODhashTable(size_t   len                 = Primes::DefaultPrime,
                 Hash_Fct_Ptr first_hash_fct  = Aleph::dft_hash_fct<Key>,
@@ -329,7 +329,7 @@ namespace Aleph {
       : ODhashTable(len, Hash_Fct(first_hash_fct), Hash_Fct(second_hash_fct),
                     cmp, lower_alpha, upper_alpha, with_resize) {}
 
-    /// Libera toda la tabla hash.
+    /// Free the whole hash table.
     ~ODhashTable()
     {
       if (table != nullptr)
@@ -391,7 +391,7 @@ namespace Aleph {
     /// associated with key within the table; nullptr otherwise.
     Key * search(const Key & key) const noexcept
     {
-      const size_t i_fst = hash_fct(key) % len; // 1er sondeo (1ra fun hash)
+      const size_t i_fst = hash_fct(key) % len; // 1st probe (1st hash function)
       if (table[i_fst].status == EMPTY) 
         return nullptr;
 
@@ -402,7 +402,7 @@ namespace Aleph {
           return &table[i_fst].key;
         }
 
-      const size_t i_snd = second_hash_fct(key) % len; // 2do sondeo
+      const size_t i_snd = second_hash_fct(key) % len; // 2nd probe
 
       if (table[i_snd].status == EMPTY)
         return nullptr;
@@ -460,15 +460,15 @@ namespace Aleph {
     {
       assert(N < len);
 
-      const size_t i_fst = hash_fct(key) % len; // sondeo con 1ra función hash
-      if (table[i_fst].status != BUSY) // ¿cubeta disponible?
+      const size_t i_fst = hash_fct(key) % len; // probe with 1st hash function
+      if (table[i_fst].status != BUSY) // available bucket?
         return allocate_bucket(table[i_fst], FIRST_PROBE);
 
       if (cmp(table[i_fst].key, key)) // test if key is alredy present
         return nullptr;
 
-      const size_t i_snd = second_hash_fct(key) % len; // 2do hash
-      if (table[i_snd].status != BUSY) // ¿cubeta disponible?
+      const size_t i_snd = second_hash_fct(key) % len; // 2nd hash
+      if (table[i_snd].status != BUSY) // available bucket?
         {
           ++table[i_fst].probe_counter;
           return allocate_bucket(table[i_snd], SECOND_PROBE);
@@ -512,16 +512,16 @@ namespace Aleph {
     {
       assert(N < len);
 
-      const size_t i_fst = hash_fct(key) % len; // sondeo con 1ra función hash
-      if (table[i_fst].status != BUSY) // ¿cubeta disponible?
+      const size_t i_fst = hash_fct(key) % len; // probe with 1st hash function
+      if (table[i_fst].status != BUSY) // available bucket?
         return tuple<Bucket*, bool>(allocate_bucket(table[i_fst], FIRST_PROBE),
                                     false);
 
       if (cmp(table[i_fst].key, key)) // test if key is alredy present
         return tuple<Bucket*, bool>(&table[i_fst], true);
 
-      const size_t i_snd = second_hash_fct(key) % len; // 2do hash
-      if (table[i_snd].status != BUSY) // ¿cubeta disponible?
+      const size_t i_snd = second_hash_fct(key) % len; // 2nd hash
+      if (table[i_snd].status != BUSY) // available bucket?
         {
           ++table[i_fst].probe_counter;
           return tuple<Bucket*, bool>(allocate_bucket(table[i_snd], SECOND_PROBE),

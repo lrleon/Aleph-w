@@ -341,7 +341,7 @@ namespace Aleph
         throw std::domain_error("Bucket containing record is not busy");
 
       --N;
-      const size_t idx = static_cast<size_t>(bucket - &table[0]); // gap index
+      const auto idx = static_cast<size_t>(bucket - &table[0]); // gap index
       table[idx].status = DELETED;
     }
 

@@ -81,7 +81,9 @@ set(TEST_PROGRAMS
     splay-tree
     splay-tree-rk
     rb-tree
+    dynsettree
     rand-tree
+    lin-hash
     bintree
     avl
     binheap
