@@ -602,10 +602,27 @@ struct Dft_Pair_Cmp
 {
   Cmp cmp;
   Dft_Pair_Cmp(Cmp __cmp = Cmp()) : cmp(__cmp) {}
+
+  // Pair vs Pair comparison
   bool operator()(const std::pair<Key, Data> &p1,
                   const std::pair<Key, Data> &p2) const noexcept
   {
     return cmp(p1.first, p2.first);
+  }
+
+  // Heterogeneous comparison: Pair vs Key
+  // Allows searching by Key without constructing the full Pair
+  bool operator()(const std::pair<Key, Data> &p,
+                  const Key &k) const noexcept
+  {
+    return cmp(p.first, k);
+  }
+
+  // Heterogeneous comparison: Key vs Pair (symmetric)
+  bool operator()(const Key &k,
+                  const std::pair<Key, Data> &p) const noexcept
+  {
+    return cmp(k, p.first);
   }
 };
 

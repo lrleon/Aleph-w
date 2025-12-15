@@ -104,6 +104,7 @@ set(EXAMPLE_PROGRAMS
     test_matgraph
     test-matrix
     test-memarray
+    test-odhash
     testMerge
     test_min_path
     test_min_spanning
@@ -142,6 +143,7 @@ set(EXAMPLE_PROGRAMS
     testSplit
     test-sq
     test-stl-utils
+    test-string
     test_tarjan
     test_top_sort
     test-traverse
@@ -152,6 +154,7 @@ set(EXAMPLE_PROGRAMS
     testUid
     test_union
     test-vector
+    testVector
     timeAllTree
     writeAllTrees
     writeAvl
@@ -166,10 +169,12 @@ set(EXAMPLE_PROGRAMS
     writeRankTree
     writeRb
     writeSplay
+    writeSplit
     writeTreap
     testSplayRk1
     testSplayTree
     workersTest
+    test-zip-it
     hash_resize
 )
 

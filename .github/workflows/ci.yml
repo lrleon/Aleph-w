@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build g++ pkg-config \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Build and install GoogleTest (if needed)
+        run: |
+          set -euo pipefail
+
+          if pkg-config --exists gtest; then
+            echo "gtest found via pkg-config"
+            exit 0
+          fi
+
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
+          exit 1
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure --parallel 2

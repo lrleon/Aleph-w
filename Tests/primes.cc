@@ -59,3 +59,30 @@ TEST(Prime, list)
       ASSERT_TRUE(is_prime(primeList[i])) << "primeList[" << i << "] = " << primeList[i] << " is not prime";
     }
 }
+
+TEST(Prime, database)
+{
+  ASSERT_TRUE(check_primes_database());
+}
+
+TEST(Prime, next_prime_semantics)
+{
+  ASSERT_EQ(next_prime(0), 2UL);
+  ASSERT_EQ(next_prime(1), 2UL);
+  ASSERT_EQ(next_prime(2), 2UL);
+  ASSERT_EQ(next_prime(3), 3UL);
+  ASSERT_EQ(next_prime(4), 5UL);
+  ASSERT_EQ(next_prime(5), 5UL);
+  ASSERT_EQ(next_prime(6), 7UL);
+
+  for (unsigned long n = 0; n < 2000; ++n)
+    {
+      const unsigned long p = next_prime(n);
+      ASSERT_TRUE(is_prime(p)) << "next_prime(" << n << ") = " << p << " is not prime";
+      ASSERT_GE(p, n) << "next_prime(" << n << ") = " << p << " < " << n;
+      ASSERT_EQ(next_prime(p), p);
+    }
+
+  for (size_t i = 0; i < 200 && i < numPrimes; ++i)
+    ASSERT_EQ(next_prime(primeList[i]), primeList[i]);
+}

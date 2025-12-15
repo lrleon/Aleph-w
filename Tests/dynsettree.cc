@@ -1345,6 +1345,136 @@ TEST(DynSetTree, AccessMethods)
   EXPECT_NO_THROW(set.get_item());
 }
 
+namespace {
+
+struct TrackedKey
+{
+  int v;
+  inline static int alive = 0;
+
+  TrackedKey() : v(0) { ++alive; }
+  explicit TrackedKey(int vv) : v(vv) { ++alive; }
+  TrackedKey(const TrackedKey & other) : v(other.v) { ++alive; }
+  TrackedKey(TrackedKey && other) noexcept : v(other.v) { ++alive; }
+  ~TrackedKey() { --alive; }
+};
+
+inline bool operator < (const TrackedKey & a, const TrackedKey & b)
+{
+  return a.v < b.v;
+}
+
+template <typename Key, class Compare>
+class ThrowingSearchOrInsertTree
+{
+public:
+
+  using Node = BinNode<Key>;
+
+  inline static bool enabled = false;
+
+  ThrowingSearchOrInsertTree(Compare c = Compare()) : cmp(c) { /* empty */ }
+
+  Compare get_compare() const { return cmp; }
+
+  Node *& getRoot() noexcept { return root; }
+  Node * getRoot() const noexcept { return root; }
+
+  void swap(ThrowingSearchOrInsertTree & other) noexcept
+  {
+    std::swap(root, other.root);
+    std::swap(cmp, other.cmp);
+  }
+
+  Node * search_or_insert(Node * p)
+  {
+    if (enabled)
+      throw std::runtime_error("search_or_insert failed");
+
+    if (root == Node::NullPtr)
+      return root = p;
+
+    return root;
+  }
+
+  bool verify() const { return true; }
+
+private:
+
+  Node * root = Node::NullPtr;
+  Compare cmp;
+};
+
+using ThrowingSet = DynSetTree<TrackedKey, ThrowingSearchOrInsertTree, Aleph::less<TrackedKey>>;
+
+} // namespace
+
+TEST(DynSetTreeHardening, InsertDoesNotLeakOnThrow)
+{
+  TrackedKey::alive = 0;
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+
+  {
+    ThrowingSet set;
+    const int baseline = TrackedKey::alive;
+    set.insert(TrackedKey(1));
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+
+    ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = true;
+    EXPECT_THROW((void) set.insert(TrackedKey(2)), std::runtime_error);
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+  }
+
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+  EXPECT_EQ(TrackedKey::alive, 0);
+}
+
+TEST(DynSetTreeHardening, SearchOrInsertDoesNotLeakOnThrow)
+{
+  TrackedKey::alive = 0;
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+
+  {
+    ThrowingSet set;
+    const int baseline = TrackedKey::alive;
+    set.insert(TrackedKey(1));
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+
+    ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = true;
+    EXPECT_THROW((void) set.search_or_insert(TrackedKey(2)), std::runtime_error);
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+  }
+
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+  EXPECT_EQ(TrackedKey::alive, 0);
+}
+
+TEST(DynSetTreeHardening, ContainsOrInsertDoesNotLeakOnThrow)
+{
+  TrackedKey::alive = 0;
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+
+  {
+    ThrowingSet set;
+    const int baseline = TrackedKey::alive;
+    set.insert(TrackedKey(1));
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+
+    ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = true;
+    EXPECT_THROW((void) set.contains_or_insert(TrackedKey(2)), std::runtime_error);
+    EXPECT_EQ(set.size(), 1u);
+    EXPECT_EQ(TrackedKey::alive, baseline + 1);
+  }
+
+  ThrowingSearchOrInsertTree<TrackedKey, Aleph::less<TrackedKey>>::enabled = false;
+  EXPECT_EQ(TrackedKey::alive, 0);
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

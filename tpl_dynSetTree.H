@@ -56,11 +56,11 @@ namespace Aleph {
   {
   public:
 
-    AbstractTreeNodeAllocator() {}
+    AbstractTreeNodeAllocator() = default;
     virtual Node * alloc_lval(const typename Node::key_type & key) = 0;
     virtual Node * alloc_rval(typename Node::key_type && key) = 0;
     virtual void unalloc(Node *) = 0;
-    virtual ~AbstractTreeNodeAllocator() {};
+    virtual ~AbstractTreeNodeAllocator() = default;
   };
 
   template <typename Node>
@@ -374,7 +374,7 @@ namespace Aleph {
       if (this == &srcTree)
         return *this;
 
-      Node *src_root = (Node*) const_cast<DynSetTree&>(srcTree).tree.getRoot();
+      Node * src_root = srcTree.tree.getRoot();
 
       empty();
 
@@ -1216,9 +1216,9 @@ namespace Aleph {
         \endcode
 
         If \code operation() \endcode returns false then the traversal is
-        aborted; otherwise the the routine advance and so on
+        aborted; otherwise the routine advance and so on
 
-        @param[in] operation
+        @param[in] op operation to execute for each key
         @return true if all items are traversed; false otherwise
     */
     template <class Operation>

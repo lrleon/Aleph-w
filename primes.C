@@ -194,7 +194,7 @@ namespace Primes
       11750021, 11760013, 11770013, 11780011, 11790017, 11800001, 11810003, 11820019, 11830043, 11840011,
       11850001, 11860021, 11870009, 11880023, 11890001, 11900003, 11910043, 11920001, 11930041, 11940017,
       11950007, 11960059, 11970017, 11980021, 11990009, 12000017, 12010013, 12020051, 12030017, 12040001,
-      12050011, 12060001, 12070021, 12080017, 12090011, 12100003, 12100003, 12110003, 12120001, 12130003,
+      12050011, 12060001, 12070021, 12080017, 12090011, 12100003, 12110003, 12120001, 12130003,
       12140039, 12150001, 12160003, 12170009, 12180011, 12190007, 12200009, 12210007, 12220003, 12230003,
       12240013, 12250009, 12260033, 12270047, 12280003, 12290009, 12300017, 12310013, 12320017, 12330011,
       12340007, 12350017, 12360001, 12370003, 12380009, 12390011, 12400001, 12410009, 12420011, 12430001,
@@ -224,7 +224,7 @@ namespace Primes
       14740007, 14750039, 14760001, 14770003, 14780011, 14790001, 14800001, 14810023, 14820031, 14830003,
       14840011, 14850041, 14860003, 14870017, 14880013, 14890019, 14900003, 14910017, 14920013, 14930011,
       14940007, 14950003, 14960063, 14970001, 14980019, 14990011, 15000017, 15010001, 15020009, 15030019,
-      15040007, 15050017, 15050017, 15100027, 15150001, 15200011, 15250009, 15300001, 15350003, 15400031,
+      15040007, 15050017, 15100027, 15150001, 15200011, 15250009, 15300001, 15350003, 15400031,
       15450013, 15500011, 15550009, 15600001, 15650003, 15700019, 15750013, 15800017, 15850019, 15900013,
       15950009, 16000057, 16050007, 16100027, 16150003, 16200013, 16250009, 16300003, 16350001, 16400017,
       16450003, 16500007, 16550047, 16600009, 16650001, 16700003, 16750009, 16800023, 16850003, 16900021,
@@ -352,36 +352,37 @@ namespace Primes
 
   size_t next_prime(unsigned long n)
   {
-    // fist we find the first prime greater than n in array primeList.
+    // Return the smallest prime number p such that p >= n.
+    //
+    // For small n (below the first entry in primeList) we fall back to a
+    // direct primality test.
 
-    // For that we need a vector view of the array
+    if (n <= 2)
+      return 2;
+
+    if (n < primeList[0])
+      {
+        unsigned long p = n;
+        if (p % 2 == 0)
+          ++p;
+        while (not Primes::is_prime(p))
+          p += 2;
+        return p;
+      }
+
+    // For n >= primeList[0], we use the precomputed list.
     span view{primeList};
-
-    // then we find the first prime greater than n
-    auto it = std::ranges::upper_bound(view, n);
-
-    // we have three cases:
-    // 1- it == view.end() : n is greater than the last prime in the array
-    // 2- it == view.begin() : n is less than the first prime in the array
-    // 3- it != view.end() && it != view.begin() : n is between two
-    //    primes in the array
-
-    // case 1: n is greater than the last prime in the array
-    if (it == view.end())
-      return Primes::next_prime_number_greater_than(n);
-
-    // case 2: n is less than the first prime in the array
-    if (it == view.begin())
+    auto it = std::ranges::lower_bound(view, n);
+    if (it != view.end())
       return *it;
 
-    // case 3: n is between two primes in the array
-    return *it;
+    return Primes::next_prime_number_greater_than(n);
   }
 
   bool check_primes_database()
   {
     for (size_t i = 1; i < numPrimes; ++i)
-      if (primeList[i] <= 2*primeList[i - 1])
+      if (primeList[i] <= primeList[i - 1])
         return false;
     return true;
   }

@@ -232,6 +232,43 @@ namespace Aleph
       return nullptr;
     }
 
+  protected:
+    /** Helper method for derived classes to perform custom heterogeneous searches.
+
+        This method allows derived classes (such as DynMapHashTable) to search
+        for elements using a different type than the stored key type, without
+        needing to construct the full key object. This is particularly useful
+        for map-like wrappers that store pairs but want to search by key only.
+
+        @param hash_func Function to compute the hash of the search key
+        @param search_key The key to search for (can be different type than Key)
+        @return Pointer to the bucket if found, nullptr otherwise
+
+        @note The comparator (cmp) must support comparison between the stored
+        Key type and the SearchKey type for this to work. For example,
+        Dft_Pair_Cmp supports comparing Pair with Key.
+
+        Example usage in DynMapHashTable:
+        @code
+        Pair * search(const Key & key) const {
+          return this->search_with_custom_hash(original_hash_fct, key);
+        }
+        @endcode
+    */
+    template <typename HashFunc, typename SearchKey>
+    Bucket * search_with_custom_hash(HashFunc hash_func,
+                                       const SearchKey & search_key) const noexcept
+    {
+      const auto bucket_idx = hash_func(search_key) % len;
+
+      for (BucketItor it(table[bucket_idx]); it.has_curr(); it.next_ne())
+        if (auto *bucket = static_cast<Bucket *>(it.get_curr());
+            cmp(bucket->get_key(), search_key))
+          return bucket;
+
+      return nullptr;
+    }
+
   public:
     Hash_Fct get_hash_fct() const noexcept { return hash_fct; }
 

@@ -82,6 +82,7 @@ set(TEST_PROGRAMS
     splay-tree-rk
     rb-tree
     dynsettree
+    dynsethash
     rand-tree
     lin-hash
     bintree
