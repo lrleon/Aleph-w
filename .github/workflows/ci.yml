@@ -4,9 +4,28 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
-    runs-on: ubuntu-24.04
+    name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        compiler: [gcc, clang]
+        build_type: [Debug, Release]
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
       - name: Checkout
@@ -16,10 +35,31 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build g++ pkg-config \
+            cmake ninja-build pkg-config ccache \
+            g++ clang \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
             libgtest-dev
+
+      - name: Configure compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          else
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-
+            ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-ccache-
+            ${{ runner.os }}-${{ matrix.os }}-ccache-
 
       - name: Build and install GoogleTest (if needed)
         run: |
@@ -50,7 +90,9 @@ jobs:
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON
 
@@ -60,4 +102,99 @@ jobs:
 
       - name: Test
         run: |
-          ctest --test-dir build --output-on-failure --parallel 2
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/CMakeCache.txt
+
+  sanitizers:
+    name: sanitizers (ubuntu-24.04, clang, Debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CC: clang
+      CXX: clang++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            clang \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-sanitizers-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sanitizers-ccache-
+
+      - name: Build and install GoogleTest (if needed)
+        run: |
+          set -euo pipefail
+
+          if pkg-config --exists gtest; then
+            echo "gtest found via pkg-config"
+            exit 0
+          fi
+
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
+          exit 1
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-asan -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DUSE_SANITIZERS=ON
+
+      - name: Build
+        run: |
+          cmake --build build-asan --parallel
+
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-sanitizers
+          path: |
+            build-asan/Testing/Temporary/LastTest.log
+            build-asan/CMakeCache.txt

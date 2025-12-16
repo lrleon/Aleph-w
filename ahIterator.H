@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,15 +30,14 @@
 
 namespace Aleph
 {
-
-    template <class Itor>
-struct iterator_traits
-{
-  typedef typename Itor::value_type        value_type;
-  typedef typename Itor::difference_type   difference_type;
-  typedef typename Itor::pointer           pointer;
-  typedef typename Itor::reference         reference;
-};
+  template <class Itor>
+  struct iterator_traits
+  {
+    typedef typename Itor::value_type value_type;
+    typedef typename Itor::difference_type difference_type;
+    typedef typename Itor::pointer pointer;
+    typedef typename Itor::reference reference;
+  };
 
 # define STL_ITOR_SPEC(It_Name)						\
   public:								\
@@ -80,55 +78,55 @@ struct iterator_traits
 
 
   // Define an general iterator whose interface is minimally std-c++ compliant
-    template <class Set_Type>
-struct __iterator : public Set_Type::Iterator
-{
-  STL_ITOR_SPEC(__iterator);
-
-  T & operator * () { return const_cast<T&>(this->get_curr()); }
-
-  T * operator -> ()
-  { 
-    return &const_cast<T&>(this->get_curr()); 
-  }
-
-  static __iterator begin(const Set_Type & s) noexcept
+  template <class Set_Type>
+  struct __iterator : public Set_Type::Iterator
   {
-    return __iterator(s);
-  }
+    STL_ITOR_SPEC(__iterator);
 
-  static __iterator end(const Set_Type & s) noexcept
+    T &operator *() { return const_cast<T &>(this->get_curr()); }
+
+    T * operator ->()
+    {
+      return &const_cast<T &>(this->get_curr());
+    }
+
+    static __iterator begin(const Set_Type & s) noexcept
+    {
+      return __iterator(s);
+    }
+
+    static __iterator end(const Set_Type & s) noexcept
+    {
+      __iterator it(s);
+      it.Itor::end();
+      return it;
+    }
+  };
+
+  template <class Set_Type>
+  struct __const_iterator : public Set_Type::Iterator
   {
-    __iterator it(s);
-    it.Itor::end();
-    return it;
-  }
-};
+    STL_ITOR_SPEC(__const_iterator);
 
-    template <class Set_Type>
-struct __const_iterator : public Set_Type::Iterator
-{
-  STL_ITOR_SPEC(__const_iterator);
+    const T &operator *() const noexcept { return this->get_curr(); }
 
-  const T & operator * () const noexcept { return this->get_curr(); }
+    T const * operator ->() const noexcept
+    {
+      return const_cast<T *>(&this->get_curr());
+    }
 
-  T const * operator -> () const noexcept
-  { 
-    return const_cast<T*>(&this->get_curr()); 
-  }
+    static __const_iterator cbegin(const Set_Type & s) noexcept
+    {
+      return __const_iterator(s);
+    }
 
-  static __const_iterator cbegin(const Set_Type & s) noexcept
-  {
-    return __const_iterator(s);
-  }
-
-  static __const_iterator cend(const Set_Type & s) noexcept
-  {
-    __const_iterator it(s);
-    it.Itor::end();
-    return it;
-  }
-};
+    static __const_iterator cend(const Set_Type & s) noexcept
+    {
+      __const_iterator it(s);
+      it.Itor::end();
+      return it;
+    }
+  };
 
 
 # define STL_ALEPH_ITERATOR(Set_Name)					\
@@ -187,22 +185,21 @@ struct __const_iterator : public Set_Type::Iterator
   friend iterator end(Set_Name & s) noexcept { return s.end(); }
 
 # ifdef nada
-    inline template <class Itor>
-typename iterator_traits<Itor>::difference_type distance(Itor it1, Itor it2)
-{
-  typename iterator_traits<Itor>::difference_type d = 0;
+  inline template <class Itor>
+  typename iterator_traits<Itor>::difference_type distance(Itor it1, Itor it2)
+  {
+    typename iterator_traits<Itor>::difference_type d = 0;
 
-  while (it1 not_eq it2)
-    {
-      d++;
-      it1++;
-    }
+    while (it1 not_eq it2)
+      {
+        d++;
+        it1++;
+      }
 
-  return d;
-}
+    return d;
+  }
 
 # endif
-
 }; // end namespace Aleph
 
 # endif // AHITERATOR_H

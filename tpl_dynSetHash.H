@@ -456,6 +456,12 @@ namespace Aleph
     // This allows heterogeneous search without constructing Data()
     Hash_Fct_Ptr original_hash_fct;
 
+    static constexpr bool has_search_with_custom_hash =
+      requires(const DynMapHashTable * self, Hash_Fct_Ptr hf, const Key & k)
+        {
+          self->search_with_custom_hash(hf, k);
+        };
+
   public:
     static Data &get_data(const Key & key)
     {
@@ -517,16 +523,30 @@ namespace Aleph
     */
     Pair * search(const Key & key) const noexcept
     {
-      auto *bucket = static_cast<Bucket *>(
-        this->search_with_custom_hash(original_hash_fct, key));
-      return bucket != nullptr ? &bucket->get_key() : nullptr;
+      if constexpr (has_search_with_custom_hash)
+        {
+          auto *bucket = static_cast<Bucket *>(
+            this->search_with_custom_hash(original_hash_fct, key));
+          return bucket != nullptr ? &bucket->get_key() : nullptr;
+        }
+      else
+        {
+          return Base::search(Pair(key, Data()));
+        }
     }
 
     Pair * search(Key && key) const noexcept
     {
-      auto *bucket = static_cast<Bucket *>(
-        this->search_with_custom_hash(original_hash_fct, key));
-      return bucket != nullptr ? &bucket->get_key() : nullptr;
+      if constexpr (has_search_with_custom_hash)
+        {
+          auto *bucket = static_cast<Bucket *>(
+            this->search_with_custom_hash(original_hash_fct, key));
+          return bucket != nullptr ? &bucket->get_key() : nullptr;
+        }
+      else
+        {
+          return Base::search(Pair(forward<Key>(key), Data()));
+        }
     }
 
     /// Checks if a key exists in the map

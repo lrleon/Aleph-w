@@ -24,8 +24,8 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <ctype.h>
-# include <string.h>
+# include <cctype>
+# include <cstring>
 # include <tpl_arrayStack.H>
 
 enum Token_Type { Value, Operator, Lpar, Rpar, End, Error };
@@ -54,7 +54,7 @@ Token_Type lexer(char *& str, size_t & len)
   return Value;
 }
 
-char * str_to_token(char * token_str, const size_t & len)
+char * str_to_token(const char * token_str, const size_t & len)
 {
   static char buffer[256];
   strncpy(buffer, token_str, len); 
@@ -105,13 +105,11 @@ int eval(char* input)
 {
   ArrayStack<int>  val_stack;
   ArrayStack<char> op_stack;
-  Token_Type current_token;
   size_t token_len = 0;
   op_stack.push('$');
   while (true)
     {
-      current_token = lexer(input, token_len);
-      switch (current_token)
+      switch (lexer(input, token_len))
         {
         case Value:
           {

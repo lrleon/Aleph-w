@@ -115,7 +115,7 @@ void print(Avl_Tree<int>::Node *p, int, int)
 
 int main(int, char *argc[])
 {
-  int n = atoi(argc[1]);
+  const int n = atoi(argc[1]);
 
   BinNode<int> * p = fibonacci(n);
 

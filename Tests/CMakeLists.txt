@@ -101,6 +101,7 @@ set(TEST_PROGRAMS
     al-matrix
     # ah-arena  # TODO: DynSetTree missing arena_allocated_size/arena_available_size
     ah-string-utils
+    ah-utils
     # sort_arrays  # TODO: to_vector not declared
     primes
     generate_tree

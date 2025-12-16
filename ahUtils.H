@@ -28,7 +28,6 @@
 # define AHUTILS_H
 
 # include <sys/stat.h>
-//# include <stdlib.h>
 # include <cstdlib>
 # include <cassert>
 # include <cmath>
@@ -40,63 +39,64 @@
 # include <iostream>
 # include <fstream>
 # include <typeinfo>
+# include <algorithm>
 
 # include <ahFunction.H>
 
 // build a string with the file name and line number
-# define POSITION_TRACE (std::string(__FILE__) + ":" + std::to_string(__LINE__))
+/** String literal with the current source position (`file:line`).
 
-using namespace std;
+    Intended for error messages and diagnostics.
+
+    @ingroup utils
+*/
+# define POSITION_TRACE (std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
 namespace Aleph {
 
 
-    /** Retorna un puntero a la mediana entre tres datos.
+    /** Return a pointer to the median value among three elements.
 
-	Se retorna un puntero a efectos de ahorrar la copia y, muy
-	especialmente, para emplear la igualdad por punteros.
+        A pointer is returned to avoid copies and to allow pointer
+        equality comparisons.
 
-	@ingroup fcts
+        @ingroup fcts
      */
-  template <class T, class Compare = Aleph::less<T>> inline
-const T * median(const T & a, const T & b, const T & c, Compare & cmp)
-{
-  if (cmp(a, b))
-    {
-      if (cmp(b, c))
-        return &b;
-      if (cmp(a, c))
-        return &c;
-      return &a;
-    }
-  if (cmp(a, c))
-    return &a;
-  if (cmp(b, c))
-    return &c;
-  return &b;
-}
+  template <class T, class Compare = Aleph::less<T>>
+  inline const T* median(const T& a, const T& b, const T& c, Compare cmp = Compare())
+  {
+      if (cmp(a, b)) {
+          if (cmp(b, c)) return &b; // a < b < c
+          if (cmp(a, c)) return &c; // a < c <= b
+          return &a;             // c <= a < b
+      }
+      if (cmp(a, c)) return &a; // b <= a < c
+      if (cmp(b, c)) return &c; // b < c <= a
+      return &b;             // c <= b <= a
+  }
 
 
-  /** Retorna <code>true</code> si n es par
+  /** Return `true` if `n` is even.
 
-     @ingroup fcts
+      @ingroup fcts
    */
 inline bool is_even(long n)
 {
   return (n % 2) == 0;
 }
 
-  /** Retorna <code>true</code> si n es impar
+  /** Return `true` if `n` is odd.
 
-     @ingroup fcts
+      @ingroup fcts
    */
 inline bool is_odd(long n)
 {
   return not is_even(n);
 }
 
-  /** Convierte una nibla almaceneda en un <code>int</code> a un
-      <code<>char/code>.
+  /** Convert a 4-bit nibble stored in an `int` to its hex character.
+
+      Valid values are 0..15; the result is in `0..9A..F`.
 
       @ingroup fcts
    */
@@ -111,8 +111,7 @@ inline char nibble_to_char(const int & i)
   return ret;
 }
 
-  /** Convierte una nibla almaceneda en un <code<>char/code> a un
-      <code>int</code>.
+  /** Convert a hex character in `0..9A..F` to its 4-bit nibble value.
 
       @ingroup fcts
    */
@@ -127,6 +126,17 @@ inline int char_to_nibble(const char & c)
   return ret;
 }
 
+/** Define a derived iterator type from an existing iterator base.
+
+    This macro is used throughout the library to create a thin derived
+    iterator type that forwards constructors and copy assignment.
+
+    @param container_name Container type name.
+    @param base_it_name   Base iterator type name.
+    @param it_name        New iterator type name.
+
+    @ingroup utils
+*/
 # define DERIVATE_ITERATOR(container_name,  base_it_name, it_name) \
   struct it_name : public base_it_name                             \
   {                                                                \
@@ -149,18 +159,38 @@ inline int char_to_nibble(const char & c)
   };
 
 
-/** Reajusta el tamaño de la pila sistema a new_size. Retorna true si
-    tiene éxito; false de lo contrario
+/** Resize the process stack to `new_size`.
 
-   @ingroup fcts
+    @param[in] new_size Requested stack size in bytes.
+    @return `true` on success; `false` otherwise.
+
+    @ingroup fcts
  */
 extern bool resize_process_stack(size_t new_size);
 
+/** Map a binary heap index to the index of its parent.
+
+    For 1-based heaps, `u_index(i)` returns `i/2`.
+
+    @param[in] i Node index.
+    @return Parent index.
+
+    @ingroup utils
+*/
 inline size_t u_index(const size_t & i)
 {
   return i >> 1; // divide i entre 2
 }
 
+/** Map a binary heap index to the index of its left child.
+
+    For 1-based heaps, `l_index(i)` returns `2*i`.
+
+    @param[in] i Node index.
+    @return Left child index.
+
+    @ingroup utils
+*/
 inline size_t l_index(const size_t & i)
 {
   return i << 1; // multiplica i por 2
@@ -218,9 +248,9 @@ inline std::string demangle(const char* name)
 
    @ingroup fcts
  */
-inline void error_msg(const string & msg)
+inline void error_msg(const std::string & msg)
 {
-  cout << msg << endl;
+  std::cout << msg << std::endl;
   abort();
 }
 
@@ -228,7 +258,7 @@ inline void error_msg(const string & msg)
 
    @ingroup fcts
  */
-inline bool exists_file(const string & name)
+inline bool exists_file(const std::string & name)
 {
   struct stat buffer;
   return (stat (name.c_str(), &buffer) == 0);
@@ -257,6 +287,14 @@ inline std::string Rvector(const std::string & name, const C & c)
   return s.str();
 }
 
+/** Return a string with an R assignment for a container interpreted as
+    `[name, value1, value2, ...]`.
+
+    The first element of `c` is used as the R variable name, and the
+    remaining elements are used as the vector data.
+
+    @ingroup fcts
+ */
 template <class C>
 inline std::string Rvector(const C & c)
 {
@@ -285,7 +323,7 @@ inline std::string Rvector(const C & c)
    @param[in] y1 value of f(x1)
    @param[in] y2 value of f(x2)
    @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2`
+   @note Requires `x2 > x1` and `x` in [`x1`, `x2`].
 
   @ingroup fcts
  */
@@ -306,8 +344,7 @@ double interpolate(double x1, double x2, double y1, double y2, double x)
    @param[in] y1 value of f(x1)
    @param[in] y2 value of f(x2)
    @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2` and `x` must be less
-   than `x1`
+   @note Requires `x2 > x1` and `x < x1`.
 
    @ingroup fcts
  */
@@ -338,8 +375,7 @@ inline double pow3(double x) { return x*pow2(x); }
    @param[in] y1 value of f(x1)
    @param[in] y2 value of f(x2)
    @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2` and `x` must be greater
-   than `x2`
+   @note Requires `x2 > x1` and `x > x2`.
 
    @ingroup fcts
  */
@@ -356,48 +392,59 @@ double extrapolate_right(double x1, double x2, double y1, double y2, double x)
  */
 inline double next_value(double val)
 {
-  return nextafter(val, numeric_limits<double>::max());
+  return nextafter(val, std::numeric_limits<double>::max());
 }
 
-/** Return the previous representable floating-point value to `val`
+/** Return the next representable floating-point value of `val` towards the
+    smallest positive normal number.
 
     @ingroup fcts
  */
 inline double prev_value(double val)
 {
-  return nextafter(val, numeric_limits<double>::min());
+  return nextafter(val, std::numeric_limits<double>::min());
 }
 
-/** Return `true` if v1 is near of v2 by absolute difference e
+/** Return `true` if `v1` is within absolute distance `e` of `v2`.
 
     @ingroup fcts
  */
-inline bool are_near(double v1, double v2, double e) { return fabs(v1 - v2) <= e; }
+inline bool are_near(double v1, double v2, double e) { return std::fabs(v1 - v2) <= e; }
 
 /** Generate and execute a R script from a string (containing the script)
 
     @param[in] scr string containing the script
-    @param[in] file name of temporal file where the script will be saved
+    @param[in] file name of temporary file where the script will be saved
 
    @ingroup fcts
  */
 inline
-void execute_R_script(const string & scr, const string & file_name = "tmp.R")
+void execute_R_script(const std::string & scr, const std::string & file_name = "tmp.R")
 {
   std::ofstream tmp(file_name);
-  tmp << "#!/usr/bin/Rscript" << endl
-      << endl
-      << "X11()" << endl
-      << scr << endl
-      << "message(\"Press Return To Continue\")" << endl
-      << "invisible(readLines(\"stdin\", n=1))" << endl;
-  const string cmd = "Rscript " + file_name;
+  tmp << "#!/usr/bin/Rscript" << std::endl
+      << std::endl
+      << "X11()" << std::endl
+      << scr << std::endl
+      << "message(\"Press Return To Continue\")" << std::endl
+      << "invisible(readLines(\"stdin\", n=1))" << std::endl;
+  const std::string cmd = "Rscript " + file_name;
   system(cmd.c_str());
 }
 
+/** Return `true` if a floating-point number is normal or zero.
+
+    This excludes NaN, infinities, and subnormals.
+
+    @param[in] n Value to classify.
+    @return `true` if `n` is `FP_NORMAL` or `FP_ZERO`.
+
+    @ingroup fcts
+*/
+
 inline bool is_normal_number(double n)
 {
-  int status = fpclassify(n);
+  int status = std::fpclassify(n);
   return (status == FP_NORMAL or status == FP_ZERO) // and status != FP_NAN and
     // status != FP_INFINITE and status != FP_SUBNORMAL
     ;
