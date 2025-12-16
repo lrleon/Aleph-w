@@ -242,7 +242,7 @@ inline std::string demangle(const char* name)
 
   @ingroup fcts
  */
-# define CLASSNAME_TO_STRING(class_ptr) demangle(typeid(*class_ptr).name())
+# define CLASSNAME_TO_STRING(class_ptr) ::Aleph::demangle(typeid(*class_ptr).name())
 
 /** Print a error message and aborts
 
