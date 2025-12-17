@@ -30,6 +30,7 @@
 # include <tpl_agraph.H>
 # include <tpl_graph_utils.H>
 # include <archeap.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -173,8 +174,7 @@ private:
 
   void paint_min_spanning_tree(const GT & g, typename GT::Node * first)
   {
-    if (g.is_digraph())
-      throw std::domain_error("g is a digraph");
+    ah_domain_error_if(g.is_digraph()) << "g is a digraph";
 
     g.reset_nodes();
     g.reset_arcs();
@@ -232,8 +232,7 @@ private:
 
   void min_spanning_tree(const GT & g, typename GT::Node * first, GT & tree)
   {
-    if (g.is_digraph())
-      throw std::domain_error("g is a digraph");
+    ah_domain_error_if(g.is_digraph()) << "g is a digraph";
 
     clear_graph(tree); 
 

@@ -374,7 +374,7 @@ namespace Aleph
     {
       assert(len > 0);
 
-      if (new_size == len or new_size == 0)
+      if (new_size == 0)
         return len;
 
       auto *new_table = new BucketList [new_size];
@@ -439,7 +439,7 @@ namespace Aleph
 
     bool is_empty() const noexcept { return N == 0; }
 
-    /** Iterator over a GenLhasTable hash table.
+    /** Iterator over a GenLhashTable hash table.
 
         @note The observation sequence produced by the iterator is not ordered.
         @ingroup Hash

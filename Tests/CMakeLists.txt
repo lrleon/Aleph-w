@@ -56,8 +56,10 @@ endif()
 
 # List of all test programs from Imakefile
 set(TEST_PROGRAMS
-    array
-    array_utils
+	    array
+	    bitarray
+	    huffman
+	    array_utils
     array-it
     dynarray
     union
@@ -94,6 +96,7 @@ set(TEST_PROGRAMS
     hash-it
     ah-zip
     ah-functional
+    ah-comb
     ah-dry
     tree-it
     al-domain
@@ -120,6 +123,8 @@ set(TEST_PROGRAMS
 set(EXHAUSTIVE_TESTS
     dlink_test
     htlist_test
+    tpl_graph_test
+    graph_traverse_test
 )
 
 # Create executable for each test program

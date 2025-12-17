@@ -131,24 +131,24 @@ namespace Aleph {
 
       friend ostream & operator << (ostream & out, const Bucket & bucket)
       {
-        string status;
+        string status_str;
         switch (bucket.status)
           {
-          case EMPTY: status = "EMPTY"; break;
-          case BUSY: status = "BUSY"; break;
-          case DELETED: status = "DELETED"; break;
+          case EMPTY: status_str = "EMPTY"; break;
+          case BUSY: status_str = "BUSY"; break;
+          case DELETED: status_str = "DELETED"; break;
           }
-        string probe_type;
+        string probe_type_str;
         switch (bucket.probe_type)
           {
-          case NO_PROBED: probe_type = "NO_PROBED"; break;
-          case FIRST_PROBE: probe_type = "FIRST_PROBE"; break;
-          case SECOND_PROBE: probe_type = "SECOND_PROBE"; break;
-          case LINEAR_PROBE: probe_type = "LINEAR_PROBE"; break;
+          case NO_PROBED: probe_type_str = "NO_PROBED"; break;
+          case FIRST_PROBE: probe_type_str = "FIRST_PROBE"; break;
+          case SECOND_PROBE: probe_type_str = "SECOND_PROBE"; break;
+          case LINEAR_PROBE: probe_type_str = "LINEAR_PROBE"; break;
           }
         return out << "Bucket at " << &bucket << endl
-                   << "status = " << status << endl
-                   << "probe_type = " << probe_type << endl
+                   << "status = " << status_str << endl
+                   << "probe_type = " << probe_type_str << endl
                    << "probe_counter = " << bucket.probe_counter;
       }
     };
@@ -248,13 +248,6 @@ namespace Aleph {
       return i;
     }
 
-    static Bucket * key_to_bucket(Key * rec) noexcept
-    {
-      const auto base = reinterpret_cast<std::uintptr_t>(rec);
-      const auto offset = static_cast<std::uintptr_t>(offsetof(Bucket, key));
-      return reinterpret_cast<Bucket *>(base - offset);
-    }
-
     bool is_valid_bucket(Bucket * bucket) noexcept
     {
       if (table == nullptr)
@@ -279,6 +272,13 @@ namespace Aleph {
     }
 
   public:
+
+    static Bucket * key_to_bucket(Key * rec) noexcept
+    {
+      const auto base = reinterpret_cast<std::uintptr_t>(rec);
+      const auto offset = offsetof(Bucket, key);
+      return reinterpret_cast<Bucket *>(base - offset);
+    }
 
     const Cmp & get_compare() const { return cmp; }
 
@@ -528,7 +528,7 @@ namespace Aleph {
                                       false);
         }
 
-      if (cmp(table[i_snd].key, key)) // test if key is alredy present
+      if (cmp(table[i_snd].key, key)) // test if key is already present
         return tuple<Bucket*, bool>(&table[i_snd], true);
 
       size_t i = i_snd;
@@ -544,7 +544,7 @@ namespace Aleph {
                   for (size_t k = 0; k < c; ++k)
                     {
                       index_backward(i);
-                      table[i].probe_counter--;
+                      --table[i].probe_counter;
                     }
                   return tuple<Bucket*, bool>(&table[idx], true);
                 }
@@ -562,7 +562,7 @@ namespace Aleph {
       return tuple<Bucket*, bool>(static_cast<Bucket *>(nullptr), false);
     }
 
-    /// Delete the record record from the table. record must belong to
+    /// Delete the record from the table. record must belong to
     /// the table and must have been previously determined by a
     /// insert or search. The invalid_argument exception is raised if
     /// the record does not correspond to a bucket in the table. It shoots
@@ -623,6 +623,8 @@ namespace Aleph {
               if (process_entry_for_remove(&table[i], key))
                 return;
             }
+
+          throw std::domain_error("Key not in hash table");
         }
       catch (...)
         {

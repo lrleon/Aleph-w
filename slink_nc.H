@@ -28,6 +28,7 @@
 # define SLINK_NC_H
 
 # include <aleph.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -59,10 +60,9 @@ namespace Aleph
       if (&link == this)
         return *this;
 
-      if (not is_empty())
-        throw std::invalid_argument("link is not empty");
+      ah_invalid_argument_if(not is_empty()) << "link is not empty";
 
-      next = nullptr; 
+      next = nullptr;
     }
 
     /// Reinicia enlace a que apunte a nullptr
@@ -175,11 +175,10 @@ namespace Aleph
         return curr;
       }
 
-      Slink_Nc * get_curr()  
+      Slink_Nc * get_curr()
       {
-        if (not has_curr())
-          throw std::overflow_error("Not element in list");
-	return get_curr_ne();
+        ah_overflow_error_if(not has_curr()) << "Not element in list";
+        return get_curr_ne();
       }
 
       /// Retorna true si iterador está sobre primer elemento
@@ -193,9 +192,8 @@ namespace Aleph
 
       void next() throw(std::exception, std::overflow_error)
       {
-        if (not has_curr())
-          throw std::overflow_error("Not next element in list");
-	next_ne();
+        ah_overflow_error_if(not has_curr()) << "Not next element in list";
+        next_ne();
       }
 
       /// Retorna true si iteradores están sobre el mismo elemento.

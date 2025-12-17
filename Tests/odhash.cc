@@ -126,3 +126,19 @@ TEST(ODhashTable, Map)
       EXPECT_FALSE(tbl.contains(MyRecord(i)));
     }
 }
+
+TEST(ODhashTable, KeyToBucketRoundTrip)
+{
+  ODhashTable<int> tbl;
+  auto *ptr = tbl.insert(5);
+  ASSERT_NE(ptr, nullptr);
+
+  auto *bucket = decltype(tbl)::key_to_bucket(ptr);
+  ASSERT_NE(bucket, nullptr);
+  EXPECT_EQ(bucket->key, 5);
+  EXPECT_EQ(bucket->status, decltype(tbl)::BUSY);
+
+  EXPECT_NO_THROW(tbl.remove(5));
+  EXPECT_EQ(tbl.search(5), nullptr);
+}
+

@@ -29,6 +29,7 @@
 # define DLINK_H
 
 # include <aleph.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -464,17 +465,15 @@ namespace Aleph {
     }
 
     /// \overload get_next()
-    Dlink * top()
+    Dlink * top() const
     {
-      if (is_empty())
-        throw std::underflow_error("Dlink as stack is empty");
+      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
       return get_next();
     }
 
     Dlink * pop() /// \overload remove_next()
     {
-      if (is_empty())
-        throw std::underflow_error("Dlink as stack is empty");
+      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
       return remove_next();
     }
 
@@ -682,8 +681,7 @@ namespace Aleph {
       */
       Dlink * get_curr() const
       {
-        if (not has_curr())
-          throw std::overflow_error("Not element in list");
+        ah_overflow_error_if(not has_curr()) << "Not element in list";
 
         return get_curr_ne();
       }
@@ -707,8 +705,7 @@ namespace Aleph {
       */
       void prev()
       {
-        if (not has_curr())
-          throw std::underflow_error("Not previous element in list");
+        ah_underflow_error_if(not has_curr()) << "Not previous element in list";
         prev_ne();
       }
 
@@ -722,8 +719,7 @@ namespace Aleph {
       */
       void next()
       {
-        if (not has_curr())
-          throw std::overflow_error("Not next element in list");
+        ah_overflow_error_if(not has_curr()) << "Not next element in list";
         next_ne();
       }
 
@@ -806,8 +802,7 @@ namespace Aleph {
         {
           if (n == 0)
             return;
-          else
-            throw std::domain_error("List is empty");
+          ah_domain_error() << "List is empty";
         }
 
       for (size_t i = 0; i < n; ++i)
@@ -821,8 +816,7 @@ namespace Aleph {
         {
           if (n == 0)
             return;
-          else
-            throw std::domain_error("List is empty");
+          ah_domain_error() << "List is empty";
         }
 
       for (size_t i = 0; i < n; ++i)

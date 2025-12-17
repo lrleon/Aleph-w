@@ -35,6 +35,7 @@
 # include <ahFunctional.H>
 # include <ah-args-ctor.H>
 # include <ah-iterator.H>
+# include <ah-errors.H>
 
 # define NEXT(p) (p->get_next())
 
@@ -45,7 +46,7 @@ template <typename T> class Snodenc; // forward declaration
   /**
 
   \~English
-    Link of a single linked list non circular and without header node.
+    Link of a single linked list non-circular and without header node.
 
      @ingroup Sequencies
 
@@ -230,8 +231,8 @@ public:
     */
     Slinknc * get_curr() const
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator is at the end of the list");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator is at the end of the list";
       return curr;
     }
 
@@ -253,8 +254,8 @@ public:
     */
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator is at the end of the list");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator is at the end of the list";
       curr = curr->next;
     }
 
@@ -717,8 +718,8 @@ public:
 
   Slinknc * remove_head()
   {
-    if (is_empty())
-      throw std::underflow_error("HTList is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList is empty";
     return remove_head_ne();
   }
 
@@ -772,8 +773,8 @@ public:
   */
   bool remove(Slinknc * link)
   {
-    if (is_empty())
-      throw std::underflow_error("Removing from a empty list");
+    ah_underflow_error_if(is_empty())
+      << "Removing from a empty list";
 
     if (link == head)
       {
@@ -826,15 +827,15 @@ public:
   */
   Slinknc * pop()
   {
-    if (is_empty())
-      throw std::underflow_error("HTList as stack is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList as stack is empty";
     return remove_head();
   }
 
-  Slinknc * top()
+  Slinknc * top() const
   {
-    if (is_empty())
-      throw std::underflow_error("HTList as stack is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList as stack is empty";
     return get_first();
   }
 
@@ -1117,8 +1118,8 @@ public:
      */
     Slinknc * get_curr() const
     {
-      if (curr == nullptr)
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(curr == nullptr)
+        << "Iterator overflow";
 
       return curr;
     }
@@ -1162,8 +1163,8 @@ public:
 
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator overflow";
       next_ne();
     }
 
@@ -1216,8 +1217,8 @@ public:
      */
     Slinknc * del()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator overflow";
 
       return del_ne();
     }
@@ -1303,7 +1304,8 @@ public:
       {
         if (n == 0)
           return;
-        throw std::domain_error("List is empty");
+        ah_domain_error() << "List is empty";
+        return; // unreachable, silences -Wreturn-type
       }
 
     for (size_t i = 0; i < n; ++i)
@@ -1584,8 +1586,8 @@ public:
   */
   T & get_last() const
   {
-    if (is_empty())
-      throw std::underflow_error("List is empty");
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
     return get_last_ne();
   }
 
@@ -1596,8 +1598,8 @@ public:
   */
   T & get_first() const
   {
-    if (is_empty())
-      throw std::underflow_error("List is empty");
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
     return get_first_ne();
   }
 
@@ -1753,7 +1755,8 @@ public:
               return ret;
             }
 
-      throw std::domain_error("DynList::remove(Equal &): item not found");
+      ah_domain_error() << "DynList::remove(Equal &): item not found";
+      return T(); // unreachable, silences -Wreturn-type
     }
 
   /** Initialize the list with all the items of `l` moved to `this`.
@@ -1764,7 +1767,7 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you are
       interested in to avoid the copy. So, if you have a lvalue
-      referencde to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
@@ -1805,7 +1808,7 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      referencde to a list, use `std::move()`, upon your responsability,
+      referenced to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
@@ -1825,11 +1828,11 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      reference to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
-      \param[in] l a rvalue reference to the list to be appended
+      \param[in] list a rvalue reference to the list to be appended
   */
   DynList & append(DynList && list) noexcept
   {
@@ -1840,16 +1843,16 @@ public:
   /** Insert `list `at the beginning of `this` by movement.
 
       `insert(l)` (in this rvalue version), puts in constant time the
-      items of `l` at the beggining of `this`. After calling `l` becomes
+      items of `l` at the beginning of `this`. After calling `l` becomes
       empty.
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      reference to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
-      \param[in] l a rvalue reference to the list to be inserted
+      \param[in] list a rvalue reference to the list to be inserted
   */
   DynList & insert(DynList && list) noexcept
   {
@@ -1862,7 +1865,7 @@ public:
       This version of `append(l)` traverses the items of `l` and appends
       them (copies) into `this`.
 
-      \param[in] l list to be copied at the end
+      \param[in] list list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
   DynList & append(const DynList & list)
@@ -1877,7 +1880,7 @@ public:
       This version of `insert(l)` traverses the items of `l` and insert
        a copy into `this`.
 
-      \param[in] l list to be copied at the end
+      \param[in] list list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
   DynList & insert(const DynList & list)
@@ -1889,7 +1892,7 @@ public:
 
   /// Obtains a modifiable reference to the i-th item of `this`. Throws
   /// `overflow_error` if `i` is greater or equal to number of elements
-  T & get(const size_t & i)
+  T & get(const size_t i)
   {
     Iterator it(*this);
 

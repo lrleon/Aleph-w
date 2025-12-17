@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,9 +28,10 @@
 # define TPL_DYNSETTREE_H
 
 # include <typeinfo>
- # include <type_traits>
- # include <utility>
- # include <stdexcept>
+# include <type_traits>
+# include <utility>
+# include <stdexcept>
+# include <ah-errors.H>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
 # include <ah-zip.H>
@@ -49,17 +49,20 @@
 
 using namespace Aleph;
 
-namespace Aleph {
-
+namespace Aleph
+{
   template <typename Node>
   class AbstractTreeNodeAllocator
   {
   public:
-
     AbstractTreeNodeAllocator() = default;
+
     virtual Node * alloc_lval(const typename Node::key_type & key) = 0;
+
     virtual Node * alloc_rval(typename Node::key_type && key) = 0;
+
     virtual void unalloc(Node *) = 0;
+
     virtual ~AbstractTreeNodeAllocator() = default;
   };
 
@@ -67,23 +70,22 @@ namespace Aleph {
   class DftTreeNodeAllocator : public AbstractTreeNodeAllocator<Node>
   {
   public:
-
     virtual Node * alloc_lval(const typename Node::key_type & key)
     {
       return new Node(key);
     }
-    
+
     virtual Node * alloc_rval(typename Node::key_type && key)
     {
       return new Node(std::forward<typename Node::key_type>(key));
     }
 
-    virtual void unalloc(Node * p)
+    virtual void unalloc(Node *p)
     {
       delete p;
     }
 
-    virtual ~DftTreeNodeAllocator() { /* empty */ }
+    virtual ~DftTreeNodeAllocator() = default;
   };
 
   template <typename Node>
@@ -91,13 +93,13 @@ namespace Aleph {
   {
     AhArenaAllocator arena;
 
-    ArenaTreeAllocator(const size_t & sz = 1024*1024)
+    ArenaTreeAllocator(const size_t & sz = 1024 * 1024)
       : arena(sz)
     {
       // empty
     }
 
-    ArenaTreeAllocator(const char * base_addr, const size_t & sz)
+    ArenaTreeAllocator(const char *base_addr, const size_t & sz)
       : arena(base_addr, sz)
     {
       // empty
@@ -105,39 +107,37 @@ namespace Aleph {
 
     virtual Node * alloc_lval(const typename Node::key_type & key)
     {
-      Node * ptr = allocate<Node>(arena, key);
-      if (ptr == nullptr)
-        throw bad_alloc();
-      return ptr;
-    }
-    
-    virtual Node * alloc_rval(typename Node::key_type && key)
-    {
-      Node * ptr =
-        allocate<Node>(arena, std::forward<typename Node::key_type>(key));
-      if (ptr == nullptr)
-        throw bad_alloc();
+      Node *ptr = allocate<Node>(arena, key);
+      ah_bad_alloc_if(ptr == nullptr);
       return ptr;
     }
 
-    virtual void unalloc(Node * p)
+    virtual Node * alloc_rval(typename Node::key_type && key)
+    {
+      Node *ptr =
+          allocate<Node>(arena, std::forward<typename Node::key_type>(key));
+      ah_bad_alloc_if(ptr == nullptr);
+      return ptr;
+    }
+
+    virtual void unalloc(Node *p)
     {
       dealloc<Node>(arena, p);
     }
 
-    ~ArenaTreeAllocator() { /* empty */ }
+    ~ArenaTreeAllocator() = default;
   };
 
   template <typename Container, typename T>
   struct CmpContainer
   {
-    bool operator () (const Container & c1, const Container & c2) const
+    bool operator ()(const Container & c1, const Container & c2) const
     {
       return lexicographical_compare(c1.begin(), c1.end(), c2.begin(), c2.end(),
-                                     [] (const T & item1, const T & item2)
-                                     {
-                                       return item1 < item2;
-                                     });
+                                     [](const T & item1, const T & item2)
+                                       {
+                                         return item1 < item2;
+                                       });
     }
   };
 
@@ -154,14 +154,13 @@ namespace Aleph {
             template <typename, class> class Tree = Avl_Tree,
             class Compare = Aleph::less<Key>>
   class DynSetTree
-    : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
-      public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
-      public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
-      public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
-      public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
+      : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
+        public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,
+        public GenericKeys<DynSetTree<Key, Tree, Compare>, Key>,
+        public EqualToMethod<DynSetTree<Key, Tree, Compare>>,
+        public StlAlephIterator<DynSetTree<Key, Tree, Compare>>
   {
   public:
-
     /// Type of binary node used by the binary search tree
     /// internal.
     using Node = typename Tree<Key, Compare>::Node;
@@ -169,7 +168,6 @@ namespace Aleph {
     using Tree_Type = Tree<Key, Compare>;
 
   private:
-
     template <typename T>
     struct Has_Range_Methods
     {
@@ -192,8 +190,8 @@ namespace Aleph {
       template <typename U>
       static auto test_split_pos(int)
         -> decltype(std::declval<U &>().split_pos(std::declval<size_t>(),
-                                                 std::declval<U &>(),
-                                                 std::declval<U &>()),
+                                                  std::declval<U &>(),
+                                                  std::declval<U &>()),
                     std::true_type());
 
       template <typename>
@@ -216,15 +214,15 @@ namespace Aleph {
       static std::false_type test_find_position(...);
 
       static constexpr bool has_select =
-        std::is_same<decltype(test_select<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_select<T>(0)), std::true_type>::value;
       static constexpr bool has_remove_pos =
-        std::is_same<decltype(test_remove_pos<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_remove_pos<T>(0)), std::true_type>::value;
       static constexpr bool has_split_pos =
-        std::is_same<decltype(test_split_pos<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_split_pos<T>(0)), std::true_type>::value;
       static constexpr bool has_position =
-        std::is_same<decltype(test_position<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_position<T>(0)), std::true_type>::value;
       static constexpr bool has_find_position =
-        std::is_same<decltype(test_find_position<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_find_position<T>(0)), std::true_type>::value;
     };
 
     template <typename T>
@@ -237,7 +235,8 @@ namespace Aleph {
     template <typename T>
     static Node * call_select(const T &, const size_t, ...)
     {
-      throw std::domain_error("select is not supported by underlying tree");
+      ah_domain_error() << "select is not supported by underlying tree";
+      return nullptr;
     }
 
     template <typename T>
@@ -250,7 +249,8 @@ namespace Aleph {
     template <typename T>
     static Node * call_remove_pos(T &, const size_t, ...)
     {
-      throw std::domain_error("remove_pos is not supported by underlying tree");
+      ah_domain_error() << "remove_pos is not supported by underlying tree";
+      return nullptr;
     }
 
     template <typename T>
@@ -263,7 +263,7 @@ namespace Aleph {
     template <typename T>
     static void call_split_pos(T &, const size_t, T &, T &, ...)
     {
-      throw std::domain_error("split_pos is not supported by underlying tree");
+      ah_domain_error() << "split_pos is not supported by underlying tree";
     }
 
     template <typename T>
@@ -274,9 +274,10 @@ namespace Aleph {
     }
 
     template <typename T>
-    static std::pair<long, Node*> call_position(const T &, const Key &, ...)
+    static std::pair<long, Node *> call_position(const T &, const Key &, ...)
     {
-      throw std::domain_error("position is not supported by underlying tree");
+      ah_domain_error() << "position is not supported by underlying tree";
+      return std::pair<long, Node *>(0, nullptr);
     }
 
     template <typename T>
@@ -287,19 +288,18 @@ namespace Aleph {
     }
 
     template <typename T>
-    static std::pair<long, Node*> call_find_position(const T &, const Key &, ...)
+    static std::pair<long, Node *> call_find_position(const T &, const Key &, ...)
     {
-      throw std::domain_error("find_position is not supported by underlying tree");
+      ah_domain_error() << "find_position is not supported by underlying tree";
+      return std::pair<long, Node *>(0, nullptr);
     }
 
-    static const size_t dim = 13;
+    static constexpr size_t dim = 13;
 
     mutable Tree<Key, Compare> tree;
     size_t num_nodes;
 
-
   public:
-
     typedef DynSetTree Set_Type;
 
     typedef Key Item_Type;
@@ -312,7 +312,7 @@ namespace Aleph {
         @param[in] dset the set to exchange with this
     */
     void swap(DynSetTree & dset) noexcept(noexcept(tree.swap(dset.tree)) &&
-                                         noexcept(std::swap(num_nodes, dset.num_nodes)))
+                                          noexcept(std::swap(num_nodes, dset.num_nodes)))
     {
       tree.swap(dset.tree);
       std::swap(num_nodes, dset.num_nodes);
@@ -325,18 +325,18 @@ namespace Aleph {
       // empty
     }
 
-    DynSetTree(const char * base_addr, const size_t & sz,
+    DynSetTree(const char *base_addr, const size_t & sz,
                Compare cmp = Compare())
       : tree(cmp), num_nodes(0)
     {
       // empty
     }
 
-    /// instantiates a dynamic copy of srctree
+    /// instantiates a dynamic copy of srcTree
     DynSetTree(const DynSetTree & srcTree)
       : tree(srcTree.tree.get_compare()), num_nodes(srcTree.num_nodes)
     {
-      Node * srcRoot = srcTree.tree.getRoot();
+      Node *srcRoot = srcTree.tree.getRoot();
       try
         {
           tree.getRoot() = copyRec(srcRoot);
@@ -351,7 +351,7 @@ namespace Aleph {
     Special_Ctors(DynSetTree, Key);
 
     DynSetTree(DynSetTree && srcTree)
-      : num_nodes(0)
+      noexcept : num_nodes(0)
     {
       swap(srcTree);
     }
@@ -363,29 +363,29 @@ namespace Aleph {
       num_nodes = 0;
     }
 
-    DynSetTree & operator = (const DynList<Key> & list)
+    DynSetTree &operator =(const DynList<Key> & list)
     {
       return *this = DynSetTree(list);
     }
 
     /// assigns this to the dynamic array srctree
-    DynSetTree & operator = (const DynSetTree & srcTree)
+    DynSetTree &operator =(const DynSetTree & srcTree)
     {
       if (this == &srcTree)
         return *this;
 
-      Node * src_root = srcTree.tree.getRoot();
+      Node *src_root = srcTree.tree.getRoot();
 
       empty();
 
       tree.getRoot() = copyRec(src_root);
-      num_nodes       = srcTree.num_nodes;
+      num_nodes = srcTree.num_nodes;
 
       return *this;
     }
 
     /// Assigns the dynamic set srcTree to this.
-    DynSetTree & operator = (DynSetTree && srcTree)
+    DynSetTree &operator =(DynSetTree && srcTree)
     {
       if (this == &srcTree)
         return *this;
@@ -402,10 +402,9 @@ namespace Aleph {
     }
 
   private:
-
-    Key * __insert(Node * p)
+    Key * __insert(Node *p)
     {
-      Node * q = nullptr;
+      Node *q = nullptr;
       try
         {
           q = tree.search_or_insert(p);
@@ -425,7 +424,6 @@ namespace Aleph {
     }
 
   public:
-
     /** Inserts a key into the dynamic set.
 
         Inserts the key key into the dynamic set.
@@ -436,8 +434,8 @@ namespace Aleph {
     */
     Key * insert(const Key & key)
     {
-      Node * p = new Node(key);
-      Key * key_p = __insert(p);
+      Node *p = new Node(key);
+      Key *key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         { // No (KEY(p) is already in the tree) ==> free p and return nullptr
           delete p;
@@ -449,8 +447,8 @@ namespace Aleph {
 
     Key * insert(Key && key)
     {
-      Node * p = new Node(std::forward<Key>(key));
-      Key * key_p = __insert(p);
+      Node *p = new Node(std::forward<Key>(key));
+      Key *key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         {
           delete p;
@@ -471,10 +469,9 @@ namespace Aleph {
     }
 
   private:
-
-    Key * __search_or_insert(Node * p)
+    Key * __search_or_insert(Node *p)
     {
-      Node * q = nullptr;
+      Node *q = nullptr;
       try
         {
           q = tree.search_or_insert(p);
@@ -486,16 +483,16 @@ namespace Aleph {
         }
       if (q != p) // was there an insertion?
         delete p; // No (KEY(p) is already in the tree) ==> free
-                  // allocated node
+        // allocated node
       else
         ++num_nodes;
 
       return &q->get_key();
     }
 
-    pair<Node*, bool> __contains_or_insert(Node * p)
+    pair<Node *, bool> __contains_or_insert(Node *p)
     {
-      Node * q = nullptr;
+      Node *q = nullptr;
       try
         {
           q = tree.search_or_insert(p);
@@ -507,15 +504,14 @@ namespace Aleph {
         }
       if (q != p)
         { // KEY(p) is already inside the tree
-          delete p; 
-          return pair<Node*, bool>(q, true);
+          delete p;
+          return pair<Node *, bool>(q, true);
         }
       ++num_nodes;
-      return pair<Node*, bool>(p, false);
+      return pair<Node *, bool>(p, false);
     }
 
   public:
-
     /** Look for the key <code>key</code> in the binary search tree or
         inserts it if it is not found.
 
@@ -536,7 +532,7 @@ namespace Aleph {
     Key * search_or_insert(Key && key)
     {
       return
-        __search_or_insert(new Node(std::forward<Key>(key)));
+          __search_or_insert(new Node(std::forward<Key>(key)));
     }
 
     /* Look for the key <code>key</code> in the binary search tree and
@@ -552,25 +548,24 @@ namespace Aleph {
        `false` if the key was inserted; `true` otherwise, that is if the
        key is already present in the tree.
     */
-    pair<Key*, bool> contains_or_insert(const Key & key)
+    pair<Key *, bool> contains_or_insert(const Key & key)
     {
       auto p = __contains_or_insert(new Node(key));
-      return pair<Key*, bool>(&p.first->get_key(), p.second);
+      return pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
-    pair<Key*, bool> contains_or_insert(Key && key)
+    pair<Key *, bool> contains_or_insert(Key && key)
     {
       auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
-      return pair<Key*, bool>(&p.first->get_key(), p.second);
+      return pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
   private:
-
-    Key * __insert_dup(Node * q)
+    Key * __insert_dup(Node *q)
     {
       try
         {
-          Node * p = tree.insert_dup(q);
+          Node *p = tree.insert_dup(q);
           ++num_nodes;
           return &p->get_key();
         }
@@ -582,7 +577,6 @@ namespace Aleph {
     }
 
   public:
-
     Key * insert_dup(const Key & key)
     {
       return __insert_dup(new Node(key));
@@ -612,7 +606,7 @@ namespace Aleph {
     */
     size_t remove(const Key & key)
     {
-      Node * p = static_cast<Node*>(tree.remove(key));
+      Node *p = static_cast<Node *>(tree.remove(key));
 
       if (p == nullptr)
         return num_nodes;
@@ -634,10 +628,10 @@ namespace Aleph {
     */
     Key del(const Key & key)
     {
-      Node * p = static_cast<Node*>(tree.remove(key));
+      Node *p = static_cast<Node *>(tree.remove(key));
 
-      if (p == nullptr)
-        throw domain_error("DynSetTree::del key is not found in the tree");
+      ah_domain_error_if(p == nullptr)
+        << "DynSetTree::del key is not found in the tree";
 
       auto ret_val = p->get_key();
 
@@ -650,22 +644,19 @@ namespace Aleph {
 
     /** Removes a key from the dynamic set.
 
-        remove(key) finds the key key in the set and removes it.
-
-        @param[in] key key to delete
         @return number of elements that the set has.
     */
     Key remove_pos(const size_t i)
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_remove_pos)
-        throw std::domain_error("remove_pos is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_remove_pos)
+        << "remove_pos is not supported by underlying tree";
 
-      if (i >= num_nodes)
-        throw std::out_of_range("remove_pos index out of range");
+      ah_out_of_range_error_if(i >= num_nodes)
+        << "remove_pos index out of range";
 
-      Node * p = static_cast<Node*>(call_remove_pos(tree, i, 0));
-      if (p == nullptr)
-        throw std::logic_error("remove_pos returned nullptr");
+      Node *p = static_cast<Node *>(call_remove_pos(tree, i, 0));
+      ah_logic_error_if(p == nullptr)
+        << "remove_pos returned nullptr";
       const Key ret_val = KEY(p);
 
       delete p;
@@ -705,12 +696,12 @@ namespace Aleph {
         @note Be very careful with altering the search order,
         since the reference is modifiable.
     */
-    Key & find(const Key & key) const
+    Key &find(const Key & key) const
     {
-      Node * node = static_cast<Node*>(tree.search(key));
+      Node *node = static_cast<Node *>(tree.search(key));
 
-      if (node == nullptr)
-        throw std::domain_error("key not found");
+      ah_domain_error_if(node == nullptr)
+        << "key not found";
 
       return node->get_key();
     }
@@ -729,20 +720,20 @@ namespace Aleph {
 
         @warning It only works if the tree handles ranges.
     */
-    std::pair<long, Key*> find_position(const Key & key) const
+    std::pair<long, Key *> find_position(const Key & key) const
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_find_position)
-        throw std::domain_error("find_position is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_find_position)
+        << "find_position is not supported by underlying tree";
 
       if (num_nodes == 0)
-        return std::pair<long, Key*> (0, nullptr);
+        return std::pair<long, Key *>(0, nullptr);
 
       auto p = call_find_position(tree, key, 0);
       if (p.second == nullptr)
-        return std::pair<long, Key*> (static_cast<long>(p.first), nullptr);
+        return std::pair<long, Key *>(static_cast<long>(p.first), nullptr);
 
-      return std::pair<long, Key*> (static_cast<long>(p.first),
-                                   &p.second->get_key());
+      return std::pair<long, Key *>(static_cast<long>(p.first),
+                                    &p.second->get_key());
     }
 
     /** Find an element in the set.
@@ -761,7 +752,7 @@ namespace Aleph {
     */
     Key * search(const Key & key) const
     {
-      Node * node = static_cast<Node*>(tree.search(key));
+      Node *node = static_cast<Node *>(tree.search(key));
 
       if (node == nullptr)
         return nullptr;
@@ -771,35 +762,35 @@ namespace Aleph {
 
     /// Returns the smallest key contained in the set according to the criterion
     /// comparison given.
-    const Key & min() const
+    const Key &min() const
     {
-      if (num_nodes == 0)
-        throw std::domain_error("set is empty");
+      ah_domain_error_if(num_nodes == 0)
+        << "set is empty";
 
       return find_min(tree.getRoot())->get_key();
     }
 
     /// \overload min
-    const Key & get_first() const { return min(); }
+    const Key &get_first() const { return min(); }
 
     /// Returns the largest key contained in the set according to the criteria
     /// comparison given.
-    const Key & max() const
+    const Key &max() const
     {
-      if (num_nodes == 0)
-        throw std::domain_error("set is empty");
+      ah_domain_error_if(num_nodes == 0)
+        << "set is empty";
 
       return find_max(tree.getRoot())->get_key();
     }
 
     /// \overload max
-    const Key & get_last() const { return max(); }
+    const Key &get_last() const { return max(); }
 
-    /// Sinónimo de max
-    const Key & get() const { return max(); }
+    /// Synonym of max
+    const Key &get() const { return max(); }
 
     /// Returns the cardinality of the set.
-    const size_t & size() const { return num_nodes; }
+    const size_t &size() const { return num_nodes; }
 
     /// returns true if the set is empty
     bool is_empty() const { return num_nodes == 0; }
@@ -813,15 +804,15 @@ namespace Aleph {
 
     Node * get_root_node() const { return tree.getRoot(); }
 
-    const Key & get_root() const
+    const Key &get_root() const
     {
-      if (num_nodes == 0)
-        throw std::domain_error("Tree is empty");
+      ah_domain_error_if(num_nodes == 0)
+        << "Tree is empty";
       return KEY(tree.getRoot());
     }
 
     /// Returns any element of the set
-    const Key & get_item() const { return get_root(); }
+    const Key &get_item() const { return get_root(); }
 
     /// Calculates and returns the height of the binary search tree.
     size_t height() const { return computeHeightRec(tree.getRoot()); }
@@ -829,15 +820,15 @@ namespace Aleph {
     /// Performs a prefix traversal over all nodes in the tree and
     /// invokes the <code>visitFct</code> operation on each visit
     template <class Op>
-    void for_each_in_preorder(void (*visitFct)(Node*, int, int))
+    void for_each_in_preorder(void (*visitFct)(Node *, int, int))
     {
-      Node * root = static_cast<Node*>(tree.getRoot());
+      Node *root = static_cast<Node *>(tree.getRoot());
       preOrderRec(root, visitFct);
     }
 
-    /** Returns the infix (ordered) position of the key key.
+    /** Returns the infix (ordered) position of the key.
 
-        position(key) searches the tree for the key key (which
+        position(key) searches the tree for the key (which
         takes time \f$O(\lg n)\f$) and returns the infix position
         of the node containing the key.
 
@@ -849,8 +840,8 @@ namespace Aleph {
     */
     long position(const Key & key) const
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_position)
-        throw std::domain_error("position is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_position)
+        << "position is not supported by underlying tree";
 
       auto p = call_position(tree, key, 0);
       return static_cast<long>(p.first);
@@ -861,50 +852,50 @@ namespace Aleph {
         @param[in] i desired position
         @return reference to the ith key inserted into the set
     */
-    Key & select(const size_t & i)
+    Key &select(const size_t & i)
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_select)
-        throw std::domain_error("select is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_select)
+        << "select is not supported by underlying tree";
 
-      if (i >= num_nodes)
-        throw std::out_of_range("select index out of range");
+      ah_out_of_range_error_if(i >= num_nodes)
+        << "select index out of range";
 
-      Node * p = call_select(tree, i, 0);
-      if (p == nullptr)
-        throw std::logic_error("select returned nullptr");
+      Node *p = call_select(tree, i, 0);
+      ah_logic_error_if(p == nullptr)
+        << "select returned nullptr";
       return p->get_key();
     }
 
-    const Key & select(const size_t & i) const
+    const Key &select(const size_t & i) const
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_select)
-        throw std::domain_error("select is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_select)
+        << "select is not supported by underlying tree";
 
-      if (i >= num_nodes)
-        throw std::out_of_range("select index out of range");
+      ah_out_of_range_error_if(i >= num_nodes)
+        << "select index out of range";
 
-      Node * p = call_select(tree, i, 0);
-      if (p == nullptr)
-        throw std::logic_error("select returned nullptr");
+      Node *p = call_select(tree, i, 0);
+      ah_logic_error_if(p == nullptr)
+        << "select returned nullptr";
       return p->get_key();
     }
 
-    Key & operator () (const size_t & i)
+    Key &operator ()(const size_t & i)
     {
       return select(i);
     }
 
-    const Key & operator [] (const Key & key) const
+    const Key &operator [](const Key & key) const
     {
       return find(key);
     }
 
-    const Key & operator [] (const Key & key)
+    const Key &operator [](const Key & key)
     {
       return *search_or_insert(key);
     }
 
-    Key & access (const size_t & i)
+    Key &access(const size_t & i)
     {
       return select(i);
     }
@@ -915,20 +906,21 @@ namespace Aleph {
     }
 
   private:
-
     template <class Key_Op>
     struct Node_Op
     {
       Key_Op & key_op;
 
-      Node_Op(Key_Op & __key_op) : key_op(__key_op) { /* empty */ }
+      Node_Op(Key_Op & __key_op) : key_op(__key_op)
+      { /* empty */
+      }
 
       Node_Op(Key_Op && __key_op) : key_op(__key_op)
       {
         /* empty */
       }
 
-      void operator () (Node * root)
+      void operator ()(Node *root)
       {
         assert(root != nullptr);
         key_op(KEY(root));
@@ -936,7 +928,6 @@ namespace Aleph {
     };
 
   public:
-
     /** Performs a prefix traversal over all keys in the set and
         invokes operation Op.
 
@@ -964,11 +955,11 @@ namespace Aleph {
     template <class Key_Op>
     void for_each_preorder(Key_Op & key_op) const
     {
-      Node * root = (Node *) tree.getRoot();
+      Node *root = static_cast<Node *>(tree.getRoot());
 
-      Node_Op <Key_Op> node_op(const_cast<Key_Op&>(key_op));
+      Node_Op<Key_Op> node_op(const_cast<Key_Op &>(key_op));
 
-      For_Each_Preorder<Node> () (root, node_op);
+      For_Each_Preorder<Node>()(root, node_op);
     }
 
     /// \overload for_each_preorder
@@ -1005,11 +996,11 @@ namespace Aleph {
     template <class Key_Op>
     void for_each_inorder(Key_Op & key_op) const
     {
-      Node * root = (Node *) tree.getRoot();
+      Node *root = static_cast<Node *>(tree.getRoot());
 
-      Node_Op <Key_Op> node_op(const_cast<Key_Op&>(key_op));
+      Node_Op<Key_Op> node_op(const_cast<Key_Op &>(key_op));
 
-      For_Each_In_Order<Node> () (root, node_op);
+      For_Each_In_Order<Node>()(root, node_op);
     }
 
     /// \overload for_each_inorder
@@ -1046,11 +1037,11 @@ namespace Aleph {
     template <class Key_Op>
     void for_each_postorder(Key_Op & key_op) const
     {
-      Node * root = static_cast<Node *>(tree.getRoot());
+      Node *root = static_cast<Node *>(tree.getRoot());
 
-      Node_Op <Key_Op> node_op(const_cast<Key_Op&>(key_op));
+      Node_Op<Key_Op> node_op(const_cast<Key_Op &>(key_op));
 
-      For_Each_Postorder<Node> () (root, node_op);
+      For_Each_Postorder<Node>()(root, node_op);
     }
 
     /// \overload for_each_postorder
@@ -1072,7 +1063,7 @@ namespace Aleph {
         @return this
         @ingroup Arboles
     */
-    DynSetTree & join(DynSetTree & t, DynSetTree & dup)
+    DynSetTree &join(DynSetTree & t, DynSetTree & dup)
     {
       tree.join(t.tree, dup.tree);
       t.tree.getRoot() = Node::NullPtr;
@@ -1083,7 +1074,7 @@ namespace Aleph {
     }
 
     /// \overload join
-    DynSetTree & join(DynSetTree & t, DynSetTree && dup = DynSetTree())
+    DynSetTree &join(DynSetTree & t, DynSetTree && dup = DynSetTree())
     {
       return join(t, dup);
     }
@@ -1100,7 +1091,7 @@ namespace Aleph {
         @return this
         @ingroup Arboles
     */
-    DynSetTree & join_dup(DynSetTree & t)
+    DynSetTree &join_dup(DynSetTree & t)
     {
       tree.join_dup(t.tree);
       t.num_nodes = 0;
@@ -1151,11 +1142,11 @@ namespace Aleph {
     */
     void split_pos(const size_t pos, DynSetTree & l, DynSetTree & r)
     {
-      if constexpr (not Has_Range_Methods<Tree_Type>::has_split_pos)
-        throw std::domain_error("split_pos is not supported by underlying tree");
+      ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_split_pos)
+        << "split_pos is not supported by underlying tree";
 
-      if (pos >= num_nodes)
-        throw std::out_of_range("split_pos position out of range");
+      ah_out_of_range_error_if(pos >= num_nodes)
+        << "split_pos position out of range";
 
       // Underlying split_pos splits at [0, pos) and [pos, N)
       // But we want [0, pos] and (pos, N), so we split at pos+1
@@ -1193,18 +1184,20 @@ namespace Aleph {
 
       using Set_Type = DynSetTree;
 
-      Iterator(const DynSetTree & tree) : Base(tree.tree) { /* empty */ }
+      Iterator(const DynSetTree & tree) : Base(tree.tree)
+      { /* empty */
+      }
 
-      const Key & get_curr_ne() const noexcept
+      const Key &get_curr_ne() const noexcept
       {
         return Base::get_curr_ne()->get_key();
       }
 
-      Key & get_curr_ne() noexcept { return Base::get_curr_ne()->get_key(); }
+      Key &get_curr_ne() noexcept { return Base::get_curr_ne()->get_key(); }
 
-      const Key & get_curr() const { return Base::get_curr()->get_key(); }
+      const Key &get_curr() const { return Base::get_curr()->get_key(); }
 
-      Key & get_curr() { return Base::get_curr()->get_key(); }
+      Key &get_curr() { return Base::get_curr()->get_key(); }
     };
 
     /** Traverse all the set of pairs and for each key executes the operation op.
@@ -1224,10 +1217,10 @@ namespace Aleph {
     template <class Operation>
     bool traverse(Operation & op)
     {
-      return Aleph::traverse(tree.getRoot(), [&op] (Node * p)
-                                             {
-                                               return op(p->get_key());
-                                             });
+      return Aleph::traverse(tree.getRoot(), [&op](Node *p)
+                               {
+                                 return op(p->get_key());
+                               });
     }
 
     template <class Operation>
@@ -1239,10 +1232,10 @@ namespace Aleph {
     template <class Operation>
     bool traverse(Operation & op) const
     {
-      return Aleph::traverse(tree.getRoot(), [&op] (Node * p)
-                                             {
-                                               return op(p->get_key());
-                                             });
+      return Aleph::traverse(tree.getRoot(), [&op](Node *p)
+                               {
+                                 return op(p->get_key());
+                               });
     }
 
     template <class Operation>
@@ -1272,7 +1265,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree BinTree<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetBinTree : public DynSetTree<Key, BinTree, Compare>
   {
   public:
@@ -1287,7 +1280,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Avl_Tree<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetAvlTree : public DynSetTree<Key, Avl_Tree, Compare>
   {
   public:
@@ -1302,7 +1295,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Splay_Tree<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetSplayTree : public DynSetTree<Key, Splay_Tree, Compare>
   {
   public:
@@ -1317,7 +1310,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Rand_Tree<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetRandTree : public DynSetTree<Key, Rand_Tree, Compare>
   {
   public:
@@ -1328,11 +1321,13 @@ namespace Aleph {
     {
     public:
       Iterator() : DynSetTree<Key, Rand_Tree, Compare>::Iterator()
-      { /* empty */ }
+      { /* empty */
+      }
 
       Iterator(DynSetTree<Key, Rand_Tree, Compare> & tree)
         : DynSetTree<Key, Rand_Tree, Compare>::Iterator(tree)
-      { /* empty */ }
+      { /* empty */
+      }
     };
   };
 
@@ -1343,7 +1338,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Treap<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTreap : public DynSetTree<Key, Treap, Compare>
   {
   public:
@@ -1357,7 +1352,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Treap_Rk<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTreapRk : public DynSetTree<Key, Treap_Rk, Compare>
   {
   public:
@@ -1373,7 +1368,7 @@ namespace Aleph {
       @see DynSetTree DynMapTree Rb_Tree<Key>
       @ingroup Arboles
   */
-  template  <typename Key, class Compare = Aleph::less<Key>>
+  template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetRbTree : public DynSetTree<Key, Rb_Tree, Compare>
   {
   public:
@@ -1390,7 +1385,6 @@ namespace Aleph {
       ret.insert(op(it.get_curr()));
     return ret;
   }
-
 } // end namespace Aleph
 
 # endif /* TPL_DYNSETTREE_H */

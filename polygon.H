@@ -29,6 +29,7 @@
 
 # include <dlink.H>
 # include <point.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -58,8 +59,8 @@ public:
   {
     assert(not this->is_empty());
 
-    if (this->is_unitarian())
-      throw std::domain_error("There is an only vertex");
+    ah_domain_error_if(this->is_unitarian())
+      << "There is an only vertex";
 
     return * dlink_to_vertex(this->get_prev());
   }
@@ -68,8 +69,8 @@ public:
   {
     assert(not this->is_empty());
 
-    if (this->is_unitarian())
-      throw std::domain_error("There is an only vertex");
+    ah_domain_error_if(this->is_unitarian())
+      << "There is an only vertex";
 
     return * dlink_to_vertex(this->get_next());
   }
@@ -227,8 +228,8 @@ public:
   {
     Vertex_Iterator(const Polygon & poly) : Dlink::Iterator(poly.vertex_list) 
     {
-      if (poly.vertex_list.is_empty())
-	throw std::domain_error("Polygon has not any vertex");
+      ah_domain_error_if(poly.vertex_list.is_empty())
+	<< "Polygon has not any vertex";
     }
 
     Vertex & get_current_vertex()
@@ -246,8 +247,8 @@ public:
     Segment_Iterator(const Polygon & __poly) 
       : Dlink::Iterator(__poly.vertex_list), poly(const_cast<Polygon&>(__poly))
     {
-      if (poly.vertex_list.is_unitarian_or_empty())
-	throw std::domain_error("Polygon has less than two vertex");
+      ah_domain_error_if(poly.vertex_list.is_unitarian_or_empty())
+	<< "Polygon has less than two vertex";
     }
 
     bool has_curr() const
@@ -260,9 +261,9 @@ public:
 
     Segment get_current_segment() const 
     {
-      if (not poly.is_closed() and this->is_in_last())
-	throw std::domain_error("Segment iterator is in the last point and "
-				"it is not closed");
+      ah_domain_error_if(not poly.is_closed() and this->is_in_last())
+	<< "Segment iterator is in the last point and "
+	<< "it is not closed";
       
       Vertex * src = Vertex::dlink_to_vertex(this->get_curr());
 
@@ -285,16 +286,16 @@ public:
   
   const Vertex & get_first_vertex() const
   {
-    if (vertex_list.is_empty())
-      throw std::domain_error("Polygon has not any vertex");
+    ah_domain_error_if(vertex_list.is_empty())
+      << "Polygon has not any vertex";
 
     return * Vertex::dlink_to_vertex(vertex_list.get_next());
   }
 
   const Vertex & get_last_vertex() const
   {
-    if (vertex_list.is_empty())
-      throw std::domain_error("Polygon has not any vertex");
+    ah_domain_error_if(vertex_list.is_empty())
+      << "Polygon has not any vertex";
 
     return * Vertex::dlink_to_vertex(vertex_list.get_prev());
   }
@@ -319,8 +320,8 @@ public:
 
   Segment get_first_segment() 
   {
-    if (vertex_list.is_unitarian_or_empty())
-      throw std::domain_error("polygon has less than two vertex");
+    ah_domain_error_if(vertex_list.is_unitarian_or_empty())
+      << "polygon has less than two vertex";
 
     const Vertex & first_vertex = get_first_vertex();
 
@@ -329,8 +330,8 @@ public:
 
   Segment get_last_segment() 
   {
-    if (vertex_list.is_unitarian_or_empty())
-      throw std::domain_error("polygon has less than two vertex");
+    ah_domain_error_if(vertex_list.is_unitarian_or_empty())
+      << "polygon has less than two vertex";
 
     const Vertex & last_vertex = get_last_vertex();
 
@@ -353,8 +354,8 @@ public:
 
   void add_vertex(const Point & point)
   {
-    if (__is_closed)
-      throw std::domain_error("Polygon is already closed");
+    ah_domain_error_if(__is_closed)
+      << "Polygon is already closed";
 
         // verificar si el nuevo punto es colineal con el último segmento
     if (num_vertex > 1)
@@ -362,9 +363,9 @@ public:
 	Segment last_sg = get_last_segment();
 	if (point.is_colinear_with(last_sg))
 	  {
-	    if (point.is_inside(last_sg))
-	      throw std::domain_error("new vertex is inside of last polygon's "
-				      "segment");
+	    ah_domain_error_if(point.is_inside(last_sg))
+	      << "new vertex is inside of last polygon's "
+	      << "segment";
 
 	        // punto colineal ==> lo substituimos el último por este nuevo
 	    Vertex & last_vertex = const_cast<Vertex&>(get_last_vertex());
@@ -394,8 +395,8 @@ public:
 	    if (curr_side == get_last_segment())
 	      break;
 	
-	    if (curr_side.intersects_with(new_side))
-	      throw std::domain_error("new side intersects");
+	    ah_domain_error_if(curr_side.intersects_with(new_side))
+	      << "new side intersects";
 	  }
       }
 
@@ -414,8 +415,8 @@ public:
   
   void remove_vertex(const Vertex & v)
   {
-    if (not vertex_belong_polygon(v))
-      throw std::domain_error("Vertex does not belong to polygon");
+    ah_domain_error_if(not vertex_belong_polygon(v))
+      << "Vertex does not belong to polygon";
 
     // TODO: Resolver casos de colinealidad
     
@@ -426,8 +427,8 @@ public:
 
   void close()
   {
-    if (__is_closed)
-      throw std::domain_error("Polygon is already closed");
+    ah_domain_error_if(__is_closed)
+      << "Polygon is already closed";
 
     if (num_vertex >= 4)
       {
@@ -446,8 +447,8 @@ public:
 	    if (curr_side == get_last_segment())
 	      break;
 	
-	    if (curr_side.intersects_with(last_side))
-	      throw std::domain_error("closing causes an intersection");
+	    ah_domain_error_if(curr_side.intersects_with(last_side))
+	      << "closing causes an intersection";
 	  }
       }
     
@@ -456,8 +457,8 @@ public:
 
   bool contains_to(const Point & p)
   {
-    if (not __is_closed)
-      throw std::domain_error("Polygon is not closed");
+    ah_domain_error_if(not __is_closed)
+      << "Polygon is not closed";
 
     Segment_Iterator it(*this);
 
@@ -508,8 +509,8 @@ public:
 		  const double & ang = 0)
     : center(c), side_size(side_sz), num_vertex(n), angle(ang), beta(2*PI/n)
   {
-    if (n < 3)
-      throw std::domain_error("Polygon sides is less than 3");
+    ah_domain_error_if(n < 3)
+      << "Polygon sides is less than 3";
 
         // calcula radio usando ley de los senos con los angulos entre los
         // vértices (que son iguales) y el ángulo entre el lado y el radio
@@ -534,12 +535,8 @@ public:
   */
   const Point get_vertex(const size_t & i) const
   {
-    if (i >= num_vertex)
-      {
-	std::string msg = "vertex " + to_string(i) + " is greater than " +
-	  to_string(num_vertex);
-	throw std::out_of_range(msg);
-      }
+    ah_out_of_range_error_if(i >= num_vertex)
+      << "vertex " << to_string(i) << " is greater than " << to_string(num_vertex);
 
         // primer segmento es la vertical negativa desde el
         // centro. Punto inicial es es punto destino de este segmento
@@ -588,8 +585,8 @@ public:
 
     Vertex & get_current_vertex() 
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator has not current");
+      ah_overflow_error_if(not has_curr())
+	<< "Iterator has not current";
 
       vertex = poly.get_vertex(curr);
 
@@ -600,8 +597,8 @@ public:
 
     void next()
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator has not current");
+      ah_overflow_error_if(not has_curr())
+	<< "Iterator has not current";
       next_ne();
     }
 
@@ -609,8 +606,8 @@ public:
     {
       --curr;
 
-      if (not has_curr())
-	throw std::underflow_error("Iterator has not current");
+      ah_underflow_error_if(not has_curr())
+	<< "Iterator has not current";
     }
   };
 
@@ -634,8 +631,8 @@ public:
 
     const Segment get_current_segment() const
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator has not current");
+      ah_overflow_error_if(not has_curr())
+	<< "Iterator has not current";
 
       return Segment(poly.get_vertex(curr), 
 		     poly.get_vertex((curr + 1) % poly.size()));
@@ -645,8 +642,8 @@ public:
 
     void next()
     {
-      if (not has_curr())
-	throw std::overflow_error("Iterator has not current");
+      ah_overflow_error_if(not has_curr())
+	<< "Iterator has not current";
       next_ne();
     }
 
@@ -654,8 +651,8 @@ public:
     {
       --curr;
 
-      if (not has_curr())
-	throw std::underflow_error("Iterator has not current");
+      ah_underflow_error_if(not has_curr())
+	<< "Iterator has not current";
     }
   };
 

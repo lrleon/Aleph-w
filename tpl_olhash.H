@@ -278,26 +278,42 @@ namespace Aleph
 
     Bucket *allocate_bucket(const Key &key) noexcept
     {
-      assert(N < len);
-
+      Bucket * first_deleted = nullptr;
       size_t i = hash_fct(key) % len;
 
-      while (table[i].status == BUSY) // find a slot that is not busy
+      for (size_t c = 0; c < len; ++c)
         {
-          if (cmp(key, table[i].key))
-            return nullptr;
+          auto & b = table[i];
+          if (b.status == BUSY)
+            {
+              if (cmp(key, b.key))
+                return nullptr;
+            }
+          else if (b.status == DELETED)
+            {
+              if (first_deleted == nullptr)
+                first_deleted = &b;
+            }
+          else // EMPTY
+            {
+              Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
+              bucket->status = BUSY;
+              ++N;
+              return bucket;
+            }
 
           if (++i == len)
             i = 0;
         }
 
-      Bucket *bucket = &table[i];
+      if (first_deleted != nullptr)
+        {
+          first_deleted->status = BUSY;
+          ++N;
+          return first_deleted;
+        }
 
-      // i contains cell with DELETED or EMPTY ==> occupy it
-      bucket->status = BUSY;
-      N++;
-
-      return bucket;
+      return nullptr;
     }
 
     // Allocate a new bucket for storing key. It always returns a
@@ -306,25 +322,42 @@ namespace Aleph
     // otherwise, not allocation is done, and false is returned as second
     tuple<Bucket *, bool> hard_allocate_bucket(const Key &key) noexcept
     {
-      assert(N < len);
-
+      Bucket * first_deleted = nullptr;
       size_t i = hash_fct(key) % len;
-      while (table[i].status == BUSY) // find a slot that is not busy
+
+      for (size_t c = 0; c < len; ++c)
         {
-          if (cmp(key, table[i].key))
-            return make_tuple(&table[i], true);
+          auto & b = table[i];
+          if (b.status == BUSY)
+            {
+              if (cmp(key, b.key))
+                return make_tuple(&b, true);
+            }
+          else if (b.status == DELETED)
+            {
+              if (first_deleted == nullptr)
+                first_deleted = &b;
+            }
+          else // EMPTY
+            {
+              Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
+              bucket->status = BUSY;
+              ++N;
+              return make_tuple(bucket, false);
+            }
 
           if (++i == len)
             i = 0;
         }
 
-      Bucket *bucket = &table[i];
+      if (first_deleted != nullptr)
+        {
+          first_deleted->status = BUSY;
+          ++N;
+          return make_tuple(first_deleted, false);
+        }
 
-      // i contains cell with DELETED or EMPTY ==> occupy it
-      bucket->status = BUSY;
-      N++;
-
-      return make_tuple(bucket, false);
+      return make_tuple(static_cast<Bucket*>(nullptr), false);
     }
 
     /// Removes the record pointed to by record from the table. Obviously,

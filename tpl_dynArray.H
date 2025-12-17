@@ -14,6 +14,8 @@
 # include <ah-args-ctor.H>
 # include <htlist.H>
 # include <ah-dry.H>
+# include <ah-errors.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -57,7 +59,7 @@ namespace Aleph {
      --------------------------
 
      For lazy writing, that is to allocate the block just when it is
-     sure that this will be used, the operator `[]` is used. This
+     certain that this will be used, the operator `[]` is used. This
      operator is able to determine whether the i-th entry has been o
      not written. If for example a reading on a non allocated block is
      done, some such as:
@@ -98,7 +100,7 @@ namespace Aleph {
      then you could use the operator () for direct access.
 
      Access with () operator does not perform any check (bounds and
-     blocks and segement existence). This way is faster but unsure.
+     blocks and segment existence). This way is faster but unsure.
 
      () operator is an alias of `access(i)` method.
 
@@ -322,8 +324,7 @@ private:
   void allocate_dir()
   {
     dir = static_cast<T ***>(malloc(dir_size * sizeof(T **)));
-    if (dir == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_unless(dir != nullptr);
 
     fill_dir_to_null();
   }
@@ -338,8 +339,7 @@ private:
 
     const size_t new_dir_sz = two_raised(new_pow_dir);
     T *** new_dir = static_cast<T ***>(realloc(dir, new_dir_sz * sizeof(T **)));
-    if (new_dir == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_unless(new_dir != nullptr);
 
     dir = new_dir;
     for (size_t k = dir_size; k < new_dir_sz; ++k)
@@ -408,8 +408,7 @@ private:
 
   void ensure_not_empty(const char * context) const
   {
-    if (is_empty())
-      throw std::underflow_error(context);
+    ah_underflow_error_if(is_empty()) << context;
   }
 
   void release_all_segments_and_blocks() noexcept
@@ -515,8 +514,8 @@ private:
 
     operator T & ()
     {
-      if (block == nullptr)
-        throw std::invalid_argument("accessed entry not been still written");
+      ah_invalid_argument_if(block == nullptr)
+        << "accessed entry not been still written";
       return block[pos_in_block];
     }
 
@@ -591,8 +590,8 @@ private:
 
     Proxy & operator = (const Proxy & proxy)
     {
-      if (proxy.block == nullptr) // Can right operand be read?
-        throw std::domain_error("right entry has not been still written");
+      ah_domain_error_if(proxy.block == nullptr)
+        << "right entry has not been still written";
 
       if (&proxy == this)
         return *this;
@@ -717,8 +716,8 @@ public:
 		  "No move assign for T");
     assert(Max_Dim_Allowed > 0);
 
-    if (max_dim > Max_Dim_Allowed)
-      throw std::length_error ("Dimension too large");
+    ah_length_error_if(max_dim > Max_Dim_Allowed)
+      << "Dimension too large";
 
     allocate_dir();
   }
@@ -746,8 +745,8 @@ public:
 		  "No move assign for T");
     assert(Max_Dim_Allowed > 0);
 
-    if (max_dim > Max_Dim_Allowed)
-      throw std::length_error ("Dimension too large"); 
+    ah_length_error_if(max_dim > Max_Dim_Allowed)
+      << "Dimension too large"; 
 
     allocate_dir();
   }
@@ -893,7 +892,7 @@ public:
 
       /** Return `true` if the i-th entry is accessible.
 
-	  By accessible is understood that eitjer the entry has been
+	  By accessible is understood that either the entry has been
 	  previously written or the block than would contain it is
 	  already allocated,
           @param[in] i index to test
@@ -1008,8 +1007,7 @@ public:
        */
   void reserve(const size_t l, const size_t r)
   {
-    if (l > r)
-      throw std::domain_error("invalid range");
+    ah_domain_error_if(l > r) << "invalid range";
 
     if (r >= max_dim)
       resize_dir(r);
@@ -1123,7 +1121,7 @@ public:
           release_segment(dir[idx_seg]);
       }
 
-    current_dim = new_dim; // actualiza nueva dimensión
+    current_dim = new_dim; // Updates New Dimension
   }
 
     /** Cut the array to a new dimension; that is, it reduces the
@@ -1134,8 +1132,8 @@ public:
    */
   void cut(const size_t new_dim = 0)
   {
-    if (new_dim > current_dim)
-      throw std::length_error("new dimension greater that current dimension");
+    ah_length_error_if(new_dim > current_dim)
+      << "new dimension greater that current dimension";
     cut_ne(new_dim);
   }
 
@@ -1161,8 +1159,8 @@ public:
 
   Proxy operator [] (const size_t i) const
   {
-    if (i >= max_dim)
-      throw std::out_of_range ("index out of maximun range");
+    ah_out_of_range_error_if(i >= max_dim)
+      << "index out of maximum range";
 
     return Proxy (const_cast<DynArray<T>&>(*this), i);
   }
@@ -1335,8 +1333,8 @@ public:
     */
     T & get_curr() const
     {
-      if (curr_idx == array_ptr->size())
-        throw std::overflow_error("not current item in iterator");
+      ah_overflow_error_if(curr_idx == array_ptr->size())
+        << "not current item in iterator";
       return get_curr_ne();
     }
 
@@ -1351,8 +1349,8 @@ public:
     /// current is the last item
     void next()
     {
-      if (curr_idx == array_ptr->size())
-        throw std::overflow_error("not current item in iterator");
+      ah_overflow_error_if(curr_idx == array_ptr->size())
+        << "not current item in iterator";
       next_ne();
     }
 
@@ -1364,8 +1362,8 @@ public:
     /// current is the first item
     void prev()
     {
-      if (curr_idx == -1)
-        throw std::underflow_error("not current item in iterator");
+      ah_underflow_error_if(curr_idx == -1)
+        << "not current item in iterator";
       prev_ne();
     }
 
@@ -1393,14 +1391,14 @@ public:
 
   Iterator get_it(size_t pos)
   {
-    if (pos >= size())
-      throw std::out_of_range("DynArray::get_it(pos): pos >= size()");
+    ah_out_of_range_error_if(pos >= size())
+      << "DynArray::get_it(pos): pos >= size()";
     Iterator it(*this);
     it.set_pos(static_cast<long>(pos));
     return it;
   }
 
-  Iterator get_it(size_t pos) const
+  Iterator get_it(const size_t pos) const
   {
     return const_cast<DynArray*>(this)->get_it(pos);
   }

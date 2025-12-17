@@ -29,6 +29,7 @@
 
 # include <tpl_dynDlist.H>
 # include <tpl_net.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -84,16 +85,16 @@ void compute_bipartite(const GT &                      g,
 	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
  	    typename GT::Arc * a = it.get_curr();
- 	    if (color<GT>(a) == Bp_Red)
- 	      throw std::domain_error("Graph is not bipartite");
- 	    else if (color<GT>(a) == Bp_Blue)
+ 	    ah_domain_error_if(color<GT>(a) == Bp_Red)
+ 	      << "Graph is not bipartite";
+ 	    if (color<GT>(a) == Bp_Blue)
  	      continue;
 
- 	    color<GT>(a) = Bp_Red; 
+ 	    color<GT>(a) = Bp_Red;
 	    typename GT::Node * q = it.get_tgt_node();
-	    if (color<GT>(q) == Bp_Red)
-	      throw std::domain_error("Graph is not bipartite");	      
-	    else if (color<GT>(q) == Bp_Blue)
+	    ah_domain_error_if(color<GT>(q) == Bp_Red)
+	      << "Graph is not bipartite";
+	    if (color<GT>(q) == Bp_Blue)
 	      continue;
 
 	    color<GT>(q) = Bp_Blue;
@@ -106,17 +107,17 @@ void compute_bipartite(const GT &                      g,
 	for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
 	  {
  	    typename GT::Arc * a = it.get_curr();
- 	    if (color<GT>(a) == Bp_Blue)
- 	      throw std::domain_error("Graph is not bipartite");
- 	    else if (color<GT>(a) == Bp_Red)
+ 	    ah_domain_error_if(color<GT>(a) == Bp_Blue)
+ 	      << "Graph is not bipartite";
+ 	    if (color<GT>(a) == Bp_Red)
  	      continue;
 
  	    color<GT>(a) = Bp_Blue;
 
 	    typename GT::Node * q = it.get_tgt_node();
-	    if (color<GT>(q) == Bp_Blue)
-	      throw std::domain_error("Graph is not bipartite");
-	    else if (color<GT>(q) == Bp_Red)
+	    ah_domain_error_if(color<GT>(q) == Bp_Blue)
+	      << "Graph is not bipartite";
+	    if (color<GT>(q) == Bp_Red)
 	      continue;
 
 	    color<GT>(q) = Bp_Red;

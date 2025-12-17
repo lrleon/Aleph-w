@@ -31,6 +31,7 @@
 # include <initializer_list>
 # include <tpl_dynSetHash.H>
 # include <tpl_dynMapOhash.H>
+# include <ah-errors.H>
 
 namespace Aleph 
 {
@@ -76,8 +77,8 @@ struct HashMap : public HashMapTable<Key, Data, Cmp>
 
   void add (std::initializer_list<Key> lk, std::initializer_list<Data> ld)
   {
-    if (lk.size() != ld.size())
-      throw std::range_error("size mismatch between domain and range");
+    ah_range_error_if(lk.size() != ld.size())
+      << "size mismatch between domain and range";
 
     auto itk = lk.begin();
     auto itd = ld.begin();
@@ -96,13 +97,13 @@ struct HashMap : public HashMapTable<Key, Data, Cmp>
   template <template <typename T> class Container = DynList>
   HashMap(const Container<Key> & c, std::initializer_list<Data> ld) : Base()
   {
-    if (c.size() != ld.size())
-      throw std::range_error("size mismatch between domain and range");
+    ah_range_error_if(c.size() != ld.size())
+      << "size mismatch between domain and range";
 
     auto itd = ld.begin();
     c.for_each(/* Lambda */ [this, &itd] (const Key & key)
 	       {
-		 set_entry(key, *itd++); 
+		 set_entry(key, *itd++);
 	       });
   }
 

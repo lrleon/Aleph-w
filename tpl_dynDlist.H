@@ -34,6 +34,7 @@
 # include <ah-iterator.H>
 # include <tpl_dnode.H>
 # include <stdexcept>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -74,7 +75,7 @@ public:
   /// Return the number of elements (constant time)
   const size_t & size() const noexcept { return num_elem; }
 
-  DynDlist() { /* Empty */ }
+  DynDlist() = default;
 
   // using CtorBase = SpecialCtors<DynDlist<T>, T>;
   // using CtorBase::CtorBase;
@@ -232,16 +233,16 @@ public:
       /// Return a modifiable reference to first item in the list
   T & get_first() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return get_first_ne();
   }
 
     /// Return a modifiable reference to last item in the list
   T & get_last() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return get_last_ne();
   }
 
@@ -280,8 +281,8 @@ public:
     */
   T remove_first()
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return remove_first_ne();
   }
 
@@ -292,8 +293,8 @@ public:
   */
   T remove_last()
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return remove_last_ne();
   }
 
@@ -402,8 +403,8 @@ public:
      */
   void split_list(DynDlist & l, DynDlist & r)
   {
-    if ((not l.is_empty()) or (not r.is_empty()))
-      throw std::domain_error("lists are not empty");
+    ah_domain_error_if((not l.is_empty()) or (not r.is_empty()))
+      << "lists are not empty";
     split_list_ne(l, r);
   }
 
@@ -520,8 +521,8 @@ public:
        */
     void insert(const T & item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->insert(new Dnode<T>(item));
       ++list_ptr->num_elem;
@@ -539,8 +540,8 @@ public:
     */
     void insert(T && item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->
         insert(new Dnode<T>(std::forward<T>(item)));
@@ -558,8 +559,8 @@ public:
     */
     void append(const T & item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->append(new Dnode<T>(item));
       ++list_ptr->num_elem;
@@ -577,8 +578,8 @@ public:
     */
     void append(T && item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->
         append(new Dnode<T>(std::forward<T>(item)));
@@ -602,8 +603,8 @@ public:
     */
     void insert_list(DynDlist & list)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->insert_list(&list);
       list_ptr->num_elem += list.num_elem;
@@ -629,8 +630,8 @@ public:
     */
     void append_list(DynDlist & list)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->append_list(&list);
       list_ptr->num_elem += list.num_elem;
@@ -647,8 +648,8 @@ public:
     */
     T del()
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T> * ptr = Dnode<T>::Iterator::get_curr();
       T ret_val      = ptr->get_data();
@@ -729,14 +730,14 @@ public:
 
   /// Return a modifiable reference to the i-th item of the list.
   /// @throw out_of_range if `n` is greater than or equal to the list size.
-  T & operator [] (size_t n) const
+  T & operator [] (const size_t n) const
   {
     auto it = this->get_it();
     for (size_t i = 0; i < n && it.has_curr(); ++i)
       it.next_ne();
 
-    if (not it.has_curr())
-      throw std::out_of_range("DynDlist index out of range");
+    ah_out_of_range_error_if(not it.has_curr())
+      << "DynDlist index out of range";
 
     return it.get_curr();
   }

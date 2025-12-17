@@ -29,6 +29,7 @@
 # define TPL_DYNLHASH_H
 
 # include <tpl_lhash.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -107,8 +108,8 @@ private:
 
     operator const Record & () const
     {
-      if (bucket == nullptr)
-        throw std::invalid_argument("access to unexisting entry");
+      ah_invalid_argument_if(bucket == nullptr)
+        << "access to unexisting entry";
 
       return bucket->record;
     }
@@ -128,8 +129,8 @@ private:
 
     DLProxy& operator = (const DLProxy& proxy)
     {
-      if (proxy.bucket == nullptr)
-        throw std::invalid_argument("access to unexisting entry");
+      ah_invalid_argument_if(proxy.bucket == nullptr)
+        << "access to unexisting entry";
 
       if (bucket != nullptr)
         {

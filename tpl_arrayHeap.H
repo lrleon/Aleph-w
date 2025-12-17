@@ -42,6 +42,7 @@
 # include <ah-args-ctor.H>
 # include <ahDry.H>
 # include <ah-dry.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -68,10 +69,10 @@ namespace Aleph
   inline
   void sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
   {
-    size_t i = l, c;
+    size_t i = l;
     while (true)
       {
-        c = l_index(i); // left child index (c = i / 2)
+        size_t c = l_index(i); // left child index (c = i / 2)
         if (c > r) // does it have a left child?
           return; // no ==> stop
 
@@ -202,10 +203,10 @@ namespace Aleph
     }
 
   public:
-    void allocate_storage(size_t new_dim)
+    void allocate_storage(const size_t new_dim)
     {
-      if (new_dim == 0)
-        throw std::invalid_argument("Heap capacity must be positive");
+      ah_invalid_argument_if(new_dim == 0)
+        << "Heap capacity must be positive";
 
       T * ptr = new T[new_dim + 1];
       if (array_allocated)
@@ -243,8 +244,8 @@ namespace Aleph
     ArrayHeap(T *ptr, const size_t & d, Compare && __cmp = Compare())
       : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
     {
-      if (ptr == nullptr || d == 0)
-        throw std::invalid_argument("ArrayHeap requires non-null buffer");
+      ah_invalid_argument_if(ptr == nullptr || d == 0)
+        << "ArrayHeap requires non-null buffer";
     }
 
     ArrayHeap(const ArrayHeap & h)
@@ -295,8 +296,8 @@ namespace Aleph
     /// Return the smallest element in the heap.
     T & top()
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0)
+        << "Heap is empty";
 
       return array[1];
     }
@@ -304,8 +305,8 @@ namespace Aleph
     /// Return the smallest element in the heap (const overload).
     const T & top() const
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0)
+        << "Heap is empty";
 
       return array[1];
     }
@@ -332,15 +333,15 @@ namespace Aleph
     */
     T & insert(const T & key)
     {
-      if (num_items >= dim)
-        throw std::overflow_error("Heap out of capacity");
+      ah_overflow_error_if(num_items >= dim)
+        << "Heap out of capacity";
       return insert_ne(key);
     }
 
     T & insert(T && key)
     {
-      if (num_items >= dim)
-        throw std::overflow_error("Heap out of capacity");
+      ah_overflow_error_if(num_items >= dim)
+        << "Heap out of capacity";
       return insert_ne(std::move(key));
     }
 
@@ -362,8 +363,8 @@ namespace Aleph
     */
     T getMin()
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0)
+        << "Heap is empty";
 
       T ret_val = array[1];
       array[1] = array[num_items--];
@@ -408,23 +409,23 @@ namespace Aleph
     */
     void update(T & data)
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0)
+        << "Heap is empty";
 
       assert(&data >= array + 1 and &data <= array + num_items);
 
-      const size_t i = static_cast<size_t>(&data - array);
+      const auto i = static_cast<size_t>(&data - array);
       sift_down_up(array, 1, i, num_items, cmp);
     }
 
     void remove(T & item)
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0)
+        << "Heap is empty";
 
       assert(&item >= array + 1 and &item <= array + num_items);
 
-      const size_t idx = static_cast<size_t>(&item - array);
+      const auto idx = static_cast<size_t>(&item - array);
       if (idx == num_items)
         {
           --num_items;
@@ -456,7 +457,7 @@ namespace Aleph
     };
 
   private:
-    // super fast array traversal
+    // superfast array traversal
     template <class Operation>
     bool __traverse(Operation & operation)
     {

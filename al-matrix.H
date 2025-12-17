@@ -28,6 +28,7 @@
 # define AH_MATRIX_H
 
 # include <al-vector.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -69,8 +70,8 @@ namespace Aleph
 
     void set_epsilon(const NumType & e)
     {
-      if (e < 0)
-        throw std::domain_error("epsilon must be greater or equal to zero");
+      ah_domain_error_if(e < 0)
+        << "epsilon must be greater or equal to zero";
       epsilon = e;
     }
 
@@ -95,16 +96,16 @@ namespace Aleph
            const NumType & e = default_epsilon)
       : Matrix(rdomain, cdomain, e)
     {
-      if (l.size() != rdomain_ptr->size())
-        throw std::range_error("mismatch with number of rows");
+      ah_range_error_if(l.size() != rdomain_ptr->size())
+        << "mismatch with number of rows";
 
       auto itr = l.begin();
       const DynList<Tcol> clist = sort(cdomain_ptr->keys());
       sort(rdomain_ptr->keys()).
         for_each([this, &itr, &clist] (const Trow & row)
                  {
-                   if (itr->size() != cdomain_ptr->size())
-                     throw std::range_error("mismatch with number of columns");
+                   ah_range_error_if(itr->size() != cdomain_ptr->size())
+                     << "mismatch with number of columns";
                    auto itc = itr->begin();
                    clist.for_each([this, &itc, &row] (const Tcol & col)
                                   {
@@ -114,7 +115,7 @@ namespace Aleph
 
                                     entries.insert(RCPair(row, col), val);
                                   });
-                   itr++;
+                   ++itr;
                  });
     }
 
@@ -123,8 +124,8 @@ namespace Aleph
            const NumType & e = default_epsilon)
       : Matrix(rdomain, cdomain, e)
     {
-      if (l.size() != rdomain_ptr->size())
-        throw std::range_error("mismatch with number of rows");
+      ah_range_error_if(l.size() != rdomain_ptr->size())
+        << "mismatch with number of rows";
 
       for (auto it = zip_it(rdomain.keys(), l); it.has_curr(); it.next())
         {
@@ -256,8 +257,8 @@ namespace Aleph
 
     DynList<NumType> get_row_as_list(const Trow & row) const
     {
-      if (not rdomain_ptr->has(row))
-        throw std::domain_error("row is not inside the row domain");
+      ah_domain_error_if(not rdomain_ptr->has(row))
+        << "row is not inside the row domain";
       return col_domain_list().
         template maps<NumType>([this, &row] (const Tcol & col)
                                { return get_entry(row, col); });
@@ -265,8 +266,8 @@ namespace Aleph
 
     DynList<NumType> get_col_as_list(const Tcol & col) const
     {
-      if (not cdomain_ptr->has(col))
-        throw std::domain_error("col is not inside the column domain");
+      ah_domain_error_if(not cdomain_ptr->has(col))
+        << "col is not inside the column domain";
       return row_domain_list().template maps<NumType>
         ([this, &col] (const Trow & row) { return get_entry(row, col); });
     }
@@ -315,8 +316,8 @@ namespace Aleph
     /// Given a row, build a vector corresponding to the row
     Vector<Tcol, NumType> get_row_vector(const Trow & row) const
     {
-      if (not rdomain_ptr->has(row))
-        throw std::domain_error("get_row_vector(): invalid row");
+      ah_domain_error_if(not rdomain_ptr->has(row))
+        << "get_row_vector(): invalid row";
       Vector<Tcol, NumType> ret_val(*cdomain_ptr);
       cdomain_ptr->for_each([&] (const Tcol & col)
                             {
@@ -330,8 +331,8 @@ namespace Aleph
     /// Given a column, build a vector corresponding to the column
     Vector<Trow, NumType> get_col_vector(const Tcol & col) const
     {
-      if (not cdomain_ptr->has(col))
-        throw std::domain_error("get_col_vector(): invalid col");
+      ah_domain_error_if(not cdomain_ptr->has(col))
+        << "get_col_vector(): invalid col";
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       rdomain_ptr->for_each([&] (const Trow & row)
                             {
@@ -353,9 +354,9 @@ namespace Aleph
     Vector<Trow, NumType>
     mult_matrix_vector_linear_comb(const Vector<Tcol, NumType> & vec) const
     {
-      if (&vec.get_domain() != &get_col_domain())
-        throw std::domain_error("mult_matrix_vector_linear_comb: "
-                                "domain mismatch");
+      ah_domain_error_if(&vec.get_domain() != &get_col_domain())
+        << "mult_matrix_vector_linear_comb: "
+        << "domain mismatch";
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       vec.for_each([this, &ret_val] (const std::pair<Tcol, NumType> & p)
                    {
@@ -369,8 +370,8 @@ namespace Aleph
     Vector<Trow, NumType>
     mult_matrix_vector_sparse(const Vector<Tcol, NumType> & vec) const
     {
-      if (&vec.get_domain() != &get_col_domain())
-        throw std::domain_error("mult_matrix_vector_sparse: domain mismatch");
+      ah_domain_error_if(&vec.get_domain() != &get_col_domain())
+        << "mult_matrix_vector_sparse: domain mismatch";
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       entries.for_each([&ret_val, &vec] (const Pair & p)
                        {
@@ -397,9 +398,9 @@ namespace Aleph
     Vector<Tcol, NumType>
     mult_vector_matrix_linear_comb(const Vector<Trow, NumType> & vec) const
     {
-      if (&vec.get_domain() != &get_row_domain())
-        throw std::domain_error("mult_vector_matrix_linear_comb: "
-                                "domain mismatch");
+      ah_domain_error_if(&vec.get_domain() != &get_row_domain())
+        << "mult_vector_matrix_linear_comb: "
+        << "domain mismatch";
       Vector<Tcol, NumType> ret_val(*cdomain_ptr);
       vec.for_each([this, &ret_val] (const std::pair<Trow, NumType> & p)
                    {
@@ -413,13 +414,13 @@ namespace Aleph
     Vector<Trow, NumType>
     mult_matrix_vector_dot_product(const Vector<Tcol, NumType> & vec) const
     {
-      if (&vec.get_domain() != &get_col_domain())
-        throw std::domain_error("mult_matrix_vector_dot_product: "
-                                "domain mismatch");
+      ah_domain_error_if(&vec.get_domain() != &get_col_domain())
+        << "mult_matrix_vector_dot_product: "
+        << "domain mismatch";
       Vector<Trow, NumType> ret_val(*rdomain_ptr);
       rdomain_ptr->for_each([&] (const Trow & row)
                             {
-                              ret_val.set_entry(row, get_row_vector(row)*vec);
+                              ret_val.set_entry(row, vec.dot(get_row_vector(row)));
                             });
       return ret_val;
     }
@@ -427,13 +428,13 @@ namespace Aleph
     Vector<Tcol, NumType>
     mult_vector_matrix_dot_product(const Vector<Trow, NumType> & vec) const
     {
-      if (&vec.get_domain() != &get_row_domain())
-        throw std::domain_error("mult_vector_matrix_dot_product: "
-                                "domain mismatch");
+      ah_domain_error_if(&vec.get_domain() != &get_row_domain())
+        << "mult_vector_matrix_dot_product: "
+        << "domain mismatch";
       Vector<Tcol, NumType> ret_val(*cdomain_ptr);
       cdomain_ptr->for_each([&] (const Tcol & col)
                             {
-                              ret_val.set_entry(col, get_col_vector(col)*vec);
+                              ret_val.set_entry(col, vec.dot(get_col_vector(col)));
                             });
       return ret_val;
     }
@@ -450,18 +451,18 @@ namespace Aleph
     void validate_domains_for_mult(const Matrix<T2row, T2col, NumType> & m)
       const
     {
-      if (cdomain_ptr->size() != m.rdomain_ptr->size())
-        throw std::domain_error("AxB: Col domain size different from "
-                                "row domain");
+      ah_domain_error_if(cdomain_ptr->size() != m.rdomain_ptr->size())
+        << "AxB: Col domain size different from "
+        << "row domain";
     }
 
   public:
 
-    /// set the row row with the values of vector vec
+    /// set the row with the values of vector vec
     Matrix & set_vector_as_row(const Trow & row, const Vector<Tcol> & vec)
     {
-      if (&vec.get_domain() != cdomain_ptr)
-        throw std::domain_error("set_vector_as_row: domain vec mismatch");
+      ah_domain_error_if(&vec.get_domain() != cdomain_ptr)
+        << "set_vector_as_row: domain vec mismatch";
       vec.for_each([this, &row] (const std::pair<Tcol, NumType> & p)
                    {
                      const Tcol & col = p.first;
@@ -474,8 +475,8 @@ namespace Aleph
     /// set the column col with the values of vector vec
     Matrix & set_vector_as_col(const Tcol & col, const Vector<Trow> & vec)
     {
-      if (&vec.get_domain() != rdomain_ptr)
-        throw std::domain_error("set_vector_as_col: domain vec mismatch");
+      ah_domain_error_if(&vec.get_domain() != rdomain_ptr)
+        << "set_vector_as_col: domain vec mismatch";
       vec.for_each([this, &col] (const std::pair<Trow, NumType> & p)
                    {
                      const Trow & row = p.first;
@@ -500,8 +501,8 @@ namespace Aleph
 
     Matrix & operator += (const Matrix & m)
     {
-      if (rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
-        throw std::domain_error("Matrix addtion domain mismatch");
+      ah_domain_error_if(rdomain_ptr != m.rdomain_ptr or cdomain_ptr != m.cdomain_ptr)
+        << "Matrix addition domain mismatch";
       m.entries.for_each([this] (const Pair & p)
                          {
                            const Trow & row = p.first.first;
@@ -660,8 +661,8 @@ namespace Aleph
 
     bool equal_to(const Matrix & m) const
     {
-      if (not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
-        throw std::domain_error("invalid matrixes domains");
+      ah_domain_error_if(not (rdomain_ptr == m.rdomain_ptr and cdomain_ptr == m.cdomain_ptr))
+        << "invalid matrixes domains";
       return entries.all([&m, this] (const Pair & p)
                          {
                            const Trow & row = p.first.first;

@@ -32,6 +32,7 @@
 # include <tpl_binTreeOps.H>
 # include <ran_array.h>
 # include <treapNode.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -123,8 +124,7 @@ private:
     PRIO(head_ptr) = Min_Priority;
     r = gsl_rng_alloc(gsl_rng_mt19937);
 
-    if (r == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(r == nullptr);
 
     gsl_rng_set(r, seed % gsl_rng_max(r));
   }
@@ -423,8 +423,7 @@ public:
   */
   Node * remove(const size_t beg, const size_t end)
   {
-    if (beg > end or end > COUNT(tree_root))
-      throw std::range_error("remove of TreapRk out of range");
+    ah_range_error_if(beg > end or end > COUNT(tree_root)) << "remove of TreapRk out of range";
 
     Node * before_beg, * after_end, * aux;
 
@@ -466,8 +465,7 @@ public:
    */
   Node * remove_pos(const size_t pos)
   {
-    if (pos >= COUNT(tree_root))
-      throw std::out_of_range("infix position out of range");
+    ah_out_of_range_error_if(pos >= COUNT(tree_root)) << "infix position out of range";
 
     return remove_pos(tree_root, pos);
   }
@@ -858,11 +856,9 @@ public:
       if (not pos_updated())
         update_pos();
 
-      if (curr_pos < -1 )
-        throw std::range_error("TreapRk iterator has not current");
+      ah_range_error_if(curr_pos < -1) << "TreapRk iterator has not current";
 
-      if (curr_pos > COUNT(tree_ptr->getRoot() ) )
-        throw std::range_error("TreapRk iterator has not current");
+      ah_range_error_if(curr_pos > COUNT(tree_ptr->getRoot())) << "TreapRk iterator has not current";
 
       return curr_pos;
     }
@@ -883,8 +879,7 @@ public:
     /// if there is no current
     void prev()
     {
-      if (not has_curr() )
-        throw std::underflow_error("TreapRk iterator has not current");
+      ah_underflow_error_if(not has_curr()) << "TreapRk iterator has not current";
 
       --curr_pos;
       curr = nullptr;
@@ -900,16 +895,14 @@ public:
     /// if there is no current
     void next()
     {
-      if (not has_curr())
-        throw std::underflow_error("TreapRk iterator has not current");
+      ah_underflow_error_if(not has_curr()) << "TreapRk iterator has not current";
       next_ne();
     }
 
     /// Remove the current node and move the iterator one position forward
     Node * del()
     {
-      if (not has_curr())
-        throw std::underflow_error("TreapRk iterator has not current");
+      ah_underflow_error_if(not has_curr()) << "TreapRk iterator has not current";
 
       if (not curr_updated())
         update_curr();

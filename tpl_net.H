@@ -39,6 +39,7 @@
 # include <tpl_graph_utils.H>
 # include <tpl_find_path.H>
 # include <graph-traverse.H>
+# include <ah-errors.H>
 
 
   
@@ -377,8 +378,7 @@ namespace Aleph {
       if (src_nodes.size() == 1)
         return;
 
-      if (src_nodes.size() == 0)
-        throw std::domain_error("network has not source node (it has cicles)");
+      ah_domain_error_if(src_nodes.size() == 0) << "network has not source node (it has cicles)";
 
       Node * super_source = insert_node();
       src_nodes.for_each([super_source, this] (Node * p)
@@ -410,8 +410,7 @@ namespace Aleph {
       if (sink_nodes.size() == 1) 
         return;
 
-      if (sink_nodes.size() == 0)
-        throw std::domain_error("network has not sink node (it has cicles)");
+      ah_domain_error_if(sink_nodes.size() == 0) << "network has not sink node (it has cycles)";
 
       Node * super_sink = insert_node(); 
       sink_nodes.for_each([super_sink, this] (Node * p)
@@ -580,8 +579,7 @@ namespace Aleph {
       arc->cap  = cap;            // ajuste capacidad y flujo de arco
       arc->flow = flow;
 
-      if (not arc->check_arc())
-        throw std::overflow_error("flow is greater than capacity");
+      ah_overflow_error_if(not arc->check_arc()) << "flow is greater than capacity";
 
       return arc;
     }
@@ -737,8 +735,7 @@ namespace Aleph {
     /// Coloca valor de capacidad a un arco. 
     void set_cap(Arc * arc, const Flow_Type & cap)
     {
-      if (cap < arc->flow)
-        throw std::out_of_range("capacity value is smaller than flow");
+      ah_out_of_range_error_if(cap < arc->flow) << "capacity value is smaller than flow";
 
       arc->cap = cap;
     }
@@ -747,8 +744,7 @@ namespace Aleph {
     /// mayor que la capacidad.
     void set_flow(Arc * arc, const Flow_Type & flow)
     {
-      if (flow > arc->cap)
-        throw std::out_of_range("flow value is greater than capacity");
+      ah_out_of_range_error_if(flow > arc->cap) << "flow value is greater than capacity";
 
       arc->flow = flow;
     }
@@ -1471,8 +1467,8 @@ namespace Aleph {
             template <class> class Find_Path>
   typename Net::Flow_Type aumenting_path_maximum_flow(Net & net)
   {
-    if (not (net.is_single_source() and net.is_single_sink()))
-      throw std::domain_error("Network is not single source and single sink");
+    ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+      << "Network is not single source and single sink";
 
     while (true) // mientras exista un camino de aumento
       {
@@ -1678,8 +1674,8 @@ namespace Aleph {
   template <class Net, class Q_Type> typename Net::Flow_Type
   generic_preflow_vertex_push_maximum_flow(Net & net)
   {
-    if (not (net.is_single_source() and net.is_single_sink()))
-      throw std::domain_error("Network is not single source and single sink");
+    ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+      << "Network is not single source and single sink";
 
     net.reset_nodes();         // especially assures that counters are in zero
     init_height_in_nodes(net); // set height to minimum distance in nodes to sink

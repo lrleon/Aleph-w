@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,32 +26,48 @@
 # ifndef GRAPH_TRAVERSE_H
 # define GRAPH_TRAVERSE_H
 
+# include <tuple>
+# include <cassert>
 # include <tpl_agraph.H>
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
 
-/** Atraviesa un grafo en profundidad o en amplitud y ejecuta función
-    de visita 
+/** Traverse a graph depth-first or breadth-first and execute a visit function.
 
-   @ingroup Grafos
+    This class template provides generic graph traversal capabilities using
+    either depth-first search (DFS) or breadth-first search (BFS) depending
+    on the queue type Q used.
+
+    @tparam GT Graph type
+    @tparam Itor Iterator type for traversing node arcs
+    @tparam Q Queue type: DynListStack for DFS, DynListQueue for BFS
+    @tparam Show_Arc Arc filter functor
+
+    @ingroup Grafos
  */
-template <class GT, class Itor, 
-	  template <typename T> class Q = DynListStack,
-	  class Show_Arc = Dft_Show_Arc<GT>>
+template <class GT, class Itor,
+          template <typename T> class Q = DynListStack,
+          class Show_Arc = Dft_Show_Arc<GT>>
 class Graph_Traverse
 {
   GT & g;
-  Show_Arc & sa;
+  Show_Arc sa;
 
 public:
+  /// Construct a traverser with a graph and arc filter
+  Graph_Traverse(GT & __g, Show_Arc __sa = Show_Arc()) : g(__g), sa(__sa) {}
 
-  Graph_Traverse(GT & __g, Show_Arc & __sa) : g(__g), sa(__sa) {}
+  /** Traverse the graph starting from `start` and execute `op` on each node.
 
-  Graph_Traverse(GT & __g, Show_Arc && __sa = Show_Arc()) : g(__g), sa(__sa) {}
-
-  template <class Node_Op> 
-  size_t operator () (typename GT::Node * start, Node_Op & op)
+      @param start Starting node for traversal
+      @param op Operation to execute on each visited node. Must return bool;
+             return false to stop traversal early.
+      @return Number of nodes visited
+  */
+  template <class Node_Op>
+  size_t operator ()(typename GT::Node *start, Node_Op & op)
   {
+    assert(start != nullptr);
     g.reset_nodes();
     g.reset_arcs();
 
@@ -61,67 +76,76 @@ public:
     if (not op(start))
       return count;
 
-    Q<typename GT::Arc*> q;
+    Q<typename GT::Arc *> q;
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
-	typename GT::Node * tgt = g.get_connected_node(a, start);
-	a->set_state(Processing);
-	tgt->set_state(Processing);
-	q.put(a);
+        typename GT::Arc *a = it.get_curr();
+        typename GT::Node *tgt = g.get_connected_node(a, start);
+        a->set_state(Processing);
+        tgt->set_state(Processing);
+        q.put(a);
       }
 
-    const size_t & n = g.vsize(); 
+    const size_t n = g.vsize();
     while (not q.is_empty() and count < n)
       {
-	typename GT::Arc * arc = q.get();
-	assert(arc->state() == Processing);
-	arc->set_state(Processed);
+        typename GT::Arc *arc = q.get();
+        assert(arc->state() == Processing);
+        arc->set_state(Processed);
 
-	typename GT::Node * s = g.get_src_node(arc);
-	typename GT::Node * t = g.get_tgt_node(arc);
-	if (s->state() == Processed and t->state() == Processed)
-	  continue; 
+        typename GT::Node *s = g.get_src_node(arc);
+        typename GT::Node *t = g.get_tgt_node(arc);
+        if (s->state() == Processed and t->state() == Processed)
+          continue;
 
-	typename GT::Node * curr = s->state() == Processed ? t : s;
-	assert(curr->state() == Processing);
-	++count;
-	curr->set_state(Processed); 
-	if (not op(curr))
-	  return count;
+        typename GT::Node *curr = s->state() == Processed ? t : s;
+        assert(curr->state() == Processing);
+        ++count;
+        curr->set_state(Processed);
+        if (not op(curr))
+          return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
-	  {
-	    typename GT::Arc * a  = it.get_curr();
-	    if (a->state() != Unprocessed) 
-	      continue;
-	    typename GT::Node * tgt = g.get_connected_node(a, curr);
-	    if (tgt->state() == Unprocessed)
-	      {
-		assert(a->state() != Processing); 
-		q.put(a);
-		a->set_state(Processing);
-		tgt->set_state(Processing);
-	      }
-	    else
-	      a->set_state(Processed);
-	  }
+        for (Itor it(curr, sa); it.has_curr(); it.next_ne())
+          {
+            typename GT::Arc *a = it.get_curr();
+            if (a->state() != Unprocessed)
+              continue;
+            typename GT::Node *tgt = g.get_connected_node(a, curr);
+            if (tgt->state() == Unprocessed)
+              {
+                assert(a->state() != Processing);
+                q.put(a);
+                a->set_state(Processing);
+                tgt->set_state(Processing);
+              }
+            else
+              a->set_state(Processed);
+          }
       }
 
     return count;
   }
 
-  template <class Node_Op> 
-  size_t operator () (typename GT::Node * start, Node_Op && op = Node_Op())
+  /// \overload
+  template <class Node_Op>
+  size_t operator ()(typename GT::Node *start, Node_Op && op = Node_Op())
   {
-    return (*this)(start, op); 
+    return (*this)(start, op);
   }
 
-  /// Ejecuta la operación op(curr, arc), donde curr es el nodo visitado
-  /// y op es el arco de proveniencia
-  template <class Op> 
-  size_t exec(typename GT::Node * start, Op & op)
+  /** Execute operation op(curr, arc) where curr is the visited node
+      and arc is the incoming arc.
+
+      @param start Starting node for traversal
+      @param op Operation to execute. Signature: bool op(Node*, Arc*).
+             The arc parameter is nullptr for the start node.
+             Return false to stop traversal early.
+      @return Number of nodes visited
+  */
+  template <class Op>
+  size_t exec(typename GT::Node *start, Op & op)
   {
+    assert(start != nullptr);
     g.reset_nodes();
     g.reset_arcs();
 
@@ -129,68 +153,76 @@ public:
     start->set_state(Processed);
     if (not op(start, nullptr))
       return count;
-    
-    using Pair = tuple<typename GT::Node*, typename GT::Arc*>; 
+
+    using Pair = tuple<typename GT::Node *, typename GT::Arc *>;
     Q<Pair> q;
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
-	typename GT::Node * tgt = g.get_connected_node(a, start);
-	a->set_state(Processing);
-	tgt->set_state(Processing);
-	q.put(make_tuple(start, a));
+        typename GT::Arc *a = it.get_curr();
+        typename GT::Node *tgt = g.get_connected_node(a, start);
+        a->set_state(Processing);
+        tgt->set_state(Processing);
+        q.put(make_tuple(start, a));
       }
 
-    const size_t & n = g.vsize(); 
+    const size_t n = g.vsize();
     while (not q.is_empty() and count < n)
       {
-	const Pair p = q.get();
-	typename GT::Arc * arc = get<1>(p);
-	assert(arc->state() == Processing);
-	assert(get<0>(p)->state() == Processed); 
-	arc->set_state(Processed);
+        const Pair p = q.get();
+        typename GT::Arc *arc = get<1>(p);
+        assert(arc->state() == Processing);
+        assert(get<0>(p)->state() == Processed);
+        arc->set_state(Processed);
 
-	typename GT::Node * curr = g.get_connected_node(arc, get<0>(p));
-	assert(curr->state() == Processing);
-	++count;
-	curr->set_state(Processed); 
-	if (not op(curr, arc))
-	  return count;
+        typename GT::Node *curr = g.get_connected_node(arc, get<0>(p));
+        assert(curr->state() == Processing);
+        ++count;
+        curr->set_state(Processed);
+        if (not op(curr, arc))
+          return count;
 
-	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
-	  {
-	    typename GT::Arc * a  = it.get_curr();
-	    if (a->state() != Unprocessed) 
-	      continue;
-	    typename GT::Node * tgt = g.get_connected_node(a, curr);
-	    if (tgt->state() == Unprocessed)
-	      {
-		assert(a->state() != Processing); 
-		a->set_state(Processing);
-		tgt->set_state(Processing);
-		q.put(make_tuple(curr, a));
-	      }
-	    else
-	      a->set_state(Processed);
-	  }
+        for (Itor it(curr, sa); it.has_curr(); it.next_ne())
+          {
+            typename GT::Arc *a = it.get_curr();
+            if (a->state() != Unprocessed)
+              continue;
+            if (typename GT::Node *tgt = g.get_connected_node(a, curr); tgt->state() == Unprocessed)
+              {
+                assert(a->state() != Processing);
+                a->set_state(Processing);
+                tgt->set_state(Processing);
+                q.put(make_tuple(curr, a));
+              }
+            else
+              a->set_state(Processed);
+          }
       }
 
     return count;
   }
 
-  template <class Operation> 
-  size_t exec(typename GT::Node * start, Operation && op = Operation())
+  /// \overload
+  template <class Operation>
+  size_t exec(typename GT::Node *start, Operation && op = Operation())
   {
     return exec(start, op);
   }
 
-  template <class Node_Op, class Arc_Op> 
-  tuple<size_t, size_t> operator () (typename GT::Node * start, 
-				     Node_Op & node_op, Arc_Op & arc_op)
+  /** Traverse the graph executing separate operations on nodes and arcs.
+
+      @param start Starting node for traversal
+      @param node_op Operation for nodes. Signature: bool node_op(Node*).
+      @param arc_op Operation for arcs. Signature: bool arc_op(Arc*).
+      @return Tuple of (nodes_visited, arcs_visited)
+  */
+  template <class Node_Op, class Arc_Op>
+  std::tuple<size_t, size_t> operator ()(typename GT::Node *start,
+                                    Node_Op & node_op, Arc_Op & arc_op)
   {
+    assert(start != nullptr);
     g.reset_nodes();
     g.reset_arcs();
-    Q<typename GT::Arc*> q;
+    Q<typename GT::Arc *> q;
 
     size_t node_count = 1;
     size_t arc_count = 0;
@@ -201,74 +233,75 @@ public:
 
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
-	typename GT::Arc * a = it.get_curr();
-	typename GT::Node * tgt = g.get_connected_node(a, start);
-	a->set_state(Processing);
-	tgt->set_state(Processing);
-	q.put(a);
-	++arc_count;
-	if (not arc_op(a))
-	  return make_tuple(node_count, arc_count);
+        typename GT::Arc *a = it.get_curr();
+        typename GT::Node *tgt = g.get_connected_node(a, start);
+        a->set_state(Processing);
+        tgt->set_state(Processing);
+        q.put(a);
+        ++arc_count;
+        if (not arc_op(a))
+          return make_tuple(node_count, arc_count);
       }
 
     while (not q.is_empty())
       {
-	typename GT::Arc * arc = q.get();
-	assert(arc->state() == Processing);
-	arc->set_state(Processed);
+        typename GT::Arc *arc = q.get();
+        assert(arc->state() == Processing);
+        arc->set_state(Processed);
 
-	typename GT::Node * s = g.get_src_node(arc);
-	typename GT::Node * t = g.get_tgt_node(arc);
-	if (s->state() == Processed and t->state() == Processed)
-	  continue; 
+        typename GT::Node *s = g.get_src_node(arc);
+        typename GT::Node *t = g.get_tgt_node(arc);
+        if (s->state() == Processed and t->state() == Processed)
+          continue;
 
-	typename GT::Node * curr = s->state() == Processed ? t : s;
-	assert(curr->state() == Processing);
-	++node_count;
-	curr->set_state(Processed); 
-	if (not node_op(curr))
-	  return make_tuple(node_count, arc_count);
+        typename GT::Node *curr = s->state() == Processed ? t : s;
+        assert(curr->state() == Processing);
+        ++node_count;
+        curr->set_state(Processed);
+        if (not node_op(curr))
+          return make_tuple(node_count, arc_count);
 
-	for (Itor it(curr, sa); it.has_curr(); it.next_ne()) 
-	  {
-	    typename GT::Arc * a  = it.get_curr();
-	    if (a->state() != Unprocessed) 
-	      continue;
-	    typename GT::Node * tgt = g.get_connected_node(a, curr);
-	    if (tgt->state() != Processed)
-	      {
-		q.put(a);
-		tgt->set_state(Processing);
-		a->set_state(Processing);
-		++arc_count;
-		if (not arc_op(a))
-		  return make_tuple(node_count, arc_count); 
-	      }
-	    else
-	      a->set_state(Processed);
-	  }
+        for (Itor it(curr, sa); it.has_curr(); it.next_ne())
+          {
+            typename GT::Arc *a = it.get_curr();
+            if (a->state() != Unprocessed)
+              continue;
+            typename GT::Node *tgt = g.get_connected_node(a, curr);
+            if (tgt->state() != Processed)
+              {
+                q.put(a);
+                tgt->set_state(Processing);
+                a->set_state(Processing);
+                ++arc_count;
+                if (not arc_op(a))
+                  return make_tuple(node_count, arc_count);
+              }
+            else
+              a->set_state(Processed);
+          }
       }
 
-    return make_tuple(node_count, arc_count); 
-  }  
+    return make_tuple(node_count, arc_count);
+  }
 
-  template <class Node_Op, class Arc_Op> 
-  tuple<size_t, size_t> operator () (typename GT::Node * start, 
-				     Node_Op && node_op = Node_Op(), 
-				     Arc_Op && arc_op = Arc_Op())
+  /// \overload
+  template <class Node_Op, class Arc_Op>
+  std::tuple<size_t, size_t> operator ()(typename GT::Node *start,
+                                    Node_Op && node_op = Node_Op(),
+                                    Arc_Op && arc_op = Arc_Op())
   {
-    return (*this)(start, node_op, arc_op); 
+    return (*this)(start, node_op, arc_op);
   }
 };
 
 
-template <class GT, class Itor, 
-	  class Show_Arc = Dft_Show_Arc<GT>>
-  using Graph_Traverse_DFS = Graph_Traverse<GT, Itor, DynListStack, Show_Arc>;
+template <class GT, class Itor,
+          class Show_Arc = Dft_Show_Arc<GT>>
+using Graph_Traverse_DFS = Graph_Traverse<GT, Itor, DynListStack, Show_Arc>;
 
-template <class GT, class Itor, 
-	  class Show_Arc = Dft_Show_Arc<GT>>
-  using Graph_Traverse_BFS = Graph_Traverse<GT, Itor, DynListQueue, Show_Arc>;
+template <class GT, class Itor,
+          class Show_Arc = Dft_Show_Arc<GT>>
+using Graph_Traverse_BFS = Graph_Traverse<GT, Itor, DynListQueue, Show_Arc>;
 
 
 # endif // GRAPH_TRAVERSE_H

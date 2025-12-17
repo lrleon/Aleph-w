@@ -38,6 +38,7 @@
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
 # include <tpl_binNode.H>
+# include <ah-errors.H>
 
 # define ISROOT(p)      ((p)->is_root())
 # define ISLEAF(p)      ((p)->is_leaf())
@@ -274,8 +275,8 @@ namespace Aleph
       if (p == nullptr)
         return;
 
-      if (this->is_root())
-        throw std::domain_error("Cannot insert sibling of a root");
+      ah_domain_error_if(this->is_root())
+        << "Cannot insert sibling of a root";
 
       assert(CHILD_LIST(p)->is_empty());
       assert(SIBLING_LIST(p)->is_empty());
@@ -434,8 +435,8 @@ namespace Aleph
       if (tree == nullptr)
         return;
 
-      if (not this->is_root())
-        throw std::domain_error("\"this\" is not root");
+      ah_domain_error_if(not this->is_root())
+        << "\"this\" is not root";
 
       tree->set_is_leftmost(false);
       Tree_Node * old_next_tree = this->get_right_tree();
@@ -472,8 +473,8 @@ namespace Aleph
     /// Throws range_error if this is not the leftmost tree of the forest.
     Tree_Node * get_last_tree() const
     {
-      if (not is_leftmost())
-        throw std::range_error("\"this\" is not the leftmost tree in the forest");
+      ah_range_error_if(not is_leftmost())
+        << "\"this\" is not the leftmost tree in the forest";
 
       return left_link();
     }
@@ -607,8 +608,8 @@ namespace Aleph
 
       Tree_Node * get_curr() const
       {
-        if (curr == nullptr)
-          throw std::overflow_error("Children_Iterator::get_curr()");
+        ah_overflow_error_if(curr == nullptr)
+          << "Children_Iterator::get_curr()";
         return get_curr_ne();
       }
 
@@ -616,8 +617,8 @@ namespace Aleph
 
       void next()
       {
-        if (curr == nullptr)
-          throw std::overflow_error("Children_Iterator::next()");
+        ah_overflow_error_if(curr == nullptr)
+          << "Children_Iterator::next()";
         next_ne();
       }
     };
@@ -695,8 +696,8 @@ namespace Aleph
 
       Tree_Node * get_curr() const
       {
-        if (not has_curr())
-          throw std::overflow_error("Iterator overflow");
+        ah_overflow_error_if(not has_curr())
+          << "Iterator overflow";
         return get_curr_ne();
       }
 
@@ -723,8 +724,8 @@ namespace Aleph
 
       void next()
       {
-        if (not has_curr())
-          throw std::overflow_error("Iterator overflow");
+        ah_overflow_error_if(not has_curr())
+          << "Iterator overflow";
         next_ne();
       }
 
@@ -816,8 +817,8 @@ namespace Aleph
   void tree_preorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
   {
 
-    if (not root->is_root())
-      throw std::domain_error("root is not root");
+    ah_domain_error_if(not root->is_root())
+      << "root is not root";
 
     __tree_preorder_traversal(root, 0, 0, visitFct);
   }
@@ -848,8 +849,8 @@ namespace Aleph
   void forest_preorder_traversal(Node * root,
                                  void (*visitFct)(Node *, int, int))
   {
-    if (not root->is_root())
-      throw std::domain_error("root is not root");
+    ah_domain_error_if(not root->is_root())
+      << "root is not root";
 
     for (/* nothing */; root != nullptr; root = root->get_right_tree())
       {
@@ -925,11 +926,11 @@ namespace Aleph
   template <class Node> inline
   void forest_postorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
   {
-    if (not root->is_leftmost())
-      throw std::domain_error("root is not the leftmost node of forest");
+    ah_domain_error_if(not root->is_leftmost())
+      << "root is not the leftmost node of forest";
 
-    if (not root->is_root())
-      throw std::domain_error("root is not root");
+    ah_domain_error_if(not root->is_root())
+      << "root is not root";
 
     for (/* nothing */; root not_eq nullptr; root = root->get_right_sibling())
       {
@@ -1023,11 +1024,11 @@ namespace Aleph
     if (root == nullptr)
       return;
 
-    if (not root->is_leftmost())
-      throw std::domain_error("root is not the leftmost tree of forest");
+    ah_domain_error_if(not root->is_leftmost())
+      << "root is not the leftmost tree of forest";
 
-    if (not root->is_root())
-      throw std::domain_error("root is not root");
+    ah_domain_error_if(not root->is_root())
+      << "root is not root";
 
     while (root != nullptr) // traverse trees from left to right
       {
@@ -1066,8 +1067,8 @@ namespace Aleph
     if (node == nullptr)
       return nullptr;
 
-    if (static_cast<size_t>(idx) >= size)
-      throw std::out_of_range("index out of maximum range");
+    ah_out_of_range_error_if(static_cast<size_t>(idx) >= size)
+      << "index out of maximum range";
 
     if (path[idx] < 0) // check whether the node has been reached
       return node;
@@ -1134,8 +1135,8 @@ namespace Aleph
   {
     n = 1; // initial length value of the Dewey number
 
-    if (size < n)
-      throw std::overflow_error("there is no enough space for deway array");
+    ah_overflow_error_if(size < n)
+      << "there is no enough space for deway array";
 
     for (int i = 0; root != nullptr; i++, root = root->get_right_sibling())
       {
@@ -1156,8 +1157,8 @@ namespace Aleph
                         const size_t & size, size_t & n)
   {
 
-    if (current_level >= size)
-      throw std::overflow_error("there is no enough space for deway array");
+    ah_overflow_error_if(current_level >= size)
+      << "there is no enough space for deway array";
 
     if (root == nullptr)
       return nullptr;
@@ -1172,8 +1173,8 @@ namespace Aleph
     for (int i = 0; child != nullptr;
          i++, child = child->get_right_sibling())
       {
-        if (current_level + 1 >= size)
-          throw std::overflow_error("there is no enough space for deway array");
+        ah_overflow_error_if(current_level + 1 >= size)
+          << "there is no enough space for deway array";
         deway[current_level + 1] = i;
         Node * result = __search_deway <Node, Equal>
           (child, key, current_level + 1, deway, size, n);

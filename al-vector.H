@@ -39,6 +39,7 @@
 # include <ah-zip.H>
 # include <tpl_hash.H>
 # include <al-domain.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -115,8 +116,8 @@ namespace Aleph
            const NumType & zero = default_epsilon)
       : domain_ptr(&d), epsilon(zero)
     {
-      if (l.size() != domain_ptr->size())
-        throw std::length_error("Vector(DynList): list sizes does not match");
+      ah_length_error_if(l.size() != domain_ptr->size())
+        << "Vector(DynList): list sizes does not match";
 
       for (auto it = zip_it(domain_ptr->keys(), l); it.has_curr(); it.next_ne())
         {
@@ -131,7 +132,8 @@ namespace Aleph
         return *this;
 
       if (domain_ptr != v.domain_ptr)
-        throw std::domain_error("Unmatch domain in Vector assignation");
+        ah_domain_error_if(domain_ptr != v.domain_ptr)
+          << "Unmatch domain in Vector assignation";
 
       epsilon = v.epsilon;
       entries = v.entries;
@@ -141,8 +143,11 @@ namespace Aleph
 
     Vector & operator = (Vector && v)
     {
-      if (domain_ptr != v.domain_ptr)
-        throw std::domain_error("Unmatch domain in Vector assignation");
+      if (this == &v)
+        return *this;
+
+      ah_domain_error_if(domain_ptr != v.domain_ptr)
+        << "Unmatch domain in Vector assignation";
 
       epsilon = v.epsilon;
       entries.swap(v.entries);
@@ -171,15 +176,15 @@ namespace Aleph
     void set_entries(std::initializer_list<T>     ld,
                      std::initializer_list<NumType> lr)
     {
-      if (ld.size() != lr.size())
-        throw std::range_error("size mismatch between domain and range");
+      ah_range_error_if(ld.size() != lr.size())
+        << "size mismatch between domain and range";
 
       auto itd = ld.begin();
       auto itr = lr.begin();
-      for (; itd != ld.end(); itd++, itr++)
+      for (; itd != ld.end(); ++itd, ++itr)
         {
-          if (not domain_ptr->has(*itd))
-            std::domain_error("An item of first list doesn't belong to domain");
+          ah_domain_error_if(not domain_ptr->has(*itd))
+            << "An item of first list doesn't belong to domain";
           set_entry(*itd, *itr);
         }
     }
@@ -187,14 +192,14 @@ namespace Aleph
     template <template <typename> class Container = DynList>
     void set_entries(const Container<T> & c, std::initializer_list<NumType> lr)
     {
-      if (c.size() != lr.size())
-        throw std::range_error("size mismatch between domain and range");
+      ah_range_error_if(c.size() != lr.size())
+        << "size mismatch between domain and range";
 
       auto itr = lr.begin();
       c.for_each([this, &itr] (const T & key)
                  {
-                   if (not domain_ptr->has(key))
-                     throw std::domain_error("Key does not belong to domain");
+                   ah_domain_error_if(not domain_ptr->has(key))
+                     << "Key does not belong to domain";
 
                    set_entry(key, *itr++);
                  });
@@ -327,8 +332,8 @@ namespace Aleph
 
     Vector & divide_by_scalar(const NumType & scalar)
     {
-      if (is_zero(scalar))
-        throw std::domain_error("Zero division");
+      ah_domain_error_if(is_zero(scalar))
+        << "Zero division";
 
       if (scalar == 1)
         return *this;
@@ -355,8 +360,8 @@ namespace Aleph
 
     NumType scalar_product(const Vector & v)
     {
-      if (domain_ptr != v.domain_ptr)
-        throw std::domain_error("scalar_product: different domains");
+      ah_domain_error_if(domain_ptr != v.domain_ptr)
+        << "scalar_product: different domains";
 
       if (entries.size() < v.entries.size())
         return entries.

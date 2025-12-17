@@ -32,6 +32,7 @@
 # include <aleph.H>
 # include <tpl_dnode.H>
 # include <tpl_lhash.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -81,16 +82,16 @@ namespace Aleph {
                              // dentro de tabla hash  
       void lock()
       {
-        if (locked)
-          throw std::runtime_error("Cache_Entry is already locked");
+        ah_runtime_error_if(locked)
+          << "Cache_Entry is already locked";
 
         locked = true;
       }
 
       void unlock()
       {
-        if (not locked)
-          throw std::runtime_error("Cache_Entry is not locked");
+        ah_runtime_error_if(not locked)
+          << "Cache_Entry is not locked";
 
         locked = false;
       }
@@ -180,8 +181,8 @@ namespace Aleph {
 
     Cache_Entry * get_lru_entry()
     {
-      if (lru_list.is_empty())   // ¿existe una entrada disponible?
-        throw std::underflow_error("All entries are locked"); // no ==> ¡excepción! 
+      ah_underflow_error_if(lru_list.is_empty()) // ¿existe una entrada disponible?
+        << "All entries are locked"; // no ==> ¡excepción! 
 
       // obtenga  entrada más antigua; menos recientemente accedida
       Dlink * lru_entry_link = lru_list.get_prev();
@@ -330,12 +331,11 @@ namespace Aleph {
     /// entrada ya está trancada o domain_error si no está en el cache.
     void lock_entry(Cache_Entry * cache_entry)
     {
+      ah_runtime_error_if(cache_entry->is_locked())
+        << "Cache_Entry is already locked";
 
-      if (cache_entry->is_locked())
-        throw std::runtime_error("Cache_Entry is already locked");
-
-      if (not cache_entry->is_in_table())
-        throw std::domain_error("Cache_Entry is not in the cache");
+      ah_domain_error_if(not cache_entry->is_in_table())
+        << "Cache_Entry is not in the cache";
 
       remove_entry_from_lru_list(cache_entry);
       insert_entry_to_locked_list(cache_entry);
@@ -346,8 +346,8 @@ namespace Aleph {
     /// entrada no está trancada.
     void unlock_entry(Cache_Entry * cache_entry)
     {
-      if (not cache_entry->is_locked())
-        throw std::runtime_error("Cache_Entry is not locked");
+      ah_runtime_error_if(not cache_entry->is_locked())
+        << "Cache_Entry is not locked";
 
       remove_entry_from_locked_list(cache_entry);
       insert_entry_to_lru_list(cache_entry);
@@ -359,10 +359,10 @@ namespace Aleph {
     /// está contenida en el cache.
     void remove(Cache_Entry * cache_entry)
     {
-      if (cache_entry->is_locked())
-        throw std::runtime_error("Cache_Entry is already locked");
-      if (not cache_entry->is_in_table())
-        throw std::domain_error("Cache_Entry is not in the cache");
+      ah_runtime_error_if(cache_entry->is_locked())
+        << "Cache_Entry is already locked";
+      ah_domain_error_if(not cache_entry->is_in_table())
+        << "Cache_Entry is not in the cache";
 
       remove_entry_from_hash_table(cache_entry);
     }
@@ -373,13 +373,13 @@ namespace Aleph {
     /// la construcción.
     void expand(const size_t & plus_size)
     {
-      if (plus_size == 0)
-        throw std::range_error ("bad plus_size");
+      ah_range_error_if(plus_size == 0)
+        << "bad plus_size";
 
       const size_t new_cache_size = cache_size + plus_size;
 
       // apartar plus_size nuevas entradas
-      Cache_Entry * entries_array = new Cache_Entry [plus_size];
+      auto * entries_array = new Cache_Entry [plus_size];
 
       try
         {

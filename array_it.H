@@ -32,6 +32,7 @@
 # include <aleph.H>
 # include <ahDefs.H>
 # include <htlist.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -52,25 +53,25 @@ namespace Aleph {
     long last = 0;
     long pos = 0;
 
-    static void ensure_base_pointer(T * p, size_t sz)
+    static void ensure_base_pointer(T * p, const size_t sz)
     {
-      if (sz > 0 and p == nullptr)
-        throw std::invalid_argument("Array_Iterator(): ptr == nullptr with dim > 0");
+      ah_invalid_argument_if(sz > 0 and p == nullptr)
+        << "Array_Iterator(): ptr == nullptr with dim > 0";
     }
 
     static void ensure_num_items(size_t sz, size_t n)
     {
-      if (n > sz)
-        throw std::domain_error("Array_Iterator(): num_items greater than dim");
+      ah_domain_error_if(n > sz)
+        << "Array_Iterator(): num_items greater than dim";
     }
 
-    static void ensure_index_in_range(size_t sz, long value, const char * msg)
+    static void ensure_index_in_range(const size_t sz, const long value, const char * msg)
     {
-      if (value < 0 or static_cast<size_t>(value) >= sz)
-        throw std::domain_error(msg);
+      ah_domain_error_if(value < 0 or static_cast<size_t>(value) >= sz)
+        << msg;
     }
 
-    static long compute_last_index(size_t n) noexcept
+    static long compute_last_index(const size_t n) noexcept
     {
       return n == 0 ? 0 : static_cast<long>(n - 1);
     }
@@ -83,29 +84,29 @@ namespace Aleph {
 
     const T * get_base() const noexcept { return ptr; }
 
-    Array_Iterator() noexcept {}
+    Array_Iterator() = default;
 
-    Array_Iterator(T * p, size_t sz, size_t n)
+    Array_Iterator(T * p, const size_t sz, const size_t n)
       : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
     {
       ensure_base_pointer(ptr, sz);
       ensure_num_items(sz, n);
     }
 
-    Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n)
+    Array_Iterator(NoExceptionCtor, T * p, const size_t sz, const size_t n)
       : ptr(p), dim(sz), num_items(n), last(compute_last_index(n))
     {
       assert(ptr);
       assert(num_items <= dim);
     }
 
-    Array_Iterator(T * p, size_t sz, size_t n, long f, long l)
+    Array_Iterator(T * p, const size_t sz, const size_t n, const long f, const long l)
       : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
     {
       ensure_base_pointer(ptr, sz);
       ensure_num_items(sz, n);
-      if (dim == 0 and num_items > 0)
-        throw std::domain_error("Array_Iterator(): dim == 0 but num_items > 0");
+      ah_domain_error_if(dim == 0 and num_items > 0)
+        << "Array_Iterator(): dim == 0 but num_items > 0";
       if (dim > 0)
         {
           ensure_index_in_range(dim, first, "Array_Iterator(): first >= dim");
@@ -118,7 +119,7 @@ namespace Aleph {
         It is similar to the previous buy it is guaranteed that no
         exception will be thrown
     */
-    Array_Iterator(NoExceptionCtor, T * p, size_t sz, size_t n, long f, long l)
+    Array_Iterator(NoExceptionCtor, T * p, const size_t sz, const size_t n, const long f, const long l)
       : ptr(p), dim(sz), num_items(n), idx(f), first(f), last(n == 0 ? f : l)
     {
       assert(ptr);
@@ -143,11 +144,11 @@ namespace Aleph {
 
     T & get_curr() const
     {
-      if (pos < 0)
-        throw std::underflow_error("Array_Iterator::get_curr(): no current item");
+      ah_underflow_error_if(pos < 0)
+        << "Array_Iterator::get_curr(): no current item";
 
-      if (pos >= num_items)
-        throw std::overflow_error("Array_Iterator::get_curr(): no current item");
+      ah_overflow_error_if(pos >= num_items)
+        << "Array_Iterator::get_curr(): no current item";
 
       return ptr[idx];
     }
@@ -161,8 +162,8 @@ namespace Aleph {
 
     void next()
     {
-      if (num_items == 0 or pos >= num_items)
-        throw std::overflow_error("Array_Iterator::next(): no current item");
+      ah_overflow_error_if(num_items == 0 or pos >= num_items)
+        << "Array_Iterator::next(): no current item";
       next_ne();
     }
 
@@ -175,8 +176,8 @@ namespace Aleph {
 
     void prev()
     {
-      if (num_items == 0 or pos < 0)
-        throw std::underflow_error("Array_Iterator::prev(): no current item");
+      ah_underflow_error_if(num_items == 0 or pos < 0)
+        << "Array_Iterator::prev(): no current item";
       prev_ne();
     }
 
@@ -242,15 +243,15 @@ namespace Aleph {
 
     T & get_first() const
     {
-      if (n == 0)
-        throw std::underflow_error("Array_Container::get_first(): n == 0");
+      ah_underflow_error_if(n == 0)
+        << "Array_Container::get_first(): n == 0";
       return base[0];
     }
 
     T & get_last() const
     {
-      if (n == 0)
-        throw std::underflow_error("Array_Container::get_first(): n == 0");
+      ah_underflow_error_if(n == 0)
+        << "Array_Container::get_first(): n == 0";
       return base[n - 1];
     }
 

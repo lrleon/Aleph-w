@@ -37,6 +37,12 @@ struct StlIterator : public SetType::Iterator
   using Itor = typename SetType::Iterator;
   using iterator_category = std::forward_iterator_tag;
 
+  using difference_type = std::ptrdiff_t;
+
+  using pointer = T*;
+
+  using reference = T&;
+
   using value_type = T;
 
   using Itor::Itor;
@@ -95,6 +101,12 @@ struct StlConstIterator : public SetType::Iterator
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
   using iterator_category = std::forward_iterator_tag;
+
+  using difference_type = std::ptrdiff_t;
+
+  using pointer = const T*;
+
+  using reference = const T&;
 
   using value_type = T;
 

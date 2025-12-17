@@ -29,6 +29,7 @@
 
 # include <tpl_graph.H>
 # include <tpl_sort_utils.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -39,8 +40,8 @@ namespace Aleph
 typename GT::Node * get_node(DynArray<typename GT::Node *> & nodes, 
 			     const long &                    i)
 {
-  if (i >= nodes.size())
-    throw std::out_of_range("Index of node out of range");
+  ah_out_of_range_error_if(i >= nodes.size())
+    << "Index of node out of range";
 
   return nodes.access(i);
 } 
@@ -55,8 +56,8 @@ node_index(DynArray<typename GT::Node *> & nodes,
       inline static long 
 index_array(const long & i, const long & j, const long & n) 
 {
-  if (i >= n or j >= n)
-    throw std::out_of_range("Matrix index out of range");
+  ah_out_of_range_error_if(i >= n or j >= n)
+    << "Matrix index out of range";
 
   return i + j*n;
 }
@@ -598,8 +599,8 @@ public:
       */
   Node_Type & operator () (const long & i) const
   {
-    if (i >= n)
-      throw std::out_of_range("node index out of range");
+    ah_out_of_range_error_if(i >= n)
+      << "node index out of range";
 
     return const_cast<Node_Type &>(nodes.access(i));
   }
@@ -1246,8 +1247,8 @@ public:
       /// adyacencia correspondiente al índice i.
   Node * operator () (const long & i) 
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
+    ah_domain_error_if(lgraph == nullptr)
+      << "There is no a GT object";
 
     return Aleph::get_node<GT>(nodes, i);
   }
@@ -1255,8 +1256,8 @@ public:
         /// listas de adyacencia.
   long operator () (Node * node) const
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
+    ah_domain_error_if(lgraph == nullptr)
+      << "There is no a GT object";
 
     return node_index<GT>(nodes, n, node);
   }
@@ -1273,8 +1274,8 @@ public:
 
   Proxy operator () (Node * src_node, Node * tgt_node) 
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
+    ah_domain_error_if(lgraph == nullptr)
+      << "There is no a GT object";
 
     return Proxy(*this, node_index<GT>(nodes, n, src_node), 
 		 node_index<GT>(nodes, n, tgt_node)); 
@@ -1282,8 +1283,8 @@ public:
 
   Proxy operator () (Node * src_node, Node * tgt_node) const
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
+    ah_domain_error_if(lgraph == nullptr)
+      << "There is no a GT object";
 
     return Proxy(*this, node_index<GT>(nodes, n, src_node), 
 		 node_index<GT>(nodes, n, tgt_node)); 

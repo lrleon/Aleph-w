@@ -29,11 +29,13 @@
 
 
 # include <memory>
+# include <istream>
 # include <tpl_binNodeUtils.H>
 # include <tpl_treap.H>
 # include <tpl_binHeap.H>
 # include <tpl_dynMapTree.H>
 # include <bitArray.H>
+# include <ah-errors.H>
 
 
 namespace Aleph {
@@ -64,7 +66,7 @@ public:
     /* empty */
   }
 
-  ~Huffman_Node() { /* No debe liberarse memoria de bin_node */ }
+  ~Huffman_Node() { /* bin_node memory must not be released here */ }
 
 };
 
@@ -94,11 +96,11 @@ static inline bool is_leaf(BinNode<string> * p) noexcept
   return LLINK(p) == nullptr and RLINK(p) == nullptr;
 }
 
-    /** Codificador de Huffman.
+	    /** Huffman encoder.
 
-        @see Huffman_Decoder_Engine
-        @ingroup Arboles
-     */
+	        @see Huffman_Decoder_Engine
+	        @ingroup Arboles
+	     */
 class Huffman_Encoder_Engine
 {
   BinNode<string> * root; 
@@ -123,17 +125,15 @@ class Huffman_Encoder_Engine
     array.push(1); build_prefix_encoding(RLINK(p), array); array.pop();
   }
 
-  void build_encoding_map()
-  {
-    assert(symbol_map.size() > 0);
+	  void build_encoding_map()
+	  {
+	    ah_domain_error_if(root == nullptr) << "Huffman encoding tree has not been generated";
 
-    if (root == nullptr)
-      throw domain_error("Huffman encoding tree has not been generated");
-
-    BitArray array(0);
-    symbol_map.empty();
-    build_prefix_encoding(root, array);
-  }
+	    BitArray array(0);
+	    code_map.empty();
+	    symbol_map.empty();
+	    build_prefix_encoding(root, array);
+	  }
 
   bool test_end(const string & str) const
   {
@@ -144,39 +144,37 @@ class Huffman_Encoder_Engine
 
   void update_freq(const string & str)
   {
-    if (root != nullptr)
-      throw domain_error("Huffman encoding tree has already been generated");
+    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
 
-    if (test_end(str))
-      throw domain_error("End symbol has already been inserted");
+    ah_domain_error_if(test_end(str)) << "End symbol has already been inserted";
 
     Huffman_Node * huffman_node      = nullptr;
     auto huffman_node_ptr = symbol_map.search(str);
-    if (huffman_node_ptr == nullptr) // ¿símbolo definido previamente?
-      { // No ==> crear una entrada en symbol_map e insertarlo en heap
+	    if (huffman_node_ptr == nullptr) // symbol defined previously?
+	      { // No ==> create a new entry in symbol_map and insert it into heap
         unique_ptr<BinNode<string> > bin_node_auto(new BinNode<string>(str));
         huffman_node = static_cast<Huffman_Node*>
           (heap.insert(new Huffman_Node(bin_node_auto.get())));
         symbol_map.insert(str, huffman_node);
         bin_node_auto.release();
       }
-    else
-      huffman_node = huffman_node_ptr->second; // ya definido, recuperarlo
+	    else
+	      huffman_node = huffman_node_ptr->second; // already defined, retrieve it
 
     increase_freq(huffman_node); 
     heap.update(huffman_node);
   }
 
-  static void append_code(BitArray & bit_stream, const BitArray & symbol_code)
-  {
-    const size_t symbol_code_size = symbol_code.size();
-    for (int i = 0; i < symbol_code_size; i++) 
-      bit_stream.push(symbol_code[i]); 
-  }
+	  static void append_code(BitArray & bit_stream, const BitArray & symbol_code)
+	  {
+	    const size_t symbol_code_size = symbol_code.size();
+	    for (size_t i = 0; i < symbol_code_size; ++i) 
+	      bit_stream.push(symbol_code[i]); 
+	  }
 
   public:
 
-    /// Constructor de codificador.
+	    /// Encoder constructor.
   Huffman_Encoder_Engine() 
     : root(nullptr), freq_root(nullptr), end_symbol("NO-END"), text_len(0)
   {
@@ -204,108 +202,91 @@ class Huffman_Encoder_Engine
 
   public:
 
-      /** Guarda un árbol de Huffman en un archivo.
+	      /** Save a Huffman tree into a stream.
 
-          Guarda el árbol de Huffman correspondiente al texto codificado
-          en un archivo.  
+	          The serialization format is:
+	          - a prefix bit sequence describing the tree topology
+	          - the end-of-stream symbol (length + bytes)
+	          - the leaf keys in preorder (length + bytes)
 
-          El método utilizado es a través del código prefijo en bits del
-          árbol y luego la secuencia prefija de las hojas del árbol
-          correspondientes a los símbolos del texto.
-
-          @param[out] output un stream correctamente abierto donde se
-          guarda el árbol.
-          @throw std::domain_error si el árbol aún no ha sido generado. 
-          @see Huffman_Decoder_Engine::load_tree() save_tree() load_tree()
-       */
+	          @param[out] output An output stream where the tree will be written.
+	          @throw std::domain_error if the tree has not been generated.
+	          @see load_tree()
+	       */
   void save_tree(ostream & output) 
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
 
-    Aleph::save_tree<BinNode<string>> (root, output);
+    BitArray prefix;
+    tree_to_bits(root, prefix);
+    prefix.save(output);
+
+    save_string_as_bytes(end_symbol, output);
+    output << endl;
+
+    save_leaf_keys_in_prefix(root, output);
   }
 
-      /** Genera declaraciones de arreglos de bits y de claves para un
-          árbol de Huffman.
+	      /** Generate C/C++ array declarations for a Huffman tree.
 
-          save_tree_in_array_of_chars(array_name, output) genera
-          declaraciones para dos arreglos con los que se puede definir un
-          árbol binario. Las declaraciones son escritas en un archivo
-          texto, ya abierto, direccionado por el stream output. La
-          declaración resultante tiene la forma genérica siguiente: 
+	          save_tree_in_array_of_chars(array_name, output) writes two array
+	          declarations that can be used to reconstruct the binary tree:
 
-          const unsigned char array_name_cdp[n] = { lista de unsigned char };
-          
-          const char * array_name_k[] = { lista de claves en prefijo };
+	          - `const unsigned char array_name_cdp[n] = { ... };`
+	          - `const char * array_name_k[] = { ... };`
 
-          El primer arreglo es de bits y guarda la topología del árbol
-          bajo un código prefijo de bits (una palabra de Lukasiewicz). El
-          segundo arreglo, guarda los contenidos de los nodos y está
-          ordenado en la secuencia prefija. Los valores de las claves son
-          dados por la clase Get_Key()(root, str) el cual debe retornar
-          una constante char* que represente el contenido del nodo.
+	          The first array stores the topology as a prefix bit code (a
+	          Lukasiewicz word). The second array stores node contents in
+	          preorder. The `Get_Key` functor is used to stringify the node
+	          contents; internal nodes typically return an empty string.
 
-          La clase Get_Key()(), observadora del contenido del nodo, debe
-          ser muy cuidadosamente programada. Su estructura general es la
-          siguiente:
-
-          string operator() (Node * p) const;
-
-          Donde p es el nodo actual dentro del recorrido prefijo del
-          árbol binario. El resultado de esta llamada es colocado como
-          valor constante del arreglo array_name.
-
-          @param[in] array_name El nombre del arreglo de contenidos de los
-          nodos del árbol
-          @param[out] output stream abierto donde se escriben las
-          declaraciones de los arreglos, así como sus valores.
-
-          @param[out] output un stream correctamente abierto donde se
-          guarda el árbol.
-          @throw std::domain_error si el árbol aún no ha sido generado. 
-          @see Huffman_Encoder_Engine::load_tree() save_tree_in_array_of_chars()
-       */
+	          @param[in] array_name Prefix name for the generated arrays.
+	          @param[out] output Output stream where declarations are written.
+	          @throw std::domain_error if the tree has not been generated.
+	          @see Aleph::load_tree_from_array()
+	       */
   void save_tree_in_array_of_chars(const string & array_name, ostream & output)
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
 
     Aleph::save_tree_in_array_of_chars<BinNode<string>, Get_Key> 
       (root, array_name, output);
   }
 
-    /// Retorna la raíz del árbol decodificador de Huffman.
+	    /// Returns the root of the Huffman decoding tree.
   BinNode<string> *& get_root()  
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
 
     return root; 
   }
 
-    /** Genera el árbol de prefijos de Huffman.
+	    /** Generate the Huffman prefix tree.
 
-        generate_huffman_tree(with_freqs) ejecuta el algoritmo de Huffman
-        para generar el árbol de prefijos en función del texto leído. Si
-        with_freqs es true, entonces los nodos del árbol generado
-        contienen las frecuencias de aparición de los símbolos.
+	        generate_huffman_tree(with_freqs) runs Huffman's algorithm and
+	        builds the prefix tree from the collected symbol frequencies. If
+	        with_freqs is true, an additional tree containing frequencies is
+	        built as well.
 
-        @param[in] with_freqs si el valor es true, entonces los nodos del
-        árbol generado contendrán las frecuencias de aparición de los
-        símbolos. De lo contrario, el árbol sólo contiene los símbolos.
-        @return la raíz del árbol binario de prefijos. Este árbol binario
-        es el decodificador y es entrada de la clase
-        Huffman_Decoder_Engine.
-        @throw bad_alloc si no hay suficiente memoria.
-        @see build_prefix_encoding Huffman_Decoder_Engine
-     */
-  BinNode<string> * generate_huffman_tree(const bool & with_freqs = false) 
-  {
-    while (heap.size() > 1) // hasta que quede solo un nodo
-      {
-        Huffman_Node * l_huffman_node = (Huffman_Node*) heap.getMin(); // izq
-        Huffman_Node * r_huffman_node = (Huffman_Node*) heap.getMin(); // der
+	        @param[in] with_freqs If true, also build the frequency tree.
+	        @return The root of the Huffman decoding (prefix) tree.
+	        @throw std::bad_alloc if there is not enough memory.
+	        @see build_prefix_encoding Huffman_Decoder_Engine
+	     */
+	  BinNode<string> * generate_huffman_tree(const bool & with_freqs = false) 
+	  {
+	    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
+	    ah_domain_error_if(heap.is_empty()) << "No symbols have been inserted";
+
+	    freq_root = nullptr;
+
+	    while (heap.size() > 1) // until only one node remains
+	      {
+	        Huffman_Node * l_huffman_node = (Huffman_Node*) heap.getMin(); // left
+	        Huffman_Node * r_huffman_node = (Huffman_Node*) heap.getMin(); // right
         BinNode <string> * bin_node = new BinNode <string>;
         Huffman_Node * huffman_node = new Huffman_Node (bin_node);
         LLINK(bin_node) = l_huffman_node->bin_node;
@@ -346,7 +327,7 @@ class Huffman_Encoder_Engine
         delete l_huffman_node;
         delete r_huffman_node;
         heap.insert(huffman_node);
-      } // nodo que queda en heap es la raíz del árbol de prefijos  
+	      } // the remaining node in heap is the prefix tree root
 
     Huffman_Node * huffman_root = (Huffman_Node *) heap.getMin();
     root = huffman_root->bin_node;
@@ -355,64 +336,68 @@ class Huffman_Encoder_Engine
       freq_root = huffman_root->freq_node;
 
     delete huffman_root;
-    build_encoding_map(); // construir mapeo de códigos
+	    build_encoding_map(); // build code map
 
     return root;
   }
 
-     /** Carga y construye un árbol binario desde un archivo.
+	     /** Load and build a binary tree from a stream.
 
-          load_tree(input) lee el archivo referenciado por input, el cual
-          contiene un árbol de Huffman previamente guardado con 
-          Huffman_Encoder_Engine::save_tree() y lo restaura en memoria.
+	          load_tree(input) reads a Huffman tree previously saved with
+	          save_tree() and restores it into memory.
 
-          @param[in] input referencia al archivo donde se encuentra
-          guardado el árbol bina1rio. 
-          @throw std::bad_alloc sin no hay suficiente para construir
-          arreglo de bits intermedio o para construir el árbol binario.
-          @see load_tree() Huffman_Encoder_Engine::save_tree()
-
-      */
-  void load_tree(ifstream & input)
+	          @param[in] input Input stream containing the serialized tree.
+	          @throw std::bad_alloc if there is not enough memory.
+	          @throw std::domain_error if the stream is malformed.
+	          @see save_tree()
+	      */
+  void load_tree(istream & input)
   {
-    if (root != BinNode<string>::NullPtr)
-      destroyRec(root);
-    
-    root = Aleph::load_tree<BinNode<string>>(input);
+    clear_build_state();
+
+    destroyRec(root);
+    destroyRec(freq_root);
+
+    BitArray prefix;
+    prefix.load(input);
+    root = bits_to_tree<BinNode<string>>(prefix);
+
+    end_symbol = load_string_from_bytes(input);
+    load_leaf_keys_in_prefix(root, input);
+
+    build_encoding_map();
   }
 
-    /// Retorna la raíz de un árbol de frecuencias.
+	    /// Returns the root of the frequency tree.
   Freq_Node *& get_freq_root() 
   { 
-    if (freq_root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(freq_root == nullptr)
+      << "Huffman tree has not been generated";
 
     return freq_root; 
   }
 
-    /** Define la frecuencia de aparición de un símbolo.
+	    /** Define the frequency of a symbol.
 
-        set_freq(str, freq) instruye al codificador que al símbolo str
-        se le asocia una frecuencia de aparición freq.
+	        set_freq(str, freq) tells the encoder that symbol `str` has
+	        frequency `freq`.
 
-        @param[in] str símbolo.
-        @param[in] freq frecuencia del símbolo
-        @throw bad_alloc si no hay suficiente memoria.
-     */
+	        @param[in] str Symbol.
+	        @param[in] freq Symbol frequency.
+	        @throw std::bad_alloc if there is not enough memory.
+	     */
   void set_freq(const string & str, const size_t & freq)
   {
-    if (root != nullptr)
-      throw domain_error("Huffman encoding tree has already been generated");
-    if (test_end(str))
-      throw domain_error("End symbol has already been inserted");
-       
-        // Buscar símbolo str
-    auto huffman_node_ptr = symbol_map.search(str);
-    if (huffman_node_ptr != nullptr) // ¿ya fue definido?
-      {
-	std::string msg = "Frequency for symbol " + str + " has already set";
-	throw std::domain_error(msg); // Sí ==> esto es un error!
-      }
+    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
+    ah_domain_error_if(test_end(str)) << "End symbol has already been inserted";
+	       
+	        // Search symbol str
+	    auto huffman_node_ptr = symbol_map.search(str);
+	    if (huffman_node_ptr != nullptr) // already defined?
+	      {
+		std::string msg = "Frequency for symbol " + str + " has already set";
+		ah_domain_error() << msg; // Yes ==> this is an error!
+	      }
    
     unique_ptr<BinNode<string> > bin_node_auto(new BinNode<string>(str));
     Huffman_Node * huffman_node = new Huffman_Node(bin_node_auto.get());
@@ -426,28 +411,108 @@ class Huffman_Encoder_Engine
 
     static const size_t Max_Token_Size = 256;
 
+    static void save_string_as_bytes(const string & str, ostream & output)
+    {
+      output << str.size() << " ";
+      for (unsigned char c : str)
+        output << static_cast<unsigned int>(c) << " ";
+    }
+
+    static string load_string_from_bytes(istream & input)
+    {
+      size_t len = 0;
+      input >> len;
+      ah_domain_error_if(not input) << "Malformed Huffman tree stream";
+      ah_domain_error_if(len > Max_Token_Size) << "Symbol too large in Huffman tree stream";
+
+      string str;
+      str.resize(len);
+      for (size_t i = 0; i < len; ++i)
+        {
+          unsigned int byte = 0;
+          input >> byte;
+          ah_domain_error_if(not input) << "Malformed Huffman tree stream";
+          ah_domain_error_if(byte > 255u) << "Invalid byte value in Huffman tree stream";
+          str[i] = static_cast<char>(static_cast<unsigned char>(byte));
+        }
+      return str;
+    }
+
+    static void save_leaf_keys_in_prefix(BinNode<string> * p, ostream & output)
+    {
+      if (p == BinNode<string>::NullPtr)
+        return;
+
+      if (is_leaf(p))
+        {
+          save_string_as_bytes(p->get_key(), output);
+          output << endl;
+          return;
+        }
+
+      save_leaf_keys_in_prefix(LLINK(p), output);
+      save_leaf_keys_in_prefix(RLINK(p), output);
+    }
+
+    static void load_leaf_keys_in_prefix(BinNode<string> * p, istream & input)
+    {
+      if (p == BinNode<string>::NullPtr)
+        return;
+
+      if (is_leaf(p))
+        {
+          p->get_key() = load_string_from_bytes(input);
+          return;
+        }
+
+      load_leaf_keys_in_prefix(LLINK(p), input);
+      load_leaf_keys_in_prefix(RLINK(p), input);
+    }
+
+    void insert_end_symbol_node(const string & str)
+    {
+      unique_ptr<BinNode<string> > bin_node_auto(new BinNode<string>(str));
+
+      Huffman_Node * huffman_node = static_cast<Huffman_Node*>
+        (heap.insert(new Huffman_Node(bin_node_auto.get())));
+      symbol_map.insert(str, huffman_node);
+      bin_node_auto.release();
+    }
+
+    void clear_build_state() noexcept
+    {
+      while (not heap.is_empty())
+        {
+          auto * node = static_cast<Huffman_Node*>(heap.getMin_ne());
+          delete node->bin_node;
+          delete node;
+        }
+      symbol_map.empty();
+      code_map.empty();
+      text_len = 0;
+      end_symbol = "NO-END";
+    }
+
   public:
 
-      /** Lee una cadena caracteres, contabiliza las frecuencias de sus
-          distintos símbolos y genera el árbol binario de prefijos.
+	      /** Read a NUL-terminated character string, count frequencies and build the prefix tree.
 
-          read_input(input, with_freqs) lee la cadena de caracteres input,
-          contabiliza las frecuencias de aparición de cada símbolo y
-          finalmente genera el árbol binario de prefijos.
+	          read_input(input, with_freqs) reads the NUL-terminated string
+	          `input`, counts the frequency of each symbol and builds the
+	          Huffman prefix tree.
 
-          @param[in] input cadena de caracteres a codificar.
-          @param[in] with_freqs si el valor es true, entonces también se
-          genera el árbol de prefijos con las frecuencias en cada símbolo.
-          @throw bad_alloc si no hay suficiente memoria.
-       */
+	          @param[in] input NUL-terminated string to encode.
+	          @param[in] with_freqs If true, also build the frequency tree.
+	          @throw std::bad_alloc if there is not enough memory.
+	       */
   void read_input(char * input, const bool & with_freqs = false)
   {
-    if (root != nullptr)
-      throw domain_error("Huffman encoding tree has already been generated");
+    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
 
     char * curr_stream = input;
     char curr_token[Max_Token_Size];
     curr_token[1] = '\0';
+    text_len = 0;
 
     while (*curr_stream != '\0')
       {
@@ -456,76 +521,81 @@ class Huffman_Encoder_Engine
         text_len++;
       }
 
-    set_end_of_stream("");
+    if (end_symbol == "NO-END")
+      set_end_of_stream("");
+    else if (symbol_map.search(end_symbol) == nullptr)
+      insert_end_symbol_node(end_symbol);
     generate_huffman_tree(with_freqs);
   }
 
-      /** Lee un archivo, contabiliza las frecuencias de sus
-          distintos símbolos y genera el árbol binario de prefijos.
+	      /** Read a stream, count frequencies and build the prefix tree.
 
-          read_input(input, with_freqs) lee el archivo de entrada input,
-          contabiliza las frecuencias de aparición de cada símbolo y
-          finalmente genera el árbol binario de prefijos.
+	          read_input(input, with_freqs) reads characters from `input`
+	          until EOF, counts symbol frequencies and builds the Huffman
+	          prefix tree.
 
-          @param[in] input archivo contentivo de los caracteres a codificar.
-          @param[in] with_freqs si el valor es true, entonces también se
-          genera el árbol de prefijos con las frecuencias en cada símbolo.
-          @throw bad_alloc si no hay suficiente memoria.
-       */
-  void read_input(ifstream & input, const bool & with_freqs = false)
+	          @param[in] input Stream containing the text to encode.
+	          @param[in] with_freqs If true, also build the frequency tree.
+	          @throw std::bad_alloc if there is not enough memory.
+	       */
+  void read_input(istream & input, const bool & with_freqs = false)
   {
-    if (root != nullptr)
-      throw domain_error("Huffman encoding tree has already been generated");
+    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
 
-    char curr_token[2];
-    curr_token[0] = curr_token[1] = '\0';
-
-    while (not input.eof())
+    char curr_token[2] = {'\0', '\0'};
+    char ch = '\0';
+    text_len = 0;
+    while (input.get(ch))
       {
-        input.read(curr_token, 1); 
+        curr_token[0] = ch;
         update_freq(curr_token);
-        text_len++;
+        ++text_len;
       }
 
-    set_end_of_stream("");
+    if (end_symbol == "NO-END")
+      set_end_of_stream("");
+    else if (symbol_map.search(end_symbol) == nullptr)
+      insert_end_symbol_node(end_symbol);
     generate_huffman_tree(with_freqs);
   }
 
-    /// Define el símbolo fin de entrada.
+	    /// Defines the end-of-stream symbol.
   void set_end_of_stream(const string & str)
   {
-    if (test_end(str))
-      throw domain_error("End symbol has already been inserted");
+    ah_domain_error_if(end_symbol != "NO-END") << "End symbol has already been inserted";
 
-    if (root != nullptr)
-      throw domain_error("Huffman encoding tree has already been generated");
+    ah_domain_error_if(root != nullptr) << "Huffman encoding tree has already been generated";
 
-    unique_ptr<BinNode<string> > bin_node_auto ( new BinNode<string> (str) );
+    ah_domain_error_if(symbol_map.search(str) != nullptr)
+      << "End symbol is already present as a normal symbol";
 
-    Huffman_Node * huffman_node =  static_cast<Huffman_Node*>
-      (heap.insert(new Huffman_Node(bin_node_auto.get())));
-    symbol_map.insert(str, huffman_node); 
-    bin_node_auto.release();
+    insert_end_symbol_node(str);
     end_symbol = str;
   }
 
-      /** Codifica el texto input.
+    /// Return the configured end-of-stream symbol.
+  const string & get_end_of_stream() const noexcept
+  {
+    return end_symbol;
+  }
 
-          encode(input,bit_stream) lee la entrada input, la codifica y
-          escribe el texto codificado en el arreglo de bits bit_stream.
+	      /** Encode the input text.
 
-          @param[in] input cadena de caracteres contentiva del texto a
-          codificar.
-          @param[out] bit_stream el arreglo de bits donde escribir el
-          texto codificado.  
-          @return la longitud de total del texto codificado.
-          @throw domain_error si el árbol de prefijos no ha sido generado
-          mediante el método generate_huffman_tree()
-       */
+	          encode(input, bit_stream) reads `input`, encodes it and appends
+	          the result to `bit_stream`.
+
+	          @param[in] input NUL-terminated string containing the text to encode.
+	          @param[out] bit_stream Bit array where the encoded stream is appended.
+	          @return Total bit length of `bit_stream` after encoding.
+	          @throw std::domain_error if the prefix tree has not been generated.
+	       */
   size_t encode(char * input, BitArray & bit_stream)
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
+
+    ah_domain_error_if(end_symbol == "NO-END")
+      << "End symbol has not been configured";
 
     char * curr_stream = input;
     char curr_token[Max_Token_Size];
@@ -535,41 +605,43 @@ class Huffman_Encoder_Engine
         curr_token[0] = *curr_stream++; 
         append_code(bit_stream, code_map.find(curr_token));
       }
-    append_code(bit_stream, code_map.find(""));
+    append_code(bit_stream, code_map.find(end_symbol));
 
     return bit_stream.size();
   }
 
-      /** Codifica el texto input.
+	      /** Encode the input text from a stream.
 
-          encode(input,bit_stream) lee la entrada input, la codifica y
-          escribe el texto codificado en el arreglo de bits bit_stream.
+	          encode(input, bit_stream) reads from `input` until EOF, encodes
+	          the symbols and appends the result to `bit_stream`.
 
-          @param[in] input archivo con los caracteres del texto a
-          codificar.
-          @param[out] bit_stream el arreglo de bits donde escribir el
-          texto codificado.  
-          @return la longitud de total del texto codificado.
-          @throw domain_error si el árbol de prefijos no ha sido generado
-          mediante el método generate_huffman_tree()
-       */
-  size_t encode(ifstream & input, BitArray & bit_stream)
+	          @param[in] input Stream containing the text to encode.
+	          @param[out] bit_stream Bit array where the encoded stream is appended.
+	          @return Total bit length of `bit_stream` after encoding.
+	          @throw std::domain_error if the prefix tree has not been generated.
+	       */
+  size_t encode(istream & input, BitArray & bit_stream)
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
-    char curr_token[2];
-    curr_token[0] = curr_token[1] = '\0'; 
-    while (not input.eof())
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
+
+    ah_domain_error_if(end_symbol == "NO-END")
+      << "End symbol has not been configured";
+
+    char curr_token[2] = {'\0', '\0'};
+    char ch = '\0';
+    while (input.get(ch))
       {
-        input.read(curr_token, 1); 
+        curr_token[0] = ch;
         append_code(bit_stream, code_map.find(curr_token));
       }
-    append_code(bit_stream, code_map.find(""));
+
+    append_code(bit_stream, code_map.find(end_symbol));
     return bit_stream.size();
   }
 };
 
-    /** Decodificador de Huffman.
+	    /** Huffman decoder.
 
         @see Huffman_Encoder_Engine
         @ingroup Arboles
@@ -580,64 +652,60 @@ class Huffman_Decoder_Engine
   string end_symbol;
   public:
 
-    /** Constructor del decodificador.
+	    /** Decoder constructor.
 
-        Instancia un decodificador según un árbol de Huffman previamente
-        construido mediante la clase Huffman_Encoder_Engine.
+	        Builds a decoder given a previously constructed Huffman tree.
 
-        @param[in] p raíz del árbol binario de Huffman decodificador.
-        @param[in] end símbolo de fin de fin de entrada.
-     */
+	        @param[in] p Root of the Huffman decoding tree.
+	        @param[in] end End-of-stream symbol.
+	     */
   Huffman_Decoder_Engine(BinNode<string> * p, const string & end)
     : root(p), end_symbol(end)
   {
     // empty
   }
 
-    /// Retorna la raíz del árbol decodificador de Huffman.
+	    /// Returns the root of the Huffman decoding tree.
   BinNode<string> *& get_root()  
   {
-    if (root == nullptr)
-      throw std::domain_error("Huffman tree has not been generated");
+    ah_domain_error_if(root == nullptr)
+      << "Huffman tree has not been generated";
 
     return root; 
   }
 
-    /** Decodifica una cadena de bits.
+	    /** Decode a bit stream.
 
-        El método decode(bit_stream, bit_stream_len, output) decodifica la
-        cadena de bits bit_stream de longitud bit_stream_len, la
-        decodifica según el árbol de prefijos de Huffman, y coloca la
-        salida decodificada en output.
+	        decode(bit_stream, output) decodes `bit_stream` using the Huffman
+	        prefix tree and writes the decoded output into `output`.
 
-        @param[in] bit_stream la cadena de bits codificada.
-        @param[out] output stream por donde se colocará el texto
-        decodificado. 
-    */
-  void decode(BitArray & bit_stream, ostream & output)
-  {
-    const size_t & bit_stream_len = bit_stream.size();
-    BinNode<string> * p = root;
-    for (int i = 0; i < bit_stream_len; ++i)
-      {
-        if (bit_stream.read_bit(i) == 0)
-          p = LLINK(p);
-        else
-          p = RLINK(p);
+	        @param[in] bit_stream Encoded bit stream.
+	        @param[out] output Output stream where the decoded text is written.
+	    */
+	  void decode(BitArray & bit_stream, ostream & output)
+	  {
+	    const size_t & bit_stream_len = bit_stream.size();
+	    BinNode<string> * p = root;
+	    for (size_t i = 0; i < bit_stream_len; ++i)
+	      {
+	        if (bit_stream.read_bit(i) == 0)
+	          p = LLINK(p);
+	        else
+	          p = RLINK(p);
 
 
-       if (p == nullptr)
-         throw std::domain_error("Invalid bits sequence");
+       ah_domain_error_if(p == nullptr)
+         << "Invalid bits sequence";
 
-       if (is_leaf(p)) // ¿es hoja?
-         {     // sí ==> escribir símbolo y reiniciar a raíz
-           const string & symbol = p->get_key();
-           if (symbol == end_symbol) // ¿se alcanza final?
-             break;
+	       if (is_leaf(p)) // leaf?
+	         {     // yes ==> write symbol and reset to root
+	           const string & symbol = p->get_key();
+	           if (symbol == end_symbol) // end reached?
+	             break;
 
-           output << symbol;
-           p = root; // reiniciar a raíz, pues se leerá un nuevo código
-         }
+	           output << symbol;
+	           p = root; // reset to root, a new code will be read
+	         }
       }
   }
 };

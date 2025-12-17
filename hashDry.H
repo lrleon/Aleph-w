@@ -30,6 +30,7 @@
 
 # include <aleph.H>
 # include <tpl_dynArray.H>
+# include <ah-errors.H>
 
 template <class HashTbl, typename Key>
 class OhashCommon
@@ -68,7 +69,8 @@ public:
 
   void check_resize_before_insert()
   {
-    if (me()->with_resize and me()->N >= me()->len)
+    // Keep at least one EMPTY bucket as a sentinel.
+    if (me()->with_resize and me()->N >= me()->len - 1)
       me()->resize(Primes::next_prime(2 * me()->len));
   }
 
@@ -101,6 +103,8 @@ public:
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
+    if (bucket == nullptr)
+      return nullptr;
     if (get<1>(r))
       return &bucket->key;
 
@@ -114,6 +118,8 @@ public:
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
+    if (bucket == nullptr)
+      return nullptr;
     if (get<1>(r))
       return &bucket->key;
 
@@ -124,8 +130,11 @@ public:
 
   pair<Key*, bool> contains_or_insert(const Key & key)
   {
+    check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
+    if (bucket == nullptr)
+      return { nullptr, false };
     if (get<1>(r))
       return { &bucket->key, true };
 
@@ -137,8 +146,11 @@ public:
 
   pair<Key*, bool> contains_or_insert(Key && key)
   {
+    check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
     auto bucket = get<0>(r);
+    if (bucket == nullptr)
+      return { nullptr, false };
     if (get<1>(r))
       return { &bucket->key, true };
 
@@ -168,8 +180,8 @@ public:
   Key & find(const Key & key)
   {
     auto key_ptr = me()->search(key);
-    if (key_ptr == nullptr)
-      throw std::domain_error("Key not found in hash");
+    ah_domain_error_if(key_ptr == nullptr)
+      << "Key not found in hash";
 
     return *key_ptr;
   }
@@ -205,11 +217,11 @@ public:
     if (new_size == 0 or new_size == me()->len)
       return me()->len;
 
-    if (me()->N > new_size)
-      throw std::overflow_error ("New size is not enough for current"
-                                 " number of entries");
+    // new_size must leave at least one EMPTY bucket as sentinel
+    ah_overflow_error_if(me()->N >= new_size)
+      << "New size is not enough for current number of entries";
 
-    typename HashTbl::Bucket * new_table = new typename HashTbl::Bucket[new_size];
+    auto * new_table = new typename HashTbl::Bucket[new_size];
     typename HashTbl::Bucket * old_table = me()->table;
     const size_t old_len = me()->len;
 
@@ -282,8 +294,8 @@ public:
     bool check() const noexcept
     {
       assert(table_ptr != nullptr);
-      return (curr_idx >= 0 and curr_idx < (long) table_ptr->len) and
-        (ordinal >= -1 and ordinal <= (long) table_ptr->size());
+      return curr_idx >= 0 and curr_idx < static_cast<long>(table_ptr->len) and
+        ordinal >= -1 and ordinal <= static_cast<long>(table_ptr->size());
     }
 
     void locate_next_available_entry_ne() noexcept
@@ -306,15 +318,15 @@ public:
 
     void locate_next_available_entry()
     {
-      if (ordinal >= table_ptr->size())
-        throw std::overflow_error("Iterator next() overflow"); 
+      ah_overflow_error_if(ordinal >= table_ptr->size())
+        << "Iterator next() overflow";
       locate_next_available_entry_ne();
     }
 
     void locate_prev_available_entry()
     {
-      if (ordinal <= -1)
-        throw std::underflow_error("Iterator next() underflow");
+      ah_underflow_error_if(ordinal <= -1)
+        << "Iterator next() underflow";
       locate_prev_available_entry_ne();
     }
 
@@ -377,11 +389,11 @@ public:
 
     Key & get_curr()
     {
-      if (ordinal == table_ptr->size())
-        throw std::overflow_error("O hash::Iterator next() overflow");
+      ah_overflow_error_if(ordinal == table_ptr->size())
+        << "O hash::Iterator next() overflow";
 
-      if (ordinal == -1)
-        throw std::underflow_error("O hash::Iterator next() underflow");
+      ah_underflow_error_if(ordinal == -1)
+        << "O hash::Iterator next() underflow";
 
       assert(check());
 
@@ -419,8 +431,8 @@ public:
 
     void del()
     {
-      if (not has_curr())
-        throw std::overflow_error("Overflow in del() of iterator");
+      ah_overflow_error_if(not has_curr())
+        << "Overflow in del() of iterator";
 
       table_ptr->deallocate_bucket(&table_ptr->table[curr_idx]);
       if (table_ptr->size() == 0)
@@ -460,7 +472,7 @@ public:
               << "deleted slots = " << stats.num_deleted << std::endl
               << "empty slots   = " << stats.num_empty << std::endl
               << "alpha         = " << const_me()->current_alpha() << std::endl
-              << "max lenght    = " << stats.max_len << std::endl;
+              << "max length    = " << stats.max_len << std::endl;
     for (int i = 0; i < stats.lens.size(); ++i)
       cout << "    " << i << " = " << stats.lens(i) << endl;
   }
@@ -558,16 +570,16 @@ public:
 
   void set_upper_alpha(const float &  __upper_alpha)
   {
-    if (__upper_alpha <= lower_alpha)
-      throw std::domain_error("upper_alpha lower than lower_alpha");
+    ah_domain_error_if(__upper_alpha <= lower_alpha)
+      << "upper_alpha lower than lower_alpha";
 
     upper_alpha = __upper_alpha;
   }
 
   void set_lower_alpha(const float &  __lower_alpha)
   {
-    if (__lower_alpha >= upper_alpha)
-      throw std::domain_error("lower_alpha greater than upper_alpha");
+    ah_domain_error_if(__lower_alpha >= upper_alpha)
+      << "lower_alpha greater than upper_alpha";
 
     lower_alpha = __lower_alpha;
   }
