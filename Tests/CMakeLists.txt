@@ -77,6 +77,7 @@ set(TEST_PROGRAMS
     array
     array_utils
     array-it
+    bloom-filter
     dynarray
     union
     sort_utils
