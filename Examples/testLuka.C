@@ -29,6 +29,7 @@
 # include <iostream>
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
+ # include <ah-errors.H>
 
 using namespace std;
 
@@ -39,8 +40,7 @@ void init_random(int seed)
 {
   r = gsl_rng_alloc (gsl_rng_mt19937);
 
-  if (r == NULL)
-    throw std::bad_alloc();
+  ah_bad_alloc_if(r == NULL);
 
   gsl_rng_set(r, seed % gsl_rng_max(r));
 }

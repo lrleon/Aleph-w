@@ -541,14 +541,12 @@ namespace Aleph
         if (overflow)
           {
             assert(t_tree_ptr == nullptr);
-            throw std::overflow_error("Multimap::iterator is already "
-                                      "in overflow");
+            ah_overflow_error() << "Multimap::iterator is already in overflow";
           }
 
         assert(t_it.has_curr() and t_tree_ptr != nullptr);
 
-        Tdata & tdata = KEY(t_it.get_curr());
-        if (++pos_in_t < tdata.num_reps) // alcanza el último elemento
+        if (Tdata & tdata = KEY(t_it.get_curr()); ++pos_in_t < tdata.num_reps) // alcanza el último elemento
           return; // aún no!
 
         forward_tree_iterators();
@@ -592,8 +590,7 @@ namespace Aleph
         if (underflow)
           {
             assert(t_tree_ptr == nullptr);
-            throw std::underflow_error("Multimap::iterator is "
-                                       "already in underflow");
+            ah_underflow_error() << "Multimap::iterator is already in underflow";
           }
 
         assert(t_it.has_curr() and t_tree_ptr != nullptr);
@@ -744,8 +741,8 @@ namespace Aleph
                 if (not has_curr())
                   {
                     put_in_overflow();
-                    throw std::overflow_error("Multimap::iterator is "
-                                              "already in overflow");
+                    ah_overflow_error_if(not has_curr()) << "Multimap::iterator is "
+                                                         << "already in overflow";
                   }
 
                 assert(KEY(get_curr()).num_reps > 0);
@@ -1204,7 +1201,7 @@ namespace Aleph
     {
       iterator ret = find(key);
       if (ret == end())
-        throw std::domain_error("key not found on constant multimap");
+        ah_domain_error_if(ret == end()) << "key not found on constant multimap";
 
       return ret->second;
     }

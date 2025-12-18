@@ -30,6 +30,7 @@
 
 # include "ahFunctional.H"
 # include <utility>
+# include <ah-errors.H>
 
 /**  Generic traversal of the container through its iterator.
 
@@ -237,8 +238,7 @@ public:
                      return false;
                    });
 
-    if (i != n + 1)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(i != n + 1) << "index out of range";
 
     return *ptr;
   }

@@ -25,6 +25,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 # include <Vector.H>
+ # include <ah-errors.H>
 
 template <class Key>
 class deque : public vector<Key>
@@ -67,8 +68,8 @@ public:
 
     void verify_array(DynArray<Key> * array_ptr) const
     {
-      if (array_ptr not_eq dyn_array_ptr)
-	throw std::domain_error("Iterator is not set to same array");
+      ah_domain_error_if(array_ptr not_eq dyn_array_ptr)
+        << "Iterator is not set to same array";
     }
 
     DynArray<Key> * get_dyn_array_ptr() { return dyn_array_ptr; }

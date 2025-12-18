@@ -28,6 +28,7 @@
 # define TPL_TEST_CONNECTIVITY_H
 
 # include <tpl_graph_utils.H>
+ # include <ah-errors.H>
 
 
        /** Determina si un grafo g es conexo.
@@ -69,8 +70,8 @@ public:
          */
   bool operator () (GT & g, SA && sa = SA()) const
   {
-    if (g.is_digraph()) // sólo es válida para grafos, no digrafos
-      throw std::domain_error("test_connectivity() does not work on digraphs");
+    ah_domain_error_if(g.is_digraph())
+      << "test_connectivity() does not work on digraphs";
 
     if (g.get_num_arcs() < g.get_num_nodes() - 1)
       return false;
@@ -94,8 +95,8 @@ public:
          */
   bool operator () (GT & g, SA & sa) const
   {
-    if (g.is_digraph()) // sólo es válida para grafos, no digrafos
-      throw std::domain_error("test_connectivity() does not work on digraphs");
+    ah_domain_error_if(g.is_digraph())
+      << "test_connectivity() does not work on digraphs";
 
     if (g.get_num_arcs() < g.get_num_nodes() - 1) 
       return false;

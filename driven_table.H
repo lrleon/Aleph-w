@@ -30,6 +30,7 @@
 
 # include <aleph.H>
 # include <tpl_dynArray.H>
+ # include <ah-errors.H>
 
 using namespace std;
 
@@ -62,7 +63,7 @@ private:
 
 protected:
 
-  void fill_table_to_null(size_t num_events)
+  void fill_table_to_null(const size_t num_events)
   {
     for (int i = 0; i < num_events; i++)
       write_table(i, nullptr);
@@ -70,12 +71,14 @@ protected:
 
 public:
 
-  void register_event(size_t index, Event_Fct fct)
+  void register_event(const size_t index, Event_Fct fct)
   {
     assert(fct not_eq nullptr);
 
-    if (read_table(index) not_eq nullptr)
-      throw domain_error("Index is already used");
+    ah_domain_error_if(index >= size())
+        << "Index out of range";
+
+    ah_domain_error_if(read_table(index) not_eq nullptr) << "Index is already used";
 
     write_table(index, fct);
   }
@@ -90,10 +93,12 @@ public:
     return size() - 1;
   }
 
-  void unregister_event(size_t index)
+  void unregister_event(const size_t index)
   {
-    if (read_table(index) == nullptr)
-      throw domain_error("Index is not used");
+    ah_domain_error_if(index >= size())
+        << "Index out of range";
+
+    ah_domain_error_if(read_table(index) == nullptr) << "Index is not used";
 
     write_table(index, nullptr);
 
@@ -101,15 +106,15 @@ public:
       cut_table(index - 1);
   }
 
-  bool check(size_t index, Event_Fct fct) const
+  bool check(const size_t index, Event_Fct fct) const
   {
     return index < size() and read_table(index) == fct;
   }
 
-  void * execute_event(size_t index, void * input = nullptr)
+  void * execute_event(const size_t index, void * input = nullptr)
   {
     if (read_table(index) == nullptr)
-      throw domain_error("Index is not used");
+      ah_domain_error_if(true) << "Index is not used";
 
     return (*read_table(index))(input);
   }
@@ -126,7 +131,7 @@ private:
   void verify_index(int i) const
   { 
     if (i < 0 or i >= size_table)
-      throw range_error("index out of range");
+      ah_range_error_if(true) << "index out of range";
   }
 
   virtual Event_Fct read_table(int i) const

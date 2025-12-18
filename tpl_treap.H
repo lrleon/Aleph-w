@@ -33,6 +33,7 @@
 # include <tpl_binNodeUtils.H>
 # include <treapNode.H>
 # include <tpl_binTreeOps.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -82,8 +83,7 @@ private:
     PRIO(head_ptr) = Min_Priority;
     r = gsl_rng_alloc (gsl_rng_mt19937);
 
-    if (r == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(r == nullptr);
 
     gsl_rng_set(r, seed % gsl_rng_max(r));
   }

@@ -33,6 +33,7 @@
 # include <ah-dry.H>
 # include <tpl_dynArray.H>
 # include <utility>
+ # include <ah-errors.H>
 
 namespace Aleph {
 
@@ -79,8 +80,7 @@ public:
   Random_Set() : array(0), r(nullptr)
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
-    if (r == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(r == nullptr);
 
     gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
   }
@@ -221,8 +221,7 @@ public:
   /// Extract randomly an item 
   T get()
   {
-    if (array.size() == 0)
-      throw std::underflow_error("Random set is empty");
+    ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
     T ret_val = array.access(pos);
@@ -234,8 +233,7 @@ public:
   // pick() is like get() but without removing the item
   T pick() const
   {
-    if (array.size() == 0)
-      throw std::underflow_error("Random set is empty");
+    ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
     T ret_val = array.access(pos);

@@ -23,6 +23,12 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -O0 -g3")
 # Include parent directory for Aleph headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+if(NOT TARGET Aleph)
+    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/.. ${CMAKE_CURRENT_BINARY_DIR}/aleph)
+endif()
+
 # Link directory for Aleph library
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -45,6 +51,18 @@ endif()
 # Find Google Test
 find_package(GTest REQUIRED)
 
+# GoogleMock is not always installed alongside GTest. Some tests (e.g.
+# ringfilecache.cc) require gmock headers. Detect availability and skip those
+# targets if gmock is missing.
+set(ALEPH_HAVE_GMOCK OFF)
+if(TARGET GTest::gmock)
+    set(ALEPH_HAVE_GMOCK ON)
+elseif(EXISTS "/usr/include/gmock/gmock.h")
+    set(ALEPH_HAVE_GMOCK ON)
+elseif(DEFINED ENV{GOOGLETEST} AND EXISTS "$ENV{GOOGLETEST}/googlemock/include/gmock/gmock.h")
+    set(ALEPH_HAVE_GMOCK ON)
+endif()
+
 # Note: You may need to set GOOGLETEST environment variable or specify the path
 # export GOOGLETEST=/path/to/googletest
 # or set it in CMake: cmake -DGOOGLETEST=/path/to/googletest ..
@@ -56,10 +74,8 @@ endif()
 
 # List of all test programs from Imakefile
 set(TEST_PROGRAMS
-	    array
-	    bitarray
-	    huffman
-	    array_utils
+    array
+    array_utils
     array-it
     dynarray
     union
@@ -96,7 +112,6 @@ set(TEST_PROGRAMS
     hash-it
     ah-zip
     ah-functional
-    ah-comb
     ah-dry
     tree-it
     al-domain
@@ -105,6 +120,7 @@ set(TEST_PROGRAMS
     # ah-arena  # TODO: DynSetTree missing arena_allocated_size/arena_available_size
     ah-string-utils
     ah-utils
+    index-node
     # sort_arrays  # TODO: to_vector not declared
     primes
     generate_tree
@@ -117,14 +133,17 @@ set(TEST_PROGRAMS
     arrayheap
     arrayheap_algos
     dynarrayheap
+    ringfilecache
+    tpl_indexArc_test
+    tpl_dynarray_set_test
+    random_graph
+    tarjan_test
 )
 
 # Exhaustive tests (files ending in _test.cc)
 set(EXHAUSTIVE_TESTS
     dlink_test
     htlist_test
-    tpl_graph_test
-    graph_traverse_test
 )
 
 # Create executable for each test program

@@ -30,6 +30,7 @@
 # include <tpl_dynSetTree.H>
 # include <array_it.H>
 # include <tpl_sgraph.H>
+ # include <ah-errors.H>
 
 namespace Aleph {
 
@@ -60,8 +61,7 @@ class Graph_Anode
       return;
 
     arc_array = (void**) malloc(arcs_dim*sizeof(void*));
-    if (arc_array == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(arc_array == nullptr);
   }
   
 public:
@@ -115,8 +115,7 @@ public:
       new_size = 1;
 
     void ** new_array = (void**) realloc(arc_array, new_size*sizeof(void*));
-    if (new_array == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(new_array == nullptr);
     
     arc_array = new_array;
     arcs_dim = new_size;
@@ -163,8 +162,7 @@ public:
 	  break;
 	}
 
-    if (not removed)
-      throw std::domain_error("arc for deleting not found");
+    ah_domain_error_if(not removed) << "arc for deleting not found";
 
     if (this->num_arcs > contract_threshold)
       return;
@@ -505,8 +503,7 @@ public:
 
   Arc * get_first_arc(Node * p) const
   {
-    if (get_num_arcs(p) == 0)
-      throw std::range_error("Node has not arcs");
+    ah_range_error_if(get_num_arcs(p) == 0) << "Node has not arcs";
     return (Arc*) p->arc_array[0];
   }
 

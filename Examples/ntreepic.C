@@ -36,6 +36,7 @@
 
 # include "parse_utils.H"
 # include "treepic_utils.H"
+# include "ah-errors.H"
 
 /*
 
@@ -268,7 +269,7 @@ void load_deway_number(ifstream& input_stream,
 	  put_char_in_buffer(start_addr, end_addr, '\0');
 
 	  if (deway_index >= deway_array_size)
-	    throw overflow_error("Deway number is too long");
+	    ah_overflow_error_if(true) << "Deway number is too long";
 
 	  deway_array[deway_index++] = atoi(deway_string);
 	  start_addr = &deway_string[0];
@@ -280,11 +281,11 @@ void load_deway_number(ifstream& input_stream,
 	}
 
       input_stream.unget();
-      throw invalid_argument("Unexpected character in deway number");
+	  ah_invalid_argument_if(true) << "Unexpected character in deway number";
     }
 
   if (deway_index >= deway_array_size)
-    throw overflow_error("Internal deway array size is not enough");
+    ah_overflow_error_if(true) << "Internal deway array size is not enough";
   deway_array[deway_index] = -1;
 }
 

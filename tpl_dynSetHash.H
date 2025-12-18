@@ -141,8 +141,8 @@ namespace Aleph
     }
 
     DynHashTable(DynHashTable && other) noexcept
-    : Base(other.len, other.hash_fct, other.get_compare(),
-                      other.lower_alpha, other.upper_alpha, true, true)
+      : Base(other.len, other.hash_fct, other.get_compare(),
+             other.lower_alpha, other.upper_alpha, true, true)
     {
       this->swap(other);
     }
@@ -284,8 +284,7 @@ namespace Aleph
     const Key &find(const Key & key) const
     {
       auto *bucket = static_cast<Bucket *>(this->Base::search(key));
-      if (bucket == nullptr)
-        throw std::domain_error("Key not found in hash");
+      ah_domain_error_if(bucket == nullptr) << "Key not found in hash";
 
       return bucket->get_key();
     }
@@ -294,8 +293,7 @@ namespace Aleph
     {
       auto *bucket = static_cast<Bucket *>(this->Base::search(key));
 
-      if (bucket == nullptr)
-        throw std::domain_error("Key not found in hash");
+      ah_domain_error_if(bucket == nullptr) << "Key not found in hash";
 
       return bucket->get_key();
     }
@@ -334,8 +332,7 @@ namespace Aleph
     Key remove(const Key & key)
     {
       auto *bucket = static_cast<Bucket *>(this->Base::search(key));
-      if (bucket == nullptr)
-        throw std::domain_error("Key not found in hash table");
+      ah_domain_error_if(bucket == nullptr) << "Key not found in hash table";
 
       this->Base::remove(bucket);
       auto ret_val = bucket->get_key();
@@ -457,10 +454,10 @@ namespace Aleph
     Hash_Fct_Ptr original_hash_fct;
 
     static constexpr bool has_search_with_custom_hash =
-      requires(const DynMapHashTable * self, Hash_Fct_Ptr hf, const Key & k)
-        {
-          self->search_with_custom_hash(hf, k);
-        };
+        requires(const DynMapHashTable *self, Hash_Fct_Ptr hf, const Key & k)
+          {
+            self->search_with_custom_hash(hf, k);
+          };
 
   public:
     static Data &get_data(const Key & key)
@@ -530,9 +527,7 @@ namespace Aleph
           return bucket != nullptr ? &bucket->get_key() : nullptr;
         }
       else
-        {
-          return Base::search(Pair(key, Data()));
-        }
+        return Base::search(Pair(key, Data()));
     }
 
     Pair * search(Key && key) const noexcept
@@ -544,9 +539,7 @@ namespace Aleph
           return bucket != nullptr ? &bucket->get_key() : nullptr;
         }
       else
-        {
-          return Base::search(Pair(forward<Key>(key), Data()));
-        }
+        return Base::search(Pair(forward<Key>(key), Data()));
     }
 
     /// Checks if a key exists in the map
@@ -570,16 +563,14 @@ namespace Aleph
     Data &find(const Key & key)
     {
       auto *pair = search(key);
-      if (pair == nullptr)
-        throw std::domain_error("Key not found in hash table");
+      ah_domain_error_if(pair == nullptr) << "Key not found in hash table";
       return pair->second;
     }
 
     const Data &find(const Key & key) const
     {
       auto *pair = search(key);
-      if (pair == nullptr)
-        throw std::domain_error("Key not found in hash table");
+      ah_domain_error_if(pair == nullptr) << "Key not found in hash table";
       return pair->second;
     }
 
@@ -631,8 +622,7 @@ namespace Aleph
     Data remove(const Key & key)
     {
       auto *pair = search(key);
-      if (pair == nullptr)
-        throw std::domain_error("Key not found in hash table");
+      ah_domain_error_if(pair == nullptr) << "Key not found in hash table";
 
       auto ret_val = std::move(pair->second);
       auto *bucket = Base::key_to_bucket(pair);
@@ -643,7 +633,7 @@ namespace Aleph
 
     Data remove(Key && key)
     {
-      return remove(key);  // Forward to const& version
+      return remove(key); // Forward to const& version
     }
 
     DynList<Key> keys() const

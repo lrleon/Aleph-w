@@ -28,6 +28,8 @@
 # define POINTER_TABLE_H
 
 # include <tpl_dynArray.H>
+# include <tpl_dynStack.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -124,10 +126,10 @@ public:
     assert(invariant());
     
     if (not is_valid_index(i))
-      throw range_error("index out of range");
+      ah_range_error_if(true) << "index out of range";
 
     if (pointer_table[i] == nullptr) 
-      throw domain_error("index is not busy");
+      ah_domain_error_if(true) << "index is not busy";
 
     if (i == heap_index - 1)
       { /* Bajar el heap todos los disponibles que se puedan */
@@ -150,10 +152,10 @@ public:
   void * verify_pointer(long i, void * ptr)
   {
     if (not is_valid_index(i))
-      throw range_error("index out of range");
+      ah_range_error_if(true) << "index out of range";
 
     if (not pointer_matchs_with_index(i, ptr))
-      throw domain_error("pointer does not match");
+      ah_domain_error_if(true) << "pointer does not match";
 
     return ptr;
   }

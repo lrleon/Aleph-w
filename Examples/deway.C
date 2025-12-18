@@ -29,6 +29,7 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_tree_node.H>
 # include <generate_tree.H>
+ # include <ah-errors.H>
 
 using namespace std;
 using namespace Aleph;
@@ -49,7 +50,7 @@ void deway(Tree_Node<int> * p, int prefix[], const int & len,
   cout << " \"" << p->get_key() << "\"" << endl;
   
   if (len >= dim)
-    throw std::overflow_error("Array dimension es smaller than Deway chain");
+    ah_overflow_error_if(true) << "Array dimension es smaller than Deway chain";
   
   Tree_Node<int> * child = p->get_left_child(); 
   

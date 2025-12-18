@@ -31,6 +31,7 @@
 # include <type_traits>
 # include <ahFunction.H>
 # include <dlink.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -70,16 +71,14 @@ public:
   /// Get the first node
   Dnode<T> *& get_first() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return get_first_ne();
   } 
 
   /// Get the last node
   Dnode<T> *& get_last() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return get_last_ne();
   }
 
@@ -98,16 +97,14 @@ public:
   /// Remove the last node and return its address
   Dnode<T>* remove_last()
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return remove_last_ne();
   }
 
   /// Remove the first node and return its address
   Dnode<T>* remove_first()
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return remove_first_ne();
   }
   

@@ -31,6 +31,7 @@
 # include <tpl_dynListStack.H>
 # include <tpl_dynListQueue.H>
 # include <tpl_graph_utils.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -252,7 +253,7 @@ class Find_Path_Breadth_First
 		 Path<GT> & path, Op & op)
   {
     if (not path.inside_graph(g))
-      throw std::invalid_argument("Path does not belong to graph");
+      ah_invalid_argument_if(true) << "Path does not belong to graph";
 
     path.empty(); // limpiamos cualquier cosa que esté en path
     g.reset_nodes();

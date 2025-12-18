@@ -30,6 +30,7 @@
 # include <tpl_tree_node.H>
 # include <tpl_graph.H>
 # include <tpl_graph_utils.H>
+ # include <ah-errors.H>
 
 namespace Aleph {
 
@@ -116,8 +117,8 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
               class Convert, class SA = Dft_Show_Arc<GT>> inline
 Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
 { 
-  if (not is_graph_acyclique<GT>(g))
-    throw std::domain_error("Graph is not a tree (not acyclique)");
+  ah_domain_error_if(not is_graph_acyclique<GT>(g))
+    << "Graph is not a tree (not acyclique)";
 
   Tree_Node<Key> * troot = new Tree_Node<Key>; // apartar memoria raíz
 
@@ -226,8 +227,8 @@ class Graph_To_Tree_Node
 				 typename GT::Node * groot,
 				 Convert & conv)
   { 
-    if (not is_graph_acyclique<GT>(g))
-      throw std::domain_error("Graph is not a tree (not acyclique)");
+    ah_domain_error_if(not is_graph_acyclique<GT>(g))
+      << "Graph is not a tree (not acyclique)";
 
     Tree_Node<Key> * troot = new Tree_Node<Key>; // apartar memoria raíz
 

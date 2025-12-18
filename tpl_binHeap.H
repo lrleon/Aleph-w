@@ -654,8 +654,7 @@ This class is not intended for public use. Its purpose is to provide
     */
     Node * getMin()
     {
-      if (root == nullptr)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(root == nullptr) << "Heap is empty";
       return getMin_ne();
     }
 
@@ -692,8 +691,7 @@ This class is not intended for public use. Its purpose is to provide
     */
     Node * remove(Node *node)
     {
-      if (root == nullptr)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(root == nullptr) << "Heap is empty";
 
       if (node == root)
         return getMin_ne();
@@ -745,16 +743,14 @@ This class is not intended for public use. Its purpose is to provide
     /// comparación especificado en la declaración.
     Node * top()
     {
-      if (root == nullptr)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(root == nullptr) << "Heap is empty";
 
       return root;
     }
 
     Node * top() const
     {
-      if (root == nullptr)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(root == nullptr) << "Heap is empty";
 
       return const_cast<Node *>(root);
     }
@@ -868,8 +864,7 @@ This class is not intended for public use. Its purpose is to provide
 
       Node * get_curr() const
       {
-        if (not has_curr())
-          throw std::overflow_error("Iterator overflow");
+        ah_overflow_error_if(not has_curr()) << "Iterator overflow";
         return get_curr_ne();
       }
 
@@ -899,8 +894,7 @@ This class is not intended for public use. Its purpose is to provide
 
       void next()
       {
-        if (not has_curr())
-          throw std::overflow_error("Iterator overflow");
+        ah_overflow_error_if(not has_curr()) << "Iterator overflow";
         next_ne();
       }
 

@@ -483,13 +483,15 @@ namespace Aleph
   */
   inline long safe_atol(const string & s)
   {
-    char *endptr;
     errno = 0;
+    char * endptr = nullptr;
     const auto val = std::strtol(s.c_str(), &endptr, 10);
-    if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
-        (errno != 0 && val == 0) ||
-        (endptr == s.c_str()))
-      throw runtime_error("invalid string for long: " + s);
+    const bool invalid =
+      (errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
+      (errno != 0 && val == 0) ||
+      (endptr == s.c_str());
+
+    ah_runtime_error_if(invalid) << "invalid string for long: " << s;
     return val;
   }
 
@@ -501,12 +503,15 @@ namespace Aleph
   */
   inline double safe_atof(const string & s)
   {
-    char *endptr;
     errno = 0;
+    char * endptr = nullptr;
     const auto val = std::strtod(s.c_str(), &endptr);
-    if ((errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
-        (errno != 0 && val == 0) or endptr == s.c_str())
-      throw runtime_error("invalid string for double: " + s);
+    const bool invalid =
+      (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
+      (errno != 0 && val == 0) ||
+      endptr == s.c_str();
+
+    ah_runtime_error_if(invalid) << "invalid string for double: " << s;
     return val;
   }
 
@@ -763,7 +768,7 @@ namespace Aleph
         ostringstream s;
         s << "split_pos(" << str << ", " << pos << "): position " << pos
             << " is larger than string size " << str.size();
-        throw range_error(s.str());
+        ah_range_error_if(pos > str.size()) << s.str();
       }
 
     const char *ptr = str.data();
@@ -793,14 +798,14 @@ namespace Aleph
   inline DynList<string> split_n(const string & str, size_t n)
   {
     if (n == 0)
-      throw range_error("split_n(): number of parts cannot be 0");
+      ah_range_error_if(n == 0) << "split_n(): number of parts cannot be 0";
 
     if (n > str.size())
       {
         ostringstream s;
         s << "split_n(" << str << ", " << n << "): number of parts " << n
             << " is larger than string size " << str.size();
-        throw range_error(s.str());
+        ah_range_error_if(n > str.size()) << s.str();
       }
 
     const size_t sz = str.size() / n;
@@ -873,7 +878,7 @@ namespace Aleph
   {
     return mat.maps<DynList<string>>([&lens](const DynList<string> & l)
                                        {
-                                         return zip(lens, l).template maps<string>([](auto p)
+                                         return zip(lens, l).template maps<string>([](const auto& p)
                                            {
                                              const string blanks(p.first > p.second.size() ?
                                                                    p.first - p.second.size() :
@@ -897,7 +902,7 @@ namespace Aleph
       {
         const auto & row = it.get_curr();
         auto line = zip(lens, row).
-            template maps<string>([](auto p)
+            template maps<string>([](const auto& p)
                                     {
                                       const string blanks(p.first > p.second.size() ?
                                                             p.first - p.second.size() :
@@ -1164,7 +1169,7 @@ namespace Aleph
                                                 const size_t width,
                                                 const size_t left_margin = 0)
   {
-    auto formatted = align_text_to_left(text, width);
+    const auto formatted = align_text_to_left(text, width);
     auto lines = split_text_into_lines(formatted);
     ostringstream s;
     s << lines.remove_first() << endl;
@@ -1181,8 +1186,8 @@ namespace Aleph
   inline string shift_lines_to_left(const string & str, const size_t n)
   {
     ostringstream s;
-    string fill(n, ' ');
-    auto lines = split_to_list(str, "\n");
+    const string fill(n, ' ');
+    const auto lines = split_to_list(str, "\n");
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & line = it.get_curr();

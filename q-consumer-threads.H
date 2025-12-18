@@ -31,6 +31,7 @@
 # include <condition_variable>
 # include <mutex>
 # include <tpl_dynListQueue.H>
+ # include <ah-errors.H>
 
 using namespace std;
 
@@ -111,8 +112,8 @@ public:
   ~QueueTheadsPool()
   {
     unique_lock<mutex> cs(lck);
-    if (not shutdown_done)
-      throw domain_error("~QueueTheadsPool: shutdown not done");
+    ah_domain_error_if(not shutdown_done)
+      << "~QueueTheadsPool: shutdown not done";
   }
 
 private:
@@ -135,8 +136,8 @@ public:
     th.detach();
 
     // check if event is already owned by another thread
-    if (event_list.exists([event] (auto e) { return e == event; }))
-      throw domain_error("Thread creation with an event owned by another");
+    ah_domain_error_if(event_list.exists([event] (auto e) { return e == event; }))
+      << "Thread creation with an event owned by another";
 
     event_list.append(event);
     ++num_threads;
@@ -148,7 +149,7 @@ public:
       {
         unique_lock<mutex> critical_section(lck);
         if (num_threads == 0)
-          throw domain_error("there is no any thread created");
+          ah_domain_error_if(true) << "there is no any thread created";
         q.put(forward<T>(item));
         if (not suspended)
           cond.notify_one(); // for waking up a thread

@@ -29,6 +29,7 @@
 
 # include <htlist.H>
 # include <point.H>
+# include <ah-errors.H>
 
 # define PARENT(p) ((p)->get_parent())
 # define NW_CHILD(p) ((p)->get_nw_child())
@@ -226,7 +227,7 @@ private:
         get_neighbors_by_side(SE_CHILD(node), side, neighbors);
         break;
       default:
-        throw std::domain_error("Invalid side value");
+        ah_domain_error_if(true) << "Invalid side value";
     }
 }
 
@@ -412,8 +413,8 @@ public:
     assert(sw_child != nullptr);
     assert(se_child != nullptr);
 
-    if (not contains(p))
-      throw std::domain_error("This node does not contain that point");
+    ah_domain_error_if(not contains(p))
+      << "This node does not contain that point";
 
     if (nw_child->contains(p))
       return nw_child;

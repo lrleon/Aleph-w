@@ -32,6 +32,8 @@
 # include <limits>
 # include <stdexcept>
 
+# include <ah-errors.H>
+
 
 /** Binary relation between a set of integers.
 
@@ -60,8 +62,7 @@ protected:
 
   void verify_index(const size_t i) const
   {
-    if (i >= id.size())
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(i >= id.size()) << "index out of range";
   }
 
   virtual size_t root(size_t i)
@@ -89,7 +90,8 @@ protected:
           return d;
         i = parent;
         if (d > id.size())
-          throw std::logic_error("cycle detected in union-find structure");
+          ah_logic_error_if(d > id.size())
+              << "cycle detected in union-find structure";
       }
   }
 

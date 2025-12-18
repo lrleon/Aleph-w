@@ -34,6 +34,7 @@
 # include <cstdlib>
 # include <ahFunction.H>
 # include <ah_stdc++_utils.H>
+# include <ah-errors.H>
 # include <tpl_treapRk.H>
 # include <tpl_nodePool.H>
 
@@ -724,8 +725,7 @@ namespace Aleph
         if (this == &proxy)
           return *this;
 
-        if (proxy.node == nullptr)
-          throw std::domain_error("key not found");;
+        ah_domain_error_if(proxy.node == nullptr) << "key not found";
 
         if (map_ptr == proxy.map_ptr and key == proxy.key)
           return *this; // They are the same
@@ -743,8 +743,7 @@ namespace Aleph
 
       operator Elem & () const
       {
-        if (node == nullptr)
-          throw std::domain_error ("key not found");;
+        ah_domain_error_if(node == nullptr) << "key not found";
 
         return KEY (node).second;
       }

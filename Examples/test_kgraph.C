@@ -27,6 +27,7 @@
 # include <iostream>
 # include <tpl_graph_utils.H>
 # include <tpl_kgraph.H>
+ # include <ah-errors.H>
 
 
 typedef List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class> > Grafo;
@@ -35,9 +36,8 @@ typedef List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class> > Grafo;
 void crear_grafo(Grafo & g, int n, int m)
 {
   long max_arcs = n*(n-1)/2;
-  if (m > max_arcs)
-    throw std::domain_error("cannot generate graph with more of " +
-			    to_string(max_arcs) + " arcs");
+  ah_domain_error_if(m > max_arcs)
+    << "cannot generate graph with more of " << to_string(max_arcs) << " arcs";
   DynArray<Grafo::Node*> nodes;
 
   for (int i = 0; i < n; i++)
@@ -72,8 +72,8 @@ void crear_grafo(Grafo & g, int n, int m)
 
   assert(test_connectivity(g));
 
-  if (g.get_num_arcs() >= n*n/2)
-    throw std::domain_error("cannot generate random graph");
+  ah_domain_error_if(g.get_num_arcs() >= n*n/2)
+    << "cannot generate random graph";
 } 
 
 void crear_arco(Grafo & g, int isrc, int itgt)
@@ -87,7 +87,7 @@ void crear_arco(Grafo & g, int isrc, int itgt)
     tgt = g.insert_node(itgt);
 
   if (search_arc<Grafo>(g, src, tgt) != NULL)
-    throw std::invalid_argument("Duplicated arc");
+    ah_invalid_argument_if(true) << "Duplicated arc";
 
   g.insert_arc(src, tgt);
 }

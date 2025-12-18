@@ -31,6 +31,7 @@
 # include <htlist.H>
 # include <tpl_dynSetTree.H>
 # include <tpl_sort_utils.H>
+ # include <ah-errors.H>
 
 // Triangulation algorithms
 
@@ -100,8 +101,7 @@ public:
 
   DynList<Triangle> operator () (Polygon & p)
   {
-    if (p.size() < 3)
-      throw std::domain_error("Polygon has less than 3 vertexs");
+    ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertexs";
 
     EarsSet ears = init_ears(p);
 

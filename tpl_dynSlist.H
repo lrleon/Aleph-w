@@ -32,6 +32,7 @@
 # include <cstddef>
 # include <stdexcept>
 # include <utility>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -63,8 +64,8 @@ namespace Aleph {
     typename Slist<T>::Node *
     get_previous_to_pos(const size_t pos, const bool allow_equal)
     {
-      if (pos > num_items || (not allow_equal and pos == num_items))
-        throw std::out_of_range ("position out of range");
+      ah_out_of_range_error_if(pos > num_items || (not allow_equal and pos == num_items))
+        << "position out of range";
 
       if (pos < current_pos)
         {
@@ -268,8 +269,7 @@ namespace Aleph {
     /// Const overload of `operator[]`.
     const T & operator[](const size_t i) const
     {
-      if (i >= num_items)
-        throw std::out_of_range ("position out of range");
+      ah_out_of_range_error_if(i >= num_items) << "position out of range";
 
       using Node = typename Slist<T>::Node;
       const Node * cur = this->get_first_ne();

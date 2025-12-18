@@ -306,7 +306,7 @@ namespace Aleph
 
         auto my_node = g.get_connected_arc(arc, p);
 
-        The you will get `q`, which is the node connected to `p` through
+        Then you will get `q`, which is the node connected to `p` through
         `arc`. Now, if you execute
 
         auto my_node = g.get_connected_arc(arc, q);
@@ -1820,40 +1820,104 @@ namespace Aleph
         @ingroup Grafos
     */
   template <class GT>
-  using _Out_Iterator = typename GT::Out_Iterator;
+  using _Out_Iterator = Digraph_Iterator<GT, __Out_Filt<GT>>;
 
 
-  /** Basic iterator for outcoming arcs of a node.
+  /** Basic iterator for incoming arcs of a node.
 
         @ingroup Grafos
     */
   template <class GT>
-  using _In_Iterator = typename GT::In_Iterator;
+  using _In_Iterator = Digraph_Iterator<GT, __In_Filt<GT>>;
 
-  /** Filtered iterator for outcoming arcs of a node
+  /** Filtered iterator for outcoming arcs of a node.
 
-        @ingroup Grafos
+      This iterator traverses the outgoing arcs of a node, optionally
+      filtered by the Show_Arc predicate.
+
+      @tparam GT The graph type
+      @tparam Show_Arc Arc filter predicate (default shows all arcs)
+      @ingroup Grafos
     */
   template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
-  struct Out_Iterator : public Filter_Iterator<typename GT::Node *,
-                                               typename GT::Out_Iterator,
-                                               Show_Arc>
+  class Out_Iterator : public Digraph_Iterator<GT, __Out_Filt<GT>>
   {
-    // default constructor inherited from Filter_Iterator
-    using Filter_Iterator<typename GT::Node *,
-                          typename GT::Out_Iterator,
-                          Show_Arc>::Filter_Iterator;
+    using Base = Digraph_Iterator<GT, __Out_Filt<GT>>;
+    Show_Arc show_arc;
+
+    void goto_first_valid()
+    {
+      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+        Base::next_ne();
+    }
+
+  public:
+    using Item_Type = typename GT::Arc *;
+
+    Out_Iterator() = default;
+
+    Out_Iterator(typename GT::Node *p, Show_Arc sa = Show_Arc())
+      : Base(p), show_arc(sa)
+    {
+      goto_first_valid();
+    }
+
+    void next()
+    {
+      Base::next();
+      goto_first_valid();
+    }
+
+    void next_ne() noexcept
+    {
+      Base::next_ne();
+      goto_first_valid();
+    }
   };
 
-  /** Filtered iterator for incoming arcs of a node
+  /** Filtered iterator for incoming arcs of a node.
 
-        @ingroup Grafos
+      This iterator traverses the incoming arcs of a node, optionally
+      filtered by the Show_Arc predicate.
+
+      @tparam GT The graph type
+      @tparam SA Arc filter predicate (default shows all arcs)
+      @ingroup Grafos
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  class In_Iterator : public Filter_Iterator<typename GT::Node *, typename GT::In_Iterator, SA>
+  class In_Iterator : public Digraph_Iterator<GT, __In_Filt<GT>>
   {
-    using Filter_Iterator<typename GT::Node *,
-                          typename GT::In_Iterator, SA>::Filter_Iterator;
+    using Base = Digraph_Iterator<GT, __In_Filt<GT>>;
+    SA show_arc;
+
+    void goto_first_valid()
+    {
+      while (Base::has_curr() and not show_arc(Base::get_curr_ne()))
+        Base::next_ne();
+    }
+
+  public:
+    using Item_Type = typename GT::Arc *;
+
+    In_Iterator() = default;
+
+    In_Iterator(typename GT::Node *p, SA sa = SA())
+      : Base(p), show_arc(sa)
+    {
+      goto_first_valid();
+    }
+
+    void next()
+    {
+      Base::next();
+      goto_first_valid();
+    }
+
+    void next_ne() noexcept
+    {
+      Base::next_ne();
+      goto_first_valid();
+    }
   };
 
   /** Return the nodes connected to the filtered outcoming arcs of `p`.

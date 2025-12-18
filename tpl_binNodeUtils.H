@@ -34,6 +34,7 @@
 # include <bitArray.H>
 # include <tpl_dynDlist.H>
 # include <tpl_binNode.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -2431,8 +2432,7 @@ namespace Aleph
     /// Return a pointer to current node
     Node * get_curr() const
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr()) << "Iterator overflow";
       return get_curr_ne();
     }
 
@@ -2464,8 +2464,7 @@ namespace Aleph
     /// Move the iterator one position forward
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr()) << "Iterator overflow";
       next_ne();
     }
   };
@@ -2659,8 +2658,7 @@ namespace Aleph
     /// Return the current node. Throw `overflow_error` if there is no current
     Node * get_curr() const
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr()) << "Iterator overflow";
       return curr;
     }
 
@@ -2687,8 +2685,7 @@ namespace Aleph
     /// there is no current
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr()) << "Iterator overflow";
       next_ne();
     }
   };

@@ -32,6 +32,7 @@
 # include <tuple>
 # include <functional>
 # include <algorithm>
+# include <ah-errors.H>
 
 /* Definitions of Aleph functional routines */
 
@@ -46,7 +47,7 @@ namespace Aleph
   {
     virtual T & get_item()
     {
-      throw std::invalid_argument("Access from None type");
+      ah_invalid_argument() << "Access from None type";
     }
   };
 
@@ -87,8 +88,7 @@ namespace Aleph
   template <typename T = int, template <typename> class Container = DynList>
   inline Container<T> nrange(const T start, const T end, const size_t n)
   {
-    if (n < 2)
-      throw std::domain_error("nrange: n must be greater than 1");
+    ah_domain_error_if(n < 2) << "nrange: n must be greater than 1";
 
     const auto step = (end - start)/(n - 1);
     Container<T> ret_val;
@@ -489,7 +489,7 @@ namespace Aleph
       ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
-      throw std::length_error("Container sizes mismatch");
+      ah_length_error() << "Container sizes mismatch";
 
     return ret_val;
   }
@@ -510,7 +510,7 @@ namespace Aleph
       ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
 
     if (it1.has_curr() or it2.has_curr())
-      throw std::length_error("Container sizes mismatch");
+      ah_length_error() << "Container sizes mismatch";
 
     return ret_val;
   }

@@ -33,6 +33,7 @@
 # include <tpl_sort_utils.H>
 # include <point.H>
 # include <polygon.H>
+# include <ah-errors.H>
 
 extern bool tiny_keys;
 
@@ -73,10 +74,10 @@ public:
 
   virtual void draw(Eepic_Plane *, ostream &) const
   {
-    if (geom_object_ptr == nullptr)
-      throw std::domain_error("Eepic_Geom_Object is null");
+    ah_domain_error_if(geom_object_ptr == nullptr)
+      << "Eepic_Geom_Object is null";
 
-    throw std::logic_error("Call to draw() method from abstract class");
+    ah_logic_error() << "Call to draw() method from abstract class";
   }
 
   // debe retornar un objeto de la clase derivada
@@ -259,8 +260,7 @@ public:
   // emplear para aumentar o disminuir el objeto eepic picture
   void zoom(const double & factor)
   {
-    if (factor <= 0)
-      throw std::domain_error("zoom factor must be greater than zero");
+    ah_domain_error_if(factor <= 0) << "zoom factor must be greater than zero";
 
     height *= factor;
     wide *= factor;

@@ -32,6 +32,7 @@
 # include <ahSort.H>
 # include <tpl_indexArc.H>
 # include <tpl_dynMat.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -128,11 +129,11 @@ public:
 
   /// Retorna el ìndice dentro de una matriz de adyacencia que tendría
   /// el nodo p
-  long index_node(Node * p) const noexcept
+  long index_node(Node * p) const
   {
     auto i = binary_search(nodes, p);
-    if (i < 0 or i > nodes.size() or nodes(i) != p)
-      throw domain_error("Floyd_All_Shortest_Paths::index_node() not found");
+    ah_domain_error_if(i < 0 or i > nodes.size() or nodes(i) != p)
+      << "Floyd_All_Shortest_Paths::index_node() not found";
     return i;
   }
 

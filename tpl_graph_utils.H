@@ -31,6 +31,7 @@
 # include <limits>
 # include <tpl_agraph.H>
 # include <tpl_dynListQueue.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -564,8 +565,8 @@ namespace Aleph {
   template <class GT> inline 
   bool test_connectivity(const GT & g)
   {
-    if (g.is_digraph()) // only valid for non directed
-      throw std::domain_error("test_connectivity() does not work on digraphs");
+    ah_domain_error_if(g.is_digraph())
+      << "test_connectivity() does not work on digraphs";
 
     if (g.get_num_arcs() < g.get_num_nodes() - 1) 
       return false; 
@@ -680,8 +681,8 @@ namespace Aleph {
   template <class GT> inline 
   bool is_graph_acyclique(const GT & g, typename GT::Node * start_node)
   {
-    if (g.is_digraph())
-      throw std::domain_error("is_graph_acyclique() does not work for digraps");
+    ah_domain_error_if(g.is_digraph())
+      << "is_graph_acyclique() does not work for digraps";
   
     if (g.get_num_arcs() >= g.get_num_nodes()) 
       return false; 
@@ -702,8 +703,8 @@ namespace Aleph {
   template <class GT> inline 
   bool is_graph_acyclique(const GT & g)
   {
-    if (g.is_digraph())
-      throw std::domain_error("is_graph_acyclique() does not work for digraps");
+    ah_domain_error_if(g.is_digraph())
+      << "is_graph_acyclique() does not work for digraps";
 
     if (g.get_num_arcs() >= g.get_num_nodes()) 
       return false; 
@@ -1525,8 +1526,8 @@ namespace Aleph {
       if (get_color <GT> (it.get_current_node_ne()) == color)
         first = it.get_current_node_ne();
 
-    if (first == nullptr) // Encontró el color?
-      throw std::domain_error("Color does not exist in the graph");
+    ah_domain_error_if(first == nullptr)
+      << "Color does not exist in the graph";
 
     GT sg;
     unique_ptr<typename GT::Node> auto_tsrc(new typename GT::Node(first));

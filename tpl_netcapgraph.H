@@ -28,6 +28,8 @@
 # define TPL_NETCAPGRAPH_H
 # include <tpl_netgraph.H>
 
+# include <ah-errors.H>
+
 namespace Aleph {
 
     /** Nodo con capacidad.
@@ -162,8 +164,8 @@ public:
        */
   Aux_Net * compute_aux_net()
   {
-    if (aux_net != nullptr)
-      throw std::domain_error("aux_net has already computed");
+    ah_domain_error_if(aux_net != nullptr)
+        << "aux_net has already computed";
     aux_net = new Aux_Net;
     try
       {
@@ -216,8 +218,8 @@ public:
      */
   void update()
   {
-    if (aux_net == nullptr)
-      throw std::domain_error("Auxiliar net has not been generated");
+    ah_domain_error_if(aux_net == nullptr)
+        << "Auxiliar net has not been generated";
 
     for (Arc_Iterator<Aux_Net, No_Res_Arc<Aux_Net> > it(*aux_net); 
          it.has_curr(); it.next_ne())
@@ -239,8 +241,8 @@ public:
       /// domain_error si la red equivalente no ha sido creada.
   void free_aux_net()
   {
-    if (aux_net == nullptr)
-      throw std::domain_error("Auxiliar net has not been generated");
+    ah_domain_error_if(aux_net == nullptr)
+        << "Auxiliar net has not been generated";
 
     clear_graph(*aux_net);
     delete aux_net;

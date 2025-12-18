@@ -28,6 +28,7 @@
 
 # include <ahUtils.H>
 # include <ahFunctional.H>
+# include <ah-errors.H>
 # include <tpl_arrayStack.H>
 # include <tpl_array.H>
 # include <tpl_dynArray.H>
@@ -1941,12 +1942,10 @@ namespace Aleph
   const T &random_select(DynArray<T> & a, const long i, Compare cmp = Compare())
   {
     const auto n_sz = a.size();
-    if (n_sz == 0 || i < 0)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(n_sz == 0 or i < 0) << "index out of range";
 
     const long n = static_cast<long>(n_sz) - 1;
-    if (i > n)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(i > n) << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n, cmp);
   }
@@ -1955,12 +1954,10 @@ namespace Aleph
   const T &random_select(Array<T> & a, const long i, Compare cmp = Compare())
   {
     const auto n_sz = a.size();
-    if (n_sz == 0 || i < 0)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(n_sz == 0 or i < 0) << "index out of range";
 
     const long n = static_cast<long>(n_sz) - 1;
-    if (i > n)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(i > n) << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n, cmp);
   }
@@ -1994,8 +1991,7 @@ namespace Aleph
   const T &random_select(T *a, const long i, const long n,
                          Compare cmp = Compare())
   {
-    if (i >= n)
-      throw std::out_of_range("index out of range");
+    ah_out_of_range_error_if(i >= n) << "index out of range";
 
     return __random_select<T, Compare>(a, i, 0, n - 1, cmp);
   }
@@ -2063,7 +2059,7 @@ namespace Aleph
         list.concat_list(&smaller);
         list.append(pivot);
         list.concat_list(&bigger);
-        throw std::out_of_range("index of selection greater than list's size");
+        ah_out_of_range_error() << "index of selection greater than list's size";
       }
 
     Dlink *ret_val = nullptr;

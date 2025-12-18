@@ -30,6 +30,7 @@
 
 # include <ahDefs.H>
 # include <tpl_snode.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -78,8 +79,7 @@ namespace Aleph {
     */
     Node * remove_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error ("list is empty");
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
       return this->remove_next();
     }
@@ -87,8 +87,7 @@ namespace Aleph {
     /// Return a pointer to the first node; throw if the list is empty.
     Node * get_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error ("list is empty");
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
       return this->get_next();
     }
@@ -96,8 +95,7 @@ namespace Aleph {
     /// Return a pointer to the first node (const overload).
     const Node * get_first() const
     {
-      if (this->is_empty())
-        throw std::underflow_error ("list is empty");
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
       return reinterpret_cast<const Node*>(this->Slink::get_next());
     }
@@ -152,8 +150,7 @@ namespace Aleph {
       */
       Node * get_curr()
       {
-        if (not this->has_curr())
-          throw std::overflow_error ("Slist::Iterator overflow");
+        ah_overflow_error_if(not this->has_curr()) << "Slist::Iterator overflow";
 
         return current;
       }
@@ -164,8 +161,7 @@ namespace Aleph {
       void next()
 
       {
-        if (not this->has_curr())
-          throw std::overflow_error ("Slist::Iterator overflow");
+        ah_overflow_error_if(not this->has_curr()) << "Slist::Iterator overflow";
 
         current = current->get_next();
       }
@@ -174,6 +170,12 @@ namespace Aleph {
       {
         current = list->is_empty() ? list : list->get_first_ne();
       }
+
+      /** Assign the iterator to point to `node`.
+
+          @param[in] node node to point to
+          @return reference to this iterator
+      */
       Iterator & operator = (Node * node)
       {
         if (current == node)

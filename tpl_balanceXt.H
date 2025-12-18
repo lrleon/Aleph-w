@@ -28,6 +28,7 @@
 # define TPL_BALANCEXT_H
 
 # include <tpl_binNodeXt.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -58,7 +59,7 @@ Node * select_gotoup_root(Node * root, const size_t & i)
   assert(COUNT(Node::NullPtr) == 0);
 
   if (i >= COUNT(root))
-    throw std::out_of_range ("");
+    ah_out_of_range_error_if(true) << "";
 
   if (i == COUNT(LLINK(root))) 
     return root;

@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,86 +32,81 @@
 # include <tpl_dynMapOhash.H>
 # include <ah-errors.H>
 
-namespace Aleph 
+namespace Aleph
 {
-
-template <typename Key,
-	  template <typename, class> class HashSetTable = ODhashTable,
-	  class Cmp                                     = Aleph::equal_to<Key>>
-struct HashSet : public HashSetTable<Key, Cmp>
-{
-  typedef HashSetTable<Key, Cmp> Base;
-  using Base::Base;
-
-  void add (const DynList<Key> & l)
+  template <typename Key,
+            template <typename, class> class HashSetTable = ODhashTable,
+            class Cmp = Aleph::equal_to<Key>>
+  struct HashSet : public HashSetTable<Key, Cmp>
   {
-    l.for_each([this] (const Key & k)
-	       {
-		 this->insert(k);
-	       });
-  }
+    typedef HashSetTable<Key, Cmp> Base;
+    using Base::Base;
 
-  Special_Ctors(HashSet, Key);
+    void add(const DynList<Key> & l)
+    {
+      l.for_each([this](const Key & k)
+                   {
+                     this->insert(k);
+                   });
+    }
 
-  HashSet() : Base() {}
+    Special_Ctors(HashSet, Key);
 
-  Key & get_first() const { return this->get_it().get_curr(); }
+    HashSet() : Base() {}
 
-  Key & get_last() const
+    Key &get_first() const { return this->get_it().get_curr(); }
+
+    Key &get_last() const
+    {
+      auto it = this->get_it();
+      it.reset_last();
+      return it.get_curr();
+    }
+  };
+
+  template
+  <typename Key, typename Data,
+   template <typename, typename, class> class HashMapTable = MapODhash,
+   class Cmp = Aleph::equal_to<Key>>
+  struct HashMap : public HashMapTable<Key, Data, Cmp>
   {
-    auto it = this->get_it();
-    it.reset_last();
-    return it.get_curr();
-  }
-};
+    typedef HashMapTable<Key, Data, Cmp> Base;
+    using Base::Base;
 
-template 
-<typename Key, typename Data,
- template <typename, typename, class> class HashMapTable = MapODhash,
- class Cmp = Aleph::equal_to<Key>>
-struct HashMap : public HashMapTable<Key, Data, Cmp>
-{
-  typedef HashMapTable<Key, Data, Cmp> Base;
-  using Base::Base;
+    void add(std::initializer_list<Key> lk, std::initializer_list<Data> ld)
+    {
+      ah_range_error_if(lk.size() != ld.size())
+        << "size mismatch between domain and range";
 
-  void add (std::initializer_list<Key> lk, std::initializer_list<Data> ld)
-  {
-    ah_range_error_if(lk.size() != ld.size())
-      << "size mismatch between domain and range";
+      auto itk = lk.begin();
+      auto itd = ld.begin();
+      for (; itk != lk.end(); ++itk, ++itd)
+        this->insert(*itk, *itd);
+    }
 
-    auto itk = lk.begin();
-    auto itd = ld.begin();
-    for (; itk != lk.end(); itk++, itd++)
-      this->insert(*itk, *itd);
-  }
+    HashMap() : Base() {}
 
-  HashMap() : Base() { }
+    HashMap(std::initializer_list<Key> lk, std::initializer_list<Data> ld)
+      : Base()
+    {
+      add(lk, ld);
+    }
 
-  HashMap(std::initializer_list<Key> lk, std::initializer_list<Data> ld) 
-    : Base()
-  {
-    add(lk, ld);
-  }
+    template <template <typename T> class Container = DynList>
+    HashMap(const Container<Key> & c, std::initializer_list<Data> ld) : Base()
+    {
+      ah_range_error_if(c.size() != ld.size())
+        << "size mismatch between domain and range";
 
-  template <template <typename T> class Container = DynList>
-  HashMap(const Container<Key> & c, std::initializer_list<Data> ld) : Base()
-  {
-    ah_range_error_if(c.size() != ld.size())
-      << "size mismatch between domain and range";
+      auto itd = ld.begin();
+      c.for_each(/* Lambda */ [this, &itd](const Key & key)
+                   {
+                     set_entry(key, *itd++);
+                   });
+    }
 
-    auto itd = ld.begin();
-    c.for_each(/* Lambda */ [this, &itd] (const Key & key)
-	       {
-		 set_entry(key, *itd++);
-	       });
-  }
-
-  Generate_Proxy_Operator(HashMap);
-};
-
-
-
-
+    Generate_Proxy_Operator(HashMap);
+  };
 } // end namespace Aleph
 
 

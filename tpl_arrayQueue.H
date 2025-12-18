@@ -209,8 +209,7 @@ public:
   T & putn(size_t sz)
   {
     const size_t max_sz = 2*this->dim - this->n;
-    if (sz > max_sz)
-      throw std::overflow_error("Maximum putn size reached");
+    ah_overflow_error_if(sz > max_sz) << "Maximum putn size reached";
 
     size_t remaining = sz;
     while (remaining > 0)
@@ -239,8 +238,7 @@ public:
   */
   T get()
   {
-    if (this->n == 0)
-      throw std::underflow_error ("queue is empty");
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
 
     T ret_val = std::move(this->access(front_index));
     this->n--;
@@ -260,8 +258,7 @@ public:
   */
   T & getn(const size_t i)
   {
-    if (i >= this->n)
-      throw std::underflow_error ("queue is empty");
+    ah_underflow_error_if(i >= this->n) << "queue is empty";
 
     this->n -= i;
     increase_index(front_index, i);
@@ -280,8 +277,7 @@ public:
   */
   T & front(const size_t i = 0) const
   {
-    if (i >= this->n)
-      throw std::range_error ("index of front out of range");
+    ah_range_error_if(i >= this->n) << "index of front out of range";
 
     return this->access((front_index + i) % this->dim);
   }
@@ -294,8 +290,7 @@ public:
   */
   T & rear(const size_t i = 0) const
   {
-    if (i >= this->n)
-      throw std::range_error ("index of rear out of range");
+    ah_range_error_if(i >= this->n) << "index of rear out of range";
 
     return rear_item(i);
   }

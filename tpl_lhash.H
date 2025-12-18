@@ -36,6 +36,7 @@
 # include <hash-fct.H>
 # include <tpl_dynArray.H>
 # include <hash-dry.H>
+# include <ah-errors.H>
 
 # ifdef N
 # define NBACKUP N
@@ -477,8 +478,8 @@ namespace Aleph
       {
         while (true)
           {
-            if (curr_index == hash_table->len)
-              throw std::overflow_error("hash table iterator overflow");
+            ah_overflow_error_if(curr_index == hash_table->len)
+              << "hash table iterator overflow";
 
             if (curr_index == hash_table->len - 1)
               { // remain in overflow state
@@ -539,8 +540,8 @@ namespace Aleph
       {
         while (true)
           {
-            if (curr_index == -1)
-              throw std::underflow_error("hash table iterator underflow");
+            ah_underflow_error_if(curr_index == -1)
+              << "hash table iterator underflow";
 
             if (curr_index == 0)
               { // remain in underflow state
@@ -640,11 +641,11 @@ namespace Aleph
       /// Returns the current bucket.
       Bucket * get_curr()
       {
-        if (curr_index == -1)
-          throw std::underflow_error("hash table iterator underflow");
+        ah_underflow_error_if(curr_index == -1)
+          << "hash table iterator underflow";
 
-        if (curr_index == hash_table->len)
-          throw std::overflow_error("hash table iterator overflow");
+        ah_overflow_error_if(curr_index == hash_table->len)
+          << "hash table iterator overflow";
 
         return static_cast<Bucket *>(curr_itor.get_curr());
       }
@@ -659,8 +660,8 @@ namespace Aleph
 
       void next()
       {
-        if (curr_index == hash_table->len)
-          throw std::overflow_error("hash table iterator overflow");
+        ah_overflow_error_if(curr_index == hash_table->len)
+          << "hash table iterator overflow";
         next_ne();
       }
 
@@ -672,8 +673,8 @@ namespace Aleph
 
       void prev()
       {
-        if (curr_index == -1)
-          throw std::underflow_error("hash table iterator underflow");
+        ah_underflow_error_if(curr_index == -1)
+          << "hash table iterator underflow";
         locate_prev_available_bucket();
       }
 

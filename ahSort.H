@@ -30,6 +30,7 @@
 # include <numeric>
 # include <ranges>
 # include <stdexcept>
+# include <ah-errors.H>
 
 # include <ahFunctional.H>
 # include <tpl_sort_utils.H>
@@ -319,8 +320,8 @@ void in_place_multisort_arrays(Cmp cmp, C &first, Args &... args)
     return;
 
   const bool all_same_size = ((args.size() == n) && ...);
-  if (not all_same_size)
-    throw std::invalid_argument("all arrays must have the same size");
+  ah_invalid_argument_if(not all_same_size)
+      << "all arrays must have the same size";
 
   std::vector<size_t> indices(n);
   std::iota(indices.begin(), indices.end(), static_cast<size_t>(0));

@@ -35,6 +35,7 @@
 # include <ah-args-ctor.H>
 # include <ah-dry.H>
 # include <tpl_memArray.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -211,8 +212,7 @@ public:
   T & top(size_t i) const
   {
     const size_t sz = array.size();
-    if (i >= sz)
-      throw std::out_of_range("top index out of range");
+    ah_out_of_range_error_if(i >= sz) << "top index out of range";
     return array.access(sz - i - 1);
   }
 

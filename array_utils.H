@@ -30,6 +30,8 @@
 # include <cstdlib>
 # include <cassert>
 # include <stdexcept>
+
+# include <ah-errors.H>
 # include <iostream>
 using namespace std;
 
@@ -39,13 +41,11 @@ namespace Aleph
 template <class Tarray> inline
 void open_gap(Tarray & ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
 {
-  if (pos >= n)
-    throw std::out_of_range("pos is greater than n");
+  ah_out_of_range_error_if(pos >= n) << "pos is greater than n";
 
   const long navail = long(n) - pos;
-  if (long(num_entries) > navail)
-    throw std::out_of_range("num_entries is greater than number"
-			    " of available entries");
+  ah_out_of_range_error_if(long(num_entries) > navail)
+      << "num_entries is greater than number of available entries";
 
   for (long k = n - num_entries - 1, i = n - 1; k >= long(pos); --i, --k)
     ptr[i] = move(ptr[k]);
@@ -56,12 +56,11 @@ void close_gap(T * ptr, size_t n, size_t pos, size_t num_entries = 1)
 {
   assert(ptr);
 
-  if (pos >= n)
-    throw std::out_of_range("pos is greater than n");
+  ah_out_of_range_error_if(pos >= n) << "pos is greater than n";
 
   const long navail = n - pos;
-  if (long(num_entries) > navail)
-    throw std::out_of_range("num_entries is greater than pos");
+  ah_out_of_range_error_if(long(num_entries) > navail)
+      << "num_entries is greater than pos";
 
   for (size_t i = pos; i < n - num_entries; ++i)
     ptr[i] = move(ptr[i + num_entries]);

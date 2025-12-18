@@ -28,6 +28,7 @@
 # define AL_DOMAIN_H
 
 # include <tpl_hash.H>
+ # include <ah-errors.H>
 
 namespace Aleph
 {
@@ -75,16 +76,15 @@ public:
   {
     IntRange() = delete;
 
-    IntRange(int start, int end, int step = 1)
+    IntRange(const int start, const int end, const int step = 1)
     {
-      if (step < 0)
-        throw std::domain_error("negative step");
+      ah_domain_error_if(step < 0) << "negative step";
 
       for (long i = start; i <= end; i += step)
         insert(i);
     }
 
-    IntRange(size_t n)
+    IntRange(const size_t n)
     {
       for (size_t i = 0; i < n; ++i)
         insert(i);

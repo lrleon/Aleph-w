@@ -28,6 +28,7 @@
 # define TPL_DYN_SLIST_NC_H
 
 # include <tpl_snode_nc.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -113,8 +114,7 @@ namespace Aleph
     /// Retorna una referencia al primer elemento de la lista.
     T & get_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       return this->get_next()->get_data();
     }
@@ -122,8 +122,7 @@ namespace Aleph
     /// Retorna una referencia al último elemento de la lista.
     T & get_last()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       return head->get_data();
     }
@@ -136,8 +135,7 @@ namespace Aleph
     */
     T remove_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       Node * p = Node::remove_next();
       T ret_val = p->get_data();

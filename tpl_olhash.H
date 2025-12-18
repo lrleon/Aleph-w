@@ -37,6 +37,7 @@
 # include <hash-dry.H>
 # include <hashDry.H>
 # include <hash-fct.H>
+# include <ah-errors.H>
 
 using namespace Primes;
 
@@ -367,11 +368,11 @@ namespace Aleph
     /// of the registry is not busy.
     void deallocate_bucket(Bucket *bucket)
     {
-      if (not is_valid_bucket(bucket))
-        throw std::invalid_argument("record address is not inside table's range");
+      ah_invalid_argument_if(not is_valid_bucket(bucket))
+        << "record address is not inside table's range";
 
-      if (bucket->status != BUSY)
-        throw std::domain_error("Bucket containing record is not busy");
+      ah_domain_error_if(bucket->status != BUSY)
+        << "Bucket containing record is not busy";
 
       --N;
       const auto idx = static_cast<size_t>(bucket - &table[0]); // gap index
@@ -388,7 +389,7 @@ namespace Aleph
     {
       Key *key_ptr = search(key);
       if (key_ptr == nullptr)
-        throw std::domain_error("Key not in hash table");
+        ah_domain_error_if(true) << "Key not in hash table";
 
       this->remove_ptr(key_ptr);
     }

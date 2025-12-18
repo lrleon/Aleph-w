@@ -359,9 +359,8 @@ public:
        */
   long paint_subgraphs()
   {
-    if (state != Cut_Nodes_Computed)
-      throw std::logic_error("Cut nodos has not been computed or the class is"
-			     " another phase");
+    ah_logic_error_if(state != Cut_Nodes_Computed)
+      << "Cut nodos has not been computed or the class is another phase";
 
     gptr->reset_counter_nodes();
     gptr->reset_counter_arcs();
@@ -390,8 +389,7 @@ public:
       */
   void map_subgraph(GT & sg, const long & color)
   {
-    if (state != Painted)
-      throw std::logic_error("Graph is not painted");
+    ah_logic_error_if(state != Painted) << "Graph is not painted";
 
     clear_graph(sg);
 
@@ -402,7 +400,7 @@ public:
         first = it.get_curr();
 
     if (first == nullptr) // Encontró el color?
-      throw std::domain_error("Color does not exist in the graph");
+      ah_domain_error_if(first == nullptr) << "Color does not exist in the graph";
 
         // cree first, insértelo en sg y mapéelo
     create_and_map_node(first, color, sg);
@@ -438,8 +436,7 @@ public:
   void map_cut_graph(GT &                          cut_graph, 
 		     DynDlist<typename GT::Arc*> & cross_arc_list)
   {
-    if (state != Painted)
-      throw std::logic_error("Graph is not painted");
+    ah_logic_error_if(state != Painted) << "Graph is not painted";
 
     clear_graph(cut_graph);
 
@@ -507,8 +504,8 @@ public:
 		      GT &                          cut_graph, 
 		      DynDlist<typename GT::Arc*> & cross_arc_list)
   {
-    if (state < Cut_Nodes_Computed)
-      throw std::logic_error("Cut nodes have not been computed");
+    ah_logic_error_if(state < Cut_Nodes_Computed)
+      << "Cut nodes have not been computed";
 
     if (state == Cut_Nodes_Computed)
       paint_subgraphs();

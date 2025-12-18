@@ -27,9 +27,12 @@
 # ifndef TPL_MAXFLOW_MINCOST_H
 # define TPL_MAXFLOW_MINCOST_H
 
-# include <Bellman_Ford.H>
+# include <limits>
 # include <tpl_net.H>
-# include <generate_graph.H>
+# include <tpl_dynMapTree.H>
+# include <tpl_find_path.H>
+# include <tpl_cut_nodes.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -323,8 +326,8 @@ build_residual_net(const Net & net,
 		   Residual_Net<typename Net::Flow_Type> & rnet,
 		   DynMapTree<void*, void*> & arcs)
 {
-  if (not (net.is_single_source() and net.is_single_sink()))
-    throw std::domain_error("Network is not single source and single sink");
+  ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
+    << "Network is not single source and single sink";
 
   using Rnet = Residual_Net<typename Net::Flow_Type>;
 

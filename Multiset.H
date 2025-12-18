@@ -673,7 +673,7 @@ namespace Aleph
     iterator lower_bound (const T & value) const
     {
       if (size () == 0)
-        throw std::underflow_error ("multiset is empty");
+        ah_underflow_error_if(size() == 0) << "multiset is empty";
 
       Node * tree_node = tree.search(Node_Data(value));
 
@@ -701,7 +701,7 @@ namespace Aleph
     iterator upper_bound (const T & value) const
     {
       if (size () == 0)
-        throw std::underflow_error("multiset is empty");
+        ah_underflow_error_if(size() == 0) << "multiset is empty";
 
       Node * tree_node = tree.search(Node_Data(value));
 

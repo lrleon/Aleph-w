@@ -693,8 +693,8 @@ private:
     if (lgraph == mat.lgraph) 
       return;
 
-    throw 
-      std::domain_error("mat does not refers the same GT than this");
+    ah_domain_error_if(lgraph != mat.lgraph)
+      << "mat does not refers the same GT than this";
   }
 
   void copy_nodes(GT & g)

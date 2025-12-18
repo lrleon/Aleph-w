@@ -32,6 +32,7 @@
 # include <utility>
 # include <ahDefs.H>
 # include <ahAssert.H>
+ # include <ah-errors.H>
 
 /** \addtogroup Arboles
     @{
@@ -125,7 +126,8 @@ namespace Aleph
 
     static Empty_Node &get_data()
     {
-      throw std::domain_error("Empty_Node has not data");
+      ah_domain_error() << "Empty_Node has not data";
+      __builtin_unreachable();
     }
   };
 

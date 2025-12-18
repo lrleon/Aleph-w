@@ -27,9 +27,10 @@
 # ifndef TPL_TEST_ACYCLIQUE_H
 # define TPL_TEST_ACYCLIQUE_H
 
+# include <tpl_graph_utils.H>
+# include <ah-errors.H>
+
 namespace Aleph {
-
-
 
       /** Determina si un grafo es o no acíclico (no contiene ciclos).
 
@@ -81,8 +82,8 @@ class Is_Graph_Acyclique
 
   bool is_acyclique(GT & g, size_t num_arcs)
   {
-    if (g.is_digraph())
-      throw std::domain_error("is_graph_acyclique() does not work for digraps");
+    ah_domain_error_if(g.is_digraph())
+      << "is_graph_acyclique() does not work for digraps";
 
     if (num_arcs >= g.get_num_nodes()) 
       return false; 

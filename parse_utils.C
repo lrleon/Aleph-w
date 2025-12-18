@@ -1,4 +1,5 @@
 # include "parse_utils.H"
+# include <ah-errors.H>
 
 const size_t Buffer_Size = 512;
 
@@ -51,8 +52,8 @@ void close_token_scanning(char * buffer, char *& start_addr, char * end_addr)
 
 int read_char_from_stream(ifstream& input_stream)
 {
-  if (input_stream.eof())
-    throw out_of_range("end of file has been reached");
+  ah_out_of_range_error_if(input_stream.eof())
+    << "end of file has been reached";
 
   int c = input_stream.get();
 
@@ -126,7 +127,7 @@ long load_number(ifstream& input_stream)
               return atoi(buffer);
             }
 
-          throw domain_error("Invalid number");
+          ah_domain_error_if(true) << "Invalid number";
         }
     }
   catch (out_of_range) // Se alcanza fin de archivo

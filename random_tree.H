@@ -32,6 +32,8 @@
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
 
+# include <ah-errors.H>
+
 using namespace std;
 using namespace Aleph;
 
@@ -59,7 +61,7 @@ public:
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
     if (r == nullptr)
-      throw std::bad_alloc();
+      ah_bad_alloc_if(true);
     gsl_rng_set(r, seed % gsl_rng_max(r));
   }
 

@@ -30,6 +30,7 @@
 # include <fstream>
 # include <tpl_tree_node.H>
 # include <tpl_binNodeUtils.H>
+ # include <ah-errors.H>
 
 namespace Aleph
 {
@@ -57,9 +58,8 @@ namespace Aleph
                        const size_t & size,
                        std::ostream & output)
   { 
-    if (current_level >= size)
-      throw std::overflow_error("Allocated size for deway array has been "
-                                "exceeded");
+    ah_overflow_error_if(current_level >= size)
+      << "Allocated size for deway array has been exceeded";
 
     // imprimir número de Deway del padre
     output << "Node ";

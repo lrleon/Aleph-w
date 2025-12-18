@@ -30,6 +30,8 @@
 # include <tpl_indexNode.H>
 # include <tpl_indexArc.H>
 
+# include <ah-errors.H>
+
 namespace Aleph
 {
 
@@ -117,11 +119,11 @@ public:
   GT_Arc * insert_arc(GT_Node * src, GT_Node * tgt,
                       const GT_Arc_Type & info = GT_Arc_Type())
   {
-    if (idx_node.search(src) == nullptr)
-      throw std::domain_error("src node not in index");
+    ah_domain_error_if(idx_node.search(src) == nullptr)
+        << "src node not in index";
 
-    if (idx_node.search(tgt) == nullptr)
-      throw std::domain_error("tgt node not in index");
+    ah_domain_error_if(idx_node.search(tgt) == nullptr)
+        << "tgt node not in index";
 
     return idx_arc.insert_in_graph(src, tgt, info);
   }

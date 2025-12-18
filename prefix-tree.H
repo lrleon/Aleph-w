@@ -27,10 +27,11 @@
 #ifndef PREFIX_TREE_H
 #define PREFIX_TREE_H
 
-# include <ah-zip.H>
-# include <tpl_dynArray.H>
 # include <tpl_tree_node.H>
-# include <generate_tree.H>
+# include <tpl_dynArray.H>
+# include <tpl_dynList.H>
+# include <FixedStack.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -187,7 +188,7 @@ public:
       }
     catch (invalid_argument & e)
       {
-        throw invalid_argument("word contains an invalid character");
+        ah_invalid_argument_if(true) << "word contains an invalid character";
       }
   }
 

@@ -32,6 +32,8 @@
 # include <ahDefs.H>
 # include <ahUtils.H>
 
+# include <ah-errors.H>
+
 extern void init_mutex(pthread_mutex_t *);
 
 extern void init_mutex(pthread_mutex_t &);
@@ -51,16 +53,16 @@ public:
 
   void unlock()
   {
-    if (mutex == nullptr)
-      throw std::domain_error("unlock: nullptr pointer to mutex");
+    ah_domain_error_if(mutex == nullptr)
+        << "unlock: nullptr pointer to mutex";
 
     pthread_mutex_unlock(mutex);
   }
 
   void lock()
   {
-    if (mutex == nullptr)
-      throw std::domain_error("lock: nullptr pointer to mutex");
+    ah_domain_error_if(mutex == nullptr)
+        << "lock: nullptr pointer to mutex";
 
     pthread_mutex_lock(mutex);
   }

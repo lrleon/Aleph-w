@@ -31,6 +31,7 @@
 # include <aleph.H>
 # include <tpl_dnode.H>
 # include <tpl_lhash.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -79,16 +80,14 @@ public:
 
     void lock()
     {
-      if (locked)
-        throw std::runtime_error("Cache_Entry is already locked");
+      ah_runtime_error_if(locked) << "Cache_Entry is already locked";
 
       locked = true;
     }
 
     void unlock()
     {
-      if (not locked)
-        throw std::runtime_error("Cache_Entry is not locked");
+      ah_runtime_error_if(not locked) << "Cache_Entry is not locked";
 
       locked = false;
     }
@@ -237,8 +236,7 @@ protected:
   {
     assert(hash_table.size() <= cache_size);
 
-    if (lru_list.is_empty())
-      throw std::bad_alloc ();
+    ah_bad_alloc_if(lru_list.is_empty());
 
     Dlink * lru_entry_link = lru_list.get_prev();
     Cache_Entry * cache_entry = dlink_lru_to_Cache_Entry(lru_entry_link);
@@ -360,8 +358,8 @@ public:
     assert(hash_table.search(cache_entry->get_key()) == cache_entry);
     assert(cache_entry->is_in_hash_table);
 
-    if (cache_entry->is_locked())
-      throw std::runtime_error("Cache_Entry is already locked");
+    ah_runtime_error_if(cache_entry->is_locked())
+      << "Cache_Entry is already locked";
 
     remove_entry_from_lru_list(cache_entry);
     insert_entry_to_locked_list(cache_entry);
@@ -375,8 +373,8 @@ public:
     assert(cache_entry->is_in_hash_table);
     assert(num_locked <= get_num_entries());
 
-    if (not cache_entry->is_locked())
-      throw std::runtime_error("Cache_Entry is not locked");
+    ah_runtime_error_if(not cache_entry->is_locked())
+      << "Cache_Entry is not locked";
 
     remove_entry_from_locked_list(cache_entry);
     insert_entry_to_lru_list(cache_entry);
@@ -388,8 +386,8 @@ public:
   {
     assert(hash_table.search(cache_entry->get_key()) == cache_entry);
 
-    if (cache_entry->is_locked())
-      throw std::runtime_error("Cache_Entry is already locked");
+    ah_runtime_error_if(cache_entry->is_locked())
+      << "Cache_Entry is already locked";
 
     remove_entry_from_hash_table(cache_entry);
   }
@@ -398,8 +396,7 @@ public:
   {
     assert(hash_table.size() <= cache_size);
 
-    if (plus_size == 0)
-      throw std::range_error ("bad plus_size");
+    ah_range_error_if(plus_size == 0) << "bad plus_size";
 
     const size_t new_cache_size = cache_size + plus_size;
 

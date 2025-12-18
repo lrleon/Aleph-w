@@ -40,6 +40,7 @@
 # include <hash-dry.H>
 # include <hashDry.H>
 # include <hash-fct.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -569,11 +570,11 @@ namespace Aleph {
     /// domain_error if the record in the table does not contain an element.
     void remove_bucket(Bucket * bucket)
     {
-      if (not is_valid_bucket(bucket))
-        throw std::invalid_argument("key pty does not belong to hash table");
+      ah_invalid_argument_if(not is_valid_bucket(bucket))
+        << "key pty does not belong to hash table";
 
-      if (bucket->status != BUSY)
-        throw std::domain_error("Bucket containing key is not BUSY");
+      ah_domain_error_if(bucket->status != BUSY)
+        << "Bucket containing key is not BUSY";
 
       deallocate_bucket(bucket);
     }
@@ -584,7 +585,7 @@ namespace Aleph {
       switch (bucket->status)
         {
         case EMPTY:
-          throw std::domain_error("Key not in hash table");
+          ah_domain_error() << "Key not in hash table";
         case BUSY:
           if (cmp(bucket->key, key))
             {
@@ -624,7 +625,7 @@ namespace Aleph {
                 return;
             }
 
-          throw std::domain_error("Key not in hash table");
+          ah_domain_error() << "Key not in hash table";
         }
       catch (...)
         {

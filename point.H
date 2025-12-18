@@ -37,6 +37,7 @@
 
 # include <ahAssert.H>
 # include <ahUtils.H>
+# include <ah-errors.H>
 
 # include <gmpfrxx.h>
 
@@ -762,8 +763,7 @@ public:
   */
   Point intersection_with(const Segment & s) const
   {
-    if (this->is_parallel_with(s))
-      throw std::domain_error("Segments are parallels");
+    ah_domain_error_if(this->is_parallel_with(s)) << "Segments are parallels";
     
     const Geom_Number & x1 = this->src.x;
     const Geom_Number & y1 = this->src.y;
@@ -964,8 +964,8 @@ public:
   {
     __area = area_of_parallelogram(p1, p2, p3)/2;
 
-    if (__area == 0)
-      throw std::domain_error("The three points of triangle are colinears");
+    ah_domain_error_if(__area == 0)
+      << "The three points of triangle are colinears";
   }
 
   Triangle(const Point & p, const Segment & s)
@@ -973,8 +973,8 @@ public:
   {
     __area = area_of_parallelogram(p1, p2, p3)/2;
 
-    if (__area == 0)
-      throw std::domain_error("The three points of triangle are colinears");
+    ah_domain_error_if(__area == 0)
+      << "The three points of triangle are colinears";
   }
 
   Triangle(const Segment & s, const Point & p)
@@ -982,8 +982,8 @@ public:
   {
     __area = area_of_parallelogram(p1, p2, p3)/2;
 
-    if (__area == 0)
-      throw std::domain_error("The three points of triangle are colinears");
+    ah_domain_error_if(__area == 0)
+      << "The three points of triangle are colinears";
   }
 
   Geom_Number area() const
@@ -1076,8 +1076,7 @@ public:
 	    const Geom_Number & __xmax, const Geom_Number & __ymax) 
     : xmin(__xmin), ymin(__ymin), xmax(__xmax), ymax(__ymax)
   {
-    if (xmax < xmin || ymax < ymin) 
-      throw std::range_error("Invalid rectangle");
+    ah_range_error_if(xmax < xmin || ymax < ymin) << "Invalid rectangle";
   }
     
   void set_rect(const Geom_Number & xmin, const Geom_Number & ymin, 
@@ -1146,8 +1145,8 @@ inline bool Segment::intersects_with(const Triangle & t) const
     // dentro del triangulo
 inline Segment Segment::intersection_with(const Triangle & t) const
 {
-  if (not this->intersects_with(t))
-    throw std::domain_error("segment does not intersects with triangle");
+  ah_domain_error_if(not this->intersects_with(t))
+    << "segment does not intersects with triangle";
 
   Point p[2]; 
 
@@ -1473,8 +1472,7 @@ y2 = ----------------------------------------------------------------------
   Segment intersection_with(const Segment & sg) const
   {
 
-    if (not intersects_with(sg))
-      throw std::domain_error("there is no intersection");
+    ah_domain_error_if(not intersects_with(sg)) << "there is no intersection";
 
     const Geom_Number & a  = hr;
     const Geom_Number & b  = vr;

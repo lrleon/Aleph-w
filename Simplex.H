@@ -33,6 +33,7 @@
 # include <tpl_dynMat.H>
 # include <tpl_dynDlist.H>
 # include <format.H>
+ # include <ah-errors.H>
 
 namespace Aleph {
 
@@ -198,9 +199,9 @@ private:
 
     void verify_var_index(int i)
     {
-      if (i >= num_var)
-        throw std::out_of_range("index " + to_string(i) + " out of range (" +
-				to_string(num_var - 1) + "");
+      ah_out_of_range_error_if(i >= num_var)
+        << ("index " + to_string(i) + " out of range (" +
+            to_string(num_var - 1) + "");
     }
 
     T * create_restriction() 
@@ -309,9 +310,9 @@ public:
     /// Retorna un punero al arreglo restricción num_rest.
   T * get_restriction(int rest_num) 
   {
-    if (rest_num >= num_rest)
-      throw std::out_of_range("index " + to_string(rest_num) +
-			      "out of range (" + to_string(num_rest - 1) + ")");
+    ah_out_of_range_error_if(rest_num >= num_rest)
+      << ("index " + to_string(rest_num) +
+          "out of range (" + to_string(num_rest - 1) + ")");
 
     int i = 1;
     for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
@@ -377,10 +378,8 @@ public:
       */
   State solve()
   {
-    if (state != Not_Solved)
-      throw std::logic_error("solve() has already been called");
-    if (num_rest == 0)
-      throw std::logic_error("linear program without restrictions");
+    ah_logic_error_if(state != Not_Solved) << "solve() has already been called";
+    ah_logic_error_if(num_rest == 0) << "linear program without restrictions";
 
     for (int i, j; true;)
       {

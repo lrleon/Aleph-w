@@ -35,6 +35,7 @@
 # include <bitArray.H>
 # include <hash-fct.H>
 # include <tpl_dynSetHash.H>
+ # include <ah-errors.H>
 
 namespace Aleph 
 {
@@ -91,8 +92,7 @@ public:
     bits.reserve(dim);
     unique_ptr<gsl_rng, void(*)(gsl_rng*)>
       r(gsl_rng_alloc(gsl_rng_mt19937), gsl_rng_free);
-    if (r.get() == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(r.get() == nullptr);
     gsl_rng_set(r.get(), seed % gsl_rng_max(r.get()));
 
     for (auto ptr = fst_seed; ptr < last_seed; ++ptr)
@@ -274,8 +274,8 @@ public:
 
   auto & operator |= (const Bloom_Filter & f) 
   {
-    if (not have_same_hashes(f))
-      throw std::domain_error("Bloom filter have differents hashes");
+    ah_domain_error_if(not have_same_hashes(f))
+      << "Bloom filter have differents hashes";
 
     bits |= f.bits;
 
@@ -290,8 +290,8 @@ public:
 
   auto & operator &= (const Bloom_Filter & f) 
   {
-    if (not have_same_hashes(f))
-      throw std::domain_error("Bloom filter have differents hashes");
+    ah_domain_error_if(not have_same_hashes(f))
+      << "Bloom filter have differents hashes";
 
     bits &= f.bits;
 

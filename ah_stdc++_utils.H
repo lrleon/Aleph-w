@@ -29,6 +29,7 @@
 
 # include <exception>
 # include <stdexcept>
+ # include <ah-errors.H>
 
 namespace Aleph
 {
@@ -37,16 +38,16 @@ namespace Aleph
 void verify_container_and_iterator(const Container & container, 
 				   const Iterator & itor)
 {
-  if (not itor.verify(container))
-    throw std::domain_error("Iterator is not set to same container");
+  ah_domain_error_if(not itor.verify(container))
+    << "Iterator is not set to same container";
 }
 
 
     template <typename Iterator> inline
 void verify_iterators(const Iterator & itor1, const Iterator & itor2)
 {
-  if (not itor1.verify(itor2))
-    throw std::domain_error("Iterator is not set to same container");
+  ah_domain_error_if(not itor1.verify(itor2))
+    << "Iterator is not set to same container";
 }
 
     template <typename Container, typename Iterator> inline void 
@@ -57,8 +58,8 @@ verify_container_and_iterators
   verify_container_and_iterator(container, itor_container);
   verify_container_and_iterator(itor1, itor2);
 
-  if (itor_container.verify(itor1))
-    throw std::domain_error("All iterators reference the same object");
+  ah_domain_error_if(itor_container.verify(itor1))
+    << "All iterators reference the same object";
 }
 
     template <typename Container, typename Iterator> inline void 

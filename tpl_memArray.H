@@ -561,8 +561,7 @@ namespace Aleph
     T &operator[](const size_t i) const
     {
       assert(ptr);
-      if (i >= n)
-        throw std::out_of_range("access out of range");
+      ah_out_of_range_error_if(i >= n) << "access out of range";
 
       return ptr[i];
     }

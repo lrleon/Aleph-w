@@ -33,6 +33,7 @@
 # include <utility>
 
 # include <tpl_dynArray.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -125,8 +126,7 @@ namespace Aleph {
     /// Return the smallest element.
     T & top()
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       return array.access(1);
     }
@@ -134,8 +134,7 @@ namespace Aleph {
     /// Return the smallest element (const overload).
     const T & top() const
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       return array.access(1);
     }
@@ -165,8 +164,8 @@ namespace Aleph {
 
     void reserve(size_t n)
     {
-      if (num_items > n)
-        throw std::out_of_range("DynArrayHeap::reserve: n smaller than size");
+      ah_out_of_range_error_if(num_items > n)
+        << "DynArrayHeap::reserve: n smaller than size";
       array.reserve(n);
     }
 
@@ -203,8 +202,7 @@ namespace Aleph {
     */
     T getMin()
     {
-      if (num_items == 0)
-        throw std::underflow_error("Heap is empty");
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       T & a1 = array(1);
       T ret_val = std::move(a1);

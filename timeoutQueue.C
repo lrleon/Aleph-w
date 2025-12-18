@@ -1,7 +1,12 @@
+# include <pthread.h>
+# include <assert.h>
+# include <stdio.h>
+# include <unistd.h>
 # include <errno.h>
 # include <string.h>
 # include <typeinfo>
 # include <timeoutQueue.H>
+# include <ah-errors.H>
 
 
 int TimeoutQueue::instanceCounter = 0;
@@ -54,8 +59,8 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
 
   CRITICAL_SECTION(mutex);
 
-  if (event->get_execution_status() == Event::In_Queue)
-    throw std::invalid_argument("Event has already inserted in timemeQueue");
+  ah_invalid_argument_if(event->get_execution_status() == Event::In_Queue)
+      << "Event has already inserted in timemeQueue";
 
   if (isShutdown)
     return;

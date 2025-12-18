@@ -98,8 +98,7 @@ Node * __select_rec(Node * r, const size_t i) noexcept
     template <class Node> inline
 Node * select_rec(Node * r, const size_t i)
 {
-  if (i >= COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(i >= COUNT(r)) << "infix position out of range";
 
   return __select_rec(r, i);
 }
@@ -149,9 +148,7 @@ Node * select_ne(Node * r, const size_t pos) noexcept
     template <class Node> inline
 Node * select(Node * r, const size_t pos)
 {
-  assert(COUNT(Node::NullPtr) == 0);
-  if (pos >= COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(r)) << "infix position out of range";
 
   return select_ne(r, pos);
 }
@@ -172,10 +169,7 @@ Node * select(Node * r, const size_t pos)
     template <class Node> inline
 Node * select(Node * root, const size_t pos, Node *& parent)
 {
-  assert(COUNT(Node::NullPtr) == 0);
-
-  if (pos >= COUNT(root))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
 
   parent = Node::NullPtr;
   for (size_t i = pos; i != COUNT(LLINK(root)); /* nada */)
@@ -713,8 +707,7 @@ void __split_pos_rec(Node * r, size_t i, Node *& ts, Node *& tg) noexcept
 template <class Node> inline
 void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
 {
-  if (i > COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(i > COUNT(r)) << "infix position out of range";
 
   if (i == COUNT(r)) // ¿Es la última posición?
     {
@@ -733,7 +726,7 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
         `insert_by_pos_xt(r, p, pos)` inserts in the position `pos` the
         node `p`.
 
-        \warning According the key contained in `p`, the isnertion could
+        \warning According to the key contained in `p`, the insertion could
         violate the required order for a binary search tree
 
         @param[in,out] r root of tree
@@ -884,8 +877,7 @@ Node * __remove_by_pos_xt(Node *& root, size_t pos) noexcept
     template <class Node> inline
 Node * remove_by_pos_xt(Node *& root, size_t pos)
 {
-  if (pos >= COUNT(root))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
 
   return __remove_by_pos_xt(root, pos);
 }
@@ -927,7 +919,7 @@ Node * rotate_to_right_xt(Node* p) noexcept
   return q;
 }
 
-    /**  Rotate to left the extended bianry tree with root `p`.
+    /**  Rotate to left the extended binary tree with root `p`.
 
          @param[in] p root to rotate.
          @return pointer to the new root.

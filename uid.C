@@ -1,5 +1,6 @@
 
 # include <uid.H>
+ # include <ah-errors.H>
 
 
 typedef unsigned char Byte;
@@ -28,8 +29,8 @@ static char unhexadecimalize(char *& str)
 char * Uid::stringficate(char *         buffer,
 			 const size_t & buf_size) const
 {
-  if (buf_size < 2*sizeof(Uid) + 1)
-    throw std::range_error("Buffer size is not enough");
+  ah_range_error_if(buf_size < 2*sizeof(Uid) + 1)
+    << "Buffer size is not enough";
 
   char * this_str = (char*) this;
   char * ret_val = buffer;

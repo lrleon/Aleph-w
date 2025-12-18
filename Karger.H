@@ -33,7 +33,7 @@
 # include <tpl_sgraph.H>
 # include <tpl_dynSetTree.H>
 # include <generate_graph.H>
-
+# include <ah-errors.H>
 
 // TODO: colocar filtro para iterador de arcos
 
@@ -124,10 +124,9 @@ class Karger_Min_Cut
 		     DynList<typename GT::Node*> & vs, 
 		     DynList<typename GT::Node*> & vt,
 		     DynList<typename GT::Arc*> & cut,
-		     size_t num_iter)
+		     const size_t num_iter)
   {
-    if (g.get_num_arcs() == 0)
-      throw std::domain_error("Graph has not arcs");
+    ah_domain_error_if(g.get_num_arcs() == 0) << "Graph has not arcs";
 
     auto min_cut = numeric_limits<size_t>::max();
 

@@ -56,11 +56,11 @@ class Build_Grid
 public:
   void operator () (GT & g, const size_t & width, const size_t & height)
   {
-    if (g.get_num_nodes() != 0)
-      throw std::domain_error("There is nodes in graph");
+    ah_domain_error_if(g.get_num_nodes() != 0)
+        << "There is nodes in graph";
 
-    if (width < 2 or height < 2)
-      throw std::length_error("The minimun size must be 2 x 2");
+    ah_length_error_if(width < 2 or height < 2)
+        << "The minimun size must be 2 x 2";
 
     typename GT::Node *** map = new typename GT::Node **[height];
     for (size_t i = 0; i < height; ++i)

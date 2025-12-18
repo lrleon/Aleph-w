@@ -28,6 +28,7 @@
 # define TPL_SINGLELIST_H
 
 # include <ahDefs.H>
+# include <ah-errors.H>
 
     template <class T>
 class Single_List 
@@ -45,8 +46,8 @@ private:
       Node * node = this;
       for (i = 0; i < pos; ++i)
         {
-          if (node->next == nullptr)
-            throw std::overflow_error("overflow in access by position");
+          ah_overflow_error_if(node->next == nullptr)
+            << "overflow in access by position";
           node = node->next;
         }
       
@@ -65,15 +66,13 @@ public:
   unsigned int get_num_items() const { return num_items; }
   T& operator [] (unsigned int pos) Exception_Prototypes(std::overflow_error) 
   { 
-    if (pos > num_items) 
-      throw std::overflow_error("List overflow");
+    ah_overflow_error_if(pos > num_items) << "List overflow";
     return head->get_by_pos(pos + 1)->data;
   }
   void insert(unsigned int pos, const T& t) 
     Exception_Prototypes(std::bad_alloc, std::overflow_error)  
   {
-    if (pos > num_items) 
-      throw std::overflow_error("List overflow");
+    ah_overflow_error_if(pos > num_items) << "List overflow";
     Node * node = new Node (t);
     Node * prev = head->get_by_pos(pos - 1); 
     node->next = prev->next;
@@ -82,8 +81,7 @@ public:
   }
   void remove(unsigned int pos) Exception_Prototypes(std::overflow_error)
   { 
-    if (pos > num_items) 
-      throw std::overflow_error("List overflow");
+    ah_overflow_error_if(pos > num_items) << "List overflow";
 
     Node * prev = head->get_by_pos(pos - 1);
     Node * node_to_delete = prev->next;

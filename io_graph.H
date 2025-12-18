@@ -29,63 +29,120 @@
 
 # include <fstream>
 # include <iostream>
+# include <memory>
 # include <tpl_graph.H>
+# include <ah-errors.H>
 
 extern bool verbose; // comunmente definida en main
 
 namespace Aleph {
 
+  /** Default node storage functor for binary and text modes.
 
+      Stores node information by writing the raw bytes of get_info()
+      to binary streams, or using operator<< for text streams.
+
+      @tparam GT Graph type
+      @ingroup Grafos
+   */
   template <class GT>
   struct Dft_Store_Node
   {
+    /// Stores node to binary stream
+    /// @param output Binary output stream
+    /// @param p Node pointer to store
     void operator () (ofstream & output, GT &, typename GT::Node * p)
     {
-      output.write((char*) &p->get_info(), sizeof(typename GT::Node_Type));
+      output.write(static_cast<char *>(&p->get_info()), sizeof(typename GT::Node_Type));
     }
 
+    /// Stores node to text stream
+    /// @param output Text output stream
+    /// @param p Node pointer to store
     void operator () (ostream & output, GT &, typename GT::Node * p)
     {
       output << p->get_info() << endl;
     }
   };
 
+  /** Default arc storage functor for binary and text modes.
+
+      Stores arc information by writing the raw bytes of get_info()
+      to binary streams, or using operator<< for text streams.
+
+      @tparam GT Graph type
+      @ingroup Grafos
+   */
   template <class GT>
   struct Dft_Store_Arc
   {
+    /// Stores arc to binary stream
+    /// @param output Binary output stream
+    /// @param a Arc pointer to store
     void operator () (ofstream & output, GT &, typename GT::Arc * a)
     {
-      output.write((char*) &a->get_info(), sizeof(typename GT::Arc_Type));
+      output.write(static_cast<char *>(&a->get_info()), sizeof(typename GT::Arc_Type));
     }
 
+    /// Stores arc to text stream
+    /// @param output Text output stream
+    /// @param a Arc pointer to store
     void operator () (ostream & output, GT &, typename GT::Arc * a)
     {
       output << a->get_info() << endl;
     }
   };
 
+  /** Default node loading functor for binary and text modes.
+
+      Loads node information by reading raw bytes from binary streams,
+      or using operator>> for text streams.
+
+      @tparam GT Graph type
+      @ingroup Grafos
+   */
   template <class GT>
   struct Dft_Load_Node
   {
+    /// Loads node from binary stream
+    /// @param input Binary input stream
+    /// @param p Node pointer to load into
     void operator () (ifstream & input, GT &, typename GT::Node * p)
     {
-      input.read((char*) &p->get_info(), sizeof(typename GT::Node_Type));
+      input.read(static_cast<char *>(&p->get_info()), sizeof(typename GT::Node_Type));
     }
 
+    /// Loads node from text stream
+    /// @param input Text input stream
+    /// @param p Node pointer to load into
     void operator () (istream & input, GT &, typename GT::Node * p)
     {
       input >> p->get_info();
     }
   };
 
+  /** Default arc loading functor for binary and text modes.
+
+      Loads arc information by reading raw bytes from binary streams,
+      or using operator>> for text streams.
+
+      @tparam GT Graph type
+      @ingroup Grafos
+   */
   template <class GT>
   struct Dft_Load_Arc
   {
+    /// Loads arc from binary stream
+    /// @param input Binary input stream
+    /// @param a Arc pointer to load into
     void operator () (ifstream & input, GT &, typename GT::Arc * a)
     {
-      input.read((char*) &a->get_info(), sizeof(typename GT::Arc_Type));
+      input.read(static_cast<char *>(&a->get_info()), sizeof(typename GT::Arc_Type));
     }
 
+    /// Loads arc from text stream
+    /// @param input Text input stream
+    /// @param a Arc pointer to load into
     void operator () (istream & input, GT &, typename GT::Arc * a)
     {
       input >> a->get_info();
@@ -160,18 +217,40 @@ namespace Aleph {
     NF node_filter = NF();
     AF arc_filter  = AF();
 
+    bool verbose_mode = false;  // Replaces global verbose variable
+
   public:
 
+    /// Sets verbose mode for progress output
+    /// @param v True to enable verbose output, false to disable
+    void set_verbose(bool v) { verbose_mode = v; }
+
+    /// Gets current verbose mode setting
+    /// @return True if verbose mode is enabled, false otherwise
+    bool is_verbose() const { return verbose_mode; }
+
+    /// Sets the node loading functor
+    /// @param ln Node loading functor to use
     void set_load_node(const Load_Node & ln) { load_node = ln; }
 
+    /// Sets the node storage functor
+    /// @param sn Node storage functor to use
     void set_store_node(const Store_Node & sn) { store_node = sn; }
 
+    /// Sets the arc loading functor
+    /// @param la Arc loading functor to use
     void set_load_arc(const Load_Arc & la) { load_arc = la; }
 
+    /// Sets the arc storage functor
+    /// @param sa Arc storage functor to use
     void set_store_arc(const Store_Arc & sa) { store_arc = sa; }
 
+    /// Sets the node filter for save operations
+    /// @param nf Node filter functor to use
     void set_node_filter(const NF & nf) { node_filter = nf; }
 
+    /// Sets the arc filter for save operations
+    /// @param af Arc filter functor to use
     void set_arc_filter(const AF & af) { arc_filter = af; }
 
     /// Constructor con referencia a grafo
@@ -186,10 +265,10 @@ namespace Aleph {
       // guarda cantidad de nodos
       const size_t num_nodes = g.get_num_nodes();
 
-      if (verbose)
+      if (verbose_mode)
         cout << "Storing " << num_nodes << " nodes ... ";
 
-      output.write((const char*) &num_nodes, sizeof(num_nodes));
+      output.write(reinterpret_cast<const char *>(&num_nodes), sizeof(num_nodes));
 
       int i = 0; // contador de nodos. Lleva los índices en la tabla
 
@@ -201,7 +280,7 @@ namespace Aleph {
         {
           auto p = it.get_curr();
 
-          if (verbose)
+          if (verbose_mode)
             cout << i << " ";
 
           store_node(output, g, p);
@@ -211,11 +290,11 @@ namespace Aleph {
 
       const size_t num_arcs = g.get_num_arcs();
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl 
              << "Storing " << num_arcs << " arcs ... " << endl;
 
-      output.write((const char*) &num_arcs, sizeof(num_arcs));
+      output.write(reinterpret_cast<const char *>(&num_arcs), sizeof(num_arcs));
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
@@ -228,19 +307,19 @@ namespace Aleph {
           const auto & tgt_idx = nodes_table.find(tgt);
 
           // guarda índices de nodos origen y destino respectivamente
-          output.write((const char*) &src_idx, sizeof(int));
-          output.write((const char*) &tgt_idx, sizeof(int));
+          output.write(static_cast<const char *>(&src_idx), sizeof(int));
+          output.write(static_cast<const char *>(&tgt_idx), sizeof(int));
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << src_idx << "--" << tgt_idx << " ";
 
           store_arc(output, g, a);
 
-          if (verbose)
+          if (verbose_mode)
             cout << endl;
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl << endl;
     }
 
@@ -249,9 +328,11 @@ namespace Aleph {
     {
       // lee cantidad de nodos
       size_t num_nodes;
-      input.read((char *) &num_nodes, sizeof(num_nodes));
+      input.read(reinterpret_cast<char *>(&num_nodes), sizeof(num_nodes));
+      ah_runtime_error_if(!input.good())
+        << "Failed to read node count from binary stream";
 
-      if (verbose)
+      if (verbose_mode)
         cout << "Loading " << num_nodes << " nodes ...";
 
       DynArray<typename GT::Node*> nodes_table(num_nodes);
@@ -259,46 +340,58 @@ namespace Aleph {
 
       for (size_t i = 0; i < num_nodes; ++i)
         {
-          typename GT::Node * p = new typename GT::Node;
+          std::unique_ptr<typename GT::Node> p(new typename GT::Node);
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << i;
 
-          load_node(input, g, p);
+          load_node(input, g, p.get());
+          ah_runtime_error_if(!input.good())
+            << "Failed to load node " << i << " from binary stream";
 
-          p = g.insert_node(p);
-          nodes_table.access(i) = p;
+          typename GT::Node * inserted = g.insert_node(p.release());
+          nodes_table.access(i) = inserted;
         }
 
       size_t num_arcs;
-      input.read((char *) &num_arcs, sizeof(num_arcs));
+      input.read(reinterpret_cast<char *>(&num_arcs), sizeof(num_arcs));
+      ah_runtime_error_if(!input.good())
+        << "Failed to read arc count from binary stream";
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl
              << "Loading " << num_arcs << " arcs ... " << endl;
 
-      for (int i = 0; i < num_arcs; ++i)
+      for (size_t i = 0; i < num_arcs; ++i)
         {
           int src_idx;
-          input.read((char*) &src_idx, sizeof(int));
+          input.read(reinterpret_cast<char *>(&src_idx), sizeof(int));
+          ah_runtime_error_if(!input.good())
+            << "Failed to read source index for arc " << i;
+
           auto src = nodes_table.access(src_idx);
 
           int tgt_idx;
-          input.read((char*) &tgt_idx, sizeof(int));
+          input.read(reinterpret_cast<char *>(&tgt_idx), sizeof(int));
+          ah_runtime_error_if(!input.good())
+            << "Failed to read target index for arc " << i;
+
           auto tgt = nodes_table.access(tgt_idx);
 
           auto a = g.insert_arc(src, tgt);
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << src_idx << "--" << tgt_idx << " ";
 
           load_arc(input, g, a);
+          ah_runtime_error_if(!input.good())
+            << "Failed to load arc " << i << " data";
 
-          if (verbose)
+          if (verbose_mode)
             cout << endl;
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl << endl;
     }
 
@@ -310,7 +403,7 @@ namespace Aleph {
       output << num_nodes << endl
              << num_arcs << endl;
 
-      if (verbose)
+      if (verbose_mode)
         cout << "Storing " << num_nodes << " nodes ... ";
 
       int i = 0; // contador de nodos. Lleva los índices en la tabla
@@ -323,7 +416,7 @@ namespace Aleph {
         {
           typename GT::Node * p = it.get_curr();
 
-          if (verbose)
+          if (verbose_mode)
             cout << i << " ";
 
           store_node(output, g, p);
@@ -331,7 +424,7 @@ namespace Aleph {
           nodes_table.insert(p, i);
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl 
              << "Storing " << num_arcs << " arcs ... " << endl;
 
@@ -348,16 +441,16 @@ namespace Aleph {
           // guarda índices de nodos origen y destino respectivamente
           output << src_idx << " " << tgt_idx << " ";
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << src_idx << "--" << tgt_idx << " ";
 
           store_arc(output, g, a);
 
-          if (verbose)
+          if (verbose_mode)
             cout << endl;
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl << endl;
     }
 
@@ -369,9 +462,12 @@ namespace Aleph {
       size_t num_arcs;
 
       input >> num_nodes >> num_arcs;
+      ah_runtime_error_if(!input.good())
+        << "Failed to read node/arc count from text stream";
+
       input.ignore();
 
-      if (verbose)
+      if (verbose_mode)
         cout << "Loading " << num_nodes << " nodes ...";
 
       DynArray<typename GT::Node*> nodes_table(num_nodes);
@@ -379,42 +475,48 @@ namespace Aleph {
 
       for (size_t i = 0; i < num_nodes; ++i)
         {
-          auto p = new typename GT::Node;
+          std::unique_ptr<typename GT::Node> p(new typename GT::Node);
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << i;
 
-          load_node(input, g, p);
+          load_node(input, g, p.get());
+          ah_runtime_error_if(!input.good())
+            << "Failed to load node " << i << " from text stream";
 
-          p = g.insert_node(p);
-          nodes_table.access(i) = p;
+          typename GT::Node * inserted = g.insert_node(p.release());
+          nodes_table.access(i) = inserted;
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl
              << "Loading " << num_arcs << " arcs ... " << endl;
 
-      for (int i = 0; i < num_arcs; ++i)
+      for (size_t i = 0; i < num_arcs; ++i)
         {
           int src_idx;
           int tgt_idx;
 
           input >> src_idx >> tgt_idx;
+          ah_runtime_error_if(!input.good())
+            << "Failed to read arc " << i << " indices from text stream";
 
           auto src = nodes_table.access(src_idx);
           auto tgt = nodes_table.access(tgt_idx);
           auto a = g.insert_arc(src, tgt);
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << src_idx << "--" << tgt_idx << " ";
 
           load_arc(input, g, a);
+          ah_runtime_error_if(!input.good())
+            << "Failed to load arc " << i << " data from text stream";
 
-          if (verbose)
+          if (verbose_mode)
             cout << " " << endl;
         }
 
-      if (verbose)
+      if (verbose_mode)
         cout << " done " << endl << endl;
     }
   };

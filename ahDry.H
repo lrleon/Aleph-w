@@ -34,6 +34,7 @@
 # include <initializer_list>
 
 # include <ahFunctional.H>
+ # include <ah-errors.H>
 
 namespace Aleph
 {
@@ -104,8 +105,7 @@ template<typename T> class DynList;
                      return false;                                      \
                    });                                                  \
                                                                         \
-    if (i != n + 1)                                                     \
-      throw std::out_of_range("index out of range");                    \
+    ah_out_of_range_error_if(i != n + 1) << "index out of range";        \
                                                                         \
     return *ptr;                                                        \
   }                                                                     \

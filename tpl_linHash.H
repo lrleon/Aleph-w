@@ -1,4 +1,3 @@
-
 # ifndef TPL_LINHASH_H
 # define TPL_LINHASH_H
 
@@ -11,7 +10,7 @@
 # include <hashDry.H>
 # include <hash-fct.H>
 # include <hash-dry.H>
-
+# include <ah-errors.H>
 
 # ifdef N
 # define NBACKUP N
@@ -288,14 +287,12 @@ public:
       upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
       p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
   {
-    if (M == 0)
-      throw std::length_error("table's length is zero");
+    ah_length_error_if(M == 0) << "table's length is zero";
 
-    if (MM > table.max_size())
-      throw std::length_error("table's length too big");
+    ah_length_error_if(MM > table.max_size()) << "table's length too big";
 
-    if (upper_alpha <= lower_alpha)
-      throw std::domain_error("upper alpha must be greater than lower alpha");
+    ah_domain_error_if(upper_alpha <= lower_alpha)
+      << "upper alpha must be greater than lower alpha";
   }
 
  public:

@@ -30,6 +30,7 @@
 # include <stdexcept>
 # include <tpl_tree_node.H>
 # include <tpl_dynArray.H>
+# include <ah-errors.H>
 
 using namespace std;
 
@@ -70,7 +71,7 @@ int * string_to_deway(const string& str, size_t & size)
 	str.substr(begin_index, number_str_len).c_str();
 
       if (not is_string_an_int(number_str))
-	throw invalid_argument("character is not a digit");
+	ah_invalid_argument_if(true) << "character is not a digit";
       
       a[a.size()] = atoi(number_str.c_str());
 

@@ -295,8 +295,8 @@ void zip_for_each_eq(Op &&op, const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     std::forward<Op>(op)(it.get_curr());
 
-  if (not it.completed())
-    throw length_error("zip_for_each_eq() containers sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "zip_for_each_eq() containers sizes mismatch";
 }
 
 /** Return `true` if `op` returns `true` for all tuples and containers have equal length.
@@ -545,8 +545,8 @@ auto t_zip_eq(const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
 
-  if (not it.completed())
-    throw length_error("Container sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "Container sizes mismatch";
 
   return ret;
 }
@@ -751,8 +751,8 @@ auto t_enum_zip_eq(const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr());
 
-  if (not it.completed())
-    throw length_error("Container sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "Container sizes mismatch";
 
   return ret;
 }
@@ -827,8 +827,8 @@ auto zip_lists_eq(const C &c, const Lists &... lists)
   for (; it.has_curr(); it.next_ne())
     ret.append(it.get_curr_list());
 
-  if (not it.completed())
-    throw length_error("zip_list_eq: container sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "zip_list_eq: container sizes mismatch";
 
   return ret;
 }
@@ -974,8 +974,8 @@ auto zip_transform_eq(Op &&op, const Cs &... cs)
   for (; it.has_curr(); it.next_ne())
     ret.push_back(std::forward<Op>(op)(it.get_curr()));
   
-  if (not it.completed())
-    throw length_error("zip_transform_eq() containers sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "zip_transform_eq() containers sizes mismatch";
   return ret;
 }
 
@@ -1012,8 +1012,8 @@ void zip_for_each_indexed_eq(Op &&op, const Cs &... cs)
   for (; it.has_curr(); it.next_ne(), ++idx)
     std::forward<Op>(op)(idx, it.get_curr());
   
-  if (not it.completed())
-    throw length_error("zip_for_each_indexed_eq() containers sizes mismatch");
+  ah_length_error_if(not it.completed())
+    << "zip_for_each_indexed_eq() containers sizes mismatch";
 }
 
 /** Take at most `n` tuples from the zipped containers.

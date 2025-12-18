@@ -37,7 +37,7 @@
 # define TPL_SPLAY_TREE_RK_H
 
 # include <tpl_binNodeXt.H>
-
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -418,8 +418,8 @@ public:
 
     Node * get_curr() const
     {
-      if (curr == Node::NullPtr)
-        throw std::overflow_error("Iterator is at end");
+      ah_overflow_error_if(curr == Node::NullPtr)
+          << "Iterator is at end";
       return curr;
     }
 
@@ -427,8 +427,8 @@ public:
 
     void next()
     {
-      if (curr == Node::NullPtr)
-        throw std::overflow_error("Iterator is at end");
+      ah_overflow_error_if(curr == Node::NullPtr)
+          << "Iterator is at end";
       curr = inorder_successor(tree_ptr->root, KEY(curr));
       ++pos;
     }

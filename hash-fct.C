@@ -3,6 +3,8 @@
 # include <stdexcept>
 # include "hash-fct.H"
 
+# include <ah-errors.H>
+
 namespace Aleph
 { 
 
@@ -25,10 +27,10 @@ void init_jsw() noexcept
   init = true; 
 }
 
-size_t jsw_hash(void * key, int len) 
+size_t jsw_hash(void * key, const int len)
 {
-  if (not init)
-    throw std::domain_error("jsw_hash: init_jsw() has not been called");
+  ah_domain_error_if(not init)
+      << "jsw_hash: init_jsw() has not been called";
 
   unsigned char *p = (unsigned char*) key;
   size_t h = 16777551;
@@ -41,8 +43,8 @@ size_t jsw_hash(void * key, int len)
 
 size_t jsw_hash(const char * key)
 {
-  if (not init)
-    throw std::domain_error("jsw_hash: init_jsw() has not been called");
+  ah_domain_error_if(not init)
+      << "jsw_hash: init_jsw() has not been called";
 
   unsigned char * p = (unsigned char*) key;
   size_t h = 16777551;

@@ -32,6 +32,7 @@
 # include <tpl_graph_utils.H>
 # include <tpl_test_acyclique.H>
 # include <tpl_union.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -147,8 +148,7 @@ public:
 
   void paint_min_spanning_tree(const GT & g)
   {
-    if (g.is_digraph())
-      throw std::domain_error("g is a digraph");
+    ah_domain_error_if(g.is_digraph()) << "g is a digraph";
 
     g.reset_bit_arcs(Aleph::Spanning_Tree); // limpiar bits de marcado de arcos
     Operate_On_Nodes<GT, Init_Node> () (g, Init_Node());

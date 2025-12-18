@@ -33,6 +33,7 @@
 # include <ahFunction.H>
 # include <tpl_randNode.H>
 # include <tpl_binTreeOps.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -131,8 +132,7 @@ namespace Aleph
     {
       r = gsl_rng_alloc(gsl_rng_mt19937);
 
-      if (r == nullptr)
-        throw std::bad_alloc();
+      ah_bad_alloc_if(r == nullptr);
 
       gsl_rng_set(r, seed % gsl_rng_max(r));
     }
@@ -433,8 +433,8 @@ namespace Aleph
     */
     Node * remove_pos(const size_t i)
     {
-      if (i >= COUNT(tree_root))
-        throw std::out_of_range("infix position out of range");
+      ah_out_of_range_error_if(i >= COUNT(tree_root))
+        << "infix position out of range";
 
       return remove_pos(tree_root, i);
     }

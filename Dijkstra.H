@@ -28,6 +28,7 @@
 # define DIJKSTRA_H
 
 # include <ahFunction.H>
+# include <ah-errors.H>
 # include <archeap.H>
 # include <tpl_find_path.H>
 # include <tpl_agraph.H>
@@ -658,11 +659,11 @@ public:
       typename Distance::Distance_Type
   get_min_path(typename GT::Node * end, Path<GT> & path)
   {
-    if (ptr_g == nullptr)
-      throw std::domain_error("Min path has not been computed");
+    ah_domain_error_if(ptr_g == nullptr)
+        << "Min path has not been computed";
 
-    if (not painted)
-      throw std::domain_error("Graph has not previously painted");
+    ah_domain_error_if(not painted)
+        << "Graph has not previously painted";
 
     return Aleph::get_min_path<GT, Distance>(s, end, path);
   }
@@ -739,8 +740,8 @@ public:
       typename Distance::Distance_Type
   copy_painted_min_paths_tree(const GT & g, GT & tree)
   {
-    if (not painted)
-      throw std::domain_error("Graph has not previously painted");
+    ah_domain_error_if(not painted)
+        << "Graph has not previously painted";
 
     using Paint_Filt = Painted_Min_Spanning_Tree<GT, Distance>;
     Paint_Filt painted;
@@ -796,8 +797,8 @@ public:
       typename Distance::Distance_Type
   get_min_path(const GT & tree, typename GT::Node * end, Path<GT> & path)
   {
-    if (ptr_g == nullptr)
-      throw std::domain_error("Min path has not been computed");
+    ah_domain_error_if(ptr_g == nullptr)
+        << "Min path has not been computed";
 
     auto ts = mapped_node<GT>(s);
     auto te = mapped_node<GT>(end);

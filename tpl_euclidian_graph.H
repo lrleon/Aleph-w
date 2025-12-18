@@ -30,6 +30,7 @@
 
 # include <tpl_graph.H>
 # include <point.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -297,8 +298,7 @@ public:
 
     Point & add_point(typename __Euclidian_Graph::Node * node)
     {
-      if (node == nullptr)
-        throw std::domain_error("node is nullptr");
+      ah_domain_error_if(node == nullptr) << "node is nullptr";
       points.append(node->get_position());
       Point & p = points.top();
       if (points.size() == 1)
@@ -320,40 +320,36 @@ public:
 
     const Point & get_west_point() const
     {
-      if (points.size() < 1)
-        throw std::logic_error("There are no points on plane");
+      ah_logic_error_if(points.size() < 1) << "There are no points on plane";
       return *ptr_west_point;
     }
 
     const Point & get_north_point() const
     {
-      if (points.size() < 1)
-        throw std::logic_error("There are no points on plane");
+      ah_logic_error_if(points.size() < 1) << "There are no points on plane";
       return *ptr_north_point;
     }
 
     const Point & get_east_point() const
     {
-      if (points.size() < 1)
-        throw std::logic_error("There are no points on plane");
+      ah_logic_error_if(points.size() < 1) << "There are no points on plane";
       return *ptr_east_point;
     }
 
     const Point & get_south_point() const
     {
-      if (points.size() < 1)
-        throw std::logic_error("There are no points on plane");
+      ah_logic_error_if(points.size() < 1) << "There are no points on plane";
       return *ptr_south_point;
     }
 
-    const Geom_Number get_width() const
+    Geom_Number get_width() const
     {
       if (points.size() < 1)
         return Geom_Number(0);
       return ptr_east_point->get_x() - ptr_west_point->get_x();
     }
 
-    const Geom_Number get_height() const
+    Geom_Number get_height() const
     {
       if (points.size() < 1)
         return Geom_Number(0);

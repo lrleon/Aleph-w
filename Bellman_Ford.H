@@ -31,6 +31,7 @@
 # include <tpl_dynSetTree.H>
 # include <tpl_graph_utils.H>
 # include <Tarjan.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
@@ -723,8 +724,8 @@ public:
    */
   void build_tree(GT & tree, bool with_map = true)
   {
-    if (not painted and with_map)
-      throw std::domain_error("Spanning tree has not been painted");
+    ah_domain_error_if(not painted and with_map)
+      << "Spanning tree has not been painted";
 
     clear_graph(tree);
 
@@ -777,8 +778,8 @@ public:
 
   Distance_Type get_min_path(typename GT::Node * end, Path<GT> & path)
   {
-    if (not painted)
-      throw std::domain_error("Graph has not previously painted");
+    ah_domain_error_if(not painted)
+      << "Graph has not previously painted";
       
     return Aleph::get_min_path<GT, Distance>(s, end, path);
   }
@@ -842,8 +843,8 @@ public:
     uninit<Ni>();
     arcs.cut();
 
-    if (negative_cycle)
-      throw domain_error("negative cycles detected");
+    ah_domain_error_if(negative_cycle)
+      << "negative cycles detected";
 
     return ret;
   }
