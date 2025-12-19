@@ -157,7 +157,7 @@ TEST(BloomFilterSetOps, mismatch_throws_domain_error_and_keeps_message)
   catch (const std::domain_error &e)
     {
       const string msg = e.what();
-      EXPECT_NE(msg.find("Bloom filter have differents hashes"), string::npos);
+      EXPECT_NE(msg.find("Bloom filter have different hashes"), string::npos);
     }
 }
 

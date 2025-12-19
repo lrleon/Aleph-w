@@ -79,6 +79,8 @@ set(TEST_PROGRAMS
     array-it
     bloom-filter
     dynarray
+    floyd
+    karger
     union
     sort_utils
     memarray

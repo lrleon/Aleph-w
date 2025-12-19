@@ -38,7 +38,7 @@ namespace Aleph
   struct Bellman_Ford_Node_Info
   {
     int idx;
-    typename Distance::Distance_Type acum;
+    typename Distance::Distance_Type accum;
   };
 
   /** Algorithms associated to Bellman-Ford algorithm for searching
@@ -60,22 +60,22 @@ namespace Aleph
 
     struct Sni
     {
-      Distance_Type acum;
+      Distance_Type accum;
     };
 
     struct Ni : public Sni
     {
-      int idx; // índice en los arreglos de predecesores
+      int idx; // index in the predecessor arrays
     };
 
-    Distance_Type &acum(Node *p) noexcept
+    Distance_Type &accum(Node *p) noexcept
     {
-      return ((Sni *) NODE_COOKIE(p))->acum;
+      return static_cast<Sni *>(NODE_COOKIE(p))->accum;
     }
 
     int &idx(Node *p) noexcept
     {
-      return ((Ni *) NODE_COOKIE(p))->idx;
+      return static_cast<Ni *>(NODE_COOKIE(p))->idx;
     }
 
     DynArray<typename GT::Arc *> arcs;
@@ -86,21 +86,21 @@ namespace Aleph
     SA sa;
     Distance dist;
 
-    // Inicializa sin usar los arreglos
+    // Initialize without using arrays
     void init_simple(Node *start)
     {
       typename GT::Node_Iterator it(g);
       for (int i = 0; it.has_curr(); ++i, it.next_ne())
         {
           auto p = it.get_curr();
-          g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
+          g.reset_bit(p, Aleph::Spanning_Tree); // set bit to zero
           auto ptr = new Sni;
-          ptr->acum = Inf;
+          ptr->accum = Inf;
           NODE_BITS(p).set_bit(Spanning_Tree, false);
           NODE_COOKIE(p) = ptr;
         }
       s = start;
-      acum(s) = 0;
+      accum(s) = 0;
       g.reset_arcs();
     }
 
@@ -112,9 +112,9 @@ namespace Aleph
         {
           arcs(i) = nullptr;
           auto p = it.get_curr();
-          g.reset_bit(p, Aleph::Spanning_Tree); // colocar bit en cero
+          g.reset_bit(p, Aleph::Spanning_Tree); // set bit to zero
           auto ptr = new Ni;
-          ptr->acum = Inf;
+          ptr->accum = Inf;
           ptr->idx = i;
           NODE_BITS(p).set_bit(Spanning_Tree, false);
           NODE_BITS(p).set_bit(Depth_First, false); // indicates if it is in queue
@@ -122,19 +122,19 @@ namespace Aleph
         }
 
       s = start;
-      acum(s) = 0;
+      accum(s) = 0;
 
       g.reset_arcs();
     }
 
-    // libera la memoria asociada a los cookies
+    // release the memory associated with the cookies
     template <class Info_Type>
     void uninit() noexcept
     {
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
-          delete (Info_Type *) NODE_COOKIE(p);
+          delete static_cast<Info_Type *>(NODE_COOKIE(p));
           NODE_COOKIE(p) = nullptr;
         }
     }
@@ -161,24 +161,27 @@ namespace Aleph
     void relax_arcs() noexcept
     {
       const size_t & n = g.vsize();
-      for (int i = 0; i < n - 1; ++i)
+      if (n <= 1)
+        return; // Nothing to relax for empty or single-node graphs
+
+      for (size_t i = 0; i < n - 1; ++i)
         for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
           {
             auto arc = it.get_curr();
             auto src = g.get_src_node(arc);
-            const auto & acum_src = acum(src);
-            if (acum_src == Inf)
+            const auto & accum_src = accum(src);
+            if (accum_src == Inf)
               continue;
 
             auto tgt = it.get_tgt_node_ne();
             auto w = dist(arc);
-            auto sum = acum_src + w;
-            auto & acum_tgt = acum(tgt);
-            if (sum < acum_tgt) // relajar arco
+            auto sum = accum_src + w;
+            auto & accum_tgt = accum(tgt);
+            if (sum < accum_tgt) // Relax Arc
               {
                 const auto & index = idx(tgt);
                 arcs(index) = arc;
-                acum_tgt = sum;
+                accum_tgt = sum;
               }
           }
     }
@@ -206,26 +209,26 @@ namespace Aleph
         {
           auto arc = it.get_curr();
           auto src = g.get_src_node(arc);
-          const auto & acum_src = acum(src);
-          if (acum_src == Inf)
+          const auto & accum_src = accum(src);
+          if (accum_src == Inf)
             continue;
 
           auto tgt = g.get_tgt_node(arc);
           auto w = dist(arc);
-          auto sum = acum_src + w;
-          auto & acum_tgt = acum(tgt);
-          if (sum < acum_tgt) // relajar arco
+          auto sum = accum_src + w;
+          auto & accum_tgt = accum(tgt);
+          if (sum < accum_tgt) // Relax Arc
             {
               const auto & index = idx(tgt);
               arcs(index) = arc;
-              acum_tgt = sum;
+              accum_tgt = sum;
               put_in_queue(q, tgt);
             }
         }
     }
 
     void paint_tree() noexcept
-    { // pinta los nodos y arcos involucrados
+    { // paint the involved nodes and arcs
       const auto & n = g.vsize();
       for (int i = 0; i < n; ++i)
         {
@@ -234,8 +237,8 @@ namespace Aleph
             continue;
 
           ARC_BITS(arc).set_bit(Aleph::Spanning_Tree, true);
-          auto src = (Node *) arc->src_node;
-          auto tgt = (Node *) arc->tgt_node;
+          auto src = static_cast<Node *>(arc->src_node);
+          auto tgt = static_cast<Node *>(arc->tgt_node);
           NODE_BITS(src).set_bit(Aleph::Spanning_Tree, true);
           NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
         }
@@ -253,20 +256,20 @@ namespace Aleph
         {
           auto arc = it.get_curr();
           auto src = g.get_src_node(arc);
-          auto & acum_src = acum(src);
-          if (acum_src == Inf)
+          auto & accum_src = accum(src);
+          if (accum_src == Inf)
             continue;
 
           auto tgt = g.get_tgt_node(arc);
           auto d = dist(arc);
-          auto & acum_tgt = acum(tgt);
-          auto sum = acum_src + d;
-          if (sum < acum_tgt)
+          auto & accum_tgt = accum(tgt);
+          auto sum = accum_src + d;
+          if (sum < accum_tgt)
             {
               negative_cycle = true;
               const auto & index = idx(tgt);
               arcs(index) = arc;
-              acum_tgt = sum;
+              accum_tgt = sum;
             }
         }
       return negative_cycle;
@@ -278,15 +281,15 @@ namespace Aleph
         {
           auto arc = it.get_curr();
           auto src = g.get_src_node(arc);
-          auto & acum_src = acum(src);
-          if (acum_src == Inf)
+          auto & accum_src = accum(src);
+          if (accum_src == Inf)
             continue;
 
           auto tgt = g.get_tgt_node(arc);
           auto d = dist(arc);
-          auto & acum_tgt = acum(tgt);
-          auto sum = acum_src + d;
-          if (sum < acum_tgt)
+          auto & accum_tgt = accum(tgt);
+          auto sum = accum_src + d;
+          if (sum < accum_tgt)
             return true;
         }
       return false;
@@ -296,7 +299,7 @@ namespace Aleph
     {
       uninit<Ni>();
 
-      // construye los caminos invertidos hacia el nodo origen s
+      // Construct the inverted paths to the S origin node
       const auto & n = g.vsize();
       for (int i = 0; i < n; ++i)
         {
@@ -308,47 +311,53 @@ namespace Aleph
           NODE_COOKIE(tgt) = g.get_src_node(arc);
         }
 
-      NODE_COOKIE(s) = nullptr; // por si acaso hay ciclo negativo
+      NODE_COOKIE(s) = nullptr; // just in case there is a negative cycle
 
       arcs.cut_ne();
     }
 
   public:
-    /** Paint the minimal spaning tree for the a `start` node.
+    /** Paint the minimal spanning tree for the a `start` node.
 
         @param[in] start source node from which the minimal path will be
         computed
-        @return true if negative cycles are detected, which case the
-        spanning minimal tree has note sense. Otherwise, `false` is
+        @return true if negative cycles are detected, in which case the
+        spanning minimal tree has no sense. Otherwise, `false` is
         returned and the minimal spanning tree is painted with the bit
         `Spanning_Tree`
     */
     bool paint_spanning_tree(Node *start)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
 
       relax_arcs();
-      bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+      const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
       paint_tree();
       link_cookies_and_free(s);
 
       return negative_cycle;
     }
 
-    /** faster minimal spaning tree painting from a `start` node.
+    /** Faster minimal spanning tree painting from a `start` node.
 
-        This methods executes a probably faster version of Bellman-Ford
+        This method executes a probably faster version of Bellman-Ford
         algorithm
 
         @param[in] start source node from which the minimal path will be
         computed
-        @return true if negative cycles are detected, which case the
-        spanning minimal tree has note sense. Otherwise, `false` is
+        @return true if negative cycles are detected, in which case the
+        spanning minimal tree has no sense. Otherwise, `false` is
         returned and the minimal spanning tree is painted with the bit
         `Spanning_Tree`
     */
     bool faster_paint_spanning_tree(Node *start)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
 
       const auto & n = g.get_num_nodes();
@@ -364,7 +373,7 @@ namespace Aleph
       for (size_t i = 0; not q.is_empty();)
         {
           auto src = get_from_queue(q);
-          if (src == sentinel) // ¿se saca el centinela?
+          if (src == sentinel) // Is the sentinel removed?
             {
               if (i++ > n)
                 break;
@@ -375,7 +384,7 @@ namespace Aleph
             relax_arcs(src, q);
         }
 
-      bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+      const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
       paint_tree();
       link_cookies_and_free(s);
 
@@ -400,7 +409,7 @@ namespace Aleph
     template <class Info_Type>
     void remove_dummy_node(Node *p)
     {
-      delete (Info_Type *) NODE_COOKIE(p);
+      delete static_cast<Info_Type *>(NODE_COOKIE(p));
       const_cast<GT &>(g).remove_node(p);
     }
 
@@ -410,12 +419,15 @@ namespace Aleph
     */
     bool has_negative_cycle(Node *start)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
       s = start;
-      acum(s) = 0;
+      accum(s) = 0;
 
       relax_arcs();
-      bool negative_cycle = last_relax_and_test_negative_cycle();
+      const bool negative_cycle = last_relax_and_test_negative_cycle();
       uninit<Ni>();
 
       return negative_cycle;
@@ -440,16 +452,15 @@ namespace Aleph
       for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
-          table.insert(p, (Node *) NODE_COOKIE(p));
+          table.insert(p, static_cast<Node *>(NODE_COOKIE(p)));
         }
 
-      Path<GT> path(aux);
-      if (Tarjan_Connected_Components<GT, NAit, SA>(sa).compute_cycle(aux, path))
+      if (Path<GT> path(aux); Tarjan_Connected_Components<GT, NAit, SA>(sa).compute_cycle(aux, path))
         {
           Path<GT> ret(g);
           for (typename Path<GT>::Iterator it(path); it.has_current_node();
                it.next_ne())
-            ret.append_directed((Node *) table.find(it.get_current_node_ne()));
+            ret.append_directed(static_cast<Node *>(table.find(it.get_current_node_ne())));
           return ret;
         }
 
@@ -457,23 +468,26 @@ namespace Aleph
     }
 
   public:
-    /** Search a negative cycle on the all possible paths starting from
+    /** Search a negative cycle on all possible paths starting from
         `start` node.
 
-        If a negative cycle is found, the the Tarjan algorithm is executed
-        for retrieving it. In this case the cyle is returned. Otherwise
-        (tehere is no negative cycle), the returned path is empty.
+        If a negative cycle is found, then the Tarjan algorithm is executed
+        for retrieving it. In this case the cycle is returned. Otherwise
+        (there is no negative cycle), the returned path is empty.
 
-        @param[in] start stating node
+        @param[in] start starting node
         @return a valid path corresponding to a negative cycle if this is
         found. Otherwise, an empty path
     */
     Path<GT> test_negative_cycle(Node *start)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
 
       relax_arcs();
-      bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+      const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
       if (not negative_cycle)
         {
           link_cookies_and_free(s);
@@ -523,33 +537,36 @@ namespace Aleph
                   {
                     // search a cycle in the graph representing the spanning tree
                     threshold += step;
-                    if negative cylce is found
+                    if negative cycle is found
                       return it;
                   }
               }
 
-        So, from the threshold-th iteration, the algoritm try to find a
+        So, from the threshold-th iteration, the algorithm tries to find a
         negative cycle on the hope that if this exists, then the algorithm
-        will finish too much before the normal completion.
+        will finish much before the normal completion.
 
-        @warning The cycle searching is done respect a to a source
-        node. So, if no negative cycle is found, then this not still
-        conclusive ofr determining that the graph has not negative cycles.
+        @warning The cycle searching is done with respect to a source
+        node. So, if no negative cycle is found, then this is still not
+        conclusive for determining that the graph has no negative cycles.
 
-        @param[in] start node from which the spanning tree is build.
+        @param[in] start node from which the spanning tree is built.
         @param[in] it_factor iterative factor since then the negative
         cycle is searched.
         @param[in] step next step from which the next negative cycle will
         be done.
         @return a tuple whose `get<0>` value corresponds to the found
         negative cycle (if this one exists) and `get<1>` value is the
-        external iteration when the cyle was found. The idea of this
+        external iteration when the cycle was found. The idea of this
         second field is to give feedback in order to eventually refine the
         `it_factor` value.
      */
     tuple<Path<GT>, size_t>
     search_negative_cycle(Node *start, double it_factor, const size_t step)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
 
       const auto & n = g.get_num_nodes();
@@ -587,7 +604,7 @@ namespace Aleph
             relax_arcs(src, q);
         }
 
-      bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
+      const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
       if (negative_cycle)
         {
           ret = search_negative_cycle_on_partial_graph();
@@ -612,12 +629,15 @@ namespace Aleph
         be done.
         @return a tuple whose `get<0>` value corresponds to the found
         negative cycle (if this one exists) and `get<1>` value is the
-        external iteration when the cyle was found. The idea of this
+        external iteration when the cycle was found. The idea of this
         second field is to give feedback in order to eventually refine the
         `it_factor` value.
      */
     Path<GT> search_negative_cycle(Node *start)
     {
+      ah_domain_error_if(start == nullptr)
+        << "start node cannot be null";
+
       init_with_indexes(start);
 
       const auto & n = g.get_num_nodes();
@@ -665,7 +685,7 @@ namespace Aleph
 
         This overloaded version searches for negatives cycles in all the
         graph. For that, a dummy and temporal node is inserted into the
-        graph and the search is perfomed using the dummy node as starting
+        graph and the search is performed using the dummy node as starting
         node.
      */
     tuple<Path<GT>, size_t> search_negative_cycle(double it_factor,
@@ -699,7 +719,7 @@ namespace Aleph
         @throw domain_error if the minimal spanning tree has not
         previously built
     */
-    DynArray<Arc *> extract_mim_spanning_tree()
+    DynArray<Arc *> extract_min_spanning_tree()
     {
       return arcs;
     }
@@ -718,7 +738,7 @@ namespace Aleph
     void build_tree(GT & tree, bool with_map = true)
     {
       ah_domain_error_if(not painted and with_map)
-      << "Spanning tree has not been painted";
+        << "Spanning tree has not been painted";
 
       clear_graph(tree);
 
@@ -733,9 +753,9 @@ namespace Aleph
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
         {
           auto gtgt = it.get_curr();
-          auto gsrc = (Node *) NODE_COOKIE(gtgt);
+          auto gsrc = static_cast<Node *>(NODE_COOKIE(gtgt));
           if (gsrc == nullptr)
-            continue; // Se trata del nodo origen del árbol abarcador
+            continue; // This is the source node of the spanning tree
 
           auto garc_ptr = g.arcs(gsrc).find_ptr([gsrc, gtgt](Arc *a)
                                                   {
@@ -772,22 +792,21 @@ namespace Aleph
     Distance_Type get_min_path(typename GT::Node *end, Path<GT> & path)
     {
       ah_domain_error_if(not painted)
-      << "Graph has not previously painted";
+        << "Graph has not previously painted";
 
       return Aleph::get_min_path<GT, Distance>(s, end, path);
     }
 
-    /** Retorna en el mapeo avl los pesos asociados a cada nodo obtenidos
-         luego de ejecutar el algoritmo de Bellman-Ford a partir de un nodo
-         ficticio. Esta rutina está concebida específicamente para el
-         algoritmo de Jhonson de cálculo de todos los caminos mínimos a
-         partir de un nodo dado.
+    /** Returns in the AVL mapping the weights associated with each node
+         obtained after executing the Bellman-Ford algorithm from a dummy
+         node. This routine is specifically designed for Johnson's algorithm
+         for computing all minimum paths from a given node.
 
-         @param[in] m un mapeo avl dinámico de la forma Node*-->w de
-         puntero a nodo a peso asociado al nodo.
-         @return true si el grafo no tiene un ciclo negativo, en cuyo caso
-         los valores de en m pueden usarse para el algoritmo de
-         Jhonson. Retorna false si se detecta un ciclo negativo.
+         @param[in] m a dynamic AVL mapping of the form Node*-->w from
+         node pointer to weight associated with the node.
+         @return true if the graph does not have a negative cycle, in which
+         case the values in m can be used for Johnson's algorithm. Returns
+         false if a negative cycle is detected.
      */
     DynMapTree<Node *, Distance_Type> compute_nodes_weights()
     {
@@ -806,10 +825,10 @@ namespace Aleph
       put_in_queue(q, sentinel);
 
       bool negative_cycle = false;
-      for (int i = 0; not q.is_empty() and not negative_cycle; /* nada */)
+      for (int i = 0; not q.is_empty() and not negative_cycle; /* nothing */)
         {
           auto src = get_from_queue(q);
-          if (src == sentinel) // ¿se saca el centinela?
+          if (src == sentinel) // Is the sentinel removed?
             {
               if (i++ > n)
                 break;
@@ -830,36 +849,36 @@ namespace Aleph
         for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
           {
             auto p = it.get_curr();
-            ret.insert(p, acum(p));
+            ret.insert(p, accum(p));
           }
 
       uninit<Ni>();
       arcs.cut();
 
       ah_domain_error_if(negative_cycle)
-      << "negative cycles detected";
+        << "negative cycles detected";
 
       return ret;
     }
   };
 
-  /** Detecta si existe un ciclo negativo y eventualmente lo calcula.
+  /** Detects if a negative cycle exists and eventually computes it.
 
-      Esta clase toma un digrafo y un nodo destino, ejecuta el
-      algoritmo de Bellman-Ford y si se detecta un ciclo negativo
-      entonces lo almacena en un camino.
+      This class takes a digraph and a destination node, executes the
+      Bellman-Ford algorithm and if a negative cycle is detected
+      then it stores it in a path.
 
-      El procedimiento es parametrizado con las siguientes
-      especificaciones:
-      -# GT: el tipo de grafo basado en List_Graph.
-      -# Distance<GT>: La clase de lectura del peso del arco  que debe
-      exportar los siguientes atributos:
-        -# typedef Distance<GT>::Distance_Type: el tipo de dato que
-        representa un peso en un arco.
+      The procedure is parameterized with the following
+      specifications:
+      -# GT: the graph type based on List_Graph.
+      -# Distance<GT>: The arc weight reading class that must
+      export the following attributes:
+        -# typedef Distance<GT>::Distance_Type: the data type that
+        represents a weight on an arc.
         -# Distance<GT>::Distance_Type operator()(typename GT::Arc *a):
-        que retorna el valor del peso en el arco a.
+        which returns the weight value on arc a.
         .
-      -# SA: filtro de arcos.
+      -# SA: arc filter.
 
       @ingroup Grafos
    */
@@ -870,14 +889,13 @@ namespace Aleph
             class SA = Dft_Show_Arc<GT>>
   struct Bellman_Ford_Negative_Cycle
   {
-    /** Invoca a la detección y cálculo de ciclo negativo.
+    /** Invokes the detection and calculation of a negative cycle.
 
-        @param[in] g el grafo.
-        @param[out] path el camino donde se guarda el ciclo en caso de
-        que se detecte ciclo negativo.
-        @return true si existe un ciclo negativo; false de lo
-        contrario.
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] g the graph.
+        @param[out] path the path where the cycle is stored in case
+        a negative cycle is detected.
+        @return true if a negative cycle exists; false otherwise.
+        @throw bad_alloc if there is not enough memory.
      */
     bool operator ()(const GT & g, Path<GT> & path,
                      Distance & d, SA & sa) const
@@ -893,15 +911,14 @@ namespace Aleph
           test_negative_cycle(path);
     }
 
-    /** Invoca a la detección y cálculo de ciclo negativo.
+    /** Invokes the detection and calculation of a negative cycle.
 
-        @param[in] g el grafo.
-        @param[in] s el nodo inicio.
-        @param[out] path el camino donde se guarda el ciclo en caso de
-        que se detecte ciclo negativo.
-        @return true si existe un ciclo negativo; false de lo
-        contrario.
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] g the graph.
+        @param[in] s the starting node.
+        @param[out] path the path where the cycle is stored in case
+        a negative cycle is detected.
+        @return true if a negative cycle exists; false otherwise.
+        @throw bad_alloc if there is not enough memory.
      */
     bool operator ()(const GT & g, typename GT::Node *s,
                      Path<GT> & path, Distance & d, SA & sa) const
@@ -949,10 +966,6 @@ namespace Aleph
     }
   };
 
-
-# undef NI
-# undef IDX
-# undef ACU
 } // end namespace Aleph
 
 # endif // BELLMAN_FORD_H

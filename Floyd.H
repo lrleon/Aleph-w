@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,252 +27,332 @@
 # define FLOYD_H
 
 # include <sstream>
+# include <iostream>
+# include <limits>
 # include <ahFunction.H>
 # include <ahSort.H>
 # include <tpl_indexArc.H>
 # include <tpl_dynMat.H>
+# include <tpl_graph.H>
+# include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
+  /**
+      Compute the all-pairs shortest path distance matrix and the
+      path reconstruction matrix for a graph `g` using the
+      Floyd-Warshall algorithm.
 
-      /** Calcula las matriz de costes de los caminos mínimos
-          entre todos pares de nodos de un grafo g y la matriz de caminos
-          mínimos según el algoritmo de Floy-Warshall.
+      This class computes two matrices:
+      -# `dist`: matrix of shortest-path costs between all node pairs.
+         Each entry `dist(i,j)` stores the minimum total cost to go from
+         the node with index `i` to the node with index `j`.
+      -# `path`: path reconstruction matrix. Each entry `path(i,j)` stores
+         the next node index on a shortest path from `i` to `j`. By
+         iterating through `path(k,j)` you can reconstruct the path.
+         The helper get_min_path() performs this reconstruction.
 
-          Esta clase utiliza el algoritmo de Floy-Warshall para
-          calcular dos matrices de tipo Ady_Mat que se especifican del
-          siguiente modo:
-          -# dist: matriz de costes mínimos entre todos los pares de
-          nodos. Cada entrada dist(i,j) almacena el coste total mínimo
-          para ir del nodo con índice i hacia el nodo con índice j. \n
-          Recuérdese que un índice de nodo en la matriz dist puede
-          calcularse mediante dist(node), donde node es un puntero a
-          nodo en una representación con listas enlzadas derivada del
-          tipo de grafo
-          -# path: matriz de caminos mínimos. Cada entrada path(i,j)
-          almacena el nodo k que permitió al algoritmo de Floyd-Warshall
-          encontrar  el mínimo valor de dist(i,j). De este modo, inspecciones
-          sucesivas a  dist(k,j) permiten encontrar y construir el camino
-          hacia el nodo j. \n
-          La función find_min_path(g,i,j,path) realiza la función
-          anterior.
+      Floyd-Warshall supports negative edge weights, but it does not work
+      correctly if the graph contains negative cycles. Use Bellman-Ford
+      based algorithms if you suspect negative cycles.
 
-          El algoritmo de Floyd-Warshall maneja pesos negativos, pero
-          no opera correctamente si el grafo contiene ciclos
-          negativos. Úsese el algoritmo de Bellman-Ford
-          q_bellman_ford_min_spanning_tree() si se sospecha su
-          presencia.
+      Template parameters:
+      -# `GT`: graph type.
+      -# `Distance<GT>`: arc weight accessor that must provide:
+         -# `Distance<GT>::Distance_Type`: the weight type.
+         -# `Distance_Type operator()(typename GT::Arc *a)`: returns the
+            weight of arc `a`.
+         -# `Distance<GT>::Max_Distance`: a sentinel maximum value that is
+            treated as infinity.
+         -# `Distance<GT>::Zero_Distance`: additive identity (usually 0).
+      -# `SA`: arc filter.
 
-          El algoritmo utiliza dos matrices internas adicionales.
-
-          El procedimiento es parametrizado con las siguientes
-          especificaciones:
-          -# GT: el tipo de grafo
-          -# Distance<GT>: La clase de lectura del peso del arco  que debe
-          exportar los siguientes atributos:
-            -# typedef Distance<GT>::Distance_Type: el tipo de dato que
-            representa un peso en un arco.
-            -# Distance<GT>::Distance_Type operator()(typename GT::Arc *a):
-            que retorna el valor del peso en el arco a.
-            -# Distance<GT>::Max_Distance: constante estática
-            correspondiente al valor de distancia máximo que un algoritmo
-            consideraría como valor infinito.
-            -# typename Distance<GT>::Zero_Distance: constante estática
-            correspondiente al elemento neutro de la suma. Tradicionalmente,
-            en la inmensa mayoría de casos, este será el cero.
-            .
-          -# SA: filtro de arcos.
-          .
-
-          @see dijkstra_min_spanning_tree() dijkstra_min_path()
-          find_path_depth_first()
-          find_min_path() bellman_ford_min_spanning_tree()
-          q_bellman_ford_min_spanning_tree()
-          @ingroup Grafos
-       */
-    template <class GT,
-              class Distance = Dft_Dist<GT>,
-              class SA       = Dft_Show_Arc<GT>>
-class Floyd_All_Shortest_Paths
-{
-  typedef typename GT::Node Node;
-  typedef typename GT::Arc Arc;
-  typedef typename Distance::Distance_Type Distance_Type;
-
-  DynArray<Node*> nodes;
-  GT & g;
-  const long n;
-  const Distance_Type Inf;
-  bool negative_cycle = false;
-  DynMatrix<long> path_mat;
-  DynMatrix<Distance_Type> dist;
-  SA & sa;
-
-public:
-
-  bool has_negative_cycle() const noexcept { return negative_cycle; }
-
-  const DynMatrix<long> & get_path_mat() const noexcept { return path_mat; }
-
-  const DynMatrix<Distance_Type> & get_dist_mat() const noexcept
+      @see dijkstra_min_spanning_tree() dijkstra_min_path()
+      find_path_depth_first()
+      find_min_path() bellman_ford_min_spanning_tree()
+      q_bellman_ford_min_spanning_tree()
+      @ingroup Grafos
+   */
+  template <class GT,
+            class Distance = Dft_Dist<GT>,
+            class SA = Dft_Show_Arc<GT>>
+  class Floyd_All_Shortest_Paths
   {
-    return dist;
-  }
+    typedef typename GT::Node Node;
+    typedef typename GT::Arc Arc;
+    typedef typename Distance::Distance_Type Distance_Type;
 
-  const DynArray<Node*> get_nodes() const noexcept { return nodes; }
+    DynArray<Node *> nodes;
+    GT & g;
+    const long n;
+    const Distance_Type Inf;
+    bool negative_cycle = false;
+    DynMatrix<long> path_mat;
+    DynMatrix<Distance_Type> dist;
+    SA & sa;
 
-  /// Retorna el nodo correspondiente al índice i en una matriz de
-  /// adyacencia para el algoritmo de Floyd-Warshall
-  Node * select_node(long i) const noexcept { return nodes(i); }
+  public:
+    /**
+        Check if the graph contains a negative cycle.
 
-  /// Retorna el ìndice dentro de una matriz de adyacencia que tendría
-  /// el nodo p
-  long index_node(Node * p) const
-  {
-    auto i = binary_search(nodes, p);
-    ah_domain_error_if(i < 0 or i > nodes.size() or nodes(i) != p)
-      << "Floyd_All_Shortest_Paths::index_node() not found";
-    return i;
-  }
+        @return true if a negative cycle was detected, false otherwise.
+     */
+    bool has_negative_cycle() const noexcept { return negative_cycle; }
 
-public:
+    /**
+        Get the path reconstruction matrix.
 
-  Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
-  : g(const_cast<GT&>(__g)), n(g.get_num_nodes()),
-    Inf(std::numeric_limits<Distance_Type>::max()),
-    path_mat(n, n), dist(n, n), sa(__sa)
-  {
-    int i = 0;
-    nodes.reserve(g.get_num_nodes());
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
-      nodes.access(i++) = it.get_curr();
-    in_place_sort(nodes); // ordena por punteros a nodo
+        The path matrix contains intermediate nodes for shortest path reconstruction.
+        Entry (i,j) contains the next node index on the shortest path from i to j.
 
-    dist.allocate();
-    path_mat.allocate();
+        @return Const reference to the path reconstruction matrix.
+     */
+    const DynMatrix<long> &get_path_mat() const noexcept { return path_mat; }
 
-    {    // inicializa matrices
-      IndexArc<GT, Rand_Tree, SA> arcs(g, true, sa);
+    /**
+        Get the distance matrix.
 
-      for (long i = 0; i < n; ++i)
-        {
-          Node * src = nodes(i);
-          for (long j = 0; j < n; ++j)
-            {
-              if (i == j)
-                {
-                  dist(i, j) = 0;
-                  continue;
-                }
+        The distance matrix contains shortest distances between all pairs of nodes.
+        Entry (i,j) contains the shortest distance from node i to node j.
 
-              Node * tgt = nodes(j);
-              Arc * arc  = arcs.search_directed(src, tgt);
-              if (arc == nullptr)
-                {
-                  dist(i, j) = Inf;
-                  continue;
-                }
-
-              dist(i, j) = Distance () (arc);
-              path_mat(i, j) = j;
-            }
-        }
+        @return Const reference to the distance matrix.
+     */
+    const DynMatrix<Distance_Type> &get_dist_mat() const noexcept
+    {
+      return dist;
     }
 
-    for (long k = 0; k < n; ++k)
-      for (long i = 0; i < n; ++i)
-        {
-          const Distance_Type & dik = dist(i, k);
-          for (long j = 0; j < n; ++j)
-            {
-              const Distance_Type & dij = dist(i, j);
-              if (dik == Inf)
-                continue;
+    /**
+        Get the array of graph nodes.
 
-              const Distance_Type & dkj = dist(k, j);
-              if (dkj == Inf)
-                continue;
+        Returns the sorted array of node pointers used for matrix indexing.
 
-    	          // calcule nueva distancia pasando por k
-              Distance_Type new_dist = dik + dkj;
-              if (new_dist < dij)
-                {
-                  dist(i, j) = new_dist; // actualice menor distancia
-                  path_mat(i, j) = path_mat(i, k);
-                }
-            }
-        }
+        @return Const copy of the node pointer array.
+     */
+    DynArray<Node *> get_nodes() const noexcept { return nodes; }
 
-    for (i = 0; i < n; ++i)
-      if (dist(i, i) < 0) // ciclo negativo?
-        {
-          negative_cycle = true;
-          break;
-        }
-  }
+    /**
+        Get the graph node at a given matrix index.
 
-  Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
-    : Floyd_All_Shortest_Paths(g, sa) {}
+        @param[in] i Matrix index (must be in range [0, n)).
+        @return Pointer to the node at index i.
+     */
+    Node * select_node(long i) const noexcept { return nodes(i); }
 
-  string entry(const Distance_Type & e)
-  {
-    if (e == Inf)
-      return "Inf";
+    /// Return the adjacency-matrix index corresponding to node `p`.
+    /**
+        Find the matrix index corresponding to a graph node.
 
-    std::stringstream ss;
-    ss << e;
-    return ss.str();
-  }
+        @param[in] p Pointer to the node to find.
+        @return Matrix index of the node.
+        @throw std::domain_error if the node is not found.
+     */
+    long index_node(Node *p) const
+    {
+      ah_invalid_argument_if(p == nullptr) << "Node pointer cannot be null";
+      auto i = binary_search(nodes, p);
+      ah_domain_error_if(i < 0 or i >= nodes.size() or nodes(i) != p)
+        << "Floyd_All_Shortest_Paths::index_node() node not found";
+      return i;
+    }
 
-  static void print(DynMatrix<Distance_Type> & dist)
-  {
-    Distance_Type Inf = std::numeric_limits<Distance_Type>::max();
-    const int n = dist.rows();
-    for (int i = 0; i < n; ++i)
-      {
-        for (int j = 0; j < n; ++j)
-          if (dist.access(i,j) == Inf)
-            cout << "inf ";
-          else
-            cout << dist.access(i,j) << " ";
-        cout << endl;
+  public:
+    /**
+        Construct Floyd-Warshall solver for all-pairs shortest paths.
+
+        Computes shortest distances and path reconstruction matrices for all
+        pairs of nodes in the graph using the Floyd-Warshall algorithm.
+        Handles negative weights but detects negative cycles.
+
+        @param[in] __g Input graph (will be treated as const).
+        @param[in] __sa Arc filter for considering which arcs to include.
+        @throw std::invalid_argument if graph has no nodes.
+        @throw std::bad_alloc if memory allocation fails.
+     */
+    Floyd_All_Shortest_Paths(const GT & __g, SA & __sa)
+      : g(const_cast<GT &>(__g)), n(g.get_num_nodes()),
+        Inf(std::numeric_limits<Distance_Type>::max()),
+        path_mat(n, n), dist(n, n), sa(__sa)
+    {
+      ah_invalid_argument_if(n <= 0) << "Graph must contain at least one node";
+
+      long i = 0;
+      nodes.reserve(n);
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+        nodes.access(i++) = it.get_curr();
+      in_place_sort(nodes); // sort by node pointer value
+
+      dist.allocate();
+      path_mat.allocate(); { // initialize matrices
+        IndexArc<GT, Rand_Tree, SA> arcs(g, true, sa);
+
+        for (long i = 0; i < n; ++i)
+          {
+            Node *src = nodes(i);
+            for (long j = 0; j < n; ++j)
+              {
+                if (i == j)
+                  {
+                    dist(i, j) = 0;
+                    continue;
+                  }
+
+                Node *tgt = nodes(j);
+                Arc *arc = arcs.search_directed(src, tgt);
+                if (arc == nullptr)
+                  {
+                    dist(i, j) = Inf;
+                    continue;
+                  }
+
+                dist(i, j) = Distance()(arc);
+                path_mat(i, j) = j;
+              }
+          }
       }
-    cout << endl;
-  }
 
-  Path<GT> get_min_path(const long src_idx, const long tgt_idx) const
-  {
-    auto src = nodes(src_idx);
+      for (long k = 0; k < n; ++k)
+        for (long i = 0; i < n; ++i)
+          {
+            const Distance_Type & dik = dist(i, k);
+            for (long j = 0; j < n; ++j)
+              {
+                const Distance_Type & dij = dist(i, j);
+                if (dik == Inf)
+                  continue;
 
-    Path<GT> path(g, src);
+                const Distance_Type & dkj = dist(k, j);
+                if (dkj == Inf)
+                  continue;
 
-    if (src_idx == tgt_idx)
-      return path;
+                // Calculate new distance through intermediate node k
+                // Check for potential overflow before addition
+                if (dik <= Inf - dkj)
+                  {
+                    Distance_Type new_dist = dik + dkj;
+                    if (new_dist < dij)
+                      {
+                        dist(i, j) = new_dist; // Update shorter distance
+                        path_mat(i, j) = path_mat(i, k);
+                      }
+                  }
+              }
+          }
 
-    long i = src_idx;
-    while (true)
-      {
-        const auto & k = path_mat(i, tgt_idx);
-        auto p = nodes(k);
-        path.append_directed(p);
-        if (k == tgt_idx)
-          break;
-        else
+      // Check for negative cycles on the diagonal
+      for (long idx = 0; idx < n; ++idx)
+        if (dist(idx, idx) < 0)
+          {
+            negative_cycle = true;
+            break;
+          }
+    }
+
+    /**
+        Construct Floyd-Warshall solver with rvalue arc filter.
+
+        @param[in] g Input graph.
+        @param[in] sa Arc filter (moved).
+     */
+    Floyd_All_Shortest_Paths(const GT & g, SA && sa = SA())
+      : Floyd_All_Shortest_Paths(g, sa) {}
+
+    /**
+        Convert a distance value to string representation.
+
+        @param[in] e Distance value to convert.
+        @return String representation ("Inf" for infinite distances).
+     */
+    std::string entry(const Distance_Type & e) const
+    {
+      if (e == Inf)
+        return "Inf";
+
+      std::stringstream ss;
+      ss << e;
+      return ss.str();
+    }
+
+    /**
+        Print a distance matrix to standard output.
+
+        Prints the distance matrix in a readable format, showing "inf" for
+        infinite distances and numeric values otherwise.
+
+        @param[in] dist Distance matrix to print.
+     */
+    static void print(const DynMatrix<Distance_Type> & dist)
+    {
+      const Distance_Type Inf = std::numeric_limits<Distance_Type>::max();
+      const int n = dist.rows();
+      for (int i = 0; i < n; ++i)
+        {
+          for (int j = 0; j < n; ++j)
+            if (dist.access(i, j) == Inf)
+              std::cout << "inf ";
+            else
+              std::cout << dist.access(i, j) << " ";
+          std::cout << std::endl;
+        }
+      std::cout << std::endl;
+    }
+
+    /**
+        Reconstruct the shortest path between two nodes by matrix indices.
+
+        Uses the path reconstruction matrix to build the shortest path from
+        source to target node.
+
+        @param[in] src_idx Matrix index of source node.
+        @param[in] tgt_idx Matrix index of target node.
+        @return Path object containing the shortest path.
+        @throw std::out_of_range if indices are invalid.
+     */
+    Path<GT> get_min_path(const long src_idx, const long tgt_idx) const
+    {
+      ah_out_of_range_error_if(src_idx < 0 or src_idx >= n)
+        << "Source index out of range";
+      ah_out_of_range_error_if(tgt_idx < 0 or tgt_idx >= n)
+        << "Target index out of range";
+
+      auto src = nodes(src_idx);
+      Path<GT> path(g, src);
+
+      if (src_idx == tgt_idx)
+        return path;
+
+      long i = src_idx;
+      while (true)
+        {
+          const auto & k = path_mat(i, tgt_idx);
+          auto p = nodes(k);
+          path.append_directed(p);
+          if (k == tgt_idx)
+            break;
           i = k;
-      }
+        }
 
-    return path;
-  }
+      return path;
+    }
 
-  Path<GT> get_min_path(typename GT::Node * src,
-                        typename GT::Node * tgt) const
-  {
-    return get_min_path(index_node(src), index_node(tgt));
-  }
-};
+    /**
+        Reconstruct the shortest path between two nodes.
 
+        Convenience method that accepts node pointers instead of indices.
+
+        @param[in] src Pointer to source node.
+        @param[in] tgt Pointer to target node.
+        @return Path object containing the shortest path.
+        @throw std::invalid_argument if either node pointer is null.
+        @throw std::domain_error if either node is not found in the graph.
+     */
+    Path<GT> get_min_path(typename GT::Node *src,
+                          typename GT::Node *tgt) const
+    {
+      return get_min_path(index_node(src), index_node(tgt));
+    }
+  };
 } // end namespace Aleph
 
 # endif // FLOYD_H
-

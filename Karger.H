@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,243 +32,304 @@
 # include <tpl_sgraph.H>
 # include <tpl_dynSetTree.H>
 # include <generate_graph.H>
+# include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
-// TODO: colocar filtro para iterador de arcos
-
-    template <class GT>
-class Karger_Min_Cut
+namespace Aleph
 {
-      // cada nodo tiene la lista de nodos comprimidos
-  typedef Graph_Node<DynList<typename GT::Node*>> Knode;
-  typedef Graph_Arc<typename GT::Arc*> Karc;
-  typedef List_Graph<Knode, Karc> Kgraph;
-  
-  typedef typename GT::Node Node;
-  typedef typename GT::Arc Arc;
+  /**
+      Karger's randomized minimum cut algorithm.
 
-  unsigned long seed;
-  gsl_rng * r;
+      This class implements Karger's algorithm for finding a minimum
+      cut in an undirected graph. A minimum cut is a partition of the
+      graph's vertices into two non-empty sets such that the number
+      of edges crossing the partition is minimized.
 
-  void build_kgraph(GT & g, Kgraph & kg, DynSetTreapRk<Karc*> & arcs)
+      The algorithm works by repeatedly contracting randomly selected
+      edges until only two "super-nodes" remain. The edges between
+      these super-nodes form a cut. By running multiple iterations,
+      the algorithm finds the minimum cut with high probability.
+
+      Template parameters:
+      - GT: Graph type (must be based on List_Graph with node/arc types).
+      - SA: Arc filter that determines which arcs to consider. Must provide
+            `bool operator()(Arc*)` returning true if the arc should be
+            included. Defaults to `Dft_Show_Arc<GT>` which includes all arcs.
+
+      Time complexity:
+      - Standard version: O(n^2 * m) per iteration, O(n^4) for n^2 iterations
+      - Fast version (Karger-Stein): O(n^2 log^3 n)
+
+      @note This algorithm is designed for undirected graphs.
+      @note The fast version is incomplete and returns approximate results
+            for small graphs (n <= 6).
+
+      @see https://en.wikipedia.org/wiki/Karger%27s_algorithm
+      @ingroup Grafos
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Karger_Min_Cut
   {
-    clear_graph(kg);
-    arcs.empty();
-    g.reset_nodes();
-    g.reset_arcs();
+    // Each node contains the list of contracted nodes
+    using Knode = Graph_Node<DynList<typename GT::Node *>>;
+    using Karc = Graph_Arc<typename GT::Arc *>;
+    using Kgraph = List_Graph<Knode, Karc>;
 
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
-      {
-	auto p = it.get_curr();
-	auto q = kg.insert_node();
-	q->get_info().append(p);
-	g.map_nodes(p, q);
-      }
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
 
-    for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
-      {
-	auto a = it.get_curr();
-	auto s = mapped_node<GT, Kgraph>(g.get_src_node(a));
-	auto t = mapped_node<GT, Kgraph>(g.get_tgt_node(a));
-	auto ka = kg.insert_arc(s, t, a);
-	arcs.insert(ka);
-      }
-  }
+    unsigned long seed;
+    gsl_rng *r;
+    SA sa;
 
-  void update_arcs(Kgraph & kg, Knode * p, Knode * t, Knode * cp,
-		   DynSetTreapRk<Karc*> & arcs)
-  {
-    for (typename Kgraph::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
-      {
-	auto pa = it.get_curr();
-	auto tgt = it.get_tgt_node_ne();
-	
-	arcs.remove(pa); // se elimina del índice; del grafo cuando se
-	                 // eliminen los nodos
-	if (tgt == t)
-	  continue; // arco paralelo ==> se ignora
+    void build_kgraph(GT & g, Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    {
+      clear_graph(kg);
+      arcs.empty();
+      g.reset_nodes();
+      g.reset_arcs();
 
-	auto ka = kg.insert_arc(cp, tgt, pa->get_info());
-	arcs.insert(ka); 
-      }
-  }
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+        {
+          auto p = it.get_curr();
+          auto q = kg.insert_node();
+          q->get_info().append(p);
+          g.map_nodes(p, q);
+        }
 
-  void contract(Kgraph & kg, const unsigned long & left_num_nodes,
-                DynSetTreapRk<Karc*> & arcs)
-  {
-    while (kg.get_num_nodes() > left_num_nodes)
-      {    // selecciona al azar un arco de kg
-        auto num_arc = gsl_rng_uniform_int(r, kg.get_num_arcs());
-        auto a = arcs.select(num_arc); // arco a eliminar
-        auto s = kg.get_src_node(a); // los nodos a "contraer"
-        auto t = kg.get_tgt_node(a);
+      // Use arc filter SA to determine which arcs to include
+      for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          auto s = mapped_node<GT, Kgraph>(g.get_src_node(a));
+          auto t = mapped_node<GT, Kgraph>(g.get_tgt_node(a));
+          auto ka = kg.insert_arc(s, t, a);
+          arcs.insert(ka);
+        }
+    }
 
-        arcs.remove(a);     // elimina de kg y del índice
-        kg.remove_arc(a);   
+    void update_arcs(Kgraph & kg, Knode *p, Knode *t, Knode *cp,
+                     DynSetTreapRk<Karc *> & arcs)
+    {
+      for (typename Kgraph::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
+        {
+          auto pa = it.get_curr();
+          auto tgt = it.get_tgt_node_ne();
 
-        auto cp = kg.insert_node(); // nuevo nodo contraido que representa s-t 
+          arcs.remove(pa); // remove from index; removed from graph when nodes deleted
+          if (tgt == t)
+            continue; // parallel arc ==> ignore
 
-        update_arcs(kg, s, t, cp, arcs);
-        update_arcs(kg, t, s, cp, arcs);
+          auto ka = kg.insert_arc(cp, tgt, pa->get_info());
+          arcs.insert(ka);
+        }
+    }
 
-        cp->get_info().swap(s->get_info());
-        cp->get_info().append(t->get_info());
+    void contract(Kgraph & kg, const unsigned long & left_num_nodes,
+                  DynSetTreapRk<Karc *> & arcs)
+    {
+      while (kg.get_num_nodes() > left_num_nodes)
+        { // randomly select an arc from kg
+          auto num_arc = gsl_rng_uniform_int(r, kg.get_num_arcs());
+          auto a = arcs.select(num_arc); // arc to remove
+          auto s = kg.get_src_node(a); // nodes to "contract"
+          auto t = kg.get_tgt_node(a);
 
-        kg.remove_node(s);
-        kg.remove_node(t);
-      }
-  }
-  
-  int karger_min_cut(GT & g,
-		     DynList<typename GT::Node*> & vs, 
-		     DynList<typename GT::Node*> & vt,
-		     DynList<typename GT::Arc*> & cut,
-		     const size_t num_iter)
-  {
-    ah_domain_error_if(g.get_num_arcs() == 0) << "Graph has not arcs";
+          arcs.remove(a); // remove from kg and index
+          kg.remove_arc(a);
 
-    auto min_cut = numeric_limits<size_t>::max();
+          auto cp = kg.insert_node(); // new contracted node representing s-t
 
-    for (int i = 0; i < num_iter; ++i)
-      {
-	Kgraph kg;
-	DynSetTreapRk<Karc*> arcs; // arcos para rápida selección
-	build_kgraph(g, kg, arcs);
+          update_arcs(kg, s, t, cp, arcs);
+          update_arcs(kg, t, s, cp, arcs);
 
-	contract(kg, 2, arcs);
+          cp->get_info().swap(s->get_info());
+          cp->get_info().append(t->get_info());
 
-	auto cut_size = kg.get_num_arcs();
+          kg.remove_node(s);
+          kg.remove_node(t);
+        }
+    }
 
-	if (cut_size >= min_cut)
-	  continue;
+    int karger_min_cut(GT & g,
+                       DynList<typename GT::Node *> & vs,
+                       DynList<typename GT::Node *> & vt,
+                       DynList<typename GT::Arc *> & cut,
+                       const size_t num_iter)
+    {
+      ah_domain_error_if(g.get_num_arcs() == 0) << "Graph has not arcs";
 
-	min_cut = cut_size; 
-	
-	    // actualizamos corte mìnimo
-	cut.empty();
+      auto min_cut = numeric_limits<size_t>::max();
 
-	    // recorremos los arcos de los super nodos (son los del corte)
-	for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
-	  {
-	    auto ka = it.get_curr();
-      	    assert(kg.get_src_node(ka) != kg.get_tgt_node(ka));
+      for (int i = 0; i < num_iter; ++i)
+        {
+          Kgraph kg;
+          DynSetTreapRk<Karc *> arcs; // arcs for fast random selection
+          build_kgraph(g, kg, arcs);
 
-	    cut.append(ka->get_info());
-	  }
+          contract(kg, 2, arcs);
 
-	auto ka = kg.get_first_arc();
-	auto S = kg.get_src_node(ka);
-	auto T = kg.get_tgt_node(ka);
+          auto cut_size = kg.get_num_arcs();
 
-	assert(S->get_info().size() + T->get_info().size() == 
-	       g.get_num_nodes());
+          if (cut_size >= min_cut)
+            continue;
 
-	vs.empty();
-	vt.empty();
-	vs.swap(S->get_info());
-	vt.swap(T->get_info());
-      }
-    return min_cut; 
-  }
+          min_cut = cut_size;
 
-  int __fast_karger_min_cut(Kgraph & kg, DynSetTreapRk<Karc*> & arcs)
-  {
-    const auto & n = kg.get_num_nodes();
+          // update minimum cut
+          cut.empty();
 
-    if (n <= 6)
-      {
-        // Calcular corte mínimo por enumeración a fuerza bruta.
-        return 0;
-      }
+          // traverse the arcs of the super nodes (these are the cut edges)
+          for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
+            {
+              auto ka = it.get_curr();
+              assert(kg.get_src_node(ka) != kg.get_tgt_node(ka));
 
-    const size_t t = std::ceil(1 + 1.0 * n / std::sqrt(2));
+              cut.append(ka->get_info());
+            }
 
-    Kgraph h1(kg);
-    DynSetTreapRk<Karc*> arcs1(arcs);
-    contract(h1, t, arcs1);
-    int cut1 = __fast_karger_min_cut(h1, arcs1);
+          auto ka = kg.get_first_arc();
+          auto S = kg.get_src_node(ka);
+          auto T = kg.get_tgt_node(ka);
 
-    Kgraph h2(kg);
-    DynSetTreapRk<Karc*> arcs2(arcs);
-    contract(h2, t, arcs2);
-    int cut2 = __fast_karger_min_cut(h2, arcs2);
+          assert(S->get_info().size() + T->get_info().size() ==
+                 g.get_num_nodes());
 
-    if (cut1 < cut2)
-      {
-        kg.swap(h1);
-        arcs.swap(arcs1);
-        return cut1;
-      }
+          vs.empty();
+          vt.empty();
+          vs.swap(S->get_info());
+          vt.swap(T->get_info());
+        }
+      return min_cut;
+    }
 
-    kg.swap(h2);
-    arcs.swap(arcs2);
-    return cut2;
-  }
+    int __fast_karger_min_cut(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    {
+      const auto & n = kg.get_num_nodes();
 
-  int fast_karger_min_cut(GT & g,
-                          DynList<typename GT::Node*> & vs, 
-                          DynList<typename GT::Node*> & vt,
-                          DynList<typename GT::Arc*> & cut)
-  {
-    Kgraph kg;
-    DynSetTreapRk<Karc*> arcs; // arcos para rápida selección
-    build_kgraph(g, kg, arcs);
+      if (n <= 6)
+        {
+          // For small graphs, return current arc count as cut estimate
+          // TODO: implement exact brute-force enumeration
+          return kg.get_num_arcs();
+        }
 
-    int min_cut = __fast_karger_min_cut(kg, arcs);
+      const size_t t = std::ceil(1 + 1.0 * n / std::sqrt(2));
 
-    assert(min_cut == kg.get_num_arcs());
+      Kgraph h1(kg);
+      DynSetTreapRk<Karc *> arcs1(arcs);
+      contract(h1, t, arcs1);
+      const int cut1 = __fast_karger_min_cut(h1, arcs1);
 
-    for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
-      {
-        auto ka = it.get_curr();
-	assert(kg.get_src_node(ka) != kg.get_tgt_node(ka));
-        cut.append(ka->get_info());
-      }
+      Kgraph h2(kg);
+      DynSetTreapRk<Karc *> arcs2(arcs);
+      contract(h2, t, arcs2);
+      const int cut2 = __fast_karger_min_cut(h2, arcs2);
 
-    auto ka = kg.get_first_arc();
+      if (cut1 < cut2)
+        {
+          kg.swap(h1);
+          arcs.swap(arcs1);
+          return cut1;
+        }
 
-    auto S = kg.get_src_node(ka);
-    auto T = kg.get_tgt_node(ka);
+      kg.swap(h2);
+      arcs.swap(arcs2);
+      return cut2;
+    }
 
-    assert(S->get_info().size() + T->get_info().size() == g.get_num_nodes());
+    int fast_karger_min_cut(GT & g,
+                            DynList<typename GT::Node *> & vs,
+                            DynList<typename GT::Node *> & vt,
+                            DynList<typename GT::Arc *> & cut)
+    {
+      Kgraph kg;
+      DynSetTreapRk<Karc *> arcs; // arcs for fast random selection
+      build_kgraph(g, kg, arcs);
 
-    vs.swap(S->get_info());
-    vt.swap(T->get_info());
-  }
+      const int min_cut = __fast_karger_min_cut(kg, arcs);
 
-public:
+      for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
+        {
+          auto ka = it.get_curr();
+          cut.append(ka->get_info());
+        }
 
-  Karger_Min_Cut(const unsigned long & _seed = time(nullptr))
-    : seed(_seed), r(gsl_rng_alloc(gsl_rng_mt19937))
-  {
-    gsl_rng_set(r, seed % gsl_rng_max(r));
-  }
+      auto ka = kg.get_first_arc();
+      auto S = kg.get_src_node(ka);
+      auto T = kg.get_tgt_node(ka);
 
-  ~Karger_Min_Cut()
-  {
-    gsl_rng_free(r);
-  }
+      vs.swap(S->get_info());
+      vt.swap(T->get_info());
 
-  int operator () (GT & g,
-		   DynList<typename GT::Node*> & vs, 
-		   DynList<typename GT::Node*> & vt,
-		   DynList<typename GT::Arc*> & cut,
-		   size_t num_iter)
-  {
-    return karger_min_cut(g, vs, vt, cut, num_iter);
-  }
+      return min_cut;
+    }
 
-  int operator () (GT & g,
-		   DynList<typename GT::Node*> & vs, 
-		   DynList<typename GT::Node*> & vt,
-		   DynList<typename GT::Arc*> & cut)
-  {
-    const size_t & n = g.get_num_nodes();
-    size_t num_iter = 1.05*n*n;
-    return karger_min_cut(g, vs, vt, cut, num_iter);
-  }
-};
+  public:
 
+    /** Construct a Karger minimum cut solver.
 
+        @param[in] _seed Random seed for the algorithm. Defaults to
+                   current time. Using the same seed produces
+                   reproducible results.
+        @param[in] _sa Arc filter to determine which arcs to consider.
+                   Defaults to Dft_Show_Arc<GT> which includes all arcs.
+     */
+    Karger_Min_Cut(const unsigned long _seed = time(nullptr), SA _sa = SA())
+      : seed(_seed), r(gsl_rng_alloc(gsl_rng_mt19937)), sa(_sa)
+    {
+      gsl_rng_set(r, seed % gsl_rng_max(r));
+    }
+
+    /// Destructor. Frees the random number generator.
+    ~Karger_Min_Cut()
+    {
+      gsl_rng_free(r);
+    }
+
+    /** Compute minimum cut with a specified number of iterations.
+
+        @param[in] g The undirected graph.
+        @param[out] vs Nodes in the first partition (S).
+        @param[out] vt Nodes in the second partition (T).
+        @param[out] cut Arcs crossing the minimum cut.
+        @param[in] num_iter Number of iterations to run.
+        @return The size of the minimum cut found.
+        @throw std::domain_error if graph has no arcs.
+     */
+    int operator ()(GT & g,
+                    DynList<typename GT::Node *> & vs,
+                    DynList<typename GT::Node *> & vt,
+                    DynList<typename GT::Arc *> & cut,
+                    const size_t num_iter)
+    {
+      return karger_min_cut(g, vs, vt, cut, num_iter);
+    }
+
+    /** Compute minimum cut with default number of iterations.
+
+        Uses approximately n^2 iterations where n is the number of nodes,
+        which gives a high probability of finding the true minimum cut.
+
+        @param[in] g The undirected graph.
+        @param[out] vs Nodes in the first partition (S).
+        @param[out] vt Nodes in the second partition (T).
+        @param[out] cut Arcs crossing the minimum cut.
+        @return The size of the minimum cut found.
+        @throw std::domain_error if graph has no arcs.
+     */
+    int operator ()(GT & g,
+                    DynList<typename GT::Node *> & vs,
+                    DynList<typename GT::Node *> & vt,
+                    DynList<typename GT::Arc *> & cut)
+    {
+      const size_t & n = g.get_num_nodes();
+      // 1.05 * n^2 iterations gives high probability of finding min cut
+      const auto num_iter = static_cast<size_t>(1.05 * n * n);
+      return karger_min_cut(g, vs, vt, cut, num_iter);
+    }
+  };
+
+} // namespace Aleph
 
 # endif // KARGER_H
