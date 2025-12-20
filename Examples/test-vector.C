@@ -33,37 +33,37 @@ gsl_rng * r;
 
 const size_t N = 1000;
 
-Vector<int> create_domain(size_t n)
+std::shared_ptr<Vector<int>::Domain> create_domain(size_t n)
 {
-  Vector<int>::Domain domain;
-  for (int i = 0; i < n; ++i)
-    domain.insert(i);
+  auto domain = std::make_shared<Vector<int>::Domain>();
+  for (size_t i = 0; i < n; ++i)
+    domain->insert(i);
 
-  return std::move(domain);
+  return domain;
 }
 
-Vector<std::string> create_string_domain(size_t n)
+std::shared_ptr<Vector<std::string>::Domain> create_string_domain(size_t n)
 {
   int m = 'Z' - 'A';
   int num = n/m;
   int rem = n%m;
 
   std::string str = "";
-  Vector<string>::Domain domain;
+  auto domain = std::make_shared<Vector<string>::Domain>();
   
   int k;
   for (int i = 0; i < num; i += m)
     {
       for (k = 0; k < m; ++k)
-	domain.insert(str + string('A' + k, 1));
+	domain->insert(str + string('A' + k, 1));
 
       str += string('A' + k, 1);
     }
 
   for (int i = 0; i < rem; ++i)
-    domain.insert(str + string('A' + k + i, 1));
+    domain->insert(str + string('A' + k + i, 1));
 
-  return std::move(domain);
+  return domain;
 }
 
 int main(int argn, char * argc[])

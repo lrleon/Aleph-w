@@ -151,6 +151,9 @@ set(EXHAUSTIVE_TESTS
     dlink_test
     htlist_test
     tpl_graph_utils_test
+    test_al_vector
+    archeap_test
+    al_matrix_test
 )
 
 # Create executable for each test program
@@ -190,9 +193,9 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
         add_executable(${test_program} ${test_program}.cc)
 
         # Most exhaustive tests are header-only and need minimal dependencies.
-        # Some (like tpl_graph_utils_test) exercise algorithms that depend on
-        # symbols provided by libAleph.
-        if(test_program STREQUAL "tpl_graph_utils_test")
+        # Some (like tpl_graph_utils_test and test_al_vector) exercise algorithms
+        # that depend on symbols provided by libAleph.
+        if(test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test")
             target_link_libraries(${test_program} PRIVATE
                 Aleph
                 GTest::gtest_main
