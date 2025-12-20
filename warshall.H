@@ -33,25 +33,23 @@
 
 namespace Aleph {
 
-    /** Cálculo de la clausura transitiva de una matriz de adyacencia.
+    /**
+        @brief Computes the transitive closure of a graph using Warshall's algorithm.
 
-        Esta función calcula la clausura transitiva del grafo g mediante
-        el algoritmo de Warshall. El resultado se almacena en la matriz
-        de bits mat.
+        This function computes the transitive closure of graph @p g by means of
+        Warshall's algorithm. The result is stored in the bit matrix @p mat.
 
-        Cada entrada mat(i,j) indica existencia de un camino entre el
-        nodo origen con índice i y el nodo destino con índice j. Un
-        valor cero indica que no hay ningún camino; un valor 1 que
-        existe al menos un camino.
+        Each entry @c mat(i,j) indicates whether there exists a path from the
+        source node with index @c i to the destination node with index @c j.
+        A value of 0 indicates there is no path; a value of 1 indicates there
+        exists at least one path.
 
-        El procedimiento utiliza dos matrices de bits; una de uso
-        interno que es liberada al término del procedimiento y la propia
-        matriz mat.
-        
-        @param[in] g el grafo representado mediante una variante de
-        List_Graph.  
-        @param[out] mat matriz de bits donde se coloca el resultado.
-        @throw bad_alloc si no hay suficiente memoria. 
+        The procedure uses two bit matrices: an internal temporary one
+        (freed when the procedure ends) and the output matrix @p mat.
+
+        @param[in] g The graph represented by a List_Graph variant.
+        @param[out] mat Bit matrix where the result is stored.
+        @throw std::bad_alloc if there is not enough memory.
         @see List_Graph Bit_Mat_Graph
 
         @ingroup Grafos
@@ -75,16 +73,15 @@ void warshall_compute_transitive_clausure(GT &                    g,
     }
 }
 
-    /** Cálculo de la clausura transitiva de una matriz de adyacencia.
+    /**
+        @brief Computes the transitive closure of a graph using Warshall's algorithm.
 
-        Esta clase calcula la clausura transitiva de un grafo mediante
-        el algoritmo de Warshall. El resultado se almacena en una matriz
-        de bits.
+        This functor class computes the transitive closure of a graph using
+        Warshall's algorithm. The result is stored in a bit matrix.
 
-        Cada entrada(i,j) en la matriz indica existencia de un camino
-        entre el nodo origen con índice i y el nodo destino con índice
-        j. Un valor cero indica que no hay ningún camino; un valor 1 que
-        existe al menos un camino.
+        Each entry @c (i,j) in the matrix indicates whether there exists a
+        path from the source node with index @c i to the destination node with
+        index @c j.
 
         @see List_Graph Bit_Mat_Graph
 
@@ -95,16 +92,15 @@ class Warshall_Compute_Transitive_Clausure
 { 
 public:
 
-  /** Invoca al cálculo de la clausura transitiva de un grafo.
+  /**
+      @brief Invokes the computation of the transitive closure of a graph.
 
-      El procedimiento utiliza dos matrices de bits; una de uso
-      interno que es liberada al término del procedimiento y la propia
-      matriz mat.
-        
-      @param[in] g el grafo representado mediante una variante de
-      List_Graph.  
-      @param[out] mat matriz de bits donde se coloca el resultado.
-      @throw bad_alloc si no hay suficiente memoria. 
+      The procedure uses two bit matrices: an internal temporary one
+      (freed when the procedure ends) and the output matrix @p mat.
+
+      @param[in] g The graph represented by a List_Graph variant.
+      @param[out] mat Bit matrix where the result is stored.
+      @throw std::bad_alloc if there is not enough memory.
    */
   void operator () (GT & g, Bit_Mat_Graph<GT> & mat) const
   {

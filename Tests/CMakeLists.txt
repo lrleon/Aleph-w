@@ -137,26 +137,36 @@ set(TEST_PROGRAMS
     arrayheap_algos
     dynarrayheap
     ringfilecache
+    warshall_test
     tpl_indexArc_test
     tpl_dynarray_set_test
     random_graph
     tarjan_test
+    test_bellman_ford
+    test_dijkstra
 )
 
 # Exhaustive tests (files ending in _test.cc)
 set(EXHAUSTIVE_TESTS
     dlink_test
     htlist_test
+    tpl_graph_utils_test
 )
 
 # Create executable for each test program
 foreach(test_program ${TEST_PROGRAMS})
     # Check if source file exists
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
-        add_executable(${test_program} ${test_program}.cc)
+        # Avoid collisions with targets created elsewhere in the project (e.g. Examples/).
+        set(test_exe ${test_program})
+        if(TARGET ${test_exe})
+            set(test_exe tests_${test_exe})
+        endif()
+
+        add_executable(${test_exe} ${test_program}.cc)
 
         # Link with Aleph library and system libraries
-        target_link_libraries(${test_program} PRIVATE
+        target_link_libraries(${test_exe} PRIVATE
             Aleph
             GTest::gtest_main
             GTest::gtest
@@ -164,7 +174,7 @@ foreach(test_program ${TEST_PROGRAMS})
         )
 
         # Add test to CTest
-        add_test(NAME ${test_program} COMMAND ${test_program})
+        add_test(NAME ${test_exe} COMMAND ${test_exe})
 
         # Optional: Install test executable
         # install(TARGETS ${test_program} DESTINATION bin/tests)
@@ -179,12 +189,23 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
         add_executable(${test_program} ${test_program}.cc)
 
-        # Header-only tests only need gtest and pthread
-        target_link_libraries(${test_program} PRIVATE
-            GTest::gtest_main
-            GTest::gtest
-            Threads::Threads
-        )
+        # Most exhaustive tests are header-only and need minimal dependencies.
+        # Some (like tpl_graph_utils_test) exercise algorithms that depend on
+        # symbols provided by libAleph.
+        if(test_program STREQUAL "tpl_graph_utils_test")
+            target_link_libraries(${test_program} PRIVATE
+                Aleph
+                GTest::gtest_main
+                GTest::gtest
+                ${ALEPH_SYSTEM_LIBS}
+            )
+        else()
+            target_link_libraries(${test_program} PRIVATE
+                GTest::gtest_main
+                GTest::gtest
+                Threads::Threads
+            )
+        endif()
 
         add_test(NAME ${test_program} COMMAND ${test_program})
     else()

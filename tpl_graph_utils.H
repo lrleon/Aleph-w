@@ -28,7 +28,13 @@
 # define TPL_GRAPH_UTILS_H
 
 
+# include <cassert>
+# include <cstddef>
 # include <limits>
+# include <memory>
+# include <tuple>
+# include <utility>
+# include <vector>
 # include <tpl_agraph.H>
 # include <tpl_dynListQueue.H>
 # include <ah-errors.H>
@@ -37,6 +43,18 @@ using namespace Aleph;
 
 namespace Aleph {
 
+  /** @brief Internal recursive DFS used by depth_first_traversal().
+   *
+   * @tparam GT Graph type.
+   * @param[in] g Graph being traversed.
+   * @param[in] node Current node.
+   * @param[in] arc Arc used to discover `node` (nullptr for the root call).
+   * @param[in] visit Optional callback invoked when a node is discovered.
+   * @param[in,out] count Number of discovered nodes so far.
+   * @return `true` if the traversal must stop early; `false` otherwise.
+   *
+   * @note Uses the `Depth_First` control bit on both nodes and arcs.
+   */
   template <class GT> inline static bool
   __depth_first_traversal(const GT & g, typename GT::Node * node,
                           typename GT::Arc *  arc,
@@ -44,43 +62,44 @@ namespace Aleph {
                                         typename GT::Arc *),
                           size_t & count);
 
-  /** Generic depth first traversal of a graph.
-
-      This function recursively traverses the graph `g` form
-      `start_node`. On each node, a visit function is called, whose
-      signature must match as follows:
-
-      bool visit(const GT & g, GT::Node * curr, GT::Arc * from)
-
-      `g` is the graph, `curr` is the currently visited node and `from`
-      is the arc from whom `curr` was discovered. If `visit` returns
-      `false` then the traversal continues; otherwise it stops.
-
-      The traversal uses the contro `Depth_First`
-
-      @param[in] g the graph
-      @param[in] start_node the starting node
-      @param[in] visit function
-      @return the number of visited nodes
-
-      @ingroup Grafos
-      @see breadth_first_traversal() test_connectivity() 
-  */
+  /** @brief Depth-first traversal starting from a given node.
+   *
+   * Recursively traverses the connected component reachable from `start_node`.
+   *
+   * The callback must have the following signature:
+   * `bool visit(const GT& g, typename GT::Node* curr, typename GT::Arc* from)`.
+   *
+   * `from` is the arc that discovered `curr` (nullptr for the start node).
+   * If `visit` returns `true`, the traversal stops early. If `visit` is
+   * `nullptr`, no callback is executed.
+   *
+   * @tparam GT Graph type.
+   * @param[in] g Graph to traverse.
+   * @param[in] start_node Starting node (must be non-null and belong to `g`).
+   * @param[in] visit Optional visit callback (may be nullptr).
+   * @return Number of discovered nodes.
+   *
+   * @note Resets the `Depth_First` control bit on all nodes and arcs.
+   * @note Uses the `Depth_First` control bit on both nodes and arcs.
+   *
+   * @ingroup Grafos
+   * @see Depth_First_Traversal, breadth_first_traversal, test_connectivity
+   */
   template <class GT> inline size_t 
   depth_first_traversal(const GT & g, typename GT::Node * start_node,
                         bool (*visit)(const GT & g, typename GT::Node *, 
                                       typename GT::Arc *))
   {
-    g.reset_bit_nodes(Depth_First); // reiniciar Depth_First de nodos
-    g.reset_bit_arcs(Depth_First);  // reiniciar Depth_First de arcos
-    size_t counter = 0; // inicialmente no se ha visitado ningún nodo
+    g.reset_bit_nodes(Depth_First);
+    g.reset_bit_arcs(Depth_First);
+    size_t counter = 0;
 
     __depth_first_traversal(g, start_node, nullptr, visit, counter);
 
     return counter;
   }
 
-  /// \overload depth_first_traversal(()
+  /// \overload depth_first_traversal(const GT&, typename GT::Node*, bool (*)(...))
   template <class GT> inline 
   size_t depth_first_traversal(const GT & g, 
                                bool (*visit)(const GT &, typename GT::Node *, 
@@ -89,50 +108,40 @@ namespace Aleph {
     return depth_first_traversal(g, g.get_first_node(), visit);
   }
 
-  /** Default visit operation: nothing to do
-
-      @ingroup Grafos
-  */
+  /** @brief Default visit operation for traversals (never stops).
+   *
+   * @ingroup Grafos
+   */
   template <class GT>
   struct Default_Visit_Op
   {
+    /// Always continues the traversal (never stops early).
     bool operator () (const GT &, typename GT::Node *, typename GT::Arc *)
     {
       return false;
     }
   };
 
-  /** Generic functor for depth first traversal of a graph.
-
-      This functor class traverses a graph in depth first order and
-      by each seen node it is called an operation.
-
-      The functor receives the following template parameters;
-
-      -# `GT`: the graph type
-      -# `Operation`: functor for the visit operation,
-      -# `SA`: arc filter
-
-      `Operation` functor must match the following signature:
-
-      struct Operation
-      {
-      bool operator () (const GT & g, typename GT::Node * node, 
-      typename GT::Arc * arc)
-      {
-      // return true if you want to stop the traversal
-      }
-      };
-
-      `G` is the graph, `node` is the current visited node and `arc` is
-      the arc from which the current node was seen. If the operator
-      returns `true`, then the traversal stops; otherwise this continues.
-
-      The control bit `Depth_First` is used both the nodes and arcs
-
-      @ingroup Grafos
-      @see breadth_first_traversal() test_connectivity() Filter_Iterator
-  */
+  /** @brief Stateful depth-first traversal functor.
+   *
+   * Traverses a graph in depth-first order, invoking an operation for each
+   * discovered node.
+   *
+   * Template parameters:
+   * - `GT`: graph type
+   * - `Operation`: visit functor
+   * - `SA`: arc filter used by the internal iterator
+   *
+   * `Operation` must provide:
+   * `bool operator()(const GT& g, typename GT::Node* node, typename GT::Arc* from)`.
+   *
+   * If the operation returns `true`, traversal stops early.
+   *
+   * @note Uses the `Depth_First` control bit on both nodes and arcs.
+   *
+   * @ingroup Grafos
+   * @see depth_first_traversal, Breadth_First_Traversal
+   */
   template <class GT, 
             class Operation = Default_Visit_Op<GT>, 
             class SA        = Dft_Show_Arc<GT>> 
@@ -150,28 +159,28 @@ namespace Aleph {
       if (IS_NODE_VISITED(node, Depth_First)) 
         return false; 
 
-      NODE_BITS(node).set_bit(Depth_First, true); // marca nodo visitado
+      NODE_BITS(node).set_bit(Depth_First, true);
       count++;
 
       if ((*op_ptr)(*g_ptr, node, arc)) 
-        return true; // sí, invóquela
-
-      if (count == g_ptr->get_num_nodes()) // ¿se visitaron todos lo nodos?
         return true;
 
-      // recorrer recursivamente arcos de node 
+      if (count == g_ptr->get_num_nodes())
+        return true;
+
+      // Recursively traverse arcs incident to `node`.
       for (Node_Arc_Iterator<GT, SA> it(node, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_current_arc_ne();
           if (IS_ARC_VISITED(arc, Depth_First)) 
             continue;
 
-          ARC_BITS(arc).set_bit(Depth_First, true); // visitado
+          ARC_BITS(arc).set_bit(Depth_First, true);
           if (__dft (it.get_tgt_node_ne(), arc))
-            return true; // ya se exploró cabalmente it.get_tgt_node()
+            return true;
         }
 
-      return false; // retorne y siga explorando
+      return false;
     }
 
     size_t dft(const GT & g, typename GT::Node * start_node, Operation & __op)
@@ -179,8 +188,8 @@ namespace Aleph {
       op_ptr = &__op;
       g_ptr  = &g;
     
-      g_ptr->reset_bit_nodes(Depth_First); // reiniciar Depth_First de nodos
-      g_ptr->reset_bit_arcs(Depth_First);  // reiniciar Depth_First de arcos
+      g_ptr->reset_bit_nodes(Depth_First);
+      g_ptr->reset_bit_arcs(Depth_First);
 
       count = 0;
 
@@ -191,28 +200,43 @@ namespace Aleph {
 
   public:
 
-    /// Construct a depth first traversal whose arcs are filtered by `s`
-    /// filtro de arcos del iterador interno.
+    /// Construct a traversal functor using the arc filter `__sa`.
     Depth_First_Traversal(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
-    /** Invoke to traversal starting on any node of graph
-
-        @param[in] g the graph
-        @param[in] op visit operation
-        @return the number of visited nodes
-    */
+    /** @brief Traverse starting from the first node of the graph.
+     *
+     * Traverses the connected component reachable from `g.get_first_node()`
+     * in depth-first order.
+     *
+     * Side effects:
+     * - Resets the `Depth_First` control bit on all nodes and arcs.
+     * - Uses the `Depth_First` control bit on both nodes and arcs.
+     *
+     * @param[in] g Graph to traverse.
+     * @param[in] op Visit operation.
+     * @return Number of discovered nodes.
+     * @throw bad_alloc If there is not enough memory.
+     */
     size_t operator () (const GT & g, Operation op = Operation()) 
     {
       return dft(g, g.get_first_node(), op);
     }
  
-    /** Invoke to traversal starting on any node of graph
-
-        @param[in] g the graph
-        @param[in] sn pointer to starting node
-        @param[in] op visit operation
-        @return the number of visited nodes
-    */
+    /** @brief Traverse starting from a given node.
+     *
+     * Traverses the connected component reachable from `sn` in depth-first
+     * order.
+     *
+     * Side effects:
+     * - Resets the `Depth_First` control bit on all nodes and arcs.
+     * - Uses the `Depth_First` control bit on both nodes and arcs.
+     *
+     * @param[in] g Graph to traverse.
+     * @param[in] sn Starting node (must be non-null and belong to `g`).
+     * @param[in] op Visit operation.
+     * @return Number of discovered nodes.
+     * @throw bad_alloc If there is not enough memory.
+     */
     size_t operator () (const GT & g, typename GT::Node * sn,
                         Operation op = Operation())
     {
@@ -231,14 +255,14 @@ namespace Aleph {
     if (IS_NODE_VISITED(node, Depth_First)) 
       return false; 
 
-    NODE_BITS(node).set_bit(Depth_First, true); // marca nodo visitado
+    NODE_BITS(node).set_bit(Depth_First, true); // mark node visited
     count++;
 
-    if (visit != nullptr) // verifique si hay función de visita
+    if (visit != nullptr) // invoke callback if provided
       if ((*visit)(g, node, arc)) 
         return true;
 
-    if (count == g.get_num_nodes()) // ¿se visitaron todos lo nodos?
+    if (count == g.get_num_nodes()) // all nodes discovered?
       return true;
 
     for (auto it = g.get_arc_it(node); it.has_curr(); it.next_ne())
@@ -247,37 +271,41 @@ namespace Aleph {
         if (IS_ARC_VISITED(arc, Depth_First)) 
           continue;
 
-        ARC_BITS(arc).set_bit(Depth_First, true); // visitado
+        ARC_BITS(arc).set_bit(Depth_First, true); // mark arc visited
         if (__depth_first_traversal(g, it.get_tgt_node_ne(), arc, visit, count))
-          return true; // ya se exploró cabalmente it.get_tgt_node()
+          return true;
       }
 
-    return false; // retorne y siga explorando
+    return false; // keep exploring
   } 
 
 
-  /** Generic breadth first traversal of a graph.
-
-      This traverses the graph `g` form `start_node` in breadth first
-      order. On each node, a visit function is called, whose signature
-      must match as follows:
-
-      bool visit(const GT & g, GT::Node * curr, GT::Arc * from)
-
-      `g` is the graph, `curr` is the currently visited node and `from`
-      is the arc from whom `curr` was discovered. If `visit` returns
-      `false` then the traversal continues; otherwise it stops.
-
-      The traversal uses the contro `Breadth_First`
-
-      @param[in] g the graph
-      @param[in] start_node the starting node
-      @param[in] visit function
-      @return the number of visited nodes
-
-      @ingroup Grafos
-      @see depth_first_traversal() test_connectivity()
-  */  template <class GT> inline size_t
+  /** @brief Breadth-first traversal starting from a given node.
+   *
+   * Traverses the connected component reachable from `start` in
+   * breadth-first order.
+   *
+   * The callback must have the following signature:
+   * `bool visit(const GT& g, typename GT::Node* curr, typename GT::Arc* from)`.
+   *
+   * `from` is the arc that discovered `curr` (nullptr for the start node).
+   * If `visit` returns `true`, the traversal stops early. If `visit` is
+   * `nullptr`, no callback is executed.
+   *
+   * @tparam GT Graph type.
+   * @param[in] g Graph to traverse.
+   * @param[in] start Starting node (must be non-null and belong to `g`).
+   * @param[in] visit Optional visit callback (may be nullptr).
+   * @return Number of discovered nodes.
+   *
+   * @note Resets the `Breadth_First` control bit on all nodes and arcs.
+   * @note Uses the `Breadth_First` control bit on both nodes and arcs.
+   *
+   * @ingroup Grafos
+   * @see breadth_first_traversal(const GT&, bool (*)(...)),
+   *      depth_first_traversal, Breadth_First_Traversal
+   */
+  template <class GT> inline size_t
   breadth_first_traversal(const GT & g, typename GT::Node * start,
                           bool (*visit)(const GT &, typename GT::Node *,
                                         typename GT::Arc *) )
@@ -290,7 +318,7 @@ namespace Aleph {
       q.put(it.get_current_arc_ne());
 
     NODE_BITS(start).set_bit(Breadth_First, true);
-    size_t node_counter = 1; // count the visited nodes
+    size_t node_counter = 1;
 
     if (visit != nullptr)
       if ((*visit)(g, start, nullptr))
@@ -298,7 +326,7 @@ namespace Aleph {
 
     while (not q.is_empty() and node_counter < g.get_num_nodes())
       {
-        auto arc = q.get();// saque de cola más cercano
+        auto arc = q.get();
         ARC_BITS(arc).set_bit(Breadth_First, true);
 
         auto src = g.get_src_node(arc);
@@ -323,7 +351,7 @@ namespace Aleph {
 
             if (IS_NODE_VISITED(g.get_src_node(curr_arc), Breadth_First) and 
                 IS_NODE_VISITED(g.get_tgt_node(curr_arc), Breadth_First))
-              continue; // nodos ya visitados 
+              continue; // both endpoints already visited
 	  
             q.put(curr_arc);
           }
@@ -332,7 +360,7 @@ namespace Aleph {
     return node_counter;
   }
 
-  /// \overload breadth_first_traversal()
+  /// \overload breadth_first_traversal(const GT&, typename GT::Node*, bool (*)(...))
   template <class GT> inline size_t
   breadth_first_traversal(GT & g, 
                           bool (*visit)(const GT &, typename GT::Node *, 
@@ -342,37 +370,27 @@ namespace Aleph {
   }
 
       
-  /** Generic functor for breadth first traversal of a graph.
-
-      This functor class traverses a graph in breadth first order and
-      by each seen node it is called an operation.
-
-      The functor receives the following template parameters;
-
-      -# `GT`: the graph type
-      -# `Operation`: functor for the visit operation,
-      -# `SA`: arc filter
-
-      `Operation` functor must match the following signature:
-
-      struct Operation
-      {
-      bool operator () (const GT & g, typename GT::Node * node, 
-      typename GT::Arc * arc)
-      {
-      // return true if you want to stop the traversal
-      }
-      };
-
-      `G` is the graph, `node` is the current visited node and `arc` is
-      the arc from which the current node was seen. If the operator
-      returns `true`, then the traversal stops; otherwise this continues.
-
-      The control bit `Depth_First` is used both the nodes and arcs
-
-      @ingroup Grafos
-      @see breadth_first_traversal() test_connectivity() Filter_Iterator
-  */
+  /** @brief Stateful breadth-first traversal functor.
+   *
+   * Traverses a graph in breadth-first order, invoking an operation for each
+   * discovered node.
+   *
+   * Template parameters:
+   * - `GT`: graph type
+   * - `Operation`: visit functor
+   * - `SA`: arc filter used by the internal iterator
+   *
+   * `Operation` must provide:
+   * `bool operator()(const GT& g, typename GT::Node* node, typename GT::Arc* from)`.
+   *
+   * If the operation returns `true`, traversal stops early.
+   *
+   * @note Resets the `Breadth_First` control bit on all nodes and arcs.
+   * @note Uses the `Breadth_First` control bit on both nodes and arcs.
+   *
+   * @ingroup Grafos
+   * @see breadth_first_traversal, Depth_First_Traversal
+   */
   template <class GT, 
             class Operation = Default_Visit_Op<GT>, 
             class SA        = Dft_Show_Arc<GT>> 
@@ -385,20 +403,20 @@ namespace Aleph {
     {
       g.reset_bit_nodes(Breadth_First); 
       g.reset_bit_arcs(Breadth_First);  
-      DynListQueue<typename GT::Arc*> q; // cola de arcos pendientes
+      DynListQueue<typename GT::Arc*> q; // pending arcs queue
 
-      for (Node_Arc_Iterator<GT, SA> it(start); it.has_curr(); it.next_ne())
+      for (Node_Arc_Iterator<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         q.put(it.get_current_arc_ne());
 
       NODE_BITS(start).set_bit(Breadth_First, true); 
-      count = 1; // contador de nodos visitados
+      count = 1;
 
       if (op (g, start, nullptr))
         return 1;
 
       while (not q.is_empty() and count < g.get_num_nodes()) 
         {
-          auto arc = q.get(); // saque de cola más cercano
+          auto arc = q.get();
           ARC_BITS(arc).set_bit(Breadth_First, true); 
 
           auto src = g.get_src_node(arc); 
@@ -415,7 +433,7 @@ namespace Aleph {
           NODE_BITS(curr).set_bit(Breadth_First, true); 
           count++;
 
-          for (Node_Arc_Iterator<GT, SA> it(curr); it.has_curr(); it.next_ne())
+          for (Node_Arc_Iterator<GT, SA> it(curr, sa); it.has_curr(); it.next_ne())
             {
               auto curr_arc = it.get_current_arc_ne();
               if (IS_ARC_VISITED(curr_arc, Breadth_First)) 
@@ -423,7 +441,7 @@ namespace Aleph {
 
               if (IS_NODE_VISITED(g.get_src_node(curr_arc), Breadth_First) and 
                   IS_NODE_VISITED(g.get_tgt_node(curr_arc), Breadth_First))
-                continue; // nodos ya visitados 
+                continue;
 
               q.put(curr_arc);
             }
@@ -434,60 +452,97 @@ namespace Aleph {
 
   public:
 
-    /// Constructor of functor Breadth_First_Traversal whose arcs are
-    /// filtered by `sa`
+    /// Construct a traversal functor using the arc filter `__sa`.
     Breadth_First_Traversal(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
-    /** Invoke to traversal.
-            
-        @param[in] g the graph
-        @param[in] op visit operation
-        @return number of visited nodes
-        @throw bad_alloc if there is no enough memory
-    */
+    /** @brief Traverse starting from the first node of the graph.
+     *
+     * Traverses the connected component reachable from `g.get_first_node()`
+     * in breadth-first order.
+     *
+     * Side effects:
+     * - Resets the `Breadth_First` control bit on all nodes and arcs.
+     * - Uses the `Breadth_First` control bit on both nodes and arcs.
+     *
+     * @param[in] g Graph to traverse.
+     * @param[in] op Visit operation.
+     * @return Number of discovered nodes.
+     * @throw bad_alloc If there is not enough memory.
+     */
     size_t operator () (const GT & g, Operation op)
     {
       return bft (g, g.get_first_node(), op);
     }
 
-    /** Invoke to traversal.
-            
-        @param[in] g the graph
-        @param[in] p pointer to starting node
-        @param[in] op visit operation
-        @return number of visited nodes
-        @throw bad_alloc if there is no enough memory
-    */
+    /** @brief Traverse starting from a given node.
+     *
+     * Traverses the connected component reachable from `p` in breadth-first
+     * order.
+     *
+     * Side effects:
+     * - Resets the `Breadth_First` control bit on all nodes and arcs.
+     * - Uses the `Breadth_First` control bit on both nodes and arcs.
+     *
+     * @param[in] g Graph to traverse.
+     * @param[in] p Starting node (must be non-null and belong to `g`).
+     * @param[in] op Visit operation.
+     * @return Number of discovered nodes.
+     * @throw bad_alloc If there is not enough memory.
+     */
     size_t operator () (const GT & g, typename GT::Node * p, 
                         Operation && op = Operation())
     {
       return bft(g, p, op);
     }
 
+    /** @brief Traverse starting from a given node (operation by reference).
+     *
+     * Equivalent to the rvalue overload, but takes the operation by reference.
+     *
+     * @param[in] g Graph to traverse.
+     * @param[in] p Starting node (must be non-null and belong to `g`).
+     * @param[in] op Visit operation.
+     * @return Number of discovered nodes.
+     * @throw bad_alloc If there is not enough memory.
+     */
     size_t operator () (const GT & g, typename GT::Node * p, Operation & op)
     {
       return bft(g, p, op);
     }
   };
 
-  /** Breadth first search of a path between two nodes.
-
-      `find_path_breadth_first()` searches in breadth first order a path
-      between `start_node` y `end_node`
-
-      @param[in] g the graph
-      @param[in] start_node pointer to starting node of search
-      @param[in] end_node pointer to ending node of search
-      \return a `Path` object containing the path if this was found;
-      an empty path otherwise
-      @throw bad_alloc if there is no enough memory
-      @see find_path_breadth_first()
-      @ingroup Grafos
-  */
+  /** @brief Breadth-first search of a (shortest-by-edges) path between two nodes.
+   *
+   * Searches a path from `start` to `end` using breadth-first search (BFS).
+   * If a path exists, the returned path has the minimum number of arcs
+   * (ties depend on iteration order).
+   *
+   * Side effects:
+   * - Resets all node and arc control attributes via `g.reset_nodes()` and
+   *   `g.reset_arcs()`.
+   * - Uses the `Find_Path` control bit on nodes and arcs.
+   * - Stores predecessor pointers in node cookies while searching.
+   *
+   * @tparam GT Graph type.
+   * @param[in] g Graph to search.
+   * @param[in] start Start node (must be non-null and belong to `g`).
+   * @param[in] end End node (must be non-null and belong to `g`).
+   * @return A `Path<GT>` describing the found path; an empty path if no path exists.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see find_path_depth_first(), test_for_path()
+   */
   template <class GT> inline 
   Path<GT> find_path_breadth_first(const GT & g, typename GT::Node * start, 
                                    typename GT::Node * end)
   {
+    ah_invalid_argument_if(start == nullptr or end == nullptr)
+      << "find_path_breadth_first(): start and end must be non-null";
+
+    if (start == end)
+      return Path<GT>(g, start);
+
     g.reset_nodes();
     g.reset_arcs(); 
   
@@ -537,7 +592,7 @@ namespace Aleph {
       }
   
     if (not path_found)
-      return Path<GT>();
+      return Path<GT>(g);
 
     q.empty(); // free queue memory for eventually saving the required for path
   
@@ -553,56 +608,62 @@ namespace Aleph {
   }
 
 
-  /** Simple connectivity test.
-
-      @param[in] g a graph
-      @return `true` if g is connected
-      @note This function does not work for multigraphs
-      @throw domain_error if g is a directed graph
-      @ingroup Grafos
-      @see depth_first_traversal() is_reachable()
-  */
+  /** @brief Connectivity test for undirected graphs.
+   *
+   * @param[in] g Graph to test.
+   * @return `true` if `g` is connected; `false` otherwise.
+   *
+   * @note Returns `false` for an empty graph.
+   * @note This function is not intended for multigraphs.
+   * @throw domain_error If `g` is a directed graph.
+   *
+   * @ingroup Grafos
+   * @see depth_first_traversal()
+   */
   template <class GT> inline 
   bool test_connectivity(const GT & g)
   {
     ah_domain_error_if(g.is_digraph())
       << "test_connectivity() does not work on digraphs";
 
-    if (g.get_num_arcs() < g.get_num_nodes() - 1) 
+    const auto num_nodes = g.get_num_nodes();
+    if (num_nodes == 0)
+      return false;
+
+    if (g.get_num_arcs() + 1 < num_nodes)
       return false; 
 
-    return depth_first_traversal<GT>(g, nullptr) == g.get_num_nodes();
+    return depth_first_traversal<GT>(g, nullptr) == num_nodes;
   }
 
 
-  template <class GT, class SA> inline static
+  /** @brief Internal helper used by test_for_cycle(). */
+  template <class GT> inline static
   bool __test_cycle(const GT & g, typename GT::Node *, typename GT::Node *);
 
 
-  /** Single cycle searching from a node.
-
-      `test_for_cycle(g, src)` perform a depth first traversal on graph
-      `g` searching a cycle starting from node `src`.
-
-      The control bit Test_Cycle is used.
-
-      @note This function only test for a cycle starting from `src`. It
-      takes \f$O(E)\f$ for the worst case. If your goal simply is to
-      determine whether the graph has or not cycles, then **this is not
-      the appropiate way**. Use `has_cycle()` instead, which is
-      \f$O(V)\f$ for worst case.
-
-      @param[in] g the graph
-      @param[in] src pointer to node
-      @return `true` if there is a cycle from `src`
-
-      \see has_cycle() is_graph_acyclique()
-
-      @ingroup Grafos
-  */
+  /** @brief Search for a cycle reachable from a given node.
+   *
+   * Performs a depth-first exploration starting at `src` and returns `true` if
+   * a cycle that returns to `src` is found.
+   *
+   * @note This is a *single-source* cycle check. If you only need to know
+   * whether the graph has any cycle at all, prefer has_cycle().
+   * @note Uses the `Test_Cycle` control bit on both nodes and arcs.
+   *
+   * @param[in] g Graph to search.
+   * @param[in] src Source node (must be non-null and belong to `g`).
+   * @return `true` if a cycle returning to `src` is found; `false` otherwise.
+   *
+   * @ingroup Grafos
+   * @see has_cycle(), is_graph_acyclique()
+   */
   template <class GT> inline 
   bool test_for_cycle(const GT & g, typename GT::Node * src)
   {
+    ah_invalid_argument_if(src == nullptr)
+      << "test_for_cycle(): src must be non-null";
+
     g.reset_bit_nodes(Test_Cycle);
     g.reset_bit_arcs(Test_Cycle);
     for (auto it = g.get_arc_it(src); it.has_curr(); it.next_ne())
@@ -645,13 +706,14 @@ namespace Aleph {
     return false; 
   }  
 
+  /** @brief Internal DFS used by is_graph_acyclique(). */
   template <class GT> inline static
   bool __is_graph_acyclique(const GT & g, typename GT::Node * curr_node)
   {
     if (IS_NODE_VISITED(curr_node, Test_Cycle)) 
       return false;
 
-    NODE_BITS(curr_node).set_bit(Test_Cycle, true); // marcar nodo
+    NODE_BITS(curr_node).set_bit(Test_Cycle, true);
 
     for (auto it = g.get_arc_it(curr_node); it.has_curr(); it.next_ne())
       {
@@ -664,27 +726,46 @@ namespace Aleph {
         if (not __is_graph_acyclique(g, it.get_tgt_node_ne())) 
           return false;
       }
-    // todos los arcos recorridos sin encontrar ciclo ==>
-    // el grafo es acíclico pasando por curr_node
+    // All outgoing arcs explored without detecting a back edge.
     return true; 
   }
 
 
-  /** Return `true` if the graph is acyclique.
-
-      This function is \f$O(V)\f$ worst case.
-
-      @param[in] g the graph
-      @param[in] start_node an initial node from where to start
-      @return `true` if the graph is acyclique
-  */
+  /** @brief Return `true` if an undirected graph is acyclic.
+   *
+   * This is a cycle-detection routine for undirected graphs. It performs a
+   * DFS-like traversal while marking arcs to avoid immediately revisiting the
+   * parent edge.
+   *
+   * @note Uses the `Test_Cycle` control bit on both nodes and arcs.
+   * @note Returns `true` for empty graphs.
+   *
+   * @param[in] g Graph to test.
+   * @param[in] start_node Starting node (must be non-null and belong to `g`).
+   * @return `true` if the component reachable from `start_node` is acyclic;
+   * `false` otherwise.
+   * @throw domain_error If `g` is a directed graph.
+   *
+   * @ingroup Grafos
+   * @see has_cycle(), is_graph_acyclique(const GT&)
+   */
   template <class GT> inline 
   bool is_graph_acyclique(const GT & g, typename GT::Node * start_node)
   {
     ah_domain_error_if(g.is_digraph())
-      << "is_graph_acyclique() does not work for digraps";
+      << "is_graph_acyclique() does not work for digraphs";
+
+    const auto num_nodes = g.get_num_nodes();
+    if (num_nodes == 0)
+      return true;
+
+    ah_invalid_argument_if(start_node == nullptr)
+      << "is_graph_acyclique(): start_node must be non-null";
+
+    if (num_nodes == 1)
+      return true;
   
-    if (g.get_num_arcs() >= g.get_num_nodes()) 
+    if (g.get_num_arcs() >= num_nodes) 
       return false; 
 
     g.reset_bit_arcs(Test_Cycle);
@@ -693,20 +774,35 @@ namespace Aleph {
     return __is_graph_acyclique(g, start_node);
   }
 
-  /** Return `true` if the graph is acyclique.
-
-      This function is \f$O(V)\f$ worst case.
-
-      @param[in] g the graph
-      @return `true` if the graph is acyclique
-  */
+  /** @brief Return `true` if an undirected graph is acyclic.
+   *
+   * Equivalent to calling is_graph_acyclique(g, node) for every connected
+   * component of `g`.
+   *
+   * @note Uses the `Test_Cycle` control bit on both nodes and arcs.
+   * @note Returns `true` for empty graphs.
+   *
+   * @param[in] g Graph to test.
+   * @return `true` if `g` is acyclic; `false` otherwise.
+   * @throw domain_error If `g` is a directed graph.
+   *
+   * @ingroup Grafos
+   * @see has_cycle(), is_graph_acyclique(const GT&, typename GT::Node*)
+   */
   template <class GT> inline 
   bool is_graph_acyclique(const GT & g)
   {
     ah_domain_error_if(g.is_digraph())
-      << "is_graph_acyclique() does not work for digraps";
+      << "is_graph_acyclique() does not work for digraphs";
 
-    if (g.get_num_arcs() >= g.get_num_nodes()) 
+    const auto num_nodes = g.get_num_nodes();
+    if (num_nodes == 0)
+      return true;
+
+    if (num_nodes == 1)
+      return true;
+
+    if (g.get_num_arcs() >= num_nodes) 
       return false; 
 
     g.reset_bit_arcs(Test_Cycle);
@@ -726,13 +822,14 @@ namespace Aleph {
   }
 
       
-  /** Return `true` if the graph has cicles,
-
-      This function is \f$O(V)\f$ worst case.
-
-      @param[in] g the graph
-      @return `true` if the graph has cycles.
-  */
+  /** @brief Return `true` if an undirected graph has at least one cycle.
+   *
+   * @param[in] g Graph to test.
+   * @return `true` if `g` contains a cycle; `false` otherwise.
+   *
+   * @ingroup Grafos
+   * @see is_graph_acyclique()
+   */
   template <class GT> 
   inline bool has_cycle(const GT & g)
   {
@@ -740,24 +837,29 @@ namespace Aleph {
   }
 
  
-  /** Test for path between two nodes.
-
-      The contros Bit Test_path is used.
-
-      The function is \f$O(V)\f$ worst case
-
-      @param[in] g the graph
-      @param[in] start_node pointer to start node
-      @param[in] end_node pointer to end node
-      @return `true` if it exists a path between `start_node` and `end_node`
-      @see find_path_depth_first() find_path_breadth_first()
-      @ingroup Grafos
-  */
+  /** @brief Return `true` if there is a path between two nodes.
+   *
+   * Performs a depth-first reachability test from `start_node` to
+   * `end_node`.
+   *
+   * @note Uses the `Find_Path` control bit on both nodes and arcs.
+   *
+   * @param[in] g Graph to test.
+   * @param[in] start_node Start node (must be non-null and belong to `g`).
+   * @param[in] end_node End node (must be non-null and belong to `g`).
+   * @return `true` if `end_node` is reachable from `start_node`; `false` otherwise.
+   *
+   * @ingroup Grafos
+   * @see find_path_depth_first(), find_path_breadth_first()
+   */
   template <class GT> inline 
   bool test_for_path(const GT & g, typename GT::Node * start_node, 
                      typename GT::Node * end_node)
   { 
-    if (not g.is_digraph() and g.get_num_arcs() >= g.get_num_nodes()) 
+    ah_invalid_argument_if(start_node == nullptr or end_node == nullptr)
+      << "test_for_path(): start_node and end_node must be non-null";
+
+    if (start_node == end_node)
       return true;
 
     g.reset_bit_nodes(Find_Path); 
@@ -766,7 +868,7 @@ namespace Aleph {
     for (auto it = g.get_arc_it(start_node); it.has_curr(); it.next_ne())
       {
         auto arc = it.get_current_arc_ne();
-        ARC_BITS(arc).set_bit(Find_Path, true); // marcar arco
+        ARC_BITS(arc).set_bit(Find_Path, true);
         if (__test_for_path(g, it.get_tgt_node_ne(), end_node)) 
           return true; 
       }
@@ -775,6 +877,7 @@ namespace Aleph {
   }
 
 
+  /** @brief Internal recursive DFS used by test_for_path(). */
   template <class GT> inline static
   bool __test_for_path(const GT & g, typename GT::Node * curr_node, 
                        typename GT::Node * end_node)  
@@ -782,8 +885,8 @@ namespace Aleph {
     if (curr_node == end_node) 
       return true;
 
-    if (IS_NODE_VISITED(curr_node, Find_Path)) // ¿se visitó curr_node?
-      return false; // sí, no explore
+    if (IS_NODE_VISITED(curr_node, Find_Path))
+      return false;
 
     NODE_BITS(curr_node).set_bit(Find_Path, true);
 
@@ -801,32 +904,34 @@ namespace Aleph {
     return false;
   }
 
+  /// @brief Forward declaration for inconnected_components().
   template <class GT> inline 
   DynList<GT> inconnected_components(const GT & g);
 
+  /// @brief Forward declaration for build_subgraph().
   template <class GT> inline 
   void build_subgraph(const GT & g, GT & sg, 
                       typename GT::Node * g_src, size_t & node_count); 
     
 
-  /** Compute a list of subgraphs corresponding to the inconnected
-      component of a graph.
-
-      After completion, the subgraphs are mapped through the nodes
-      and arcs cookies to the original graph.
-          
-      This function uses the control bit Build_Subtree.
-
-      The algorithm user depth first search and takes \f$O(V + E)\f$
-      in complexity.
-
-      @param[in] g the graph
-      @return a list of mapped graphs corresponding to the connected
-      components of `g`
-      @throw bad_alloc if there is no enough memory
-      @see copy_graph()
-      @ingroup Grafos
-  */
+  /** @brief Compute the connected components as mapped subgraphs.
+   *
+   * Builds a `DynList<GT>` where each element is a subgraph containing one
+   * connected component of `g`.
+   *
+   * Side effects:
+   * - Resets all node and arc control attributes via `g.reset_nodes()` and
+   *   `g.reset_arcs()`.
+   * - Uses the `Build_Subtree` control bit on both nodes and arcs.
+   * - Maps nodes and arcs between each subgraph and `g` via cookies.
+   *
+   * @param[in] g Graph to split.
+   * @return List of mapped subgraphs, one per connected component.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see build_subgraph(), copy_graph()
+   */
   template <class GT> inline
   DynList<GT> inconnected_components(const GT & g) 
   {
@@ -834,7 +939,7 @@ namespace Aleph {
     g.reset_arcs(); 
 
     DynList<GT> list;
-    size_t count = 0; // counter of visited nodes
+    size_t count = 0; // visited node counter
     for (auto it = g.get_node_it(); count < g.get_num_nodes() and it.has_curr();
          it.next_ne())
       {
@@ -842,8 +947,8 @@ namespace Aleph {
         if (IS_NODE_VISITED(curr, Build_Subtree)) 
           continue;
 
-        list.append(GT()); // crea subgrafo y lo inserta en lista
-        GT & subgraph = list.get_last(); // grafo insertado en list
+        list.append(GT());
+        GT & subgraph = list.get_last();
         build_subgraph(g, subgraph, curr, count); 
       }
 
@@ -851,30 +956,26 @@ namespace Aleph {
   }
 
 
-  /** Build a mapped subgraph of `g` from a starting node.
-
-      `build_subgraph(g, sg, g_src, node_count)` traverses in depth
-      first order the graph `g` from a starting node `g_src` and
-      builds in `sg` a mapped copy of all nodes and arcs reachable
-      from `g_src`. So, it will discover all what is connected to `g_src`.
-
-      `node_count` accumulates the number of visited nodes.
-
-      The function uses the control bint Build_Subtree.
-
-      This function is more used as helper for
-      `inconnected_components()`.
-
-      @param[in] g the original graph
-      @param[out] sg an initially empty graph where the mappeing will
-      be put
-      @param[in] g_src pointer to initial node where start the mapping
-      @param[in,out] node_count counter of visited nodes
-      @throw bad_alloc if there is no enough memory
-
-      @see inconnected_components() copy_graph()
-      @ingroup Grafos
-  */
+  /** @brief Build a mapped subgraph from a starting node.
+   *
+   * Traverses `g` in depth-first order starting at `g_src`, copying every
+   * reachable node and arc into `sg`.
+   *
+   * `node_count` accumulates the number of visited nodes across repeated calls
+   * (useful when building all components).
+   *
+   * @note Uses the `Build_Subtree` control bit on both nodes and arcs.
+   * @note Uses cookies to map nodes/arcs between `g` and `sg`.
+   *
+   * @param[in] g Original graph.
+   * @param[out] sg Destination graph (expected to be initially empty).
+   * @param[in] g_src Starting node in `g` (must be non-null and belong to `g`).
+   * @param[in,out] node_count Visited node counter.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see inconnected_components(), copy_graph()
+   */
   template <class GT> inline 
   void build_subgraph(const GT & g, GT & sg, 
                       typename GT::Node * g_src, size_t & node_count)
@@ -882,11 +983,11 @@ namespace Aleph {
     if (IS_NODE_VISITED(g_src, Build_Subtree)) 
       return;
 
-    NODE_BITS(g_src).set_bit(Build_Subtree, true); // mark g_src as visited
+    NODE_BITS(g_src).set_bit(Build_Subtree, true);
     ++node_count; 
 
     auto sg_src = mapped_node<GT>(g_src);
-    if (sg_src == nullptr) // sg_src already mapped
+    if (sg_src == nullptr) // not mapped yet
       {
         sg_src = sg.insert_node(g_src->get_info());
         GT::map_nodes(g_src, sg_src);
@@ -916,6 +1017,7 @@ namespace Aleph {
   }
 
   
+  /** @brief Internal recursive DFS used by find_depth_first_spanning_tree(). */
   template <class GT> inline static
   bool __find_depth_first_spanning_tree(const GT &          g, 
                                         typename GT::Node * gnode, 
@@ -923,23 +1025,25 @@ namespace Aleph {
                                         GT &                tree,
                                         typename GT::Node * tnode);
 
-  /** Compute a depth first ordered spanning tree starting from a specific node.
-
-      The returned spanning tree is mapped through the nodes and arcs
-      cookies to teh original graph.
-
-      The function uses the control bit Spanning_Tree.
-
-      \note If `g` is not connected then the spanning tree only will have
-      the reachable nodes of the connected component where `gnode` is.
-
-      @param[in] g the graph
-      abarcador en profundidad.
-      @param[in] gnode source node in `g` from which to start the search
-      @return a spanning tree of `g`
-      @throw bad_alloc if there is no enough memory
-      @ingroup Grafos
-  */
+  /** @brief Build a depth-first spanning tree (mapped to the original graph).
+   *
+   * Returns a spanning tree of the connected component reachable from `gnode`,
+   * visiting nodes in depth-first order.
+   *
+   * Side effects:
+   * - Resets all node and arc control attributes via `g.reset_nodes()` and
+   *   `g.reset_arcs()`.
+   * - Uses the `Spanning_Tree` control bit on both nodes and arcs.
+   * - Maps nodes and arcs between `g` and the returned tree via cookies.
+   *
+   * @param[in] g Graph to traverse.
+   * @param[in] gnode Start node (must be non-null and belong to `g`).
+   * @return A mapped spanning tree of the reachable component.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see find_breadth_first_spanning_tree()
+   */
   template <class GT> inline
   GT find_depth_first_spanning_tree(const GT & g, typename GT::Node * gnode)
   {
@@ -948,7 +1052,7 @@ namespace Aleph {
 
     GT tree;
 
-    NODE_BITS(gnode).set_bit(Spanning_Tree, true); // marcar gnode
+    NODE_BITS(gnode).set_bit(Spanning_Tree, true);
   
     auto tnode = tree.insert_node(gnode->get_info()); 
     GT::map_nodes(gnode, tnode);
@@ -961,7 +1065,7 @@ namespace Aleph {
 
         auto arc_tgt_node = it.get_tgt_node_ne();
         if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-          continue; // destino ya visitado desde otro arco
+          continue;
 
         if (__find_depth_first_spanning_tree(g, arc_tgt_node, arc, tree, tnode))
           return tree;
@@ -983,8 +1087,8 @@ namespace Aleph {
                                         typename GT::Arc *  garc, 
                                         GT & tree, typename GT::Node * tnode)
   {
-    NODE_BITS(gnode).set_bit(Spanning_Tree, true); // marcar nodo 
-    ARC_BITS(garc).set_bit(Spanning_Tree, true);   // marcar arco
+    NODE_BITS(gnode).set_bit(Spanning_Tree, true);
+    ARC_BITS(garc).set_bit(Spanning_Tree, true);
 
     auto tree_tgt_node = tree.insert_node(gnode->get_info());
     GT::map_nodes(gnode, tree_tgt_node);
@@ -993,10 +1097,10 @@ namespace Aleph {
     GT::map_arcs(garc, tarc);
 
     tnode = tree_tgt_node; 
-    if (tree.get_num_nodes() == g.get_num_nodes()) // ¿grafo abarcado?
-      return true; // tree ya contiene el árbol abarcador
+    if (tree.get_num_nodes() == g.get_num_nodes())
+      return true;
 
-    assert(tree.get_num_nodes() > tree.get_num_arcs()); // debe ser acíclico
+    assert(tree.get_num_nodes() > tree.get_num_arcs()); // tree invariant
 
     for (auto it = g.get_arc_it(gnode); it.has_curr(); it.next_ne())
       {
@@ -1006,32 +1110,33 @@ namespace Aleph {
 
         auto arc_tgt_node = it.get_tgt_node_ne();
         if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-          continue; // destino ya visitado desde otro arco
+          continue;
 
         if (__find_depth_first_spanning_tree(g, arc_tgt_node, arc, tree, tnode))
-          return false; // ya el árbol está calculado 
+          return true; // spanning tree completed
       }
 
     return false;
   }
 
-  /** Compute a breadth first ordered spanning tree starting from a specific node.
-
-      The returned spanning tree is mapped through the nodes and arcs
-      cookies to teh original graph.
-
-      The function uses the control bit Spanning_Tree.
-
-      \note If `g` is not connected then the spanning tree only will have
-      the reachable nodes of the connected component where `gnode` is.
-
-      @param[in] g the graph
-      abarcador en profundidad.
-      @param[in] gnode source node in `g` from which to start the search
-      @return a spanning tree of `g`
-      @throw bad_alloc if there is no enough memory
-      @ingroup Grafos
-  */      
+  /** @brief Build a breadth-first spanning tree (mapped to the original graph).
+   *
+   * Returns a spanning tree of the connected component reachable from `gp`,
+   * visiting nodes in breadth-first order.
+   *
+   * Side effects:
+   * - Resets the `Spanning_Tree` control bit on all nodes and arcs.
+   * - Uses the `Spanning_Tree` control bit on both nodes and arcs.
+   * - Maps nodes and arcs between `g` and the returned tree via cookies.
+   *
+   * @param[in,out] g Graph to traverse.
+   * @param[in] gp Start node (must be non-null and belong to `g`).
+   * @return A mapped spanning tree of the reachable component.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see find_depth_first_spanning_tree()
+   */
   template <class GT> inline
   GT find_breadth_first_spanning_tree(GT & g, typename GT::Node * gp)
   {
@@ -1043,52 +1148,51 @@ namespace Aleph {
     unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
     tree.insert_node(tp_auto.get());
     GT::map_nodes(gp, tp_auto.release());
-    NODE_BITS(gp).set_bit(Spanning_Tree, true); // mark gp as visited
+    NODE_BITS(gp).set_bit(Spanning_Tree, true);
 
-    DynListQueue<typename GT::Arc*> q; // queue of arcs
+    DynListQueue<typename GT::Arc*> q;
     for (auto it = g.get_arc_it(gp); it.has_curr(); it.next_ne())
       q.put(it.get_curr());
 
     while (not q.is_empty()) 
       {
         auto garc = q.get(); 
-        ARC_BITS(garc).set_bit(Spanning_Tree, true); // mark the arc as visited
+        ARC_BITS(garc).set_bit(Spanning_Tree, true);
         auto gsrc = g.get_src_node(garc);  
         auto gtgt = g.get_tgt_node(garc);
 
         if (IS_NODE_VISITED(gsrc, Spanning_Tree) and 
             IS_NODE_VISITED(gtgt, Spanning_Tree))
-          continue; // los dos nodos de garc ya fueron visitados
+          continue;
 
         if (IS_NODE_VISITED(gtgt, Spanning_Tree)) // gtgt visited?
-          std::swap(gsrc, gtgt); // the non visited is gsrc
+          std::swap(gsrc, gtgt); // make gsrc the visited endpoint
 
         auto tsrc = mapped_node<GT>(gsrc);
-        NODE_BITS(gtgt).set_bit(Spanning_Tree, true); // mark gtgt visited
+        NODE_BITS(gtgt).set_bit(Spanning_Tree, true);
 
-        // crear copia de gtgt, insertarlo en tree y mapearlo
+        // Create and map the new tree node.
         unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
         tree.insert_node(ttgt_auto.get());
         auto ttgt = ttgt_auto.release();
         GT::map_nodes(gtgt, ttgt);
 
-        // insertar nuevo arco en tree y mapearlo
+        // Insert and map the new tree arc.
         auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
         GT::map_arcs(garc, tarc);
-        if (tree.get_num_nodes() == g.get_num_nodes()) // ¿abarca a g?
+        if (tree.get_num_nodes() == g.get_num_nodes())
           break; 
 
-        // insertar en cola arcos de gtgt
+        // Enqueue arcs incident to the newly visited node.
         for (auto it = g.get_arc_it(gtgt); it.has_curr(); it.next_ne())
           {
             auto current_arc = it.get_current_arc_ne();
             if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
               continue;
 
-            // revise nodos de arcos para ver si han sido visitados
             if (IS_NODE_VISITED(g.get_src_node(current_arc),Spanning_Tree) and 
                 IS_NODE_VISITED(g.get_tgt_node(current_arc),Spanning_Tree))
-              continue; // nodos ya visitados ==> no meter arco
+              continue;
             q.put(current_arc);
           }
       }
@@ -1096,22 +1200,24 @@ namespace Aleph {
     return tree;
   }
 
-  /** Build a spanning tree tree whose arcs are stored in a dynamic array.
-
-      This function construct a spanning tree into a graph object given
-      the arcs that comprises the tree.
-
-      Although this function is conceived for managing trees, it could
-      eventually be used for graphs; for instance, the graph could contain
-      cycles and this could happen even if the number of arcs is lesser
-      than the number of nodes. Of course, it is not intended to use an
-      array for storing a full graph.
-
-      @param[in] arcs dynamic array containing the arcs part of tree.
-      @return a graph containg the tree defined by `arcs` array
-      @throw bad_alloc if there is no enough memory
-      @ingroup Grafos
-  */
+  /** @brief Build a graph from a list of arcs (typically a spanning tree).
+   *
+   * Builds a new graph `ret` containing every arc in `arcs` (skipping null
+   * entries). Nodes are created on demand.
+   *
+   * Mapping:
+   * - Each node created in `ret` stores the original node pointer in its cookie.
+   * - Each arc created in `ret` stores the original arc pointer in its cookie.
+   *
+   * @note This is a one-way mapping (`ret` → original). The original graph is
+   * not modified.
+   *
+   * @param[in] arcs Dynamic array containing the arcs to insert.
+   * @return A graph containing exactly the arcs provided in `arcs`.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   */
   template <class GT>
   GT build_spanning_tree(const DynArray<typename GT::Arc*> & arcs)
   {
@@ -1134,7 +1240,7 @@ namespace Aleph {
                       tsrc = pair_ptr->second;
                     else
                       {
-                        tsrc = ret.insert_node(gsrc->get_info()); // borrar get_info()
+                        tsrc = ret.insert_node(gsrc->get_info());
                         table.insert(gsrc, tsrc);
                         NODE_COOKIE(tsrc) = gsrc;
                       }
@@ -1158,62 +1264,101 @@ namespace Aleph {
     return ret;
   }
 
+  /// @brief Internal helper: DFS discovery time stored in `NODE_COUNTER(p)`.
   template <class GT> inline static 
   long & df(typename GT::Node * p)
   {
     return NODE_COUNTER(p);
   }
 
+  /// @brief Internal helper: low-link value stored indirectly via `NODE_COOKIE(p)`.
   template <class GT> inline static 
   long & low(typename GT::Node * p)
   {
-    return reinterpret_cast<long&>(NODE_COOKIE(p));
+    return *static_cast<long*>(NODE_COOKIE(p));
   }
 
+  /** @brief Internal DFS step used by compute_cut_nodes(). */
   template <class GT> inline static
   void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
                            typename GT::Node * p, typename GT::Arc * a,
                            long & curr_df);
 
-  /** Compute the articulation (or cut) points of a graph.
-
-      The control bits `Depth_First` and `Cut` are used.
-
-      This function could combine it with `paint_subgraphs()` in
-      order to paint the different components separated by the cut
-      points.
-	  
-      Mapped copies of components could be computed with
-      `map_subgraph()` and `map_cut_graph()` on a grap peviously painted.
-          
-      `g` must be connected.
-
-      @param[in] g the graph
-      @param[in] start a starting node by where to star the calculations
-      @return A list of node corresponding to thge cut coints
-      @throw bad_alloc if there is no enough memory
-      @see paint_subgraphs() map_subgraph() map_cut_graph()
-      @ingroup Grafos
-  */
+  /** @brief Compute articulation points (cut vertices) of an undirected graph.
+   *
+   * Uses a DFS-based algorithm (Tarjan-style) to compute the articulation
+   * points reachable from `start`.
+   *
+   * Side effects:
+   * - Resets arc control attributes via `g.reset_arcs()`.
+   * - Resets node counters and control bits (all node bit fields are cleared).
+   * - Uses the `Depth_First` and `Cut` control bits on nodes, and `Depth_First`
+   *   on arcs.
+   * - Temporarily stores low-link values in node cookies and clears all node
+   *   cookies to `nullptr` before returning.
+   *
+   * @note For a disconnected graph, only the connected component reachable
+   * from `start` is analyzed.
+   *
+   * @param[in] g Graph to analyze (must not be a digraph).
+   * @param[in] start Starting node (must be non-null and belong to `g`).
+   * @return List of articulation nodes (pointers into `g`).
+   * @throw domain_error If `g` is a directed graph.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see paint_subgraphs(), map_subgraph(), map_cut_graph()
+   */
   template <class GT>
   DynList<typename GT::Node*> 
   compute_cut_nodes(const GT & g, typename GT::Node * start)
   {
     DynList<typename GT::Node*> list;
 
-    g.for_each_node([] (auto p) // init the nodes
-                    {
-                      NODE_COUNTER(p) = 0;
-                      NODE_BITS(p).reset();
-                      low<GT>(p) = -1;
-                    });
+    ah_domain_error_if(g.is_digraph())
+      << "compute_cut_nodes() does not work on digraphs";
+
+    if (g.get_num_nodes() == 0)
+      return list;
+
+    ah_invalid_argument_if(start == nullptr)
+      << "compute_cut_nodes(): start must be non-null";
+
+    using Node = typename GT::Node;
+
+    std::vector<Node*> nodes;
+    nodes.reserve(g.get_num_nodes());
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+      nodes.push_back(it.get_curr());
+
+    std::vector<long> low_values(nodes.size(), -1);
+
+    for (size_t i = 0; i < nodes.size(); ++i)
+      {
+        auto p = nodes[i];
+        NODE_COUNTER(p) = 0;
+        NODE_BITS(p).reset();
+        NODE_COOKIE(p) = &low_values[i];
+      }
+
+    struct Cookie_Guard
+    {
+      std::vector<Node*> & nodes;
+
+      ~Cookie_Guard()
+      {
+        for (auto p : nodes)
+          NODE_COOKIE(p) = nullptr;
+      }
+    } cookie_guard{nodes};
+
     g.reset_arcs();
-    long current_df = 0; // contador global de visitas 
-    NODE_BITS(start).set_bit(Depth_First, true); // marcar start
-    df<GT>(start) = current_df++;
-    int call_counter = 0; // contador llamadas recursivas
+    long current_df = 0;
+    NODE_BITS(start).set_bit(Depth_First, true);
+    low<GT>(start) = df<GT>(start) = current_df++;
+    int call_counter = 0;
   
-    // Recorra los arcos de start mientras g no haya sido abarcado
+    // Traverse arcs incident to `start`.
     for (auto it = g.get_arc_it(start); 
          it.has_curr() and current_df < g.get_num_nodes(); it.next_ne())
       {
@@ -1230,7 +1375,8 @@ namespace Aleph {
         ++call_counter;
       }
 
-    if (call_counter > 1) // ¿es la raíz un punto de articulación?
+    // Root is an articulation point iff it has more than one DFS child.
+    if (call_counter > 1)
       {
         NODE_BITS(start).set_bit(Cut, true);
         list.append(start);
@@ -1246,28 +1392,28 @@ namespace Aleph {
     return compute_cut_nodes(g, g.get_node());
   }
       
+  /** @brief Internal recursive step for compute_cut_nodes(). */
   template <class GT> inline static
   void __compute_cut_nodes(const GT & g, DynList<typename GT::Node *> & list, 
                            typename GT::Node * p, typename GT::Arc * a, 
                            long & curr_df)
   {
-    NODE_BITS(p).set_bit(Depth_First, true); // pinte p visitado
-    low <GT> (p) = df <GT> (p) = curr_df++;  // asígnele df
+    NODE_BITS(p).set_bit(Depth_First, true);
+    low<GT>(p) = df<GT>(p) = curr_df++;
 
-    // recorrer arcos de p mientras no se abarque a g
     bool p_is_cut_node = false;
     for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
       {
         auto arc = it.get_current_arc_ne();
         if (arc == a) 
-          continue; // a es el padre de arc ==> ignorarlo
+          continue; // parent arc
 
         auto tgt = it.get_tgt_node_ne();
         if (IS_NODE_VISITED(tgt, Depth_First)) 
           { 
-            if (not IS_ARC_VISITED(arc, Depth_First)) // no abarcador?
-              if (df<GT>(tgt) < low<GT>(p)) // sí, verificar valor low
-                low<GT>(p) = df<GT>(tgt); // actualizar low(p)
+            if (not IS_ARC_VISITED(arc, Depth_First))
+              if (df<GT>(tgt) < low<GT>(p))
+                low<GT>(p) = df<GT>(tgt);
 
             continue;
           }
@@ -1275,18 +1421,17 @@ namespace Aleph {
         if (IS_ARC_VISITED(arc, Depth_First)) 
           continue;
 
-        ARC_BITS(arc).set_bit(Depth_First, true); // marque arco
+        ARC_BITS(arc).set_bit(Depth_First, true);
 
         __compute_cut_nodes(g, list, tgt, arc, curr_df);
 
         if (low<GT>(tgt) < low<GT>(p)) 
-          low<GT>(p) = low<GT>(tgt); // actualizar low(p)
+          low<GT>(p) = low<GT>(tgt);
 
-        if (low<GT>(tgt) >= df<GT>(p) and df<GT>(tgt) != 0) // ¿de corte?
+        if (low<GT>(tgt) >= df<GT>(p) and df<GT>(tgt) != 0)
           p_is_cut_node = true;
       }
 
-    // aquí, p ya fue explorado recursivamente
     if (p_is_cut_node)
       {
         NODE_BITS(p).set_bit(Cut, true);
@@ -1294,62 +1439,76 @@ namespace Aleph {
       }
   }
 
+  /** @brief Special marker for arcs connecting a cut node to a non-cut block.
+   *
+   * Used by paint_subgraphs()/map_cut_graph().
+   */
   const long Cross_Arc = -1;
 
+  /// @brief Return `true` if the arc is marked as a cross-arc by paint_subgraphs().
   template <class GT> inline static 
   bool is_a_cross_arc(typename GT::Arc * a) 
   {
     return ARC_COUNTER(a) == Cross_Arc; 
   }
 
+  /// @brief Return `true` if the node is marked as an articulation point.
   template <class GT> inline static 
   bool is_a_cut_node(typename GT::Node * p)
   {
     return NODE_BITS(p).get_bit(Cut);
   }
 
+  /// @brief Return `true` if the arc is marked as a cut-arc (between cut nodes).
   template <class GT> inline static 
   bool is_an_cut_arc(typename GT::Arc * a)
   {
     return ARC_BITS(a).get_bit(Cut);
   }
+
+  /// @brief Return `true` if the node has a positive color.
   template <class GT> inline static 
   bool is_node_painted(typename GT::Node * p)
   {
     return NODE_COUNTER(p) > 0;
   }
 
+  /// @brief Return `true` if the arc has a positive color.
   template <class GT> inline static 
   bool is_arc_painted(typename GT::Arc * arc)
   {
     return ARC_COUNTER(arc) > 0;
   }
 
+  /// @brief Set the node color (stored in `NODE_COUNTER`).
   template <class GT> inline static 
   void paint_node(typename GT::Node * p, const long & color)
   {
     NODE_COUNTER(p) = color;
   }
 
+  /// @brief Set the arc color (stored in `ARC_COUNTER`).
   template <class GT> inline static 
   void paint_arc(typename GT::Arc * a, const long & color)
   {
     ARC_COUNTER(a) = color;
   }
 
+  /// @brief Return the node color (stored in `NODE_COUNTER`).
   template <class GT> inline static 
   const long & get_color(typename GT::Node * p)
   {
     return NODE_COUNTER(p);
   }
 
+  /// @brief Return the arc color (stored in `ARC_COUNTER`).
   template <class GT> inline static 
   const long & get_color(typename GT::Arc * a)
   {
     return ARC_COUNTER(a);
   }
 
-
+  /** @brief Internal DFS that paints a non-cut block with `current_color`. */
   template <class GT> inline static
   void __paint_subgraph(const GT & g, typename GT::Node * p, long current_color)
   {
@@ -1376,13 +1535,14 @@ namespace Aleph {
       }
   }
 
+  /** @brief Internal step that paints all blocks adjacent to a cut node. */
   template <class GT> inline static
   void 
   __paint_from_cut_node(const GT & g, typename GT::Node * p, long & current_color)
   {
     assert(is_a_cut_node <GT> (p));
 
-    // pintar recursivamente con dif colores bloques conectados a p
+    // Paint each adjacent non-cut block with a new color.
     for (auto it = g.get_arc_it(p); it.has_curr(); it.next_ne())
       {
         auto arc = it.get_current_arc_ne();
@@ -1390,60 +1550,61 @@ namespace Aleph {
         assert(not is_arc_painted <GT> (arc));
 
         auto tgt_node = it.get_tgt_node_ne();
-        if (is_a_cut_node <GT> (tgt_node)) // ¿ es un arco de corte?
+        if (is_a_cut_node <GT> (tgt_node)) // cut-to-cut arc
           {
-            ARC_BITS(arc).set_bit(Cut, true); // marque como de corte
-            continue; // avance a próximo arco
+            ARC_BITS(arc).set_bit(Cut, true);
+            continue;
           }
         else 
           {
-            paint_arc <GT> (arc, Cross_Arc); // marque como de cruce
+            paint_arc <GT> (arc, Cross_Arc);
             if (is_node_painted <GT> (tgt_node)) 
               continue; 
           }
 
-        // pintar recursivamente nodo conectado a arc
         __paint_subgraph(g, tgt_node, current_color);
 
-        current_color++; // cambiar color (sig arco en otro bloque)
+        ++current_color;
 
         assert(not is_arc_painted <GT> (arc));
       }
   }
 
-  /** Paint a connected graph according to its cut points.
-
-      `paint_subgraphs()` takes a graph and a cut points list previously
-      computed with `compute_cut_nodes()` and on the graph paints its
-      nodes and arcs witg different colors according to the cut
-      points. The color would allow to distinguish the components which
-      are separated by cut points. The color is defined with the counter
-      attribute of node and arcs.
-
-      The first color starts from one. The number of color is thus the
-      number of different components.
-
-      `paint_subgraphs()` uses the control bit `Cut` in order to
-      differentiate the cut nodes and arcs. So, the graph must remain
-      intact after the cut nodes computation. The procedure internally
-      uses also the control bit Build_Subtree.
-
-      \note In order to this function works you must strictly respect the
-      protocol. That is, you call to `compute_cut_nodes()`, whick gives
-      the cut nodes list and leaves the nodes and arcs of the graph
-      adequately marked. You must not alter the control bits of graph.
-      cruce (arcos adyacentes a un punto de corte). If this protocol is
-      respected, the this fuction will not fail, because it does not
-      require memory.
-
-      @param[in] g the grapg to be painted
-      @param[in] cut_node_list cut nodes list previously computed with 
-      `compute_cut_node()`
-      @return the number of colors which is exactly the number of
-      component separated by the cut cpoints
-      @see compute_cut_nodes() map_subgraph()  map_cut_graph()
-      @ingroup Grafos
-  */
+  /** @brief Paint connected blocks around articulation points.
+   *
+   * Given a list of cut nodes (typically computed with compute_cut_nodes()),
+   * paints the graph so that each biconnected block around the cut nodes gets
+   * a distinct positive "color".
+   *
+   * Color storage:
+   * - Node colors are stored in `NODE_COUNTER(node)`.
+   * - Arc colors are stored in `ARC_COUNTER(arc)`.
+   *
+   * Special markers:
+   * - Cut nodes keep color `0`.
+   * - Cross arcs (cut → non-cut) are marked with `ARC_COUNTER(arc) == Cross_Arc`.
+   * - Cut arcs (cut → cut) are marked by setting the `Cut` control bit on arcs.
+   *
+   * Return value:
+   * - The first used color is `1`.
+   * - The function returns the next unused color value (so valid colors are
+   *   in the range `[1, return_value - 1]`).
+   *
+   * Protocol:
+   * - The `Cut` bit on nodes must already mark cut nodes.
+   * - Do not reset/alter node/arc control bits between computing cut nodes and
+   *   calling this function.
+   *
+   * Side effects:
+   * - Resets all node and arc counters (colors) to `0` before painting.
+   *
+   * @param[in] g Graph to paint.
+   * @param[in] cut_node_list Cut nodes list (as returned by compute_cut_nodes()).
+   * @return Next unused color id (one past the last used color).
+   *
+   * @ingroup Grafos
+   * @see compute_cut_nodes(), map_subgraph(), map_cut_graph()
+   */
   template <class GT> inline long 
   paint_subgraphs(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
   {
@@ -1451,28 +1612,27 @@ namespace Aleph {
     g.reset_counter_arcs();
     long current_color = 1;
 
-    // Recorrer cada nodo de corte y pintar sus bloques
     for (auto it = cut_node_list.get_it(); it.has_curr(); it.next_ne())
       __paint_from_cut_node(g, it.get_curr(), current_color);
 
     return current_color;
   }
 
-
+  /** @brief Internal recursive step used by map_subgraph(). */
   template <class GT> inline static
   void __map_subgraph(const GT & g, GT & sg, typename GT::Node * gsrc, 
                       const long color)
   {
     assert(get_color <GT> (gsrc) == color);
 
-    auto tsrc = mapped_node<GT>(gsrc); // gsrc en sg
+    auto tsrc = mapped_node<GT>(gsrc); // image of gsrc in sg
 
-    // recorrer arcos de gsrc y añadir a sg los del color de interés
+    // Traverse arcs and copy those with the requested color.
     for (auto it = g.get_arc_it(gsrc); it.has_curr(); it.next_ne())
       {
         auto garc = it.get_current_arc_ne();
         if (get_color<GT>(garc) != color or IS_ARC_VISITED(garc, Build_Subtree))
-          continue; // arco es de otro color o ya está visitado 
+          continue;
 
         ARC_BITS(garc).set_bit(Build_Subtree, true); 
 
@@ -1480,11 +1640,11 @@ namespace Aleph {
 
         assert(get_color <GT> (gtgt) == color);
 
-        auto ttgt = nullptr; // imagen gtgt en sg
-        if (IS_NODE_VISITED(gtgt, Build_Subtree)) // ¿gtgt en sg?
+        typename GT::Node * ttgt = nullptr; // image of gtgt in sg
+        if (IS_NODE_VISITED(gtgt, Build_Subtree))
           ttgt = mapped_node<GT> (gtgt);
         else
-          {     // gtgt no está en sg ==> copiarlo y mapearlo
+          {     // gtgt not in sg yet: copy & map it
             unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
             sg.insert_node(ttgt_auto.get());
             GT::map_nodes(gtgt, ttgt_auto.get());
@@ -1499,32 +1659,38 @@ namespace Aleph {
       }
   }
 
-  /** Extract a mapped copy of a subgraph with a specific color.
-          
-      `map_subgraph(g, color)` searches a node of `g` with the
-      `color`. Once found, the graph is traversed in depth first order and
-      all the nodes and arcs with `color` are copied and mapped to a
-      resulting subgraph.
-
-      `map_subgraph()` was/is primarily destined to extract a block
-      according to a cut point and `paint_subgraphs()`. However,
-      this function could perfectly be used for extracting any painted
-      subgraph.
-
-      @param[in] g the graph
-      @param[in] color the color value
-      @return a mapped subgraph whose nodes and arcs have te `color`
-      @throw bad_alloc if there is no enough memory
-      @see paint_subgraphs() compute_cut_nodes() map_cut_graph()
-      @ingroup Grafos
-  */
+  /** @brief Extract a mapped subgraph containing a given color.
+   *
+   * Assumes `g` has been painted (e.g., via paint_subgraphs()) and extracts the
+   * connected block whose nodes/arcs have the given positive `color`.
+   *
+   * Side effects:
+   * - Resets the `Build_Subtree` control bit on all nodes and arcs.
+   * - Uses the `Build_Subtree` control bit during extraction.
+   * - Maps nodes and arcs between `g` and the returned subgraph via cookies.
+   *
+   * @param[in] g Painted graph.
+   * @param[in] color Color value to extract.
+   * @return A mapped subgraph containing only nodes/arcs with `color`.
+   * @throw domain_error If `color` does not exist in `g`.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see paint_subgraphs(), compute_cut_nodes(), map_cut_graph()
+   */
   template <class GT>
   GT map_subgraph(const GT & g, const long color)
   {
-    typename GT::Node * first = nullptr; // busque primer nodo con color
+    g.reset_bit_nodes(Build_Subtree);
+    g.reset_bit_arcs(Build_Subtree);
+
+    typename GT::Node * first = nullptr;
     for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
       if (get_color <GT> (it.get_current_node_ne()) == color)
-        first = it.get_current_node_ne();
+        {
+          first = it.get_current_node_ne();
+          break;
+        }
 
     ah_domain_error_if(first == nullptr)
       << "Color does not exist in the graph";
@@ -1535,36 +1701,31 @@ namespace Aleph {
     GT::map_nodes(first, auto_tsrc.release());
     NODE_BITS(first).set_bit(Build_Subtree, true);
 
-    __map_subgraph(g, sg, first, color); // mapee first
+    __map_subgraph(g, sg, first, color);
   
     return sg;
   }
 
-  /** Extract a mapped copy of cut graph.
-
-      `map_cut_graph(g, cut_node_list)` extracts, according to
-      `cut_node_list`, the cut graph. 
-
-      The cut graph is composed by the cut nodes and arcs. A cut arc if an
-      arc linking two cut points.
-
-      An arc linking a cut point with a non cut point is called a "cross
-      arc".
-
-      The function requires that nodes and arcs are marked with their
-      respective control bits as well as they are painted. So, this
-      requires that the cut points has previously been computed and the
-      graph has been painted.
-
-      @param[in] g the graph
-      @param[in] cut_node_list list with the cut points
-      grafo es a menudo inconexo.
-      @return a `tuple<GT, DynList<typename GT::Arc*>>` whose first
-      element is the cut graph and the second is a list with the cross arcs.
-      @throw bad_alloc if there is no enough memory
-      @see map_subgraph() compute_cut_nodes() paint_subgraphs()
-      @ingroup Grafos
-  */
+  /** @brief Extract the cut graph and cross-arc list.
+   *
+   * Requires a graph previously processed by:
+   * - compute_cut_nodes(): marks cut nodes with the `Cut` bit
+   * - paint_subgraphs(): paints blocks and marks cross/cut arcs
+   *
+   * The returned cut graph contains:
+   * - all cut nodes
+   * - all cut arcs (arcs between cut nodes; marked with the `Cut` bit on arcs)
+   *
+   * Cross arcs (cut → non-cut) are returned separately in `cross_arc_list`.
+   *
+   * @param[in] g Painted graph.
+   * @param[in] cut_node_list Cut nodes list.
+   * @return `{cut_graph, cross_arc_list}`.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   * @see map_subgraph(), compute_cut_nodes(), paint_subgraphs()
+   */
   template <class GT>
   std::tuple<GT, DynList<typename GT::Arc*>>
   map_cut_graph(const GT & g, const DynList<typename GT::Node*> & cut_node_list)
@@ -1583,7 +1744,7 @@ namespace Aleph {
         GT::map_nodes(gp, tp_auto.release());
       }
 
-    // cut_graph = {not cut arcs} U cross_arc_list = {cross arcs}
+    // cut_graph contains cut-to-cut arcs; cross_arc_list collects cut-to-noncut arcs.
     for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
       {
         auto garc = it.get_current_arc_ne();
@@ -1609,12 +1770,15 @@ namespace Aleph {
   }
 
 
-  /** Comparison functor for arc distances.
-
-      Used by Dijkstra and Prim algorithms in combination with a heap of arcs
-
-      @ingroup Grafos
-  */
+  /** @brief Comparison functor for arc weights/distances.
+   *
+   * Commonly used by algorithms such as Dijkstra/Prim together with heaps.
+   *
+   * @tparam GT Graph type.
+   * @tparam Distance Distance accessor functor.
+   *
+   * @ingroup Grafos
+   */
   template <class GT, class Distance> 
   struct Distance_Compare
   {
@@ -1629,45 +1793,52 @@ namespace Aleph {
   };
 
 
-  /** Compute the inverted graph; that is the seame nodes but its
-      arcs inverted.
-
-      After call the graphs are mapped.
-
-      @param[in] g the graph
-      @return a inverted a mapped graph to `g`
-      @throw bad_alloc if there is no enough memory
-      @ingroup Grafos
-  */
+  /** @brief Compute the transpose (arc-reversed) digraph.
+   *
+   * Builds a new digraph containing the same nodes as `g` and every arc
+   * reversed.
+   *
+   * Side effects:
+   * - Resets all node and arc control attributes via `g.reset_nodes()` and
+   *   `g.reset_arcs()`.
+   * - Maps nodes and arcs between `g` and the returned digraph via cookies.
+   *
+   * @param[in] g Input digraph.
+   * @return The transposed digraph, mapped to `g`.
+   * @throw domain_error If `g` is not a digraph.
+   * @throw bad_alloc If there is not enough memory.
+   *
+   * @ingroup Grafos
+   */
   template <class GT> 
   GT invert_digraph(const GT & g)
   {
+    ah_domain_error_unless(g.is_digraph())
+      << "invert_digraph() requires a digraph (or a graph temporarily treated as a digraph)";
+
     g.reset_nodes();
+    g.reset_arcs();
     GT gi;
+
+    // Copy all nodes first so isolated vertices are preserved.
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+      {
+        auto gp = it.get_curr();
+        auto ip = gi.insert_node(gp->get_info());
+        GT::map_nodes(gp, ip);
+      }
 
     for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
       {
         auto arc   = it.get_curr();
 
-        auto ssrc = g.get_src_node(arc); 
-        auto rsrc = mapped_node<GT> (ssrc);
-        if (rsrc == nullptr) // ¿ya está creado ssrc en gi?
-          {     // no == crearlo, insertarlo y mapearlo
-            unique_ptr<typename GT::Node> rsrc_auto(new typename GT::Node(ssrc));
-            gi.insert_node(rsrc_auto.get());
-            GT::map_nodes(ssrc, rsrc_auto.get());
-            rsrc = rsrc_auto.release(); 
-          }
-
+        auto ssrc = g.get_src_node(arc);
         auto stgt = g.get_tgt_node(arc);
-        auto rtgt = mapped_node<GT> (stgt);
-        if (rtgt == nullptr) // ¿ya está creado ssrc en gi?
-          {     // no == crearlo, insertarlo y mapearlo
-            unique_ptr<typename GT::Node> rtgt_auto(new typename GT::Node(stgt));
-            gi.insert_node(rtgt_auto.get());
-            GT::map_nodes(stgt, rtgt_auto.get());
-            rtgt = rtgt_auto.release(); 
-          }
+
+        auto rsrc = mapped_node<GT>(ssrc);
+        auto rtgt = mapped_node<GT>(stgt);
+
+        assert(rsrc != nullptr and rtgt != nullptr);
 
         typename GT::Arc * ai = gi.insert_arc(rtgt, rsrc, arc->get_info());
         GT::map_arcs(arc, ai);
@@ -1680,10 +1851,15 @@ namespace Aleph {
   }
 
 
-  /** Functor for computing the inverted graph but filtered
-
-      @ingroup Grafos
-  */
+  /** @brief Functor for computing the transposed digraph, filtering arcs.
+   *
+   * Produces the transpose of `g`, including only arcs that satisfy the filter
+   * `SA`.
+   *
+   * Nodes are always preserved (including isolated nodes).
+   *
+   * @ingroup Grafos
+   */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class Invert_Digraph
   {
@@ -1691,65 +1867,63 @@ namespace Aleph {
 
   public:
 
-    /// Construct functor wih filter sa
+    /// Construct a functor using the arc filter `__sa`.
     Invert_Digraph(SA __sa) : sa(__sa) { /* empty */ }
 
-    /** Compute the inverted graph; that is the seame nodes but its
-        arcs inverted.
-
-        After call the graphs are mapped.
-
-        @param[in] g the graph
-        @return a inverted a mapped graph to `g`
-        @throw bad_alloc if there is no enough memory
-    */
+    /** @brief Compute the transposed graph.
+     *
+     * @param[in] g Input digraph.
+     * @return The transposed digraph, mapped to `g`.
+     * @throw domain_error If `g` is not a digraph.
+     * @throw bad_alloc If there is not enough memory.
+     */
     GT operator () (const GT & g) const
     {
+      ah_domain_error_unless(g.is_digraph())
+        << "Invert_Digraph requires a digraph (or a graph temporarily treated as a digraph)";
+
       g.reset_nodes();
+      g.reset_arcs();
       GT gi;
+
+      // Copy all nodes first so isolated vertices are preserved.
+      for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+        {
+          auto gp = it.get_curr();
+          auto ip = gi.insert_node(gp->get_info());
+          GT::map_nodes(gp, ip);
+        }
 
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         {
           auto arc  = it.get_curr();
 
-          auto ssrc = g.get_src_node(arc); 
-          auto rsrc = mapped_node<GT> (ssrc);
-          if (rsrc == nullptr) // ¿ya está creado ssrc en gi?
-            {     // no == crearlo, insertarlo y mapearlo
-              unique_ptr<typename GT::Node> rsrc_auto(new typename GT::Node(ssrc));
-              gi.insert_node(rsrc_auto.get());
-              GT::map_nodes(ssrc, rsrc_auto.get());
-              rsrc = rsrc_auto.release(); 
-            }
-
+          auto ssrc = g.get_src_node(arc);
           auto stgt = g.get_tgt_node(arc);
-          auto rtgt = mapped_node<GT> (stgt);
-          if (rtgt == nullptr) // ¿ya está creado ssrc en gi?
-            {     // no == crearlo, insertarlo y mapearlo
-              unique_ptr<typename GT::Node> rtgt_auto(new typename GT::Node(stgt));
-              gi.insert_node(rtgt_auto.get());
-              GT::map_nodes(stgt, rtgt_auto.get());
-              rtgt = rtgt_auto.release(); 
-            }
+
+          auto rsrc = mapped_node<GT>(ssrc);
+          auto rtgt = mapped_node<GT>(stgt);
+
+          assert(rsrc != nullptr and rtgt != nullptr);
 
           typename GT::Arc * ai = gi.insert_arc(rtgt, rsrc, arc->get_info());
           GT::map_arcs(arc, ai);
         }
 
-      assert(g.get_num_arcs() == gi.get_num_arcs() and 
-             g.get_num_nodes() == gi.get_num_nodes());
+      assert(g.get_num_nodes() == gi.get_num_nodes());
 
       return gi;
-      invert_digraph <GT, SA> (g, gi, sa);
     }
   };
 
-  /** Default class for accessing to the distance of arcs.
-
-      It assumes that the distance is directly the `get_info()` return value.
-
-      @ingroup Grafos
-  */
+  /** @brief Default distance accessor for arc weights.
+   *
+   * Reads the arc "distance" directly from `arc->get_info()`.
+   *
+   * @note Intended for numeric arc info types.
+   *
+   * @ingroup Grafos
+   */
   template <class GT>
   class Dft_Dist
   {
@@ -1779,47 +1953,78 @@ namespace Aleph {
     std::numeric_limits<typename Dft_Dist<GT>::Distance_Type>::max();
 
   template <class GT>
-  const typename Dft_Dist<GT>::Distance_Type Dft_Dist<GT>::Zero_Distance = 0.0;
+  const typename Dft_Dist<GT>::Distance_Type Dft_Dist<GT>::Zero_Distance =
+    typename Dft_Dist<GT>::Distance_Type{};
+  
 
-  /** Compute a path embedded through the node cookies by a specific
-      algorithm
-
-      Some algorithms store resulting inverted paths in node
-      cookies. This function takes the nodes `s` and `end` from which
-      presumably is stored a path through the cookies and build the path.
-
-      @param[in] s source node of path
-      @param[in] end node of path
-      @param[out] path where put the result 
-      @return the total distance of path
-      @throw bad_alloc if there is no enough memory
-  */
+  /** @brief Reconstruct a path encoded via node cookies and compute its cost.
+   *
+   * Many shortest-path algorithms store a predecessor pointer in each node
+   * cookie. This function follows that predecessor chain from `end` back to `s`,
+   * builds the corresponding `Path<GT>` (in forward order), and returns the
+   * total cost according to the `Distance` accessor.
+   *
+   * Preconditions:
+   * - For every node `p` on the path (except `s`), `NODE_COOKIE(p)` must point
+   *   to its predecessor node.
+   * - `path` must already be associated with the graph containing the nodes
+   *   (i.e., `path.empty()` and `path.insert()` must be valid operations).
+   *
+   * @param[in] s Start node.
+   * @param[in] end End node.
+   * @param[in,out] path Output path (cleared and rebuilt).
+   * @return Total distance along the reconstructed path.
+   * @throw invalid_argument If `s` or `end` is nullptr.
+   * @throw domain_error If the cookie chain is broken (nullptr encountered).
+   * @throw bad_alloc If there is not enough memory.
+   */
   template <class GT, class Distance = Dft_Dist<GT>>
   typename Distance::Distance_Type
   get_min_path(typename GT::Node * s, typename GT::Node * end, Path<GT> & path)
   {
-    typename Distance::Distance_Type dist = 0.0;
+    using Distance_Type = typename Distance::Distance_Type;
+
+    ah_invalid_argument_if(s == nullptr or end == nullptr)
+      << "get_min_path(): s and end must be non-null";
+
+    Distance_Type dist{};
     path.empty();
     path.insert(end);
 
+    if (s == end)
+      return dist;
+
+    Distance distance;
     auto p = end;
     do
       {
-        p = (typename GT::Node *) NODE_COOKIE(p);
+        p = static_cast<typename GT::Node *>(NODE_COOKIE(p));
+        ah_domain_error_if(p == nullptr)
+          << "get_min_path(): broken cookie chain (nullptr)";
         path.insert(p);
-        dist = dist + Distance() (path.get_first_arc());
+        dist += distance(path.get_first_arc());
       }
     while (p != s);
 
     return dist;
   }
 
-  /** Functor for computing the total cost of arcs 
-
-      Generally used for computing cost of spanning trees.
-          
-      @ingroup Grafos
-  */
+  /** @brief Compute the total cost (sum of arc weights) of a graph.
+   *
+   * Iterates over all arcs of a graph (filtered by `SA`) and sums their
+   * distance/weight using the `Distance` accessor.
+   *
+   * Two usage patterns:
+   * - Call `total_cost(g)` / `operator()(g)` to compute the sum for a whole graph.
+   * - Use `operator()(arc)` as an accumulator with traversal utilities such as
+   *   `traverse_arcs()`, then read the result via value().
+   *
+   * @tparam GT Graph type.
+   * @tparam Distance Distance accessor (defaults to Dft_Dist).
+   * @tparam SA Arc filter for Arc_Iterator.
+   *
+   * @ingroup Grafos
+   */
   template <class GT, 
             class Distance = Dft_Dist<GT>, 
             class SA       = Dft_Show_Arc<GT>>
@@ -1827,6 +2032,7 @@ namespace Aleph {
   {
     Distance dist;
     SA       sa;
+    typename Distance::Distance_Type sum{};
 
   public:
 
@@ -1839,9 +2045,9 @@ namespace Aleph {
     /// Compute the total cost
     typename Distance::Distance_Type total_cost(GT & g)
     {
-      typename Distance::Distance_Type sum = 0;
-  
-      // recorrer todos los arcos y sumar su peso
+      sum = typename Distance::Distance_Type{};
+
+      // Traverse all arcs and sum their weights
       for (Arc_Iterator <GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         sum += dist(it.get_current_arc_ne());
 
@@ -1854,13 +2060,25 @@ namespace Aleph {
       return total_cost (g);
     }
 
+    /// Reset the internal accumulator used by `operator()(Arc*)`.
+    void reset() noexcept
+    {
+      sum = typename Distance::Distance_Type{};
+    }
+
+    /// Return the accumulated value (after using `operator()(Arc*)`).
+    typename Distance::Distance_Type value() const noexcept
+    {
+      return sum;
+    }
+
     bool operator () (typename GT::Arc * a)
     {
       if (not sa(a))
-        return false;
+        return true; // skip but keep traversing
 
-      dist += dist(a);
-      return true;
+      sum += dist(a);
+      return true; // keep traversing
     }
   };
 

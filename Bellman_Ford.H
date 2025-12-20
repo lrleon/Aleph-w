@@ -32,6 +32,8 @@
 # include <Tarjan.H>
 # include <ah-errors.H>
 
+# include <vector>
+
 namespace Aleph
 {
   template <class GT, class Distance>
@@ -78,6 +80,25 @@ namespace Aleph
       return static_cast<Ni *>(NODE_COOKIE(p))->idx;
     }
 
+    // Checked addition to prevent integer overflow
+    Distance_Type checked_add(const Distance_Type &a, const Distance_Type &b) const
+    {
+      if constexpr (std::is_integral_v<Distance_Type>)
+        {
+          // Check for positive overflow
+          if (b > 0 && a > std::numeric_limits<Distance_Type>::max() - b)
+            ah_overflow_error() << "Integer overflow in distance addition: "
+                                << a << " + " << b;
+
+          // Check for negative overflow (underflow)
+          if (b < 0 && a < std::numeric_limits<Distance_Type>::min() - b)
+            ah_overflow_error() << "Integer underflow in distance addition: "
+                                << a << " + " << b;
+        }
+
+      return a + b;
+    }
+
     DynArray<typename GT::Arc *> arcs;
     const GT & g;
     const Distance_Type Inf;
@@ -89,6 +110,28 @@ namespace Aleph
     // Initialize without using arrays
     void init_simple(Node *start)
     {
+      // RAII guard to ensure cleanup on exception
+      struct Init_Guard
+      {
+        Bellman_Ford & bf;
+        bool released = false;
+
+        explicit Init_Guard(Bellman_Ford & bf_) : bf(bf_) {}
+
+        ~Init_Guard()
+        {
+          if (not released)
+            bf.uninit<Sni>();
+        }
+
+        void release() { released = true; }
+
+        Init_Guard(const Init_Guard &) = delete;
+        Init_Guard & operator=(const Init_Guard &) = delete;
+      };
+
+      Init_Guard guard(*this);
+
       typename GT::Node_Iterator it(g);
       for (int i = 0; it.has_curr(); ++i, it.next_ne())
         {
@@ -102,13 +145,40 @@ namespace Aleph
       s = start;
       accum(s) = 0;
       g.reset_arcs();
+
+      guard.release(); // Successful initialization, prevent cleanup
     }
 
     void init_with_indexes(Node *start)
     {
+      // RAII guard to ensure cleanup on exception
+      struct Init_Guard
+      {
+        Bellman_Ford & bf;
+        bool released = false;
+
+        explicit Init_Guard(Bellman_Ford & bf_) : bf(bf_) {}
+
+        ~Init_Guard()
+        {
+          if (not released)
+            {
+              bf.uninit<Ni>();
+              bf.arcs.cut();
+            }
+        }
+
+        void release() { released = true; }
+
+        Init_Guard(const Init_Guard &) = delete;
+        Init_Guard & operator=(const Init_Guard &) = delete;
+      };
+
+      Init_Guard guard(*this);
+
       arcs.reserve(g.get_num_nodes());
       typename GT::Node_Iterator it(g);
-      for (int i = 0; it.has_curr(); ++i, it.next_ne())
+      for (int i = 0; it.has_curr(); ++i, it.next())
         {
           arcs(i) = nullptr;
           auto p = it.get_curr();
@@ -125,13 +195,15 @@ namespace Aleph
       accum(s) = 0;
 
       g.reset_arcs();
+
+      guard.release(); // Successful initialization, prevent cleanup
     }
 
     // release the memory associated with the cookies
     template <class Info_Type>
-    void uninit() noexcept
+    void uninit()
     {
-      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next())
         {
           auto p = it.get_curr();
           delete static_cast<Info_Type *>(NODE_COOKIE(p));
@@ -175,7 +247,7 @@ namespace Aleph
 
             auto tgt = it.get_tgt_node_ne();
             auto w = dist(arc);
-            auto sum = accum_src + w;
+            auto sum = checked_add(accum_src, w);
             auto & accum_tgt = accum(tgt);
             if (sum < accum_tgt) // Relax Arc
               {
@@ -208,14 +280,14 @@ namespace Aleph
       for (NAit<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_curr();
-          auto src = g.get_src_node(arc);
-          const auto & accum_src = accum(src);
+          auto arc_src = g.get_src_node(arc);
+          const auto & accum_src = accum(arc_src);
           if (accum_src == Inf)
             continue;
 
           auto tgt = g.get_tgt_node(arc);
           auto w = dist(arc);
-          auto sum = accum_src + w;
+          auto sum = checked_add(accum_src, w);
           auto & accum_tgt = accum(tgt);
           if (sum < accum_tgt) // Relax Arc
             {
@@ -263,7 +335,7 @@ namespace Aleph
           auto tgt = g.get_tgt_node(arc);
           auto d = dist(arc);
           auto & accum_tgt = accum(tgt);
-          auto sum = accum_src + d;
+          auto sum = checked_add(accum_src, d);
           if (sum < accum_tgt)
             {
               negative_cycle = true;
@@ -288,7 +360,7 @@ namespace Aleph
           auto tgt = g.get_tgt_node(arc);
           auto d = dist(arc);
           auto & accum_tgt = accum(tgt);
-          auto sum = accum_src + d;
+          auto sum = checked_add(accum_src, d);
           if (sum < accum_tgt)
             return true;
         }
@@ -312,8 +384,6 @@ namespace Aleph
         }
 
       NODE_COOKIE(s) = nullptr; // just in case there is a negative cycle
-
-      arcs.cut_ne();
     }
 
   public:
@@ -394,15 +464,54 @@ namespace Aleph
   private:
     Node * create_dummy_node()
     {
+      // RAII guard to ensure cleanup on exception
+      struct Dummy_Guard
+      {
+        GT & graph;
+        Node *dummy;
+        std::vector<Arc *> inserted_arcs;
+        bool released = false;
+
+        explicit Dummy_Guard(GT & g, Node *d) : graph(g), dummy(d)
+        {
+          inserted_arcs.reserve(g.get_num_nodes());
+        }
+
+        ~Dummy_Guard()
+        {
+          if (not released)
+            {
+              // Remove all inserted arcs
+              for (auto arc : inserted_arcs)
+                graph.remove_arc(arc);
+
+              // Remove dummy node
+              if (dummy != nullptr)
+                graph.remove_node(dummy);
+            }
+        }
+
+        void add_arc(Arc *a) { inserted_arcs.push_back(a); }
+        void release() { released = true; }
+
+        Dummy_Guard(const Dummy_Guard &) = delete;
+        Dummy_Guard & operator=(const Dummy_Guard &) = delete;
+      };
+
       s = const_cast<GT &>(g).insert_node(typename GT::Node_Type());
+      Dummy_Guard guard(const_cast<GT &>(g), s);
+
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
           if (p == s)
             continue;
           auto a = const_cast<GT &>(g).insert_arc(s, p);
+          guard.add_arc(a);
           Distance::set_zero(a);
         }
+
+      guard.release(); // Successful creation, prevent cleanup
       return s;
     }
 
@@ -454,6 +563,46 @@ namespace Aleph
           auto p = it.get_curr();
           table.insert(p, static_cast<Node *>(NODE_COOKIE(p)));
         }
+
+      struct Aux_Cookie_Guard
+      {
+        GT & aux;
+        struct Saved
+        {
+          Node *p;
+          void *cookie;
+        };
+        std::vector<Saved> saved;
+        std::vector<long *> allocated;
+
+        explicit Aux_Cookie_Guard(GT & a) : aux(a)
+        {
+          saved.reserve(aux.get_num_nodes());
+          allocated.reserve(aux.get_num_nodes());
+
+          for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
+            {
+              auto p = it.get_curr();
+              saved.push_back(Saved{p, NODE_COOKIE(p)});
+
+              auto *low_ptr = new long(0);
+              allocated.push_back(low_ptr);
+              NODE_COOKIE(p) = low_ptr;
+            }
+        }
+
+        ~Aux_Cookie_Guard()
+        {
+          for (auto & s : saved)
+            {
+              delete static_cast<long *>(NODE_COOKIE(s.p));
+              NODE_COOKIE(s.p) = s.cookie;
+            }
+        }
+
+        Aux_Cookie_Guard(const Aux_Cookie_Guard &) = delete;
+        Aux_Cookie_Guard & operator = (const Aux_Cookie_Guard &) = delete;
+      } cookie_guard(aux);
 
       if (Path<GT> path(aux); Tarjan_Connected_Components<GT, NAit, SA>(sa).compute_cycle(aux, path))
         {
@@ -508,7 +657,7 @@ namespace Aleph
     /** Searches and returns a negative cycle (if it exists).
 
         @return a path containing a negative cycle (if it
-        exists). Otherwise it returns an empty path.
+        exists). Otherwise, it returns an empty path.
      */
     Path<GT> test_negative_cycle()
     {
@@ -761,12 +910,21 @@ namespace Aleph
                                                   {
                                                     return a->src_node == gsrc and a->tgt_node == gtgt;
                                                   });
-          assert(garc_ptr and IS_ARC_VISITED(*garc_ptr, Aleph::Spanning_Tree));
+          ah_logic_error_unless(garc_ptr)
+            << "Arc not found between nodes in spanning tree";
+          ah_logic_error_unless(IS_ARC_VISITED(*garc_ptr, Aleph::Spanning_Tree))
+            << "Arc not marked as spanning tree arc";
+
           auto garc = *garc_ptr;
-          assert(garc->src_node == gsrc and garc->tgt_node == gtgt);
+          ah_logic_error_unless(garc->src_node == gsrc and garc->tgt_node == gtgt)
+            << "Arc endpoints don't match expected nodes";
+
           auto tsrc_ptr = table.search(gsrc);
           auto ttgt_ptr = table.search(gtgt);
-          assert(tsrc_ptr and ttgt_ptr);
+          ah_logic_error_unless(tsrc_ptr)
+            << "Source node not found in mapping table";
+          ah_logic_error_unless(ttgt_ptr)
+            << "Target node not found in mapping table";
           auto tarc = tree.insert_arc(tsrc_ptr->second, ttgt_ptr->second,
                                       garc->get_info());
           if (with_map)
@@ -810,7 +968,35 @@ namespace Aleph
      */
     DynMapTree<Node *, Distance_Type> compute_nodes_weights()
     {
-      create_dummy_node();
+      // RAII guard to ensure cleanup on exception
+      struct Cleanup_Guard
+      {
+        Bellman_Ford & bf;
+        Node *dummy;
+        bool released = false;
+
+        explicit Cleanup_Guard(Bellman_Ford & bf_, Node *d)
+          : bf(bf_), dummy(d) {}
+
+        ~Cleanup_Guard()
+        {
+          if (not released)
+            {
+              bf.uninit<Ni>();
+              bf.arcs.cut();
+              if (dummy != nullptr)
+                bf.remove_dummy_node<Ni>(dummy);
+            }
+        }
+
+        void release() { released = true; }
+
+        Cleanup_Guard(const Cleanup_Guard &) = delete;
+        Cleanup_Guard & operator=(const Cleanup_Guard &) = delete;
+      };
+
+      Node *dummy = create_dummy_node();
+      Cleanup_Guard guard(*this, dummy);
 
       init_with_indexes(s);
 
@@ -824,8 +1010,7 @@ namespace Aleph
       put_in_queue(q, s);
       put_in_queue(q, sentinel);
 
-      bool negative_cycle = false;
-      for (int i = 0; not q.is_empty() and not negative_cycle; /* nothing */)
+      for (int i = 0; not q.is_empty(); /* nothing */)
         {
           auto src = get_from_queue(q);
           if (src == sentinel) // Is the sentinel removed?
@@ -839,21 +1024,25 @@ namespace Aleph
             relax_arcs(src, q);
         }
 
-      negative_cycle = last_relax_and_prepare_check_negative_cycle();
-      remove_dummy_node<Ni>(s);
+      const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
 
-      DynMapTree<Node *, long> ret;
+      DynMapTree<Node *, Distance_Type> ret;
 
       // build mapping if there are no negative cycles
       if (not negative_cycle)
         for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
           {
             auto p = it.get_curr();
+            if (p == dummy) // Skip the dummy node
+              continue;
             ret.insert(p, accum(p));
           }
 
+      // Manual cleanup before throwing (guard will handle cleanup on exception)
       uninit<Ni>();
       arcs.cut();
+      remove_dummy_node<Ni>(dummy);
+      guard.release(); // Prevent double cleanup
 
       ah_domain_error_if(negative_cycle)
         << "negative cycles detected";
