@@ -1271,11 +1271,12 @@ namespace Aleph {
     return NODE_COUNTER(p);
   }
 
-  /// @brief Internal helper: low-link value stored indirectly via `NODE_COOKIE(p)`.
+  /// @brief Internal helper: low-link value stored directly in `NODE_COOKIE(p)`.
+  /// The cookie pointer itself is reinterpreted as a long value.
   template <class GT> inline static 
   long & low(typename GT::Node * p)
   {
-    return *static_cast<long*>(NODE_COOKIE(p));
+    return reinterpret_cast<long&>(NODE_COOKIE(p));
   }
 
   /** @brief Internal DFS step used by compute_cut_nodes(). */

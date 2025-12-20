@@ -31,6 +31,7 @@
 # include <tpl_graph_utils.H>
 # include <Tarjan.H>
 # include <ah-errors.H>
+# include <ah_init_guard.H>
 
 # include <vector>
 
@@ -110,27 +111,7 @@ namespace Aleph
     // Initialize without using arrays
     void init_simple(Node *start)
     {
-      // RAII guard to ensure cleanup on exception
-      struct Init_Guard
-      {
-        Bellman_Ford & bf;
-        bool released = false;
-
-        explicit Init_Guard(Bellman_Ford & bf_) : bf(bf_) {}
-
-        ~Init_Guard()
-        {
-          if (not released)
-            bf.uninit<Sni>();
-        }
-
-        void release() { released = true; }
-
-        Init_Guard(const Init_Guard &) = delete;
-        Init_Guard & operator=(const Init_Guard &) = delete;
-      };
-
-      Init_Guard guard(*this);
+      Init_Guard guard([this]() { uninit<Sni>(); });
 
       typename GT::Node_Iterator it(g);
       for (int i = 0; it.has_curr(); ++i, it.next_ne())
@@ -151,30 +132,7 @@ namespace Aleph
 
     void init_with_indexes(Node *start)
     {
-      // RAII guard to ensure cleanup on exception
-      struct Init_Guard
-      {
-        Bellman_Ford & bf;
-        bool released = false;
-
-        explicit Init_Guard(Bellman_Ford & bf_) : bf(bf_) {}
-
-        ~Init_Guard()
-        {
-          if (not released)
-            {
-              bf.uninit<Ni>();
-              bf.arcs.cut();
-            }
-        }
-
-        void release() { released = true; }
-
-        Init_Guard(const Init_Guard &) = delete;
-        Init_Guard & operator=(const Init_Guard &) = delete;
-      };
-
-      Init_Guard guard(*this);
+      Init_Guard guard([this]() { uninit<Ni>(); arcs.cut(); });
 
       arcs.reserve(g.get_num_nodes());
       typename GT::Node_Iterator it(g);
@@ -573,21 +531,17 @@ namespace Aleph
           void *cookie;
         };
         std::vector<Saved> saved;
-        std::vector<long *> allocated;
 
         explicit Aux_Cookie_Guard(GT & a) : aux(a)
         {
           saved.reserve(aux.get_num_nodes());
-          allocated.reserve(aux.get_num_nodes());
 
           for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
             {
               auto p = it.get_curr();
               saved.push_back(Saved{p, NODE_COOKIE(p)});
 
-              auto *low_ptr = new long(0);
-              allocated.push_back(low_ptr);
-              NODE_COOKIE(p) = low_ptr;
+              NODE_COOKIE(p) = nullptr;
             }
         }
 
@@ -595,7 +549,6 @@ namespace Aleph
         {
           for (auto & s : saved)
             {
-              delete static_cast<long *>(NODE_COOKIE(s.p));
               NODE_COOKIE(s.p) = s.cookie;
             }
         }
@@ -906,18 +859,19 @@ namespace Aleph
           if (gsrc == nullptr)
             continue; // This is the source node of the spanning tree
 
-          auto garc_ptr = g.arcs(gsrc).find_ptr([gsrc, gtgt](Arc *a)
-                                                  {
-                                                    return a->src_node == gsrc and a->tgt_node == gtgt;
-                                                  });
-          ah_logic_error_unless(garc_ptr)
+          // Find the spanning tree arc from gsrc to gtgt
+          Arc *garc = nullptr;
+          for (Out_Iterator<GT, SA> ait(gsrc, sa); ait.has_curr(); ait.next_ne())
+            {
+              auto a = ait.get_curr();
+              if (g.get_tgt_node(a) == gtgt and IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+                {
+                  garc = a;
+                  break;
+                }
+            }
+          ah_logic_error_unless(garc != nullptr)
             << "Arc not found between nodes in spanning tree";
-          ah_logic_error_unless(IS_ARC_VISITED(*garc_ptr, Aleph::Spanning_Tree))
-            << "Arc not marked as spanning tree arc";
-
-          auto garc = *garc_ptr;
-          ah_logic_error_unless(garc->src_node == gsrc and garc->tgt_node == gtgt)
-            << "Arc endpoints don't match expected nodes";
 
           auto tsrc_ptr = table.search(gsrc);
           auto ttgt_ptr = table.search(gtgt);
@@ -968,35 +922,14 @@ namespace Aleph
      */
     DynMapTree<Node *, Distance_Type> compute_nodes_weights()
     {
-      // RAII guard to ensure cleanup on exception
-      struct Cleanup_Guard
-      {
-        Bellman_Ford & bf;
-        Node *dummy;
-        bool released = false;
-
-        explicit Cleanup_Guard(Bellman_Ford & bf_, Node *d)
-          : bf(bf_), dummy(d) {}
-
-        ~Cleanup_Guard()
-        {
-          if (not released)
-            {
-              bf.uninit<Ni>();
-              bf.arcs.cut();
-              if (dummy != nullptr)
-                bf.remove_dummy_node<Ni>(dummy);
-            }
-        }
-
-        void release() { released = true; }
-
-        Cleanup_Guard(const Cleanup_Guard &) = delete;
-        Cleanup_Guard & operator=(const Cleanup_Guard &) = delete;
-      };
-
       Node *dummy = create_dummy_node();
-      Cleanup_Guard guard(*this, dummy);
+
+      Init_Guard guard([this, dummy]() {
+        uninit<Ni>();
+        arcs.cut();
+        if (dummy != nullptr)
+          remove_dummy_node<Ni>(dummy);
+      });
 
       init_with_indexes(s);
 

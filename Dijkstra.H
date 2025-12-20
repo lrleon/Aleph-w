@@ -26,8 +26,15 @@
 # ifndef DIJKSTRA_H
 # define DIJKSTRA_H
 
+# include <cassert>
+# include <cstddef>
+# include <limits>
+# include <type_traits>
+# include <utility>
+
 # include <ahFunction.H>
 # include <ah-errors.H>
+# include <ah_init_guard.H>
 # include <archeap.H>
 # include <tpl_find_path.H>
 # include <tpl_agraph.H>
@@ -51,33 +58,33 @@ namespace Aleph
 # define GRAPHNODE(p) (static_cast<typename GT::Node*>(NODE_COOKIE(p)))
 
 
-  /** @brief Spanning tree calculation of all shortest paths from
-      a given node according to Dijkstra's algorithm.
-
-      @details This class handles Dijkstra's algorithm to compute a tree
-      containing of all shortest paths from a node `s` of a graph `g`.
-
-      The algorithm uses an internal queue whose length is proportional
-      to the number of nodes in the graph.
-
-      Dijkstra's algorithm does not work for graphs with negative weights.
-
-      The class receives the following template parameters:
-      -# `GT`: graph type.
-      -# `Distance <GT>`: class reading the weight. It should export the
-          following attributes:
-      -# `typedef Distance<GT>::Distance_Type`: Data type. It
-         represents a weight on an arc
-      -# Distance <GT> Distance_Type :: operator () (typename GT :: Arc * a):
-         that returns the value of the peso in the bow
-        .
-      -# `SA`: Arcs filter for internal iterator
-      .
-
-      @see Find_Path_Depth_First Floyd_All_Shortest_Paths Bellman_Ford_Min_Spanning_Tree
-
-  @ingroup Grafos
-*/
+  /** @brief Shortest paths and shortest-path trees (Dijkstra).
+   *
+   * Computes shortest paths from a single source node using Dijkstra's
+   * algorithm.
+   *
+   * Two usage modes are provided:
+   * - **Painting mode**: marks the shortest-path tree directly on the input
+   *   graph (via the `Spanning_Tree` control bit) and stores predecessor
+   *   pointers in node cookies so that get_min_path() can later reconstruct a
+   *   shortest path.
+   * - **Tree-building mode**: builds a separate graph that contains the
+   *   shortest-path tree and maps nodes/arcs between the input graph and the
+   *   tree via cookies.
+   *
+   * Template parameters:
+   * - `GT`: graph type.
+   * - `Distance`: arc weight accessor. Must define `Distance_Type` and provide
+   *   `Distance_Type operator()(typename GT::Arc *a)`.
+   * - `Itor`: iterator template used to traverse arcs incident to a node.
+   * - `SA`: arc filter for the internal iterators.
+   *
+   * @warning Dijkstra's algorithm requires non-negative weights. For signed
+   * arithmetic `Distance_Type`, negative weights throw `std::domain_error`.
+   *
+   * @ingroup Grafos
+   * @see Find_Path_Depth_First Floyd_All_Shortest_Paths Bellman_Ford
+   */
   template <class GT,
             class Distance = Dft_Dist<GT>,
             template <typename, class> class Itor = Node_Arc_Iterator,
@@ -98,7 +105,7 @@ namespace Aleph
     // Information to place on the arc for the painting version
     struct Arc_Info
     {
-      typename Distance::Distance_Type pot; // arc potential
+      typename Distance::Distance_Type pot{}; // arc potential (tentative distance)
     };
 
     // Information to place on the arc for the tree-building version
@@ -130,7 +137,7 @@ namespace Aleph
     // Information to place on the node for the painting version
     struct Node_Info
     {
-      typename Distance::Distance_Type dist = 0; // accumulated distance
+      typename Distance::Distance_Type dist{}; // accumulated distance
       void *heap_node = nullptr;
       void *ret_node = nullptr; // parent in tree
     };
@@ -182,7 +189,7 @@ namespace Aleph
       {
         g.reset_bit(a, Aleph::Spanning_Tree);
         ARC_COOKIE(a) = new Arc_Info;
-        POT(a) = 0;
+        POT(a) = typename Distance::Distance_Type{};
       }
     };
 
@@ -192,6 +199,7 @@ namespace Aleph
       void operator ()(const GT &, typename GT::Arc *ga) const noexcept
       {
         delete DAassert(ga);
+        ARC_COOKIE(ga) = nullptr;
       }
     };
 
@@ -231,7 +239,7 @@ namespace Aleph
       {
         g.reset_bit(a, Aleph::Spanning_Tree);
         ARC_COOKIE(a) = new Tree_Arc_Info;
-        POT(a) = 0;
+        POT(a) = typename Distance::Distance_Type{};
         TREEARC(a) = nullptr;
       }
     };
@@ -246,8 +254,11 @@ namespace Aleph
         if (ta != nullptr) // does this arc belong to the spanning tree?
           {
             assert(IS_ARC_VISITED(ga, Aleph::Spanning_Tree));
+            ARC_COOKIE(ga) = ARC_COOKIE(ta) = nullptr;
             GT::map_arcs(ga, ta); // yes ==> map it
           }
+        else
+          ARC_COOKIE(ga) = nullptr;
 
         delete aux;
       }
@@ -258,6 +269,7 @@ namespace Aleph
     typedef ArcHeap<GT, Get_Potential_Arc, Heap_Info> Heap;
 
     SA sa;
+    Distance dist;
     Get_Potential_Arc get_pot;
     Heap heap;
     bool painted = false;
@@ -267,15 +279,19 @@ namespace Aleph
   public:
     // Constructors
 
-    /** Constructor.
-
-        @param[in] dist Distance functor for arc weights.
-        @param[in] __sa Arc filter for iterators.
+    /** Construct a Dijkstra executor.
+     *
+     * @param[in] distance Arc-weight accessor.
+     * @param[in] __sa Arc filter for internal iterators.
      */
-    Dijkstra_Min_Paths(Distance dist = Distance(),
-                       SA __sa = SA())
-      : sa(__sa), get_pot(dist), heap(get_pot, Heap_Info()),
-        painted(false), ptr_g(nullptr), s(nullptr)
+    Dijkstra_Min_Paths(Distance distance = Distance(), SA __sa = SA())
+      : sa(__sa),
+        dist(distance),
+        get_pot(distance),
+        heap(get_pot, Heap_Info()),
+        painted(false),
+        ptr_g(nullptr),
+        s(nullptr)
     {
       // empty
     }
@@ -288,6 +304,7 @@ namespace Aleph
 
       ptr_g = &const_cast<GT &>(g);
       s = start;
+      painted = false;
 
       Operate_On_Nodes<GT, IN>()(g);
 
@@ -300,6 +317,23 @@ namespace Aleph
       Operate_On_Nodes<GT, DN>()(*ptr_g);
 
       (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
+    }
+
+    /// Validate the arc weight precondition for Dijkstra's algorithm.
+    void validate_weight(const typename Distance::Distance_Type & w) const
+    {
+      using DT = typename Distance::Distance_Type;
+      if constexpr (std::is_arithmetic_v<DT> && std::is_signed_v<DT>)
+        ah_domain_error_if(w < DT{})
+          << "Dijkstra_Min_Paths: negative arc weight: " << w;
+    }
+
+    /// Read an arc weight (as a value) and validate it.
+    typename Distance::Distance_Type weight_of(typename GT::Arc *a) const
+    {
+      const auto w = dist(a);
+      validate_weight(w);
+      return w;
     }
 
     /// Checked addition to prevent integer overflow for integral Distance_Type.
@@ -340,23 +374,25 @@ namespace Aleph
       ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
       init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
 
+      Init_Guard guard([this]() { uninit<Destroy_Tree_Node, Destroy_Tree_Arc>(); });
+
       clear_graph(tree); // clear destination spanning tree
 
       NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      ACC(start) = 0;
+      ACC(start) = typename Distance::Distance_Type{};
       auto ret = TREENODE(start) = tree.insert_node(start->get_info());
       NODE_COOKIE(TREENODE(start)) = start;
 
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_current_arc_ne();
-          POT(arc) = ARC_DIST(arc);
+          POT(arc) = weight_of(arc);
           heap.put_arc(arc, it.get_tgt_node());
         }
 
       const auto & n = g.get_num_nodes();
 
-      while (tree.get_num_nodes() < n) // while tree does not span g
+      while (tree.get_num_nodes() < n and not heap.is_empty()) // while reachable nodes remain
         {
           auto garc = heap.get_min_arc();
           if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
@@ -384,7 +420,7 @@ namespace Aleph
           auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
           TREEARC(garc) = tarc;
 
-          ACC(gtgt) = checked_add(ACC(gsrc), ARC_DIST(garc)); // total distance from start
+          ACC(gtgt) = checked_add(ACC(gsrc), weight_of(garc)); // total distance from start
           const auto & acc = ACC(gtgt);
 
           // for each arc compute potential and insert into heap
@@ -398,11 +434,12 @@ namespace Aleph
               if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
                 continue; // would cause cycle ==> not inserted in heap
 
-              POT(arc) = checked_add(acc, ARC_DIST(arc)); // compute potential
+              POT(arc) = checked_add(acc, weight_of(arc)); // compute potential
               heap.put_arc(arc, tgt);
             }
         }
 
+      guard.release();
       uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
 
       return ret;
@@ -431,17 +468,20 @@ namespace Aleph
       ah_domain_error_if(end == nullptr) << "end node cannot be null";
       ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
       init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+
+      Init_Guard guard([this]() { uninit<Destroy_Tree_Node, Destroy_Tree_Arc>(); });
+
       clear_graph(tree);
 
       NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      ACC(start) = 0;
+      ACC(start) = typename Distance::Distance_Type{};
       TREENODE(start) = tree.insert_node(start->get_info());
       NODE_COOKIE(TREENODE(start)) = start;
 
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_current_arc_ne();
-          POT(arc) = ARC_DIST(arc);
+          POT(arc) = weight_of(arc);
           heap.put_arc(arc, it.get_tgt_node());
         }
 
@@ -477,7 +517,7 @@ namespace Aleph
           if (gtgt == end) // is end_node in the spanning tree?
             break; // yes ==> the shortest path is already in the spanning tree
 
-          ACC(gtgt) = checked_add(ACC(gsrc), ARC_DIST(garc)); // total distance from start
+          ACC(gtgt) = checked_add(ACC(gsrc), weight_of(garc)); // total distance from start
           const auto & acc = ACC(gtgt);
 
           // for each arc compute potential and insert into heap
@@ -491,11 +531,12 @@ namespace Aleph
               if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
                 continue; // would cause cycle ==> not inserted in heap
 
-              POT(arc) = checked_add(acc, ARC_DIST(arc)); // compute potential
+              POT(arc) = checked_add(acc, weight_of(arc)); // compute potential
               heap.put_arc(arc, tgt);
             }
         }
 
+      guard.release();
       uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
     }
 
@@ -519,13 +560,15 @@ namespace Aleph
       bool ret_val = false;
       init<Initialize_Node, Initialize_Arc>(g, start);
 
+      Init_Guard guard([this]() { uninit<Destroy_Node, Destroy_Arc>(); });
+
       NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      ACC(start) = 0;
+      ACC(start) = typename Distance::Distance_Type{};
 
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_current_arc_ne();
-          POT(arc) = ARC_DIST(arc);
+          POT(arc) = weight_of(arc);
           heap.put_arc(arc, it.get_tgt_node());
         }
 
@@ -562,7 +605,7 @@ namespace Aleph
               break; // yes ==> the shortest path is already painted
             }
 
-          ACC(tgt) = checked_add(ACC(src), ARC_DIST(garc)); // total distance from start
+          ACC(tgt) = checked_add(ACC(src), weight_of(garc)); // total distance from start
 
           const auto & acc = ACC(tgt);
 
@@ -577,11 +620,12 @@ namespace Aleph
               if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
                 continue; // would cause cycle ==> not inserted in heap
 
-              POT(a) = checked_add(acc, ARC_DIST(a)); // compute potential
+              POT(a) = checked_add(acc, weight_of(a)); // compute potential
               heap.put_arc(a, t);
             }
         }
 
+      guard.release();
       uninit<Destroy_Node, Destroy_Arc>();
       painted = true;
 
@@ -602,13 +646,15 @@ namespace Aleph
       ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
       init<Initialize_Node, Initialize_Arc>(g, start);
 
+      Init_Guard guard([this]() { uninit<Destroy_Node, Destroy_Arc>(); });
+
       NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      ACC(start) = 0;
+      ACC(start) = typename Distance::Distance_Type{};
 
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         {
           auto arc = it.get_current_arc_ne();
-          POT(arc) = ARC_DIST(arc);
+          POT(arc) = weight_of(arc);
           heap.put_arc(arc, it.get_tgt_node());
         }
 
@@ -639,7 +685,7 @@ namespace Aleph
 
           ++tn; // simulates adding p to the spanning tree
 
-          ACC(tgt) = checked_add(ACC(src), ARC_DIST(garc)); // total distance from start
+          ACC(tgt) = checked_add(ACC(src), weight_of(garc)); // total distance from start
           const auto & acc = ACC(tgt);
 
           // for each arc compute potential and insert into heap
@@ -653,11 +699,12 @@ namespace Aleph
               if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
                 continue; // would cause cycle ==> not inserted in heap
 
-              POT(a) = checked_add(acc, ARC_DIST(a)); // compute potential
+              POT(a) = checked_add(acc, weight_of(a)); // compute potential
               heap.put_arc(a, t);
             }
         }
 
+      guard.release();
       uninit<Destroy_Node, Destroy_Arc>();
       painted = true;
     }
@@ -687,7 +734,6 @@ namespace Aleph
     get_min_path(typename GT::Node *end, Path<GT> & path)
     {
       ah_domain_error_if(ptr_g == nullptr) << "Min path has not been computed";
-
       ah_domain_error_if(not painted) << "Graph has not previously painted";
 
       return Aleph::get_min_path<GT, Distance>(s, end, path);
@@ -761,8 +807,7 @@ namespace Aleph
     typename Distance::Distance_Type
     copy_painted_min_paths_tree(const GT & g, GT & tree)
     {
-      ah_domain_error_if(not painted)
-        << "Graph has not previously painted";
+      ah_domain_error_if(not painted) << "Graph has not previously painted";
 
       using Paint_Filt = Painted_Min_Spanning_Tree<GT, Distance>;
       Paint_Filt paint_filter;
