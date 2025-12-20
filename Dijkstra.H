@@ -52,7 +52,6 @@ namespace Aleph
 # define PARENT(p) (DNassert(p)->ret_node)
 
 # define DAassert(p) ((Arc_Info*) ARC_COOKIE(p))
-# define ARC_DIST(p) (Distance () (p))
 # define TREEARC(p) (((Tree_Arc_Info*)DAassert(p))->tree_arc)
 # define POT(p) (DAassert(p)->pot)
 # define GRAPHNODE(p) (static_cast<typename GT::Node*>(NODE_COOKIE(p)))
@@ -81,6 +80,14 @@ namespace Aleph
    *
    * @warning Dijkstra's algorithm requires non-negative weights. For signed
    * arithmetic `Distance_Type`, negative weights throw `std::domain_error`.
+   * For integral `Distance_Type`, distance accumulation is checked and may
+   * throw `std::overflow_error` on overflow.
+   *
+   * @note This implementation uses cookies and control bits:
+   * - **Painting mode** overwrites node cookies to store predecessor nodes and
+   *   marks the shortest-path tree with the `Spanning_Tree` bit on nodes/arcs.
+   * - **Tree-building mode** maps nodes and arcs between the input graph and
+   *   the produced tree via cookies.
    *
    * @ingroup Grafos
    * @see Find_Path_Depth_First Floyd_All_Shortest_Paths Bellman_Ford
@@ -314,6 +321,12 @@ namespace Aleph
     template <class DN, class DA>
     void uninit()
     {
+      // Clear any remaining heap nodes while arc/node cookies are still valid.
+      // This is critical for partial computations that stop early (e.g., when a
+      // target node is reached) and would otherwise leave heap nodes referring
+      // to arc cookies that are about to be destroyed.
+      heap.empty();
+
       Operate_On_Nodes<GT, DN>()(*ptr_g);
 
       (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
@@ -357,15 +370,21 @@ namespace Aleph
     }
 
   public:
-    /** Computes the spanning tree of all shortest paths from the start node.
+    /** Computes the shortest-path tree rooted at `start`.
+
+        If the graph is disconnected (or the arc filter hides some arcs),
+        the resulting tree contains only the nodes reachable from `start`.
 
         @param[in] g The graph.
         @param[in] start The starting node for all shortest paths.
         @param[out] tree The spanning tree of all shortest paths starting
         from start, mapped via cookies to the graph g.
         @return Pointer to the tree node corresponding to the start node.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If start is nullptr or g is empty.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If `start` is nullptr, `g` is empty, or a
+        negative weight is found (signed arithmetic `Distance_Type`).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
      */
     typename GT::Node *
     compute_min_paths_tree(const GT & g, typename GT::Node *start, GT & tree)
@@ -445,8 +464,8 @@ namespace Aleph
       return ret;
     }
 
-    /** Computes the partial spanning tree of all shortest paths from start
-        that contains the path from start to end.
+    /** Computes a partial shortest-path tree rooted at `start` that contains
+        the shortest path from `start` to `end` (if reachable).
 
         compute_partial_min_paths_tree() builds the spanning tree of shortest
         paths from start but the computation stops when the end node is found.
@@ -456,8 +475,11 @@ namespace Aleph
         @param[in] end The destination node.
         @param[out] tree The spanning tree of all shortest paths starting
         from start, mapped via cookies to the graph g.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If start or end is nullptr, or if g is empty.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If `start`/`end` is nullptr, `g` is empty, or a
+        negative weight is found (signed arithmetic `Distance_Type`).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
     */
     void compute_partial_min_paths_tree(const GT & g,
                                         typename GT::Node *start,
@@ -540,15 +562,20 @@ namespace Aleph
       uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
     }
 
-    /** Paints on graph g the partial shortest paths tree starting from
-        start and stopping when the end node is found.
+    /** Paints on `g` the partial shortest-path tree rooted at `start`.
+
+        The algorithm stops when `end` is reached or when no more nodes are
+        reachable from `start`.
 
         @param[in] g The graph.
         @param[in] start The starting node for shortest paths.
         @param[in] end The destination node.
         @return true if end was found in the spanning tree, false otherwise.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If start or end is nullptr, or if g is empty.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If `start`/`end` is nullptr, `g` is empty, or a
+        negative weight is found (signed arithmetic `Distance_Type`).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
      */
     bool paint_partial_min_paths_tree(const GT & g,
                                       typename GT::Node *start,
@@ -564,6 +591,12 @@ namespace Aleph
 
       NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
       ACC(start) = typename Distance::Distance_Type{};
+
+      if (start == end)
+        {
+          painted = true;
+          return true;
+        }
 
       for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
         {
@@ -632,13 +665,18 @@ namespace Aleph
       return ret_val;
     }
 
-    /** Paints on graph g the spanning tree of all shortest paths
-        starting from start.
+    /** Paints on `g` the shortest-path tree rooted at `start`.
+
+        If the graph is disconnected (or the arc filter hides some arcs), only
+        the nodes reachable from `start` are painted.
 
         @param[in] g The graph.
         @param[in] start The starting node for shortest paths.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If start is nullptr or g is empty.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If `start` is nullptr, `g` is empty, or a
+        negative weight is found (signed arithmetic `Distance_Type`).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
     */
     void paint_min_paths_tree(const GT & g, typename GT::Node *start)
     {
@@ -709,7 +747,7 @@ namespace Aleph
       painted = true;
     }
 
-    /** Extracts a shortest path to end from a previously painted graph.
+    /** Extracts the shortest path to `end` from a previously painted graph.
 
         get_min_path() takes a graph g on which shortest paths (total or
         partial) have been painted by previous calls to paint_min_paths_tree()
@@ -726,20 +764,74 @@ namespace Aleph
         @param[in] end Destination node of the path.
         @param[out] path Path where the shortest path will be stored.
         @return The total cost of the path.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If the graph has not been previously painted
-        via paint_min_paths_tree() or paint_partial_min_paths_tree().
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::invalid_argument If `end` is nullptr.
+        @throw std::domain_error If the graph has not been previously painted,
+        or if the predecessor chain is broken (e.g., `end` is unreachable).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
      */
     typename Distance::Distance_Type
     get_min_path(typename GT::Node *end, Path<GT> & path)
     {
-      ah_domain_error_if(ptr_g == nullptr) << "Min path has not been computed";
-      ah_domain_error_if(not painted) << "Graph has not previously painted";
+      ah_invalid_argument_if(end == nullptr)
+        << "get_min_path(): end must be non-null";
+      ah_domain_error_if(ptr_g == nullptr)
+        << "get_min_path(): no previous computation";
+      ah_domain_error_if(not painted)
+        << "get_min_path(): graph has not been previously painted";
 
-      return Aleph::get_min_path<GT, Distance>(s, end, path);
+      typename Distance::Distance_Type total{};
+
+      // Reconstruct the path by following node cookies (predecessors) and
+      // selecting the unique painted arc between consecutive nodes.
+      path = Path<GT>(*ptr_g);
+      path.insert(end);
+
+      if (s == end)
+        return total;
+
+      Dft_Show_Arc<GT> show;
+      auto curr = end;
+      size_t steps = 0;
+      const size_t max_steps = ptr_g->get_num_nodes();
+
+      while (curr != s)
+        {
+          auto parent = static_cast<typename GT::Node *>(NODE_COOKIE(curr));
+          ah_domain_error_if(parent == nullptr)
+            << "get_min_path(): broken predecessor chain (nullptr)";
+
+          ah_domain_error_if(++steps > max_steps)
+            << "get_min_path(): predecessor cycle detected";
+
+          typename GT::Arc *a = nullptr;
+          for (Itor<GT, Dft_Show_Arc<GT>> it(parent, show);
+               it.has_curr(); it.next_ne())
+            {
+              auto cand = it.get_current_arc_ne();
+              if (not IS_ARC_VISITED(cand, Aleph::Spanning_Tree))
+                continue;
+
+              if (it.get_tgt_node() == curr)
+                {
+                  a = cand;
+                  break;
+                }
+            }
+
+          ah_domain_error_if(a == nullptr)
+            << "get_min_path(): missing painted arc between nodes";
+
+          path.insert(a);
+          total = checked_add(total, weight_of(a));
+          curr = parent;
+        }
+
+      return total;
     }
 
-    /** Computes the shortest path between start and end by painting the graph.
+    /** Computes the shortest path between `start` and `end` by painting `g`.
 
         This is the version with the lowest memory consumption and probably
         also the fastest. Note that each call computes the partial shortest
@@ -753,7 +845,11 @@ namespace Aleph
         @param[in] end The destination node of the path.
         @param[out] min_path The shortest path.
         @return The total cost of the path from start to end.
-        @throw bad_alloc If there is not enough memory.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If `start`/`end` is nullptr, `g` is empty, or a
+        negative weight is found (signed arithmetic `Distance_Type`).
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
         @see get_min_path
      */
     typename Distance::Distance_Type
@@ -761,30 +857,26 @@ namespace Aleph
                   typename GT::Node *start, typename GT::Node *end,
                   Path<GT> & min_path)
     {
-      min_path.empty();
+      min_path = Path<GT>(g);
       if (paint_partial_min_paths_tree(g, start, end))
         return get_min_path(end, min_path);
 
-      return numeric_limits<typename Distance::Distance_Type>::max();
+      return std::numeric_limits<typename Distance::Distance_Type>::max();
     }
 
-    /** Computes the spanning tree of all shortest paths from a given
-        node according to Dijkstra's algorithm.
-
-        The resulting spanning tree of all shortest paths from start_node
-        is completely mapped with g. Therefore, a depth-first path search,
-        using Find_Path_Depth_First, on tree will find and construct
-        any shortest path from start_node to any other node.
-
-        @param[in] g The graph for which to compute the shortest paths
-        spanning tree.
-        @param[in] s The starting node for the shortest paths.
-        @param[out] tree The graph where the resulting spanning tree of
-        all shortest paths from start_node will be stored. This graph
-        is cleared before the algorithm begins.
-        @throw bad_alloc If there is not enough memory to build tree;
-        either because tree fails or because of the internal queue. In
-        this case the value of tree is undefined and not clean.
+    /** Convenience overload for compute_min_paths_tree().
+     *
+     * Equivalent to `compute_min_paths_tree(g, s, tree)`; the return value
+     * (the image of `s` in `tree`) is discarded.
+     *
+     * @param[in] g The graph.
+     * @param[in] s The starting node for the shortest paths.
+     * @param[out] tree Output shortest-path tree (cleared before copying).
+     * @throw std::bad_alloc If there is not enough memory.
+     * @throw std::domain_error If `s` is nullptr, `g` is empty, or a negative
+     * weight is found (signed arithmetic `Distance_Type`).
+     * @throw std::overflow_error If a checked distance addition overflows
+     * (integral `Distance_Type`).
      */
     void operator ()(const GT & g, typename GT::Node *s, GT & tree)
     {
@@ -798,25 +890,62 @@ namespace Aleph
         paint_min_paths_tree() or paint_partial_min_paths_tree() and extracts
         a copy to the tree parameter.
 
+        The copy includes only nodes and arcs marked with the `Spanning_Tree`
+        bit (i.e., the painted shortest-path tree).
+
         @param[in] g The previously painted graph where the shortest paths are.
-        @param[out] tree The graph where the spanning tree will be copied.
-        @return The total distance of the spanning tree.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If the graph has not been previously painted.
+        @param[out] tree The graph where the shortest-path tree will be copied.
+        @return The total distance of the copied tree (sum of painted arcs).
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::domain_error If there is no previous painting computation,
+        if `g` is not the last painted graph, or if the graph has not been
+        painted.
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
     */
     typename Distance::Distance_Type
     copy_painted_min_paths_tree(const GT & g, GT & tree)
     {
-      ah_domain_error_if(not painted) << "Graph has not previously painted";
+      ah_domain_error_if(ptr_g == nullptr)
+        << "copy_painted_min_paths_tree(): no previous computation";
+      ah_domain_error_if(not painted)
+        << "copy_painted_min_paths_tree(): graph has not been painted";
+      ah_domain_error_if(ptr_g != &const_cast<GT &>(g))
+        << "copy_painted_min_paths_tree(): graph does not match last painted graph";
 
-      using Paint_Filt = Painted_Min_Spanning_Tree<GT, Distance>;
-      Paint_Filt paint_filter;
-      (Copy_Graph<GT, Dft_Show_Node<GT>, Paint_Filt>(paint_filter))(tree, g);
+      typename Distance::Distance_Type total{};
+      for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_current_arc_ne();
+          if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+            total = checked_add(total, weight_of(a));
+        }
 
-      return paint_filter.dist;
+      struct Show_Painted_Arc
+      {
+        bool operator()(typename GT::Arc *a) const noexcept
+        {
+          return IS_ARC_VISITED(a, Aleph::Spanning_Tree);
+        }
+      };
+
+      struct Show_Painted_Node
+      {
+        bool operator()(typename GT::Node *p) const noexcept
+        {
+          return IS_NODE_VISITED(p, Aleph::Spanning_Tree);
+        }
+      };
+
+      // Do not map via cookies: painting stores predecessor pointers in cookies.
+      GT & non_const_g = const_cast<GT &>(g);
+      (Copy_Graph<GT, Show_Painted_Node, Show_Painted_Arc>(
+          Show_Painted_Arc{}, Show_Painted_Node{}))(tree, non_const_g, false);
+
+      return total;
     }
 
-    /// \oveload find_min_path()
+    /// \overload find_min_path()
     typename Distance::Distance_Type operator ()(const GT & g,
                                                  typename GT::Node *s,
                                                  typename GT::Node *e,
@@ -825,24 +954,8 @@ namespace Aleph
       return find_min_path(g, s, e, path);
     }
 
-    /// Distance totalizer class.
-    struct Total
-    {
-      typename Distance::Distance_Type dist;
-
-      Total() noexcept : dist(0)
-      { /* empty */
-      }
-
-      bool operator ()(typename GT::Arc *a) noexcept
-      {
-        dist += ARC_DIST(a);
-        return true;
-      }
-    };
-
-    /** Extracts a shortest path to end from a previously computed shortest
-        paths tree.
+    /** Extracts the shortest path to `end` from a previously computed
+        shortest-path tree.
 
         get_min_path() takes a tree, previously built via
         compute_min_paths_tree() or compute_partial_min_paths_tree(),
@@ -857,12 +970,18 @@ namespace Aleph
         @param[in] end Destination node of the path.
         @param[out] path Path where the shortest path will be stored.
         @return The total cost of the path.
-        @throw bad_alloc If there is not enough memory.
-        @throw domain_error If the tree has not been previously computed.
+        @throw std::bad_alloc If there is not enough memory.
+        @throw std::invalid_argument If `end` is nullptr.
+        @throw std::domain_error If the tree has not been previously computed
+        for the current graph, or if `end` is not contained in the tree.
+        @throw std::overflow_error If a checked distance addition overflows
+        (integral `Distance_Type`).
      */
     typename Distance::Distance_Type
     get_min_path(const GT & tree, typename GT::Node *end, Path<GT> & path)
     {
+      ah_invalid_argument_if(end == nullptr)
+        << "get_min_path(tree,...): end must be non-null";
       ah_domain_error_if(ptr_g == nullptr)
         << "Min path has not been computed";
 
@@ -870,16 +989,28 @@ namespace Aleph
       auto te = mapped_node<GT>(end);
 
       Path<GT> tree_path(tree);
-      Total total;
-      (Find_Path_Depth_First<GT, Itor, Total>(total))(tree, ts, te, tree_path);
+      ah_domain_error_if(ts == nullptr or te == nullptr)
+        << "get_min_path(tree,...): end is not contained in the shortest-path tree";
 
-      path.empty();
-      path.init(s);
-      typename Path<GT>::Iterator it(tree_path);
-      for (it.next(); it.has_curr(); it.next_ne())
-        path.append(mapped_node<GT>(it.get_current_node_ne()));
+      Dft_Show_Arc<GT> show;
+      Find_Path_Depth_First<GT, Itor, Dft_Show_Arc<GT>> finder(show);
+      const bool found = finder(tree, ts, te, tree_path);
+      ah_domain_error_if(not found)
+        << "get_min_path(tree,...): no path found in the shortest-path tree";
 
-      return total.dist;
+      path = Path<GT>(*ptr_g, s);
+      typename Distance::Distance_Type total{};
+      tree_path.for_each_arc(
+          [this, &path, &total](typename GT::Arc *a)
+          {
+            auto *ga = mapped_arc<GT>(a);
+            ah_domain_error_if(ga == nullptr)
+              << "get_min_path(tree,...): unmapped tree arc";
+            path.append(ga);
+            total = checked_add(total, weight_of(ga));
+          });
+
+      return total;
     }
   };
 
@@ -890,7 +1021,6 @@ namespace Aleph
 # undef ACC
 # undef HEAPNODE
 # undef DAassert
-# undef ARC_DIST
 # undef TREEARC
 # undef POT
 # undef GRAPHNODE
