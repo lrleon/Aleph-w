@@ -27,38 +27,47 @@
 # ifndef AH_PRIORITY_QUEUE_H
 # define AH_PRIORITY_QUEUE_H
 
+# include <utility>
+# include <vector>
 # include <tpl_dynBinHeap.H>
 
 namespace Aleph {
 
-    /** Implantación Aleph del contenedor estándar prority_queue<T>.
+    /** Aleph implementation of a priority queue.
 
-	En Aleph este contenedor estándar es implantado mediante una
-	la clase DynBinHeap, la cual, a su vez está basada en árboles
-	binarios. Esta implantación so se sustenta sobre un arreglo y es
-	altamente dinámica. Otras estructuras o algoritmos pueden
-	mantener sin riesgo punteros hacia los datos que contiene la cola de
-	prioridad.
+        This container is implemented on top of `DynBinHeap`, which stores
+        heap nodes dynamically (no backing array). Consequently, other
+        structures or algorithms can safely keep pointers/references to items
+        stored in the queue (the underlying nodes are allocated individually).
 
-	Esta versión de Priority_Queue<T> no emplea un contenedor
-	genérico como parámetro tipo. Consecuentemente, los
-	constructores estándar están ligeramente modificados.
+        Important: this is a *min-heap* with the default comparator
+        (`Compare = Aleph::less<T>`). Therefore, `top()` returns the smallest
+        element and `pop()` removes the smallest element.
 
-	@see DynBinHeap
-	@ingroup stl
-     */
+        This version does not take an external container type parameter like
+        `std::priority_queue`; therefore the constructors differ slightly.
+
+        @see DynBinHeap
+        @ingroup stl
+    */
     template <typename T, class Compare = Aleph::less<T> >
-class priority_queue : private Aleph::DynBinHeap<T, Compare>
+ class priority_queue : private Aleph::DynBinHeap<T, Compare>
 {
 public:
 
-      /// Tipo de valor que almacena la cola de prioridad.
+  using Base = Aleph::DynBinHeap<T, Compare>;
+
+      /// Value type stored by the queue.
   typedef T value_type;
 
-      /// Instancia una cola de prioridad vacía
+      /// Construct an empty priority queue.
   priority_queue() { /* empty */ }
 
-      /// Instancia una cola con todos los elementos del contenedor cont.
+      /** Construct a queue with all elements from a container.
+
+          @tparam Container Iterable container.
+          @param cont Container whose elements will be inserted.
+      */
       template <class Container>
   priority_queue(const Container & cont)
   {
@@ -66,35 +75,107 @@ public:
       this->insert(item);
   }
 
-      /// Instancia una cola con los elementos comprendidos entre el
-      /// rango [beg..end) del contenedor asociado a los iteradores.
+      /** Construct a queue with all elements in the iterator range [beg, end).
+
+          @tparam Itor Input iterator type.
+          @param beg Begin iterator.
+          @param end End iterator.
+      */
       template <class Itor>
   priority_queue(Itor beg, const Itor & end)
   {
-    Aleph::verify_iterators (beg, end);
-
     while (beg != end)
       this->insert(*beg++);
   }
 
-      /// Inserta una copia de value en la cola de prioridad; retorna
-      /// una referencia modificable a la copia insertada (esto no es
-      /// parte del estándar).
+      /** Insert a copy of @p value into the queue.
+
+          @param value Value to insert.
+          @return Modifiable reference to the stored element (non-standard).
+      */
   T & push(const T & value) { return this->insert(value); }
 
-      /// Elimina el menor elemento de la cola de prioridad según el
-      /// criterio de comparación especificado en la declaración.
+      /** Insert a value by moving it into the queue.
+
+          @param value Value to move into the queue.
+          @return Modifiable reference to the stored element (non-standard).
+      */
+  T & push(T && value) { return this->insert(std::move(value)); }
+
+      /** Construct a value in-place and insert it into the queue.
+
+          @tparam Args Constructor argument types.
+          @param args Arguments forwarded to T's constructor.
+          @return Modifiable reference to the stored element (non-standard).
+
+          @note This implementation constructs a temporary `T` and then moves it
+          into the underlying heap.
+      */
+  template <class... Args>
+  T & emplace(Args && ... args)
+  {
+    T tmp(std::forward<Args>(args)...);
+    return this->insert(std::move(tmp));
+  }
+
+      /** Remove the smallest element from the queue.
+
+          @throw underflow_error if the queue is empty.
+      */
   void pop() { this->getMin(); }
 
-      /// Retorna el menor elemento de la cola de prioridad según el
-      /// criterio de comparación especificado en la declaración.
-  const T & top() { return Aleph::DynBinHeap<T, Compare>::top(); }
+      /** Return the smallest element in the queue.
 
-      /// Retorna true si la cola de prioridad está vacía.
+          @return Reference to the smallest element.
+          @throw underflow_error if the queue is empty.
+      */
+  const T & top() const { return Aleph::DynBinHeap<T, Compare>::top(); }
+
+      /// Return true if the queue is empty.
   bool empty() const { return this->is_empty(); }
 
-      /// Retorna la cantidad de elementos de la cola.
+      /// Return the number of elements.
   size_t size() const { return Aleph::DynBinHeap<T, Compare>::size(); }
+
+      /// Remove all elements.
+  void clear() noexcept { Base::empty(); }
+
+      /** Swap contents with another priority queue.
+
+          @note This swap is implemented by draining both queues and
+          reinserting the elements, because the underlying heap swap is not
+          safe for all internal invariants.
+
+          @note Complexity is O((n+m) log(n+m)) in the number of elements.
+      */
+  void swap(priority_queue & other) noexcept
+  {
+    if (this == &other)
+      return;
+
+    std::vector<T> a;
+    std::vector<T> b;
+    a.reserve(this->size());
+    b.reserve(other.size());
+
+    while (not this->empty())
+      {
+        a.push_back(this->top());
+        this->pop();
+      }
+
+    while (not other.empty())
+      {
+        b.push_back(other.top());
+        other.pop();
+      }
+
+    for (auto & item : b)
+      this->push(std::move(item));
+
+    for (auto & item : a)
+      other.push(std::move(item));
+  }
 };
 
 } // end namespace Aleph

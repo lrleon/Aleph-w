@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,24 +43,28 @@ struct GTNodeIterator : public Dlink::Iterator
   using Node = typename GT::Node;
 
   /// The type of item that returns the iterator
-  using Item_Type = Node*;
+  using Item_Type = Node *;
 
   /// The type of container on which iterate
   using Set_Type = GT;
 
-  GTNodeIterator() noexcept { /* empty */ }
+  GTNodeIterator() noexcept
+  { /* empty */
+  }
 
-      /// Build a iterator for all the nodes of g
-  GTNodeIterator(Dlink & head) noexcept : Dlink::Iterator(head) { /* empty */ }
+  /// Build a iterator for all the nodes of g
+  GTNodeIterator(Dlink & head) noexcept : Dlink::Iterator(head)
+  { /* empty */
+  }
 
   /// Return the current node without exception
   Node * get_curr_ne() const noexcept
   {
-    return (Node*) Dlink::Iterator::get_curr_ne();
+    return static_cast<Node *>(Dlink::Iterator::get_curr_ne());
   }
 
   /// Return the current node
-  Node * get_curr() const { return (Node*) Dlink::Iterator::get_curr(); }
+  Node * get_curr() const { return static_cast<Node *>(Dlink::Iterator::get_curr()); }
 
   /// Return the current node
   Node * get_current_node() const { return get_curr(); }
@@ -86,26 +89,29 @@ struct GTArcIterator : public Dlink::Iterator
   using Arc = typename GT::Arc;
 
   /// The type of item that returns the iterator
-  using Item_Type = Arc*;
+  using Item_Type = Arc *;
 
   /// The type of container on which iterate
   using Set_Type = GT;
 
-  GTArcIterator() noexcept { /* empty */ }
+  GTArcIterator() noexcept
+  { /* empty */
+  }
 
   /// Build a iterator for all the arcs of g
   GTArcIterator(Dlink & head) noexcept
-    : Dlink::Iterator(head) 
-  { /* empty */ }
+    : Dlink::Iterator(head)
+  { /* empty */
+  }
 
   /// Return current arc without exception
   Arc * get_curr_ne() const noexcept
   {
-    return (Arc*) Dlink::Iterator::get_curr_ne();
+    return static_cast<Arc *>(Dlink::Iterator::get_curr_ne());
   }
 
   /// Return current arc
-  Arc * get_curr() const { return (Arc*) Dlink::Iterator::get_curr(); }
+  Arc * get_curr() const { return static_cast<Arc *>(Dlink::Iterator::get_curr()); }
 
   /// Return the current arc
   Arc * get_current_arc() const { return get_curr(); }
@@ -114,27 +120,27 @@ struct GTArcIterator : public Dlink::Iterator
   Arc * get_current_arc_ne() const noexcept { return get_curr_ne(); }
 
   /// Return the source node of current arc (if it is a directed graph)
-  Node * get_src_node_ne() const noexcept 
+  Node * get_src_node_ne() const noexcept
   {
-    return (Node*) get_curr_ne()->src_node; 
+    return static_cast<Node *>(get_curr_ne()->src_node);
   }
 
-  /// Return the target node of current arc (if it is a directed graph) 
+  /// Return the target node of current arc (if it is a directed graph)
   Node * get_tgt_node_ne() const noexcept
   {
-    return (Node*) get_curr_ne()->tgt_node; 
+    return static_cast<Node *>(get_curr_ne()->tgt_node);
   }
 
   /// Return the source node of current arc (if it is a directed graph)
-  Node * get_src_node() const 
+  Node * get_src_node() const
   {
-    return (Node*) get_curr()->src_node; 
+    return static_cast<Node *>(get_curr()->src_node);
   }
 
-  /// Return the target node of current arc (if it is a directed graph) 
+  /// Return the target node of current arc (if it is a directed graph)
   Node * get_tgt_node() const
   {
-    return (Node*) get_curr()->tgt_node; 
+    return static_cast<Node *>(get_curr()->tgt_node);
   }
 };
 
@@ -150,14 +156,18 @@ struct Cmp_Dlink_Node
 
   Cmp & cmp;
 
-  Cmp_Dlink_Node(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp) { /* empty */ }
+  Cmp_Dlink_Node(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp)
+  { /* empty */
+  }
 
-  Cmp_Dlink_Node(Cmp & __cmp) noexcept : cmp(__cmp) { /* empty */ }
+  Cmp_Dlink_Node(Cmp & __cmp) noexcept : cmp(__cmp)
+  { /* empty */
+  }
 
-  bool operator () (Dlink * d1, Dlink * d2) const noexcept
+  bool operator ()(Dlink *d1, Dlink *d2) const noexcept
   {
-    Node * p1 = static_cast<Node*>(d1); 
-    Node * p2 = static_cast<Node*>(d2); 
+    Node *p1 = static_cast<Node *>(d1);
+    Node *p2 = static_cast<Node *>(d2);
     return cmp(p1, p2);
   }
 };
@@ -173,14 +183,18 @@ struct Cmp_Dlink_Arc
 
   Cmp & cmp;
 
-  Cmp_Dlink_Arc(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp) { /* empty */ }
+  Cmp_Dlink_Arc(Cmp && __cmp = Cmp()) noexcept : cmp(__cmp)
+  { /* empty */
+  }
 
-  Cmp_Dlink_Arc(Cmp & __cmp) noexcept : cmp(__cmp) { /* empty */ }
+  Cmp_Dlink_Arc(Cmp & __cmp) noexcept : cmp(__cmp)
+  { /* empty */
+  }
 
-  bool operator () (Dlink * d1, Dlink * d2) const noexcept
+  bool operator ()(Dlink *d1, Dlink *d2) const noexcept
   {
-    Arc * arc1 = static_cast<Arc*>(d1); 
-    Arc * arc2 = static_cast<Arc*>(d2); 
+    Arc *arc1 = static_cast<Arc *>(d1);
+    Arc *arc2 = static_cast<Arc *>(d2);
     return cmp(arc1, arc2);
   }
 };
@@ -198,7 +212,7 @@ struct Cmp_Dlink_Arc
     @see NODE_BITS NODE_COUNTER NODE_COOKIE IS_NODE_VISITED NODE_COLOR
 
     @warning This class is not intended to be used explicitly by the
-    user. Its use is internal to the graphs implementations. 
+    user. Its use is internal to the graphs implementations.
 
     @ingroup Grafos
  */
@@ -206,13 +220,12 @@ template <typename NodeInfo>
 class GTNodeCommon
 {
 public:
-  
   /** Attributes of node
 
       @see Graph_Attr
   */
   Graph_Attr attrs;
-  
+
   NodeInfo node_info; /// data associated to the node. Access it with get_info()
 
 
@@ -224,11 +237,11 @@ public:
       @warning Don't modifiy this field (NEVER!). It is public in order
       to facilitate the implementation of some graph operations.
    */
-  size_t num_arcs = 0; 
+  size_t num_arcs = 0;
 
   using Item_Type = NodeInfo; /// Common alias for set types
 
-  using Node = GTNodeCommon;  /// The node
+  using Node = GTNodeCommon; /// The node
 
   using Node_Type = NodeInfo; /// another alias for set type
 
@@ -239,16 +252,19 @@ public:
   GTNodeCommon(NodeInfo && info) : node_info(move(info)) {}
 
   /// Return a modifiable reference to the data contained in the node
-  NodeInfo & get_info() noexcept { return node_info; }
+  NodeInfo &get_info() noexcept { return node_info; }
 
   /// Return a constant reference to the data contained in the node
-  const NodeInfo & get_info() const noexcept { return node_info; }
+  const NodeInfo &get_info() const noexcept { return node_info; }
 
   /// Return the state's value
-  unsigned int state() const noexcept { return NODE_BITS(this).state; }	
+  unsigned int state() const noexcept { return NODE_BITS(this).state; }
 
   /// Set the state to value `s`
-  void set_state(unsigned int s) noexcept { NODE_BITS(this).state = s; }
+  void set_state(unsigned int s) noexcept
+  {
+    NODE_BITS(this).state = s;
+  }
 };
 
 
@@ -264,7 +280,7 @@ public:
     @see ARC_BITS ARC_COUNTER ARC_COOKIE IS_ARC_VISITED ARC_COLOR
 
     @warning This class is not intended to be used explicitly by the
-    user. Its use is internal to the graphs implementations. 
+    user. Its use is internal to the graphs implementations.
 
     @ingroup Grafos
  */
@@ -272,80 +288,79 @@ template <typename ArcInfo>
 class GTArcCommon
 {
 public:
-
   using Item_Type = ArcInfo;
   using Arc_Type = ArcInfo;
 
-  void *     src_node = nullptr; /// Please don't use
-  void *     tgt_node = nullptr; /// Please don't use
+  void *src_node = nullptr; /// Please don't use
+  void *tgt_node = nullptr; /// Please don't use
 
   /** Arc control attributes.
 
       @see Graph_Attr
   */
-  Graph_Attr attrs; 
+  Graph_Attr attrs;
 
-  ArcInfo    arc_info; /// data contained in arc
+  ArcInfo arc_info; /// data contained in arc
 
   GTArcCommon(const ArcInfo & info) : arc_info(info) {}
 
   GTArcCommon(ArcInfo && info) : arc_info(move(info)) {}
 
-  GTArcCommon(void * src, void * tgt, const ArcInfo & data)
+  GTArcCommon(void *src, void *tgt, const ArcInfo & data)
     : src_node(src), tgt_node(tgt), arc_info(data) {}
 
-  GTArcCommon(void * src, void * tgt, ArcInfo && data = ArcInfo())
+  GTArcCommon(void *src, void *tgt, ArcInfo && data = ArcInfo())
     : src_node(src), tgt_node(tgt), arc_info(move(data)) {}
 
   /// Return the state of arc
   unsigned int state() const noexcept { return ARC_BITS(this).state; }
 
   /// Set the state of arc to value `s`
-  void set_state(unsigned int s) noexcept { ARC_BITS(this).state = s; }
+  void set_state(unsigned int s) noexcept
+  {
+    ARC_BITS(this).state = s;
+  }
 
-  /// Return a modifiable reference to the arc data 
-  ArcInfo & get_info() noexcept { return arc_info; }
+  /// Return a modifiable reference to the arc data
+  ArcInfo &get_info() noexcept { return arc_info; }
 
-  /// Return a constant reference to the arc data 
-  const ArcInfo & get_info() const noexcept { return arc_info; }
+  /// Return a constant reference to the arc data
+  const ArcInfo &get_info() const noexcept { return arc_info; }
 
-  void * get_connected_node(void * node) noexcept
+  void * get_connected_node(void *node) noexcept
   {
     return src_node == node ? tgt_node : src_node;
   }
 
-  void * get_img_node(void * node) noexcept
+  void * get_img_node(void *node) noexcept
   {
     return src_node == node ? src_node : tgt_node;
   }
 };
 
 
-/** Common methods to the `Aleph-w` (\f$\aleph_\omega\f$) graps classes.
+/** Common methods to the `Aleph-w` (\f$\aleph_\omega\f$) graph classes.
 
     @ingroup Grafos
 */
 template <class GT, class Node, class Arc>
 class GraphCommon
 {
-  GT * me() { return static_cast<GT*>(this); }
+  GT * me() { return static_cast<GT *>(this); }
 
-  const GT * const_me() const { return static_cast<const GT*>(this); }
+  const GT * const_me() const { return static_cast<const GT *>(this); }
 
 protected:
-
-  void * cookie = nullptr;
+  void *cookie = nullptr;
   size_t num_nodes = 0;
   size_t num_arcs = 0;
   bool digraph = false;
 
 public:
-
   using Node_Type = typename Node::Node_Type;
   using Arc_Type = typename Arc::Arc_Type;
-  
-protected:
 
+protected:
   void init() noexcept
   {
     num_nodes = num_arcs = 0;
@@ -354,17 +369,16 @@ protected:
   }
 
   void common_swap(GT & g) noexcept
-  { 
+  {
     std::swap(num_nodes, g.num_nodes);
     std::swap(num_arcs, g.num_arcs);
     std::swap(digraph, g.digraph);
-    std::swap(cookie, g.cookie);	
+    std::swap(cookie, g.cookie);
   }
 
 public:
-
   /// Return a modifiable reference to graph's cookie
-  void *& get_cookie() noexcept { return cookie; }
+  void *&get_cookie() noexcept { return cookie; }
 
   /// Return a constant reference to graph's cookie
   void * get_cookie() const noexcept { return cookie; }
@@ -381,22 +395,22 @@ public:
       `Random_Digraph`, which is used for generating random digraphs. Of
       course, since `Random_Digraph` is designed for generating
       digraphs, it manages its internal state thinking that a digraph is
-      generated. 
+      generated.
 
-      Now, in a few circunstances, very often for practical purpuses
-      (performace, easiness of coding, etc), a non-directed graph is
+      Now, in a few circumstances, very often for practical purposes
+      (performance, easiness of coding, etc), a non-directed graph is
       wanted to be dealt as a directed one. In this case some algorithms
       need to know that the graph is in reality directed. In order to
       solve this ambiguity, the internal state that indicates that the
       graph is directed could be changed. In this way, foin order to
       instruct to `Random_Digraph` that deals a non-directed as a
-      directed one, the flag "directed" is changed to `true`. 
+      directed one, the flag "directed" is changed to `true`.
 
-      Of course, this technique is very very risky. Take into account
+      Of course, this technique is very, very risky. Take into account
       that topological changing operations variate according to the
       directness of graph. Thus, to change the directed flag and then to
       insert and/or to remove nodes and/or arcs will mess everything and
-      the chances of disater will be very high. For this reason, the use
+      the chances of disaster will be very high. For this reason, the use
       of this method is not recommended and its presence must be
       considered temporal while we find a more proper approach,
       concretely while `Random_Digraph` remains without to be
@@ -422,14 +436,14 @@ public:
       \return A pointer to a node in the graph
   */
   Node * get_node() const { return const_me()->get_first_node(); }
-  
+
   /** Return any arc in the graph.
 
-      This method serves as an depart arc in the graph. Some algorithms
+      This method serves as a departure arc in the graph. Some algorithms
       only need an initial arc which could be anyone. In these cases,
       this method is indicated.
 
-      \return A pointer to a arc in the graph
+      \return A pointer to an arc in the graph
   */
   Node * get_arc() const { return const_me()->get_first_arc(); }
 
@@ -441,19 +455,19 @@ public:
 
       \return A pointer to an arc adjacent to `p`
   */
-  Node * get_arc(Node * p) { return const_me()->get_first_arc(p); }
+  Node * get_arc(Node *p) { return const_me()->get_first_arc(p); }
 
   /// Return the source node of `arc` (only for directed graphs)
-  Node * get_src_node(Arc * arc) const noexcept
+  Node * get_src_node(Arc *arc) const noexcept
   {
-    return (Node*) arc->src_node;
+    return static_cast<Node *>(arc->src_node);
   }
 
   /// Return the target node of `arc` (only for directed graphs)
-  Node * get_tgt_node(Arc * arc) const noexcept
+  Node * get_tgt_node(Arc *arc) const noexcept
   {
-    return (Node*) arc->tgt_node;
-  } 
+    return static_cast<Node *>(arc->tgt_node);
+  }
 
   /** Return the adjacent node to `node` through `arc`.
 
@@ -485,158 +499,164 @@ public:
       careful and be sure of understand its use in the context of non
       directed graphs
    */
-  Node * get_connected_node(Arc * arc, Node * node) const noexcept
+  Node * get_connected_node(Arc *arc, Node *node) const noexcept
   {
-    return (Node*) arc->get_connected_node(node);		
+    return static_cast<Node *>(arc->get_connected_node(node));
   }
-  
+
   /// \overload degree()
   size_t get_num_arcs() const noexcept { return num_arcs; }
 
-  /// Return the total of arcs of a node. Only has sense for non
+  /// Return the total of arcs of a node. Only has sense for non-
   /// directed graphs
-  size_t get_num_arcs(Node * node) const noexcept
+  size_t get_num_arcs(Node *node) const noexcept
   {
     return node->num_arcs;
   }
 
   /// Return the total of arcs (or degree) of a node. Only has sense for
-  /// non directed graphs
-  size_t degree(Node * p) const noexcept { return get_num_arcs(p); }
+  /// non-directed graphs
+  size_t degree(Node *p) const noexcept { return get_num_arcs(p); }
 
   /// Return the total of arcs of graph
   size_t esize() const noexcept { return get_num_arcs(); }
 
   /// Return a reference to control fields of `node`
-  Bit_Fields & get_control_bits(Node * node) const noexcept
+  Bit_Fields &get_control_bits(Node *node) const noexcept
   {
     return NODE_BITS(node).reset();
   }
 
   /// Reset the `bit` of `node` (to zero)
-  void reset_bit(Node * node, int bit) const noexcept
+  void reset_bit(Node *node, int bit) const noexcept
   {
     NODE_BITS(node).reset(bit);
   }
-  
+
   /// Reset all the control bits of `node`
-  void reset_bits(Node * node) const noexcept { NODE_BITS(node).reset(); }
+  void reset_bits(Node *node) const noexcept
+  {
+    NODE_BITS(node).reset();
+  }
 
   /// Get the control `bit` of `node`
-  int get_bit(Node * node, int bit) const noexcept
+  int get_bit(Node *node, int bit) const noexcept
   {
     return NODE_BITS(node).get_bit(bit);
   }
 
   /// Set the control `bit` of `node` to `value`
-  void set_bit(Node * node, int bit, int value) const noexcept
+  void set_bit(Node *node, int bit, int value) const noexcept
   {
     NODE_BITS(node).set_bit(bit, value);
   }
 
   /// Return a reference to the control bits of `arc`
-  Bit_Fields & get_control_bits(Arc * arc) const noexcept
+  Bit_Fields &get_control_bits(Arc *arc) const noexcept
   {
     return ARC_BITS(arc);
   }
 
   /// Reset the `bit` of `arc` to zero
-  void reset_bit(Arc * arc, int bit) const noexcept
+  void reset_bit(Arc *arc, int bit) const noexcept
   {
     ARC_BITS(arc).reset(bit);
   }
 
-    /// Reset all the control bits of `arc`
-  void reset_bits(Arc * arc) const noexcept { ARC_BITS(arc).reset(); } 
+  /// Reset all the control bits of `arc`
+  void reset_bits(Arc *arc) const noexcept
+  {
+    ARC_BITS(arc).reset();
+  }
 
-    /// Get the control `bit` of `arc`
-  int get_bit(Arc * arc, int bit) const noexcept
+  /// Get the control `bit` of `arc`
+  int get_bit(Arc *arc, int bit) const noexcept
   {
     return ARC_BITS(arc).get_bit(bit);
   }
 
   /// Set the control `bit` of `arc` to `value`
-  void set_bit(Arc * arc, int bit, int value) const noexcept
+  void set_bit(Arc *arc, int bit, int value) const noexcept
   {
     ARC_BITS(arc).set_bit(bit, value);
   }
 
   /// Get a modifiable reference to the cookie pointer of `node`
-  void *& get_cookie(Node * node) const noexcept
+  void *&get_cookie(Node *node) const noexcept
   {
     return NODE_COOKIE(node);
   }
 
   /// Get a modifiable reference to the cookie pointer of `arc`
-  void *& get_cookie(Arc * arc) const noexcept
+  void *&get_cookie(Arc *arc) const noexcept
   {
     return ARC_COOKIE(arc);
   }
 
   /// Get a modifiable reference to the counter of `node`
-  long & get_counter(Node * node) const noexcept
+  long &get_counter(Node *node) const noexcept
   {
     return NODE_COUNTER(node);
   }
 
   /// Reset the `node` counter to zero
-  void reset_counter(Node * node) const noexcept 
+  void reset_counter(Node *node) const noexcept
   {
     NODE_COUNTER(node) = 0;
   }
 
   /// Reset all the node counters of graph to zero
-  void reset_node_counters() const noexcept 
+  void reset_node_counters() const noexcept
   {
-    for_each_node([this] (auto p) { this->reset_counter(p); });
+    for_each_node([this](auto p) { this->reset_counter(p); });
   }
 
   /// Reset all the control attributes of node `p`. That is: all control
   /// bits, the state and the counter are set to zero. The cookie is set
   /// to `nullptr` value
-  void reset_node(Node * p) const noexcept
+  void reset_node(Node *p) const noexcept
   {
     p->attrs.reset();
   }
 
   /// Get a modifiable reference to the counter of `arc`
-  long & get_counter(Arc * arc) const noexcept
+  long &get_counter(Arc *arc) const noexcept
   {
     return ARC_COUNTER(arc);
   }
 
   /// Reset the `acr` counter to zero
-  void reset_counter(Arc * arc) const noexcept
+  void reset_counter(Arc *arc) const noexcept
   {
     ARC_COUNTER(arc) = No_Visited;
   }
 
   /// Reset all the arc counters of graph to zero
-  void reset_arc_counters() const noexcept 
+  void reset_arc_counters() const noexcept
   {
-    for_each_arc([this] (auto a) { this->reset_counter(a); });
+    for_each_arc([this](auto a) { this->reset_counter(a); });
   }
 
   /// Reset all the control attributes of `arc`. That is: all control
   /// bits, the state and the counter are set to zero. The cookie is set
   /// to `nullptr` value
-  void reset_arc(Arc * arc) const noexcept
+  void reset_arc(Arc *arc) const noexcept
   {
     arc->attrs.reset();
   }
- 
+
   /// Reset all the nodes of graph (the control bits, the state, the
   /// counter and the cookie)
   void reset_nodes() const
   {
-    for_each_node([] (auto p) { p->attrs.reset(); });
+    for_each_node([](auto p) { p->attrs.reset(); });
   }
 
   /// Reset all the arcs of graph (the control bits, the state, the
   /// counter and the cookie)
   void reset_arcs() const
-  {			
-    for_each_arc([] (auto a) { a->attrs.reset(); });
+  {
+    for_each_arc([](auto a) { a->attrs.reset(); });
   }
 
   /** Map the nodes through their cookies.
@@ -644,18 +664,18 @@ public:
       `map_nodes(p, q)` is intended to biyectively to map the node `p`
       towards the node `q` through their cookies. Basically, after
       calling the cookie of `p` points to `q` and the cookie of `q`
-      points to `p`. 
+      points to `p`.
 
       If the cookie value of `p` is not `nullptr`, then
       `map_nodes(p, q)` assumes that there already is a mapping and then
       perform the composition. This could be very useful for having
-      several mapping. 
+      several mapping.
 
       Supposse that we have three nodes `p`, `q` and `r` belonging to
       three different, but from certain way isomorphic, graphs `g1` and
       `g2` of type `GT`, and `g3` of type `GTT`. Note that the types of
       graph could variate. Thus, this call:
-      
+
           g1.map_nodes(p, q);
 
       Instruments a biyective mapping \f$p \longleftrightarrow q\f$.
@@ -688,7 +708,7 @@ public:
       approach is also the less space consuming. More still, correctly
       used, this approach could be simpler than hash tables or trees,
       since you do not require additional declarations, inicializations,
-      etc. 
+      etc.
 
       Of course, this approach has the big con that it is not very typed
       neither validated. If you do a mistake all probably will
@@ -700,18 +720,21 @@ public:
 
       @see mapped_node()
    */
-  template <class N1, class N2 = N1> static
-  void map_nodes(N1 * p, N2 * q) noexcept
+  template <class N1, class N2 = N1>
+  static
+  void map_nodes(N1 *p, N2 *q) noexcept
   {
     assert(p != nullptr and q != nullptr);
+    // Use reinterpret_cast to preserve exact pointer values without any
+    // implicit base class pointer adjustment from multiple inheritance
     if (NODE_COOKIE(p) == nullptr)
       {
-       NODE_COOKIE(p) = q;
-       NODE_COOKIE(q) = p;
-       return;
-     }
+        NODE_COOKIE(p) = reinterpret_cast<void *>(q);
+        NODE_COOKIE(q) = reinterpret_cast<void *>(p);
+        return;
+      }
     NODE_COOKIE(q) = NODE_COOKIE(p);
-    NODE_COOKIE(p) = q;
+    NODE_COOKIE(p) = reinterpret_cast<void *>(q);
   }
 
   /** Map the arcs through their cookies.
@@ -719,7 +742,7 @@ public:
       `map_arcs(p, q)` is intended to biyectively to map the arc `p`
       towards the arc `q` through their cookies. Basically, after
       calling the cookie of `p` points to `q` and the cookie of `q`
-      points to `p`. 
+      points to `p`.
 
       See map_nodes() for a better explanation.
 
@@ -728,76 +751,77 @@ public:
 
       @see mapped_arc()
  */
-  template <class A1, class A2 = A1> static
-  void map_arcs(A1 * p, A2 * q) noexcept
+  template <class A1, class A2 = A1>
+  static
+  void map_arcs(A1 *p, A2 *q) noexcept
   {
     assert(p != nullptr and q != nullptr);
     if (ARC_COOKIE(p) == nullptr)
       {
-	ARC_COOKIE(p) = q;
-	ARC_COOKIE(q) = p;
-	return;
+        ARC_COOKIE(p) = q;
+        ARC_COOKIE(q) = p;
+        return;
       }
     ARC_COOKIE(q) = ARC_COOKIE(p);
     ARC_COOKIE(p) = q;
   }
-  
+
   /// Reset `bit` to zero for all the nodes of graph
   void reset_bit_nodes(int bit) const noexcept
   {
-    for_each_node([bit, this] (auto p) { this->reset_bit(p, bit); });
+    for_each_node([bit, this](auto p) { this->reset_bit(p, bit); });
   }
 
   /// Reset `bit` to zero for all the arcs of graph
   void reset_bit_arcs(int bit) const noexcept
   {
-    for_each_arc([bit, this] (auto a) { this->reset_bit(a, bit); });
+    for_each_arc([bit, this](auto a) { this->reset_bit(a, bit); });
   }
 
   /// Reset all the bits for all the nodes of graph
   void reset_bit_nodes() const noexcept
   {
-    for_each_node([this] (auto p) { this->reset_bits(p); });
+    for_each_node([this](auto p) { this->reset_bits(p); });
   }
 
   /// Reset all the bits for all the arcs of graph
   void reset_bit_arcs() const noexcept
   {
-    for_each_arc([this] (auto a) { this->reset_bits(a); });
+    for_each_arc([this](auto a) { this->reset_bits(a); });
   }
-  
+
   /// Reset all the counters to zero for all the nodes of graph
   void reset_counter_nodes() const noexcept
   {
-    for_each_node([this] (auto p) { this->reset_counter(p); });
+    for_each_node([this](auto p) { this->reset_counter(p); });
   }
 
   /// Reset all the counters to zero for all the arcs of graph
   void reset_counter_arcs() const noexcept
   {
-    for_each_arc([this] (auto a) { this->reset_counter(a); });
+    for_each_arc([this](auto a) { this->reset_counter(a); });
   }
 
   /** Reset all the cookies to `nullptr for all the nodes of graph.
 
       @warning Be sure to verify that the cookie is not being used,
       otherwise most likely will lose memory or worse, your algorithm will
-      not work properly 
+      not work properly
   */
   void reset_cookie_nodes() const noexcept
   {
-    for_each_node([] (auto p) { NODE_COOKIE(p) = nullptr; });
+    for_each_node([](auto p) { NODE_COOKIE(p) = nullptr; });
   }
 
   /** Reset all the cookies to `nullptr for all the arcs of graph.
 
       @warning Be sure to verify that the cookie is not being used,
       otherwise most likely will lose memory or worse, your algorithm will
-      not work properly 
+      not work properly
   */
   void reset_cookie_arcs() const noexcept
   {
-    for_each_arc([] (auto a) { ARC_COOKIE(a) = nullptr; });
+    for_each_arc([](auto a) { ARC_COOKIE(a) = nullptr; });
   }
 
   /** Allocate a new node, set by copy its data content and insert it
@@ -815,13 +839,13 @@ public:
 
       @param[in] node_info infopr to copy to the new node. The copy
       constructor and the assign operator must be defined for the class
-      Node_Type. 
+      Node_Type.
       @return a pointer to the new inserted node.
       @throw bad_allod if there is no enough memory
    */
   Node * insert_node(const Node_Type & node_info)
   {
-    return me()->insert_node(new Node (node_info));
+    return me()->insert_node(new Node(node_info));
   }
 
   /** Allocate a new node, set by moving its data content and insert it
@@ -839,7 +863,7 @@ public:
 
       @param[in] node_info info to move to the new node. The move
       constructor and the move assign operator must be defined for the class
-      Node_Type. 
+      Node_Type.
       @return a pointer to the new inserted node.
       @throw bad_allod if there is no enough memory.
   */
@@ -849,10 +873,10 @@ public:
   }
 
   /** Insert a new node in the graph by constructing it in-place with
-      the given args. 
+      the given args.
 
       This method is an effective way for inserting a new node in the
-      graph and bypassing innecesary copies. `emplace_node()` allocates
+      graph and bypassing unnecessary copies. `emplace_node()` allocates
       a new node, takes the parameters received and calls to the
       constructor of data associated to the node. Then the data is
       forwarded to the node data constructor avoiding, if possible,
@@ -868,8 +892,8 @@ public:
       @return a pointer to the new and inserted node.
       @throw bad_allod if there is no enough memory.
    */
-  template <typename ...Args>
-  Node * emplace_node(Args && ... args)
+  template <typename... Args>
+  Node * emplace_node(Args &&... args)
   {
     return me()->insert_node(Node_Type(args...));
   }
@@ -882,7 +906,7 @@ public:
       has been effectively allocated, the data contained in `arc_info`
       is copied to the node. Finally, the arc is inserted into the
       graph.
-      
+
       The pointers `src`and `tgt` must be valid; that is, of course,
       they must correspond to real nodes already inserted in the
       graph. At this regard, no validation is done.
@@ -894,9 +918,9 @@ public:
       @param[in] tgt pointer to the target node.
       @param[in] arc_info the data to be copied to the node.
       @return a pointer to the arc already inserted into the graph
-      @throw bad_alloc if there is no enough memory.      
+      @throw bad_alloc if there is no enough memory.
    */
-  Arc * insert_arc(Node * src, Node * tgt, const Arc_Type & arc_info)
+  Arc * insert_arc(Node *src, Node *tgt, const Arc_Type & arc_info)
   {
     std::unique_ptr<Arc> arc(new Arc(arc_info));
     me()->insert_arc(src, tgt, arc.get());
@@ -912,7 +936,7 @@ public:
       has been effectively allocated, if possible, the data contained in
       `arc_info` is moved to the node avoiding copy. Finally, the arc is
       inserted into the graph.
-      
+
       The pointers `src`and `tgt` must be valid; that is, of course,
       they must correspond to real nodes already inserted in the
       graph. At this regard, no validation is done.
@@ -924,9 +948,9 @@ public:
       @param[in] tgt pointer to the target node.
       @param[in] arc_info the data to be moved to the node.
       @return a pointer to the arc already inserted into the graph
-      @throw bad_alloc if there is no enough memory.      
+      @throw bad_alloc if there is no enough memory.
    */
-  Arc * insert_arc(Node * src, Node * tgt, Arc_Type && arc_info = Arc_Type())
+  Arc * insert_arc(Node *src, Node *tgt, Arc_Type && arc_info = Arc_Type())
   {
     std::unique_ptr<Arc> arc(new Arc(std::forward<Arc_Type>(arc_info)));
     me()->insert_arc(src, tgt, arc.get());
@@ -937,7 +961,7 @@ public:
       in-place with the given args.
 
       This method allows to insert a new arc in the graph bypassing
-      innecesary copies. `emplace_arc()` allocates a new arc, takes the
+      unnecessary copies. `emplace_arc()` allocates a new arc, takes the
       parameters received and calls to the constructor of data
       associated to the arc. Then the data is forwarded to the arc data
       constructor avoiding, if possible, innecessary copies. Once the
@@ -954,15 +978,15 @@ public:
       @return a pointer to the new and inserted arc.
       @throw bad_allod if there is no enough memory.
   */
-  template <typename ...Args>
-  Arc * emplace_arc(Node * src, Node * tgt, Args && ... args)
+  template <typename... Args>
+  Arc * emplace_arc(Node *src, Node *tgt, Args &&... args)
   {
     return me()->insert_arc(src, tgt, Arc_Type(args...));
   }
-  
+
   /** Conditioned traversal of all the nodes of a graph.
 
-      `traverse_nodes(operation)` condionally traverses all the nodes of
+      `traverse_nodes(operation)` conditionally traverses all the nodes of
       a graph and on each node `p` executes `operation(p)`. The
       `operation` must have the following functor structure:
 
@@ -971,15 +995,15 @@ public:
       This signature can be accomplished through a function pointer, a
       functor or a lambda (via the overloaded rvalue version).  Note
       that there is a return value. If `operation(p)` returns `true`,
-      then the next node is traversed. Otherwise the traversal stops and
+      then the next node is traversed. Otherwise, the traversal stops and
       the remainder nodes are not visited.
 
       For example, supposse that we wish print out the nodes content for
       all the nodes. Then we could do it as follows:
 
-          g.traverse_nodes([] (auto p) 
-	    { 
-	      cout << p->get_info() << endl; 
+          g.traverse_nodes([] (auto p)
+	    {
+	      cout << p->get_info() << endl;
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1011,7 +1035,7 @@ public:
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       if (not op(it.get_curr()))
-	return false;
+        return false;
     return true;
   }
 
@@ -1048,9 +1072,9 @@ public:
       For example, supposse that we wish print out the arcs content for
       all the arcs. Then we could do it as follows:
 
-          g.traverse_arcs([] (auto a) 
-	    { 
-	      cout << a->get_info() << endl; 
+          g.traverse_arcs([] (auto a)
+	    {
+	      cout << a->get_info() << endl;
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1076,7 +1100,7 @@ public:
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       if (not op(it.get_curr()))
-	return false;
+        return false;
     return true;
   }
 
@@ -1085,7 +1109,7 @@ public:
   bool traverse_arcs(Operation && op = Operation()) const
   {
     return traverse_arcs(op);
-  } 
+  }
 
   /** Conditioned traversal of all the adjacent arcs of a node.
 
@@ -1114,9 +1138,9 @@ public:
       For example, supposse that we wish print out the arcs content for
       the nodes adjacent to the node `p`. Then we could do it as follows:
 
-          g.traverse_arcs(p, [] (auto a) 
-	  { 
-	    cout << a->get_info() << endl; 
+          g.traverse_arcs(p, [] (auto a)
+	  {
+	    cout << a->get_info() << endl;
 	    return true; // for instructing to visit the next node
           });
 
@@ -1139,33 +1163,33 @@ public:
       @see traverse_arcs() all_arcs()
   */
   template <class Operation>
-  bool traverse_arcs(Node * p, Operation & op) const
+  bool traverse_arcs(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       if (not op(it.get_curr()))
-	return false;
-    return true; 
+        return false;
+    return true;
   }
 
   /// \overload traverse_arcs(Node * p, Operation & operation)
   template <class Operation>
-  bool traverse_arcs(Node * p, Operation && op = Operation()) const
+  bool traverse_arcs(Node *p, Operation && op = Operation()) const
   {
     return traverse_arcs(p, op);
   }
 
   /** Unconditionally traverse all the nodes of graph and on each one
       perform an operation.
-      
+
       `for_each_node()` unconditionally traverse all the nodes of a
       graph and on each one performs `operation`, whicsh must have the
       following signature:
-      
+
           void operation(Node * p)
 
       The operation could be a function pointer matching that signature,
       a functor or a lambda. Note that the `operation` does not require
-      return anything. 
+      return anything.
 
       Your algorithm should not assume any particular order of visit.
 
@@ -1194,16 +1218,16 @@ public:
 
   /** Unconditionally traverse all the arcs of graph and on each one
       perform an operation.
-      
+
       `for_each_arc()` unconditionally traverse all the arcs of a
       graph and on each one performs `operation`, which must have the
       following signature:
-      
+
           void operation(Arc * p)
 
       The operation could be a function pointer matching that signature,
       a functor or a lambda. Note that the `operation` does not require
-      return anything. 
+      return anything.
 
       Your algorithm should not assume any particular order of visit.
 
@@ -1216,7 +1240,7 @@ public:
       @param[in] operation to be performed on each node.
       @throw anything that can throw `operation`.
   */
-  template <class Operation> 
+  template <class Operation>
   void for_each_arc(Operation & op) const
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
@@ -1232,16 +1256,16 @@ public:
 
   /** Unconditionally traverse all the arcs adjacnt to a node and on
       each one perform an operation.
-      
+
       `for_each_ars(p)` unconditionally traverse all the nodes of node
       `p` on each one performs `operation`, which must have the
       following signature:
-      
+
           void operation(Arc * p)
 
       The operation could be a function pointer matching that signature,
       a functor or a lambda. Note that the `operation` does not require
-      return anything. 
+      return anything.
 
       This probably is the most common primitive for algorithms on graphs.
 
@@ -1257,14 +1281,14 @@ public:
       `g.get_connected_node(a,p)`.
 
       @remark For directed graphs use `for_each_in_arc()` or
-      `for_each_out_arc()`- 
+      `for_each_out_arc()`-
 
       @param[i] p pointer to the node from you want to see its arcs.
       @param[in] operation to be performed on each node.
       @throw anything that can throw `operation`.
    */
-    template <class Operation>
-  void for_each_arc(Node * p, Operation & op) const
+  template <class Operation>
+  void for_each_arc(Node *p, Operation & op) const
   {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       op(it.get_curr());
@@ -1272,7 +1296,7 @@ public:
 
   /// \overlaod for_each_arc(Node * p, Operation & operation)
   template <class Operation>
-  void for_each_arc(Node * p, Operation && op = Operation()) const
+  void for_each_arc(Node *p, Operation && op = Operation()) const
   {
     for_each_arc(p, op);
   }
@@ -1296,13 +1320,13 @@ public:
           g.all_nodes([] (auto p) { return p->get_info() % 2 == 0; });
 
       \remark Note that `all_nodes()` is semantically equivalent to
-      `traverse_nodes()`. 
+      `traverse_nodes()`.
 
       The complexity for this primitive always is \f$O(V)\f$ worst case.
-      
+
       @param[in] operation condition to test on each node.
       @return `true` if all the nodes satisfy the condition; `false`
-      otherwise. 
+      otherwise.
 
       @see exists_node()
    */
@@ -1319,35 +1343,35 @@ public:
     return all_nodes(op);
   }
 
-    /** Check if all the arcs of graph satisfy a boolean condition.
+  /** Check if all the arcs of graph satisfy a boolean condition.
 
-      `all_arcs()` traverse each arc of graph and on each one the
-      `operation` is tested. If `operation` returns `true`, then the
-      next arc is inspected. Otherwise, the traversal stops and `false` is
-      returned as result.
+    `all_arcs()` traverse each arc of graph and on each one the
+    `operation` is tested. If `operation` returns `true`, then the
+    next arc is inspected. Otherwise, the traversal stops and `false` is
+    returned as result.
 
-      The `operation` must imperatively have the following structure:
+    The `operation` must imperatively have the following structure:
 
-          bool operation(Arc * p)
+        bool operation(Arc * p)
 
-      The idea is to perform a test and according to its result to
-      return `true` is the test was passed, or false otherwise. For
-      example, in order to check if all the arc content is odd you
-      could do:
+    The idea is to perform a test and according to its result to
+    return `true` is the test was passed, or false otherwise. For
+    example, in order to check if all the arc content is odd you
+    could do:
 
-          g.all_arcs([] (auto a) { return a->get_info() % 2; });
+        g.all_arcs([] (auto a) { return a->get_info() % 2; });
 
-      \remark Note that `all_arcs()` is semantically equivalent to
-      `traverse_arcs()`. 
+    \remark Note that `all_arcs()` is semantically equivalent to
+    `traverse_arcs()`.
 
-      The complexity for this primitive always is \f$O(E)\f$ worst case.
-      
-      @param[in] operation condition to test on each arc.
-      @return `true` if all the arcs satisfy the condition; `false`
-      otherwise. 
+    The complexity for this primitive always is \f$O(E)\f$ worst case.
 
-      @see exists_arc()
-   */
+    @param[in] operation condition to test on each arc.
+    @return `true` if all the arcs satisfy the condition; `false`
+    otherwise.
+
+    @see exists_arc()
+ */
   template <class Operation>
   bool all_arcs(Operation & op) const
   {
@@ -1362,7 +1386,7 @@ public:
   }
 
   /** Check if all the arcs adjacent to a node satisfy an boolean
-      condition. 
+      condition.
 
       `all_arcs(p)` traverse each arc adjacent to node `p` and on each
       one the `operation` is tested. If `operation` returns `true`, then
@@ -1381,31 +1405,31 @@ public:
       g.all_arcs(p, [] (auto a) { return a->get_info() % 2; });
 
       \remark Note that `all_arcs(p)` is semantically equivalent to
-      traverse_arcs(). 
+      traverse_arcs().
 
       The complexity for this primitive always is \f$O(V)\f$ worst case
       for dense graphs.
-      
+
       @param[in] p node pointer
       @param[in] operation condition to test on each arc.
       @return `true` if all the arcs satisfy the condition; `false`
-      otherwise. 
+      otherwise.
 
       \see bool exists_arc(Operation & operation)
   */
   template <class Operation>
-  bool all_arcs(Node * p, Operation & op) const
-  { 
+  bool all_arcs(Node *p, Operation & op) const
+  {
     return traverse_arcs(p, op);
   }
 
   /// \overload all_arcs(Node * p, Operation & operation)
   template <class Operation>
-  bool all_arcs(Node * p, Operation && op = Operation()) const 
+  bool all_arcs(Node *p, Operation && op = Operation()) const
   {
     return all_arcs(p, op);
   }
-  
+
   /** Map the nodes of a graph to a specific range.
 
       `nodes_map(operation)` produces a mapping list of the graph's
@@ -1426,7 +1450,7 @@ public:
       of the data node between a specific divisor. Then you can do this
       as follows:
 
-          auto l = g.map_nodes<double>([divisor] (auto p) 
+          auto l = g.map_nodes<double>([divisor] (auto p)
 	  {
 	    return 1.0*p->get_info()/divisor;
           });
@@ -1436,7 +1460,7 @@ public:
      `map_nodes()` intended for mapping the nodes through their cookies.
 
      @note In metaprogramming you will probably need add the `template`
-     keyword before the name `nodes_map<your-target-type>`. 
+     keyword before the name `nodes_map<your-target-type>`.
 
          g.template nodes_map<ulong>([] (auto p) { return p->get_info(); });
 
@@ -1450,7 +1474,7 @@ public:
   auto nodes_map(std::function<T(Node *)> op) const
   {
     DynList<T> ret_val;
-    for_each_node([&ret_val, &op] (Node * p) { ret_val.append(op(p)); });
+    for_each_node([&ret_val, &op](Node *p) { ret_val.append(op(p)); });
     return ret_val;
   }
 
@@ -1473,7 +1497,7 @@ public:
       to produce a mapping int --> string corresponding to string
       reprsentation of the data arc. Then you can do this as follows:
 
-          auto l = g.map_arcs<string>([] (auto a) 
+          auto l = g.map_arcs<string>([] (auto a)
 	  {
 	    return to_string(a->get_info());
           });
@@ -1497,10 +1521,10 @@ public:
   auto arcs_map(std::function<T(Arc *)> operation) const
   {
     DynList<T> ret_val;
-    for_each_arc([&ret_val, &operation] (Arc * p)
-		 {
-		   ret_val.append(operation(p));
-		 });
+    for_each_arc([&ret_val, &operation](Arc *p)
+                   {
+                     ret_val.append(operation(p));
+                   });
     return ret_val;
   }
 
@@ -1534,7 +1558,7 @@ public:
      `map_arcs()` intended for mapping the arcs through their cookies.
 
      @note In metaprogramming you will probably need add the `template`
-     keyword before the name `arcs_map<your-target-type>`. 
+     keyword before the name `arcs_map<your-target-type>`.
 
          g.template arcs_map<ulong>([] (auto p) { return p->get_info(); });
 
@@ -1545,13 +1569,13 @@ public:
      dynamic list or anything else that can throw `operation`
    */
   template <typename T = Arc_Type>
-  auto arcs_map(Node * p, std::function<T(Arc *)> operation) const
+  auto arcs_map(Node *p, std::function<T(Arc *)> operation) const
   {
     DynList<T> ret_val;
-    for_each_arc(p, [&ret_val, &operation] (Arc * a)
-		 {
-		   ret_val.append(operation(a));
-		 });
+    for_each_arc(p, [&ret_val, &operation](Arc *a)
+                   {
+                     ret_val.append(operation(a));
+                   });
     return ret_val;
   }
 
@@ -1561,7 +1585,7 @@ public:
       maintain an accumulator value `acc` whose initial value is
       `init`. On each node `p`, it performs `operation(acu, p)` which
       must match with the following signature:
-      
+
           T operation(const T &, Node * p)
 
       So, on each call it is peformed:
@@ -1574,7 +1598,7 @@ public:
       is very important to match the expected signature of
       `operation`. A proper and sure way of quickly define `operation`
       is by using `auto` parameters.
-      
+
       For example, suppose that the nodes contain integers and that you
       want to compute the maximum value. Then you could do it as
       follows:
@@ -1591,10 +1615,11 @@ public:
    */
   template <typename T = Node_Type>
   T foldl_nodes(const T & init,
-		std::function<T(const T&, Node*)> op) const
+                std::function<T(const T &, Node *)> op) const
   {
     T ret = init;
-    for_each_node([&ret, &op] (Node * p) { ret = op(ret, p); });			  return ret;
+    for_each_node([&ret, &op](Node *p) { ret = op(ret, p); });
+    return ret;
   }
 
   /** Folding of arcs on a graph.
@@ -1603,7 +1628,7 @@ public:
       maintain an accumulator value `acc` whose initial value is
       `init`. On each acr `a`, it performs `operation(acu, a)` which
       must match with the following signature:
-      
+
           T operation(const T &, Arc * a)
 
       So, on each call it is peformed:
@@ -1615,8 +1640,8 @@ public:
       Since `foldl_arcs()` is defined via `std::function` wrapper, it is very
       important to match the expected signature of `operation`. A proper
       and sure way of quickly define `operation` is by using `auto`
-      parameters. 
-      
+      parameters.
+
       For example, suppose that the arcs contain doubles and that you
       want to compute the total sum, then you could do it as follows:
 
@@ -1632,10 +1657,10 @@ public:
    */
   template <typename T = Arc_Type>
   T foldl_arcs(const T & init,
-	       std::function<T(const T&, Arc*)> op) const
+               std::function<T(const T &, Arc *)> op) const
   {
     T ret = init;
-    for_each_arc([&ret, &op] (Arc * p) { ret = op(ret, p); });
+    for_each_arc([&ret, &op](Arc *p) { ret = op(ret, p); });
     return ret;
   }
 
@@ -1645,7 +1670,7 @@ public:
       node `p` and maintain an accumulator value `acc` whose initial
       value is `init`. On each arc `a`, it performs `operation(acu, a)`
       which must match with the following signature:
-      
+
           T operation(const T &, Arc * a)
 
       So, on each call it is peformed:
@@ -1657,8 +1682,8 @@ public:
       Since `foldl_arcs()` is defined via `std::function` wrapper, it is very
       important to match the expected signature of `operation`. A proper
       and sure way of quickly define `operation` is by using `auto`
-      parameters. 
-      
+      parameters.
+
       For example, suppose that the arcs contain doubles and that you
       want to compute the total sum, then you could do it as follows:
 
@@ -1674,14 +1699,14 @@ public:
       @return the final value of accumulator after full traversal.
    */
   template <typename T = Arc_Type>
-  T foldl_arcs(Node * p, const T & init,
-	       std::function<T(const T&, Arc*)> op) const
+  T foldl_arcs(Node *p, const T & init,
+               std::function<T(const T &, Arc *)> op) const
   {
     T ret = init;
-    for_each_arc(p, [&ret, &op] (Arc * a) { ret = op(ret, a); });
+    for_each_arc(p, [&ret, &op](Arc *a) { ret = op(ret, a); });
     return ret;
   }
-  
+
   /** Filter the nodes satisfying a condition.
 
       `filter_nodes(op)` traverses each node of graph and recolects
@@ -1703,19 +1728,21 @@ public:
       @throw bad_alloc if there is no enough memory for building the
       full returning list.
    */
-  template <class Op> auto filter_nodes(Op & op) const
+  template <class Op>
+  auto filter_nodes(Op & op) const
   {
-    DynList<Node*> ret;
-    for_each_node([&ret, &op] (Node * p)
-		  {
-		    if (op(p))
-		      ret.append(p); 
-		  });
+    DynList<Node *> ret;
+    for_each_node([&ret, &op](Node *p)
+                    {
+                      if (op(p))
+                        ret.append(p);
+                    });
     return ret;
   }
 
   /// \overload filter_nodes(Op & op)
-  template <class Op> auto filter_nodes(Op && op) const
+  template <class Op>
+  auto filter_nodes(Op && op) const
   {
     return filter_nodes(op);
   }
@@ -1741,19 +1768,21 @@ public:
       @throw bad_alloc if there is no enough memory for building the
       full returning list.
    */
-  template <class Op> auto filter_arcs(Op & op) const
+  template <class Op>
+  auto filter_arcs(Op & op) const
   {
-    DynList<Arc*> ret;
-    for_each_arc([&ret, &op] (Arc * a)
-		 {
-		   if (op(a))
-		     ret.append(a);
-		 });
+    DynList<Arc *> ret;
+    for_each_arc([&ret, &op](Arc *a)
+                   {
+                     if (op(a))
+                       ret.append(a);
+                   });
     return ret;
   }
 
   /// \overload filter_arcs(Op & op)
-  template <class Op> auto filter_arcs(Op && op) const
+  template <class Op>
+  auto filter_arcs(Op && op) const
   {
     return filter_arcs(op);
   }
@@ -1772,7 +1801,7 @@ public:
       For example, in order to get the arcs whose target node have degree
       greater than `n` you could do it as follows:
 
-          g.filter_arcs(p, [&g, p, n] (auto a) 
+          g.filter_arcs(p, [&g, p, n] (auto a)
 	  {
 	    return g.degree(g.get_connected_node(a, p)) > n;
 	  });
@@ -1788,19 +1817,21 @@ public:
       @throw bad_alloc if there is no enough memory for building the
       full returning list.
   */
-  template <class Op> auto filter_arcs(Node * p, Op & op) const
+  template <class Op>
+  auto filter_arcs(Node *p, Op & op) const
   {
-    DynList<Arc*> ret;
-    for_each_arc(p, [&ret, &op] (Arc * a)
-    {
-      if (op(a))
-	ret.append(a);
-    });
+    DynList<Arc *> ret;
+    for_each_arc(p, [&ret, &op](Arc *a)
+                   {
+                     if (op(a))
+                       ret.append(a);
+                   });
     return ret;
-  } 
+  }
 
   /// \overload filter_arcs()
-  template <class Op> auto filter_arcs(Node * p, Op && op) const
+  template <class Op>
+  auto filter_arcs(Node *p, Op && op) const
   {
     return filter_arcs(p, op);
   }
@@ -1811,13 +1842,13 @@ public:
       satisfies the condition expressed by `operation`.
 
       The operation has \f$O(V)\f$ complexity for the worst case.
-      
+
       \remark Note that `exists_node()` is the oppossite or complement
       of `all_nodes()`. In fact, `exists_node(op)` could be written, in
       terms of `all_nodes(op)` as follows:
-      
+
           not g.all_nodes([&op] (auto p) { return not op(p); });
-	  
+
       \param[in] operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
       found; `false` otherwise.
@@ -1826,7 +1857,7 @@ public:
   template <class Operation>
   bool exists_node(Operation & op) const
   {
-    return not traverse_nodes([&op] (Node * p) { return not op(p); });
+    return not traverse_nodes([&op](Node *p) { return not op(p); });
   }
 
   /// \overload exists_node()
@@ -1842,13 +1873,13 @@ public:
       satisfies the condition expressed by `operation`.
 
       The operation has \f$O(E)\f$ complexity for the worst case.
-      
+
       \remark Note that `exists_arc()` is the oppossite or complement
       of `all_arcs()`. In fact, `exists_arc(op)` could be written, in
       terms of `all_arc(op)` as follows:
-      
+
           not g.all_arc([&op] (auto p) { return not op(p); });
-	  
+
       \param[in] operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
       found; `false` otherwise.
@@ -1857,7 +1888,7 @@ public:
   template <class Operation>
   bool exists_arc(Operation & op) const
   {
-    return not traverse_arcs([&op] (Arc * a) { return not op(a); });
+    return not traverse_arcs([&op](Arc *a) { return not op(a); });
   }
 
   /// \overload exists_arc(Operation & operation)
@@ -1876,13 +1907,13 @@ public:
       The operation has \f$O(V)\f$ complexity for the worst case;
       concretely on dense graphs, but it trends to be much lesser for
       sparsed graphs.
-      
+
       \remark Note that `exists_arc()` is the oppossite or complement
       of `all_arcs()`. In fact, `exists_arc(p, op)` could be written, in
       terms of `all_arc(p, op)` as follows:
-      
+
           not g.all_arc(p, [&op] (auto p) { return not op(p); });
-	  
+
       \param[in] p node from which you want to access its arcs
       \param[in] operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
@@ -1890,14 +1921,14 @@ public:
       @see all_arcs(Node * p)
    */
   template <class Operation>
-  bool exists_arc(Node * p, Operation & op) const
+  bool exists_arc(Node *p, Operation & op) const
   {
-    return not traverse_arcs(p, [&op] (Arc * a) { return not op(a); });
+    return not traverse_arcs(p, [&op](Arc *a) { return not op(a); });
   }
 
   /// \overload exists_arc(Node * p, Operation & operation)
   template <class Operation>
-  bool exists_arc(Node * p, Operation && op = Operation()) const
+  bool exists_arc(Node *p, Operation && op = Operation()) const
   {
     return exists_arc(p, op);
   }
@@ -1923,9 +1954,9 @@ public:
   {
     for (typename GT::Node_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto p = it.get_curr();
-	if (op(p))
-	  return p;
+        auto p = it.get_curr();
+        if (op(p))
+          return p;
       }
     return nullptr;
   }
@@ -1950,7 +1981,7 @@ public:
    */
   Node * find_node(const Node_Type & info) const noexcept
   {
-    return search_node([&info] (auto p) { return p->get_info() == info; });
+    return search_node([&info](auto p) { return p->get_info() == info; });
   }
 
   /** Linear search of an arc.
@@ -1974,14 +2005,14 @@ public:
   {
     for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
-	if (op(a))
-	  return a;
+        auto a = it.get_curr();
+        if (op(a))
+          return a;
       }
     return nullptr;
   }
 
-  /// \overload search_arc(Op & op) 
+  /// \overload search_arc(Op & op)
   template <class Op>
   Arc * search_arc(Op && op) const
   {
@@ -2001,9 +2032,9 @@ public:
   */
   Arc * find_arc(const Arc_Type & info) const noexcept
   {
-    return search_arc([&info] (auto a) { return a->get_info() == info; });
+    return search_arc([&info](auto a) { return a->get_info() == info; });
   }
-  
+
   /** Linear search of an arc.
 
       Search linearly an arc satisfying the condition `op`.
@@ -2015,7 +2046,7 @@ public:
       The complexity is \f$O(V)\f$ for the worst case.
 
       \param[in] p pointer to the node from which the adjacent arcs want
-      to be searched. 
+      to be searched.
       \param[in] op the criteria.
       @return a valid pointer to found node if a node satisfies the
       criteria or `nullptr` otherwise
@@ -2023,20 +2054,20 @@ public:
       @see exists_arc(Node * p, Operation & op)
    */
   template <class Operation>
-  Arc * search_arc(Node * p, Operation & op) const
-  { 
+  Arc * search_arc(Node *p, Operation & op) const
+  {
     for (typename GT::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	Arc * arc = it.get_curr();
-	if (op(arc))
-	  return arc;
+        Arc *arc = it.get_curr();
+        if (op(arc))
+          return arc;
       }
     return nullptr;
   }
 
   /// \overload search_arc(Node * p, Operation & op)
   template <class Operation>
-  Arc * search_arc(Node * p, Operation && op = Operation()) const
+  Arc * search_arc(Node *p, Operation && op = Operation()) const
   {
     return search_arc(p, op);
   }
@@ -2060,20 +2091,20 @@ public:
       \param[in] src source node
       \paran[in] tgt target node
       \return a valid pointer to an arc if this was found or `nullptr`
-      otherwise. 
+      otherwise.
 
       \see search_directed_arc()
    */
-  Arc * search_arc(Node * src, Node * tgt) const noexcept
+  Arc * search_arc(Node *src, Node *tgt) const noexcept
   {
     for (typename GT::Node_Arc_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node_ne() == tgt)
-	return it.get_curr();
+        return it.get_curr();
     return nullptr;
   }
 
   /** Return a container with all the nodes of the graph.
-      
+
       `nodes()` recollects all the nodes of the graph and builds a
       container with all them inserted. The container type is a template
       parameter, which by default is `DynList`.
@@ -2083,15 +2114,15 @@ public:
       \throw bad_alloc if there is no enough memory
    */
   template <template <typename> class Container = Aleph::DynList>
-  Container<Node*> nodes() const
+  Container<Node *> nodes() const
   {
-    Container<Node*> ret;
-    for_each_node([&ret] (Node * p) { ret.append(p); });
+    Container<Node *> ret;
+    for_each_node([&ret](Node *p) { ret.append(p); });
     return ret;
   }
 
   /** Return a container with all the arcs of the graph.
-      
+
       `arcs()` recollects all the arcs of the graph and builds a
       container with all them inserted. The container type is a template
       parameter, which by default is `DynList`.
@@ -2101,15 +2132,15 @@ public:
       \throw bad_alloc if there is no enough memory
    */
   template <template <typename> class Container = Aleph::DynList>
-  Container<Arc*> arcs() const
+  Container<Arc *> arcs() const
   {
-    Container<Arc*> ret;
-    for_each_arc([&ret] (Arc * a) { ret.append(a); });
+    Container<Arc *> ret;
+    for_each_arc([&ret](Arc *a) { ret.append(a); });
     return ret;
   }
 
   /** Return a container with all the arcs adjacent to a node.
-      
+
       `arcs()` recollects all the arcs adjacent to node `p` and builds a
       container with all them inserted. The container type is a template
       parameter, which by default is `DynList`.
@@ -2119,10 +2150,10 @@ public:
       \throw bad_alloc if there is no enough memory
    */
   template <template <typename> class Container = Aleph::DynList>
-  Container<Arc*> arcs(Node * p) const
+  Container<Arc *> arcs(Node *p) const
   {
-    Container<Arc*> ret;
-    this->for_each_arc(p, [&ret] (Arc * a) { ret.append(a); });
+    Container<Arc *> ret;
+    this->for_each_arc(p, [&ret](Arc *a) { ret.append(a); });
     return ret;
   }
 
@@ -2143,9 +2174,9 @@ public:
       @return an instantiated iterator on the nodes positioned at the
       first node.
   */
-  auto get_node_it() const noexcept 
+  auto get_node_it() const noexcept
   {
-    return typename GT::Node_Iterator(*const_me()); 
+    return typename GT::Node_Iterator(*const_me());
   }
 
   /** Obtains an iterator to the arc of graph.
@@ -2167,14 +2198,14 @@ public:
   */
   auto get_arc_it() const noexcept
   {
-    return typename GT::Arc_Iterator(*const_me()); 
+    return typename GT::Arc_Iterator(*const_me());
   }
 
   /** Obtains an iterator to the adjacent arcs of a node.
 
       This method is useful for shorting the iterator initialization. A
       traditional way for writing an iterator on the arcs of a node is
-      as follows: 
+      as follows:
 
           for (typename GT::Node_Arc_Iterator it(g); it.has_curr(); it.next())
 	    operation on current arc
@@ -2188,9 +2219,9 @@ public:
       @return an instantiated iterator on the arcs positioned at the
       first arc.
   */
-  auto get_arc_it(Node * p) const noexcept
+  auto get_arc_it(Node *p) const noexcept
   {
-    return typename GT::Node_Arc_Iterator(p); 
+    return typename GT::Node_Arc_Iterator(p);
   }
 
   /** Filter for input arcs of a node.
@@ -2214,7 +2245,7 @@ public:
       \f$s \longrightarrow t\f$ i graph classes that do not explicitely
       model the sense. The `In_Filt` filter used in combination with a
       filter iterator on arcs, is used for filtering arcs whose target is
-      the node on the which one is iterating. 
+      the node on the which one is iterating.
 
       This class in intensively used in `Aleph-w` (\f$\aleph_\omega\f$)
       network flows, which, in order to directly have the residual net,
@@ -2227,21 +2258,23 @@ public:
    */
   struct In_Filt
   {
-    Node * tgt = nullptr; /// target node of iteration
+    Node *tgt = nullptr; /// target node of iteration
 
     /// Buld a filter on input arcs to arc `__tgt`
-    In_Filt(Node * __tgt = nullptr) noexcept : tgt(__tgt) { /* empty */ }
+    In_Filt(Node *__tgt = nullptr) noexcept : tgt(__tgt)
+    { /* empty */
+    }
 
     /// Return true if the arc `a` is incoming arc to `tgt`; `false`
     /// otherwise
-    bool operator () (Arc * a) const noexcept
+    bool operator ()(Arc *a) const noexcept
     {
       assert(tgt);
       return a->tgt_node == tgt;
     }
 
     ///  Return the source node of arc `a`
-    Node * get_node(Arc * a) const noexcept
+    Node * get_node(Arc *a) const noexcept
     {
       assert(tgt);
       return (typename GT::Node *) a->src_node;
@@ -2269,7 +2302,7 @@ public:
       \f$s \longrightarrow t\f$ i graph classes that do not explicitely
       model the sense. The `Out_Filt` filter used in combination with a
       filter iterator on arcs, is used for filtering arcs whose source
-      is connected to the node on the which one is iterating. 
+      is connected to the node on the which one is iterating.
 
       This class in intensively used in `Aleph-w` (\f$\aleph_\omega\f$)
       network flows, which, in order to directly have the residual net,
@@ -2282,21 +2315,23 @@ public:
    */
   struct Out_Filt
   {
-    Node * src = nullptr; /// source node of iteration
+    Node *src = nullptr; /// source node of iteration
 
     /// Build a output filter of arc outcoming from `__src`
-    Out_Filt(Node * __src) noexcept : src(__src) { /* empty */ }
+    Out_Filt(Node *__src) noexcept : src(__src)
+    { /* empty */
+    }
 
     /// Return `true` if `a` is a outcoming arc from `src`; `false`
     /// otherwise
-    bool operator () (Arc * a) const noexcept
+    bool operator ()(Arc *a) const noexcept
     {
       assert(src);
       return a->src_node == src;
     }
 
     /// Return the source node of arc `a` (whose target is `tgt`)
-    Node * get_node(Arc * a) const noexcept
+    Node * get_node(Arc *a) const noexcept
     {
       assert(src);
       return (Node *) a->tgt_node;
@@ -2309,7 +2344,7 @@ public:
       a node `p` inserted in a non-directed graph and to filter those
       arcs that are incoming or outcoming respect to `p`.
 
-      The in/out feature is given by the filter. 
+      The in/out feature is given by the filter.
 
       For example, for iterating on the input arcs of node `p`, we can do:
 
@@ -2331,19 +2366,18 @@ public:
   template <class Filter>
   class Digraph_Iterator
   {
-    using Itor = Filter_Iterator<Node*, typename GT::Node_Arc_Iterator, Filter>;
+    using Itor = Filter_Iterator<Node *, typename GT::Node_Arc_Iterator, Filter>;
 
     Filter filt;
     Itor it;
 
   public:
-
     using Item_Type = typename Itor::Item_Type; /// the type of items (Arc*)
 
     using Iterator_Type = Itor;
 
     /// Instantiate an filtered iterator for arcs on the node `p`
-    Digraph_Iterator(Node * p) : filt(p), it(p, filt) 
+    Digraph_Iterator(Node *p) : filt(p), it(p, filt)
     {
       // empty
     }
@@ -2373,10 +2407,10 @@ public:
     auto get_current_arc() const { return get_curr(); }
 
     auto get_current_arc_ne() const noexcept { return get_curr_ne(); }
-	
+
     /// Return the node connected to `p` (passed during construction)
     /// and linked through `a`
-    typename GT::Node * get_node(typename GT::Arc * a) const noexcept
+    typename GT::Node * get_node(typename GT::Arc *a) const noexcept
     {
       return filt.get_node(a);
     }
@@ -2384,16 +2418,16 @@ public:
     /// Return the node connected to `p` (passed during construction)
     /// and linked through the current arc
     typename GT::Node * get_node_ne() const noexcept
-    { 
-      return this->get_node(this->get_curr_ne()); 
+    {
+      return this->get_node(this->get_curr_ne());
     }
 
     /// \overload get_node()
     auto get_tgt_node_ne() const noexcept { return get_node_ne(); }
 
-    typename GT::Node * get_node() const 
-    { 
-      return this->get_node(this->get_curr()); 
+    typename GT::Node * get_node() const
+    {
+      return this->get_node(this->get_curr());
     }
 
     /// \overload get_node()
@@ -2402,7 +2436,7 @@ public:
     /// Reset the iterator to first arc
     void reset_first() noexcept { it.reset_first(); }
 
-        /// Reset the iterator to last arc
+    /// Reset the iterator to last arc
     void reset_last() noexcept { it.reset_last(); }
   };
 
@@ -2410,14 +2444,12 @@ public:
   // template <class Filt> using Filter_Iterator = Digraph_Iterator<Filt>;
 
   // /** Iterator on incoming arcs of node */
-  template <class Filt>
   struct In_Iterator : Digraph_Iterator<In_Filt>
   {
     using Digraph_Iterator<In_Filt>::Digraph_Iterator;
   };
 
   // /** Iterator on incoming arcs of node */
-  template <class Filt>
   struct Out_Iterator : Digraph_Iterator<Out_Filt>
   {
     using Digraph_Iterator<Out_Filt>::Digraph_Iterator;
@@ -2441,8 +2473,7 @@ public:
       @return an instantiated input iterator on the arcs positioned at the
       first arc.
   */
-  template <class Filt>
-  In_Iterator<Filt> get_in_it(Node * p) const noexcept { return In_Iterator(p); }
+  In_Iterator get_in_it(Node *p) const noexcept { return In_Iterator(p); }
 
   /** Return an output iterator on the incoming nodes to `p`
 
@@ -2462,8 +2493,7 @@ public:
       @return an instantiated output iterator on the arcs positioned at the
       first arc.
   */
-  template <class Filt>
-  Out_Iterator<Filt> get_out_it(Node * p) const noexcept { return Out_Iterator(p); }
+  Out_Iterator get_out_it(Node *p) const noexcept { return Out_Iterator(p); }
 
   /** Search a directed arc linking two nodes.
 
@@ -2473,13 +2503,13 @@ public:
       @param[in] src pinter to source node
       @param[in] tgt pinter to target node
       \return a valid pointer to an arc if this is found or `nullptr`
-      otherwise. 
+      otherwise.
    */
-  Arc * search_directed_arc(Node * src, Node * tgt) const noexcept
+  Arc * search_directed_arc(Node *src, Node *tgt) const noexcept
   {
     for (typename GT::Out_Iterator it(src); it.has_curr(); it.next_ne())
       if (it.get_tgt_node() == tgt)
-	return it.get_curr();
+        return it.get_curr();
     return nullptr;
   }
 
@@ -2493,9 +2523,9 @@ public:
       p is a source node (not have input arcs).
       \throw bad_alloc if there is no enough memory
   */
-  DynList<Node*> in_nodes(Node * p) const
+  DynList<Node *> in_nodes(Node *p) const
   {
-    DynList<Node*> ret;
+    DynList<Node *> ret;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_node());
     return ret;
@@ -2511,9 +2541,9 @@ public:
       p is a sink node (not have ouytut arcs).
       \throw bad_alloc if there is no enough memory
   */
-  DynList<Node*> out_nodes(Node * p) const
+  DynList<Node *> out_nodes(Node *p) const
   {
-    DynList<Node*> ret;
+    DynList<Node *> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_node_ne());
     return ret;
@@ -2522,15 +2552,15 @@ public:
   /** Return a list with the outcoming arcs to p`
 
       The method returns all the outcoming arcs `p --> t`.
-      
+
       \param[in] p pointer to node
       \return a list containing the outcoming arcs. It could be empty if
       p is a sink node (not have ouytut arcs).
       \throw bad_alloc if there is no enough memory
   */
-  DynList<Arc*> out_arcs(Node * p) const
+  DynList<Arc *> out_arcs(Node *p) const
   {
-    DynList<Arc*> ret;
+    DynList<Arc *> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_curr());
     return ret;
@@ -2544,16 +2574,16 @@ public:
       p is a sink node (not have ouytut arcs).
       \throw bad_alloc if there is no enough memory
   */
-  DynList<Arc*> in_arcs(Node * p) const
+  DynList<Arc *> in_arcs(Node *p) const
   {
-    DynList<Arc*> ret;
+    DynList<Arc *> ret;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ret.append(it.get_curr());
     return ret;
   }
 
   /// Pair of arc and node (topologically related)
-  using ArcPair = tuple<Arc*, Node*>;
+  using ArcPair = tuple<Arc *, Node *>;
 
   /** Return a list of pair incoming arcs and nodes.
 
@@ -2564,16 +2594,16 @@ public:
       the second the node.
 
       \param[in] p pointer to node
-      \return a list of incoming pairs arc, node 
+      \return a list of incoming pairs arc, node
       \throw bad_alloc if there is no enough memory
    */
-  auto in_pairs(Node * p) const
+  auto in_pairs(Node *p) const
   {
     DynList<ArcPair> ret;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
-	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
+        auto a = it.get_curr();
+        ret.append(make_tuple(a, (Node *) a->get_connected_node(p)));
       }
     return ret;
   }
@@ -2587,16 +2617,16 @@ public:
       the second the node.
 
       \param[in] p pointer to node
-      \return a list of outcoming pairs arc, node 
+      \return a list of outcoming pairs arc, node
       \throw bad_alloc if there is no enough memory
    */
-  auto out_pairs(Node * p) const
+  auto out_pairs(Node *p) const
   {
     DynList<ArcPair> ret;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	auto a = it.get_curr();
-	ret.append(make_tuple(a, (Node*) a->get_connected_node(p)));
+        auto a = it.get_curr();
+        ret.append(make_tuple(a, (Node *) a->get_connected_node(p)));
       }
     return ret;
   }
@@ -2614,14 +2644,14 @@ public:
       \param[in] p poinger to the node
       @return number of incoming arcs to `p`
   */
-  size_t in_degree(Node * p) const noexcept
+  size_t in_degree(Node *p) const noexcept
   {
     size_t count = 0;
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       ++count;
     return count;
   }
-  
+
   /** Compute the output degree of a node.
 
       The method computes, not retrieves, the number of outcoming arcs to
@@ -2637,7 +2667,7 @@ public:
       @return number of incoming arcs to `p`
       \see get_num_arcs(Node*)
   */
-  size_t out_degree(Node * p) const noexcept
+  size_t out_degree(Node *p) const noexcept
   {
     size_t count = 0;
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
@@ -2663,77 +2693,77 @@ public:
 
       \see traverse(Node * p, Operation & operation)
    */
-  template <class Itor, class Operation> 
-  bool traverse_arcs(Node * p, Operation & op) const
+  template <class Itor, class Operation>
+  bool traverse_arcs(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
       if (not op(it.get_curr()))
-	return false;
+        return false;
     return true;
   }
 
   /// Perform `operation` on each arc of node `p`
   template <class Itor, class Operation>
-  void for_each_arc(Node * p, Operation & op) const
+  void for_each_arc(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
       operation(it.get_curr());
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned
-  /// `operation` 
+  /// `operation`
   template <class Op>
-  bool traverse_in_arcs(Node * p, Op & op) const
+  bool traverse_in_arcs(Node *p, Op & op) const
   {
     return traverse_arcs<In_Iterator, Op>(p, op);
   }
 
   /// \overload traverse_in_arcs(Node * p, Op & op)
   template <class Op>
-  bool traverse_in_arcs(Node * p, Op && op = Op()) const
+  bool traverse_in_arcs(Node *p, Op && op = Op()) const
   {
     return traverse_in_arcs(p, op);
   }
 
   /// Perform `operation` on each incoming arc of node `p`
   template <class Op>
-  void for_each_in_arc(Node * p, Op & op) const
+  void for_each_in_arc(Node *p, Op & op) const
   {
-    for_each_arc(p, op); 
+    for_each_arc(p, op);
   }
 
   // \overload for_each_in_arc(Node * p, Op & op)
   template <class Op>
-  void for_each_in_arc(Node * p, Op && op = Op()) const
+  void for_each_in_arc(Node *p, Op && op = Op()) const
   {
     for_each_in_arc(p, op);
   }
 
   /// Return `true` if `op` is true for all the incoming arcs to node `p`
   template <class Op>
-  bool all_in_arcs(Node * p, Op & op) const
+  bool all_in_arcs(Node *p, Op & op) const
   {
-    return traverse_in_arcs(p, [&op] (auto a) { return op(a); });
+    return traverse_in_arcs(p, [&op](auto a) { return op(a); });
   }
 
   /// \overload all_in_arcs(Node * p, Op & op)
   template <class Op>
-  bool all_in_arcs(Node * p, Op && op = Op()) const
+  bool all_in_arcs(Node *p, Op && op = Op()) const
   {
     return all_in_arc(p, op);
   }
 
   /// Return true if it exists a incoming arc to `p` returning `true`
-  /// for `op` 
+  /// for `op`
   template <class Op>
-  bool exists_in_arc(Node * p, Op & op) const
+  bool exists_in_arc(Node *p, Op & op) const
   {
-    return not traverse_in_arcs(p, [&op] (auto a) { return not op(a); });
+    return not traverse_in_arcs(p, [&op](auto a) { return not op(a); });
   }
 
   /// \overload exists_in_arc(Node * p, Op & op)
   template <class Op>
-  bool exists_in_arc(Node * p, Op && op = Op()) const
+  bool exists_in_arc(Node *p, Op && op = Op()) const
   {
     return exists_in_arc(p, op);
   }
@@ -2748,28 +2778,28 @@ public:
       match certain search criteria. `op` must return `true` when the
       arc satisfies the search criteria.
       \return a valid pointer to arc satisfaying the search criteria it
-      this exists; `nullptr` otherwise 
+      this exists; `nullptr` otherwise
       \throw anything that `op` could throw
    */
   template <class Op>
-  auto search_in_arc(Node * p, Op & op) const
+  auto search_in_arc(Node *p, Op & op) const
   {
-    Arc * ret = nullptr;
-    traverse_in_arcs(p, [&op, &ret] (auto a)
-		     {
-		       if (op(a))
-			 {
-			   ret = a;
-			   return false;
-			 }
-		       return true;
-		     });
+    Arc *ret = nullptr;
+    traverse_in_arcs(p, [&op, &ret](auto a)
+                       {
+                         if (op(a))
+                           {
+                             ret = a;
+                             return false;
+                           }
+                         return true;
+                       });
     return ret;
   }
 
   /// \overload search_in_arc(Node * p, Op & op)
   template <class Op>
-  auto search_in_arc(Node * p, Op && op = Op()) const
+  auto search_in_arc(Node *p, Op && op = Op()) const
   {
     return search_in_arc(p, op);
   }
@@ -2783,10 +2813,10 @@ public:
       \see arcs_map(Node * p, std::function<T(Arc *)> operation)
   */
   template <typename T>
-  auto in_arcs_map(Node * p, std::function<T(Arc*)> op) const
+  auto in_arcs_map(Node *p, std::function<T(Arc *)> op) const
   {
     DynList<T> ret;
-    for_each_in_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
+    for_each_in_arc(p, [&ret, &op](auto a) { ret.append(op(a)); });
     return ret;
   }
 
@@ -2798,94 +2828,94 @@ public:
       \see foldl_arcs(Node * p, const T & init, std::function<T(Arc *)> operation)
    */
   template <typename T = Arc_Type>
-  T foldl_in_arcs(Node * p, const T & init, 
-		  std::function<T(const T&, Arc*)> op) const
+  T foldl_in_arcs(Node *p, const T & init,
+                  std::function<T(const T &, Arc *)> op) const
   {
     T ret = init;
-    for_each_in_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
+    for_each_in_arc(p, [&ret, &op](auto a) { ret = op(ret, a); });
     return ret;
   }
 
-   /** Filter the incoming arcs of a node.
+  /** Filter the incoming arcs of a node.
 
-       This method is analogous to `filter_arcs()` but only operates on the
-       incoming arcs.
+      This method is analogous to `filter_arcs()` but only operates on the
+      incoming arcs.
 
-      \see filter_arcs(Node * p, Operation & operation)
-   */
+     \see filter_arcs(Node * p, Operation & operation)
+  */
   template <class Op>
-  DynList<Arc*> filter_in_arcs(Node * p, Op & op) const 
+  DynList<Arc *> filter_in_arcs(Node *p, Op & op) const
   {
-    DynList<Arc*> ret;
-    for_each_in_arc(p, [&ret, &op] (auto a) 
-		    {
-		      if (op(a))
-			ret.append(a);
-		    });
+    DynList<Arc *> ret;
+    for_each_in_arc(p, [&ret, &op](auto a)
+                      {
+                        if (op(a))
+                          ret.append(a);
+                      });
     return ret;
   }
 
   /// \overload filter_in_arcs(Node * p, Op & op)
   template <class Op>
-  auto filter_in_arcs(Node * p, Op && op = Op()) const
+  auto filter_in_arcs(Node *p, Op && op = Op()) const
   {
     return filter_in_arcs(p, op);
   }
 
   /// Traverse the outcoming arcs of node `p` executing the conditioned
-  /// `operation` 
+  /// `operation`
   template <class Op>
-  bool traverse_out_arcs(Node * p, Op & op) const
+  bool traverse_out_arcs(Node *p, Op & op) const
   {
     return traverse_arcs(p, op);
   }
 
   /// \overload traverse_out_arcs(Node * p, Op & op)
   template <class Op>
-  bool traverse_out_arcs(Node * p, Op && op = Op()) const
+  bool traverse_out_arcs(Node *p, Op && op = Op()) const
   {
     return traverse_out_arcs(p, op);
   }
 
   /// Perform `operation` on each incoming arc of node `p`
   template <class Op>
-  void for_each_out_arc(Node * p, Op & op) const
+  void for_each_out_arc(Node *p, Op & op) const
   {
     for_each_arc(p, op);
   }
 
   /// \overload for_each_out_arc(Node * p, Op & op)
   template <class Op>
-  void for_each_out_arc(Node * p, Op && op = Op()) const
+  void for_each_out_arc(Node *p, Op && op = Op()) const
   {
     for_each_out_arc(p, op);
   }
 
   /// Return `true` if `op` is true for all the outcoming arcs to node `p`
   template <class Op>
-  bool all_out_arcs(Node * p, Op & op) const
+  bool all_out_arcs(Node *p, Op & op) const
   {
-    return traverse_out_arcs(p, [&op] (auto a) { return op(a); });
+    return traverse_out_arcs(p, [&op](auto a) { return op(a); });
   }
 
   /// \overload all_out_arcs(Node * p, Op & op)
   template <class Op>
-  bool all_out_arcs(Node * p, Op && op = Op()) const
+  bool all_out_arcs(Node *p, Op && op = Op()) const
   {
     return all_out_arc(p, op);
   }
 
   /// Return true if it exists a outcoming arc to `p` returning `true`
-  /// for `op` 
+  /// for `op`
   template <class Op>
-  bool exists_out_arc(Node * p, Op & op) const
+  bool exists_out_arc(Node *p, Op & op) const
   {
-    return not traverse_out_arcs(p, [&op] (auto a) { return not op(a); });
+    return not traverse_out_arcs(p, [&op](auto a) { return not op(a); });
   }
 
   /// \overload exists_out_arc(Node * p, Op & op)
   template <class Op>
-  bool exists_out_arc(Node * p, Op && op = Op()) const
+  bool exists_out_arc(Node *p, Op && op = Op()) const
   {
     return exists_out_arc(p, op);
   }
@@ -2900,27 +2930,28 @@ public:
       match certain search criteria. `op` must return `true` when the
       arc satisfies the search criteria.
       \return a valid pointer to arc satisfaying the search criteria it
-      this exists; `nullptr` otherwise 
+      this exists; `nullptr` otherwise
       \throw anything that `op` could throw
-  */  template <class Op>
-  auto search_out_arc(Node * p, Op & op) const
+  */
+  template <class Op>
+  auto search_out_arc(Node *p, Op & op) const
   {
-    typename GT::Arc * ret = nullptr;
-    traverse_out_arcs(p, [&op, &ret] (auto a)
-		      {
-			if (op(a))
-			  {
-			    ret = a;
-			    return false;
-			  }
-			return true;
-		      });
+    typename GT::Arc *ret = nullptr;
+    traverse_out_arcs(p, [&op, &ret](auto a)
+                        {
+                          if (op(a))
+                            {
+                              ret = a;
+                              return false;
+                            }
+                          return true;
+                        });
     return ret;
   }
 
   /// \overload search_out_arc(Node * p, Op & op)
   template <class Op>
-  auto search_out_arc(Node * p, Op && op = Op()) const
+  auto search_out_arc(Node *p, Op && op = Op()) const
   {
     return search_out_arc(p, op);
   }
@@ -2934,20 +2965,20 @@ public:
       \see arcs_map(Node * p, std::function<T(Arc *)> operation)
   */
   template <typename T = Arc_Type>
-  auto out_arcs_map(Node * p, std::function<T(Arc*)> op) const
+  auto out_arcs_map(Node *p, std::function<T(Arc *)> op) const
   {
     DynList<T> ret;
-    for_each_out_arc(p, [&ret, &op] (auto a) { ret.append(op(a)); });
+    for_each_out_arc(p, [&ret, &op](auto a) { ret.append(op(a)); });
     return ret;
   }
 
   /// \overload out_arcs_map(Node * p, std::function<T(Arc*)> op)
   template <typename T = Arc_Type>
-  T foldl_out_arcs(Node * p, const T & init,
-		   std::function<T(const T&, Arc*)> op) const
+  T foldl_out_arcs(Node *p, const T & init,
+                   std::function<T(const T &, Arc *)> op) const
   {
     T ret = init;
-    for_each_out_arc(p, [&ret, &op] (auto a) { ret = op(ret, a); });
+    for_each_out_arc(p, [&ret, &op](auto a) { ret = op(ret, a); });
     return ret;
   }
 
@@ -2959,25 +2990,24 @@ public:
       \see filter_arcs(Node * p, Operation & operation)
   */
   template <class Op>
-  DynList<Arc*> filter_out_arcs(Node * p, Op & op) const
+  DynList<Arc *> filter_out_arcs(Node *p, Op & op) const
   {
-    DynList<Arc*> ret;
-    for_each_out_arc(p, [&ret, &op] (auto a) 
-		     {
-		       if (op(a))
-			 ret.append(a);
-		     });
+    DynList<Arc *> ret;
+    for_each_out_arc(p, [&ret, &op](auto a)
+                       {
+                         if (op(a))
+                           ret.append(a);
+                       });
     return ret;
   }
 
   /// \overload filter_out_arcs(Node * p, Op & op)
   template <class Op>
-  auto filter_out_arcs(Node * p, Op && op = Op()) const
+  auto filter_out_arcs(Node *p, Op && op = Op()) const
   {
     return filter_out_arcs(p, op);
   }
 };
-
 
 
 # endif // GRAPH_DRY_H

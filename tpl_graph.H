@@ -3600,15 +3600,17 @@ namespace Aleph
   {
     assert(p != nullptr and q != nullptr);
 
+    // Use reinterpret_cast to preserve exact pointer value without any
+    // implicit base class pointer adjustment from multiple inheritance
     if (NODE_COOKIE(p) == nullptr)
       {
-        NODE_COOKIE(p) = q;
-        NODE_COOKIE(q) = p;
+        NODE_COOKIE(p) = reinterpret_cast<void*>(q);
+        NODE_COOKIE(q) = reinterpret_cast<void*>(p);
         return;
       }
 
     NODE_COOKIE(q) = NODE_COOKIE(p);
-    NODE_COOKIE(p) = q;
+    NODE_COOKIE(p) = reinterpret_cast<void*>(q);
   }
 
   /** Map two arcs of different types of graphs through their cookies
