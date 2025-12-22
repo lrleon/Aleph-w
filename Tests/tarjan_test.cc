@@ -30,15 +30,15 @@
 
 using namespace Aleph;
 
-using Digraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+using TestDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
 
 // Helper functions
-Digraph::Node *add_node(Digraph &g, int value)
+TestDigraph::Node *add_node(TestDigraph &g, int value)
 {
   return g.insert_node(value);
 }
 
-Digraph::Arc *add_arc(Digraph &g, Digraph::Node *src, Digraph::Node *tgt,
+TestDigraph::Arc *add_arc(TestDigraph &g, TestDigraph::Node *src, TestDigraph::Node *tgt,
                       int value = 0)
 {
   return g.insert_arc(src, tgt, value);
@@ -49,8 +49,8 @@ Digraph::Arc *add_arc(Digraph &g, Digraph::Node *src, Digraph::Node *tgt,
 // ============================================================================
 TEST(TarjanTest, EmptyGraph)
 {
-  Digraph g;
-  Tarjan_Connected_Components<Digraph> tarjan;
+  TestDigraph g;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Test connected_components returning node lists
   auto sccs = tarjan.connected_components(g);
@@ -68,7 +68,7 @@ TEST(TarjanTest, EmptyGraph)
   EXPECT_TRUE(tarjan.is_dag(g));
 
   // Test compute_cycle
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_FALSE(tarjan.compute_cycle(g, path));
   EXPECT_TRUE(path.is_empty());
 
@@ -81,10 +81,10 @@ TEST(TarjanTest, EmptyGraph)
 // ============================================================================
 TEST(TarjanTest, SingleNodeNoLoop)
 {
-  Digraph g;
+  TestDigraph g;
   auto n1 = add_node(g, 1);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Test connected_components
   auto sccs = tarjan.connected_components(g);
@@ -105,7 +105,7 @@ TEST(TarjanTest, SingleNodeNoLoop)
   EXPECT_TRUE(tarjan.is_dag(g));
 
   // Test compute_cycle
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_FALSE(tarjan.compute_cycle(g, path));
 
   // Test connectivity
@@ -117,11 +117,11 @@ TEST(TarjanTest, SingleNodeNoLoop)
 // ============================================================================
 TEST(TarjanTest, SingleNodeWithLoop)
 {
-  Digraph g;
+  TestDigraph g;
   auto n1 = add_node(g, 1);
   add_arc(g, n1, n1);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Test connected_components
   auto sccs = tarjan.connected_components(g);
@@ -135,7 +135,7 @@ TEST(TarjanTest, SingleNodeWithLoop)
   EXPECT_FALSE(tarjan.is_dag(g));
 
   // Test compute_cycle - should find the self-loop cycle
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   bool found = tarjan.compute_cycle(g, path);
   EXPECT_TRUE(found);
   EXPECT_FALSE(path.is_empty());
@@ -151,12 +151,12 @@ TEST(TarjanTest, SingleNodeWithLoop)
 // ============================================================================
 TEST(TarjanTest, TwoNodesNoCycle)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   add_arc(g, a, b);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Should have 2 SCCs (each node is its own SCC)
   auto sccs = tarjan.connected_components(g);
@@ -173,7 +173,7 @@ TEST(TarjanTest, TwoNodesNoCycle)
   EXPECT_FALSE(tarjan.has_cycle(g));
   EXPECT_TRUE(tarjan.is_dag(g));
 
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_FALSE(tarjan.compute_cycle(g, path));
 
   // Not strongly connected (can't go from B to A)
@@ -185,13 +185,13 @@ TEST(TarjanTest, TwoNodesNoCycle)
 // ============================================================================
 TEST(TarjanTest, TwoNodesWithCycle)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   add_arc(g, a, b);
   add_arc(g, b, a);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Should have 1 SCC with both nodes
   auto sccs = tarjan.connected_components(g);
@@ -203,7 +203,7 @@ TEST(TarjanTest, TwoNodesWithCycle)
   EXPECT_FALSE(tarjan.is_dag(g));
 
   // compute_cycle should find the cycle
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_TRUE(tarjan.compute_cycle(g, path));
   EXPECT_FALSE(path.is_empty());
   EXPECT_EQ(path.get_first_node(), path.get_last_node());
@@ -217,7 +217,7 @@ TEST(TarjanTest, TwoNodesWithCycle)
 // ============================================================================
 TEST(TarjanTest, LinearChain)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -226,7 +226,7 @@ TEST(TarjanTest, LinearChain)
   add_arc(g, b, c);
   add_arc(g, c, d);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // 4 SCCs
   auto sccs = tarjan.connected_components(g);
@@ -242,7 +242,7 @@ TEST(TarjanTest, LinearChain)
 // ============================================================================
 TEST(TarjanTest, SimpleCycle)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -250,7 +250,7 @@ TEST(TarjanTest, SimpleCycle)
   add_arc(g, b, c);
   add_arc(g, c, a);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // 1 SCC with 3 nodes
   auto sccs = tarjan.connected_components(g);
@@ -260,7 +260,7 @@ TEST(TarjanTest, SimpleCycle)
   EXPECT_TRUE(tarjan.has_cycle(g));
   EXPECT_FALSE(tarjan.is_dag(g));
 
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_TRUE(tarjan.compute_cycle(g, path));
   EXPECT_EQ(path.get_first_node(), path.get_last_node());
 
@@ -272,7 +272,7 @@ TEST(TarjanTest, SimpleCycle)
 // ============================================================================
 TEST(TarjanTest, MultipleSCCs)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -291,7 +291,7 @@ TEST(TarjanTest, MultipleSCCs)
   // Inter-SCC arc
   add_arc(g, b, d);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // 2 SCCs
   auto sccs = tarjan.connected_components(g);
@@ -318,7 +318,7 @@ TEST(TarjanTest, MultipleSCCs)
 // ============================================================================
 TEST(TarjanTest, ConnectedComponentsWithArcs)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -336,10 +336,10 @@ TEST(TarjanTest, ConnectedComponentsWithArcs)
   auto cross1 = add_arc(g, b, c);
   auto cross2 = add_arc(g, a, d);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
-  DynList<Digraph> blk_list;
-  DynList<Digraph::Arc *> arc_list;
+  DynList<TestDigraph> blk_list;
+  DynList<TestDigraph::Arc *> arc_list;
   tarjan.connected_components(g, blk_list, arc_list);
 
   // 2 blocks
@@ -366,7 +366,7 @@ TEST(TarjanTest, ConnectedComponentsWithArcs)
 // ============================================================================
 TEST(TarjanTest, ComputeCycleFromSource)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -374,15 +374,15 @@ TEST(TarjanTest, ComputeCycleFromSource)
   add_arc(g, b, c);
   add_arc(g, c, b); // cycle between B and C only
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Starting from A, we should find the cycle in B-C
-  Path<Digraph> path1(g);
+  Path<TestDigraph> path1(g);
   bool found1 = tarjan.compute_cycle(g, a, path1);
   EXPECT_TRUE(found1);
 
   // Starting from B, we should find the cycle
-  Path<Digraph> path2(g);
+  Path<TestDigraph> path2(g);
   bool found2 = tarjan.compute_cycle(g, b, path2);
   EXPECT_TRUE(found2);
 }
@@ -390,9 +390,9 @@ TEST(TarjanTest, ComputeCycleFromSource)
 // ============================================================================
 // Test: Compute_Cycle_In_Digraph wrapper class
 // ============================================================================
-TEST(TarjanTest, ComputeCycleInDigraphClass)
+TEST(TarjanTest, ComputeCycleInTestDigraphClass)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -401,8 +401,8 @@ TEST(TarjanTest, ComputeCycleInDigraphClass)
   add_arc(g, c, a);
 
   // Test with operator()(g, path)
-  Compute_Cycle_In_Digraph<Digraph> finder;
-  Path<Digraph> path(g);
+  Compute_Cycle_In_Digraph<TestDigraph> finder;
+  Path<TestDigraph> path(g);
   bool found = finder(g, path);
   EXPECT_TRUE(found);
   EXPECT_FALSE(path.is_empty());
@@ -421,7 +421,7 @@ TEST(TarjanTest, ComputeCycleInDigraphClass)
 // ============================================================================
 TEST(TarjanTest, DiamondDAG)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   auto c = add_node(g, 3);
@@ -431,7 +431,7 @@ TEST(TarjanTest, DiamondDAG)
   add_arc(g, b, d);
   add_arc(g, c, d);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // 4 SCCs (each node is its own SCC)
   auto sccs = tarjan.connected_components(g);
@@ -447,7 +447,7 @@ TEST(TarjanTest, DiamondDAG)
 // ============================================================================
 TEST(TarjanTest, ComplexNestedCycles)
 {
-  Digraph g;
+  TestDigraph g;
   auto n1 = add_node(g, 1);
   auto n2 = add_node(g, 2);
   auto n3 = add_node(g, 3);
@@ -464,7 +464,7 @@ TEST(TarjanTest, ComplexNestedCycles)
   add_arc(g, n5, n6);
   add_arc(g, n6, n1); // large cycle back to n1
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // All nodes should be in one SCC
   auto sccs = tarjan.connected_components(g);
@@ -474,7 +474,7 @@ TEST(TarjanTest, ComplexNestedCycles)
   EXPECT_TRUE(tarjan.has_cycle(g));
   EXPECT_TRUE(tarjan.test_connectivity(g));
 
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_TRUE(tarjan.compute_cycle(g, path));
   EXPECT_EQ(path.get_first_node(), path.get_last_node());
 }
@@ -484,23 +484,23 @@ TEST(TarjanTest, ComplexNestedCycles)
 // ============================================================================
 TEST(TarjanTest, DynDlistOverloads)
 {
-  Digraph g;
+  TestDigraph g;
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
   add_arc(g, a, b);
   add_arc(g, b, a);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Test DynDlist<GT> overload
-  DynDlist<Digraph> blk_list;
-  DynDlist<Digraph::Arc *> arc_list;
+  DynDlist<TestDigraph> blk_list;
+  DynDlist<TestDigraph::Arc *> arc_list;
   tarjan(g, blk_list, arc_list);
   EXPECT_EQ(blk_list.size(), 1u);
   EXPECT_TRUE(arc_list.is_empty()); // no inter-block arcs
 
   // Test DynDlist<DynDlist<Node*>> overload
-  DynDlist<DynDlist<Digraph::Node *>> blks;
+  DynDlist<DynDlist<TestDigraph::Node *>> blks;
   tarjan(g, blks);
   EXPECT_EQ(blks.size(), 1u);
   EXPECT_EQ(blks.get_first().size(), 2u);
@@ -511,7 +511,7 @@ TEST(TarjanTest, DynDlistOverloads)
 // ============================================================================
 TEST(TarjanTest, DisconnectedComponents)
 {
-  Digraph g;
+  TestDigraph g;
   // Component 1: A -> B -> C -> A
   auto a = add_node(g, 1);
   auto b = add_node(g, 2);
@@ -529,7 +529,7 @@ TEST(TarjanTest, DisconnectedComponents)
   auto f = add_node(g, 6);
   add_arc(g, e, f);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Should have 4 SCCs: {A,B,C}, {D}, {E}, {F}
   auto sccs = tarjan.connected_components(g);
@@ -564,10 +564,10 @@ TEST(TarjanTest, DisconnectedComponents)
 // ============================================================================
 TEST(TarjanTest, LargeCycle)
 {
-  Digraph g;
+  TestDigraph g;
   const size_t N = 100;
 
-  DynList<Digraph::Node *> nodes;
+  DynList<TestDigraph::Node *> nodes;
   for (size_t i = 0; i < N; ++i)
     nodes.append(add_node(g, static_cast<int>(i)));
 
@@ -583,7 +583,7 @@ TEST(TarjanTest, LargeCycle)
   }
   add_arc(g, prev, first); // close the cycle
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // One SCC with all N nodes
   auto sccs = tarjan.connected_components(g);
@@ -593,7 +593,7 @@ TEST(TarjanTest, LargeCycle)
   EXPECT_TRUE(tarjan.has_cycle(g));
   EXPECT_TRUE(tarjan.test_connectivity(g));
 
-  Path<Digraph> path(g);
+  Path<TestDigraph> path(g);
   EXPECT_TRUE(tarjan.compute_cycle(g, path));
 }
 
@@ -602,7 +602,7 @@ TEST(TarjanTest, LargeCycle)
 // ============================================================================
 TEST(TarjanTest, SCCTree)
 {
-  Digraph g;
+  TestDigraph g;
   // SCC A: a1 -> a2 -> a1
   auto a1 = add_node(g, 1);
   auto a2 = add_node(g, 2);
@@ -625,7 +625,7 @@ TEST(TarjanTest, SCCTree)
   add_arc(g, a1, b1);
   add_arc(g, a2, c1);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // 3 SCCs
   auto sccs = tarjan.connected_components(g);
@@ -647,26 +647,26 @@ TEST(TarjanTest, SCCTree)
 // ============================================================================
 TEST(TarjanTest, NumConnectedComponents)
 {
-  Digraph g;
+  TestDigraph g;
 
   // Empty graph
-  Tarjan_Connected_Components<Digraph> tarjan1;
+  Tarjan_Connected_Components<TestDigraph> tarjan1;
   EXPECT_EQ(tarjan1.num_connected_components(g), 0u);
 
   // Single node
   auto a = add_node(g, 1);
-  Tarjan_Connected_Components<Digraph> tarjan2;
+  Tarjan_Connected_Components<TestDigraph> tarjan2;
   EXPECT_EQ(tarjan2.num_connected_components(g), 1u);
 
   // Two nodes, no connection = 2 SCCs
   auto b = add_node(g, 2);
-  Tarjan_Connected_Components<Digraph> tarjan3;
+  Tarjan_Connected_Components<TestDigraph> tarjan3;
   EXPECT_EQ(tarjan3.num_connected_components(g), 2u);
 
   // Add bidirectional connection = 1 SCC
   add_arc(g, a, b);
   add_arc(g, b, a);
-  Tarjan_Connected_Components<Digraph> tarjan4;
+  Tarjan_Connected_Components<TestDigraph> tarjan4;
   EXPECT_EQ(tarjan4.num_connected_components(g), 1u);
 }
 
@@ -675,11 +675,11 @@ TEST(TarjanTest, NumConnectedComponents)
 // ============================================================================
 TEST(TarjanTest, NullSourceValidation)
 {
-  Digraph g;
+  TestDigraph g;
   add_node(g, 1);
 
-  Tarjan_Connected_Components<Digraph> tarjan;
-  Path<Digraph> path(g);
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+  Path<TestDigraph> path(g);
 
   EXPECT_THROW((void) tarjan.compute_cycle(g, nullptr, path), std::domain_error);
 }
@@ -689,11 +689,11 @@ TEST(TarjanTest, NullSourceValidation)
 // ============================================================================
 TEST(TarjanTest, FilterAccessor)
 {
-  Tarjan_Connected_Components<Digraph> tarjan;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
 
   // Just verify the methods compile and return references
   [[maybe_unused]] auto &filter = tarjan.get_filter();
 
-  const Tarjan_Connected_Components<Digraph> &const_tarjan = tarjan;
+  const Tarjan_Connected_Components<TestDigraph> &const_tarjan = tarjan;
   [[maybe_unused]] const auto &const_filter = const_tarjan.get_filter();
 }

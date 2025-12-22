@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -31,69 +30,69 @@
 # include <htlist.H>
 # include <tpl_graph.H>
 # include <tpl_dynSetTree.H>
+# include <ah-errors.H>
 
-using namespace Aleph;
+namespace Aleph
+{
 
-namespace Aleph {
 
+  /** Node for graphs implemented with simple adjacency lists.
 
-    /** Nodo de grafo implantado con listas simples de adyacencia.
+      This class defines a node or vertex of a graph or digraph
+      implemented using singly-linked adjacency lists.
 
-        Esta clase define un nodo o vértice de un grafo o digrafo
-        implantado mediante listas de adyacencia.
+      There are basically three ways to define the information that
+      belongs to a graph node:
+      - Through the type parameter inherent to the node called
+        Node_Info.
+      - Through inheritance from this base class. This is the way to
+        maintain different node types in a graph.
+      - A combination of the above two.
 
-        Básicamente, hay tres maneras de definir la información que
-        pertenece a un nodo de un grafo:
-        - Mediante el parámetro tipo inherente al nodo denominado \c
-        Node_Info. 
-        - A través de herencia de esta clase base. Esta es la manera de
-        mantener diferentes tipos de nodo en un grafo.
-        - Combinación de las dos anteriores.
+      @tparam Node_Info Data type stored in the node and accessible
+      via the get_info() method.
 
-        @param Node_Info Tipo de dato guardado en el grafo y accesible
-        mediante el método \c get_info().
+      @note This class is only intended for defining graph nodes.
+      It is not intended to be used directly by users. It is
+      preferable to use it through the methods provided by
+      List_SGraph. While it is possible to use some methods or access
+      some of its attributes, it is highly recommended not to
+      use them directly. Instead, use the List_SGraph::Node type
+      and its associated methods.
 
-        @note Esta clase sólo está destinada a la definición de nodos de
-        un grafo. No está destinada a ser usada por el usuario. Es
-        preferible usarla a través de los métodos provistos por \c
-        List_Graph. Si bien es posible usar algunos métodos o acceder
-        algunos de sus atributos, es altamente recomendable no
-        usarla. En su lugar, se debe utilizar el tipo \c
-        List_Graph::Node y sus métodos asociados.
+      A graph node has three additional attributes present for
+      each node, named as follows:
+      - Control bits (Bit_Fields): set of bits used by
+        algorithms to mark the node.
+      - Counter (counter): counter generally used to mark
+        a visit or processing order.
+      - cookie: opaque pointer to any other temporary information
+        to be associated with the node.
 
-        Un nodo de grafo tiene tres atributos adicionales presentes por
-        cada nodo y denominados del siguiente modo:
-        - Bits de control (\c Bit_Fields): conjunto de bits usados por
-        los algoritmos para marcar el nodo.
-        - Contador (\c counter): contador generalmente usado para marcar
-        un orden de visita o procesamiento.
-        - \c cookie: puntero opaco hacia cualquier otra información
-        temporal que se desee asociar al nodo.
-
-        @ingroup Grafos
-        @see List_Graph List_Digraph Graph_Arc Bit_Fields
-     */
+      @ingroup Grafos
+      @see List_SGraph List_SDigraph Graph_Sarc Bit_Fields
+   */
     template <typename Node_Info = Empty_Class> 
 struct Graph_Snode : public GTNodeCommon<Node_Info>
 {
   using Base = GTNodeCommon<Node_Info>;
   friend class GTNodeCommon<Node_Info>;
 
-  DynList<void*> arc_list; // lista de adyacencia
+  DynList<void*> arc_list; ///< Adjacency list of arcs incident to this node
 
-    /** Constructor que asigna un valor de atributo.
+  /** Constructor that assigns an attribute value.
 
-        Crea un nodo y le asigna el valor \c info como valor de la
-        información contenida en el nodo.
+      Creates a node and assigns the value info as the information
+      contained in the node.
 
-        Los valores de los bits de control y del contador son colocados en
-        cero. El \c cookie es colocado en \c nullptr.
+      The control bits and counter values are set to zero.
+      The cookie is set to nullptr.
 
-        @param[in] info el valor de información que se desea asignar al
-        nodo recién creado.
+      @param[in] info The information value to assign to the
+      newly created node.
 
-        @note Debe estar definido el constructor copia de la clase Node_Info.
-    */
+      @note The copy constructor of the Node_Info class must be defined.
+  */
   Graph_Snode(const Node_Info & info) 
     : Base(info)
   { 
@@ -120,21 +119,20 @@ struct Graph_Snode : public GTNodeCommon<Node_Info>
     return *this;
   }
 
-    /** Constructor copia a partir de un puntero a nodo.
+  /** Copy constructor from a node pointer.
 
-        Crea un nodo y le asigna el valor \c node->get_info() como valor de la
-        información contenida en el nodo.
+      Creates a node and assigns node->get_info() as the information
+      value contained in the node.
 
-        Los valores de los bits de control y del contador son colocados en
-        cero. El \c cookie es colocado en \c nullptr.
+      The control bits and counter values are set to zero.
+      The cookie is set to nullptr.
 
-        @param[in] node puntero al nodo desde el cual se desea copiar el
-        valor de información que se desea asignar al nodo recién creado.
+      @param[in] node Pointer to the node from which to copy the
+      information value to assign to the newly created node.
 
-        @note Debe estar definido el constructor copia de la clase
-        Node_Info.
-        @note La instancia creada es un nodo distinto de \c node.
-    */
+      @note The copy constructor of the Node_Info class must be defined.
+      @note The created instance is a different node from node.
+  */
   Graph_Snode(Graph_Snode * node) 
     : Base(node->get_info())
   { 
@@ -142,42 +140,42 @@ struct Graph_Snode : public GTNodeCommon<Node_Info>
   }
 };
 
-    /** Arco de grafo implantado con listas simples de adyacencia.
+  /** Arc for graphs implemented with simple adjacency lists.
 
-        Esta clase define un arco o eje de un grafo o digrafo
-        implantado mediante listas de adyacencia simplemente enlzadas.
+      This class defines an arc or edge of a graph or digraph
+      implemented using singly-linked adjacency lists.
 
-        Básicamente, hay tres maneras de definir la información que
-        pertenece a un arco de un grafo:
-        - Mediante el parámetro tipo inherente al nodo denominado \c
-        Arc_Info. 
-        - A través de herencia de esta clase base. Esta es la manera de
-        mantener diferentes tipos de arcos en un grafo.
-        - Combinación de las dos anteriores.
+      There are basically three ways to define the information that
+      belongs to a graph arc:
+      - Through the type parameter inherent to the arc called
+        Arc_Info.
+      - Through inheritance from this base class. This is the way to
+        maintain different arc types in a graph.
+      - A combination of the above two.
 
-        @param Arc_Info Tipo de dato guardado en el grafo y accesible
-        mediante el método \c get_info().
+      @tparam Arc_Info Data type stored in the arc and accessible
+      via the get_info() method.
 
-        @note Esta clase sólo está destinada a la definición de arcos de
-        un grafo. No está destinada a ser usada por el usuario. Es
-        preferible usarla a través de los métodos provistos por \c
-        List_Graph. Si bien es posible usar algunos métodos o acceder
-        algunos de sus atributos, es altamente recomendable no
-        usarla. En su lugar, se debe utilizar el tipo \c
-        List_Graph::Arc y sus métodos asociados.
+      @note This class is only intended for defining graph arcs.
+      It is not intended to be used directly by users. It is
+      preferable to use it through the methods provided by
+      List_SGraph. While it is possible to use some methods or access
+      some of its attributes, it is highly recommended not to
+      use them directly. Instead, use the List_SGraph::Arc type
+      and its associated methods.
 
-        Un arco de grafo tiene tres atributos adicionales presentes por
-        cada arco y denominados del siguiente modo:
-        - Bits de control (\c Bit_Fields): conjunto de bits usados por
-        los algoritmos para marcar el arco.
-        - Contador (\c counter): contador generalmente usado para marcar
-        un orden de visita o procesamiento.
-        - \c cookie: puntero opaco hacia cualquier otra información
-        temporal que se desee asociar al arco.
+      A graph arc has three additional attributes present for
+      each arc, named as follows:
+      - Control bits (Bit_Fields): set of bits used by
+        algorithms to mark the arc.
+      - Counter (counter): counter generally used to mark
+        a visit or processing order.
+      - cookie: opaque pointer to any other temporary information
+        to be associated with the arc.
 
-        @ingroup Grafos
-        @see List_Graph List_Digraph Graph_Node Bit_Fields
-     */
+      @ingroup Grafos
+      @see List_SGraph List_SDigraph Graph_Snode Bit_Fields
+   */
     template <typename Arc_Info = Empty_Class> 
 class Graph_Sarc : public GTArcCommon<Arc_Info>
 {
@@ -225,34 +223,34 @@ public:
 };
 
 
-    /** Clase grafo implementado con listas de adyacencia.
+  /** Graph class implemented with singly-linked adjacency lists.
 
-        List_SGraph<Node, Arc> es una clase que modeliza grafos
-        representados mediante listas de adyacencia.
+      List_SGraph<Node, Arc> is a class that models graphs
+      represented using adjacency lists.
 
-        La clase maneja dos parámetros tipo fundamentales:
-        - _Graph_Node: el tipo de los nodos que debe estar definido
-          mediante la clase Graph_Snode.
-        - _Graph_Arc: el tipo de los nodos que debe estar definido
-          mediante la clase Graph_Sarc.
+      The class handles two fundamental type parameters:
+      - __Graph_Node: the node type that must be defined
+        using the Graph_Snode class.
+      - __Graph_Arc: the arc type that must be defined
+        using the Graph_Sarc class.
 
-        Estas clases deben haberse definido previamente.
+      These classes must have been previously defined.
 
-        Una vez instanciado un List_SGraph<Node, Arc>, los nodos y
-        arcos deben accederse mediante los tipos internos:
-        - List_SGraph<Node, Arc>::Node
-        - List_SGraph<Node, Arc>::Arc
-       
-        @param __Graph_Node El tipo de nodo. Debe estar definido a
-        partir de la clase \c _Graph_Node, bien sea por inclusión de
-        atributos, por derivación o por combinación de ambos
-        @param __Graph_Arc El tipo de arco. Debe estar definido a
-        partir de la clase \c _Graph_Arc, bien sea por inclusión de
-        atributos, por derivación o por combinación de ambos
-        @see Graph_SNode Graph_SArc
-        @ingroup Grafos
-        @see List_SDigraph Path 
-     */
+      Once a List_SGraph<Node, Arc> is instantiated, nodes and
+      arcs must be accessed through the internal types:
+      - List_SGraph<Node, Arc>::Node
+      - List_SGraph<Node, Arc>::Arc
+
+      @tparam __Graph_Node The node type. Must be defined from
+      the Graph_Snode class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @tparam __Graph_Arc The arc type. Must be defined from
+      the Graph_Sarc class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @see Graph_Snode Graph_Sarc
+      @ingroup Grafos
+      @see List_SDigraph Path
+   */
   template <typename __Graph_Node = Graph_Snode<unsigned long>, 
 	    typename __Graph_Arc  = Graph_Sarc<unsigned long>>
 class List_SGraph 
@@ -281,8 +279,8 @@ private:
   using DynSetNode = DynSetTree<Node*, Rand_Tree>;
   using DynSetArc = DynSetTree<Arc*, Rand_Tree>;
 
-  DynSetNode node_list; // lista de nodos
-  DynSetArc  arc_list;  // lista de arcos
+  DynSetNode node_list; ///< Set of nodes in the graph
+  DynSetArc  arc_list;  ///< Set of arcs in the graph
 
 public:
 
@@ -329,20 +327,20 @@ public:
     return *this;
   }
 
-      /** Iterador de nodos de un grafo.
+  /** Node iterator for a graph.
 
-          Esta clase itera sobre todos los nodos de un grafo.
+      This class iterates over all nodes of a graph.
 
-          @ingroup Grafos
-       */
+      @ingroup Grafos
+   */
   class Node_Iterator : public DynSetNode::Iterator
   {
   public:
 
-       /// Tipo de elemento que retorna get_curr()
+    /// Data type returned by get_curr()
     using Item_Type = Node *;
 
-       /// El tipo de conjunto sobre el cual se itera.
+    /// The set type over which iteration is performed
     using Set_Type = List_SGraph;
 
     Node_Iterator() noexcept { /* empty */ }
@@ -353,7 +351,7 @@ public:
       // empty
     }
 
-        /// retorna el nodo actual.
+    /// Returns the current node
     Node * get_current_node() const
     {
       return this->get_curr();
@@ -365,29 +363,29 @@ public:
     }
   };
 
-      /** Iterador de  arcos de un nodo de grafo.
+  /** Arc iterator for a graph node.
 
-          Esta clase itera sobre todos los arcos adyacentes de un nodo
-          perteneciente a un grafo o digrafo.
+      This class iterates over all adjacent arcs of a node
+      belonging to a graph or digraph.
 
-          @ingroup Grafos
-       */
+      @ingroup Grafos
+   */
   class Node_Arc_Iterator : public DynList<void*>::Iterator
   {
     Node * src_node; 
     
   public:
 
-        /// El tipo de dato que retorna get_curr().
-    using Item_Type =  Arc *;
+    /// Data type returned by get_curr()
+    using Item_Type = Arc *;
 
-        /// El tipo de conjunto sobre el cual se itera.
+    /// The set type over which iteration is performed
     using Set_Type = Node *;
 
-       /// Instancia un iterador vacío (inválido).
+    /// Instantiate an empty (invalid) iterator
     Node_Arc_Iterator() noexcept { /* empty */ }
 
-        /// Instancia un iterador sobre el nodo _src_node
+    /// Instantiate an iterator over node src
     Node_Arc_Iterator(Node * src) noexcept 
       : DynList<void*>::Iterator(src->arc_list), src_node(src)
     {
@@ -416,14 +414,14 @@ public:
       return get_curr(); 
     }    
    
-        /// Retorna el nodo destino del arco actual.
+    /// Returns the target node of the current arc
     Node * get_tgt_node_ne() const noexcept
     {
       Arc * a = get_curr_ne();
       return (Node*) a->get_connected_node(src_node);
     }
 
-    /// Retorna el nodo destino del arco actual.
+    /// Returns the target node of the current arc
     Node * get_tgt_node() const
     {
       Arc * a = get_curr();
@@ -431,21 +429,21 @@ public:
     }
   };
 
-      /** Iterador sobre arcos de un grafo.
+  /** Iterator over arcs of a graph.
 
-          Este iterador recorre cada arco del grafo. El orden de visita
-          puede ser alterado si previamente se ordenan los arcos.
+      This iterator traverses each arc of the graph. The visit order
+      can be altered if the arcs are previously sorted.
 
-          @see sort_arcs()
-       */
+      @see sort_arcs()
+   */
   class Arc_Iterator : public DynSetArc::Iterator
   {
   public:
 
-        /// Tipo de elemento que retorna get_curr()
+    /// Data type returned by get_curr()
     using Item_Type = Arc *;
 
-       /// El tipo de conjunto sobre el cual se itera.
+    /// The set type over which iteration is performed
     using Set_Type = List_SGraph;
 
     Arc_Iterator() noexcept { /* empty */ }
@@ -456,54 +454,54 @@ public:
       // empty
     }
 
-    /// Retorna un puntero al arco actual
+    /// Returns a pointer to the current arc
     Arc * get_current_arc_ne() const noexcept
     {
       return this->get_curr_ne();
     }
 
-        /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
+    /// Returns the source node of the current arc (only meaningful for digraphs)
     Node * get_src_node_ne() const noexcept
     {
       return (Node*) get_current_arc_ne()->src_node;
     }
 
-        /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
+    /// Returns the target node of the current arc (only meaningful for digraphs)
     Node * get_tgt_node_ne() const noexcept
     {
       return (Node*) get_current_arc_ne()->tgt_node;
     }
 
-        /// Retorna un puntero al arco actual
-    Arc * get_current_arc() const 
+    /// Returns a pointer to the current arc
+    Arc * get_current_arc() const
     {
       return this->get_curr();
     }
 
-        /// Retorna el nodo origen del arco actual (sólo cuenta si es digrafo) 
+    /// Returns the source node of the current arc (only meaningful for digraphs)
     Node * get_src_node() const { return (Node*) get_current_arc()->src_node; }
 
-        /// Retorna el nodo destino del arco actual (sólo cuenta si es digrafo) 
+    /// Returns the target node of the current arc (only meaningful for digraphs)
     Node * get_tgt_node() const { return (Node*) get_current_arc()->tgt_node; }
   };
 
 
-      /** Inserción de un nodo cuya memoria ya ha sido apartada.
+  /** Insertion of a node whose memory has already been allocated.
 
-          Este método asume un nodo de tipo \c List_Graph::Node apuntado
-          por el parámetro \c node y lo inserta en el grafo.
+      This method assumes a node of type List_SGraph::Node pointed to
+      by the parameter p and inserts it into the graph.
 
-          @param[in] node puntero a un nodo ya creado que no pertenece a
-          ningún grafo. 
+      @param[in] p Pointer to an already created node that does not belong
+      to any graph.
 
-          @return Puntero al nodo insertado.
+      @return Pointer to the inserted node.
 
-          @note Puesto que cuando se elimine el nodo o se destruya el
-          grafo se invocará al operador \c delete, \c node debe haber sido
-          \b imperativamente apartado con \c new.
-          @note   Por lo general, esta rutina no debe usarse. En su lugar debe
-          utilizarse la otra inserción (que aparta memoria automáticamente.
-       */
+      @note Since when the node is removed or the graph is destroyed
+      the delete operator will be invoked, p must have been
+      imperatively allocated with new.
+      @note In general, this routine should not be used. Instead, use
+      the other insertion method (which allocates memory automatically).
+   */
   virtual Node * insert_node(Node * p)
   {
     assert(p->arc_list.is_empty());
@@ -553,16 +551,16 @@ private:
 
 public:
 
-      /** Elimina el arco arc.
+  /** Removes the arc.
 
-          La operación elimina del grafo el arco \c arc y luego libera su
-          memoria. 
+      The operation removes the arc from the graph and then frees its
+      memory.
 
-          El arco debe pertenecer al grafo y no se realiza ninguna
-          verificación al respecto.
+      The arc must belong to the graph and no verification is performed
+      in this regard.
 
-          @param[in]  arc puntero al arco a eliminar.
-       */
+      @param[in] arc Pointer to the arc to remove.
+   */
   virtual void remove_arc(Arc * arc) noexcept
   {
     disconnect_arc(arc);
@@ -605,8 +603,11 @@ public:
     return (Arc*) arc_list.get_first();
   }
 
+  /// Returns the first arc of node p
+  /// @throws range_error if node has no arcs
   Arc * get_first_arc(Node * p) const
   {
+    ah_range_error_if(this->get_num_arcs(p) == 0) << "Node has no arcs";
     return (Arc*) p->arc_list.get_first();
   }
 
@@ -618,107 +619,63 @@ private:
     node_list.for_each( [] (Node * p) { delete p; } );
   }
 
-      template <class Cmp>
-  struct Cmp_Arc
-  {
-    Cmp & cmp;
-
-    Cmp_Arc(Cmp && __cmp = Cmp()) 
-      : cmp(__cmp) { /* empty */ }
-
-    Cmp_Arc(Cmp & __cmp) 
-      : cmp(__cmp) { /* empty */ }
-
-    bool operator () (Slinknc * s1, Slinknc * s2) const noexcept
-    {
-      Arc * arc1 = (Arc*) s1;
-      Arc * arc2 = (Arc*) s2;
-      return cmp(arc1, arc2);
-    }
-  };
-
 public:
 
-      template <class Compare> 
-  void sort_arcs(Compare & cmp) noexcept
+  /** Sort all arcs of the graph according to a comparison criteria.
+
+      @note This implementation uses a DynSetTree for arc storage,
+      which maintains its own ordering. Sorting requires extracting
+      arcs to a list, sorting, and rebuilding the set. This is O(E log E).
+
+      @tparam Compare Comparison functor type with signature
+      bool operator()(Arc*, Arc*).
+      @param[in] cmp Comparison functor.
+   */
+  template <class Compare>
+  void sort_arcs(Compare & cmp)
   {
-    Cmp_Arc<Compare> comp(cmp);
-    mergesort<HTList, Cmp_Arc<Compare>>(arc_list, comp);
+    DynList<Arc*> temp_list;
+    arc_list.for_each([&temp_list](Arc* a) { temp_list.append(a); });
+    arc_list.empty();
+
+    // Sort the temporary list
+    mergesort(temp_list, cmp);
+
+    // Rebuild the arc_list from sorted order
+    temp_list.for_each([this](Arc* a) { arc_list.append(a); });
   }
 
-        template <class Compare> 
-  void sort_arcs(Compare && cmp = Compare()) noexcept
+  /// @overload sort_arcs(Compare &)
+  template <class Compare>
+  void sort_arcs(Compare && cmp = Compare())
   {
-    mergesort<Cmp_Arc<Compare>>(arc_list, Cmp_Arc<Compare>(cmp)); 
+    sort_arcs(cmp);
   }
 };
 
-    /** Clase digrafo (grafo dirigido) implementado con listas simples
-	de adyacencia.  
+  /** Directed graph (digraph) implemented with simple adjacency lists.
 
-        Esta clase modeliza un grafo dirigido. Funcionalmente es
-        equivalente a la clase \c List_SGraph, a la excepción de que ésta
-        maneja grafos dirigidos.
-       
-        @param __Graph_Snode El tipo de nodo. Debe estar definido a
-        partir de la clase \c __Graph_Snode, bien sea por inclusión de
-        atributos, por derivación o por combinación de ambos
-        @param __Graph_Arc El tipo de arco. Debe estar definido a
-        partir de la clase \c _Graph_Arc, bien sea por inclusión de
-        atributos, por derivación o por combinación de ambos
-        @see Graph_Snode Graph_Sarc
-        @ingroup Grafos
-        @see List_SGraph
-     */
+      This class models a directed graph. Functionally it is
+      equivalent to the List_SGraph class, except that this one
+      handles directed graphs.
+
+      This is a type alias for `Digraph<List_SGraph<...>>`, which provides
+      all the directed graph functionality through the generic Digraph
+      template wrapper defined in graph-dry.H.
+
+      @tparam __Graph_Node The node type. Must be defined from
+      the Graph_Snode class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @tparam __Graph_Arc The arc type. Must be defined from
+      the Graph_Sarc class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @see Graph_Snode Graph_Sarc Digraph
+      @ingroup Grafos
+      @see List_SGraph
+   */
   template <typename __Graph_Node = Graph_Snode<int>,
 	    typename __Graph_Arc  = Graph_Sarc<int>>
-class List_SDigraph : public List_SGraph<__Graph_Node, __Graph_Arc>
-{
-  using GT = List_SGraph<__Graph_Node, __Graph_Arc>;
-
-public:
-
-  using Node = __Graph_Node;
-
-  using Arc = __Graph_Arc;
-
-  List_SDigraph() noexcept
-  {
-    this->digraph = true; 
-  }
-  
-  List_SDigraph(const List_SDigraph & dg) : GT()
-  {
-    this->digraph = true; 
-    copy_graph(*this, dg, false);
-  }
-
-  List_SDigraph & operator = (const List_SDigraph<Node, Arc> & g)
-  {
-    if (this == &g) 
-      return *this;
-
-    this->digraph = true;
-    copy_graph(*this, g, false);
-
-    return *this;
-  }
-
-  List_SDigraph(List_SDigraph && dg) noexcept
-    : GT()
-  {
-    this->digraph = true;
-    this->swap(dg);
-  }
-
-  List_SDigraph & operator = (List_SDigraph<Node, Arc> && g) noexcept
-  {
-    this->digraph = true; 
-    this->swap(g);
-
-    return *this;
-  }
-};
+  using List_SDigraph = Digraph<List_SGraph<__Graph_Node, __Graph_Arc>>;
 
 
 } // end namespace Aleph

@@ -54,8 +54,99 @@ using namespace Aleph;
 // =============================================================================
 
 using Graph = List_Graph<Graph_Node<int>, Graph_Arc<double>>;
-using Digraph = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
+using TestDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
 using StringGraph = List_Graph<Graph_Node<string>, Graph_Arc<string>>;
+
+// =============================================================================
+// Graph_Node Tests
+// =============================================================================
+
+TEST(GraphNodeTest, DefaultConstruction)
+{
+  Graph_Node<int> node;
+  EXPECT_EQ(node.get_info(), 0);
+  EXPECT_EQ(node.num_arcs, 0u);
+}
+
+TEST(GraphNodeTest, ConstructionWithInfo)
+{
+  Graph_Node<int> node(42);
+  EXPECT_EQ(node.get_info(), 42);
+}
+
+TEST(GraphNodeTest, CopyConstruction)
+{
+  Graph_Node<int> node1(42);
+  Graph_Node<int> node2(node1);
+  EXPECT_EQ(node2.get_info(), 42);
+}
+
+TEST(GraphNodeTest, MoveConstruction)
+{
+  Graph_Node<string> node1(string("test"));
+  Graph_Node<string> node2(std::move(node1));
+  EXPECT_EQ(node2.get_info(), "test");
+}
+
+TEST(GraphNodeTest, CopyAssignment)
+{
+  Graph_Node<int> node1(42);
+  Graph_Node<int> node2(100);
+  node2 = node1;
+  EXPECT_EQ(node2.get_info(), 42);
+}
+
+TEST(GraphNodeTest, SelfAssignment)
+{
+  Graph_Node<int> node(42);
+  node = node;
+  EXPECT_EQ(node.get_info(), 42);
+}
+
+TEST(GraphNodeTest, ConstructionFromPointer)
+{
+  Graph_Node<int> node1(42);
+  Graph_Node<int> node2(&node1);
+  EXPECT_EQ(node2.get_info(), 42);
+}
+
+// =============================================================================
+// Graph_Arc Tests
+// =============================================================================
+
+TEST(GraphArcTest, DefaultConstruction)
+{
+  Graph_Arc<double> arc;
+  EXPECT_EQ(arc.get_info(), 0.0);
+}
+
+TEST(GraphArcTest, ConstructionWithInfo)
+{
+  Graph_Arc<double> arc(3.14);
+  EXPECT_EQ(arc.get_info(), 3.14);
+}
+
+TEST(GraphArcTest, CopyConstruction)
+{
+  Graph_Arc<double> arc1(3.14);
+  Graph_Arc<double> arc2(arc1);
+  EXPECT_EQ(arc2.get_info(), 3.14);
+}
+
+TEST(GraphArcTest, CopyAssignment)
+{
+  Graph_Arc<double> arc1(3.14);
+  Graph_Arc<double> arc2(1.0);
+  arc2 = arc1;
+  EXPECT_EQ(arc2.get_info(), 3.14);
+}
+
+TEST(GraphArcTest, SelfAssignment)
+{
+  Graph_Arc<double> arc(3.14);
+  arc = arc;
+  EXPECT_EQ(arc.get_info(), 3.14);
+}
 
 // =============================================================================
 // Basic Graph Construction Tests
@@ -65,7 +156,7 @@ class GraphBasicTest : public Test
 {
 protected:
   Graph g;
-  Digraph dg;
+  TestDigraph dg;
 };
 
 TEST_F(GraphBasicTest, DefaultConstructorCreatesEmptyGraph)
@@ -617,9 +708,9 @@ TEST_F(PathTest, IsNotCycle)
 class DirectedPathTest : public Test
 {
 protected:
-  Digraph dg;
-  vector<Digraph::Node*> nodes;
-  vector<Digraph::Arc*> arcs;
+  TestDigraph dg;
+  vector<TestDigraph::Node*> nodes;
+  vector<TestDigraph::Arc*> arcs;
 
   void SetUp() override
   {
@@ -635,7 +726,7 @@ protected:
 
 TEST_F(DirectedPathTest, AppendDirectedNode)
 {
-  Path<Digraph> path(dg, nodes[0]);
+  Path<TestDigraph> path(dg, nodes[0]);
   path.append_directed(nodes[1]);
   EXPECT_EQ(path.size(), 2);
   EXPECT_EQ(path.get_last_node(), nodes[1]);
@@ -643,7 +734,7 @@ TEST_F(DirectedPathTest, AppendDirectedNode)
 
 TEST_F(DirectedPathTest, AppendDirectedArc)
 {
-  Path<Digraph> path(dg, nodes[0]);
+  Path<TestDigraph> path(dg, nodes[0]);
   path.append_directed(arcs[0]);
   EXPECT_EQ(path.size(), 2);
   EXPECT_EQ(path.get_last_node(), nodes[1]);
@@ -651,7 +742,7 @@ TEST_F(DirectedPathTest, AppendDirectedArc)
 
 TEST_F(DirectedPathTest, InsertDirectedNode)
 {
-  Path<Digraph> path(dg, nodes[1]);
+  Path<TestDigraph> path(dg, nodes[1]);
   path.insert_directed(nodes[0]);
   EXPECT_EQ(path.size(), 2);
   EXPECT_EQ(path.get_first_node(), nodes[0]);
@@ -659,7 +750,7 @@ TEST_F(DirectedPathTest, InsertDirectedNode)
 
 TEST_F(DirectedPathTest, InsertDirectedArc)
 {
-  Path<Digraph> path(dg, nodes[1]);
+  Path<TestDigraph> path(dg, nodes[1]);
   path.insert_directed(arcs[0]);
   EXPECT_EQ(path.size(), 2);
   EXPECT_EQ(path.get_first_node(), nodes[0]);
@@ -724,9 +815,9 @@ TEST_F(GraphExceptionTest, PathInsertOnEmptyPathThrows)
 class DigraphTest : public Test
 {
 protected:
-  Digraph dg;
-  vector<Digraph::Node*> nodes;
-  vector<Digraph::Arc*> arcs;
+  TestDigraph dg;
+  vector<TestDigraph::Node*> nodes;
+  vector<TestDigraph::Arc*> arcs;
 
   void SetUp() override
   {
@@ -966,6 +1057,97 @@ TEST_F(GraphFunctionalTest, ClearGraph)
   clear_graph(g);
   EXPECT_EQ(g.get_num_nodes(), 0);
   EXPECT_EQ(g.get_num_arcs(), 0);
+}
+
+// =============================================================================
+// C++20 Concepts Tests
+// =============================================================================
+
+// Compile-time verification that iterators satisfy concepts
+static_assert(BasicGraphIterator<Graph::Node_Iterator>,
+              "Node_Iterator must satisfy BasicGraphIterator");
+static_assert(BasicGraphIterator<Graph::Arc_Iterator>,
+              "Arc_Iterator must satisfy BasicGraphIterator");
+static_assert(GraphNodeIterator<Graph::Node_Iterator, Graph::Node>,
+              "Node_Iterator must satisfy GraphNodeIterator");
+static_assert(GraphArcIterator<Graph::Arc_Iterator, Graph::Arc>,
+              "Arc_Iterator must satisfy GraphArcIterator");
+
+// Also verify for digraph
+static_assert(BasicGraphIterator<TestDigraph::Node_Iterator>,
+              "Digraph::Node_Iterator must satisfy BasicGraphIterator");
+static_assert(BasicGraphIterator<TestDigraph::Arc_Iterator>,
+              "Digraph::Arc_Iterator must satisfy BasicGraphIterator");
+
+TEST(ConceptsTest, NodeIteratorSatisfiesConcept)
+{
+  Graph g;
+  g.insert_node(1);
+  g.insert_node(2);
+  
+  auto it = g.get_node_it();
+  
+  // Verify the interface works as expected by the concept
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_NE(it.get_curr(), nullptr);
+  it.next();
+  EXPECT_TRUE(it.has_curr());
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(ConceptsTest, ArcIteratorSatisfiesConcept)
+{
+  Graph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n1, n2, 1.0);
+  
+  auto it = g.get_arc_it();
+  
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_NE(it.get_curr(), nullptr);
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(ConceptsTest, NodeArcIteratorSatisfiesConcept)
+{
+  Graph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n1, n2, 1.0);
+  
+  auto it = g.get_arc_it(n1);
+  
+  EXPECT_TRUE(it.has_curr());
+  auto* arc = it.get_curr();
+  EXPECT_NE(arc, nullptr);
+  
+  // Node arc iterator should provide get_tgt_node
+  auto* tgt = it.get_tgt_node();
+  EXPECT_EQ(tgt, n2);
+}
+
+// Test that concepts work with constrained template functions
+template <BasicGraphIterator It>
+size_t count_elements(It it)
+{
+  size_t count = 0;
+  for (; it.has_curr(); it.next())
+    ++count;
+  return count;
+}
+
+TEST(ConceptsTest, ConceptConstrainedFunction)
+{
+  Graph g;
+  g.insert_node(1);
+  g.insert_node(2);
+  g.insert_node(3);
+  
+  auto node_it = g.get_node_it();
+  EXPECT_EQ(count_elements(node_it), 3u);
 }
 
 // =============================================================================

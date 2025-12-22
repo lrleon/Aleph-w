@@ -27,6 +27,203 @@
 # ifndef GRAPH_DRY_H
 # define GRAPH_DRY_H
 
+#include <concepts>
+
+// ============================================================================
+// C++20 Concepts for Graph Iterators
+// ============================================================================
+
+/** @defgroup GraphConcepts C++20 Concepts for Graph Iterators
+    @ingroup Grafos
+    
+    These concepts define the interface contracts for Aleph-w graph iterators.
+    They provide:
+    
+    1. **Compile-time verification**: Catch interface mismatches at compile time
+       instead of deep template instantiation errors.
+    2. **Better error messages**: Clear indication of which method is missing.
+    3. **Self-documenting code**: The concept IS the interface specification.
+    4. **Generic algorithm development**: Write algorithms that work with any
+       conforming iterator.
+    
+    ## Concept Hierarchy
+    
+        BasicGraphIterator              <-- Core: has_curr(), next(), get_curr()
+            |
+            +-- ResettableGraphIterator <-- Adds: reset_first()
+            |
+            +-- GraphNodeIterator<Node> <-- get_curr() returns Node*
+            |
+            +-- GraphArcIterator<Arc>   <-- get_curr() returns Arc*
+                    |
+                    +-- NodeArcIterator<Node,Arc> <-- Adds: get_tgt_node()
+    
+    ## Iterator Conformance Table
+    
+    | Iterator Type          | BasicGraphIterator | GraphNodeIterator | GraphArcIterator | NodeArcIterator |
+    |------------------------|:------------------:|:-----------------:|:----------------:|:---------------:|
+    | GT::Node_Iterator      | Yes                | Yes               | -                | -               |
+    | GT::Arc_Iterator       | Yes                | -                 | Yes              | -               |
+    | GT::Node_Arc_Iterator  | Yes                | -                 | Yes              | Yes             |
+    
+    This applies to all graph types: List_Graph, List_SGraph, Array_Graph,
+    and their directed variants.
+    
+    ## Usage Examples
+    
+    ### Example 1: Constraining a template function
+    
+    @code
+    // This function accepts any iterator satisfying BasicGraphIterator
+    template <BasicGraphIterator It>
+    size_t count_elements(It it) {
+      size_t n = 0;
+      for (; it.has_curr(); it.next())
+        ++n;
+      return n;
+    }
+    
+    // Works with node iterators:
+    auto node_count = count_elements(g.get_node_it());
+    
+    // Works with arc iterators:
+    auto arc_count = count_elements(g.get_arc_it());
+    
+    // Works with adjacency iterators:
+    auto adj_count = count_elements(g.get_arc_it(some_node));
+    @endcode
+    
+    ### Example 2: Type-safe node processing
+    
+    @code
+    template <class GT>
+      requires GraphNodeIterator<typename GT::Node_Iterator, typename GT::Node>
+    void process_all_nodes(GT& g) {
+      for (auto it = g.get_node_it(); it.has_curr(); it.next()) {
+        typename GT::Node* node = it.get_curr();  // Guaranteed correct type
+        // ... process node ...
+      }
+    }
+    @endcode
+    
+    ### Example 3: Compile-time static assertion
+    
+    @code
+    // Verify at compile time that your iterator conforms:
+    static_assert(BasicGraphIterator<MyGraph::Node_Iterator>,
+                  "Node_Iterator must provide has_curr(), next(), get_curr()");
+    @endcode
+    
+    @{
+*/
+
+/** Concept for basic graph iterators.
+    
+    A type satisfies BasicGraphIterator if it provides the fundamental
+    iteration interface used throughout Aleph-w graph implementations.
+    
+    Required expressions:
+    - `it.has_curr()` : Returns bool, true if iterator points to valid element
+    - `it.next()`     : Advances iterator to next element, returns void
+    - `it.get_curr()` : Returns current element (pointer), may throw if invalid
+    
+    @tparam It The iterator type to check
+    
+    @see ResettableGraphIterator, GraphNodeIterator, GraphArcIterator
+*/
+template <typename It>
+concept BasicGraphIterator = requires(It it, const It cit)
+{
+  { cit.has_curr() } -> std::convertible_to<bool>;
+  { it.next() } -> std::same_as<void>;
+  { it.get_curr() };
+};
+
+/** Concept for resettable graph iterators.
+    
+    Extends BasicGraphIterator with the ability to reset to the first element.
+    Most Aleph-w iterators support this operation.
+    
+    Additional required expression:
+    - `it.reset_first()` : Resets iterator to first element, returns void
+    
+    @tparam It The iterator type to check
+    
+    @see BasicGraphIterator
+*/
+template <typename It>
+concept ResettableGraphIterator = BasicGraphIterator<It> && requires(It it)
+{
+  { it.reset_first() } -> std::same_as<void>;
+};
+
+/** Concept for graph node iterators.
+    
+    A node iterator must satisfy BasicGraphIterator and return a pointer
+    to the specified Node type from get_curr().
+    
+    This concept is useful when you need to ensure the iterator yields
+    nodes of a specific type.
+    
+    @tparam It The iterator type to check
+    @tparam Node The expected node type (not pointer)
+    
+    @see BasicGraphIterator, GraphArcIterator
+*/
+template <typename It, typename Node>
+concept GraphNodeIterator = BasicGraphIterator<It> && requires(const It cit)
+{
+  { cit.get_curr() } -> std::convertible_to<Node*>;
+};
+
+/** Concept for graph arc iterators.
+    
+    An arc iterator must satisfy BasicGraphIterator and return a pointer
+    to the specified Arc type from get_curr().
+    
+    This concept is useful when you need to ensure the iterator yields
+    arcs of a specific type.
+    
+    @tparam It The iterator type to check
+    @tparam Arc The expected arc type (not pointer)
+    
+    @see BasicGraphIterator, GraphNodeIterator, NodeArcIterator
+*/
+template <typename It, typename Arc>
+concept GraphArcIterator = BasicGraphIterator<It> && requires(const It cit)
+{
+  { cit.get_curr() } -> std::convertible_to<Arc*>;
+};
+
+/** Concept for node adjacency iterators.
+    
+    An adjacency iterator iterates over arcs connected to a specific node.
+    It must satisfy GraphArcIterator and additionally provide get_tgt_node()
+    to retrieve the node at the other end of each arc.
+    
+    Additional required expression:
+    - `it.get_tgt_node()` : Returns pointer to the target node of current arc
+    
+    This is the most specific iterator concept, typically satisfied by
+    GT::Node_Arc_Iterator.
+    
+    @tparam It The iterator type to check
+    @tparam Node The expected node type (not pointer)
+    @tparam Arc The expected arc type (not pointer)
+    
+    @see GraphArcIterator
+*/
+template <typename It, typename Node, typename Arc>
+concept NodeArcIterator = GraphArcIterator<It, Arc> && requires(const It cit)
+{
+  { cit.get_tgt_node() } -> std::convertible_to<Node*>;
+};
+
+/** @} */ // end of GraphConcepts group
+
+// ============================================================================
+// End of C++20 Concepts
+// ============================================================================
 
 /** Common node iterator for graph having its node derived from Dlink
     class.
@@ -245,11 +442,36 @@ public:
 
   using Node_Type = NodeInfo; /// another alias for set type
 
+  /// Default constructor
   GTNodeCommon() noexcept = default;
 
+  /// Copy constructor from info value
   GTNodeCommon(const NodeInfo & info) : node_info(info) {}
 
+  /// Move constructor from info value
   GTNodeCommon(NodeInfo && info) : node_info(move(info)) {}
+
+  /// Copy constructor
+  GTNodeCommon(const GTNodeCommon & other) : node_info(other.node_info) {}
+
+  /// Move constructor
+  GTNodeCommon(GTNodeCommon && other) noexcept : node_info(move(other.node_info)) {}
+
+  /// Copy assignment operator
+  GTNodeCommon & operator=(const GTNodeCommon & other)
+  {
+    if (this != &other)
+      node_info = other.node_info;
+    return *this;
+  }
+
+  /// Move assignment operator
+  GTNodeCommon & operator=(GTNodeCommon && other) noexcept
+  {
+    if (this != &other)
+      node_info = move(other.node_info);
+    return *this;
+  }
 
   /// Return a modifiable reference to the data contained in the node
   NodeInfo &get_info() noexcept { return node_info; }
@@ -302,15 +524,46 @@ public:
 
   ArcInfo arc_info; /// data contained in arc
 
+  /// Default constructor
+  GTArcCommon() noexcept = default;
+
+  /// Construct from info value (copy)
   GTArcCommon(const ArcInfo & info) : arc_info(info) {}
 
+  /// Construct from info value (move)
   GTArcCommon(ArcInfo && info) : arc_info(move(info)) {}
 
+  /// Construct with endpoints and info (copy)
   GTArcCommon(void *src, void *tgt, const ArcInfo & data)
     : src_node(src), tgt_node(tgt), arc_info(data) {}
 
+  /// Construct with endpoints and info (move)
   GTArcCommon(void *src, void *tgt, ArcInfo && data = ArcInfo())
     : src_node(src), tgt_node(tgt), arc_info(move(data)) {}
+
+  /// Copy constructor
+  GTArcCommon(const GTArcCommon & other)
+    : src_node(other.src_node), tgt_node(other.tgt_node), arc_info(other.arc_info) {}
+
+  /// Move constructor
+  GTArcCommon(GTArcCommon && other) noexcept
+    : src_node(other.src_node), tgt_node(other.tgt_node), arc_info(move(other.arc_info)) {}
+
+  /// Copy assignment operator
+  GTArcCommon & operator=(const GTArcCommon & other)
+  {
+    if (this != &other)
+      arc_info = other.arc_info;
+    return *this;
+  }
+
+  /// Move assignment operator
+  GTArcCommon & operator=(GTArcCommon && other) noexcept
+  {
+    if (this != &other)
+      arc_info = move(other.arc_info);
+    return *this;
+  }
 
   /// Return the state of arc
   unsigned int state() const noexcept { return ARC_BITS(this).state; }
@@ -1078,14 +1331,14 @@ public:
 	      return true; // for instructing to visit the next node
 	    });
 
-      @remark According to the compiler, invalid or uncompliant
+      @remark According to the compiler, invalid or non-compliant
       signatures for `operation`, by example, to not return anything,
       not only they probably will not compile, but the diagnostic errors
-      could be hard to undertand. Perhaps, on some compilers, bad
+      could be hard to understand. Perhaps, on some compilers, bad
       signatures could compile. So, be sure to match the correct
       operation signature.
 
-      @param[in] operation operation to be performed on each arc. The
+      @param[in] op operation to be performed on each arc. The
       operation must imperatively return a `bool` indicating whether or
       not the next arc must be visited.
       @return a `bool` with the last `operation`result. If `true` then
@@ -1113,7 +1366,7 @@ public:
 
   /** Conditioned traversal of all the adjacent arcs of a node.
 
-      `traverse_arc(p, operation)` condionally traverses all the arcs of
+      `traverse_arc(p, operation)` conditionally traverses all the arcs of
       the node `p` and on each arc `a` executes `operation(a)`. The
       `operation` must have the following functor structure:
 
@@ -1122,20 +1375,20 @@ public:
       This signature can be accomplished through a function pointer, a
       functor or a lambda (via the overloaded rvalue version).  Note
       that there is a `bool` return value. If `operation(p)` returns
-      `true`, then the next node is traversed. Otherwise the traversal
+      `true`, then the next node is traversed. Otherwise, the traversal
       stops and the remainder nodes are not visited.
 
       if the graph type was `GT` then the arc type would be
       `GT::Arc`. In this primitive as well for the majority of
       functional primitives, you could declare the parameter types as
       auto and to leave to compiler to infer them. This could be more
-      practical and easier for writing but it also could hide the true
-      type and in some cases to do incomprehensible the the type.
+      practical and easier for writing, but it also could hide the true
+      type and in some cases to do incomprehensible the type.
 
       The operation is \f$O(V)\f$ for the worst case, but it could be
-      much less for sparsed graphs.
+      much less for sparce graphs.
 
-      For example, supposse that we wish print out the arcs content for
+      For example, suppose that we wish print out the arcs content for
       the nodes adjacent to the node `p`. Then we could do it as follows:
 
           g.traverse_arcs(p, [] (auto a)
@@ -1144,15 +1397,15 @@ public:
 	    return true; // for instructing to visit the next node
           });
 
-      @remark According to the compiler, invalid or uncompliant
+      @remark According to the compiler, invalid or non-compliant
       signatures for `operation`, by example, to not return anything,
       not only they probably will not compile, but the diagnostic errors
-      could be hard to undertand. Perhaps, on some compilers, bad
+      could be hard to understand. Perhaps, on some compilers, bad
       signatures could compile. So, be sure to match the correct
       operation signature.
 
       @param[in] p node from you want to access its adjacent arcs.
-      @param[in] operation operation to be performed on each arc. The
+      @param[in] op operation to be performed on each arc. The
       operation must imperatively return a `bool` indicating whether or
       not the next arc must be visited.
       @return a `bool` with the last `operation`result. If `true` then
@@ -3008,6 +3261,118 @@ public:
     return filter_out_arcs(p, op);
   }
 };
+
+
+namespace Aleph
+{
+
+/** Generic directed graph (digraph) wrapper template.
+
+    This template wraps any undirected graph class and converts it into a
+    directed graph by setting the `digraph` flag to `true`. This eliminates
+    code duplication across the various digraph implementations
+    (`List_Digraph`, `List_SDigraph`, `Array_Digraph`).
+
+    The wrapper properly handles:
+    - Default construction
+    - Copy construction (deep copy via `copy_graph`)
+    - Move construction (via swap)
+    - Copy assignment
+    - Move assignment
+
+    @tparam BaseGraph The undirected graph class to wrap (e.g., `List_Graph`,
+            `List_SGraph`, `Array_Graph`).
+
+    Example usage:
+    ```cpp
+    // Instead of defining a separate List_Digraph class:
+    template <typename Node, typename Arc>
+    using List_Digraph = Digraph<List_Graph<Node, Arc>>;
+    ```
+
+    @ingroup Grafos
+    @see List_Graph List_SGraph Array_Graph
+*/
+template <class BaseGraph>
+class Digraph : public BaseGraph
+{
+public:
+  using GT = BaseGraph;
+  using Node = typename BaseGraph::Node;
+  using Arc = typename BaseGraph::Arc;
+
+  /** Default constructor.
+
+      Creates an empty directed graph.
+  */
+  Digraph() noexcept
+  {
+    this->digraph = true;
+  }
+
+  /** Copy constructor.
+
+      Creates a deep copy of the given digraph. All nodes and arcs are
+      duplicated, preserving the graph topology.
+
+      @param[in] dg The digraph to copy.
+  */
+  Digraph(const Digraph & dg) : GT()
+  {
+    this->digraph = true;
+    copy_graph(*this, dg, false);
+  }
+
+  /** Move constructor.
+
+      Transfers ownership of all nodes and arcs from `dg` to this digraph.
+      After the move, `dg` will be empty.
+
+      @param[in] dg The digraph to move from.
+  */
+  Digraph(Digraph && dg) noexcept : GT()
+  {
+    this->digraph = true;
+    this->swap(dg);
+  }
+
+  /** Copy assignment operator.
+
+      Replaces the contents of this digraph with a deep copy of `g`.
+      All existing nodes and arcs are removed first.
+
+      @param[in] g The digraph to copy.
+      @return Reference to this digraph.
+  */
+  Digraph & operator = (const Digraph & g)
+  {
+    if (this == &g)
+      return *this;
+
+    this->digraph = true;
+    copy_graph(*this, g, false);
+
+    return *this;
+  }
+
+  /** Move assignment operator.
+
+      Transfers ownership of all nodes and arcs from `g` to this digraph.
+      After the move, `g` will be empty.
+
+      @param[in] g The digraph to move from.
+      @return Reference to this digraph.
+  */
+  Digraph & operator = (Digraph && g) noexcept
+  {
+    this->digraph = true;
+    this->swap(g);
+
+    return *this;
+  }
+};
+
+} // namespace Aleph
 
 
 # endif // GRAPH_DRY_H

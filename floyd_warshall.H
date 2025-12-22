@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -32,15 +31,13 @@
 # include <tpl_dynListStack.H>
 
 template <class GT>
-void arc_to_distance(typename GT::Arc *                arc, 
-		     typename GT::Arc::Distance_Type & dist)
-{
-  
-}
+void arc_to_distance(typename GT::Arc *arc,
+                     typename GT::Arc::Distance_Type & dist)
+{}
 
-    template <class GT>
+template <class GT>
 Aleph::Pair<Ady_Mat<typename GT::Arc::Distance_Type> *,
-	    Ady_Mat<typename GT::Path> *>
+            Ady_Mat<typename GT::Path> *>
 floyd_warshall_all_min_paths(GT & g)
 {
   typename Ady_Mat<typename GT::Arc::Distance_Type> w;

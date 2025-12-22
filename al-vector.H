@@ -195,24 +195,42 @@ namespace Aleph
     {
     }
 
+    /**
+       @brief Copy assignment operator
+       @param v Vector to copy from
+       @return Reference to this vector
+       @throw std::domain_error if domains are different (not the same object)
+       @note Vectors must share the same domain (pointer equality) for assignment
+    */
     Vector &operator =(const Vector & v)
     {
       if (this == &v)
         return *this;
 
-      domain_ptr = v.domain_ptr;
+      if (domain_ptr.get() != v.domain_ptr.get())
+        throw std::domain_error("Vector assignment: domains must be the same");
+
       epsilon = v.epsilon;
       entries = v.entries;
 
       return *this;
     }
 
-    Vector &operator =(Vector && v) noexcept
+    /**
+       @brief Move assignment operator
+       @param v Vector to move from
+       @return Reference to this vector
+       @throw std::domain_error if domains are different (not the same object)
+       @note Vectors must share the same domain (pointer equality) for assignment
+    */
+    Vector &operator =(Vector && v)
     {
       if (this == &v)
         return *this;
 
-      domain_ptr = std::move(v.domain_ptr);
+      if (domain_ptr.get() != v.domain_ptr.get())
+        throw std::domain_error("Vector assignment: domains must be the same");
+
       epsilon = v.epsilon;
       entries.swap(v.entries);
 

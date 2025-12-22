@@ -663,11 +663,15 @@ namespace Aleph
     void sort_arcs(Compare && cmp) { sort_arcs(cmp); }
   };
 
-  /** Directed graph (digraph) implemented with simple adjacency lists.
+  /** Directed graph (digraph) implemented with array-based adjacency lists.
 
       This class models a directed graph. Functionally it is
-      equivalent to the List_SGraph class, except that this one
+      equivalent to the Array_Graph class, except that this one
       handles directed graphs.
+
+      This is a type alias for `Digraph<Array_Graph<...>>`, which provides
+      all the directed graph functionality through the generic Digraph
+      template wrapper defined in graph-dry.H.
 
       @tparam __Graph_Node The node type. Must be defined from
       the Graph_Anode class, either by attribute inclusion,
@@ -675,55 +679,14 @@ namespace Aleph
       @tparam __Graph_Arc The arc type. Must be defined from
       the Graph_Aarc class, either by attribute inclusion,
       by derivation, or by a combination of both.
-      @see Graph_Anode Graph_Aarc
+      @see Graph_Anode Graph_Aarc Digraph
       @ingroup Grafos
       @see Array_Graph
    */
   template <typename __Graph_Node = Graph_Anode<int>,
             typename __Graph_Arc = Graph_Aarc<int>>
-  class Array_Digraph : public Array_Graph<__Graph_Node, __Graph_Arc>
-  {
-    using GT = Array_Graph<__Graph_Node, __Graph_Arc>;
+  using Array_Digraph = Digraph<Array_Graph<__Graph_Node, __Graph_Arc>>;
 
-  public:
-    using Node = __Graph_Node;
-
-    using Arc = __Graph_Arc;
-
-    Array_Digraph() noexcept
-    {
-      this->digraph = true;
-    }
-
-    Array_Digraph(const Array_Digraph & dg)
-      : Array_Graph<Node, Arc>(static_cast<Array_Digraph &>(dg))
-    {
-      this->digraph = true;
-    }
-
-    Array_Digraph &operator =(const Array_Digraph<Node, Arc> & g)
-    {
-      if (this == &g)
-        return *this;
-
-      copy_graph(*this, g, false);
-
-      return *this;
-    }
-
-    Array_Digraph(Array_Digraph && dg) noexcept : GT()
-    {
-      this->digraph = true;
-      this->swap(dg);
-    }
-
-    Array_Digraph &operator =(Array_Digraph<Node, Arc> && g) noexcept
-    {
-      this->swap(g);
-
-      return *this;
-    }
-  };
 } // namespace Aleph {
 
 # endif //  TPL_AGRAPH_H

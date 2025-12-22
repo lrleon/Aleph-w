@@ -266,7 +266,6 @@ namespace Aleph
     }
 
   public:
-
     /** Construct a Karger minimum cut solver.
 
         @param[in] _seed Random seed for the algorithm. Defaults to
@@ -329,7 +328,6 @@ namespace Aleph
       return karger_min_cut(g, vs, vt, cut, num_iter);
     }
   };
-
 } // namespace Aleph
 
 # endif // KARGER_H

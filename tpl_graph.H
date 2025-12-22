@@ -57,8 +57,8 @@ namespace Aleph
   template <typename __Graph_Node, typename __Graph_Arc>
   class List_Graph;
 
-  template <typename __Graph_Node, typename __Graph_Arc>
-  class List_Digraph;
+  // List_Digraph is defined as a type alias later in this file
+  // using the generic Digraph<> template wrapper
 
   template <class GT>
   class Mat_Graph;
@@ -1578,55 +1578,29 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Directed graph implemented with double linked adjacency lists.
+  /** Directed graph (digraph) implemented with double-linked adjacency lists.
 
-        This class is derived from `List_Graph`. It inherits all its
-        methods and its use is almost equivalent. The only difference is
-        that the ars are stored in an unique direction (from the source
-        one).
+      This class models a directed graph. Functionally it is
+      equivalent to the List_Graph class, except that this one
+      handles directed graphs.
 
-        @see List_Graph
-    */
+      This is a type alias for `Digraph<List_Graph<...>>`, which provides
+      all the directed graph functionality through the generic Digraph
+      template wrapper defined in graph-dry.H.
+
+      @tparam __Graph_Node The node type. Must be defined from
+      the Graph_Node class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @tparam __Graph_Arc The arc type. Must be defined from
+      the Graph_Arc class, either by attribute inclusion,
+      by derivation, or by a combination of both.
+      @see Graph_Node Graph_Arc Digraph
+      @ingroup Grafos
+      @see List_Graph
+   */
   template <typename __Graph_Node = Graph_Node<int>,
             typename __Graph_Arc = Graph_Arc<int>>
-  class List_Digraph : public List_Graph<__Graph_Node, __Graph_Arc>
-  {
-  public:
-    using GT = List_Graph<__Graph_Node, __Graph_Arc>;
-
-    List_Digraph() noexcept
-    {
-      this->digraph = true;
-    }
-
-    List_Digraph(const List_Digraph & dg) : GT()
-    {
-      this->digraph = true;
-      *this = dg;
-    }
-
-    List_Digraph(List_Digraph && dg) noexcept
-      : GT()
-    {
-      this->digraph = true;
-      this->swap(dg);
-    }
-
-    List_Digraph &operator=(const List_Digraph & g)
-    {
-      if (this == &g)
-        return *this;
-
-      copy_graph(*this, static_cast<const List_Digraph &>(g));
-      return *this;
-    }
-
-    List_Digraph &operator=(List_Digraph && g) noexcept
-    {
-      this->swap(g);
-      return *this;
-    }
-  };
+  using List_Digraph = Digraph<List_Graph<__Graph_Node, __Graph_Arc>>;
 
 
   /** Alias used for encapsulating a pair of arc and node (related between

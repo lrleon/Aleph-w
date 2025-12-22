@@ -57,7 +57,7 @@ using namespace Aleph;
 namespace
 {
   using Graph = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
-  using Digraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
+  using TestDigraph = List_Digraph<Graph_Node<int>, Graph_Arc<int>>;
   using WGraph = List_Graph<Graph_Node<int>, Graph_Arc<double>>;
 
   std::vector<Graph::Node *> make_nodes(Graph &g, int n)
@@ -69,9 +69,9 @@ namespace
     return nodes;
   }
 
-  std::vector<Digraph::Node *> make_nodes(Digraph &g, int n)
+  std::vector<TestDigraph::Node *> make_nodes(TestDigraph &g, int n)
   {
-    std::vector<Digraph::Node *> nodes;
+    std::vector<TestDigraph::Node *> nodes;
     nodes.reserve(n);
     for (int i = 0; i < n; ++i)
       nodes.push_back(g.insert_node(i));
@@ -425,7 +425,7 @@ TEST(GraphUtilsProperties, TestConnectivityBasics)
 
 TEST(GraphUtilsProperties, TestConnectivityRejectsDigraphs)
 {
-  Digraph dg;
+  TestDigraph dg;
   auto nodes = make_nodes(dg, 2);
   dg.insert_arc(nodes[0], nodes[1], 1);
   EXPECT_THROW(test_connectivity(dg), std::domain_error);
@@ -466,7 +466,7 @@ TEST(GraphUtilsProperties, AcyclicAndHasCycleAgreement)
 
 TEST(GraphUtilsProperties, AcyclicRejectsDigraphs)
 {
-  Digraph dg;
+  TestDigraph dg;
   auto nodes = make_nodes(dg, 2);
   dg.insert_arc(nodes[0], nodes[1], 1);
   EXPECT_THROW(is_graph_acyclique(dg), std::domain_error);
@@ -670,7 +670,7 @@ TEST(GraphUtilsCutNodes, ComputeCutNodesClearsCookiesAndFindsArticulations)
     EXPECT_EQ(NODE_COOKIE(it.get_curr()), nullptr);
 
   // Digraphs are rejected.
-  Digraph dg;
+  TestDigraph dg;
   auto dn = make_nodes(dg, 2);
   dg.insert_arc(dn[0], dn[1], 1);
   EXPECT_THROW(compute_cut_nodes(dg, dn[0]), std::domain_error);
@@ -740,7 +740,7 @@ TEST(GraphUtilsCutNodes, PaintAndExtractBlocksOnStar)
 
 TEST(GraphUtilsDigraph, InvertDigraphPreservesIsolatedNodesAndMapsArcs)
 {
-  Digraph g;
+  TestDigraph g;
   auto nodes = make_nodes(g, 3);
   auto a01 = g.insert_arc(nodes[0], nodes[1], 42);
   // nodes[2] is isolated
@@ -749,9 +749,9 @@ TEST(GraphUtilsDigraph, InvertDigraphPreservesIsolatedNodesAndMapsArcs)
   EXPECT_EQ(gi.get_num_nodes(), 3U);
   EXPECT_EQ(gi.get_num_arcs(), 1U);
 
-  auto n0i = mapped_node<Digraph>(nodes[0]);
-  auto n1i = mapped_node<Digraph>(nodes[1]);
-  auto n2i = mapped_node<Digraph>(nodes[2]);
+  auto n0i = mapped_node<TestDigraph>(nodes[0]);
+  auto n1i = mapped_node<TestDigraph>(nodes[1]);
+  auto n2i = mapped_node<TestDigraph>(nodes[2]);
   ASSERT_NE(n0i, nullptr);
   ASSERT_NE(n1i, nullptr);
   ASSERT_NE(n2i, nullptr);
@@ -760,8 +760,8 @@ TEST(GraphUtilsDigraph, InvertDigraphPreservesIsolatedNodesAndMapsArcs)
   ASSERT_NE(inv, nullptr);
   EXPECT_EQ(inv->get_info(), 42);
 
-  ASSERT_NE(mapped_arc<Digraph>(a01), nullptr);
-  EXPECT_EQ(mapped_arc<Digraph>(mapped_arc<Digraph>(a01)), a01);
+  ASSERT_NE(mapped_arc<TestDigraph>(a01), nullptr);
+  EXPECT_EQ(mapped_arc<TestDigraph>(mapped_arc<TestDigraph>(a01)), a01);
 }
 
 TEST(GraphUtilsDigraph, InvertDigraphRejectsUndirectedGraphs)
@@ -775,23 +775,23 @@ TEST(GraphUtilsDigraph, InvertDigraphFunctorFiltersArcs)
 {
   struct OnlyTwo
   {
-    bool operator()(Digraph::Arc *a) const noexcept { return a->get_info() == 2; }
+    bool operator()(TestDigraph::Arc *a) const noexcept { return a->get_info() == 2; }
     void set_cookie(void *) noexcept {}
   };
 
-  Digraph g;
+  TestDigraph g;
   auto nodes = make_nodes(g, 3);
   auto a01 = g.insert_arc(nodes[0], nodes[1], 1);
   auto a12 = g.insert_arc(nodes[1], nodes[2], 2);
 
-  Invert_Digraph<Digraph, OnlyTwo> inv(OnlyTwo{});
+  Invert_Digraph<TestDigraph, OnlyTwo> inv(OnlyTwo{});
   auto gi = inv(g);
 
   EXPECT_EQ(gi.get_num_nodes(), 3U);
   EXPECT_EQ(gi.get_num_arcs(), 1U);
 
-  auto n1i = mapped_node<Digraph>(nodes[1]);
-  auto n2i = mapped_node<Digraph>(nodes[2]);
+  auto n1i = mapped_node<TestDigraph>(nodes[1]);
+  auto n2i = mapped_node<TestDigraph>(nodes[2]);
   ASSERT_NE(n1i, nullptr);
   ASSERT_NE(n2i, nullptr);
 
