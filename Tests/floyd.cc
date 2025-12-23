@@ -35,9 +35,9 @@ void insert_arc_by_value(Grafo& g, int src_val, int tgt_val, int weight)
 TEST(FloydBasicGraph, computes_correct_distances)
 {
   Grafo g;
-  g.insert_node(0);
-  g.insert_node(1);
-  g.insert_node(2);
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
   
   // Create edges: 0->1 (weight 1), 1->2 (weight 2), 0->2 (weight 5)
   insert_arc_by_value(g, 0, 1, 1);
@@ -49,38 +49,45 @@ TEST(FloydBasicGraph, computes_correct_distances)
   EXPECT_FALSE(floyd.has_negative_cycle());
   
   const auto& dist = floyd.get_dist_mat();
+
+  const long i0 = floyd.index_node(n0);
+  const long i1 = floyd.index_node(n1);
+  const long i2 = floyd.index_node(n2);
   
   // Distance from node to itself should be 0
-  EXPECT_EQ(dist(0, 0), 0);
-  EXPECT_EQ(dist(1, 1), 0);
-  EXPECT_EQ(dist(2, 2), 0);
+  EXPECT_EQ(dist(i0, i0), 0);
+  EXPECT_EQ(dist(i1, i1), 0);
+  EXPECT_EQ(dist(i2, i2), 0);
   
   // Distance 0->1 should be 1 (direct edge)
-  EXPECT_EQ(dist(0, 1), 1);
+  EXPECT_EQ(dist(i0, i1), 1);
   
   // Distance 0->2 should be 3 (0->1->2, not direct 0->2 with weight 5)
-  EXPECT_EQ(dist(0, 2), 3);
+  EXPECT_EQ(dist(i0, i2), 3);
   
   // Distance 1->2 should be 2 (direct edge)
-  EXPECT_EQ(dist(1, 2), 2);
+  EXPECT_EQ(dist(i1, i2), 2);
 }
 
 // Test handling of unreachable nodes
 TEST(FloydBasicGraph, handles_unreachable_nodes)
 {
   Grafo g;
-  g.insert_node(0);
-  g.insert_node(1);
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
   // No edges between nodes
   
   Floyd_All_Shortest_Paths<Grafo> floyd(g);
   
   const auto& dist = floyd.get_dist_mat();
   const int Inf = numeric_limits<int>::max();
+
+  const long i0 = floyd.index_node(n0);
+  const long i1 = floyd.index_node(n1);
   
   // Distances to unreachable nodes should be infinity
-  EXPECT_EQ(dist(0, 1), Inf);
-  EXPECT_EQ(dist(1, 0), Inf);
+  EXPECT_EQ(dist(i0, i1), Inf);
+  EXPECT_EQ(dist(i1, i0), Inf);
 }
 
 // Test negative weights without negative cycles

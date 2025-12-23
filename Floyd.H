@@ -226,16 +226,35 @@ namespace Aleph
                 if (dkj == Inf)
                   continue;
 
-                // Calculate new distance through intermediate node k
-                // Check for potential overflow before addition
-                if (dik <= Inf - dkj)
+                // Calculate new distance through intermediate node k.
+                // Important: avoid undefined behavior on signed overflow
+                // (e.g. Inf - negative) and handle negative weights safely.
+                bool can_add = true;
+                if constexpr (std::numeric_limits<Distance_Type>::is_integer)
                   {
-                    Distance_Type new_dist = dik + dkj;
-                    if (new_dist < dij)
+                    if constexpr (std::numeric_limits<Distance_Type>::is_signed)
                       {
-                        dist(i, j) = new_dist; // Update shorter distance
-                        path_mat(i, j) = path_mat(i, k);
+                        const Distance_Type maxv = std::numeric_limits<Distance_Type>::max();
+                        const Distance_Type minv = std::numeric_limits<Distance_Type>::lowest();
+                        if (dkj > 0)
+                          can_add = (dik <= maxv - dkj);
+                        else if (dkj < 0)
+                          can_add = (dik >= minv - dkj);
                       }
+                    else
+                      {
+                        can_add = (dik <= std::numeric_limits<Distance_Type>::max() - dkj);
+                      }
+                  }
+
+                if (!can_add)
+                  continue;
+
+                const Distance_Type new_dist = dik + dkj;
+                if (new_dist < dij)
+                  {
+                    dist(i, j) = new_dist;
+                    path_mat(i, j) = path_mat(i, k);
                   }
               }
           }
