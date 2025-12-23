@@ -161,7 +161,7 @@ void test_random_graph_sparse_disconnected()
   Random_Graph<Graph> gen(456);
   
   // With few arcs and no connectivity requirement, may be disconnected
-  auto g = gen(static_cast<size_t>(20), static_cast<size_t>(5), false);
+  const auto g = gen(static_cast<size_t>(20), static_cast<size_t>(5), false);
   
   assert(g.get_num_nodes() == 20);
   assert(is_simple_graph(g));
