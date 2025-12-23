@@ -448,9 +448,7 @@ namespace Aleph
   inline bool is_normal_number(const double n)
   {
     int status = std::fpclassify(n);
-    return (status == FP_NORMAL or status == FP_ZERO) // and status != FP_NAN and
-        // status != FP_INFINITE and status != FP_SUBNORMAL
-        ;
+    return (status == FP_NORMAL or status == FP_ZERO);
   }
 }
 
