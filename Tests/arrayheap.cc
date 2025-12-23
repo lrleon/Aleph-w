@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <ranges>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -62,7 +63,7 @@ TEST(ArrayHeap, ExtractsSortedOrder)
     drained.push_back(heap.getMin());
 
   std::vector<int> sorted = input;
-  ranges::sort(sorted);
+  std::ranges::sort(sorted);
   EXPECT_EQ(drained, sorted);
   EXPECT_TRUE(heap.is_empty());
 }

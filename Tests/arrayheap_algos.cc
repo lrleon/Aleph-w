@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <ranges>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -84,7 +85,7 @@ TEST(ArrayHeapAlgos, HeapsortMatchesStdSort)
 {
   std::vector<int> v{5, 1, 4, 2, 8, 0, 3, 7, 6, 9};
   std::vector<int> expected = v;
-  ranges::sort(expected);
+  std::ranges::sort(expected);
 
   heapsort(v.data(), v.size());
   EXPECT_EQ(v, expected);
@@ -94,7 +95,7 @@ TEST(ArrayHeapAlgos, FasterHeapsortMatchesStdSort)
 {
   std::vector<int> v{12, -1, 5, 5, 3, 99, 0, -10, 7, 2, 4};
   std::vector<int> expected = v;
-  ranges::sort(expected);
+  std::ranges::sort(expected);
 
   faster_heapsort(v.data(), v.size());
   EXPECT_EQ(v, expected);
