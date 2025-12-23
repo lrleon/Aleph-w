@@ -1202,3 +1202,802 @@ TEST(StressTestNewFeatures, large_containers)
   auto dropped_while = zip_drop_while([](auto t) { return get<0>(t) < 500; }, l1, l2);
   EXPECT_EQ(dropped_while.size(), 500);
 }
+
+// ============================================================================
+// Additional edge case tests
+// ============================================================================
+
+// Test that original containers are not modified by zip operations
+TEST(Immutability, containers_not_modified)
+{
+  DynList<int> original1 = { 1, 2, 3, 4, 5 };
+  DynList<int> original2 = { 10, 20, 30, 40, 50 };
+  
+  // Save copies
+  DynList<int> copy1 = original1;
+  DynList<int> copy2 = original2;
+  
+  // Perform various zip operations
+  auto zipped = t_zip(original1, original2);
+  auto mapped = zip_maps<int>([](auto t) { return get<0>(t) + get<1>(t); }, original1, original2);
+  auto filtered = zip_filter([](auto t) { return get<0>(t) > 2; }, original1, original2);
+  zip_for_each([](auto) {}, original1, original2);
+  [[maybe_unused]] auto folded = zip_foldl(0, [](auto acc, auto t) { return acc + get<0>(t); }, original1, original2);
+  
+  // Verify originals unchanged
+  EXPECT_EQ(original1, copy1);
+  EXPECT_EQ(original2, copy2);
+}
+
+// Test zip_cmp with empty containers
+TEST(ZipCmp, empty_containers)
+{
+  DynList<int> empty1, empty2;
+  
+  // All comparisons on empty containers should return true (vacuous truth)
+  EXPECT_TRUE(zip_cmp([](auto, auto) { return true; }, empty1, empty2));
+  EXPECT_TRUE(zip_cmp([](auto, auto) { return false; }, empty1, empty2));
+}
+
+// Test zip_cmp with single element
+TEST(ZipCmp, single_element)
+{
+  DynList<int> l1 = { 5 };
+  DynList<int> l2 = { 5 };
+  DynList<int> l3 = { 10 };
+  
+  EXPECT_TRUE(zip_cmp([](auto a, auto b) { return a == b; }, l1, l2));
+  EXPECT_FALSE(zip_cmp([](auto a, auto b) { return a == b; }, l1, l3));
+}
+
+// Test ZipIterator copy semantics
+TEST(ZipIteratorSemantics, copy_iterator)
+{
+  DynList<int> l1 = { 1, 2, 3, 4, 5 };
+  DynList<int> l2 = { 10, 20, 30, 40, 50 };
+  
+  auto it1 = zip_it(l1, l2);
+  it1.next_ne();
+  it1.next_ne(); // Now at position 2
+  
+  auto it2 = it1; // Copy
+  
+  // Both should be at same position
+  EXPECT_EQ(get<0>(it1.get_curr_ne()), get<0>(it2.get_curr_ne()));
+  EXPECT_EQ(get<1>(it1.get_curr_ne()), get<1>(it2.get_curr_ne()));
+  
+  // Advance original, copy should stay
+  it1.next_ne();
+  EXPECT_NE(get<0>(it1.get_curr_ne()), get<0>(it2.get_curr_ne()));
+}
+
+// Test single container with all functional operations
+TEST(SingleContainer, functional_operations)
+{
+  DynList<int> l = { 1, 2, 3, 4, 5 };
+  
+  // zip_traverse
+  EXPECT_TRUE(zip_traverse([](auto t) { return get<0>(t) <= 5; }, l));
+  EXPECT_FALSE(zip_traverse([](auto t) { return get<0>(t) < 3; }, l));
+  
+  // zip_all
+  EXPECT_TRUE(zip_all([](auto t) { return get<0>(t) <= 5; }, l));
+  
+  // zip_exists
+  EXPECT_TRUE(zip_exists([](auto t) { return get<0>(t) == 3; }, l));
+  EXPECT_FALSE(zip_exists([](auto t) { return get<0>(t) == 99; }, l));
+  
+  // zip_find_index
+  EXPECT_EQ(zip_find_index([](auto t) { return get<0>(t) == 3; }, l), 2);
+  EXPECT_EQ(zip_find_index([](auto t) { return get<0>(t) == 99; }, l), 5);
+  
+  // zip_foldl
+  auto sum = zip_foldl(0, [](auto acc, auto t) { return acc + get<0>(t); }, l);
+  EXPECT_EQ(sum, 15);
+  
+  // zip_filter
+  auto filtered = zip_filter([](auto t) { return get<0>(t) % 2 == 0; }, l);
+  EXPECT_EQ(filtered.size(), 2); // 2 and 4
+  
+  // zip_partition
+  auto part = zip_partition([](auto t) { return get<0>(t) < 3; }, l);
+  EXPECT_EQ(get<1>(part), 2); // 1, 2
+  EXPECT_EQ(get<3>(part), 3); // 3, 4, 5
+}
+
+// Test const correctness
+TEST(ConstCorrectness, const_containers)
+{
+  const DynList<int> cl1 = { 1, 2, 3 };
+  const DynList<int> cl2 = { 10, 20, 30 };
+  
+  // All operations should work with const containers
+  auto zipped = t_zip(cl1, cl2);
+  EXPECT_EQ(zipped.size(), 3);
+  
+  EXPECT_TRUE(equal_length(cl1, cl2));
+  
+  auto mapped = zip_maps<int>([](auto t) { return get<0>(t); }, cl1, cl2);
+  EXPECT_EQ(mapped.size(), 3);
+  
+  size_t count = 0;
+  zip_for_each([&count](auto) { ++count; }, cl1, cl2);
+  EXPECT_EQ(count, 3);
+}
+
+// Test very large number of containers (up to 6)
+TEST(ManyContainers, six_containers)
+{
+  DynList<int> c1 = { 1, 2 };
+  DynList<int> c2 = { 10, 20 };
+  DynList<int> c3 = { 100, 200 };
+  DynList<int> c4 = { 1000, 2000 };
+  DynList<int> c5 = { 10000, 20000 };
+  DynList<int> c6 = { 100000, 200000 };
+  
+  size_t count = 0;
+  for (auto it = zip_it(c1, c2, c3, c4, c5, c6); it.has_curr(); it.next_ne())
+    {
+      auto t = it.get_curr_ne();
+      if (count == 0)
+        {
+          EXPECT_EQ(get<0>(t), 1);
+          EXPECT_EQ(get<1>(t), 10);
+          EXPECT_EQ(get<2>(t), 100);
+          EXPECT_EQ(get<3>(t), 1000);
+          EXPECT_EQ(get<4>(t), 10000);
+          EXPECT_EQ(get<5>(t), 100000);
+        }
+      ++count;
+    }
+  EXPECT_EQ(count, 2);
+}
+
+// Test zip operations with rvalue containers (temporary containers)
+TEST(RvalueContainers, temporary_containers)
+{
+  // This tests that zip can work with inline-constructed containers
+  // when the containers are captured by const ref
+  
+  auto sum = zip_foldl(0, [](auto acc, auto t) { return acc + get<0>(t) + get<1>(t); },
+                       DynList<int>{1, 2, 3}, DynList<int>{10, 20, 30});
+  EXPECT_EQ(sum, 66); // (1+10) + (2+20) + (3+30) = 66
+}
+
+// Test t_zip with very short containers
+TEST(ShortContainers, single_element)
+{
+  DynList<int> l1 = { 42 };
+  DynList<string> l2 = { "hello" };
+  
+  auto zipped = t_zip(l1, l2);
+  EXPECT_EQ(zipped.size(), 1);
+  
+  auto t = zipped.get_first();
+  EXPECT_EQ(get<0>(t), 42);
+  EXPECT_EQ(get<1>(t), "hello");
+}
+
+// Test enum_zip with single container
+TEST(EnumZipSingle, single_container)
+{
+  DynList<string> l = { "a", "b", "c" };
+  
+  size_t count = 0;
+  for (auto it = enum_zip_it(l); it.has_curr(); it.next_ne(), ++count)
+    {
+      auto t = it.get_curr_ne();
+      EXPECT_EQ(get<1>(t), count); // Index is second element for single container
+      EXPECT_EQ(get<0>(t), string(1, 'a' + count));
+    }
+  EXPECT_EQ(count, 3);
+}
+
+// Test t_unzip with single-element tuples
+TEST(TUnzip, single_element_tuples)
+{
+  DynList<tuple<int>> l = { make_tuple(1), make_tuple(2), make_tuple(3) };
+  
+  auto result = t_unzip(l);
+  EXPECT_EQ(get<0>(result), DynList<int>({1, 2, 3}));
+}
+
+// Test t_unzip with empty list
+TEST(TUnzip, empty_list)
+{
+  DynList<tuple<int, string>> l;
+  
+  auto result = t_unzip(l);
+  EXPECT_TRUE(get<0>(result).is_empty());
+  EXPECT_TRUE(get<1>(result).is_empty());
+}
+
+// Test zip_cmp with 4 containers
+TEST(ZipCmp, four_containers)
+{
+  DynList<int> l1 = { 1, 2, 3 };
+  DynList<int> l2 = { 1, 2, 3 };
+  DynList<int> l3 = { 1, 2, 3 };
+  DynList<int> l4 = { 1, 2, 3 };
+  
+  EXPECT_TRUE(zip_cmp([](auto a, auto b) { return a == b; }, l1, l2, l3, l4));
+  
+  DynList<int> l5 = { 1, 2, 4 }; // Different at position 2
+  EXPECT_FALSE(zip_cmp([](auto a, auto b) { return a == b; }, l1, l2, l3, l5));
+}
+
+// Test that next() throws on empty after exhaustion
+TEST(BoundsChecking, next_throws_after_exhaustion)
+{
+  DynList<int> l1 = { 1 };
+  DynList<int> l2 = { 10 };
+  
+  auto it = zip_it(l1, l2);
+  EXPECT_TRUE(it.has_curr());
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_THROW(it.next(), std::overflow_error);
+}
+
+// Test that get_curr() throws when not has_curr
+TEST(BoundsChecking, get_curr_throws)
+{
+  DynList<int> l1 = { 1 };
+  DynList<int> l2 = { 10 };
+  
+  auto it = zip_it(l1, l2);
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+  EXPECT_THROW(it.get_curr(), std::overflow_error);
+}
+
+// ============================================================================
+// Tests for new functions: zip_none, zip_count, zip_length, zip_find_first, etc.
+// ============================================================================
+
+// ============================================================================
+// Tests for zip_all_short, zip_forall, zip_forall_short, zip_any
+// ============================================================================
+
+TEST_F(CompleteGroup, zip_all_short_true)
+{
+  EXPECT_TRUE(zip_all_short([](auto t) { return get<0>(t) >= 0; }, l1, l2));
+}
+
+TEST_F(CompleteGroup, zip_all_short_false)
+{
+  EXPECT_FALSE(zip_all_short([](auto t) { return get<0>(t) < 3; }, l1, l2));
+}
+
+TEST_F(InCompleteGroup, zip_all_short_unequal_lengths)
+{
+  // zip_all_short should work on unequal lengths (uses minimum)
+  // All elements in the intersection satisfy x >= 0
+  EXPECT_TRUE(zip_all_short([](auto t) { return get<0>(t) >= 0; }, l1, l2));
+}
+
+TEST_F(InCompleteGroup, zip_all_vs_zip_all_short)
+{
+  // zip_all returns false on unequal lengths (even if predicate satisfied)
+  EXPECT_FALSE(zip_all([](auto t) { return get<0>(t) >= 0; }, l1, l2));
+  
+  // zip_all_short returns true (doesn't check lengths)
+  EXPECT_TRUE(zip_all_short([](auto t) { return get<0>(t) >= 0; }, l1, l2));
+}
+
+TEST(ZipAllShort, empty_containers)
+{
+  DynList<int> e1, e2;
+  // Vacuously true
+  EXPECT_TRUE(zip_all_short([](auto) { return false; }, e1, e2));
+}
+
+TEST_F(CompleteGroup, zip_forall_alias)
+{
+  // zip_forall is alias for zip_all
+  EXPECT_EQ(
+    zip_forall([](auto t) { return get<0>(t) >= 0; }, l1, l2),
+    zip_all([](auto t) { return get<0>(t) >= 0; }, l1, l2)
+  );
+}
+
+TEST_F(CompleteGroup, zip_forall_short_alias)
+{
+  // zip_forall_short is alias for zip_all_short
+  EXPECT_EQ(
+    zip_forall_short([](auto t) { return get<0>(t) >= 0; }, l1, l2),
+    zip_all_short([](auto t) { return get<0>(t) >= 0; }, l1, l2)
+  );
+}
+
+TEST_F(CompleteGroup, zip_any_alias)
+{
+  // zip_any is alias for zip_exists
+  EXPECT_EQ(
+    zip_any([](auto t) { return get<0>(t) == 3; }, l1, l2),
+    zip_exists([](auto t) { return get<0>(t) == 3; }, l1, l2)
+  );
+}
+
+TEST_F(CompleteGroup, zip_any_true)
+{
+  EXPECT_TRUE(zip_any([](auto t) { return get<0>(t) == 3; }, l1, l2));
+}
+
+TEST_F(CompleteGroup, zip_any_false)
+{
+  EXPECT_FALSE(zip_any([](auto t) { return get<0>(t) == 99; }, l1, l2));
+}
+
+TEST(ZipAny, empty_containers)
+{
+  DynList<int> e1, e2;
+  // No elements, so any is false
+  EXPECT_FALSE(zip_any([](auto) { return true; }, e1, e2));
+}
+
+TEST_F(CompleteGroup, zip_none_true)
+{
+  // No element > 100
+  EXPECT_TRUE(zip_none([](auto t) { return get<0>(t) > 100; }, l1, l2));
+}
+
+TEST_F(CompleteGroup, zip_none_false)
+{
+  // Some elements are >= 0
+  EXPECT_FALSE(zip_none([](auto t) { return get<0>(t) >= 0; }, l1, l2));
+}
+
+TEST(ZipNone, empty_containers)
+{
+  DynList<int> e1, e2;
+  // Empty = vacuously true
+  EXPECT_TRUE(zip_none([](auto) { return true; }, e1, e2));
+}
+
+TEST_F(CompleteGroup, zip_count_all)
+{
+  // Count all elements (all satisfy x >= 0)
+  EXPECT_EQ(zip_count([](auto t) { return get<0>(t) >= 0; }, l1, l2), N);
+}
+
+TEST_F(CompleteGroup, zip_count_some)
+{
+  // Count elements where first < 3
+  EXPECT_EQ(zip_count([](auto t) { return get<0>(t) < 3; }, l1, l2), 3u);
+}
+
+TEST_F(CompleteGroup, zip_count_none)
+{
+  // Count elements > 100 (none)
+  EXPECT_EQ(zip_count([](auto t) { return get<0>(t) > 100; }, l1, l2), 0u);
+}
+
+TEST(ZipCount, empty_containers)
+{
+  DynList<int> e1, e2;
+  EXPECT_EQ(zip_count([](auto) { return true; }, e1, e2), 0u);
+}
+
+TEST_F(CompleteGroup, zip_length_basic)
+{
+  EXPECT_EQ(zip_length(l1, l2, l3), N);
+}
+
+TEST_F(InCompleteGroup, zip_length_unequal)
+{
+  // l2 has only 4 elements, l1 and l3 have 5
+  EXPECT_EQ(zip_length(l1, l2, l3), 4u);
+}
+
+TEST(ZipLength, empty_containers)
+{
+  DynList<int> e1, e2;
+  EXPECT_EQ(zip_length(e1, e2), 0u);
+}
+
+TEST(ZipLength, single_container)
+{
+  DynList<int> l = { 1, 2, 3, 4, 5 };
+  EXPECT_EQ(zip_length(l), 5u);
+}
+
+TEST_F(CompleteGroup, zip_find_first_found)
+{
+  auto [t, found] = zip_find_first([](auto t) { return get<0>(t) == 3; }, l1, l2, l3);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 3);
+  EXPECT_EQ(get<1>(t), 3);
+  EXPECT_EQ(get<2>(t), "3");
+}
+
+TEST_F(CompleteGroup, zip_find_first_not_found)
+{
+  auto [t, found] = zip_find_first([](auto t) { return get<0>(t) == 99; }, l1, l2);
+  
+  EXPECT_FALSE(found);
+}
+
+TEST_F(CompleteGroup, zip_find_first_returns_first_match)
+{
+  // Multiple elements satisfy x >= 2, should return the first (index 2)
+  auto [t, found] = zip_find_first([](auto t) { return get<0>(t) >= 2; }, l1, l2);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 2);  // First match
+}
+
+TEST(ZipFindFirst, empty_containers)
+{
+  DynList<int> e1, e2;
+  auto [t, found] = zip_find_first([](auto) { return true; }, e1, e2);
+  EXPECT_FALSE(found);
+}
+
+TEST_F(CompleteGroup, zip_find_last_found)
+{
+  // Find last element where x < 4
+  auto [t, found] = zip_find_last([](auto t) { return get<0>(t) < 4; }, l1, l2, l3);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 3);  // Last element < 4 is 3
+}
+
+TEST_F(CompleteGroup, zip_find_last_not_found)
+{
+  auto [t, found] = zip_find_last([](auto t) { return get<0>(t) > 100; }, l1, l2);
+  
+  EXPECT_FALSE(found);
+}
+
+TEST_F(CompleteGroup, zip_find_last_returns_last_match)
+{
+  // All elements satisfy x >= 0, should return the last (index N-1)
+  auto [t, found] = zip_find_last([](auto t) { return get<0>(t) >= 0; }, l1, l2);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), static_cast<int>(N - 1));
+}
+
+TEST(ZipFindLast, empty_containers)
+{
+  DynList<int> e1, e2;
+  auto [t, found] = zip_find_last([](auto) { return true; }, e1, e2);
+  EXPECT_FALSE(found);
+}
+
+TEST_F(CompleteGroup, zip_nth_valid)
+{
+  auto [t, found] = zip_nth(2, l1, l2, l3);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 2);
+  EXPECT_EQ(get<1>(t), 2);
+  EXPECT_EQ(get<2>(t), "2");
+}
+
+TEST_F(CompleteGroup, zip_nth_first)
+{
+  auto [t, found] = zip_nth(0, l1, l2);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 0);
+  EXPECT_EQ(get<1>(t), 0);
+}
+
+TEST_F(CompleteGroup, zip_nth_last)
+{
+  auto [t, found] = zip_nth(N - 1, l1, l2);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), static_cast<int>(N - 1));
+}
+
+TEST_F(CompleteGroup, zip_nth_out_of_range)
+{
+  auto [t, found] = zip_nth(N + 10, l1, l2);
+  
+  EXPECT_FALSE(found);
+}
+
+TEST(ZipNth, empty_containers)
+{
+  DynList<int> e1, e2;
+  auto [t, found] = zip_nth(0, e1, e2);
+  EXPECT_FALSE(found);
+}
+
+TEST_F(CompleteGroup, zip_first_basic)
+{
+  auto [t, found] = zip_first(l1, l2, l3);
+  
+  EXPECT_TRUE(found);
+  EXPECT_EQ(get<0>(t), 0);
+  EXPECT_EQ(get<1>(t), 0);
+  EXPECT_EQ(get<2>(t), "0");
+}
+
+TEST(ZipFirst, empty_containers)
+{
+  DynList<int> e1, e2;
+  auto [t, found] = zip_first(e1, e2);
+  EXPECT_FALSE(found);
+}
+
+// Test Tuple_Type alias
+TEST_F(CompleteGroup, tuple_type_alias)
+{
+  using ZipIt = ZipIterator<DynList<int>, DynSetTree<int>, DynArray<string>>;
+  using ExpectedType = std::tuple<int, int, string>;
+  
+  static_assert(std::is_same_v<ZipIt::Tuple_Type, ExpectedType>,
+                "Tuple_Type should be tuple<int, int, string>");
+  
+  // Verify we can use it to declare variables
+  ZipIt::Tuple_Type t = std::make_tuple(1, 2, "test");
+  EXPECT_EQ(get<0>(t), 1);
+  EXPECT_EQ(get<1>(t), 2);
+  EXPECT_EQ(get<2>(t), "test");
+}
+
+// Test Item_Type alias
+TEST(TypeAliases, item_type_alias)
+{
+  using ZipIt = ZipIterator<DynList<int>>;
+  static_assert(std::is_same_v<ZipIt::Item_Type, int>,
+                "Item_Type should be int for single container");
+}
+
+// ============================================================================
+// Tests for zip_maps_eq, zip_maps_if_eq, zip_foldl_eq, zip_map, zip_map_eq
+// ============================================================================
+
+TEST_F(CompleteGroup, zip_maps_eq_success)
+{
+  auto result = zip_maps_eq<string>([](auto t) {
+    return to_string(get<0>(t)) + "-" + to_string(get<1>(t));
+  }, l1, l2);
+
+  EXPECT_EQ(result.size(), N);
+  EXPECT_EQ(result.get_first(), "0-0");
+}
+
+TEST_F(InCompleteGroup, zip_maps_eq_throws)
+{
+  EXPECT_THROW(
+    zip_maps_eq<int>([](auto t) { return get<0>(t); }, l1, l2),
+    length_error
+  );
+}
+
+TEST_F(CompleteGroup, zip_maps_if_eq_success)
+{
+  // Map only elements where first > 1
+  auto result = zip_maps_if_eq<int>(
+    [](auto t) { return get<0>(t) > 1; },
+    [](auto t) { return get<0>(t) * 10; },
+    l1, l2
+  );
+
+  EXPECT_EQ(result.size(), N - 2);  // 2, 3, 4 -> 3 elements
+  EXPECT_EQ(result.get_first(), 20);
+}
+
+TEST_F(InCompleteGroup, zip_maps_if_eq_throws)
+{
+  EXPECT_THROW(
+    zip_maps_if_eq<int>(
+      [](auto) { return true; },
+      [](auto t) { return get<0>(t); },
+      l1, l2
+    ),
+    length_error
+  );
+}
+
+TEST_F(CompleteGroup, zip_foldl_eq_success)
+{
+  auto sum = zip_foldl_eq(0, [](auto acc, auto t) {
+    return acc + get<0>(t) + get<1>(t);
+  }, l1, l2);
+
+  EXPECT_EQ(sum, static_cast<int>(N * (N - 1)));  // 2 * sum(0..N-1)
+}
+
+TEST_F(InCompleteGroup, zip_foldl_eq_throws)
+{
+  EXPECT_THROW(
+    (void) zip_foldl_eq(0, [](auto acc, auto t) { return acc + get<0>(t); }, l1, l2),
+    length_error
+  );
+}
+
+TEST_F(CompleteGroup, zip_map_auto_deduce)
+{
+  // Auto-deduce return type (string)
+  auto result = zip_map([](auto t) {
+    return to_string(get<0>(t)) + ":" + get<2>(t);
+  }, l1, l2, l3);
+
+  EXPECT_EQ(result.size(), N);
+  EXPECT_EQ(result.get_first(), "0:0");
+
+  // Verify the type is DynList<string>
+  static_assert(std::is_same_v<decltype(result), DynList<string>>,
+                "zip_map should return DynList<string>");
+}
+
+TEST_F(CompleteGroup, zip_map_numeric)
+{
+  // Auto-deduce return type (int)
+  auto result = zip_map([](auto t) {
+    return get<0>(t) + get<1>(t);
+  }, l1, l2);
+
+  EXPECT_EQ(result.size(), N);
+  
+  size_t i = 0;
+  for (auto it = result.get_it(); it.has_curr(); it.next_ne(), ++i)
+    EXPECT_EQ(it.get_curr(), static_cast<int>(2 * i));
+
+  // Verify the type is DynList<int>
+  static_assert(std::is_same_v<decltype(result), DynList<int>>,
+                "zip_map should return DynList<int>");
+}
+
+TEST_F(CompleteGroup, zip_map_eq_success)
+{
+  auto result = zip_map_eq([](auto t) {
+    return get<0>(t) * get<1>(t);
+  }, l1, l2);
+
+  EXPECT_EQ(result.size(), N);
+  
+  // 0*0, 1*1, 2*2, 3*3, 4*4
+  size_t i = 0;
+  for (auto it = result.get_it(); it.has_curr(); it.next_ne(), ++i)
+    EXPECT_EQ(it.get_curr(), static_cast<int>(i * i));
+}
+
+TEST_F(InCompleteGroup, zip_map_eq_throws)
+{
+  EXPECT_THROW(
+    zip_map_eq([](auto t) { return get<0>(t); }, l1, l2),
+    length_error
+  );
+}
+
+TEST(ZipMapEmpty, empty_containers)
+{
+  DynList<int> e1, e2;
+  
+  auto result = zip_map([](auto t) { return get<0>(t); }, e1, e2);
+  EXPECT_TRUE(result.is_empty());
+  
+  // _eq version should not throw on empty (they're equal length)
+  auto result_eq = zip_map_eq([](auto t) { return get<0>(t); }, e1, e2);
+  EXPECT_TRUE(result_eq.is_empty());
+}
+
+TEST(ZipFoldlEmpty, empty_containers)
+{
+  DynList<int> e1, e2;
+  
+  auto sum = zip_foldl(100, [](auto acc, auto t) { return acc + get<0>(t); }, e1, e2);
+  EXPECT_EQ(sum, 100);  // Just returns init value
+  
+  // _eq version should not throw on empty
+  auto sum_eq = zip_foldl_eq(100, [](auto acc, auto t) { return acc + get<0>(t); }, e1, e2);
+  EXPECT_EQ(sum_eq, 100);
+}
+
+// ============================================================================
+// Tests for zip_filter_eq and none_of_tuple
+// ============================================================================
+
+TEST_F(CompleteGroup, zip_filter_eq_success)
+{
+  auto result = zip_filter_eq([](auto t) { 
+    return get<0>(t) > 2; 
+  }, l1, l2, l3);
+  
+  // Should contain elements where first > 2: (3, 3, "3"), (4, 4, "4")
+  EXPECT_EQ(result.size(), 2u);
+}
+
+TEST_F(InCompleteGroup, zip_filter_eq_throws)
+{
+  EXPECT_THROW(
+    zip_filter_eq([](auto) { return true; }, l1, l2),
+    length_error
+  );
+}
+
+TEST(ZipFilterEq, empty_containers)
+{
+  DynList<int> e1, e2;
+  auto result = zip_filter_eq([](auto) { return true; }, e1, e2);
+  EXPECT_TRUE(result.is_empty());
+}
+
+TEST_F(CompleteGroup, zip_filter_eq_all_match)
+{
+  auto result = zip_filter_eq([](auto t) { 
+    return get<0>(t) >= 0; 
+  }, l1, l2);
+  
+  EXPECT_EQ(result.size(), N);
+}
+
+TEST_F(CompleteGroup, zip_filter_eq_none_match)
+{
+  auto result = zip_filter_eq([](auto t) { 
+    return get<0>(t) > 100; 
+  }, l1, l2);
+  
+  EXPECT_TRUE(result.is_empty());
+}
+
+TEST(NoneOfTuple, all_satisfy)
+{
+  auto t = make_tuple(2, 4, 6, 8);
+  // All are even, so none are odd
+  EXPECT_TRUE(none_of_tuple([](auto x) { return x % 2 != 0; }, t));
+}
+
+TEST(NoneOfTuple, some_satisfy)
+{
+  auto t = make_tuple(2, 3, 6, 8);
+  // 3 is odd, so NOT none are odd
+  EXPECT_FALSE(none_of_tuple([](auto x) { return x % 2 != 0; }, t));
+}
+
+TEST(NoneOfTuple, empty_tuple)
+{
+  auto t = make_tuple();
+  // Vacuously true: no elements satisfy any predicate
+  EXPECT_TRUE(none_of_tuple([](auto) { return true; }, t));
+}
+
+TEST(NoneOfTuple, complement_of_any)
+{
+  auto t = make_tuple(1, 2, 3, 4, 5);
+  
+  auto pred = [](auto x) { return x > 10; };
+  
+  // none_of should be complement of any_of
+  EXPECT_EQ(none_of_tuple(pred, t), !any_of_tuple(pred, t));
+}
+
+// Stress test for new functions
+TEST(StressNewFunctions, large_containers)
+{
+  const size_t SIZE = 1000;
+  DynList<int> l1 = range<int>(0, SIZE - 1);
+  DynList<int> l2 = range<int>(0, SIZE - 1);
+  
+  // zip_length
+  EXPECT_EQ(zip_length(l1, l2), SIZE);
+  
+  // zip_count - count even numbers
+  EXPECT_EQ(zip_count([](auto t) { return get<0>(t) % 2 == 0; }, l1, l2), SIZE / 2);
+  
+  // zip_none - no element > SIZE
+  EXPECT_TRUE(zip_none([](auto t) { return get<0>(t) >= static_cast<int>(SIZE); }, l1, l2));
+  
+  // zip_find_first
+  auto [first, found1] = zip_find_first([](auto t) { return get<0>(t) == 500; }, l1, l2);
+  EXPECT_TRUE(found1);
+  EXPECT_EQ(get<0>(first), 500);
+  
+  // zip_find_last
+  auto [last, found2] = zip_find_last([](auto t) { return get<0>(t) < 100; }, l1, l2);
+  EXPECT_TRUE(found2);
+  EXPECT_EQ(get<0>(last), 99);
+  
+  // zip_nth
+  auto [nth, found3] = zip_nth(999, l1, l2);
+  EXPECT_TRUE(found3);
+  EXPECT_EQ(get<0>(nth), 999);
+}

@@ -41,7 +41,7 @@ TEST(range, range_combs)
 {
   EXPECT_EQ(range(0, 10), build_dynlist<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
   EXPECT_EQ(range(0, 10, 2), build_dynlist<int>(0, 2, 4, 6, 8, 10));
-  EXPECT_EQ(nrange(2, 5, 3), build_dynlist<int>(2, 3, 4));
+  EXPECT_EQ(nrange(2, 5, 3), build_dynlist<int>(2, 3, 5));
   EXPECT_EQ(contiguous_range(1, 5), build_dynlist<int>(1, 2, 3, 4, 5));
   EXPECT_EQ(range(5), build_dynlist<int>(0, 1, 2, 3, 4));
 }
@@ -377,5 +377,296 @@ TEST(is_equal_test, is_equal)
   EXPECT_TRUE(is_equal(5, 5));
   EXPECT_FALSE(is_equal(5, 1, 2, 3, 4));
   EXPECT_FALSE(is_equal(5));
+
+  // Mixed types
+  EXPECT_TRUE(is_equal(5, 5.0));
+  EXPECT_TRUE(is_equal(5, 3, 5.0, 7));
+}
+
+TEST(FoundItem, FoundItemTests)
+{
+  int val = 42;
+  Some<int> s(val);
+  EXPECT_TRUE(s.is_found());
+  EXPECT_EQ(s.get_item(), 42);
+  s.get_item() = 43;
+  EXPECT_EQ(val, 43);
+
+  None<int> n;
+  EXPECT_FALSE(n.is_found());
+  EXPECT_THROW(n.get_item(), std::logic_error);
+
+  const None<int> cn;
+  EXPECT_THROW(cn.get_item(), std::logic_error);
+
+  const Some<int> cs(val);
+  EXPECT_EQ(cs.get_item(), 43);
+}
+
+TEST(range, range_precision)
+{
+  // Floating point nrange
+  auto r = nrange<double, DynList>(0.0, 1.0, 11);
+  EXPECT_EQ(r.size(), 11u);
+  EXPECT_DOUBLE_EQ(r.get_first(), 0.0);
+  EXPECT_DOUBLE_EQ(r.get_last(), 1.0);
+  EXPECT_DOUBLE_EQ(r.nth(5), 0.5);
+
+  // n=1 case
+  auto r1 = nrange<int, DynList>(10, 20, 1);
+  ASSERT_EQ(r1.size(), 1u);
+  EXPECT_EQ(r1.get_first(), 10);
+
+  // n=0 case
+  EXPECT_THROW(nrange(0, 10, 0), std::domain_error);
+}
+
+TEST(flatten_test, flatten_deep)
+{
+  DynList<DynList<DynList<int>>> lll;
+  lll.append(build_dynlist<DynList<int>>(build_dynlist<int>(1, 2), build_dynlist<int>(3)));
+  lll.append(build_dynlist<DynList<int>>(build_dynlist<int>(4, 5, 6)));
+
+  auto flat = flatten(lll);
+  EXPECT_EQ(flat, build_dynlist<int>(1, 2, 3, 4, 5, 6));
+
+  DynList<DynList<DynList<DynList<int>>>> llll;
+  llll.append(lll);
+  auto flat4 = flatten(llll);
+  EXPECT_EQ(flat4, build_dynlist<int>(1, 2, 3, 4, 5, 6));
+}
+
+TEST(each_test, each_edge)
+{
+  size_t count = 0;
+  each(0, [&count] () { ++count; });
+  EXPECT_EQ(count, 0);
+
+  count = 0;
+  each(1, [&count] () { ++count; });
+  EXPECT_EQ(count, 1);
+}
+
+// Tests for new functions
+
+TEST(none_test, none_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+  EXPECT_TRUE(none(l, [] (int x) { return x > 10; }));
+  EXPECT_FALSE(none(l, [] (int x) { return x == 3; }));
+
+  DynList<int> empty;
+  EXPECT_TRUE(none(empty, [] (int) { return true; }));
+}
+
+TEST(find_ptr_test, find_ptr_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  auto * p = find_ptr(l, [] (int x) { return x == 3; });
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 3);
+
+  // Modify through pointer
+  *p = 30;
+  EXPECT_EQ(l.nth(2), 30);
+
+  auto * not_found = find_ptr(l, [] (int x) { return x == 100; });
+  EXPECT_EQ(not_found, nullptr);
+
+  // const version
+  const DynList<int> cl = build_dynlist<int>(10, 20, 30);
+  const int * cp = find_ptr(cl, [] (int x) { return x == 20; });
+  ASSERT_NE(cp, nullptr);
+  EXPECT_EQ(*cp, 20);
+}
+
+TEST(foldr_test, foldr_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4);
+
+  // foldr with subtraction: 1 - (2 - (3 - (4 - 0))) = 1 - (2 - (3 - 4)) = 1 - (2 - (-1)) = 1 - 3 = -2
+  auto result = foldr<int>(l, 0, [] (int a, int b) { return a - b; });
+  EXPECT_EQ(result, -2);
+
+  // Compare with foldl: ((((0 - 1) - 2) - 3) - 4) = -10
+  auto result_l = foldl<int>(l, 0, [] (int a, int b) { return a - b; });
+  EXPECT_EQ(result_l, -10);
+}
+
+TEST(sum_product_test, sum_product_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+  EXPECT_EQ(sum(l), 15);
+  EXPECT_EQ(sum(l, 10), 25);
+
+  EXPECT_EQ(product(l), 120);
+  EXPECT_EQ(product(l, 2), 240);
+
+  DynList<int> empty;
+  EXPECT_EQ(sum(empty), 0);
+  EXPECT_EQ(product(empty), 1);
+
+  DynList<double> ld = build_dynlist<double>(1.5, 2.5, 3.0);
+  EXPECT_DOUBLE_EQ(sum(ld), 7.0);
+}
+
+TEST(concat_test, concat_basic)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2, 3);
+  DynList<int> l2 = build_dynlist<int>(4, 5, 6);
+
+  auto c = concat(l1, l2);
+  EXPECT_EQ(c, build_dynlist<int>(1, 2, 3, 4, 5, 6));
+
+  DynList<int> empty;
+  EXPECT_EQ(concat(empty, l1), l1);
+  EXPECT_EQ(concat(l1, empty), l1);
+}
+
+TEST(take_while_test, take_while_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 10, 5, 6);
+
+  auto result = take_while(l, [] (int x) { return x < 5; });
+  EXPECT_EQ(result, build_dynlist<int>(1, 2, 3));
+
+  // All elements satisfy
+  auto all = take_while(l, [] (int) { return true; });
+  EXPECT_EQ(all, l);
+
+  // No elements satisfy
+  auto none_result = take_while(l, [] (int x) { return x > 100; });
+  EXPECT_TRUE(none_result.is_empty());
+}
+
+TEST(drop_while_test, drop_while_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 10, 5, 6);
+
+  auto result = drop_while(l, [] (int x) { return x < 5; });
+  EXPECT_EQ(result, build_dynlist<int>(10, 5, 6));
+
+  // All elements satisfy - drop all
+  auto all_dropped = drop_while(l, [] (int) { return true; });
+  EXPECT_TRUE(all_dropped.is_empty());
+
+  // No elements satisfy - keep all
+  auto none_dropped = drop_while(l, [] (int x) { return x > 100; });
+  EXPECT_EQ(none_dropped, l);
+}
+
+TEST(flat_map_test, flat_map_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  // Duplicate each element
+  auto result = flat_map(l, [] (int x) {
+    return build_dynlist<int>(x, x);
+  });
+  EXPECT_EQ(result, build_dynlist<int>(1, 1, 2, 2, 3, 3));
+
+  // Create range for each
+  auto ranges = flat_map(l, [] (int x) {
+    return range(x);
+  });
+  EXPECT_EQ(ranges, build_dynlist<int>(0, 0, 1, 0, 1, 2));
+}
+
+TEST(scanl_test, scanl_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4);
+
+  auto sums = scanl<int>(l, 0, [] (int a, int b) { return a + b; });
+  EXPECT_EQ(sums, build_dynlist<int>(0, 1, 3, 6, 10));
+
+  auto sums2 = scanl_sum(l, 0);
+  EXPECT_EQ(sums2, build_dynlist<int>(0, 1, 3, 6, 10));
+
+  DynList<int> empty;
+  auto empty_scan = scanl<int>(empty, 100, [] (int a, int b) { return a + b; });
+  EXPECT_EQ(empty_scan, build_dynlist<int>(100));
+}
+
+TEST(min_max_test, min_max_basic)
+{
+  DynList<int> l = build_dynlist<int>(5, 2, 8, 1, 9, 3);
+
+  auto * min_p = min_ptr(l);
+  ASSERT_NE(min_p, nullptr);
+  EXPECT_EQ(*min_p, 1);
+
+  auto * max_p = max_ptr(l);
+  ASSERT_NE(max_p, nullptr);
+  EXPECT_EQ(*max_p, 9);
+
+  auto [minp, maxp] = minmax_ptr(l);
+  ASSERT_NE(minp, nullptr);
+  ASSERT_NE(maxp, nullptr);
+  EXPECT_EQ(*minp, 1);
+  EXPECT_EQ(*maxp, 9);
+
+  // Empty container
+  DynList<int> empty;
+  EXPECT_EQ(min_ptr(empty), nullptr);
+  EXPECT_EQ(max_ptr(empty), nullptr);
+  auto [emp_min, emp_max] = minmax_ptr(empty);
+  EXPECT_EQ(emp_min, nullptr);
+  EXPECT_EQ(emp_max, nullptr);
+
+  // Single element
+  DynList<int> single = build_dynlist<int>(42);
+  auto [s_min, s_max] = minmax_ptr(single);
+  EXPECT_EQ(*s_min, 42);
+  EXPECT_EQ(*s_max, 42);
+
+  // Custom comparator
+  auto * max_abs = max_ptr(build_dynlist<int>(-10, 5, -20, 3),
+                           [] (int a, int b) { return std::abs(a) < std::abs(b); });
+  EXPECT_EQ(*max_abs, -20);
+}
+
+TEST(count_if_test, count_if_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+  EXPECT_EQ(count_if(l, [] (int x) { return x % 2 == 0; }), 5);
+  EXPECT_EQ(count_if(l, [] (int x) { return x > 5; }), 5);
+  EXPECT_EQ(count_if(l, [] (int x) { return x > 100; }), 0);
+
+  DynList<int> empty;
+  EXPECT_EQ(count_if(empty, [] (int) { return true; }), 0);
+}
+
+TEST(contains_test, contains_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  EXPECT_TRUE(contains(l, 3));
+  EXPECT_TRUE(contains(l, 1));
+  EXPECT_TRUE(contains(l, 5));
+  EXPECT_FALSE(contains(l, 0));
+  EXPECT_FALSE(contains(l, 6));
+
+  DynList<int> empty;
+  EXPECT_FALSE(contains(empty, 1));
+}
+
+TEST(enumerate_tuple_test, enumerate_tuple_basic)
+{
+  DynList<string> l = build_dynlist<string>("a", "b", "c");
+
+  auto result = enumerate_tuple(l);
+  EXPECT_EQ(result.size(), 3);
+
+  auto it = result.get_it();
+  EXPECT_EQ(get<0>(it.get_curr()), 0);
+  EXPECT_EQ(get<1>(it.get_curr()), "a");
+  it.next();
+  EXPECT_EQ(get<0>(it.get_curr()), 1);
+  EXPECT_EQ(get<1>(it.get_curr()), "b");
+  it.next();
+  EXPECT_EQ(get<0>(it.get_curr()), 2);
+  EXPECT_EQ(get<1>(it.get_curr()), "c");
 }
 

@@ -29,44 +29,40 @@
 
 # include <ah-comb.H>
 
-using namespace std;
-using namespace Aleph;
-
-
 void test()
 {
-  DynList<char> l1 = { 'a', 'b', 'c' };
-  DynList<char> l2 = { 'A', 'B', 'C' };
-  DynList<char> l3 = { '1', '2', '3' };
-  DynList<char> l4 = { '5', '6', '7'};
+  Aleph::DynList<char> l1 = { 'a', 'b', 'c' };
+  Aleph::DynList<char> l2 = { 'A', 'B', 'C' };
+  Aleph::DynList<char> l3 = { '1', '2', '3' };
+  Aleph::DynList<char> l4 = { '5', '6', '7'};
 
-  DynList<DynList<char>> l = { l1, l2, l3, l4 };
+  Aleph::DynList<Aleph::DynList<char>> l = { l1, l2, l3, l4 };
 
-  cout << "Permutations:" << endl;
-  traverse_perm(l, [] (auto s)
+  std::cout << "Permutations:" << std::endl;
+  Aleph::traverse_perm(l, [] (auto s)
 	  {
-	    cout << "s = "; s.for_each([] (auto c) { cout << c << " "; });
-	    cout << endl;
+	    std::cout << "s = "; s.for_each([] (auto c) { std::cout << c << " "; });
+	    std::cout << std::endl;
 	    return true;
 	  });
 
-  cout << endl
-       << "Transpose (out-of-place):" << endl;
+  std::cout << std::endl
+       << "Transpose (out-of-place):" << std::endl;
 
-  transpose(l).for_each([] (const auto & row)
+  Aleph::transpose(l).for_each([] (const auto & row)
 			{
-			  row.for_each([] (auto i) { cout << i << " "; });
-			  cout << endl;
+			  row.for_each([] (auto i) { std::cout << i << " "; });
+			  std::cout << std::endl;
 			});
 
-  cout << endl
-       << "Transpose (in-place):" << endl;
+  std::cout << std::endl
+       << "Transpose (in-place):" << std::endl;
   auto aux = l;
-  in_place_transpose(aux);
+  Aleph::in_place_transpose(aux);
   aux.for_each([] (const auto & row)
 	       {
-		 row.for_each([] (auto i) { cout << i << " "; });
-		 cout << endl;
+		 row.for_each([] (auto i) { std::cout << i << " "; });
+		 std::cout << std::endl;
 	       });
 }
 

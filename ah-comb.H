@@ -26,6 +26,24 @@
 # ifndef COMB_H
 # define COMB_H
 
+/** @file ah-comb.H
+    @brief Combinatorics utilities: permutations, combinations and matrix transposition.
+
+    This header provides functions to:
+    - Transpose matrices represented as nested containers (`transpose`, `in_place_transpose`).
+    - Enumerate permutations (cartesian products) from a list of lists (`traverse_perm`,
+      `for_each_perm`, `build_perms`).
+    - Build unique sorted combinations (`build_combs`).
+    - Fold over permutations (`fold_perm`).
+    - Count permutations (`perm_count`).
+    - Check for existence or universality (`exists_perm`, `all_perm`).
+
+    @note "Permutation" in this context means the cartesian product of the input lists,
+          not mathematical permutations of a set.
+
+    @ingroup Algos
+*/
+
 # include <htlist.H>
 # include <tpl_dynDlist.H>
 # include <tpl_dynArray.H>
@@ -35,21 +53,25 @@
 
 namespace Aleph
 {
-  /** Transpose a matrix represented as a list of lists.
+  /// @cond INTERNAL
+  namespace comb_detail
+  {
+    /** Transpose a matrix represented as a list of lists (internal helper).
 
-      This is an internal helper optimized for Aleph's list internals.
-      The input is expected to be rectangular (all rows with the same length).
+        This is an internal helper optimized for Aleph's list internals.
+        The input is expected to be rectangular (all rows with the same length).
 
-      @tparam T Element type.
-      @param[in] l Matrix as `DynList<DynList<T>>`.
-      @return The transposed matrix.
+        @tparam T Element type.
+        @param[in] l Matrix as `DynList<DynList<T>>`.
+        @return The transposed matrix.
 
-      @note If `l` is empty, an empty matrix is returned.
-      @note In debug builds, non-rectangular inputs trigger an assertion.
-  */
-  template <typename T>
-  inline
-  DynList<DynList<T>> _transpose(const DynList<DynList<T>> & l)
+        @note If `l` is empty, an empty matrix is returned.
+        @note In debug builds, non-rectangular inputs trigger an assertion.
+        @internal
+    */
+    template <typename T>
+    [[nodiscard]] inline
+    DynList<DynList<T>> transpose_impl(DynList<DynList<T>> & l)
   {
     if (l.is_empty())
       return {};
@@ -91,6 +113,8 @@ namespace Aleph
 
     return ret;
   }
+  } // namespace comb_detail
+  /// @endcond
 
   /** Transpose a matrix represented as a list of lists.
 
@@ -102,9 +126,11 @@ namespace Aleph
 
       @note If `l` is empty, an empty matrix is returned.
       @note In debug builds, non-rectangular inputs trigger an assertion.
+
+      @ingroup Algos
   */
   template <typename T>
-  inline
+  [[nodiscard]] inline
   DynList<DynList<T>> transpose(const DynList<DynList<T>> & l)
   {
     if (l.is_empty())
@@ -151,6 +177,8 @@ namespace Aleph
 
       @note If `l` is empty, the function is a no-op.
       @note In debug builds, non-rectangular inputs trigger an assertion.
+
+      @ingroup Algos
   */
   template <template <typename> class C, typename T>
   inline
@@ -187,6 +215,8 @@ namespace Aleph
 
       @note If `l` is empty, the function is a no-op.
       @note In debug builds, non-rectangular inputs trigger an assertion.
+
+      @ingroup Algos
   */
   template <typename T>
   inline
@@ -237,9 +267,8 @@ namespace Aleph
       }
   }
 
-  template <typename T, class Op>
-  static inline
-  /** Internal recursive engine for `traverse_perm`.1
+  /// @cond INTERNAL
+  /** Internal recursive engine for `traverse_perm`.
 
       This routine performs a depth-first traversal over the cartesian product
       of the input lists. It is not part of the public API.
@@ -250,9 +279,12 @@ namespace Aleph
       @param[in,out] its    Iterators (one per input list) remaining to expand.
       @param[in,out] op     Operation applied to each final permutation.
       @return `false` if `op` requested early termination; `true` otherwise.
+      @internal
   */
-  bool traverse_perm(DynList<T> & sample,
-                     DynList<typename DynList<T>::Iterator> & its, Op & op)
+  template <typename T, class Op>
+  static inline
+  bool traverse_perm_impl(DynList<T> & sample,
+                          DynList<typename DynList<T>::Iterator> & its, Op & op)
   {
     if (its.is_empty())
       return op(sample.template maps<T>([](const T & i) { return i; }));
@@ -262,14 +294,19 @@ namespace Aleph
       {
         auto item = it.get_curr();
         sample.insert(item);
-        if (not traverse_perm(sample, its, op))
+        if (not traverse_perm_impl(sample, its, op))
+        {
+          sample.remove_first();
+          its.insert(itor);
           return false;
+        }
         sample.remove_first();
       }
     its.insert(itor);
 
     return true;
   }
+  /// @endcond
 
   /** Traverse all the possible permutations that can be done of a list
       of lists and on each permutation performs an operation.
@@ -319,7 +356,7 @@ namespace Aleph
     }
 
     DynList<T> ll;
-    return traverse_perm(ll, its, op);
+    return traverse_perm_impl(ll, its, op);
   }
 
   /** \overload traverse_perm
@@ -341,6 +378,8 @@ namespace Aleph
       @tparam Op Callable with signature `void(const DynList<T>&)`.
       @param[in] l List of lists.
       @param[in] op Operation to run on each permutation.
+
+      @ingroup Algos
   */
   template <typename T, class Op>
   inline
@@ -371,8 +410,11 @@ namespace Aleph
       @return A list containing all permutations.
 
       @note The output size is the product of input list sizes.
+
+      @ingroup Algos
   */
   template <typename T>
+  [[nodiscard]]
   DynList<DynList<T>> build_perms(const DynList<DynList<T>> & l)
   {
     DynList<DynList<T>> ret;
@@ -389,8 +431,11 @@ namespace Aleph
         `CmpContainer`.
       @param[in] l List of lists.
       @return Unique sorted combinations.
+
+      @ingroup Algos
   */
   template <typename T>
+  [[nodiscard]]
   DynList<DynList<T>> build_combs(const DynList<DynList<T>> & l)
   {
     DynSetTree<DynList<T>, Avl_Tree, CmpContainer<DynList<T>, T>> combs;
@@ -417,8 +462,11 @@ namespace Aleph
       @param[in] l List of lists.
       @param[in] op Folding operation.
       @return Final accumulator.
+
+      @ingroup Algos
   */
   template <typename T, typename Tc, class Op = Dft_Fold_Op<Tc, T>>
+  [[nodiscard]]
   T fold_perm(const T & init, const DynList<DynList<Tc>> & l, Op & op)
   {
     T acu = init;
@@ -435,9 +483,204 @@ namespace Aleph
       Convenience overload accepting an rvalue callable.
   */
   template <typename T, typename Tc, class Op = Dft_Fold_Op<Tc, T>>
+  [[nodiscard]]
   T fold_perm(const T & init, const DynList<DynList<Tc>> & l, Op && op)
   {
     return fold_perm(init, l, op);
+  }
+
+  /** Count the total number of permutations from a list of lists.
+
+      The result is the product of all list sizes. If the input is empty,
+      returns 1 (there is exactly one empty permutation).
+
+      @tparam T Element type.
+      @param[in] l List of lists.
+      @return Total permutation count.
+
+      @ingroup Algos
+  */
+  template <typename T>
+  [[nodiscard]]
+  size_t perm_count(const DynList<DynList<T>> & l)
+  {
+    size_t count = 1;
+    for (auto it = l.get_it(); it.has_curr(); it.next_ne())
+      {
+        const size_t sz = it.get_curr().size();
+        if (sz == 0)
+          return 0; // Any empty list results in no permutations
+        count *= sz;
+      }
+    return count;
+  }
+
+  /** Check if any permutation satisfies a predicate.
+
+      Stops as soon as a permutation makes `pred` return `true`.
+
+      @tparam T Element type.
+      @tparam Pred Callable with signature `bool(const DynList<T>&)`.
+      @param[in] l List of lists.
+      @param[in] pred Predicate to test.
+      @return `true` if at least one permutation satisfies `pred`.
+
+      @ingroup Algos
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool exists_perm(const DynList<DynList<T>> & l, Pred & pred)
+  {
+    bool found = false;
+    traverse_perm(l, [&pred, &found](const DynList<T> & perm)
+                    {
+                      if (pred(perm))
+                        {
+                          found = true;
+                          return false; // stop
+                        }
+                      return true;
+                    });
+    return found;
+  }
+
+  /** \overload exists_perm
+
+      Convenience overload accepting an rvalue callable.
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool exists_perm(const DynList<DynList<T>> & l, Pred && pred)
+  {
+    return exists_perm(l, pred);
+  }
+
+  /** Check if all permutations satisfy a predicate.
+
+      Stops as soon as a permutation makes `pred` return `false`.
+
+      @tparam T Element type.
+      @tparam Pred Callable with signature `bool(const DynList<T>&)`.
+      @param[in] l List of lists.
+      @param[in] pred Predicate to test.
+      @return `true` if all permutations satisfy `pred`.
+
+      @ingroup Algos
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool all_perm(const DynList<DynList<T>> & l, Pred & pred)
+  {
+    return traverse_perm(l, pred);
+  }
+
+  /** \overload all_perm
+
+      Convenience overload accepting an rvalue callable.
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool all_perm(const DynList<DynList<T>> & l, Pred && pred)
+  {
+    return all_perm(l, pred);
+  }
+
+  /** Check if no permutation satisfies a predicate.
+
+      Equivalent to `!exists_perm(l, pred)`.
+
+      @tparam T Element type.
+      @tparam Pred Callable with signature `bool(const DynList<T>&)`.
+      @param[in] l List of lists.
+      @param[in] pred Predicate to test.
+      @return `true` if no permutation satisfies `pred`.
+
+      @ingroup Algos
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool none_perm(const DynList<DynList<T>> & l, Pred & pred)
+  {
+    return not exists_perm(l, pred);
+  }
+
+  /** \overload none_perm
+
+      Convenience overload accepting an rvalue callable.
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  bool none_perm(const DynList<DynList<T>> & l, Pred && pred)
+  {
+    return none_perm(l, pred);
+  }
+
+  /** Filter permutations that satisfy a predicate.
+
+      @tparam T Element type.
+      @tparam Pred Callable with signature `bool(const DynList<T>&)`.
+      @param[in] l List of lists.
+      @param[in] pred Predicate to select permutations.
+      @return List of permutations for which `pred` returned `true`.
+
+      @ingroup Algos
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  DynList<DynList<T>> filter_perm(const DynList<DynList<T>> & l, Pred & pred)
+  {
+    DynList<DynList<T>> ret;
+    for_each_perm(l, [&ret, &pred](const DynList<T> & perm)
+                    {
+                      if (pred(perm))
+                        ret.append(perm);
+                    });
+    return ret;
+  }
+
+  /** \overload filter_perm
+
+      Convenience overload accepting an rvalue callable.
+  */
+  template <typename T, class Pred>
+  [[nodiscard]]
+  DynList<DynList<T>> filter_perm(const DynList<DynList<T>> & l, Pred && pred)
+  {
+    return filter_perm(l, pred);
+  }
+
+  /** Transform each permutation via a mapping operation.
+
+      @tparam R Result element type.
+      @tparam T Element type in input lists.
+      @tparam Op Callable with signature `R(const DynList<T>&)`.
+      @param[in] l List of lists.
+      @param[in] op Mapping operation.
+      @return List of results from applying `op` to each permutation.
+
+      @ingroup Algos
+  */
+  template <typename R, typename T, class Op>
+  [[nodiscard]]
+  DynList<R> map_perm(const DynList<DynList<T>> & l, Op & op)
+  {
+    DynList<R> ret;
+    for_each_perm(l, [&ret, &op](const DynList<T> & perm)
+                    {
+                      ret.append(op(perm));
+                    });
+    return ret;
+  }
+
+  /** \overload map_perm
+
+      Convenience overload accepting an rvalue callable.
+  */
+  template <typename R, typename T, class Op>
+  [[nodiscard]]
+  DynList<R> map_perm(const DynList<DynList<T>> & l, Op && op)
+  {
+    return map_perm<R>(l, op);
   }
 }
 

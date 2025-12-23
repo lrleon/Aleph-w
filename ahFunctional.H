@@ -1494,6 +1494,144 @@ namespace Aleph
     return result;
   }
 
+  /** @brief Find the minimum element in a container.
+
+      @param container Source container.
+      @param cmp Comparator (defaults to std::less).
+      @return Pointer to the minimum element, or nullptr if container is empty.
+      @ingroup Algos
+  */
+  template <class Container,
+            class Cmp = std::less<typename Container::Item_Type>>
+  [[nodiscard]] inline const typename Container::Item_Type *
+  min_ptr(const Container & container, Cmp cmp = Cmp())
+  {
+    auto it = container.get_it();
+    if (not it.has_curr())
+      return nullptr;
+
+    const typename Container::Item_Type * min_elem = &it.get_curr();
+    for (it.next_ne(); it.has_curr(); it.next_ne())
+      {
+        const auto & curr = it.get_curr();
+        if (cmp(curr, *min_elem))
+          min_elem = &curr;
+      }
+    return min_elem;
+  }
+
+  /** @brief Find the maximum element in a container.
+
+      @param container Source container.
+      @param cmp Comparator (defaults to std::less, finds max by reversing comparison).
+      @return Pointer to the maximum element, or nullptr if container is empty.
+      @ingroup Algos
+  */
+  template <class Container,
+            class Cmp = std::less<typename Container::Item_Type>>
+  [[nodiscard]] inline const typename Container::Item_Type *
+  max_ptr(const Container & container, Cmp cmp = Cmp())
+  {
+    auto it = container.get_it();
+    if (not it.has_curr())
+      return nullptr;
+
+    const typename Container::Item_Type * max_elem = &it.get_curr();
+    for (it.next_ne(); it.has_curr(); it.next_ne())
+      {
+        const auto & curr = it.get_curr();
+        if (cmp(*max_elem, curr))
+          max_elem = &curr;
+      }
+    return max_elem;
+  }
+
+  /** @brief Find both min and max elements in a single pass.
+
+      @param container Source container.
+      @param cmp Comparator (defaults to std::less).
+      @return Pair of pointers (min, max), or (nullptr, nullptr) if container is empty.
+      @ingroup Algos
+  */
+  template <class Container,
+            class Cmp = std::less<typename Container::Item_Type>>
+  [[nodiscard]] inline std::pair<const typename Container::Item_Type *,
+                                  const typename Container::Item_Type *>
+  minmax_ptr(const Container & container, Cmp cmp = Cmp())
+  {
+    using T = typename Container::Item_Type;
+    auto it = container.get_it();
+    if (not it.has_curr())
+      return {nullptr, nullptr};
+
+    const T * min_elem = &it.get_curr();
+    const T * max_elem = min_elem;
+    for (it.next_ne(); it.has_curr(); it.next_ne())
+      {
+        const auto & curr = it.get_curr();
+        if (cmp(curr, *min_elem))
+          min_elem = &curr;
+        if (cmp(*max_elem, curr))
+          max_elem = &curr;
+      }
+    return {min_elem, max_elem};
+  }
+
+  /** @brief Count elements satisfying a predicate.
+
+      @param container Source container.
+      @param pred Predicate to test.
+      @return Number of elements satisfying pred.
+      @ingroup Algos
+  */
+  template <class Container, class Pred> [[nodiscard]] inline
+  size_t count_if(const Container & container, Pred pred)
+  {
+    size_t count = 0;
+    for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+      if (pred(it.get_curr()))
+        ++count;
+    return count;
+  }
+
+  /** @brief Check if container contains a specific value.
+
+      @param container Source container.
+      @param value Value to search for.
+      @return true if value is found.
+      @ingroup Algos
+  */
+  template <class Container> [[nodiscard]] inline
+  bool contains(const Container & container,
+                const typename Container::Item_Type & value)
+  {
+    for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+      if (it.get_curr() == value)
+        return true;
+    return false;
+  }
+
+  /** @brief Zip containers with an index (enumerate with zip).
+
+      Returns list of tuples (index, element).
+
+      @param container Source container.
+      @return DynList of tuples (size_t, T).
+      @ingroup Algos
+  */
+  template <class Container> [[nodiscard]] inline
+  DynList<std::tuple<size_t, typename Container::Item_Type>>
+  enumerate_tuple(const Container & container)
+  {
+    using T = typename Container::Item_Type;
+    using Tuple = std::tuple<size_t, T>;
+    DynList<Tuple> result;
+    size_t i = 0;
+    for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
+      result.append(Tuple(i, it.get_curr()));
+    return result;
+  }
+
 
 } // end namespace Aleph
 
