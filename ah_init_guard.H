@@ -2,7 +2,7 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
+   / ___ \|  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
@@ -23,83 +23,146 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
 #ifndef AH_INIT_GUARD_H
 #define AH_INIT_GUARD_H
 
+/** @file ah_init_guard.H
+    @brief RAII guard for exception-safe resource cleanup.
+
+    Provides a scope guard that executes a cleanup function when destroyed,
+    unless explicitly released. Commonly used in graph algorithms to ensure
+    proper cleanup of node/arc cookies even if exceptions are thrown.
+
+    @ingroup Algos
+*/
+
+#include <utility>
+
 namespace Aleph
 {
-  /** @brief RAII guard for graph algorithm initialization.
 
-      This template class provides exception-safe cleanup for graph algorithms
-      that allocate resources during initialization (e.g., node/arc cookies).
+/** @brief RAII guard for graph algorithm initialization.
 
-      The guard calls the provided cleanup function when destroyed, unless
-      `release()` has been called to indicate successful completion.
+    This template class provides exception-safe cleanup for graph algorithms
+    that allocate resources during initialization (e.g., node/arc cookies).
 
-      @tparam CleanupFunc A callable type (lambda, function object) that
-                          performs the cleanup when invoked with no arguments.
+    The guard calls the provided cleanup function when destroyed, unless
+    `release()` has been called to indicate successful completion.
 
-      Usage example:
-      @code
-      void my_algorithm(Graph& g) {
-        init_resources(g);
+    @tparam CleanupFunc A callable type (lambda, function object) that
+                        performs the cleanup when invoked with no arguments.
 
-        Init_Guard guard([&]() { cleanup_resources(g); });
+    Usage example:
+    @code
+    void my_algorithm(Graph& g) {
+      init_resources(g);
 
-        // ... algorithm that might throw ...
+      Init_Guard guard([&]() { cleanup_resources(g); });
 
-        guard.release(); // Success - don't cleanup
-      }
-      @endcode
+      // ... algorithm that might throw ...
+
+      guard.release(); // Success - don't cleanup
+    }
+    @endcode
+
+    @ingroup Algos
+*/
+template <typename CleanupFunc>
+class Init_Guard
+{
+  CleanupFunc cleanup;
+  bool released = false;
+
+public:
+
+  /** @brief Construct guard with cleanup function.
+
+      @param f Cleanup function to call on destruction (if not released).
   */
-  template <typename CleanupFunc>
-  class Init_Guard
+  explicit Init_Guard(CleanupFunc f) : cleanup(std::move(f)) {}
+
+  /** @brief Destructor calls cleanup if not released.
+
+      If `release()` was not called, the cleanup function is invoked.
+  */
+  ~Init_Guard()
   {
-    CleanupFunc cleanup;
-    bool released = false;
+    if (not released)
+      cleanup();
+  }
 
-  public:
-    /// Construct guard with cleanup function
-    explicit Init_Guard(CleanupFunc f) : cleanup(std::move(f)) {}
+  /** @brief Release the guard - cleanup will not be called.
 
-    /// Destructor calls cleanup if not released
-    ~Init_Guard()
-    {
-      if (not released)
-        cleanup();
-    }
+      Call this method to indicate successful completion. After calling
+      this, the cleanup function will not be invoked on destruction.
+  */
+  void release() noexcept { released = true; }
 
-    /// Release the guard - cleanup will not be called
-    void release() noexcept { released = true; }
+  /** @brief Check if the guard has been released.
 
-    // Non-copyable
-    Init_Guard(const Init_Guard &) = delete;
-    Init_Guard & operator=(const Init_Guard &) = delete;
+      @return true if release() has been called, false otherwise.
+  */
+  [[nodiscard]] bool is_released() const noexcept { return released; }
 
-    // Movable
-    Init_Guard(Init_Guard && other) noexcept
-      : cleanup(std::move(other.cleanup)), released(other.released)
-    {
-      other.released = true;
-    }
+  /// Non-copyable
+  Init_Guard(const Init_Guard &) = delete;
+  Init_Guard & operator=(const Init_Guard &) = delete;
 
-    Init_Guard & operator=(Init_Guard && other) noexcept
-    {
-      if (this != &other)
-        {
-          if (not released)
-            cleanup();
-          cleanup = std::move(other.cleanup);
-          released = other.released;
-          other.released = true;
-        }
-      return *this;
-    }
-  };
+  /** @brief Move constructor.
 
-  /// Deduction guide for Init_Guard
-  template <typename CleanupFunc>
-  Init_Guard(CleanupFunc) -> Init_Guard<CleanupFunc>;
+      Transfers ownership of the cleanup function to this guard.
+      The moved-from guard is marked as released.
+
+      @param other Guard to move from.
+  */
+  Init_Guard(Init_Guard && other) noexcept
+    : cleanup(std::move(other.cleanup)), released(other.released)
+  {
+    other.released = true;
+  }
+
+  /** @brief Move assignment operator.
+
+      If this guard holds an active cleanup, it is executed first.
+      Then ownership is transferred from other.
+
+      @param other Guard to move from.
+      @return Reference to this.
+  */
+  Init_Guard & operator=(Init_Guard && other) noexcept
+  {
+    if (this != &other)
+      {
+        if (not released)
+          cleanup();
+        cleanup = std::move(other.cleanup);
+        released = other.released;
+        other.released = true;
+      }
+    return *this;
+  }
+};
+
+/// Deduction guide for Init_Guard
+template <typename CleanupFunc>
+Init_Guard(CleanupFunc) -> Init_Guard<CleanupFunc>;
+
+/** @brief Create an Init_Guard with a cleanup function.
+
+    Convenience factory function that creates an Init_Guard.
+
+    @tparam CleanupFunc Callable type.
+    @param f Cleanup function.
+    @return Init_Guard wrapping the cleanup function.
+
+    @ingroup Algos
+*/
+template <typename CleanupFunc>
+[[nodiscard]] inline auto make_init_guard(CleanupFunc f)
+{
+  return Init_Guard<CleanupFunc>(std::move(f));
+}
 
 } // end namespace Aleph
 

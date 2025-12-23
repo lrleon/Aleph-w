@@ -123,6 +123,9 @@ set(TEST_PROGRAMS
     al-matrix
     # ah-arena  # TODO: DynSetTree missing arena_allocated_size/arena_available_size
     ah-string-utils
+    ah-stl-utils
+    ahAlgo
+    ah_init_guard
     ah-utils
     index-node
     # sort_arrays  # TODO: to_vector not declared
@@ -148,6 +151,7 @@ set(TEST_PROGRAMS
     test_kosaraju
     test_filter_iterator
     ah-comb
+    ah-convert
 )
 
 # Exhaustive tests (files ending in _test.cc)

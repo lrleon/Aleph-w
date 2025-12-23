@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,43 +24,125 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef AHASSERT_H
-# define AHASSERT_H
+/** @file ahAssert.H
+    @brief Debug assertion and warning utilities.
 
-# include <cstddef>
-# include <cstdlib>
-# include <cstdio>
-# include <cassert>
+    Provides debug-only assertion and warning macros that are compiled
+    out in release builds. When DEBUG is defined, assertions print
+    diagnostic information and abort the program. Warnings print
+    diagnostic information without aborting.
 
-# ifdef DEBUG
+    @note These macros are only active when the DEBUG preprocessor
+          symbol is defined.
 
-extern void _Assert(const char*, const char*, unsigned);
+    @ingroup Utils
+*/
 
-extern void _Assert(const char*, const char*, unsigned, const char*, ...);
+#ifndef AHASSERT_H
+#define AHASSERT_H
 
-extern void _Warning(const char*, const char*, unsigned);
+#include <cstddef>
+#include <cstdlib>
+#include <cstdio>
+#include <cassert>
 
-extern void _Warning(const char*, const char*, unsigned, const char*, ...);
+#ifdef DEBUG
 
-# define COND_assert(cond, f, args...) assert((cond) ? (f) : true)
+/** @brief Print assertion failure message and abort.
 
-# define DEBUGINFO(p) (p)
+    Called when an assertion fails. Prints the failed expression,
+    file name, and line number, then aborts the program.
 
-# define PRINT_TRACE(p) (p)
+    @param exp The expression that failed (as a string).
+    @param fileName The source file name.
+    @param lineNumber The line number in the source file.
+*/
+extern void _assert(const char* exp, const char* fileName, unsigned lineNumber);
+
+/** @brief Print assertion failure message with custom format and abort.
+
+    Called when an assertion fails. Prints the failed expression,
+    file name, line number, and a custom formatted message, then
+    aborts the program.
+
+    @param exp The expression that failed (as a string).
+    @param fileName The source file name.
+    @param lineNumber The line number in the source file.
+    @param format Printf-style format string.
+    @param ... Arguments for the format string.
+*/
+extern void _assert(const char* exp, const char* fileName, unsigned lineNumber,
+                    const char* format, ...);
+
+/** @brief Print warning message without aborting.
+
+    Called to issue a warning. Prints the condition, file name, and
+    line number, but does not abort the program.
+
+    @param exp The condition (as a string).
+    @param fileName The source file name.
+    @param lineNumber The line number in the source file.
+*/
+extern void _Warning(const char* exp, const char* fileName, unsigned lineNumber);
+
+/** @brief Print warning message with custom format without aborting.
+
+    Called to issue a warning. Prints the condition, file name, line
+    number, and a custom formatted message, but does not abort the
+    program.
+
+    @param exp The condition (as a string).
+    @param fileName The source file name.
+    @param lineNumber The line number in the source file.
+    @param format Printf-style format string.
+    @param ... Arguments for the format string.
+*/
+extern void _Warning(const char* exp, const char* fileName, unsigned lineNumber,
+                     const char* format, ...);
+
+/** @brief Conditional assertion macro.
+
+    Evaluates the assertion function `f` only if the condition `cond`
+    is true. Otherwise, evaluates to true (no assertion failure).
+
+    @param cond The condition to test.
+    @param f The assertion function to call if cond is true.
+    @param args Additional arguments for the assertion function.
+*/
+#define COND_assert(cond, f, args...) assert((cond) ? (f) : true)
+
+/** @brief Debug information macro.
+
+    Executes the statement `p` only in debug builds.
+
+    @param p The statement to execute.
+*/
+#define DEBUGINFO(p) (p)
+
+/** @brief Print trace macro.
+
+    Executes the statement `p` for tracing purposes.
+    Active in both debug and release builds.
+
+    @param p The statement to execute.
+*/
+#define PRINT_TRACE(p) (p)
 
 
-# else /* DEBUG */
+#else /* DEBUG not defined */
 
-# define COND_ASSERT(cond, f, args...)
+/** @brief Conditional assertion macro (no-op in release). */
+#define COND_ASSERT(cond, f, args...)
 
-# define DEBUGINFO(p) 
+/** @brief Debug information macro (no-op in release). */
+#define DEBUGINFO(p)
 
-# define PRINT_TRACE(p) (p)
-
-
-# endif /* DEBUG */
-
-# endif /* AHASSERT_H */
-
+/** @brief Print trace macro (active in release builds).
+    @param p The statement to execute.
+*/
+#define PRINT_TRACE(p) (p)
 
 
+#endif /* DEBUG */
+
+#endif /* AHASSERT_H */

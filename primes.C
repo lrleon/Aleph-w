@@ -371,7 +371,7 @@ namespace Primes
       }
 
     // For n >= primeList[0], we use the precomputed list.
-    span view{primeList};
+    std::span view{primeList};
     auto it = std::ranges::lower_bound(view, n);
     if (it != view.end())
       return *it;

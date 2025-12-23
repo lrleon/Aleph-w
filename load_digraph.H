@@ -2,7 +2,7 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
+   / ___ \|  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
@@ -23,26 +23,56 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include <fstream>
-# include <string>
-# include <tpl_graph.H>
-# include <topological_sort.H>
-# include <Tarjan.H>
 
-using std::istream;
-using std::ostream;
-using std::string;
+#ifndef LOAD_DIGRAPH_H
+#define LOAD_DIGRAPH_H
+
+/** @file load_digraph.H
+    @brief Utilities for loading directed graphs from pipe-separated files.
+
+    Provides functions to load a directed graph from two input streams:
+    one for nodes (pipe-separated fields) and one for arcs (space/comma
+    separated pairs of node IDs). Also provides DOT format export with
+    optional styling based on node attributes.
+
+    @ingroup Grafos
+*/
+
+#include <fstream>
+#include <string>
+#include <tpl_graph.H>
+#include <topological_sort.H>
+#include <Tarjan.H>
+
+namespace Aleph
+{
 
 /// Node payload: (id, fields) where fields come from the input row.
-using Info_Nodo = std::pair<string, DynDlist<string>>;
-using Nodo      = Graph_Node<Info_Nodo>;
-using Arco      = Graph_Arc<string>;
-using Digrafo   = List_Digraph<Nodo, Arco>;
+using Info_Nodo = std::pair<std::string, DynDlist<std::string>>;
 
-/** Split a text into tokens using a separator set (no trimming beyond separators). */
-inline void split(const string & text,
-                  const string & separators,
-                  DynDlist<string> & words)
+/// Node type for the digraph.
+using Nodo = Graph_Node<Info_Nodo>;
+
+/// Arc type for the digraph (edge info is a string).
+using Arco = Graph_Arc<std::string>;
+
+/// Digraph type used by the loader.
+using Digrafo = List_Digraph<Nodo, Arco>;
+
+/** @brief Split a text into tokens using a separator set.
+
+    Tokenizes the input text by splitting on any character in the
+    separators set. Empty tokens are not included.
+
+    @param text The text to split.
+    @param separators String containing separator characters.
+    @param words Output list to receive the tokens.
+
+    @ingroup Grafos
+*/
+inline void split(const std::string & text,
+                  const std::string & separators,
+                  DynDlist<std::string> & words)
 {
   const size_t n = text.length();
   size_t start = text.find_first_not_of(separators);
@@ -57,16 +87,37 @@ inline void split(const string & text,
     }
 }
 
+/** @brief Functor to compare nodes by their ID.
+    @ingroup Grafos
+*/
 struct Equal_Node
 {
-  bool operator ()(const Info_Nodo & o1, const Info_Nodo & o2) const
+  /** @brief Compare two node info objects by ID.
+      @param o1 First node info.
+      @param o2 Second node info.
+      @return true if IDs are equal.
+  */
+  bool operator()(const Info_Nodo & o1, const Info_Nodo & o2) const
   {
     return o1.first == o2.first;
   }
 };
 
-/** Find a node by id, inserting it if not present. */
-inline Digrafo::Node * search_node(Digrafo & g, const string & s)
+/** @brief Find or create a node by ID.
+
+    Searches for a node with the given ID in the graph. If not found,
+    creates a new node with empty fields.
+
+    @param g The digraph to search.
+    @param s The node ID to find.
+    @return Pointer to the found or created node.
+
+    @note This performs a linear search. For large graphs, consider
+          using a hash index.
+
+    @ingroup Grafos
+*/
+inline Digrafo::Node * search_node(Digrafo & g, const std::string & s)
 {
   // Linear search by id
   for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
@@ -76,28 +127,47 @@ inline Digrafo::Node * search_node(Digrafo & g, const string & s)
         return n;
     }
   // Not found -> insert a node with empty fields list
-  DynDlist<string> empty_fields;
+  DynDlist<std::string> empty_fields;
   return g.insert_node(Info_Nodo(s, empty_fields));
 }
 
-/** Minimum expected columns for a node record. */
+/// Minimum expected columns for a node record.
 constexpr size_t MIN_NODE_FIELDS = 7;
 
-/** Load nodes and arcs from streams into the directed graph.
- *  - nodes_input: pipe-separated rows, first line is a header and ignored.
- *  - arcs_input: lines with two ids separated by space or comma.
- *  Lines with insufficient fields are skipped.
- */
-inline void load_digraph(Digrafo & g, istream & nodes_input, istream & arcs_input)
+/** @brief Load nodes and arcs from streams into the directed graph.
+
+    Reads nodes from a pipe-separated file and arcs from a space/comma
+    separated file, populating the graph.
+
+    The nodes file format:
+    - First line is a header (ignored)
+    - Subsequent lines: field1|field2|...|fieldN
+    - Lines with fewer than MIN_NODE_FIELDS are skipped
+    - field[0] is used as the node ID
+
+    The arcs file format:
+    - Each line: source_id target_id (or source_id,target_id)
+    - Lines with fewer than 2 IDs are skipped
+    - If a referenced node doesn't exist, it's created with empty fields
+
+    @param g The digraph to populate.
+    @param nodes_input Input stream for node data.
+    @param arcs_input Input stream for arc data.
+
+    @ingroup Grafos
+*/
+inline void load_digraph(Digrafo & g,
+                         std::istream & nodes_input,
+                         std::istream & arcs_input)
 {
-  string line;
+  std::string line;
 
   // Skip header line if present
   std::getline(nodes_input, line);
 
   while (std::getline(nodes_input, line))
     {
-      DynDlist<string> fields;
+      DynDlist<std::string> fields;
       split(line, "|", fields);
       if (fields.size() < MIN_NODE_FIELDS)
         continue;
@@ -106,7 +176,7 @@ inline void load_digraph(Digrafo & g, istream & nodes_input, istream & arcs_inpu
 
   while (std::getline(arcs_input, line))
     {
-      DynDlist<string> nums;
+      DynDlist<std::string> nums;
       split(line, " ,", nums);
       if (nums.size() < 2)
         continue;
@@ -114,36 +184,69 @@ inline void load_digraph(Digrafo & g, istream & nodes_input, istream & arcs_inpu
     }
 }
 
-// Formatting flags for DOT export
+/** @brief Configuration options for DOT file generation.
+
+    These variables control the appearance of the generated DOT output.
+    They are inline variables to avoid ODR violations while maintaining
+    the original API.
+
+    @note Consider using a configuration struct instead of global variables
+          in new code.
+
+    @ingroup Grafos
+*/
+/// @{
+
+/// If true, include power value in node labels.
 inline bool with_power = false;
+
+/// If true, include NES percentage in node labels.
 inline bool with_nes = false;
+
+/// If true, show only the node number, not the full label.
 inline bool only_num = false;
+
+/// If true, set node shapes based on class field.
 inline bool with_class = false;
+
+/// Font size for the DOT output.
 inline size_t font_size = 6;
+
+/// If true, use vertical layout (default).
 inline bool vertical = true;
 
-/** Generate a DOT representation of the given digraph.
- *  Colors and labels are driven by Info_Nodo fields:
- *  - color by fields[1] (cp/mp/lp)
- *  - labels optionally include fields[6], P=fields[5], NES=fields[4]
- *  - shapes optionally determined by fields[2] (it/ef/pp)
- */
-inline void generate_dot_file(Digrafo & g, ostream & output)
-{
-  output << "digraph G {" << endl
-      << "fontsize = " << font_size << endl;
+/// @}
 
-  //  << "shape=box" << endl
-  //  << "rankdir = LR" << endl
-  ;
+/** @brief Generate a DOT representation of the digraph.
+
+    Creates a DOT file suitable for rendering with Graphviz. The output
+    includes:
+    - Node colors based on the "plazo" field (cp=Green, mp=Yellow, lp=Red)
+    - Optional labels showing power and NES values
+    - Optional shapes based on the "class" field
+    - Cycle detection with warning comments
+    - Topological ranking for acyclic graphs
+
+    The appearance is controlled by the global configuration variables:
+    with_power, with_nes, only_num, with_class, font_size.
+
+    @param g The digraph to export.
+    @param output Output stream for the DOT data.
+
+    @ingroup Grafos
+*/
+inline void generate_dot_file(Digrafo & g, std::ostream & output)
+{
+  output << "digraph G {\n"
+         << "fontsize = " << font_size << "\n";
 
   for (Node_Iterator<Digrafo> it(g); it.has_curr(); it.next_ne())
     {
       Digrafo::Node *p = it.get_curr();
       Info_Nodo & info = p->get_info();
       output << info.first << " [color=";
-      DynDlist<string> & fields = info.second;
-      const string & plazo = fields[1];
+      DynDlist<std::string> & fields = info.second;
+      const std::string & plazo = fields[1];
       if (plazo == "cp")
         output << "Green";
       else if (plazo == "mp")
@@ -160,13 +263,13 @@ inline void generate_dot_file(Digrafo & g, ostream & output)
         output << "\\nP=" << fields[5];
 
       if (with_nes)
-        output << "\\n" << fields[4] << "\%";
+        output << "\\n" << fields[4] << "%";
 
       output << "\" ";
 
       if (with_class)
         {
-          const string & clase = fields[2];
+          const std::string & clase = fields[2];
           if (clase == "it")
             output << " shape = box ";
           else if (clase == "ef")
@@ -175,7 +278,7 @@ inline void generate_dot_file(Digrafo & g, ostream & output)
             output << " shape = hexagon ";
         }
 
-      output << "]" << endl;
+      output << "]\n";
     }
 
   Path<Digrafo> p(g);
@@ -190,7 +293,7 @@ inline void generate_dot_file(Digrafo & g, ostream & output)
           if (not it.is_in_last())
             output << "->";
         }
-      output << endl;
+      output << "\n";
     }
   else
     {
@@ -201,10 +304,10 @@ inline void generate_dot_file(Digrafo & g, ostream & output)
       for (auto it = ranks.get_it(); it.has_curr(); it.next_ne())
         {
           DynList<Digrafo::Node *> & level = it.get_curr();
-          output << "{ rank = same; " << endl;
+          output << "{ rank = same; \n";
           for (auto ni = level.get_it(); ni.has_curr(); ni.next_ne())
             output << ni.get_curr()->get_info().first << " ";
-          output << "}" << endl;
+          output << "}\n";
         }
     }
 
@@ -212,8 +315,30 @@ inline void generate_dot_file(Digrafo & g, ostream & output)
     {
       Digrafo::Arc *a = it.get_curr();
       output << g.get_src_node(a)->get_info().first << " -> "
-          << g.get_tgt_node(a)->get_info().first << endl;
+             << g.get_tgt_node(a)->get_info().first << "\n";
     }
 
-  output << "}" << endl;
+  output << "}\n";
 }
+
+} // end namespace Aleph
+
+// Backward compatibility: expose types and functions at global scope
+using Aleph::Info_Nodo;
+using Aleph::Nodo;
+using Aleph::Arco;
+using Aleph::Digrafo;
+using Aleph::split;
+using Aleph::Equal_Node;
+using Aleph::search_node;
+using Aleph::load_digraph;
+using Aleph::generate_dot_file;
+using Aleph::with_power;
+using Aleph::with_nes;
+using Aleph::only_num;
+using Aleph::with_class;
+using Aleph::font_size;
+using Aleph::vertical;
+using Aleph::MIN_NODE_FIELDS;
+
+#endif // LOAD_DIGRAPH_H
