@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,18 +24,28 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAYQUEUE_H
-# define TPL_ARRAYQUEUE_H
+/** @file tpl_arrayQueue.H
+    @brief Circular queue implementations backed by arrays.
 
-# include <ahAssert.H>
-# include <ahDefs.H>
-# include <htlist.H>
-# include <ah-dry.H>
-# include <ah-args-ctor.H>
-# include <tpl_dynDlist.H>
-# include <tpl_memArray.H>
+    This file provides two queue implementations:
+    - `ArrayQueue<T>`: Dynamic circular queue with bounds checking
+    - `FixedQueue<T>`: Fixed-capacity circular queue (no bounds checking)
 
-using namespace Aleph;
+    Both use circular indexing for O(1) enqueue/dequeue operations.
+
+    @ingroup Secuencias
+*/
+
+#ifndef TPL_ARRAYQUEUE_H
+#define TPL_ARRAYQUEUE_H
+
+#include <ahAssert.H>
+#include <ahDefs.H>
+#include <htlist.H>
+#include <ah-dry.H>
+#include <ah-args-ctor.H>
+#include <tpl_dynDlist.H>
+#include <tpl_memArray.H>
 
 namespace Aleph {
 

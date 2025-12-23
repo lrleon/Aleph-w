@@ -24,27 +24,39 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAYHEAP_H
-# define TPL_ARRAYHEAP_H
+/** @file tpl_arrayHeap.H
+    @brief Fixed-capacity binary heap and heapsort algorithms.
 
-# include <algorithm>
-# include <cstddef>
-# include <stdexcept>
-# include <utility>
+    This file provides:
+    - `sift_up` and `sift_down` heap operations
+    - `heapsort` and `faster_heapsort` sorting algorithms
+    - `ArrayHeap<T, Compare>` fixed-capacity priority queue
 
-# include <ahFunction.H>
-# include <ahUtils.H>
-# include <ahDefs.H>
-# include <ahAssert.H>
-# include <array_it.H>
-# include <htlist.H>
-# include <tpl_dynDlist.H>
-# include <ah-args-ctor.H>
-# include <ahDry.H>
-# include <ah-dry.H>
-# include <ah-errors.H>
+    All operations use 1-based indexing internally for simpler
+    parent/child arithmetic.
 
-using namespace Aleph;
+    @ingroup Trees
+*/
+
+#ifndef TPL_ARRAYHEAP_H
+#define TPL_ARRAYHEAP_H
+
+#include <algorithm>
+#include <cstddef>
+#include <stdexcept>
+#include <utility>
+
+#include <ahFunction.H>
+#include <ahUtils.H>
+#include <ahDefs.H>
+#include <ahAssert.H>
+#include <array_it.H>
+#include <htlist.H>
+#include <tpl_dynDlist.H>
+#include <ah-args-ctor.H>
+#include <ahDry.H>
+#include <ah-dry.H>
+#include <ah-errors.H>
 
 namespace Aleph
 {

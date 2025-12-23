@@ -152,6 +152,7 @@ set(TEST_PROGRAMS
     test_filter_iterator
     ah-comb
     ah-convert
+    topological_sort_test
 )
 
 # Exhaustive tests (files ending in _test.cc)

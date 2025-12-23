@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,21 +24,29 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAYSTACK_H
-# define TPL_ARRAYSTACK_H
+/** @file tpl_arrayStack.H
+    @brief Stack implementations backed by dynamic or fixed arrays.
 
-# include <iostream>
-# include <aleph.H>
-# include <htlist.H>
-# include <tpl_dynDlist.H>
-# include <ah-args-ctor.H>
-# include <ah-dry.H>
-# include <tpl_memArray.H>
-# include <ah-errors.H>
+    This file provides two stack implementations:
+    - `ArrayStack<T>`: Dynamic stack with bounds checking and automatic resizing
+    - `FixedStack<T>`: Fixed-capacity stack without bounds checking (fastest)
 
-using namespace std;
+    Both provide LIFO semantics with push/pop operations.
 
-using namespace Aleph;
+    @ingroup Secuencias
+*/
+
+#ifndef TPL_ARRAYSTACK_H
+#define TPL_ARRAYSTACK_H
+
+#include <iostream>
+#include <aleph.H>
+#include <htlist.H>
+#include <tpl_dynDlist.H>
+#include <ah-args-ctor.H>
+#include <ah-dry.H>
+#include <tpl_memArray.H>
+#include <ah-errors.H>
 
 namespace Aleph {
 

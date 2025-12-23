@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -9,7 +8,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,8 +24,19 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAY_H
-# define TPL_ARRAY_H
+/** @file tpl_array.H
+    @brief Dynamic array container with automatic resizing.
+
+    This file provides the `Array<T>` template class, a simple dynamic
+    array that grows and shrinks automatically as elements are added
+    or removed. It supports functional programming operations through
+    mixin classes.
+
+    @ingroup Secuencias
+*/
+
+#ifndef TPL_ARRAY_H
+#define TPL_ARRAY_H
 
 # include <iostream>
 # include <utility>
