@@ -77,6 +77,7 @@ set(TEST_PROGRAMS
     array
     array_utils
     array-it
+    bitarray
     bloom-filter
     dynarray
     floyd
@@ -144,6 +145,8 @@ set(TEST_PROGRAMS
     tarjan_test
     test_bellman_ford
     test_dijkstra
+    test_kosaraju
+    test_filter_iterator
 )
 
 # Exhaustive tests (files ending in _test.cc)

@@ -60,9 +60,15 @@ namespace Aleph
       - Standard version: O(n^2 * m) per iteration, O(n^4) for n^2 iterations
       - Fast version (Karger-Stein): O(n^2 log^3 n)
 
+      Features:
+      - Early termination when a cut of size 1 is found
+      - Reuses internal graph structures across iterations for efficiency
+      - Move-only semantics (non-copyable, moveable)
+      - Reproducible results with seed control
+
       @note This algorithm is designed for undirected graphs.
-      @note The fast version is incomplete and returns approximate results
-            for small graphs (n <= 6).
+      @note For disconnected graphs, the minimum cut is 0 (trivially).
+      @note The graph must have at least 2 nodes and 1 arc.
 
       @see https://en.wikipedia.org/wiki/Karger%27s_algorithm
       @ingroup Grafos
@@ -82,6 +88,11 @@ namespace Aleph
     gsl_rng *r;
     SA sa;
 
+    /// Build the contracted graph representation from the original graph.
+    /// Each node in kg contains a list of original nodes it represents.
+    /// @param[in] g The original graph.
+    /// @param[out] kg The contracted graph (cleared and rebuilt).
+    /// @param[out] arcs Index of arcs for O(log n) random selection.
     void build_kgraph(GT & g, Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
     {
       clear_graph(kg);
@@ -108,6 +119,14 @@ namespace Aleph
         }
     }
 
+    /// Update arcs when contracting nodes p and t into cp.
+    /// Moves all arcs from node p to the new contracted node cp,
+    /// except arcs that connect to t (which become self-loops and are removed).
+    /// @param[in,out] kg The contracted graph.
+    /// @param[in] p Source node being contracted.
+    /// @param[in] t Target node being contracted (arcs to t are skipped).
+    /// @param[in] cp New contracted node that replaces p and t.
+    /// @param[in,out] arcs Index of arcs (updated to reflect changes).
     void update_arcs(Kgraph & kg, Knode *p, Knode *t, Knode *cp,
                      DynSetTreapRk<Karc *> & arcs)
     {
@@ -125,7 +144,24 @@ namespace Aleph
         }
     }
 
-    void contract(Kgraph & kg, const unsigned long & left_num_nodes,
+    /// Rebuild the arc index from scratch for the given graph.
+    /// Used after copying a graph to ensure pointers point to the copy's arcs.
+    void rebuild_arc_index(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    {
+      arcs.empty();
+      for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
+        arcs.insert(it.get_curr());
+    }
+
+    /// Contract the graph by randomly merging edges until left_num_nodes remain.
+    /// This is the core of Karger's algorithm. Each iteration:
+    /// 1. Randomly selects an arc
+    /// 2. Contracts its endpoints into a single "super-node"
+    /// 3. Removes self-loops created by the contraction
+    /// @param[in,out] kg The graph to contract.
+    /// @param[in] left_num_nodes Stop when this many nodes remain.
+    /// @param[in,out] arcs Index of arcs for O(log n) random selection.
+    void contract(Kgraph & kg, size_t left_num_nodes,
                   DynSetTreapRk<Karc *> & arcs)
     {
       while (kg.get_num_nodes() > left_num_nodes)
@@ -151,30 +187,55 @@ namespace Aleph
         }
     }
 
-    int karger_min_cut(GT & g,
-                       DynList<typename GT::Node *> & vs,
-                       DynList<typename GT::Node *> & vt,
-                       DynList<typename GT::Arc *> & cut,
-                       const size_t num_iter)
+    /// Internal implementation of Karger's minimum cut algorithm.
+    /// Runs num_iter independent contractions and returns the best cut found.
+    /// @param[in] g The original undirected graph.
+    /// @param[out] vs Nodes in partition S of the minimum cut.
+    /// @param[out] vt Nodes in partition T of the minimum cut.
+    /// @param[out] cut Arcs crossing the minimum cut.
+    /// @param[in] num_iter Number of independent iterations to run.
+    /// @return Size of the minimum cut found.
+    size_t karger_min_cut(GT & g,
+                          DynList<typename GT::Node *> & vs,
+                          DynList<typename GT::Node *> & vt,
+                          DynList<typename GT::Arc *> & cut,
+                          const size_t num_iter)
     {
-      ah_domain_error_if(g.get_num_arcs() == 0) << "Graph has not arcs";
+      ah_domain_error_if(g.get_num_nodes() < 2)
+        << "Graph must have at least 2 nodes";
+      ah_domain_error_if(g.get_num_arcs() == 0)
+        << "Graph has no arcs";
 
-      auto min_cut = numeric_limits<size_t>::max();
+      auto min_cut = std::numeric_limits<size_t>::max();
 
-      for (int i = 0; i < num_iter; ++i)
+      Kgraph kg;
+      DynSetTreapRk<Karc *> arcs; // reused across iterations
+
+      for (size_t i = 0; i < num_iter; ++i)
         {
-          Kgraph kg;
-          DynSetTreapRk<Karc *> arcs; // arcs for fast random selection
           build_kgraph(g, kg, arcs);
 
           contract(kg, 2, arcs);
 
-          auto cut_size = kg.get_num_arcs();
+          const size_t cut_size = kg.get_num_arcs();
 
           if (cut_size >= min_cut)
             continue;
 
           min_cut = cut_size;
+
+          // Early termination: cut of 1 is optimal for connected graphs
+          if (min_cut == 1)
+            {
+              auto ka = kg.get_first_arc();
+              cut.empty();
+              cut.append(ka->get_info());
+              vs.empty();
+              vt.empty();
+              vs.swap(kg.get_src_node(ka)->get_info());
+              vt.swap(kg.get_tgt_node(ka)->get_info());
+              return 1;
+            }
 
           // update minimum cut
           cut.empty();
@@ -203,29 +264,37 @@ namespace Aleph
       return min_cut;
     }
 
-    int __fast_karger_min_cut(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    /// Karger-Stein fast minimum cut algorithm (recursive version).
+    /// Time complexity: O(n^2 log^3 n)
+    size_t __fast_karger_min_cut(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
     {
-      const auto & n = kg.get_num_nodes();
+      const size_t n = kg.get_num_nodes();
 
       if (n <= 6)
         {
-          // For small graphs, return current arc count as cut estimate
-          // TODO: implement exact brute-force enumeration
+          // Base case: for small graphs, contract to 2 nodes and return cut
+          contract(kg, 2, arcs);
           return kg.get_num_arcs();
         }
 
-      const size_t t = std::ceil(1 + 1.0 * n / std::sqrt(2));
+      // Contract to t = ceil(1 + n/sqrt(2)) nodes
+      const size_t t = static_cast<size_t>(std::ceil(1.0 + n / std::sqrt(2.0)));
 
+      // Branch 1: copy graph and rebuild arc index for the copy
       Kgraph h1(kg);
-      DynSetTreapRk<Karc *> arcs1(arcs);
+      DynSetTreapRk<Karc *> arcs1;
+      rebuild_arc_index(h1, arcs1);
       contract(h1, t, arcs1);
-      const int cut1 = __fast_karger_min_cut(h1, arcs1);
+      const size_t cut1 = __fast_karger_min_cut(h1, arcs1);
 
+      // Branch 2: copy graph and rebuild arc index for the copy
       Kgraph h2(kg);
-      DynSetTreapRk<Karc *> arcs2(arcs);
+      DynSetTreapRk<Karc *> arcs2;
+      rebuild_arc_index(h2, arcs2);
       contract(h2, t, arcs2);
-      const int cut2 = __fast_karger_min_cut(h2, arcs2);
+      const size_t cut2 = __fast_karger_min_cut(h2, arcs2);
 
+      // Return the better cut
       if (cut1 < cut2)
         {
           kg.swap(h1);
@@ -236,33 +305,6 @@ namespace Aleph
       kg.swap(h2);
       arcs.swap(arcs2);
       return cut2;
-    }
-
-    int fast_karger_min_cut(GT & g,
-                            DynList<typename GT::Node *> & vs,
-                            DynList<typename GT::Node *> & vt,
-                            DynList<typename GT::Arc *> & cut)
-    {
-      Kgraph kg;
-      DynSetTreapRk<Karc *> arcs; // arcs for fast random selection
-      build_kgraph(g, kg, arcs);
-
-      const int min_cut = __fast_karger_min_cut(kg, arcs);
-
-      for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
-        {
-          auto ka = it.get_curr();
-          cut.append(ka->get_info());
-        }
-
-      auto ka = kg.get_first_arc();
-      auto S = kg.get_src_node(ka);
-      auto T = kg.get_tgt_node(ka);
-
-      vs.swap(S->get_info());
-      vt.swap(T->get_info());
-
-      return min_cut;
     }
 
   public:
@@ -280,10 +322,96 @@ namespace Aleph
       gsl_rng_set(r, seed % gsl_rng_max(r));
     }
 
-    /// Destructor. Frees the random number generator.
+    /// Destructor. Frees the random number generator (if not moved).
     ~Karger_Min_Cut()
     {
-      gsl_rng_free(r);
+      if (r)
+        gsl_rng_free(r);
+    }
+
+    /// Disable copy constructor (class owns gsl_rng pointer)
+    Karger_Min_Cut(const Karger_Min_Cut &) = delete;
+
+    /// Disable copy assignment (class owns gsl_rng pointer)
+    Karger_Min_Cut & operator=(const Karger_Min_Cut &) = delete;
+
+    /// Move constructor. Transfers ownership of the random number generator.
+    Karger_Min_Cut(Karger_Min_Cut && other) noexcept
+      : seed(other.seed), r(other.r), sa(std::move(other.sa))
+    {
+      other.r = nullptr;
+    }
+
+    /// Move assignment operator. Transfers ownership of the random number generator.
+    Karger_Min_Cut & operator=(Karger_Min_Cut && other) noexcept
+    {
+      if (this != &other)
+        {
+          if (r)
+            gsl_rng_free(r);
+          seed = other.seed;
+          r = other.r;
+          sa = std::move(other.sa);
+          other.r = nullptr;
+        }
+      return *this;
+    }
+
+    /// Get the random seed used by this solver (useful for reproducibility).
+    unsigned long get_seed() const noexcept { return seed; }
+
+    /// Change the random seed. Useful for running multiple independent trials.
+    /// @param[in] new_seed The new seed value.
+    void reseed(unsigned long new_seed) noexcept
+    {
+      seed = new_seed;
+      if (r)
+        gsl_rng_set(r, seed % gsl_rng_max(r));
+    }
+
+    /** Compute only the minimum cut size (without partition info).
+
+        This is more efficient when you only need the cut size,
+        not the actual partition or cut edges.
+
+        @param[in] g The undirected graph.
+        @param[in] num_iter Number of iterations to run.
+        @return The size of the minimum cut found.
+        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+     */
+    size_t compute_min_cut_size(GT & g, size_t num_iter = 0)
+    {
+      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      ah_domain_error_if(g.get_num_nodes() < 2)
+        << "Graph must have at least 2 nodes";
+      ah_domain_error_if(g.get_num_arcs() == 0)
+        << "Graph has no arcs";
+
+      if (num_iter == 0)
+        {
+          const size_t n = g.get_num_nodes();
+          num_iter = static_cast<size_t>(1.05 * n * n);
+        }
+
+      size_t min_cut = std::numeric_limits<size_t>::max();
+
+      Kgraph kg;
+      DynSetTreapRk<Karc *> arcs;
+
+      for (size_t i = 0; i < num_iter; ++i)
+        {
+          build_kgraph(g, kg, arcs);
+          contract(kg, 2, arcs);
+
+          const size_t cut_size = kg.get_num_arcs();
+          if (cut_size < min_cut)
+            {
+              min_cut = cut_size;
+              if (min_cut == 1)
+                return 1; // Early termination
+            }
+        }
+      return min_cut;
     }
 
     /** Compute minimum cut with a specified number of iterations.
@@ -294,14 +422,15 @@ namespace Aleph
         @param[out] cut Arcs crossing the minimum cut.
         @param[in] num_iter Number of iterations to run.
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has no arcs.
+        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
      */
-    int operator ()(GT & g,
-                    DynList<typename GT::Node *> & vs,
-                    DynList<typename GT::Node *> & vt,
-                    DynList<typename GT::Arc *> & cut,
-                    const size_t num_iter)
+    size_t operator ()(GT & g,
+                       DynList<typename GT::Node *> & vs,
+                       DynList<typename GT::Node *> & vt,
+                       DynList<typename GT::Arc *> & cut,
+                       const size_t num_iter)
     {
+      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       return karger_min_cut(g, vs, vt, cut, num_iter);
     }
 
@@ -315,17 +444,91 @@ namespace Aleph
         @param[out] vt Nodes in the second partition (T).
         @param[out] cut Arcs crossing the minimum cut.
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has no arcs.
+        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
      */
-    int operator ()(GT & g,
-                    DynList<typename GT::Node *> & vs,
-                    DynList<typename GT::Node *> & vt,
-                    DynList<typename GT::Arc *> & cut)
+    size_t operator ()(GT & g,
+                       DynList<typename GT::Node *> & vs,
+                       DynList<typename GT::Node *> & vt,
+                       DynList<typename GT::Arc *> & cut)
     {
-      const size_t & n = g.get_num_nodes();
+      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      const size_t n = g.get_num_nodes();
       // 1.05 * n^2 iterations gives high probability of finding min cut
-      const auto num_iter = static_cast<size_t>(1.05 * n * n);
+      const size_t num_iter = static_cast<size_t>(1.05 * n * n);
       return karger_min_cut(g, vs, vt, cut, num_iter);
+    }
+
+    /** Compute minimum cut using Karger-Stein fast algorithm.
+
+        This version uses the recursive Karger-Stein algorithm which has
+        better time complexity: O(n^2 log^3 n) vs O(n^4) for the standard.
+
+        The algorithm is run O(log^2 n) times to achieve high probability
+        of finding the true minimum cut.
+
+        @param[in] g The undirected graph.
+        @param[out] vs Nodes in the first partition (S).
+        @param[out] vt Nodes in the second partition (T).
+        @param[out] cut Arcs crossing the minimum cut.
+        @param[in] num_iter Number of iterations (default: ceil(log^2 n)).
+        @return The size of the minimum cut found.
+        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+     */
+    size_t fast(GT & g,
+                DynList<typename GT::Node *> & vs,
+                DynList<typename GT::Node *> & vt,
+                DynList<typename GT::Arc *> & cut,
+                size_t num_iter = 0)
+    {
+      assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
+      ah_domain_error_if(g.get_num_nodes() < 2)
+        << "Graph must have at least 2 nodes";
+      ah_domain_error_if(g.get_num_arcs() == 0)
+        << "Graph has no arcs";
+
+      // Default iterations: ceil(log^2 n) for high probability
+      if (num_iter == 0)
+        {
+          const double log_n = std::log2(static_cast<double>(g.get_num_nodes()));
+          num_iter = static_cast<size_t>(std::ceil(log_n * log_n));
+          if (num_iter < 1)
+            num_iter = 1;
+        }
+
+      size_t best_cut = std::numeric_limits<size_t>::max();
+
+      for (size_t i = 0; i < num_iter; ++i)
+        {
+          Kgraph kg;
+          DynSetTreapRk<Karc *> arcs;
+          build_kgraph(g, kg, arcs);
+
+          const size_t current_cut = __fast_karger_min_cut(kg, arcs);
+
+          if (current_cut >= best_cut)
+            continue;
+
+          best_cut = current_cut;
+
+          cut.empty();
+          for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
+            cut.append(it.get_curr()->get_info());
+
+          auto ka = kg.get_first_arc();
+          auto S = kg.get_src_node(ka);
+          auto T = kg.get_tgt_node(ka);
+
+          vs.empty();
+          vt.empty();
+          vs.swap(S->get_info());
+          vt.swap(T->get_info());
+
+          // Early termination
+          if (best_cut == 1)
+            return 1;
+        }
+
+      return best_cut;
     }
   };
 } // namespace Aleph

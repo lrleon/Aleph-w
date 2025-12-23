@@ -115,7 +115,7 @@ namespace Aleph
                         const T step = 1, Op && op = Op())
     -> Container<decltype(op(start))>
   {
-    return set_range<T, Container, Op>(start, end, 1, op);
+    return set_range<T, Container, Op>(start, end, step, op);
   }
 
   template <typename T = int, template <typename> class Container = DynList>
@@ -549,7 +549,7 @@ namespace Aleph
   template <class C1, class C2, class Eq> inline
   bool containers_eq(const C1 & c1, const C2 & c2, Eq e)
   {
-    return e1(c1, c2, e);
+    return eq(c1, c2, e);
   }
 
   template <class C1, class C2,
@@ -569,7 +569,7 @@ namespace Aleph
           return std::make_tuple(false, n, i1, i2);
       }
 
-    return std::make_tuple(c1.is_empty() == c2.is_empty(), n, T(), T());
+    return std::make_tuple(not (it1.has_curr() or it2.has_curr()), n, T(), T());
   }
 
   template <class C1, class C2,
@@ -758,11 +758,11 @@ namespace Aleph
 
     DynList<DynList<T>> ret; // this will be the result
 
-    DynList<T> & group = ret.append(DynList<T>()); // creates a first group
+    DynList<T> * group = &ret.append(DynList<T>()); // creates a first group
 
     auto it = c.get_it();                    // put the firstitem into the group
-    auto & curr_item = it.get_curr();
-    group.append(curr_item);
+    auto curr_item = it.get_curr();
+    group->append(curr_item);
 
     size_t count = 1; // count the number of groups
 
@@ -772,11 +772,11 @@ namespace Aleph
         if (not eq(curr, curr_item)) // group change?
           {
             curr_item = curr;
-            group = ret.append(DynList<T>()); // create new group and insert it
+            group = &ret.append(DynList<T>()); // create new group and insert it
             ++count; // increase the number of groups
           }
 
-        group.append(curr);
+        group->append(curr);
       }
 
     return P(ret, count);
@@ -805,7 +805,7 @@ namespace Aleph
     DynList<T> ret;
 
     auto it = c.get_it();                    // put the first item
-    auto & curr_item = it.get_curr();
+    auto curr_item = it.get_curr();
     ret.append(curr_item);
 
     size_t count = 1; // count the number of groups
@@ -844,13 +844,13 @@ namespace Aleph
 
     template <class C1, class C2>
     Pair_Iterator(const C1 & c1, const C2 & c2)
-      : Pair_Iterator(c1.get_it(), c2.get.get_it()) {}
+      : Pair_Iterator(c1.get_it(), c2.get_it()) {}
 
     bool has_curr() const noexcept { return it1.has_curr() and it2.has_curr(); }
 
-    bool has_curr1() const noexcept { return it1.has_curr; }
+    bool has_curr1() const noexcept { return it1.has_curr(); }
 
-    bool has_curr2() const noexcept { return it2.has_curr; }
+    bool has_curr2() const noexcept { return it2.has_curr(); }
 
     auto get_curr() const
     {
@@ -1059,7 +1059,7 @@ namespace Aleph
   bool is_equal(const T &) { return false; }
 
   template <typename T, typename ... Args>
-  bool is_equal(const T & val, const T & rhs, Args & ... args)
+  bool is_equal(const T & val, const T & rhs, const Args & ... args)
   {
     return val == rhs or is_equal(val, args...);
   }

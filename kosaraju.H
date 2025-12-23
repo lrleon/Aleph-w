@@ -1,15 +1,14 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,23 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file kosaraju.H
+ *  @brief Kosaraju's algorithm for finding strongly connected components.
+ *
+ *  This file implements Kosaraju's algorithm for computing the strongly
+ *  connected components (SCCs) of a directed graph. The algorithm performs
+ *  two depth-first searches: one on the original graph to compute finish
+ *  times, and one on the transposed graph in decreasing order of finish
+ *  times to identify the SCCs.
+ *
+ *  Time complexity: O(V + E)
+ *  Space complexity: O(V + E) for the transposed graph
+ *
+ *  @see Tarjan.H for an alternative SCC algorithm that uses only one DFS
+ *  @ingroup Grafos
+ */
+
 # ifndef KOSARAJU_H
 # define KOSARAJU_H
 
@@ -31,41 +47,65 @@
 
 namespace Aleph {
 
-     template <class GT> inline static
-void __dfp(const GT & g, typename GT::Node * p, 
-	   DynArray<typename GT::Node*> & df)
+/** @brief Depth-first search that computes finish times in postorder.
+ *
+ *  Performs a DFS traversal starting from node p, marking visited nodes
+ *  and arcs with the Depth_First bit. Nodes are appended to the df array
+ *  in postorder (after all descendants have been visited).
+ *
+ *  @tparam GT Graph type.
+ *  @param[in] g The directed graph.
+ *  @param[in] p Starting node for the DFS.
+ *  @param[out] df Array where nodes are stored in postorder (finish time order).
+ */
+template <class GT>
+inline static void __dfp(const GT & g,
+                         typename GT::Node * p,
+                         DynArray<typename GT::Node*> & df)
 {
   if (IS_NODE_VISITED(p, Depth_First))
     return;
 
-  NODE_BITS(p).set_bit(Depth_First, true); 
+  NODE_BITS(p).set_bit(Depth_First, true);
 
-      // recorre en profundidad los arcos de p 
+  // Traverse outgoing arcs in depth-first order
   for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
     {
       auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
 
-      ARC_BITS(a).set_bit(Depth_First, true); 
+      ARC_BITS(a).set_bit(Depth_First, true);
 
       __dfp(g, it.get_tgt_node(), df);
     }
-  df.append(p); // asignación de df(p) en sufijo
+
+  df.append(p); // Append node in postorder (finish time)
   NODE_COUNTER(p) = df.size();
 }
 
-    /* Recorre el grafo invertido e inserta los nodos alcanzables en el
-       sub-grafo blk. A cada bloque le coloca el color color
-
-     */
-     template <class GT> inline static
-void __dfp(const GT & g, typename GT::Node * p, GT & blk, const int & color)
+/** @brief DFS on transposed graph that builds an SCC subgraph.
+ *
+ *  Traverses the transposed graph starting from node p, inserting all
+ *  reachable nodes into the block subgraph. Each node in the block is
+ *  assigned the same color (component ID) and mapped to the original graph.
+ *
+ *  @tparam GT Graph type.
+ *  @param[in] g The transposed directed graph.
+ *  @param[in] p Starting node for the DFS.
+ *  @param[out] blk Subgraph where nodes of this SCC are inserted.
+ *  @param[in] color Component ID assigned to all nodes in this SCC.
+ */
+template <class GT>
+inline static void __dfp(const GT & g,
+                         typename GT::Node * p,
+                         GT & blk,
+                         const int & color)
 {
   if (IS_NODE_VISITED(p, Depth_First))
     return;
 
-  NODE_BITS(p).set_bit(Depth_First, true); 
+  NODE_BITS(p).set_bit(Depth_First, true);
 
   auto q = blk.insert_node(p->get_info());
   NODE_COUNTER(q) = color;
@@ -76,79 +116,118 @@ void __dfp(const GT & g, typename GT::Node * p, GT & blk, const int & color)
       auto a = it.get_current_arc_ne();
       if (IS_ARC_VISITED(a, Depth_First))
         continue;
-      ARC_BITS(a).set_bit(Depth_First, true); 
+      ARC_BITS(a).set_bit(Depth_First, true);
 
       __dfp(g, it.get_tgt_node(), blk, color);
     }
 }
 
-    /** Calcula los componentes fuertemente conexos de un grafo según el
-        algoritmo de Kosaraju. 
+/** @brief DFS on transposed graph that builds an SCC node list.
+ *
+ *  Traverses the transposed graph starting from node p, appending all
+ *  reachable nodes (mapped back to original graph) to the list.
+ *
+ *  @tparam GT Graph type.
+ *  @param[in] g The transposed directed graph.
+ *  @param[in] p Starting node for the DFS.
+ *  @param[out] list List where nodes of this SCC are appended.
+ */
+template <class GT>
+inline static void __dfp(const GT & g,
+                         typename GT::Node * p,
+                         DynList<typename GT::Node *> & list)
+{
+  if (IS_NODE_VISITED(p, Depth_First))
+    return;
 
-        kosaraju_connected_components() toma un digrafo g,
-        "supuestamente débilmente conexo", calcula sus subgrafos o componentes
-        inconexos y los almacena en una lista dinámica list de subdigrafos
-        mapeados, tanto en los nodos como en los arcos. El énfasis en el
-        supuesto carácter conexo del grafo se debe a que si el grafo no
-        fuese conexo, entonces la lista resultante contendría un solo
-        elemento correspondiente al digrafo copia mapeado de g. Si este
-        fuese el caso, entonces es preferible hacerlo con la función
-        copy_graph().
+  NODE_BITS(p).set_bit(Depth_First, true);
 
-        La función se basa en el algoritmo de Tarjan.
+  list.append(mapped_node<GT>(p));
 
-        La función emplea dos parámetros tipo:
-        -# GT: la clase digrafo.
-        -# SA: el filtro de arcos que emplea el iterador interno.
+  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
+    {
+      auto a = it.get_current_arc_ne();
+      if (IS_ARC_VISITED(a, Depth_First))
+        continue;
+      ARC_BITS(a).set_bit(Depth_First, true);
 
-        La función se vale del bit build_subtree para marcar nodos y
-        arcos visitados.
+      __dfp(g, it.get_tgt_node(), list);
+    }
+}
 
-        El algoritmo internamente descubre los componentes mediante
-        búsquedas en profundidad.
-
-        @param[in] g el grafo.
-        @param[out] blk_list lista de sub-grafos mapeados a g
-        correspondiente a los componentes fuertemente conexos de g.
-        @param[out] arc_list lista de arcos de cruce entre los componentes.
-
-        @see tarjan_connected_components()
-        @ingroup Grafos
-     */
-     template <class GT> inline 
-void kosaraju_connected_components(const GT &                     g,
-                                   DynList <GT> &                blk_list,
-                                   DynList<typename GT::Arc *> & arc_list)
+/** @brief Compute strongly connected components using Kosaraju's algorithm.
+ *
+ *  This function computes the strongly connected components (SCCs) of a
+ *  directed graph using Kosaraju's algorithm. The algorithm works in two phases:
+ *
+ *  1. **First DFS**: Traverse the original graph and compute finish times
+ *     (nodes are ordered by when they finish, stored in postorder).
+ *
+ *  2. **Second DFS**: Create the transposed graph, then process nodes in
+ *     decreasing order of finish time. Each DFS tree in this phase forms
+ *     one SCC.
+ *
+ *  The resulting SCCs are returned as subgraphs, with nodes and arcs mapped
+ *  to the original graph via cookies. Arcs that cross between different SCCs
+ *  are collected in a separate list.
+ *
+ *  **Time complexity**: O(V + E)
+ *  **Space complexity**: O(V + E) for the transposed graph
+ *
+ *  @tparam GT Graph type (must be a directed graph).
+ *
+ *  @param[in] g The directed graph. Must not be modified during execution.
+ *  @param[out] blk_list List of subgraphs, one per SCC. Each subgraph is
+ *              mapped to g via node and arc cookies.
+ *  @param[out] arc_list List of arcs that cross between different SCCs
+ *              (inter-component arcs).
+ *
+ *  @note If the graph is strongly connected, blk_list will contain a single
+ *        subgraph with all nodes, and arc_list will be empty.
+ *
+ *  @warning This function modifies the control bits (Depth_First) on nodes
+ *           and arcs. The bits are reset at the start.
+ *
+ *  @see tarjan_connected_components() for an alternative algorithm
+ *  @see invert_digraph() used internally to create the transposed graph
+ *  @ingroup Grafos
+ */
+template <class GT>
+inline void kosaraju_connected_components(const GT & g,
+                                          DynList<GT> & blk_list,
+                                          DynList<typename GT::Arc *> & arc_list)
 {
   g.reset_nodes();
   g.reset_arcs();
 
-  DynArray<typename GT::Node*> df; // arreglo de df por sufijo
+  DynArray<typename GT::Node*> df; // Array for postorder (finish times)
 
-      // recorre en profundidad y marca en sufijo los nodos
+  // First DFS: compute finish times in postorder
   for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
        it.next_ne())
     __dfp(g, it.get_curr(), df);
 
-  GT gi = invert_digraph(g); // gi es el grafo invertido de g
+  GT gi = invert_digraph(g); // Transposed graph
 
-  DynArray<GT*> array; // areglo de sub-grafos
+  DynArray<GT*> array; // Array of subgraph pointers indexed by color
 
-  for (int i = df.size() - 1, color = 0; i >= 0; i--)
+  // Second DFS: process nodes in decreasing order of finish time
+  for (long i = static_cast<long>(df.size()) - 1, color = 0; i >= 0; --i)
     {
       auto gp = df.access(i);
       auto bp = mapped_node<GT>(gp);
       if (IS_NODE_VISITED(bp, Depth_First))
         continue;
-      
+
       GT & blk = blk_list.append(GT());
       array[color] = &blk;
-      
-      __dfp(gi, bp, blk, color++); // recorre el grafo inverso 
-                                            // inserta los nodos en blk 
+
+      __dfp(gi, bp, blk, color++); // DFS on transposed graph
+
       assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
     }
 
+  // Classify arcs: internal to SCC or crossing between SCCs
   for (auto it = g.get_arc_it(); it.has_curr(); it.next_ne())
     {
       auto a  = it.get_curr();
@@ -165,95 +244,59 @@ void kosaraju_connected_components(const GT &                     g,
           typename GT::Arc * ba = array.access(color)->insert_arc(bs, bt);
           GT::map_arcs(a, ba);
         }
-      else 
-        arc_list.append(a); 
-    }
-} 
-
-
-    /* Recorre el grafo invertido e inserta los nodos alcanzables en la
-       lista list. A cada nodo le coloca el color color
-
-     */
-     template <class GT> inline static
-void __dfp(const GT & g, 
-	   typename GT::Node * p, 
-	   DynList<typename GT::Node *> & list)
-{
-  if (IS_NODE_VISITED(p, Depth_First))
-    return;
-
-  NODE_BITS(p).set_bit(Depth_First, true); 
-
-  list.append(mapped_node<GT>(p));
-
-  for (auto it = g.get_out_it(p); it.has_curr(); it.next_ne())
-    {
-      auto a = it.get_current_arc_ne();
-      if (IS_ARC_VISITED(a, Depth_First))
-        continue;
-      ARC_BITS(a).set_bit(Depth_First, true); 
-
-      __dfp(g, it.get_tgt_node(), list);
+      else
+        arc_list.append(a);
     }
 }
 
-    /** Calcula los componentes fuertemente conexos de un grafo según el
-        algoritmo de Kosaraju. 
-
-         kosaraju_connected_components() toma un digrafo g,
-        "supuestamente débilmente conexo", calcula sus subgrafos o componentes
-        inconexos y los almacena en una lista dinámica list de subdigrafos
-        mapeados, tanto en los nodos como en los arcos. El énfasis en el
-        supuesto carácter conexo del grafo se debe a que si el grafo no
-        fuese conexo, entonces la lista resultante contendría un solo
-        elemento correspondiente al digrafo copia mapeado de g. Si este
-        fuese el caso, entonces es preferible hacerlo con la función
-        copy_graph().
-
-        La función se basa en el algoritmo de Kosaraju, el cual no es el
-        más eficiente conocido pero sí es el más simple.
-
-        La función emplea dos parámetros tipo:
-        -# GT: la clase digrafo.
-        -# SA: el filtro de arcos que emplea el iterador interno.
-
-        La función se vale del bit build_subtree para marcar nodos y
-        arcos visitados.
-
-        El algoritmo internamente descubre los componentes mediante
-        búsquedas en profundidad.
-
-        La diferencia y ventaja de esta rutina respecto a la versiòn que
-        calcula los bloques directos es su rapidez; los bloque son
-        comprendidos en listas de listas de nodos y no en lista de
-        subgrafos. 
-
-        @param[in] g el grafo.
-        @param[out] list lista de listas de nodos que conforman los
-        componentes. Cada lista es una listas de los nodos del componente.
-
-        @see tarjan_connected_components()
-        @ingroup Grafos
-     */
-template <class GT> inline 
-DynList<DynList<typename GT::Node*>> 
+/** @brief Compute strongly connected components as lists of nodes.
+ *
+ *  This is a lightweight version of Kosaraju's algorithm that returns
+ *  the SCCs as lists of node pointers rather than full subgraphs.
+ *  This is more efficient when you only need to know which nodes belong
+ *  to which component, without needing the induced subgraphs.
+ *
+ *  **Time complexity**: O(V + E)
+ *  **Space complexity**: O(V + E) for the transposed graph
+ *
+ *  @tparam GT Graph type (must be a directed graph).
+ *
+ *  @param[in] g The directed graph.
+ *
+ *  @return A list of lists, where each inner list contains the nodes
+ *          belonging to one SCC. The nodes are pointers to the original
+ *          graph's nodes.
+ *
+ *  @note This version is faster than the subgraph version because it
+ *        doesn't need to build and map subgraphs.
+ *
+ *  @warning This function modifies the control bits (Depth_First) on nodes
+ *           and arcs. The bits are reset at the start.
+ *
+ *  @see kosaraju_connected_components(g, blk_list, arc_list) for the
+ *       version that builds mapped subgraphs
+ *  @ingroup Grafos
+ */
+template <class GT>
+inline DynList<DynList<typename GT::Node*>>
 kosaraju_connected_components(const GT & g)
 {
   DynList<DynList<typename GT::Node*>> list;
 
   g.reset_nodes();
   g.reset_arcs();
-  DynArray<typename GT::Node*> df; // arreglo de df por sufijo
 
-      // recorre en profundidad y marca en sufijo los nodos
-  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize(); 
+  DynArray<typename GT::Node*> df; // Array for postorder (finish times)
+
+  // First DFS: compute finish times in postorder
+  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
        it.next_ne())
     __dfp(g, it.get_curr(), df);
 
-  GT gi = invert_digraph(g); // gi es el grafo invertido de g
+  GT gi = invert_digraph(g); // Transposed graph
 
-  for (int i = df.size() - 1; i >= 0; i--)
+  // Second DFS: process nodes in decreasing order of finish time
+  for (long i = static_cast<long>(df.size()) - 1; i >= 0; --i)
     {
       auto gp = df.access(i);
       auto bp = mapped_node<GT>(gp);
@@ -261,14 +304,89 @@ kosaraju_connected_components(const GT & g)
         continue;
 
       auto & blk = list.append(DynList<typename GT::Node*>());
-      
+
       __dfp(gi, bp, blk);
     }
 
   return list;
-} 
+}
 
+/** @brief Functor wrapper for Kosaraju's algorithm.
+ *
+ *  This struct provides a callable interface for computing strongly
+ *  connected components using Kosaraju's algorithm.
+ *
+ *  @tparam GT Graph type (must be a directed graph).
+ *
+ *  @see kosaraju_connected_components()
+ *  @ingroup Grafos
+ */
+template <class GT>
+struct Kosaraju_Connected_Components
+{
+  /** @brief Compute SCCs returning subgraphs and cross-arcs.
+   *
+   *  @param[in] g The directed graph.
+   *  @param[out] blk_list List of SCC subgraphs.
+   *  @param[out] arc_list List of inter-component arcs.
+   */
+  void operator () (const GT & g,
+                    DynList<GT> & blk_list,
+                    DynList<typename GT::Arc *> & arc_list) const
+  {
+    kosaraju_connected_components(g, blk_list, arc_list);
+  }
 
+  /** @brief Compute SCCs returning lists of nodes.
+   *
+   *  @param[in] g The directed graph.
+   *  @return List of lists of nodes, one list per SCC.
+   */
+  DynList<DynList<typename GT::Node*>> operator () (const GT & g) const
+  {
+    return kosaraju_connected_components(g);
+  }
+};
+
+/** @brief Count the number of strongly connected components.
+ *
+ *  Computes the number of SCCs in the graph without building the
+ *  actual component lists.
+ *
+ *  @tparam GT Graph type (must be a directed graph).
+ *  @param[in] g The directed graph.
+ *  @return The number of strongly connected components.
+ *
+ *  @ingroup Grafos
+ */
+template <class GT>
+inline size_t kosaraju_scc_count(const GT & g)
+{
+  return kosaraju_connected_components(g).size();
+}
+
+/** @brief Check if a directed graph is strongly connected.
+ *
+ *  A directed graph is strongly connected if there is exactly one SCC
+ *  containing all nodes.
+ *
+ *  @tparam GT Graph type (must be a directed graph).
+ *  @param[in] g The directed graph.
+ *  @return true if the graph is strongly connected, false otherwise.
+ *
+ *  @note An empty graph or a graph with a single node is considered
+ *        strongly connected.
+ *
+ *  @ingroup Grafos
+ */
+template <class GT>
+inline bool is_strongly_connected(const GT & g)
+{
+  if (g.get_num_nodes() <= 1)
+    return true;
+
+  return kosaraju_scc_count(g) == 1;
+}
 
 } // end namespace Aleph
 

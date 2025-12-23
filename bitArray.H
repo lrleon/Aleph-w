@@ -38,8 +38,6 @@
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 
-using namespace std;
-
 namespace Aleph
 {
 
@@ -473,7 +471,7 @@ namespace Aleph
     {
       const size_t num_bytes = get_num_bytes();
 
-      output << num_bytes << " " << current_size << endl;
+      output << num_bytes << " " << current_size << std::endl;
 
       for (size_t i = 0; i < num_bytes; i++)
         if (array_of_bytes.exist(i))
@@ -484,7 +482,7 @@ namespace Aleph
         else
           output << "0 ";
 
-      output << endl;
+      output << std::endl;
     }
 
     /** Loads an array of bits from a file.
@@ -536,7 +534,7 @@ namespace Aleph
         @param[in] output output stream where you want to save the
         statement.
      */
-    void save_in_array_of_chars(const string &name, std::ostream &output) const
+    void save_in_array_of_chars(const std::string &name, std::ostream &output) const
     {
       const size_t num_bytes = get_num_bytes();
 
@@ -753,27 +751,27 @@ namespace Aleph
       set_num<int>(c);
     }
 
-	    void set_num(const long &c)
-	    {
-	      set_num<long>(c);
-	    }
+    void set_num(const long &c)
+    {
+      set_num<long>(c);
+    }
 
-	    unsigned long get_unum() const noexcept
-	    {
-	      using UL = unsigned long;
-	      constexpr size_t max_bits = sizeof(UL) * 8;
-	      const size_t n = std::min(current_size, max_bits);
+    unsigned long get_unum() const noexcept
+    {
+      using UL = unsigned long;
+      constexpr size_t max_bits = sizeof(UL) * 8;
+      const size_t n = std::min(current_size, max_bits);
 
-	      UL ret_val = 0;
-	      for (size_t i = 0; i < n; ++i)
-	        ret_val |= UL(read_bit_ne(current_size - i - 1)) << i;
-	      return ret_val;
-	    }
+      UL ret_val = 0;
+      for (size_t i = 0; i < n; ++i)
+        ret_val |= UL(read_bit_ne(current_size - i - 1)) << i;
+      return ret_val;
+    }
 
-	    long get_num() const noexcept
-	    {
-	      return static_cast<long>(get_unum());
-	    }
+    long get_num() const noexcept
+    {
+      return static_cast<long>(get_unum());
+    }
 
     void set_bit_str(const std::string &str)
     {
@@ -799,12 +797,12 @@ namespace Aleph
       return ret_val;
     }
 
-    string to_string() const
+    std::string to_string() const
     {
       return get_bit_str();
     }
 
-    friend ostream &operator<<(ostream &out, const BitArray &array)
+    friend std::ostream &operator<<(std::ostream &out, const BitArray &array)
     {
       for (size_t i = 0; i < array.current_size; ++i)
         out << array.read_bit(i);
@@ -932,21 +930,22 @@ namespace Aleph
         // empty
       }
 
-	      bool has_curr() const noexcept
-	      {
-	        return array_ptr != nullptr and curr_idx >= 0 and curr_idx < array_ptr->size();
-	      }
+      bool has_curr() const noexcept
+      {
+        return array_ptr != nullptr and curr_idx >= 0 and
+               static_cast<size_t>(curr_idx) < array_ptr->size();
+      }
 
-	      unsigned int get_curr_ne() const noexcept
-	      {
-	        return has_curr() ? array_ptr->read_bit_ne(static_cast<size_t>(curr_idx)) : 0;
-	      }
+      unsigned int get_curr_ne() const noexcept
+      {
+        return has_curr() ? array_ptr->read_bit_ne(static_cast<size_t>(curr_idx)) : 0;
+      }
 
       unsigned int get_curr() const
       {
         ah_overflow_error_if(not has_curr())
           << "Iterator is at the end of the list";
-        return array_ptr->read_bit(curr_idx);
+        return array_ptr->read_bit(static_cast<size_t>(curr_idx));
       }
 
       long get_pos() const noexcept { return curr_idx; }
@@ -972,23 +971,23 @@ namespace Aleph
         prev_ne();
       }
 
-	      void reset_last() noexcept
-	      {
-	        if (array_ptr == nullptr or array_ptr->size() == 0)
-	          curr_idx = -1;
-	        else
-	          curr_idx = array_ptr->size() - 1;
-	      }
+      void reset_last() noexcept
+      {
+        if (array_ptr == nullptr or array_ptr->size() == 0)
+          curr_idx = -1;
+        else
+          curr_idx = static_cast<long>(array_ptr->size()) - 1;
+      }
 
-	      void end() noexcept
-	      {
-	        if (array_ptr == nullptr)
-	          {
-	            curr_idx = 0;
-	            return;
-	          }
-	        curr_idx = array_ptr->size();
-	      }
+      void end() noexcept
+      {
+        if (array_ptr == nullptr)
+          {
+            curr_idx = 0;
+            return;
+          }
+        curr_idx = static_cast<long>(array_ptr->size());
+      }
 
       void reset_first() noexcept { curr_idx = 0; }
 

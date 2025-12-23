@@ -30,17 +30,19 @@
 # include <ah-comb.H>
 
 using namespace std;
+using namespace Aleph;
 
 
 void test()
 {
   DynList<char> l1 = { 'a', 'b', 'c' };
   DynList<char> l2 = { 'A', 'B', 'C' };
-  DynList<char> l3 = { '1', '2', '3', '4' };
+  DynList<char> l3 = { '1', '2', '3' };
   DynList<char> l4 = { '5', '6', '7'};
 
   DynList<DynList<char>> l = { l1, l2, l3, l4 };
 
+  cout << "Permutations:" << endl;
   traverse_perm(l, [] (auto s)
 	  {
 	    cout << "s = "; s.for_each([] (auto c) { cout << c << " "; });
@@ -49,7 +51,7 @@ void test()
 	  });
 
   cout << endl
-       << endl;
+       << "Transpose (out-of-place):" << endl;
 
   transpose(l).for_each([] (const auto & row)
 			{
@@ -57,6 +59,8 @@ void test()
 			  cout << endl;
 			});
 
+  cout << endl
+       << "Transpose (in-place):" << endl;
   auto aux = l;
   in_place_transpose(aux);
   aux.for_each([] (const auto & row)

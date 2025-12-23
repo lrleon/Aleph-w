@@ -836,6 +836,485 @@ TEST(BellmanFordTest, LargeGraphPerformance) {
   ASSERT_EQ(distance, N - 1);
 }
 
+// ========== TEST 36: State Getters ==========
+TEST(BellmanFordTest, StateGetters) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  // Before painting
+  ASSERT_FALSE(bf.is_painted());
+  ASSERT_FALSE(bf.has_computation());
+  ASSERT_EQ(bf.get_start_node(), nullptr);
+  ASSERT_EQ(&bf.get_graph(), &g);
+
+  // After painting
+  bf.paint_spanning_tree(n0);
+  ASSERT_TRUE(bf.is_painted());
+  ASSERT_TRUE(bf.has_computation());
+  ASSERT_EQ(bf.get_start_node(), n0);
+}
+
+// ========== TEST 37: get_min_path without Painting ==========
+TEST(BellmanFordTest, GetMinPathWithoutPainting) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  Path<GT> path(g);
+  bool caught = false;
+  try {
+    bf.get_min_path(n1, path);
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 38: Negative Cycle Path Validity ==========
+TEST(BellmanFordTest, NegativeCyclePathValidity) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, -2);
+  g.insert_arc(n2, n0, -1); // Total: -2 (negative cycle)
+
+  Bellman_Ford<GT> bf(g);
+  Path<GT> cycle = bf.test_negative_cycle(n0);
+
+  ASSERT_FALSE(cycle.is_empty());
+
+  // Verify cycle properties:
+  // 1. Has at least 2 nodes (for a cycle)
+  size_t cycle_length = 0;
+  for (typename Path<GT>::Iterator it(cycle); it.has_current_node(); it.next_ne())
+    cycle_length++;
+
+  ASSERT_GE(cycle_length, 2u);
+}
+
+// ========== TEST 39: Single Node with Self-loop (Positive) ==========
+TEST(BellmanFordTest, SingleNodePositiveSelfLoop) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  g.insert_arc(n0, n0, 1); // Positive self-loop
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg_cycle = bf.has_negative_cycle(n0);
+
+  ASSERT_FALSE(has_neg_cycle);
+}
+
+// ========== TEST 40: Faster Version with Negative Cycle ==========
+TEST(BellmanFordTest, FasterVersionWithNegativeCycle) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, -3);
+  g.insert_arc(n2, n0, 1);
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg_cycle = bf.faster_paint_spanning_tree(n0);
+
+  ASSERT_TRUE(has_neg_cycle);
+}
+
+// ========== TEST 41: Search Negative Cycle (Double Overload) ==========
+TEST(BellmanFordTest, SearchNegativeCycleDoubleOverload) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, -3);
+  g.insert_arc(n2, n0, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  // search_negative_cycle(start, it_factor, step)
+  auto [path, iter] = bf.search_negative_cycle(n0, 0.5, 1);
+
+  ASSERT_FALSE(path.is_empty());
+}
+
+// ========== TEST 42: search_negative_cycle (No Params Overload) ==========
+TEST(BellmanFordTest, SearchNegativeCycleNoParamsVariant) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  // Disconnected negative cycle
+  g.insert_arc(n1, n2, -2);
+  g.insert_arc(n2, n1, -1);
+
+  Bellman_Ford<GT> bf(g);
+
+  // Using the overload without start node (uses dummy node)
+  Path<GT> path = bf.search_negative_cycle();
+
+  ASSERT_FALSE(path.is_empty());
+}
+
+// ========== TEST 43: Build Tree Without Prior Painting ==========
+TEST(BellmanFordTest, BuildTreeWithoutPriorPainting) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  GT tree;
+  bool caught = false;
+  try {
+    bf.build_tree(tree, true); // with_map = true requires painting
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 44: Multiple Calls to paint_spanning_tree ==========
+TEST(BellmanFordTest, MultiplePaintCalls) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n0, n2, 10);
+  g.insert_arc(n1, n2, 2);
+
+  Bellman_Ford<GT> bf(g);
+
+  // First call
+  bf.paint_spanning_tree(n0);
+  ASSERT_TRUE(bf.is_painted());
+  ASSERT_EQ(bf.get_start_node(), n0);
+
+  Path<GT> path1(g);
+  int dist1 = bf.get_min_path(n2, path1);
+  ASSERT_EQ(dist1, 3);
+
+  // Can we paint again from a different node? (fresh graph state)
+  GT g2;
+  Node* m0 = g2.insert_node(0);
+  Node* m1 = g2.insert_node(1);
+  g2.insert_arc(m0, m1, 5);
+
+  Bellman_Ford<GT> bf2(g2);
+  bf2.paint_spanning_tree(m0);
+  ASSERT_TRUE(bf2.is_painted());
+
+  Path<GT> path2(g2);
+  int dist2 = bf2.get_min_path(m1, path2);
+  ASSERT_EQ(dist2, 5);
+}
+
+// ========== TEST 45: Functor With Different Signatures ==========
+TEST(BellmanFordTest, FunctorDifferentSignatures) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, -3);
+  g.insert_arc(n2, n0, 1);
+
+  Bellman_Ford_Negative_Cycle<GT> detector;
+
+  // Signature: (g, s, d, sa) -> Path
+  Dft_Dist<GT> dist;
+  Dft_Show_Arc<GT> sa;
+  Path<GT> path1 = detector(g, n0, dist, sa);
+  ASSERT_FALSE(path1.is_empty());
+
+  // Signature: (g, d, sa) -> Path
+  Path<GT> path2 = detector(g, dist, sa);
+  ASSERT_FALSE(path2.is_empty());
+
+  // Signature: (g) -> Path with default args
+  Path<GT> path3 = detector(g);
+  ASSERT_FALSE(path3.is_empty());
+}
+
+// ========== TEST 46: Strongly Connected Component with Negative Cycle ==========
+TEST(BellmanFordTest, StronglyConnectedWithNegativeCycle) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  // Connect all nodes strongly
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 1);
+  g.insert_arc(n2, n3, 1);
+  g.insert_arc(n3, n0, 1);
+
+  // Add negative cycle within
+  g.insert_arc(n1, n3, -5);
+  g.insert_arc(n3, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg = bf.has_negative_cycle(n0);
+
+  ASSERT_TRUE(has_neg);
+}
+
+// ========== TEST 47: Very Long Chain Performance ==========
+TEST(BellmanFordTest, VeryLongChainPerformance) {
+
+  GT g;
+  const size_t N = 500;
+
+  std::vector<Node*> nodes;
+  for (size_t i = 0; i < N; ++i)
+    nodes.push_back(g.insert_node(static_cast<int>(i)));
+
+  for (size_t i = 0; i < N - 1; ++i)
+    g.insert_arc(nodes[i], nodes[i + 1], 1);
+
+  Bellman_Ford<GT> bf(g);
+  bool neg_cycle = bf.paint_spanning_tree(nodes[0]);
+
+  ASSERT_FALSE(neg_cycle);
+
+  Path<GT> path(g);
+  int dist = bf.get_min_path(nodes[N - 1], path);
+
+  ASSERT_EQ(dist, static_cast<int>(N - 1));
+}
+
+// ========== TEST 48: Bidirectional Edges ==========
+TEST(BellmanFordTest, BidirectionalEdges) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+
+  g.insert_arc(n0, n1, 3);
+  g.insert_arc(n1, n0, 5);
+
+  Bellman_Ford<GT> bf(g);
+  bool neg_cycle = bf.paint_spanning_tree(n0);
+
+  ASSERT_FALSE(neg_cycle);
+
+  Path<GT> path(g);
+  int dist = bf.get_min_path(n1, path);
+
+  ASSERT_EQ(dist, 3);
+}
+
+// ========== TEST 49: Unreachable Node ==========
+TEST(BellmanFordTest, UnreachableNode) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2); // Not connected
+
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+  bf.paint_spanning_tree(n0);
+
+  // Node n2 is unreachable - get_min_path should throw
+  Path<GT> path(g);
+  bool caught = false;
+  try {
+    bf.get_min_path(n2, path);
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 50: Dense Graph ==========
+TEST(BellmanFordTest, DenseGraph) {
+
+  GT g;
+  const size_t N = 20;
+
+  std::vector<Node*> nodes;
+  for (size_t i = 0; i < N; ++i)
+    nodes.push_back(g.insert_node(static_cast<int>(i)));
+
+  // Create dense graph (almost complete)
+  for (size_t i = 0; i < N; ++i)
+    for (size_t j = 0; j < N; ++j)
+      if (i != j)
+        g.insert_arc(nodes[i], nodes[j], static_cast<int>(i + j));
+
+  Bellman_Ford<GT> bf(g);
+  bool neg_cycle = bf.paint_spanning_tree(nodes[0]);
+
+  ASSERT_FALSE(neg_cycle);
+}
+
+// ========== TEST 51: get_distance Method ==========
+TEST(BellmanFordTest, GetDistance) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n2, n3, 3);
+
+  Bellman_Ford<GT> bf(g);
+  bf.paint_spanning_tree(n0);
+
+  // Distance to n3 should be 1+2+3 = 6
+  int dist_n3 = bf.get_distance(n3);
+  ASSERT_EQ(dist_n3, 6);
+
+  // Distance to n1 should be 1
+  int dist_n1 = bf.get_distance(n1);
+  ASSERT_EQ(dist_n1, 1);
+
+  // Distance to start node should be 0
+  int dist_n0 = bf.get_distance(n0);
+  ASSERT_EQ(dist_n0, 0);
+}
+
+// ========== TEST 52: get_distance Without Painting ==========
+TEST(BellmanFordTest, GetDistanceWithoutPainting) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  bool caught = false;
+  try {
+    bf.get_distance(n1);
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 53: get_distance Unreachable Node ==========
+TEST(BellmanFordTest, GetDistanceUnreachableNode) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2); // Not connected
+
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+  bf.paint_spanning_tree(n0);
+
+  bool caught = false;
+  try {
+    bf.get_distance(n2);
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 54: extract_min_spanning_tree Without Painting ==========
+TEST(BellmanFordTest, ExtractMinSpanningTreeWithoutPainting) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+
+  bool caught = false;
+  try {
+    bf.extract_min_spanning_tree();
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 55: get_distance with Null Node ==========
+TEST(BellmanFordTest, GetDistanceNullNode) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  g.insert_arc(n0, n1, 1);
+
+  Bellman_Ford<GT> bf(g);
+  bf.paint_spanning_tree(n0);
+
+  bool caught = false;
+  try {
+    bf.get_distance(nullptr);
+  } catch (const std::domain_error&) {
+    caught = true;
+  }
+  ASSERT_TRUE(caught);
+}
+
+// ========== TEST 56: get_distance vs get_min_path Consistency ==========
+TEST(BellmanFordTest, GetDistanceConsistentWithGetMinPath) {
+
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 5);
+  g.insert_arc(n0, n2, 10);
+  g.insert_arc(n1, n2, 2);
+  g.insert_arc(n2, n3, 3);
+
+  Bellman_Ford<GT> bf(g);
+  bf.paint_spanning_tree(n0);
+
+  // Verify that get_distance returns the same value as get_min_path
+  for (Node* target : {n1, n2, n3}) {
+    Path<GT> path(g);
+    int path_dist = bf.get_min_path(target, path);
+    int direct_dist = bf.get_distance(target);
+    ASSERT_EQ(path_dist, direct_dist);
+  }
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

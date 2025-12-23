@@ -3882,7 +3882,7 @@ namespace Aleph
       if (not IS_ARC_VISITED(a, Aleph::Spanning_Tree))
         return false;
 
-      dist = dist + ARC_DIST(a);
+      dist = dist + Distance()(a);
 
       return true;
     }

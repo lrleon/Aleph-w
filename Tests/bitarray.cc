@@ -533,4 +533,176 @@ TEST(BitArrayRandomized, matches_reference_or_and_counts)
     }
 }
 
+TEST(BitArrayCopyMove, copy_constructor_and_assignment)
+{
+  BitArray a;
+  a.set_bit_str("10110011");
+
+  // Copy constructor
+  BitArray b(a);
+  EXPECT_EQ(b.get_bit_str(), a.get_bit_str());
+  EXPECT_TRUE(b == a);
+
+  // Modify b, a should not change
+  b.write_bit(0, 0);
+  EXPECT_NE(b.get_bit_str(), a.get_bit_str());
+  EXPECT_EQ(a.read_bit(0), 1);
+
+  // Copy assignment
+  BitArray c;
+  c = a;
+  EXPECT_EQ(c.get_bit_str(), a.get_bit_str());
+  EXPECT_TRUE(c == a);
+
+  // Self assignment
+  c = c;
+  EXPECT_EQ(c.get_bit_str(), a.get_bit_str());
+}
+
+TEST(BitArrayCopyMove, move_constructor_and_assignment)
+{
+  BitArray a;
+  a.set_bit_str("10110011");
+  const string original = a.get_bit_str();
+
+  // Move constructor
+  BitArray b(std::move(a));
+  EXPECT_EQ(b.get_bit_str(), original);
+  EXPECT_EQ(a.size(), 0u); // a should be empty after move
+
+  // Move assignment
+  BitArray c;
+  c.set_bit_str("111");
+  c = std::move(b);
+  EXPECT_EQ(c.get_bit_str(), original);
+  EXPECT_EQ(b.size(), 0u); // b should be empty after move
+}
+
+TEST(BitArrayCopyMove, swap)
+{
+  BitArray a;
+  a.set_bit_str("10110011");
+
+  BitArray b;
+  b.set_bit_str("0101");
+
+  const string a_str = a.get_bit_str();
+  const string b_str = b.get_bit_str();
+
+  a.swap(b);
+
+  EXPECT_EQ(a.get_bit_str(), b_str);
+  EXPECT_EQ(b.get_bit_str(), a_str);
+}
+
+TEST(BitArrayFunctions, bits_list)
+{
+  BitArray a;
+  a.set_bit_str("10110");
+
+  auto list = a.bits_list();
+  EXPECT_EQ(list.size(), 5u);
+
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), 1); it.next();
+  EXPECT_EQ(it.get_curr(), 0); it.next();
+  EXPECT_EQ(it.get_curr(), 1); it.next();
+  EXPECT_EQ(it.get_curr(), 1); it.next();
+  EXPECT_EQ(it.get_curr(), 0);
+}
+
+TEST(BitArrayFunctions, fast_read_write)
+{
+  BitArray a;
+  a.reserve(16);
+
+  // fast_write doesn't expand, so we need to reserve first
+  a.fast_write(0, 1);
+  a.fast_write(7, 1);
+  a.fast_write(15, 1);
+
+  EXPECT_EQ(a.fast_read(0), 1);
+  EXPECT_EQ(a.fast_read(1), 0);
+  EXPECT_EQ(a.fast_read(7), 1);
+  EXPECT_EQ(a.fast_read(15), 1);
+}
+
+TEST(BitArrayFunctions, save_in_array_of_chars)
+{
+  BitArray a;
+  a.set_bit_str("10110011");
+
+  ostringstream out;
+  a.save_in_array_of_chars("test_arr", out);
+  const string output = out.str();
+
+  EXPECT_NE(output.find("test_arr"), string::npos);
+  EXPECT_NE(output.find("8 bits"), string::npos);
+  EXPECT_NE(output.find("const unsigned char"), string::npos);
+}
+
+TEST(BitArrayFunctions, equality_operator)
+{
+  BitArray a;
+  a.set_bit_str("10110011");
+
+  BitArray b;
+  b.set_bit_str("10110011");
+
+  BitArray c;
+  c.set_bit_str("10110010");
+
+  BitArray d;
+  d.set_bit_str("1011001");
+
+  EXPECT_TRUE(a == b);
+  EXPECT_FALSE(a == c);  // Different last bit
+  EXPECT_FALSE(a == d);  // Different size
+}
+
+TEST(BitArrayIterator, prev_and_bidirectional)
+{
+  BitArray a;
+  a.set_bit_str("101");
+
+  auto it = a.get_it();
+  it.reset_last();
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), 1u);  // Last bit
+
+  it.prev();
+  EXPECT_EQ(it.get_curr(), 0u);  // Middle bit
+
+  it.prev();
+  EXPECT_EQ(it.get_curr(), 1u);  // First bit
+
+  // At position 0, prev moves to -1 (before first, like rend())
+  it.prev();
+  EXPECT_EQ(it.get_pos(), -1);
+  EXPECT_FALSE(it.has_curr());
+
+  // Now at position -1, prev should throw
+  EXPECT_THROW(it.prev(), std::underflow_error);
+}
+
+TEST(BitArrayIterator, end_and_get_pos)
+{
+  BitArray a;
+  a.set_bit_str("101");
+
+  auto it = a.get_it();
+  EXPECT_EQ(it.get_pos(), 0);
+
+  it.next();
+  EXPECT_EQ(it.get_pos(), 1);
+
+  it.end();
+  EXPECT_EQ(it.get_pos(), 3);
+  EXPECT_FALSE(it.has_curr());
+
+  it.reset();
+  EXPECT_EQ(it.get_pos(), 0);
+  EXPECT_TRUE(it.has_curr());
+}
+
 } // namespace

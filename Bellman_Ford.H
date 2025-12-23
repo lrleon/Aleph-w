@@ -37,17 +37,39 @@
 
 namespace Aleph
 {
-  template <class GT, class Distance>
-  struct Bellman_Ford_Node_Info
-  {
-    int idx;
-    typename Distance::Distance_Type accum;
-  };
+  /** Bellman-Ford algorithm for shortest paths with negative weights.
 
-  /** Algorithms associated to Bellman-Ford algorithm for searching
-      minimal paths in a graph.
+      This class implements the Bellman-Ford algorithm for finding shortest
+      paths from a single source node. Unlike Dijkstra's algorithm, Bellman-Ford
+      can handle graphs with negative edge weights and can detect negative cycles.
 
-     @ingroup Grafos
+      Two versions are provided:
+      - **Standard version**: O(V*E) time complexity
+      - **Faster version**: Uses a queue-based optimization (SPFA variant)
+        which is often faster in practice
+
+      Template parameters:
+      - `GT`: Graph type (typically `List_Digraph`).
+      - `Distance`: Arc weight accessor. Must define `Distance_Type` and provide
+        `Distance_Type operator()(typename GT::Arc *a)`.
+      - `Ait`: Arc iterator template for traversing all arcs.
+      - `NAit`: Node arc iterator template for traversing arcs from a node.
+      - `SA`: Arc filter for the internal iterators.
+
+      Features:
+      - Detects negative cycles
+      - Can return the negative cycle as a path
+      - Computes shortest-path tree (painted or separate)
+      - Used by Johnson's algorithm for node weight computation
+
+      @warning This class is **not thread-safe**. Each instance maintains internal
+      state that would be corrupted by concurrent access.
+
+      @note For graphs without negative weights, Dijkstra's algorithm is more
+      efficient (O((V+E) log V) vs O(V*E)).
+
+      @ingroup Grafos
+      @see Dijkstra_Min_Paths Johnson Floyd_All_Shortest_Paths
    */
   template <class GT,
             class Distance = Dft_Dist<GT>,
@@ -108,7 +130,7 @@ namespace Aleph
     SA sa;
     Distance dist;
 
-    // Initialize without using arrays
+    /// Initialize node cookies for simple mode (without predecessor tracking).
     void init_simple(Node *start)
     {
       Init_Guard guard([this]() { uninit<Sni>(); });
@@ -130,6 +152,7 @@ namespace Aleph
       guard.release(); // Successful initialization, prevent cleanup
     }
 
+    /// Initialize node cookies with predecessor tracking for path reconstruction.
     void init_with_indexes(Node *start)
     {
       Init_Guard guard([this]() { uninit<Ni>(); arcs.cut(); });
@@ -157,7 +180,7 @@ namespace Aleph
       guard.release(); // Successful initialization, prevent cleanup
     }
 
-    // release the memory associated with the cookies
+    /// Release the memory associated with the node cookies.
     template <class Info_Type>
     void uninit()
     {
@@ -169,17 +192,33 @@ namespace Aleph
         }
     }
 
+    /// Check that painted arcs form a valid spanning tree.
+    /// For disconnected graphs, the number of painted arcs may be less than n-1.
     bool check_painted_arcs() noexcept
     {
-      auto num_arcs = 0;
+      size_t num_arcs = 0;
+      size_t num_painted_nodes = 0;
       for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
           ++num_arcs;
 
-      return num_arcs == g.get_num_nodes() - 1 or num_arcs == g.get_num_nodes();
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+        if (IS_NODE_VISITED(it.get_curr(), Aleph::Spanning_Tree))
+          ++num_painted_nodes;
+
+      // In a tree with k nodes, there are k-1 arcs (or k arcs in digraphs
+      // where cycles may exist). For disconnected graphs, some nodes may
+      // not be painted.
+      return num_arcs <= num_painted_nodes;
     }
 
   public:
+    /** Construct a Bellman-Ford executor.
+
+        @param[in] __g The graph to operate on.
+        @param[in] d Arc-weight accessor.
+        @param[in] __sa Arc filter for internal iterators.
+     */
     Bellman_Ford(const GT & __g, Distance d = Distance(), SA __sa = SA())
       : g(const_cast<GT &>(__g)), Inf(std::numeric_limits<Distance_Type>::max()),
         painted(false), sa(__sa), dist(d)
@@ -187,7 +226,24 @@ namespace Aleph
       // empty
     }
 
+    /// Check if a shortest-path tree has been computed or painted.
+    /// @return true if a previous computation exists, false otherwise.
+    bool has_computation() const noexcept { return s != nullptr; }
+
+    /// Check if a shortest-path tree has been painted.
+    /// @return true if a tree has been painted, false otherwise.
+    bool is_painted() const noexcept { return painted; }
+
+    /// Get the start node of the last computation.
+    /// @return Pointer to the start node, or nullptr if no computation exists.
+    Node * get_start_node() const noexcept { return s; }
+
+    /// Get reference to the graph.
+    /// @return Reference to the graph.
+    const GT & get_graph() const noexcept { return g; }
+
   private:
+    /// Relax all arcs n-1 times (standard Bellman-Ford).
     void relax_arcs() noexcept
     {
       const size_t & n = g.vsize();
@@ -216,6 +272,7 @@ namespace Aleph
           }
     }
 
+    /// Insert a node into the queue if not already present (SPFA optimization).
     static void
     put_in_queue(DynListQueue<typename GT::Node *> & q, typename GT::Node *p)
     {
@@ -225,6 +282,7 @@ namespace Aleph
       q.put(p);
     }
 
+    /// Remove a node from the queue and clear its in-queue flag.
     static typename GT::Node * get_from_queue(DynListQueue<typename GT::Node *> & q)
     {
       auto ret = q.get();
@@ -233,6 +291,7 @@ namespace Aleph
       return ret;
     }
 
+    /// Relax outgoing arcs from a source node (SPFA variant).
     void relax_arcs(typename GT::Node *src, DynListQueue<typename GT::Node *> & q)
     {
       for (NAit<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
@@ -257,18 +316,19 @@ namespace Aleph
         }
     }
 
+    /// Paint the spanning tree nodes and arcs with the Spanning_Tree bit.
     void paint_tree() noexcept
     { // paint the involved nodes and arcs
-      const auto & n = g.vsize();
-      for (int i = 0; i < n; ++i)
+      const size_t n = g.vsize();
+      for (size_t i = 0; i < n; ++i)
         {
           auto arc = arcs(i);
           if (arc == nullptr)
             continue;
 
           ARC_BITS(arc).set_bit(Aleph::Spanning_Tree, true);
-          auto src = static_cast<Node *>(arc->src_node);
-          auto tgt = static_cast<Node *>(arc->tgt_node);
+          auto src = g.get_src_node(arc);
+          auto tgt = g.get_tgt_node(arc);
           NODE_BITS(src).set_bit(Aleph::Spanning_Tree, true);
           NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
         }
@@ -279,6 +339,8 @@ namespace Aleph
       painted = true;
     }
 
+    /// Perform one more relaxation pass and check for negative cycle.
+    /// Also updates predecessor array for cycle detection.
     bool last_relax_and_prepare_check_negative_cycle() noexcept
     {
       bool negative_cycle = false;
@@ -305,6 +367,7 @@ namespace Aleph
       return negative_cycle;
     }
 
+    /// Perform one more relaxation pass to detect (but not prepare) negative cycle.
     bool last_relax_and_test_negative_cycle() noexcept
     {
       for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
@@ -325,13 +388,14 @@ namespace Aleph
       return false;
     }
 
-    void link_cookies_and_free(typename GT::Node *s) noexcept
+    /// Free node cookies and set up predecessor pointers for path reconstruction.
+    void link_cookies_and_free(typename GT::Node *start) noexcept
     {
       uninit<Ni>();
 
-      // Construct the inverted paths to the S origin node
-      const auto & n = g.vsize();
-      for (int i = 0; i < n; ++i)
+      // Construct the inverted paths to the start origin node
+      const size_t n = g.vsize();
+      for (size_t i = 0; i < n; ++i)
         {
           auto arc = arcs(i);
           if (arc == nullptr)
@@ -341,7 +405,7 @@ namespace Aleph
           NODE_COOKIE(tgt) = g.get_src_node(arc);
         }
 
-      NODE_COOKIE(s) = nullptr; // just in case there is a negative cycle
+      NODE_COOKIE(start) = nullptr; // just in case there is a negative cycle
     }
 
   public:
@@ -420,6 +484,8 @@ namespace Aleph
     }
 
   private:
+    /// Create a dummy node connected to all nodes with zero-weight edges.
+    /// Used for detecting negative cycles in the entire graph.
     Node * create_dummy_node()
     {
       // RAII guard to ensure cleanup on exception
@@ -473,6 +539,7 @@ namespace Aleph
       return s;
     }
 
+    /// Remove a dummy node and clean up its cookie.
     template <class Info_Type>
     void remove_dummy_node(Node *p)
     {
@@ -481,17 +548,19 @@ namespace Aleph
     }
 
   public:
-    /** Returns true if it exists a negative cycle in any path starting
-        from node `start`
-    */
+    /** Test if a negative cycle exists starting from a specific node.
+
+        @param[in] start Source node from which to check for negative cycles.
+        @return true if a negative cycle is reachable from start, false otherwise.
+        @throw std::domain_error if start is nullptr.
+     */
     bool has_negative_cycle(Node *start)
     {
       ah_domain_error_if(start == nullptr)
         << "start node cannot be null";
 
       init_with_indexes(start);
-      s = start;
-      accum(s) = 0;
+      // Note: s and accum(s) already set by init_with_indexes
 
       relax_arcs();
       const bool negative_cycle = last_relax_and_test_negative_cycle();
@@ -500,6 +569,13 @@ namespace Aleph
       return negative_cycle;
     }
 
+    /** Test if a negative cycle exists anywhere in the graph.
+
+        Creates a temporary dummy node connected to all other nodes with
+        zero-weight edges, then runs negative cycle detection from it.
+
+        @return true if any negative cycle exists in the graph, false otherwise.
+     */
     bool has_negative_cycle()
     {
       create_dummy_node();
@@ -510,6 +586,7 @@ namespace Aleph
     }
 
   private:
+    /// Build spanning tree from arcs and search for cycle using Tarjan's algorithm.
     Path<GT> search_negative_cycle_on_partial_graph()
     {
       GT aux = build_spanning_tree<GT>(arcs);
@@ -823,7 +900,61 @@ namespace Aleph
     */
     DynArray<Arc *> extract_min_spanning_tree()
     {
+      ah_domain_error_if(not painted)
+        << "Spanning tree has not been painted";
+
       return arcs;
+    }
+
+    /** Get the accumulated distance to a node from a previously painted tree.
+
+        This method is useful when you only need the distance without
+        reconstructing the full path.
+
+        @param[in] node The destination node.
+        @return The accumulated distance from the start node to node.
+        @throw std::domain_error if the graph has not been previously painted
+               or if the node is unreachable.
+     */
+    Distance_Type get_distance(typename GT::Node *node)
+    {
+      ah_domain_error_if(not painted)
+        << "Graph has not been previously painted";
+
+      ah_domain_error_if(node == nullptr)
+        << "node cannot be null";
+
+      // Follow predecessor chain to verify reachability
+      auto curr = node;
+      while (curr != s)
+        {
+          auto parent = static_cast<Node *>(NODE_COOKIE(curr));
+          ah_domain_error_if(parent == nullptr)
+            << "Node is not reachable from start node";
+          curr = parent;
+        }
+
+      // Compute distance by following the path
+      Distance_Type total = 0;
+      curr = node;
+      while (curr != s)
+        {
+          auto parent = static_cast<Node *>(NODE_COOKIE(curr));
+
+          // Find the arc from parent to curr
+          for (NAit<GT, SA> it(parent, sa); it.has_curr(); it.next_ne())
+            {
+              auto arc = it.get_curr();
+              if (g.get_tgt_node(arc) == curr &&
+                  IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+                {
+                  total = checked_add(total, dist(arc));
+                  break;
+                }
+            }
+          curr = parent;
+        }
+      return total;
     }
 
     /** Extract from the graph a previously painted minimal spanning tree
@@ -889,18 +1020,36 @@ namespace Aleph
         table.for_each([](const auto & p) { GT::map_nodes(p.first, p.second); });
     }
 
+    /** Test for negative cycle and return it if found.
+
+        @param[in] s The starting node.
+        @param[out] cycle Path where the cycle is stored if found.
+        @return true if a negative cycle exists, false otherwise.
+     */
     bool test_negative_cycle(typename GT::Node *s, Path<GT> & cycle)
     {
       cycle = test_negative_cycle(s);
       return not cycle.is_empty();
     }
 
+    /** Test for negative cycle anywhere in the graph.
+
+        @param[out] cycle Path where the cycle is stored if found.
+        @return true if a negative cycle exists, false otherwise.
+     */
     bool test_negative_cycle(Path<GT> & cycle)
     {
       cycle = test_negative_cycle();
       return not cycle.is_empty();
     }
 
+    /** Extract the shortest path to a node from a previously painted tree.
+
+        @param[in] end The destination node.
+        @param[out] path Path where the shortest path will be stored.
+        @return The total cost of the path.
+        @throw std::domain_error if the graph has not been previously painted.
+     */
     Distance_Type get_min_path(typename GT::Node *end, Path<GT> & path)
     {
       ah_domain_error_if(not painted)
@@ -943,7 +1092,7 @@ namespace Aleph
       put_in_queue(q, s);
       put_in_queue(q, sentinel);
 
-      for (int i = 0; not q.is_empty(); /* nothing */)
+      for (size_t i = 0; not q.is_empty(); /* nothing */)
         {
           auto src = get_from_queue(q);
           if (src == sentinel) // Is the sentinel removed?
@@ -1057,34 +1206,48 @@ namespace Aleph
           test_negative_cycle(s, path);
     }
 
+    /** Search for a negative cycle starting from a specific node.
+
+        @param[in] g The graph.
+        @param[in] s The starting node.
+        @param[in] d Distance accessor.
+        @param[in] sa Arc filter.
+        @return Path containing the negative cycle if found, empty path otherwise.
+     */
     Path<GT> operator ()(const GT & g, typename GT::Node *s,
-                         Distance & d, SA & sa, double it_factor = 0.7) const
+                         Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
-          search_negative_cycle(s, it_factor);
+          search_negative_cycle(s);
     }
 
+    /// \overload
     Path<GT> operator ()(const GT & g, typename GT::Node *s,
-                         Distance && d = Distance(), SA && sa = SA(),
-                         double it_factor = 0.7) const
+                         Distance && d = Distance(), SA && sa = SA()) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
-          search_negative_cycle(s, it_factor);
+          search_negative_cycle(s);
     }
 
-    Path<GT> operator ()(const GT & g, Distance & d, SA & sa,
-                         double it_factor = 0.7) const
+    /** Search for a negative cycle in the entire graph.
+
+        @param[in] g The graph.
+        @param[in] d Distance accessor.
+        @param[in] sa Arc filter.
+        @return Path containing the negative cycle if found, empty path otherwise.
+     */
+    Path<GT> operator ()(const GT & g, Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
-          search_negative_cycle(it_factor);
+          search_negative_cycle();
     }
 
+    /// \overload
     Path<GT>
-    operator ()(const GT & g, Distance && d = Distance(), SA && sa = SA(),
-                double it_factor = 0.7) const
+    operator ()(const GT & g, Distance && d = Distance(), SA && sa = SA()) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
-          search_negative_cycle(it_factor);
+          search_negative_cycle();
     }
   };
 

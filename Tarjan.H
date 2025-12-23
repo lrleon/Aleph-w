@@ -143,6 +143,10 @@ namespace Aleph
     }
 
   private:
+    /** @brief Functor to initialize node metadata for Tarjan traversal.
+     *
+     *  Resets all bits, counters (df), and sets low to -1 for each node.
+     */
     struct Init_Tarjan_Node
     {
       void operator ()(const GT & g, typename GT::Node *p) const noexcept
@@ -153,12 +157,23 @@ namespace Aleph
       }
     };
 
+    /** @brief Check if a node is currently on the traversal stack.
+     *  @param p The node to check.
+     *  @return true if the node is on the stack, false otherwise.
+     */
     bool is_node_in_stack(typename GT::Node *p) const noexcept
     {
       assert(p != nullptr);
       return IS_NODE_VISITED(p, Aleph::Min);
     }
 
+    /** @brief Initialize a node and push it onto the traversal stack.
+     *
+     *  Sets the Min and Depth_First bits, assigns df and low values,
+     *  and pushes the node onto the stack.
+     *
+     *  @param p The node to initialize and push.
+     */
     void init_node_and_push_in_stack(typename GT::Node *p)
     {
       assert(not is_node_in_stack(p));
@@ -169,6 +184,9 @@ namespace Aleph
       df<GT>(p) = low<GT>(p) = df_count++;
     }
 
+    /** @brief Pop a node from the traversal stack.
+     *  @return The popped node.
+     */
     typename GT::Node * pop_from_stack()
     {
       auto ret = stack.pop();
@@ -177,6 +195,13 @@ namespace Aleph
       return ret;
     }
 
+    /** @brief Recursive DFS to find SCCs and build mapped subgraphs.
+     *
+     *  For each SCC found, creates a mapped copy subgraph and appends
+     *  it to block_list_ptr.
+     *
+     *  @param v The current node being visited.
+     */
     void scc_by_blocks(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -211,6 +236,13 @@ namespace Aleph
         }
     }
 
+    /** @brief Recursive DFS to find SCCs and collect nodes into lists.
+     *
+     *  For each SCC found, collects the node pointers into a list
+     *  and appends it to list_list_ptr.
+     *
+     *  @param v The current node being visited.
+     */
     void scc_by_lists(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -223,7 +255,7 @@ namespace Aleph
             low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
           }
         else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before p
+          // if on stack ==> v was visited before w
           low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
       if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
@@ -239,6 +271,13 @@ namespace Aleph
         }
     }
 
+    /** @brief Recursive DFS to find SCCs and count their sizes.
+     *
+     *  For each SCC found, counts the number of nodes and appends
+     *  the count to list_len_ptr.
+     *
+     *  @param v The current node being visited.
+     */
     void scc_by_len(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -251,7 +290,7 @@ namespace Aleph
             low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
           }
         else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before p
+          // if on stack ==> v was visited before w
           low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
       if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
@@ -269,6 +308,17 @@ namespace Aleph
         }
     }
 
+    /** @brief Initialize internal state for a Tarjan traversal.
+     *
+     *  Resets node metadata, clears the stack, and stores a pointer
+     *  to the graph.
+     *
+     *  @param g The graph to traverse.
+     *
+     *  @note Uses const_cast internally because the algorithm modifies
+     *        node metadata (bits, counters, cookies) but not the graph
+     *        structure itself.
+     */
     void init_tarjan(const GT & g)
     {
       Operate_On_Nodes<GT, Init_Tarjan_Node>()(g); // initialize bits, df and low
@@ -276,15 +326,17 @@ namespace Aleph
       stack.empty();
       n = g.get_num_nodes();
 
-      // NOTE: const_cast is used here because the algorithm needs to traverse
-      // the graph but the API requires non-const pointer. However, the algorithm
-      // never modifies the graph structure itself - it only reads nodes/arcs
-      // and modifies node metadata (bits, counters, cookies) which are designed
-      // to be mutable. This is a known limitation of the current graph API design.
       g_ptr = &const_cast<GT &>(g);
     }
 
-    // returns true if a cycle from v is found
+    /** @brief Recursive DFS to detect if a cycle exists starting from v.
+     *
+     *  Detects cycles including self-loops (cycles of length 1) and
+     *  strongly connected components with 2+ nodes.
+     *
+     *  @param v The current node being visited.
+     *  @return true if a cycle is found, false otherwise.
+     */
     bool has_cycle(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -323,16 +375,22 @@ namespace Aleph
           return count >= 2; // if count >= 2 ==> there is a cycle
         }
 
-      return false; //everything was covered without finding a cycle
+      return false; // everything was covered without finding a cycle
     }
 
-    // Take the block, which is mapped from the original graph, which is
-    // strongly connected, and build the loop in path_ptr
+    /** @brief Build a cycle path from a strongly connected block.
+     *
+     *  Takes a mapped strongly connected subgraph and constructs the
+     *  cycle path in path_ptr using the node mapping table.
+     *
+     *  @param block The strongly connected subgraph (mapped from original).
+     *  @param table Bidirectional mapping between original and block nodes.
+     */
     void
     build_path(const GT & block,
                DynMapAvlTree<typename GT::Node *, typename GT::Node *> & table)
     {
-      // search cycle in blk.
+      // Search for a cycle in the block
       auto a = block.get_first_arc();
       auto start = block.get_tgt_node(a);
       auto end = block.get_src_node(a);
@@ -341,9 +399,8 @@ namespace Aleph
       auto aux_path = Directed_Find_Path<GT, Itor, SA>(block, sa).dfs(start, end);
       assert(not aux_path.is_empty()); // since it's connected it must be found
 
-      // aux_path is about the mapped block. But we need
-      // that the path is on the original graph. The nodes of the graph
-      // original are retrieved from the table mapping
+      // aux_path is about the mapped block. We need to translate it back
+      // to the original graph using the mapping table.
       path_ptr->empty();
       for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next_ne())
         path_ptr->append_directed(table.find(i.get_current_node_ne()));
@@ -351,9 +408,13 @@ namespace Aleph
       path_ptr->append_directed(path_ptr->get_first_node());
     }
 
-    // Returns true if it finds a loop, in which case it puts it into
-    // the path.
-    // Otherwise, it returns false and path is left intact.
+    /** @brief Recursive DFS to find and construct a cycle starting from v.
+     *
+     *  If a cycle is found (including self-loops), constructs it in path_ptr.
+     *
+     *  @param v The current node being visited.
+     *  @return true if a cycle is found and stored in path_ptr, false otherwise.
+     */
     bool build_cycle(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -437,6 +498,14 @@ namespace Aleph
       return false;
     }
 
+    /** @brief Recursive DFS to test if the graph is strongly connected.
+     *
+     *  Returns true if and only if all nodes belong to a single SCC.
+     *  The algorithm detects early if multiple SCCs exist.
+     *
+     *  @param v The current node being visited.
+     *  @return true if all visited nodes so far form one SCC, false otherwise.
+     */
     bool is_connected(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
@@ -801,6 +870,9 @@ namespace Aleph
       return true;
     }
 
+    /// @name Accessors
+    /// @{
+
     /** Returns the arc filter used by this instance.
         @return Reference to the arc filter.
      */
@@ -810,6 +882,18 @@ namespace Aleph
         @return Const reference to the arc filter.
      */
     const SA &get_filter() const noexcept { return sa; }
+
+    /** Check if a computation has been performed.
+        @return true if a graph has been processed, false otherwise.
+     */
+    [[nodiscard]] bool has_computation() const noexcept { return g_ptr != nullptr; }
+
+    /** Get the graph of the last computation.
+        @return Pointer to the graph, or nullptr if no computation done.
+     */
+    [[nodiscard]] GT * get_graph() const noexcept { return g_ptr; }
+
+    /// @}
   };
 
 

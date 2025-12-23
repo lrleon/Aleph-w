@@ -100,9 +100,9 @@ int random(int l, int r)
 {
   assert(l <= r);
 
-  int n = r - l;
+  const int n = r - l;
 
-  int rd = 1 + (int) (1.0*n*rand()/(RAND_MAX+1.0));
+  const int rd = 1 + static_cast<int>(1.0 * n * rand() / (RAND_MAX + 1.0));
 
   return l + rd - 1;
 }
@@ -111,9 +111,9 @@ int random(int l, int r)
 BinNode<int> * random_tree(int l, int r)
 {
   if (l > r)
-    return NULL;
+    return nullptr;
 
-  BinNode<int> * root = new BinNode<int> (random(l, r));
+  auto * root = new BinNode<int> (random(l, r));
 
   LLINK(root) = random_tree(l, KEY(root) - 1);
   RLINK(root) = random_tree(KEY(root) + 1, r);

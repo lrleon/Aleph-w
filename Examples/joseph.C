@@ -24,7 +24,12 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# include "tpl_dynDlist.H"
+#include "tpl_dynDlist.H"
+#include <tclap/CmdLine.h>
+#include <cstdio>
+#include <iostream>
+
+using namespace Aleph;
 
 void avanceItor(DynDlist<unsigned>::Iterator& itor, unsigned s)
 {
@@ -57,10 +62,29 @@ void orden_ejecucion(unsigned num_personas, unsigned paso)
   printf("\nEl sobreviviente es %u\n", list.get_first());    
 }
 
-int main(int, char** args)
+int main(int argc, char** argv)
 {
-  unsigned numPer = atoi(args[1]),
-           paso   = atoi(args[2]);
+  try {
+    TCLAP::CmdLine cmd("Josephus problem", ' ', "1.0");
 
-  orden_ejecucion(numPer, paso);
+    TCLAP::ValueArg<unsigned> numPerArg("n", "num-persons",
+                                         "Number of persons",
+                                         false, 20, "unsigned");
+    cmd.add(numPerArg);
+
+    TCLAP::ValueArg<unsigned> pasoArg("p", "paso",
+                                        "Step size",
+                                        false, 7, "unsigned");
+    cmd.add(pasoArg);
+
+    cmd.parse(argc, argv);
+
+    unsigned numPer = numPerArg.getValue(),
+             paso   = pasoArg.getValue();
+
+    orden_ejecucion(numPer, paso);
+  } catch (TCLAP::ArgException &e) {
+    std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
+  }
+  return 0;
 }
