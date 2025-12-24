@@ -29,114 +29,105 @@
 
 # include <tpl_matgraph.H>
 
-    template <class Mat>
-void find_min_path(Mat & p, const long & src_index, const long & tgt_index,
+namespace Aleph {
+
+// Forward declaration
+template <class Mat>
+void find_min_path(Mat & p, long src_index, long tgt_index,
                    Path<typename Mat::Graph_Type> & path);
-    /** Construye un camino mínimo desde un nodo a otro a partir de una
-        matriz de caminos calculada por el algoritmo de Floyd-Warshall.
 
-        Este procedimiento toma una matriz p que contiene los índices de
-        caminos mínimos calculados por el algoritmo de Floyd-Warshall,
-        dos punteros correspondientes a los nodos origen y destino
-        respectivamente en la representación con listas de adyacencia
-        usada cuando se invocó a floyd_all_shortest_paths(), y calcula
-        el camino mínimo.
-
-        Este procedimiento está concebido para llamarse después de
-        ejecutar floyd_all_shortest_paths(), el cual calcula la matriz
-        p.
-
-        Resultados son completamente indeterminados si la matriz p es
-        inválida. 
-
-        @param[in] p matriz de índices de caminos mínimos.
-        @param[in] src_node puntero al nodo origen dentro de la
-        representación con listas de adyacencia.
-        @param[in] tgt_node puntero al nodo destino dentro de la
-        representación con listas de adyacencia.
-        @param[out] path el camino mínimo en el grafo representado con
-        listas de adyacencia usado cuando se ejecutó
-        floyd_all_shortest_paths().
-        @throw bad_alloc si no hay suficiente memoria para construir el
-        camino. 
-        @see floyd_all_shortest_paths()
-        @ingroup Grafos
-     */
-    template <class Mat>
+/** @brief Build a minimum path from Floyd-Warshall path matrix using node pointers.
+ *
+ *  Takes a path matrix p computed by Floyd-Warshall algorithm and two node
+ *  pointers (source and target) from the adjacency list representation,
+ *  then constructs the minimum path.
+ *
+ *  This function should be called after floyd_all_shortest_paths() which
+ *  computes the path matrix p.
+ *
+ *  @warning Results are undefined if the matrix p is invalid.
+ *
+ *  @tparam Mat Matrix type from Map_Matrix_Graph.
+ *  @param[in] p Path index matrix from Floyd-Warshall.
+ *  @param[in] src_node Source node pointer in adjacency list representation.
+ *  @param[in] tgt_node Target node pointer in adjacency list representation.
+ *  @param[out] path The minimum path in the adjacency list graph.
+ *  @throw std::bad_alloc If insufficient memory to build the path.
+ *  @see floyd_all_shortest_paths()
+ *  @ingroup Grafos
+ */
+template <class Mat>
 void find_min_path(Mat & p, typename Mat::Node * src_node, 
                    typename Mat::Node * tgt_node,
                    Path<typename Mat::Graph_Type> & path)
 {
-  find_min_path(p, p(src_node), p(tgt_node, path));
+  find_min_path(p, p(src_node), p(tgt_node), path);
 }
 
-    template <class Mat>
+/** @brief Functor wrapper for find_min_path.
+ *  @tparam Mat Matrix type from Map_Matrix_Graph.
+ *  @ingroup Grafos
+ */
+template <class Mat>
 class Find_Min_Path
 {
 public:
 
-  void operator () (Mat &                                 p, 
-                    typename Mat::Node *                  src_node, 
-                    typename Mat::Node *                  tgt_node,
-                    Path<typename Mat::Graph_Type> & path) const
+  void operator()(Mat & p, 
+                  typename Mat::Node * src_node, 
+                  typename Mat::Node * tgt_node,
+                  Path<typename Mat::Graph_Type> & path) const
   {
-    find_min_path <Mat> (p, src_node, tgt_node, path);
+    find_min_path<Mat>(p, src_node, tgt_node, path);
   }
 
-  void operator () (Mat &                                 p, 
-                    const long & src_index, const long &  tgt_index,
-                    Path<typename Mat::Graph_Type> & path) const
+  void operator()(Mat & p, 
+                  long src_index, long tgt_index,
+                  Path<typename Mat::Graph_Type> & path) const
   {
-    find_min_path <Mat> (p, src_index, tgt_index, path);
+    find_min_path<Mat>(p, src_index, tgt_index, path);
   }
 };
 
-    /** Construye un camino mínimo desde un nodo a otro a partir de una
-        matriz de caminos calculada por el algoritmo de Floyd-Warshall.
-
-        Este procedimiento toma una matriz p que contiene los índices de
-        caminos mínimos calculados por el algoritmo de Floyd-Warshall,
-        dos enteros i y j en la matriz correspondientes a los índices del
-        nodo origen y destino respectivamente, y calcula el camino
-        mínimo en la representación con listas de adyacencia usada en el
-        algoritmo de Floyd-Warshall.
-
-        Este procedimiento está concebido para llamarse después de
-        ejecutar floyd_all_shortest_paths(), el cual calcula la matriz
-        p.
-
-        Resultados son completamente indeterminados si la matriz p es
-        inválida. 
-
-        Una versión sobrecargada de este método toma como parámetros
-        punteros a nodos, en lugar de índices sobre la matriz.
-
-        @param[in] p matriz de índices de caminos mínimos.
-        @param[in] src_idx índice del nodo origen dentro de la matriz de
-        caminos mínimos.
-        @param[in] tgt_idx índice del nodo destino dentro de la matriz de
-        caminos mínimos.
-        @param[out] path el camino mínimo en el grafo representado con
-        listas de adyacencia usado cuando se ejecutó
-        floyd_all_shortest_paths().
-        @throw bad_alloc si no hay suficiente memoria para construir el
-        camino. 
-        @see floyd_all_shortest_paths()
-        @ingroup Grafos
-     */
-    template <class Mat> void 
-find_min_path(Mat & p, const long & src_idx, const long & tgt_idx,
-              Path<typename Mat::Graph_Type> & path)
+/** @brief Build a minimum path from Floyd-Warshall path matrix using indices.
+ *
+ *  Takes a path matrix p computed by Floyd-Warshall algorithm and two
+ *  matrix indices (source and target), then constructs the minimum path
+ *  in the adjacency list representation.
+ *
+ *  This function should be called after floyd_all_shortest_paths() which
+ *  computes the path matrix p.
+ *
+ *  @warning Results are undefined if the matrix p is invalid.
+ *
+ *  An overloaded version takes node pointers instead of matrix indices.
+ *
+ *  @tparam Mat Matrix type from Map_Matrix_Graph.
+ *  @param[in] p Path index matrix from Floyd-Warshall.
+ *  @param[in] src_idx Source node index in the path matrix.
+ *  @param[in] tgt_idx Target node index in the path matrix.
+ *  @param[out] path The minimum path in the adjacency list graph.
+ *  @throw std::bad_alloc If insufficient memory to build the path.
+ *  @see floyd_all_shortest_paths()
+ *  @ingroup Grafos
+ */
+template <class Mat>
+void find_min_path(Mat & p, long src_idx, long tgt_idx,
+                   Path<typename Mat::Graph_Type> & path)
 {
-  typedef typename Mat::Graph_Type GT;
-  GT & g                  = p.get_list_graph();
+  using GT = typename Mat::Graph_Type;
+  GT & g = p.get_list_graph();
   typename GT::Node * src = p(src_idx);
   path.set_graph(g, src);
-  for (int i = src_idx, j; j != tgt_idx; i = j)
+  
+  for (long i = src_idx, j = p(i, tgt_idx); ; i = j, j = p(i, tgt_idx))
     {
-      j = p(i, tgt_idx);
       path.append(p(j));
+      if (j == tgt_idx)
+        break;
     }
 }
+
+} // end namespace Aleph
 
 # endif // MAT_PATH_H

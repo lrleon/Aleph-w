@@ -68,10 +68,10 @@ public:
    *  @param[in] sz Size of the buffer in bytes.
    *  @note The caller retains ownership of the buffer.
    */
-  AhArenaAllocator(char * base_addr, const size_t sz) noexcept
-    : _base_addr(base_addr),
-      _curr_addr(base_addr),
-      _end_addr(base_addr + sz)
+  AhArenaAllocator(const char * base_addr, const size_t sz) noexcept
+    : _base_addr(const_cast<char*>(base_addr)),
+      _curr_addr(_base_addr),
+      _end_addr(_base_addr + sz)
   {
     // empty
   }
@@ -216,6 +216,13 @@ template <class T>
 void deallocate(AhArenaAllocator & arena, T * ptr) noexcept
 {
   arena.dealloc<T>(AhArenaAllocator::TemplateType::TEMPLATE, ptr);
+}
+
+/// @brief Alias for deallocate (backward compatibility).
+template <class T>
+void dealloc(AhArenaAllocator & arena, T * ptr) noexcept
+{
+  deallocate<T>(arena, ptr);
 }
 
 } // end namespace Aleph
