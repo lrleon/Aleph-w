@@ -43,8 +43,6 @@
 # include <ah-errors.H>
 
 
-using namespace Aleph;
-
 namespace Aleph
 {
   /** @brief Arc info extension that stores capacity and flow values.
@@ -286,18 +284,18 @@ namespace Aleph
     }
 
     /// Return total incoming capacity of `node`.
-    Flow_Type get_in_cap(Node *node) const
+    [[nodiscard]] Flow_Type get_in_cap(Node *node) const noexcept
     {
-      Flow_Type sum = 0.0;
+      Flow_Type sum = Flow_Type{0};
       for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->cap;
       return sum;
     }
 
     /// Return total outgoing capacity of `node`.
-    Flow_Type get_out_cap(Node *node) const
+    [[nodiscard]] Flow_Type get_out_cap(Node *node) const noexcept
     {
-      Flow_Type sum = 0.0;
+      Flow_Type sum = Flow_Type{0};
       for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->cap;
       return sum;
@@ -316,18 +314,18 @@ namespace Aleph
     }
 
     /// Return total outgoing flow of `node`.
-    Flow_Type get_out_flow(Node *node) const
+    [[nodiscard]] Flow_Type get_out_flow(Node *node) const noexcept
     {
-      Flow_Type sum = 0;
+      Flow_Type sum = Flow_Type{0};
       for (_Out_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->flow;
       return sum;
     }
 
     /// Return total incoming flow of `node`.
-    Flow_Type get_in_flow(Node *node) const
+    [[nodiscard]] Flow_Type get_in_flow(Node *node) const noexcept
     {
-      Flow_Type sum = 0;
+      Flow_Type sum = Flow_Type{0};
       for (_In_Iterator<Net_Graph> it(node); it.has_curr(); it.next_ne())
         sum += it.get_curr()->flow;
       return sum;
@@ -499,9 +497,10 @@ namespace Aleph
         {
           make_super_sink();
         }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc &)
         {
           unmake_super_source();
+          throw;
         }
     }
 
@@ -896,6 +895,9 @@ namespace Aleph
 
   /** @brief Decrease flow along a semi-path by a given slack.
    *
+   * This reverses the effect of increase_flow by negating forward/residual
+   * arc directions.
+   *
    * @param[in,out] net Flow network to update.
    * @param[in] semi_path Semi-path arc list.
    * @param[in] slack Slack to apply (not validated).
@@ -903,10 +905,22 @@ namespace Aleph
    * @ingroup Redes
    */
   template <class Net>
-  void decrease_flow(Net & net, const DynList<Parc<Net>> & semi_path,
-                     typename Net::Flow_Type slack)
+  void decrease_flow(Net &, const DynList<Parc<Net>> & semi_path,
+                     const typename Net::Flow_Type slack)
   {
-    increase_flow(net, semi_path, slack);
+    // Decrease flow: reverse the direction logic from increase_flow
+    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
+         it.next_ne())
+      {
+        auto p = it.get_curr();
+        auto arc = get<0>(p);
+        if (get<1>(p)) // forward arc: decrease instead of increase
+          arc->flow -= slack;
+        else           // residual arc: increase instead of decrease
+          arc->flow += slack;
+
+        assert(arc->check_arc());
+      }
   }
 
 
@@ -969,19 +983,17 @@ namespace Aleph
               auto a = it.get_curr();
               if (remaining_flow<Net>(curr, a) < min_slack)
                 continue;
-              a->set_state(Processing);
 
               auto tgt = net.get_connected_node(a, curr);
               if (tgt->state() == Processed)
-                continue;
-
-              if (tgt->state() != Processed)
                 {
-                  q.put(a);
-                  tgt->set_state(Processing);
+                  a->set_state(Processed);
+                  continue;
                 }
-              else
-                a->set_state(Processed);
+
+              a->set_state(Processing);
+              q.put(a);
+              tgt->set_state(Processing);
             }
         } // end while
 
@@ -990,7 +1002,7 @@ namespace Aleph
 
     /// Build a Path from `start` to `end` with minimum slack.
     Path<Net> find(typename Net::Node *start, typename Net::Node *end,
-                   const typename Net::Flow_Type & min_slack = 0.0)
+                   const typename Net::Flow_Type & min_slack = typename Net::Flow_Type{0})
     {
       auto curr = search(start, end, min_slack);
 
@@ -1013,11 +1025,11 @@ namespace Aleph
     /// Build a SemiPath from `start` to `end` with minimum slack.
     SemiPath<Net> find_path(typename Net::Node *start,
                             typename Net::Node *end,
-                            typename Net::Flow_Type min_slack = 0.0)
+                            typename Net::Flow_Type min_slack = typename Net::Flow_Type{0})
     {
       auto t = search(start, end, min_slack);
       if (not t)
-        return make_tuple(false, 0, DynList<Parc<Net>>());
+        return make_tuple(false, typename Net::Flow_Type{0}, DynList<Parc<Net>>());
 
       assert(t == end);
 
@@ -1026,14 +1038,19 @@ namespace Aleph
       while (t != start)
         {
           auto s = static_cast<typename Net::Node *>(NODE_COOKIE(t));
-          auto arcs_of_t = net.arcs(t);
-          auto a_ptr = arcs_of_t.find_ptr([s, t](typename Net::Arc *a)
-                                            {
-                                              return ((a->src_node == s and a->tgt_node == t) or
-                                                      (a->src_node == t and a->tgt_node == s));
-                                            });
-          assert(a_ptr);
-          auto a = *a_ptr;
+          // Find arc connecting s and t directly via iterator (avoids creating DynList)
+          typename Net::Arc *a = nullptr;
+          for (Node_Arc_Iterator<Net> it(t); it.has_curr(); it.next_ne())
+            {
+              auto arc = it.get_curr();
+              if ((arc->src_node == s and arc->tgt_node == t) or
+                  (arc->src_node == t and arc->tgt_node == s))
+                {
+                  a = arc;
+                  break;
+                }
+            }
+          assert(a != nullptr);
           bool normal = a->tgt_node == t;
           auto slack = normal ? a->cap - a->flow : a->flow;
           m = std::min(m, slack);
@@ -1763,7 +1780,7 @@ namespace Aleph
         auto arc = it.get_curr();
         if (arc->flow == 0) // residual candidate
           if (vt.contains(net.get_src_node(arc)) and // vt -> vs
-              vs.contains(net.get_tgt_node(arc)) > 0)
+              vs.contains(net.get_tgt_node(arc)))
             {
               cutt.insert(arc);
               continue;
@@ -1771,7 +1788,7 @@ namespace Aleph
 
         if (arc->flow == arc->cap) // saturated candidate
           if (vs.contains(net.get_src_node(arc)) and // vs -> vt
-              vt.contains(net.get_tgt_node(arc)) > 0)
+              vt.contains(net.get_tgt_node(arc)))
             cuts.insert(arc);
       }
 
