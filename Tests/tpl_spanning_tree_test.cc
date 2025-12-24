@@ -396,6 +396,23 @@ using GraphTypes = ::testing::Types<
 
 TYPED_TEST_SUITE(SpanningTreeAllGraphs, GraphTypes);
 
+// Undirected graphs only - for tests that assume bidirectional traversal
+template <typename GraphType>
+class SpanningTreeUndirectedGraphs : public ::testing::Test
+{
+protected:
+  GraphType g;
+  GraphType tree;
+};
+
+using UndirectedGraphTypes = ::testing::Types<
+  ListGraph,
+  SparseGraph,
+  ArrayGraph
+>;
+
+TYPED_TEST_SUITE(SpanningTreeUndirectedGraphs, UndirectedGraphTypes);
+
 TYPED_TEST(SpanningTreeAllGraphs, DFSSingleNode)
 {
   using Graph = TypeParam;
@@ -518,7 +535,7 @@ TYPED_TEST(SpanningTreeAllGraphs, BFSNullptrThrows)
   EXPECT_THROW(bfs(g, nullptr, tree), std::invalid_argument);
 }
 
-TYPED_TEST(SpanningTreeAllGraphs, DFSLongerChain)
+TYPED_TEST(SpanningTreeUndirectedGraphs, DFSLongerChain)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -543,7 +560,7 @@ TYPED_TEST(SpanningTreeAllGraphs, DFSLongerChain)
   EXPECT_EQ(tree.get_num_arcs(), 4);
 }
 
-TYPED_TEST(SpanningTreeAllGraphs, BFSLongerChain)
+TYPED_TEST(SpanningTreeUndirectedGraphs, BFSLongerChain)
 {
   using Graph = TypeParam;
   Graph & g = this->g;

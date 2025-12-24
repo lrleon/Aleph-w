@@ -283,13 +283,13 @@ public:
    */
   [[nodiscard]] constexpr bool operator==(const StlZipIterator& other) const noexcept
   {
-    return !has_curr() && !other.has_curr();
+    return not has_curr() and not other.has_curr();
   }
 
   /** @brief Inequality comparison. */
   [[nodiscard]] constexpr bool operator!=(const StlZipIterator& other) const noexcept
   {
-    return !(*this == other);
+    return not (*this == other);
   }
 };
 
@@ -356,7 +356,7 @@ public:
    */
   [[nodiscard]] constexpr bool empty() const
   {
-    return !begin().has_curr();
+    return not begin().has_curr();
   }
 
   /** @brief Get number of tuples (minimum size of all containers).
@@ -460,7 +460,7 @@ template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_all(Pred&& pred, const Containers&... cs)
 {
   for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (not std::forward<Pred>(pred)(it.get_curr()))
       return false;
   return true;
 }
@@ -481,7 +481,7 @@ template <typename Pred, typename... Containers>
 {
   auto it = stl_zip_it(cs...);
   for (; it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (not std::forward<Pred>(pred)(it.get_curr()))
       return false;
   return it.completed();
 }
@@ -542,7 +542,7 @@ template <typename Pred, typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_none(Pred&& pred, const Containers&... cs)
 {
-  return !stl_zip_exists(std::forward<Pred>(pred), cs...);
+  return not stl_zip_exists(std::forward<Pred>(pred), cs...);
 }
 
 /**
@@ -813,7 +813,7 @@ template <typename... Containers>
   std::vector<TupleType> result;
   result.reserve(n);
   size_t count = 0;
-  for (auto it = stl_zip_it(cs...); it.has_curr() && count < n; it.next(), ++count)
+  for (auto it = stl_zip_it(cs...); it.has_curr() and count < n; it.next(), ++count)
     result.push_back(it.get_curr());
   return result;
 }
@@ -836,7 +836,7 @@ template <typename... Containers>
   auto it = stl_zip_it(cs...);
 
   // Skip first n
-  for (size_t i = 0; i < n && it.has_curr(); ++i)
+  for (size_t i = 0; i < n and it.has_curr(); ++i)
     it.next();
 
   // Collect rest
@@ -918,7 +918,7 @@ template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_traverse(Pred&& pred, const Containers&... cs)
 {
   for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (not std::forward<Pred>(pred)(it.get_curr()))
       return false;
   return true;
 }
@@ -937,7 +937,7 @@ template <typename Pred, typename... Containers>
 {
   auto it = stl_zip_it(cs...);
   for (; it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (not std::forward<Pred>(pred)(it.get_curr()))
       return false;
   return it.completed();
 }
@@ -952,7 +952,7 @@ namespace stl_zip_detail
   template <typename Cmp, typename Tuple, size_t... Is>
   bool compare_adjacent_impl(Cmp& cmp, const Tuple& t, std::index_sequence<Is...>)
   {
-    return (... && cmp(std::get<Is>(t), std::get<Is + 1>(t)));
+    return (... and cmp(std::get<Is>(t), std::get<Is + 1>(t)));
   }
 }
 
@@ -988,8 +988,7 @@ template <typename Cmp, typename... Containers>
 
   for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
     {
-      auto t = it.get_curr();
-      if (!stl_zip_detail::compare_adjacent_impl(cmp, t, std::make_index_sequence<N - 1>{}))
+      if (auto t = it.get_curr(); not stl_zip_detail::compare_adjacent_impl(cmp, t, std::make_index_sequence<N - 1>{}))
         return false;
     }
   return true;
@@ -1043,12 +1042,12 @@ public:
 
   [[nodiscard]] constexpr bool operator==(const StlEnumerateIterator& other) const noexcept
   {
-    return !has_curr() && !other.has_curr();
+    return not has_curr() and not other.has_curr();
   }
 
   [[nodiscard]] constexpr bool operator!=(const StlEnumerateIterator& other) const noexcept
   {
-    return !(*this == other);
+    return not (*this == other);
   }
 };
 
@@ -1141,7 +1140,7 @@ template <typename Pred, typename... Containers>
   for (auto it = stl_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (!std::forward<Pred>(pred)(t))
+      if (not std::forward<Pred>(pred)(t))
         break;
       result.push_back(t);
     }
@@ -1169,7 +1168,7 @@ template <typename Pred, typename... Containers>
   auto it = stl_zip_it(cs...);
 
   // Skip while pred is true
-  for (; it.has_curr() && std::forward<Pred>(pred)(it.get_curr()); it.next())
+  for (; it.has_curr() and std::forward<Pred>(pred)(it.get_curr()); it.next())
     /* skip */;
 
   // Collect the rest
@@ -1457,7 +1456,7 @@ template <typename Pred, typename Container>
 
   for (; it != c.end(); ++it)
     {
-      if (!std::forward<Pred>(pred)(prev, *it))
+      if (not std::forward<Pred>(pred)(prev, *it))
         return false;
       prev = *it;
     }
@@ -1651,7 +1650,7 @@ template <typename Eq, typename... Containers>
 {
   auto it = stl_zip_it(cs...);
   for (; it.has_curr(); it.next())
-    if (!std::forward<Eq>(eq)(it.get_curr()))
+    if (not std::forward<Eq>(eq)(it.get_curr()))
       return false;
   return it.completed();
 }
@@ -1674,7 +1673,7 @@ template <typename... Containers1, typename... Containers2>
   auto it1 = std::apply([](const auto&... cs) { return stl_zip_it(cs...); }, cs1);
   auto it2 = std::apply([](const auto&... cs) { return stl_zip_it(cs...); }, cs2);
 
-  while (it1.has_curr() && it2.has_curr())
+  while (it1.has_curr() and it2.has_curr())
     {
       auto t1 = it1.get_curr();
       auto t2 = it2.get_curr();
@@ -1746,7 +1745,7 @@ template <typename... Containers>
   using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
 
   auto it = stl_zip_it(cs...);
-  if (!it.has_curr())
+  if (not it.has_curr())
     return std::optional<TupleType>{};
 
   TupleType min_val = it.get_curr();
@@ -1775,7 +1774,7 @@ template <typename... Containers>
   using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
 
   auto it = stl_zip_it(cs...);
-  if (!it.has_curr())
+  if (not it.has_curr())
     return std::optional<TupleType>{};
 
   TupleType max_val = it.get_curr();
@@ -1805,7 +1804,7 @@ template <typename... Containers>
   using ResultType = std::optional<std::pair<TupleType, TupleType>>;
 
   auto it = stl_zip_it(cs...);
-  if (!it.has_curr())
+  if (not it.has_curr())
     return ResultType{};
 
   TupleType min_val = it.get_curr();
@@ -1837,7 +1836,7 @@ template <typename... Containers>
   using TupleType = typename StlZipIterator<std::decay_t<Containers>...>::value_type;
 
   auto it = stl_zip_it(cs...);
-  if (!it.has_curr())
+  if (not it.has_curr())
     return std::optional<TupleType>{};
 
   TupleType sum = it.get_curr();
