@@ -28,9 +28,9 @@
 
 # include <cmath>
 # include <limits>
+# include <vector>
 # include <htlist.H>
 # include <tpl_sgraph.H>
-# include <tpl_dynSetTree.H>
 # include <generate_graph.H>
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
@@ -84,6 +84,51 @@ namespace Aleph
     using Node = typename GT::Node;
     using Arc = typename GT::Arc;
 
+    /// Arc index with O(1) operations and deterministic ordering.
+    /// Uses arc counter to store position for O(1) swap-remove.
+    /// This ensures reproducible results with the same random seed.
+    class ArcIndex
+    {
+      std::vector<Karc*> arcs;
+
+    public:
+      void insert(Karc* a)
+      {
+        ARC_COUNTER(a) = static_cast<long>(arcs.size());
+        arcs.push_back(a);
+      }
+
+      Karc* select(size_t i) const
+      {
+        assert(i < arcs.size());
+        return arcs[i];
+      }
+
+      void remove(Karc* a)
+      {
+        long raw_idx = ARC_COUNTER(a);
+        if (raw_idx < 0)  // Already removed (parallel arc processed twice)
+          return;
+
+        size_t idx = static_cast<size_t>(raw_idx);
+        assert(idx < arcs.size());
+        assert(arcs[idx] == a);
+        if (idx < arcs.size() - 1)
+          {
+            arcs[idx] = arcs.back();
+            ARC_COUNTER(arcs[idx]) = static_cast<long>(idx);
+          }
+        arcs.pop_back();
+        ARC_COUNTER(a) = -1;  // Mark as removed
+      }
+
+      void empty() { arcs.clear(); }
+
+      size_t size() const { return arcs.size(); }
+
+      void swap(ArcIndex& other) { arcs.swap(other.arcs); }
+    };
+
     unsigned long seed;
     gsl_rng *r;
     SA sa;
@@ -92,8 +137,8 @@ namespace Aleph
     /// Each node in kg contains a list of original nodes it represents.
     /// @param[in] g The original graph.
     /// @param[out] kg The contracted graph (cleared and rebuilt).
-    /// @param[out] arcs Index of arcs for O(log n) random selection.
-    void build_kgraph(GT & g, Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    /// @param[out] arcs Index of arcs for O(1) random selection.
+    void build_kgraph(GT & g, Kgraph & kg, ArcIndex & arcs)
     {
       clear_graph(kg);
       arcs.empty();
@@ -128,7 +173,7 @@ namespace Aleph
     /// @param[in] cp New contracted node that replaces p and t.
     /// @param[in,out] arcs Index of arcs (updated to reflect changes).
     void update_arcs(Kgraph & kg, Knode *p, Knode *t, Knode *cp,
-                     DynSetTreapRk<Karc *> & arcs)
+                     ArcIndex & arcs)
     {
       for (typename Kgraph::Node_Arc_Iterator it(p); it.has_curr(); it.next_ne())
         {
@@ -146,7 +191,7 @@ namespace Aleph
 
     /// Rebuild the arc index from scratch for the given graph.
     /// Used after copying a graph to ensure pointers point to the copy's arcs.
-    void rebuild_arc_index(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    void rebuild_arc_index(Kgraph & kg, ArcIndex & arcs)
     {
       arcs.empty();
       for (typename Kgraph::Arc_Iterator it(kg); it.has_curr(); it.next_ne())
@@ -160,13 +205,15 @@ namespace Aleph
     /// 3. Removes self-loops created by the contraction
     /// @param[in,out] kg The graph to contract.
     /// @param[in] left_num_nodes Stop when this many nodes remain.
-    /// @param[in,out] arcs Index of arcs for O(log n) random selection.
+    /// @param[in,out] arcs Index of arcs for O(1) random selection.
     void contract(Kgraph & kg, size_t left_num_nodes,
-                  DynSetTreapRk<Karc *> & arcs)
+                  ArcIndex & arcs)
     {
       while (kg.get_num_nodes() > left_num_nodes)
         { // randomly select an arc from kg
-          auto num_arc = gsl_rng_uniform_int(r, kg.get_num_arcs());
+          assert(arcs.size() == kg.get_num_arcs() &&
+                 "Arc index and graph arc count must be in sync");
+          auto num_arc = gsl_rng_uniform_int(r, arcs.size());
           auto a = arcs.select(num_arc); // arc to remove
           auto s = kg.get_src_node(a); // nodes to "contract"
           auto t = kg.get_tgt_node(a);
@@ -209,7 +256,7 @@ namespace Aleph
       auto min_cut = std::numeric_limits<size_t>::max();
 
       Kgraph kg;
-      DynSetTreapRk<Karc *> arcs; // reused across iterations
+      ArcIndex arcs; // reused across iterations
 
       for (size_t i = 0; i < num_iter; ++i)
         {
@@ -266,7 +313,7 @@ namespace Aleph
 
     /// Karger-Stein fast minimum cut algorithm (recursive version).
     /// Time complexity: O(n^2 log^3 n)
-    size_t __fast_karger_min_cut(Kgraph & kg, DynSetTreapRk<Karc *> & arcs)
+    size_t __fast_karger_min_cut(Kgraph & kg, ArcIndex & arcs)
     {
       const size_t n = kg.get_num_nodes();
 
@@ -282,14 +329,14 @@ namespace Aleph
 
       // Branch 1: copy graph and rebuild arc index for the copy
       Kgraph h1(kg);
-      DynSetTreapRk<Karc *> arcs1;
+      ArcIndex arcs1;
       rebuild_arc_index(h1, arcs1);
       contract(h1, t, arcs1);
       const size_t cut1 = __fast_karger_min_cut(h1, arcs1);
 
       // Branch 2: copy graph and rebuild arc index for the copy
       Kgraph h2(kg);
-      DynSetTreapRk<Karc *> arcs2;
+      ArcIndex arcs2;
       rebuild_arc_index(h2, arcs2);
       contract(h2, t, arcs2);
       const size_t cut2 = __fast_karger_min_cut(h2, arcs2);
@@ -396,7 +443,7 @@ namespace Aleph
       size_t min_cut = std::numeric_limits<size_t>::max();
 
       Kgraph kg;
-      DynSetTreapRk<Karc *> arcs;
+      ArcIndex arcs;
 
       for (size_t i = 0; i < num_iter; ++i)
         {
@@ -500,7 +547,7 @@ namespace Aleph
       for (size_t i = 0; i < num_iter; ++i)
         {
           Kgraph kg;
-          DynSetTreapRk<Karc *> arcs;
+          ArcIndex arcs;
           build_kgraph(g, kg, arcs);
 
           const size_t current_cut = __fast_karger_min_cut(kg, arcs);

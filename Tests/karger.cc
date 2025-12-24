@@ -914,6 +914,9 @@ TEST(KargerReseed, reseed_changes_behavior)
 
 TEST(KargerReseed, reseed_allows_reproducibility)
 {
+  // The algorithm now uses a deterministic arc index (vector-based with
+  // insertion order), so same seed should produce identical results.
+
   auto g = create_barbell();
 
   Karger_Min_Cut<Grafo> karger1(999);
@@ -921,6 +924,7 @@ TEST(KargerReseed, reseed_allows_reproducibility)
 
   // Reseed karger2 to same seed as karger1
   karger2.reseed(999);
+  EXPECT_EQ(karger1.get_seed(), karger2.get_seed());
 
   DynList<Node*> vs1, vt1, vs2, vt2;
   DynList<Arc*> cut1, cut2;
@@ -928,7 +932,11 @@ TEST(KargerReseed, reseed_allows_reproducibility)
   size_t result1 = karger1(g, vs1, vt1, cut1, 10);
   size_t result2 = karger2(g, vs2, vt2, cut2, 10);
 
+  // With same seed and deterministic ordering, results must be identical
   EXPECT_EQ(result1, result2);
+  EXPECT_EQ(cut1.size(), cut2.size());
+  EXPECT_EQ(vs1.size(), vs2.size());
+  EXPECT_EQ(vt1.size(), vt2.size());
 }
 
 TEST(KargerSizeOnly, compute_min_cut_size_works)

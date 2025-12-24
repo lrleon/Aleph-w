@@ -80,6 +80,9 @@ TEST_F(PrefixTreeTest, MarkEndWord)
   
   node.mark_end_word();
   EXPECT_TRUE(node.is_end_word());
+  
+  // Clean up the '$' child created by mark_end_word
+  node.destroy();
 }
 
 //==============================================================================
@@ -93,7 +96,7 @@ TEST_F(PrefixTreeTest, SearchChildNotFound)
 
 TEST_F(PrefixTreeTest, InsertAndSearchChild)
 {
-  Cnode * child = new Cnode('a');
+  auto * child = new Cnode('a');
   root->insert_child(child);
   
   EXPECT_EQ(root->search_child('a'), child);
