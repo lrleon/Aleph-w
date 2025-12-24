@@ -268,7 +268,7 @@ TEST(StringUtils, format_string_no_underflow)
   mat.append(r2);
 
   DynList<size_t> lens; lens.append(2); lens.append(1);
-  auto formatted = format_string(lens, mat);
+  auto formatted = Aleph::format_string(lens, mat);
   ASSERT_EQ(formatted.size(), 2u);
   ASSERT_EQ(formatted.nth(0).size(), 2u);
 }
@@ -344,7 +344,7 @@ TEST(StringUtils, format_string_computed_lens)
   mat.append(r1);
   mat.append(r2);
 
-  auto formatted = format_string(mat);
+  auto formatted = Aleph::format_string(mat);
   ASSERT_EQ(formatted.size(), 2u);
   ASSERT_EQ(formatted.nth(0).size(), 2u);
   ASSERT_EQ(formatted.nth(1).size(), 2u);

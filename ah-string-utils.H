@@ -109,11 +109,11 @@ namespace Aleph
   */
   inline void ltrim(string & s)
   {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-                                    [](const unsigned char ch)
-                                      {
-                                        return not std::isspace(ch);
-                                      }));
+    s.erase(s.begin(), ranges::find_if(s,
+                                       [](const unsigned char ch)
+                                         {
+                                           return not std::isspace(ch);
+                                         }));
   }
 
   // trim from end
@@ -207,7 +207,7 @@ namespace Aleph
       \param[in] d Value to format.
       \return String representation.
   */
-  inline string to_str(double d)
+  inline string to_str(const double d)
   {
     return to_string(d, numeric_limits<double>::max_digits10);
   }
@@ -484,12 +484,12 @@ namespace Aleph
   inline long safe_atol(const string & s)
   {
     errno = 0;
-    char * endptr = nullptr;
+    char *endptr = nullptr;
     const auto val = std::strtol(s.c_str(), &endptr, 10);
     const bool invalid =
-      (errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
-      (errno != 0 && val == 0) ||
-      (endptr == s.c_str());
+        (errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
+        (errno != 0 && val == 0) ||
+        (endptr == s.c_str());
 
     ah_runtime_error_if(invalid) << "invalid string for long: " << s;
     return val;
@@ -504,12 +504,12 @@ namespace Aleph
   inline double safe_atof(const string & s)
   {
     errno = 0;
-    char * endptr = nullptr;
+    char *endptr = nullptr;
     const auto val = std::strtod(s.c_str(), &endptr);
     const bool invalid =
-      (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
-      (errno != 0 && val == 0) ||
-      endptr == s.c_str();
+        (errno == ERANGE and (val == HUGE_VAL or val == HUGE_VALF or val == HUGE_VALL)) ||
+        (errno != 0 && val == 0) ||
+        endptr == s.c_str();
 
     ah_runtime_error_if(invalid) << "invalid string for double: " << s;
     return val;
@@ -701,7 +701,7 @@ namespace Aleph
     const auto str = data.data();
 
     for (char *token = strtok_r(str, d, p); token;
-         token = strtok_r(NULL, d, p))
+         token = strtok_r(nullptr, d, p))
       elems.append(token);
 
     return elems;
@@ -878,13 +878,13 @@ namespace Aleph
   {
     return mat.maps<DynList<string>>([&lens](const DynList<string> & l)
                                        {
-                                         return zip(lens, l).template maps<string>([](const auto& p)
-                                           {
-                                             const string blanks(p.first > p.second.size() ?
-                                                                   p.first - p.second.size() :
-                                                                   0, ' ');
-                                             return blanks + p.second + " ";
-                                           });
+                                         return zip(lens, l).template maps<string>([](const auto & p)
+                                              {
+                                                const string blanks(p.first > p.second.size() ?
+                                                                      p.first - p.second.size() :
+                                                                      0, ' ');
+                                                return blanks + p.second + " ";
+                                              });
                                        });
   }
 
@@ -902,7 +902,7 @@ namespace Aleph
       {
         const auto & row = it.get_curr();
         auto line = zip(lens, row).
-            template maps<string>([](const auto& p)
+            template maps<string>([](const auto & p)
                                     {
                                       const string blanks(p.first > p.second.size() ?
                                                             p.first - p.second.size() :
@@ -936,7 +936,7 @@ namespace Aleph
                             const DynList<string> & l)
                     {
                       return zip(acu, l).
-                          maps<size_t>([](const auto& p)
+                          maps<size_t>([](const auto & p)
                                          {
                                            return max(p.first, p.second.size());
                                          });
