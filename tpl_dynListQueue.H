@@ -108,7 +108,7 @@ public:
   /// Return the number of elements
   size_t size() const noexcept { return num_items; }
 
-  /// rioReturn `true` if `this` is empty
+  /// Return `true` if `this` is empty
   bool is_empty() const noexcept { return q.is_empty(); }
 
   using Set_Type = DynListQueue; /// The type of set
@@ -154,8 +154,29 @@ public:
 
   T & insert(T && data)
   {
-    return put(std::forward<T>(data)); 
+    return put(std::forward<T>(data));
   }
+
+  /** Construct an item in place at the rear of the queue.
+
+      Constructs the item using the provided arguments and moves it
+      into the queue.
+
+      @param[in] args arguments to forward to the constructor of T
+      @return a modifiable reference to the newly constructed item
+      @throw bad_alloc if there is no enough memory
+   */
+  template <typename... Args>
+  T & emplace(Args&&... args)
+  {
+    return put(T(std::forward<Args>(args)...));
+  }
+
+  /// Alias for get() - removes and returns the front item
+  T pop() { return get(); }
+
+  /// Alias for empty() - clears all items from the queue
+  void clear() noexcept { empty(); }
 
       /** Remove the oldest item of the queue.
 
@@ -169,14 +190,42 @@ public:
     return ret_val;
   }
  
-  /// Return a modifiable reference to the oldest item in the queue
-  T & front() const
+  /** Return a modifiable reference to the oldest item in the queue.
+
+      @return a modifiable reference to the front item
+      @throw underflow_error if the queue is empty
+   */
+  T & front()
   {
     return q.get_first();
   }
 
-  /// Return a modifiable reference to the youngest item in the queue
-  T & rear() const 
+  /** Return a const reference to the oldest item in the queue.
+
+      @return a const reference to the front item
+      @throw underflow_error if the queue is empty
+   */
+  const T & front() const
+  {
+    return q.get_first();
+  }
+
+  /** Return a modifiable reference to the youngest item in the queue.
+
+      @return a modifiable reference to the rear item
+      @throw underflow_error if the queue is empty
+   */
+  T & rear()
+  {
+    return q.get_last();
+  }
+
+  /** Return a const reference to the youngest item in the queue.
+
+      @return a const reference to the rear item
+      @throw underflow_error if the queue is empty
+   */
+  const T & rear() const
   {
     return q.get_last();
   } 
@@ -189,8 +238,8 @@ public:
     assert(q.is_empty());
   }
 
-  /** Traverse all the elements from the youngest to the oldest and execute
-      `operation` on each on them.
+  /** Traverse all the elements from the oldest (front) to the youngest (rear)
+      and execute `operation` on each of them.
 
       @param[in] operation to be performed on each element
       @return `true` if `operation` was executed on all elements;
@@ -223,9 +272,31 @@ public:
     return q.traverse(std::forward<Operation>(operation));
   }
 
+  /** Search for an item in the queue using equality comparison.
+
+      This method is required by EqualToMethod mixin.
+      Performs a linear search O(n) from front to rear.
+
+      @param[in] key the value to search for
+      @return pointer to the item if found, nullptr otherwise
+   */
+  T * search(const T & key) noexcept
+  {
+    return this->find_ptr([&key](const T & item) { return item == key; });
+  }
+
+  /// \overload search(const T & key)
+  const T * search(const T & key) const noexcept
+  {
+    return const_cast<DynListQueue*>(this)->search(key);
+  }
+
+  /// Key_Type is required by EqualToMethod mixin
+  using Key_Type = T;
+
   /** Iterator on elements of a queue.
 
-      The visit order is from the youngest to the oldest item
+      The visit order is from the oldest (front) to the youngest (rear) item.
 
       @ingroup Secuencias
   */

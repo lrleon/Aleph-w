@@ -30,6 +30,8 @@
 # include <cstdlib>
 # include <cassert>
 # include <cmath>
+# include <cstdint>
+# include <cstring>
 # include <memory>
 # include <limits>
 # include <cxxabi.h>
@@ -448,12 +450,32 @@ namespace Aleph
 
   inline bool is_normal_number(const double n)
   {
-    // First, reject all non-finite values (NaN and infinities) in a
-    // way that is robust across libm/stdlib implementations.
+    if (std::numeric_limits<double>::is_iec559 &&
+        sizeof(double) == sizeof(std::uint64_t))
+      {
+        // IEEE-754 bit inspection avoids fast-math assuming finiteness.
+        std::uint64_t bits = 0;
+        std::memcpy(&bits, &n, sizeof(bits));
+
+        const std::uint64_t exp_mask = 0x7ff0000000000000ULL;
+        const std::uint64_t frac_mask = 0x000fffffffffffffULL;
+
+        const std::uint64_t exp = bits & exp_mask;
+        const std::uint64_t frac = bits & frac_mask;
+
+        if (exp == exp_mask)
+          return false;
+
+        if (exp == 0)
+          return frac == 0;
+
+        return true;
+      }
+
     if (not std::isfinite(n))
       return false;
 
-    int status = std::fpclassify(n);
+    const int status = std::fpclassify(n);
     return (status == FP_NORMAL or status == FP_ZERO);
   }
 }
