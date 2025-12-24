@@ -384,6 +384,23 @@ using GraphTypes = ::testing::Types<
 
 TYPED_TEST_SUITE(ComponentsAllGraphs, GraphTypes);
 
+// Undirected graphs only - for connectivity tests
+// (Inconnected_Components is designed for undirected graphs)
+template <typename GraphType>
+class ComponentsUndirectedGraphs : public ::testing::Test
+{
+protected:
+  GraphType g;
+};
+
+using UndirectedGraphTypes = ::testing::Types<
+  ListGraph,
+  SparseGraph,
+  ArrayGraph
+>;
+
+TYPED_TEST_SUITE(ComponentsUndirectedGraphs, UndirectedGraphTypes);
+
 TYPED_TEST(ComponentsAllGraphs, BuildSubgraphSingleNode)
 {
   using Graph = TypeParam;
@@ -436,7 +453,7 @@ TYPED_TEST(ComponentsAllGraphs, BuildSubgraphNullptrThrows)
   EXPECT_THROW(builder(g, sg, nullptr), std::invalid_argument);
 }
 
-TYPED_TEST(ComponentsAllGraphs, SingleComponent)
+TYPED_TEST(ComponentsUndirectedGraphs, SingleComponent)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -454,7 +471,7 @@ TYPED_TEST(ComponentsAllGraphs, SingleComponent)
   EXPECT_EQ(components.size(), 1);
 }
 
-TYPED_TEST(ComponentsAllGraphs, TwoComponents)
+TYPED_TEST(ComponentsUndirectedGraphs, TwoComponents)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -474,7 +491,7 @@ TYPED_TEST(ComponentsAllGraphs, TwoComponents)
   EXPECT_EQ(components.size(), 2);
 }
 
-TYPED_TEST(ComponentsAllGraphs, CountComponents)
+TYPED_TEST(ComponentsUndirectedGraphs, CountComponents)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -488,7 +505,7 @@ TYPED_TEST(ComponentsAllGraphs, CountComponents)
   EXPECT_EQ(cc.count_components(g), 3);
 }
 
-TYPED_TEST(ComponentsAllGraphs, IsConnectedTrue)
+TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedTrue)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -502,7 +519,7 @@ TYPED_TEST(ComponentsAllGraphs, IsConnectedTrue)
   EXPECT_TRUE(cc.is_connected(g));
 }
 
-TYPED_TEST(ComponentsAllGraphs, IsConnectedFalse)
+TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedFalse)
 {
   using Graph = TypeParam;
   Graph & g = this->g;
@@ -518,7 +535,7 @@ TYPED_TEST(ComponentsAllGraphs, IsConnectedFalse)
   EXPECT_FALSE(cc.is_connected(g));
 }
 
-TYPED_TEST(ComponentsAllGraphs, EmptyGraphIsConnected)
+TYPED_TEST(ComponentsUndirectedGraphs, EmptyGraphIsConnected)
 {
   using Graph = TypeParam;
   Graph & g = this->g;

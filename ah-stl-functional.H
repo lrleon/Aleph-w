@@ -1477,6 +1477,590 @@ template <typename Key, typename Container>
   return result;
 }
 
+// ============================================================================
+// Combinatorics: Permutations, Combinations, Arrangements
+// ============================================================================
+
+namespace stl_comb_detail
+{
+
+template <typename T, typename Op>
+bool permutations_impl(std::vector<T>& arr, size_t start, Op&& op)
+{
+  if (start >= arr.size())
+    return std::forward<Op>(op)(arr);
+
+  for (size_t i = start; i < arr.size(); ++i)
+    {
+      std::swap(arr[start], arr[i]);
+      if (!permutations_impl(arr, start + 1, std::forward<Op>(op)))
+        {
+          std::swap(arr[start], arr[i]);
+          return false;
+        }
+      std::swap(arr[start], arr[i]);
+    }
+  return true;
+}
+
+template <typename T, typename Op>
+bool combinations_impl(const std::vector<T>& arr, size_t k, size_t start,
+                       std::vector<T>& current, Op&& op)
+{
+  if (current.size() == k)
+    return std::forward<Op>(op)(current);
+
+  for (size_t i = start; i <= arr.size() - (k - current.size()); ++i)
+    {
+      current.push_back(arr[i]);
+      if (!combinations_impl(arr, k, i + 1, current, std::forward<Op>(op)))
+        {
+          current.pop_back();
+          return false;
+        }
+      current.pop_back();
+    }
+  return true;
+}
+
+template <typename T, typename Op>
+bool arrangements_impl(const std::vector<T>& arr, size_t k,
+                       std::vector<T>& current, std::vector<bool>& used, Op&& op)
+{
+  if (current.size() == k)
+    return std::forward<Op>(op)(current);
+
+  for (size_t i = 0; i < arr.size(); ++i)
+    {
+      if (used[i]) continue;
+      used[i] = true;
+      current.push_back(arr[i]);
+      if (!arrangements_impl(arr, k, current, used, std::forward<Op>(op)))
+        {
+          current.pop_back();
+          used[i] = false;
+          return false;
+        }
+      current.pop_back();
+      used[i] = false;
+    }
+  return true;
+}
+
+} // namespace stl_comb_detail
+
+/**
+ * @brief Traverse all permutations of a container.
+ *
+ * Generates all n! permutations (orderings) of the elements.
+ * The operation can return false to stop early.
+ *
+ * @param op Callable `(const std::vector<T>&) -> bool`. Return false to stop.
+ * @param c Container.
+ * @return `true` if all permutations were visited, `false` if stopped early.
+ *
+ * @par Example:
+ * @code
+ * stl_traverse_permutations([](const auto& p) {
+ *   for (int x : p) std::cout << x << " ";
+ *   std::cout << "\n";
+ *   return true;
+ * }, std::vector<int>{1, 2, 3});
+ * // Output: all 6 permutations
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename Op, typename Container>
+bool stl_traverse_permutations(Op&& op, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> arr(c.begin(), c.end());
+  return stl_comb_detail::permutations_impl(arr, 0, std::forward<Op>(op));
+}
+
+/**
+ * @brief Generate all permutations of a container.
+ *
+ * @param c Container.
+ * @return Vector of vectors, each containing one permutation.
+ *
+ * @note For n elements, generates n! permutations. Use with care for large n.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_permutations(const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::vector<T>> result;
+  
+  stl_traverse_permutations([&result](const std::vector<T>& p) {
+    result.push_back(p);
+    return true;
+  }, c);
+  
+  return result;
+}
+
+/**
+ * @brief Traverse all k-combinations of a container.
+ *
+ * Generates all C(n,k) ways to choose k elements from n, without regard to order.
+ * The operation can return false to stop early.
+ *
+ * @param k Number of elements to choose.
+ * @param op Callable `(const std::vector<T>&) -> bool`. Return false to stop.
+ * @param c Container.
+ * @return `true` if all combinations were visited, `false` if stopped early.
+ *
+ * @par Example:
+ * @code
+ * stl_traverse_combinations(2, [](const auto& combo) {
+ *   for (int x : combo) std::cout << x << " ";
+ *   std::cout << "\n";
+ *   return true;
+ * }, std::vector<int>{1, 2, 3, 4});
+ * // Output: {1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename Op, typename Container>
+bool stl_traverse_combinations(size_t k, Op&& op, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> arr(c.begin(), c.end());
+  
+  if (k > arr.size())
+    return true;
+  
+  std::vector<T> current;
+  current.reserve(k);
+  return stl_comb_detail::combinations_impl(arr, k, 0, current, std::forward<Op>(op));
+}
+
+/**
+ * @brief Generate all k-combinations of a container.
+ *
+ * @param k Number of elements to choose.
+ * @param c Container.
+ * @return Vector of vectors, each containing one combination.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_combinations(size_t k, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::vector<T>> result;
+  
+  stl_traverse_combinations(k, [&result](const std::vector<T>& combo) {
+    result.push_back(combo);
+    return true;
+  }, c);
+  
+  return result;
+}
+
+/**
+ * @brief Traverse all k-arrangements (k-permutations) of a container.
+ *
+ * Generates all P(n,k) = n!/(n-k)! ways to choose k elements from n WITH order.
+ * The operation can return false to stop early.
+ *
+ * @param k Number of elements to choose.
+ * @param op Callable `(const std::vector<T>&) -> bool`. Return false to stop.
+ * @param c Container.
+ * @return `true` if all arrangements were visited, `false` if stopped early.
+ *
+ * @par Example:
+ * @code
+ * stl_traverse_arrangements(2, [](const auto& arr) {
+ *   for (int x : arr) std::cout << x << " ";
+ *   std::cout << "\n";
+ *   return true;
+ * }, std::vector<int>{1, 2, 3});
+ * // Output: {1,2}, {1,3}, {2,1}, {2,3}, {3,1}, {3,2}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename Op, typename Container>
+bool stl_traverse_arrangements(size_t k, Op&& op, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> arr(c.begin(), c.end());
+  
+  if (k > arr.size())
+    return true;
+  
+  std::vector<T> current;
+  current.reserve(k);
+  std::vector<bool> used(arr.size(), false);
+  return stl_comb_detail::arrangements_impl(arr, k, current, used, std::forward<Op>(op));
+}
+
+/**
+ * @brief Generate all k-arrangements (k-permutations) of a container.
+ *
+ * @param k Number of elements to choose.
+ * @param c Container.
+ * @return Vector of vectors, each containing one arrangement.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_arrangements(size_t k, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::vector<T>> result;
+  
+  stl_traverse_arrangements(k, [&result](const std::vector<T>& arr) {
+    result.push_back(arr);
+    return true;
+  }, c);
+  
+  return result;
+}
+
+/**
+ * @brief Generate cartesian product of multiple containers.
+ *
+ * @param containers Vector of containers.
+ * @return Vector of vectors, each containing one tuple from the product.
+ *
+ * @par Example:
+ * @code
+ * std::vector<std::vector<int>> sets = {{1, 2}, {3, 4}};
+ * auto product = stl_cartesian_product(sets);
+ * // Result: {{1,3}, {1,4}, {2,3}, {2,4}}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename T>
+[[nodiscard]] auto stl_cartesian_product(const std::vector<std::vector<T>>& containers)
+{
+  std::vector<std::vector<T>> result;
+  
+  if (containers.empty())
+    return result;
+  
+  // Start with first container
+  for (const auto& elem : containers[0])
+    result.push_back({elem});
+  
+  // Extend with each subsequent container
+  for (size_t i = 1; i < containers.size(); ++i)
+    {
+      std::vector<std::vector<T>> new_result;
+      for (const auto& partial : result)
+        for (const auto& elem : containers[i])
+          {
+            auto extended = partial;
+            extended.push_back(elem);
+            new_result.push_back(std::move(extended));
+          }
+      result = std::move(new_result);
+    }
+  
+  return result;
+}
+
+/**
+ * @brief Generate power set (all subsets) of a container.
+ *
+ * @param c Container.
+ * @return Vector of vectors containing all 2^n subsets.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_power_set(const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> arr(c.begin(), c.end());
+  std::vector<std::vector<T>> result;
+  
+  size_t n = arr.size();
+  size_t total = 1ULL << n;  // 2^n
+  
+  for (size_t mask = 0; mask < total; ++mask)
+    {
+      std::vector<T> subset;
+      for (size_t i = 0; i < n; ++i)
+        if (mask & (1ULL << i))
+          subset.push_back(arr[i]);
+      result.push_back(std::move(subset));
+    }
+  
+  return result;
+}
+
+// ============================================================================
+// Additional Ruby/ML-style Operations
+// ============================================================================
+
+/**
+ * @brief Sliding window of size n over container (each_cons in Ruby).
+ *
+ * @param n Window size.
+ * @param c Container.
+ * @return Vector of vectors, each containing n consecutive elements.
+ *
+ * @par Example:
+ * @code
+ * auto windows = stl_sliding_window(3, {1, 2, 3, 4, 5});
+ * // Result: {{1,2,3}, {2,3,4}, {3,4,5}}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_sliding_window(size_t n, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::vector<T>> result;
+  
+  if (n == 0) return result;
+  
+  std::vector<T> arr(c.begin(), c.end());
+  if (arr.size() < n) return result;
+  
+  for (size_t i = 0; i <= arr.size() - n; ++i)
+    result.emplace_back(arr.begin() + i, arr.begin() + i + n);
+  
+  return result;
+}
+
+/**
+ * @brief Split container into chunks of size n (each_slice in Ruby).
+ *
+ * @param n Chunk size.
+ * @param c Container.
+ * @return Vector of vectors, each containing up to n elements.
+ *
+ * @par Example:
+ * @code
+ * auto chunks = stl_chunks(2, {1, 2, 3, 4, 5});
+ * // Result: {{1,2}, {3,4}, {5}}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_chunks(size_t n, const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::vector<T>> result;
+  
+  if (n == 0) return result;
+  
+  std::vector<T> arr(c.begin(), c.end());
+  
+  for (size_t i = 0; i < arr.size(); i += n)
+    {
+      size_t end = std::min(i + n, arr.size());
+      result.emplace_back(arr.begin() + i, arr.begin() + end);
+    }
+  
+  return result;
+}
+
+/**
+ * @brief Insert element between each pair (intersperse in Haskell).
+ *
+ * @param sep Separator element.
+ * @param c Container.
+ * @return Vector with separator inserted between elements.
+ *
+ * @par Example:
+ * @code
+ * auto result = stl_intersperse(0, {1, 2, 3});
+ * // Result: {1, 0, 2, 0, 3}
+ * @endcode
+ *
+ * @ingroup Algos
+ */
+template <typename T, typename Container>
+[[nodiscard]] auto stl_intersperse(const T& sep, const Container& c)
+{
+  std::vector<T> result;
+  
+  bool first = true;
+  for (const auto& item : c)
+    {
+      if (!first)
+        result.push_back(sep);
+      result.push_back(item);
+      first = false;
+    }
+  
+  return result;
+}
+
+/**
+ * @brief Split at position n, returning (take n, drop n) in one pass.
+ *
+ * @param n Position to split at.
+ * @param c Container.
+ * @return Pair of vectors.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_split_at(size_t n, const Container& c)
+{
+  using T = typename Container::value_type;
+  
+  std::vector<T> first, second;
+  size_t i = 0;
+  for (const auto& item : c)
+    {
+      if (i < n)
+        first.push_back(item);
+      else
+        second.push_back(item);
+      ++i;
+    }
+  
+  return std::make_pair(std::move(first), std::move(second));
+}
+
+/**
+ * @brief Split at predicate boundary (span in Haskell).
+ *
+ * Returns (takeWhile pred, dropWhile pred) in one pass.
+ *
+ * @param pred Predicate.
+ * @param c Container.
+ * @return Pair of vectors.
+ *
+ * @ingroup Algos
+ */
+template <typename Pred, typename Container>
+[[nodiscard]] auto stl_span(Pred&& pred, const Container& c)
+{
+  using T = typename Container::value_type;
+  
+  std::vector<T> first, second;
+  bool taking = true;
+  
+  for (const auto& item : c)
+    {
+      if (taking && std::forward<Pred>(pred)(item))
+        first.push_back(item);
+      else
+        {
+          taking = false;
+          second.push_back(item);
+        }
+    }
+  
+  return std::make_pair(std::move(first), std::move(second));
+}
+
+/**
+ * @brief Get all elements except the last (init in Haskell).
+ *
+ * @param c Container.
+ * @return Vector without last element.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_init(const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> arr(c.begin(), c.end());
+  
+  if (!arr.empty())
+    arr.pop_back();
+  
+  return arr;
+}
+
+/**
+ * @brief Get all elements except the first (tail in Haskell).
+ *
+ * @param c Container.
+ * @return Vector without first element.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_tail(const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<T> result;
+  
+  bool first = true;
+  for (const auto& item : c)
+    {
+      if (first)
+        first = false;
+      else
+        result.push_back(item);
+    }
+  
+  return result;
+}
+
+/**
+ * @brief Count occurrences of each element (tally in Ruby).
+ *
+ * @param c Container.
+ * @return Vector of pairs (element, count).
+ *
+ * @note Uses O(n²) algorithm. For large containers, use a map.
+ *
+ * @ingroup Algos
+ */
+template <typename Container>
+[[nodiscard]] auto stl_tally(const Container& c)
+{
+  using T = typename Container::value_type;
+  std::vector<std::pair<T, size_t>> result;
+  
+  for (const auto& item : c)
+    {
+      bool found = false;
+      for (auto& p : result)
+        if (p.first == item)
+          {
+            ++p.second;
+            found = true;
+            break;
+          }
+      if (!found)
+        result.emplace_back(item, 1);
+    }
+  
+  return result;
+}
+
+/**
+ * @brief Filter out elements (reject in Ruby, opposite of filter).
+ *
+ * @param pred Predicate - elements where pred is TRUE are removed.
+ * @param c Container.
+ * @return Vector with elements not satisfying predicate.
+ *
+ * @ingroup Algos
+ */
+template <typename Pred, typename Container>
+[[nodiscard]] auto stl_reject(Pred&& pred, const Container& c)
+{
+  using T = typename Container::value_type;
+
+  std::vector<T> result;
+  for (const auto& item : c)
+    if (!std::forward<Pred>(pred)(item))
+      result.push_back(item);
+  return result;
+}
+
 } // end namespace Aleph
 
 # endif // AH_STL_FUNCTIONAL_H
