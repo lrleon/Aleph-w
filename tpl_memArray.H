@@ -165,8 +165,6 @@ namespace Aleph
           std::swap(ptr[(first + i) & mask], new_ptr[i]);
         }
 
-      for (int i = newsz; i < dim; ++i) // call destructors
-        ptr[i].~T();
 
       delete[] ptr;
       ptr = new_ptr;
@@ -278,6 +276,7 @@ namespace Aleph
       ptr = newptr;
       dim = a.dim;
       n = a.n;
+      contract_threshold = dim / 4;
 
       return *this;
     }
