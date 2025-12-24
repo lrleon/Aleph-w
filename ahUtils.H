@@ -437,16 +437,22 @@ namespace Aleph
 
   /** Return `true` if a floating-point number is normal or zero.
 
-      This excludes NaN, infinities, and subnormals.
+      This excludes NaN, infinities, and subnormal.
 
       @param[in] n Value to classify.
-      @return `true` if `n` is `FP_NORMAL` or `FP_ZERO`.
+      @return `true` if `n` is a finite number classified as `FP_NORMAL`
+              or `FP_ZERO`.
 
       @ingroup fcts
   */
 
   inline bool is_normal_number(const double n)
   {
+    // First, reject all non-finite values (NaN and infinities) in a
+    // way that is robust across libm/stdlib implementations.
+    if (not std::isfinite(n))
+      return false;
+
     int status = std::fpclassify(n);
     return (status == FP_NORMAL or status == FP_ZERO);
   }

@@ -1026,11 +1026,12 @@ namespace Aleph
       while (t != start)
         {
           auto s = static_cast<typename Net::Node *>(NODE_COOKIE(t));
-          auto a_ptr = net.arcs(t).find_ptr([s, t](typename Net::Arc *a)
-                                              {
-                                                return ((a->src_node == s and a->tgt_node == t) or
-                                                        (a->src_node == t and a->tgt_node == s));
-                                              });
+          auto arcs_of_t = net.arcs(t);
+          auto a_ptr = arcs_of_t.find_ptr([s, t](typename Net::Arc *a)
+                                            {
+                                              return ((a->src_node == s and a->tgt_node == t) or
+                                                      (a->src_node == t and a->tgt_node == s));
+                                            });
           assert(a_ptr);
           auto a = *a_ptr;
           bool normal = a->tgt_node == t;
