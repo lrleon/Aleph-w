@@ -41,6 +41,7 @@
 # include <tuple>
 # include <functional>
 # include <algorithm>
+# include <optional>
 # include <ah-errors.H>
 
 namespace Aleph
@@ -1248,9 +1249,29 @@ namespace Aleph
 
   /** @brief Find the first element satisfying @a pred.
 
-      @param container Source container.
+      Returns a pointer to the first element in @a container for which
+      @a pred returns true, or nullptr if no such element exists.
+
+      @warning The returned pointer is only valid as long as the container
+               exists and the element is not removed. **Never use this function
+               on a temporary container**, as the pointer will become dangling
+               immediately. For example:
+               @code
+               // WRONG: dangling pointer!
+               auto *p = find_ptr(get_list(), pred);  // list destroyed here
+               use(*p);  // undefined behavior!
+
+               // CORRECT: keep container alive
+               auto list = get_list();
+               auto *p = find_ptr(list, pred);
+               if (p) use(*p);  // OK
+               @endcode
+               If you need a safe copy instead of a pointer, use find_opt().
+
+      @param container Source container (must outlive the returned pointer).
       @param pred Predicate to test each element.
       @return Pointer to the first matching element, or nullptr if not found.
+      @see find_opt For a safer alternative that returns a copy.
       @ingroup Algos
   */
   template <class Container, class Pred> [[nodiscard]] inline
@@ -1302,6 +1323,53 @@ namespace Aleph
   find_ptr(const Container & container, Pred && pred)
   {
     return find_ptr<Container, Pred>(container, pred);
+  }
+
+  /** @brief Find the first element satisfying @a pred (safe version).
+
+      Returns a copy of the first element in @a container for which
+      @a pred returns true, wrapped in std::optional. Returns std::nullopt
+      if no such element exists.
+
+      Unlike find_ptr(), this function is safe to use with temporary containers
+      because it returns a copy of the element, not a pointer.
+
+      @code
+      // Safe: returns a copy
+      auto opt = find_opt(get_list(), pred);
+      if (opt) use(*opt);  // OK, opt contains a copy
+      @endcode
+
+      @param container Source container.
+      @param pred Predicate to test each element.
+      @return std::optional containing a copy of the first matching element,
+              or std::nullopt if not found.
+      @see find_ptr For a pointer-returning version (use with caution).
+      @ingroup Algos
+  */
+  template <class Container, class Pred> [[nodiscard]] inline
+  std::optional<typename Container::Item_Type>
+  find_opt(const Container & container, Pred & pred)
+  {
+    std::optional<typename Container::Item_Type> result;
+    container.traverse([&result, &pred] (const auto & item)
+                       {
+                         if (pred(item))
+                           {
+                             result = item;
+                             return false;
+                           }
+                         return true;
+                       });
+    return result;
+  }
+
+  /** @overload find_opt with rvalue predicate. */
+  template <class Container, class Pred> [[nodiscard]] inline
+  std::optional<typename Container::Item_Type>
+  find_opt(const Container & container, Pred && pred)
+  {
+    return find_opt<Container, Pred>(container, pred);
   }
 
   /** @brief Right fold (reduce).

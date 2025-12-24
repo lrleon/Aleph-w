@@ -623,7 +623,7 @@ TEST(min_max_test, min_max_basic)
   // Custom comparator
   DynList<int> abs_list = build_dynlist<int>(-10, 5, -20, 3);
   auto * max_abs = max_ptr(abs_list,
-                           [] (int a, int b) { return std::abs(a) < std::abs(b); });
+                           [] (const int a, const int b) { return std::abs(a) < std::abs(b); });
   EXPECT_EQ(*max_abs, -20);
 }
 
