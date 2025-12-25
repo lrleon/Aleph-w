@@ -23,18 +23,19 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TPL_SORT_UTILS_H
-# define TPL_SORT_UTILS_H
+#ifndef TPL_SORT_UTILS_H
+#define TPL_SORT_UTILS_H
 
-# include <ahUtils.H>
-# include <ahFunctional.H>
-# include <ah-errors.H>
-# include <tpl_arrayStack.H>
-# include <tpl_array.H>
-# include <tpl_dynArray.H>
-# include <tpl_dynDlist.H>
-# include <htlist.H>
-# include <vector>
+#include <ahUtils.H>
+#include <ahFunctional.H>
+#include <ah-errors.H>
+#include <tpl_arrayStack.H>
+#include <tpl_array.H>
+#include <tpl_dynArray.H>
+#include <tpl_dynDlist.H>
+#include <htlist.H>
+#include <vector>
+#include <utility>
 
 namespace Aleph
 {
@@ -50,7 +51,7 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
+  [[nodiscard]] bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
   {
     if (cont.is_empty())
       return true;
@@ -80,8 +81,8 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  pair<bool, size_t> search_inversion(const Container<T> & cont,
-                                      Compare cmp = Compare())
+  [[nodiscard]] pair<bool, size_t> search_inversion(const Container<T> & cont,
+                                                    Compare cmp = Compare())
   {
     if (cont.is_empty())
       return make_pair(true, 0);
@@ -108,7 +109,7 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
+  [[nodiscard]] bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
   {
     if (cont.is_empty())
       return true;
@@ -135,7 +136,7 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  pair<bool, size_t>
+  [[nodiscard]] pair<bool, size_t>
   test_sorted(const Container<T> & cont, Compare cmp = Compare())
   {
     if (cont.is_empty())
@@ -363,7 +364,7 @@ namespace Aleph
       \ingroup Algos
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
-  inline
+  [[nodiscard]] inline
   long sequential_search(T *a, const T & x, const long l, const long r,
                          Equal eq = Equal())
   {
@@ -678,7 +679,7 @@ namespace Aleph
 
       The insert method has a performance of \f$O(n^2)\f$.
       It is a simple method, so it consumes little constant time.
-      On average it performs half as many exchanges as the method
+      On average, it performs half as many exchanges as the method
       of selection. Its time tends to be linear if the arrangement is
       semi-ordered. It is a good method for small arrangements and for
       partitions made by superior methods but with
@@ -767,7 +768,7 @@ namespace Aleph
           }
         prev = curr;
       }
-    assert(false); // it should be unreachable
+    std::unreachable();
   }
 
   /** Sorts a list of simple nodes by insertion method
@@ -943,6 +944,7 @@ namespace Aleph
       @param[in,out] l1 an ordered list to merge.
       @param[in,out] l2 an ordered list to merge.
       @param[out] result the list where the result will be placed.
+      @param cmp comparison object.
 
       \ingroup Algos
   */
@@ -979,6 +981,7 @@ namespace Aleph
       @param[in,out] l1 an ordered list to merge.
       @param[in,out] l2 an ordered list to merge.
       @param[out] result the list where the result will be placed.
+      @param cmp comparison object.
 
       \ingroup Algos
   */
@@ -1266,6 +1269,7 @@ namespace Aleph
       @param[in,out] a the array to sort.
       @param[in] l initial index by which to sort.
       @param[in] r final index by which to sort.
+      @param cmp comparison object.
       @see quicksort_rec() quicksort() quicksort_insertion()
       \ingroup Algos
   */
@@ -1455,12 +1459,10 @@ namespace Aleph
     HTList smaller, bigger; // lists of smaller and larger than pivot
 
     while (not list.is_empty())
-      {
         if (auto *p = static_cast<Snodenc<T> *>(list.remove_first_ne()); cmp(p->get_data(), pivot->get_data()))
           smaller.append(p);
         else
           bigger.append(p);
-      }
 
     quicksort<T, Compare>(bigger, cmp);
     quicksort<T, Compare>(smaller, cmp);
@@ -1641,7 +1643,7 @@ namespace Aleph
 
       dlink_random_search(list,x) uses the algorithm
       quicksort partition to find element x
-      in the list list.
+      in the list.
 
       The method uses two type parameters:
       -# T: the type of elements that the array has.
@@ -1655,6 +1657,7 @@ namespace Aleph
       @param[in,out] list list in which the search is performed;
       is partially modified after the search.
       @param[in] x element to search for.
+      @param cmp comparison object.
       @return pointer to the node containing the value x if it is
       is found within the list; nullptr otherwise.
 
@@ -1704,7 +1707,7 @@ namespace Aleph
   /** Random search for an element in a Dnode<T> list.
 
       random_search(list,x) uses the partition algorithm
-      quicksort to find element x in the list list.
+      quicksort to find element x in the list.
 
       The method uses two type parameters:
       -# T: the type of elements that the array has.
@@ -1858,8 +1861,7 @@ namespace Aleph
     long j = r;
 
     // Move selected pivot to position r
-    const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp);
-    if (pivot_idx != r)
+    if (const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp); pivot_idx != r)
       std::swap(a(pivot_idx), a(r));
 
     // Now pivot value is at a(r) - use direct access instead of reference
@@ -2040,9 +2042,7 @@ namespace Aleph
     Dlink *pivot = list.remove_next();
 
     while (not list.is_empty())
-      {
-        Dlink *p = list.remove_next();
-        if (cmp(p, pivot)) // p < pivot?
+        if (Dlink *p = list.remove_next(); cmp(p, pivot)) // p < pivot?
           {
             smaller.append(p);
             ++smaller_count;
@@ -2052,7 +2052,6 @@ namespace Aleph
             bigger.append(p);
             ++bigger_count;
           }
-      }
 
     if (i >= smaller_count + bigger_count + 1)
       {
@@ -2724,7 +2723,7 @@ namespace Aleph
         ret.insert(i);
       }
 
-    for (long i = idx + 1, n = a.size(); i < n; ++i)
+    for (long i = idx + 1; i < static_cast<long>(n); ++i)
       {
         if (not are_equals(a(i), x, cmp))
           break;
@@ -2983,7 +2982,7 @@ namespace Aleph
       The resulting array can be used to iterate over `a` in sorted order
       without modifying the original container.
 
-      @tparam C      Template template parameter of the container type.
+      @tparam C      Template parameter of the container type.
       @tparam T      Element type stored in the container.
       @tparam Compare Comparison functor type, defaulting to `Aleph::less<T>`.
 
@@ -3023,7 +3022,7 @@ namespace Aleph
       criterion. The resulting array allows iteration over the elements of
       `a` in sorted order without modifying the original container.
 
-      @tparam C       Template template parameter of the container type.
+      @tparam C       Template parameter of the container type.
                       The container must provide `size()` and `operator()`
                       for random access.
       @tparam T       Element type stored in the container.
@@ -3212,4 +3211,4 @@ namespace Aleph
   }
 }
 
-# endif // TPL_SORT_UTILS_H
+#endif // TPL_SORT_UTILS_H

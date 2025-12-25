@@ -25,15 +25,59 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef AHDAEMONIZE_H
-# define AHDAEMONIZE_H
+/**
+ * @file ahDaemonize.H
+ * @brief Functionality for daemonizing a process
+ * @ingroup Utils
+ */
 
-# include <syslog.h>
+/**
+ * @defgroup Daemonization Daemonization Utilities
+ * @brief Functions for creating Unix daemons
+ * @ingroup Utils
+ */
 
-/*
-  This function is based on daemon_init function described in "The
-  Unix Netwrok Programming", volume 1 by Richard Stevens. Page 336.
-*/
-extern void daemonize(const char * program_name, int facility);
+#ifndef AHDAEMONIZE_H
+#define AHDAEMONIZE_H
 
-# endif // AHDAEMONIZE_H
+#include <syslog.h>
+#include <stdexcept>
+
+/**
+ * @brief Converts the calling process into a Unix daemon
+ * @param program_name Name of the program (for syslog identification)
+ * @param facility The syslog facility to use (default: LOG_DAEMON)
+ * @throws std::runtime_error if daemonization fails
+ * @throws std::invalid_argument if program_name is null or empty
+ * 
+ * @note Based on daemon_init from "The Unix Network Programming" by Richard Stevens
+ * @note This function will:
+ *   - Fork and terminate the parent process
+ *   - Create a new session
+ *   - Change the working directory to root
+ *   - Clear the file mode creation mask
+ *   - Close all open file descriptors
+ *   - Redirect stdin, stdout, and stderr to /dev/null
+ *   - Initialize syslog logging
+ * 
+ * @warning This function should be called early in program execution
+ * @warning After calling this function, the process will be running in the background
+ * 
+ * @code
+ * #include <ahDaemonize.H>
+ * 
+ * int main(int argc, char *argv[]) {
+ *     try {
+ *         daemonize("my_daemon", LOG_DAEMON);
+ *         // Daemon code here
+ *     } catch (const std::exception& e) {
+ *         syslog(LOG_ERR, "Failed to daemonize: %s", e.what());
+ *         return 1;
+ *     }
+ *     return 0;
+ * }
+ * @endcode
+ */
+void daemonize(const char *program_name, int facility = LOG_DAEMON);
+
+#endif // AHDAEMONIZE_H

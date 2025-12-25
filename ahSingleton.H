@@ -28,17 +28,55 @@
 # ifndef AHSINGLETON_H
 # define AHSINGLETON_H
 
+/** @file ahSingleton.H
+ * @brief Minimal, header-only singleton helpers.
+ *
+ * This header provides:
+ * - `Make_Singleton(T)`: a macro to inject a Meyers singleton accessor into a
+ *   class.
+ * - `Singleton`: a trivial singleton class, mostly as an example.
+ *
+ * Notes:
+ * - This uses a function-local `static` instance (Meyers singleton).
+ * - Since C++11, initialization of function-local statics is thread-safe.
+ * - Destruction happens at program termination, in reverse construction order
+ *   across translation units (usual static deinitialization rules).
+ */
+
+/** @brief Inject a Meyers singleton accessor into a class.
+ *
+ * Usage:
+ *
+ * ```cpp
+ * class MyType
+ * {
+ *   Make_Singleton(MyType)
+ * private:
+ *   MyType() = default;
+ * };
+ * ```
+ *
+ * Requirements:
+ * - The type `name` must be default-constructible, and the default
+ *   constructor must be accessible from the injected `get_instance()`.
+ *
+ * Guarantees:
+ * - Returns the same instance for all calls.
+ * - Copy and move operations are disabled.
+ */
 # define Make_Singleton(name)                   \
   public:                                       \
                                                 \
-  static const name & get_instance()            \
+  static name & get_instance()                  \
   {                                             \
     static name instance;                       \
     return instance;                            \
   }                                             \
                                                 \
-  name(const name&) = delete;                   \
-  void operator = (const name&) = delete;
+  name(const name &) = delete;                  \
+  name(name &&) = delete;                       \
+  name & operator = (const name &) = delete;    \
+  name & operator = (name &&) = delete;
 
                                                 
 class Singleton
@@ -58,7 +96,9 @@ private:
 public:
   
   Singleton(Singleton const&) = delete;
-  void operator = (Singleton const&) = delete;
+  Singleton(Singleton &&) = delete;
+  Singleton & operator = (Singleton const&) = delete;
+  Singleton & operator = (Singleton &&) = delete;
 };
 
 # endif // AHSINGLETON_H

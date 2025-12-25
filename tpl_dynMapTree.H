@@ -27,34 +27,39 @@
 # ifndef TPL_DYNMAPTREE_H
 # define TPL_DYNMAPTREE_H
 
+# include <type_traits>
+# include <utility>
+
 # include <tpl_dynSetTree.H>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** Mapeo genérico instrumentado con árboles binarios de búsqueda.
-
-      DynMapTree define un mapeo entre un conjunto de claves, que
-      no se pueden repetir, y un conjunto rango.  El mapeo se implanta
-      mediante alguna clase de árbol binario de búsqueda definido como
-      parámetros tipo.
-
-      Los parámetros tipo de esta clase se definen del siguiente modo:
-      -# Tree: la clase de árbol binario de búsqueda con que se desea
-      instrumentar el mapeo. Los posibles tipos son BinTree Avl_Tree
-      Splay_Tree Rb_Tree Treap y Rand_Tree.
-      -# Key: tipo de clave de indización. También se le dice "dominio"
-      del mapeo.
-      -# Data: tipo del rango.
-      -# Compare: criterio de comparación entre las claves.
-
-      Los elementos del mapeo pueden accederse mediante el operador []
-      colocando como parámetro la clave de indización.
-
-      @see BinTree Avl_Tree Splay_Tree Rb_Tree Treap Rand_Tree
-      @ingroup Arboles
-  */
+  /** @brief Generic key-value map implemented on top of a binary search tree.
+   *
+   * DynMapTree maps unique keys (`Key`) to values (`Data`). Internally it is a
+   * `DynSetTree<std::pair<Key, Data>, ...>` whose ordering compares pairs by
+   * their `first` component.
+   *
+   * Template parameters:
+   * - `Key`: key type (map domain).
+   * - `Data`: mapped type (map range).
+   * - `Tree`: binary search tree type used for instrumentation.
+   * - `Compare`: ordering for keys.
+   *
+   * Element access:
+   * - `operator[]` inserts a default-constructed `Data` when the key is
+   *   missing.
+   * - `find()` throws `std::domain_error` when the key is missing.
+   *
+   * @note Several operations internally create a temporary `Data()` when
+   * building a search key (`std::pair<Key, Data>`). Therefore, those methods
+   * require `Data` to be default-constructible.
+   *
+   * @see BinTree Avl_Tree Splay_Tree Rb_Tree Treap Rand_Tree
+   * @ingroup Arboles
+   */
   template <
     typename Key, typename Data,
     template <typename, class> class Tree = Avl_Tree,
@@ -88,9 +93,14 @@ namespace Aleph {
     // using Base::Base;  // no more need. But I don't remember why I put it
     using Base::insert;
 
-    static Data & get_data(const Key & key) noexcept
+    static Data & get_data(Key & key) noexcept
     {
-      return key_to_pair<Key, Data>(&const_cast<Key&>(key))->second;
+      return key_to_pair<Key, Data>(&key)->second;
+    }
+
+    static const Data & get_data(const Key & key) noexcept
+    {
+      return key_to_pair<Key, Data>(&key)->second;
     }
 
     static const Key & get_key(Data * data_ptr) noexcept
@@ -98,17 +108,21 @@ namespace Aleph {
       return data_to_pair<Key, Data>(data_ptr)->first;
     }
 
-    /** Inserta un par en el mapeo.
+    static const Key & get_key(const Data * data_ptr) noexcept
+    {
+      return data_to_pair<Key, Data>(data_ptr)->first;
+    }
 
-        insert(key,data) inserta en el mapeo un nuevo par (key,data)
-        indizado por el valor de key. La operación no realiza inserción si
-        el valor de key ya está presente en el mapeo.
-
-        @param[in] key clave a insertar.
-        @param[in] data valor a indizar por la clave key.
-        @return puntero al dato mapeado.
-        @throw bad_alloc si no hay suficiente memoria.
-    */
+    /** @brief Insert a key-value pair.
+     *
+     * If `key` is already present, no insertion is performed and `nullptr`
+     * is returned.
+     *
+     * @param[in] key Key to insert.
+     * @param[in] data Value to associate with `key`.
+     * @return Pointer to the inserted pair, or nullptr if the key exists.
+     * @throw std::bad_alloc If there is not enough memory.
+     */
     Pair * insert(const Key & key, const Data & data)
     {
       return this->Base::insert(Pair(key, data));
@@ -151,17 +165,10 @@ namespace Aleph {
                                      std::forward<Data>(data)));
     }
 
-    /** Inserta un par en el mapeo.
-
-        put(key,data) inserta en el mapeo un nuevo par (key,data)
-        indizado por el valor de key. La operación no realiza inserción si
-        el valor de key ya está presente en el mapeo.
-
-        @param[in] key clave a insertar.
-        @param[in] data valor a indizar por la clave key.
-        @return número de elementos que contiene el mapeo.
-        @throw bad_alloc si no hay suficiente memoria.
-    */
+    /** @brief Alias for insert().
+     *
+     * @return Pointer to the inserted pair, or nullptr if the key exists.
+     */
     Pair * put(const Key & key, const Data & data)
     {
       return insert(key, data);
@@ -192,37 +199,48 @@ namespace Aleph {
     */
     Data remove(const Key & key)
     {
+      static_assert(std::is_default_constructible<Data>::value,
+                    "DynMapTree::remove() requires Data to be default-constructible");
       Pair p(key, Data());
       return this->del(p).second;
     }
 
     Data remove(Key && key)
     {
-      return this->del(forward<Key>(key), Data()).second;
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::remove() requires Data to be default-constructible");
+      Pair p(std::forward<Key>(key), Data());
+      return this->del(p).second;
     }
 
     void remove_key(const Key & key)
     {
-      Base::remove(Pair(key, Data()));
+      static_assert(std::is_default_constructible<Data>::value,
+                    "DynMapTree::remove_key() requires Data to be default-constructible");
+      (void) this->del(Pair(key, Data()));
     }
 
-    /** Retorna dato asociado a una clave.
+    /** @brief Collect all keys.
+     *
+     * @return A `DynList` of keys, in the tree traversal order.
+     */
 
-        search(key) retorna un puntero al valor del dato asociado a la
-        clave key.
-
-        @param[in] key clave a buscar.
-        @return puntero al dato asociado a key si la clave existe en
-        mapeo; nullptr de lo contrario.
-        @see test
-    */
+    /** @brief Search for a key.
+     *
+     * @param[in] key Key to search.
+     * @return Pointer to the stored pair if found; nullptr otherwise.
+     */
     Pair * search(const Key & key) const noexcept
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
       return this->Base::search(Pair(key, Data()));
     }
 
     Pair * search(Key && key) const noexcept
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::search() requires Data to be default-constructible");
       return this->Base::search(Pair(std::move(key), Data()));
     }
 
@@ -234,28 +252,30 @@ namespace Aleph {
 
     bool contains(Key && key) const noexcept { return has(std::move(key)); }
 
-    /** Retorna dato asociado a una clave.
-
-        search(key) retorna un puntero al valor del dato asociado a la
-        clave key.
-
-        @param[in] key clave a buscar.
-        @return puntero al dato asociado a key si la clave existe en
-        mapeo; nullptr de lo contrario.
-        @throw domain_error si la clave no está dentro del mapeo
-    */
+    /** @brief Find the value associated with `key`.
+     *
+     * @param[in] key Key to find.
+     * @return Reference to the associated value.
+     * @throw std::domain_error If `key` is not present.
+     */
     Data & find(const Key & key)
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::find() requires Data to be default-constructible");
       return this->Base::find(Pair(key, Data())).second;
     }
 
     const Data & find(const Key & key) const
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::find() requires Data to be default-constructible");
       return this->Base::find(Pair(key, Data())).second;
     }
 
     Data & operator [] (const Key & key)
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::operator[] requires Data to be default-constructible");
       return this->search_or_insert(Pair(key, Data()))->second;
     }
 
@@ -266,6 +286,8 @@ namespace Aleph {
 
     Data & operator [] (Key && key)
     {
+      static_assert(std::is_default_constructible_v<Data>,
+                    "DynMapTree::operator[] requires Data to be default-constructible");
       return this->search_or_insert(Pair(std::move(key), Data()))->second;
     }
 
@@ -281,11 +303,19 @@ namespace Aleph {
       return this->template maps<Key>([] (auto p) { return p.first; });
     }
 
+    /** @brief Collect all values.
+     *
+     * @return A `DynList` of values, in the tree traversal order.
+     */
     DynList<Data> values() const
     {
       return this->template maps<Data>([] (auto p) { return p.second; });
     }
 
+    /** @brief Collect pointers to all values.
+     *
+     * @note Pointers are valid until the tree is structurally modified.
+     */
     DynList<Data*> values_ptr()
     {
       DynList<Data*> ret;
@@ -294,6 +324,10 @@ namespace Aleph {
       return ret;
     }
 
+    /** @brief Collect pointers to all stored pairs.
+     *
+     * @note Pointers are valid until the tree is structurally modified.
+     */
     DynList<Pair*> items_ptr()
     {
       DynList<Pair*> ret;
@@ -314,71 +348,59 @@ namespace Aleph {
 # include <tpl_splay_tree.H>
 
 namespace Aleph {
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda clásicos.
-
-     @see BinTree DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a classic binary search tree.
+   * @see BinTree DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapBinTree : public DynMapTree<Key, Type, BinTree, Compare> {};
 
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda AVL.
-
-     @see Avl_Tree DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with an AVL tree.
+   * @see Avl_Tree DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapAvlTree : public DynMapTree<Key, Type, Avl_Tree, Compare> {};
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda rojo-negro.
-
-     @see Rb_Tree DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a red-black tree.
+   * @see Rb_Tree DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRbTree : public DynMapTree<Key, Type, Rb_Tree, Compare>
   { /* empty */ };
 
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda
-     aleatorizados.
-
-     @see Rand_Tree DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a randomized BST.
+   * @see Rand_Tree DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRandTree : public DynMapTree<Key, Type, Rand_Tree, Compare>
   { /* empty */ };
 
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda treaps.
-
-     @see Treap DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a treap.
+   * @see Treap DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreap : public DynMapTree<Key, Type, Treap, Compare>
   { /* empty */ };
 
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda
-     treaps y con rango. Ofrece la operación position.
-
-     @see Treap_Rk DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a ranked treap.
+   *
+   * This specialization provides rank-related operations (e.g. position)
+   * from the underlying tree type.
+   *
+   * @see Treap_Rk DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreapRk : public DynMapTree<Key, Type, Treap_Rk, Compare>
   { /* empty */ };
 
-  /**
-     Mapeo dinámico implementado con árboles binario de búsqueda splay.
-
-     @see Splay_Tree DynMapTree
-     @ingroup Arboles
-  */
+  /** @brief Dynamic map implemented with a splay tree.
+   * @see Splay_Tree DynMapTree
+   * @ingroup Arboles
+   */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapSplayTree : public DynMapTree<Key, Type, Splay_Tree, Compare>
   { /* empty */ };

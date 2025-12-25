@@ -25,20 +25,83 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/* 
-   Definitions of Aleph's memory allocators 
-*/
+/** 
+ * @file ahMem.H
+ * @brief Aleph-w memory allocation helpers and instrumentation hooks.
+ *
+ * This header centralizes Aleph's memory allocation conventions. 
+ *
+ * @section overview Overview
+ * - Currently, it is a lightweight wrapper around `<cstddef>` and `<new>`, 
+ *   enabling future expansion into custom allocators.
+ * 
+ * @section usage Usage
+ * @code
+ * #include <ahMem.H>
+ * 
+ * void * ptr = Aleph::allocate(256);
+ * Aleph::deallocate(ptr);
+ * @endcode
+ */
 
+#ifndef AHMEM_H
+#define AHMEM_H
 
-# ifndef AHMEM_H
-# define AHMEM_H
+#include <cstddef>
+#include <cstdlib>
 
-/*
-  This header is temporally used. By now, we use malloc as the memory
-  allocator  
-*/
-# include <cstdlib>
+#include <ah-errors.H>
 
+namespace Aleph
+{
 
-# endif /* AHMEM_H */
+  /** @brief Allocate @p size bytes using the C heap.
+   *
+   *  @param size Number of bytes to allocate. Must be greater than zero.
+   *  @return Pointer to a block of @p size bytes.
+   *  @throws std::invalid_argument when @p size == 0.
+   *  @throws std::bad_alloc when the underlying allocation fails.
+   */
+  inline void * allocate(const std::size_t size)
+  {
+    ah_invalid_argument_if(size == 0)
+      << "Aleph::allocate() expects size > 0";
+
+    void * ptr = std::malloc(size);
+    ah_bad_alloc_if(ptr == nullptr);
+
+    return ptr;
+  }
+
+  /** @brief Allocate @p size zero-initialized bytes.
+   *
+   *  @param size Number of bytes to allocate and clear.
+   *  @return Pointer to a zeroed block of @p size bytes.
+   *  @throws std::invalid_argument when @p size == 0.
+   *  @throws std::bad_alloc when the underlying allocation fails.
+   */
+  inline void * allocate_zeroed(const std::size_t size)
+  {
+    ah_invalid_argument_if(size == 0)
+      << "Aleph::allocate_zeroed() expects size > 0";
+
+    void * ptr = std::calloc(1u, size);
+    ah_bad_alloc_if(ptr == nullptr);
+
+    return ptr;
+  }
+
+  /** @brief Release memory previously obtained through Aleph allocation helpers.
+   *
+   *  @param ptr Pointer obtained from ::allocate or ::allocate_zeroed. Passing
+   *             @c nullptr is a no-op (mirrors @c std::free semantics).
+   */
+  inline void deallocate(void * ptr) noexcept
+  {
+    std::free(ptr);
+  }
+
+} // namespace Aleph
+
+#endif /* AHMEM_H */
 

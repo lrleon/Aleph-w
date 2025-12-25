@@ -9,7 +9,7 @@
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2025 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,21 +27,64 @@
 #ifndef AH_MAPPING_H
 #define AH_MAPPING_H
 
-# include <iostream>
-# include <ah-errors.H>
-# include <tpl_dynMapTree.H>
-# include <tpl_odhash.H>
+#include <ah-errors.H>
+#include <tpl_dynMapTree.H>
 
-template<typename Key, class ValueType>
+namespace Aleph {
+
+/**
+ * @class AHMapping
+ * @brief A generic key-value mapping container with inverse operation support.
+ *
+ * This class provides a dictionary-like interface with the ability to create
+ * an inverse mapping where values become keys and vice versa. It's implemented
+ * using a balanced binary search tree (DynMapTree) internally.
+ *
+ * @tparam Key The type of the keys in the mapping
+ * @tparam ValueType The type of the values in the mapping
+ *
+ * @note The ValueType must be copy-constructible and have operator< defined
+ *       for the inverse() operation to work correctly.
+ *
+ * @ingroup Containers
+ */
+template<typename Key, typename ValueType>
 class AHMapping
 {
   DynMapTree<Key, ValueType> tbl;
 
 public:
+  using key_type = Key;                   ///< Type of the keys
+  using mapped_type = ValueType;          ///< Type of the mapped values
+  using value_type = std::pair<const Key, ValueType>; ///< Type of the key-value pairs
+  using size_type = size_t;               ///< Type for size-related operations
 
-  AHMapping()
-  {}
+  /**
+   * @brief Default constructor. Creates an empty mapping.
+   */
+  AHMapping() = default;
 
+  /**
+   * @brief Copy constructor.
+   * @param other The mapping to copy from
+   */
+  AHMapping(const AHMapping &other) = default;
+
+  /**
+   * @brief Move constructor.
+   * @param other The mapping to move from
+   */
+  AHMapping(AHMapping &&other) noexcept = default;
+
+  /**
+   * @brief Constructs a mapping from a list of key-value pairs.
+   *
+   * @param key The first key
+   * @param value The first value
+   * @param pairs Additional key-value pairs (must be in pairs)
+   *
+   * @note The number of arguments must be even (key-value pairs)
+   */
   template<typename ... Pairs>
   AHMapping(const Key &key, const ValueType &value, Pairs ... pairs)
     : AHMapping(pairs...)
@@ -49,44 +92,173 @@ public:
     tbl.insert(key, value);
   }
 
-  AHMapping(const AHMapping &mapping)
-    : tbl(mapping.tbl)
-  {}
+  /**
+   * @brief Copy assignment operator.
+   * @param other The mapping to copy from
+   * @return Reference to this mapping
+   */
+  AHMapping& operator=(const AHMapping &other) = default;
 
-  void insert(const Key &key, ValueType value)
+  /**
+   * @brief Move assignment operator.
+   * @param other The mapping to move from
+   * @return Reference to this mapping
+   */
+  AHMapping& operator=(AHMapping &&other) noexcept = default;
+
+  /**
+   * @brief Inserts or updates a key-value pair in the mapping.
+   * @param key The key to insert/update
+   * @param value The value to associate with the key
+   */
+  void insert(const Key &key, const ValueType &value)
   {
     tbl.insert(key, value);
   }
 
-  ValueType operator[](const Key &key) const
+  /**
+   * @brief Accesses the value associated with the given key.
+   * @param key The key to look up
+   * @return Const reference to the associated value
+   * @throw std::domain_error if the key is not found
+   */
+  const ValueType& operator[](const Key &key) const
   {
     auto ptr = tbl.search(key);
-    ah_domain_error_if(ptr == nullptr) << "key not found";
+    ah_domain_error_if(ptr == nullptr) << "Key not found: " << key;
     return ptr->second;
   }
 
+  /**
+   * @brief Accesses the value associated with the given key.
+   * @param key The key to look up
+   * @return Reference to the associated value (creates if doesn't exist)
+   */
+  ValueType& operator[](const Key &key)
+  {
+    return tbl.touch(key);
+  }
+
+  /**
+   * @brief Creates a new mapping with keys and values swapped.
+   * @return A new mapping where original values are keys and vice versa
+   * @note If the original mapping has duplicate values, the last inserted
+   *       key-value pair will overwrite previous ones in the inverse.
+   */
   AHMapping<ValueType, Key> inverse() const
   {
     AHMapping<ValueType, Key> ret;
     for (auto it = tbl.get_it(); it.has_curr(); it.next())
-      {
-        auto curr = it.get_curr();
-        ret.insert(curr.second, curr.first);
-      }
-
+    {
+      auto curr = it.get_curr();
+      ret.insert(curr.second, curr.first);
+    }
     return ret;
   }
 
-  void remove(const Key &key)
+  /**
+   * @brief Removes the key-value pair with the given key.
+   * @param key The key to remove
+   * @return true if the key was found and removed, false otherwise
+   */
+  bool remove(const Key &key) noexcept
   {
-    tbl.remove(key);
+    try {
+      return tbl.remove(key);
+    } catch (...) {
+      return false;
+    }
   }
 
-  bool valid_key(const Key &key)
-  { return tbl.has(key); }
+  /**
+   * @brief Checks if a key exists in the mapping.
+   * @param key The key to check
+   * @return true if the key exists, false otherwise
+   */
+  bool valid_key(const Key &key) const noexcept
+  {
+    return tbl.has(key);
+  }
 
-  DynList<string> keys() const
-  { return tbl.keys(); }
+  /**
+   * @brief Gets all keys in the mapping.
+   * @return A list of all keys
+   */
+  DynList<Key> keys() const
+  {
+    return tbl.keys();
+  }
+
+  /**
+   * @brief Gets all values in the mapping.
+   * @return A list of all values
+   */
+  DynList<ValueType> values() const
+  {
+    DynList<ValueType> result;
+    for (auto it = tbl.get_it(); it.has_curr(); it.next())
+      result.append(it.get_curr().second);
+    return result;
+  }
+
+  /**
+   * @brief Gets the number of key-value pairs in the mapping.
+   * @return The number of elements
+   */
+  size_t size() const noexcept
+  {
+    return tbl.size();
+  }
+
+  /**
+   * @brief Checks if the mapping is empty.
+   * @return true if the mapping is empty, false otherwise
+   */
+  bool empty() const noexcept
+  {
+    return size() == 0;
+  }
+
+  /**
+   * @brief Removes all key-value pairs from the mapping.
+   */
+  void clear() noexcept
+  {
+    tbl.empty();
+  }
+
+  /**
+   * @brief Checks if the mapping contains a specific value.
+   * @param value The value to search for
+   * @return true if the value is found, false otherwise
+   */
+  bool contains_value(const ValueType &value) const
+  {
+    for (auto it = tbl.get_it(); it.has_curr(); it.next())
+      if (it.get_curr().second == value)
+        return true;
+    return false;
+  }
+
+  /**
+   * @brief Applies a function to each key-value pair.
+   * @tparam F Function type with signature void(const Key&, const ValueType&)
+   * @param f The function to apply
+   */
+  template <typename F>
+  void for_each(F f) const
+  {
+    static_assert(std::is_invocable_v<F, const Key&, const ValueType&>,
+                 "Function must take (const Key&, const ValueType&) parameters");
+    
+    for (auto it = tbl.get_it(); it.has_curr(); it.next())
+    {
+      const auto &pair = it.get_curr();
+      f(pair.first, pair.second);
+    }
+  }
 };
 
-#endif
+} // end namespace Aleph
+
+#endif // AH_MAPPING_H

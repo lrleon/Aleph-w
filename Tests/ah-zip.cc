@@ -43,6 +43,7 @@ struct EmptyGroup : public testing::Test
   DynList<int> l1;
   DynSetTree<int> l2;
   DynArray<string> l3;
+  DynSkipList<int> l4;
 };
 
 struct CompleteGroup : public testing::Test
@@ -52,6 +53,7 @@ struct CompleteGroup : public testing::Test
   DynSetTree<int> l2 = range<int>(0, N - 1);
   DynArray<string> l3 =
     range<int>(0, N - 1).maps<string>([] (auto i) { return to_string(i); });
+  DynSkipList<int> l4 = range<int>(0, N - 1);
 };
 
 struct InCompleteGroup : public testing::Test
@@ -59,12 +61,19 @@ struct InCompleteGroup : public testing::Test
   DynList<int> l1 = { 0, 1, 2, 3, 4 };
   DynSetTree<int> l2 = { 0, 1, 2, 3 };
   DynArray<string> l3 = { "0", "1", "2", "3", "4" };
+  DynSkipList<int> l4 = { 0, 1, 2 };  // Different length
 };
 
 TEST_F(EmptyGroup, empty)
 {
   {
     auto it = zip_it(l1, l2 , l3);
+    ASSERT_FALSE(it.has_curr());
+    ASSERT_THROW(it.get_curr(), std::overflow_error);
+    ASSERT_THROW(it.next(), std::overflow_error);
+  }
+  {
+    auto it = zip_it(l1, l2, l3, l4);
     ASSERT_FALSE(it.has_curr());
     ASSERT_THROW(it.get_curr(), std::overflow_error);
     ASSERT_THROW(it.next(), std::overflow_error);
@@ -2000,4 +2009,56 @@ TEST(StressNewFunctions, large_containers)
   auto [nth, found3] = zip_nth(999, l1, l2);
   EXPECT_TRUE(found3);
   EXPECT_EQ(get<0>(nth), 999);
+}
+
+// ============================================================================
+// DynSkipList Specific Tests
+// ============================================================================
+
+TEST(DynSkipListZip, BasicZipOperations)
+{
+  DynSkipList<int> skip1{1, 2, 3, 4, 5};
+  DynSkipList<string> skip2{"a", "b", "c", "d", "e"};
+  DynList<double> list1{1.1, 2.2, 3.3, 4.4, 5.5};
+
+  // Test zip_it with DynSkipList
+  size_t count = 0;
+  for (auto it = zip_it(skip1, skip2); it.has_curr(); it.next_ne()) {
+    auto [i, s] = it.get_curr_ne();
+    EXPECT_EQ(i, count + 1);
+    EXPECT_EQ(s, string(1, 'a' + count));
+    ++count;
+  }
+  EXPECT_EQ(count, 5);
+
+  // Test zip_traverse with DynSkipList
+  string result;
+  zip_traverse([&result](auto t) {
+    result += to_string(get<0>(t)) + get<1>(t);
+    return true;
+  }, skip1, skip2);
+  EXPECT_EQ(result, "1a2b3c4d5e");
+
+  // Test zip_for_each with mixed containers
+  vector<string> mixed_results;
+  zip_for_each([&mixed_results](auto t) {
+    mixed_results.push_back(to_string(get<0>(t)) + ":" + get<1>(t) + ":" + to_string(get<2>(t)));
+  }, skip1, skip2, list1);
+  EXPECT_EQ(mixed_results.size(), 5);
+  EXPECT_TRUE(mixed_results[0].find("1:a:1.1") != string::npos);
+  EXPECT_TRUE(mixed_results[4].find("5:e:5.5") != string::npos);
+
+  // Test zip_all with DynSkipList
+  bool all_positive = zip_all([](auto t) { return get<0>(t) > 0; }, skip1, skip2);
+  EXPECT_TRUE(all_positive);
+
+  // Test zip_exists with DynSkipList  
+  bool has_three = zip_exists([](auto t) { return get<0>(t) == 3; }, skip1, skip2);
+  EXPECT_TRUE(has_three);
+
+  // Test zip_map with DynSkipList
+  auto mapped = zip_map([](auto t) { return get<0>(t) * 10; }, skip1, skip2);
+  EXPECT_EQ(mapped.size(), 5);
+  EXPECT_EQ(mapped[0], 10);
+  EXPECT_EQ(mapped[4], 50);
 }

@@ -28,6 +28,7 @@
 # ifndef AHDRY_H
 # define AHDRY_H
 
+# include <cstddef>
 # include <tuple>
 # include <functional>
 # include <sstream>
@@ -595,7 +596,7 @@ std::string to_str(const Type &d)
   return os.str();
 }
 
-// This class wrappes the compare class passed to DynMapLinHash which
+// This class wrappers the compare class passed to DynMapLinHash which
 // has form cpm<Key>
 template<typename Key, typename Data, class Cmp = std::equal_to<Key>>
 struct Dft_Pair_Cmp
@@ -629,14 +630,29 @@ struct Dft_Pair_Cmp
 template<typename Key, typename Data>
 std::pair<Key, Data> *key_to_pair(Key *ptr)
 {
-  return (std::pair<Key, Data> *) ptr;
+  return static_cast<std::pair<Key, Data> *>(ptr);
+}
+
+template<typename Key, typename Data>
+const std::pair<Key, Data> *key_to_pair(const Key *ptr)
+{
+  return static_cast<const std::pair<Key, Data> *>(ptr);
 }
 
 template<typename Key, typename Data>
 std::pair<Key, Data> *data_to_pair(Data *ptr)
 {
-  std::pair<Key, Data> *zero = 0;
-  return (std::pair<Key, Data> *) ((long) ptr - (long) &zero->second);
+  using PairType = std::pair<Key, Data>;
+  return reinterpret_cast<PairType *>(
+      reinterpret_cast<char *>(ptr) - offsetof(PairType, second));
+}
+
+template<typename Key, typename Data>
+const std::pair<Key, Data> *data_to_pair(const Data *ptr)
+{
+  using PairType = std::pair<Key, Data>;
+  return reinterpret_cast<const PairType *>(
+      reinterpret_cast<const char *>(ptr) - offsetof(PairType, second));
 }
 
 } // end namespace Aleph

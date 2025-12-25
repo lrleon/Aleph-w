@@ -29,32 +29,73 @@
 # define AH_MSG_H
 
 # include <sstream>
+# include <string>
+# include <type_traits>
+# include <utility>
 
 namespace Aleph
 {
+  namespace detail
+  {
+    inline void build_msg_impl(std::ostringstream &) {}
 
-inline void __build_msg(std::ostringstream &) {}
+    template <typename T, typename... Args>
+    inline void build_msg_impl(std::ostringstream & stream, T && value, Args &&... rest)
+    {
+      stream << std::forward<T>(value);
+      build_msg_impl(stream, std::forward<Args>(rest)...);
+    }
 
-template <typename T, class... Args> static inline
-void __build_msg(std::ostringstream & s, const T & p, const Args &... args)
-{
-  s << p;
-  __build_msg(s, args...);
-}
+    template <typename T, typename = void>
+    struct is_stream_insertable : std::false_type
+    {};
 
-template <class... Args> inline
-std::string build_string(const Args & ... args)
-{
-  std::ostringstream s;
-  __build_msg(s, args...);
-  return s.str();
-}
+    template <typename T>
+    struct is_stream_insertable<T,
+      std::void_t<decltype(std::declval<std::ostringstream &>()
+                           << std::declval<T>())>> : std::true_type
+    {};
 
-template <class... Args> inline
-std::string build_error_msg(const Args & ... args)
-{
-  return build_string(args...);
-}
+    template <typename... Args>
+    inline constexpr bool are_stream_insertable_v =
+      (is_stream_insertable<std::decay_t<Args>>::value && ...);
+  } // namespace detail
 
-}
+  template <typename T, typename = void>
+  struct is_stream_insertable : detail::is_stream_insertable<T>
+  {};
+
+  template <typename... Args>
+  inline constexpr bool are_stream_insertable_v =
+    detail::are_stream_insertable_v<Args...>;
+
+  /** @brief Concatenate arbitrary streamable arguments into a string.
+   *
+   *  This helper is primarily used for building exception messages and
+   *  logging strings without incurring temporary string allocations for
+   *  each component.
+   *
+   *  @tparam Args Variadic pack of objects insertable into @c std::ostream.
+   *  @param args Values to append in order.
+   *  @return The concatenated string.
+   */
+  template <typename... Args>
+  inline std::string build_string(Args &&... args)
+  {
+    static_assert(detail::are_stream_insertable_v<Args...>,
+                  "build_string arguments must be stream-insertable");
+    std::ostringstream stream;
+    detail::build_msg_impl(stream, std::forward<Args>(args)...);
+    return stream.str();
+  }
+
+  /** @brief Alias kept for backwards compatibility with historic API. */
+  template <typename... Args>
+  inline std::string build_error_msg(Args &&... args)
+  {
+    return build_string(std::forward<Args>(args)...);
+  }
+
+} // namespace Aleph
+
 # endif

@@ -167,6 +167,9 @@ set(EXHAUSTIVE_TESTS
     ah-zip-utils_test
     ah-stl-functional_test
     ah-uni-functional_test
+    ah_date_test
+    ah_mem_test
+    ah_msg_test
     load_digraph_test
     test_al_vector
     archeap_test
@@ -175,12 +178,22 @@ set(EXHAUSTIVE_TESTS
     cut_nodes_test
     graph_indexes_test
     tpl_net_test
+    tpl_kgraph_test
     tpl_agraph_test
     test_kruskal
     tpl_sgraph_test
     tpl_graph_test
     Simplex_test
     prefix_tree_test
+    skiplist_test
+    dynskiplist_test
+    dynmat_test
+    dynmapohash_test
+    ah-mapping_test
+    ahSingleton_test
+    tpl_dynMapTree_test
+    euclidian_graph_common_test
+    future_utils_test
 )
 
 # Create executable for each test program
@@ -222,11 +235,13 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
         # Most exhaustive tests are header-only and need minimal dependencies.
         # Some (like tpl_graph_utils_test and test_al_vector) exercise algorithms
         # that depend on symbols provided by libAleph.
-        if(test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "priority_queue_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test")
+        if(test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "priority_queue_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-mapping_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test")
             target_link_libraries(${test_program} PRIVATE
                 Aleph
                 GTest::gtest_main
                 GTest::gtest
+                gsl
+                gslcblas
                 ${ALEPH_SYSTEM_LIBS}
             )
         else()
