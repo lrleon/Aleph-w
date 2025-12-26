@@ -498,6 +498,57 @@ TEST_F(GraphMoveTest, SwapGraphs)
   EXPECT_EQ(g2.get_num_nodes(), g1_nodes);
 }
 
+TEST_F(GraphMoveTest, SelfAssignment)
+{
+  size_t orig_nodes = g.get_num_nodes();
+  size_t orig_arcs = g.get_num_arcs();
+
+  g = g;  // Self-assignment should be safe
+
+  EXPECT_EQ(g.get_num_nodes(), orig_nodes);
+  EXPECT_EQ(g.get_num_arcs(), orig_arcs);
+}
+
+TEST_F(GraphMoveTest, CopyConstruction)
+{
+  Graph copy(g);
+
+  EXPECT_EQ(copy.get_num_nodes(), g.get_num_nodes());
+  EXPECT_EQ(copy.get_num_arcs(), g.get_num_arcs());
+
+  // Verify deep copy: modifying copy doesn't affect original
+  auto n = copy.insert_node(999);
+  copy.insert_arc(n, n, 99.0);
+  EXPECT_NE(copy.get_num_nodes(), g.get_num_nodes());
+  EXPECT_NE(copy.get_num_arcs(), g.get_num_arcs());
+}
+
+TEST_F(GraphMoveTest, CopyAssignment)
+{
+  Graph copy;
+  copy = g;
+
+  EXPECT_EQ(copy.get_num_nodes(), g.get_num_nodes());
+  EXPECT_EQ(copy.get_num_arcs(), g.get_num_arcs());
+}
+
+TEST_F(GraphMoveTest, CopyToNonEmptyGraph)
+{
+  // Create a non-empty target graph
+  Graph target;
+  for (int i = 0; i < 10; ++i)
+    target.insert_node(i * 100);
+
+  size_t orig_nodes = g.get_num_nodes();
+  size_t orig_arcs = g.get_num_arcs();
+
+  // Copy should replace contents, not append
+  target = g;
+
+  EXPECT_EQ(target.get_num_nodes(), orig_nodes);
+  EXPECT_EQ(target.get_num_arcs(), orig_arcs);
+}
+
 // =============================================================================
 // Path Tests
 // =============================================================================

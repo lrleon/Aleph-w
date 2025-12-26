@@ -3263,6 +3263,69 @@ public:
 };
 
 
+// ============================================================================
+// Macro for Copy/Move/Swap Pattern
+// ============================================================================
+
+/** @brief Macro to generate copy/move constructors and assignment operators.
+
+    This macro generates the standard copy constructor, move constructor,
+    copy assignment operator, and move assignment operator for graph classes.
+
+    Requirements for the graph class:
+    - Must have a `swap(GraphClass&)` method
+    - Must work with the free function `copy_graph(dest, src)`
+
+    @param GraphClass The name of the graph class
+
+    Usage example:
+    @code
+    class List_Graph : public GraphCommon<...> {
+      // ... other members ...
+
+      void swap(List_Graph & g) noexcept { ... }
+
+      ALEPH_GRAPH_COPY_MOVE_CTORS(List_Graph)
+
+      virtual ~List_Graph() { clear_graph(*this); }
+    };
+    @endcode
+
+    @note This macro does NOT generate the destructor, as destruction logic
+          varies between graph implementations.
+
+    @ingroup Grafos
+*/
+#define ALEPH_GRAPH_COPY_MOVE_CTORS(GraphClass)                              \
+  /** Copy constructor. Creates a deep copy of the graph. */                 \
+  GraphClass(const GraphClass & g)                                           \
+  {                                                                          \
+    copy_graph(*this, g);                                                    \
+  }                                                                          \
+                                                                             \
+  /** Move constructor. Transfers ownership from g. */                       \
+  GraphClass(GraphClass && g) noexcept                                       \
+  {                                                                          \
+    swap(g);                                                                 \
+  }                                                                          \
+                                                                             \
+  /** Copy assignment. Replaces contents with a deep copy of g. */           \
+  GraphClass & operator=(const GraphClass & g)                               \
+  {                                                                          \
+    if (this == &g)                                                          \
+      return *this;                                                          \
+    copy_graph(*this, g);                                                    \
+    return *this;                                                            \
+  }                                                                          \
+                                                                             \
+  /** Move assignment. Transfers ownership from g. */                        \
+  GraphClass & operator=(GraphClass && g) noexcept                           \
+  {                                                                          \
+    swap(g);                                                                 \
+    return *this;                                                            \
+  }
+
+
 namespace Aleph
 {
 

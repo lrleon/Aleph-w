@@ -353,12 +353,67 @@ TEST(ArrayGraph, MoveAssignment)
   IntGraph g1;
   g1.insert_node(1);
   g1.insert_node(2);
-  
+
   IntGraph g2;
   g2 = std::move(g1);
-  
+
   EXPECT_EQ(g2.vsize(), 2u);
   EXPECT_EQ(g1.vsize(), 0u);
+}
+
+TEST(ArrayGraph, SelfAssignment)
+{
+  IntGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n1, n2, 10);
+
+  size_t orig_nodes = g.vsize();
+  size_t orig_arcs = g.esize();
+
+  g = g;  // Self-assignment should be safe
+
+  EXPECT_EQ(g.vsize(), orig_nodes);
+  EXPECT_EQ(g.esize(), orig_arcs);
+}
+
+TEST(ArrayGraph, DeepCopyVerification)
+{
+  IntGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n1, n2, 10);
+
+  IntGraph copy(g);
+
+  EXPECT_EQ(copy.vsize(), g.vsize());
+  EXPECT_EQ(copy.esize(), g.esize());
+
+  // Verify deep copy: modifying copy doesn't affect original
+  copy.insert_node(999);
+  EXPECT_NE(copy.vsize(), g.vsize());
+}
+
+TEST(ArrayGraph, CopyToNonEmptyGraph)
+{
+  IntGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  g.insert_arc(n1, n2, 10);
+
+  // Create a non-empty target graph
+  IntGraph target;
+  for (int i = 0; i < 10; ++i)
+    target.insert_node(i * 100);
+
+  size_t orig_nodes = g.vsize();
+  size_t orig_arcs = g.esize();
+
+  // Copy should replace contents, not append
+  target = g;
+
+  EXPECT_EQ(target.vsize(), orig_nodes);
+  EXPECT_EQ(target.esize(), orig_arcs);
 }
 
 // =============================================================================

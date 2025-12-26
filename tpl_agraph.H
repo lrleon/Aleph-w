@@ -547,12 +547,6 @@ namespace Aleph
       clear();
     }
 
-    Array_Graph(const Array_Graph & g)
-    {
-      assert(this->num_nodes == 0 and this->num_arcs == 0);
-      copy_graph(*this, g, false);
-    }
-
     void swap(Array_Graph & g) noexcept
     {
       this->common_swap(g);
@@ -560,26 +554,8 @@ namespace Aleph
       arc_set.swap(g.arc_set);
     }
 
-    Array_Graph(Array_Graph && g) noexcept
-    {
-      swap(g);
-    }
-
-    Array_Graph &operator =(const Array_Graph & g)
-    {
-      if (&g == this)
-        return *this;
-
-      copy_graph(*this, g, false);
-
-      return *this;
-    }
-
-    Array_Graph &operator =(Array_Graph && g) noexcept
-    {
-      swap(g);
-      return *this;
-    }
+    /// @see ALEPH_GRAPH_COPY_MOVE_CTORS
+    ALEPH_GRAPH_COPY_MOVE_CTORS(Array_Graph)
 
   private:
     template <class Cmp>

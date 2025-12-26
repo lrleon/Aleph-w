@@ -38,118 +38,118 @@
 #include <htlist.H>
 #include <ah-zip.H>
 
-#define List_Sort(List)            \
-  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline  \
-  List<T> sort(const List<T> & c, Cmp & cmp)        \
-  {                  \
-    List<T> ret_val = c;            \
-    mergesort<List, T, Cmp>(ret_val, cmp);        \
-    return ret_val;              \
-  }                  \
-                  \
-  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline  \
-  List<T> sort(const List<T> & c, Cmp && cmp = Cmp())      \
-  {                  \
-    return sort<T, Cmp>(c, cmp);          \
-  }                  \
-                  \
-  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline  \
-  List<T> sort(List<T> && c, Cmp & cmp)          \
-  {                  \
-    mergesort<List, T, Cmp>(c, cmp);          \
-    return std::move(c);              \
-  }                  \
-                  \
-  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline  \
-  List<T> sort(List<T> && c, Cmp && cmp = Cmp())      \
-  {                  \
-    return sort<T, Cmp>(std::move(c), cmp);          \
-  }                  \
-                  \
-                  \
-  template <typename T, class Cmp = Aleph::less<T>> inline    \
-  List<T> & in_place_sort(List<T> & c, Cmp & cmp)      \
-  {                  \
-    mergeinsertsort(c, cmp);            \
-    return c;                \
-  }                  \
-                  \
-  template <typename T, class Cmp = Aleph::less<T>> inline    \
-  List<T> & in_place_sort(List<T> & c, Cmp && cmp = Cmp())    \
-  {                  \
-    return in_place_sort<T, Cmp>(c, cmp);        \
+#define List_Sort(List)                                                 \
+  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline \
+  List<T> sort(const List<T> & c, Cmp & cmp)                            \
+  {                                                                     \
+    List<T> ret_val = c;                                                \
+    mergesort<List, T, Cmp>(ret_val, cmp);                              \
+    return ret_val;                                                     \
+  }                                                                     \
+                                                                        \
+  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline \
+  List<T> sort(const List<T> & c, Cmp && cmp = Cmp())                   \
+  {                                                                     \
+    return sort<T, Cmp>(c, cmp);                                        \
+  }                                                                     \
+                                                                        \
+  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline \
+  List<T> sort(List<T> && c, Cmp & cmp)                                 \
+  {                                                                     \
+    mergesort<List, T, Cmp>(c, cmp);                                    \
+    return std::move(c);                                                \
+  }                                                                     \
+                                                                        \
+  template <typename T, class Cmp = Aleph::less<T>> [[nodiscard]] inline \
+  List<T> sort(List<T> && c, Cmp && cmp = Cmp())                        \
+  {                                                                     \
+    return sort<T, Cmp>(std::move(c), cmp);                             \
+  }                                                                     \
+                                                                        \
+                                                                        \
+  template <typename T, class Cmp = Aleph::less<T>> inline              \
+  List<T> & in_place_sort(List<T> & c, Cmp & cmp)                       \
+  {                                                                     \
+    mergeinsertsort(c, cmp);                                            \
+    return c;                                                           \
+  }                                                                     \
+                                                                        \
+  template <typename T, class Cmp = Aleph::less<T>> inline              \
+  List<T> & in_place_sort(List<T> & c, Cmp && cmp = Cmp())              \
+  {                                                                     \
+    return in_place_sort<T, Cmp>(c, cmp);                               \
   }
 
 namespace Aleph
 {
-List_Sort(DynList);
+  List_Sort(DynList);
 
-List_Sort(DynDlist);
+  List_Sort(DynDlist);
 
-template<typename T, class Cmp = Aleph::less <T> >
-[[nodiscard]] inline
-DynArray <T> sort(const DynArray <T> &a, Cmp &&cmp = Cmp())
-{
-  DynArray <T> ret_val = a;
-  quicksort_op(ret_val, cmp);
-  return ret_val;
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  [[nodiscard]] inline
+  DynArray <T> sort(const DynArray <T> &a, Cmp &&cmp = Cmp())
+  {
+    DynArray <T> ret_val = a;
+    quicksort_op(ret_val, cmp);
+    return ret_val;
+  }
 
-template<typename T, class Cmp = Aleph::less <T> >
-[[nodiscard]] inline
-DynArray <T> sort(DynArray <T> &&a, Cmp &&cmp = Cmp())
-{
-  quicksort_op(a, cmp);
-  return std::move(a);
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  [[nodiscard]] inline
+  DynArray <T> sort(DynArray <T> &&a, Cmp &&cmp = Cmp())
+  {
+    quicksort_op(a, cmp);
+    return std::move(a);
+  }
 
-template<typename T, class Cmp = Aleph::less <T> >
-[[nodiscard]] inline
-Array <T> sort(const Array <T> &a, Cmp &&cmp = Cmp())
-{
-  Array <T> ret_val = a;
-  quicksort_op(ret_val, cmp);
-  return ret_val;
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  [[nodiscard]] inline
+  Array <T> sort(const Array <T> &a, Cmp &&cmp = Cmp())
+  {
+    Array <T> ret_val = a;
+    quicksort_op(ret_val, cmp);
+    return ret_val;
+  }
 
-template<typename T, class Cmp = Aleph::less <T> >
-[[nodiscard]] inline
-Array <T> sort(Array <T> &&a, Cmp cmp = Cmp())
-{
-  quicksort_op(a, cmp);
-  return std::move(a);
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  [[nodiscard]] inline
+  Array <T> sort(Array <T> &&a, Cmp cmp = Cmp())
+  {
+    quicksort_op(a, cmp);
+    return std::move(a);
+  }
 
-template<typename Container,
-  class Cmp = std::less <typename Container::value_type> >
-[[nodiscard]] inline
-Container stdsort(const Container &c, Cmp cmp = Cmp())
-{
-  Container ret = c;
-  sort(ret.begin(), ret.end(), cmp);
-  return ret;
-}
+  template<typename Container,
+           class Cmp = std::less <typename Container::value_type> >
+  [[nodiscard]] inline
+  Container stdsort(const Container &c, Cmp cmp = Cmp())
+  {
+    Container ret = c;
+    sort(ret.begin(), ret.end(), cmp);
+    return ret;
+  }
 
-template<typename T, class Cmp = Aleph::less <T> >
-inline
-DynArray <T> &in_place_sort(DynArray <T> &c, Cmp cmp = Cmp())
-{
-  quicksort_op(c, cmp);
-  return c;
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  inline
+  DynArray <T> &in_place_sort(DynArray <T> &c, Cmp cmp = Cmp())
+  {
+    quicksort_op(c, cmp);
+    return c;
+  }
 
-template<typename T, class Cmp = Aleph::less <T> >
-inline
-Array <T> &in_place_sort(Array <T> &c, Cmp cmp = Cmp())
-{
-  quicksort_op(c, cmp);
-  return c;
-}
+  template<typename T, class Cmp = Aleph::less <T> >
+  inline
+  Array <T> &in_place_sort(Array <T> &c, Cmp cmp = Cmp())
+  {
+    quicksort_op(c, cmp);
+    return c;
+  }
 
-template<typename T, template <typename> class C>
-class Compute_Ranks
-{
-  using P = std::pair <T, size_t>;
+  template<typename T, template <typename> class C>
+  class Compute_Ranks
+  {
+    using P = std::pair <T, size_t>;
 
   public:
     C <size_t> compute_ranks(const C <T> &c)
@@ -171,16 +171,16 @@ class Compute_Ranks
     }
 
     template<template <typename Type> class List>
-  C <size_t> list_compute_ranks(const List <T> &c)
-  {
-    C <T> items;
-    size_t n = 0;
-    C <size_t> indexes;
-    c.for_each([&items, &n, &indexes](auto k)
+    C <size_t> list_compute_ranks(const List <T> &c)
     {
-      items.append(k);
-      indexes.append(n++);
-    });
+      C <T> items;
+      size_t n = 0;
+      C <size_t> indexes;
+      c.for_each([&items, &n, &indexes](auto k)
+      {
+        items.append(k);
+        indexes.append(n++);
+      });
       quicksort_op(indexes, [&items](auto i1, auto i2)
       {
         return items(i1) < items(i2);
@@ -192,17 +192,17 @@ class Compute_Ranks
       return ret;
     }
 
-  C <P> compute_pair_ranks(const C <T> &c)
-  {
-    const size_t n = c.size();
-    C <size_t> indexes;
-    indexes.reserve(n);
-    for (size_t i = 0; i < n; ++i)
-      indexes(i) = i;
-    quicksort_op(indexes, [&c](auto i1, auto i2)
+    C <P> compute_pair_ranks(const C <T> &c)
     {
-      return c(i1) < c(i2);
-    });
+      const size_t n = c.size();
+      C <size_t> indexes;
+      indexes.reserve(n);
+      for (size_t i = 0; i < n; ++i)
+        indexes(i) = i;
+      quicksort_op(indexes, [&c](auto i1, auto i2)
+      {
+        return c(i1) < c(i2);
+      });
       C <P> ret;
       ret.reserve(n);
       for (size_t i = 0; i < n; ++i)
@@ -214,16 +214,16 @@ class Compute_Ranks
     }
 
     template<template <typename Type> class List>
-  C <P> list_pair_ranks(const List <T> &c)
-  {
-    C <T> items; // array copy of c for direct access
-    size_t n = 0;
-    C <size_t> indexes;
-    c.for_each([&items, &n, &indexes](auto k) // copy elements of c to item
+    C <P> list_pair_ranks(const List <T> &c)
     {
-      items.append(k);
-      indexes.append(n++);
-    });
+      C <T> items; // array copy of c for direct access
+      size_t n = 0;
+      C <size_t> indexes;
+      c.for_each([&items, &n, &indexes](auto k) // copy elements of c to item
+      {
+        items.append(k);
+        indexes.append(n++);
+      });
       quicksort_op(indexes, [&items](auto i1, auto i2)
       {
         return items(i1) < items(i2);
@@ -237,112 +237,112 @@ class Compute_Ranks
         }
       return ret;
     }
-};
+  };
 
-template<typename T>
-[[nodiscard]] Array <size_t> ranks(const Array <T> &array)
-{
-  return Compute_Ranks <T, Array>().compute_ranks(array);
-}
+  template<typename T>
+  [[nodiscard]] Array <size_t> ranks(const Array <T> &array)
+  {
+    return Compute_Ranks <T, Array>().compute_ranks(array);
+  }
 
-template<typename T>
-[[nodiscard]] DynArray <size_t> ranks(const DynArray <T> &array)
-{
-  return Compute_Ranks <T, DynArray>().compute_ranks(array);
-}
+  template<typename T>
+  [[nodiscard]] DynArray <size_t> ranks(const DynArray <T> &array)
+  {
+    return Compute_Ranks <T, DynArray>().compute_ranks(array);
+  }
 
-template<typename T>
-[[nodiscard]] DynArray <size_t> ranks(const DynList <T> &l)
-{
-  return Compute_Ranks <T, DynArray>().list_compute_ranks(l);
-}
+  template<typename T>
+  [[nodiscard]] DynArray <size_t> ranks(const DynList <T> &l)
+  {
+    return Compute_Ranks <T, DynArray>().list_compute_ranks(l);
+  }
 
-template<typename T>
-[[nodiscard]] DynArray <size_t> ranks(const DynDlist <T> &l)
-{
-  return Compute_Ranks <T, DynArray>().list_compute_ranks(l);
-}
+  template<typename T>
+  [[nodiscard]] DynArray <size_t> ranks(const DynDlist <T> &l)
+  {
+    return Compute_Ranks <T, DynArray>().list_compute_ranks(l);
+  }
 
-template<typename T>
-[[nodiscard]] auto pair_ranks(const Array <T> &c)
-{
-  return Compute_Ranks <T, Array>().compute_pair_ranks(c);
-}
+  template<typename T>
+  [[nodiscard]] auto pair_ranks(const Array <T> &c)
+  {
+    return Compute_Ranks <T, Array>().compute_pair_ranks(c);
+  }
 
-template<typename T>
-[[nodiscard]] auto pair_ranks(const DynArray <T> &c)
-{
-  return Compute_Ranks <T, DynArray>().compute_pair_ranks(c);
-}
+  template<typename T>
+  [[nodiscard]] auto pair_ranks(const DynArray <T> &c)
+  {
+    return Compute_Ranks <T, DynArray>().compute_pair_ranks(c);
+  }
 
-template<typename T>
-[[nodiscard]] auto pair_ranks(const DynList <T> &l)
-{
-  Compute_Ranks <T, DynArray> func;
-  return func.list_pair_ranks(l);
-}
+  template<typename T>
+  [[nodiscard]] auto pair_ranks(const DynList <T> &l)
+  {
+    Compute_Ranks <T, DynArray> func;
+    return func.list_pair_ranks(l);
+  }
 
-template<typename T>
-[[nodiscard]] auto pair_ranks(const DynDlist <T> &l)
-{
-  Compute_Ranks <T, DynArray> func;
-  return func.list_pair_ranks(l);
-}
+  template<typename T>
+  [[nodiscard]] auto pair_ranks(const DynDlist <T> &l)
+  {
+    Compute_Ranks <T, DynArray> func;
+    return func.list_pair_ranks(l);
+  }
 
-/**
- * Sorts multiple arrays in place, using the first array as the key.
- *
- * This uses the stable sort algorithm, and is suitable for sorting multiple
- * arrays that are to be kept in sync.
- *
- * @param cmp a comparison functor that takes elements of the first array as
- *            arguments, and returns true if the first element should be sorted
- *            before the second element.
- * @param first the first array to be sorted
- * @param args additional arrays to be sorted
- *
- * The sorting is done in a stable manner, so that the relative order of equal
- * elements is preserved.
- *
- * @warning The algorithm assumes that the size of all the arrays given as
- *          arguments is the same.
- *
- * @note This algorithm has a time complexity of O(n log n), where n is the size
- *       of the arrays.
- */
-template<typename C, typename... Args,
-  typename Cmp = std::less <typename C::value_type>>
-inline
-void in_place_multisort_arrays(Cmp cmp, C &first, Args &... args)
-{
-  const size_t n = first.size();
-  if (n == 0)
-    return;
+  /**
+   * Sorts multiple arrays in place, using the first array as the key.
+   *
+   * This uses the stable sort algorithm, and is suitable for sorting multiple
+   * arrays that are to be kept in sync.
+   *
+   * @param cmp a comparison functor that takes elements of the first array as
+   *            arguments, and returns true if the first element should be sorted
+   *            before the second element.
+   * @param first the first array to be sorted
+   * @param args additional arrays to be sorted
+   *
+   * The sorting is done in a stable manner, so that the relative order of equal
+   * elements is preserved.
+   *
+   * @warning The algorithm assumes that the size of all the arrays given as
+   *          arguments is the same.
+   *
+   * @note This algorithm has a time complexity of O(n log n), where n is the size
+   *       of the arrays.
+   */
+  template<typename C, typename... Args,
+           typename Cmp = std::less <typename C::value_type>>
+  inline
+  void in_place_multisort_arrays(Cmp cmp, C &first, Args &... args)
+  {
+    const size_t n = first.size();
+    if (n == 0)
+      return;
 
-  const bool all_same_size = ((args.size() == n) && ...);
-  ah_invalid_argument_if(not all_same_size)
+    const bool all_same_size = ((args.size() == n) && ...);
+    ah_invalid_argument_if(not all_same_size)
       << "all arrays must have the same size";
 
-  std::vector<size_t> indices(n);
-  std::iota(indices.begin(), indices.end(), static_cast<size_t>(0));
+    std::vector<size_t> indices(n);
+    std::iota(indices.begin(), indices.end(), static_cast<size_t>(0));
 
-  std::stable_sort(indices.begin(), indices.end(), [&first, &cmp](size_t i1, size_t i2)
-  {
-    return cmp(first[i1], first[i2]);
-  });
-
-  for (size_t i = 0; i < n; ++i)
+    std::stable_sort(indices.begin(), indices.end(), [&first, &cmp](size_t i1, size_t i2)
     {
-      size_t idx = indices[i];
-      while (idx != i)
-        {
-          swap(first[i], first[idx]);
-          (swap(args[i], args[idx]), ...);
-          std::swap(indices[i], indices[idx]);
-          idx = indices[i];
-        }
-    }
-}
+      return cmp(first[i1], first[i2]);
+    });
+
+    for (size_t i = 0; i < n; ++i)
+      {
+        size_t idx = indices[i];
+        while (idx != i)
+          {
+            swap(first[i], first[idx]);
+            (swap(args[i], args[idx]), ...);
+            std::swap(indices[i], indices[idx]);
+            idx = indices[i];
+          }
+      }
+  }
 
 
 } // end namespace Aleph

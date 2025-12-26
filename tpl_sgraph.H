@@ -302,11 +302,6 @@ public:
     clear();
   }
 
-  List_SGraph(const List_SGraph & g)
-  {
-    copy_graph(*this, g);
-  }
-
   void swap(List_SGraph & g) noexcept
   {
     this->common_swap(g);
@@ -314,29 +309,8 @@ public:
     arc_list.swap(g.arc_list);
   }
 
-  List_SGraph(List_SGraph && g) noexcept
-  {
-    swap(g);
-  }
-
-  List_SGraph & operator = (const List_SGraph & g)
-  {
-    if (&g == this)
-      return *this;
-
-    clear();
-
-    copy_graph(*this, const_cast<List_SGraph&>(g));
-
-    return *this;
-  }
-
-  List_SGraph & operator = (List_SGraph && g) noexcept
-  {
-    swap(g);
-
-    return *this;
-  }
+  /// @see ALEPH_GRAPH_COPY_MOVE_CTORS
+  ALEPH_GRAPH_COPY_MOVE_CTORS(List_SGraph)
 
   /** Node iterator for a graph.
 

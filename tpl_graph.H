@@ -818,68 +818,8 @@ namespace Aleph
       sort_arcs(cmp);
     }
 
-    /** Copy constructor.
-
-          Build a new graph with a copy of graph `g`. Al the data
-          content for the nodes and arc are copied to the new graph,
-          what requires that the copy constructors and copy assignment
-          for each data type (of node and the arc) are defined.
-
-          The new graph is completely isomorphic to `g`.
-
-          @param[in] g graph to be copied
-          @throw bad_alloc `bad_alloc` if there is no enough memory
-          @note The new graph has all the control attributes for the
-          nodes and arcs reset.
-          \see copy_graph()
-      */
-    List_Graph(const List_Graph & g)
-    {
-      copy_graph(*this, g);
-    }
-
-    /** Construct a new graph by moving a graph `g`.
-
-          This construction is \f$O(1)\f$ because no copy is done; simply
-          `g` is moved to the new graph. After construction, `g` becomes
-          empty, what it is not a problem because it is certain that `g` is a
-          rvalue (it is temporal).
-
-          @param[in] g graph to be moved
-      */
-    List_Graph(List_Graph && g) noexcept
-    {
-      swap(g);
-    }
-
-    /** Assign by copy `g` to `this`.
-
-          This operator removes and frees all the nodes and arcs of `this`
-          and then copy `g`.
-
-          @param[in] g graph to copy
-          @throw bad_alloc if there is no enough memory
-          @note The value of nodes and arcs attributes is undetermined.
-      */
-    List_Graph &operator=(const List_Graph & g)
-    {
-      if (this == &g)
-        return *this;
-
-      copy_graph(*this, g);
-      return *this;
-    }
-
-    /**Assign by moving `g` to `this`.
-
-         This assignment moves in constant time all `g` content to `this`.
-         @param[in] g graph to copy
-      */
-    List_Graph &operator=(List_Graph && g) noexcept
-    {
-      swap(g);
-      return *this;
-    }
+    /// @see ALEPH_GRAPH_COPY_MOVE_CTORS
+    ALEPH_GRAPH_COPY_MOVE_CTORS(List_Graph)
 
     /// Destructor: all the nodes and arcs and removed and freed
     virtual ~List_Graph()
