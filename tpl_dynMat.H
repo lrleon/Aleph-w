@@ -702,14 +702,20 @@ public:
     return traverse<Operation>(operation);
   }
 
-  /** @brief Traverse only the allocated (written) entries.
+  /** @brief Traverse entries in allocated memory blocks.
    *
-   *  More efficient than traverse() when the matrix is sparse, as it
-   *  only visits entries that have been explicitly written.
+   *  Visits all entries within allocated memory blocks. This is more
+   *  efficient than traverse() when the matrix is very sparse, but note
+   *  that it visits all entries in each allocated block, not just those
+   *  that were explicitly written.
    *
    *  @tparam Operation A callable with signature `bool(T&)`.
    *  @param[in] operation The operation to perform.
    *  @return true if all entries were visited, false if stopped early.
+   *
+   *  @note Due to the block-based allocation of DynArray, this function
+   *        may visit entries that contain the default value but happen
+   *        to be in the same block as a written entry.
    */
   template <class Operation>
   bool traverse_allocated(Operation && operation)

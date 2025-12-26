@@ -1,4 +1,3 @@
-
 # include "eepicgeom.H"
 
 const double Eepic_Plane::default_r = 20;

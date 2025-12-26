@@ -1,4 +1,3 @@
-
 # include <aleph-graph.H>
 
 namespace Aleph {

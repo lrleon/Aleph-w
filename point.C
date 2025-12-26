@@ -1,4 +1,3 @@
-
 # include "point.H"
 
 const double Text::font_width_in_points = 40.0;

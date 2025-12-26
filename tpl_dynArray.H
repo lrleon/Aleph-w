@@ -1,4 +1,3 @@
-
 # ifndef TPL_DYNARRAY_H
 # define TPL_DYNARRAY_H
 

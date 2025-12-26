@@ -1,4 +1,3 @@
-
 # include <iostream>
 # include <tpl_sort_utils.H>
 
