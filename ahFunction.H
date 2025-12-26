@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahFunction.H
+ *  @brief Standard functor implementations and comparison objects.
+ *
+ *  This file provides STL-compatible function objects for common operations
+ *  including arithmetic operations, comparisons, logical operations, and
+ *  hash functions. These functors are used throughout Aleph-w for generic
+ *  algorithm implementations.
+ *
+ *  @ingroup Functors
+ */
+
 // Functor implementations -*- C++ -*-
 
 /*

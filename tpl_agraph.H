@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_agraph.H
+ *  @brief Array-based graph implementation.
+ *
+ *  This file provides `Array_Graph` and `Array_Digraph`, graph implementations
+ *  that use arrays for node storage. These offer better cache locality for
+ *  dense graphs and efficient indexed access to nodes.
+ *
+ *  @ingroup Graphs
+ */
+
 # ifndef TPL_AGRAPH_H
 # define TPL_AGRAPH_H
 

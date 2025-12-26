@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file htlist.H
+ *  @brief Singly linked list implementations with head-tail access.
+ *
+ *  This file provides efficient singly linked list data structures including
+ *  `Slinknc` (non-circular link), `Snodenc` (node with data), `HTList`
+ *  (head-tail list), and `DynList` (dynamic list with functional operations).
+ *  These are fundamental building blocks used throughout Aleph-w.
+ *
+ *  @ingroup Sequences
+ */
+
 # ifndef HTLIST_H
 # define HTLIST_H
 

@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynListStack.H
+ *  @brief Dynamic stack implementation based on linked lists.
+ *
+ *  This file provides `DynListStack`, a LIFO stack backed by a singly linked
+ *  list. It supports O(1) push and pop operations with unlimited capacity
+ *  and includes functional operations like map, filter, and fold.
+ *
+ *  @ingroup Sequences
+ */
+
 # ifndef TPL_DYNLISTSTACK_H
 # define TPL_DYNLISTSTACK_H
 

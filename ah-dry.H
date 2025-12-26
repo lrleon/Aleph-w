@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-dry.H
+ *  @brief Container traversal and functional operation mixins.
+ *
+ *  This file provides generic traversal classes and mixins that implement
+ *  functional operations (for_each, exists, all, filter, map, etc.) for
+ *  containers through their iterators. These follow the DRY principle.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef AH_DRY_H
 # define AH_DRY_H
 

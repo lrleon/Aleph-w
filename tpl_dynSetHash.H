@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dynSetHash.H
+ *  @brief Dynamic set implementations based on hash tables.
+ *
+ *  This file provides `DynSetHash` and related hash-based set implementations
+ *  offering O(1) average-case insertion, deletion, and search. Multiple hash
+ *  table variants are supported including linear probing and separate chaining.
+ *
+ *  @ingroup Sets
+ *  @ingroup Hash
+ */
+
 # ifndef TPL_DYNSETHASH_H
 # define TPL_DYNSETHASH_H
 

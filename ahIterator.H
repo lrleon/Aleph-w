@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahIterator.H
+ *  @brief Iterator traits and utilities.
+ *
+ *  This file provides iterator trait definitions and utilities for working
+ *  with Aleph-w iterators, enabling generic algorithm implementations
+ *  compatible with both STL and Aleph-w containers.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef AHITERATOR_H
 # define AHITERATOR_H
 

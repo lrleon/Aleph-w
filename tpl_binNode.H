@@ -23,6 +23,17 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_binNode.H
+ *  @brief Basic binary tree node definitions.
+ *
+ *  This file provides the fundamental binary tree node templates including
+ *  `BinNode` (basic node) and `BinNodeVtl` (node with virtual destructor).
+ *  These serve as building blocks for all binary tree implementations.
+ *
+ *  @ingroup Trees
+ */
+
 # ifndef TPL_BINNODE_H
 # define TPL_BINNODE_H
 

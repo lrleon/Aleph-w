@@ -172,7 +172,9 @@ namespace Aleph
     gsl_rng_set(rand_gen, seed % gsl_rng_max(rand_gen));
 
     Init_P<GT> initp(w, h);
-    const int max_offset = std::max(1, int(std::ceil(std::hypot(double(w), double(h)))));
+    const int max_offset = std::max(1,
+                                    static_cast<int>(std::ceil(std::hypot(static_cast<double>(w),
+                                                                          static_cast<double>(h)))));
     Init_Arc<GT> initarc(max_offset);
 
     GT g = Random_Graph<GT, Init_P<GT>, Init_Arc<GT>>(seed, initp, initarc)(n, m);

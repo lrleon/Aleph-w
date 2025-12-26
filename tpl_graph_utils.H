@@ -23,6 +23,17 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_graph_utils.H
+ *  @brief Utility algorithms and operations for graphs.
+ *
+ *  This file provides a comprehensive collection of graph algorithms including
+ *  traversals (BFS, DFS), path finding, connectivity tests, spanning trees,
+ *  graph copying, and various utility functions for working with graphs.
+ *
+ *  @ingroup Graphs
+ */
+
 # ifndef TPL_GRAPH_UTILS_H
 # define TPL_GRAPH_UTILS_H
 

@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_binNodeUtils.H
+ *  @brief Utility functions for binary tree operations.
+ *
+ *  This file provides a comprehensive set of utility functions for binary trees
+ *  including traversals (inorder, preorder, postorder, level-order), tree
+ *  construction, copying, destruction, rotation, and various query operations.
+ *
+ *  @ingroup Trees
+ */
+
 # ifndef TPL_BINNODEUTILS_H
 # define TPL_BINNODEUTILS_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_sgraph.H
+ *  @brief Simple graph implementation with adjacency lists.
+ *
+ *  This file provides `List_SGraph` and `List_SDigraph`, simplified graph
+ *  implementations using singly linked adjacency lists. These are memory-
+ *  efficient alternatives to the standard graph classes.
+ *
+ *  @ingroup Graphs
+ */
+
 # ifndef TPL_SGRAPH_H
 # define TPL_SGRAPH_H
 

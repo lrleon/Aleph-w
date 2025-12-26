@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ahDry.H
+ *  @brief DRY (Don't Repeat Yourself) utilities and mixins.
+ *
+ *  This file provides utility classes and mixins that implement common
+ *  patterns to avoid code repetition, including container traits,
+ *  comparison operators, iterator support, and serialization helpers.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef AHDRY_H
 # define AHDRY_H
 

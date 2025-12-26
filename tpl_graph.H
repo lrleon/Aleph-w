@@ -23,6 +23,18 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_graph.H
+ *  @brief Generic graph and digraph implementations.
+ *
+ *  This file provides the core graph data structures for Aleph-w, including
+ *  `List_Graph` (undirected graphs) and `List_Digraph` (directed graphs).
+ *  These templates support customizable node and arc information types,
+ *  and provide efficient adjacency list representations with iterators.
+ *
+ *  @ingroup Graphs
+ */
+
 # ifndef TPL_GRAPH_H
 # define TPL_GRAPH_H
 

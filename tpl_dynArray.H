@@ -1,3 +1,14 @@
+/** @file tpl_dynArray.H
+ *  @brief Lazy and scalable dynamic array implementation.
+ *
+ *  This file provides `DynArray`, a versatile dynamic array with lazy
+ *  allocation. Memory is allocated on-demand using a three-level indexing
+ *  scheme (directory, segments, blocks) that provides O(1) access time
+ *  while minimizing memory waste for sparse arrays.
+ *
+ *  @ingroup Sequences
+ */
+
 # ifndef TPL_DYNARRAY_H
 # define TPL_DYNARRAY_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dynDlist.H
+ *  @brief Dynamic doubly linked list implementation.
+ *
+ *  This file provides `DynDlist`, a dynamic doubly linked list that supports
+ *  efficient insertion and removal at both ends, bidirectional iteration,
+ *  and a rich set of functional operations (map, filter, fold, etc.).
+ *
+ *  @ingroup Sequences
+ */
+
 # ifndef TPL_DYNDLIST_H
 # define TPL_DYNDLIST_H
 

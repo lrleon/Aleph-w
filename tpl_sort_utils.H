@@ -23,6 +23,17 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_sort_utils.H
+ *  @brief Sorting algorithms and utilities.
+ *
+ *  This file provides a comprehensive collection of sorting algorithms including
+ *  quicksort, mergesort, heapsort, insertion sort, and selection sort. It supports
+ *  sorting arrays, linked lists, and other container types with custom comparators.
+ *
+ *  @ingroup Algorithms
+ */
+
 #ifndef TPL_SORT_UTILS_H
 #define TPL_SORT_UTILS_H
 
@@ -768,7 +779,8 @@ namespace Aleph
           }
         prev = curr;
       }
-    std::unreachable();
+    ah_logic_error()
+      << "insert_sorted(): reached end of list traversal without inserting";
   }
 
   /** Sorts a list of simple nodes by insertion method

@@ -24,6 +24,18 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynSetTree.H
+ *  @brief Dynamic set implementations based on balanced binary search trees.
+ *
+ *  This file provides `DynSetTree`, a generic dynamic set backed by various
+ *  balanced BST implementations (AVL, Treap, Red-Black, Splay, etc.). It offers
+ *  logarithmic-time insertion, deletion, and search operations with support
+ *  for ranked operations and functional programming patterns.
+ *
+ *  @ingroup Trees
+ *  @ingroup Sets
+ */
+
 # ifndef TPL_DYNSETTREE_H
 # define TPL_DYNSETTREE_H
 

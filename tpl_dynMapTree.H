@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dynMapTree.H
+ *  @brief Dynamic key-value map based on balanced binary search trees.
+ *
+ *  This file provides `DynMapTree`, a generic associative container mapping
+ *  keys to values. It supports logarithmic-time operations and can use
+ *  various balanced BST implementations (AVL, Treap, Red-Black, etc.).
+ *
+ *  @ingroup Trees
+ *  @ingroup Maps
+ */
+
 # ifndef TPL_DYNMAPTREE_H
 # define TPL_DYNMAPTREE_H
 

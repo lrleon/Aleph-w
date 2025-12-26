@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file point.H
+ *  @brief 2D point and geometric utilities.
+ *
+ *  This file provides classes for 2D points and geometric operations including
+ *  distance calculations, vector operations, and coordinate transformations.
+ *  Used by graph visualization and geometric algorithms.
+ *
+ *  @ingroup Geometry
+ */
+
 # ifndef POINT_H
 # define POINT_H
 

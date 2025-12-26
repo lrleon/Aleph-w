@@ -23,6 +23,16 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah-args-ctor.H
+ *  @brief Variadic constructor macros for containers.
+ *
+ *  This file provides macros for generating variadic constructors that allow
+ *  containers to be initialized with multiple elements at construction time.
+ *
+ *  @ingroup Utils
+ */
+
 #ifndef AH_ARGS_CTOR_H
 #define AH_ARGS_CTOR_H
 

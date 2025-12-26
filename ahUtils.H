@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahUtils.H
+ *  @brief General utility functions and helpers.
+ *
+ *  This file provides miscellaneous utility functions including bit manipulation,
+ *  memory utilities, file operations, string formatting, type name demangling,
+ *  and various mathematical helpers used throughout Aleph-w.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef AHUTILS_H
 # define AHUTILS_H
 

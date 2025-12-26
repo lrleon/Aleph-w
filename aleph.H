@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file aleph.H
+ *  @brief Core header for the Aleph-w library.
+ *
+ *  This is the main include file for the Aleph-w library. It provides
+ *  fundamental includes for definitions, utilities, and assertions that
+ *  are used throughout the library.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef ALEPH_H
 # define ALEPH_H
 

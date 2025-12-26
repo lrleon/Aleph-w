@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynListQueue.H
+ *  @brief Dynamic queue implementation based on linked lists.
+ *
+ *  This file provides `DynListQueue`, a FIFO queue backed by a linked list.
+ *  It supports O(1) enqueue and dequeue operations with unlimited capacity
+ *  and efficient memory management.
+ *
+ *  @ingroup Sequences
+ */
+
 # ifndef TPL_DYNLISTQUEUE_H
 # define TPL_DYNLISTQUEUE_H
 

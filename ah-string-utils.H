@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-string-utils.H
+ *  @brief String manipulation utilities.
+ *
+ *  This file provides a comprehensive set of string utilities including
+ *  trimming, splitting, joining, case conversion, numeric parsing, and
+ *  various string transformation functions.
+ *
+ *  @ingroup Utils
+ */
+
 # ifndef AH_STRING_UTILS_H
 # define AH_STRING_UTILS_H
 
