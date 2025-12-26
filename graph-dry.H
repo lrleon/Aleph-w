@@ -3260,6 +3260,78 @@ public:
   {
     return filter_out_arcs(p, op);
   }
+
+  // ===========================================================================
+  // Sorting Methods (for Dlink-based graphs)
+  // ===========================================================================
+
+  /** Sort all the nodes of the graph according to a specific criteria.
+
+      This method is available only for graph implementations that use
+      Dlink-based storage (List_Graph, Array_Graph). It sorts the internal
+      node list using mergesort.
+
+      The comparison criteria should match the following signature:
+
+          bool cmp(Node * n1, Node * n2);
+
+      After execution of this method, provided that no new nodes are
+      inserted or other sorts are not performed with a different
+      criteria, **it is guaranteed that order of apparition of the
+      nodes by the `Node_Iterator` will be sorted**.
+
+      @param cmp comparison operation that defines the sorting criteria
+      @note Not available for List_SGraph (uses DynSetTree instead of Dlink)
+  */
+  template <class Compare>
+  void sort_nodes(Compare & cmp) noexcept
+    requires requires { { me()->get_node_dlink() } -> std::same_as<Dlink&>; }
+  {
+    Cmp_Dlink_Node<GT, Compare> c = cmp;
+    mergesort(me()->get_node_dlink(), c);
+  }
+
+  /// \overload sort_nodes(Compare & cmp)
+  template <class Compare>
+  void sort_nodes(Compare && cmp = Compare()) noexcept
+    requires requires { { me()->get_node_dlink() } -> std::same_as<Dlink&>; }
+  {
+    sort_nodes(cmp);
+  }
+
+  /** Sort all the arcs of the graph according to a specific criteria.
+
+      This method is available only for graph implementations that use
+      Dlink-based storage (List_Graph, Array_Graph). It sorts the internal
+      arc list using mergesort.
+
+      The comparison criteria should match the following signature:
+
+          bool cmp(Arc * a1, Arc * a2);
+
+      After execution of this method, provided that no new arcs are
+      inserted or other sorts are not performed with a different
+      criteria, **it is guaranteed that order of apparition of the
+      arcs by the `Arc_Iterator` will be sorted**.
+
+      @param cmp comparison operation that defines the sorting criteria
+      @note Not available for List_SGraph (uses DynSetTree instead of Dlink)
+  */
+  template <class Compare>
+  void sort_arcs(Compare & cmp) noexcept
+    requires requires { { me()->get_arc_dlink() } -> std::same_as<Dlink&>; }
+  {
+    Cmp_Dlink_Arc<GT, Compare> c = cmp;
+    mergesort(me()->get_arc_dlink(), c);
+  }
+
+  /// \overload sort_arcs(Compare & cmp)
+  template <class Compare>
+  void sort_arcs(Compare && cmp = Compare()) noexcept
+    requires requires { { me()->get_arc_dlink() } -> std::same_as<Dlink&>; }
+  {
+    sort_arcs(cmp);
+  }
 };
 
 

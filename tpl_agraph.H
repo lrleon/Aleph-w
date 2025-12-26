@@ -289,6 +289,12 @@ namespace Aleph
     Dlink arc_set;
 
   public:
+    /// Returns reference to internal node Dlink for sorting operations
+    Dlink & get_node_dlink() noexcept { return node_set; }
+
+    /// Returns reference to internal arc Dlink for sorting operations
+    Dlink & get_arc_dlink() noexcept { return arc_set; }
+
     struct Node_Iterator : public GTNodeIterator<Array_Graph>
     {
       using Base = GTNodeIterator<Array_Graph>;
@@ -579,75 +585,8 @@ namespace Aleph
       }
     };
 
-  public:
-    /** Sort all the nodes of the graph according to a specific
-        criteria.
-
-        The method takes an comparison operation between two nodes and
-        sorts the nodes.
-
-        The comparison criteria should match the following signature:
-
-        bool cmp(Node * a1, Node * a2);
-
-        So, inside `cmp` you would access to the data arcs and would
-        perform the comparison.
-
-        After execution of this method, provided that no new nodes are
-        inserted or others sorts are not performed with a different
-        criteria, **it is guaranted that order of apparition of the
-        nodes by the `Node_Iterator` will be sorted**.
-
-        \param[inout] cmp operation of comparison that defines the
-        sorting criteria
-    */
-    template <class Compare>
-    inline
-    void sort_nodes(Compare & cmp) noexcept
-    {
-      Cmp_Dlink_Node<Array_Graph, Compare> c = cmp;
-      mergesort(node_set, c);
-    }
-
-    /// \overload sort_arcs(Compare & cmp)
-    template <class Compare>
-    inline
-    void sort_nodes(Compare && cmp = Compare()) noexcept
-    {
-      sort_nodes(cmp);
-    }
-
-    /** Sort all the arcs of the graph according to a specific
-  criteria.
-
-  The method takes an comparison operation between two arcs and
-  sorts the arcs.
-
-  The comparison criteria should match the following signature:
-
-      bool cmp(Arc * a1, Arc * a2);
-
-  So, inside `cmp` you would access to the data arcs and would
-  perform the comparison.
-
-  After execution of this method, provided that no new arcs are
-  inserted or others sorts are not performed with a different
-  criteria, **it is guaranted that order of apparition of the
-  arc by the `Arc_Iterator` will be sorted**.
-
-  \param[inout] cmp operation of comparison that defines the
-  sorting criteria
-     */
-    template <class Compare>
-    void sort_arcs(Compare & cmp)
-    {
-      Cmp_Dlink_Arc<Array_Graph, Compare> c = cmp;
-      mergesort(arc_set, c);
-    }
-
-    /// \overload sort_arcs(Compare & cmp)
-    template <class Compare>
-    void sort_arcs(Compare && cmp) { sort_arcs(cmp); }
+    // sort_nodes() and sort_arcs() are inherited from GraphCommon via CRTP
+    // They use the get_node_dlink() and get_arc_dlink() accessors defined above
   };
 
   /** Directed graph (digraph) implemented with array-based adjacency lists.
