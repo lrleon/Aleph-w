@@ -630,13 +630,17 @@ struct Dft_Pair_Cmp
 template<typename Key, typename Data>
 std::pair<Key, Data> *key_to_pair(Key *ptr)
 {
-  return static_cast<std::pair<Key, Data> *>(ptr);
+  using PairType = std::pair<Key, Data>;
+  return reinterpret_cast<PairType *>(
+      reinterpret_cast<char *>(ptr) - offsetof(PairType, first));
 }
 
 template<typename Key, typename Data>
 const std::pair<Key, Data> *key_to_pair(const Key *ptr)
 {
-  return static_cast<const std::pair<Key, Data> *>(ptr);
+  using PairType = std::pair<Key, Data>;
+  return reinterpret_cast<const PairType *>(
+      reinterpret_cast<const char *>(ptr) - offsetof(PairType, first));
 }
 
 template<typename Key, typename Data>

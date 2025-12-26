@@ -54,90 +54,28 @@
 # ifndef AHPAIR_H
 # define AHPAIR_H 1
 
+# include <utility>
+
 namespace Aleph
 {
-      template<class _T1, class _T2>
-  struct pair
-  {
-    typedef _T1 first_type;    
-    typedef _T2 second_type;   
+  /** @brief Alias to `std::pair` kept for backwards compatibility.
+   *
+   * Aleph historically provided its own `pair` type prior to C++11. Modern
+   * compilers already ship a standards-compliant implementation in
+   * `<utility>`, so this header simply re-exports that type within the
+   * Aleph namespace to avoid code churn in legacy headers.
+   *
+   * All constructors, assignment operators and comparison operators behave
+   * exactly like the ones provided by `std::pair`.
+   *
+   * @tparam First First element type.
+   * @tparam Second Second element type.
+   */
+  template<typename First, typename Second>
+  using pair = std::pair<First, Second>;
 
-    _T1 first;                 
-    _T2 second;                
-
-    pair() : first(), second() { }
-
-    pair(const _T1 & __a, const _T2 & __b) : first(__a), second(__b) { }
-
-    pair(const _T1& __a) : first(__a) { }
-
-        template<class _U1, class _U2>
-    pair(const pair<_U1, _U2> & __p)
-      : first(__p.first), second(__p.second) { }
-
-    pair & operator = (const pair & p)
-    {
-      if (this == &p)
-	return *this;
-
-      first  = p.first;
-      second = p.second;
-
-      return *this;
-    }
-  };
-
-
-      template<class _T1, class _T2> inline 
-  bool operator == (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return __x.first == __y.first and __x.second == __y.second; 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator < (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return __x.first < __y.first
-      or (not (__y.first < __x.first) and __x.second < __y.second); 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator != (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return not (__x == __y); 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator > (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  {
-    return __y < __x; 
-  }
-
-
-      template<class _T1, class _T2> inline
-  bool operator <= (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return not (__y < __x); 
-  }
-
-
-      template<class _T1, class _T2> inline
-  bool operator >= (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  {
-    return not (__x < __y); 
-  }
-
-  
-      template<class _T1, class _T2> inline
-  pair<_T1, _T2> make_pair(_T1 __x, _T2 __y) 
-  {
-    return pair<_T1, _T2>(__x, __y); 
-  }
-
-
+  /// Re-export `std::make_pair` so existing code can refer to Aleph::make_pair.
+  using std::make_pair;
 } // namespace Aleph
 
 # endif /* AHPAIR_H */

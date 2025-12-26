@@ -291,8 +291,14 @@ public:
    *  @param[in,out] mat The matrix to move from.
    */
   DynMatrix(DynMatrix<T> && mat) noexcept
+    : n(mat.n),
+      m(mat.m),
+      array_ptr(mat.array_ptr),
+      default_value(std::move(mat.default_value))
   {
-    swap(mat);
+    mat.n = mat.m = 0;
+    mat.array_ptr = nullptr;
+    mat.default_value = T();
   }
 
   /** @brief Copy assignment operator.
@@ -329,7 +335,20 @@ public:
    */
   DynMatrix<T> & operator = (DynMatrix<T> && mat) noexcept
   {
-    swap(mat);
+    if (this == &mat)
+      return *this;
+
+    delete array_ptr;
+
+    n = mat.n;
+    m = mat.m;
+    default_value = std::move(mat.default_value);
+    array_ptr = mat.array_ptr;
+
+    mat.n = mat.m = 0;
+    mat.array_ptr = nullptr;
+    mat.default_value = T();
+
     return *this;
   }
 
@@ -695,14 +714,36 @@ public:
   template <class Operation>
   bool traverse_allocated(Operation && operation)
   {
-    return array_ptr->traverse(std::forward<Operation>(operation));
+    if (array_ptr == nullptr)
+      return true;
+
+    const size_t total = n * m;
+    for (size_t idx = 0; idx < total; ++idx)
+      if (T *entry = array_ptr->test(idx))
+        {
+          if (!operation(*entry))
+            return false;
+        }
+
+    return true;
   }
 
   /// @overload traverse_allocated
   template <class Operation>
   bool traverse_allocated(Operation && operation) const
   {
-    return array_ptr->traverse(std::forward<Operation>(operation));
+    if (array_ptr == nullptr)
+      return true;
+
+    const size_t total = n * m;
+    for (size_t idx = 0; idx < total; ++idx)
+      if (const T *entry = array_ptr->test(idx))
+        {
+          if (!operation(*entry))
+            return false;
+        }
+
+    return true;
   }
 };
 
