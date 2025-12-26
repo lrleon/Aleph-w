@@ -24,7 +24,8 @@ options = {
   cmake_args: [
     '-DBUILD_EXAMPLES=OFF',
     '-DBUILD_TESTS=ON'
-  ]
+  ],
+  compiler: 'g++'
 }
 
 OptionParser.new do |opts|
@@ -40,6 +41,7 @@ OptionParser.new do |opts|
       --skip-build             Run ctest without rebuilding first.
       --ctest-arg ARG          Forward ARG to every ctest invocation (repeatable).
       --cmake-arg ARG          Forward ARG to the cmake configure step (repeatable).
+      --compiler BIN           Use BIN as the C++ compiler (default: g++).
       --with-examples          Configure with BUILD_EXAMPLES=ON (tests only needs OFF).
   USAGE
   opts.on('-B DIR', '--build-dir DIR', 'CMake build directory (default: ../build)') do |dir|
@@ -61,11 +63,17 @@ OptionParser.new do |opts|
     options[:cmake_args].reject! { |arg| arg.start_with?('-DBUILD_EXAMPLES=') }
     options[:cmake_args] << '-DBUILD_EXAMPLES=ON'
   end
+  opts.on('--compiler BIN', 'C++ compiler to pass as CMAKE_CXX_COMPILER (default: g++)') do |bin|
+    options[:compiler] = bin
+  end
 end.parse!
 
 build_dir = options[:build_dir]
 ctest_args = options[:ctest_args]
 cmake_args = options[:cmake_args]
+unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
+  cmake_args << "-DCMAKE_CXX_COMPILER=#{options[:compiler]}"
+end
 cmake_cache = File.join(build_dir, 'CMakeCache.txt')
 
 unless options[:skip_configure]

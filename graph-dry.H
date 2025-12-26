@@ -3283,9 +3283,17 @@ public:
       @param cmp comparison operation that defines the sorting criteria
       @note Not available for List_SGraph (uses DynSetTree instead of Dlink)
   */
+  template <class U>
+  static constexpr bool has_node_dlink_v =
+    requires(U & u) { { u.get_node_dlink() } -> std::same_as<Dlink&>; };
+
+  template <class U>
+  static constexpr bool has_arc_dlink_v =
+    requires(U & u) { { u.get_arc_dlink() } -> std::same_as<Dlink&>; };
+
   template <class Compare>
   void sort_nodes(Compare & cmp) noexcept
-    requires requires { { me()->get_node_dlink() } -> std::same_as<Dlink&>; }
+    requires(has_node_dlink_v<GT>)
   {
     Cmp_Dlink_Node<GT, Compare> c = cmp;
     mergesort(me()->get_node_dlink(), c);
@@ -3294,7 +3302,7 @@ public:
   /// \overload sort_nodes(Compare & cmp)
   template <class Compare>
   void sort_nodes(Compare && cmp = Compare()) noexcept
-    requires requires { { me()->get_node_dlink() } -> std::same_as<Dlink&>; }
+    requires(has_node_dlink_v<GT>)
   {
     sort_nodes(cmp);
   }
@@ -3319,7 +3327,7 @@ public:
   */
   template <class Compare>
   void sort_arcs(Compare & cmp) noexcept
-    requires requires { { me()->get_arc_dlink() } -> std::same_as<Dlink&>; }
+    requires(has_arc_dlink_v<GT>)
   {
     Cmp_Dlink_Arc<GT, Compare> c = cmp;
     mergesort(me()->get_arc_dlink(), c);
@@ -3328,7 +3336,7 @@ public:
   /// \overload sort_arcs(Compare & cmp)
   template <class Compare>
   void sort_arcs(Compare && cmp = Compare()) noexcept
-    requires requires { { me()->get_arc_dlink() } -> std::same_as<Dlink&>; }
+    requires(has_arc_dlink_v<GT>)
   {
     sort_arcs(cmp);
   }

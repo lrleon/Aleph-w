@@ -2,8 +2,28 @@ cmake_minimum_required(VERSION 3.18)
 
 project(Aleph-w VERSION 1.0.0 LANGUAGES C CXX)
 
-# Set C++23 standard
-set(CMAKE_CXX_STANDARD 20)
+# ------------------------------------------------------------------------------
+# Compiler / standard configuration
+# ------------------------------------------------------------------------------
+
+set(ALEPH_SUPPORTED_CXX_STANDARDS 17 20 23)
+set(_ALEPH_DEFAULT_CXX_STANDARD 20)
+set(ALEPH_CXX_STANDARD ${_ALEPH_DEFAULT_CXX_STANDARD}
+    CACHE STRING "C++ standard to use when building Aleph-w")
+set_property(CACHE ALEPH_CXX_STANDARD PROPERTY STRINGS ${ALEPH_SUPPORTED_CXX_STANDARDS})
+
+list(FIND ALEPH_SUPPORTED_CXX_STANDARDS "${ALEPH_CXX_STANDARD}" _ALEPH_STD_INDEX)
+if(_ALEPH_STD_INDEX EQUAL -1)
+    message(FATAL_ERROR
+        "ALEPH_CXX_STANDARD='${ALEPH_CXX_STANDARD}' is not supported. "
+        "Select one of: ${ALEPH_SUPPORTED_CXX_STANDARDS}")
+endif()
+
+# Respect a user-provided CMAKE_CXX_STANDARD if explicitly set; otherwise apply
+# the Aleph default/value. This allows toolchains to inject their own choice.
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD ${ALEPH_CXX_STANDARD})
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
