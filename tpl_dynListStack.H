@@ -514,7 +514,7 @@ public:
     using Set_Type = DynListStack<T>;
 
     /// @brief Base iterator type.
-    using Base = DynList<T>::Iterator;
+    using Base = typename DynList<T>::Iterator;
 
     /// Inherit constructors from base.
     using Base::Base;
