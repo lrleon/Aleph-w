@@ -22,8 +22,41 @@ using DGT = List_Digraph<Graph_Node<int>, Graph_Arc<double>>;
 using DNode = DGT::Node;
 using DArc = DGT::Arc;
 
+struct BinHeapTag
+{
+  template <class G, class D, class A>
+  using Heap = ArcHeap<G, D, A>;
+};
+
+struct FibHeapTag
+{
+  template <class G, class D, class A>
+  using Heap = ArcFibonacciHeap<G, D, A>;
+};
+
+template <typename HeapTag, typename Graph>
+using DijkstraFor =
+  Dijkstra_Min_Paths<Graph, Dft_Dist<Graph>, Node_Arc_Iterator,
+                     Dft_Show_Arc<Graph>, HeapTag::template Heap>;
+
+template <typename HeapTag>
+using Dijkstra = DijkstraFor<HeapTag, GT>;
+
+template <typename HeapTag>
+using DigraphDijkstra = DijkstraFor<HeapTag, DGT>;
+
+template <typename HeapTag>
+class DijkstraHeapTest : public ::testing::Test {};
+
+template <typename HeapTag>
+class DijkstraDigraphHeapTest : public ::testing::Test {};
+
+using HeapTypes = ::testing::Types<BinHeapTag, FibHeapTag>;
+TYPED_TEST_SUITE(DijkstraHeapTest, HeapTypes);
+TYPED_TEST_SUITE(DijkstraDigraphHeapTest, HeapTypes);
+
 // ========== TEST 1: Basic Shortest Path ==========
-TEST(DijkstraTest, BasicShortestPath) {
+TYPED_TEST(DijkstraHeapTest, BasicShortestPath) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -42,7 +75,7 @@ TEST(DijkstraTest, BasicShortestPath) {
   g.insert_arc(n4, n0, 7.0);
   g.insert_arc(n4, n3, 6.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -66,11 +99,11 @@ TEST(DijkstraTest, BasicShortestPath) {
 }
 
 // ========== TEST 2: Path to Self ==========
-TEST(DijkstraTest, PathToSelf) {
+TYPED_TEST(DijkstraHeapTest, PathToSelf) {
   GT g;
   Node* n0 = g.insert_node(0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n0, path);
 
@@ -81,14 +114,14 @@ TEST(DijkstraTest, PathToSelf) {
 }
 
 // ========== TEST 3: No Path Exists ==========
-TEST(DijkstraTest, NoPathExists) {
+TYPED_TEST(DijkstraHeapTest, NoPathExists) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
 
   // No arcs connecting the nodes
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n1, path);
 
@@ -97,7 +130,7 @@ TEST(DijkstraTest, NoPathExists) {
 }
 
 // ========== TEST 4: Compute Spanning Tree ==========
-TEST(DijkstraTest, ComputeSpanningTree) {
+TYPED_TEST(DijkstraHeapTest, ComputeSpanningTree) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -116,7 +149,7 @@ TEST(DijkstraTest, ComputeSpanningTree) {
   g.insert_arc(n4, n0, 7.0);
   g.insert_arc(n4, n3, 6.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   dij(g, n0, tree);
 
@@ -125,7 +158,7 @@ TEST(DijkstraTest, ComputeSpanningTree) {
 }
 
 // ========== TEST 5: Update Path in Heap (Relaxation) ==========
-TEST(DijkstraTest, RelaxationUpdate) {
+TYPED_TEST(DijkstraHeapTest, RelaxationUpdate) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -136,7 +169,7 @@ TEST(DijkstraTest, RelaxationUpdate) {
   g.insert_arc(n0, n2, 1.0);
   g.insert_arc(n2, n1, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n1, path);
 
@@ -156,7 +189,7 @@ TEST(DijkstraTest, RelaxationUpdate) {
 }
 
 // ========== TEST 6: Paint Spanning Tree ==========
-TEST(DijkstraTest, PaintSpanningTree) {
+TYPED_TEST(DijkstraHeapTest, PaintSpanningTree) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -169,7 +202,7 @@ TEST(DijkstraTest, PaintSpanningTree) {
   g.insert_arc(n1, n3, 5.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   dij.paint_min_paths_tree(g, n0);
 
   // After painting, we should be able to get min path to any node
@@ -181,7 +214,7 @@ TEST(DijkstraTest, PaintSpanningTree) {
 }
 
 // ========== TEST 7: Copy Painted Min Paths Tree ==========
-TEST(DijkstraTest, CopyPaintedMinPathsTree) {
+TYPED_TEST(DijkstraHeapTest, CopyPaintedMinPathsTree) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -194,7 +227,7 @@ TEST(DijkstraTest, CopyPaintedMinPathsTree) {
   g.insert_arc(n1, n3, 5.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   dij.paint_min_paths_tree(g, n0);
 
   GT tree;
@@ -205,11 +238,11 @@ TEST(DijkstraTest, CopyPaintedMinPathsTree) {
 }
 
 // ========== TEST 8: Single Node Graph ==========
-TEST(DijkstraTest, SingleNodeGraph) {
+TYPED_TEST(DijkstraHeapTest, SingleNodeGraph) {
   GT g;
   Node* n0 = g.insert_node(0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   dij(g, n0, tree);
 
@@ -218,7 +251,7 @@ TEST(DijkstraTest, SingleNodeGraph) {
 }
 
 // ========== TEST 9: Linear Chain Graph ==========
-TEST(DijkstraTest, LinearChainGraph) {
+TYPED_TEST(DijkstraHeapTest, LinearChainGraph) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -229,7 +262,7 @@ TEST(DijkstraTest, LinearChainGraph) {
   g.insert_arc(n1, n2, 1.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -237,7 +270,7 @@ TEST(DijkstraTest, LinearChainGraph) {
 }
 
 // ========== TEST 10: Complete Graph K4 ==========
-TEST(DijkstraTest, CompleteGraphK4) {
+TYPED_TEST(DijkstraHeapTest, CompleteGraphK4) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -252,7 +285,7 @@ TEST(DijkstraTest, CompleteGraphK4) {
   g.insert_arc(n1, n3, 1.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -260,7 +293,7 @@ TEST(DijkstraTest, CompleteGraphK4) {
 }
 
 // ========== TEST 11: Graph with Self Loop ==========
-TEST(DijkstraTest, GraphWithSelfLoop) {
+TYPED_TEST(DijkstraHeapTest, GraphWithSelfLoop) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -268,7 +301,7 @@ TEST(DijkstraTest, GraphWithSelfLoop) {
   g.insert_arc(n0, n0, 5.0); // Self loop
   g.insert_arc(n0, n1, 2.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n1, path);
 
@@ -276,7 +309,7 @@ TEST(DijkstraTest, GraphWithSelfLoop) {
 }
 
 // ========== TEST 12: Digraph Basic Path ==========
-TEST(DijkstraDigraphTest, BasicPath) {
+TYPED_TEST(DijkstraDigraphHeapTest, BasicPath) {
   DGT g;
   DNode* n0 = g.insert_node(0);
   DNode* n1 = g.insert_node(1);
@@ -286,7 +319,7 @@ TEST(DijkstraDigraphTest, BasicPath) {
   g.insert_arc(n1, n2, 1.0);
   // Note: no arc n2->n0, so no path back
 
-  Dijkstra_Min_Paths<DGT> dij;
+  DigraphDijkstra<TypeParam> dij;
   Path<DGT> path(g);
   double d = dij(g, n0, n2, path);
 
@@ -294,14 +327,14 @@ TEST(DijkstraDigraphTest, BasicPath) {
 }
 
 // ========== TEST 13: Digraph No Return Path ==========
-TEST(DijkstraDigraphTest, NoReturnPath) {
+TYPED_TEST(DijkstraDigraphHeapTest, NoReturnPath) {
   DGT g;
   DNode* n0 = g.insert_node(0);
   DNode* n1 = g.insert_node(1);
 
   g.insert_arc(n0, n1, 1.0); // Only forward direction
 
-  Dijkstra_Min_Paths<DGT> dij;
+  DigraphDijkstra<TypeParam> dij;
 
   Path<DGT> path_forward(g);
   double d1 = dij(g, n0, n1, path_forward);
@@ -313,10 +346,10 @@ TEST(DijkstraDigraphTest, NoReturnPath) {
 }
 
 // ========== TEST 14: Empty Graph ==========
-TEST(DijkstraTest, EmptyGraph) {
+TYPED_TEST(DijkstraHeapTest, EmptyGraph) {
   GT g;
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
 
   // Should handle empty graph gracefully - tree stays empty
@@ -326,7 +359,7 @@ TEST(DijkstraTest, EmptyGraph) {
 }
 
 // ========== TEST 15: Multiple Paths Same Cost ==========
-TEST(DijkstraTest, MultiplePathsSameCost) {
+TYPED_TEST(DijkstraHeapTest, MultiplePathsSameCost) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -341,7 +374,7 @@ TEST(DijkstraTest, MultiplePathsSameCost) {
   g.insert_arc(n1, n3, 1.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -350,7 +383,7 @@ TEST(DijkstraTest, MultiplePathsSameCost) {
 }
 
 // ========== TEST 16: Large Weights ==========
-TEST(DijkstraTest, LargeWeights) {
+TYPED_TEST(DijkstraHeapTest, LargeWeights) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -359,7 +392,7 @@ TEST(DijkstraTest, LargeWeights) {
   g.insert_arc(n0, n1, 1e10);
   g.insert_arc(n1, n2, 1e10);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n2, path);
 
@@ -367,7 +400,7 @@ TEST(DijkstraTest, LargeWeights) {
 }
 
 // ========== TEST 17: Zero Weight Edges ==========
-TEST(DijkstraTest, ZeroWeightEdges) {
+TYPED_TEST(DijkstraHeapTest, ZeroWeightEdges) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -376,7 +409,7 @@ TEST(DijkstraTest, ZeroWeightEdges) {
   g.insert_arc(n0, n1, 0.0);
   g.insert_arc(n1, n2, 0.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n2, path);
 
@@ -384,7 +417,7 @@ TEST(DijkstraTest, ZeroWeightEdges) {
 }
 
 // ========== TEST 18: Fractional Weights ==========
-TEST(DijkstraTest, FractionalWeights) {
+TYPED_TEST(DijkstraHeapTest, FractionalWeights) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -393,7 +426,7 @@ TEST(DijkstraTest, FractionalWeights) {
   g.insert_arc(n0, n1, 0.5);
   g.insert_arc(n1, n2, 0.3);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n2, path);
 
@@ -401,7 +434,7 @@ TEST(DijkstraTest, FractionalWeights) {
 }
 
 // ========== TEST 19: Star Graph ==========
-TEST(DijkstraTest, StarGraph) {
+TYPED_TEST(DijkstraHeapTest, StarGraph) {
   GT g;
   Node* center = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -414,7 +447,7 @@ TEST(DijkstraTest, StarGraph) {
   g.insert_arc(center, n3, 3.0);
   g.insert_arc(center, n4, 4.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   dij(g, center, tree);
 
@@ -423,7 +456,7 @@ TEST(DijkstraTest, StarGraph) {
 }
 
 // ========== TEST 20: Verify Path Correctness ==========
-TEST(DijkstraTest, VerifyPathNodes) {
+TYPED_TEST(DijkstraHeapTest, VerifyPathNodes) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -435,7 +468,7 @@ TEST(DijkstraTest, VerifyPathNodes) {
   g.insert_arc(n2, n3, 3.0);
   g.insert_arc(n0, n3, 100.0); // Much longer direct path
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -456,13 +489,13 @@ TEST(DijkstraTest, VerifyPathNodes) {
 }
 
 // ========== TEST 21: State Getters ==========
-TEST(DijkstraTest, StateGetters) {
+TYPED_TEST(DijkstraHeapTest, StateGetters) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
   g.insert_arc(n0, n1, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
 
   // Before any computation
   EXPECT_FALSE(dij.has_computation());
@@ -480,7 +513,7 @@ TEST(DijkstraTest, StateGetters) {
 }
 
 // ========== TEST 22: Compute Partial Min Paths Tree ==========
-TEST(DijkstraTest, ComputePartialMinPathsTree) {
+TYPED_TEST(DijkstraHeapTest, ComputePartialMinPathsTree) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -493,7 +526,7 @@ TEST(DijkstraTest, ComputePartialMinPathsTree) {
   g.insert_arc(n2, n3, 1.0);
   g.insert_arc(n3, n4, 1.0); // n4 should NOT be in partial tree
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   dij.compute_partial_min_paths_tree(g, n0, n3, tree);
 
@@ -503,7 +536,7 @@ TEST(DijkstraTest, ComputePartialMinPathsTree) {
 }
 
 // ========== TEST 23: Get Min Path from Tree ==========
-TEST(DijkstraTest, GetMinPathFromTree) {
+TYPED_TEST(DijkstraHeapTest, GetMinPathFromTree) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -514,7 +547,7 @@ TEST(DijkstraTest, GetMinPathFromTree) {
   g.insert_arc(n1, n2, 2.0);
   g.insert_arc(n2, n3, 3.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   auto tree_start = dij.compute_min_paths_tree(g, n0, tree);
 
@@ -532,11 +565,11 @@ TEST(DijkstraTest, GetMinPathFromTree) {
 }
 
 // ========== TEST 24: Null Node Validation ==========
-TEST(DijkstraTest, NullNodeValidation) {
+TYPED_TEST(DijkstraHeapTest, NullNodeValidation) {
   GT g;
   Node* n0 = g.insert_node(0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
 
   EXPECT_THROW(dij.compute_min_paths_tree(g, nullptr, tree), std::domain_error);
@@ -548,7 +581,7 @@ TEST(DijkstraTest, NullNodeValidation) {
 }
 
 // ========== TEST 25: Disconnected Graph ==========
-TEST(DijkstraTest, DisconnectedGraph) {
+TYPED_TEST(DijkstraHeapTest, DisconnectedGraph) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -559,7 +592,7 @@ TEST(DijkstraTest, DisconnectedGraph) {
   g.insert_arc(n0, n1, 1.0);
   g.insert_arc(n2, n3, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, n0, n3, path);
 
@@ -569,7 +602,7 @@ TEST(DijkstraTest, DisconnectedGraph) {
 }
 
 // ========== TEST 26: Integer Weights ==========
-TEST(DijkstraTest, IntegerWeights) {
+TYPED_TEST(DijkstraHeapTest, IntegerWeights) {
   using IGT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
 
   IGT g;
@@ -580,7 +613,7 @@ TEST(DijkstraTest, IntegerWeights) {
   g.insert_arc(n0, n1, 5);
   g.insert_arc(n1, n2, 3);
 
-  Dijkstra_Min_Paths<IGT> dij;
+  DijkstraFor<TypeParam, IGT> dij;
   Path<IGT> path(g);
   int d = dij(g, n0, n2, path);
 
@@ -588,7 +621,7 @@ TEST(DijkstraTest, IntegerWeights) {
 }
 
 // ========== TEST 27: Get Distance After Painting ==========
-TEST(DijkstraTest, GetDistanceAfterPainting) {
+TYPED_TEST(DijkstraHeapTest, GetDistanceAfterPainting) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -599,7 +632,7 @@ TEST(DijkstraTest, GetDistanceAfterPainting) {
   g.insert_arc(n1, n2, 2.0);
   g.insert_arc(n2, n3, 3.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   dij.paint_min_paths_tree(g, n0);
 
   EXPECT_EQ(dij.get_distance(n0), 0.0);
@@ -609,18 +642,18 @@ TEST(DijkstraTest, GetDistanceAfterPainting) {
 }
 
 // ========== TEST 28: Get Distance Before Painting ==========
-TEST(DijkstraTest, GetDistanceBeforePainting) {
+TYPED_TEST(DijkstraHeapTest, GetDistanceBeforePainting) {
   GT g;
   Node* n0 = g.insert_node(0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
 
   // Should throw because not painted yet
   EXPECT_THROW(dij.get_distance(n0), std::domain_error);
 }
 
 // ========== TEST 29: Get Distance Unreachable Node ==========
-TEST(DijkstraTest, GetDistanceUnreachableNode) {
+TYPED_TEST(DijkstraHeapTest, GetDistanceUnreachableNode) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -628,7 +661,7 @@ TEST(DijkstraTest, GetDistanceUnreachableNode) {
 
   g.insert_arc(n0, n1, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   dij.paint_min_paths_tree(g, n0);
 
   // n2 is not reachable
@@ -636,7 +669,7 @@ TEST(DijkstraTest, GetDistanceUnreachableNode) {
 }
 
 // ========== TEST 30: Multiple Successive Computations ==========
-TEST(DijkstraTest, MultipleSuccessiveComputations) {
+TYPED_TEST(DijkstraHeapTest, MultipleSuccessiveComputations) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -646,7 +679,7 @@ TEST(DijkstraTest, MultipleSuccessiveComputations) {
   g.insert_arc(n1, n2, 2.0);
   g.insert_arc(n0, n2, 10.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
 
   // First computation from n0
   Path<GT> path1(g);
@@ -660,7 +693,7 @@ TEST(DijkstraTest, MultipleSuccessiveComputations) {
 }
 
 // ========== TEST 31: Paint Partial Returns False When Not Found ==========
-TEST(DijkstraTest, PaintPartialReturnsFalse) {
+TYPED_TEST(DijkstraHeapTest, PaintPartialReturnsFalse) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -668,14 +701,14 @@ TEST(DijkstraTest, PaintPartialReturnsFalse) {
 
   g.insert_arc(n0, n1, 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   bool found = dij.paint_partial_min_paths_tree(g, n0, n2);
 
   EXPECT_FALSE(found);
 }
 
 // ========== TEST 32: Paint Partial Returns True When Found ==========
-TEST(DijkstraTest, PaintPartialReturnsTrue) {
+TYPED_TEST(DijkstraHeapTest, PaintPartialReturnsTrue) {
   GT g;
   Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
@@ -684,7 +717,7 @@ TEST(DijkstraTest, PaintPartialReturnsTrue) {
   g.insert_arc(n0, n1, 1.0);
   g.insert_arc(n1, n2, 2.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   bool found = dij.paint_partial_min_paths_tree(g, n0, n2);
 
   EXPECT_TRUE(found);
@@ -696,7 +729,7 @@ TEST(DijkstraTest, PaintPartialReturnsTrue) {
 }
 
 // ========== TEST 33: Very Long Path ==========
-TEST(DijkstraTest, VeryLongPath) {
+TYPED_TEST(DijkstraHeapTest, VeryLongPath) {
   GT g;
   const int N = 100;
 
@@ -707,7 +740,7 @@ TEST(DijkstraTest, VeryLongPath) {
   for (int i = 0; i < N - 1; ++i)
     g.insert_arc(nodes[i], nodes[i+1], 1.0);
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   Path<GT> path(g);
   double d = dij(g, nodes[0], nodes[N-1], path);
 
@@ -715,7 +748,7 @@ TEST(DijkstraTest, VeryLongPath) {
 }
 
 // ========== TEST 34: Dense Graph Performance ==========
-TEST(DijkstraTest, DenseGraphPerformance) {
+TYPED_TEST(DijkstraHeapTest, DenseGraphPerformance) {
   GT g;
   const int N = 50;
 
@@ -728,12 +761,31 @@ TEST(DijkstraTest, DenseGraphPerformance) {
     for (int j = i + 1; j < N; ++j)
       g.insert_arc(nodes[i], nodes[j], static_cast<double>(i + j));
 
-  Dijkstra_Min_Paths<GT> dij;
+  Dijkstra<TypeParam> dij;
   GT tree;
   dij(g, nodes[0], tree);
 
   EXPECT_EQ(tree.get_num_nodes(), N);
   EXPECT_EQ(tree.get_num_arcs(), N - 1);
+}
+
+// ========== TEST 35: Compute Spanning Tree on Disconnected Graph ==========
+TYPED_TEST(DijkstraHeapTest, ComputeSpanningTreeDisconnected) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n2, n3, 1.0);
+
+  Dijkstra<TypeParam> dij;
+  GT tree;
+  dij.compute_min_paths_tree(g, n0, tree);
+
+  EXPECT_EQ(tree.get_num_nodes(), 2);
+  EXPECT_EQ(tree.get_num_arcs(), 1);
 }
 
 // ========== GoogleTest main ==========
