@@ -48,8 +48,42 @@ if(NOT DEFINED ALEPH_SYSTEM_LIBS)
         Threads::Threads)
 endif()
 
+# Allow automatically fetching GoogleTest if it is not present system-wide.
+option(ALEPH_FETCH_GTEST "Download GoogleTest automatically when not found" ON)
+
 # Find Google Test
-find_package(GTest REQUIRED)
+find_package(GTest QUIET)
+
+# If not found, try to fetch it via FetchContent (unless disabled).
+if(NOT GTest_FOUND AND ALEPH_FETCH_GTEST)
+    include(FetchContent)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+    message(STATUS "GoogleTest not found locally; fetching from upstream (set ALEPH_FETCH_GTEST=OFF to disable).")
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.14.0
+    )
+    # Prevent GoogleTest from overriding our global compiler/linker options.
+    set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    find_package(GTest REQUIRED CONFIG) # Targets now exist within the build.
+endif()
+
+if(NOT GTest_FOUND)
+    if(DEFINED ALEPH_ALLOW_TESTS_WITHOUT_GTEST AND ALEPH_ALLOW_TESTS_WITHOUT_GTEST)
+        message(WARNING
+            "GoogleTest was not found; skipping Aleph tests. "
+            "Install GTest or set BUILD_TESTS=OFF to silence this warning.")
+        return()
+    else()
+        message(FATAL_ERROR
+            "GoogleTest is required to build Aleph tests. "
+            "Install GTest (e.g. libgtest-dev), set GOOGLETEST to its path, "
+            "or enable ALEPH_FETCH_GTEST.")
+    endif()
+endif()
 
 # GoogleMock is not always installed alongside GTest. Some tests (e.g.
 # ringfilecache.cc) require gmock headers. Detect availability and skip those
