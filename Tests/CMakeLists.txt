@@ -194,6 +194,7 @@ set(EXHAUSTIVE_TESTS
     tpl_dynMapTree_test
     euclidian_graph_common_test
     future_utils_test
+    fibonacci_heap_test
 )
 
 # Create executable for each test program

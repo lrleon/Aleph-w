@@ -154,7 +154,7 @@ namespace Aleph
       return arc;
     }
 
-    void remove_arc_ne(void *arc) noexcept
+    void remove_arc_ne(const void *arc) noexcept
     {
       for (size_t i = 0; i < this->num_arcs; ++i)
         if (arc_array[i] == arc)
@@ -173,7 +173,7 @@ namespace Aleph
       contract_threshold = arcs_dim / Contract_Factor;
     }
 
-    void remove_arc(void *arc)
+    void remove_arc(const void *arc)
     {
       bool removed = false;
       for (size_t i = 0; i < this->num_arcs; ++i)
@@ -489,23 +489,19 @@ namespace Aleph
 
     virtual void remove_node(Node *p)
     {
-      DynList<Arc *> arcs; // store arcs to delete
       if (this->digraph)
-        // traverse all arcs of graph and store those whose source or target is p
-        for (Arc_Iterator it(*this); it.has_curr(); it.next_ne())
-          {
-            if (Arc *arc = it.get_curr(); this->get_src_node(arc) == p or this->get_tgt_node(arc) == p)
-              arcs.append(arc);
-          }
+        // traverse all arcs of graph and remove those whose source or target is p
+        this->remove_arcs_if([p, this](auto arc) {
+          return this->get_src_node(arc) == p or this->get_tgt_node(arc) == p;
+        });
       else
-        // traverse arc of node
-        for (size_t i = 0, n = p->num_arcs; i < n; ++i)
-          {
-            Arc *arc = static_cast<Arc *>(p->arc_array[i]);
-            arcs.append(arc);
-          }
-
-      arcs.for_each([this](auto arc) { this->remove_arc(arc); });
+        {
+          // traverse arcs of node (collect then delete for safe iteration)
+          DynList<Arc *> arcs;
+          for (size_t i = 0, n = p->num_arcs; i < n; ++i)
+            arcs.append(static_cast<Arc *>(p->arc_array[i]));
+          arcs.for_each([this](auto arc) { this->remove_arc(arc); });
+        }
 
       p->del(); // remove from node_set
       --this->num_nodes;

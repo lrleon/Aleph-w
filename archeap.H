@@ -27,6 +27,7 @@
 # define ARCHEAP_H
 
 # include <tpl_binHeap.H>
+# include <tpl_fibonacci_heap.H>
 # include <tpl_graph_utils.H>
 
 template <class GT,
@@ -57,11 +58,15 @@ public:
 
   typedef typename Heap::Node Node;
 
+  using handle_type = Node *;
+
   /// Insert or update an arc associated with a target node, keeping the
   /// smallest-distance arc per node in the heap.
   void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
   {
-    Node *& heap_node = access_node(tgt);
+    auto & handle_storage = access_node(tgt);
+    handle_type & heap_node =
+      reinterpret_cast<handle_type &>(handle_storage);
 
     if (heap_node == nullptr) // Is there already an arc inserted into the heap?
       { // No ==> create a new heap node and assign the arc
@@ -93,12 +98,16 @@ public:
 
     // Select the node that the access functor maps to this heap node
     auto *p = static_cast<typename GT::Node *>(arc->src_node);
-    if (access_node(p) != heap_node)
+    auto & handle_src =
+      reinterpret_cast<handle_type &>(access_node(p));
+    if (handle_src != heap_node)
       p = static_cast<typename GT::Node *>(arc->tgt_node);
 
-    assert(access_node(p) == heap_node);
+    auto & handle_ref =
+      reinterpret_cast<handle_type &>(access_node(p));
+    assert(handle_ref == heap_node);
 
-    access_node(p) = nullptr;
+    handle_ref = nullptr;
 
     delete heap_node;
 
@@ -113,6 +122,106 @@ public:
 
   /// Destructor. Clears all remaining heap nodes.
   ~ArcHeap()
+  {
+    empty();
+  }
+};
+
+
+
+template <class GT,
+          class Distance,
+          class Access_Heap_Node>
+class ArcFibonacciHeap
+{
+  using Compare = Distance_Compare<GT, Distance>;
+  using Heap = Fibonacci_Heap<typename GT::Arc *, Compare>;
+
+public:
+  using handle_type = typename Heap::handle_type;
+
+private:
+  Distance dist;
+  Access_Heap_Node access_node;
+  Compare dist_cmp;
+  Heap heap;
+
+  handle_type & handle_ref(typename GT::Node *p)
+  {
+    return reinterpret_cast<handle_type &>(access_node(p));
+  }
+
+public:
+  /// Return the distance functor used to compare arcs in this heap.
+  Distance &get_distance() { return dist; }
+
+  /// Construct an empty Fibonacci arc heap with the given distance functor and
+  /// heap-node access policy.
+  ArcFibonacciHeap(Distance __dist = Distance(),
+                   Access_Heap_Node acc = Access_Heap_Node())
+    : dist(__dist), access_node(acc), dist_cmp(dist), heap(dist_cmp)
+  {
+    // empty
+  }
+
+  /// Insert or update an arc associated with a target node, keeping the
+  /// smallest-distance arc per node in the heap.
+  void put_arc(typename GT::Arc *arc, typename GT::Node *tgt)
+  {
+    auto & heap_node = handle_ref(tgt);
+
+    if (heap_node == nullptr) // Is there already an arc inserted into the heap?
+      { // No ==> create a new heap node and assign the arc
+        heap_node = heap.insert(arc);
+        return;
+      }
+
+    // two arcs with the same target ==> keep the smaller; discard the larger
+    typename GT::Arc *arc_in_heap = heap_node->data;
+
+    // Does arc_in_heap have a shorter distance than arc?
+    if (dist_cmp(arc_in_heap, arc))
+      return; // old arc remains in the heap; new one is ignored
+
+    heap.decrease_key(heap_node, arc);
+  }
+
+  /// Extract the arc with minimum distance from the heap and clear its
+  /// node-to-heap mapping.
+  typename GT::Arc * get_min_arc()
+  {
+    ah_underflow_error_if(heap.is_empty()) << "ArcFibonacciHeap is empty";
+
+    auto *heap_node = heap.get_min_node();
+    auto *arc = heap_node->data;
+
+    // Select the node that the access functor maps to this heap node
+    auto *p = static_cast<typename GT::Node *>(arc->src_node);
+    auto & handle_src = handle_ref(p);
+    if (handle_src != heap_node)
+      p = static_cast<typename GT::Node *>(arc->tgt_node);
+
+    auto & handle_entry = handle_ref(p);
+    assert(handle_entry == heap_node);
+
+    handle_entry = nullptr;
+
+    (void) heap.extract_min();
+
+    return arc;
+  }
+
+  /// Return true if the heap is empty.
+  bool is_empty() const noexcept { return heap.is_empty(); }
+
+  /// Remove all heap nodes and delete their memory.
+  void empty()
+  {
+    heap.clear();
+  }
+
+  /// Destructor. Clears all remaining heap nodes.
+  ~ArcFibonacciHeap()
   {
     empty();
   }

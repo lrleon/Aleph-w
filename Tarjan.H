@@ -860,10 +860,20 @@ namespace Aleph
     [[nodiscard]] bool test_connectivity(const GT & g)
     {
       init_tarjan(g);
+
+      // In a strongly connected graph, a single DFS from any node should reach
+      // all nodes. If we have to start from a second unvisited node, it means
+      // the graph has multiple disconnected components.
+      bool started = false;
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
         if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
-          if (not is_connected(v))
-            return false;
+          {
+            if (started)  // Second DFS root → not strongly connected
+              return false;
+            started = true;
+            if (not is_connected(v))
+              return false;
+          }
 
       assert(stack.is_empty());
 

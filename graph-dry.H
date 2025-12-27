@@ -3262,6 +3262,63 @@ public:
   }
 
   // ===========================================================================
+  // Arc Removal Helpers (protected, for use in remove_node implementations)
+  // ===========================================================================
+
+protected:
+  /** Collect all arcs matching a predicate.
+
+      This method traverses all arcs in the graph and collects those
+      for which the predicate returns true. The collection is done
+      without modifying the graph, making it safe for subsequent
+      batch removal.
+
+      @param pred Predicate with signature `bool pred(Arc*)`
+      @return DynList<Arc*> containing pointers to matching arcs
+
+      @note This is a helper for implementing remove_node in digraphs.
+            It uses the "collect first, remove later" pattern to avoid
+            iterator invalidation issues during arc removal.
+  */
+  template <class Predicate>
+  DynList<Arc*> collect_arcs_if(Predicate pred) const
+  {
+    DynList<Arc*> result;
+    for (typename GT::Arc_Iterator it(*const_me()); it.has_curr(); it.next_ne())
+      if (pred(it.get_curr_ne()))
+        result.append(it.get_curr_ne());
+    return result;
+  }
+
+  /** Remove all arcs matching a predicate.
+
+      This method removes all arcs for which the predicate returns true.
+      It uses a safe two-phase approach:
+      1. First, collect all matching arcs (no graph modification)
+      2. Then, remove them in a batch (safe iteration)
+
+      @param pred Predicate with signature `bool pred(Arc*)`
+
+      @note This helper is primarily intended for the digraph case in
+            remove_node, where all arcs connected to a node must be
+            found by scanning the entire arc list.
+
+      Example usage in remove_node:
+      @code
+      if (this->digraph)
+        remove_arcs_if([this, node](auto a) {
+          return this->get_src_node(a) == node || this->get_tgt_node(a) == node;
+        });
+      @endcode
+  */
+  template <class Predicate>
+  void remove_arcs_if(Predicate pred)
+  {
+    collect_arcs_if(pred).for_each([this](auto a) { me()->remove_arc(a); });
+  }
+
+public:
+  // ===========================================================================
   // Sorting Methods (for Dlink-based graphs)
   // ===========================================================================
 

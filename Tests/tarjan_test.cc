@@ -934,3 +934,705 @@ TEST(TarjanTest, ReuseInstance)
   EXPECT_FALSE(tarjan.has_cycle(g2));
   EXPECT_TRUE(tarjan.is_dag(g2));
 }
+
+// ============================================================================
+// EXTENDED EXHAUSTIVE TESTS
+// ============================================================================
+
+// ============================================================================
+// Test: Star graph (hub with many spokes) - outward
+// ============================================================================
+TEST(TarjanExtended, StarGraphOutward)
+{
+  TestDigraph g;
+  const size_t N = 50;
+
+  auto hub = add_node(g, 0);
+  for (size_t i = 1; i <= N; ++i)
+    {
+      auto spoke = add_node(g, static_cast<int>(i));
+      add_arc(g, hub, spoke); // hub -> spoke
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // N+1 SCCs (each node is its own SCC)
+  EXPECT_EQ(tarjan.num_connected_components(g), N + 1);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+  EXPECT_FALSE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Star graph (hub with many spokes) - inward
+// ============================================================================
+TEST(TarjanExtended, StarGraphInward)
+{
+  TestDigraph g;
+  const size_t N = 50;
+
+  auto hub = add_node(g, 0);
+  for (size_t i = 1; i <= N; ++i)
+    {
+      auto spoke = add_node(g, static_cast<int>(i));
+      add_arc(g, spoke, hub); // spoke -> hub
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), N + 1);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+}
+
+// ============================================================================
+// Test: Wheel graph (cycle with hub connected to all)
+// ============================================================================
+TEST(TarjanExtended, WheelGraph)
+{
+  TestDigraph g;
+  const size_t N = 20;
+
+  auto hub = add_node(g, 0);
+  std::vector<TestDigraph::Node *> rim(N);
+
+  for (size_t i = 0; i < N; ++i)
+    {
+      rim[i] = add_node(g, static_cast<int>(i + 1));
+      add_arc(g, hub, rim[i]); // hub -> rim
+      add_arc(g, rim[i], hub); // rim -> hub (bidirectional)
+    }
+
+  // Create rim cycle
+  for (size_t i = 0; i < N; ++i)
+    add_arc(g, rim[i], rim[(i + 1) % N]);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // All nodes should be in one SCC
+  EXPECT_EQ(tarjan.num_connected_components(g), 1u);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Binary tree DAG
+// ============================================================================
+TEST(TarjanExtended, BinaryTreeDAG)
+{
+  TestDigraph g;
+  const size_t DEPTH = 6; // 2^6 - 1 = 63 nodes
+
+  std::vector<TestDigraph::Node *> nodes;
+  nodes.push_back(add_node(g, 0)); // root
+
+  for (size_t level = 0; level < DEPTH - 1; ++level)
+    {
+      size_t start = (1 << level) - 1;
+      size_t end = (1 << (level + 1)) - 1;
+
+      for (size_t i = start; i < end && i < nodes.size(); ++i)
+        {
+          auto left = add_node(g, static_cast<int>(nodes.size()));
+          nodes.push_back(left);
+          add_arc(g, nodes[i], left);
+
+          auto right = add_node(g, static_cast<int>(nodes.size()));
+          nodes.push_back(right);
+          add_arc(g, nodes[i], right);
+        }
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Each node is its own SCC (DAG)
+  EXPECT_EQ(tarjan.num_connected_components(g), nodes.size());
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+}
+
+// ============================================================================
+// Test: Multiple self-loops
+// ============================================================================
+TEST(TarjanExtended, MultipleSelfLoops)
+{
+  TestDigraph g;
+  const size_t N = 20;
+
+  for (size_t i = 0; i < N; ++i)
+    {
+      auto n = add_node(g, static_cast<int>(i));
+      add_arc(g, n, n); // self-loop
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Each node is its own SCC (but each has a cycle)
+  EXPECT_EQ(tarjan.num_connected_components(g), N);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_FALSE(tarjan.is_dag(g));
+  EXPECT_FALSE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Chain of SCCs
+// ============================================================================
+TEST(TarjanExtended, ChainOfSCCs)
+{
+  TestDigraph g;
+  const size_t NUM_SCCS = 10;
+  const size_t SCC_SIZE = 3;
+
+  std::vector<TestDigraph::Node *> first_of_scc;
+
+  for (size_t s = 0; s < NUM_SCCS; ++s)
+    {
+      std::vector<TestDigraph::Node *> scc_nodes(SCC_SIZE);
+      for (size_t i = 0; i < SCC_SIZE; ++i)
+        scc_nodes[i] = add_node(g, static_cast<int>(s * SCC_SIZE + i));
+
+      first_of_scc.push_back(scc_nodes[0]);
+
+      // Create cycle within SCC
+      for (size_t i = 0; i < SCC_SIZE; ++i)
+        add_arc(g, scc_nodes[i], scc_nodes[(i + 1) % SCC_SIZE]);
+
+      // Connect to previous SCC
+      if (s > 0)
+        add_arc(g, first_of_scc[s - 1], scc_nodes[0]);
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), NUM_SCCS);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_FALSE(tarjan.test_connectivity(g));
+
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+  for (auto sz : sizes)
+    EXPECT_EQ(sz, SCC_SIZE);
+}
+
+// ============================================================================
+// Test: Diamond pattern SCCs
+// ============================================================================
+TEST(TarjanExtended, DiamondPatternSCCs)
+{
+  TestDigraph g;
+
+  // Top SCC
+  auto t1 = add_node(g, 1);
+  auto t2 = add_node(g, 2);
+  add_arc(g, t1, t2);
+  add_arc(g, t2, t1);
+
+  // Left SCC
+  auto l1 = add_node(g, 3);
+  auto l2 = add_node(g, 4);
+  add_arc(g, l1, l2);
+  add_arc(g, l2, l1);
+
+  // Right SCC
+  auto r1 = add_node(g, 5);
+  auto r2 = add_node(g, 6);
+  add_arc(g, r1, r2);
+  add_arc(g, r2, r1);
+
+  // Bottom SCC
+  auto b1 = add_node(g, 7);
+  auto b2 = add_node(g, 8);
+  add_arc(g, b1, b2);
+  add_arc(g, b2, b1);
+
+  // Connect in diamond pattern
+  add_arc(g, t1, l1);
+  add_arc(g, t2, r1);
+  add_arc(g, l2, b1);
+  add_arc(g, r2, b2);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), 4u);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_FALSE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Bipartite-like structure (no cycles)
+// ============================================================================
+TEST(TarjanExtended, BipartiteDAG)
+{
+  TestDigraph g;
+  const size_t LEFT_SIZE = 10;
+  const size_t RIGHT_SIZE = 10;
+
+  std::vector<TestDigraph::Node *> left(LEFT_SIZE);
+  std::vector<TestDigraph::Node *> right(RIGHT_SIZE);
+
+  for (size_t i = 0; i < LEFT_SIZE; ++i)
+    left[i] = add_node(g, static_cast<int>(i));
+
+  for (size_t i = 0; i < RIGHT_SIZE; ++i)
+    right[i] = add_node(g, static_cast<int>(LEFT_SIZE + i));
+
+  // All left -> all right
+  for (size_t i = 0; i < LEFT_SIZE; ++i)
+    for (size_t j = 0; j < RIGHT_SIZE; ++j)
+      add_arc(g, left[i], right[j]);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), LEFT_SIZE + RIGHT_SIZE);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+}
+
+// ============================================================================
+// Test: Strongly connected bipartite (all edges both ways)
+// ============================================================================
+TEST(TarjanExtended, StronglyConnectedBipartite)
+{
+  TestDigraph g;
+  const size_t LEFT_SIZE = 5;
+  const size_t RIGHT_SIZE = 5;
+
+  std::vector<TestDigraph::Node *> left(LEFT_SIZE);
+  std::vector<TestDigraph::Node *> right(RIGHT_SIZE);
+
+  for (size_t i = 0; i < LEFT_SIZE; ++i)
+    left[i] = add_node(g, static_cast<int>(i));
+
+  for (size_t i = 0; i < RIGHT_SIZE; ++i)
+    right[i] = add_node(g, static_cast<int>(LEFT_SIZE + i));
+
+  // All left <-> all right (bidirectional)
+  for (size_t i = 0; i < LEFT_SIZE; ++i)
+    for (size_t j = 0; j < RIGHT_SIZE; ++j)
+      {
+        add_arc(g, left[i], right[j]);
+        add_arc(g, right[j], left[i]);
+      }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), 1u);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Grid graph (no cycles, DAG)
+// ============================================================================
+TEST(TarjanExtended, GridDAG)
+{
+  TestDigraph g;
+  const size_t ROWS = 5;
+  const size_t COLS = 5;
+
+  std::vector<std::vector<TestDigraph::Node *>> grid(ROWS,
+      std::vector<TestDigraph::Node *>(COLS));
+
+  for (size_t r = 0; r < ROWS; ++r)
+    for (size_t c = 0; c < COLS; ++c)
+      grid[r][c] = add_node(g, static_cast<int>(r * COLS + c));
+
+  // Connect right and down only (DAG)
+  for (size_t r = 0; r < ROWS; ++r)
+    for (size_t c = 0; c < COLS; ++c)
+      {
+        if (c + 1 < COLS)
+          add_arc(g, grid[r][c], grid[r][c + 1]);
+        if (r + 1 < ROWS)
+          add_arc(g, grid[r][c], grid[r + 1][c]);
+      }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), ROWS * COLS);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+}
+
+// ============================================================================
+// Test: Grid graph with back edges (cycles)
+// ============================================================================
+TEST(TarjanExtended, GridWithCycles)
+{
+  TestDigraph g;
+  const size_t ROWS = 4;
+  const size_t COLS = 4;
+
+  std::vector<std::vector<TestDigraph::Node *>> grid(ROWS,
+      std::vector<TestDigraph::Node *>(COLS));
+
+  for (size_t r = 0; r < ROWS; ++r)
+    for (size_t c = 0; c < COLS; ++c)
+      grid[r][c] = add_node(g, static_cast<int>(r * COLS + c));
+
+  // Connect in all 4 directions (bidirectional)
+  for (size_t r = 0; r < ROWS; ++r)
+    for (size_t c = 0; c < COLS; ++c)
+      {
+        if (c + 1 < COLS)
+          {
+            add_arc(g, grid[r][c], grid[r][c + 1]);
+            add_arc(g, grid[r][c + 1], grid[r][c]);
+          }
+        if (r + 1 < ROWS)
+          {
+            add_arc(g, grid[r][c], grid[r + 1][c]);
+            add_arc(g, grid[r + 1][c], grid[r][c]);
+          }
+      }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // All nodes in one SCC
+  EXPECT_EQ(tarjan.num_connected_components(g), 1u);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.test_connectivity(g));
+}
+
+// ============================================================================
+// Test: Very deep linear chain (stress test for recursion)
+// ============================================================================
+TEST(TarjanExtended, DeepLinearChain)
+{
+  TestDigraph g;
+  const size_t DEPTH = 500; // Deep enough to stress but not overflow
+
+  std::vector<TestDigraph::Node *> nodes(DEPTH);
+  for (size_t i = 0; i < DEPTH; ++i)
+    nodes[i] = add_node(g, static_cast<int>(i));
+
+  for (size_t i = 0; i + 1 < DEPTH; ++i)
+    add_arc(g, nodes[i], nodes[i + 1]);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), DEPTH);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+}
+
+// ============================================================================
+// Test: Consistency between different connected_components overloads
+// ============================================================================
+TEST(TarjanExtended, ConsistencyBetweenOverloads)
+{
+  TestDigraph g;
+
+  // Create a complex graph
+  auto a = add_node(g, 1);
+  auto b = add_node(g, 2);
+  auto c = add_node(g, 3);
+  auto d = add_node(g, 4);
+  auto e = add_node(g, 5);
+
+  // SCC1: {a, b, c}
+  add_arc(g, a, b);
+  add_arc(g, b, c);
+  add_arc(g, c, a);
+
+  // SCC2: {d, e}
+  add_arc(g, d, e);
+  add_arc(g, e, d);
+
+  // Inter-SCC arcs
+  add_arc(g, b, d);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Method 1: Get sizes
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+
+  // Method 2: Get node lists
+  auto node_lists = tarjan.connected_components(g);
+
+  // Method 3: Get blocks with arcs
+  DynList<TestDigraph> blocks;
+  DynList<TestDigraph::Arc *> inter_arcs;
+  tarjan.connected_components(g, blocks, inter_arcs);
+
+  // All should report same number of SCCs
+  EXPECT_EQ(sizes.size(), node_lists.size());
+  EXPECT_EQ(sizes.size(), blocks.size());
+  EXPECT_EQ(sizes.size(), 2u);
+
+  // Sizes should match
+  size_t total_from_sizes = 0;
+  for (auto sz : sizes)
+    total_from_sizes += sz;
+
+  size_t total_from_lists = 0;
+  for (auto &list : node_lists)
+    total_from_lists += list.size();
+
+  size_t total_from_blocks = 0;
+  for (auto &block : blocks)
+    total_from_blocks += block.get_num_nodes();
+
+  EXPECT_EQ(total_from_sizes, 5u);
+  EXPECT_EQ(total_from_lists, 5u);
+  EXPECT_EQ(total_from_blocks, 5u);
+
+  // Inter-SCC arcs
+  EXPECT_EQ(inter_arcs.size(), 1u);
+}
+
+// ============================================================================
+// Test: Cycle detection vs SCC count consistency
+// ============================================================================
+TEST(TarjanExtended, CycleDetectionConsistency)
+{
+  // A graph has a cycle iff some SCC has size > 1 OR some node has self-loop
+  TestDigraph g;
+
+  // 10 isolated nodes (no cycles)
+  for (int i = 0; i < 10; ++i)
+    add_node(g, i);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_EQ(tarjan.num_connected_components(g), 10u);
+
+  // All SCCs should have size 1
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+  for (auto sz : sizes)
+    EXPECT_EQ(sz, 1u);
+}
+
+// ============================================================================
+// Test: Very large strongly connected component
+// ============================================================================
+TEST(TarjanExtended, LargeSCC)
+{
+  TestDigraph g;
+  const size_t N = 2000;
+
+  std::vector<TestDigraph::Node *> nodes(N);
+  for (size_t i = 0; i < N; ++i)
+    nodes[i] = add_node(g, static_cast<int>(i));
+
+  // Create cycle: 0 -> 1 -> 2 -> ... -> N-1 -> 0
+  for (size_t i = 0; i < N; ++i)
+    add_arc(g, nodes[i], nodes[(i + 1) % N]);
+
+  // Add some random cross-edges to make it more connected
+  for (size_t i = 0; i < N; i += 7)
+    add_arc(g, nodes[i], nodes[(i + N / 3) % N]);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // All nodes in one SCC
+  EXPECT_EQ(tarjan.num_connected_components(g), 1u);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.test_connectivity(g));
+
+  // Verify size
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+  EXPECT_EQ(sizes.size(), 1u);
+  EXPECT_EQ(sizes.get_first(), N);
+}
+
+// ============================================================================
+// Test: Many small SCCs
+// ============================================================================
+TEST(TarjanExtended, ManySmallSCCs)
+{
+  TestDigraph g;
+  const size_t NUM_SCCS = 500;
+
+  for (size_t i = 0; i < NUM_SCCS; ++i)
+    {
+      auto a = add_node(g, static_cast<int>(i * 2));
+      auto b = add_node(g, static_cast<int>(i * 2 + 1));
+      add_arc(g, a, b);
+      add_arc(g, b, a);
+    }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  EXPECT_EQ(tarjan.num_connected_components(g), NUM_SCCS);
+  EXPECT_TRUE(tarjan.has_cycle(g));
+
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+  for (auto sz : sizes)
+    EXPECT_EQ(sz, 2u);
+}
+
+// ============================================================================
+// Test: Path finding in cycle
+// ============================================================================
+TEST(TarjanExtended, CyclePathDetails)
+{
+  TestDigraph g;
+  auto a = add_node(g, 1);
+  auto b = add_node(g, 2);
+  auto c = add_node(g, 3);
+  auto d = add_node(g, 4);
+
+  add_arc(g, a, b);
+  add_arc(g, b, c);
+  add_arc(g, c, d);
+  add_arc(g, d, b); // cycle: b -> c -> d -> b
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  Path<TestDigraph> path(g);
+  bool found = tarjan.compute_cycle(g, path);
+
+  ASSERT_TRUE(found);
+
+  // Verify cycle: first == last
+  EXPECT_EQ(path.get_first_node(), path.get_last_node());
+
+  // Verify path length (at least 2 nodes for a cycle representation)
+  size_t len = 0;
+  for (Path<TestDigraph>::Iterator it(path); it.has_curr(); it.next())
+    ++len;
+  EXPECT_GE(len, 2u);
+}
+
+// ============================================================================
+// Test: Empty graph edge cases
+// ============================================================================
+TEST(TarjanExtended, EmptyGraphEdgeCases)
+{
+  TestDigraph g;
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Multiple calls on empty graph should all work
+  EXPECT_EQ(tarjan.num_connected_components(g), 0u);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+  EXPECT_TRUE(tarjan.is_dag(g));
+  EXPECT_TRUE(tarjan.test_connectivity(g));
+
+  DynList<DynList<TestDigraph::Node *>> node_lists;
+  tarjan.connected_components(g, node_lists);
+  EXPECT_TRUE(node_lists.is_empty());
+
+  DynList<size_t> sizes;
+  tarjan.connected_components(g, sizes);
+  EXPECT_TRUE(sizes.is_empty());
+}
+
+// ============================================================================
+// Test: Graph with parallel arcs (multi-edges)
+// ============================================================================
+TEST(TarjanExtended, ParallelArcs)
+{
+  TestDigraph g;
+  auto a = add_node(g, 1);
+  auto b = add_node(g, 2);
+
+  // Multiple arcs in same direction
+  add_arc(g, a, b);
+  add_arc(g, a, b);
+  add_arc(g, a, b);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Still 2 SCCs (no back edge)
+  EXPECT_EQ(tarjan.num_connected_components(g), 2u);
+  EXPECT_FALSE(tarjan.has_cycle(g));
+
+  // Add back edges
+  add_arc(g, b, a);
+  add_arc(g, b, a);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan2;
+  EXPECT_EQ(tarjan2.num_connected_components(g), 1u);
+  EXPECT_TRUE(tarjan2.has_cycle(g));
+}
+
+// ============================================================================
+// Test: Tournament graph (complete asymmetric digraph)
+// ============================================================================
+TEST(TarjanExtended, TournamentGraph)
+{
+  TestDigraph g;
+  const size_t N = 8;
+
+  std::vector<TestDigraph::Node *> nodes(N);
+  for (size_t i = 0; i < N; ++i)
+    nodes[i] = add_node(g, static_cast<int>(i));
+
+  // Tournament: for each pair (i,j) with i < j, add exactly one arc
+  // Direction based on some pattern
+  for (size_t i = 0; i < N; ++i)
+    for (size_t j = i + 1; j < N; ++j)
+      {
+        if ((i + j) % 2 == 0)
+          add_arc(g, nodes[i], nodes[j]);
+        else
+          add_arc(g, nodes[j], nodes[i]);
+      }
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Tournament graphs are interesting - may or may not be strongly connected
+  // Just verify the algorithm completes successfully
+  size_t num_sccs = tarjan.num_connected_components(g);
+  EXPECT_GE(num_sccs, 1u);
+  EXPECT_LE(num_sccs, N);
+}
+
+// ============================================================================
+// Test: Dense random-like graph
+// ============================================================================
+TEST(TarjanExtended, DenseGraph)
+{
+  TestDigraph g;
+  const size_t N = 50;
+
+  std::vector<TestDigraph::Node *> nodes(N);
+  for (size_t i = 0; i < N; ++i)
+    nodes[i] = add_node(g, static_cast<int>(i));
+
+  // Add many edges based on a pattern
+  for (size_t i = 0; i < N; ++i)
+    for (size_t j = 0; j < N; ++j)
+      if (i != j && (i * 7 + j * 3) % 5 < 3) // ~60% edge density
+        add_arc(g, nodes[i], nodes[j]);
+
+  Tarjan_Connected_Components<TestDigraph> tarjan;
+
+  // Just verify it completes and gives consistent results
+  auto sccs = tarjan.connected_components(g);
+  size_t total = 0;
+  for (auto &scc : sccs)
+    total += scc.size();
+  EXPECT_EQ(total, N);
+}
+
+// ============================================================================
+// Test: Compute_Cycle_In_Digraph with no cycle
+// ============================================================================
+TEST(TarjanExtended, ComputeCycleNoCycle)
+{
+  TestDigraph g;
+  auto a = add_node(g, 1);
+  auto b = add_node(g, 2);
+  auto c = add_node(g, 3);
+  add_arc(g, a, b);
+  add_arc(g, b, c);
+
+  Compute_Cycle_In_Digraph<TestDigraph> finder;
+
+  Path<TestDigraph> path(g);
+  bool found = finder(g, path);
+  EXPECT_FALSE(found);
+
+  auto path2 = finder(g);
+  EXPECT_TRUE(path2.is_empty());
+
+  auto path3 = finder(g, a);
+  EXPECT_TRUE(path3.is_empty());
+}

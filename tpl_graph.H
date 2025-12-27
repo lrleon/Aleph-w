@@ -521,16 +521,9 @@ namespace Aleph
             remove_arc(arc);
           }
       else // Scan all the arcs and remove those related to node
-        for (Arc_Iterator it(*this); it.has_curr();)
-          {
-            if (Arc *a = it.get_curr(); this->get_src_node(a) == node or this->get_tgt_node(a) == node)
-              {
-                it.next_ne();
-                remove_arc(a);
-              }
-            else
-              it.next_ne();
-          }
+        this->remove_arcs_if([node, this](auto a) {
+          return this->get_src_node(a) == node or this->get_tgt_node(a) == node;
+        });
 
       // At this point the node has not more arcs
       node->del(); // unlink it from arc_list
