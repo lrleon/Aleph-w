@@ -621,10 +621,13 @@ namespace Aleph
     /** @brief Insert an arc with zero capacity and flow.
      *
      * This overload is disabled when Arc_Type equals Flow_Type to avoid
-     * a signature clash with the capacity-only overload.
+     * a signature clash with the capacity-only overload. It is also
+     * disabled for arithmetic types to ensure that integer literals
+     * match the capacity overload instead.
      */
     template <typename T = Arc_Type,
-              typename = std::enable_if_t<!std::is_same<T, Flow_Type>::value>>
+              typename = std::enable_if_t<!std::is_same<T, Flow_Type>::value &&
+                                          !std::is_arithmetic_v<T>>>
     Arc * insert_arc(Node *src_node, Node *tgt_node,
                      const T & arc_info = Arc_Type())
     {

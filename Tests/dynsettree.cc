@@ -1475,6 +1475,656 @@ TEST(DynSetTreeHardening, ContainsOrInsertDoesNotLeakOnThrow)
   EXPECT_EQ(TrackedKey::alive, 0);
 }
 
+// ============================================================================
+// Missing Coverage Tests - Append and Put Methods
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, AppendMethod)
+{
+  auto * p1 = this->set.append(10);
+  ASSERT_NE(p1, nullptr);
+  EXPECT_EQ(*p1, 10);
+  EXPECT_EQ(this->set.size(), 1u);
+
+  auto * p2 = this->set.append(20);
+  ASSERT_NE(p2, nullptr);
+  EXPECT_EQ(*p2, 20);
+  EXPECT_EQ(this->set.size(), 2u);
+
+  // Duplicate should fail
+  auto * p3 = this->set.append(10);
+  EXPECT_EQ(p3, nullptr);
+  EXPECT_EQ(this->set.size(), 2u);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, PutMethod)
+{
+  auto * p1 = this->set.put(10);
+  ASSERT_NE(p1, nullptr);
+  EXPECT_EQ(*p1, 10);
+  EXPECT_EQ(this->set.size(), 1u);
+
+  auto * p2 = this->set.put(20);
+  ASSERT_NE(p2, nullptr);
+  EXPECT_EQ(*p2, 20);
+  EXPECT_EQ(this->set.size(), 2u);
+
+  // Duplicate should fail (put is alias for insert)
+  auto * p3 = this->set.put(10);
+  EXPECT_EQ(p3, nullptr);
+  EXPECT_EQ(this->set.size(), 2u);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Rvalue Insert Variants
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, InsertRvalue)
+{
+  string s = "test";
+  // Using int for simplicity - rvalue path tested via move
+  int val = 42;
+  auto * p = this->set.insert(std::move(val));
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 42);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, AppendRvalue)
+{
+  int val = 42;
+  auto * p = this->set.append(std::move(val));
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 42);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, PutRvalue)
+{
+  int val = 42;
+  auto * p = this->set.put(std::move(val));
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 42);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, SearchOrInsertRvalue)
+{
+  int val = 42;
+  auto * p = this->set.search_or_insert(std::move(val));
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, 42);
+  EXPECT_EQ(this->set.size(), 1u);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, ContainsOrInsertRvalue)
+{
+  int val = 42;
+  auto [p, found] = this->set.contains_or_insert(std::move(val));
+  ASSERT_NE(p, nullptr);
+  EXPECT_FALSE(found);
+  EXPECT_EQ(*p, 42);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, InsertDupRvalue)
+{
+  int val1 = 42;
+  auto * p1 = this->set.insert_dup(std::move(val1));
+  ASSERT_NE(p1, nullptr);
+
+  int val2 = 42;
+  auto * p2 = this->set.insert_dup(std::move(val2));
+  ASSERT_NE(p2, nullptr);
+
+  EXPECT_EQ(this->set.size(), 2u);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Tree Metrics
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, Height)
+{
+  EXPECT_EQ(this->set.height(), 0u);
+
+  this->set.insert(1);
+  EXPECT_GE(this->set.height(), 1u);
+
+  for (int i = 2; i <= 10; ++i)
+    this->set.insert(i);
+
+  size_t h = this->set.height();
+  EXPECT_GE(h, 1u);
+  EXPECT_LE(h, 10u);  // Should be balanced, much less than 10
+}
+
+TYPED_TEST(DynSetTreeTypedTest, InternalPathLength)
+{
+  // Empty tree
+  EXPECT_EQ(this->set.internal_path_length(), 0u);
+
+  this->set.insert(1);
+  EXPECT_EQ(this->set.internal_path_length(), 0u);  // Root has depth 0
+
+  this->set.insert(2);
+  this->set.insert(3);
+  EXPECT_GT(this->set.internal_path_length(), 0u);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, GetRootNode)
+{
+  // Empty tree - root may be nullptr or a sentinel node depending on tree type
+  // Just verify that after insert, the root is valid and different
+
+  this->set.insert(42);
+  auto * node = this->set.get_root_node();
+  ASSERT_NE(node, nullptr);
+
+  // Verify it's a real node with the key
+  EXPECT_EQ(node->get_key(), 42);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Access Methods
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, GetFirstAndGetLast)
+{
+  for (int i : {5, 3, 7, 1, 9})
+    this->set.insert(i);
+
+  EXPECT_EQ(this->set.get_first(), 1);
+  EXPECT_EQ(this->set.get_last(), 9);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, GetMethod)
+{
+  for (int i : {5, 3, 7, 1, 9})
+    this->set.insert(i);
+
+  // get() is alias for max()
+  EXPECT_EQ(this->set.get(), 9);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, GetItem)
+{
+  this->set.insert(42);
+
+  // get_item() returns any element (same as get_root())
+  EXPECT_NO_THROW(this->set.get_item());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, ExistHasContainsConsistency)
+{
+  this->set.insert(42);
+
+  // All three should behave identically
+  EXPECT_EQ(this->set.exist(42), this->set.has(42));
+  EXPECT_EQ(this->set.has(42), this->set.contains(42));
+
+  EXPECT_EQ(this->set.exist(99), this->set.has(99));
+  EXPECT_EQ(this->set.has(99), this->set.contains(99));
+}
+
+// ============================================================================
+// Missing Coverage Tests - Assignment Operators
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, CopyAssignment)
+{
+  TypeParam set2;
+
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  for (int i : {10, 20})
+    set2.insert(i);
+
+  set2 = this->set;
+
+  EXPECT_EQ(set2.size(), 3u);
+  for (int i : {1, 2, 3})
+    EXPECT_TRUE(set2.contains(i));
+  EXPECT_FALSE(set2.contains(10));
+}
+
+TYPED_TEST(DynSetTreeTypedTest, SelfCopyAssignment)
+{
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  this->set = this->set;
+
+  EXPECT_EQ(this->set.size(), 3u);
+  for (int i : {1, 2, 3})
+    EXPECT_TRUE(this->set.contains(i));
+}
+
+TYPED_TEST(DynSetTreeTypedTest, MoveAssignment)
+{
+  TypeParam set2;
+
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  for (int i : {10, 20})
+    set2.insert(i);
+
+  set2 = std::move(this->set);
+
+  EXPECT_EQ(set2.size(), 3u);
+  for (int i : {1, 2, 3})
+    EXPECT_TRUE(set2.contains(i));
+
+  EXPECT_TRUE(this->set.is_empty());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, SelfMoveAssignment)
+{
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  // Self move-assignment should be safe (no-op)
+  this->set = std::move(this->set);
+
+  // After self-move, behavior is unspecified but should not crash
+  // The set should still be in a valid state
+}
+
+// ============================================================================
+// Missing Coverage Tests - Initializer List Construction
+// ============================================================================
+
+TEST(DynSetTree, InitializerListConstruction)
+{
+  DynSetAvlTree<int> set = {5, 3, 7, 1, 9};
+
+  EXPECT_EQ(set.size(), 5u);
+  for (int i : {1, 3, 5, 7, 9})
+    EXPECT_TRUE(set.contains(i));
+}
+
+TEST(DynSetTree, InitializerListConstructionWithDuplicates)
+{
+  // Duplicates in initializer list should be ignored
+  DynSetAvlTree<int> set = {1, 2, 3, 2, 1};
+
+  EXPECT_EQ(set.size(), 3u);
+}
+
+TEST(DynSetTree, InitializerListEmpty)
+{
+  DynSetAvlTree<int> set = {};
+
+  EXPECT_TRUE(set.is_empty());
+}
+
+// ============================================================================
+// Missing Coverage Tests - Split Operations Edge Cases
+// ============================================================================
+
+TEST(DynSetTreapRk, SplitKeyWhenKeyExists)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {1, 2, 3, 4, 5})
+    set.insert(i);
+
+  DynSetTreapRk<int> left, right;
+
+  // Split on existing key should fail
+  bool success = set.split_key(3, left, right);
+
+  EXPECT_FALSE(success);
+  // Original set should be unchanged
+  EXPECT_EQ(set.size(), 5u);
+  EXPECT_TRUE(left.is_empty());
+  EXPECT_TRUE(right.is_empty());
+}
+
+TEST(DynSetTreapRk, SplitKeyEmptySet)
+{
+  DynSetTreapRk<int> set;
+  DynSetTreapRk<int> left, right;
+
+  bool success = set.split_key(42, left, right);
+
+  EXPECT_TRUE(success);
+  EXPECT_TRUE(left.is_empty());
+  EXPECT_TRUE(right.is_empty());
+}
+
+TEST(DynSetTreapRk, SplitKeyDupEmptySet)
+{
+  DynSetTreapRk<int> set;
+  DynSetTreapRk<int> left, right;
+
+  EXPECT_NO_THROW(set.split_key_dup(42, left, right));
+  EXPECT_TRUE(left.is_empty());
+  EXPECT_TRUE(right.is_empty());
+}
+
+// ============================================================================
+// Missing Coverage Tests - Rank Operations on TreapRk
+// ============================================================================
+
+TEST(DynSetTreapRk, AccessMethod)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {5, 3, 7, 1, 9})
+    set.insert(i);
+
+  // access() is alias for select()
+  EXPECT_EQ(set.access(0), 1);
+  EXPECT_EQ(set.access(2), 5);
+  EXPECT_EQ(set.access(4), 9);
+}
+
+TEST(DynSetTreapRk, SelectOutOfRange)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {1, 2, 3})
+    set.insert(i);
+
+  EXPECT_THROW(set.select(3), out_of_range);
+  EXPECT_THROW(set.select(100), out_of_range);
+}
+
+TEST(DynSetTreapRk, SelectOnEmptySet)
+{
+  DynSetTreapRk<int> set;
+
+  EXPECT_THROW(set.select(0), out_of_range);
+}
+
+TEST(DynSetTreapRk, RemovePosOutOfRange)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {1, 2, 3})
+    set.insert(i);
+
+  EXPECT_THROW(set.remove_pos(3), out_of_range);
+  EXPECT_THROW(set.remove_pos(100), out_of_range);
+}
+
+TEST(DynSetTreapRk, FindPositionOnEmptySet)
+{
+  DynSetTreapRk<int> set;
+
+  auto [pos, ptr] = set.find_position(42);
+  EXPECT_EQ(pos, 0);
+  EXPECT_EQ(ptr, nullptr);
+}
+
+TEST(DynSetTreapRk, PositionNotFound)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {1, 3, 5, 7, 9})
+    set.insert(i);
+
+  // Position of non-existent key
+  EXPECT_EQ(set.position(2), -1);
+  EXPECT_EQ(set.position(4), -1);
+  EXPECT_EQ(set.position(100), -1);
+}
+
+TEST(DynSetTreapRk, ConstSelect)
+{
+  DynSetTreapRk<int> set;
+
+  for (int i : {5, 3, 7, 1, 9})
+    set.insert(i);
+
+  const auto & const_set = set;
+
+  EXPECT_EQ(const_set.select(0), 1);
+  EXPECT_EQ(const_set.select(4), 9);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Iterator Edge Cases
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, IteratorOnEmptySet)
+{
+  typename TypeParam::Iterator it(this->set);
+
+  EXPECT_FALSE(it.has_curr());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, IteratorResetFirst)
+{
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  typename TypeParam::Iterator it(this->set);
+
+  // Advance to end
+  while (it.has_curr())
+    it.next_ne();
+
+  it.reset_first();
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), 1);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, IteratorResetLast)
+{
+  for (int i : {1, 2, 3})
+    this->set.insert(i);
+
+  typename TypeParam::Iterator it(this->set);
+
+  it.reset_last();
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), 3);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Traverse Early Exit
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, TraverseEarlyExit)
+{
+  for (int i : {1, 2, 3, 4, 5})
+    this->set.insert(i);
+
+  int count = 0;
+  bool completed = this->set.traverse([&count](const int &) {
+    ++count;
+    return count < 3;  // Stop after 3 elements
+  });
+
+  EXPECT_FALSE(completed);
+  EXPECT_EQ(count, 3);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, TraverseConst)
+{
+  for (int i : {1, 2, 3, 4, 5})
+    this->set.insert(i);
+
+  const auto & const_set = this->set;
+
+  int sum = 0;
+  bool completed = const_set.traverse([&sum](const int & k) {
+    sum += k;
+    return true;
+  });
+
+  EXPECT_TRUE(completed);
+  EXPECT_EQ(sum, 15);
+}
+
+// ============================================================================
+// Missing Coverage Tests - operator() for Non-Rank Trees
+// ============================================================================
+
+TEST(DynSetTree, OperatorParenthesisOnNonRankTreeThrows)
+{
+  DynSetAvlTree<int> set;
+
+  for (int i : {1, 2, 3})
+    set.insert(i);
+
+  // operator() calls select(), which should throw on non-rank trees
+  EXPECT_THROW(set(0), domain_error);
+}
+
+// ============================================================================
+// Missing Coverage Tests - Join Edge Cases
+// ============================================================================
+
+TEST(DynSetTreapRk, JoinEmptySets)
+{
+  DynSetTreapRk<int> set1, set2;
+  DynSetTreapRk<int> dup;
+
+  set1.join(set2, dup);
+
+  EXPECT_TRUE(set1.is_empty());
+  EXPECT_TRUE(set2.is_empty());
+  EXPECT_TRUE(dup.is_empty());
+}
+
+TEST(DynSetTreapRk, JoinWithEmptySet)
+{
+  DynSetTreapRk<int> set1, set2;
+  DynSetTreapRk<int> dup;
+
+  for (int i : {1, 2, 3})
+    set1.insert(i);
+
+  set1.join(set2, dup);
+
+  EXPECT_EQ(set1.size(), 3u);
+  EXPECT_TRUE(set2.is_empty());
+  EXPECT_TRUE(dup.is_empty());
+}
+
+TEST(DynSetTreapRk, JoinDupEmptySets)
+{
+  DynSetTreapRk<int> set1, set2;
+
+  set1.join_dup(set2);
+
+  EXPECT_TRUE(set1.is_empty());
+  EXPECT_TRUE(set2.is_empty());
+}
+
+// ============================================================================
+// Missing Coverage Tests - Verify on Empty and Single Element
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, VerifyEmptyTree)
+{
+  EXPECT_TRUE(this->set.verify());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, VerifySingleElement)
+{
+  this->set.insert(42);
+  EXPECT_TRUE(this->set.verify());
+}
+
+// ============================================================================
+// Missing Coverage Tests - String Type with Rvalues
+// ============================================================================
+
+TEST(DynSetTree, StringRvalueInsert)
+{
+  DynSetAvlTree<string> set;
+
+  string s = "hello";
+  auto * p = set.insert(std::move(s));
+
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(*p, "hello");
+  EXPECT_EQ(set.size(), 1u);
+}
+
+TEST(DynSetTree, StringRvalueSearchOrInsert)
+{
+  DynSetAvlTree<string> set;
+
+  string s1 = "hello";
+  auto * p1 = set.search_or_insert(std::move(s1));
+  ASSERT_NE(p1, nullptr);
+  EXPECT_EQ(*p1, "hello");
+
+  string s2 = "hello";
+  auto * p2 = set.search_or_insert(std::move(s2));
+  EXPECT_EQ(p1, p2);  // Same pointer (found existing)
+}
+
+// ============================================================================
+// Missing Coverage Tests - All Tree Type Aliases
+// ============================================================================
+
+TEST(DynSetTreeAliases, DynSetBinTreeWorks)
+{
+  DynSetBinTree<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetAvlTreeWorks)
+{
+  DynSetAvlTree<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetSplayTreeWorks)
+{
+  DynSetSplayTree<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetRandTreeWorks)
+{
+  DynSetRandTree<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetTreapWorks)
+{
+  DynSetTreap<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetTreapRkWorks)
+{
+  DynSetTreapRk<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
+TEST(DynSetTreeAliases, DynSetRbTreeWorks)
+{
+  DynSetRbTree<int> set;
+  set.insert(1);
+  set.insert(2);
+  EXPECT_EQ(set.size(), 2u);
+  EXPECT_TRUE(set.verify());
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
