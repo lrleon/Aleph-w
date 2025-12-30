@@ -22,13 +22,13 @@ algorithm.
 The implementation details are not hidden. Each data structure claims
 how this is implemented. For example, the Aleph-w type `DynList`
 represents a dynamic list of items that is implemented with a single
-linked list. Consequently you directly know that you can not delete in
+linked list. Consequently, you directly know that you can not delete in
 O(1) an item given its address. At the contrary, the data type
 `DynDlist`, that represents a list implemented with a double linked
 list, allows to delete any item in O(1) given its address because the
 item contains enough context for the deletion.
 
-Most of components of Aleph-w are designed with a minimalist
+Most of the components of Aleph-w are designed with a minimalist
 pretension, according to the end to end argument (Saltzer et Al). For
 example, in the case of binary trees, we first model the binary node,
 which handles the data storage and link management. Next, we model the
