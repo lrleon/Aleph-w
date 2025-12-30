@@ -143,6 +143,7 @@ set(TEST_PROGRAMS
     lin-hash
     bintree
     avl
+    avl-rb-rk
     binheap
     tree-node
     odhash

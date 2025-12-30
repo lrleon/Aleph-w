@@ -36,7 +36,7 @@ namespace Aleph {
 
 class BinNodeXt_Data
 {
-  size_t count; // cardinalidad del árbol
+  size_t count; // Cardinality of the tree
 
 public:
 
