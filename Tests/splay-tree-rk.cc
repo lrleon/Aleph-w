@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 #include <random>
 #include <set>
 #include <vector>
@@ -702,4 +703,255 @@ TEST(SplayTreeRk, SwapTrees)
 
   EXPECT_NE(tree1.search(10), nullptr);
   EXPECT_NE(tree2.search(1), nullptr);
+}
+
+// ============================================================================
+// Additional Stress and Fuzz Tests
+// ============================================================================
+
+TEST(SplayTreeRk, Stress_AscendingInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 5000;
+  for (int k = 0; k < N; ++k)
+    {
+      tree.insert(pool.make(k));
+      if (k % 500 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+  
+  // Verify select and position
+  for (int i = 0; i < 100; ++i)
+    {
+      int pos = rand() % N;
+      auto * node = tree.select(pos);
+      ASSERT_NE(node, Node::NullPtr);
+      EXPECT_EQ(KEY(node), pos);
+    }
+}
+
+TEST(SplayTreeRk, Stress_DescendingInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 5000;
+  for (int k = N - 1; k >= 0; --k)
+    tree.insert(pool.make(k));
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+}
+
+TEST(SplayTreeRk, Stress_ZigzagInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 3000;
+  for (int i = 0; i < N; ++i)
+    {
+      int k = (i % 2 == 0) ? i / 2 : N - 1 - i / 2;
+      tree.insert(pool.make(k));
+    }
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+}
+
+TEST(SplayTreeRk, Fuzz_LargeScaleRandomOps)
+{
+  Tree tree;
+  NodePool pool;
+  std::set<int> oracle;
+  
+  std::mt19937 gen(98765);
+  std::uniform_int_distribution<> key_dist(0, 20000);
+  std::uniform_int_distribution<> op_dist(0, 2);
+  
+  for (int iter = 0; iter < 10000; ++iter)
+    {
+      int key = key_dist(gen);
+      int op = op_dist(gen);
+      
+      if (op == 0)  // insert
+        {
+          auto * p = pool.make(key);
+          if (tree.insert(p) != nullptr)
+            oracle.insert(key);
+          else
+            {
+              pool.forget(p);
+              delete p;
+            }
+        }
+      else if (op == 1 && !oracle.empty())  // remove
+        {
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          auto * removed = tree.remove(k);
+          ASSERT_NE(removed, nullptr) << "Failed to remove existing key " << k;
+          pool.forget(removed);
+          delete removed;
+          oracle.erase(k);
+        }
+      else  // search
+        {
+          auto * found = tree.search(key);
+          if (oracle.count(key))
+            ASSERT_NE(found, nullptr);
+          else
+            EXPECT_EQ(found, nullptr);
+        }
+      
+      EXPECT_EQ(tree.size(), oracle.size());
+      
+      if (iter % 2000 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  assert_valid_tree(tree);
+}
+
+TEST(SplayTreeRk, Stress_BulkInsertBulkRemove)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 5000;
+  
+  // Bulk insert
+  for (int k = 0; k < N; ++k)
+    tree.insert(pool.make(k));
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+  
+  // Bulk remove in random order
+  std::vector<int> keys_to_remove(N);
+  std::iota(keys_to_remove.begin(), keys_to_remove.end(), 0);
+  std::mt19937 gen(11111);
+  std::shuffle(keys_to_remove.begin(), keys_to_remove.end(), gen);
+  
+  for (int k : keys_to_remove)
+    {
+      auto * removed = tree.remove(k);
+      ASSERT_NE(removed, nullptr) << "Failed to remove " << k;
+      pool.forget(removed);
+      delete removed;
+    }
+  
+  EXPECT_TRUE(tree.is_empty());
+}
+
+TEST(SplayTreeRk, Stress_ManyDuplicates)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 100;
+  const int DUPS = 5;
+  
+  for (int k = 0; k < N; ++k)
+    for (int d = 0; d < DUPS; ++d)
+      tree.insert_dup(pool.make(k));
+  
+  size_t initial_size = tree.size();
+  EXPECT_GT(initial_size, 0u);
+  assert_valid_tree(tree);
+  
+  // Remove all elements until tree is empty
+  size_t total_removed = 0;
+  while (!tree.is_empty())
+    {
+      // Get any key from the tree via select
+      auto * node = tree.select(0);
+      ASSERT_NE(node, Node::NullPtr);
+      int k = KEY(node);
+      
+      auto * removed = tree.remove(k);
+      ASSERT_NE(removed, nullptr);
+      pool.forget(removed);
+      delete removed;
+      ++total_removed;
+      
+      // Validate tree structure periodically
+      if (total_removed % 50 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  EXPECT_EQ(total_removed, initial_size);
+  EXPECT_TRUE(tree.is_empty());
+}
+
+TEST(SplayTreeRk, Stress_RankOperationsUnderLoad)
+{
+  Tree tree;
+  NodePool pool;
+  std::set<int> oracle;
+  
+  std::mt19937 gen(22222);
+  std::uniform_int_distribution<> key_dist(0, 5000);
+  
+  // Insert random keys
+  for (int i = 0; i < 2000; ++i)
+    {
+      int key = key_dist(gen);
+      auto * p = pool.make(key);
+      if (tree.insert(p) != nullptr)
+        oracle.insert(key);
+      else
+        {
+          pool.forget(p);
+          delete p;
+        }
+    }
+  
+  std::vector<int> sorted(oracle.begin(), oracle.end());
+  
+  // Test select and position consistency
+  for (size_t i = 0; i < sorted.size(); ++i)
+    {
+      auto * node = tree.select(i);
+      ASSERT_NE(node, Node::NullPtr);
+      EXPECT_EQ(KEY(node), sorted[i]);
+      
+      auto pos_result = tree.position(sorted[i]);
+      EXPECT_EQ(pos_result.first, static_cast<long>(i));
+    }
+  
+  assert_valid_tree(tree);
+}
+
+TEST(SplayTreeRk, Stress_FrequentAccessPattern)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 1000;
+  for (int k = 0; k < N; ++k)
+    tree.insert(pool.make(k));
+  
+  std::mt19937 gen(33333);
+  std::uniform_int_distribution<> dist(0, N - 1);
+  
+  // Simulate access pattern with some keys accessed frequently
+  int hot_key = 500;
+  for (int i = 0; i < 5000; ++i)
+    {
+      int key = (i % 3 == 0) ? hot_key : dist(gen);
+      auto * found = tree.search(key);
+      ASSERT_NE(found, nullptr);
+      EXPECT_EQ(KEY(found), key);
+    }
+  
+  // Hot key should be near root due to splay property
+  assert_valid_tree(tree);
 }

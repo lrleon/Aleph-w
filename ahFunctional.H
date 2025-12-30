@@ -32,6 +32,20 @@
     This file contains various functional patterns like map, filter, fold,
     zip, range generation, and container manipulation helpers.
 
+    Main functions include:
+    - **Range generation**: `range()`, `nrange()`, `contiguous_range()`, `rep()`
+    - **Iteration**: `for_each()`, `enum_for_each()`, `each()`
+    - **Predicates**: `all()`, `exists()`, `none()`, `contains()`, `count_if()`
+    - **Transformation**: `maps()`, `filter()`, `reverse()`, `flatten()`, `flat_map()`
+    - **Folding**: `foldl()`, `foldr()`, `sum()`, `product()`, `scanl()`
+    - **Zipping**: `zip()`, `zipEq()`, `tzip()`, `zip_longest()`, `tzip_longest()`,
+                   `zip_longest_opt()`
+    - **Grouping**: `group_by()`, `group_by_eq()`, `group_by_reduce()`,
+                    `sequential_groups()`, `unique_sequential()`
+    - **Finding**: `find_ptr()`, `find_opt()`, `min_ptr()`, `max_ptr()`, `minmax_ptr()`
+    - **Comparison**: `eq()`, `lesser()`, `diff()`
+    - **Partitioning**: `partition()`, `take_while()`, `drop_while()`
+
     @ingroup Algos
 */
 
@@ -183,7 +197,25 @@ namespace Aleph
     return set_range<T, Container, Op>(start, end, step, op);
   }
 
-  /** @brief Generate @a n contiguous values starting from @a start. */
+  /** @brief Generate @a n contiguous values starting from @a start.
+
+      Creates a sequence of consecutive values: start, start+1, start+2, ..., start+n-1.
+
+      @tparam T Numeric type (must support increment operator).
+      @tparam Container Container type (defaults to DynList).
+      @param start Starting value.
+      @param n Number of values to generate.
+      @return Container with n consecutive values.
+
+      @par Example:
+      @code
+      auto seq = contiguous_range(5, 4);  // {5, 6, 7, 8}
+      auto zeros = contiguous_range(0, 3); // {0, 1, 2}
+      @endcode
+
+      @see range() for generating ranges with custom step.
+      @ingroup Algos
+  */
   template <typename T = int, template <typename> class Container = DynList>
   [[nodiscard]] inline Container<T> contiguous_range(T start, const size_t n)
   {
@@ -235,7 +267,28 @@ namespace Aleph
     return rep<T>(n, item);
   }
 
-  /** @brief Create a list of pointers to items in a container. */
+  /** @brief Create a list of pointers to items in a container.
+
+      Traverses the container and collects pointers to each element.
+      Useful for algorithms that need to modify elements in-place
+      or for creating indirect access patterns.
+
+      @tparam Container Container type with Item_Type and iterator.
+      @param c Source container.
+      @return DynList of pointers to each element.
+
+      @warning The returned pointers are only valid while the original
+               container exists and the elements are not removed.
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3};
+      auto ptrs = pointers_list(nums);
+      *ptrs.get_first() = 10;  // modifies nums[0]
+      @endcode
+
+      @ingroup Algos
+  */
   template <class Container> [[nodiscard]]
   DynList<typename Container::Item_Type*> pointers_list(Container & c)
   {
@@ -245,7 +298,9 @@ namespace Aleph
     return ret;
   }
 
-  /** @overload pointers_list for const containers. */
+  /** @overload pointers_list for const containers.
+      @return DynList of const pointers.
+  */
   template <class Container> [[nodiscard]]
   DynList<const typename Container::Item_Type *>
   pointers_list(const Container & c)
@@ -257,7 +312,24 @@ namespace Aleph
     return ret;
   }
 
-  /** @brief Execute an operation @a n times. */
+  /** @brief Execute an operation repeatedly over a range of indices.
+
+      Calls @a op() for each index from @a start to @a end (inclusive).
+      The operation receives no arguments; this is purely for side effects.
+
+      @tparam Op Callable type with signature `void()`.
+      @param start Starting index (inclusive).
+      @param end Ending index (inclusive).
+      @param op Operation to execute at each iteration.
+
+      @par Example:
+      @code
+      int count = 0;
+      each(1, 5, [&count]() { ++count; });  // count = 5
+      @endcode
+
+      @ingroup Algos
+  */
   template <class Op>
   void each(size_t start, size_t end, Op & op)
   {
@@ -318,7 +390,28 @@ namespace Aleph
     return sublist(c, 0, stride);
   }
 
-  /** @brief Apply @a operation to each element in @a container. */
+  /** @brief Apply an operation to each element in a container.
+
+      Traverses all elements in the container and applies the given
+      operation to each one. This is a side-effect operation that
+      returns the container for chaining.
+
+      @tparam Container Container type with traverse() method.
+      @tparam Operation Callable type `(const Item_Type&) -> void`.
+      @param container Source container.
+      @param operation Operation to apply to each element.
+      @return Reference to the container (for method chaining).
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3};
+      for_each(nums, [](int x) { std::cout << x << " "; });
+      // Output: 1 2 3
+      @endcode
+
+      @see enum_for_each() for version with index.
+      @ingroup Algos
+  */
   template <class Container, class Operation> inline
   Container & for_each(Container & container, Operation & operation)
   {
@@ -357,7 +450,33 @@ namespace Aleph
     return for_each<Container, Operation>(container, operation);
   }
 
-  /** @brief Apply @a operation to each element and its index. */
+  /** @brief Apply an operation to each element and its index.
+
+      Like for_each(), but also passes the zero-based index of each
+      element to the operation. Useful when you need to know the
+      position of each element during iteration.
+
+      @tparam Container Container type with get_it() method.
+      @tparam Operation Callable type `(const Item_Type&, size_t) -> void`.
+      @param container Source container.
+      @param operation Operation receiving (element, index).
+
+      @par Example:
+      @code
+      DynList<std::string> names = {"Alice", "Bob", "Carol"};
+      enum_for_each(names, [](const std::string& name, size_t i) {
+        std::cout << i << ": " << name << std::endl;
+      });
+      // Output:
+      // 0: Alice
+      // 1: Bob
+      // 2: Carol
+      @endcode
+
+      @see for_each() for version without index.
+      @see enumerate() for getting pairs of (element, index).
+      @ingroup Algos
+  */
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation & operation)
   {
@@ -373,7 +492,29 @@ namespace Aleph
     enum_for_each(container, operation);
   }
 
-  /** @brief Return true if all elements satisfy @a operation. */
+  /** @brief Return true if all elements satisfy a predicate.
+
+      Tests whether the predicate returns true for every element
+      in the container. Short-circuits on the first false result.
+      Returns true for empty containers (vacuous truth).
+
+      @tparam Container Container type with traverse() method.
+      @tparam Operation Predicate type `(const Item_Type&) -> bool`.
+      @param container Source container.
+      @param operation Predicate to test each element.
+      @return true if operation(item) is true for all items.
+
+      @par Example:
+      @code
+      DynList<int> nums = {2, 4, 6, 8};
+      bool all_even = all(nums, [](int x) { return x % 2 == 0; });
+      // all_even = true
+      @endcode
+
+      @see exists() for testing if any element satisfies predicate.
+      @see none() for testing if no element satisfies predicate.
+      @ingroup Algos
+  */
   template <class Container, class Operation> inline
   bool all(Container & container, Operation & operation)
   {
@@ -402,7 +543,29 @@ namespace Aleph
   }
 
 
-  /** @brief Return true if at least one element satisfies @a operation. */
+  /** @brief Return true if at least one element satisfies a predicate.
+
+      Tests whether the predicate returns true for at least one element
+      in the container. Short-circuits on the first true result.
+      Returns false for empty containers.
+
+      @tparam Container Container type with traverse() method.
+      @tparam Operation Predicate type `(const Item_Type&) -> bool`.
+      @param container Source container.
+      @param operation Predicate to test each element.
+      @return true if operation(item) is true for any item.
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 3, 5, 6, 7};
+      bool has_even = exists(nums, [](int x) { return x % 2 == 0; });
+      // has_even = true (because of 6)
+      @endcode
+
+      @see all() for testing if all elements satisfy predicate.
+      @see none() for testing if no element satisfies predicate.
+      @ingroup Algos
+  */
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation & operation)
   {
@@ -542,7 +705,30 @@ namespace Aleph
   }
 
 
-  /** @brief Zip two containers into a list of pairs. */
+  /** @brief Zip two containers into a list of pairs.
+
+      Combines elements from two containers pairwise. Iteration stops
+      when the shorter container is exhausted.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @return DynList of pairs (a[i], b[i]).
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3};
+      DynList<std::string> names = {"one", "two", "three"};
+      auto pairs = zip(nums, names);
+      // pairs = {(1, "one"), (2, "two"), (3, "three")}
+      @endcode
+
+      @see zipEq() for version that throws on length mismatch.
+      @see zip_longest() for version that pads shorter container.
+      @see tzip() for tuple-based version.
+      @ingroup Algos
+  */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<typename Container1::Item_Type,
                     typename Container2::Item_Type>>
@@ -560,7 +746,32 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @brief Zip two containers into a list of tuples. */
+  /** @brief Zip two containers into a list of tuples.
+
+      Like zip() but returns tuples instead of pairs.
+      Tuples provide better integration with structured bindings
+      and tuple utilities.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @return DynList of tuples (a[i], b[i]).
+
+      @par Example:
+      @code
+      DynList<int> xs = {1, 2};
+      DynList<double> ys = {1.1, 2.2};
+      auto tuples = tzip(xs, ys);
+      for (const auto& [x, y] : tuples)
+        std::cout << x << ", " << y << std::endl;
+      @endcode
+
+      @see zip() for pair-based version.
+      @see tzipEq() for version that throws on length mismatch.
+      @see tzip_longest() for version that pads shorter container.
+      @ingroup Algos
+  */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::tuple<typename Container1::Item_Type,
                      typename Container2::Item_Type>>
@@ -579,7 +790,32 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @brief Zip two containers; throw if lengths differ. */
+  /** @brief Zip two containers; throw if lengths differ.
+
+      Like zip() but verifies that both containers have equal length.
+      Throws std::length_error if container sizes don't match.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @return DynList of pairs (a[i], b[i]).
+      @throw std::length_error if container sizes mismatch.
+
+      @par Example:
+      @code
+      DynList<int> xs = {1, 2, 3};
+      DynList<int> ys = {4, 5, 6};
+      auto pairs = zipEq(xs, ys);  // OK, same length
+
+      DynList<int> zs = {7, 8};
+      // zipEq(xs, zs);  // throws std::length_error!
+      @endcode
+
+      @see zip() for version that stops at shorter container.
+      @see tzipEq() for tuple-based version.
+      @ingroup Algos
+  */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<typename Container1::Item_Type,
                     typename Container2::Item_Type>>
@@ -601,7 +837,22 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @brief Zip two containers into tuples; throw if lengths differ. */
+  /** @brief Zip two containers into tuples; throw if lengths differ.
+
+      Like tzip() but verifies that both containers have equal length.
+      Throws std::length_error if container sizes don't match.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @return DynList of tuples (a[i], b[i]).
+      @throw std::length_error if container sizes mismatch.
+
+      @see tzip() for version that stops at shorter container.
+      @see zipEq() for pair-based version.
+      @ingroup Algos
+  */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::tuple<typename Container1::Item_Type,
                      typename Container2::Item_Type>>
@@ -623,7 +874,31 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @brief Return pairs of (element, index). */
+  /** @brief Return pairs of (element, index).
+
+      Creates a list of pairs where each pair contains an element
+      and its zero-based index in the container. Similar to Python's
+      enumerate() but returns pairs instead of tuples.
+
+      @tparam Container Container type with for_each() method.
+      @param c Source container.
+      @return DynList of pairs (element, index).
+
+      @par Example:
+      @code
+      DynList<std::string> names = {"Alice", "Bob", "Carol"};
+      for (const auto& [name, idx] : enumerate(names))
+        std::cout << idx << ": " << name << std::endl;
+      // Output:
+      // 0: Alice
+      // 1: Bob
+      // 2: Carol
+      @endcode
+
+      @see enumerate_tuple() for tuple-based version.
+      @see enum_for_each() for applying operation with index.
+      @ingroup Algos
+  */
   template <class Container> [[nodiscard]]
   auto inline enumerate(const Container & c)
   {
@@ -636,7 +911,34 @@ namespace Aleph
   }
 
 
-  /** @brief Equality check for two containers using predicate @a e. */
+  /** @brief Check equality of two containers using a predicate.
+
+      Compares two containers element-by-element using the given
+      equality predicate. Returns true only if both containers have
+      the same length and all corresponding pairs are equal.
+
+      @tparam C1 Type of the first container.
+      @tparam C2 Type of the second container.
+      @tparam Eq Equality predicate type (defaults to std::equal_to).
+      @param c1 First container.
+      @param c2 Second container.
+      @param e Equality predicate for comparing elements.
+      @return true if containers have equal length and all elements compare equal.
+
+      @par Example:
+      @code
+      DynList<int> a = {1, 2, 3};
+      DynList<int> b = {1, 2, 3};
+      DynList<int> c = {1, 2, 4};
+
+      eq(a, b);  // true
+      eq(a, c);  // false
+      @endcode
+
+      @see diff() for inequality check.
+      @see are_eq() for detailed mismatch information.
+      @ingroup Algos
+  */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
   bool eq(const C1 & c1, const C2 & c2, Eq e = Eq())
@@ -664,7 +966,32 @@ namespace Aleph
     return eq(c1, c2, e);
   }
 
-  /** @brief Detailed equality check returning mismatch position and values. */
+  /** @brief Detailed equality check returning mismatch position and values.
+
+      Like eq() but returns detailed information about the comparison:
+      - Whether the containers are equal
+      - The position of first mismatch (if any)
+      - The mismatched values from both containers
+
+      @tparam C1 Type of the first container.
+      @tparam C2 Type of the second container.
+      @tparam Eq Equality predicate type.
+      @param c1 First container.
+      @param c2 Second container.
+      @param e Equality predicate.
+      @return Tuple of (equal, position, value1, value2).
+
+      @par Example:
+      @code
+      DynList<int> a = {1, 2, 5, 4};
+      DynList<int> b = {1, 2, 3, 4};
+      auto [equal, pos, v1, v2] = are_eq(a, b);
+      // equal=false, pos=2, v1=5, v2=3
+      @endcode
+
+      @see eq() for simple boolean result.
+      @ingroup Algos
+  */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
   std::tuple<bool, size_t, typename C1::Item_Type, typename C2::Item_Type>
@@ -685,7 +1012,32 @@ namespace Aleph
     return std::make_tuple(not (it1.has_curr() or it2.has_curr()), n, T(), T());
   }
 
-  /** @brief Lexicographical comparison between two containers. */
+  /** @brief Lexicographical comparison between two containers.
+
+      Compares two containers lexicographically (dictionary order).
+      Returns true if c1 is lexicographically less than c2.
+
+      @tparam C1 Type of the first container.
+      @tparam C2 Type of the second container.
+      @tparam Cmp Comparator type (defaults to std::less).
+      @param c1 First container.
+      @param c2 Second container.
+      @param cmp Comparator for element comparison.
+      @return true if c1 < c2 lexicographically.
+
+      @par Example:
+      @code
+      DynList<int> a = {1, 2, 3};
+      DynList<int> b = {1, 2, 4};
+      DynList<int> c = {1, 2};
+
+      lesser(a, b);  // true (3 < 4)
+      lesser(c, a);  // true (shorter prefix)
+      lesser(a, a);  // false (equal)
+      @endcode
+
+      @ingroup Algos
+  */
   template <class C1, class C2,
             class Cmp = std::less<typename C1::Item_Type>> [[nodiscard]] inline
   bool lesser(const C1 & c1, const C2 & c2, Cmp cmp = Cmp())
@@ -708,7 +1060,22 @@ namespace Aleph
     return it2.has_curr();
   }
 
-  /** @brief Check if two containers differ. */
+  /** @brief Check if two containers differ.
+
+      Complement of eq(). Returns true if containers have different
+      lengths or any corresponding elements differ.
+
+      @tparam C1 Type of the first container.
+      @tparam C2 Type of the second container.
+      @tparam Eq Equality predicate type.
+      @param c1 First container.
+      @param c2 Second container.
+      @param e Equality predicate.
+      @return true if containers are not equal.
+
+      @see eq() for equality check.
+      @ingroup Algos
+  */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
   bool diff(const C1 & c1, const C2 & c2, Eq e = Eq())
@@ -716,7 +1083,30 @@ namespace Aleph
     return not eq(c1, c2, e);
   }
 
-  /** @brief Separate a list of pairs into two lists. */
+  /** @brief Separate a list of pairs into two lists.
+
+      The inverse of zip(). Takes a container of pairs and produces
+      two separate containers with the first and second elements
+      respectively.
+
+      @tparam Container Container type holding pairs.
+      @param l Source container of pairs.
+      @return std::pair of two DynLists (firsts, seconds).
+
+      @par Example:
+      @code
+      DynList<std::pair<int, std::string>> pairs = {
+        {1, "one"}, {2, "two"}, {3, "three"}
+      };
+      auto [nums, names] = unzip(pairs);
+      // nums = {1, 2, 3}
+      // names = {"one", "two", "three"}
+      @endcode
+
+      @see zip() for the inverse operation.
+      @see tunzip() for tuple-based version.
+      @ingroup Algos
+  */
   template <class Container> [[nodiscard]] inline
   auto unzip(const Container & l)
   {
@@ -734,7 +1124,32 @@ namespace Aleph
     return std::make_pair(std::move(l1), std::move(l2));
   }
 
-  /** @brief Separate a list of tuples into two containers. */
+  /** @brief Separate a list of tuples into two containers.
+
+      The inverse of tzip(). Takes a container of 2-tuples and produces
+      two separate containers with the first and second elements
+      respectively.
+
+      @tparam Container Container template type.
+      @tparam T1 Type of first tuple elements.
+      @tparam T2 Type of second tuple elements.
+      @param l Source container of tuples.
+      @return std::tuple of two containers (firsts, seconds).
+
+      @par Example:
+      @code
+      DynList<std::tuple<int, double>> tuples = {
+        {1, 1.1}, {2, 2.2}, {3, 3.3}
+      };
+      auto [ints, doubles] = tunzip<DynList>(tuples);
+      // ints = {1, 2, 3}
+      // doubles = {1.1, 2.2, 3.3}
+      @endcode
+
+      @see tzip() for the inverse operation.
+      @see unzip() for pair-based version.
+      @ingroup Algos
+  */
   template <template <typename> class Container, typename T1, typename T2>
   [[nodiscard]] inline std::tuple<Container<T1>, Container<T2>>
   tunzip(const Container<std::tuple<T1, T2>> & l)
@@ -808,7 +1223,26 @@ namespace Aleph
   }
 
 
-  /** @brief Return a reversed copy of the container. */
+  /** @brief Return a reversed copy of the container.
+
+      Creates a new container with elements in reverse order.
+      The original container is not modified.
+
+      @tparam T Element type.
+      @tparam Container Container template type with insert() method.
+      @param l Source container.
+      @return New container with elements in reverse order.
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3, 4, 5};
+      auto rev = reverse(nums);
+      // rev = {5, 4, 3, 2, 1}
+      // nums unchanged: {1, 2, 3, 4, 5}
+      @endcode
+
+      @ingroup Algos
+  */
   template <typename T, template <typename> class Container>
   [[nodiscard]] inline Container<T> reverse(const Container<T> & l)
   {
@@ -820,20 +1254,25 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Generates all sequential tuples of size n contained in the
-      container c.
+  /** @brief Generate all sequential tuples (sliding windows) of size n.
 
-      If for example c = { 1, 2, 3, 4, 5, 6 ..., N}
+      Creates a list of lists where each inner list is a consecutive
+      sequence of n elements from the source container. This is a
+      sliding window operation.
 
-      Then gen_seq_list_tuples(c, 4) = { (1,2,3,4), (2,3,4,5), ... }
+      @tparam Container Container type with iterator.
+      @param c Source container.
+      @param n Size of each tuple (window size).
+      @return DynList of DynLists, each containing n consecutive elements.
 
-      @param[in] c container from which, sequentially, is desired
-      generate the tuples
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3, 4, 5};
+      auto windows = gen_seq_list_tuples(nums, 3);
+      // windows = { {1, 2, 3}, {2, 3, 4}, {3, 4, 5} }
+      @endcode
 
-      @param[in] n size of each tuple.
-      @return Lists of lists. Each list has size n and contains a
-      tuple.
-
+      @note The source container must have at least n elements.
       @ingroup Algos
   */
   template <class Container> [[nodiscard]]
@@ -857,19 +1296,29 @@ namespace Aleph
     return ret;
   }
 
-  /** Returns the different groups contained in the container `c`.
+  /** @brief Group consecutive equal elements together.
 
-      For example, if container `c` is `{1, 1, 2, 2, 2, 4, 4, 0, 0, 1}`,
-      then
+      Partitions a container into groups of consecutive elements that
+      are equal according to the given equality predicate. Each group
+      is a DynList containing all consecutive equal elements.
 
-      sequential_groups(c)
+      @tparam T Element type.
+      @tparam Container Container template type.
+      @tparam Equal Equality predicate type.
+      @param c Source container.
+      @param eq Equality predicate for comparing elements.
+      @return Pair of (list of groups, number of groups).
 
-      will return a pair whose first item is a list of list as follows:
+      @par Example:
+      @code
+      DynList<int> nums = {1, 1, 2, 2, 2, 4, 4, 0, 0, 1};
+      auto [groups, count] = sequential_groups(nums);
+      // groups = { {1, 1}, {2, 2, 2}, {4, 4}, {0, 0}, {1} }
+      // count = 5
+      @endcode
 
-      `{ {1, 1}, {2, 2, 2}, {4, 4}, {0, 0}, {1} }`
-
-      and the second item is the number of found groups 5.
-
+      @see group_by() for grouping by a key function.
+      @see unique_sequential() for getting unique consecutive values.
       @ingroup Algos
   */
   template <typename T, template <typename> class Container, class Equal>
@@ -915,7 +1364,33 @@ namespace Aleph
     return sequential_groups(c, eq);
   }
 
-  /** @brief Extract unique consecutive items. */
+  /** @brief Extract unique consecutive items.
+
+      Removes consecutive duplicates from a container, keeping only
+      the first element of each run of equal elements. Similar to
+      Unix `uniq` command.
+
+      @tparam T Element type.
+      @tparam Container Container template type.
+      @tparam Equal Equality predicate type.
+      @param c Source container.
+      @param eq Equality predicate for comparing elements.
+      @return Pair of (list of unique elements, count).
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 1, 2, 2, 2, 3, 1, 1};
+      auto [unique, count] = unique_sequential(nums);
+      // unique = {1, 2, 3, 1}
+      // count = 4
+      @endcode
+
+      @note Only removes consecutive duplicates. Non-consecutive duplicates
+            are preserved. For global unique, sort first.
+
+      @see sequential_groups() for getting groups of consecutive equals.
+      @ingroup Algos
+  */
   template <typename T, template <typename> class Container, class Equal>
   [[nodiscard]] std::pair<DynList<T>, size_t>
   unique_sequential(const Container<T> & c, Equal & eq)
@@ -955,7 +1430,30 @@ namespace Aleph
     return unique_sequential(c, eq);
   }
 
-  /** @brief Iterator that zips two other iterators. */
+  /** @brief Iterator that zips two other iterators.
+
+      Synchronizes two iterators so they advance together. Produces
+      pairs of elements from both iterators. Useful for iterating
+      over two containers in lockstep.
+
+      @tparam Itor1 Type of first iterator.
+      @tparam Itor2 Type of second iterator (defaults to Itor1).
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3};
+      DynList<std::string> names = {"one", "two", "three"};
+      auto it = get_pair_it(nums, names);
+      while (it.has_curr()) {
+        auto [num, name] = it.get_curr_ne();
+        std::cout << num << " = " << name << std::endl;
+        it.next_ne();
+      }
+      @endcode
+
+      @see get_pair_it() for creating Pair_Iterator instances.
+      @ingroup Algos
+  */
   template <class Itor1, class Itor2 = Itor1>
   class Pair_Iterator
   {
@@ -964,48 +1462,88 @@ namespace Aleph
 
   public:
 
+    /** @brief Construct from two iterators. */
     Pair_Iterator(Itor1 i1, Itor2 i2) : it1(i1), it2(i2) {}
 
+    /** @brief Construct from two containers.
+        @param c1 First container.
+        @param c2 Second container.
+    */
     template <class C1, class C2>
     Pair_Iterator(const C1 & c1, const C2 & c2)
       : Pair_Iterator(c1.get_it(), c2.get_it()) {}
 
+    /** @brief Check if both iterators have current elements.
+        @return true if both iterators are valid.
+    */
     bool has_curr() const noexcept { return it1.has_curr() and it2.has_curr(); }
 
+    /** @brief Check if first iterator has current element. */
     bool has_curr1() const noexcept { return it1.has_curr(); }
 
+    /** @brief Check if second iterator has current element. */
     bool has_curr2() const noexcept { return it2.has_curr(); }
 
+    /** @brief Get current pair (bounds-checked).
+        @return Pair of current elements.
+        @throw std::overflow_error if either iterator is exhausted.
+    */
     auto get_curr() const
     {
       return std::make_pair(it1.get_curr(), it2.get_curr());
     }
 
+    /** @brief Get current pair (no bounds check).
+        @return Pair of current elements.
+        @note Requires has_curr() to be true.
+    */
     auto get_curr_ne() const noexcept
     {
       return std::make_pair(it1.get_curr_ne(), it2.get_curr_ne());
     }
 
+    /** @brief Advance both iterators (bounds-checked).
+        @throw std::overflow_error if either iterator is exhausted.
+    */
     void next()
     {
       it1.next();
       it2.next();
     }
 
+    /** @brief Advance both iterators (no bounds check).
+        @note Requires has_curr() to be true.
+    */
     void next_ne() noexcept
     {
       it1.next_ne();
       it2.next_ne();
     }
 
-    /// return true if the two iterator were completely traversed
+    /** @brief Check if both iterators were completely traversed.
+        @return true if both iterators are exhausted.
+        @note Useful for verifying equal container lengths.
+    */
     bool was_traversed() const noexcept
     {
       return not (it1.has_curr() or it2.has_curr());
     }
   };
 
-  /** @brief Get a Pair_Iterator for two containers. */
+  /** @brief Create a Pair_Iterator for two containers.
+
+      Factory function that creates a Pair_Iterator from two containers,
+      automatically deducing the iterator types.
+
+      @tparam C1 Type of first container.
+      @tparam C2 Type of second container.
+      @param c1 First container.
+      @param c2 Second container.
+      @return Pair_Iterator positioned at the beginning of both containers.
+
+      @see Pair_Iterator for usage examples.
+      @ingroup Algos
+  */
   template <class C1, class C2>
   [[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline
   get_pair_it(const C1 & c1, const C2 & c2)
@@ -1148,7 +1686,26 @@ namespace Aleph
   template <typename T, template <typename> class Container> [[nodiscard]] inline
   DynList<std::pair<T, size_t>> repeated_with_index(const Container<T> & c);
 
-  /** @brief Flatten a nested container of one level. */
+  /** @brief Flatten a nested container of one level.
+
+      Concatenates all inner containers into a single flat list.
+
+      @tparam T Element type.
+      @tparam C1 Inner container template.
+      @tparam C2 Outer container template.
+      @param c Nested container (container of containers).
+      @return DynList with all elements from all inner containers.
+
+      @par Example:
+      @code
+      DynList<DynList<int>> nested = {{1, 2}, {3, 4, 5}, {6}};
+      auto flat = flatten(nested);
+      // flat = {1, 2, 3, 4, 5, 6}
+      @endcode
+
+      @see flat_map() for map followed by flatten.
+      @ingroup Algos
+  */
   template <typename T,
             template <typename> class C1,
             template <typename> class C2>
@@ -1164,7 +1721,17 @@ namespace Aleph
     return ret;
   }
 
-  /** @brief Flatten a nested container of two levels. */
+  /** @brief Flatten a nested container of two levels.
+
+      Recursively flattens a container nested two levels deep.
+
+      @tparam T Element type.
+      @tparam C1, C2, C3 Container template types (innermost to outermost).
+      @param c Triply-nested container.
+      @return DynList with all elements from all inner containers.
+
+      @ingroup Algos
+  */
   template <typename T,
             template <typename> class C1,
             template <typename> class C2,
@@ -1177,7 +1744,17 @@ namespace Aleph
     return ret;
   }
 
-  /** @brief Flatten a nested container of three levels. */
+  /** @brief Flatten a nested container of three levels.
+
+      Recursively flattens a container nested three levels deep.
+
+      @tparam T Element type.
+      @tparam C1, C2, C3, C4 Container template types (innermost to outermost).
+      @param c Quadruply-nested container.
+      @return DynList with all elements from all inner containers.
+
+      @ingroup Algos
+  */
   template <typename T,
             template <typename> class C1,
             template <typename> class C2,
@@ -1191,7 +1768,17 @@ namespace Aleph
     return ret;
   }
 
-  /** @brief Flatten a nested container of four levels. */
+  /** @brief Flatten a nested container of four levels.
+
+      Recursively flattens a container nested four levels deep.
+
+      @tparam T Element type.
+      @tparam C1, C2, C3, C4, C5 Container template types (innermost to outermost).
+      @param c Five-times-nested container.
+      @return DynList with all elements from all inner containers.
+
+      @ingroup Algos
+  */
   template <typename T,
             template <typename> class C1,
             template <typename> class C2,
@@ -1206,7 +1793,25 @@ namespace Aleph
     return ret;
   }
 
-  /** @brief Check if @a val is present in @a values. */
+  /** @brief Check if a value is present in a list.
+
+      Linear search through the list to find the value.
+
+      @tparam T Element type (must support operator==).
+      @param val Value to search for.
+      @param values List to search in.
+      @return true if val is found in values.
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 2, 3, 4, 5};
+      is_inside(3, nums);  // true
+      is_inside(6, nums);  // false
+      @endcode
+
+      @see contains() for searching in any container type.
+      @ingroup Algos
+  */
   template <typename T> [[nodiscard]] inline
   bool is_inside(const T & val, const DynList<T> & values)
   {
@@ -1216,11 +1821,32 @@ namespace Aleph
     return false;
   }
 
-  /** @brief Variadic check for equality against multiple values. */
+  /** @brief Variadic check for equality against multiple values.
+
+      Tests if a value equals any of the provided comparison values.
+      Short-circuits on first match.
+
+      @tparam T Type of value to test.
+      @param val Value to compare (no comparisons, returns false).
+      @return false (base case with no values to compare).
+
+      @par Example:
+      @code
+      is_equal(5, 1, 3, 5, 7);  // true (5 == 5)
+      is_equal(4, 1, 3, 5, 7);  // false
+      @endcode
+
+      @ingroup Algos
+  */
   template <typename T> [[nodiscard]] inline
   bool is_equal(const T &) { return false; }
 
-  /** @overload is_equal */
+  /** @overload is_equal
+      @param val Value to compare.
+      @param rhs First comparison value.
+      @param args Additional comparison values.
+      @return true if val equals rhs or any of args.
+  */
   template <typename T, typename U, typename ... Args> [[nodiscard]] inline
   bool is_equal(const T & val, const U & rhs, const Args & ... args)
   {
@@ -1697,6 +2323,434 @@ namespace Aleph
     for (auto it = container.get_it(); it.has_curr(); it.next_ne(), ++i)
       result.append(Tuple(i, it.get_curr()));
     return result;
+  }
+
+
+  /** @brief Zip two containers, padding the shorter one with a fill value.
+
+      Unlike `zip()` which stops at the shorter container, `zip_longest()`
+      continues until both containers are exhausted. When one container
+      is exhausted before the other, its corresponding values in the
+      resulting pairs are filled with the specified fill value.
+
+      This is similar to Python's `itertools.zip_longest()`.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @param fill_a Value to use when container `a` is exhausted.
+      @param fill_b Value to use when container `b` is exhausted.
+      @return DynList of pairs containing all elements from both containers.
+
+      @par Example:
+      @code
+      DynList<int> short_list = {1, 2};
+      DynList<int> long_list = {10, 20, 30, 40};
+
+      auto result = zip_longest(short_list, long_list, 0, -1);
+      // result contains: {(1, 10), (2, 20), (0, 30), (0, 40)}
+
+      // With different fill values:
+      auto result2 = zip_longest(long_list, short_list, -1, 0);
+      // result2 contains: {(10, 1), (20, 2), (30, 0), (40, 0)}
+      @endcode
+
+      @see zip() for version that stops at the shorter container.
+      @see tzip_longest() for tuple-based version.
+      @ingroup Algos
+  */
+  template <class Container1, class Container2> [[nodiscard]] inline
+  DynList<std::pair<typename Container1::Item_Type,
+                    typename Container2::Item_Type>>
+  zip_longest(const Container1 & a, const Container2 & b,
+              const typename Container1::Item_Type & fill_a = typename Container1::Item_Type(),
+              const typename Container2::Item_Type & fill_b = typename Container2::Item_Type())
+  {
+    using T1 = typename Container1::Item_Type;
+    using T2 = typename Container2::Item_Type;
+    DynList<std::pair<T1, T2>> ret_val;
+
+    auto it1 = a.get_it();
+    auto it2 = b.get_it();
+
+    // Process while both have elements
+    while (it1.has_curr() and it2.has_curr())
+      {
+        ret_val.append(std::pair<T1, T2>(it1.get_curr(), it2.get_curr()));
+        it1.next_ne();
+        it2.next_ne();
+      }
+
+    // Process remaining elements from first container
+    while (it1.has_curr())
+      {
+        ret_val.append(std::pair<T1, T2>(it1.get_curr(), fill_b));
+        it1.next_ne();
+      }
+
+    // Process remaining elements from second container
+    while (it2.has_curr())
+      {
+        ret_val.append(std::pair<T1, T2>(fill_a, it2.get_curr()));
+        it2.next_ne();
+      }
+
+    return ret_val;
+  }
+
+
+  /** @brief Zip two containers into tuples, padding the shorter one.
+
+      Like `zip_longest()` but returns tuples instead of pairs.
+      This provides better integration with structured bindings and
+      tuple utilities.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @param fill_a Value to use when container `a` is exhausted.
+      @param fill_b Value to use when container `b` is exhausted.
+      @return DynList of tuples containing all elements from both containers.
+
+      @par Example:
+      @code
+      DynList<std::string> names = {"Alice", "Bob"};
+      DynList<int> scores = {100, 95, 88, 72};
+
+      auto result = tzip_longest(names, scores, "N/A", 0);
+      // result contains: {("Alice", 100), ("Bob", 95), ("N/A", 88), ("N/A", 72)}
+
+      // Using structured bindings:
+      for (const auto& [name, score] : result)
+        std::cout << name << ": " << score << std::endl;
+      @endcode
+
+      @see zip_longest() for pair-based version.
+      @see tzip() for version that stops at the shorter container.
+      @ingroup Algos
+  */
+  template <class Container1, class Container2> [[nodiscard]] inline
+  DynList<std::tuple<typename Container1::Item_Type,
+                     typename Container2::Item_Type>>
+  tzip_longest(const Container1 & a, const Container2 & b,
+               const typename Container1::Item_Type & fill_a = typename Container1::Item_Type(),
+               const typename Container2::Item_Type & fill_b = typename Container2::Item_Type())
+  {
+    using T1 = typename Container1::Item_Type;
+    using T2 = typename Container2::Item_Type;
+    using Tuple = std::tuple<T1, T2>;
+    DynList<Tuple> ret_val;
+
+    auto it1 = a.get_it();
+    auto it2 = b.get_it();
+
+    while (it1.has_curr() and it2.has_curr())
+      {
+        ret_val.append(Tuple(it1.get_curr(), it2.get_curr()));
+        it1.next_ne();
+        it2.next_ne();
+      }
+
+    while (it1.has_curr())
+      {
+        ret_val.append(Tuple(it1.get_curr(), fill_b));
+        it1.next_ne();
+      }
+
+    while (it2.has_curr())
+      {
+        ret_val.append(Tuple(fill_a, it2.get_curr()));
+        it2.next_ne();
+      }
+
+    return ret_val;
+  }
+
+
+  /** @brief Zip two containers using optionals for missing values.
+
+      Like `zip_longest()` but uses `std::optional` to represent missing
+      values instead of requiring explicit fill values. This is useful
+      when there's no sensible default value, or when you need to
+      distinguish between a real value and a fill value.
+
+      @tparam Container1 Type of the first container.
+      @tparam Container2 Type of the second container.
+      @param a First container.
+      @param b Second container.
+      @return DynList of pairs of optionals.
+
+      @par Example:
+      @code
+      DynList<int> a = {1, 2, 3};
+      DynList<std::string> b = {"x"};
+
+      auto result = zip_longest_opt(a, b);
+      // result contains:
+      //   ({1}, {"x"})
+      //   ({2}, nullopt)
+      //   ({3}, nullopt)
+
+      for (const auto& [opt_a, opt_b] : result)
+        {
+          if (opt_a) std::cout << "a=" << *opt_a;
+          if (opt_b) std::cout << " b=" << *opt_b;
+          std::cout << std::endl;
+        }
+      @endcode
+
+      @see zip_longest() for version with explicit fill values.
+      @ingroup Algos
+  */
+  template <class Container1, class Container2> [[nodiscard]] inline
+  DynList<std::pair<std::optional<typename Container1::Item_Type>,
+                    std::optional<typename Container2::Item_Type>>>
+  zip_longest_opt(const Container1 & a, const Container2 & b)
+  {
+    using T1 = typename Container1::Item_Type;
+    using T2 = typename Container2::Item_Type;
+    using Opt1 = std::optional<T1>;
+    using Opt2 = std::optional<T2>;
+    DynList<std::pair<Opt1, Opt2>> ret_val;
+
+    auto it1 = a.get_it();
+    auto it2 = b.get_it();
+
+    while (it1.has_curr() and it2.has_curr())
+      {
+        ret_val.append(std::make_pair(Opt1(it1.get_curr()), Opt2(it2.get_curr())));
+        it1.next_ne();
+        it2.next_ne();
+      }
+
+    while (it1.has_curr())
+      {
+        ret_val.append(std::make_pair(Opt1(it1.get_curr()), std::nullopt));
+        it1.next_ne();
+      }
+
+    while (it2.has_curr())
+      {
+        ret_val.append(std::make_pair(std::nullopt, Opt2(it2.get_curr())));
+        it2.next_ne();
+      }
+
+    return ret_val;
+  }
+
+
+  /** @brief Group consecutive elements by a key function.
+
+      Partitions a container into groups of consecutive elements that
+      share the same key (as computed by the key function). Each group
+      is a DynList containing all consecutive elements with the same key.
+
+      This is similar to Python's `itertools.groupby()` or SQL's GROUP BY
+      (but only for consecutive elements with the same key).
+
+      @tparam T Element type of the container.
+      @tparam Container Container type (template parameter).
+      @tparam KeyFunc Function type `(const T&) -> Key`.
+      @param c Source container.
+      @param key_func Function that extracts the grouping key from each element.
+      @return DynList of pairs, where each pair contains:
+              - first: The key value for the group
+              - second: DynList of consecutive elements with that key
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 1, 2, 3, 3, 3, 2, 2};
+
+      // Group by identity (consecutive equal values)
+      auto groups = group_by(nums, [](int x) { return x; });
+      // groups contains:
+      //   (1, {1, 1})
+      //   (2, {2})
+      //   (3, {3, 3, 3})
+      //   (2, {2, 2})
+
+      // Group by even/odd
+      auto parity_groups = group_by(nums, [](int x) { return x % 2; });
+      // parity_groups contains:
+      //   (1, {1, 1})      // odd
+      //   (0, {2})         // even
+      //   (1, {3, 3, 3})   // odd
+      //   (0, {2, 2})      // even
+      @endcode
+
+      @note Unlike SQL GROUP BY, this only groups CONSECUTIVE elements.
+            Non-consecutive elements with the same key will form separate groups.
+      @note For grouping all elements regardless of position, sort the
+            container first or use a map-based approach.
+
+      @see sequential_groups() for grouping by equality.
+      @see unique_sequential() for getting unique consecutive values.
+      @ingroup Algos
+  */
+  template <typename T, template <typename> class Container, class KeyFunc>
+  [[nodiscard]]
+  DynList<std::pair<std::invoke_result_t<KeyFunc, const T&>, DynList<T>>>
+  group_by(const Container<T> & c, KeyFunc key_func)
+  {
+    using Key = std::invoke_result_t<KeyFunc, const T&>;
+    using Group = DynList<T>;
+    using Result = DynList<std::pair<Key, Group>>;
+
+    Result ret;
+    if (c.is_empty())
+      return ret;
+
+    auto it = c.get_it();
+    Key curr_key = key_func(it.get_curr());
+    Group * curr_group = &ret.append(std::make_pair(curr_key, Group())).second;
+    curr_group->append(it.get_curr());
+
+    for (it.next_ne(); it.has_curr(); it.next_ne())
+      {
+        const auto & item = it.get_curr();
+        Key new_key = key_func(item);
+
+        if (new_key != curr_key)
+          {
+            curr_key = new_key;
+            curr_group = &ret.append(std::make_pair(curr_key, Group())).second;
+          }
+
+        curr_group->append(item);
+      }
+
+    return ret;
+  }
+
+
+  /** @brief Group consecutive elements by a key function with custom equality.
+
+      Like `group_by()` but uses a custom equality predicate for comparing keys
+      instead of `operator==`. This is useful when the key type doesn't have
+      `operator==` defined, or when you need custom comparison semantics.
+
+      @tparam T Element type of the container.
+      @tparam Container Container type (template parameter).
+      @tparam KeyFunc Function type `(const T&) -> Key`.
+      @tparam KeyEqual Predicate type `(const Key&, const Key&) -> bool`.
+      @param c Source container.
+      @param key_func Function that extracts the grouping key from each element.
+      @param key_equal Predicate that returns true if two keys are equal.
+      @return DynList of pairs (key, group).
+
+      @par Example:
+      @code
+      struct Point { double x, y; };
+      DynList<Point> points = {{1.0, 2.0}, {1.001, 2.001}, {5.0, 5.0}};
+
+      // Group by approximate x coordinate (within 0.01)
+      auto groups = group_by_eq(points,
+        [](const Point& p) { return p.x; },
+        [](double a, double b) { return std::abs(a - b) < 0.01; });
+      // First group: {(1.0, 2.0), (1.001, 2.001)}
+      // Second group: {(5.0, 5.0)}
+      @endcode
+
+      @see group_by() for version using operator==.
+      @ingroup Algos
+  */
+  template <typename T, template <typename> class Container,
+            class KeyFunc, class KeyEqual>
+  [[nodiscard]]
+  DynList<std::pair<std::invoke_result_t<KeyFunc, const T&>, DynList<T>>>
+  group_by_eq(const Container<T> & c, KeyFunc key_func, KeyEqual key_equal)
+  {
+    using Key = std::invoke_result_t<KeyFunc, const T&>;
+    using Group = DynList<T>;
+    using Result = DynList<std::pair<Key, Group>>;
+
+    Result ret;
+    if (c.is_empty())
+      return ret;
+
+    auto it = c.get_it();
+    Key curr_key = key_func(it.get_curr());
+    Group * curr_group = &ret.append(std::make_pair(curr_key, Group())).second;
+    curr_group->append(it.get_curr());
+
+    for (it.next_ne(); it.has_curr(); it.next_ne())
+      {
+        const auto & item = it.get_curr();
+        Key new_key = key_func(item);
+
+        if (not key_equal(new_key, curr_key))
+          {
+            curr_key = new_key;
+            curr_group = &ret.append(std::make_pair(curr_key, Group())).second;
+          }
+
+        curr_group->append(item);
+      }
+
+    return ret;
+  }
+
+
+  /** @brief Group consecutive elements and apply a reducer to each group.
+
+      Combines `group_by()` with a reduction operation. For each group of
+      consecutive elements sharing the same key, applies a reducer function
+      to produce a single output value.
+
+      This is similar to SQL's `GROUP BY ... aggregate()` pattern.
+
+      @tparam T Element type of the container.
+      @tparam Container Container type (template parameter).
+      @tparam KeyFunc Function type `(const T&) -> Key`.
+      @tparam Reducer Function type `(const DynList<T>&) -> R`.
+      @param c Source container.
+      @param key_func Function that extracts the grouping key from each element.
+      @param reducer Function that reduces each group to a single value.
+      @return DynList of pairs (key, reduced_value).
+
+      @par Example:
+      @code
+      DynList<int> nums = {1, 1, 1, 2, 2, 3, 3, 3, 3};
+
+      // Count elements in each group
+      auto counts = group_by_reduce(nums,
+        [](int x) { return x; },                    // key = value itself
+        [](const DynList<int>& g) { return g.size(); });  // count
+      // counts contains: {(1, 3), (2, 2), (3, 4)}
+
+      // Sum elements in each group
+      auto sums = group_by_reduce(nums,
+        [](int x) { return x; },
+        [](const DynList<int>& g) { return sum(g); });
+      // sums contains: {(1, 3), (2, 4), (3, 12)}
+      @endcode
+
+      @see group_by() for version without reduction.
+      @ingroup Algos
+  */
+  template <typename T, template <typename> class Container,
+            class KeyFunc, class Reducer>
+  [[nodiscard]]
+  auto group_by_reduce(const Container<T> & c, KeyFunc key_func, Reducer reducer)
+    -> DynList<std::pair<std::invoke_result_t<KeyFunc, const T&>,
+                         std::invoke_result_t<Reducer, const DynList<T>&>>>
+  {
+    using Key = std::invoke_result_t<KeyFunc, const T&>;
+    using ReducedType = std::invoke_result_t<Reducer, const DynList<T>&>;
+    using Result = DynList<std::pair<Key, ReducedType>>;
+
+    auto groups = group_by(c, key_func);
+    Result ret;
+
+    for (auto it = groups.get_it(); it.has_curr(); it.next_ne())
+      {
+        auto & [key, group] = it.get_curr();
+        ret.append(std::make_pair(key, reducer(group)));
+      }
+
+    return ret;
   }
 
 

@@ -55,20 +55,36 @@ using namespace Aleph;
 namespace Aleph
 {
 
-  /** Hash table with addressing collision resolution
-      open and linear probing of available buckets.
+  /** @brief Open addressing hash table with linear probing collision resolution.
 
-      This type implements a closed hash table (the arrangement is
-      contiguous memory), which saves collisions within the same
-      board. When there is a collision, the first one is polled linearly.
-      bucket from the index given by the hash function.
+      This class implements a closed hash table (contiguous memory array)
+      that resolves collisions using linear probing. When a collision occurs,
+      consecutive buckets are checked sequentially until an empty slot is found.
 
-      OLhashTable handles three type parameters:
-      -# Key: the type of data that the table saves.
-      -# Record: the type of data to be mapped by the key.
-      -# Cmp: the comparison class between keys. returns true when
-      the keys are the same.
+      Linear probing has better cache locality than double hashing but may
+      suffer from primary clustering. It is simpler and often faster for
+      small to medium-sized tables.
 
+      @tparam Key The type of keys stored in the table.
+      @tparam Cmp Comparison functor for keys (default: Aleph::equal_to<Key>).
+                  Must return true if two keys are equal.
+
+      @par Collision Resolution Strategy:
+      Linear probing from hash_fct(key) % len, incrementing by 1 until
+      an empty bucket is found.
+
+      @par Example:
+      @code
+      OLhashTable<std::string> table;
+      table.insert("hello");
+      table.insert("world");
+      auto ptr = table.search("hello");
+      if (ptr != nullptr)
+        std::cout << "Found: " << *ptr << std::endl;
+      @endcode
+
+      @see ODhashTable for double hashing variant.
+      @see OhashCommon for shared hash table operations.
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>

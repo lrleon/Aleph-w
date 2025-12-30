@@ -474,6 +474,560 @@ TEST(InsertDup, RbTree)
     delete tree.remove(42);
 }
 
+// ==============================================================
+// Join/Split tests
+// ==============================================================
+
+// Helper to cleanup a tree
+template <typename Tree>
+void destroy_tree(Tree & tree)
+{
+  while (not tree.is_empty())
+    delete tree.remove(tree.getRoot()->get_key());
+}
+
+// AVL Join Tests
+
+TEST(JoinSplitAvl, JoinExclusiveBasic)
+{
+  Avl_Tree_Rk<int> t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  // Insert 0-49 in t1, 50-99 in t2
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+  for (int i = 50; i < 100; ++i)
+    t2.insert(new Node(i));
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_EQ(t2.size(), 50);
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 100);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  // Check all elements are present and in order
+  for (int i = 0; i < 100; ++i)
+    {
+      auto p = t1.select(i);
+      EXPECT_EQ(p->get_key(), i);
+    }
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitAvl, JoinExclusiveEmptyLeft)
+{
+  Avl_Tree_Rk<int> t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitAvl, JoinExclusiveEmptyRight)
+{
+  Avl_Tree_Rk<int> t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitAvl, SplitKeyBasic)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 100; ++i)
+    tree.insert(new Node(i));
+
+  auto pivot = tree.split_key(50, t1, t2);
+
+  EXPECT_NE(pivot, nullptr);
+  EXPECT_EQ(pivot->get_key(), 50);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  EXPECT_EQ(t1.size(), 50);  // 0-49
+  EXPECT_EQ(t2.size(), 49);  // 51-99
+
+  // Check t1 contains 0-49
+  for (int i = 0; i < 50; ++i)
+    EXPECT_EQ(t1.select(i)->get_key(), i);
+
+  // Check t2 contains 51-99
+  for (int i = 0; i < 49; ++i)
+    EXPECT_EQ(t2.select(i)->get_key(), i + 51);
+
+  delete pivot;
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitAvl, SplitKeyNotFound)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  // Insert even numbers only
+  for (int i = 0; i < 100; i += 2)
+    tree.insert(new Node(i));
+
+  // Split by odd number (not in tree)
+  auto pivot = tree.split_key(51, t1, t2);
+
+  EXPECT_EQ(pivot, nullptr);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  // t1 should have 0, 2, 4, ..., 50 (26 elements)
+  EXPECT_EQ(t1.size(), 26);
+  // t2 should have 52, 54, ..., 98 (24 elements)
+  EXPECT_EQ(t2.size(), 24);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitAvl, SplitPosBasic)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 100; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(30, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  EXPECT_EQ(t1.size(), 30);  // positions 0-29
+  EXPECT_EQ(t2.size(), 70);  // positions 30-99
+
+  // Check t1 contains 0-29
+  for (int i = 0; i < 30; ++i)
+    EXPECT_EQ(t1.select(i)->get_key(), i);
+
+  // Check t2 contains 30-99
+  for (int i = 0; i < 70; ++i)
+    EXPECT_EQ(t2.select(i)->get_key(), i + 30);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitAvl, SplitPosZero)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(0, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.is_empty());
+  EXPECT_EQ(t2.size(), 50);
+  EXPECT_TRUE(t2.verify());
+
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitAvl, SplitPosEnd)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(50, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitAvl, JoinThenSplit)
+{
+  Avl_Tree_Rk<int> t1, t2, t3, t4;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+  for (int i = 50; i < 100; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+  EXPECT_EQ(t1.size(), 100);
+  EXPECT_TRUE(t1.verify());
+
+  auto pivot = t1.split_key(50, t3, t4);
+  EXPECT_EQ(pivot->get_key(), 50);
+  EXPECT_EQ(t3.size(), 50);
+  EXPECT_EQ(t4.size(), 49);
+  EXPECT_TRUE(t3.verify());
+  EXPECT_TRUE(t4.verify());
+
+  delete pivot;
+  destroy_tree(t3);
+  destroy_tree(t4);
+}
+
+// Red-Black Join Tests
+
+TEST(JoinSplitRb, JoinExclusiveBasic)
+{
+  Rb_Tree_Rk<int> t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+  for (int i = 50; i < 100; ++i)
+    t2.insert(new Node(i));
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_EQ(t2.size(), 50);
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 100);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  for (int i = 0; i < 100; ++i)
+    {
+      auto p = t1.select(i);
+      EXPECT_EQ(p->get_key(), i);
+    }
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitRb, JoinExclusiveEmptyLeft)
+{
+  Rb_Tree_Rk<int> t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitRb, JoinExclusiveEmptyRight)
+{
+  Rb_Tree_Rk<int> t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitRb, SplitKeyBasic)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 100; ++i)
+    tree.insert(new Node(i));
+
+  auto pivot = tree.split_key(50, t1, t2);
+
+  EXPECT_NE(pivot, nullptr);
+  EXPECT_EQ(pivot->get_key(), 50);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  EXPECT_EQ(t1.size(), 50);  // 0-49
+  EXPECT_EQ(t2.size(), 49);  // 51-99
+
+  for (int i = 0; i < 50; ++i)
+    EXPECT_EQ(t1.select(i)->get_key(), i);
+
+  for (int i = 0; i < 49; ++i)
+    EXPECT_EQ(t2.select(i)->get_key(), i + 51);
+
+  delete pivot;
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitRb, SplitKeyNotFound)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 100; i += 2)
+    tree.insert(new Node(i));
+
+  auto pivot = tree.split_key(51, t1, t2);
+
+  EXPECT_EQ(pivot, nullptr);
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  EXPECT_EQ(t1.size(), 26);
+  EXPECT_EQ(t2.size(), 24);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitRb, SplitPosBasic)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 100; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(30, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  EXPECT_EQ(t1.size(), 30);
+  EXPECT_EQ(t2.size(), 70);
+
+  for (int i = 0; i < 30; ++i)
+    EXPECT_EQ(t1.select(i)->get_key(), i);
+
+  for (int i = 0; i < 70; ++i)
+    EXPECT_EQ(t2.select(i)->get_key(), i + 30);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitRb, SplitPosZero)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(0, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.is_empty());
+  EXPECT_EQ(t2.size(), 50);
+  EXPECT_TRUE(t2.verify());
+
+  destroy_tree(t2);
+}
+
+TEST(JoinSplitRb, SplitPosEnd)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    tree.insert(new Node(i));
+
+  tree.split_pos(50, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_EQ(t1.size(), 50);
+  EXPECT_TRUE(t2.is_empty());
+  EXPECT_TRUE(t1.verify());
+
+  destroy_tree(t1);
+}
+
+TEST(JoinSplitRb, JoinThenSplit)
+{
+  Rb_Tree_Rk<int> t1, t2, t3, t4;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    t1.insert(new Node(i));
+  for (int i = 50; i < 100; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+  EXPECT_EQ(t1.size(), 100);
+  EXPECT_TRUE(t1.verify());
+
+  auto pivot = t1.split_key(50, t3, t4);
+  EXPECT_EQ(pivot->get_key(), 50);
+  EXPECT_EQ(t3.size(), 50);
+  EXPECT_EQ(t4.size(), 49);
+  EXPECT_TRUE(t3.verify());
+  EXPECT_TRUE(t4.verify());
+
+  delete pivot;
+  destroy_tree(t3);
+  destroy_tree(t4);
+}
+
+// Large scale join/split stress tests
+
+TEST(JoinSplitStress, AvlLargeJoinSplit)
+{
+  Avl_Tree_Rk<int> t1, t2, t3, t4;
+  using Node = Avl_Tree_Rk<int>::Node;
+  const int N = 1000;
+
+  for (int i = 0; i < N / 2; ++i)
+    t1.insert(new Node(i));
+  for (int i = N / 2; i < N; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+  EXPECT_EQ(t1.size(), N);
+  EXPECT_TRUE(t1.verify());
+
+  t1.split_pos(N / 3, t3, t4);
+  EXPECT_EQ(t3.size(), N / 3);
+  EXPECT_EQ(t4.size(), N - N / 3);
+  EXPECT_TRUE(t3.verify());
+  EXPECT_TRUE(t4.verify());
+
+  t3.join_exclusive(t4);
+  EXPECT_EQ(t3.size(), N);
+  EXPECT_TRUE(t3.verify());
+
+  destroy_tree(t3);
+}
+
+TEST(JoinSplitStress, RbLargeJoinSplit)
+{
+  Rb_Tree_Rk<int> t1, t2, t3, t4;
+  using Node = Rb_Tree_Rk<int>::Node;
+  const int N = 1000;
+
+  for (int i = 0; i < N / 2; ++i)
+    t1.insert(new Node(i));
+  for (int i = N / 2; i < N; ++i)
+    t2.insert(new Node(i));
+
+  t1.join_exclusive(t2);
+  EXPECT_EQ(t1.size(), N);
+  EXPECT_TRUE(t1.verify());
+
+  t1.split_pos(N / 3, t3, t4);
+  EXPECT_EQ(t3.size(), N / 3);
+  EXPECT_EQ(t4.size(), N - N / 3);
+  EXPECT_TRUE(t3.verify());
+  EXPECT_TRUE(t4.verify());
+
+  t3.join_exclusive(t4);
+  EXPECT_EQ(t3.size(), N);
+  EXPECT_TRUE(t3.verify());
+
+  destroy_tree(t3);
+}
+
+// Test split_key_dup
+
+TEST(SplitDup, AvlSplitKeyDup)
+{
+  Avl_Tree_Rk<int> tree, t1, t2;
+  using Node = Avl_Tree_Rk<int>::Node;
+
+  // Insert with duplicates: several 50s
+  for (int i = 0; i < 50; ++i)
+    tree.insert_dup(new Node(i));
+  for (int i = 0; i < 10; ++i)
+    tree.insert_dup(new Node(50));
+  for (int i = 51; i < 100; ++i)
+    tree.insert_dup(new Node(i));
+
+  EXPECT_EQ(tree.size(), 109);  // 50 + 10 + 49
+
+  tree.split_key_dup(50, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  // t1 should have keys <= 50 (0-49 + 10 duplicates of 50 = 50 + 10 = 60)
+  EXPECT_EQ(t1.size(), 60);
+  // t2 should have keys > 50 (51-99 = 49)
+  EXPECT_EQ(t2.size(), 49);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
+TEST(SplitDup, RbSplitKeyDup)
+{
+  Rb_Tree_Rk<int> tree, t1, t2;
+  using Node = Rb_Tree_Rk<int>::Node;
+
+  for (int i = 0; i < 50; ++i)
+    tree.insert_dup(new Node(i));
+  for (int i = 0; i < 10; ++i)
+    tree.insert_dup(new Node(50));
+  for (int i = 51; i < 100; ++i)
+    tree.insert_dup(new Node(i));
+
+  EXPECT_EQ(tree.size(), 109);
+
+  tree.split_key_dup(50, t1, t2);
+
+  EXPECT_TRUE(tree.is_empty());
+  EXPECT_TRUE(t1.verify());
+  EXPECT_TRUE(t2.verify());
+
+  // t1 should have keys <= 50 (0-49 + 10 duplicates of 50 = 50 + 10 = 60)
+  EXPECT_EQ(t1.size(), 60);
+  EXPECT_EQ(t2.size(), 49);
+
+  destroy_tree(t1);
+  destroy_tree(t2);
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

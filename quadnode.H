@@ -23,12 +23,26 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file quadnode.H
+ *  @brief QuadTree node implementation for spatial data structures.
+ *
+ *  This file provides QuadNode, a node class for quadtree spatial indexing.
+ *  Each node represents a rectangular region and can be subdivided into
+ *  four quadrants (NW, NE, SW, SE) for efficient 2D point storage and queries.
+ *
+ *  @author Alejandro Mujica
+ *  @ingroup Geometry
+ */
+
 # ifndef QUADNODE_H
 # define QUADNODE_H
 
 # include <htlist.H>
 # include <point.H>
 # include <ah-errors.H>
+
+using namespace Aleph;
 
 # define PARENT(p) ((p)->get_parent())
 # define NW_CHILD(p) ((p)->get_nw_child())
@@ -38,79 +52,107 @@
 # define COLOR(p) ((p)->get_color())
 # define LEVEL(p) ((p)->get_level())
 
-/**
-  * \brief Clase que modela un Nodo para Quad Tree.
-  *
-  * @author Alejandro Mujica
-  */
+/** @brief Node for QuadTree spatial data structure.
+
+    QuadNode represents a rectangular region in 2D space that can be recursively
+    subdivided into four quadrants (northwest, northeast, southwest, southeast).
+    Each node can store multiple points and maintains pointers to its parent
+    and four potential children.
+
+    @par Node States (Colors):
+    - **White**: Leaf node with no points (empty)
+    - **Black**: Leaf node with at least one point
+    - **Gray**: Internal node (has children)
+
+    @par Spatial Subdivision:
+    When a leaf node exceeds its point capacity, it splits into four children:
+    ```
+    +-------+-------+
+    | NW    | NE    |
+    +-------+-------+
+    | SW    | SE    |
+    +-------+-------+
+    ```
+
+    @par Complexity:
+    - Point insertion: O(log n) expected (depends on tree depth)
+    - Point search: O(log n) expected
+    - Point removal: O(log n) expected
+    - Neighbor finding: O(log n)
+    - Space: O(n) for n points
+
+    @author Alejandro Mujica
+    @ingroup Geometry
+ */
 class QuadNode
 {
 public:
 
-  /**
-    * \brief Colores para un Quad Node.
-    *
-    * White representa un nodo hoja desocupado.
-    * Black representa un nodo hoja ocupado (al menos un punto).
-    * Gray representa un nodo que no es hoja.
-    *
-    * @author Alejandro Mujica
-    */
+  /** @brief Node color states for quadtree nodes.
+   *
+   *  Colors indicate the state of a node:
+   *  - **White**: Leaf node with no points (empty region)
+   *  - **Black**: Leaf node containing at least one point
+   *  - **Gray**: Internal node (non-leaf, has children)
+   */
   enum class Color
   {
-    White,
-    Gray,
-    Black,
+    White,  ///< Empty leaf node
+    Gray,   ///< Internal node with children
+    Black,  ///< Leaf node with points
     Num_Colors
   };
 
-  /**
-    * \brief Direcciones de los Quad.
-    *
-    * @author Alejandro Mujica
-    */
+  /** @brief Quadrant directions for child nodes.
+   *
+   *  Identifies which quadrant a child node occupies:
+   *  - **NW**: Northwest (top-left)
+   *  - **NE**: Northeast (top-right)
+   *  - **SW**: Southwest (bottom-left)
+   *  - **SE**: Southeast (bottom-right)
+   */
   enum class Quad
   {
-    NW, NE, SW, SE, Num_Quads
+    NW,  ///< Northwest quadrant
+    NE,  ///< Northeast quadrant
+    SW,  ///< Southwest quadrant
+    SE,  ///< Southeast quadrant
+    Num_Quads
   };
 
-  /**
-    * \brief Lados hacia los que se puede ir desde un Quad cualquiera.
-    *
-    * @author Alejandro Mujica
-    */
+  /** @brief Cardinal directions for neighbor navigation.
+   *
+   *  Used to identify neighbors in four cardinal directions.
+   */
   enum class Side
   {
-    North, South, East, West, Num_Sides
+    North,  ///< Northern neighbor
+    South,  ///< Southern neighbor
+    East,   ///< Eastern neighbor
+    West,   ///< Western neighbor
+    Num_Sides
   };
 
 private:
-  DynList<Point> points;
+  DynList<Point> points; ///< Points stored in this node (only for leaves)
 
-  QuadNode * parent;
+  QuadNode * parent;   ///< Parent node (nullptr for root)
+  QuadNode * nw_child; ///< Northwest child
+  QuadNode * ne_child; ///< Northeast child
+  QuadNode * sw_child; ///< Southwest child
+  QuadNode * se_child; ///< Southeast child
 
-  QuadNode * nw_child;
-  
-  QuadNode * ne_child;
+  Color color;         ///< Node state (White/Gray/Black)
+  unsigned long level; ///< Depth in the tree (0 for root)
 
-  QuadNode * sw_child;
+  // Region boundaries
+  Geom_Number min_x;   ///< Minimum X coordinate
+  Geom_Number max_x;   ///< Maximum X coordinate
+  Geom_Number min_y;   ///< Minimum Y coordinate
+  Geom_Number max_y;   ///< Maximum Y coordinate
 
-  QuadNode * se_child;
-
-  Color color;
-
-  unsigned long level;
-
-  // Datos para la región
-  Geom_Number min_x;
-
-  Geom_Number max_x;
-
-  Geom_Number min_y;
-
-  Geom_Number max_y;
-
-  static QuadNode * get_north_neighbor(QuadNode * v)
+  /// @brief Find the northern neighbor of a node.
+  static QuadNode * get_north_neighbor(QuadNode * v) noexcept
   {
     if (PARENT(v) == nullptr)
       return nullptr;
@@ -131,7 +173,8 @@ private:
     return SE_CHILD(u);
   }
 
-  static QuadNode * get_south_neighbor(QuadNode * v)
+  /// @brief Find the southern neighbor of a node.
+  static QuadNode * get_south_neighbor(QuadNode * v) noexcept
   {
     if (PARENT(v) == nullptr)
       return nullptr;
@@ -152,7 +195,8 @@ private:
       return NE_CHILD(u);
   }
 
-  static QuadNode * get_east_neighbor(QuadNode * v)
+  /// @brief Find the eastern neighbor of a node.
+  static QuadNode * get_east_neighbor(QuadNode * v) noexcept
   {
     if (PARENT(v) == nullptr)
       return nullptr;
@@ -173,7 +217,8 @@ private:
       return SW_CHILD(u);
   }
 
-  static QuadNode * get_west_neighbor(QuadNode * v)
+  /// @brief Find the western neighbor of a node.
+  static QuadNode * get_west_neighbor(QuadNode * v) noexcept
   {
     if (PARENT(v) == nullptr)
       return nullptr;
@@ -194,6 +239,7 @@ private:
       return SE_CHILD(u);
   }
 
+  /// @brief Recursively collect leaf neighbors on a given side.
   static void get_neighbors_by_side(QuadNode * node,
                                     const Side & side,
 				    DynList<QuadNode *> & neighbors)
@@ -230,7 +276,8 @@ private:
     }
 }
 
-static size_t count_points(QuadNode * node)
+/// @brief Recursively count all points in a subtree.
+static size_t count_points(QuadNode * node) noexcept
 {
   if (node == nullptr)
     return 0;
@@ -249,7 +296,9 @@ static size_t count_points(QuadNode * node)
 }
   
 public:
-  QuadNode()
+
+  /// @brief Default constructor - creates a white (empty) node.
+  QuadNode() noexcept
     : points(), parent(nullptr), nw_child(nullptr), ne_child(nullptr),
       sw_child(nullptr), se_child(nullptr), color(Color::White), level(0),
       min_x(0), max_x(0), min_y(0), max_y(0)
@@ -257,9 +306,17 @@ public:
     // Empty
   }
   
+  /** @brief Construct a node with specified region bounds.
+   *
+   *  @param _min_x Minimum X coordinate of the region
+   *  @param _max_x Maximum X coordinate of the region
+   *  @param _min_y Minimum Y coordinate of the region
+   *  @param _max_y Maximum Y coordinate of the region
+   *  @param _parent Parent node (nullptr for root)
+   */
   QuadNode(const Geom_Number & _min_x, const Geom_Number & _max_x,
 	   const Geom_Number & _min_y, const Geom_Number & _max_y,
-	   QuadNode * _parent = nullptr)
+	   QuadNode * _parent = nullptr) noexcept
     : points(), parent(_parent), nw_child(nullptr), ne_child(nullptr),
       sw_child(nullptr), se_child(nullptr), color(Color::White), level(0),
       min_x(_min_x), max_x(_max_x), min_y(_min_y), max_y(_max_y)
@@ -269,11 +326,17 @@ public:
 
   QuadNode(const QuadNode &) = delete;
 
-  /// Asigna una región dada al nodo.
+  /** @brief Set the region boundaries for this node.
+   *
+   *  @param _min_x Minimum X coordinate
+   *  @param _max_x Maximum X coordinate
+   *  @param _min_y Minimum Y coordinate
+   *  @param _max_y Maximum Y coordinate
+   */
   void set_region(const Geom_Number & _min_x,
 		  const Geom_Number & _max_x,
                   const Geom_Number & _min_y,
-                  const Geom_Number & _max_y)
+                  const Geom_Number & _max_y) noexcept
   {
     min_x = _min_x;
     max_x = _max_x;
@@ -281,131 +344,86 @@ public:
     max_y = _max_y;
   }
 
-  /**
-    * Puntero referencia al padre del nodo, se puede usar la macro
-    * PARENT(p) tanto para lectura como para escritura.
-    */
-  QuadNode *& get_parent()
-  {
-    return parent;
-  }
+  /// @brief Get reference to parent node (for reading/writing via PARENT macro).
+  [[nodiscard]] QuadNode *& get_parent() noexcept { return parent; }
 
-  /**
-    * Puntero referencia al hijo noroeste del nodo, se puede usar la macro
-    * NW_CHILD(p) tanto para lectura como para escritura.
-    */
-  QuadNode *& get_nw_child()
-  {
-    return nw_child;
-  }
+  /// @brief Get reference to NW child (for reading/writing via NW_CHILD macro).
+  [[nodiscard]] QuadNode *& get_nw_child() noexcept { return nw_child; }
 
-  /**
-    * Puntero referencia al hijo noreste del nodo, se puede usar la macro
-    * NE_CHILD(p) tanto para lectura como para escritura.
-    */
-  QuadNode *& get_ne_child()
-  {
-    return ne_child;
-  }
+  /// @brief Get reference to NE child (for reading/writing via NE_CHILD macro).
+  [[nodiscard]] QuadNode *& get_ne_child() noexcept { return ne_child; }
 
-  /**
-    * Puntero referencia al hijo suroeste del nodo, se puede usar la macro
-    * SW_CHILD(p) tanto para lectura como para escritura.
-    */
-  QuadNode *& get_sw_child()
-  {
-    return sw_child;
-  }
+  /// @brief Get reference to SW child (for reading/writing via SW_CHILD macro).
+  [[nodiscard]] QuadNode *& get_sw_child() noexcept { return sw_child; }
 
-  /**
-    * Puntero referencia al hijo sureste del nodo, se puede usar la macro
-    * SE_CHILD(p) tanto para lectura como para escritura.
-    */
-  QuadNode *& get_se_child()
-  {
-    return se_child;
-  }
+  /// @brief Get reference to SE child (for reading/writing via SE_CHILD macro).
+  [[nodiscard]] QuadNode *& get_se_child() noexcept { return se_child; }
 
-  /**
-    * Referencia al color del nodo, se puede usar la macro COLOR(p) 
-    * tanto para lectura como para escritura.
-    */
-  Color & get_color()
-  {
-    return color;
-  }
+  /// @brief Get reference to color (for reading/writing via COLOR macro).
+  [[nodiscard]] Color & get_color() noexcept { return color; }
 
-  /**
-    * Referencia al nivel en el &aacute;rbol del nodo, se puede usar la macro
-    * LEVEL(p) tanto para lectura como para escritura.
-    */
-  unsigned long & get_level()
-  {
-    return level;
-  }
+  /// @brief Get reference to level (for reading/writing via LEVEL macro).
+  [[nodiscard]] unsigned long & get_level() noexcept { return level; }
 
-  bool is_leaf() const
-  {
-    return color != Color::Gray;
-  }
+  /// @brief Check if this node is a leaf (has no children).
+  [[nodiscard]] bool is_leaf() const noexcept { return color != Color::Gray; }
 
-  /**
-    * Dice si el nodo es hijo noroeste.
-    */
-  bool is_nw_child() const
+  /// @brief Check if this node is the NW child of its parent.
+  [[nodiscard]] bool is_nw_child() const noexcept
   {
     if (parent == nullptr)
       return false;
     return NW_CHILD(parent) == this;
   }
 
-  /**
-    * Dice si el nodo es hijo noreste.
-    */
-  bool is_ne_child() const
+  /// @brief Check if this node is the NE child of its parent.
+  [[nodiscard]] bool is_ne_child() const noexcept
   {
     if (parent == nullptr)
       return false;
     return NE_CHILD(parent) == this;
   }
 
-  /**
-    * Dice si el nodo es hijo suroeste.
-    */
-  bool is_sw_child() const
+  /// @brief Check if this node is the SW child of its parent.
+  [[nodiscard]] bool is_sw_child() const noexcept
   {
     if (parent == nullptr)
       return false;
     return SW_CHILD(parent) == this;
   }
 
-  /**
-    * Dice si el nodo es hijo sureste.
-    */
-  bool is_se_child() const
+  /// @brief Check if this node is the SE child of its parent.
+  [[nodiscard]] bool is_se_child() const noexcept
   {
     if (parent == nullptr)
       return false;
     return SE_CHILD(parent) == this;
   }
 
-  /**
-    * Especifica si la región representada por el nodo contiene al punto
-    * @param p El punto que se quiere probar
-    * @return true si el punto está dentro de la región
-    */
-  bool contains(const Point & p) const
+  /** @brief Check if a point is contained in this node's region.
+   *
+   *  A point is contained if min_x <= x < max_x and min_y <= y < max_y.
+   *  Note: Upper bounds are exclusive.
+   *
+   *  @param p The point to test
+   *  @return true if the point is within the region
+   */
+  [[nodiscard]] bool contains(const Point & p) const noexcept
   {
     return p.get_x() >= min_x and p.get_x() < max_x and
            p.get_y() >= min_y and p.get_y() < max_y;
   }
 
-  /** Dado un punto, retorna el nodo hijo que lo contiene
-    *
-    * @param p Punto que se quiere evaluar.
-    * @return Nodo hijo que contiene a p.
-    */
-  QuadNode * get_child_to(const Point & p) const
+  /** @brief Find which child node should contain a given point.
+   *
+   *  Requires that this node is not a leaf and that the point is
+   *  within this node's region.
+   *
+   *  @param p Point to locate
+   *  @return Pointer to the child node that contains p
+   *  @throw std::domain_error if this node doesn't contain p
+   */
+  [[nodiscard]] QuadNode * get_child_to(const Point & p) const
   {
     assert(nw_child != nullptr);
     assert(ne_child != nullptr);
@@ -427,66 +445,61 @@ public:
     if (se_child->contains(p))
       return se_child;
 
-    return nullptr; // Para evitar advertencias del compilador.
+    return nullptr; // To avoid compiler warnings
   }
 
+  /** @brief Add a point to this node.
+   *
+   *  Appends the point to the node's point list and marks it as Black.
+   *  Should only be called on leaf nodes.
+   *
+   *  @param p The point to add
+   *  @return Reference to the added point
+   */
   Point & add_point(const Point & p)
   {
     color = Color::Black;
     return points.append(p);
   }
 
-  size_t get_num_points()
+  /// @brief Get total number of points in this subtree.
+  [[nodiscard]] size_t get_num_points() noexcept
   {
     return count_points(this);
   }
 
-  const Geom_Number & get_min_x() const
-  {
-    return min_x;
-  }
+  /// @brief Get minimum X coordinate of this region.
+  [[nodiscard]] const Geom_Number & get_min_x() const noexcept { return min_x; }
 
-  const Geom_Number & get_max_x() const
-  {
-    return max_x;
-  }
+  /// @brief Get maximum X coordinate of this region.
+  [[nodiscard]] const Geom_Number & get_max_x() const noexcept { return max_x; }
 
-  const Geom_Number & get_min_y() const
-  {
-    return min_y;
-  }
+  /// @brief Get minimum Y coordinate of this region.
+  [[nodiscard]] const Geom_Number & get_min_y() const noexcept { return min_y; }
 
-  const Geom_Number & get_max_y() const
-  {
-    return max_y;
-  }
+  /// @brief Get maximum Y coordinate of this region.
+  [[nodiscard]] const Geom_Number & get_max_y() const noexcept { return max_y; }
 
-  Geom_Number get_width() const
-  {
-    return max_x - min_x;
-  }
+  /// @brief Get width of this region.
+  [[nodiscard]] Geom_Number get_width() const noexcept { return max_x - min_x; }
 
-  Geom_Number get_height() const
-  {
-    return max_y - min_y;
-  }
+  /// @brief Get height of this region.
+  [[nodiscard]] Geom_Number get_height() const noexcept { return max_y - min_y; }
 
-  Geom_Number get_mid_x() const
-  {
-    return (min_x + max_x) / 2;
-  }
+  /// @brief Get midpoint X coordinate.
+  [[nodiscard]] Geom_Number get_mid_x() const noexcept { return (min_x + max_x) / 2; }
 
-  Geom_Number get_mid_y() const
-  {
-    return (min_y + max_y) / 2;
-  }
+  /// @brief Get midpoint Y coordinate.
+  [[nodiscard]] Geom_Number get_mid_y() const noexcept { return (min_y + max_y) / 2; }
 
-  /** Busca el punto dado en el nodo.
+  /** @brief Search for a point in this node.
    *
-   * @param p punto que se quiere buscar.
-   * @return puntero al punto encontrado o nullptr si no lo encuentra.
+   *  Linear search through the node's point list.
+   *
+   *  @param p Point to search for
+   *  @return Pointer to the found point, or nullptr if not found
    */
-  Point * search_point(const Point & p)
+  [[nodiscard]] Point * search_point(const Point & p) noexcept
   {
     for (Point & point : points)
       {
@@ -496,10 +509,10 @@ public:
     return nullptr;
   }
 
-  /** Elimina un punto dado del nodo.
+  /** @brief Remove a point from this node.
    *
-   * @param p punto que se desea eliminar.
-   * @return true si el punto existía y lo eliminó, false en caso contrario.
+   *  @param p Point to remove
+   *  @return true if the point was found and removed, false otherwise
    */
   bool remove_point(const Point & p)
   {
@@ -516,19 +529,21 @@ public:
     return false;
   }
 
-  /// Vacía el conjunto de puntos del nodo.
-  void empty()
+  /// @brief Remove all points from this node and mark it as White.
+  void empty() noexcept
   {
     points.empty();
     color = Color::White;
   }
 
-  /**
-    * Busca los nodos adyacentes al nodo this y los almacena en una lista.
-    * @param list Lista donde quedan almacenados los punteros a los nodos
-    * adyacentes.
-    */
-  DynList<QuadNode *> get_neighbors()
+  /** @brief Find all adjacent leaf nodes.
+   *
+   *  Searches in all four cardinal directions and returns neighboring
+   *  leaf nodes. Internal nodes are traversed to find their adjacent leaves.
+   *
+   *  @return List of pointers to neighboring leaf nodes
+   */
+  [[nodiscard]] DynList<QuadNode *> get_neighbors()
   {
     DynList<QuadNode *> neighbors;
     
@@ -547,11 +562,14 @@ public:
     return neighbors;
   }
 
-  DynList<Point> & get_points_set()
-  {
-    return points;
-  }
+  /// @brief Get reference to the points list (for direct manipulation).
+  [[nodiscard]] DynList<Point> & get_points_set() noexcept { return points; }
 
+  /** @brief Apply operation to each point in this node.
+   *
+   *  @tparam Op Function object type with signature void(Point&)
+   *  @param op Operation to apply
+   */
   template <class Op>
   void for_each_point(Op & op)
   {
@@ -559,6 +577,7 @@ public:
       op(point);
   };
 
+  /// @brief Apply operation to each point (rvalue reference version).
   template <class Op>
   void for_each_point(Op && op = Op())
   {
@@ -569,4 +588,3 @@ public:
 };
 
 # endif // QUADNODE_H
-

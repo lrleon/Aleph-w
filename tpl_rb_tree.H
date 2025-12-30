@@ -36,20 +36,56 @@ using namespace Aleph;
 
 namespace Aleph
 {
-  /** Red-black binary search tree.
+  /** @brief Red-black binary search tree implementation.
 
-      A red-black binary search tree is a binary search tree whose height is
-      bounded by \f$O(\lg n)\f$ and whose update operations are bounded in time
-      by inspecting \f$O(\lg n)\f$ nodes.
+      A red-black tree is a self-balancing binary search tree where each node
+      has a color (red or black). The tree maintains balance through five
+      invariants that guarantee the height is at most 2*log₂(n+1), ensuring
+      O(log n) worst-case time for all operations.
 
-      This class is generic in the sense that it can handle nodes with or
-      without a virtual destructor. It is not intended for normal direct use.
-      Instead, use the derived classes Rb_Tree or Rb_Tree_Vtl.
+      @par Red-Black Tree Properties:
+      1. Every node is either red or black
+      2. The root is black
+      3. All leaves (null nodes) are black
+      4. Red nodes have only black children
+      5. Every path from root to leaf has the same number of black nodes
 
-      @param NodeType node type, either RbNode or RbNodeVtl (not documented).
-      @param Key key type stored in the tree nodes.
-      @param Compare comparison functor between keys.
-      @see Rb_Tree Rb_Tree_Vtl
+      These properties ensure the tree remains approximately balanced, with
+      the longest path at most twice the length of the shortest path.
+
+      This implementation is generic over the node type (with or without
+      virtual destructor). For typical usage, prefer the Rb_Tree typedef.
+
+      @tparam NodeType Node template (typically RbNode or RbNodeVtl).
+      @tparam Key The type of keys stored in the tree.
+      @tparam Compare Comparison functor for ordering keys.
+
+      @par Complexity:
+      - Search: O(log n) worst case
+      - Insert: O(log n) worst case
+      - Delete: O(log n) worst case
+      - Space: O(n) + 1 bit per node for color
+
+      @par Example:
+      @code
+      Rb_Tree<int> tree;
+      tree.insert(new Rb_Tree<int>::Node(42));
+      tree.insert(new Rb_Tree<int>::Node(17));
+      tree.insert(new Rb_Tree<int>::Node(99));
+
+      auto node = tree.search(42);
+      if (node != nullptr)
+        std::cout << "Found: " << node->get_key() << std::endl;
+
+      tree.remove(42);
+      @endcode
+
+      @note This is a low-level implementation managing raw nodes.
+            For automatic memory management, use DynSetRbTree.
+
+      @see Rb_Tree Convenient typedef with default node type.
+      @see DynSetRbTree High-level wrapper with automatic memory management.
+      @see Avl_Tree Alternative balanced tree (stricter balance, more rotations).
       @ingroup Arboles
    */
   template <template <typename> class NodeType, typename Key, class Compare>

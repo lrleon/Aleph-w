@@ -27,10 +27,50 @@
 # ifndef HASHDRY_H
 # define HASHDRY_H
 
+/** @file hashDry.H
+    @brief Common operations for open addressing hash tables (CRTP mixin).
+
+    This file provides the OhashCommon class template, which implements
+    shared functionality for open addressing hash tables using the
+    Curiously Recurring Template Pattern (CRTP). Both ODhashTable and
+    OLhashTable inherit from this class.
+
+    The mixin provides:
+    - Insert operations (insert, search_or_insert, contains_or_insert)
+    - Search and removal operations
+    - Automatic resizing based on load factor
+    - Iterator support
+    - Functional programming methods (through inheritance)
+
+    @ingroup Hash
+*/
+
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
 
+/** @brief CRTP mixin providing common operations for open addressing hash tables.
+
+    This template class provides shared implementation for hash table operations
+    that are common between ODhashTable (double hashing) and OLhashTable
+    (linear probing). It uses CRTP to achieve static polymorphism.
+
+    @tparam HashTbl The derived hash table class (ODhashTable or OLhashTable).
+    @tparam Key The type of keys stored in the table.
+
+    @par Provided Operations:
+    - insert() - Insert a new key
+    - search_or_insert() - Search for key, insert if not found
+    - contains_or_insert() - Like search_or_insert but returns bool indicating if found
+    - has() / contains() - Check if key exists
+    - find() - Get reference to key (throws if not found)
+    - keys() / items() - Get list of all keys
+    - Automatic resizing when load factor exceeds threshold
+
+    @see ODhashTable
+    @see OLhashTable
+    @ingroup Hash
+*/
 template <class HashTbl, typename Key>
 class OhashCommon
 {

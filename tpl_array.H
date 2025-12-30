@@ -51,12 +51,74 @@
 namespace Aleph
 {
 
-/** Simple array implemented with a simple dynamic array
+/** @brief Simple dynamic array with automatic resizing and functional operations.
 
-    `Array<T>` instruments a simple array of elements of generic type
-    `T`. The array is stored into an internal continuous array which
-    grows and ungrows dynamically according to the number of elements.
+    Array<T> is a straightforward dynamic array implemented using a contiguous
+    memory buffer that automatically grows or shrinks as elements are added or
+    removed. It provides O(1) indexed access and amortized O(1) append.
 
+    This container offers a balance between simplicity and functionality,
+    supporting both indexed access and a rich set of functional operations
+    (map, filter, fold, etc.).
+
+    @tparam T The type of elements stored in the array.
+
+    @par Complexity:
+    - Access by index: O(1)
+    - append() / insert() at end: O(1) amortized
+    - insert() at arbitrary position: O(n)
+    - remove(): O(n) for search + O(n) for shift
+    - size(): O(1)
+    - Resize: O(n) when capacity is exceeded
+
+    @par Key Features:
+    - O(1) indexed access via operator[]
+    - Automatic capacity management
+    - Functional programming operations (map, filter, fold, etc.)
+    - STL-compatible iterators
+    - Conversion to/from STL vectors and other containers
+
+    @par Comparison with Similar Containers:
+    - **Array vs DynArray**: Array uses simple contiguous allocation; DynArray
+      uses lazy three-level indexing for sparse arrays.
+    - **Array vs DynList**: Array has O(1) indexed access but O(n) insertion
+      in the middle; DynList has O(1) insertion/removal but O(n) indexed access.
+    - **Array vs std::vector**: Similar behavior, but Array includes functional
+      methods and integrates with Aleph-w ecosystem.
+
+    @par Example:
+    @code
+    Array<int> arr(10);  // Initial capacity of 10
+
+    // Add elements
+    arr.push(42);
+    arr.push(17);
+    arr.push(99);
+
+    // Indexed access (O(1))
+    std::cout << arr[1] << std::endl;  // 17
+    arr[1] = 25;
+
+    // Functional operations
+    auto doubled = arr.maps<int>([](int x) { return x * 2; });
+    int sum = arr.foldl(0, [](int acc, int x) { return acc + x; });
+    auto evens = arr.filter([](int x) { return x % 2 == 0; });
+
+    // Convert to vector
+    std::vector<int> vec = arr.asVector();
+
+    // Range-based for
+    for (int x : arr)
+      std::cout << x << " ";
+    @endcode
+
+    @note Memory is contiguous, providing good cache locality.
+    @note Capacity grows automatically; manual control via reserve() if needed.
+    @note For sparse arrays with many gaps, consider DynArray instead.
+
+    @see DynArray Lazy dynamic array with three-level indexing for sparse data.
+    @see DynList Doubly linked list alternative (O(1) insertion, O(n) access).
+    @see FunctionalMethods Inherited functional operations.
     @ingroup Secuencias
  */
 template<typename T>

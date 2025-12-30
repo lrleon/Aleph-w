@@ -35,22 +35,77 @@ using namespace Aleph;
 
 namespace Aleph {
 
-    /** Simple binary search tree.
+    /** @brief Simple (unbalanced) binary search tree.
 
-	This class implements a simple binary search tree. By simple we
-	want to say that no balance operation are done. Consequently the
-	performance depends on whether keys insertion order.
+        GenBinTree implements a basic binary search tree without any balancing
+        operations. The tree's performance depends entirely on the insertion order
+        of keys.
 
-	In general, if the insertion order is random and there is no
-	many removals, this tree is very good and its operations
-	trend to be \f$O(\lg n)\f$. If there are many removals, the
-	performance is lightly degraded trending to be \f$O(\sqrt(n)\f$.
+        @par Performance Characteristics:
+        - **Random insertion order** + **few deletions**: Operations trend toward
+          O(log n) due to probabilistic balance. This is often the best choice
+          for simplicity when insertion order is naturally random.
+        - **Many deletions**: Performance degrades to approximately O(√n) as
+          the tree becomes less balanced over time.
+        - **Sequential insertion order**: Worst case O(n) - tree degenerates
+          into a linked list. **Do not use** if insertion order is not random.
 
-	If you cannot assure that the insertion order is random, **then
-	do not use this tree**.
+        @par When to Use:
+        ✓ Insertion order is random or randomized
+        ✓ Few deletions relative to insertions
+        ✓ Simplicity and minimal overhead are priorities
+        ✓ Testing/benchmarking against balanced trees
 
-        @see BinTree BinTreeVtl DynBinTree
+        @par When NOT to Use:
+        ✗ Cannot guarantee random insertion order
+        ✗ Frequent deletions
+        ✗ Need guaranteed O(log n) worst-case performance
+        ✗ Production code with adversarial inputs
 
+        **WARNING**: If you cannot ensure random insertion order, use a
+        balanced tree (Avl_Tree, Rb_Tree, Treap, etc.) instead.
+
+        @tparam NodeType Node template (BinNode or BinNodeVtl).
+        @tparam Key The type of keys stored in the tree.
+        @tparam Compare Comparison functor for ordering keys.
+
+        @par Complexity (assuming random insertion order):
+        - Search: O(log n) expected, O(n) worst case
+        - Insert: O(log n) expected, O(n) worst case
+        - Delete: O(log n) expected, O(n) worst case
+        - Space: O(n) - minimal overhead
+
+        @par Example:
+        @code
+        BinTree<int> tree;
+
+        // Insert in random order (GOOD)
+        std::vector<int> keys = {50, 25, 75, 10, 30, 60, 90};
+        std::shuffle(keys.begin(), keys.end(), rng);
+        for (int k : keys)
+          tree.insert(new BinTree<int>::Node(k));
+
+        // Search
+        auto node = tree.search(30);
+
+        // Remove
+        auto removed = tree.remove(25);
+        delete removed;
+
+        // BAD: Sequential insertion (creates linked list)
+        // for (int i = 0; i < 1000; ++i)
+        //   tree.insert(new BinTree<int>::Node(i));  // O(n²) total time!
+        @endcode
+
+        @note This is a low-level implementation managing raw nodes.
+              For automatic memory management, use DynSetBinTree.
+        @note No balancing overhead - fastest when insertion order is favorable.
+        @note Use as a baseline for benchmarking balanced tree implementations.
+
+        @see BinTree Convenient typedef for BinTree<Key, Compare>.
+        @see Avl_Tree Balanced alternative with O(log n) worst-case guarantee.
+        @see Treap Randomized alternative with O(log n) expected (simpler than AVL).
+        @see DynSetBinTree High-level wrapper with automatic memory management.
         @ingroup Arboles
      */
   template <template <typename> class NodeType, typename Key, class Compare>

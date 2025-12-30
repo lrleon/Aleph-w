@@ -1085,7 +1085,7 @@ public:
       After the operation, t becomes empty and this tree contains all nodes.
 
       @param[in,out] t tree to join with (will be empty after)
-      @note O(log n) time complexity
+      @note O(m log(n+m)) time complexity where m is size of t
   */
   void join_exclusive(Gen_Avl_Tree_Rk & t) noexcept
   {
@@ -1099,10 +1099,29 @@ public:
         return;
       }
 
-    size_t h1 = avl_height(root);
-    size_t h2 = avl_height(t.root);
-    root = join_exclusive_rec(root, h1, t.root, h2);
+    // Collect nodes from t in preorder and insert them one by one
+    // This is O(m log(n+m)) but guarantees correctness
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(t.root);
     t.root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        // Reset node and insert
+        LLINK(p) = RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        DIFF(p) = 0;
+        insert(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+      }
   }
 
   /** Split tree by key.
@@ -1116,13 +1135,43 @@ public:
       @param[out] t1 tree to receive keys < key
       @param[out] t2 tree to receive keys > key
       @return pointer to node containing key, or nullptr if not found
-      @note O(log n) time complexity
+      @note O(n) time complexity (simple iterative implementation)
   */
   Node * split_key(const Key & key, Gen_Avl_Tree_Rk & t1,
                    Gen_Avl_Tree_Rk & t2) noexcept
   {
-    Node * found = split_key_rec(root, key, t1.root, t2.root);
+    if (root == Node::NullPtr)
+      return nullptr;
+
+    // Simple O(n) implementation: iterate through tree and partition
+    Node * found = nullptr;
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(root);
     root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+
+        LLINK(p) = RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        DIFF(p) = 0;
+
+        if (cmp(KEY(p), key))
+          t1.insert(p);
+        else if (cmp(key, KEY(p)))
+          t2.insert(p);
+        else
+          found = p;  // Found the key
+      }
+
     return found;
   }
 
@@ -1136,13 +1185,38 @@ public:
       @param[in] key the splitting key
       @param[out] t1 tree to receive keys <= key
       @param[out] t2 tree to receive keys > key
-      @note O(log n) time complexity
+      @note O(n) time complexity (simple iterative implementation)
   */
   void split_key_dup(const Key & key, Gen_Avl_Tree_Rk & t1,
                      Gen_Avl_Tree_Rk & t2) noexcept
   {
-    split_key_dup_rec(root, key, t1.root, t2.root);
+    if (root == Node::NullPtr)
+      return;
+
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(root);
     root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+
+        LLINK(p) = RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        DIFF(p) = 0;
+
+        if (cmp(key, KEY(p)))
+          t2.insert(p);
+        else
+          t1.insert_dup(p);
+      }
   }
 
   /** Split tree by inorder position.
@@ -1155,14 +1229,16 @@ public:
       @param[in] pos the splitting position (0-based)
       @param[out] t1 tree to receive positions [0, pos)
       @param[out] t2 tree to receive positions [pos, size)
-      @note O(log n) time complexity
+      @note O(n) time complexity (simple iterative implementation)
   */
   void split_pos(size_t pos, Gen_Avl_Tree_Rk & t1,
                  Gen_Avl_Tree_Rk & t2) noexcept
   {
+    if (root == Node::NullPtr)
+      return;
+
     if (pos == 0)
       {
-        t1.root = Node::NullPtr;
         t2.root = root;
         root = Node::NullPtr;
         return;
@@ -1171,13 +1247,41 @@ public:
     if (pos >= size())
       {
         t1.root = root;
-        t2.root = Node::NullPtr;
         root = Node::NullPtr;
         return;
       }
 
-    split_pos_rec(root, pos, t1.root, t2.root);
+    // Simple O(n) implementation using inorder traversal
+    size_t count = 0;
+    FixedStack<Node*> stack(Node::MaxHeight);
+    Node * curr = root;
     root = Node::NullPtr;
+
+    // Inorder traversal
+    while (curr != Node::NullPtr or not stack.is_empty())
+      {
+        while (curr != Node::NullPtr)
+          {
+            stack.push(curr);
+            Node * left = LLINK(curr);
+            LLINK(curr) = Node::NullPtr;  // Disconnect
+            curr = left;
+          }
+
+        curr = stack.pop();
+        Node * right = RLINK(curr);
+        RLINK(curr) = Node::NullPtr;
+        COUNT(curr) = 1;
+        DIFF(curr) = 0;
+
+        if (count < pos)
+          t1.insert(curr);
+        else
+          t2.insert(curr);
+
+        ++count;
+        curr = right;
+      }
   }
 
   /** Iterator on nodes of the tree.

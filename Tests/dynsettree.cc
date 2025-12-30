@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <random>
+#include <set>
 #include <stdexcept>
 #include <vector>
 #include <string>
@@ -2123,6 +2125,173 @@ TEST(DynSetTreeAliases, DynSetRbTreeWorks)
   set.insert(2);
   EXPECT_EQ(set.size(), 2u);
   EXPECT_TRUE(set.verify());
+}
+
+// ============================================================================
+// Stress and Fuzz Tests
+// ============================================================================
+
+TYPED_TEST(DynSetTreeTypedTest, Stress_AscendingInsertion)
+{
+  const int N = 5000;
+  for (int k = 0; k < N; ++k)
+    this->set.insert(k);
+  
+  EXPECT_EQ(this->set.size(), static_cast<size_t>(N));
+  EXPECT_TRUE(this->set.verify());
+  EXPECT_EQ(this->set.min(), 0);
+  EXPECT_EQ(this->set.max(), N - 1);
+}
+
+TYPED_TEST(DynSetTreeTypedTest, Stress_DescendingInsertion)
+{
+  const int N = 5000;
+  for (int k = N - 1; k >= 0; --k)
+    this->set.insert(k);
+  
+  EXPECT_EQ(this->set.size(), static_cast<size_t>(N));
+  EXPECT_TRUE(this->set.verify());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, Stress_BulkInsertBulkRemove)
+{
+  const int N = 3000;
+  
+  for (int k = 0; k < N; ++k)
+    this->set.insert(k);
+  
+  EXPECT_EQ(this->set.size(), static_cast<size_t>(N));
+  
+  // Remove all
+  for (int k = 0; k < N; ++k)
+    this->set.remove(k);
+  
+  EXPECT_TRUE(this->set.is_empty());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, Fuzz_RandomOperations)
+{
+  std::set<int> oracle;
+  std::mt19937 gen(12345);
+  std::uniform_int_distribution<> key_dist(0, 1000);
+  std::uniform_int_distribution<> op_dist(0, 2);
+  
+  for (int iter = 0; iter < 5000; ++iter)
+    {
+      int key = key_dist(gen);
+      int op = op_dist(gen);
+      
+      if (op == 0)  // insert
+        {
+          if (this->set.insert(key) != nullptr)
+            oracle.insert(key);
+        }
+      else if (op == 1 && !oracle.empty())  // remove
+        {
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          this->set.remove(k);
+          oracle.erase(k);
+        }
+      else  // search
+        {
+          bool in_set = this->set.contains(key);
+          bool in_oracle = oracle.count(key) > 0;
+          EXPECT_EQ(in_set, in_oracle);
+        }
+      
+      EXPECT_EQ(this->set.size(), oracle.size());
+    }
+  
+  EXPECT_TRUE(this->set.verify());
+}
+
+TYPED_TEST(DynSetTreeTypedTest, Stress_AlternatingInsertRemove)
+{
+  std::set<int> oracle;
+  std::mt19937 gen(54321);
+  std::uniform_int_distribution<> key_dist(0, 500);
+  
+  for (int iter = 0; iter < 3000; ++iter)
+    {
+      int key = key_dist(gen);
+      
+      if (iter % 2 == 0)  // insert
+        {
+          if (this->set.insert(key) != nullptr)
+            oracle.insert(key);
+        }
+      else if (!oracle.empty())  // remove random existing
+        {
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          this->set.remove(k);
+          oracle.erase(k);
+        }
+      
+      EXPECT_EQ(this->set.size(), oracle.size());
+    }
+  
+  EXPECT_TRUE(this->set.verify());
+}
+
+TEST(DynSetTreeStress, AllTypesLargeScale)
+{
+  // Test each tree type with larger data
+  auto test_tree = [](auto & tree) {
+    std::set<int> oracle;
+    std::mt19937 gen(99999);
+    std::uniform_int_distribution<> key_dist(0, 10000);
+    std::uniform_int_distribution<> op_dist(0, 2);
+    
+    for (int iter = 0; iter < 10000; ++iter)
+      {
+        int key = key_dist(gen);
+        int op = op_dist(gen);
+        
+        if (op == 0)
+          {
+            if (tree.insert(key) != nullptr)
+              oracle.insert(key);
+          }
+        else if (op == 1 && !oracle.empty())
+          {
+            auto it = oracle.begin();
+            std::advance(it, gen() % oracle.size());
+            int k = *it;
+            tree.remove(k);
+            oracle.erase(k);
+          }
+        else
+          {
+            EXPECT_EQ(tree.contains(key), oracle.count(key) > 0);
+          }
+      }
+    
+    EXPECT_EQ(tree.size(), oracle.size());
+    EXPECT_TRUE(tree.verify());
+  };
+  
+  {
+    DynSetAvlTree<int> tree;
+    test_tree(tree);
+  }
+  {
+    DynSetRbTree<int> tree;
+    test_tree(tree);
+  }
+  {
+    DynSetTreap<int> tree;
+    test_tree(tree);
+  }
+  {
+    DynSetSplayTree<int> tree;
+    test_tree(tree);
+  }
 }
 
 int main(int argc, char **argv)

@@ -39,32 +39,90 @@ using namespace Aleph;
 
 namespace Aleph
 {
-  /** Randomized binary sarch tree.
+  /** @brief Randomized binary search tree with rank support.
 
-      This class implements a randomized binary search tree. It is shown
-      that this type of tree always is equivalent to a classic binary
-      search tree built from a random insertion sequence. Consequently, all
-      the operations of this tree are \f$O(\lg n)\f$ expected case,
-      independently of insertion order and of removals are interleaved
-      with insertions.
+      This class implements a randomized binary search tree where random
+      decisions during insertion and deletion ensure that the tree has the
+      same expected properties as if it were built from a random permutation
+      of keys, regardless of actual insertion order.
 
-      In addition, these trees support `select()` and `position()`
-      operations. That is, their keys can be accessed according to their
-      inorder position and logarithmic time. This allows to treat the
-      tree as if it was an array.
+      @par Key Insight:
+      At each insertion, a random "raffle" determines whether the new node
+      becomes the root (and existing nodes are split around it) or is inserted
+      recursively into a subtree. This ensures that every node has an equal
+      probability of being at any position, producing expected O(log n) height.
 
-      This tree type is unbeatable when there are splits and and
-      especially joins operations on very large data sets. Other tree
-      types perform the join of independent data sets in \f$O(n \lg
-      m)\f$, where \f$n\f$ and \f$m\f$ are the size of two data
-      sets, while the randomized approach takes \f$O(\max(\lg n, \lg
-      m))\f$.
+      @par Ranked Operations:
+      Unlike basic BSTs, randomized trees maintain subtree sizes (COUNT),
+      enabling O(log n) access by rank (inorder position):
+      - select(i): Get the i-th smallest element
+      - position(key): Get the rank of a key
+      - remove_pos(i): Remove the i-th element
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific
-      Library](\https://www.gnu.org/software/gsl/).  By default, the
-      Mersene twister is used and the seed is taken from system time.
+      This allows treating the tree like a sorted dynamic array with O(log n)
+      indexed access, insertion, and deletion.
 
+      @par Split and Join:
+      Randomized trees excel at split/join operations, which take O(log(max(n,m)))
+      time. This is dramatically better than other balanced trees that require
+      O(n log m) for joining two trees of sizes n and m.
+
+      @tparam NodeType Node template (RandNode or RandNodeVtl).
+      @tparam Key The type of keys stored in the tree.
+      @tparam Compare Comparison functor for ordering keys.
+
+      @par Complexity:
+      - Search: O(log n) expected
+      - Insert: O(log n) expected
+      - Delete: O(log n) expected
+      - Select (by rank): O(log n) expected
+      - Position (get rank): O(log n) expected
+      - Split: O(log n) expected
+      - Join: O(log(max(n,m))) expected - **much better than other trees**
+      - Space: O(n) + O(1) per node for COUNT
+
+      @par Random Number Generator:
+      Uses GSL (GNU Scientific Library) Mersenne Twister (mt19937) by default.
+      Seed can be set via set_seed() for reproducible behavior.
+
+      @par Example:
+      @code
+      Rand_Tree<int> tree;
+
+      // Insert nodes
+      tree.insert(new Rand_Tree<int>::Node(42));
+      tree.insert(new Rand_Tree<int>::Node(17));
+      tree.insert(new Rand_Tree<int>::Node(99));
+      tree.insert(new Rand_Tree<int>::Node(8));
+
+      // Ranked access (treat as sorted array)
+      auto smallest = tree.select(0);     // Get 0th element (8)
+      auto median = tree.select(tree.size() / 2);  // Get median
+
+      // Find position/rank of a key
+      size_t pos = tree.position(42);  // Returns 2 (0-indexed)
+
+      // Remove by position
+      auto removed = tree.remove_pos(1);  // Remove 2nd smallest
+      delete removed;
+
+      // Efficient split at key
+      Rand_Tree<int> left, right;
+      tree.split_key(50, left, right);  // All <= 50 go to left, > 50 to right
+
+      // Efficient join (O(log(max(n,m))))
+      tree.join(left, right);
+      @endcode
+
+      @note This is a low-level implementation managing raw nodes.
+            For automatic memory management, use DynSetRandTree.
+      @note All operations maintain COUNT values for ranked operations.
+      @note Best choice when frequent split/join operations are needed.
+
+      @see Rand_Tree Convenient typedef for Rand_Tree<Key, Compare>.
+      @see Treap Alternative randomized tree (often faster by constant factor).
+      @see TreapRk Treap with rank support.
+      @see DynSetRandTree High-level wrapper with automatic memory management.
       @ingroup Arboles
   */
   template <template <typename> class NodeType, typename Key, class Compare>

@@ -52,12 +52,61 @@ namespace Aleph {
 
 # include <ah-dry.H>
 
-  /** Dynamic list of items of generic items of type T based on double
-      linked lists.
+  /** @brief Dynamic doubly linked list with O(1) size and bidirectional access.
 
-      @see DynDlist::Iterator
+      DynDlist<T> is a doubly linked circular list that maintains a count
+      of elements, enabling O(1) size queries. Unlike DynList (singly linked),
+      DynDlist supports efficient operations at both ends and bidirectional
+      iteration.
 
-      @ingroup Secuencias
+      This container combines the flexibility of linked lists with a rich set
+      of functional programming operations inherited from FunctionalMethods.
+
+      @tparam T The type of elements stored in the list (default: int).
+
+      @par Complexity:
+      - insert() / append(): O(1)
+      - remove_first() / remove_last(): O(1)
+      - size(): O(1) - maintained by counter
+      - Access by index: O(n)
+      - Search: O(n)
+
+      @par Key Features:
+      - O(1) insertion/removal at both ends
+      - O(1) size query (unlike DynList)
+      - Bidirectional iteration
+      - Comprehensive functional operations (map, filter, fold, etc.)
+      - Support for initializer lists and range construction
+
+      @par Example:
+      @code
+      DynDlist<int> list = {1, 2, 3, 4, 5};
+
+      // O(1) operations
+      list.insert(0);           // Insert at head
+      list.append(6);           // Insert at tail
+      auto first = list.remove_first();
+      auto last = list.remove_last();
+
+      // Functional operations
+      auto doubled = list.maps<int>([](int x) { return x * 2; });
+      int sum = list.foldl(0, [](int acc, int x) { return acc + x; });
+
+      // Bidirectional iteration
+      for (auto it = list.get_it(); it.has_curr(); it.next())
+        std::cout << it.get_curr() << " ";
+
+      for (auto it = list.get_last_it(); it.has_curr(); it.prev())
+        std::cout << it.get_curr() << " ";
+      @endcode
+
+      @note The size is maintained automatically, so size() is O(1).
+      @note This is a circular doubly linked list with sentinel header.
+
+      @see DynList Singly linked list alternative (no size counter).
+      @see Dlink Low-level doubly linked list node.
+      @see FunctionalMethods Inherited functional operations.
+      @ingroup Sequences
    */
     template <typename T = int>
 class DynDlist

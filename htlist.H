@@ -1326,26 +1326,46 @@ public:
 
 # include <ah-dry.H>
 
-    /**
-       \~English
-       Sequence of items implemented with a single linked list.
+    /** @brief Dynamic singly linked list with functional programming support.
 
-       `DynList<T>` models list of items of generic type T.
+       DynList<T> is a versatile singly linked list that combines efficient
+       list operations with a rich set of functional programming methods
+       inherited from the FunctionalMethods mixin.
 
-       @see Slinknc Snodenc DynDList
+       This is one of the most commonly used containers in Aleph-w, providing:
+       - O(1) insertion at head and tail
+       - O(1) removal at head
+       - O(n) traversal with iterators
+       - Comprehensive functional operations (map, filter, fold, etc.)
+
+       @tparam T The type of elements stored in the list (default: int).
+
+       @par Complexity:
+       - insert() / append(): O(1)
+       - remove_first(): O(1)
+       - size(): O(n) - computed by traversal
+       - Access by index: O(n)
+
+       @par Example:
+       @code
+       DynList<int> list = {1, 2, 3, 4, 5};
+
+       // Functional operations
+       auto doubled = list.maps<int>([](int x) { return x * 2; });
+       auto evens = list.filter([](int x) { return x % 2 == 0; });
+       int sum = list.foldl(0, [](int acc, int x) { return acc + x; });
+
+       // Iteration
+       for (const auto& item : list)
+         std::cout << item << " ";
+       @endcode
+
+       @see HTList Base class providing head-tail structure.
+       @see DynDlist Doubly linked list alternative.
+       @see FunctionalMethods Inherited functional operations.
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Sequencies
-
-       \~Spanish
-       Secuencia de elementos implementada con una lista simple.
-
-       `DynList<T>` modela una lista de elementos del tipo genérico T.
-
-       @see Slinknc Snodenc DynDList
-       @author Alejandro Mujica
-       @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
     */
     template <typename T = int>
 class DynList : public HTList,

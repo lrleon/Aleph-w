@@ -420,9 +420,9 @@ public:
 
   Node *& getRoot() noexcept { return root; }
 
-  bool is_empty() const noexcept { return root == Node::NullPtr; }
+  [[nodiscard]] bool is_empty() const noexcept { return root == Node::NullPtr; }
 
-  size_t size() const noexcept { return COUNT(root); }
+  [[nodiscard]] size_t size() const noexcept { return COUNT(root); }
 
   Node * insert(Node * p)
   {
@@ -494,7 +494,7 @@ public:
     return p;
   }
 
-  bool verify() const { return is_red_black_bst_rk(root, cmp) and check_rank_tree(root); }
+  [[nodiscard]] bool verify() const { return is_red_black_bst_rk(root, cmp) and check_rank_tree(root); }
 
   Node * remove(const Key & key)
   {
@@ -586,6 +586,851 @@ public:
       find_position(root, key, r.second);
 
     return r;
+  }
+
+private:
+
+  // Compute black height of RB tree (count black nodes to any leaf)
+  static size_t black_height(Node * p) noexcept
+  {
+    size_t h = 0;
+    while (p != Node::NullPtr)
+      {
+        if (COLOR(p) == BLACK)
+          ++h;
+        p = LLINK(p);  // Any path works since all paths have same black height
+      }
+    return h;
+  }
+
+  // Simple rotation without parent link update (for internal use)
+  static Node * rotate_right_simple(Node * p) noexcept
+  {
+    Node * q = LLINK(p);
+    LLINK(p) = RLINK(q);
+    RLINK(q) = p;
+    COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
+    COUNT(q) = COUNT(LLINK(q)) + COUNT(RLINK(q)) + 1;
+    return q;
+  }
+
+  static Node * rotate_left_simple(Node * p) noexcept
+  {
+    Node * q = RLINK(p);
+    RLINK(p) = LLINK(q);
+    LLINK(q) = p;
+    COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
+    COUNT(q) = COUNT(LLINK(q)) + COUNT(RLINK(q)) + 1;
+    return q;
+  }
+
+  // Fix red-red violation going up from node p
+  // pp_ptr is a pointer to the pointer that points to the subtree being fixed
+  static void fix_red_violation(Node *& subtree_root) noexcept
+  {
+    // Simplified iterative fix for red-red violations
+    // This version uses recursion-based fixing during join
+    if (subtree_root == Node::NullPtr)
+      return;
+
+    // Check left child for red-red
+    if (LLINK(subtree_root) != Node::NullPtr and
+        COLOR(LLINK(subtree_root)) == RED)
+      {
+        Node * l = LLINK(subtree_root);
+        if (LLINK(l) != Node::NullPtr and COLOR(LLINK(l)) == RED)
+          {
+            // Left-left case
+            subtree_root = rotate_right_simple(subtree_root);
+            COLOR(subtree_root) = BLACK;
+            COLOR(RLINK(subtree_root)) = RED;
+            return;
+          }
+        if (RLINK(l) != Node::NullPtr and COLOR(RLINK(l)) == RED)
+          {
+            // Left-right case
+            LLINK(subtree_root) = rotate_left_simple(l);
+            subtree_root = rotate_right_simple(subtree_root);
+            COLOR(subtree_root) = BLACK;
+            COLOR(RLINK(subtree_root)) = RED;
+            return;
+          }
+      }
+
+    // Check right child for red-red
+    if (RLINK(subtree_root) != Node::NullPtr and
+        COLOR(RLINK(subtree_root)) == RED)
+      {
+        Node * r = RLINK(subtree_root);
+        if (RLINK(r) != Node::NullPtr and COLOR(RLINK(r)) == RED)
+          {
+            // Right-right case
+            subtree_root = rotate_left_simple(subtree_root);
+            COLOR(subtree_root) = BLACK;
+            COLOR(LLINK(subtree_root)) = RED;
+            return;
+          }
+        if (LLINK(r) != Node::NullPtr and COLOR(LLINK(r)) == RED)
+          {
+            // Right-left case
+            RLINK(subtree_root) = rotate_right_simple(r);
+            subtree_root = rotate_left_simple(subtree_root);
+            COLOR(subtree_root) = BLACK;
+            COLOR(LLINK(subtree_root)) = RED;
+            return;
+          }
+      }
+  }
+
+  // Extract minimum node with rebalancing
+  // Returns the extracted min and updates p to the new root
+  static Node * extract_min_rb(Node *& p) noexcept
+  {
+    if (p == Node::NullPtr)
+      return Node::NullPtr;
+
+    if (LLINK(p) == Node::NullPtr)
+      {
+        Node * ret = p;
+        p = RLINK(p);
+        ret->reset();
+        return ret;
+      }
+
+    // Use recursive approach with fix-up
+    struct ExtractHelper
+    {
+      static Node * extract(Node *& p, bool & height_decreased) noexcept
+      {
+        if (LLINK(p) == Node::NullPtr)
+          {
+            Node * ret = p;
+            height_decreased = (COLOR(p) == BLACK);
+            p = RLINK(p);
+            ret->reset();
+            return ret;
+          }
+
+        bool child_decreased = false;
+        Node * ret = extract(LLINK(p), child_decreased);
+        --COUNT(p);
+
+        if (child_decreased)
+          {
+            // Left subtree's black height decreased
+            // Need to rebalance
+            Node * s = RLINK(p);  // sibling
+            if (s != Node::NullPtr)
+              {
+                if (COLOR(s) == RED)
+                  {
+                    // Case 1: sibling is red
+                    p = rotate_left_simple(p);
+                    COLOR(p) = BLACK;
+                    COLOR(LLINK(p)) = RED;
+                    // Continue fixing in LLINK(p)
+                    s = RLINK(LLINK(p));
+                  }
+
+                if (s != Node::NullPtr)
+                  {
+                    if ((LLINK(s) == Node::NullPtr or COLOR(LLINK(s)) == BLACK) and
+                        (RLINK(s) == Node::NullPtr or COLOR(RLINK(s)) == BLACK))
+                      {
+                        // Case 2: sibling and its children are black
+                        COLOR(s) = RED;
+                        if (COLOR(p) == RED)
+                          {
+                            COLOR(p) = BLACK;
+                            height_decreased = false;
+                          }
+                        else
+                          height_decreased = true;
+                      }
+                    else
+                      {
+                        // Case 3 or 4: sibling has a red child
+                        if (RLINK(s) == Node::NullPtr or COLOR(RLINK(s)) == BLACK)
+                          {
+                            // Case 3: left child of sibling is red
+                            COLOR(LLINK(s)) = BLACK;
+                            COLOR(s) = RED;
+                            RLINK(p) = rotate_right_simple(s);
+                            s = RLINK(p);
+                          }
+                        // Case 4: right child of sibling is red
+                        Color old_color = COLOR(p);
+                        p = rotate_left_simple(p);
+                        COLOR(p) = old_color;
+                        COLOR(LLINK(p)) = BLACK;
+                        if (RLINK(p) != Node::NullPtr)
+                          COLOR(RLINK(p)) = BLACK;
+                        height_decreased = false;
+                      }
+                  }
+                else
+                  height_decreased = (COLOR(p) == BLACK);
+              }
+            else
+              height_decreased = (COLOR(p) == BLACK);
+          }
+        else
+          height_decreased = false;
+
+        return ret;
+      }
+    };
+
+    bool dummy = false;
+    return ExtractHelper::extract(p, dummy);
+  }
+
+  // Extract maximum node with rebalancing
+  static Node * extract_max_rb(Node *& p) noexcept
+  {
+    if (p == Node::NullPtr)
+      return Node::NullPtr;
+
+    if (RLINK(p) == Node::NullPtr)
+      {
+        Node * ret = p;
+        p = LLINK(p);
+        ret->reset();
+        return ret;
+      }
+
+    struct ExtractHelper
+    {
+      static Node * extract(Node *& p, bool & height_decreased) noexcept
+      {
+        if (RLINK(p) == Node::NullPtr)
+          {
+            Node * ret = p;
+            height_decreased = (COLOR(p) == BLACK);
+            p = LLINK(p);
+            ret->reset();
+            return ret;
+          }
+
+        bool child_decreased = false;
+        Node * ret = extract(RLINK(p), child_decreased);
+        --COUNT(p);
+
+        if (child_decreased)
+          {
+            Node * s = LLINK(p);  // sibling
+            if (s != Node::NullPtr)
+              {
+                if (COLOR(s) == RED)
+                  {
+                    p = rotate_right_simple(p);
+                    COLOR(p) = BLACK;
+                    COLOR(RLINK(p)) = RED;
+                    s = LLINK(RLINK(p));
+                  }
+
+                if (s != Node::NullPtr)
+                  {
+                    if ((LLINK(s) == Node::NullPtr or COLOR(LLINK(s)) == BLACK) and
+                        (RLINK(s) == Node::NullPtr or COLOR(RLINK(s)) == BLACK))
+                      {
+                        COLOR(s) = RED;
+                        if (COLOR(p) == RED)
+                          {
+                            COLOR(p) = BLACK;
+                            height_decreased = false;
+                          }
+                        else
+                          height_decreased = true;
+                      }
+                    else
+                      {
+                        if (LLINK(s) == Node::NullPtr or COLOR(LLINK(s)) == BLACK)
+                          {
+                            COLOR(RLINK(s)) = BLACK;
+                            COLOR(s) = RED;
+                            LLINK(p) = rotate_left_simple(s);
+                            s = LLINK(p);
+                          }
+                        Color old_color = COLOR(p);
+                        p = rotate_right_simple(p);
+                        COLOR(p) = old_color;
+                        COLOR(RLINK(p)) = BLACK;
+                        if (LLINK(p) != Node::NullPtr)
+                          COLOR(LLINK(p)) = BLACK;
+                        height_decreased = false;
+                      }
+                  }
+                else
+                  height_decreased = (COLOR(p) == BLACK);
+              }
+            else
+              height_decreased = (COLOR(p) == BLACK);
+          }
+        else
+          height_decreased = false;
+
+        return ret;
+      }
+    };
+
+    bool dummy = false;
+    return ExtractHelper::extract(p, dummy);
+  }
+
+  // Join two RB trees with a pivot node
+  // All keys in t1 < pivot < all keys in t2
+  // bh1 and bh2 are black heights
+  static Node * join_with_pivot_rb(Node * t1, size_t bh1, Node * pivot,
+                                   Node * t2, size_t bh2) noexcept
+  {
+    if (bh1 == bh2)
+      {
+        // Simple case: equal black heights
+        LLINK(pivot) = t1;
+        RLINK(pivot) = t2;
+        COLOR(pivot) = RED;
+        COUNT(pivot) = COUNT(t1) + COUNT(t2) + 1;
+        return pivot;
+      }
+
+    if (bh1 > bh2)
+      {
+        // t1 is taller (more black nodes), descend right spine
+        return join_right_rb(t1, bh1, pivot, t2, bh2);
+      }
+    else
+      {
+        // t2 is taller, descend left spine
+        return join_left_rb(t1, bh1, pivot, t2, bh2);
+      }
+  }
+
+  // Join when bh1 > bh2
+  static Node * join_right_rb(Node * t1, size_t bh1, Node * pivot,
+                              Node * t2, size_t bh2) noexcept
+  {
+    if (t1 == Node::NullPtr)
+      {
+        LLINK(pivot) = Node::NullPtr;
+        RLINK(pivot) = t2;
+        COLOR(pivot) = BLACK;
+        COUNT(pivot) = COUNT(t2) + 1;
+        return pivot;
+      }
+
+    // Descend right spine until black height matches bh2
+    size_t curr_bh = bh1;
+    if (COLOR(t1) == BLACK)
+      --curr_bh;
+
+    if (curr_bh == bh2)
+      {
+        // Found the join point
+        LLINK(pivot) = RLINK(t1);
+        RLINK(pivot) = t2;
+        COLOR(pivot) = RED;
+        COUNT(pivot) = COUNT(RLINK(t1)) + COUNT(t2) + 1;
+        RLINK(t1) = pivot;
+        COUNT(t1) = COUNT(LLINK(t1)) + COUNT(pivot) + 1;
+
+        // Fix red-red if needed
+        if (COLOR(t1) == RED)
+          {
+            // t1 is red and pivot is red - need rotation
+            // Since we came from the right, do left rotation
+            Node * result = rotate_left_simple(t1);
+            COLOR(result) = BLACK;
+            COLOR(LLINK(result)) = RED;
+            return result;
+          }
+        return t1;
+      }
+
+    // Continue descending
+    Node * right_result = join_right_rb(RLINK(t1), curr_bh, pivot, t2, bh2);
+    RLINK(t1) = right_result;
+    COUNT(t1) = COUNT(LLINK(t1)) + COUNT(RLINK(t1)) + 1;
+
+    // Check for red-red violation
+    if (COLOR(t1) == BLACK and RLINK(t1) != Node::NullPtr and COLOR(RLINK(t1)) == RED)
+      {
+        if (RLINK(RLINK(t1)) != Node::NullPtr and COLOR(RLINK(RLINK(t1))) == RED)
+          {
+            Node * result = rotate_left_simple(t1);
+            COLOR(result) = BLACK;
+            COLOR(LLINK(result)) = RED;
+            COLOR(RLINK(result)) = BLACK;
+            return result;
+          }
+        if (LLINK(RLINK(t1)) != Node::NullPtr and COLOR(LLINK(RLINK(t1))) == RED)
+          {
+            RLINK(t1) = rotate_right_simple(RLINK(t1));
+            Node * result = rotate_left_simple(t1);
+            COLOR(result) = BLACK;
+            COLOR(LLINK(result)) = RED;
+            COLOR(RLINK(result)) = BLACK;
+            return result;
+          }
+      }
+
+    return t1;
+  }
+
+  // Join when bh2 > bh1
+  static Node * join_left_rb(Node * t1, size_t bh1, Node * pivot,
+                             Node * t2, size_t bh2) noexcept
+  {
+    if (t2 == Node::NullPtr)
+      {
+        LLINK(pivot) = t1;
+        RLINK(pivot) = Node::NullPtr;
+        COLOR(pivot) = BLACK;
+        COUNT(pivot) = COUNT(t1) + 1;
+        return pivot;
+      }
+
+    size_t curr_bh = bh2;
+    if (COLOR(t2) == BLACK)
+      --curr_bh;
+
+    if (curr_bh == bh1)
+      {
+        RLINK(pivot) = LLINK(t2);
+        LLINK(pivot) = t1;
+        COLOR(pivot) = RED;
+        COUNT(pivot) = COUNT(t1) + COUNT(LLINK(t2)) + 1;
+        LLINK(t2) = pivot;
+        COUNT(t2) = COUNT(pivot) + COUNT(RLINK(t2)) + 1;
+
+        if (COLOR(t2) == RED)
+          {
+            Node * result = rotate_right_simple(t2);
+            COLOR(result) = BLACK;
+            COLOR(RLINK(result)) = RED;
+            return result;
+          }
+        return t2;
+      }
+
+    Node * left_result = join_left_rb(t1, bh1, pivot, LLINK(t2), curr_bh);
+    LLINK(t2) = left_result;
+    COUNT(t2) = COUNT(LLINK(t2)) + COUNT(RLINK(t2)) + 1;
+
+    // Check for red-red violation
+    if (COLOR(t2) == BLACK and LLINK(t2) != Node::NullPtr and COLOR(LLINK(t2)) == RED)
+      {
+        if (LLINK(LLINK(t2)) != Node::NullPtr and COLOR(LLINK(LLINK(t2))) == RED)
+          {
+            Node * result = rotate_right_simple(t2);
+            COLOR(result) = BLACK;
+            COLOR(LLINK(result)) = BLACK;
+            COLOR(RLINK(result)) = RED;
+            return result;
+          }
+        if (RLINK(LLINK(t2)) != Node::NullPtr and COLOR(RLINK(LLINK(t2))) == RED)
+          {
+            LLINK(t2) = rotate_left_simple(LLINK(t2));
+            Node * result = rotate_right_simple(t2);
+            COLOR(result) = BLACK;
+            COLOR(LLINK(result)) = BLACK;
+            COLOR(RLINK(result)) = RED;
+            return result;
+          }
+      }
+
+    return t2;
+  }
+
+  // Recursive join of two RB trees
+  static Node * join_exclusive_rec_rb(Node * t1, size_t bh1,
+                                      Node * t2, size_t bh2) noexcept
+  {
+    if (t1 == Node::NullPtr)
+      return t2;
+    if (t2 == Node::NullPtr)
+      return t1;
+
+    // Extract a pivot from the larger tree
+    Node * pivot;
+    if (bh1 >= bh2)
+      {
+        pivot = extract_max_rb(t1);
+        if (t1 != Node::NullPtr)
+          bh1 = black_height(t1);
+        else
+          bh1 = 0;
+      }
+    else
+      {
+        pivot = extract_min_rb(t2);
+        if (t2 != Node::NullPtr)
+          bh2 = black_height(t2);
+        else
+          bh2 = 0;
+      }
+
+    return join_with_pivot_rb(t1, bh1, pivot, t2, bh2);
+  }
+
+  // Split by key recursively
+  Node * split_key_rec_rb(Node * p, const Key & key,
+                          Node *& t1, Node *& t2) noexcept
+  {
+    if (p == Node::NullPtr)
+      {
+        t1 = t2 = Node::NullPtr;
+        return Node::NullPtr;
+      }
+
+    Node * found;
+    if (cmp(key, KEY(p)))
+      {
+        Node * left_t2;
+        found = split_key_rec_rb(LLINK(p), key, t1, left_t2);
+
+        LLINK(p) = Node::NullPtr;
+        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+
+        Node * right_tree = RLINK(p);
+        RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t2 = join_with_pivot_rb(left_t2, left_t2_bh, p, right_tree, right_bh);
+        if (t2 != Node::NullPtr)
+          COLOR(t2) = BLACK;
+      }
+    else if (cmp(KEY(p), key))
+      {
+        Node * right_t1;
+        found = split_key_rec_rb(RLINK(p), key, right_t1, t2);
+
+        RLINK(p) = Node::NullPtr;
+        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+
+        Node * left_tree = LLINK(p);
+        LLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t1 = join_with_pivot_rb(left_tree, left_bh, p, right_t1, right_t1_bh);
+        if (t1 != Node::NullPtr)
+          COLOR(t1) = BLACK;
+      }
+    else
+      {
+        t1 = LLINK(p);
+        t2 = RLINK(p);
+        LLINK(p) = RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+        found = p;
+        if (t1 != Node::NullPtr)
+          COLOR(t1) = BLACK;
+        if (t2 != Node::NullPtr)
+          COLOR(t2) = BLACK;
+      }
+
+    return found;
+  }
+
+  // Split by key including duplicates
+  void split_key_dup_rec_rb(Node * p, const Key & key,
+                            Node *& t1, Node *& t2) noexcept
+  {
+    if (p == Node::NullPtr)
+      {
+        t1 = t2 = Node::NullPtr;
+        return;
+      }
+
+    if (cmp(key, KEY(p)))
+      {
+        Node * left_t2;
+        split_key_dup_rec_rb(LLINK(p), key, t1, left_t2);
+
+        LLINK(p) = Node::NullPtr;
+        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+
+        Node * right_tree = RLINK(p);
+        RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t2 = join_with_pivot_rb(left_t2, left_t2_bh, p, right_tree, right_bh);
+        if (t2 != Node::NullPtr)
+          COLOR(t2) = BLACK;
+      }
+    else
+      {
+        Node * right_t1;
+        split_key_dup_rec_rb(RLINK(p), key, right_t1, t2);
+
+        RLINK(p) = Node::NullPtr;
+        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+
+        Node * left_tree = LLINK(p);
+        LLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t1 = join_with_pivot_rb(left_tree, left_bh, p, right_t1, right_t1_bh);
+        if (t1 != Node::NullPtr)
+          COLOR(t1) = BLACK;
+      }
+  }
+
+  // Split by position recursively
+  void split_pos_rec_rb(Node * p, size_t pos, Node *& t1, Node *& t2) noexcept
+  {
+    if (p == Node::NullPtr)
+      {
+        t1 = t2 = Node::NullPtr;
+        return;
+      }
+
+    size_t left_count = COUNT(LLINK(p));
+
+    if (pos <= left_count)
+      {
+        Node * left_t2;
+        split_pos_rec_rb(LLINK(p), pos, t1, left_t2);
+
+        LLINK(p) = Node::NullPtr;
+        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+
+        Node * right_tree = RLINK(p);
+        RLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t2 = join_with_pivot_rb(left_t2, left_t2_bh, p, right_tree, right_bh);
+        if (t2 != Node::NullPtr)
+          COLOR(t2) = BLACK;
+      }
+    else
+      {
+        Node * right_t1;
+        split_pos_rec_rb(RLINK(p), pos - left_count - 1, right_t1, t2);
+
+        RLINK(p) = Node::NullPtr;
+        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+
+        Node * left_tree = LLINK(p);
+        LLINK(p) = Node::NullPtr;
+        COUNT(p) = 1;
+        COLOR(p) = RED;
+
+        t1 = join_with_pivot_rb(left_tree, left_bh, p, right_t1, right_t1_bh);
+        if (t1 != Node::NullPtr)
+          COLOR(t1) = BLACK;
+      }
+  }
+
+public:
+
+  /** Join this tree exclusively with another tree.
+
+      All keys in this tree must be less than all keys in t.
+      After the operation, t becomes empty and this tree contains all nodes.
+
+      @param[in,out] t tree to join with (will be empty after)
+      @note O(m log(n+m)) time complexity where m is size of t
+  */
+  void join_exclusive(Gen_Rb_Tree_Rk & t) noexcept
+  {
+    if (t.root == Node::NullPtr)
+      return;
+
+    if (root == Node::NullPtr)
+      {
+        root = t.root;
+        t.root = Node::NullPtr;
+        return;
+      }
+
+    // Collect nodes from t in preorder and insert them one by one
+    // This is O(m log(n+m)) but guarantees correctness
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(t.root);
+    t.root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        // Reset node and insert
+        p->reset();
+        insert(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+      }
+  }
+
+  /** Split tree by key.
+
+      After the operation:
+      - t1 contains all keys < key
+      - t2 contains all keys > key
+      - This tree becomes empty
+
+      @param[in] key the splitting key
+      @param[out] t1 tree to receive keys < key
+      @param[out] t2 tree to receive keys > key
+      @return pointer to node containing key, or nullptr if not found
+      @note O(n) time complexity (simple iterative implementation)
+  */
+  Node * split_key(const Key & key, Gen_Rb_Tree_Rk & t1,
+                   Gen_Rb_Tree_Rk & t2) noexcept
+  {
+    if (root == Node::NullPtr)
+      return nullptr;
+
+    // Simple O(n) implementation: iterate through tree and partition
+    Node * found = nullptr;
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(root);
+    root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+
+        p->reset();
+
+        if (cmp(KEY(p), key))
+          t1.insert(p);
+        else if (cmp(key, KEY(p)))
+          t2.insert(p);
+        else
+          found = p;  // Found the key
+      }
+
+    return found;
+  }
+
+  /** Split tree by key including duplicates.
+
+      After the operation:
+      - t1 contains all keys <= key
+      - t2 contains all keys > key
+      - This tree becomes empty
+
+      @param[in] key the splitting key
+      @param[out] t1 tree to receive keys <= key
+      @param[out] t2 tree to receive keys > key
+      @note O(n) time complexity (simple iterative implementation)
+  */
+  void split_key_dup(const Key & key, Gen_Rb_Tree_Rk & t1,
+                     Gen_Rb_Tree_Rk & t2) noexcept
+  {
+    if (root == Node::NullPtr)
+      return;
+
+    FixedStack<Node*> stack(Node::MaxHeight);
+    stack.push(root);
+    root = Node::NullPtr;
+
+    while (not stack.is_empty())
+      {
+        Node * p = stack.pop();
+        Node * left = LLINK(p);
+        Node * right = RLINK(p);
+
+        if (right != Node::NullPtr)
+          stack.push(right);
+        if (left != Node::NullPtr)
+          stack.push(left);
+
+        p->reset();
+
+        if (cmp(key, KEY(p)))
+          t2.insert(p);
+        else
+          t1.insert_dup(p);
+      }
+  }
+
+  /** Split tree by inorder position.
+
+      After the operation:
+      - t1 contains nodes at positions [0, pos)
+      - t2 contains nodes at positions [pos, size)
+      - This tree becomes empty
+
+      @param[in] pos the splitting position (0-based)
+      @param[out] t1 tree to receive positions [0, pos)
+      @param[out] t2 tree to receive positions [pos, size)
+      @note O(n) time complexity (simple iterative implementation)
+  */
+  void split_pos(size_t pos, Gen_Rb_Tree_Rk & t1,
+                 Gen_Rb_Tree_Rk & t2) noexcept
+  {
+    if (root == Node::NullPtr)
+      return;
+
+    if (pos == 0)
+      {
+        t2.root = root;
+        root = Node::NullPtr;
+        return;
+      }
+
+    if (pos >= size())
+      {
+        t1.root = root;
+        root = Node::NullPtr;
+        return;
+      }
+
+    // Simple O(n) implementation using inorder traversal
+    size_t count = 0;
+    FixedStack<Node*> stack(Node::MaxHeight);
+    Node * curr = root;
+    root = Node::NullPtr;
+
+    // Inorder traversal
+    while (curr != Node::NullPtr or not stack.is_empty())
+      {
+        while (curr != Node::NullPtr)
+          {
+            stack.push(curr);
+            Node * left = LLINK(curr);
+            LLINK(curr) = Node::NullPtr;  // Disconnect
+            curr = left;
+          }
+
+        curr = stack.pop();
+        Node * right = RLINK(curr);
+        curr->reset();
+
+        if (count < pos)
+          t1.insert(curr);
+        else
+          t2.insert(curr);
+
+        ++count;
+        curr = right;
+      }
   }
 
   /** Iterator on nodes of the tree.

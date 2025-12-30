@@ -56,27 +56,43 @@ namespace Aleph {
 # endif
 
 
-  /** Open Addressing hash table with collision resolution by double function
-      hash.
+  /** @brief Open addressing hash table with double hashing collision resolution.
 
-      This type implements a closed hash table (the arrangement is
-      contiguous memory), which saves collisions within the same
-      board. When a collision occurs, a second function is called
-      hash than to poll an available bucket. If found,
-      then the key and registry are placed in the bucket
-      available; otherwise, it is polled linearly from the
-      index given by the second hash function.
+      This class implements a closed hash table (contiguous memory array)
+      that resolves collisions using double hashing. When a collision occurs,
+      a second hash function is called to probe for an available bucket.
+      If the second probe also collides, linear probing continues from
+      that index.
 
-      The table uses a method that eliminates without relocation and in
-      constant time the removed buckets that are in the middle of
-      a search string.
+      The table uses a probe counter mechanism that enables O(1) deletion
+      without relocation. Each bucket tracks how many keys depend on it
+      being in the collision chain, allowing efficient garbage collection
+      of DELETED entries.
 
-      OHashTable handles two type parameters:
-      -# Key: the type of data that the table saves.
-      -# Record: the type of data to be mapped by the key.
-      -# Cmp comparison class between keys; must return
-      true if the keys are the same.
+      Based on the algorithms described in Knuth's "The Art of Computer
+      Programming", Volume 3.
 
+      @tparam Key The type of keys stored in the table.
+      @tparam Cmp Comparison functor for keys (default: Aleph::equal_to<Key>).
+                  Must return true if two keys are equal.
+
+      @par Collision Resolution Strategy:
+      1. First probe: hash_fct(key) % len
+      2. Second probe: second_hash_fct(key) % len
+      3. Linear probing from second probe position
+
+      @par Example:
+      @code
+      ODhashTable<int> table;
+      table.insert(42);
+      table.insert(17);
+      if (table.has(42))
+        std::cout << "Found 42" << std::endl;
+      table.remove(42);
+      @endcode
+
+      @see OLhashTable for linear probing variant.
+      @see OhashCommon for shared hash table operations.
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>

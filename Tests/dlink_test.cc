@@ -1009,3 +1009,222 @@ TEST(DlinkEdgeCases, IteratorOnUnitaryList)
   EXPECT_FALSE(it.has_curr());
 }
 
+// =============================================================================
+// Additional Stress and Fuzz Tests
+// =============================================================================
+
+TEST(DlinkStress, MassiveListOperations)
+{
+  constexpr size_t N = 50000;
+  Dlink list;
+  vector<Dlink> nodes(N);
+
+  // Build massive list
+  for (size_t i = 0; i < N; ++i)
+    list.append(&nodes[i]);
+
+  EXPECT_TRUE(list.check());
+  EXPECT_EQ(list.get_first(), &nodes[0]);
+  EXPECT_EQ(list.get_last(), &nodes[N - 1]);
+
+  // Verify traversal
+  size_t count = 0;
+  for (Dlink::Iterator it(list); it.has_curr(); it.next(), ++count)
+    ;
+  EXPECT_EQ(count, N);
+
+  // Multiple reverses
+  for (int i = 0; i < 5; ++i)
+    {
+      list.reverse_list();
+      EXPECT_TRUE(list.check());
+    }
+
+  // Remove all from front
+  while (!list.is_empty())
+    list.remove_first();
+
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(DlinkStress, RepeatedSplitConcat)
+{
+  constexpr size_t N = 1000;
+  constexpr size_t ITERATIONS = 100;
+
+  Dlink list;
+  vector<Dlink> nodes(N);
+
+  for (size_t i = 0; i < N; ++i)
+    list.append(&nodes[i]);
+
+  std::mt19937 rng(54321);
+
+  for (size_t iter = 0; iter < ITERATIONS; ++iter)
+    {
+      Dlink l, r;
+      list.split_list(l, r);
+
+      EXPECT_TRUE(list.is_empty());
+      EXPECT_TRUE(l.check());
+      EXPECT_TRUE(r.check());
+
+      // Concat back in random order
+      if (rng() % 2 == 0)
+        {
+          l.concat_list(&r);
+          list.swap(&l);
+        }
+      else
+        {
+          r.concat_list(&l);
+          list.swap(&r);
+        }
+
+      EXPECT_TRUE(list.check());
+    }
+}
+
+TEST(DlinkFuzz, RandomInsertRemoveOperations)
+{
+  constexpr size_t N = 2000;
+  constexpr size_t OPS = 10000;
+
+  Dlink list;
+  vector<Dlink> nodes(N);
+  vector<bool> inList(N, false);
+  size_t listSize = 0;
+
+  std::mt19937 rng(12345);
+  std::uniform_int_distribution<size_t> nodeDist(0, N - 1);
+  std::uniform_int_distribution<int> opDist(0, 4);
+
+  for (size_t op = 0; op < OPS; ++op)
+    {
+      int operation = opDist(rng);
+      size_t nodeIdx = nodeDist(rng);
+
+      switch (operation)
+        {
+        case 0: // Insert at front
+          if (!inList[nodeIdx])
+            {
+              list.insert(&nodes[nodeIdx]);
+              inList[nodeIdx] = true;
+              ++listSize;
+            }
+          break;
+        case 1: // Append at back
+          if (!inList[nodeIdx])
+            {
+              list.append(&nodes[nodeIdx]);
+              inList[nodeIdx] = true;
+              ++listSize;
+            }
+          break;
+        case 2: // Remove first
+          if (!list.is_empty())
+            {
+              Dlink *removed = list.remove_first();
+              for (size_t i = 0; i < N; ++i)
+                {
+                  if (&nodes[i] == removed)
+                    {
+                      inList[i] = false;
+                      --listSize;
+                      break;
+                    }
+                }
+            }
+          break;
+        case 3: // Remove last
+          if (!list.is_empty())
+            {
+              Dlink *removed = list.remove_last();
+              for (size_t i = 0; i < N; ++i)
+                {
+                  if (&nodes[i] == removed)
+                    {
+                      inList[i] = false;
+                      --listSize;
+                      break;
+                    }
+                }
+            }
+          break;
+        case 4: // Reverse
+          if (!list.is_empty())
+            list.reverse_list();
+          break;
+        }
+
+      // Periodic consistency check
+      if (op % 1000 == 0)
+        EXPECT_TRUE(list.check());
+    }
+
+  EXPECT_TRUE(list.check());
+
+  // Verify size
+  size_t actualSize = 0;
+  for (Dlink::Iterator it(list); it.has_curr(); it.next())
+    ++actualSize;
+  EXPECT_EQ(actualSize, listSize);
+}
+
+TEST(DlinkStress, RotationStress)
+{
+  constexpr size_t N = 1000;
+
+  Dlink list;
+  vector<Dlink> nodes(N);
+
+  for (size_t i = 0; i < N; ++i)
+    list.append(&nodes[i]);
+
+  // Many rotations
+  for (size_t i = 0; i < 100; ++i)
+    {
+      list.rotate_left(i % N);
+      EXPECT_TRUE(list.check());
+
+      list.rotate_right((i * 7) % N);
+      EXPECT_TRUE(list.check());
+    }
+
+  // Full rotation should maintain order
+  list.rotate_left(N);
+  EXPECT_TRUE(list.check());
+}
+
+TEST(DlinkStress, IteratorDeletionUnderStress)
+{
+  constexpr size_t N = 500;
+
+  Dlink list;
+  vector<Dlink> nodes(N);
+
+  for (size_t i = 0; i < N; ++i)
+    list.append(&nodes[i]);
+
+  // Delete every other element using iterator
+  Dlink::Iterator it(list);
+  size_t count = 0;
+  while (it.has_curr())
+    {
+      if (count % 2 == 0)
+        it.del();
+      else
+        it.next();
+      ++count;
+    }
+
+  EXPECT_TRUE(list.check());
+
+  // Verify remaining elements
+  size_t remaining = 0;
+  for (Dlink::Iterator it2(list); it2.has_curr(); it2.next())
+    ++remaining;
+  EXPECT_EQ(remaining, N / 2);
+}
+

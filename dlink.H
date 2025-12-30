@@ -27,6 +27,20 @@
 # ifndef DLINK_H
 # define DLINK_H
 
+/** @file dlink.H
+    @brief Doubly linked circular list implementation.
+
+    This file provides the Dlink class, a low-level building block for
+    doubly linked circular lists with a sentinel header node. The design
+    allows O(1) insertion and removal at any position, and O(1) list
+    concatenation and splitting.
+
+    The circular design with sentinel node simplifies boundary conditions
+    and enables symmetric forward/backward traversal.
+
+    @ingroup Secuencias
+*/
+
 # include <aleph.H>
 # include <ah-errors.H>
 
@@ -34,14 +48,46 @@ namespace Aleph {
 
   template <typename T> class Dnode; // Forward declaration of derived class
 
-  /**  Double link of a node belonging to a double circular linked
-       list with header node.
+  /** @brief Doubly linked circular list node.
 
-       This class implements many operations on double circular linked
-       list with header node.
+      Dlink is the fundamental building block for doubly linked circular
+      lists in Aleph-w. Each node contains pointers to its previous and
+      next neighbors, forming a circular structure. An empty list consists
+      of a single sentinel node pointing to itself.
 
-       @ingroup Secuencias
-       @see Macros_Dlink Dlink::Iterator Dnode Dlist DynDlist
+      This class provides low-level operations for manipulating the list
+      structure. For a higher-level interface with data storage, see Dnode
+      and DynDlist.
+
+      @par Design Principles:
+      - Circular structure: last->next == first, first->prev == last
+      - Sentinel node: empty list has sentinel->next == sentinel
+      - Intrusive design: nodes can be embedded in other structures
+
+      @par Complexity:
+      - Insert/remove at known position: O(1)
+      - Concatenate two lists: O(1)
+      - Split list: O(1)
+      - Traverse: O(n)
+
+      @par Example:
+      @code
+      Dlink header;  // sentinel node
+      Dlink node1, node2, node3;
+
+      header.insert_next(&node1);  // Insert after header
+      node1.insert_next(&node2);   // Insert after node1
+      header.insert_prev(&node3);  // Insert before header (at end)
+
+      // Traverse forward
+      for (auto it = header.get_next(); it != &header; it = it->get_next())
+        process(it);
+      @endcode
+
+      @see Dnode Node with embedded data.
+      @see DynDlist High-level dynamic doubly linked list.
+      @see Dlink::Iterator Bidirectional iterator for Dlink lists.
+      @ingroup Secuencias
   */
   class Dlink
   {

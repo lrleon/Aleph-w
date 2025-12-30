@@ -153,13 +153,87 @@ namespace Aleph
     }
   };
 
-  /** Dynamic set of elements of generic type T implemented
-      through a class of binary trees.
+  /** @brief Dynamic set backed by balanced binary search trees with automatic memory management.
 
-      DynSetTree defines a table of elements of type Key that is
-      instrumented with the Tree<Key> binary search tree class and
-      sorted using the Compare()() criterion.
+      DynSetTree<Key, Tree, Compare> is a high-level dynamic set container that uses
+      any of several balanced BST implementations (AVL, Red-Black, Treap, Splay, etc.)
+      to maintain a sorted collection of unique keys.
 
+      Unlike the low-level tree classes (e.g., Avl_Tree, Rb_Tree), DynSetTree
+      automatically manages node memory, provides rich functional operations
+      (map, filter, fold), and offers an STL-compatible interface.
+
+      @tparam Key The type of keys stored in the set.
+      @tparam Tree The underlying tree implementation template (default: Avl_Tree).
+                   Can be Avl_Tree, Rb_Tree, Treap, TreapRk, Splay_Tree, Rand_Tree.
+      @tparam Compare Comparison functor for ordering keys (default: Aleph::less<Key>).
+
+      @par Complexity (depends on Tree type):
+      - Search: O(log n) average/worst (AVL, RB); O(log n) amortized (Splay); O(log n) expected (Treap, Rand)
+      - Insert: O(log n) with same characteristics as search
+      - Delete: O(log n) with same characteristics as search
+      - size(): O(1) - maintained by counter
+      - Ranked operations (if Tree supports them, e.g., TreapRk, Avl_Tree_Rk): O(log n)
+
+      @par Supported Tree Types:
+      - Avl_Tree: Strictest balance, O(log n) worst-case, more rotations
+      - Rb_Tree: Relaxed balance, O(log n) worst-case, fewer rotations
+      - Treap: Randomized, O(log n) expected, simple implementation
+      - TreapRk: Treap with rank (indexed access), O(log n) expected
+      - Splay_Tree: Self-adjusting, O(log n) amortized, cache-friendly
+      - Rand_Tree: Randomized tree, O(log n) expected
+      - BinTree: Unbalanced (for testing/comparison, not recommended)
+
+      @par Key Features:
+      - Automatic node memory management (RAII)
+      - STL-compatible iterators and interface
+      - Rich functional operations (map, filter, fold, zip, etc.)
+      - Support for ranked operations (if underlying tree supports them)
+      - Duplicate handling variants (insert vs insert_dup)
+      - Split/join operations
+      - Set operations (union, intersection, difference)
+
+      @par Example:
+      @code
+      // AVL-backed set (default)
+      DynSetTree<int> avl_set = {5, 2, 8, 1, 9};
+
+      // Red-Black backed set
+      DynSetTree<int, Rb_Tree> rb_set;
+      rb_set.insert(42);
+      rb_set.insert(17);
+
+      // Treap with rank (supports indexed access)
+      DynSetTree<std::string, TreapRk> ranked_set;
+      ranked_set.insert("apple");
+      ranked_set.insert("banana");
+      ranked_set.insert("cherry");
+      auto second = ranked_set.select(1); // Get element at index 1
+
+      // Functional operations
+      auto doubled = avl_set.maps<int>([](int x) { return x * 2; });
+      int sum = avl_set.foldl(0, [](int acc, int x) { return acc + x; });
+
+      // STL compatibility
+      for (const auto& key : avl_set)
+        std::cout << key << " ";
+      @endcode
+
+      @par Ranked Operations:
+      If the underlying tree supports rank (TreapRk, Avl_Tree_Rk, etc.),
+      additional operations become available:
+      - select(i): Get the i-th smallest element, O(log n)
+      - position(key): Get the rank/position of a key, O(log n)
+      - remove_pos(i): Remove element at position i, O(log n)
+
+      @note Keys must be unique. For duplicate support, use insert_dup().
+      @note The tree is automatically balanced according to the Tree policy.
+      @note Memory is automatically managed - nodes are freed on destruction.
+
+      @see Avl_Tree Low-level AVL tree (manual memory management).
+      @see Rb_Tree Low-level Red-Black tree (manual memory management).
+      @see TreapRk Low-level Treap with rank (manual memory management).
+      @see FunctionalMethods Inherited functional operations.
       @ingroup Arboles
   */
   template <typename Key,

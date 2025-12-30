@@ -37,16 +37,45 @@ using namespace Aleph;
 
 namespace Aleph {
 
-   /** AVL balanced binary search tree.
+   /** @brief AVL balanced binary search tree.
 
-       An AVL tree is a binary search tree deterministically
-       balanced. The maximum height of AVL tree of \f$n\f$ nodes is
-       \f$ 1.4404 \lg{(n + 2)} \ - \ 0.3277\f$. So this number bounds
-       the maximum number of visited nodes in a unsuccessful search,
-       what bounds the traditional operations (insertion, search and
-       removal) to \f$O(\lg n)\$f complexity.
+       An AVL tree is a self-balancing binary search tree where the heights
+       of the two child subtrees of any node differ by at most one.
+       This guarantees O(log n) worst-case time complexity for search,
+       insertion, and deletion operations.
 
-       @see Avl_Tree Avl_Tree_Vtl
+       The maximum height of an AVL tree with n nodes is bounded by:
+       \f$ 1.4404 \lg{(n + 2)} - 0.3277 \f$
+
+       This implementation uses balance factors stored in each node to
+       track the height difference between subtrees. Rotations are performed
+       after insertions and deletions to maintain the AVL property.
+
+       @tparam NodeType Template for the node type (typically AvlNode).
+       @tparam Key The type of keys stored in the tree.
+       @tparam Compare Comparison functor for ordering keys.
+
+       @par Complexity:
+       - Search: O(log n) worst case
+       - Insert: O(log n) worst case
+       - Delete: O(log n) worst case
+       - Space: O(n)
+
+       @par Example:
+       @code
+       Avl_Tree<int> tree;
+       tree.insert(new Avl_Tree<int>::Node(42));
+       tree.insert(new Avl_Tree<int>::Node(17));
+       auto node = tree.search(42);
+       if (node != nullptr)
+         std::cout << "Found: " << node->get_key() << std::endl;
+       @endcode
+
+       @note This is a low-level implementation that manages raw nodes.
+             For automatic memory management, use DynSetAvlTree instead.
+
+       @see Avl_Tree Convenient typedef with default node type.
+       @see DynSetAvlTree High-level wrapper with automatic memory management.
        @ingroup Arboles
     */
   template <template <typename> class NodeType, typename Key, class Compare>

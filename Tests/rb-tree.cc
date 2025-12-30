@@ -1509,3 +1509,321 @@ TEST(RbTree, CustomComparatorWithRemove)
   for (int k : {2, 4, 5})
     delete tree.remove(k);
 }
+
+// ============================================================================
+// Stress and Fuzz Tests
+// ============================================================================
+
+TEST(RbTree, Stress_AscendingInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  // Ascending insertion is worst case for naive BST
+  const int N = 10000;
+  for (int k = 0; k < N; ++k)
+    {
+      tree.insert(pool.make(k));
+      if (k % 1000 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+  
+  // Verify all elements
+  for (int k = 0; k < N; ++k)
+    ASSERT_NE(tree.search(k), nullptr) << "Missing key " << k;
+}
+
+TEST(RbTree, Stress_DescendingInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 10000;
+  for (int k = N - 1; k >= 0; --k)
+    {
+      tree.insert(pool.make(k));
+      if (k % 1000 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+}
+
+TEST(RbTree, Stress_ZigzagInsertion)
+{
+  Tree tree;
+  NodePool pool;
+  
+  // Zigzag pattern: 0, N-1, 1, N-2, 2, N-3, ...
+  const int N = 5000;
+  for (int i = 0; i < N; ++i)
+    {
+      int k = (i % 2 == 0) ? i / 2 : N - 1 - i / 2;
+      tree.insert(pool.make(k));
+    }
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+}
+
+TEST(RbTree, Fuzz_LargeScaleRandomOps)
+{
+  Tree tree;
+  NodePool pool;
+  std::set<int> oracle;
+  
+  std::mt19937 gen(98765);
+  std::uniform_int_distribution<> key_dist(0, 50000);
+  std::uniform_int_distribution<> op_dist(0, 2);
+  
+  for (int iter = 0; iter < 20000; ++iter)
+    {
+      int key = key_dist(gen);
+      int op = op_dist(gen);
+      
+      if (op == 0)  // insert
+        {
+          auto * p = pool.make(key);
+          if (tree.insert(p) != nullptr)
+            oracle.insert(key);
+          else
+            {
+              pool.forget(p);
+              delete p;
+            }
+        }
+      else if (op == 1 && !oracle.empty())  // remove
+        {
+          // Pick a random key from oracle
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          auto * removed = tree.remove(k);
+          ASSERT_NE(removed, nullptr) << "Failed to remove existing key " << k;
+          pool.forget(removed);
+          delete removed;
+          oracle.erase(k);
+        }
+      else  // search
+        {
+          auto * found = tree.search(key);
+          if (oracle.count(key))
+            ASSERT_NE(found, nullptr);
+          else
+            EXPECT_EQ(found, nullptr);
+        }
+      
+      EXPECT_EQ(tree.size(), oracle.size());
+      
+      if (iter % 2000 == 0)
+        assert_valid_tree(tree);
+    }
+  
+  assert_valid_tree(tree);
+  
+  auto keys = inorder_keys(tree.getRoot());
+  EXPECT_EQ(keys, std::vector<int>(oracle.begin(), oracle.end()));
+}
+
+TEST(RbTree, Stress_BulkInsertBulkRemove)
+{
+  Tree tree;
+  NodePool pool;
+  
+  const int N = 10000;
+  
+  // Bulk insert
+  for (int k = 0; k < N; ++k)
+    tree.insert(pool.make(k));
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N));
+  assert_valid_tree(tree);
+  
+  // Bulk remove in random order
+  std::vector<int> keys_to_remove(N);
+  std::iota(keys_to_remove.begin(), keys_to_remove.end(), 0);
+  std::mt19937 gen(11111);
+  std::shuffle(keys_to_remove.begin(), keys_to_remove.end(), gen);
+  
+  for (int k : keys_to_remove)
+    {
+      auto * removed = tree.remove(k);
+      ASSERT_NE(removed, nullptr) << "Failed to remove " << k;
+      pool.forget(removed);
+      delete removed;
+    }
+  
+  EXPECT_TRUE(tree.is_empty());
+}
+
+TEST(RbTree, Stress_ManyDuplicates)
+{
+  Tree tree;
+  NodePool pool;
+  
+  // Insert many duplicates using insert_dup
+  const int N = 1000;
+  const int DUPS = 10;
+  
+  for (int k = 0; k < N; ++k)
+    for (int d = 0; d < DUPS; ++d)
+      tree.insert_dup(pool.make(k));
+  
+  EXPECT_EQ(tree.size(), static_cast<size_t>(N * DUPS));
+  assert_valid_tree(tree);
+  
+  // Remove all
+  for (int k = 0; k < N; ++k)
+    for (int d = 0; d < DUPS; ++d)
+      {
+        auto * removed = tree.remove(k);
+        ASSERT_NE(removed, nullptr);
+        pool.forget(removed);
+        delete removed;
+      }
+  
+  EXPECT_TRUE(tree.is_empty());
+}
+
+TEST(RbTree, Stress_AlternatingInsertRemove)
+{
+  Tree tree;
+  NodePool pool;
+  std::set<int> oracle;
+  
+  std::mt19937 gen(22222);
+  std::uniform_int_distribution<> key_dist(0, 1000);
+  
+  for (int iter = 0; iter < 10000; ++iter)
+    {
+      int key = key_dist(gen);
+      
+      if (iter % 2 == 0)  // insert
+        {
+          auto * p = pool.make(key);
+          if (tree.insert(p) != nullptr)
+            oracle.insert(key);
+          else
+            {
+              pool.forget(p);
+              delete p;
+            }
+        }
+      else if (!oracle.empty())  // remove random existing
+        {
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          auto * removed = tree.remove(k);
+          ASSERT_NE(removed, nullptr);
+          pool.forget(removed);
+          delete removed;
+          oracle.erase(k);
+        }
+      
+      EXPECT_EQ(tree.size(), oracle.size());
+    }
+  
+  assert_valid_tree(tree);
+}
+
+TEST(RbTree, Stress_StringKeys)
+{
+  using StrTree = Rb_Tree<std::string>;
+  using StrNode = StrTree::Node;
+  
+  StrTree tree;
+  std::vector<StrNode*> nodes;
+  std::set<std::string> oracle;
+  
+  std::mt19937 gen(33333);
+  
+  auto random_string = [&gen]() {
+    std::string s;
+    int len = 5 + gen() % 20;
+    for (int i = 0; i < len; ++i)
+      s += 'a' + gen() % 26;
+    return s;
+  };
+  
+  // Insert phase
+  for (int i = 0; i < 2000; ++i)
+    {
+      std::string key = random_string();
+      auto * p = new StrNode(key);
+      nodes.push_back(p);
+      if (tree.insert(p) != nullptr)
+        oracle.insert(key);
+    }
+  
+  EXPECT_EQ(tree.size(), oracle.size());
+  EXPECT_TRUE(tree.verify());
+  
+  // Verify
+  for (const auto & key : oracle)
+    ASSERT_NE(tree.search(key), nullptr);
+  
+  // Cleanup
+  for (auto * p : nodes)
+    delete p;
+}
+
+// Hybrid tree stress tests
+TEST(HtdRbTreeCompat, Stress_LargeScaleOps)
+{
+  HybridTree tree;
+  HybridNodePool pool;
+  std::set<int> oracle;
+  
+  std::mt19937 gen(44444);
+  std::uniform_int_distribution<> key_dist(0, 10000);
+  std::uniform_int_distribution<> op_dist(0, 2);
+  
+  for (int iter = 0; iter < 10000; ++iter)
+    {
+      int key = key_dist(gen);
+      int op = op_dist(gen);
+      
+      if (op == 0)  // insert
+        {
+          auto * p = pool.make(key);
+          if (tree.insert(p) != nullptr)
+            oracle.insert(key);
+          else
+            {
+              pool.forget(p);
+              delete p;
+            }
+        }
+      else if (op == 1 && !oracle.empty())  // remove
+        {
+          auto it = oracle.begin();
+          std::advance(it, gen() % oracle.size());
+          int k = *it;
+          
+          auto * removed = tree.remove(k);
+          ASSERT_NE(removed, nullptr);
+          pool.forget(removed);
+          delete removed;
+          oracle.erase(k);
+        }
+      else  // search
+        {
+          auto * found = tree.search(key);
+          if (oracle.count(key))
+            ASSERT_NE(found, nullptr);
+          else
+            EXPECT_EQ(found, nullptr);
+        }
+      
+      EXPECT_EQ(tree.size(), oracle.size());
+    }
+  
+  assert_valid_hybrid_tree(tree);
+}
