@@ -384,7 +384,7 @@ namespace Aleph
     }
 
     /// Return `true` if this is a consistent randomized tree
-    bool verify() const
+    [[nodiscard]] bool verify() const
     {
       return check_rank_tree(tree_root);
     }
@@ -405,10 +405,10 @@ namespace Aleph
     }
 
     /// Return the number of nodes that have the tree
-    size_t size() const noexcept { return COUNT(tree_root); }
+    [[nodiscard]] size_t size() const noexcept { return COUNT(tree_root); }
 
     /// Return true if the tree is empty
-    bool is_empty() const noexcept { return tree_root == Node::NullPtr; }
+    [[nodiscard]] bool is_empty() const noexcept { return tree_root == Node::NullPtr; }
 
     /** Compute the inorder position of a key
 
@@ -437,9 +437,9 @@ namespace Aleph
         If `key` is found then its inorder position is returned along with
         a pointer to the node containing it.
 
-        Otherwise, the the tuple returns the position that would have `key`
-        if this was in the tree and the parent node that the key would
-        had. At this regard, there are three cases:
+        Otherwise, the tuple returns the position that would have `key`
+        if this was in the tree and the parent node that the key should be.
+        At this regard, there are three cases:
         1. if `key` is lesser than the minimum key of tree, then first is
         -1 and the node is one with the smallest key.
 
@@ -449,10 +449,10 @@ namespace Aleph
 
         3. For any other case, first is the inorder position that
         would have `key` if this was in the tree and second is the
-        node whose key is inmediataly greater than `key`.
+        node whose key is immediately greater than `key`.
 
         @param[in] key to be searched
-        @return a pair with the inorder position and and related node
+        @return a pair with the inorder position and related node
     */
     std::pair<long, Node *> find_position(const Key & key) const noexcept
     {
@@ -637,8 +637,8 @@ namespace Aleph
         Nodes containing duplicated keys are inserted in the randomized
         tree `dup`. The nodes could belong to any of two trees
 
-        @param[in] t ramdomized tree to join with `this`
-        @param[out] dup ramdomized tree where nodes containing duplicated
+        @param[in] t randomized tree to join with `this`
+        @param[out] dup randomized tree where nodes containing duplicated
         keys are inserted
     */
     void join(Gen_Rand_Tree & t, Gen_Rand_Tree & dup) noexcept
@@ -652,7 +652,7 @@ namespace Aleph
         `join(t)` produces a random tree result of join of `this` and
         `t`. The resulting tree is stored in `this`.
 
-        @param[in] t ramdomized tree to join with `this`
+        @param[in] t randomized tree to join with `this`
         keys are inserted
     */
     void join_dup(Gen_Rand_Tree & t) noexcept
@@ -664,12 +664,12 @@ namespace Aleph
     /** Join exclusive of `this` with `t`
 
         Exclusive means that all the keys of `this` are lesser than all
-        the keys of `t`. This knowlege allows a more effcient way for
+        the keys of `t`. This knowledge allows a more efficient way for
         joining that when the keys ranks are overlapped. However, use very
         carefully because the algorithm does not perform any check and the
         result would be incorrect.
 
-        @param[in] t ramdomized tree to exclusively join with `this`
+        @param[in] t randomized tree to exclusively join with `this`
         keys are inserted
     */
     void join_exclusive(Gen_Rand_Tree & t) noexcept
@@ -690,13 +690,13 @@ namespace Aleph
     };
   };
 
-  /** Randomized binary sarch tree.
+  /** Randomized binary search tree.
 
       This class implements a randomized binary search tree. It is shown
       that this type of tree always is equivalent to a classic binary
       search tree built from a random insertion sequence. Consequently, all
       the operations of this tree are \f$O(\lg n)\f$ expected case,
-      independentely of insertion order and of removals are interleaved
+      independently of insertion order and of removals are interleaved
       with insertions.
 
       The principle of this tree is balancing by taking random decisions
@@ -718,7 +718,7 @@ namespace Aleph
       The class internally uses the gsl random number generator of
       [GSL - GNU Scientific
       Library](\https://www.gnu.org/software/gsl/).  By default, the
-      Mersene twister is used and the seed is taken from system time.
+      Mersenne twister is used and the seed is taken from system time.
 
       @see Treap Treap_Vtl Treap_Rk
 
@@ -732,13 +732,13 @@ namespace Aleph
   };
 
 
-  /** Randomized binary sarch tree.
+  /** Randomized binary search tree.
 
       This class implements a randomized binary search tree. It is
       shown that this type of tree always is equivalent to a classic
       binary search tree built from a random insertion
       sequence. Consequently, all the operations of this tree are
-      \f$O(\lg n)\f$ expected case, independentely of insertion order
+      \f$O(\lg n)\f$ expected case, independently of insertion order
       and of removals are interleaved with insertions.
 
       In addition, these trees support `select()` and `position()`
@@ -746,7 +746,7 @@ namespace Aleph
       inorder position and logarithmic time. This allows to treat the
       tree as if it was an array.
 
-      This tree type is unbeatable when there are splits and and
+      This tree type is unbeatable when there are splits and
       especially joins operations on very large data sets. Other tree
       types perform the join of independent data sets in \f$O(n \lg
       m)\f$, where \f$n\f$ and \f$m\f$ are the size of two data sets,
@@ -755,7 +755,7 @@ namespace Aleph
       The class internally uses the gsl random number generator of
       [GSL - GNU Scientific
       Library](\https://www.gnu.org/software/gsl/).  By default, the
-      Mersene twister is used and the seed is taken from system time.
+      Mersenne twister is used and the seed is taken from system time.
 
       @see Treap Treap_Vtl Treap_Rk
 

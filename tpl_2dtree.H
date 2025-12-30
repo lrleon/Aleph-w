@@ -40,7 +40,9 @@
 
 # include <point.H>
 # include <htlist.H>
-# include <tpl_nodePool.H>
+# include <ahDefs.H> // For Empty_Class
+
+using namespace Aleph;
 
 /** @brief 2D k-d tree for efficient spatial point operations.
 
@@ -163,13 +165,10 @@ class K2Tree
   size_t N;     ///< Number of points in the tree
   Node * root;  ///< Root of the tree
 
-  static const size_t dim = 19; ///< Node pool dimension
-  Node_Pool<Node> node_pool;    ///< Memory pool for efficient allocation
-
 public:
 
   /// @brief Default constructor - creates an empty tree with zero-sized region.
-  K2Tree() : pmin(0, 0), pmax(0, 0), N(0), root(nullptr), node_pool(dim)
+  K2Tree() : pmin(0, 0), pmax(0, 0), N(0), root(nullptr)
   {
     // empty
   }
@@ -180,7 +179,7 @@ public:
    *  @param __pmax Upper-right corner of the region
    */
   K2Tree(const Point & __pmin, const Point & __pmax) 
-    : pmin(__pmin), pmax(__pmax), N(0), root(nullptr), node_pool(dim)
+    : pmin(__pmin), pmax(__pmax), N(0), root(nullptr)
   {
     // empty
   }
@@ -194,7 +193,7 @@ public:
    */
   K2Tree(const Geom_Number & xmin, const Geom_Number & ymin, 
 	 const Geom_Number & xmax, const Geom_Number & ymax) 
-    : pmin(xmin, ymin), pmax(xmax, ymax), N(0), root(nullptr), node_pool(dim)
+    : pmin(xmin, ymin), pmax(xmax, ymax), N(0), root(nullptr)
   {
     // empty
   }
@@ -533,9 +532,9 @@ public:
     if (N == 0)
       return NullPoint;
     
-    // Initialize with maximum possible value
-    min_dist2 = std::numeric_limits<Geom_Number>::max();
-    min_node = nullptr;
+    // Initialize with distance to root (mpq_class doesn't have max())
+    min_node = root;
+    min_dist2 = root->point.distance_squared_to(p);
     
     lr_nearest(root, p);
     

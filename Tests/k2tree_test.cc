@@ -38,13 +38,15 @@
 #include <set>
 #include <cmath>
 
+using K2TreeInt = K2Tree<Empty_Class>;
+
 // ============================================================================
 // Basic Functionality Tests
 // ============================================================================
 
 TEST(K2TreeBasic, ConstructorAndEmpty)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   EXPECT_TRUE(tree.is_empty());
   EXPECT_EQ(tree.size(), 0);
@@ -52,7 +54,7 @@ TEST(K2TreeBasic, ConstructorAndEmpty)
 
 TEST(K2TreeBasic, InsertSinglePoint)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   Point * inserted = tree.insert(Point(50, 50));
   
@@ -63,7 +65,7 @@ TEST(K2TreeBasic, InsertSinglePoint)
 
 TEST(K2TreeBasic, InsertMultiplePoints)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(25, 25));
   tree.insert(Point(75, 75));
@@ -74,7 +76,7 @@ TEST(K2TreeBasic, InsertMultiplePoints)
 
 TEST(K2TreeBasic, InsertDuplicatePoint)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   Point * first = tree.insert(Point(50, 50));
   Point * second = tree.insert(Point(50, 50));
@@ -86,7 +88,7 @@ TEST(K2TreeBasic, InsertDuplicatePoint)
 
 TEST(K2TreeBasic, ContainsExisting)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(30, 40));
   tree.insert(Point(70, 60));
@@ -97,7 +99,7 @@ TEST(K2TreeBasic, ContainsExisting)
 
 TEST(K2TreeBasic, ContainsNonExisting)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(30, 40));
   
@@ -107,7 +109,7 @@ TEST(K2TreeBasic, ContainsNonExisting)
 
 TEST(K2TreeBasic, EmptyTreeContains)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   EXPECT_FALSE(tree.contains(Point(50, 50)));
 }
@@ -118,7 +120,7 @@ TEST(K2TreeBasic, EmptyTreeContains)
 
 TEST(K2TreeInsertion, AscendingOrder)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   for (int i = 0; i < 10; ++i)
     {
@@ -142,7 +144,7 @@ TEST(K2TreeInsertion, AscendingOrder)
 
 TEST(K2TreeInsertion, DescendingOrder)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   for (int i = 9; i >= 0; --i)
     {
@@ -157,7 +159,7 @@ TEST(K2TreeInsertion, DescendingOrder)
 
 TEST(K2TreeInsertion, RandomOrder)
 {
-  K2Tree<> tree(0, 0, 1000, 1000);
+  K2TreeInt tree(0, 0, 1000, 1000);
   
   std::mt19937 gen(12345);
   std::uniform_real_distribution<> dis(0, 1000);
@@ -180,7 +182,7 @@ TEST(K2TreeInsertion, RandomOrder)
 
 TEST(K2TreeInsertion, ClusteredPoints)
 {
-  K2Tree<> tree(0, 0, 1000, 1000);
+  K2TreeInt tree(0, 0, 1000, 1000);
   
   // Insert cluster in one region
   for (int i = 0; i < 20; ++i)
@@ -203,7 +205,7 @@ TEST(K2TreeInsertion, ClusteredPoints)
 
 TEST(K2TreeNearest, SinglePoint)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(50, 50));
   
@@ -215,7 +217,7 @@ TEST(K2TreeNearest, SinglePoint)
 
 TEST(K2TreeNearest, MultiplePoints)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(10, 10));
   tree.insert(Point(50, 50));
@@ -239,7 +241,7 @@ TEST(K2TreeNearest, MultiplePoints)
 
 TEST(K2TreeNearest, EmptyTree)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   Point nearest = tree.nearest(Point(50, 50));
   
@@ -249,7 +251,7 @@ TEST(K2TreeNearest, EmptyTree)
 
 TEST(K2TreeNearest, ExactMatch)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(50, 50));
   tree.insert(Point(75, 75));
@@ -262,7 +264,7 @@ TEST(K2TreeNearest, ExactMatch)
 
 TEST(K2TreeNearest, GridOfPoints)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   // Insert grid
   for (int i = 0; i <= 100; i += 10)
@@ -277,7 +279,7 @@ TEST(K2TreeNearest, GridOfPoints)
   Point nearest = tree.nearest(Point(43, 57));
   
   // Should find (40, 60) or (40, 50) or (50, 60) or (50, 50)
-  double dist = nearest.distance_to(Point(43, 57));
+  Geom_Number dist = nearest.distance_with(Point(43, 57));
   EXPECT_LT(dist, 10); // Should be within one grid cell
 }
 
@@ -287,7 +289,7 @@ TEST(K2TreeNearest, GridOfPoints)
 
 TEST(K2TreeRange, EmptyTree)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   Rectangle rect(20, 20, 80, 80);
   DynList<Point> result;
@@ -298,7 +300,7 @@ TEST(K2TreeRange, EmptyTree)
 
 TEST(K2TreeRange, AllPointsInRange)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(30, 30));
   tree.insert(Point(50, 50));
@@ -313,7 +315,7 @@ TEST(K2TreeRange, AllPointsInRange)
 
 TEST(K2TreeRange, NoPointsInRange)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(10, 10));
   tree.insert(Point(90, 90));
@@ -327,7 +329,7 @@ TEST(K2TreeRange, NoPointsInRange)
 
 TEST(K2TreeRange, SomePointsInRange)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(25, 25)); // Inside
   tree.insert(Point(50, 50)); // Inside
@@ -357,7 +359,7 @@ TEST(K2TreeRange, SomePointsInRange)
 
 TEST(K2TreeRange, BoundaryPoints)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   tree.insert(Point(20, 20)); // On boundary
   tree.insert(Point(80, 80)); // On boundary
@@ -378,7 +380,7 @@ TEST(K2TreeRange, BoundaryPoints)
 
 TEST(K2TreeStress, LargeNumberOfPoints)
 {
-  K2Tree<> tree(0, 0, 10000, 10000);
+  K2TreeInt tree(0, 0, 10000, 10000);
   
   std::mt19937 gen(54321);
   std::uniform_real_distribution<> dis(0, 10000);
@@ -401,7 +403,7 @@ TEST(K2TreeStress, LargeNumberOfPoints)
 
 TEST(K2TreeStress, ManyNearestQueries)
 {
-  K2Tree<> tree(0, 0, 1000, 1000);
+  K2TreeInt tree(0, 0, 1000, 1000);
   
   std::mt19937 gen(99999);
   std::uniform_real_distribution<> dis(0, 1000);
@@ -424,7 +426,7 @@ TEST(K2TreeStress, ManyNearestQueries)
 
 TEST(K2TreeStress, ManyRangeQueries)
 {
-  K2Tree<> tree(0, 0, 1000, 1000);
+  K2TreeInt tree(0, 0, 1000, 1000);
   
   std::mt19937 gen(11111);
   std::uniform_real_distribution<> dis(0, 1000);
@@ -455,7 +457,7 @@ TEST(K2TreeStress, ManyRangeQueries)
 
 TEST(K2TreeStress, DenseAndSparseRegions)
 {
-  K2Tree<> tree(0, 0, 1000, 1000);
+  K2TreeInt tree(0, 0, 1000, 1000);
   
   // Dense region: [100, 200] × [100, 200]
   for (int i = 100; i <= 200; i += 2)
@@ -495,7 +497,7 @@ TEST(K2TreeStress, DenseAndSparseRegions)
 
 TEST(K2TreeEdgeCases, ColinearPoints)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   // Insert points along a line
   for (int i = 0; i <= 100; i += 10)
@@ -514,7 +516,7 @@ TEST(K2TreeEdgeCases, ColinearPoints)
 
 TEST(K2TreeEdgeCases, VerticalLine)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   for (int i = 0; i <= 100; i += 10)
     {
@@ -526,7 +528,7 @@ TEST(K2TreeEdgeCases, VerticalLine)
 
 TEST(K2TreeEdgeCases, HorizontalLine)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   for (int i = 0; i <= 100; i += 10)
     {
@@ -538,7 +540,7 @@ TEST(K2TreeEdgeCases, HorizontalLine)
 
 TEST(K2TreeEdgeCases, VeryClosePoints)
 {
-  K2Tree<> tree(0, 0, 1, 1);
+  K2TreeInt tree(0, 0, 1, 1);
   
   tree.insert(Point(0.1, 0.1));
   tree.insert(Point(0.100001, 0.100001));
@@ -549,7 +551,7 @@ TEST(K2TreeEdgeCases, VeryClosePoints)
 
 TEST(K2TreeEdgeCases, NegativeCoordinates)
 {
-  K2Tree<> tree(-100, -100, 100, 100);
+  K2TreeInt tree(-100, -100, 100, 100);
   
   tree.insert(Point(-50, -50));
   tree.insert(Point(0, 0));
@@ -567,7 +569,7 @@ TEST(K2TreeEdgeCases, NegativeCoordinates)
 
 TEST(K2TreeCorrectness, NearestIsActuallyNearest)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   std::vector<Point> points = {
     Point(10, 10),
@@ -584,17 +586,17 @@ TEST(K2TreeCorrectness, NearestIsActuallyNearest)
   Point nearest = tree.nearest(query);
   
   // Verify it's actually the nearest
-  double min_dist = nearest.distance_to(query);
+  Geom_Number min_dist = nearest.distance_with(query);
   for (const auto & p : points)
     {
-      double dist = p.distance_to(query);
+      Geom_Number dist = p.distance_with(query);
       EXPECT_GE(dist, min_dist - 1e-9); // Allow tiny floating point error
     }
 }
 
 TEST(K2TreeCorrectness, RangeIncludesAllInside)
 {
-  K2Tree<> tree(0, 0, 100, 100);
+  K2TreeInt tree(0, 0, 100, 100);
   
   std::mt19937 gen(77777);
   std::uniform_real_distribution<> dis(0, 100);
@@ -642,7 +644,7 @@ TEST(K2TreeCorrectness, RangeIncludesAllInside)
 
 TEST(K2TreeFuzz, RandomInsertionsAndQueries)
 {
-  K2Tree<> tree(0, 0, 10000, 10000);
+  K2TreeInt tree(0, 0, 10000, 10000);
   
   std::mt19937 gen(31415);
   std::uniform_real_distribution<> coord_dis(0, 10000);
@@ -659,7 +661,10 @@ TEST(K2TreeFuzz, RandomInsertionsAndQueries)
           Point p(coord_dis(gen), coord_dis(gen));
           Point * result = tree.insert(p);
           if (result != nullptr)
-            inserted.insert({p.get_x(), p.get_y()});
+            {
+              inserted.insert(std::make_pair(static_cast<double>(p.get_x().get_d()), 
+                                             static_cast<double>(p.get_y().get_d())));
+            }
         }
       else if (op == 1) // Nearest
         {

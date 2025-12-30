@@ -54,8 +54,10 @@
 # include <tpl_treap.H>
 # include <tpl_treapRk.H>
 # include <tpl_avl.H>
+# include <tpl_avlRk.H>
 # include <tpl_rand_tree.H>
 # include <tpl_rb_tree.H>
+# include <tpl_rbRk.H>
 # include <tpl_tdRbTree.H>
 # include <tpl_splay_tree.H>
 
@@ -1448,6 +1450,24 @@ namespace Aleph
   };
 
 
+  /** Dynamic set implemented using extended AVL binary search trees
+      with rank support of type Avl_Tree_Rk<Key>.
+
+      Supports O(log n) select and position operations.
+
+      @see DynSetTree DynMapTree Avl_Tree_Rk<Key>
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetAvlRkTree : public DynSetTree<Key, Avl_Tree_Rk, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, Avl_Tree_Rk, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(Avl_Tree_Rk, Key, Compare);
+  };
+
+
   /** Dynamic set implemented using Red-Black binary search trees
       of type Rb_Tree<Key>.
 
@@ -1460,6 +1480,24 @@ namespace Aleph
   public:
     using Base = DynSetTree<Key, Rb_Tree, Compare>;
     using Base::Base;
+  };
+
+
+  /** Dynamic set implemented using extended Red-Black binary search trees
+      with rank support of type Rb_Tree_Rk<Key>.
+
+      Supports O(log n) select and position operations.
+
+      @see DynSetTree DynMapTree Rb_Tree_Rk<Key>
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetRbRkTree : public DynSetTree<Key, Rb_Tree_Rk, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, Rb_Tree_Rk, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(Rb_Tree_Rk, Key, Compare);
   };
 
 

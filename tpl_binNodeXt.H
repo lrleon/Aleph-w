@@ -997,6 +997,241 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p,
 }
 
 
+/** Base iterator template for ranked binary search trees.
+
+    This template provides a common implementation for iterators
+    on trees that support O(log n) select and position operations
+    via subtree counters.
+
+    The TreeType must provide:
+    - getRoot() returning Node*&
+    - key_comp() returning Compare&
+    - remove(const Key&) returning Node*
+
+    @tparam TreeType the tree class type
+    @tparam Node the node type
+    @tparam Key the key type
+    @tparam Compare comparison functor
+
+    @ingroup Arboles
+*/
+template <class TreeType, class Node, typename Key, class Compare>
+class BinTreeXt_Iterator
+{
+protected:
+
+  mutable TreeType * tree_ptr;
+  mutable Node * curr;
+  mutable int curr_pos;
+
+  static constexpr int Pos_Not_Current = -1;
+  static constexpr int Pos_Empty_Container = -2;
+  static constexpr int Pos_Not_Updated = -3;
+
+private:
+
+  bool is_container_empty() const noexcept
+  {
+    return COUNT(tree_ptr->getRoot()) == 0;
+  }
+
+  bool pos_updated() const noexcept
+  {
+    return curr_pos != Pos_Not_Updated;
+  }
+
+  bool curr_updated() const noexcept
+  {
+    return curr != nullptr;
+  }
+
+  void update_pos() const noexcept
+  {
+    assert(curr != nullptr);
+    curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->key_comp()).
+      inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
+  }
+
+  void update_curr() const noexcept
+  {
+    assert(curr_pos != Pos_Not_Updated);
+
+    if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
+        curr_pos == static_cast<int>(COUNT(tree_ptr->getRoot())))
+      return;
+
+    curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
+  }
+
+public:
+
+  BinTreeXt_Iterator() noexcept
+    : tree_ptr(nullptr), curr(nullptr), curr_pos(Pos_Not_Current)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const TreeType & __tree) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)), curr(nullptr)
+  {
+    curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
+  }
+
+  BinTreeXt_Iterator(const TreeType & __tree, Node * __curr) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)),
+      curr(__curr), curr_pos(Pos_Not_Updated)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const TreeType & __tree, const size_t pos) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)),
+      curr(nullptr), curr_pos(pos)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const BinTreeXt_Iterator & itor) noexcept
+    : tree_ptr(itor.tree_ptr), curr(itor.curr), curr_pos(itor.curr_pos)
+  { /* empty */ }
+
+  BinTreeXt_Iterator & operator = (const BinTreeXt_Iterator & itor) noexcept
+  {
+    if (this == &itor)
+      return *this;
+
+    tree_ptr = itor.tree_ptr;
+    curr = itor.curr;
+    curr_pos = itor.curr_pos;
+
+    return *this;
+  }
+
+  void reset_first() noexcept
+  {
+    curr = nullptr;
+    curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
+  }
+
+  void reset_last() noexcept
+  {
+    curr = nullptr;
+    curr_pos = is_container_empty() ? Pos_Empty_Container :
+      static_cast<int>(COUNT(tree_ptr->getRoot())) - 1;
+  }
+
+  void end() noexcept
+  {
+    put_itor_at_the_end(*this);
+  }
+
+  void reset_to_key(const Key & key) noexcept
+  {
+    std::pair<long, Node*> p = tree_ptr->find_position(key);
+    curr_pos = p.first;
+  }
+
+  void reset_to_node(Node * node) noexcept
+  {
+    curr = node;
+    curr_pos = Pos_Not_Updated;
+  }
+
+  void reset_to_pos(const size_t pos) noexcept
+  {
+    curr = nullptr;
+    curr_pos = pos;
+  }
+
+  Node * get_curr_ne() const noexcept
+  {
+    if (not curr_updated())
+      update_curr();
+    return curr;
+  }
+
+  Node * get_curr() const noexcept
+  {
+    return get_curr_ne();
+  }
+
+  size_t get_current_position() const
+  {
+    if (not pos_updated())
+      update_pos();
+
+    ah_range_error_if(curr_pos < -1) << "Iterator has no current";
+    ah_range_error_if(curr_pos > static_cast<int>(COUNT(tree_ptr->getRoot())))
+      << "Iterator has no current";
+
+    return curr_pos;
+  }
+
+  size_t get_pos() const { return get_current_position(); }
+
+  bool has_curr() const noexcept
+  {
+    if (not pos_updated())
+      update_pos();
+
+    return curr_pos >= 0 and
+      curr_pos < static_cast<int>(COUNT(tree_ptr->getRoot()));
+  }
+
+  void prev()
+  {
+    ah_underflow_error_if(not has_curr()) << "Iterator has no current";
+    --curr_pos;
+    curr = nullptr;
+  }
+
+  void next_ne() noexcept
+  {
+    ++curr_pos;
+    curr = nullptr;
+  }
+
+  void next()
+  {
+    ah_overflow_error_if(not has_curr()) << "Iterator has no current";
+    next_ne();
+  }
+
+  Node * del()
+  {
+    ah_underflow_error_if(not has_curr()) << "Iterator has no current";
+
+    if (not curr_updated())
+      update_curr();
+
+    Node * ret_val = tree_ptr->remove(KEY(curr));
+    curr = nullptr;
+
+    return ret_val;
+  }
+
+  bool operator == (const BinTreeXt_Iterator & itor) const noexcept
+  {
+    if (is_container_empty() and itor.is_container_empty())
+      return true;
+
+    if (pos_updated() and itor.pos_updated())
+      return curr_pos == itor.curr_pos;
+
+    if (curr_updated() and itor.curr_updated())
+      return curr == itor.curr;
+
+    if (not pos_updated())
+      {
+        update_pos();
+        return curr_pos == itor.curr_pos;
+      }
+
+    itor.update_pos();
+    return curr_pos == itor.curr_pos;
+  }
+
+  bool operator != (const BinTreeXt_Iterator & itor) const
+  {
+    return not (*this == itor);
+  }
+}; // end class BinTreeXt_Iterator
+
+
 } // end namespace Aleph
 
 # endif // TPL_BINNODEXT_H

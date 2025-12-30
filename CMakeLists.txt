@@ -111,6 +111,7 @@ set(LIBCCCSRCS
     hash-dry.C
     aleph-graph.C
     ahNow.C
+    point.C
 )
 
 # C source files

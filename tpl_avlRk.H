@@ -435,10 +435,10 @@ public:
   Node * getRoot() const noexcept { return root; }
 
   /// Return the number of nodes in the tree
-  size_t size() const noexcept { return COUNT(root); }
+  [[nodiscard]] size_t size() const noexcept { return COUNT(root); }
 
   /// Return true if tree is empty
-  bool is_empty() const noexcept { return root == Node::NullPtr; }
+  [[nodiscard]] bool is_empty() const noexcept { return root == Node::NullPtr; }
 
   /// Search a node containing key
   Node * search(const Key & key) const noexcept
@@ -457,8 +457,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * pp = search_and_stack_avl(KEY(p));
-    if (cmp(KEY(p), KEY(pp)))
+    if (Node * pp = search_and_stack_avl(KEY(p)); cmp(KEY(p), KEY(pp)))
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
       RLINK(pp) = p;
@@ -486,8 +485,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * pp = search_and_stack_avl(KEY(p));
-    if (cmp(KEY(p), KEY(pp)))
+    if (Node * pp = search_and_stack_avl(KEY(p)); cmp(KEY(p), KEY(pp)))
       LLINK(pp) = p;
     else if (cmp(KEY(pp), KEY(p)))
       RLINK(pp) = p;
@@ -618,7 +616,7 @@ public:
   }
 
   /// Return true if the tree is a valid AVL tree with correct counters
-  bool verify() const
+  [[nodiscard]] bool verify() const
   {
     return is_avl_rk(root) and check_rank_tree(root);
   }
@@ -787,8 +785,8 @@ private:
 
   // Join t1 and t2 using pivot as the connecting node
   // All keys in t1 < pivot < all keys in t2
-  static Node * join_with_pivot(Node * t1, size_t h1, Node * pivot,
-                                Node * t2, size_t h2) noexcept
+  static Node * join_with_pivot(Node * t1, const size_t h1, Node * pivot,
+                                Node * t2, const size_t h2) noexcept
   {
     if (h1 <= h2 + 1 and h2 <= h1 + 1)
       {
@@ -806,12 +804,9 @@ private:
         Node * result = join_right(t1, h1, pivot, t2, h2);
         return result;
       }
-    else
-      {
-        // t2 is taller, descend into left spine of t2
-        Node * result = join_left(t1, h1, pivot, t2, h2);
-        return result;
-      }
+    // t2 is taller, descend into left spine of t2
+    Node * result = join_left(t1, h1, pivot, t2, h2);
+    return result;
   }
 
   // Join when h1 > h2 + 1: descend right spine of t1
@@ -838,7 +833,7 @@ private:
     // Join pivot with *pp and t2
     LLINK(pivot) = *pp;
     RLINK(pivot) = t2;
-    size_t left_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
+    const size_t left_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
     DIFF(pivot) = static_cast<signed char>(h2) - static_cast<signed char>(left_h);
     COUNT(pivot) = COUNT(*pp) + COUNT(t2) + 1;
     *pp = pivot;
@@ -850,27 +845,24 @@ private:
         Node * parent = *parent_ptr;
         COUNT(parent) = COUNT(LLINK(parent)) + COUNT(RLINK(parent)) + 1;
 
-        size_t new_right_h = avl_height(RLINK(parent));
-        size_t new_left_h = avl_height(LLINK(parent));
+        const size_t new_right_h = avl_height(RLINK(parent));
+        const size_t new_left_h = avl_height(LLINK(parent));
         DIFF(parent) = static_cast<signed char>(new_right_h) -
                        static_cast<signed char>(new_left_h);
 
         if (DIFF(parent) == 2)
-          {
-            Node * q = RLINK(parent);
-            if (DIFF(q) >= 0)
+            if (Node * q = RLINK(parent); DIFF(q) >= 0)
               *parent_ptr = rotateLeft(parent);
             else
               *parent_ptr = doubleRotateLeft(parent);
-          }
       }
 
     return t1;
   }
 
   // Join when h2 > h1 + 1: descend left spine of t2
-  static Node * join_left(Node * t1, size_t h1, Node * pivot,
-                          Node * t2, size_t h2) noexcept
+  static Node * join_left(Node * t1, const size_t h1, Node * pivot,
+                          Node * t2, const size_t h2) noexcept
   {
     FixedStack<Node**> stack(Node::MaxHeight);
     Node ** pp = &t2;
@@ -889,7 +881,7 @@ private:
 
     RLINK(pivot) = *pp;
     LLINK(pivot) = t1;
-    size_t right_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
+    const size_t right_h = (*pp != Node::NullPtr) ? avl_height(*pp) : 0;
     DIFF(pivot) = static_cast<signed char>(right_h) - static_cast<signed char>(h1);
     COUNT(pivot) = COUNT(t1) + COUNT(*pp) + 1;
     *pp = pivot;
@@ -900,15 +892,14 @@ private:
         Node * parent = *parent_ptr;
         COUNT(parent) = COUNT(LLINK(parent)) + COUNT(RLINK(parent)) + 1;
 
-        size_t new_right_h = avl_height(RLINK(parent));
-        size_t new_left_h = avl_height(LLINK(parent));
+        const size_t new_right_h = avl_height(RLINK(parent));
+        const size_t new_left_h = avl_height(LLINK(parent));
         DIFF(parent) = static_cast<signed char>(new_right_h) -
                        static_cast<signed char>(new_left_h);
 
         if (DIFF(parent) == -2)
           {
-            Node * q = LLINK(parent);
-            if (DIFF(q) <= 0)
+            if (Node * q = LLINK(parent); DIFF(q) <= 0)
               *parent_ptr = rotateRight(parent);
             else
               *parent_ptr = doubleRotateRight(parent);
@@ -939,8 +930,8 @@ private:
 
         // p and its right subtree go to t2
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
-        size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
+        const size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
+        const size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -957,8 +948,8 @@ private:
 
         // p and its left subtree go to t1
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
-        size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
+        const size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
+        const size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -998,8 +989,8 @@ private:
         split_key_dup_rec(LLINK(p), key, t1, left_t2);
 
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
-        size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
+        const size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
+        const size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -1015,8 +1006,8 @@ private:
         split_key_dup_rec(RLINK(p), key, right_t1, t2);
 
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
-        size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
+        const size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
+        const size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -1037,9 +1028,7 @@ private:
         return;
       }
 
-    size_t left_count = COUNT(LLINK(p));
-
-    if (pos <= left_count)
+    if (size_t left_count = COUNT(LLINK(p)); pos <= left_count)
       {
         // Split point is in left subtree or at p
         Node * left_t2;
@@ -1047,8 +1036,8 @@ private:
 
         // p goes to t2
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
-        size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
+        const size_t left_t2_h = (left_t2 != Node::NullPtr) ? avl_height(left_t2) : 0;
+        const size_t right_h = (RLINK(p) != Node::NullPtr) ? avl_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -1065,8 +1054,8 @@ private:
 
         // p goes to t1
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
-        size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
+        const size_t right_t1_h = (right_t1 != Node::NullPtr) ? avl_height(right_t1) : 0;
+        const size_t left_h = (LLINK(p) != Node::NullPtr) ? avl_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -1231,7 +1220,7 @@ public:
       @param[out] t2 tree to receive positions [pos, size)
       @note O(n) time complexity (simple iterative implementation)
   */
-  void split_pos(size_t pos, Gen_Avl_Tree_Rk & t1,
+  void split_pos(const size_t pos, Gen_Avl_Tree_Rk & t1,
                  Gen_Avl_Tree_Rk & t2) noexcept
   {
     if (root == Node::NullPtr)
@@ -1290,219 +1279,14 @@ public:
 
       @ingroup Arboles
   */
-  class Iterator
+  class Iterator : public BinTreeXt_Iterator<Gen_Avl_Tree_Rk, Node, Key, Compare>
   {
-  protected:
-
-    mutable Gen_Avl_Tree_Rk * tree_ptr;
-    mutable Node * curr;
-    mutable int curr_pos;
-
-    static constexpr int Pos_Not_Current = -1;
-    static constexpr int Pos_Empty_Container = -2;
-    static constexpr int Pos_Not_Updated = -3;
-
-  private:
-
-    bool is_container_empty() const noexcept
-    {
-      return COUNT(tree_ptr->getRoot()) == 0;
-    }
-
-    bool pos_updated() const noexcept
-    {
-      return curr_pos != Pos_Not_Updated;
-    }
-
-    bool curr_updated() const noexcept
-    {
-      return curr != nullptr;
-    }
-
-    void update_pos() const noexcept
-    {
-      assert(curr != nullptr);
-      curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->cmp).
-        inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
-    }
-
-    void update_curr() const noexcept
-    {
-      assert(curr_pos != Pos_Not_Updated);
-
-      if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
-          curr_pos == static_cast<int>(COUNT(tree_ptr->getRoot())))
-        return;
-
-      curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
-    }
+    using Base = BinTreeXt_Iterator<Gen_Avl_Tree_Rk, Node, Key, Compare>;
 
   public:
 
-    Iterator() noexcept
-      : tree_ptr(nullptr), curr(nullptr), curr_pos(Pos_Not_Current)
-    { /* empty */ }
-
-    Iterator(const Gen_Avl_Tree_Rk & __tree) noexcept
-      : tree_ptr(&const_cast<Gen_Avl_Tree_Rk&>(__tree)), curr(nullptr)
-    {
-      curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
-    }
-
-    Iterator(const Gen_Avl_Tree_Rk & __tree, Node * __curr) noexcept
-      : tree_ptr(&const_cast<Gen_Avl_Tree_Rk&>(__tree)),
-        curr(__curr), curr_pos(Pos_Not_Updated)
-    { /* empty */ }
-
-    Iterator(const Gen_Avl_Tree_Rk & __tree, const size_t pos) noexcept
-      : tree_ptr(&const_cast<Gen_Avl_Tree_Rk&>(__tree)),
-        curr(nullptr), curr_pos(pos)
-    { /* empty */ }
-
-    Iterator(const Iterator & itor) noexcept
-      : tree_ptr(itor.tree_ptr), curr(itor.curr), curr_pos(itor.curr_pos)
-    { /* empty */ }
-
-    Iterator & operator = (const Iterator & itor) noexcept
-    {
-      if (this == &itor)
-        return *this;
-
-      tree_ptr = itor.tree_ptr;
-      curr = itor.curr;
-      curr_pos = itor.curr_pos;
-
-      return *this;
-    }
-
-    void reset_first() noexcept
-    {
-      curr = nullptr;
-      curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
-    }
-
-    void reset_last() noexcept
-    {
-      curr = nullptr;
-      curr_pos = is_container_empty() ? Pos_Empty_Container :
-        static_cast<int>(COUNT(tree_ptr->getRoot())) - 1;
-    }
-
-    void end() noexcept
-    {
-      put_itor_at_the_end(*this);
-    }
-
-    void reset_to_key(const Key & key) noexcept
-    {
-      std::pair<long, Node*> p = tree_ptr->find_position(key);
-      curr_pos = p.first;
-    }
-
-    void reset_to_node(Node * node) noexcept
-    {
-      curr = node;
-      curr_pos = Pos_Not_Updated;
-    }
-
-    void reset_to_pos(const size_t pos) noexcept
-    {
-      curr = nullptr;
-      curr_pos = pos;
-    }
-
-    Node * get_curr_ne() const noexcept
-    {
-      if (not curr_updated())
-        update_curr();
-      return curr;
-    }
-
-    Node * get_curr() const noexcept
-    {
-      return get_curr_ne();
-    }
-
-    size_t get_current_position() const
-    {
-      if (not pos_updated())
-        update_pos();
-
-      ah_range_error_if(curr_pos < -1) << "Iterator has no current";
-      ah_range_error_if(curr_pos > static_cast<int>(COUNT(tree_ptr->getRoot())))
-        << "Iterator has no current";
-
-      return curr_pos;
-    }
-
-    size_t get_pos() const { return get_current_position(); }
-
-    bool has_curr() const noexcept
-    {
-      if (not pos_updated())
-        update_pos();
-
-      return curr_pos >= 0 and
-        curr_pos < static_cast<int>(COUNT(tree_ptr->getRoot()));
-    }
-
-    void prev()
-    {
-      ah_underflow_error_if(not has_curr()) << "Iterator has no current";
-      --curr_pos;
-      curr = nullptr;
-    }
-
-    void next_ne() noexcept
-    {
-      ++curr_pos;
-      curr = nullptr;
-    }
-
-    void next()
-    {
-      ah_overflow_error_if(not has_curr()) << "Iterator has no current";
-      next_ne();
-    }
-
-    Node * del()
-    {
-      ah_underflow_error_if(not has_curr()) << "Iterator has no current";
-
-      if (not curr_updated())
-        update_curr();
-
-      Node * ret_val = tree_ptr->remove(KEY(curr));
-      curr = nullptr;
-
-      return ret_val;
-    }
-
-    bool operator == (const Iterator & itor) const noexcept
-    {
-      if (is_container_empty() and itor.is_container_empty())
-        return true;
-
-      if (pos_updated() and itor.pos_updated())
-        return curr_pos == itor.curr_pos;
-
-      if (curr_updated() and itor.curr_updated())
-        return curr == itor.curr;
-
-      if (not pos_updated())
-        {
-          update_pos();
-          return curr_pos == itor.curr_pos;
-        }
-
-      itor.update_pos();
-      return curr_pos == itor.curr_pos;
-    }
-
-    bool operator != (const Iterator & itor) const
-    {
-      return not (*this == itor);
-    }
+    using Base::Base;
+    using Base::operator=;
   }; // end class Iterator
 };
 

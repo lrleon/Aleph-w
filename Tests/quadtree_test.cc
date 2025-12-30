@@ -245,17 +245,18 @@ TEST(QuadTreeMerging, RemovalTriggersJoin)
 {
   QuadTree tree(0, 100, 0, 100, 2);
   
-  // Insert 3 points to trigger split
-  tree.insert(Point(25, 25));
-  tree.insert(Point(30, 30));
-  tree.insert(Point(35, 35));
+  // Insert 3 points in DIFFERENT quadrants to trigger split
+  // Points must be in different quadrants to avoid nested splits
+  tree.insert(Point(25, 25));  // SW quadrant
+  tree.insert(Point(75, 25));  // SE quadrant
+  tree.insert(Point(25, 75));  // NW quadrant
   
   EXPECT_FALSE(tree.get_root()->is_leaf());
   
   // Remove one point to go below threshold
-  tree.remove(Point(35, 35));
+  tree.remove(Point(25, 75));
   
-  // Root should merge back to leaf
+  // Root should merge back to leaf (only 2 points left, threshold is 2)
   EXPECT_TRUE(tree.get_root()->is_leaf());
 }
 
@@ -545,58 +546,39 @@ TEST(QuadTreeFuzz, RandomOperations)
   QuadTree tree(0, 1000, 0, 1000, 4);
   
   std::mt19937 gen(99999);
-  std::uniform_real_distribution<> coord_dis(0, 1000);
+  // Use integer coordinates to avoid mpq_class precision issues with double conversion
+  std::uniform_int_distribution<int> coord_dis(0, 999);
   std::uniform_int_distribution<> op_dis(0, 2);
   
-  std::unordered_set<std::string> inserted_points;
-  
-  auto point_key = [](const Point & p) {
-    std::ostringstream oss;
-    oss << p.get_x() << "," << p.get_y();
-    return oss.str();
-  };
+  // Store points directly to avoid string conversion precision issues
+  std::vector<Point> inserted_points;
   
   for (int i = 0; i < 1000; ++i)
     {
       int op = op_dis(gen);
-      Point p(coord_dis(gen), coord_dis(gen));
-      std::string key = point_key(p);
       
       if (op == 0 || op == 1) // Insert
         {
+          Point p(coord_dis(gen), coord_dis(gen));
           Point * result = tree.insert(p);
           if (result != nullptr)
-            inserted_points.insert(key);
+            inserted_points.push_back(p);
         }
       else if (op == 2 && not inserted_points.empty()) // Remove
         {
           // Pick a random inserted point
-          auto it = inserted_points.begin();
-          std::advance(it, gen() % inserted_points.size());
-          
-          // Parse the key back to a point
-          std::istringstream iss(*it);
-          double x, y;
-          char comma;
-          iss >> x >> comma >> y;
-          Point to_remove(x, y);
+          size_t idx = gen() % inserted_points.size();
+          Point to_remove = inserted_points[idx];
           
           tree.remove(to_remove);
-          inserted_points.erase(it);
+          inserted_points.erase(inserted_points.begin() + idx);
         }
     }
   
   // Verify consistency
-  for (const auto & key : inserted_points)
-    {
-      std::istringstream iss(key);
-      double x, y;
-      char comma;
-      iss >> x >> comma >> y;
-      Point p(x, y);
-      
-      EXPECT_NE(tree.search(p), nullptr) << "Point (" << x << ", " << y << ") should be in tree";
-    }
+  for (const auto & p : inserted_points)
+    EXPECT_NE(tree.search(p), nullptr) 
+      << "Point (" << p.get_x() << ", " << p.get_y() << ") should be in tree";
 }
 
 // ============================================================================

@@ -380,9 +380,9 @@ public:
 
   Compare & get_compare() noexcept { return key_comp(); }
 
-  Gen_Rb_Tree_Rk(Compare __cmp = Compare())
+  Gen_Rb_Tree_Rk(Compare cmp_arg = Compare())
     : head(&head_node), root(head_node.getR()),
-      rb_stack(Node::MaxHeight), cmp(__cmp)
+      rb_stack(Node::MaxHeight), cmp(cmp_arg)
   { /* empty */ }
 
   void swap(Gen_Rb_Tree_Rk & tree) noexcept
@@ -482,8 +482,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * q = search_dup_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q)))
+    if (Node * q = search_dup_and_stack_rb(KEY(p)); cmp(KEY(p), KEY(q)))
       LLINK(q) = p;
     else
       RLINK(q) = p;
@@ -756,7 +755,6 @@ private:
                             COLOR(LLINK(s)) = BLACK;
                             COLOR(s) = RED;
                             RLINK(p) = rotate_right_simple(s);
-                            s = RLINK(p);
                           }
                         // Case 4: right child of sibling is red
                         Color old_color = COLOR(p);
@@ -850,7 +848,6 @@ private:
                             COLOR(RLINK(s)) = BLACK;
                             COLOR(s) = RED;
                             LLINK(p) = rotate_left_simple(s);
-                            s = LLINK(p);
                           }
                         Color old_color = COLOR(p);
                         p = rotate_right_simple(p);
@@ -899,11 +896,8 @@ private:
         // t1 is taller (more black nodes), descend right spine
         return join_right_rb(t1, bh1, pivot, t2, bh2);
       }
-    else
-      {
-        // t2 is taller, descend left spine
-        return join_left_rb(t1, bh1, pivot, t2, bh2);
-      }
+    // t2 is taller, descend left spine
+    return join_left_rb(t1, bh1, pivot, t2, bh2);
   }
 
   // Join when bh1 > bh2
@@ -1090,8 +1084,8 @@ private:
         found = split_key_rec_rb(LLINK(p), key, t1, left_t2);
 
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
-        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+        const size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        const size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -1108,8 +1102,8 @@ private:
         found = split_key_rec_rb(RLINK(p), key, right_t1, t2);
 
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
-        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+        const size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        const size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -1153,8 +1147,8 @@ private:
         split_key_dup_rec_rb(LLINK(p), key, t1, left_t2);
 
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
-        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+        const size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        const size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -1171,8 +1165,8 @@ private:
         split_key_dup_rec_rb(RLINK(p), key, right_t1, t2);
 
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
-        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+        const size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        const size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -1202,8 +1196,8 @@ private:
         split_pos_rec_rb(LLINK(p), pos, t1, left_t2);
 
         LLINK(p) = Node::NullPtr;
-        size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
-        size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
+        const size_t left_t2_bh = (left_t2 != Node::NullPtr) ? black_height(left_t2) : 0;
+        const size_t right_bh = (RLINK(p) != Node::NullPtr) ? black_height(RLINK(p)) : 0;
 
         Node * right_tree = RLINK(p);
         RLINK(p) = Node::NullPtr;
@@ -1220,8 +1214,8 @@ private:
         split_pos_rec_rb(RLINK(p), pos - left_count - 1, right_t1, t2);
 
         RLINK(p) = Node::NullPtr;
-        size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
-        size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
+        const size_t right_t1_bh = (right_t1 != Node::NullPtr) ? black_height(right_t1) : 0;
+        const size_t left_bh = (LLINK(p) != Node::NullPtr) ? black_height(LLINK(p)) : 0;
 
         Node * left_tree = LLINK(p);
         LLINK(p) = Node::NullPtr;
@@ -1439,219 +1433,14 @@ public:
 
       @ingroup Arboles
   */
-  class Iterator
+  class Iterator : public BinTreeXt_Iterator<Gen_Rb_Tree_Rk, Node, Key, Compare>
   {
-  protected:
-
-    mutable Gen_Rb_Tree_Rk * tree_ptr;
-    mutable Node * curr;
-    mutable int curr_pos;
-
-    static constexpr int Pos_Not_Current = -1;
-    static constexpr int Pos_Empty_Container = -2;
-    static constexpr int Pos_Not_Updated = -3;
-
-  private:
-
-    bool is_container_empty() const noexcept
-    {
-      return COUNT(tree_ptr->getRoot()) == 0;
-    }
-
-    bool pos_updated() const noexcept
-    {
-      return curr_pos != Pos_Not_Updated;
-    }
-
-    bool curr_updated() const noexcept
-    {
-      return curr != nullptr;
-    }
-
-    void update_pos() const noexcept
-    {
-      assert(curr != nullptr);
-      curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->cmp).
-        inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
-    }
-
-    void update_curr() const noexcept
-    {
-      assert(curr_pos != Pos_Not_Updated);
-
-      if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
-          curr_pos == static_cast<int>(COUNT(tree_ptr->getRoot())))
-        return;
-
-      curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
-    }
+    using Base = BinTreeXt_Iterator<Gen_Rb_Tree_Rk, Node, Key, Compare>;
 
   public:
 
-    Iterator() noexcept
-      : tree_ptr(nullptr), curr(nullptr), curr_pos(Pos_Not_Current)
-    { /* empty */ }
-
-    Iterator(const Gen_Rb_Tree_Rk & __tree) noexcept
-      : tree_ptr(&const_cast<Gen_Rb_Tree_Rk&>(__tree)), curr(nullptr)
-    {
-      curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
-    }
-
-    Iterator(const Gen_Rb_Tree_Rk & __tree, Node * __curr) noexcept
-      : tree_ptr(&const_cast<Gen_Rb_Tree_Rk&>(__tree)),
-        curr(__curr), curr_pos(Pos_Not_Updated)
-    { /* empty */ }
-
-    Iterator(const Gen_Rb_Tree_Rk & __tree, const size_t pos) noexcept
-      : tree_ptr(&const_cast<Gen_Rb_Tree_Rk&>(__tree)),
-        curr(nullptr), curr_pos(pos)
-    { /* empty */ }
-
-    Iterator(const Iterator & itor) noexcept
-      : tree_ptr(itor.tree_ptr), curr(itor.curr), curr_pos(itor.curr_pos)
-    { /* empty */ }
-
-    Iterator & operator = (const Iterator & itor) noexcept
-    {
-      if (this == &itor)
-        return *this;
-
-      tree_ptr = itor.tree_ptr;
-      curr = itor.curr;
-      curr_pos = itor.curr_pos;
-
-      return *this;
-    }
-
-    void reset_first() noexcept
-    {
-      curr = nullptr;
-      curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
-    }
-
-    void reset_last() noexcept
-    {
-      curr = nullptr;
-      curr_pos = is_container_empty() ? Pos_Empty_Container :
-        static_cast<int>(COUNT(tree_ptr->getRoot())) - 1;
-    }
-
-    void end() noexcept
-    {
-      put_itor_at_the_end(*this);
-    }
-
-    void reset_to_key(const Key & key) noexcept
-    {
-      std::pair<long, Node*> p = tree_ptr->find_position(key);
-      curr_pos = p.first;
-    }
-
-    void reset_to_node(Node * node) noexcept
-    {
-      curr = node;
-      curr_pos = Pos_Not_Updated;
-    }
-
-    void reset_to_pos(const size_t pos) noexcept
-    {
-      curr = nullptr;
-      curr_pos = pos;
-    }
-
-    Node * get_curr_ne() const noexcept
-    {
-      if (not curr_updated())
-        update_curr();
-      return curr;
-    }
-
-    Node * get_curr() const noexcept
-    {
-      return get_curr_ne();
-    }
-
-    size_t get_current_position() const
-    {
-      if (not pos_updated())
-        update_pos();
-
-      ah_range_error_if(curr_pos < -1) << "Iterator has no current";
-      ah_range_error_if(curr_pos > static_cast<int>(COUNT(tree_ptr->getRoot())))
-        << "Iterator has no current";
-
-      return curr_pos;
-    }
-
-    size_t get_pos() const { return get_current_position(); }
-
-    bool has_curr() const noexcept
-    {
-      if (not pos_updated())
-        update_pos();
-
-      return curr_pos >= 0 and
-        curr_pos < static_cast<int>(COUNT(tree_ptr->getRoot()));
-    }
-
-    void prev()
-    {
-      ah_underflow_error_if(not has_curr()) << "Iterator has no current";
-      --curr_pos;
-      curr = nullptr;
-    }
-
-    void next_ne() noexcept
-    {
-      ++curr_pos;
-      curr = nullptr;
-    }
-
-    void next()
-    {
-      ah_overflow_error_if(not has_curr()) << "Iterator has no current";
-      next_ne();
-    }
-
-    Node * del()
-    {
-      ah_underflow_error_if(not has_curr()) << "Iterator has no current";
-
-      if (not curr_updated())
-        update_curr();
-
-      Node * ret_val = tree_ptr->remove(KEY(curr));
-      curr = nullptr;
-
-      return ret_val;
-    }
-
-    bool operator == (const Iterator & itor) const noexcept
-    {
-      if (is_container_empty() and itor.is_container_empty())
-        return true;
-
-      if (pos_updated() and itor.pos_updated())
-        return curr_pos == itor.curr_pos;
-
-      if (curr_updated() and itor.curr_updated())
-        return curr == itor.curr;
-
-      if (not pos_updated())
-        {
-          update_pos();
-          return curr_pos == itor.curr_pos;
-        }
-
-      itor.update_pos();
-      return curr_pos == itor.curr_pos;
-    }
-
-    bool operator != (const Iterator & itor) const
-    {
-      return not (*this == itor);
-    }
+    using Base::Base;
+    using Base::operator=;
   }; // end class Iterator
 };
 
