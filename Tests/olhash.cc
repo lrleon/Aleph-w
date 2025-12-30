@@ -25,6 +25,9 @@
 */
 # include <gtest/gtest.h>
 
+# include <random>
+# include <set>
+
 # include <tpl_olhash.H>
 
 using namespace std;
@@ -288,6 +291,287 @@ TEST(OLhashTable, RemoveNonExistentDoesNotChangeCapacity)
   // All elements should still be findable
   for (int i = 0; i < 50; ++i)
     EXPECT_NE(tbl.search(i * 2), nullptr) << "Element " << i * 2 << " not found";
+}
+
+// ============================================================================
+// STRESS TESTS / FUZZING
+// ============================================================================
+
+// Fuzzing test: random operations with oracle verification
+TEST(OLhashTable, Fuzz_RandomOperationsWithOracle)
+{
+  // Use large table to avoid resize
+  OLhashTable<int> tbl(20000);
+  set<int> oracle;
+  
+  mt19937 rng(42);
+  uniform_int_distribution<int> key_dist(0, 5000);
+  uniform_int_distribution<int> op_dist(0, 2);
+  
+  const int num_operations = 8000;
+  
+  for (int i = 0; i < num_operations; ++i)
+    {
+      int key = key_dist(rng);
+      int op = op_dist(rng);
+      
+      switch (op)
+        {
+        case 0:  // Insert
+          {
+            bool in_oracle = oracle.count(key) > 0;
+            auto ptr = tbl.insert(key);
+            if (ptr != nullptr)
+              {
+                EXPECT_FALSE(in_oracle) << "Insert succeeded but oracle had key " << key;
+                oracle.insert(key);
+              }
+            else
+              {
+                EXPECT_TRUE(in_oracle) << "Insert failed but oracle didn't have key " << key;
+              }
+            break;
+          }
+        case 1:  // Remove
+          {
+            bool in_oracle = oracle.count(key) > 0;
+            if (in_oracle)
+              {
+                try
+                  {
+                    tbl.remove(key);
+                    oracle.erase(key);
+                  }
+                catch (const domain_error &)
+                  {
+                    FAIL() << "Remove threw for key " << key << " that was in oracle";
+                  }
+              }
+            else
+              {
+                EXPECT_THROW(tbl.remove(key), domain_error);
+              }
+            break;
+          }
+        case 2:  // Search
+          {
+            auto ptr = tbl.search(key);
+            bool in_oracle = oracle.count(key) > 0;
+            EXPECT_EQ(ptr != nullptr, in_oracle) << "Search mismatch for key " << key;
+            if (ptr)
+              EXPECT_EQ(*ptr, key);
+            break;
+          }
+        }
+      
+      ASSERT_EQ(tbl.size(), oracle.size()) << "Size mismatch at operation " << i;
+    }
+  
+  // Final verification
+  for (int key : oracle)
+    ASSERT_NE(tbl.search(key), nullptr) << "Final: key " << key << " missing";
+}
+
+// Stress test: fill and empty completely
+TEST(OLhashTable, Stress_FillAndEmpty)
+{
+  OLhashTable<int> tbl(1000);
+  const size_t target = tbl.capacity() - 1;
+  
+  // Fill
+  for (size_t i = 0; i < target; ++i)
+    {
+      auto ptr = tbl.insert(static_cast<int>(i));
+      ASSERT_NE(ptr, nullptr) << "Insert failed at i=" << i;
+    }
+  
+  EXPECT_EQ(tbl.size(), target);
+  
+  // Verify
+  for (size_t i = 0; i < target; ++i)
+    ASSERT_NE(tbl.search(static_cast<int>(i)), nullptr);
+  
+  // Empty in random order
+  vector<int> keys(target);
+  iota(keys.begin(), keys.end(), 0);
+  
+  mt19937 rng(123);
+  shuffle(keys.begin(), keys.end(), rng);
+  
+  for (size_t i = 0; i < target; ++i)
+    {
+      EXPECT_NO_THROW(tbl.remove(keys[i]));
+      EXPECT_EQ(tbl.size(), target - i - 1);
+    }
+  
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// Stress test: linear probing with forced collisions
+TEST(OLhashTable, Stress_LinearProbingCollisions)
+{
+  // Bad hash that causes collisions
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  const int num_elements = 50;
+  for (int i = 0; i < num_elements; ++i)
+    {
+      auto ptr = tbl.insert(i);
+      ASSERT_NE(ptr, nullptr) << "Insert failed at i=" << i;
+    }
+  
+  EXPECT_EQ(tbl.size(), num_elements);
+  
+  // All elements should be findable
+  for (int i = 0; i < num_elements; ++i)
+    {
+      auto ptr = tbl.search(i);
+      ASSERT_NE(ptr, nullptr) << "Element " << i << " not found";
+      EXPECT_EQ(*ptr, i);
+    }
+  
+  // Remove in order
+  for (int i = 0; i < num_elements; ++i)
+    {
+      EXPECT_NO_THROW(tbl.remove(i));
+      EXPECT_EQ(tbl.search(i), nullptr);
+    }
+  
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// Stress test: insert/remove cycles
+TEST(OLhashTable, Stress_InsertRemoveCycles)
+{
+  OLhashTable<int> tbl(100);
+  
+  const int cycles = 100;
+  const int elements_per_cycle = 50;
+  
+  for (int cycle = 0; cycle < cycles; ++cycle)
+    {
+      for (int i = 0; i < elements_per_cycle; ++i)
+        {
+          int key = cycle * elements_per_cycle + i;
+          ASSERT_NE(tbl.insert(key), nullptr);
+        }
+      
+      EXPECT_EQ(tbl.size(), elements_per_cycle);
+      
+      for (int i = 0; i < elements_per_cycle; ++i)
+        {
+          int key = cycle * elements_per_cycle + i;
+          EXPECT_NO_THROW(tbl.remove(key));
+        }
+      
+      EXPECT_TRUE(tbl.is_empty());
+    }
+}
+
+// Stress test: resize operations
+TEST(OLhashTable, Stress_ResizeOperations)
+{
+  OLhashTable<int> tbl(10);
+  
+  set<int> oracle;
+  mt19937 rng(999);
+  uniform_int_distribution<int> key_dist(0, 100000);
+  
+  const int num_inserts = 5000;
+  for (int i = 0; i < num_inserts; ++i)
+    {
+      int key = key_dist(rng);
+      auto ptr = tbl.insert(key);
+      if (oracle.count(key) == 0 && ptr != nullptr)
+        oracle.insert(key);
+    }
+  
+  EXPECT_EQ(tbl.size(), oracle.size());
+  
+  // Verify all survived
+  for (int key : oracle)
+    ASSERT_NE(tbl.search(key), nullptr) << "Key " << key << " lost after resize";
+}
+
+// Fuzz test: interleaved operations
+TEST(OLhashTable, Fuzz_InterleavedOperations)
+{
+  // Use large table to avoid resize
+  OLhashTable<int> tbl(5000);
+  set<int> oracle;
+  
+  mt19937 rng(7777);
+  uniform_int_distribution<int> key_dist(0, 1000);
+  uniform_real_distribution<double> prob_dist(0.0, 1.0);
+  
+  const int num_ops = 5000;
+  
+  for (int i = 0; i < num_ops; ++i)
+    {
+      int key = key_dist(rng);
+      double prob = prob_dist(rng);
+      
+      if (prob < 0.4)
+        {
+          auto ptr = tbl.insert(key);
+          if (ptr != nullptr)
+            oracle.insert(key);
+        }
+      else if (prob < 0.6)
+        {
+          if (oracle.count(key))
+            {
+              try
+                {
+                  tbl.remove(key);
+                  oracle.erase(key);
+                }
+              catch (const domain_error &)
+                {
+                  FAIL() << "Remove threw for key " << key << " that was in oracle";
+                }
+            }
+        }
+      else
+        {
+          auto ptr = tbl.search(key);
+          EXPECT_EQ(ptr != nullptr, oracle.count(key) > 0);
+        }
+      
+      if (i % 500 == 0)
+        ASSERT_EQ(tbl.size(), oracle.size());
+    }
+  
+  EXPECT_EQ(tbl.size(), oracle.size());
+}
+
+// Stress test: with auto-resize enabled
+TEST(OLhashTable, Stress_WithAutoResize)
+{
+  OLhashTable<int> tbl(10);  // Small initial size, auto-resize enabled
+  set<int> oracle;
+  
+  mt19937 rng(333);
+  uniform_int_distribution<int> key_dist(0, 50000);
+  
+  const int num_inserts = 3000;
+  for (int i = 0; i < num_inserts; ++i)
+    {
+      int key = key_dist(rng);
+      auto ptr = tbl.insert(key);
+      if (ptr != nullptr)
+        oracle.insert(key);
+    }
+  
+  EXPECT_EQ(tbl.size(), oracle.size());
+  
+  for (int key : oracle)
+    {
+      auto ptr = tbl.search(key);
+      ASSERT_NE(ptr, nullptr) << "Key " << key << " lost during resize";
+    }
 }
 
 

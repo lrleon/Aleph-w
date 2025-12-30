@@ -54,24 +54,24 @@ namespace Aleph {
     Slink() : next(this) { /* Empty */ }
 
     /// Reset the link so it points to itself.
-    void reset() 
+    void reset() noexcept
     {
       next = this; 
     }
     /// Return true if this link is empty (points to itself).
-    bool is_empty() const 
+    [[nodiscard]] constexpr bool is_empty() const noexcept
     {
       return next == this; 
     }
 
     /// Return the next link.
-    Slink *& get_next() noexcept
+    [[nodiscard]] constexpr Slink *& get_next() noexcept
     {
       return next; 
     }
 
     /// Return the next link (const overload).
-    const Slink * get_next() const noexcept
+    [[nodiscard]] constexpr const Slink * get_next() const noexcept
     {
       return next;
     }

@@ -191,13 +191,13 @@ namespace Aleph {
     }
 
     /// Return `true` if `this` (as header node) is empty
-    bool is_empty() const noexcept { return this == next and this == prev; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return this == next and this == prev; }
 
     /// Return `true` if `this` (as header node) has exactly one element
-    bool is_unitarian() const noexcept { return this != next and next == prev; }
+    [[nodiscard]] constexpr bool is_unitarian() const noexcept { return this != next and next == prev; }
 
     /// Return `true` if `this` (as header node) has zero or one element
-    bool is_unitarian_or_empty() const noexcept { return next == prev; }
+    [[nodiscard]] constexpr bool is_unitarian_or_empty() const noexcept { return next == prev; }
 
     /** Insert `node` after `this`.
 
@@ -240,30 +240,30 @@ namespace Aleph {
     }
 
     /// Return the link that is after `this`
-    Dlink *& get_next() const noexcept
+    [[nodiscard]] Dlink *& get_next() const noexcept
     {
       assert(next != nullptr and prev != nullptr);
       return next;
     }
 
     /// Return the link that is before `this`
-    Dlink *& get_prev() const noexcept
+    [[nodiscard]] Dlink *& get_prev() const noexcept
     {
       assert(next != nullptr and prev != nullptr);
       return prev;
     }
 
     /// If `this` is a header node, it return the first node of `this`
-    Dlink *& get_first_ne() const noexcept { return next; }
+    [[nodiscard]] constexpr Dlink *& get_first_ne() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
-    Dlink *& get_last_ne() const noexcept { return prev; }
+    [[nodiscard]] constexpr Dlink *& get_last_ne() const noexcept { return prev; }
 
     /// If `this` is a header node, it return the first node of `this`
-    Dlink *& get_first() const noexcept { return next; }
+    [[nodiscard]] constexpr Dlink *& get_first() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
-    Dlink *& get_last() const noexcept { return prev; }
+    [[nodiscard]] constexpr Dlink *& get_last() const noexcept { return prev; }
 
     /** Wrap a header to a list (without header).
 
@@ -655,19 +655,19 @@ namespace Aleph {
       }
 
       /// Return `true` if the iterator has current item
-      bool has_curr() const noexcept
+      [[nodiscard]] bool has_curr() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
         return curr != head;
       }
 
-      bool is_last() const noexcept
+      [[nodiscard]] bool is_last() const noexcept
       {
         return head->is_empty() ? false : curr == head->prev;
       }
 
       /// Return the current link guaranteeing no exception. Be careful.
-      Dlink * get_curr_ne() const noexcept
+      [[nodiscard]] Dlink * get_curr_ne() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
         return curr;
@@ -678,7 +678,7 @@ namespace Aleph {
           \return a pointer to the current node
           \throw overflow_error if there is not current node
       */
-      Dlink * get_curr() const
+      [[nodiscard]] Dlink * get_curr() const
       {
         ah_overflow_error_if(not has_curr()) << "Not element in list";
 
@@ -686,13 +686,13 @@ namespace Aleph {
       }
 
       ///  Return `true` if the iterator is positiones on the first item
-      bool is_in_first() const noexcept
+      [[nodiscard]] constexpr bool is_in_first() const noexcept
       {
         return head->is_empty() ? false : curr == head->next;
       }
 
       ///  Return `true` if the iterator is positiones on the last item
-      bool is_in_last() const noexcept { return is_last(); }
+      [[nodiscard]] bool is_in_last() const noexcept { return is_last(); }
 
       /// Move the iterator one position backward guaranteeing no
       /// exception. Be careful.
@@ -723,11 +723,11 @@ namespace Aleph {
       }
 
       /// Return `true` if `this` and it are positioned on the same item
-      bool operator == (const Iterator & it) const noexcept
+      [[nodiscard]] constexpr bool operator == (const Iterator & it) const noexcept
       { return curr == it.curr; }
 
       /// Return `true` if `this` and `it` hace different states
-      bool operator != (const Iterator & it) const noexcept
+      [[nodiscard]] constexpr bool operator != (const Iterator & it) const noexcept
       { return curr != it.curr; }
 
       /** Remove from the list the current node and move the iterator one
@@ -758,10 +758,10 @@ namespace Aleph {
       }
 
       /// Return `true` if the iterator is on the list pointed by `l`
-      bool verify(Dlink * l) const { return head == l; }
+      [[nodiscard]] constexpr bool verify(Dlink * l) const noexcept { return head == l; }
 
       /// Return `true` if `this` and `it` are on the same list
-      bool verify(const Iterator & it) const { return head == it.head; }
+      [[nodiscard]] constexpr bool verify(const Iterator & it) const noexcept { return head == it.head; }
     };
 
     /** Remove and free memory for all the items of list.

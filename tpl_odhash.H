@@ -497,76 +497,177 @@ namespace Aleph {
     {
       assert(N < len);
 
-      const size_t i_fst = hash_fct(key) % len; // probe with 1st hash function
-      if (table[i_fst].status != BUSY) // available bucket?
+      const size_t i_fst = hash_fct(key) % len;
+
+      // EMPTY at first probe: safe to insert, no collision chain
+      if (table[i_fst].status == EMPTY)
         return allocate_bucket(table[i_fst], FIRST_PROBE);
 
-      if (cmp(table[i_fst].key, key)) // test if key is alredy present
+      // BUSY at first probe: check for duplicate
+      if (table[i_fst].status == BUSY && cmp(table[i_fst].key, key))
         return nullptr;
 
-      const size_t i_snd = second_hash_fct(key) % len; // 2nd hash
-      if (table[i_snd].status != BUSY) // available bucket?
+      const size_t i_snd = second_hash_fct(key) % len;
+
+      // EMPTY at second probe: safe to insert if first wasn't the key
+      if (table[i_snd].status == EMPTY)
         {
+          // If first was DELETED, use it; otherwise use second
+          if (table[i_fst].status == DELETED)
+            return allocate_bucket(table[i_fst], FIRST_PROBE);
           ++table[i_fst].probe_counter;
           return allocate_bucket(table[i_snd], SECOND_PROBE);
         }
 
-      if (cmp(table[i_snd].key, key)) // test if key is alredy present
+      // BUSY at second probe: check for duplicate
+      if (table[i_snd].status == BUSY && cmp(table[i_snd].key, key))
         return nullptr;
+
+      // Need to do linear probing - search for duplicate and find insertion point
+      Bucket * candidate = nullptr;
+      size_t candidate_idx = 0;
+
+      // Check if first or second are candidates (DELETED)
+      if (table[i_fst].status == DELETED)
+        {
+          candidate = &table[i_fst];
+          candidate_idx = 0;  // Marker: use first probe slot
+        }
+      else if (table[i_snd].status == DELETED)
+        {
+          candidate = &table[i_snd];
+          candidate_idx = 1;  // Marker: use second probe slot
+        }
 
       size_t i = i_snd;
       for (size_t c = 0; c < len; ++c)
         {
           index_forward(i);
-          switch (table[i].status)
+
+          if (table[i].status == EMPTY)
             {
-            case BUSY:
-              if (cmp(table[i].key, key))
-                { // duplicated key ==> rollback previous probe_counter increases
-                  for (size_t k = 0; k < c; ++k)
+              // End of collision chain - no duplicate, insert
+              if (candidate)
+                {
+                  // Insert at the first DELETED slot found
+                  if (candidate_idx == 0)  // First probe slot
+                    return allocate_bucket(*candidate, FIRST_PROBE);
+                  else if (candidate_idx == 1)  // Second probe slot
                     {
-                      index_backward(i);
-                      --table[i].probe_counter;
+                      ++table[i_fst].probe_counter;
+                      return allocate_bucket(*candidate, SECOND_PROBE);
                     }
-                  return nullptr;
+                  else  // Linear probe slot - need to update all counters
+                    {
+                      ++table[i_fst].probe_counter;
+                      ++table[i_snd].probe_counter;
+                      size_t j = i_snd;
+                      for (size_t k = 0; k < candidate_idx - 2; ++k)
+                        {
+                          index_forward(j);
+                          ++table[j].probe_counter;
+                        }
+                      return allocate_bucket(*candidate, LINEAR_PROBE);
+                    }
                 }
-              break;
-            case DELETED:
-            case EMPTY:
+              // No DELETED found, insert at this EMPTY slot
               ++table[i_fst].probe_counter;
               ++table[i_snd].probe_counter;
+              for (size_t k = 0; k < c; ++k)
+                {
+                  size_t j = i_snd;
+                  for (size_t m = 0; m <= k; ++m)
+                    index_forward(j);
+                  ++table[j].probe_counter;
+                }
               return allocate_bucket(table[i], LINEAR_PROBE);
-            default: AH_ERROR("ODhashTable: Invalid bucket status"); break;
             }
-          ++table[i].probe_counter;
+
+          if (table[i].status == BUSY && cmp(table[i].key, key))
+            return nullptr;  // Duplicate found
+
+          if (table[i].status == DELETED && candidate == nullptr)
+            {
+              candidate = &table[i];
+              candidate_idx = c + 2;  // Store position (2 = after first and second)
+            }
+        }
+
+      // Table full, but might have a DELETED slot
+      if (candidate)
+        {
+          if (candidate_idx == 0)
+            return allocate_bucket(*candidate, FIRST_PROBE);
+          else if (candidate_idx == 1)
+            {
+              ++table[i_fst].probe_counter;
+              return allocate_bucket(*candidate, SECOND_PROBE);
+            }
+          else
+            {
+              ++table[i_fst].probe_counter;
+              ++table[i_snd].probe_counter;
+              size_t j = i_snd;
+              for (size_t k = 0; k < candidate_idx - 2; ++k)
+                {
+                  index_forward(j);
+                  ++table[j].probe_counter;
+                }
+              return allocate_bucket(*candidate, LINEAR_PROBE);
+            }
         }
 
       return nullptr;
     }
 
-    // search key. If found return true, otherwise false and allocates the bucket
+    // search key. If found return (bucket_ptr, true), otherwise allocates and
+    // returns (new_bucket_ptr, false)
     tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
     {
       assert(N < len);
 
-      const size_t i_fst = hash_fct(key) % len; // probe with 1st hash function
-      if (table[i_fst].status != BUSY) // available bucket?
-        return tuple<Bucket*, bool>(allocate_bucket(table[i_fst], FIRST_PROBE),
-                                    false);
+      Bucket * candidate = nullptr;
+      size_t candidate_linear_steps = 0;  // How many linear steps to reach candidate
 
-      if (cmp(table[i_fst].key, key)) // test if key is alredy present
-        return tuple<Bucket*, bool>(&table[i_fst], true);
-
-      const size_t i_snd = second_hash_fct(key) % len; // 2nd hash
-      if (table[i_snd].status != BUSY) // available bucket?
+      const size_t i_fst = hash_fct(key) % len;
+      switch (table[i_fst].status)
         {
-          ++table[i_fst].probe_counter;
-          return tuple<Bucket*, bool>(allocate_bucket(table[i_snd], SECOND_PROBE),
-                                      false);
+        case EMPTY:
+          return {allocate_bucket(table[i_fst], FIRST_PROBE), false};
+        case DELETED:
+          candidate = &table[i_fst];
+          // candidate at FIRST_PROBE, no linear steps needed
+          break;
+        case BUSY:
+          if (cmp(table[i_fst].key, key))
+            return {&table[i_fst], true};  // found existing
+          break;
         }
 
-      if (cmp(table[i_snd].key, key)) // test if key is already present
-        return tuple<Bucket*, bool>(&table[i_snd], true);
+      const size_t i_snd = second_hash_fct(key) % len;
+      switch (table[i_snd].status)
+        {
+        case EMPTY:
+          if (candidate)  // candidate is at i_fst (FIRST_PROBE)
+            return {allocate_bucket(*candidate, FIRST_PROBE), false};
+          ++table[i_fst].probe_counter;
+          return {allocate_bucket(table[i_snd], SECOND_PROBE), false};
+        case DELETED:
+          if (candidate == nullptr)
+            {
+              candidate = &table[i_snd];
+              // candidate at SECOND_PROBE, no linear steps needed
+            }
+          break;
+        case BUSY:
+          if (cmp(table[i_snd].key, key))
+            return {&table[i_snd], true};  // found existing
+          break;
+        }
+
+      // Determine if candidate is at i_fst or i_snd (for probe_type later)
+      const bool candidate_at_first = (candidate == &table[i_fst]);
+      const bool candidate_at_second = (candidate == &table[i_snd]);
 
       size_t i = i_snd;
       for (size_t c = 0; c < len; ++c)
@@ -576,27 +677,78 @@ namespace Aleph {
             {
             case BUSY:
               if (cmp(table[i].key, key))
-                { // duplicated key ==> rollback previous probe_counter increases
-                  const size_t idx = i;
-                  for (size_t k = 0; k < c; ++k)
-                    {
-                      index_backward(i);
-                      --table[i].probe_counter;
-                    }
-                  return tuple<Bucket*, bool>(&table[idx], true);
-                }
+                return {&table[i], true};  // found existing
               break;
             case DELETED:
+              if (candidate == nullptr)
+                {
+                  candidate = &table[i];
+                  candidate_linear_steps = c + 1;  // Steps from i_snd
+                }
+              break;
             case EMPTY:
-              ++table[i_fst].probe_counter;
-              ++table[i_snd].probe_counter;
-              return make_tuple(allocate_bucket(table[i], LINEAR_PROBE), false);
+              {
+                // End of collision chain - insert at candidate or here
+                if (candidate)
+                  {
+                    if (candidate_at_first)
+                      return {allocate_bucket(*candidate, FIRST_PROBE), false};
+                    
+                    ++table[i_fst].probe_counter;
+                    
+                    if (candidate_at_second)
+                      return {allocate_bucket(*candidate, SECOND_PROBE), false};
+                    
+                    // Candidate is in LINEAR_PROBE region
+                    ++table[i_snd].probe_counter;
+                    // Increment all buckets between i_snd and candidate
+                    size_t j = i_snd;
+                    for (size_t k = 0; k < candidate_linear_steps - 1; ++k)
+                      {
+                        index_forward(j);
+                        ++table[j].probe_counter;
+                      }
+                    return {allocate_bucket(*candidate, LINEAR_PROBE), false};
+                  }
+                // No candidate found, insert at this EMPTY slot
+                ++table[i_fst].probe_counter;
+                ++table[i_snd].probe_counter;
+                // Increment all buckets between i_snd and here
+                size_t j = i_snd;
+                for (size_t k = 0; k < c; ++k)
+                  {
+                    index_forward(j);
+                    ++table[j].probe_counter;
+                  }
+                return {allocate_bucket(table[i], LINEAR_PROBE), false};
+              }
             default: AH_ERROR("ODhashTable: Invalid bucket status"); break;
             }
-          ++table[i].probe_counter;
         }
-      assert(false); // never must reach this point
-      return tuple<Bucket*, bool>(static_cast<Bucket *>(nullptr), false);
+
+      // All slots checked (full table), use candidate if found
+      if (candidate)
+        {
+          if (candidate_at_first)
+            return {allocate_bucket(*candidate, FIRST_PROBE), false};
+          
+          ++table[i_fst].probe_counter;
+          
+          if (candidate_at_second)
+            return {allocate_bucket(*candidate, SECOND_PROBE), false};
+          
+          // Candidate is in LINEAR_PROBE region
+          ++table[i_snd].probe_counter;
+          size_t j = i_snd;
+          for (size_t k = 0; k < candidate_linear_steps - 1; ++k)
+            {
+              index_forward(j);
+              ++table[j].probe_counter;
+            }
+          return {allocate_bucket(*candidate, LINEAR_PROBE), false};
+        }
+
+      return {nullptr, false};
     }
 
     /// Delete the record from the table. record must belong to

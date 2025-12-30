@@ -208,56 +208,56 @@ public:
   void empty() noexcept { array.empty(); }
 
   /// Return `true` if stack is empty
-  [[nodiscard]] bool is_empty() const noexcept { return array.size() == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return array.size() == 0; }
 
   /// Return the number of elements stored in the stack
-  [[nodiscard]] size_t size() const noexcept { return array.size(); }
+  [[nodiscard]] constexpr size_t size() const noexcept { return array.size(); }
 
   /// Return the internal capacity
-  [[nodiscard]] size_t capacity() const noexcept { return array.capacity(); }
+  [[nodiscard]] constexpr size_t capacity() const noexcept { return array.capacity(); }
 
   /// return a modifiable reference to the first element. No bound_statics check
   /// is performed
-  T &get_first() { return array.first(); }
+  [[nodiscard]] T &get_first() noexcept { return array.first(); }
 
   /// return a constant reference to the first element. No bound_statics check
   /// is performed
-  const T &get_first() const { return array.first(); }
+  [[nodiscard]] const T &get_first() const noexcept { return array.first(); }
 
   /// return a modifiable reference to the last element. No bound_statics check
   /// is performed
-  T &get_last() { return array.last(); }
+  [[nodiscard]] T &get_last() noexcept { return array.last(); }
 
   /// return a constant reference to the last element. No bound_statics check
   /// is performed
-  const T &get_last() const { return array.last(); }
+  [[nodiscard]] const T &get_last() const noexcept { return array.last(); }
 
-  T remove_last() { return array.remove_last(); }
+  [[nodiscard]] T remove_last() { return array.remove_last(); }
 
-  T remove_first() { return array.remove_first(); }
+  [[nodiscard]] T remove_first() { return array.remove_first(); }
 
   /// Return a reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  T &operator[](size_t i)
+  [[nodiscard]] T &operator[](size_t i)
   {
     return array[i];
   }
 
   /// Return a constant reference to the ith element. Throws
   /// `range_error` if `i` is out of range
-  const T &operator[](size_t i) const
+  [[nodiscard]] const T &operator[](size_t i) const
   {
     return array[i];
   }
 
   /// Return a reference to the ith element. It does not perform bound_statics checks
-  T &operator()(const size_t i) noexcept
+  [[nodiscard]] constexpr T &operator()(const size_t i) noexcept
   {
     return array(i);
   }
 
   /// Return a constant reference to the ith element. It does not perform bound_statics checks
-  const T &operator()(const size_t i) const noexcept
+  [[nodiscard]] constexpr const T &operator()(const size_t i) const noexcept
   {
     return array(i);
   }
