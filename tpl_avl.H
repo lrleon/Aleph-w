@@ -384,11 +384,11 @@ public:
 
   using key_type = Key; /// The key type
 
-      /// Return a reference to teh comparison criteria
-  Compare & key_comp() noexcept { return cmp; }
+      /// Return a reference to the comparison criteria
+  [[nodiscard]] constexpr Compare & key_comp() noexcept { return cmp; }
 
       /// \overload key_comp()
-  Compare & get_compare() noexcept { return key_comp(); }
+  [[nodiscard]] constexpr Compare & get_compare() noexcept { return key_comp(); }
 
   Gen_Avl_Tree(Compare __cmp = Compare()) noexcept
     : avl_stack(Node::MaxHeight), head_ptr(&head_node),
@@ -411,14 +411,14 @@ public:
   virtual ~Gen_Avl_Tree() noexcept { assert(avl_stack_empty()); }
 
       /// Return a modifiable reference to tree's root
-  Node *& getRoot() noexcept { return root; }
+  [[nodiscard]] constexpr Node *& getRoot() noexcept { return root; }
 
       /// Return a modifiable reference to tree's root
-  Node * getRoot() const noexcept { return root; }
+  [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
 
      /// Search a node containing `key`; if found, then a pointer to the
      /// node containing it is returned; otherwise `nullptr` is returned
-  Node * search(const Key & key) const noexcept
+  [[nodiscard]] Node * search(const Key & key) const noexcept
   {
     return searchInBinTree <Node, Compare> (root, key, cmp);
   }
@@ -434,7 +434,7 @@ public:
       @return a the pointer `p` if `KEY(p)` is not found in the tree,
       `nullptr` otherwise.
   */
-  Node * insert(Node * p) noexcept
+  [[nodiscard]] Node * insert(Node * p) noexcept
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -469,7 +469,7 @@ public:
           @return if `p` is inserted, the this value is returned;
           otherwise, a pointer to the node containing `KEY(p)` is returned.
        */
-  Node * search_or_insert(Node * p) noexcept
+  [[nodiscard]] Node * search_or_insert(Node * p) noexcept
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -490,7 +490,7 @@ public:
   }
 
       /// Insert the node `p` without testing for key duplicity
-  Node * insert_dup(Node * p) noexcept
+  [[nodiscard]] Node * insert_dup(Node * p) noexcept
   {
     if (root == Node::NullPtr)
       return root = p;
@@ -507,7 +507,7 @@ public:
 
       /// Remove from an AVL tree the node containing key `key`.
       /// Returns the removed node if the key is found; `nullptr` otherwise.
-  Node * remove(const Key & key) noexcept
+  [[nodiscard]] Node * remove(const Key & key) noexcept
   {
     if (root == Node::NullPtr)
       return nullptr;
@@ -560,7 +560,7 @@ public:
     return p;
   }
 
-  bool verify() const
+  [[nodiscard]] bool verify() const noexcept
   {
     return is_avl(root);
   }

@@ -25,15 +25,15 @@
 */
 # include <gtest/gtest.h>
 
-# include <tpl_odhash.H>
+# include <tpl_olhash.H>
 
 using namespace std;
 using namespace testing;
 using namespace Aleph;
 
-TEST(ODhashTable, Simplest)
+TEST(OLhashTable, Simplest)
 {
-  ODhashTable<int> tbl(100);
+  OLhashTable<int> tbl(100);
 
   EXPECT_TRUE(tbl.is_empty());
   EXPECT_EQ(tbl.size(), 0);
@@ -86,20 +86,14 @@ struct MyRecord
   bool operator == (const MyRecord & r) const noexcept { return Eq()(*this, r); }
 };
 
-inline size_t fst_hast(const MyRecord & r) noexcept
+inline size_t my_hash(const MyRecord & r) noexcept
 {
   return dft_hash_fct(r.key);
 }
 
-inline size_t snd_hash(const MyRecord & r) noexcept
+TEST(OLhashTable, Map)
 {
-  return snd_hash_fct(r.key);
-}
-
-
-TEST(ODhashTable, Map)
-{
-  ODhashTable<MyRecord, MyRecord::Eq> tbl(10, fst_hast, snd_hash, MyRecord::Eq());
+  OLhashTable<MyRecord, MyRecord::Eq> tbl(10, my_hash, MyRecord::Eq());
 
   EXPECT_EQ(tbl.size(), 0);
   EXPECT_TRUE(tbl.is_empty());
@@ -126,9 +120,9 @@ TEST(ODhashTable, Map)
     }
 }
 
-TEST(ODhashTable, KeyToBucketRoundTrip)
+TEST(OLhashTable, KeyToBucketRoundTrip)
 {
-  ODhashTable<int> tbl;
+  OLhashTable<int> tbl;
   auto *ptr = tbl.insert(5);
   ASSERT_NE(ptr, nullptr);
 
@@ -141,12 +135,10 @@ TEST(ODhashTable, KeyToBucketRoundTrip)
   EXPECT_EQ(tbl.search(5), nullptr);
 }
 
-// Test that removing a non-existent key does NOT corrupt the table state.
-// This test exposes a bug where the old remove() would decrement N and
-// corrupt probe_counters even when the key was not found.
-TEST(ODhashTable, RemoveNonExistentKeyPreservesTableIntegrity)
+// Test that removing a non-existent key throws and preserves table integrity
+TEST(OLhashTable, RemoveNonExistentKeyPreservesTableIntegrity)
 {
-  ODhashTable<int> tbl(100);
+  OLhashTable<int> tbl(100);
   
   // Insert some elements
   const int num_elements = 50;
@@ -190,9 +182,9 @@ TEST(ODhashTable, RemoveNonExistentKeyPreservesTableIntegrity)
 }
 
 // Test remove with external key (key not from a bucket in the table)
-TEST(ODhashTable, RemoveWithExternalKey)
+TEST(OLhashTable, RemoveWithExternalKey)
 {
-  ODhashTable<int> tbl(100);
+  OLhashTable<int> tbl(100);
   
   // Insert elements
   for (int i = 0; i < 20; ++i)
@@ -215,9 +207,9 @@ TEST(ODhashTable, RemoveWithExternalKey)
 }
 
 // Test remove with internal key (reference from the table bucket)
-TEST(ODhashTable, RemoveWithInternalKey)
+TEST(OLhashTable, RemoveWithInternalKey)
 {
-  ODhashTable<int> tbl(100);
+  OLhashTable<int> tbl(100);
   
   // Insert elements
   for (int i = 0; i < 20; ++i)
@@ -233,14 +225,46 @@ TEST(ODhashTable, RemoveWithInternalKey)
   EXPECT_EQ(tbl.search(10), nullptr);
 }
 
-// Test that verifies capacity doesn't change after failed remove.
-// The old buggy code would call rehash() on every failed remove,
-// potentially changing capacity. The new code doesn't rehash.
-TEST(ODhashTable, RemoveNonExistentDoesNotRehash)
+// Test behavior with many collisions (stress test linear probing)
+TEST(OLhashTable, ManyCollisions)
 {
-  ODhashTable<int> tbl(100);
+  // Use a small table to force many collisions
+  OLhashTable<int> tbl(17);  // Small prime
   
-  // Insert elements to create some collision chains
+  // Insert enough elements to cause collisions
+  const int num_elements = 15;
+  for (int i = 0; i < num_elements; ++i)
+    EXPECT_NE(tbl.insert(i), nullptr);
+  
+  EXPECT_EQ(tbl.size(), num_elements);
+  
+  // Verify all elements are findable
+  for (int i = 0; i < num_elements; ++i)
+    EXPECT_NE(tbl.search(i), nullptr) << "Element " << i << " not found";
+  
+  // Remove every other element
+  for (int i = 0; i < num_elements; i += 2)
+    {
+      auto ptr = tbl.search(i);
+      ASSERT_NE(ptr, nullptr);
+      tbl.remove(*ptr);
+    }
+  
+  // Verify remaining elements are still findable
+  for (int i = 1; i < num_elements; i += 2)
+    EXPECT_NE(tbl.search(i), nullptr) << "Element " << i << " not found after removals";
+  
+  // Verify removed elements are gone
+  for (int i = 0; i < num_elements; i += 2)
+    EXPECT_EQ(tbl.search(i), nullptr) << "Element " << i << " should be removed";
+}
+
+// Test that capacity doesn't change after failed removes
+TEST(OLhashTable, RemoveNonExistentDoesNotChangeCapacity)
+{
+  OLhashTable<int> tbl(100);
+  
+  // Insert elements
   for (int i = 0; i < 50; ++i)
     EXPECT_NE(tbl.insert(i * 2), nullptr);  // Even numbers
   
@@ -248,16 +272,15 @@ TEST(ODhashTable, RemoveNonExistentDoesNotRehash)
   const size_t original_size = tbl.size();
   
   // Try to remove many non-existent keys
-  // Old buggy code would rehash on each failed remove
   for (int attempt = 0; attempt < 100; ++attempt)
     {
       int non_existent = attempt * 2 + 1;  // Odd numbers don't exist
       EXPECT_THROW(tbl.remove(non_existent), std::domain_error);
     }
   
-  // Capacity should be unchanged (no rehash occurred)
+  // Capacity should be unchanged
   EXPECT_EQ(tbl.capacity(), original_capacity)
-    << "Capacity changed - possible unnecessary rehash on failed remove";
+    << "Capacity changed after failed remove attempts";
   
   // Size should be unchanged
   EXPECT_EQ(tbl.size(), original_size);
@@ -266,4 +289,5 @@ TEST(ODhashTable, RemoveNonExistentDoesNotRehash)
   for (int i = 0; i < 50; ++i)
     EXPECT_NE(tbl.search(i * 2), nullptr) << "Element " << i * 2 << " not found";
 }
+
 

@@ -519,14 +519,14 @@ public:
   template <typename ...Args>
   void emplace(Args && ... args)
   {
-    me()->append(T(std::forward<Args>(args)...));
+    (void) me()->append(T(std::forward<Args>(args)...));
   }
 
   /// \overload emplace(Args && ... args)
   template <typename ...Args>
   void emplace_end(Args && ... args)
   {
-    me()->append(T(std::forward<Args>(args)...));
+    (void) me()->append(T(std::forward<Args>(args)...));
   }
 
   /** Insert a new element into the container by constructing it
@@ -550,7 +550,7 @@ public:
   template <typename ...Args>
   void emplace_ins(Args && ... args)
   {
-    me()->insert(T(std::forward<Args>(args)...));
+    (void) me()->insert(T(std::forward<Args>(args)...));
   }
 
 private:
@@ -561,7 +561,7 @@ private:
   template <typename ... Args>
   void nninsert(size_t & n, const T & item, Args & ... args)
   {
-    me()->insert(item);
+    (void) me()->insert(item);
     ++n;
     nninsert(n, args...);
   }
@@ -569,7 +569,7 @@ private:
   template <typename ... Args>
   void nnappend(size_t & n, const T & item, Args & ... args)
   {
-    me()->append(item);
+    (void) me()->append(item);
     ++n;
     nnappend(n, args...);
   }

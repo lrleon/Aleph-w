@@ -122,7 +122,7 @@ namespace Aleph {
         probe_counter = 0;
       }
 
-      bool valid() const
+      [[nodiscard]] constexpr bool valid() const noexcept
       {
         return (status == EMPTY or status == DELETED or status == BUSY) and
           (probe_type == NO_PROBED or probe_type == FIRST_PROBE or
@@ -193,43 +193,7 @@ namespace Aleph {
 
     void deallocate_bucket(Bucket * bucket) noexcept
     {
-      assert(bucket->status == BUSY);
-
-      bucket->status = DELETED;
-      const Key & key = bucket->key;
-
-      const size_t i_fst = hash_fct(key) % len;
-      if (&table[i_fst] == bucket)
-        {
-          assert(Cmp () (table[i_fst].key, key));
-          assert(table[i_fst].probe_type == FIRST_PROBE);
-        }
-      else
-        {
-          const size_t i_snd = second_hash_fct(key) % len;
-          if (&table[i_snd] == bucket)
-            {
-              assert(Cmp () (table[i_snd].key, key));
-              assert(table[i_snd].probe_type == SECOND_PROBE);
-              decrease_probe_counter(&table[i_fst]);
-            }
-          else
-            {
-              decrease_probe_counter(&table[i_fst]);
-              decrease_probe_counter(&table[i_snd]);
-              size_t i = i_snd;
-              for (index_forward(i); &table[i] != bucket; index_forward(i))
-                {
-                  assert(table[i].status != EMPTY);
-                  decrease_probe_counter(&table[i]);
-                }
-              assert(Cmp () (table[i].key, key));
-              assert(table[i].probe_type == LINEAR_PROBE);
-            }
-        }
-
-      decrease_probe_counter(bucket);
-      --N;
+      deallocate_bucket_with_record(bucket, [](Bucket*){});
     }
 
     size_t index_forward(size_t & i) const noexcept
@@ -248,7 +212,7 @@ namespace Aleph {
       return i;
     }
 
-    bool is_valid_bucket(Bucket * bucket) noexcept
+    [[nodiscard]] bool is_valid_bucket(Bucket * bucket) const noexcept
     {
       if (table == nullptr)
         return false;
@@ -265,24 +229,97 @@ namespace Aleph {
       return offset_with_base % sizeof(*bucket) == 0;
     }
 
-    size_t bucket_to_index(Bucket * bucket) noexcept
+    [[nodiscard]] size_t bucket_to_index(Bucket * bucket) const noexcept
     {
       assert(is_valid_bucket(bucket));
       return bucket - &table[0];
     }
 
+    /// Returns true if the key reference points to a key inside the table
+    [[nodiscard]] bool is_key_in_table(const Key & key) const noexcept
+    {
+      if (table == nullptr)
+        return false;
+
+      const auto addr = reinterpret_cast<std::uintptr_t>(&key);
+      const auto table_begin = reinterpret_cast<std::uintptr_t>(&table[0]);
+      const auto table_end = reinterpret_cast<std::uintptr_t>(&table[len]);
+      
+      if (addr < table_begin or addr >= table_end)
+        return false;
+        
+      constexpr auto key_offset = offsetof(Bucket, key);
+      return ((addr - table_begin - key_offset) % sizeof(Bucket)) == 0;
+    }
+
+    /// Converts a key reference inside the table to its containing bucket
+    [[nodiscard]] Bucket * key_in_table_to_bucket(const Key & key) noexcept
+    {
+      assert(is_key_in_table(key));
+      return key_to_bucket(const_cast<Key*>(&key));
+    }
+
+    /// Template version of deallocate_bucket that accepts a callback
+    /// to record modified buckets before decrementing their probe_counter
+    template <typename RecordBucket>
+    void deallocate_bucket_with_record(Bucket * bucket, 
+                                       RecordBucket && record_bucket) noexcept
+    {
+      assert(bucket->status == BUSY);
+
+      bucket->status = DELETED;
+      const Key & key = bucket->key;
+
+      const size_t i_fst = hash_fct(key) % len;
+      if (&table[i_fst] == bucket)
+        {
+          assert(Cmp () (table[i_fst].key, key));
+          assert(table[i_fst].probe_type == FIRST_PROBE);
+        }
+      else
+        {
+          const size_t i_snd = second_hash_fct(key) % len;
+          if (&table[i_snd] == bucket)
+            {
+              assert(Cmp () (table[i_snd].key, key));
+              assert(table[i_snd].probe_type == SECOND_PROBE);
+              record_bucket(&table[i_fst]);
+              decrease_probe_counter(&table[i_fst]);
+            }
+          else
+            {
+              record_bucket(&table[i_fst]);
+              decrease_probe_counter(&table[i_fst]);
+              record_bucket(&table[i_snd]);
+              decrease_probe_counter(&table[i_snd]);
+              size_t i = i_snd;
+              for (index_forward(i); &table[i] != bucket; index_forward(i))
+                {
+                  assert(table[i].status != EMPTY);
+                  record_bucket(&table[i]);
+                  decrease_probe_counter(&table[i]);
+                }
+              assert(Cmp () (table[i].key, key));
+              assert(table[i].probe_type == LINEAR_PROBE);
+            }
+        }
+
+      decrease_probe_counter(bucket);
+      --N;
+    }
+
   public:
 
-    static Bucket * key_to_bucket(Key * rec) noexcept
+    [[nodiscard]] static Bucket * key_to_bucket(Key * rec) noexcept
     {
       const auto base = reinterpret_cast<std::uintptr_t>(rec);
       const auto offset = offsetof(Bucket, key);
       return reinterpret_cast<Bucket *>(base - offset);
     }
 
-    const Cmp & get_compare() const { return cmp; }
+    [[nodiscard]] constexpr const Cmp & get_compare() const noexcept { return cmp; }
 
-    Cmp & get_compare() { return cmp; }
+    [[nodiscard]] constexpr Cmp & get_compare() noexcept { return cmp; }
 
     void swap(ODhashTable & other) noexcept
     {
@@ -387,9 +424,9 @@ namespace Aleph {
 
     OHASH_COMMON(ODhashTable);
 
-    /// searches the table for the key key. Return a pointer to the record
+    /// searches the table for the key. Return a pointer to the record
     /// associated with key within the table; nullptr otherwise.
-    Key * search(const Key & key) const noexcept
+    [[nodiscard]] Key * search(const Key & key) const noexcept
     {
       const size_t i_fst = hash_fct(key) % len; // 1st probe (1st hash function)
       if (table[i_fst].status == EMPTY) 
@@ -442,7 +479,7 @@ namespace Aleph {
       return nullptr;
     }
 
-    Hash_Fct get_second_hash_fct() const noexcept { return second_hash_fct; }
+    [[nodiscard]] constexpr Hash_Fct get_second_hash_fct() const noexcept { return second_hash_fct; }
 
     void set_second_hash_fct(Hash_Fct fct) noexcept
     {
@@ -578,65 +615,81 @@ namespace Aleph {
       deallocate_bucket(bucket);
     }
 
-    // returns true if the bucket contains the key
-    bool process_entry_for_remove(Bucket * bucket, const Key & key) 
-    {
-      switch (bucket->status)
-        {
-        case EMPTY:
-          ah_domain_error() << "Key not in hash table";
-        case BUSY:
-          if (cmp(bucket->key, key))
-            {
-              bucket->status = DELETED;
-              decrease_probe_counter(bucket);
-              return true;
-            }
-          break;
-        case DELETED:
-          decrease_probe_counter(bucket);
-          break;
-        default: AH_ERROR("Inconsistent bucket status");
-        }
-      return false;
-    }
-
   public:
 
+    /// Remove a key from the hash table.
+    /// If key is a reference to a key inside the table (from search/insert),
+    /// it uses the fast path via deallocate_bucket.
+    /// If key is external, it searches for the key and removes it.
+    /// Throws domain_error if the key is not found.
     void remove(const Key & key)
     {
-      --N;
-      try
+      // Fast path: if key is a reference to a key inside the table
+      if (is_key_in_table(key))
         {
-          const size_t i_fst = hash_fct(key) % len;
-          if (process_entry_for_remove(&table[i_fst], key))
-            return;
-    
-          const size_t i_snd = second_hash_fct(key) % len;
-          if (process_entry_for_remove(&table[i_snd], key))
-            return;
+          Bucket * bucket = key_in_table_to_bucket(key);
+          ah_domain_error_if(bucket->status != BUSY)
+            << "Bucket containing key is not BUSY";
+          deallocate_bucket(bucket);
+          return;
+        }
 
-          size_t i = i_snd;
-          for (size_t c = 0; c < len; ++c)
+      // External key: search for it (without modifying probe_counters)
+      const size_t i_fst = hash_fct(key) % len;
+      
+      // Check first probe position
+      if (table[i_fst].status == EMPTY)
+        ah_domain_error() << "Key not in hash table";
+
+      if (table[i_fst].status == BUSY and cmp(table[i_fst].key, key))
+        {
+          deallocate_bucket(&table[i_fst]);
+          return;
+        }
+
+      const size_t i_snd = second_hash_fct(key) % len;
+      
+      // Check second probe position
+      if (table[i_snd].status == EMPTY)
+        ah_domain_error() << "Key not in hash table";
+
+      if (table[i_snd].status == BUSY and cmp(table[i_snd].key, key))
+        {
+          deallocate_bucket(&table[i_snd]);
+          return;
+        }
+
+      // Linear probing (search only, no modifications until key found)
+      size_t i = i_snd;
+      for (size_t c = 0; c < len; ++c)
+        {
+          index_forward(i);
+          
+          switch (table[i].status)
             {
-              index_forward(i);
-              if (process_entry_for_remove(&table[i], key))
-                return;
+            case EMPTY:
+              ah_domain_error() << "Key not in hash table";
+              break;  // unreachable, but silences -Wimplicit-fallthrough
+              
+            case BUSY:
+              if (cmp(table[i].key, key))
+                {
+                  deallocate_bucket(&table[i]);
+                  return;
+                }
+              break;
+              
+            case DELETED:
+              break;
             }
+        }
 
-          ah_domain_error() << "Key not in hash table";
-        }
-      catch (...)
-        {
-          ++N;
-          this->rehash(); // in order to leave the table in a consistent state
-          throw;
-        }
+      ah_domain_error() << "Key not in hash table";
     }
   
     using Stats = typename OhashCommon<ODhashTable<Key, Cmp>, Key>::Stats;
 
-    Stats stats()	const							
+    [[nodiscard]] Stats stats() const							
     {									
       DynArray<size_t> lens;						
       size_t num_busy = 0, num_deleted = 0, num_empty = 0;			

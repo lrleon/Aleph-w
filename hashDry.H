@@ -40,9 +40,9 @@ class OhashCommon
 
 public:
 
-  float get_lower_alpha() const noexcept { return const_me()->lower_alpha; }
+  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return const_me()->lower_alpha; }
 
-  float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
+  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return const_me()->upper_alpha; }
 
   void copy_from_table(const HashTbl & other)
   {
@@ -73,7 +73,7 @@ public:
       me()->resize(Primes::next_prime(2 * me()->len));
   }
 
-  Key * insert(const Key & key)
+  [[nodiscard]] Key * insert(const Key & key)
   {
     check_resize_before_insert();
     auto bucket = me()->allocate_bucket(key);
@@ -85,7 +85,7 @@ public:
     return me()->test_resize(bucket, key);
   }
 
-  Key * insert(Key && key)
+  [[nodiscard]] Key * insert(Key && key)
   {
     check_resize_before_insert();
     auto bucket = me()->allocate_bucket(key);
@@ -97,7 +97,7 @@ public:
     return me()->test_resize(bucket, bucket->key);
   }
 
-  Key * search_or_insert(const Key & key)
+  [[nodiscard]] Key * search_or_insert(const Key & key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -112,7 +112,7 @@ public:
     return me()->test_resize(bucket, bucket->key);
   }
 
-  Key * search_or_insert(Key && key)
+  [[nodiscard]] Key * search_or_insert(Key && key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -127,7 +127,7 @@ public:
     return me()->test_resize(bucket, bucket->key);
   }
 
-  pair<Key*, bool> contains_or_insert(const Key & key)
+  [[nodiscard]] pair<Key*, bool> contains_or_insert(const Key & key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -143,7 +143,7 @@ public:
     return { key_ptr, false };
   }
 
-  pair<Key*, bool> contains_or_insert(Key && key)
+  [[nodiscard]] pair<Key*, bool> contains_or_insert(Key && key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -159,24 +159,24 @@ public:
     return { key_ptr, false };
   }
 
-  Key * append(const Key & key)
+  [[nodiscard]] Key * append(const Key & key)
   {
     return this->insert(key);
   }
 
-  Key * append(Key && key)
+  [[nodiscard]] Key * append(Key && key)
   {
     return this->insert(std::move(key));
   }
 
-  bool has(const Key & key) const noexcept
+  [[nodiscard]] constexpr bool has(const Key & key) const noexcept
   {
     return const_me()->search(key) != nullptr;
   }
 
-  bool contains(const Key & key) const noexcept { return has(key); }
+  [[nodiscard]] constexpr bool contains(const Key & key) const noexcept { return has(key); }
 
-  Key & find(const Key & key)
+  [[nodiscard]] Key & find(const Key & key)
   {
     auto key_ptr = me()->search(key);
     ah_domain_error_if(key_ptr == nullptr)
@@ -185,7 +185,7 @@ public:
     return *key_ptr;
   }
 
-  const Key & find(const Key & key) const
+  [[nodiscard]] const Key & find(const Key & key) const
   {
     return const_cast<OhashCommon*>(this)->find(key);
   }
@@ -278,11 +278,11 @@ public:
     me()->table = new typename HashTbl::Bucket [me()->len];
   }
 
-  size_t size() const noexcept { return const_me()->N; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return const_me()->N; }
 
-  bool is_empty() const noexcept { return const_me()->N == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return const_me()->N == 0; }
 
-  size_t capacity() const noexcept { return const_me()->len; }
+  [[nodiscard]] constexpr size_t capacity() const noexcept { return const_me()->len; }
 
   class Iterator
   {
@@ -373,7 +373,7 @@ public:
       put_itor_at_the_end(*this);
     }
 
-    long get_pos() const noexcept { return ordinal; }
+    [[nodiscard]] constexpr long get_pos() const noexcept { return ordinal; }
 
     Key & get_curr_ne() noexcept
     {
@@ -412,7 +412,7 @@ public:
       return ordinal >= 0 and ordinal < table_ptr->size();
     }
 
-    bool is_last() const noexcept { return ordinal == table_ptr->size() - 1; }
+    [[nodiscard]] constexpr bool is_last() const noexcept { return ordinal == table_ptr->size() - 1; }
 
     void next() { locate_next_available_entry(); }
 
@@ -441,12 +441,12 @@ public:
     }
   };
 
-  DynList<Key> keys() const
+  [[nodiscard]] DynList<Key> keys() const
   {
     return const_me()->template maps<Key> ([] (const Key & key) { return key; });
   }
 
-  auto items() const { return keys(); }
+  [[nodiscard]] auto items() const { return keys(); }
 
   struct Stats
   {
@@ -476,9 +476,9 @@ public:
       cout << "    " << i << " = " << stats.lens(i) << endl;
   }
 
-  float current_alpha() const noexcept 
+  [[nodiscard]] constexpr float current_alpha() const noexcept 
   {
-    return 1.0*const_me()->N/const_me()->len; 
+    return 1.0f*const_me()->N/const_me()->len; 
   }
 };
 
@@ -583,9 +583,9 @@ public:
     lower_alpha = __lower_alpha;
   }
 
-  float get_lower_alpha() const noexcept { return lower_alpha; }
+  [[nodiscard]] constexpr float get_lower_alpha() const noexcept { return lower_alpha; }
 
-  float get_upper_alpha() const noexcept { return upper_alpha; }
+  [[nodiscard]] constexpr float get_upper_alpha() const noexcept { return upper_alpha; }
 };
 
 

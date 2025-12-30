@@ -147,6 +147,7 @@ set(TEST_PROGRAMS
     binheap
     tree-node
     odhash
+    olhash
     dynsetohash
     hash-it
     ah-zip

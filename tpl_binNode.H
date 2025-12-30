@@ -312,13 +312,13 @@ private:                                                            \
       @ingroup Arboles
   */
   template <class Node>
-  inline Node *&LLINK(Node *p) noexcept
+  constexpr inline Node *&LLINK(Node *p) noexcept
   {
     return p->getL();
   }
 
   template <class Node>
-  inline const Node *LLINK(const Node *p) noexcept
+  constexpr inline const Node *LLINK(const Node *p) noexcept
   {
     return p->getL();
   }
@@ -328,13 +328,13 @@ private:                                                            \
       @ingroup Arboles
   */
   template <class Node>
-  inline Node *&RLINK(Node *p) noexcept
+  constexpr inline Node *&RLINK(Node *p) noexcept
   {
     return p->getR();
   }
 
   template <class Node>
-  inline const Node *RLINK(const Node *p) noexcept
+  constexpr inline const Node *RLINK(const Node *p) noexcept
   {
     return p->getR();
   }
@@ -344,14 +344,14 @@ private:                                                            \
       @ingroup Arboles
   */
   template <class Node>
-  inline
+  constexpr inline
   typename Node::Key_Type &KEY(Node *p) noexcept
   {
     return p->get_key();
   }
 
   template <class Node>
-  inline
+  constexpr inline
   const typename Node::Key_Type &KEY(const Node *p) noexcept
   {
     return p->get_key();
@@ -363,10 +363,10 @@ private:                                                            \
     using node_type = Node;
     using key_type = typename Node::Key_Type;
 
-    static node_type * null() noexcept { return node_type::NullPtr; }
+    static constexpr node_type * null() noexcept { return node_type::NullPtr; }
 
-    static node_type *& left(node_type * p) noexcept { return p->getL(); }
-    static node_type *& right(node_type * p) noexcept { return p->getR(); }
+    static constexpr node_type *& left(node_type * p) noexcept { return p->getL(); }
+    static constexpr node_type *& right(node_type * p) noexcept { return p->getR(); }
 
     static const node_type * left(const node_type * p) noexcept { return p->getL(); }
     static const node_type * right(const node_type * p) noexcept { return p->getR(); }

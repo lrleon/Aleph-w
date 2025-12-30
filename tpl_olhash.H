@@ -106,8 +106,9 @@ namespace Aleph
       void reset() noexcept { status = EMPTY; }
     };
 
-    static Bucket *key_to_bucket(Key *rec) noexcept
+    [[nodiscard]] static Bucket *key_to_bucket(Key *rec) noexcept
     {
+      // Note: cannot be constexpr due to reinterpret_cast
       const auto base = reinterpret_cast<std::uintptr_t>(rec);
       const auto offset = offsetof(Bucket, key);
       return reinterpret_cast<Bucket *>(base - offset);
@@ -128,7 +129,7 @@ namespace Aleph
     Hash_Fct hash_fct;
     bool with_resize;
 
-    bool is_valid_bucket(Bucket *bucket) const noexcept
+    [[nodiscard]] bool is_valid_bucket(Bucket *bucket) const noexcept
     {
       if (table == nullptr)
         return false;
@@ -148,9 +149,9 @@ namespace Aleph
 
    public:
 
-    const Cmp &get_compare() const { return cmp; }
+    [[nodiscard]] constexpr const Cmp &get_compare() const noexcept { return cmp; }
 
-    Cmp &get_compare() { return cmp; }
+    [[nodiscard]] constexpr Cmp &get_compare() noexcept { return cmp; }
 
    public:
 
@@ -257,7 +258,7 @@ namespace Aleph
 
     /// Finds the key key and returns the associated record if key is
     /// find inside the table; otherwise, nullptr is returned.
-    Key *search(const Key &key) const noexcept
+    [[nodiscard]] Key *search(const Key &key) const noexcept
     {
       long i = hash_fct(key) % len;
       long c = 0;
@@ -397,7 +398,7 @@ namespace Aleph
 
     using Stats = typename OhashCommon<OLhashTable<Key, Cmp>, Key>::Stats;
 
-    Stats stats() const
+    [[nodiscard]] Stats stats() const
     {
       DynArray<size_t> lens;
       size_t num_busy = 0;
