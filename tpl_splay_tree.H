@@ -23,14 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-/*
- *			    Top Dowm Splay Trees
- */
-
-/* This code is a c++ adaptation of Danny Sleator code. It can be loaded from
-
-   http://www.link.cs.cmu.edu/link/ftp-site/splaying/SplayTree.java
-
+/** @file tpl_splay_tree.H
+ *  @brief Top-down splay tree implementation (without rank support).
+ *
+ *  This file provides `Splay_Tree`, a self-adjusting binary search tree
+ *  that moves accessed nodes to the root via rotations (splaying). This
+ *  provides amortized O(log n) performance and excellent cache locality
+ *  for frequently accessed items.
+ *
+ *  @note This code is adapted from Danny Sleator's implementation.
+ *  @see http://www.link.cs.cmu.edu/link/ftp-site/splaying/
+ *  @ingroup Trees
  */
 
 # ifndef TPL_SPLAY_TREE_H
@@ -42,6 +45,83 @@
 using namespace Aleph;
 
 
+/** @brief Top-down splay tree - Self-adjusting BST with amortized O(log n) operations.
+
+    GenTdSplayTree implements a splay tree, a self-adjusting binary search tree
+    where every access operation (search, insert, delete) moves the accessed node
+    to the root through a sequence of tree rotations called "splaying".
+
+    @par Key Characteristics:
+    - **Self-adjusting**: Frequently accessed items migrate toward the root
+    - **Amortized O(log n)**: While individual operations may be O(n), sequences
+      of m operations take O(m log n) time total
+    - **Cache-friendly**: Recent accesses stay near the root for fast re-access
+    - **Simple implementation**: No balance information or color bits needed
+    - **No worst-case guarantee**: Individual operations can be O(n)
+
+    @par Splaying Rotations:
+    - **Zig**: Single rotation when node is child of root
+    - **Zig-zig**: Two rotations in same direction (child and parent on same side)
+    - **Zig-zag**: Two rotations in opposite directions (child and parent on different sides)
+
+    These rotations ensure amortized efficiency by reducing tree depth.
+
+    @par When to Use Splay Trees:
+    ✓ Access patterns have locality (same items accessed repeatedly)
+    ✓ Amortized complexity is acceptable (no hard real-time constraints)
+    ✓ Simplicity preferred over guaranteed worst-case performance
+    ✓ Cache performance is critical
+
+    @par When NOT to Use:
+    ✗ Need guaranteed O(log n) worst-case (use AVL or Red-Black instead)
+    ✗ Hard real-time requirements
+    ✗ Uniform random access patterns (no locality benefit)
+
+    @tparam NodeType Node template (BinNode or BinNodeVtl).
+    @tparam Key The type of keys stored in the tree.
+    @tparam Compare Comparison functor for ordering keys.
+
+    @par Complexity:
+    - Search: O(log n) amortized
+    - Insert: O(log n) amortized
+    - Delete: O(log n) amortized
+    - Individual operation worst case: O(n)
+    - Space: O(n) - no extra balance information needed
+
+    @par Example:
+    @code
+    Splay_Tree<int> tree;
+
+    // Insert nodes
+    tree.insert(new Splay_Tree<int>::Node(42));
+    tree.insert(new Splay_Tree<int>::Node(17));
+    tree.insert(new Splay_Tree<int>::Node(99));
+
+    // Search (splays node to root)
+    auto node = tree.search(42);
+    if (node != nullptr)
+      std::cout << "Found and splayed to root: " << node->get_key() << std::endl;
+
+    // Subsequent access to 42 is now O(1)
+    node = tree.search(42);  // Very fast - already at root
+
+    // Remove (splays then removes root)
+    auto removed = tree.remove(42);
+    delete removed;
+    @endcode
+
+    @note This implementation does NOT support rank operations.
+          For indexed access, use Splay_Tree_Rk instead.
+    @note Based on Danny Sleator's top-down splay tree implementation.
+    @note This is a low-level implementation managing raw nodes.
+          For automatic memory management, use DynSetSplayTree.
+
+    @see Splay_Tree Convenient typedef for Splay_Tree<Key, Compare>.
+    @see Splay_Tree_Rk Splay tree variant with rank support.
+    @see Avl_Tree Alternative with O(log n) worst-case guarantee.
+    @see DynSetSplayTree High-level wrapper with automatic memory management.
+    @ingroup Trees
+ */
 template <template <class> class NodeType, typename Key, class Compare>
 class GenTdSplayTree
 {

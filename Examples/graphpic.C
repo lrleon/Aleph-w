@@ -560,7 +560,7 @@ Graph * parse_graph_definition(ifstream & input_stream)
 
   Graph * g = (token == GRAPH or token == POLY_GRAPH or 
 	       token == NET_GRAPH or token == CROSS_NET_GRAPH) 
-    ? new Graph : new Digraph;  
+    ? new Graph : new ::Digraph;  
 
   try
     {

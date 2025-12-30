@@ -23,15 +23,20 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-/*
- *			    Top Dowm Splay Trees
- */
+/** @file tpl_splay_treeRk.H
+    @brief Top-down splay tree with rank support.
 
-/* This code is a c++ adaptation of Danny Sleator code. It can be loaded from
+    This file implements a splay tree with node counts (rank support),
+    enabling O(log n) access to the k-th element. The implementation is
+    based on Danny Sleator's original splay tree code, adapted to C++
+    with extended functionality.
 
-   http://www.link.cs.cmu.edu/link/ftp-site/splaying/SplayTree.java
+    Original source: http://www.link.cs.cmu.edu/link/ftp-site/splaying/SplayTree.java
 
- */
+    @see Splay_Tree_Rk Convenient typedef.
+    @see DynSetSplayTree High-level wrapper with automatic memory management.
+    @ingroup Arboles
+*/
 
 # ifndef TPL_SPLAY_TREE_RK_H
 # define TPL_SPLAY_TREE_RK_H
@@ -42,6 +47,55 @@
 using namespace Aleph;
 
 
+/** @brief Top-down splay tree with rank support.
+
+    A splay tree is a self-adjusting binary search tree that moves
+    recently accessed elements closer to the root. This provides
+    amortized O(log n) time complexity for all operations, with
+    frequently accessed elements having faster access times.
+
+    This implementation extends the basic splay tree with COUNT fields
+    in each node, enabling:
+    - O(log n) selection of the k-th smallest element
+    - O(log n) rank queries (position of an element)
+    - All standard BST operations with amortized O(log n) complexity
+
+    The splay operation brings the accessed node to the root using
+    a sequence of zig, zig-zig, and zig-zag rotations. This top-down
+    variant performs splaying during the descent, avoiding a second pass.
+
+    @tparam NodeType Template for node type (typically BinNodeXt).
+    @tparam Key The type of keys stored in the tree.
+    @tparam Compare Comparison functor for ordering keys.
+
+    @par Complexity (amortized):
+    - Search: O(log n)
+    - Insert: O(log n)
+    - Delete: O(log n)
+    - Select k-th: O(log n)
+    - Rank query: O(log n)
+
+    @par Example:
+    @code
+    Splay_Tree_Rk<int> tree;
+    tree.insert(new Splay_Tree_Rk<int>::Node(42));
+    tree.insert(new Splay_Tree_Rk<int>::Node(17));
+    tree.insert(new Splay_Tree_Rk<int>::Node(99));
+
+    // Find 2nd smallest element
+    auto node = tree.select(1);  // 0-indexed
+
+    // Get rank of element
+    size_t pos = tree.position(KEY(node));
+    @endcode
+
+    @note This is a low-level implementation managing raw nodes.
+          For automatic memory management, use DynSetSplayTree.
+
+    @see Splay_Tree Basic splay tree without rank support.
+    @see DynSetSplayTree High-level wrapper.
+    @ingroup Arboles
+*/
 template <template <class> class NodeType, typename Key, class Compare>
 class GenTdSplayTreeRk
 {
@@ -254,6 +308,65 @@ public:
     return __insert(p);
   }
 
+private:
+  /** Splay the maximum element to the root.
+
+      Uses the same zig-zig and zig rotations as standard splay to maintain
+      the amortized O(log n) guarantee. Unlike splay(key), this function
+      always brings the actual maximum to the root, which is needed for
+      correct behavior when there are duplicate keys.
+
+      @param r root of the subtree
+      @return the new root (the maximum element)
+   */
+  Node * splay_max(Node * r) noexcept
+  {
+    if (r == Node::NullPtr || RLINK(r) == Node::NullPtr)
+      return r;
+
+    Node header(sentinelCtor);
+    Node * head_ptr = &header;
+    Node * l = head_ptr;
+    Node * t = r;
+
+    size_t l_size = 0;
+
+    // Always go right to find maximum
+    while (RLINK(t) != Node::NullPtr)
+      {
+        // Zig-zig: if grandchild exists on the right, rotate twice
+        if (RLINK(RLINK(t)) != Node::NullPtr)
+          {
+            t = rotate_to_left_xt(t);
+            if (RLINK(t) == Node::NullPtr)
+              break;
+          }
+
+        // Link left: attach t to l's right
+        RLINK(l) = t;
+        l = t;
+        t = RLINK(t);
+        l_size += 1 + COUNT(LLINK(l));
+      }
+
+    // Reassemble
+    l_size += COUNT(LLINK(t));
+    COUNT(t) = l_size + 1;
+
+    RLINK(l) = LLINK(t);
+    LLINK(t) = RLINK(head_ptr);
+
+    // Recompute counts along the left spine
+    for (Node * y = LLINK(t); y != Node::NullPtr; y = RLINK(y))
+      {
+        COUNT(y) = l_size;
+        l_size -= 1 + COUNT(LLINK(y));
+      }
+
+    return t;
+  }
+
+public:
   /**
      Remove a key from a top-down splay tree.
 
@@ -277,13 +390,22 @@ public:
 
     if (LLINK(root) == Node::NullPtr)
       root = RLINK(root);
+    else if (RLINK(root) == Node::NullPtr)
+      root = LLINK(root);
     else
       {
-        Node *p = RLINK(root);
-        root = LLINK(root);
-        splay(key);
-        RLINK(root) = p;
-        COUNT(root) = COUNT(LLINK(root)) + 1 + COUNT(RLINK(root));
+        Node *right_subtree = RLINK(root);
+
+        // Splay the maximum of left subtree to become root.
+        // We use splay_max() instead of splay(key) because splay(key) can
+        // bring a duplicate that is not the actual maximum, corrupting counts.
+        // splay_max() uses proper zig-zig rotations to maintain O(log n) amortized.
+        root = splay_max(LLINK(root));
+
+        // The new root has no right child (it was the maximum)
+        // Connect the right subtree
+        RLINK(root) = right_subtree;
+        COUNT(root) = COUNT(LLINK(root)) + 1 + COUNT(right_subtree);
       }
 
     ret_val->reset();

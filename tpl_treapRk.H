@@ -64,44 +64,93 @@ public:
 
   DECLARE_BINNODE_SENTINEL(Treap_Rk_Node, 80, TreapRkNode_Data);
 
-  /** Extended treap (a special type of randomized binary search tree)
-      which manages selection and splitting for inorder position.
+  /** @brief Extended Treap with rank support for O(log n) indexed access.
 
-      The treap is a binary search tree whose very high performance is
-      achieved by randomization. The basic idea is to store a priority
-      value in each node which is randomly chosen. By the side of keys,
-      the tree a binary search, but by the side of priorities, the tree
-      is a heap. It is shown that this class of tree has an expected
-      performance of \f$O(\lg n)\f$ for the majority of its
-      operations. In addition, this extended tree uses and second
-      integer for storing subtrees sizes.
+      TreapRk is a Treap (tree + heap) that extends the basic treap with
+      subtree size counters (COUNT), enabling O(log n) access by rank
+      (inorder position). This allows treating the tree like a sorted
+      dynamic array with efficient indexed operations.
 
-      The treap is faster than the randomized tree by a constant time
-      (both approaches are logarithmic). Since the priority is chosen
-      just one time and the adjustments are done in a botton-top way
-      (by contrast with the randomized which is top-bottom), the treap
-      takes less time.
+      @par Treap Properties (from base Treap):
+      - Keys follow BST ordering: left < parent < right
+      - Priorities follow max-heap ordering: parent priority > child priorities
+      - Priorities are randomly assigned at insertion time
+      - Expected O(log n) height due to randomization
 
-      Although tgus approach trends to be faster than the randomized
-      trees, takes in account that this treap is more space consuming
-      because each node requires 2 additional integers to the data
-      (priority and counter) in contrast with the randomized which only
-      requires one integer (the counter).
+      @par Rank Extension:
+      Each node maintains COUNT = size of subtree rooted at that node.
+      This enables:
+      - select(i): Get the i-th smallest element, O(log n)
+      - position(key): Get the rank of a key, O(log n)
+      - remove_pos(i): Remove element at position i, O(log n)
+      - split_pos(i): Split tree at position i, O(log n)
 
-      For splitting and join of independent and large data sets the
-      randomized option trends to be faster. The split is equivalent,
-      but the join is definitively faster. The join of two trees of n
-      and m keys respectively takes \f$O(n \lg m)\f$ with treaps, while
-      it takes \f$O(\max(\lg n, \lg m))\f$ with randomized trees. In
-      addition,
+      @par Comparison with Other Trees:
+      - **TreapRk vs Treap**: TreapRk adds rank support (O(1) space per node)
+      - **TreapRk vs Rand_Tree**: Similar functionality, but TreapRk is typically
+        faster by a constant factor (bottom-up vs top-down balancing)
+      - **TreapRk vs Splay_Tree_Rk**: TreapRk has expected (not amortized)
+        complexity; Splay_Tree_Rk adapts to access patterns but lacks guarantees
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersenne twister is used and the seed is taken from
-      system time.
+      @tparam NodeType Node template (typically Treap_Rk_Node).
+      @tparam Key The type of keys stored in the tree.
+      @tparam Compare Comparison functor for ordering keys.
 
-      @ingroup Arboles
-      @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
+      @par Complexity:
+      - Search: O(log n) expected
+      - Insert: O(log n) expected
+      - Delete: O(log n) expected
+      - Select (by rank): O(log n) expected
+      - Position (get rank): O(log n) expected
+      - Remove by position: O(log n) expected
+      - Split: O(log n) expected
+      - Join: O(log n) expected
+      - Space: O(n) + O(1) per node for priority and COUNT
+
+      @par Random Number Generator:
+      Uses GSL (GNU Scientific Library) Mersenne Twister (mt19937) by default.
+      Seed can be set via set_seed() for reproducible behavior.
+
+      @par Example:
+      @code
+      TreapRk<int> tree;
+
+      // Insert nodes
+      tree.insert(new TreapRk<int>::Node(42));
+      tree.insert(new TreapRk<int>::Node(17));
+      tree.insert(new TreapRk<int>::Node(99));
+      tree.insert(new TreapRk<int>::Node(8));
+
+      // Ranked access (treat as sorted array)
+      auto smallest = tree.select(0);     // Get 0th element (8)
+      auto median = tree.select(tree.size() / 2);  // Get median
+
+      // Find position/rank of a key
+      size_t pos = tree.position(42);  // Returns rank of 42
+
+      // Remove by position
+      auto removed = tree.remove_pos(1);  // Remove 2nd smallest
+      delete removed;
+
+      // Split at position
+      TreapRk<int> left, right;
+      tree.split_pos(2, left, right);  // Split after 2nd element
+
+      // Join trees
+      tree.join(left, right);
+      @endcode
+
+      @note This is a low-level implementation managing raw nodes.
+            For automatic memory management, use DynSetTreapRk.
+      @note All operations maintain COUNT values for ranked operations.
+      @note Faster than Rand_Tree by a constant factor.
+
+      @see TreapRk Convenient typedef for TreapRk<Key, Compare>.
+      @see Treap Basic treap without rank support (slightly faster, less space).
+      @see Rand_Tree Alternative randomized tree with rank support.
+      @see Splay_Tree_Rk Self-adjusting alternative with rank support.
+      @see DynSetTreapRk High-level wrapper with automatic memory management.
+      @ingroup Trees
    */
     template <template <class> class NodeType, class Key, class Compare>
 class Gen_Treap_Rk

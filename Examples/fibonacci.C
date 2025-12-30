@@ -47,11 +47,11 @@ unsigned int fib(unsigned int n)
   return fi;
 }
 
-static int sum = 0;
+static int sum_counter = 0;
 
 static void sum_node(BinNode<int> *node, int, int)
 {
-  node->get_key() = sum++;
+  node->get_key() = sum_counter++;
 }
 
 void build_avl(Avl_Tree<int> &tree, BinNode<int> * p)
@@ -99,7 +99,7 @@ static BinNode<int> * fibonacci(int k)
 {             
   BinNode<int> * p = __fibonacci(k);
 
-  sum = 0;
+  sum_counter = 0;
 
   if (k > 2)
     inOrderRec(p, sum_node);

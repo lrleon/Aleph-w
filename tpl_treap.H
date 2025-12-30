@@ -38,28 +38,85 @@ using namespace Aleph;
 
 namespace Aleph
 {
-  /** Treap (a special type of randomized binary search tree).
+  /** @brief Treap - A randomized binary search tree using heap-ordered priorities.
 
-      The treap is a binary search tree whose very high performance is
-      achieved by randomization. The basic idea is to store a priority
-      value in each node which is randomly chosen. By the side of keys,
-      the tree a binary search, but by the side of priorities, the tree
-      is a heap. It is shown that this class of tree has an expected
-      performance of \f$O(\lg n)\f$ for the majority of its operations.
+      A Treap (tree + heap) is a randomized binary search tree that combines
+      BST properties on keys with heap properties on randomly assigned priorities.
+      Each node has a key (BST-ordered) and a random priority (heap-ordered).
 
-      The treap is faster than the randomized tree by a constant time
-      (both approaches are logarithmic). Since the priority is chosen
-      just one time and the adjustments are done in a botton-top way
-      (by contrast with the randomized which is top-bottom), the treap
-      takes less time.
+      @par Key Properties:
+      - Keys follow BST ordering: left < parent < right
+      - Priorities follow max-heap ordering: parent priority > child priorities
+      - Priorities are randomly assigned at insertion time
+      - Expected O(log n) height due to randomization
 
-      The class internally uses the gsl random number generator of
-      [GSL - GNU Scientific Library](\https://www.gnu.org/software/gsl/).
-      By default, the Mersenne twister is used and the seed is taken from
-      system time.
+      The dual ordering (BST for keys, heap for priorities) creates a unique
+      tree structure for any set of keys with given priorities, ensuring good
+      balance with high probability.
 
+      @par Comparison with Other Randomized Trees:
+      - **Treap vs Rand_Tree**: Treap is typically faster by a constant factor
+        because priorities are chosen once at insertion (bottom-up balancing),
+        while Rand_Tree makes random decisions at each level (top-down).
+      - **Treap vs AVL/RB**: Treap has simpler code, uses randomization instead
+        of deterministic balancing, but has expected (not worst-case) guarantees.
+
+      @tparam NodeType Node template (TreapNode or TreapNodeVtl).
+      @tparam Key The type of keys stored in the tree.
+      @tparam Compare Comparison functor for ordering keys.
+
+      @par Complexity:
+      - Search: O(log n) expected
+      - Insert: O(log n) expected
+      - Delete: O(log n) expected
+      - Split: O(log n) expected
+      - Join: O(log n) expected
+      - Space: O(n) + O(1) per node for priority
+
+      @par Random Number Generator:
+      Uses GSL (GNU Scientific Library) Mersenne Twister (mt19937) by default.
+      Seed can be set via set_seed() for reproducible behavior.
+
+      @par Example:
+      @code
+      Treap<int> tree;
+
+      // Set seed for reproducibility (optional)
+      tree.set_seed(12345);
+
+      // Insert nodes
+      tree.insert(new Treap<int>::Node(42));
+      tree.insert(new Treap<int>::Node(17));
+      tree.insert(new Treap<int>::Node(99));
+
+      // Search
+      auto node = tree.search(42);
+      if (node != nullptr)
+        std::cout << "Found: " << node->get_key()
+                  << " (priority: " << PRIO(node) << ")" << std::endl;
+
+      // Split tree at key 50
+      Treap<int> left, right;
+      tree.split_key(50, left, right);
+
+      // Join trees
+      tree.join(left, right);
+
+      // Remove
+      auto removed = tree.remove(42);
+      delete removed;
+      @endcode
+
+      @note This is a low-level implementation managing raw nodes.
+            For automatic memory management, use DynSetTreap.
+      @note Priorities are assigned automatically and transparently.
+      @note For ranked operations (indexed access), use TreapRk instead.
+
+      @see Treap Convenient typedef for Treap<Key, Compare>.
+      @see TreapRk Treap variant with rank support for O(log n) indexed access.
+      @see Rand_Tree Alternative randomized tree with top-down balancing.
+      @see DynSetTreap High-level wrapper with automatic memory management.
       @ingroup Arboles
-      @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
    */
   template <template <typename> class NodeType, typename Key, class Compare>
   class Gen_Treap
