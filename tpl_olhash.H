@@ -337,7 +337,7 @@ namespace Aleph
     // pointer to the bucket entry into the table. If the key is
     // already inserted in the table, then second value is true,
     // otherwise, not allocation is done, and false is returned as second
-    tuple<Bucket *, bool> hard_allocate_bucket(const Key &key) noexcept
+    std::tuple<Bucket *, bool> hard_allocate_bucket(const Key &key) noexcept
     {
       Bucket * first_deleted = nullptr;
       size_t i = hash_fct(key) % len;
@@ -348,7 +348,7 @@ namespace Aleph
           if (b.status == BUSY)
             {
               if (cmp(key, b.key))
-                return make_tuple(&b, true);
+                return std::make_tuple(&b, true);
             }
           else if (b.status == DELETED)
             {
@@ -360,7 +360,7 @@ namespace Aleph
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
-              return make_tuple(bucket, false);
+              return std::make_tuple(bucket, false);
             }
 
           if (++i == len)
@@ -371,10 +371,10 @@ namespace Aleph
         {
           first_deleted->status = BUSY;
           ++N;
-          return make_tuple(first_deleted, false);
+          return std::make_tuple(first_deleted, false);
         }
 
-      return make_tuple(static_cast<Bucket*>(nullptr), false);
+      return std::make_tuple(static_cast<Bucket*>(nullptr), false);
     }
 
     /// Removes the record pointed to by record from the table. Obviously,

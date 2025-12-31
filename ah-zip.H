@@ -1084,7 +1084,7 @@ auto zip_partition(Op op, const Cs &... cs)
     DynList<std::string> ys = {"a", "b", "c"};
     
     auto zipped = t_zip(xs, ys);
-    // zipped is DynList<tuple<int, string>> containing:
+    // zipped is DynList<std::tuple<int, string>> containing:
     // {(1, "a"), (2, "b"), (3, "c")}
     
     // Can iterate multiple times
@@ -1150,7 +1150,7 @@ auto t_zip_eq(const Cs &... cs)
  * for (auto it = enum_zip_it(ints, strs); it.has_curr(); it.next_ne())
  *   {
  *     auto t = it.get_curr_ne();
- *     // t is tuple<int, string, size_t> where last element is the index
+ *     // t is std::tuple<int, string, size_t> where last element is the index
  *     std::cout << std::get<2>(t) << ": " << std::get<0>(t) << std::endl;
  *   }
  * @endcode
@@ -1843,7 +1843,7 @@ void for_each_in_tuple(Op &&op, Tuple &&t)
     auto strings = transform_tuple([](auto x) { 
       return std::to_string(x); 
     }, t);
-    // strings is ("1", "2", "3") with type tuple<string, string, string>
+    // strings is ("1", "2", "3") with type std::tuple<string, string, string>
     @endcode
     
     @ingroup Algos

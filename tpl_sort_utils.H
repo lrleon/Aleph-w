@@ -92,11 +92,11 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  [[nodiscard]] pair<bool, size_t> search_inversion(const Container<T> & cont,
+  [[nodiscard]] std::pair<bool, size_t> search_inversion(const Container<T> & cont,
                                                     Compare cmp = Compare())
   {
     if (cont.is_empty())
-      return make_pair(true, 0);
+      return std::make_pair(true, 0);
 
     typename Container<T>::Iterator it(cont);
     const T & first = it.get_curr();
@@ -107,11 +107,11 @@ namespace Aleph
       {
         const T & curr = it.get_curr();
         if (cmp(curr, *prev))
-          return make_pair(false, i);
+          return std::make_pair(false, i);
         prev = &curr;
       }
 
-    return make_pair(true, i);
+    return std::make_pair(true, i);
   }
 
   /** Return true if the sequence is inversely sorted
@@ -147,7 +147,7 @@ namespace Aleph
   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
-  [[nodiscard]] pair<bool, size_t>
+  [[nodiscard]] std::pair<bool, size_t>
   test_sorted(const Container<T> & cont, Compare cmp = Compare())
   {
     if (cont.is_empty())

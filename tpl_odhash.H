@@ -145,16 +145,16 @@ namespace Aleph {
            probe_type == SECOND_PROBE or probe_type == LINEAR_PROBE);
       }
 
-      friend ostream & operator << (ostream & out, const Bucket & bucket)
+      friend std::ostream & operator << (std::ostream & out, const Bucket & bucket)
       {
-        string status_str;
+        std::string status_str;
         switch (bucket.status)
           {
           case EMPTY: status_str = "EMPTY"; break;
           case BUSY: status_str = "BUSY"; break;
           case DELETED: status_str = "DELETED"; break;
           }
-        string probe_type_str;
+        std::string probe_type_str;
         switch (bucket.probe_type)
           {
           case NO_PROBED: probe_type_str = "NO_PROBED"; break;
@@ -162,9 +162,9 @@ namespace Aleph {
           case SECOND_PROBE: probe_type_str = "SECOND_PROBE"; break;
           case LINEAR_PROBE: probe_type_str = "LINEAR_PROBE"; break;
           }
-        return out << "Bucket at " << &bucket << endl
-                   << "status = " << status_str << endl
-                   << "probe_type = " << probe_type_str << endl
+        return out << "Bucket at " << &bucket << std::endl
+                   << "status = " << status_str << std::endl
+                   << "probe_type = " << probe_type_str << std::endl
                    << "probe_counter = " << bucket.probe_counter;
       }
     };
@@ -638,7 +638,7 @@ namespace Aleph {
 
     // search key. If found return (bucket_ptr, true), otherwise allocates and
     // returns (new_bucket_ptr, false)
-    tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
+    std::tuple<Bucket*, bool> hard_allocate_bucket(const Key & key) noexcept
     {
       assert(N < len);
 

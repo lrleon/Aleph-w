@@ -154,7 +154,7 @@ void write_leaves(Freq_Node * p, int, int pos)
   else 
     *output_ptr << key;
   
-  *output_ptr << "\" S 0 -20 " << endl; 
+  *output_ptr << "\" S 0 -20 " << std::endl; 
 }
 
 
@@ -207,7 +207,7 @@ void adjust_nodes(Freq_Node * p, int p_level, int p_infix_pos)
   const size_t kp_sz = kp.size();
   if (p_infix_desc.offset == NO_OFFSET) // ya fue desplazado?
     {
-      *output_ptr << "xoffset " << p_infix_pos << " " << -offset[kp_sz] << endl;
+      *output_ptr << "xoffset " << p_infix_pos << " " << -offset[kp_sz] << std::endl;
 
       p_infix_desc.offset = LEFT;
     }
@@ -218,7 +218,7 @@ void adjust_nodes(Freq_Node * p, int p_level, int p_infix_pos)
   const size_t k_succ_sz = k_succ.size();
   //  if (k_succ_sz > 1)
     *output_ptr << "xoffset " << p_succ_infix_pos << " " 
-	   << (int)(offset[k_succ_sz]/2) << endl;
+	   << (int)(offset[k_succ_sz]/2) << std::endl;
 
   p_infix_desc.offset = RIGHT;
 }
@@ -235,16 +235,16 @@ void huffman_to_btreepic(Freq_Node * p, const bool with_level_adjust = false)
 
   preOrderRec(p, write_prefix);
 
-  *output_ptr << endl
+  *output_ptr << std::endl
 	      << "start-key ";
 
   inOrderRec(p, write_freq);  
 
-  *output_ptr << endl;
+  *output_ptr << std::endl;
 
   inOrderRec(p, write_leaves);  
 
-  *output_ptr << endl;
+  *output_ptr << std::endl;
 
   if (not with_level_adjust)
     return;

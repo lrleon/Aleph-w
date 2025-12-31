@@ -380,7 +380,7 @@ public:
       bool operation(const typename Container::Item_Type & item)
 
       \param[in] `operation` to be used as searching criteria
-      \return a duple tuple<bool, Type>. The first field indicates if
+      \return a duple std::tuple<bool, Type>. The first field indicates if
       the item was found and the second contains a copy of found
       item. If no item is found, then the first field is `false` and the
       second is the result of default constructor on the type stored in

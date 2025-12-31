@@ -222,7 +222,7 @@ class Huffman_Encoder_Engine
     prefix.save(output);
 
     save_string_as_bytes(end_symbol, output);
-    output << endl;
+    output << std::endl;
 
     save_leaf_keys_in_prefix(root, output);
   }
@@ -445,7 +445,7 @@ class Huffman_Encoder_Engine
       if (is_leaf(p))
         {
           save_string_as_bytes(p->get_key(), output);
-          output << endl;
+          output << std::endl;
           return;
         }
 

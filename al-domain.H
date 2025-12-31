@@ -66,7 +66,7 @@ public:
   };
 
   template <typename T> inline
-  ostream & operator << (ostream & s, const AlDomain<T> & dom)
+  std::ostream & operator << (std::ostream & s, const AlDomain<T> & dom)
   {
     return s << dom.to_str();
   }

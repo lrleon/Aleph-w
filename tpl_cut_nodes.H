@@ -262,7 +262,7 @@ components as well as the cross arcs.
       assert(get_color<GT>(gp) == color);
       assert(not IS_NODE_VISITED(gp, Build_Subtree));
 
-      unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
       sg.insert_node(tp_auto.get());
       GT::map_nodes(gp, tp_auto.get());
       NODE_BITS(gp).set_bit(Build_Subtree, true);
@@ -435,7 +435,7 @@ components as well as the cross arcs.
 
           assert(is_a_cut_node <GT> (gp));
 
-          unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+          std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
           cut_graph.insert_node(tp_auto.get());
           GT::map_nodes(gp, tp_auto.release());
         }

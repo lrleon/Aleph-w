@@ -47,7 +47,7 @@ void mat_to_latex(Mat &          mat,
   out << "\\begin{tabular}{|c|";
   for (int i = 0; i < m; ++i)
     out << "p{1mm}";
-  out << "|} \\hline" << endl
+  out << "|} \\hline" << std::endl
        << "& ";
 
   for (int i = 0; i < m; ++i)
@@ -57,7 +57,7 @@ void mat_to_latex(Mat &          mat,
       if (i < m - 1)
 	out << " & ";
       else
-	out << "\\\\ \\hline" << endl;
+	out << "\\\\ \\hline" << std::endl;
     }
 
   for (int i = 0; i < n; ++i)
@@ -73,11 +73,11 @@ void mat_to_latex(Mat &          mat,
 
       out << "\\\\";
       
-      out << endl;
+      out << std::endl;
     }
 
   out << "\\hline" 
-    << "\\end{tabular}" << endl
+    << "\\end{tabular}" << std::endl
       << suffix;
 }
 

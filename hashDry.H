@@ -322,7 +322,7 @@ public:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
-  [[nodiscard]] pair<Key*, bool> contains_or_insert(const Key & key)
+  [[nodiscard]] std::pair<Key*, bool> contains_or_insert(const Key & key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -355,7 +355,7 @@ public:
       - Average case: O(1) amortized
       - Worst case: O(n) when rehashing is triggered
   */
-  [[nodiscard]] pair<Key*, bool> contains_or_insert(Key && key)
+  [[nodiscard]] std::pair<Key*, bool> contains_or_insert(Key && key)
   {
     check_resize_before_insert();
     auto r = me()->hard_allocate_bucket(key);
@@ -934,7 +934,7 @@ public:
               << "alpha         = " << const_me()->current_alpha() << std::endl
               << "max length    = " << stats.max_len << std::endl;
     for (int i = 0; i < stats.lens.size(); ++i)
-      cout << "    " << i << " = " << stats.lens(i) << endl;
+      std::cout << "    " << i << " = " << stats.lens(i) << std::endl;
   }
 
   /** @brief Returns the current load factor (alpha).
@@ -1074,15 +1074,15 @@ public:
   */
   void print_stats(const Stats & stats) const
   {
-    cout << "M          = " << const_me()->capacity() << endl
-         << "N          = " << const_me()->size() << endl
-         << "busy slots = " << busy_slots_counter << endl
-         << "Average    = " << stats.avg << endl
-         << "Desv       = " << sqrt(stats.var) << endl
+    std::cout << "M          = " << const_me()->capacity() << std::endl
+         << "N          = " << const_me()->size() << std::endl
+         << "busy slots = " << busy_slots_counter << std::endl
+         << "Average    = " << stats.avg << std::endl
+         << "Desv       = " << sqrt(stats.var) << std::endl
          << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
-         << endl;
+         << std::endl;
     for (int i = 0; i < stats.lens.size(); ++i)
-      cout << "    " << i << " = " << stats.lens(i) << endl;
+      std::cout << "    " << i << " = " << stats.lens(i) << std::endl;
   }
 
   /** @brief Sets the upper load factor threshold.

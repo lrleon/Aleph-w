@@ -181,10 +181,10 @@ struct Ant_Graph : public Agent_Graph<List_Graph, Ant_Node, Ant_Arc, Ant>
   {
     void operator () (ofstream & output, Ant_Graph &, Ant_Graph::Node * p)
     {
-      output << p->food << " " << p->num << endl;
+      output << p->food << " " << p->num << std::endl;
 
       if (verbose)
-	cout << endl;
+	std::cout << std::endl;
     }
   };
 
@@ -195,7 +195,7 @@ struct Ant_Graph : public Agent_Graph<List_Graph, Ant_Node, Ant_Arc, Ant>
       input >> p->food >> p->num;
 
       if (verbose)
-	cout <<  p->food << " " << p->num;
+	std::cout <<  p->food << " " << p->num;
     }
   };
 
@@ -203,10 +203,10 @@ struct Ant_Graph : public Agent_Graph<List_Graph, Ant_Node, Ant_Arc, Ant>
   {
     void operator () (ofstream & output, Ant_Graph &, Ant_Graph::Arc * a)
     {
-      output << a->feromone_level << " " << a->distance << endl;
+      output << a->feromone_level << " " << a->distance << std::endl;
 
       if (verbose)
-	cout << a->feromone_level << " " << a->distance;
+	std::cout << a->feromone_level << " " << a->distance;
     }
   };
 
@@ -217,7 +217,7 @@ struct Ant_Graph : public Agent_Graph<List_Graph, Ant_Node, Ant_Arc, Ant>
       input >> a->feromone_level >> a->distance;
 
       if (verbose)
-	cout << a->feromone_level << " " << a->distance;
+	std::cout << a->feromone_level << " " << a->distance;
     }
   };
 };

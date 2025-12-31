@@ -57,8 +57,8 @@ public:
     auto ptr = tbl.search(key);
     if (ptr == nullptr)
       {
-        cerr << "Tried to run dispatcher with a key"
-             << " which has not been registered" << endl;
+        std::cerr << "Tried to run dispatcher with a key"
+             << " which has not been registered" << std::endl;
         abort();
       }
     return (*ptr->second)(args...);

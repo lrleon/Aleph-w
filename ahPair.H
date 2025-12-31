@@ -73,7 +73,7 @@ namespace Aleph
   template<typename First, typename Second>
   using pair = std::pair<First, Second>;
 
-  /// Re-export `std::make_pair` so existing code can refer to Aleph::make_pair.
+  /// Re-export `std::make_pair` so existing code can refer to Aleph::std::make_pair.
   using std::make_pair;
 } // namespace Aleph
 

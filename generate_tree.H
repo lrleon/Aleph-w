@@ -37,17 +37,17 @@ namespace Aleph
   template <class Node>
   struct Dft_Write
   {
-    string operator () (Node * p)
+    std::string operator () (Node * p)
     {
       return to_str(p->get_key());
     }
   };
 
 /*
-  Write debe exportar const string Write::operator () (Node *)
+  Write debe exportar const std::string Write::operator () (Node *)
 
   Que se encarga de convertir el valor de clave contenido en el nodo a
-  un string imprimible 
+  un std::string imprimible 
 */
 
   template <typename Node, class Write> static
@@ -180,10 +180,10 @@ namespace Aleph
   { 
     out << "start-prefix ";
     For_Each_Preorder<Node> () (root, Write());
-    out << endl
+    out << std::endl
         << "start_infix ";
     For_Each_In_Order<Node> () (root, Write());
-    out << endl;
+    out << std::endl;
   }
 
 } // end namespace Aleph

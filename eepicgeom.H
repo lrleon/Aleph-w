@@ -71,7 +71,7 @@ public:
       delete geom_object_ptr;
   }
 
-  virtual void draw(Eepic_Plane *, ostream &) const
+  virtual void draw(Eepic_Plane *, std::ostream &) const
   {
     ah_domain_error_if(geom_object_ptr == nullptr)
       << "Eepic_Geom_Object is null";
@@ -141,9 +141,9 @@ class Eepic_Plane
   // picture  
   double resolution; // resolución en milímetros (0.05mm por omisión)
 
-  string fill_type; // tipo de relleno (black)
+  std::string fill_type; // tipo de relleno (black)
 
-  string shade_type; // tipo de sombreado para segmentos 
+  std::string shade_type; // tipo de sombreado para segmentos 
 
   static const double normal_thickness;
 
@@ -312,7 +312,7 @@ private:
     assert(geom_height > 0 and geom_wide > 0);
   }
 
-  void draw_cartesian_axis(ostream & output);
+  void draw_cartesian_axis(std::ostream & output);
 
 public:
 
@@ -324,14 +324,14 @@ public:
 
   const Point & lowest() const { return __lowest; }
 
-  // dado el punto p, genera un string de la forma "(x, y)" con
-  // coordenadas normalizadas al plano. Este string se usa para la
+  // dado el punto p, genera un std::string de la forma "(x, y)" con
+  // coordenadas normalizadas al plano. Este std::string se usa para la
   // propia generación eepic
-  string point_string(const Point & p)
+  std::string point_string(const Point & p)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
     const double y = y_geom_number_to_eepic(p.get_y());
-    return "(" + to_string(x) + "," + to_string(y) + ")";
+    return "(" + std::to_string(x) + "," + std::to_string(y) + ")";
   }
 
   /* genera en el stream output un ambiente
@@ -343,31 +343,31 @@ public:
      tiempo de construcción. squarize == true garantiza que las figuras
      se dibujen sin deformación pero en detrimento del espacio aprovechado
   */
-  void draw(ostream & output, const bool & squarize = true)
+  void draw(std::ostream & output, const bool & squarize = true)
   {
     compute_geom_plane(squarize);
     
     // fija el formato de salida punto flotante
-    output << fixed << setprecision(6);
+    output << std::fixed << std::setprecision(6);
 
     // genera medidas y abre encabezado
-    output << "\\setlength{\\unitlength}{" << resolution << "mm}" << endl
-	   << endl
-	   << "\\filltype{" << fill_type << "}" << endl
-	   << endl
+    output << "\\setlength{\\unitlength}{" << resolution << "mm}" << std::endl
+	   << std::endl
+	   << "\\filltype{" << fill_type << "}" << std::endl
+	   << std::endl
 	   << "% leftmost point is " << __leftmost.to_string() << " --> "
-	   << point_string(__leftmost) << endl
+	   << point_string(__leftmost) << std::endl
 	   << "% rightmost point is " << __rightmost.to_string()  << " --> "
-	   << point_string(__rightmost) << endl
+	   << point_string(__rightmost) << std::endl
 	   << "% highest point is " << __highest.to_string()  << " --> "
-	   << point_string(__highest) << endl
+	   << point_string(__highest) << std::endl
 	   << "% lowest point is " << __lowest.to_string()  << " --> "
-	   << point_string(__lowest) << endl
+	   << point_string(__lowest) << std::endl
 	   << "% " << list.size() << " geometric objects were put in the plane"
-	   << endl
+	   << std::endl
 	   << "\\begin{picture}(" << real_wide << "," << real_height << ")" 
-	   << "(" << xoffset << "," << yoffset << ")" << endl
-	   << endl;
+	   << "(" << xoffset << "," << yoffset << ")" << std::endl
+	   << std::endl;
 
     draw_cartesian_axis(output); // en caso de que la bandera sea cierta
 
@@ -462,7 +462,7 @@ public:
 
   const double & get_resolution() const { return resolution; }
 
-  void set_fill_type(const string & ftype)
+  void set_fill_type(const std::string & ftype)
   {
     fill_type = ftype;
   }
@@ -491,7 +491,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // punto p
-  void draw_point(const Point & p, ostream & output)
+  void draw_point(const Point & p, std::ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
@@ -532,7 +532,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento sg
-  void draw_segment(const Segment & sg, ostream & output)
+  void draw_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_SEGMENT(sg, output);
   }
@@ -574,13 +574,13 @@ public:
       dy2 = -dy2;                                                       \
     }                                                                   \
                                                                         \
-  output << endl                                                        \
+  output << std::endl                                                        \
   << "    % Drawing of arrow's edges at (" << tgt_x                     \
-  << "," << tgt_y << ")" << endl                                        \
+  << "," << tgt_y << ")" << std::endl                                        \
   << "\\path(" << tgt_x << "," << tgt_y << ")("                         \
-  << tgt_x + dx1 << "," << tgt_y + dy1 << ")" << endl                   \
+  << tgt_x + dx1 << "," << tgt_y + dy1 << ")" << std::endl                   \
   << "\\path(" << tgt_x << "," << tgt_y << ")("                         \
-  << tgt_x + dx2 << "," << tgt_y + dy2 << ")" << endl << endl; 
+  << tgt_x + dx2 << "," << tgt_y + dy2 << ")" << std::endl << std::endl; 
 
   // genera en el stream output código eepic para dibujar segmento
   // sg con puntas de flecha
@@ -590,7 +590,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento sg con filos de flecha
-  void draw_arrow(const Segment & sg, ostream & output)
+  void draw_arrow(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW(sg, output);
   }
@@ -609,7 +609,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento puntillado sg
-  void draw_dotted_segment(const Segment & sg, ostream & output)
+  void draw_dotted_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_DOTTED_SEGMENT(sg, output);
   }
@@ -629,7 +629,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento sg con línea partida
-  void draw_dash_segment(const Segment & sg, ostream & output)
+  void draw_dash_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_DASH_SEGMENT(sg, output);
   }
@@ -649,7 +649,7 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento puntillado sg con puntas de flecha
-  void draw_arrow_dotted_segment(const Segment & sg, ostream & output)
+  void draw_arrow_dotted_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW_DOTTED_SEGMENT(sg, output);
   }
@@ -669,14 +669,14 @@ public:
 
   // escribe en el stream output el código eepic para dibujar el
   // segmento sg con línea partida y punta de flecha
-  void draw_arrow_dash_segment(const Segment & sg, ostream & output)
+  void draw_arrow_dash_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW_DASH_SEGMENT(sg, output);
   }
 
   // escribe en el stream output el código eepic para dibujar la
   // elipse e
-  void draw_ellipse(const Ellipse & e, ostream & output)
+  void draw_ellipse(const Ellipse & e, std::ostream & output)
   {
     const Point & center = e.get_center();
 
@@ -703,7 +703,7 @@ public:
   // puntero permite usar una sola función para dibujar polígonos;
   // vistos sus lados como segmentos
   typedef void (Eepic_Plane::*Draw_Segment_Fct)(const Segment & poly, 
-						ostream &     output);
+						std::ostream &     output);
 
 
   // escribe en el stream output el código eepic para dibujar el
@@ -714,7 +714,7 @@ public:
   // para dibujar polígonos regulares
   template <class Poly>
   void draw_polygon(Poly &           poly, 
-		    ostream &       output,
+		    std::ostream &       output,
 		    Draw_Segment_Fct draw_sg_fct)
   {
     for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
@@ -729,33 +729,33 @@ public:
   // mucho más rápida que la versión de tres parámetros; aunque más
   // menos versátil (nada es sin costes; así es la vida)
   template <class Poly>
-  void draw_closed_polygon(Poly & poly, ostream & output)
+  void draw_closed_polygon(Poly & poly, std::ostream & output)
   {
     output << "    % Drawing of polygon of " << poly.size() 
-	   << " sides" << endl
+	   << " sides" << std::endl
 	   << "\\shade\\path";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
   // escribe en el stream output el código eepic para dibujar el
   // polígono con su interior sombreado y las líneas de sus lados
   // punteadas. Es independiente de que esté o no cerrado
   template <class Poly>
-  void draw_dotted_closed_polygon(Poly &  poly, ostream & output)
+  void draw_dotted_closed_polygon(Poly &  poly, std::ostream & output)
   {
-    output << "    % Drawing of dotted line Polygon" << endl
+    output << "    % Drawing of dotted line Polygon" << std::endl
 	   << "\\shade\\dottedline{" << dotgap << "}";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
   // escribe en el stream output el código eepic para dibujar los
@@ -763,7 +763,7 @@ public:
   // poly. ATENCIÓN: NO DIBUJA LOS LADOS; SÓLO DIBUJA LOS
   // VÉRTICES 
   template <class Poly>
-  void draw_dots_from_polygon(Poly & poly, ostream & output)
+  void draw_dots_from_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       {
@@ -775,7 +775,7 @@ public:
 
   // genera código eepic en el stream output para el filo de flecha
   // del segmento sg
-  void draw_arrow_extreme(const Segment & sg, ostream & output)
+  void draw_arrow_extreme(const Segment & sg, std::ostream & output)
   {    // ¡tal cual!
     COMPUTE_SEGMENT_EEPIC_COORDENATES();
     PUT_ARROW();
@@ -787,7 +787,7 @@ public:
   // LOS FILOS DE FLECHA DE LO QUE SON LOS LADOS DEL POLÍGONO
   // VISTOS COMO SEGMENTOS
   template <class Poly>
-  void draw_arrows_in_polygon(Poly & poly, ostream & output)
+  void draw_arrows_in_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       {
@@ -798,7 +798,7 @@ public:
   }
 
   template <class Poly>
-  void draw_closed_polygon_with_arrows(Poly & poly, ostream & output)
+  void draw_closed_polygon_with_arrows(Poly & poly, std::ostream & output)
   {
     draw_closed_polygon(poly, output);
     draw_arrows_in_polygon(poly, output);
@@ -809,13 +809,13 @@ public:
   // "(x,y)". La coordenada y se desplaza ligeramente hacia arriba
   // en r de modo tal de dejar espacio para escribir el número de
   // vértice por debajo
-  void draw_point_text(const Point & p, ostream & output)
+  void draw_point_text(const Point & p, std::ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
     const double y = y_geom_number_to_eepic(p.get_y()) + r;
 
-    const string str = p.to_string();
+    const std::string str = p.to_string();
 
     output << "    %% Text Point " << str
 	   << "    %% mapped in this plane to (" << x << "," << y << ")"
@@ -832,7 +832,7 @@ public:
   // cruce un lado ==> que se requiere el contexto de los lados ==>
   // que no se podría usar draw_point_text
   template <class Poly>
-  void draw_points_text_in_polygon(Poly & poly, ostream & output)
+  void draw_points_text_in_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       draw_point_text(it.get_current_vertex(), output);
@@ -845,7 +845,7 @@ public:
   // se requiere el contexto de los lados ==> que no se podría usar
   // draw_point_text
   template <class Poly>
-  void draw_vertex_numbers_in_polygon(Poly & poly, ostream & output)
+  void draw_vertex_numbers_in_polygon(Poly & poly, std::ostream & output)
   {
     int n = 0;
 
@@ -870,34 +870,34 @@ public:
   // curva spline caracterizada por los puntos del polígono y que
   // pasa por sus puntos extremos
   template <class Poly>
-  void draw_spline(Poly & poly, ostream & output)
+  void draw_spline(Poly & poly, std::ostream & output)
   {
     output << "    % Drawing spline of " << poly.size() 
-	   << " points" << endl
+	   << " points" << std::endl
 	   << "\\spline";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
   // escribe en el stream output el código eepic para dibujar la
   // curva a línea partida caracterizada por los puntos del polígono
   // y que pasa por sus puntos extremos
   template <class Poly>
-  void draw_dash_spline(Poly & poly, ostream & output)
+  void draw_dash_spline(Poly & poly, std::ostream & output)
   {
     output << "    % Drawing dash curve of " << poly.size() 
-	   << " points" << endl
+	   << " points" << std::endl
 	   << "\\closecurve";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
   // escribe en el stream output el código eepic para dibujar la
@@ -905,7 +905,7 @@ public:
   // pasa por sus puntos extremos y cuyo último vértice tiene punta
   // de flecha
   template <class Poly>
-  void draw_spline_arrow(Poly & poly, ostream & output)
+  void draw_spline_arrow(Poly & poly, std::ostream & output)
   {
     draw_spline(poly, output); // dibujamos primero la curva
 
@@ -920,7 +920,7 @@ public:
   // polígono y que pasa por sus puntos extremos y cuyo último
   // vértice tiene punta de flecha
   template <class Poly>
-  void draw_dash_spline_arrow(Poly & poly, ostream & output)
+  void draw_dash_spline_arrow(Poly & poly, std::ostream & output)
   {
     draw_dash_spline(poly, output); // dibujamos primero la curva
 
@@ -930,7 +930,7 @@ public:
     draw_arrow_extreme(poly.get_last_segment(), output);
   }
 
-  void draw_text(const Text & t, ostream & output, 
+  void draw_text(const Text & t, std::ostream & output, 
 		 const double & hfactor, const double & vfactor)
   {
     const Point & p = t.get_point();
@@ -943,12 +943,12 @@ public:
     const double y = (y_geom_number_to_eepic(p.get_y()) - 
 		      vfactor*Text::font_height_in_points); 
 
-    output << "%    string at " << p.to_string() << endl 
-	   << "%    mapped to the plane at (" << x << "," << y << ")" << endl 
+    output << "%    std::string at " << p.to_string() << std::endl 
+	   << "%    mapped to the plane at (" << x << "," << y << ")" << std::endl 
 	   << "\\put(" << x << "," << y << "){\\texttt{" 
 	   << (tiny_keys ? "\\tiny " : "") << t.get_str() 
-	   << "}}" << endl 
-	   << endl;
+	   << "}}" << std::endl 
+	   << std::endl;
   }
 };
 
@@ -994,7 +994,7 @@ public:
     return new Eepic_##Type(static_cast<const Type&>(*geom_object_ptr)); \
   }                                                                     \
                                                                         \
-  virtual void draw(Eepic_Plane *, ostream &) const;
+  virtual void draw(Eepic_Plane *, std::ostream &) const;
 
 
 // Métodos comunes de Eepic_Type más el constructor copia

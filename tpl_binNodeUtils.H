@@ -1044,11 +1044,11 @@ namespace Aleph
       \throw bad_alloc if there is no enough memory
   */
   template <class Node>
-  inline string code(Node *root)
+  inline std::string code(Node *root)
   {
     BitArray bits = tree_to_bits(root);
     const size_t n = bits.size();
-    string str("");
+    std::string str("");
     str.reserve(n);
     for (size_t i = 0; i < n; ++i)
       str.push_back(bits(i) ? 'b' : 'a');
@@ -1101,7 +1101,7 @@ namespace Aleph
       extract and return a stringficated version of the key. Its
       signature must be as follows:
 
-          string gk(Node * p)
+          std::string gk(Node * p)
 
       @param[in] root of tree
       @param[out] output stream
@@ -1110,7 +1110,7 @@ namespace Aleph
   */
   template <class Node>
   inline
-  void save_tree_keys_in_prefix(Node *root, ostream & output)
+  void save_tree_keys_in_prefix(Node *root, std::ostream & output)
   {
     if (root == Node::NullPtr)
       return;
@@ -1132,7 +1132,7 @@ namespace Aleph
    */
   template <class Node>
   inline
-  void load_tree_keys_in_prefix(Node *root, istream & input)
+  void load_tree_keys_in_prefix(Node *root, std::istream & input)
   {
     if (root == Node::NullPtr)
       return;
@@ -1160,7 +1160,7 @@ namespace Aleph
    */
   template <class Node>
   inline
-  void save_tree(Node *root, ostream & output)
+  void save_tree(Node *root, std::ostream & output)
   {
     BitArray prefix;
     tree_to_bits(root, prefix);
@@ -1182,7 +1182,7 @@ namespace Aleph
    */
   template <class Node>
   inline
-  Node * load_tree(istream & input)
+  Node * load_tree(std::istream & input)
   {
     BitArray prefix;
     prefix.load(input);
@@ -1194,12 +1194,12 @@ namespace Aleph
 
   template <class Node, class Get_Key>
   inline
-  void put_tree_keys_in_array(Node *root, ostream & out)
+  void put_tree_keys_in_array(Node *root, std::ostream & out)
   {
     if (root == Node::NullPtr)
       return;
 
-    const string str = Get_Key()(root);
+    const std::string str = Get_Key()(root);
 
     if (str == "\t")
       out << "\"\t\"";
@@ -1244,7 +1244,7 @@ namespace Aleph
       of the key values that were generated through the functor `Get_Key`,
       whose structure must be as follows:
 
-          string get_key(Node * p);
+          std::string get_key(Node * p);
 
       The goodness of this function is to embed binary trees in C++ source
       code.
@@ -1259,15 +1259,15 @@ namespace Aleph
   template <class Node, class Get_Key>
   inline
   void save_tree_in_array_of_chars(Node *root,
-                                   const string & array_name,
-                                   ostream & output)
+                                   const std::string & array_name,
+                                   std::ostream & output)
   {
     BitArray prefix;
     tree_to_bits(root, prefix);
     prefix.save_in_array_of_chars(array_name + "_cdp", output);
-    output << "const char * " << array_name << "_k[] = { " << endl;
+    output << "const char * " << array_name << "_k[] = { " << std::endl;
     put_tree_keys_in_array<Node, Get_Key>(root, output);
-    output << "nullptr };" << endl;
+    output << "nullptr };" << std::endl;
   }
 
 

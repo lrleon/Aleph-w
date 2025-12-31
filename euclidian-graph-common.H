@@ -120,16 +120,16 @@ namespace Aleph
   template <class GT>
   struct Wnode
   {
-    void operator ()(ostream & output, GT &, typename GT::Node *p)
+    void operator ()(std::ostream & output, GT &, typename GT::Node *p)
     {
-      output << p->get_info().x << " " << p->get_info().y << endl;
+      output << p->get_info().x << " " << p->get_info().y << std::endl;
     }
   };
 
   template <class GT>
   struct Rnode
   {
-    void operator ()(istream & input, GT &, typename GT::Node *p)
+    void operator ()(std::istream & input, GT &, typename GT::Node *p)
     {
       input >> p->get_info().x;
       input >> p->get_info().y;
@@ -139,16 +139,16 @@ namespace Aleph
   template <class GT>
   struct Warc
   {
-    void operator ()(ostream & output, GT &, typename GT::Arc *a)
+    void operator ()(std::ostream & output, GT &, typename GT::Arc *a)
     {
-      output << a->get_info() << endl;
+      output << a->get_info() << std::endl;
     }
   };
 
   template <class GT>
   struct Rarc
   {
-    void operator ()(istream & input, GT &, typename GT::Arc *a)
+    void operator ()(std::istream & input, GT &, typename GT::Arc *a)
     {
       input >> a->get_info();
     }

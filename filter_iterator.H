@@ -87,7 +87,7 @@ namespace Aleph
  *  Filter_Iterator<DynList<int>, DynList<int>::Iterator, ShowEven> it(list);
  *
  *  for (; it.has_curr(); it.next())
- *    cout << it.get_curr() << " "; // Prints: 2 4 6
+ *    std::cout << it.get_curr() << " "; // Prints: 2 4 6
  *  @endcode
  *
  *  @tparam Container The container type being iterated over. Must be
@@ -449,7 +449,7 @@ public:
    *
    *  @code
    *  Filter_Iterator<DynList<int>, DynList<int>::Iterator, ShowEven> it(list);
-   *  it.for_each([](int x) { cout << x << " "; });
+   *  it.for_each([](int x) { std::cout << x << " "; });
    *  @endcode
    */
   template <typename Op>

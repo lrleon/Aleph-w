@@ -537,9 +537,9 @@ namespace Aleph
     {
       const size_t num_bytes = get_num_bytes();
 
-      output << "// " << current_size << " bits declaration" << endl
+      output << "// " << current_size << " bits declaration" << std::endl
              << "const unsigned char " << name << " [" << num_bytes << "] = {"
-             << endl << "  ";
+             << std::endl << "  ";
       for (size_t i = 0; i < num_bytes; i++)
         {
           if (array_of_bytes.exist(i))
@@ -554,9 +554,9 @@ namespace Aleph
             output << ", ";
 
           if ((i + 1) % 15 == 0)
-            output << endl << "  ";
+            output << std::endl << "  ";
         }
-      output << endl << "};" << endl << endl;
+      output << std::endl << "};" << std::endl << std::endl;
     }
 
     /** Reads an array of bits saved in a character array.

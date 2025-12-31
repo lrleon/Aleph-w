@@ -408,7 +408,7 @@ class QuickHull
           rightmost = p;
       }
 
-    return make_pair(leftmost, rightmost);
+    return std::make_pair(leftmost, rightmost);
   }
 
   std::pair<DynList<Point>, DynList<Point>>

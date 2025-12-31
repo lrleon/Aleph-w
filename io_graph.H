@@ -50,7 +50,7 @@ namespace Aleph {
     /// Stores node to binary stream
     /// @param output Binary output stream
     /// @param p Node pointer to store
-    void operator () (ofstream & output, GT &, typename GT::Node * p)
+    void operator () (std::ofstream & output, GT &, typename GT::Node * p)
     {
       output.write(static_cast<char *>(&p->get_info()), sizeof(typename GT::Node_Type));
     }
@@ -58,9 +58,9 @@ namespace Aleph {
     /// Stores node to text stream
     /// @param output Text output stream
     /// @param p Node pointer to store
-    void operator () (ostream & output, GT &, typename GT::Node * p)
+    void operator () (std::ostream & output, GT &, typename GT::Node * p)
     {
-      output << p->get_info() << endl;
+      output << p->get_info() << std::endl;
     }
   };
 
@@ -78,7 +78,7 @@ namespace Aleph {
     /// Stores arc to binary stream
     /// @param output Binary output stream
     /// @param a Arc pointer to store
-    void operator () (ofstream & output, GT &, typename GT::Arc * a)
+    void operator () (std::ofstream & output, GT &, typename GT::Arc * a)
     {
       output.write(static_cast<char *>(&a->get_info()), sizeof(typename GT::Arc_Type));
     }
@@ -86,9 +86,9 @@ namespace Aleph {
     /// Stores arc to text stream
     /// @param output Text output stream
     /// @param a Arc pointer to store
-    void operator () (ostream & output, GT &, typename GT::Arc * a)
+    void operator () (std::ostream & output, GT &, typename GT::Arc * a)
     {
-      output << a->get_info() << endl;
+      output << a->get_info() << std::endl;
     }
   };
 
@@ -106,7 +106,7 @@ namespace Aleph {
     /// Loads node from binary stream
     /// @param input Binary input stream
     /// @param p Node pointer to load into
-    void operator () (ifstream & input, GT &, typename GT::Node * p)
+    void operator () (std::ifstream & input, GT &, typename GT::Node * p)
     {
       input.read(static_cast<char *>(&p->get_info()), sizeof(typename GT::Node_Type));
     }
@@ -114,7 +114,7 @@ namespace Aleph {
     /// Loads node from text stream
     /// @param input Text input stream
     /// @param p Node pointer to load into
-    void operator () (istream & input, GT &, typename GT::Node * p)
+    void operator () (std::istream & input, GT &, typename GT::Node * p)
     {
       input >> p->get_info();
     }
@@ -134,7 +134,7 @@ namespace Aleph {
     /// Loads arc from binary stream
     /// @param input Binary input stream
     /// @param a Arc pointer to load into
-    void operator () (ifstream & input, GT &, typename GT::Arc * a)
+    void operator () (std::ifstream & input, GT &, typename GT::Arc * a)
     {
       input.read(static_cast<char *>(&a->get_info()), sizeof(typename GT::Arc_Type));
     }
@@ -142,7 +142,7 @@ namespace Aleph {
     /// Loads arc from text stream
     /// @param input Text input stream
     /// @param a Arc pointer to load into
-    void operator () (istream & input, GT &, typename GT::Arc * a)
+    void operator () (std::istream & input, GT &, typename GT::Arc * a)
     {
       input >> a->get_info();
     }
@@ -259,13 +259,13 @@ namespace Aleph {
     IO_Graph(GT * gptr) noexcept : g(*gptr) { /* empty */ }
 
     /// Guarda el grafo en el stream output
-    void save(ofstream & output)
+    void save(std::ofstream & output)
     {
       // guarda cantidad de nodos
       const size_t num_nodes = g.get_num_nodes();
 
       if (verbose_mode)
-        cout << "Storing " << num_nodes << " nodes ... ";
+        std::cout << "Storing " << num_nodes << " nodes ... ";
 
       output.write(reinterpret_cast<const char *>(&num_nodes), sizeof(num_nodes));
 
@@ -280,7 +280,7 @@ namespace Aleph {
           auto p = it.get_curr();
 
           if (verbose_mode)
-            cout << i << " ";
+            std::cout << i << " ";
 
           store_node(output, g, p);
 
@@ -290,8 +290,8 @@ namespace Aleph {
       const size_t num_arcs = g.get_num_arcs();
 
       if (verbose_mode)
-        cout << " done " << endl 
-             << "Storing " << num_arcs << " arcs ... " << endl;
+        std::cout << " done " << std::endl 
+             << "Storing " << num_arcs << " arcs ... " << std::endl;
 
       output.write(reinterpret_cast<const char *>(&num_arcs), sizeof(num_arcs));
 
@@ -310,20 +310,20 @@ namespace Aleph {
           output.write(static_cast<const char *>(&tgt_idx), sizeof(int));
 
           if (verbose_mode)
-            cout << " " << src_idx << "--" << tgt_idx << " ";
+            std::cout << " " << src_idx << "--" << tgt_idx << " ";
 
           store_arc(output, g, a);
 
           if (verbose_mode)
-            cout << endl;
+            std::cout << std::endl;
         }
 
       if (verbose_mode)
-        cout << " done " << endl << endl;
+        std::cout << " done " << std::endl << std::endl;
     }
 
     /// Carga el grafo desde el stream output
-    void load(ifstream & input)
+    void load(std::ifstream & input)
     {
       // lee cantidad de nodos
       size_t num_nodes;
@@ -332,7 +332,7 @@ namespace Aleph {
         << "Failed to read node count from binary stream";
 
       if (verbose_mode)
-        cout << "Loading " << num_nodes << " nodes ...";
+        std::cout << "Loading " << num_nodes << " nodes ...";
 
       DynArray<typename GT::Node*> nodes_table(num_nodes);
       nodes_table.reserve(0, num_nodes - 1);
@@ -342,7 +342,7 @@ namespace Aleph {
           std::unique_ptr<typename GT::Node> p(new typename GT::Node);
 
           if (verbose_mode)
-            cout << " " << i;
+            std::cout << " " << i;
 
           load_node(input, g, p.get());
           ah_runtime_error_if(!input.good())
@@ -358,8 +358,8 @@ namespace Aleph {
         << "Failed to read arc count from binary stream";
 
       if (verbose_mode)
-        cout << " done " << endl
-             << "Loading " << num_arcs << " arcs ... " << endl;
+        std::cout << " done " << std::endl
+             << "Loading " << num_arcs << " arcs ... " << std::endl;
 
       for (size_t i = 0; i < num_arcs; ++i)
         {
@@ -380,30 +380,30 @@ namespace Aleph {
           auto a = g.insert_arc(src, tgt);
 
           if (verbose_mode)
-            cout << " " << src_idx << "--" << tgt_idx << " ";
+            std::cout << " " << src_idx << "--" << tgt_idx << " ";
 
           load_arc(input, g, a);
           ah_runtime_error_if(!input.good())
             << "Failed to load arc " << i << " data";
 
           if (verbose_mode)
-            cout << endl;
+            std::cout << std::endl;
         }
 
       if (verbose_mode)
-        cout << " done " << endl << endl;
+        std::cout << " done " << std::endl << std::endl;
     }
 
     /// Guarda el grafo en el stream output
-    void save_in_text_mode(ostream & output)
+    void save_in_text_mode(std::ostream & output)
     {        // guarda cantidad de nodos
       const size_t num_nodes = g.get_num_nodes();
       const size_t num_arcs  = g.get_num_arcs();
-      output << num_nodes << endl
-             << num_arcs << endl;
+      output << num_nodes << std::endl
+             << num_arcs << std::endl;
 
       if (verbose_mode)
-        cout << "Storing " << num_nodes << " nodes ... ";
+        std::cout << "Storing " << num_nodes << " nodes ... ";
 
       int i = 0; // contador de nodos. Lleva los índices en la tabla
 
@@ -416,7 +416,7 @@ namespace Aleph {
           typename GT::Node * p = it.get_curr();
 
           if (verbose_mode)
-            cout << i << " ";
+            std::cout << i << " ";
 
           store_node(output, g, p);
 
@@ -424,8 +424,8 @@ namespace Aleph {
         }
 
       if (verbose_mode)
-        cout << " done " << endl 
-             << "Storing " << num_arcs << " arcs ... " << endl;
+        std::cout << " done " << std::endl 
+             << "Storing " << num_arcs << " arcs ... " << std::endl;
 
       for (Arc_Iterator<GT, AF> it(g, arc_filter); it.has_curr(); it.next_ne())
         {
@@ -441,20 +441,20 @@ namespace Aleph {
           output << src_idx << " " << tgt_idx << " ";
 
           if (verbose_mode)
-            cout << " " << src_idx << "--" << tgt_idx << " ";
+            std::cout << " " << src_idx << "--" << tgt_idx << " ";
 
           store_arc(output, g, a);
 
           if (verbose_mode)
-            cout << endl;
+            std::cout << std::endl;
         }
 
       if (verbose_mode)
-        cout << " done " << endl << endl;
+        std::cout << " done " << std::endl << std::endl;
     }
 
     /// Carga el grafo desde el stream intput
-    void load_in_text_mode(istream & input)
+    void load_in_text_mode(std::istream & input)
     {
       // lee cantidad de nodos
       size_t num_nodes;
@@ -467,7 +467,7 @@ namespace Aleph {
       input.ignore();
 
       if (verbose_mode)
-        cout << "Loading " << num_nodes << " nodes ...";
+        std::cout << "Loading " << num_nodes << " nodes ...";
 
       DynArray<typename GT::Node*> nodes_table(num_nodes);
       nodes_table.reserve(0, num_nodes - size_t(1));
@@ -477,7 +477,7 @@ namespace Aleph {
           std::unique_ptr<typename GT::Node> p(new typename GT::Node);
 
           if (verbose_mode)
-            cout << " " << i;
+            std::cout << " " << i;
 
           load_node(input, g, p.get());
           ah_runtime_error_if(!input.good())
@@ -488,8 +488,8 @@ namespace Aleph {
         }
 
       if (verbose_mode)
-        cout << " done " << endl
-             << "Loading " << num_arcs << " arcs ... " << endl;
+        std::cout << " done " << std::endl
+             << "Loading " << num_arcs << " arcs ... " << std::endl;
 
       for (size_t i = 0; i < num_arcs; ++i)
         {
@@ -505,18 +505,18 @@ namespace Aleph {
           auto a = g.insert_arc(src, tgt);
 
           if (verbose_mode)
-            cout << " " << src_idx << "--" << tgt_idx << " ";
+            std::cout << " " << src_idx << "--" << tgt_idx << " ";
 
           load_arc(input, g, a);
           ah_runtime_error_if(!input.good())
             << "Failed to load arc " << i << " data from text stream";
 
           if (verbose_mode)
-            cout << " " << endl;
+            std::cout << " " << std::endl;
         }
 
       if (verbose_mode)
-        cout << " done " << endl << endl;
+        std::cout << " done " << std::endl << std::endl;
     }
   };
 

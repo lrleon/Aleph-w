@@ -380,7 +380,7 @@ namespace Aleph
     {
       ah_underflow_error_if(n == 0) << "remove_first(): MemArray is empty";
       assert(ptr);
-      T ret = move(ptr[0]);
+      T ret = std::move(ptr[0]);
       this->close_gap(0, 1);
       return ret;
     }

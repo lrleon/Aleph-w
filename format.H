@@ -33,7 +33,7 @@
 
 std::string float_f(const float & r, size_t d)
 {
-  stringstream s;
+  std::stringstream s;
   s << std::setprecision(d) << std::fixed << r;
   return s.str();
 }

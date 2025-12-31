@@ -39,8 +39,8 @@ struct Preorder_Nodes
 
   ~Preorder_Nodes()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -61,8 +61,8 @@ struct Inorder_Nodes
 
   ~Inorder_Nodes()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -83,8 +83,8 @@ struct Inorder_Keys
 
   ~Inorder_Keys()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -105,8 +105,8 @@ struct Inorder_Diff
 
   ~Inorder_Diff()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)

@@ -90,7 +90,7 @@ namespace Aleph {
 
     DynMapTree(const DynList<Key> & keys)
     {
-      keys.for_each([this] (auto & k) { this->insert(make_pair(k, Data())); });
+      keys.for_each([this] (auto & k) { this->insert(std::make_pair(k, Data())); });
     }
 
     DynMapTree() {}

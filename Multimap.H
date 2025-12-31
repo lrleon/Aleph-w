@@ -1182,14 +1182,14 @@ namespace Aleph
         Si m es un mapeo, entonces m[key] = item; insertará el par
         (key,item).
 
-        La expresión cout << m[key] "lee" el item asociado a la clave
+        La expresión std::cout << m[key] "lee" el item asociado a la clave
         key. Si la clave ya existe, entonces se retorna el primer item
         asociado. De lo contrario, se inserta un nuevo par cuyo valor de
         item está inicializado por el constructor T::T().
     */
     const T & operator [] (const Key & key)
     {
-      iterator ret = insert(make_pair(key, T()));
+      iterator ret = insert(std::make_pair(key, T()));
 
       return ret->second;
     }

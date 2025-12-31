@@ -751,7 +751,7 @@ namespace Aleph
       if (paint_partial_min_paths_tree(g, start, end))
         return get_min_path(end, min_path);
 
-      return numeric_limits<typename Distance::Distance_Type>::max();
+      return std::numeric_limits<typename Distance::Distance_Type>::max();
     }
 
     /** Computes the spanning tree of all shortest paths from a given

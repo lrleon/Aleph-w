@@ -200,7 +200,7 @@ namespace Aleph
       return &ret_val->get_key();
     }
 
-    pair<Key *, bool> search_or_insert_bucket(Bucket *bucket)
+    std::pair<Key *, bool> search_or_insert_bucket(Bucket *bucket)
     {
       auto *ret_val = static_cast<Bucket *>(this->Base::search_or_insert(bucket));
       if (ret_val != bucket) // is the key in the table?
@@ -237,12 +237,12 @@ namespace Aleph
 
     // Returns true if key is already in the table. Otherwise, inserts key and
     // returns false.
-    pair<Key *, bool> contains_or_insert(const Key & key)
+    std::pair<Key *, bool> contains_or_insert(const Key & key)
     {
       return search_or_insert_bucket(new Bucket(key));
     }
 
-    pair<Key *, bool> contains_or_insert(Key && key)
+    std::pair<Key *, bool> contains_or_insert(Key && key)
     {
       return search_or_insert_bucket(new Bucket(std::forward<Key>(key)));
     }
@@ -509,19 +509,19 @@ namespace Aleph
     Pair * insert(const Key & key, Data && data)
     {
       return this->insert_bucket
-          (new typename Base::Bucket(Pair(key, forward<Data>(data))));
+          (new typename Base::Bucket(Pair(key, std::forward<Data>(data))));
     }
 
     Pair * insert(Key && key, Data && data)
     {
       return this->insert_bucket
-          (new typename Base::Bucket(Pair(forward<Key>(key), forward<Data>(data))));
+          (new typename Base::Bucket(Pair(std::forward<Key>(key), std::forward<Data>(data))));
     }
 
     Pair * insert(Key && key, const Data & data)
     {
       return this->insert_bucket
-          (new typename Base::Bucket(Pair(forward<Key>(key), data)));
+          (new typename Base::Bucket(Pair(std::forward<Key>(key), data)));
     }
 
     /** Searches for key and, if found, returns a pointer to the associated
@@ -551,18 +551,18 @@ namespace Aleph
           return bucket != nullptr ? &bucket->get_key() : nullptr;
         }
       else
-        return Base::search(Pair(forward<Key>(key), Data()));
+        return Base::search(Pair(std::forward<Key>(key), Data()));
     }
 
     /// Checks if a key exists in the map
     bool has(const Key & key) const noexcept { return search(key) != nullptr; }
 
-    bool has(Key && key) const noexcept { return search(forward<Key>(key)) != nullptr; }
+    bool has(Key && key) const noexcept { return search(std::forward<Key>(key)) != nullptr; }
 
     /// Alias for has()
     bool contains(const Key & key) const noexcept { return has(key); }
 
-    bool contains(Key && key) const noexcept { return has(forward<Key>(key)); }
+    bool contains(Key && key) const noexcept { return has(std::forward<Key>(key)); }
 
     /** Finds and returns a reference to the value associated with key.
 
@@ -604,12 +604,12 @@ namespace Aleph
 
     Data &operator [](Key && key)
     {
-      return this->search_or_insert(Pair(forward<Key>(key), Data()))->second;
+      return this->search_or_insert(Pair(std::forward<Key>(key), Data()))->second;
     }
 
     const Data &operator [](Key && key) const
     {
-      return this->find(forward<Key>(key));
+      return this->find(std::forward<Key>(key));
     }
 
     /// Removes from the table the key whose pointer must be the result of a

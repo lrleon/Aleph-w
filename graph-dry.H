@@ -449,13 +449,13 @@ public:
   GTNodeCommon(const NodeInfo & info) : node_info(info) {}
 
   /// Move constructor from info value
-  GTNodeCommon(NodeInfo && info) : node_info(move(info)) {}
+  GTNodeCommon(NodeInfo && info) : node_info(std::move(info)) {}
 
   /// Copy constructor
   GTNodeCommon(const GTNodeCommon & other) : node_info(other.node_info) {}
 
   /// Move constructor
-  GTNodeCommon(GTNodeCommon && other) noexcept : node_info(move(other.node_info)) {}
+  GTNodeCommon(GTNodeCommon && other) noexcept : node_info(std::move(other.node_info)) {}
 
   /// Copy assignment operator
   GTNodeCommon & operator=(const GTNodeCommon & other)
@@ -469,7 +469,7 @@ public:
   GTNodeCommon & operator=(GTNodeCommon && other) noexcept
   {
     if (this != &other)
-      node_info = move(other.node_info);
+      node_info = std::move(other.node_info);
     return *this;
   }
 
@@ -531,7 +531,7 @@ public:
   GTArcCommon(const ArcInfo & info) : arc_info(info) {}
 
   /// Construct from info value (move)
-  GTArcCommon(ArcInfo && info) : arc_info(move(info)) {}
+  GTArcCommon(ArcInfo && info) : arc_info(std::move(info)) {}
 
   /// Construct with endpoints and info (copy)
   GTArcCommon(void *src, void *tgt, const ArcInfo & data)
@@ -539,7 +539,7 @@ public:
 
   /// Construct with endpoints and info (move)
   GTArcCommon(void *src, void *tgt, ArcInfo && data = ArcInfo())
-    : src_node(src), tgt_node(tgt), arc_info(move(data)) {}
+    : src_node(src), tgt_node(tgt), arc_info(std::move(data)) {}
 
   /// Copy constructor
   GTArcCommon(const GTArcCommon & other)
@@ -547,7 +547,7 @@ public:
 
   /// Move constructor
   GTArcCommon(GTArcCommon && other) noexcept
-    : src_node(other.src_node), tgt_node(other.tgt_node), arc_info(move(other.arc_info)) {}
+    : src_node(other.src_node), tgt_node(other.tgt_node), arc_info(std::move(other.arc_info)) {}
 
   /// Copy assignment operator
   GTArcCommon & operator=(const GTArcCommon & other)
@@ -561,7 +561,7 @@ public:
   GTArcCommon & operator=(GTArcCommon && other) noexcept
   {
     if (this != &other)
-      arc_info = move(other.arc_info);
+      arc_info = std::move(other.arc_info);
     return *this;
   }
 
@@ -1256,7 +1256,7 @@ public:
 
           g.traverse_nodes([] (auto p)
 	    {
-	      cout << p->get_info() << endl;
+	      std::cout << p->get_info() << std::endl;
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1327,7 +1327,7 @@ public:
 
           g.traverse_arcs([] (auto a)
 	    {
-	      cout << a->get_info() << endl;
+	      std::cout << a->get_info() << std::endl;
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1393,7 +1393,7 @@ public:
 
           g.traverse_arcs(p, [] (auto a)
 	  {
-	    cout << a->get_info() << endl;
+	    std::cout << a->get_info() << std::endl;
 	    return true; // for instructing to visit the next node
           });
 
@@ -2836,7 +2836,7 @@ public:
   }
 
   /// Pair of arc and node (topologically related)
-  using ArcPair = tuple<Arc *, Node *>;
+  using ArcPair = std::tuple<Arc *, Node *>;
 
   /** Return a list of pair incoming arcs and nodes.
 
@@ -2856,7 +2856,7 @@ public:
     for (In_Iterator it(p); it.has_curr(); it.next_ne())
       {
         auto a = it.get_curr();
-        ret.append(make_tuple(a, (Node *) a->get_connected_node(p)));
+        ret.append(std::make_tuple(a, (Node *) a->get_connected_node(p)));
       }
     return ret;
   }
@@ -2879,7 +2879,7 @@ public:
     for (Out_Iterator it(p); it.has_curr(); it.next_ne())
       {
         auto a = it.get_curr();
-        ret.append(make_tuple(a, (Node *) a->get_connected_node(p)));
+        ret.append(std::make_tuple(a, (Node *) a->get_connected_node(p)));
       }
     return ret;
   }

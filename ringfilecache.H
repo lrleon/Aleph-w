@@ -298,7 +298,7 @@ private:
 
     // read the cache file name, which should be saved at the end of
     // pars file
-    const size_t name_size = min(Ring_Max_Name_Size, pars.size_cache_file);
+    const size_t name_size = std::min(Ring_Max_Name_Size, pars.size_cache_file);
     const std::shared_ptr<char> name(static_cast<char *>(malloc(name_size)), free);
     pars_stream.read(name.get(), name_size);
     cache_file_name = name.get();

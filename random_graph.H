@@ -88,10 +88,10 @@ namespace Aleph
     Init_Node & init_node;
     Init_Arc & init_arc;
 
-    unique_ptr<DynArray<GT_Node *>> nodes; // pointer to save directory
+    std::unique_ptr<DynArray<GT_Node *>> nodes; // pointer to save directory
                                             // space when not used
 
-    unique_ptr<IndexArc<GT>> idx_arc; // pointer because constructor
+    std::unique_ptr<IndexArc<GT>> idx_arc; // pointer because constructor
                                       // requires the graph
     mutable size_t num_nodes;
     mutable size_t num_arcs;
@@ -385,7 +385,7 @@ namespace Aleph
 
     virtual void create_nodes_and_initialize_arc_index()
     {
-      this->nodes = unique_ptr<DynArray<GT_Node *>>
+      this->nodes = std::unique_ptr<DynArray<GT_Node *>>
           (new DynArray<GT_Node *>(this->num_nodes));
 
       this->nodes->reserve(this->num_nodes);
@@ -402,7 +402,7 @@ namespace Aleph
             }
         }
 
-      this->idx_arc = unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
+      this->idx_arc = std::unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
     }
 
     virtual void connect()
@@ -732,16 +732,16 @@ namespace Aleph
       const size_t & n = this->nodes->size();
 
       if (n != this->g.get_num_nodes())
-        cout << "Warning num of nodes of graph does not match with array "
-            << this->g.get_num_nodes() << "!=" << n << endl;
+        std::cout << "Warning num of nodes of graph does not match with array "
+            << this->g.get_num_nodes() << "!=" << n << std::endl;
 
       size_t total = greater.size() + smaller.size() + equal.size();
       if (total != this->g.get_num_nodes())
-        cout << "Inconsistency with nodes parity" << endl
-            << "greater = " << greater.size() << endl
-            << "smaller = " << smaller.size() << endl
-            << "equal   = " << equal.size() << endl
-            << "total   = " << total << endl
+        std::cout << "Inconsistency with nodes parity" << std::endl
+            << "greater = " << greater.size() << std::endl
+            << "smaller = " << smaller.size() << std::endl
+            << "equal   = " << equal.size() << std::endl
+            << "total   = " << total << std::endl
             << "|V|     = " << this->g.get_num_nodes();
 
       for (size_t i = 0; i < n; ++i)
@@ -754,17 +754,17 @@ namespace Aleph
           if (in_sz == out_sz)
             {
               if (smaller.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << " in smaller table" << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << " in smaller table" << std::endl;
 
               if (greater.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << " in greater table" << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << " in greater table" << std::endl;
 
               if (equal.search(p) == nullptr)
                 {
-                  cout << "node of same in/out degree is not in equal table"
-                      << endl;
+                  std::cout << "node of same in/out degree is not in equal table"
+                      << std::endl;
 
                   return false;
                 }
@@ -772,17 +772,17 @@ namespace Aleph
           else if (in_sz > out_sz)
             {
               if (greater.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << " in greater table" << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << " in greater table" << std::endl;
 
               if (equal.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << std::endl;
 
               if (smaller.search(p) == nullptr)
                 {
-                  cout << "node with " << in_sz << "/" << out_sz << " not found "
-                      << "smaller table" << endl;
+                  std::cout << "node with " << in_sz << "/" << out_sz << " not found "
+                      << "smaller table" << std::endl;
 
                   return false;
                 }
@@ -790,17 +790,17 @@ namespace Aleph
           else
             {
               if (smaller.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << " in smaller table" << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << " in smaller table" << std::endl;
 
               if (equal.search(p) != nullptr)
-                cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
-                    << endl;
+                std::cout << "Inconsistency " << in_sz << "/" << out_sz << " found "
+                    << std::endl;
 
               if (greater.search(p) == nullptr)
                 {
-                  cout << "node with " << in_sz << "/" << out_sz << " not found "
-                      << "greater table" << endl;
+                  std::cout << "node with " << in_sz << "/" << out_sz << " not found "
+                      << "greater table" << std::endl;
 
                   return false;
                 }
@@ -864,7 +864,7 @@ namespace Aleph
 
     virtual void create_nodes_and_initialize_arc_index()
     {
-      this->nodes = unique_ptr<DynArray<GT_Node *>>
+      this->nodes = std::unique_ptr<DynArray<GT_Node *>>
           (new DynArray<GT_Node *>(this->num_nodes));
 
       this->nodes->reserve(this->num_nodes);
@@ -882,7 +882,7 @@ namespace Aleph
             }
         }
 
-      this->idx_arc = unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
+      this->idx_arc = std::unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
     }
 
     virtual void connect()

@@ -696,7 +696,7 @@ namespace Aleph
 
   template <typename T, typename NumType>
   inline
-  ostream &operator <<(ostream & s, const Vector<T, NumType> & vec)
+  std::ostream &operator <<(std::ostream & s, const Vector<T, NumType> & vec)
   {
     return s << vec.to_str();
   }

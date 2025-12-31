@@ -24,12 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/** @file ah-string-utils.H
+/** @file ah-std::string-utils.H
  *  @brief String manipulation utilities.
  *
- *  This file provides a comprehensive set of string utilities including
+ *  This file provides a comprehensive set of std::string utilities including
  *  trimming, splitting, joining, case conversion, numeric parsing, and
- *  various string transformation functions.
+ *  various std::string transformation functions.
  *
  *  @ingroup Utils
  */
@@ -58,9 +58,9 @@
 
 namespace Aleph
 {
-  /** \file ah-string-utils.H
+  /** \file ah-std::string-utils.H
 
-      \brief Assorted string utilities.
+      \brief Assorted std::string utilities.
 
       This header provides small, header-only helpers for:
       - Converting containers to strings
@@ -72,16 +72,16 @@ namespace Aleph
       Most functions operate on byte strings and use C locale `ctype` functions.
   */
 
-  /** Convert a `std::vector<T>` to a comma-separated string.
+  /** Convert a `std::vector<T>` to a comma-separated std::string.
 
       \tparam T Element type streamable to `std::ostream`.
       \param[in] v Vector to stringify.
-      \return Comma-separated representation (empty string if `v` is empty).
+      \return Comma-separated representation (empty std::string if `v` is empty).
   */
   template <typename T>
-  string to_string(const vector<T> & v)
+  std::string to_string(const std::vector<T> & v)
   {
-    ostringstream s;
+    std::ostringstream s;
     for (size_t i = 0; i < v.size(); ++i)
       {
         s << v[i];
@@ -91,16 +91,16 @@ namespace Aleph
     return s.str();
   }
 
-  /** Convert an `Aleph::Array<T>` to a comma-separated string.
+  /** Convert an `Aleph::Array<T>` to a comma-separated std::string.
 
       \tparam T Element type streamable to `std::ostream`.
       \param[in] v Array to stringify.
-      \return Comma-separated representation (empty string if `v` is empty).
+      \return Comma-separated representation (empty std::string if `v` is empty).
   */
   template <typename T>
-  string to_string(const Array<T> & v)
+  std::string to_string(const Array<T> & v)
   {
-    ostringstream s;
+    std::ostringstream s;
     for (auto it = v.get_it(); it.has_curr(); it.next_ne())
       {
         s << it.get_curr();
@@ -111,15 +111,15 @@ namespace Aleph
   }
 
   // left trim
-  /** Remove leading whitespace from a string in-place.
+  /** Remove leading whitespace from a std::string in-place.
 
       Whitespace is defined by `std::isspace` in the current C locale.
 
       \param[in,out] s String to modify.
   */
-  inline void ltrim(string & s)
+  inline void ltrim(std::string & s)
   {
-    s.erase(s.begin(), ranges::find_if(s,
+    s.erase(s.begin(), std::ranges::find_if(s,
                                        [](const unsigned char ch)
                                          {
                                            return not std::isspace(ch);
@@ -127,13 +127,13 @@ namespace Aleph
   }
 
   // trim from end
-  /** Remove trailing whitespace from a string in-place.
+  /** Remove trailing whitespace from a std::string in-place.
 
       Whitespace is defined by `std::isspace` in the current C locale.
 
       \param[in,out] s String to modify.
   */
-  inline void rtrim(string & s)
+  inline void rtrim(std::string & s)
   {
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          [](const unsigned char ch)
@@ -143,42 +143,42 @@ namespace Aleph
   }
 
   // fast concatenation of several strings
-  /** Concatenate multiple streamable arguments into a single string.
+  /** Concatenate multiple streamable arguments into a single std::string.
 
       This is implemented via `std::ostringstream` and stream insertion.
 
       \tparam Args Types streamable to `std::ostream`.
       \param[in] args Values to concatenate.
-      \return Concatenated string.
+      \return Concatenated std::string.
   */
   template <class... Args>
-  inline string concat(const Args &... args)
+  inline std::string concat(const Args &... args)
   {
-    ostringstream s;
+    std::ostringstream s;
     (s << ... << args);
     return s.str();
   }
 
   // trim from both ends (in place)
-  /** Return a trimmed copy of a string (leading + trailing whitespace removed).
+  /** Return a trimmed copy of a std::string (leading + trailing whitespace removed).
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \return Trimmed copy of `s`.
   */
-  inline string trim(const string & s)
+  inline std::string trim(const std::string & s)
   {
-    string ret = s;
+    std::string ret = s;
     ltrim(ret);
     rtrim(ret);
     return ret;
   }
 
-  /** Trim a string in-place (leading + trailing whitespace removed).
+  /** Trim a std::string in-place (leading + trailing whitespace removed).
 
       \param[in,out] s String to modify.
       \return Reference to `s`.
   */
-  inline string &trim_in_place(string & s)
+  inline std::string &trim_in_place(std::string & s)
   {
     ltrim(s);
     rtrim(s);
@@ -191,7 +191,7 @@ namespace Aleph
       \param[in] substr Needle.
       \return `true` if `substr` is a substring of `str`.
   */
-  inline bool contains(const string_view & str, const string_view & substr)
+  inline bool contains(const std::string_view & str, const std::string_view & substr)
   {
     return str.find(substr) != std::string::npos;
   }
@@ -200,49 +200,49 @@ namespace Aleph
 
       \param[in] d Value to format.
       \param[in] precision Number of digits after the decimal point.
-      \return Formatted string.
+      \return Formatted std::string.
   */
-  inline string to_string(const double d, const size_t precision)
+  inline std::string to_string(const double d, const size_t precision)
   {
-    ostringstream s;
+    std::ostringstream s;
     s.precision(precision);
     s << std::fixed << d;
     return s.str();
   }
 
-  /** Convert `double` to a string with maximum round-trip precision.
+  /** Convert `double` to a std::string with maximum round-trip precision.
 
       Uses `std::numeric_limits<double>::max_digits10`.
 
       \param[in] d Value to format.
       \return String representation.
   */
-  inline string to_str(const double d)
+  inline std::string to_str(const double d)
   {
-    return to_string(d, numeric_limits<double>::max_digits10);
+    return to_string(d, std::numeric_limits<double>::max_digits10);
   }
 
-  /** Convert a C string to lower-case.
+  /** Convert a C std::string to lower-case.
 
-      \param[in] str Null-terminated input string.
+      \param[in] str Null-terminated input std::string.
       \return Lowercased copy.
   */
-  inline string tolower(const char *str)
+  inline std::string tolower(const char *str)
   {
-    string ret;
+    std::string ret;
     for (const char *ptr = str; *ptr; ++ptr)
       ret.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*ptr))));
     return ret;
   }
 
-  /** Convert a C string to upper-case.
+  /** Convert a C std::string to upper-case.
 
-      \param[in] str Null-terminated input string.
+      \param[in] str Null-terminated input std::string.
       \return Uppercased copy.
   */
-  inline string toupper(const char *str)
+  inline std::string toupper(const char *str)
   {
-    string ret;
+    std::string ret;
     for (const char *ptr = str; *ptr; ++ptr)
       ret.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(*ptr))));
     return ret;
@@ -250,42 +250,42 @@ namespace Aleph
 
   /** Convert a `std::string` to lower-case.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Lowercased copy.
   */
-  inline string tolower(const string & str)
+  inline std::string tolower(const std::string & str)
   {
     return tolower(str.c_str());
   }
 
   /** Convert a `std::string` to upper-case.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Uppercased copy.
   */
-  inline string toupper(const string & str)
+  inline std::string toupper(const std::string & str)
   {
     return toupper(str.c_str());
   }
 
-  /** Convert a string to lower-case in-place.
+  /** Convert a std::string to lower-case in-place.
 
       \param[in,out] str String to modify.
       \return Reference to `str`.
   */
-  inline string &mutable_tolower(string & str)
+  inline std::string &mutable_tolower(std::string & str)
   {
     for (auto & c: str)
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return str;
   }
 
-  /** Convert a string to upper-case in-place.
+  /** Convert a std::string to upper-case in-place.
 
       \param[in,out] str String to modify.
       \return Reference to `str`.
   */
-  inline string &mutable_toupper(string & str)
+  inline std::string &mutable_toupper(std::string & str)
   {
     for (auto & c: str)
       c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
@@ -299,8 +299,8 @@ namespace Aleph
       - Converts letters `A..Z` to lower-case
       - Drops any other character
 
-      \param[in] str Input string.
-      \return Normalized string.
+      \param[in] str Input std::string.
+      \return Normalized std::string.
   */
   inline std::string only_alpha(const std::string & str)
   {
@@ -323,14 +323,14 @@ namespace Aleph
     return ret;
   }
 
-  /** Remove all whitespace characters from a string.
+  /** Remove all whitespace characters from a std::string.
 
       Whitespace is defined by `std::isspace` in the current C locale.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Copy of `str` with whitespace removed.
   */
-  inline string remove_spaces(const string & str)
+  inline std::string remove_spaces(const std::string & str)
   {
     const size_t n = str.size();
     std::string ret;
@@ -343,17 +343,17 @@ namespace Aleph
 
   /** Remove any character appearing in `symbols`.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \param[in] symbols Set of characters to remove.
       \return Copy of `str` without any character present in `symbols`.
   */
-  inline string remove_symbols(const string & str, const string & symbols)
+  inline std::string remove_symbols(const std::string & str, const std::string & symbols)
   {
     const size_t n = str.size();
     std::string ret;
     ret.reserve(n + 1);
     for (const auto c: str)
-      if (symbols.find(c) == string::npos)
+      if (symbols.find(c) == std::string::npos)
         ret.push_back(c);
 
     return ret;
@@ -371,7 +371,7 @@ namespace Aleph
       \return Reference to `out`.
   */
   template <class C>
-  inline ostream &join(const C & c, const string & sep, ostream & out)
+  inline std::ostream &join(const C & c, const std::string & sep, std::ostream & out)
   {
     if (c.is_empty())
       return out;
@@ -387,31 +387,31 @@ namespace Aleph
     return out;
   }
 
-  /** Join elements of an Aleph-style container into a string.
+  /** Join elements of an Aleph-style container into a std::string.
 
       \tparam C Container type.
       \param[in] c Container to join.
       \param[in] sep Separator inserted between elements (defaults to a space).
-      \return Joined string.
+      \return Joined std::string.
   */
   template <class C>
-  inline string join(const C & c, const string & sep = " ")
+  inline std::string join(const C & c, const std::string & sep = " ")
   {
-    ostringstream s;
+    std::ostringstream s;
     join(c, sep, s);
     return s.str();
   }
 
   // return true if str can be converted to a double
-  /** Check whether a string fully parses as a finite `double`.
+  /** Check whether a std::string fully parses as a finite `double`.
 
-      Parses using `std::strtod` and requires that the entire string is consumed.
+      Parses using `std::strtod` and requires that the entire std::string is consumed.
       Values that overflow/underflow (ERANGE) are rejected.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return `true` if `str` fully parses as a `double` and is in range.
   */
-  inline bool is_double(const string & str)
+  inline bool is_double(const std::string & str)
   {
     const char *begin = str.c_str();
     char *endptr = nullptr;
@@ -422,15 +422,15 @@ namespace Aleph
     return errno != ERANGE;
   }
 
-  /** Check whether a string fully parses as a finite `float`.
+  /** Check whether a std::string fully parses as a finite `float`.
 
-      Parses using `std::strtof` and requires that the entire string is consumed.
+      Parses using `std::strtof` and requires that the entire std::string is consumed.
       Values that overflow/underflow (ERANGE) are rejected.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return `true` if `str` fully parses as a `float` and is in range.
   */
-  inline bool is_float(const string & str)
+  inline bool is_float(const std::string & str)
   {
     const char *begin = str.c_str();
     char *endptr = nullptr;
@@ -441,15 +441,15 @@ namespace Aleph
     return errno != ERANGE;
   }
 
-  /** Check whether a string fully parses as a `long`.
+  /** Check whether a std::string fully parses as a `long`.
 
-      Parses using `std::strtol` and requires that the entire string is consumed.
+      Parses using `std::strtol` and requires that the entire std::string is consumed.
       Values that overflow/underflow (ERANGE) are rejected.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return `true` if `str` fully parses as a `long` and is in range.
   */
-  inline bool is_long(const string & str)
+  inline bool is_long(const std::string & str)
   {
     const char *begin = str.c_str();
     char *endptr = nullptr;
@@ -460,15 +460,15 @@ namespace Aleph
     return errno != ERANGE;
   }
 
-  /** Check whether a string fully parses as a non-negative `size_t`.
+  /** Check whether a std::string fully parses as a non-negative `size_t`.
 
-      Parses using `std::strtoull` and requires that the entire string is consumed.
+      Parses using `std::strtoull` and requires that the entire std::string is consumed.
       Negative strings are rejected.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return `true` if `str` parses as `size_t` and is in range.
   */
-  inline bool is_size_t(const string & str)
+  inline bool is_size_t(const std::string & str)
   {
     if (str.empty() or str[0] == '-')
       return false;
@@ -485,13 +485,13 @@ namespace Aleph
   }
 
 
-  /** Convert a string to `long` and throw on parse errors.
+  /** Convert a std::string to `long` and throw on parse errors.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \return Parsed `long` value.
       \throw std::runtime_error If `s` does not contain a valid `long`.
   */
-  inline long safe_atol(const string & s)
+  inline long safe_atol(const std::string & s)
   {
     errno = 0;
     char *endptr = nullptr;
@@ -501,17 +501,17 @@ namespace Aleph
         (errno != 0 && val == 0) ||
         (endptr == s.c_str());
 
-    ah_runtime_error_if(invalid) << "invalid string for long: " << s;
+    ah_runtime_error_if(invalid) << "invalid std::string for long: " << s;
     return val;
   }
 
-  /** Convert a string to `double` and throw on parse errors.
+  /** Convert a std::string to `double` and throw on parse errors.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \return Parsed `double` value.
       \throw std::runtime_error If `s` does not contain a valid `double`.
   */
-  inline double safe_atof(const string & s)
+  inline double safe_atof(const std::string & s)
   {
     errno = 0;
     char *endptr = nullptr;
@@ -521,17 +521,17 @@ namespace Aleph
         (errno != 0 && val == 0) ||
         endptr == s.c_str();
 
-    ah_runtime_error_if(invalid) << "invalid string for double: " << s;
+    ah_runtime_error_if(invalid) << "invalid std::string for double: " << s;
     return val;
   }
 
   /** Check whether `prefix` is a prefix of `str`.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \param[in] prefix Prefix to test.
       \return `true` if `str` begins with `prefix`.
   */
-  inline bool is_prefix(const string & str, const string & prefix)
+  inline bool is_prefix(const std::string & str, const std::string & prefix)
   {
     if (str.size() < prefix.size())
       return false;
@@ -544,34 +544,34 @@ namespace Aleph
       \param[in] prefix Prefix to remove.
       \return Reference to `str`.
   */
-  inline string remove_prefix(string & str, const string & prefix)
+  inline std::string remove_prefix(std::string & str, const std::string & prefix)
   {
     if (is_prefix(str, prefix))
       str = str.substr(prefix.size());
     return str;
   }
 
-  /** Convert a string to lower-case (byte-wise).
+  /** Convert a std::string to lower-case (byte-wise).
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Lowercased copy.
   */
   inline std::string to_lower(const std::string & str)
   {
-    string ret;
+    std::string ret;
     for (const char c: str)
       ret.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     return ret;
   }
 
-  /** Convert a string to upper-case (byte-wise).
+  /** Convert a std::string to upper-case (byte-wise).
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Uppercased copy.
   */
   inline std::string to_upper(const std::string & str)
   {
-    string ret;
+    std::string ret;
     for (const char c: str)
       ret.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
     return ret;
@@ -579,7 +579,7 @@ namespace Aleph
 
   /** Uppercase the first character of `str` and return the resulting copy.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return Copy with first character converted to upper-case.
   */
   inline std::string to_name(const std::string & str)
@@ -587,7 +587,7 @@ namespace Aleph
     if (str.empty())
       return str;
 
-    string ret;
+    std::string ret;
     ret.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(str[0]))));
 
     for (size_t i = 1; i < str.size(); ++i)
@@ -596,25 +596,25 @@ namespace Aleph
     return ret;
   }
 
-  /** Split a camelCase / PascalCase string into tokens.
+  /** Split a camelCase / PascalCase std::string into tokens.
 
       A new token starts at each upper-case character.
 
-      \param[in] str Null-terminated input string.
+      \param[in] str Null-terminated input std::string.
       \return List of tokens.
   */
-  inline DynList<string> split_camel_case(const char *const str)
+  inline DynList<std::string> split_camel_case(const char *const str)
   {
-    DynList<string> ret;
+    DynList<std::string> ret;
     if (str == nullptr or *str == '\0')
       return ret;
     const char *ptr = str;
-    string curr(1, *ptr);
+    std::string curr(1, *ptr);
     while (*++ptr)
       if (std::isupper(static_cast<unsigned char>(*ptr)))
         {
           ret.append(curr);
-          curr = string(1, *ptr);
+          curr = std::string(1, *ptr);
         }
       else
         curr.push_back(*ptr);
@@ -625,17 +625,17 @@ namespace Aleph
     return ret;
   }
 
-  /** Split a camelCase / PascalCase string into tokens.
+  /** Split a camelCase / PascalCase std::string into tokens.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \return List of tokens.
   */
-  inline DynList<string> split_camel_case(const string & str)
+  inline DynList<std::string> split_camel_case(const std::string & str)
   {
     return split_camel_case(str.data());
   }
 
-  /** Fill all the content of string with a defined char.
+  /** Fill all the content of std::string with a defined char.
 
       Use for deleting sensitive data; for example, passwords
 
@@ -646,11 +646,11 @@ namespace Aleph
       c = sym;
   }
 
-  /** Split a string by a single delimiter character.
+  /** Split a std::string by a single delimiter character.
 
       This overload appends tokens to an existing vector.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \param[in] delim Delimiter character.
       \param[in,out] elems Output vector; tokens are appended.
       \return Reference to `elems`.
@@ -666,9 +666,9 @@ namespace Aleph
     return elems;
   }
 
-  /** Split a string by a single delimiter character.
+  /** Split a std::string by a single delimiter character.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \param[in] delim Delimiter character.
       \return Vector of tokens (including empty tokens, as `getline` produces).
   */
@@ -679,21 +679,21 @@ namespace Aleph
     return elems;
   }
 
-  /** Split a string by a set of delimiter characters.
+  /** Split a std::string by a set of delimiter characters.
 
-      The delimiter string is treated as a set: any character in `delim`
+      The delimiter std::string is treated as a set: any character in `delim`
       separates tokens.
 
-      \tparam Container Output container template accepting `string` and
-              supporting `append(const string&)`.
-      \param[in] s Input string.
+      \tparam Container Output container template accepting `std::string` and
+              supporting `append(const std::string&)`.
+      \param[in] s Input std::string.
       \param[in] delim Delimiter character set.
       \return Container of tokens. Empty input yields an empty container.
   */
   template <template <typename> class Container = DynList>
-  inline Container<string> split_string(const string & s, const string & delim)
+  inline Container<std::string> split_string(const std::string & s, const std::string & delim)
   {
-    Container<string> elems;
+    Container<std::string> elems;
     if (s.empty())
       return elems;
 
@@ -706,7 +706,7 @@ namespace Aleph
     char *saveptr = nullptr;
     char **p = &saveptr;
 
-    string data = s;
+    std::string data = s;
     const char *d = delim.data();
     const auto str = data.data();
 
@@ -717,104 +717,104 @@ namespace Aleph
     return elems;
   }
 
-  /** Split a string into an `Aleph::DynList<string>`.
+  /** Split a std::string into an `Aleph::DynList<std::string>`.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \param[in] delim Delimiter character set.
       \return List of tokens.
   */
-  inline DynList<std::string> split_to_list(const string & s,
-                                            const string & delim)
+  inline DynList<std::string> split_to_list(const std::string & s,
+                                            const std::string & delim)
   {
     return split_string<DynList>(s, delim);
   }
 
-  /** Convert an identifier-like string to PascalCase.
+  /** Convert an identifier-like std::string to PascalCase.
 
       Splits on the delimiter set `" _-"` and uppercases the first character
       of each token.
 
-      \param[in] str Input string.
-      \return PascalCased string.
+      \param[in] str Input std::string.
+      \return PascalCased std::string.
   */
-  inline std::string to_Pascalcase(const string & str)
+  inline std::string to_Pascalcase(const std::string & str)
   {
-    DynList<string> tokens = split_to_list(str, " _-");
+    DynList<std::string> tokens = split_to_list(str, " _-");
 
-    tokens.mutable_for_each([](string & token)
+    tokens.mutable_for_each([](std::string & token)
                               {
                                 token[0] = ::toupper(token[0]);
                               });
 
-    return tokens.foldl<string>("", [](const string & acu, const string & token)
+    return tokens.foldl<std::string>("", [](const std::string & acu, const std::string & token)
                                   {
                                     return acu + token;
                                   });
   }
 
-  /** Split a string into an `Aleph::Array<string>`.
+  /** Split a std::string into an `Aleph::Array<std::string>`.
 
-      \param[in] s Input string.
+      \param[in] s Input std::string.
       \param[in] delim Delimiter character set.
       \return Array of tokens.
   */
-  inline Array<std::string> split_to_array(const string & s,
-                                           const string & delim)
+  inline Array<std::string> split_to_array(const std::string & s,
+                                           const std::string & delim)
   {
     return split_string<Array>(s, delim);
   }
 
-  /** Split a string at a fixed position.
+  /** Split a std::string at a fixed position.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \param[in] pos Split position (0..str.size()).
       \return Pair `{left, right}` where `left.size() == pos`.
       \throw std::range_error If `pos > str.size()`.
   */
-  inline pair<string, string> split_pos(const string & str, size_t pos)
+  inline std::pair<std::string, std::string> split_pos(const std::string & str, size_t pos)
   {
     if (pos > str.size())
       {
-        ostringstream s;
+        std::ostringstream s;
         s << "split_pos(" << str << ", " << pos << "): position " << pos
-            << " is larger than string size " << str.size();
+            << " is larger than std::string size " << str.size();
         ah_range_error_if(pos > str.size()) << s.str();
       }
 
     const char *ptr = str.data();
     const char *end1 = ptr + pos;
 
-    string s1;
+    std::string s1;
     while (ptr != end1)
       s1.push_back(*ptr++);
 
-    string s2;
+    std::string s2;
     while (*ptr)
       s2.push_back(*ptr++);
 
     return {s1, s2};
   }
 
-  /** Split a string into `n` parts.
+  /** Split a std::string into `n` parts.
 
       The first `n-1` parts have length `str.size() / n`. The last part
       receives the remainder.
 
-      \param[in] str Input string.
+      \param[in] str Input std::string.
       \param[in] n Number of parts.
       \return List with exactly `n` elements.
       \throw std::range_error If `n == 0` or `n > str.size()`.
   */
-  inline DynList<string> split_n(const string & str, size_t n)
+  inline DynList<std::string> split_n(const std::string & str, size_t n)
   {
     if (n == 0)
       ah_range_error_if(n == 0) << "split_n(): number of parts cannot be 0";
 
     if (n > str.size())
       {
-        ostringstream s;
+        std::ostringstream s;
         s << "split_n(" << str << ", " << n << "): number of parts " << n
-            << " is larger than string size " << str.size();
+            << " is larger than std::string size " << str.size();
         ah_range_error_if(n > str.size()) << s.str();
       }
 
@@ -822,11 +822,11 @@ namespace Aleph
 
     const char *ptr = str.data();
 
-    DynList<string> ret;
+    DynList<std::string> ret;
 
     for (size_t i = 0; i < n; ++i)
       {
-        string s;
+        std::string s;
         if (i + 1 == n)
           {
             while (*ptr)
@@ -860,7 +860,7 @@ namespace Aleph
         m.template maps<size_t>([&max_sz](auto & l)
                                   {
                                     const size_t sz = l.size();
-                                    max_sz = max(max_sz, sz);
+                                    max_sz = std::max(max_sz, sz);
                                     return sz;
                                   });
 
@@ -873,7 +873,7 @@ namespace Aleph
         const long n = max_sz - sz;
         for (auto i = 0; i < n; ++i)
           l.append(T());
-        ret.append(move(l));
+        ret.append(std::move(l));
       }
 
     return ret;
@@ -882,15 +882,15 @@ namespace Aleph
   /**
      @param[in] lens parallel row containing the maximum lenght og each colunm
   */
-  inline DynList<DynList<string>>
+  inline DynList<DynList<std::string>>
   format_string(const DynList<size_t> & lens,
-                const DynList<DynList<string>> & mat)
+                const DynList<DynList<std::string>> & mat)
   {
-    return mat.maps<DynList<string>>([&lens](const DynList<string> & l)
+    return mat.maps<DynList<std::string>>([&lens](const DynList<std::string> & l)
                                        {
-                                         return zip(lens, l).template maps<string>([](const auto & p)
+                                         return zip(lens, l).template maps<std::string>([](const auto & p)
                                               {
-                                                const string blanks(p.first > p.second.size() ?
+                                                const std::string blanks(p.first > p.second.size() ?
                                                                       p.first - p.second.size() :
                                                                       0, ' ');
                                                 return blanks + p.second + " ";
@@ -905,16 +905,16 @@ namespace Aleph
       \param[in] mat Matrix.
       \return Reference to `out`.
   */
-  inline ostream &format_string(ostream & out, const DynList<size_t> & lens,
-                                const DynList<DynList<string>> & mat)
+  inline std::ostream &format_string(std::ostream & out, const DynList<size_t> & lens,
+                                const DynList<DynList<std::string>> & mat)
   {
     for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & row = it.get_curr();
         auto line = zip(lens, row).
-            template maps<string>([](const auto & p)
+            template maps<std::string>([](const auto & p)
                                     {
-                                      const string blanks(p.first > p.second.size() ?
+                                      const std::string blanks(p.first > p.second.size() ?
                                                             p.first - p.second.size() :
                                                             0, ' ');
                                       return blanks + p.second + " ";
@@ -923,7 +923,7 @@ namespace Aleph
                         {
                           out << s;
                         });
-        out << endl;
+        out << std::endl;
       }
 
     return out;
@@ -934,8 +934,8 @@ namespace Aleph
       \param[in] mat Input matrix.
       \return Matrix of padded strings.
   */
-  inline DynList<DynList<string>>
-  format_string(const DynList<DynList<string>> & mat)
+  inline DynList<DynList<std::string>>
+  format_string(const DynList<DynList<std::string>> & mat)
   {
     if (mat.is_empty())
       return mat;
@@ -943,12 +943,12 @@ namespace Aleph
     const DynList<size_t> ilens = rep<size_t>(mat.nth(0).size(), 0);
     const DynList<size_t> maxs =
         mat.foldl(ilens, [](const DynList<size_t> & acu,
-                            const DynList<string> & l)
+                            const DynList<std::string> & l)
                     {
                       return zip(acu, l).
                           maps<size_t>([](const auto & p)
                                          {
-                                           return max(p.first, p.second.size());
+                                           return std::max(p.first, p.second.size());
                                          });
                     });
 
@@ -960,18 +960,18 @@ namespace Aleph
       \param[in] mat Input matrix.
       \return Matrix where each row has `","` appended to non-last cells.
   */
-  inline DynList<DynList<string>>
-  format_string_csv(const DynList<DynList<string>> & mat)
+  inline DynList<DynList<std::string>>
+  format_string_csv(const DynList<DynList<std::string>> & mat)
   {
-    DynList<DynList<string>> ret;
+    DynList<DynList<std::string>> ret;
     for (auto row_it = mat.get_it(); row_it.has_curr(); row_it.next_ne())
       {
-        const DynList<string> & curr_row = row_it.get_curr();
-        const string & last = curr_row.get_last();
-        DynList<string> row;
+        const DynList<std::string> & curr_row = row_it.get_curr();
+        const std::string & last = curr_row.get_last();
+        DynList<std::string> row;
         for (auto it = curr_row.get_it(); it.has_curr(); it.next_ne())
           {
-            const string & s = it.get_curr();
+            const std::string & s = it.get_curr();
             if (&s == &last)
               row.append(s);
             else
@@ -983,23 +983,23 @@ namespace Aleph
     return ret;
   }
 
-  /** Convert a matrix of strings to a single string.
+  /** Convert a matrix of strings to a single std::string.
 
       Rows are concatenated as-is and separated by newlines.
 
       \param[in] mat Input matrix.
       \return String representation.
   */
-  inline string to_string(const DynList<DynList<string>> & mat)
+  inline std::string to_string(const DynList<DynList<std::string>> & mat)
   {
-    ostringstream s;
+    std::ostringstream s;
     mat.for_each([&s](const auto & row)
                    {
-                     row.for_each([&s](const string & str)
+                     row.for_each([&s](const std::string & str)
                                     {
                                       s << str;
                                     });
-                     s << endl;
+                     s << std::endl;
                    });
     return s.str();
   }
@@ -1009,11 +1009,11 @@ namespace Aleph
       \param[in] text Input text.
       \return List of words.
   */
-  inline DynList<string> split_text_into_words(const string & text)
+  inline DynList<std::string> split_text_into_words(const std::string & text)
   {
-    DynList<string> words;
-    istringstream in(text);
-    for (string word; in >> word;)
+    DynList<std::string> words;
+    std::istringstream in(text);
+    for (std::string word; in >> word;)
       words.append(word);
     return words;
   }
@@ -1023,25 +1023,25 @@ namespace Aleph
       \param[in] text Input text.
       \return List of lines.
   */
-  inline DynList<string> split_text_into_lines(const string & text)
+  inline DynList<std::string> split_text_into_lines(const std::string & text)
   {
     return split_to_list(text, "\n");
   }
 
-  /** Join lines into a single string separated by newlines.
+  /** Join lines into a single std::string separated by newlines.
 
       \param[in] lines Lines to join.
       \return Text with `"\n"` separators.
   */
-  inline string to_string(const DynList<string> & lines)
+  inline std::string to_string(const DynList<std::string> & lines)
   {
-    ostringstream s;
+    std::ostringstream s;
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & line = it.get_curr();
         s << line;
         if (line != lines.get_last())
-          s << endl;
+          s << std::endl;
       }
 
     return s.str();
@@ -1053,7 +1053,7 @@ namespace Aleph
       \param[in] page_width Desired width.
       \return Justified line.
   */
-  inline string justify_line(string line, const size_t page_width)
+  inline std::string justify_line(std::string line, const size_t page_width)
   {
     size_t pos = line.find_first_of(' ');
     if (pos != std::string::npos)
@@ -1061,11 +1061,11 @@ namespace Aleph
         while (line.size() < page_width)
           {
             pos = line.find_first_not_of(' ', pos);
-            if (pos == string::npos)
+            if (pos == std::string::npos)
               break;
             line.insert(pos, " ");
             pos = line.find_first_of(' ', pos + 1);
-            if (pos == string::npos)
+            if (pos == std::string::npos)
               pos = line.find_first_of(' ');
           }
       }
@@ -1079,21 +1079,21 @@ namespace Aleph
       \param[in] left_margin Optional left margin (spaces).
       \return Justified text with newlines.
   */
-  inline string justify_text(const string & text,
+  inline std::string justify_text(const std::string & text,
                              const size_t width,
                              const size_t left_margin = 0)
   {
     auto words = split_text_into_words(text);
 
-    ostringstream s;
-    string line;
-    for (const string & word: words)
+    std::ostringstream s;
+    std::string line;
+    for (const std::string & word: words)
       if (line.size() + word.size() + 1 > width)
         {
           // next word doesn't fit into the line
           if (not line.empty())
             {
-              s << string(left_margin, ' ') << justify_line(line, width) << endl;
+              s << std::string(left_margin, ' ') << justify_line(line, width) << std::endl;
               line.clear();
             }
           line = word;
@@ -1105,7 +1105,7 @@ namespace Aleph
           line.append(word);
         }
 
-    s << string(left_margin, ' ') << line;
+    s << std::string(left_margin, ' ') << line;
 
     return s.str();
   }
@@ -1117,14 +1117,14 @@ namespace Aleph
       \param[in] left_margin Left margin for lines after the first.
       \return Formatted text.
   */
-  inline string justify_line_except_first(const string & text,
+  inline std::string justify_line_except_first(const std::string & text,
                                           const size_t width,
                                           const size_t left_margin = 0)
   {
     const auto formatted = justify_text(text, width);
     auto lines = split_text_into_lines(formatted);
-    ostringstream s;
-    s << lines.remove_first() << endl;
+    std::ostringstream s;
+    s << lines.remove_first() << std::endl;
     s << justify_text(to_string(lines), width, left_margin);
     return s.str();
   }
@@ -1136,22 +1136,22 @@ namespace Aleph
       \param[in] left_margin Optional left margin (spaces).
       \return Wrapped text.
   */
-  inline string align_text_to_left(const string & text,
+  inline std::string align_text_to_left(const std::string & text,
                                    const size_t page_width,
                                    const size_t left_margin = 0)
   {
     auto words = split_text_into_words(text);
 
-    const string margin(left_margin, ' ');
-    ostringstream s;
-    string line;
-    for (const string & word: words)
+    const std::string margin(left_margin, ' ');
+    std::ostringstream s;
+    std::string line;
+    for (const std::string & word: words)
       if (line.size() + word.size() + 1 > page_width)
         {
           // next word doesn't fit into the line
           if (not line.empty())
             {
-              s << margin << line << endl;
+              s << margin << line << std::endl;
               line.clear();
             }
           line = word;
@@ -1175,48 +1175,48 @@ namespace Aleph
       \param[in] left_margin Left margin for lines after the first.
       \return Wrapped text.
   */
-  inline string align_text_to_left_except_first(const string & text,
+  inline std::string align_text_to_left_except_first(const std::string & text,
                                                 const size_t width,
                                                 const size_t left_margin = 0)
   {
     const auto formatted = align_text_to_left(text, width);
     auto lines = split_text_into_lines(formatted);
-    ostringstream s;
-    s << lines.remove_first() << endl;
+    std::ostringstream s;
+    s << lines.remove_first() << std::endl;
     s << align_text_to_left(to_string(lines), width, left_margin);
     return s.str();
   }
 
-  /** Indent every line in a multi-line string by `n` spaces.
+  /** Indent every line in a multi-line std::string by `n` spaces.
 
       \param[in] str Input text.
       \param[in] n Number of spaces.
       \return Indented text.
   */
-  inline string shift_lines_to_left(const string & str, const size_t n)
+  inline std::string shift_lines_to_left(const std::string & str, const size_t n)
   {
-    ostringstream s;
-    const string fill(n, ' ');
+    std::ostringstream s;
+    const std::string fill(n, ' ');
     const auto lines = split_to_list(str, "\n");
     for (auto it = lines.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & line = it.get_curr();
         s << fill << line;
         if (line != lines.get_last())
-          s << endl;
+          s << std::endl;
       }
     return s.str();
   }
 
-  /** Base case for `build_pars_list(string&, ...)`.
+  /** Base case for `build_pars_list(std::string&, ...)`.
 
       \param[in,out] Unused; terminates recursion.
   */
-  inline void build_pars_list(string &)
+  inline void build_pars_list(std::string &)
   {}
 
   template <typename T>
-    requires requires(ostream & out, const T & v)
+    requires requires(std::ostream & out, const T & v)
       {
         out << v;
       }
@@ -1227,9 +1227,9 @@ namespace Aleph
       \param[in,out] str Accumulator.
       \param[in] item Value to append.
   */
-  inline void build_pars_list(string & str, const T & item)
+  inline void build_pars_list(std::string & str, const T & item)
   {
-    ostringstream s;
+    std::ostringstream s;
     if (not str.empty())
       s << ", ";
     s << item;
@@ -1245,7 +1245,7 @@ namespace Aleph
       \param[in] args Remaining values.
   */
   template <class T, class... Args>
-  inline void build_pars_list(string & str, const T & item, Args... args)
+  inline void build_pars_list(std::string & str, const T & item, Args... args)
   {
     build_pars_list(str, item);
     build_pars_list(str, args...);
@@ -1271,9 +1271,9 @@ namespace Aleph
       \param[in] rest Remaining values.
       \return Comma-separated list.
   */
-  inline string build_pars_list(const First & first, const Rest &... rest)
+  inline std::string build_pars_list(const First & first, const Rest &... rest)
   {
-    string ret;
+    std::string ret;
     build_pars_list(ret, first, rest...);
     return ret;
   }
@@ -1292,13 +1292,13 @@ namespace Aleph
       \param[in] sep Separator (default: comma).
       \return Joined elements.
   */
-  inline string build_pars_list(const C & c, const string & sep = ",")
+  inline std::string build_pars_list(const C & c, const std::string & sep = ",")
   {
     if (c.is_empty())
       return "";
 
     auto & last = c.get_last();
-    ostringstream s;
+    std::ostringstream s;
     for (auto it = c.get_it(); it.has_curr(); it.next_ne())
       {
         auto & curr = it.get_curr();

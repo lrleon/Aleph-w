@@ -720,7 +720,7 @@ namespace Aleph
     */
     Matrix identity() const
     {
-      static_assert(is_same<Trow, Tcol>::value,
+      static_assert(std::is_same<Trow, Tcol>::value,
                     "Row domain is not equal to column domain");
 
       Matrix<Trow, Tcol, NumType> i(*rdomain_ptr, *rdomain_ptr);
@@ -853,14 +853,14 @@ namespace Aleph
     /// Print non-zero entries to stdout.
     void print() const
     {
-      cout << "Non zero entries = " << endl;
+      std::cout << "Non zero entries = " << std::endl;
       entries.for_each([](const Pair & p)
                          {
-                           cout << "(" << Aleph::to_str(p.first.first) << ","
+                           std::cout << "(" << Aleph::to_str(p.first.first) << ","
                                << Aleph::to_str(p.first.second) << ") : "
-                               << Aleph::to_str(p.second) << endl;
+                               << Aleph::to_str(p.second) << std::endl;
                          });
-      cout << endl;
+      std::cout << std::endl;
     }
 
     /// Convert matrix to a formatted string representation.
@@ -910,15 +910,15 @@ namespace Aleph
 
       size_t longer_row_label_sz = longer_row_label.size();
 
-      std::string ret_val = string(longer_row_label_sz, ' ') + " |";
+      std::string ret_val = std::string(longer_row_label_sz, ' ') + " |";
       ret_val = zip(col_labels, longers).template foldl<std::string>
           (ret_val, [](const std::string & s, const StrPair & p)
              {
                size_t fsz = p.first.size(), ssz = p.second.size();
-               return s + string((fsz > ssz ? fsz - ssz : ssz - fsz) + 1, ' ') + p.first;
+               return s + std::string((fsz > ssz ? fsz - ssz : ssz - fsz) + 1, ' ') + p.first;
              });
 
-      ret_val += "\n" + string(ret_val.size(), '-');
+      ret_val += "\n" + std::string(ret_val.size(), '-');
 
       zip(row_labels, row_domain_list()).for_each
           ([this, &ret_val, &longers, &longer_row_label_sz]
@@ -928,7 +928,7 @@ namespace Aleph
                const Trow & row = p.second;
 
                ret_val += "\n" +
-                   string(longer_row_label_sz - label.size(), ' ') + label + " |";
+                   std::string(longer_row_label_sz - label.size(), ' ') + label + " |";
                ret_val =
                    zip(get_row_as_list(row), longers).template foldl<std::string>
                    (ret_val, [](const std::string & s,
@@ -937,7 +937,7 @@ namespace Aleph
                         const std::string val = Aleph::to_str(q.first);
                         const std::string & len_str = q.second;
                         assert(len_str.size() - val.size() + 1);
-                        return s + string(len_str.size() - val.size() + 1, ' ') + val;
+                        return s + std::string(len_str.size() - val.size() + 1, ' ') + val;
                       });
              });
 
@@ -1005,7 +1005,7 @@ namespace Aleph
   /// Stream output operator for Matrix.
   template <typename Trow, typename Tcol, typename NumType>
   inline
-  ostream &operator <<(ostream & s, const Matrix<Trow, Tcol, NumType> & m)
+  std::ostream &operator <<(std::ostream & s, const Matrix<Trow, Tcol, NumType> & m)
   {
     return s << m.to_str();
   }

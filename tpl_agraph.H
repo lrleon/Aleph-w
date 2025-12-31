@@ -89,7 +89,7 @@ namespace Aleph
       init(Default_Cap);
     }
 
-    Graph_Anode(Node_Info && info) : Base(move(info))
+    Graph_Anode(Node_Info && info) : Base(std::move(info))
     {
       init(Default_Cap);
     }
@@ -228,7 +228,7 @@ namespace Aleph
     }
 
     Graph_Aarc(Arc_Info && info = Arc_Info())
-      : Base(move(info))
+      : Base(std::move(info))
     {
       /* empty */
     }
@@ -253,7 +253,7 @@ namespace Aleph
     }
 
     Graph_Aarc(void *src, void *tgt, Arc_Info && data = Arc_Info())
-      : Base(src, tgt, move(data))
+      : Base(src, tgt, std::move(data))
     {
       // empty
     }

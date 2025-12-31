@@ -161,7 +161,7 @@ public:
     if (not op(start, nullptr))
       return count;
 
-    using Pair = tuple<typename GT::Node *, typename GT::Arc *>;
+    using Pair = std::tuple<typename GT::Node *, typename GT::Arc *>;
     Q<Pair> q;
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
@@ -169,7 +169,7 @@ public:
         typename GT::Node *tgt = g.get_connected_node(a, start);
         a->set_state(GT_Processing);
         tgt->set_state(GT_Processing);
-        q.put(make_tuple(start, a));
+        q.put(std::make_tuple(start, a));
       }
 
     const size_t n = g.vsize();
@@ -198,7 +198,7 @@ public:
                 assert(a->state() != GT_Processing);
                 a->set_state(GT_Processing);
                 tgt->set_state(GT_Processing);
-                q.put(make_tuple(curr, a));
+                q.put(std::make_tuple(curr, a));
               }
             else
               a->set_state(GT_Processed);
@@ -236,7 +236,7 @@ public:
 
     start->set_state(GT_Processed);
     if (not node_op(start))
-      return make_tuple(1, 0);
+      return std::make_tuple(1, 0);
 
     for (Itor it(start, sa); it.has_curr(); it.next_ne())
       {
@@ -247,7 +247,7 @@ public:
         q.put(a);
         ++arc_count;
         if (not arc_op(a))
-          return make_tuple(node_count, arc_count);
+          return std::make_tuple(node_count, arc_count);
       }
 
     while (not q.is_empty())
@@ -266,7 +266,7 @@ public:
         ++node_count;
         curr->set_state(GT_Processed);
         if (not node_op(curr))
-          return make_tuple(node_count, arc_count);
+          return std::make_tuple(node_count, arc_count);
 
         for (Itor it(curr, sa); it.has_curr(); it.next_ne())
           {
@@ -281,14 +281,14 @@ public:
                 a->set_state(GT_Processing);
                 ++arc_count;
                 if (not arc_op(a))
-                  return make_tuple(node_count, arc_count);
+                  return std::make_tuple(node_count, arc_count);
               }
             else
               a->set_state(GT_Processed);
           }
       }
 
-    return make_tuple(node_count, arc_count);
+    return std::make_tuple(node_count, arc_count);
   }
 
   /// \overload

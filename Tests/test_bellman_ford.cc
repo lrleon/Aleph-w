@@ -395,7 +395,7 @@ TEST(BellmanFordTest, NullptrValidation) {
   bool caught_exception = false;
   try {
     bf.paint_spanning_tree(nullptr);
-  } catch (const domain_error&) {
+  } catch (const std::domain_error&) {
     caught_exception = true;
   }
   ASSERT_TRUE(caught_exception);
@@ -403,7 +403,7 @@ TEST(BellmanFordTest, NullptrValidation) {
   caught_exception = false;
   try {
     bf.faster_paint_spanning_tree(nullptr);
-  } catch (const domain_error&) {
+  } catch (const std::domain_error&) {
     caught_exception = true;
   }
   ASSERT_TRUE(caught_exception);
@@ -411,7 +411,7 @@ TEST(BellmanFordTest, NullptrValidation) {
   caught_exception = false;
   try {
     bf.has_negative_cycle(nullptr);
-  } catch (const domain_error&) {
+  } catch (const std::domain_error&) {
     caught_exception = true;
   }
   ASSERT_TRUE(caught_exception);
@@ -526,7 +526,7 @@ TEST(BellmanFordTest, ComputeNodesWeightsWithNegativeCycle) {
   bool caught_exception = false;
   try {
     bf.compute_nodes_weights();
-  } catch (const domain_error&) {
+  } catch (const std::domain_error&) {
     caught_exception = true;
   }
 

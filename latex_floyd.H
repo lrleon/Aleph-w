@@ -204,18 +204,18 @@ void floyd_all_shortest_paths_latex
 
   const long & n = g.get_num_nodes();
 
-  output << "\\begin{figure}[H]{\\tiny " << endl
-	 << "\\begin{tabular}{ll}" << endl
-	 << "\\begin{tabular}{ll}" << endl;
+  output << "\\begin{figure}[H]{\\tiny " << std::endl
+	 << "\\begin{tabular}{ll}" << std::endl
+	 << "\\begin{tabular}{ll}" << std::endl;
   mat_to_latex <Dist_Mat, P_i<Dist_Mat>, P_i<Dist_Mat>, D_ij<Dist_Mat> >
     (dist, n, n, output, "\\hskip -5mm $D_0=$", "\\\\ ");
-  output << "\\end{tabular}" << endl
-	 << " & \\begin{tabular}{ll}" << endl;
+  output << "\\end{tabular}" << std::endl
+	 << " & \\begin{tabular}{ll}" << std::endl;
   mat_to_latex <Path_Mat, P_i<Path_Mat>, P_i<Path_Mat>, P_ij<Path_Mat> >
     (path, n, n, output, "\\hskip -7mm $P_0=$", "\\\\ ");
-  output << "\\end{tabular}" << endl 
-    	 << "\\end{tabular}" << endl
-	 << "}\\end{figure}" << endl;
+  output << "\\end{tabular}" << std::endl 
+    	 << "\\end{tabular}" << std::endl
+	 << "}\\end{figure}" << std::endl;
 
   for (int i = 0; i < n; ++i)
     {
@@ -235,21 +235,21 @@ void floyd_all_shortest_paths_latex
 
       snprintf(buf, 256, "\\hskip -5mm $D_%d=$ ", i + 1);
 
-      output << "\\begin{figure}[H]{\\tiny " << endl
- 	     << "\\begin{tabular}{ll}" << endl
- 	     << "\\begin{tabular}{ll}" << endl;
+      output << "\\begin{figure}[H]{\\tiny " << std::endl
+ 	     << "\\begin{tabular}{ll}" << std::endl
+ 	     << "\\begin{tabular}{ll}" << std::endl;
       mat_to_latex <Dist_Mat, P_i<Dist_Mat>, P_i<Dist_Mat>, D_ij<Dist_Mat> >
 	(dist, n, n, output, buf, "\\\\ ");
-      output << "\\end{tabular}" << endl
-	     << " & \\begin{tabular}{ll}" << endl;
+      output << "\\end{tabular}" << std::endl
+	     << " & \\begin{tabular}{ll}" << std::endl;
 
       snprintf(buf, 256, "\\hskip -7mm $P_%d=$ ", i + 1);
 
       mat_to_latex <Path_Mat, P_i<Path_Mat>, P_i<Path_Mat>, P_ij<Path_Mat> >
 	(path, n, n, output, buf, "\\\\");
-      output << "\\end{tabular}" << endl 
-	     << "\\end{tabular}" << endl
-	     << "}\\end{figure}" << endl;
+      output << "\\end{tabular}" << std::endl 
+	     << "\\end{tabular}" << std::endl
+	     << "}\\end{figure}" << std::endl;
     }
 }
 

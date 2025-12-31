@@ -109,7 +109,7 @@ namespace Aleph
     }
 
     Graph_Snode(Node_Info && info = Node_Info())
-      : Base(move(info))
+      : Base(std::move(info))
     {
       /* empty */
     }
@@ -198,7 +198,7 @@ namespace Aleph
     }
 
     Graph_Sarc(Arc_Info && info = Arc_Info())
-      : Base(move(info))
+      : Base(std::move(info))
     {
       /* empty */
     }
@@ -224,7 +224,7 @@ namespace Aleph
     }
 
     Graph_Sarc(void *src, void *tgt, Arc_Info && data)
-      : Base(src, tgt, move(data))
+      : Base(src, tgt, std::move(data))
     {
       // empty
     }

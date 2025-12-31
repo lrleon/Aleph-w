@@ -65,12 +65,12 @@ struct LFit
 
   friend ostream & operator << (ostream & out, const LFit & f)
   {
-    return out << "r2 = " << f.r2 << endl
-	       << "sumsq = " << f.sumsq << endl
-	       << "sigma = " << f.sigma << endl
-	       << "mse   = " << f.mse << endl
-	       << "c     = " << f.c << endl
-	       << "m     = " << f.m << endl;
+    return out << "r2 = " << f.r2 << std::endl
+	       << "sumsq = " << f.sumsq << std::endl
+	       << "sigma = " << f.sigma << std::endl
+	       << "mse   = " << f.mse << std::endl
+	       << "c     = " << f.c << std::endl
+	       << "m     = " << f.m << std::endl;
   }
 
   /// Creates an invalid fit
@@ -114,16 +114,16 @@ struct LFit
       }) / n);
 
     mse = sqrt(sum_mse/n);
-    // cout << "x = " << join(x) << endl
-    // 	 << "y = " << join(y) << endl
-    // 	 << *this << endl;
+    // std::cout << "x = " << join(x) << std::endl
+    // 	 << "y = " << join(y) << std::endl
+    // 	 << *this << std::endl;
   }
 
   pair<double, double> predict(double x) const noexcept
   {
     double y = 0, y_err = 0;
     gsl_fit_linear_est(x, c, m, cov00, cov01, cov11, &y, &y_err);
-    return make_pair(y, y_err);
+    return std::make_pair(y, y_err);
   }
 };
 

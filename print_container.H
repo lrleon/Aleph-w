@@ -36,7 +36,7 @@ void print_container(Container & c)
       return;
     }
 
-  cout << "(" <<  c.size() << ") " ;
+  std::cout << "(" <<  c.size() << ") " ;
 
   typename Container::iterator beg = c.begin();
   const typename Container::iterator end = c.end();
@@ -55,7 +55,7 @@ void print_range(Itor beg, const Itor & end)
   int n = 0;
   while (beg != end)
     {
-      cout << *beg++ << " ";
+      std::cout << *beg++ << " ";
       ++n;
     }
 

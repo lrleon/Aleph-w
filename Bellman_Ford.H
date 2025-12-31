@@ -740,7 +740,7 @@ namespace Aleph
         second field is to give feedback in order to eventually refine the
         `it_factor` value.
      */
-    tuple<Path<GT>, size_t>
+    std::tuple<Path<GT>, size_t>
     search_negative_cycle(Node *start, double it_factor, const size_t step)
     {
       ah_domain_error_if(start == nullptr)
@@ -774,7 +774,7 @@ namespace Aleph
                   if (not ret.is_empty()) // negative cycle found?
                     {
                       link_cookies_and_free(s);
-                      return make_tuple(std::forward<Path<GT>>(ret), i);
+                      return std::make_tuple(std::forward<Path<GT>>(ret), i);
                     }
                   threshold += step;
                 }
@@ -795,7 +795,7 @@ namespace Aleph
         }
 
       link_cookies_and_free(s);
-      return make_tuple(std::forward<Path<GT>>(ret), i);
+      return std::make_tuple(std::forward<Path<GT>>(ret), i);
     }
 
     /** Searches a negative cycle using the faster version of Bellman-Ford
@@ -867,7 +867,7 @@ namespace Aleph
         graph and the search is performed using the dummy node as starting
         node.
      */
-    tuple<Path<GT>, size_t> search_negative_cycle(double it_factor,
+    std::tuple<Path<GT>, size_t> search_negative_cycle(double it_factor,
                                                   const size_t step)
     {
       auto start = create_dummy_node();

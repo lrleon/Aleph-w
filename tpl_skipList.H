@@ -444,7 +444,7 @@ namespace Aleph
      *  @code
      *  SkipList<int, int> sl(...);
      *  for (SkipList<int,int>::Iterator it(sl); it.has_curr(); it.next())
-     *    cout << it.get_curr()->get_key() << endl;
+     *    std::cout << it.get_curr()->get_key() << std::endl;
      *  @endcode
      */
     class Iterator

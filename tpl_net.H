@@ -673,7 +673,7 @@ namespace Aleph
     /// Copy-construct a network. Throws bad_alloc on allocation failure.
     Net_Graph(const Net_Graph & net)
       : Array_Graph<NodeT, ArcT>::Array_Graph(),
-        Infinity(numeric_limits<typename Arc::Flow_Type>::max()),
+        Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
         with_super_source(net.with_super_source),
         with_super_sink(net.with_super_sink)
     {
@@ -756,13 +756,13 @@ namespace Aleph
 
     /// Default constructor.
     Net_Graph()
-      : Infinity(numeric_limits<typename Arc::Flow_Type>::max()),
+      : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
         with_super_source(false), with_super_sink(false)
     { /* empty */
     }
 
     /** @brief Stream a path with arc (cap,flow) tuples. */
-    friend ostream &operator <<(ostream & s, const Path<Net_Graph> & path)
+    friend std::ostream &operator <<(std::ostream & s, const Path<Net_Graph> & path)
     {
       if (path.is_empty())
         return s << "Path is Empty";
@@ -787,7 +787,7 @@ namespace Aleph
    * @ingroup Redes
    */
   template <class Net>
-  using Parc = tuple<typename Net::Arc *, bool>; // second field marks forward.
+  using Parc = std::tuple<typename Net::Arc *, bool>; // second field marks forward.
 
   /** @brief Semi-path tuple:
    * - bool: whether a path was found
@@ -797,7 +797,7 @@ namespace Aleph
    * @ingroup Redes
    */
   template <class Net>
-  using SemiPath = tuple<bool, typename Net::Flow_Type, DynList<Parc<Net>>>;
+  using SemiPath = std::tuple<bool, typename Net::Flow_Type, DynList<Parc<Net>>>;
 
   /// Print a semi-path to stdout.
   template <class Net>
@@ -805,7 +805,7 @@ namespace Aleph
   {
     if (sp.is_empty())
       {
-        cout << "Semi path is Empty";
+        std::cout << "Semi path is Empty";
         return;
       }
 
@@ -816,9 +816,9 @@ namespace Aleph
         auto a = get<0>(pa);
         auto s = static_cast<typename Net::Node *>(a->src_node);
         auto t = static_cast<typename Net::Node *>(a->tgt_node);
-        cout << s->get_info() << "(" << a->flow << "," << a->cap << ")"
+        std::cout << s->get_info() << "(" << a->flow << "," << a->cap << ")"
             << t->get_info() << " " << (get<1>(pa) ? "Normal" : "Reduced")
-            << endl;
+            << std::endl;
       }
   }
 
@@ -834,7 +834,7 @@ namespace Aleph
   typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
   {
     typename Net::Flow_Type slack = net.Infinity; // bottleneck
-    using Tuple = tuple<typename Net::Node *, typename Net::Arc *>;
+    using Tuple = std::tuple<typename Net::Node *, typename Net::Arc *>;
 
     // Compute the bottleneck of the augmenting path.
     for (typename Path<Net>::Iterator it(path); it.has_current_arc();
@@ -1032,7 +1032,7 @@ namespace Aleph
     {
       auto t = search(start, end, min_slack);
       if (not t)
-        return make_tuple(false, typename Net::Flow_Type{0}, DynList<Parc<Net>>());
+        return std::make_tuple(false, typename Net::Flow_Type{0}, DynList<Parc<Net>>());
 
       assert(t == end);
 
@@ -1067,11 +1067,11 @@ namespace Aleph
           bool normal = a->tgt_node == t;
           auto slack = normal ? a->cap - a->flow : a->flow;
           m = std::min(m, slack);
-          semi_path.insert(make_tuple(a, normal));
+          semi_path.insert(std::make_tuple(a, normal));
           t = s;
         }
 
-      return make_tuple(true, m, move(semi_path));
+      return std::make_tuple(true, m, std::move(semi_path));
     }
 
   public:
@@ -1342,7 +1342,7 @@ namespace Aleph
    */
   template <class Net>
   inline
-  tuple<PP_Res_Net<Net>, typename PP_Res_Net<Net>::Node *,
+  std::tuple<PP_Res_Net<Net>, typename PP_Res_Net<Net>::Node *,
         typename PP_Res_Net<Net>::Node *>
   preflow_create_residual_net(Net & net)
   {
@@ -1365,7 +1365,7 @@ namespace Aleph
     for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
       create_residual_arc(net, rnet, it.get_curr());
 
-    return make_tuple(std::move(rnet),
+    return std::make_tuple(std::move(rnet),
                       static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_source())),
                       static_cast<typename Rnet::Node *>(NODE_COOKIE(net.get_sink())));
   }
@@ -1576,7 +1576,7 @@ namespace Aleph
     auto source = net.get_source();
     auto sink = net.get_sink();
     node_height<Net>(source) = net.vsize(); // except the source
-    constexpr auto Max = numeric_limits<long>::max();
+    constexpr auto Max = std::numeric_limits<long>::max();
 
     using Itor = __Net_Iterator<Net>;
     Q_Type q;

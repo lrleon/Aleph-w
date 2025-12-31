@@ -514,7 +514,7 @@ public:
   {
     for (size_t i = 0; i < MP; ++i)
       {
-        cout << "table[" << i << "] = [ ";
+        std::cout << "table[" << i << "] = [ ";
 
         if (table.exist(i))
           {
@@ -525,10 +525,10 @@ public:
                 {
                   Bucket * bucket = static_cast<Bucket*>(it.get_curr());
                   const Key & key = bucket->get_key();
-                  cout << key << ",";
+                  std::cout << key << ",";
                 }
           }
-        cout << "]" << endl;
+        std::cout << "]" << std::endl;
       }
   }
 

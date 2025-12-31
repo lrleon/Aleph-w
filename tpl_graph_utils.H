@@ -1155,7 +1155,7 @@ namespace Aleph {
 
     GT tree;
 
-    unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+    std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
     tree.insert_node(tp_auto.get());
     GT::map_nodes(gp, tp_auto.release());
     NODE_BITS(gp).set_bit(Spanning_Tree, true);
@@ -1182,7 +1182,7 @@ namespace Aleph {
         NODE_BITS(gtgt).set_bit(Spanning_Tree, true);
 
         // Create and map the new tree node.
-        unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
+        std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
         tree.insert_node(ttgt_auto.get());
         auto ttgt = ttgt_auto.release();
         GT::map_nodes(gtgt, ttgt);
@@ -1656,7 +1656,7 @@ namespace Aleph {
           ttgt = mapped_node<GT> (gtgt);
         else
           {     // gtgt not in sg yet: copy & map it
-            unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
+            std::unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
             sg.insert_node(ttgt_auto.get());
             GT::map_nodes(gtgt, ttgt_auto.get());
             NODE_BITS(gtgt).set_bit(Build_Subtree, true); 
@@ -1707,7 +1707,7 @@ namespace Aleph {
       << "Color does not exist in the graph";
 
     GT sg;
-    unique_ptr<typename GT::Node> auto_tsrc(new typename GT::Node(first));
+    std::unique_ptr<typename GT::Node> auto_tsrc(new typename GT::Node(first));
     sg.insert_node(auto_tsrc.get());
     GT::map_nodes(first, auto_tsrc.release());
     NODE_BITS(first).set_bit(Build_Subtree, true);
@@ -1750,7 +1750,7 @@ namespace Aleph {
 
         assert(is_a_cut_node <GT> (gp));
 
-        unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+        std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
         cut_graph.insert_node(tp_auto.get());
         GT::map_nodes(gp, tp_auto.release());
       }

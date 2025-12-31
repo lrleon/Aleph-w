@@ -72,7 +72,7 @@ namespace Aleph {
      not written. If for example a reading on a non allocated block is
      done, some such as:
 
-         cout << a[i] << end;
+         std::cout << a[i] << end;
 
      Then a default initialization value will be returned. This value
      corresponds to the resulting of default constructor call.

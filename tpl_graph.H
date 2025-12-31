@@ -139,7 +139,7 @@ namespace Aleph
           @note The move constructor of `Node_Info` must be defined
       */
     Graph_Node(Node_Info && info = Node_Info()) noexcept
-      : Base(move(info))
+      : Base(std::move(info))
     {
       /* empty */
     }
@@ -246,7 +246,7 @@ namespace Aleph
           @note The move constructor of `Arc_Info` must be defined
       */
     Graph_Arc(Arc_Info && info = Arc_Info()) noexcept
-      : Base(move(info))
+      : Base(std::move(info))
     {
       /* empty */
     }
@@ -578,7 +578,7 @@ namespace Aleph
       arc->tgt_node = tgt_node;
 
       // step 3 (partial): allocate Arc_Node for src_node
-      unique_ptr<Arc_Node> src_arc_node = std::make_unique<Arc_Node>(arc);
+      std::unique_ptr<Arc_Node> src_arc_node = std::make_unique<Arc_Node>(arc);
 
       // step 2: if graph ==> allocate Arc_Node for tgt_node
       if (not this->digraph) // if digraph ==> do not insert in other node
@@ -587,7 +587,7 @@ namespace Aleph
             arc->tgt_arc_node = src_arc_node.get();
           else
             { // allocate arc node for tgt_node
-              unique_ptr<Arc_Node> tgt_arc_node = std::make_unique<Arc_Node>(arc);
+              std::unique_ptr<Arc_Node> tgt_arc_node = std::make_unique<Arc_Node>(arc);
 
               // insertion in adjacency list of tgt_node
               arc->tgt_arc_node = tgt_arc_node.get();
@@ -1488,7 +1488,7 @@ namespace Aleph
         @ingroup Grafos
     */
   template <class GT>
-  using ArcPair = tuple<typename GT::Arc *, typename GT::Node *>;
+  using ArcPair = std::tuple<typename GT::Arc *, typename GT::Node *>;
 
   /** Filter the outcoming arcs.
 
@@ -1868,7 +1868,7 @@ namespace Aleph
     for (In_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
         typename GT::Arc *a = it.get_curr();
-        ret.append(make_tuple(a, static_cast<typename GT::Node *>(a->get_connected_node(p))));
+        ret.append(std::make_tuple(a, static_cast<typename GT::Node *>(a->get_connected_node(p))));
       }
     return ret;
   }
@@ -1887,7 +1887,7 @@ namespace Aleph
     for (Out_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
       {
         typename GT::Arc *a = it.get_curr();
-        ret.append(make_tuple(a, static_cast<typename GT::Node *>(a->get_connected_node(p))));
+        ret.append(std::make_tuple(a, static_cast<typename GT::Node *>(a->get_connected_node(p))));
       }
     return ret;
   }
@@ -2774,7 +2774,7 @@ namespace Aleph
     Path(const Path & path) : g(path.g), list(path.list) {}
 
     /// Move constructor
-    Path(Path && path) : g(path.g), list(move(path.list)) {}
+    Path(Path && path) : g(path.g), list(std::move(path.list)) {}
 
     /// Copy assignment
     Path &operator=(const Path & path)
@@ -3220,9 +3220,9 @@ namespace Aleph
             \throw overflow_error if path is empty of iterator has not
             current node
         */
-      pair<Node *, Arc *> get_pair() const
+      std::pair<Node *, Arc *> get_pair() const
       {
-        return make_pair(get_current_node(), get_current_arc());
+        return std::make_pair(get_current_node(), get_current_arc());
       }
 
       /** Return a tuple with the current node and arc
@@ -3235,14 +3235,14 @@ namespace Aleph
             \throw overflow_error if path is empty of iterator has not
             current node
         */
-      tuple<Node *, Arc *> get_tuple() const
+      std::tuple<Node *, Arc *> get_tuple() const
       {
-        return make_tuple(get_current_node(), get_current_arc());
+        return std::make_tuple(get_current_node(), get_current_arc());
       }
 
-      tuple<Node *, Arc *> get_tuple_ne() const noexcept
+      std::tuple<Node *, Arc *> get_tuple_ne() const noexcept
       {
-        return make_tuple(get_current_node_ne(), get_current_arc_ne());
+        return std::make_tuple(get_current_node_ne(), get_current_arc_ne());
       }
 
       /** Return `true` if iterator has current arc.
@@ -3523,7 +3523,7 @@ namespace Aleph
         for (typename GT::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
           {
             typename GT::Node *src_node = it.get_current_node_ne();
-            unique_ptr<typename GT::Node>
+            std::unique_ptr<typename GT::Node>
                 tgt_node(new typename GT::Node(src_node->get_info()));
             map.insert(src_node, tgt_node.get());
 
@@ -3610,7 +3610,7 @@ namespace Aleph
         for (typename GTS::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
           {
             typename GTS::Node *src_node = it.get_current_node_ne();
-            unique_ptr<typename GTT::Node> tgt_node(new typename GTT::Node);
+            std::unique_ptr<typename GTT::Node> tgt_node(new typename GTT::Node);
             Copy_Node()(tgt_node.get(), src_node);
             map.insert(src_node, tgt_node.get());
 
@@ -3688,7 +3688,7 @@ namespace Aleph
           for (Node_Iterator<GT, SN> it(gsrc, sn); it.has_curr(); it.next_ne())
             {
               typename GT::Node *src_node = it.get_curr();
-              unique_ptr<typename GT::Node>
+              std::unique_ptr<typename GT::Node>
                   tgt_node(new typename GT::Node(src_node));
               map.insert(src_node, tgt_node.get());
 

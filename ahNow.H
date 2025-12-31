@@ -44,14 +44,14 @@ namespace Aleph
    *  Now now;
    *  now.start();
    *  // Any block of code
-   *  cout << "Time elapsed: " << now.elapsed() << "ms\n";
+   *  std::cout << "Time elapsed: " << now.elapsed() << "ms\n";
    *  \endcode
    *  
    *  Furthermore you may use the static methods just like that:
    *  \code{.cpp}
    *  auto t = Now::current_time_point();
    *  // Any block of code
-   *  cout << "Time elapsed: " << Now::elapsed(t) << "ms\n";
+   *  std::cout << "Time elapsed: " << Now::elapsed(t) << "ms\n";
    *  \endcode
    *
    *  @ingroup utils

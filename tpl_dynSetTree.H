@@ -151,7 +151,7 @@ namespace Aleph
   {
     bool operator ()(const Container & c1, const Container & c2) const
     {
-      return lexicographical_compare(c1.begin(), c1.end(), c2.begin(), c2.end(),
+      return std::lexicographical_compare(c1.begin(), c1.end(), c2.begin(), c2.end(),
                                      [](const T & item1, const T & item2)
                                        {
                                          return item1 < item2;
@@ -631,7 +631,7 @@ namespace Aleph
       return &q->get_key();
     }
 
-    pair<Node *, bool> __contains_or_insert(Node *p)
+    std::pair<Node *, bool> __contains_or_insert(Node *p)
     {
       Node *q = nullptr;
       try
@@ -646,10 +646,10 @@ namespace Aleph
       if (q != p)
         { // KEY(p) is already inside the tree
           delete p;
-          return pair<Node *, bool>(q, true);
+          return std::pair<Node *, bool>(q, true);
         }
       ++num_nodes;
-      return pair<Node *, bool>(p, false);
+      return std::pair<Node *, bool>(p, false);
     }
 
   public:
@@ -684,21 +684,21 @@ namespace Aleph
        true. Otherwise, the key is inserted and false is returned.
 
        @param[in] key key to find or insert
-       @return a pair whose first field is a pointer to the found or
+       @return a std::pair whose first field is a pointer to the found or
        inserted key, and the second field is a boolean whose value is
        `false` if the key was inserted; `true` otherwise, that is if the
        key is already present in the tree.
     */
-    pair<Key *, bool> contains_or_insert(const Key & key)
+    std::pair<Key *, bool> contains_or_insert(const Key & key)
     {
       auto p = __contains_or_insert(new Node(key));
-      return pair<Key *, bool>(&p.first->get_key(), p.second);
+      return std::pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
-    pair<Key *, bool> contains_or_insert(Key && key)
+    std::pair<Key *, bool> contains_or_insert(Key && key)
     {
       auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
-      return pair<Key *, bool>(&p.first->get_key(), p.second);
+      return std::pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
   private:
