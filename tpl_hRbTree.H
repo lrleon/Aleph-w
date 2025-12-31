@@ -24,15 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
-	   Hybrid Top down and botton up red black trees
+/** @file tpl_hRbTree.H
+    @brief Hybrid top-down/bottom-up red-black tree implementation.
+    
+    This file implements a red-black tree that uses:
+    - Top-down insertion with proactive color flipping (like Sedgewick's approach)
+    - Bottom-up deletion with stack-based ancestor tracking
+    
+    This hybrid approach combines the benefits of both strategies:
+    - Single-pass insertion (no backtracking)
+    - Efficient deletion with stack for ancestor access
 */
 
 # ifndef TPL_HTDRBTREE_H
 # define TPL_HTDRBTREE_H
 
 # ifdef DEBUG
-# include <math.h>
+# include <cmath>
 # endif
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
@@ -41,84 +49,76 @@
 
 namespace Aleph
 {
+
+/** @brief Hybrid top-down/bottom-up red-black tree.
+    
+    This class implements a self-balancing binary search tree using
+    the red-black tree algorithm with a hybrid approach:
+    
+    - **Insertion**: Top-down with proactive color flipping. As we descend
+      to find the insertion point, we preemptively flip colors of nodes
+      with two red children. This ensures the tree remains balanced with
+      at most one rotation after insertion.
+    
+    - **Deletion**: Bottom-up using a stack to track ancestors. After
+      removing a node, we fix any violations by walking back up the path.
+    
+    @par Complexity:
+    - All operations (insert, remove, search): O(log n)
+    - Space: O(n) + O(log n) stack for deletion
+    
+    @tparam Key The type of keys stored in the tree
+    @tparam Compare Comparison functor (default: Aleph::less<Key>)
+    
+    @ingroup Arboles
+*/
   template <class Key, class Compare = Aleph::less<Key>>
   class HtdRbTree
   {
   public:
-    typedef unsigned char Color;
+    /// Color type for red-black nodes
+    using Color = unsigned char;
+    
+    /// The node type used by this tree
+    using Node = RbNode<Key>;
 
   private:
 
-  public:
-    typedef RbNode<Key> Node;
-
   private:
-    /// Head's content. This is an auxiliary node which is parent of root
-    Node headNode;
+    Node headNode;        ///< Auxiliary node, parent of root
+    Node headParent;      ///< Auxiliary node, grandparent of root
+    Node headGrandParent; ///< Auxiliary node, great-grandparent of root
 
-    /// node grand parent of root
-    Node headParent;
+    Node *head;           ///< Pointer to head node
+    Node *fHead;          ///< Pointer to head's parent
+    Node *ffHead;         ///< Pointer to head's grandparent
+    Node *& root;         ///< Reference to root (right child of head)
 
-    /// node great grand of root
-    Node headGrandParent;
+    FixedStack<Node *> path{Node::MaxHeight}; ///< Stack for deletion path
 
-    /// Head pointer
-    Node *head;
+    size_t node_count = 0; ///< Number of nodes in tree
 
-    Node *fHead;
+    Compare cmp;          ///< Comparison functor
 
-    Node *ffHead;
-
-    /// Root pointer. This is a reference to right child of head
-    Node *& root;
-
-    /// Used for deletion
-    FixedStack<Node *> path{Node::MaxHeight};
-
-    size_t node_count = 0;
-
-    Compare cmp;
-
-# ifdef DEBUG
-    /**
-        Nodes' counter. Used only if DEBUG is defined for verifying
-        correctness
-    */
-    unsigned int n;
-# endif /* DEBUG */
-
-    /**
-       Returns sibling of p.
-
-       @param p node to compute the sibling
-       @param fp p's parent
-       @return the sibling of p
-     */
-    Node * getSibling(Node *p, Node *fp)
+    /// Returns sibling of p given its parent fp.
+    static Node * getSibling(Node *p, Node *fp) noexcept
     {
       assert(LLINK(fp) == p || RLINK(fp) == p);
       return LLINK(fp) == p ? RLINK(fp) : LLINK(fp);
     }
 
-    /* Routines exclusively used by insertion procedure */
+    // ===================== INSERTION ROUTINES =====================
 
-    /**
-       Balancing of subtree for restoring of red black conditions. To be used
-       for insertion.
-
-       This routine treats the case where the sibling of parent of violating
-       red node is black. In this situation four cases are possible, all
-       implying rotations. Note that this routine completely fix up the red
-       black conditions.
-
-       {\bf This functions does not restore any relationship between nodes. In
-       other words, after the call, fp does not points to p, etc..}
-
-       @param p violating node (it must be red)
-       @param fp (in/out) parent of violating node (it must be red)
-       @param ffp grand parent of p
-       @param fffp great grand parent of p
-     */
+    /** @brief Restore red-black condition after insertion.
+        
+        Called when we have two consecutive red nodes (p and fp are both red).
+        Performs rotations to fix the violation.
+        
+        @param p Violating node (red)
+        @param fp Parent of p (red) - may be updated
+        @param ffp Grandparent of p (black)
+        @param fffp Great-grandparent of p
+    */
     void restoreRedCondition(Node *p,
                              Node *& fp,
                              Node *ffp,
@@ -168,15 +168,14 @@ namespace Aleph
         }
     }
 
-    /**
-       Flip colors of a black node and their red children.
-
-       Assuming a black node with two red children, this routine flips the
-       colors. Black node becomes red and their children become black.
-
-       @param p root of subtree
+    /** @brief Flip colors of a black node with two red children.
+        
+        The black node becomes red and its children become black.
+        This is the key operation for top-down insertion.
+        
+        @param p Node to flip (must be black with two red children)
     */
-    static void flipColors(Node *p)
+    static void flipColors(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == BLACK);
@@ -186,15 +185,15 @@ namespace Aleph
       COLOR(LLINK(p)) = COLOR(RLINK(p)) = BLACK;
     }
 
-    /**
-       Search the future parent of q and flip colors while searching.
-
-       This routine is intended for insertion in a top down red black tree.
-
-       @param q node to be inserted
-       @return possible q's parent
+    /** @brief Search for insertion point with proactive color flipping.
+        
+        Descends the tree looking for where to insert q. During descent,
+        any node with two red children has its colors flipped preemptively.
+        
+        @param q Node to insert
+        @return Pointer to inserted node, or nullptr if duplicate
     */
-    Node * searchFlipColorsAndInsert(Node *q)
+    Node * searchFlipColorsAndInsert(Node *q) noexcept
     {
       assert(q != Node::NullPtr);
       assert(root != Node::NullPtr);
@@ -257,7 +256,8 @@ namespace Aleph
       return q;
     }
 
-    Node * searchFlipColorsAndInsertDup(Node *q)
+    /// Like searchFlipColorsAndInsert but allows duplicate keys.
+    Node * searchFlipColorsAndInsertDup(Node *q) noexcept
     {
       assert(q != Node::NullPtr);
       assert(root != Node::NullPtr);
@@ -315,23 +315,24 @@ namespace Aleph
       return q;
     }
 
-    /* The following routines are exclusively used by remove procedure */
+    // ===================== DELETION ROUTINES =====================
 
-    /**
-       Searches a key and builds a stack path to key.
-
-       @param key key to search
-       @return a pointer to a node containing the key if this is found;
-       otherwise, a pointer to a node that would be the parent of key
+    /** @brief Search for key while building path stack.
+        
+        Used for deletion. The path stack is needed to walk back up
+        the tree when fixing violations.
+        
+        @param key Key to search for
+        @return Node with key, or leaf where key would be
     */
-    Node * searchAndBuildPath(const Key & key)
+    Node * searchAndBuildPath(const Key & key) noexcept
     {
       assert(root != Node::NullPtr);
 
       Node *p = root;
       path.push(head);
 
-      while (1)
+      while (true)
         {
           path.push(p);
 
@@ -369,17 +370,15 @@ namespace Aleph
         }
     }
 
-    /**
-       Given p and its parent,
-       1) Finds p's successor (succ) while updating searching path
-       2) Swaps through pointers p with succ (nodes contents are not swapped);
-       swapping is reflected in searching path.
-       3) Sets COLOR(succ) = COLOR(p)
-
-       @param p node with regard to find successor
-       @param (in/out) p's parent. After swapping, this fp still points to p
+    /** @brief Find successor and swap with node to delete.
+        
+        Used during deletion when the node has two children.
+        Finds the in-order successor and swaps pointers (not contents).
+        
+        @param p Node to delete
+        @param fp Parent of p (updated to point to new position)
     */
-    void findSuccAndSwap(Node *p, Node *& fp)
+    void findSuccAndSwap(Node *p, Node *& fp) noexcept
     {
       assert(p != Node::NullPtr);
       assert(RLINK(p) != Node::NullPtr);
@@ -452,30 +451,17 @@ namespace Aleph
     }
 
 
-    /**
-       Balances down a violating black node and colors.
-
-       This routine raises down a violating black node but ensures that its
-       sibling will be black. Four different cases are identified when a
-       black node miss is caused by removal. All cases require that sibling of
-       root violating sub tree's to be black. By means of this routine, we
-       guarantee that that sibling will be black.
-
-       After call fp, sp and ffp are updated.
-
-       {\bf Preconditions}
-       begin{enumerate}
-       \item head's stack path must be fp's parent.
-       \item p black.
-       \item p's parent (fp) black.
-       \item p's sibling (sp) red
-       \end{enumerate}
-
-       @param p black node violating red violating red black conditions
-       @param fp (in/out) p's parent (it must be BLACK)
-       @param sp (in/out) p's sibling (it must be RED)
-     */
-    void balanceDownAndColor(Node *p, Node *& fp, Node *& sp)
+    /** @brief Balance down a violating black node.
+        
+        When sibling is red, rotate to make it black.
+        This ensures the sibling-black cases can be applied.
+        
+        @pre p is black, fp is black, sp is red
+        @param p Violating node (black, missing a black node)
+        @param fp Parent of p (updated)
+        @param sp Sibling of p (updated to new sibling, which will be black)
+    */
+    void balanceDownAndColor(Node *p, Node *& fp, Node *& sp) noexcept
     {
       assert(LLINK(fp) == p || RLINK(fp) == p);
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
@@ -511,28 +497,17 @@ namespace Aleph
       COLOR(fp) = RED;
     }
 
-    /**
-       Rotate up nephew of a violating black node, then color for fix all
-       red black conditions.
-
-       This routine raises up the red nephew of a violating black node. After
-       this routine call, all red black conditions are restored.
-
-       This routine must be called when the violating node, its parent and its
-       grand parent are all linked either by left side or by right.
-
-       {\bf Preconditions}
-       begin{enumerate}
-       \item head's stack path must be fp's parent.
-       \item sp black.
-       \item up red
-       \end{enumerate}
-
-       @param fp parent of black node where misses a black node
-       @param sp sibling of black node where misses a black node
-       @param up nephew of black node where misses a black node
-     */
-    void rotateNephewAndColor(Node *fp, Node *sp, Node *np)
+    /** @brief Rotate nephew up and recolor to fix violation.
+        
+        Case: nephew np is red and on the "outside" (same side as sibling).
+        Single rotation fixes the tree.
+        
+        @pre sp is black, np is red
+        @param fp Parent of violating node
+        @param sp Sibling (black)
+        @param np Nephew (red, same side as sp)
+    */
+    void rotateNephewAndColor(Node *fp, Node *sp, Node *np) noexcept
     {
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
       assert(LLINK(sp) == np || RLINK(sp) == np);
@@ -556,29 +531,17 @@ namespace Aleph
       COLOR(np) = BLACK;
     }
 
-    /**
-       Double rotate up sibling of nephew of a violating black node, then
-       color for fix all red black conditions.
-
-       This routine raises up two positions the red sibling of nephew of a
-       violating black node. After this routine call, all red black conditions
-       are restored.
-
-       This routine must be called when the violating node, its parent and its
-       grand parent are left-right or right-left.
-
-       {\bf Preconditions}
-       begin{enumerate}
-       \item head's stack path must be fp's parent.
-       \item snp red
-       \item sp black
-       \end{enumerate}
-
-       @param fp parent of black node where misses a black node
-       @param sp sibling of black node where misses a black node
-       @param np nephew of black node where misses a black node
-     */
-    void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp)
+    /** @brief Double rotation and recolor to fix violation.
+        
+        Case: nephew snp is red and on the "inside" (opposite side from sibling).
+        Double rotation (rotate sibling, then parent) fixes the tree.
+        
+        @pre sp is black, snp is red
+        @param fp Parent of violating node
+        @param sp Sibling (black)
+        @param snp Sibling's nephew (red, opposite side from sp)
+    */
+    void doubleRotateNephewAndColor(Node *fp, Node *sp, Node *snp) noexcept
     {
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
       assert(LLINK(sp) == snp || RLINK(sp) == snp);
@@ -608,28 +571,26 @@ namespace Aleph
       COLOR(fp) = BLACK;
     }
 
-    /**
-       Color sibling of black violating node as red.
-
-       After this call, sp parent becomes a black violating node.
-
-       @param sp sibling of black violating node
-     */
-    static void colorSiblingAsRed(Node *sp)
+    /** @brief Color sibling red to propagate violation upward.
+        
+        After this, fp becomes the new violating node.
+        
+        @param sp Sibling (black, both children black)
+    */
+    static void colorSiblingAsRed(Node *sp) noexcept
     {
       assert(COLOR(sp) == BLACK);
       COLOR(sp) = RED;
     }
 
-    /**
-       Color parent of black violating node as red.
-
-       After this call, all red black tree conditions are restored.
-
-       @param fp parent of black violating node
-       @param sp sibling of black violating node
-     */
-    static void colorParentAndSibling(Node *fp, Node *sp)
+    /** @brief Recolor parent and sibling to fix violation.
+        
+        Case: parent is red. Swapping colors fixes the tree.
+        
+        @param fp Parent (red)
+        @param sp Sibling (black)
+    */
+    static void colorParentAndSibling(Node *fp, Node *sp) noexcept
     {
       assert(LLINK(fp) == sp || RLINK(fp) == sp);
       assert(COLOR(fp) == RED);
@@ -639,15 +600,14 @@ namespace Aleph
       COLOR(sp) = RED;
     }
 
-    /**
-      Given q
-      1) Delete node from binary tree; i.e. (by pass or swap with successor
-         then bypass)
-      2) Restore red black conditions (if any is violated)
-
-      @param q Node to remove
-     */
-    void removeAndFixBlackCondition(Node *q)
+    /** @brief Remove node and fix any black-height violations.
+        
+        Performs the actual BST deletion (bypass or swap with successor),
+        then walks up the path fixing violations.
+        
+        @param q Node to remove (must be on top of path stack)
+    */
+    void removeAndFixBlackCondition(Node *q) noexcept
     {
       assert(path.top() == q);
 
@@ -766,17 +726,23 @@ namespace Aleph
     }
 
   public:
-    /// The key type stored in the node
-    typedef Key key_type;
+    /// The key type stored in nodes
+    using key_type = Key;
 
-    /// Returns a reference to the comparison criteria
-    Compare &key_comp() noexcept { return cmp; }
+    /// Returns a reference to the comparison functor
+    Compare & key_comp() noexcept { return cmp; }
+    
+    /// \overload key_comp() const
+    const Compare & key_comp() const noexcept { return cmp; }
 
-    /// \overload key_comp()
-    Compare &get_compare() noexcept { return key_comp(); }
+    /// Alias for key_comp()
+    Compare & get_compare() noexcept { return cmp; }
+    
+    /// \overload get_compare() const
+    const Compare & get_compare() const noexcept { return cmp; }
 
-    /// Instantiates a red-black tree.
-    HtdRbTree(Compare __cmp = Compare())
+    /// Default constructor
+    HtdRbTree(Compare __cmp = Compare()) noexcept
       : head(&headNode),
         fHead(&headParent),
         ffHead(&headGrandParent),
@@ -789,12 +755,9 @@ namespace Aleph
       COLOR(head) = BLACK;
       COLOR(fHead) = BLACK;
       COLOR(ffHead) = BLACK;
-
-#   ifdef DEBUG
-      node_count = 0;
-#   endif /* DEBUG */
     }
 
+    /// Swap contents with another tree
     void swap(HtdRbTree & tree) noexcept
     {
       std::swap(root, tree.root);
@@ -802,6 +765,7 @@ namespace Aleph
       std::swap(cmp, tree.cmp);
     }
 
+    /// Move constructor
     HtdRbTree(HtdRbTree && tree) noexcept
       : head(&headNode),
         fHead(&headParent),
@@ -811,30 +775,50 @@ namespace Aleph
         node_count(0),
         cmp()
     {
+      RLINK(fHead) = head;
+      RLINK(ffHead) = fHead;
+      COLOR(Node::NullPtr) = BLACK;
+      COLOR(head) = BLACK;
+      COLOR(fHead) = BLACK;
+      COLOR(ffHead) = BLACK;
       swap(tree);
     }
 
-    HtdRbTree &operator=(HtdRbTree && tree) noexcept
+    /// Move assignment
+    HtdRbTree & operator=(HtdRbTree && tree) noexcept
     {
       swap(tree);
       return *this;
     }
+    
+    /// Copy constructor deleted
+    HtdRbTree(const HtdRbTree &) = delete;
+    
+    /// Copy assignment deleted
+    HtdRbTree & operator=(const HtdRbTree &) = delete;
 
-    /// Destructor
+    /// Virtual destructor
     virtual ~HtdRbTree() = default;
 
-    /**
-       Inserts a node in a HtdRbTree.
-
-       @return a pointer to the inserted node if node is not found in tree;
-       nullptr otherwise.
-       @param p a pointer to the node to be inserted
-     */
+    /// Check if tree is empty
     bool is_empty() const noexcept { return root == Node::NullPtr; }
 
+    /// Get number of nodes in tree
     size_t size() const noexcept { return node_count; }
+    
+    /// Reset tree (does not free nodes)
+    void reset() noexcept
+    {
+      root = Node::NullPtr;
+      node_count = 0;
+    }
 
-    Node * insert(Node *p)
+    /** @brief Insert a node into the tree.
+        
+        @param p Node to insert (must have COLOR=RED and null children)
+        @return Pointer to inserted node, or nullptr if duplicate key
+    */
+    Node * insert(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -850,7 +834,12 @@ namespace Aleph
       return searchFlipColorsAndInsert(p);
     }
 
-    Node * search_or_insert(Node *p)
+    /** @brief Search for key or insert if not found.
+        
+        @param p Node to insert if key not found
+        @return Existing node with key, or p if inserted
+    */
+    Node * search_or_insert(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -870,7 +859,12 @@ namespace Aleph
       return insert(p);
     }
 
-    Node * insert_dup(Node *p)
+    /** @brief Insert allowing duplicate keys.
+        
+        @param p Node to insert
+        @return Pointer to inserted node
+    */
+    Node * insert_dup(Node *p) noexcept
     {
       assert(p != Node::NullPtr);
       assert(COLOR(p) == RED);
@@ -886,30 +880,23 @@ namespace Aleph
       return searchFlipColorsAndInsertDup(p);
     }
 
-    /**
-       Searches a key in a HtdRbTree.
-
-       @return a pointer to the node containing the key if the key is found;
-       nullptr otherwise.
-       @param key key to search
-     */
-    Node * search(const Key & key)
+    /** @brief Search for a key.
+        
+        @param key Key to search for
+        @return Pointer to node with key, or nullptr if not found
+    */
+    Node * search(const Key & key) const noexcept
     {
       Node *retVal = searchInBinTree(root, key, cmp);
-
       return retVal == Node::NullPtr ? nullptr : retVal;
     }
 
-    /*
-       Remove a key from a HtdRbTree.
-
-       Searches a key in a Rbltree and remove the containing the key if this
-       is found.
-
-       @return a pointer to node containing the removed key.
-       @param key to search
-     */
-    Node * remove(const Key & key)
+    /** @brief Remove node with given key.
+        
+        @param key Key to remove
+        @return Pointer to removed node, or nullptr if not found
+    */
+    Node * remove(const Key & key) noexcept
     {
       if (root == Node::NullPtr)
         return nullptr;
@@ -933,24 +920,23 @@ namespace Aleph
     }
 
 
-    /// Gets HtdRbTree's root
-    Node *&getRoot() { return root; }
+    /// Get reference to root pointer
+    Node *& getRoot() noexcept { return root; }
+    
+    /// Get root pointer (const)
+    Node * getRoot() const noexcept { return root; }
 
   private:
-    /**
-       Verify black height for a node.
-
-       This routine takes a node p and verifies that for each path from p to a
-       leaf there are the same number of black nodes. An core dump will be
-       done if the condition is not met.
-
-       @param p node from which the black height condition should be verified
-       @param max (in/out) max depth reached in black nodes. This will be the
-       black height of p. {\bf max must be always initialized to -1.}
-       @param bh (hidden, it must not be set) current number of visited black
-       nodes
-     */
-    static void blackHeight(Node *p, int & max, int bh = 0)
+    /** @brief Verify black height consistency.
+        
+        Recursively checks that all paths to leaves have the same
+        number of black nodes.
+        
+        @param p Node to check from
+        @param max Current maximum black height (initialize to -1)
+        @param bh Current black height count
+    */
+    static void blackHeight(Node *p, int & max, int bh = 0) noexcept
     {
       if (COLOR(p) == BLACK)
         bh++; // Another seen black node
@@ -972,11 +958,8 @@ namespace Aleph
         blackHeight(RLINK(p), max, bh);
     }
 
-    /**
-       Function verifying red condition and starting recursive call to
-       blackHeight.
-     */
-    static void testNode(Node *p)
+    /// Verify red condition and black height for a node
+    static void testNode(Node *p) noexcept
     {
       /* verify red condition */
       COND_assert(COLOR(p) == RED,
@@ -989,34 +972,50 @@ namespace Aleph
     }
 
   public:
-    /**
-       Verifies correctness of red black tree.
-
-       This function checks that each node satisfies the red black conditions
-       and aborts if any condition is violated.
-
-       Only works if DEBUG is defined.
+    /** @brief Verify red-black tree invariants (DEBUG mode).
+        
+        Checks that each node satisfies red-black conditions.
+        Aborts on violation.
     */
-    void verifyRedBlack()
+    void verifyRedBlack() const
     {
-      /* traverse all tree and verify black height for each visited node */
       preOrderRec(root, testNode);
     }
 
-    bool verify() const
+    /** @brief Verify tree is a valid red-black BST.
+        
+        @return true if all red-black properties hold
+    */
+    bool verify() const noexcept
     {
       return is_red_black_bst(const_cast<Node *>(root),
                               const_cast<HtdRbTree *>(this)->cmp);
     }
 
+    /// In-order iterator
     struct Iterator : public BinNodeInfixIterator<Node>
     {
-      Iterator(HtdRbTree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+      Iterator(HtdRbTree & t) noexcept
+        : BinNodeInfixIterator<Node>(t.getRoot()) {}
 
-      Iterator(const HtdRbTree & t)
+      Iterator(const HtdRbTree & t) noexcept
         : BinNodeInfixIterator<Node>(const_cast<HtdRbTree &>(t).getRoot()) {}
     };
   };
+
+/** @brief Hybrid red-black tree with virtual node destructor.
+    
+    Same as HtdRbTree but uses RbNodeVtl which has virtual destructor.
+*/
+  template <class Key, class Compare = Aleph::less<Key>>
+  class HtdRbTreeVtl : public HtdRbTree<Key, Compare>
+  {
+  public:
+    using Base = HtdRbTree<Key, Compare>;
+    using Node = typename Base::Node;
+    using Base::Base;  // Inherit constructors
+  };
+
 } // namespace Aleph
 
 #endif /* TPL_HTDRBTREE_H */

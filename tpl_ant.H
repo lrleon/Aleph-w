@@ -119,6 +119,8 @@ struct Ant : public Walking_Agent<Empty_Class>
 {
   Ant() { /* empty */ }
 
+  virtual ~Ant() = default;
+
   // Ant(Transit transit) 
   //   : Walking_Agent<Empty_Class>(Empty_Class(), transit)
   // {
@@ -163,7 +165,7 @@ struct Ant_Graph : public Agent_Graph<List_Graph, Ant_Node, Ant_Arc, Ant>
     init_mutex(bit_mutex);
   }
 
-  ~Ant_Graph()
+  virtual ~Ant_Graph()
   {
     destroy_mutex(bit_mutex);
   }
@@ -243,7 +245,7 @@ struct Working_Ant : public Ant
   //   // Empty
   // }
 
-  ~Working_Ant()
+  virtual ~Working_Ant()
   {
     // empty
   }

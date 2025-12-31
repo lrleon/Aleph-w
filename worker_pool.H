@@ -8,8 +8,8 @@
 
 # include <ah-errors.H>
 # include <tpl_arrayQueue.H>
+# include <iostream>
 
-using namespace std;
 using namespace Aleph;
 
 // this class implement a pool of worket threads. The client set how
@@ -29,22 +29,22 @@ private:
 
   WorkerFct worker_fct = nullptr;
   size_t num_threads = 0;
-  mutex m;
-  condition_variable cond;
+  std::mutex m;
+  std::condition_variable cond;
 
-  atomic<size_t> num_workers = 0;
+  std::atomic<size_t> num_workers = 0;
 
   FixedQueue<void*> q;
-  DynList<thread> threads;
+  DynList<std::thread> threads;
   bool shut_down = false;
   bool job_done = false;
 
-  condition_variable job_done_cond;
-  mutex job_done_mutex;
+  std::condition_variable job_done_cond;
+  std::mutex job_done_mutex;
 
   void worker_handler()
   {
-    unique_lock<mutex> lock(m);
+    std::unique_lock<std::mutex> lock(m);
     while (true)
       {
         cond.wait(lock, [this] { return num_workers > 0 or shut_down; });
@@ -72,10 +72,10 @@ private:
                        {
                          job_done = (*worker_fct)(pars_ptr);
                        }
-                     catch (exception & e)
-                       {
-                         cout << "Warning: workers exception "
-                              << e.what() << endl;
+                    catch (std::exception & e)
+                      {
+                        std::cout << "Warning: workers exception "
+                                  << e.what() << std::endl;
                        }
                      lock.lock();
                      free(pars_ptr);
@@ -97,12 +97,12 @@ public:
     : worker_fct(worker_fct), num_threads(n), q(qsize)
   {
     for (size_t i = 0; i < n; ++i)
-      threads.append(thread(&WorkersSet::worker_handler, this));
+      threads.append(std::thread(&WorkersSet::worker_handler, this));
   }
 
   void shutdown()
   {
-    unique_lock<mutex> lock(m);
+    std::unique_lock<std::mutex> lock(m);
     shut_down = true;
     cond.notify_all();
   }
@@ -110,12 +110,12 @@ public:
   ~WorkersSet()
   {
     shutdown();
-    threads.mutable_for_each([] (thread & th) { th.join(); });
+    threads.mutable_for_each([] (std::thread & th) { th.join(); });
   }
 
   void prepare_num_workers(size_t n)
   {
-    unique_lock<mutex> lock(m);
+    std::unique_lock<std::mutex> lock(m);
     num_workers = n;
   }
 
@@ -126,20 +126,20 @@ public:
   // respect the expected values
   void schedule_call(void * pars_ptr)
   {
-    unique_lock<mutex> lock(m);
+    std::unique_lock<std::mutex> lock(m);
     q.put(pars_ptr);
     cond.notify_one();
   }
 
   bool is_jobs_done() const
   {
-    unique_lock<mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(m);
     return job_done;
   }
 
   void wait_until_all_workers_finished_or_job_is_done()
   {
-    unique_lock<mutex> lock(job_done_mutex);
+    std::unique_lock<std::mutex> lock(job_done_mutex);
     job_done_cond.wait(lock);
   }
 };

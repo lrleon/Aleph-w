@@ -27,8 +27,6 @@
 # include <ah-errors.H>
 # include <ah-errors.H>
 
-using namespace std;
-
 using namespace Aleph;
 
 namespace Aleph {
@@ -267,7 +265,7 @@ public:
   {
     size_t d, s, b;
     compute_sizes(n, d, s, b);
-    return make_tuple(d, s, b);
+    return std::make_tuple(d, s, b);
   }
 
 private:

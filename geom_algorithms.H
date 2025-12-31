@@ -30,7 +30,7 @@
 # include <htlist.H>
 # include <tpl_dynSetTree.H>
 # include <tpl_sort_utils.H>
- # include <ah-errors.H>
+# include <ah-errors.H>
 
 // Triangulation algorithms
 
@@ -41,64 +41,60 @@
 */
 class CuttingEarsTriangulation
 {
-  using EarsSet = DynSetTree<const Vertex*, Treap_Rk>;
-  
-public:
+  using EarsSet = DynSetTree<const Vertex *, Treap_Rk>;
 
-  bool diagonalie(const Polygon & p, const Segment & s)
+public:
+  static bool diagonalie(const Polygon & p, const Segment & s)
   {
     for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	Segment curr = it.get_current_segment();
-		
-	if ((curr.get_src_point() != s.get_src_point()) and
-	    (curr.get_tgt_point() != s.get_src_point()) and
-	    (curr.get_src_point() != s.get_tgt_point()) and
-	    (curr.get_tgt_point() != s.get_tgt_point()) and
-	    s.intersects_with(curr))
-	  return false;
+        if (Segment curr = it.get_current_segment(); (curr.get_src_point() != s.get_src_point()) and
+                                                     (curr.get_tgt_point() != s.get_src_point()) and
+                                                     (curr.get_src_point() != s.get_tgt_point()) and
+                                                     (curr.get_tgt_point() != s.get_tgt_point()) and
+                                                     s.intersects_with(curr))
+          return false;
       }
     return true;
   }
 
-  bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
+  static bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
   {
     // a0 -> a -> a1 son vértices consecutivos
     const Vertex & a0 = p.get_prev_vertex(a);
     const Vertex & a1 = p.get_next_vertex(a);
-    
+
     if (a0.is_to_left_on_from(a, a1))
       return a0.is_to_left_from(a, b) and a1.is_to_left_from(b, a);
-    
+
     return not (a1.is_to_left_on_from(a, b) and
-		a0.is_to_left_on_from(b, a));
-  }
-  
-  bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
-  {
-    return in_cone(p, a, b) and in_cone(p, b, a) and
-      diagonalie(p, Segment(a, b));
+                a0.is_to_left_on_from(b, a));
   }
 
-  EarsSet init_ears(const Polygon & p)
+  static bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
+  {
+    return in_cone(p, a, b) and in_cone(p, b, a) and
+           diagonalie(p, Segment(a, b));
+  }
+
+  static EarsSet init_ears(const Polygon & p)
   {
     EarsSet ret;
 
     for (Polygon::Vertex_Iterator it(p); it.has_curr(); it.next_ne())
       {
-	Vertex & curr = it.get_current_vertex();
-	const Vertex & prev = p.get_prev_vertex(curr);
-	const Vertex & next = p.get_next_vertex(curr);
-	if (diagonal(p, prev, next))
-	  ret.insert(&curr);
+        Vertex & curr = it.get_current_vertex();
+        const Vertex & prev = p.get_prev_vertex(curr);
+        const Vertex & next = p.get_next_vertex(curr);
+        if (diagonal(p, prev, next))
+          ret.insert(&curr);
       }
 
     return ret;
   }
-  
-public:
 
-  DynList<Triangle> operator () (Polygon & p)
+public:
+  DynList<Triangle> operator ()(Polygon & p)
   {
     ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertexs";
 
@@ -108,28 +104,28 @@ public:
 
     while (p.size() > 3)
       {
-	const Vertex * curr = ears.remove_pos(0);
+        const Vertex *curr = ears.remove_pos(0);
 
-	const Vertex & prev = p.get_prev_vertex(*curr);
-	const Vertex & prev_prev = p.get_prev_vertex(prev);
-	const Vertex & next = p.get_next_vertex(*curr);
-	const Vertex & next_next = p.get_next_vertex(next);
+        const Vertex & prev = p.get_prev_vertex(*curr);
+        const Vertex & prev_prev = p.get_prev_vertex(prev);
+        const Vertex & next = p.get_next_vertex(*curr);
+        const Vertex & next_next = p.get_next_vertex(next);
 
-	if (diagonal(p, prev_prev, next))
-	  ears.insert(&prev);
-	else
-	  ears.remove(&prev);
-	
-	if (diagonal(p, prev, next_next))
-	  ears.insert(&next);
-	else
-	  ears.remove(&next);
-	
-	ret.append(Triangle(prev, *curr, next));
-	
-	p.remove_vertex(*curr);
+        if (diagonal(p, prev_prev, next))
+          ears.insert(&prev);
+        else
+          ears.remove(&prev);
+
+        if (diagonal(p, prev, next_next))
+          ears.insert(&next);
+        else
+          ears.remove(&next);
+
+        ret.append(Triangle(prev, *curr, next));
+
+        p.remove_vertex(*curr);
       }
-    
+
     assert(p.size() == 3);
 
     const Vertex & a = p.get_first_vertex();
@@ -156,18 +152,18 @@ class BruteForceConvexHull
     bool cmp_point(const Point & p1, const Point & p2) const
     {
       if (p1.get_x() < p2.get_x())
-	return true;
-      
+        return true;
+
       return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
     }
-    
-    bool operator () (const Segment & s1, const Segment & s2)
+
+    bool operator ()(const Segment & s1, const Segment & s2)
     {
       if (cmp_point(s1.get_src_point(), s2.get_src_point()))
-	return true;
-      
+        return true;
+
       return not (cmp_point(s2.get_src_point(), s1.get_src_point())) and
-	cmp_point(s1.get_tgt_point(), s2.get_tgt_point());
+             cmp_point(s1.get_tgt_point(), s2.get_tgt_point());
     }
   };
 
@@ -179,42 +175,42 @@ class BruteForceConvexHull
   {
     for (PointIt it(l); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
-	
-	if (p.is_to_right_from(s))
-	  return false;
+        const Point & p = it.get_curr();
+
+        if (p.is_to_right_from(s))
+          return false;
       }
-    
+
     return true;
   }
-  
+
   SegmentSet extreme_edges(DynList<Point> & point_set)
   {
     SegmentSet ret;
-  
+
     for (PointIt i(point_set); i.has_curr(); i.next_ne())
       {
-	const Point & p_i = i.get_curr();
-	
-	for (PointIt j(point_set); j.has_curr(); j.next_ne())
-	  {
-	    const Point & p_j = j.get_curr();
-	    
-	    if (p_i == p_j)
-	      continue;
-	    
-	    Segment s(p_i, p_j);
-	    
-	    if (are_all_points_on_left(point_set, s))
-	      ret.insert(s);
-	  }	  
+        const Point & p_i = i.get_curr();
+
+        for (PointIt j(point_set); j.has_curr(); j.next_ne())
+          {
+            const Point & p_j = j.get_curr();
+
+            if (p_i == p_j)
+              continue;
+
+            Segment s(p_i, p_j);
+
+            if (are_all_points_on_left(point_set, s))
+              ret.insert(s);
+          }
       }
-    
+
     return ret;
   }
-  
+
 public:
-  Polygon operator () (DynList<Point> & point_set)
+  Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
 
@@ -226,20 +222,21 @@ public:
 
     while (true)
       {
-	const Vertex & last_vertex = ret.get_last_vertex();
-	
-	Segment * ptr = extremes.find_ptr([&last_vertex](const Segment & s) {
-	    return s.get_src_point() == last_vertex;
-	  });
+        const Vertex & last_vertex = ret.get_last_vertex();
 
-	assert(ptr != nullptr);
+        Segment *ptr = extremes.find_ptr([&last_vertex](const Segment & s)
+                                           {
+                                             return s.get_src_point() == last_vertex;
+                                           });
 
-	if (ptr->get_tgt_point() == ret.get_first_vertex())
-	  break;
-	
-	ret.add_vertex(ptr->get_tgt_point());
+        assert(ptr != nullptr);
 
-	extremes.remove(*ptr);
+        if (ptr->get_tgt_point() == ret.get_first_vertex())
+          break;
+
+        ret.add_vertex(ptr->get_tgt_point());
+
+        extremes.remove(*ptr);
       }
 
     ret.close();
@@ -257,64 +254,64 @@ class GiftWrappingConvexHull
   Point * get_lowest_point(DynList<Point> & point_set)
   {
     DynList<Point>::Iterator it(point_set);
-    Point * ret = &it.get_curr();
+    Point *ret = &it.get_curr();
     it.next();
 
-    for ( /* nothing */; it.has_curr(); it.next_ne())
+    for (/* nothing */; it.has_curr(); it.next_ne())
       {
-	Point & p = it.get_curr();
+        Point & p = it.get_curr();
 
-	if (p.get_y() < ret->get_y())
-	  ret = &p;
+        if (p.get_y() < ret->get_y())
+          ret = &p;
       }
 
     return ret;
   }
-  
+
 public:
-  Polygon operator () (DynList<Point> & point_set)
+  Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
 
-    Point * lowest_point = get_lowest_point(point_set);
-    Point * p_i = lowest_point;
+    Point *lowest_point = get_lowest_point(point_set);
+    Point *p_i = lowest_point;
     ret.add_vertex(*lowest_point);
 
     Segment last_segment = Segment(Point(0, 0), Point(1, 0));
 
     while (true)
       {
-	Point * p_k = nullptr;
+        Point *p_k = nullptr;
 
-	double min_angle = std::numeric_limits<double>::max();
+        double min_angle = std::numeric_limits<double>::max();
 
-	for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
-	  {
-	    Point & p_j = it.get_curr();
+        for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
+          {
+            Point & p_j = it.get_curr();
 
-	    if (p_j == *p_i)
-	      continue;
+            if (p_j == *p_i)
+              continue;
 
-	    double angle =
-	      Segment(*p_i, p_j).counterclockwise_angle_with(last_segment);
+            double angle =
+                Segment(*p_i, p_j).counterclockwise_angle_with(last_segment);
 
-	    if (angle < min_angle)
-	      {
-		min_angle = angle;
-		p_k = &p_j;
-	      }
-	  }
+            if (angle < min_angle)
+              {
+                min_angle = angle;
+                p_k = &p_j;
+              }
+          }
 
-	assert(p_k != nullptr);
+        assert(p_k != nullptr);
 
-	if (p_k == lowest_point)
-	  break;
+        if (p_k == lowest_point)
+          break;
 
-	ret.add_vertex(*p_k);
+        ret.add_vertex(*p_k);
 
-	last_segment = ret.get_last_segment();
+        last_segment = ret.get_last_segment();
 
-	p_i = p_k;
+        p_i = p_k;
       }
 
     ret.close();
@@ -333,54 +330,54 @@ class QuickHull
   {
     Geom_Number max_distance = 0;
     Point ret;
-    
+
     for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+        const Point & p = it.get_curr();
 
-	Segment s1 = s.get_perpendicular(p);
+        Segment s1 = s.get_perpendicular(p);
 
-	Geom_Number sz = s1.size();
+        Geom_Number sz = s1.size();
 
-	if (sz > max_distance)
-	  {
-	    ret = p;
-	    max_distance = sz;
-	  }
+        if (sz > max_distance)
+          {
+            ret = p;
+            max_distance = sz;
+          }
       }
 
     return ret;
   }
 
   std::pair<DynList<Point>, DynList<Point>>
-    get_right_points(DynList<Point> & point_set,
-		     const Point & a, const Point & b, const Point & c)
+  get_right_points(DynList<Point> & point_set,
+                   const Point & a, const Point & b, const Point & c)
   {
     std::pair<DynList<Point>, DynList<Point>> ret;
 
     while (not point_set.is_empty())
       {
-	Point p = point_set.remove_first();
+        Point p = point_set.remove_first();
 
-	if (p != a and p != c and p.is_to_right_from(a, c))
-	  {
-	    ret.first.append(p);
-	    continue;
-	  }
+        if (p != a and p != c and p.is_to_right_from(a, c))
+          {
+            ret.first.append(p);
+            continue;
+          }
 
-	if (p != c and p != b and p.is_to_right_from(c, b))
-	  ret.second.append(p);
+        if (p != c and p != b and p.is_to_right_from(c, b))
+          ret.second.append(p);
       }
 
     return ret;
   }
-  
+
   DynList<Point> quick_hull(DynList<Point> & point_set, const Point & a,
-			    const Point & b)
+                            const Point & b)
   {
     if (point_set.is_empty())
       return DynList<Point>();
-    
+
     Point c = get_fartest_point(point_set, Segment(a, b));
 
     auto r = get_right_points(point_set, a, b, c);
@@ -392,7 +389,7 @@ class QuickHull
 
     return ret;
   }
-  
+
   std::pair<Point, Point> search_extremes(DynList<Point> & point_set)
   {
     DynList<Point>::Iterator it(point_set);
@@ -400,40 +397,40 @@ class QuickHull
     Point rightmost = it.get_curr();
     it.next();
 
-    for ( /* nothing */; it.has_curr(); it.next_ne())
+    for (/* nothing */; it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+        const Point & p = it.get_curr();
 
-	if (p.get_x() < leftmost.get_x())
-	  leftmost = p;
+        if (p.get_x() < leftmost.get_x())
+          leftmost = p;
 
-	if (p.get_x() > rightmost.get_x())
-	  rightmost = p;
+        if (p.get_x() > rightmost.get_x())
+          rightmost = p;
       }
 
     return make_pair(leftmost, rightmost);
   }
 
   std::pair<DynList<Point>, DynList<Point>>
-    partition(DynList<Point> & point_set, const Point & a, const Point & b)
+  partition(DynList<Point> & point_set, const Point & a, const Point & b)
   {
     std::pair<DynList<Point>, DynList<Point>> ret;
-    
+
     for (DynList<Point>::Iterator it(point_set); it.has_curr(); it.next_ne())
       {
-	const Point & p = it.get_curr();
+        const Point & p = it.get_curr();
 
-	if (p.is_to_right_from(a, b))
-	  ret.first.append(p);
-	else
-	  ret.second.append(p);
+        if (p.is_to_right_from(a, b))
+          ret.first.append(p);
+        else
+          ret.second.append(p);
       }
 
     return ret;
   }
-  
+
 public:
-  Polygon operator () (DynList<Point> & point_set)
+  Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
 
@@ -451,7 +448,7 @@ public:
 
     for (DynList<Point>::Iterator it(convex_set); it.has_curr(); it.next_ne())
       ret.add_vertex(it.get_curr());
-    
+
     ret.close();
     return ret;
   }

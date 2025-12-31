@@ -29,8 +29,7 @@
 # include <tpl_dynArray.H>
 # include <tpl_dynStack.H>
 # include <ah-errors.H>
-
-using namespace std;
+# include <iostream>
 
 class Pointer_Table
 {
@@ -162,14 +161,14 @@ public:
 # ifdef DEBUG
   void print_parameters()
   {
-    cout << "Number of pointers = " << num_pointers << endl
-	 << "Pointer table size = " << pointer_table.size() << endl
-	 << "Free table size    = " << free_table.size() << endl
-	 << "Threshold          = " << threshold_size << endl
-	 << "Heap index         = " << heap_index << endl;
+    std::cout << "Number of pointers = " << num_pointers << std::endl
+	      << "Pointer table size = " << pointer_table.size() << std::endl
+	      << "Free table size    = " << free_table.size() << std::endl
+	      << "Threshold          = " << threshold_size << std::endl
+	      << "Heap index         = " << heap_index << std::endl;
     if (heap_index > 0)
-      cout << "pointer_table[" << heap_index - 1 << "]= " 
-			    << pointer_table[heap_index - 1] << endl;
+      std::cout << "pointer_table[" << heap_index - 1 << "]= " 
+                << pointer_table[heap_index - 1] << std::endl;
   }
 # endif
 };

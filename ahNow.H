@@ -31,10 +31,6 @@
 
 # include <aleph.H>
 
-using namespace std;
-using namespace chrono;
-using namespace Aleph;
-
 namespace Aleph
 {
   /** Class Now is a practical class for timing based in a high
@@ -80,7 +76,7 @@ namespace Aleph
       return static_cast<int>(p);
     }
     
-    using ClockType = high_resolution_clock;
+    using ClockType = std::chrono::high_resolution_clock;
     using TimePointType = ClockType::time_point;
     using DurationType = ClockType::duration;
 
@@ -110,7 +106,7 @@ namespace Aleph
                                     const TimePointType & ltp,
                                     const Precision & precision)
     {
-      DurationType et = std::chrono::duration_cast<nanoseconds>(rtp - ltp);
+      DurationType et = std::chrono::duration_cast<std::chrono::nanoseconds>(rtp - ltp);
       return et.count() * precision_values[to_int(precision)];
     }
 

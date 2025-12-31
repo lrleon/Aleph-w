@@ -27,7 +27,7 @@
 # ifndef TPL_NET_SUP_DEM_H
 # define TPL_NET_SUP_DEM_H
 
-# include <tpl_netgraph.H>
+# include <tpl_net.H>
 # include <ah-errors.H>
 
 namespace Aleph

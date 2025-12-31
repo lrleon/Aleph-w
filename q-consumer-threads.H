@@ -30,16 +30,14 @@
 # include <condition_variable>
 # include <mutex>
 # include <tpl_dynListQueue.H>
- # include <ah-errors.H>
-
-using namespace std;
+# include <ah-errors.H>
 
 template <typename T>
 class ConsumerQueueEvent
 {
   enum class Status { Ready, Executing };
 
-  atomic<Status> status = { Status::Ready };
+  std::atomic<Status> status = { Status::Ready };
 
 public:
 
@@ -94,15 +92,15 @@ public:
 
 private:
 
-  mutex lck;
-  condition_variable cond;
+  std::mutex lck;
+  std::condition_variable cond;
   DynList<ConsumerQueueEvent*> event_list;
   size_t num_threads = 0;
   size_t num_active = 0;
   bool suspended = true;
   bool shutting_down = false;
   bool shutdown_done = false;
-  condition_variable shutdown_cv;
+  std::condition_variable shutdown_cv;
 
   DynListQueue<T> q;
 
@@ -110,7 +108,7 @@ public:
 
   ~QueueTheadsPool()
   {
-    unique_lock<mutex> cs(lck);
+    std::unique_lock<std::mutex> cs(lck);
     ah_domain_error_if(not shutdown_done)
       << "~QueueTheadsPool: shutdown not done";
   }
@@ -129,9 +127,9 @@ public:
 
   void create_thread(ConsumerQueueEvent * event)
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
 
-    auto th = thread(handler, this, event);
+    auto th = std::thread(handler, this, event);
     th.detach();
 
     // check if event is already owned by another thread
@@ -146,10 +144,10 @@ public:
   {
     try
       {
-        unique_lock<mutex> critical_section(lck);
+        std::unique_lock<std::mutex> critical_section(lck);
         if (num_threads == 0)
           ah_domain_error_if(true) << "there is no any thread created";
-        q.put(forward<T>(item));
+        q.put(std::forward<T>(item));
         if (not suspended)
           cond.notify_one(); // for waking up a thread
       }
@@ -163,7 +161,7 @@ public:
 
   void resume()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -173,7 +171,7 @@ public:
 
   void suspend()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -183,19 +181,19 @@ public:
 
   bool is_suspended()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     return suspended;
   }
 
   bool is_shutdown()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     return shutdown_done;
   }
 
   void shutdown()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -211,7 +209,7 @@ public:
 template <typename T>
 void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
 {
-  unique_lock<mutex> critical_section(lck);
+  std::unique_lock<std::mutex> critical_section(lck);
 
   while (true)
     {

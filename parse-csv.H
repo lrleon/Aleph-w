@@ -31,13 +31,11 @@
 # include <string>
 # include <tpl_array.H>
 
-using namespace std;
-
-inline Array<string> csv_read_row(istream &in, char delimiter = ',')
+inline Array<std::string> csv_read_row(std::istream &in, char delimiter = ',')
 {
-  stringstream ss;
+  std::stringstream ss;
   bool inquotes = false;
-  Array<string> row; // relying on RVO
+  Array<std::string> row; // relying on RVO
   while (in.good())
     {
       char c = in.get();
@@ -68,9 +66,9 @@ inline Array<string> csv_read_row(istream &in, char delimiter = ',')
   return row;
 }
 
-inline Array<string> csv_read_row(string &line, char delimiter)
+inline Array<std::string> csv_read_row(std::string &line, char delimiter)
 {
-  stringstream ss(line);
+  std::stringstream ss(line);
   return csv_read_row(ss, delimiter);
 }
 

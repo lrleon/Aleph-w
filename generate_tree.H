@@ -37,7 +37,7 @@ namespace Aleph
   template <class Node>
   struct Dft_Write
   {
-    const string operator () (Node * p) 
+    string operator () (Node * p)
     {
       return to_str(p->get_key());
     }
@@ -71,7 +71,7 @@ namespace Aleph
       }
     output << " \"" << Write () (node) << "\" " << std::endl;
 
-    Node * child = (Node*) node->get_left_child(); 
+    Node * child = static_cast<Node *>(node->get_left_child());
     for (int i = 0; child != nullptr; 
          i++, child = (Node*)child->get_right_sibling())
       {

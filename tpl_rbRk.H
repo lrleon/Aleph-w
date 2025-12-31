@@ -35,24 +35,49 @@
 # include <rbNodeRk.H>
 # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph {
 
-/** Extended Red-Black binary search tree with select and position.
+/** @brief Red-black tree with rank support (select/position operations).
 
-    A red-black binary search tree is a binary search tree whose height is
-    bounded by O(lg n) and whose update operations are bounded in time
-    by inspecting O(lg n) nodes.
-
-    This extended version maintains a count in each node representing
-    the number of nodes in its subtree, enabling O(log n) operations
-    for selecting by position and finding the position of a key.
-
-    @param NodeType node type, either RbNodeRk or RbNodeRkVtl.
-    @param Key key type stored in the tree nodes.
-    @param Compare comparison functor between keys.
-    @see Rb_Tree_Rk Rb_Tree_Rk_Vtl
+    This class extends the standard red-black tree with subtree size counts,
+    enabling efficient O(log n) rank-based operations:
+    
+    - **select(i)**: Get the i-th smallest element (0-indexed)
+    - **position(key)**: Get the rank/position of a key
+    - **find_position(key)**: Get insertion position even if key doesn't exist
+    - **split_pos(pos, t1, t2)**: Split tree at a position
+    - **remove_pos(i)**: Remove element at position i
+    
+    @par How it works:
+    Each node stores a `count` field representing the number of nodes in its
+    subtree (including itself). Rotations update these counts to maintain the
+    invariant. This adds O(1) overhead per rotation but enables O(log n) ranked
+    operations.
+    
+    @par Complexity:
+    - All basic operations (search, insert, remove): O(log n)
+    - Rank operations (select, position): O(log n)
+    - Space: O(n) + O(log n) for stack during operations
+    
+    @par Example:
+    @code
+    Rb_Tree_Rk<int> tree;
+    for (int i = 0; i < 100; ++i)
+        tree.insert(new Rb_Tree_Rk<int>::Node(i));
+    
+    // Get 50th smallest element
+    auto node = tree.select(49);  // 0-indexed, returns node with key 49
+    
+    // Get position of key 42
+    auto [pos, found] = tree.position(42);  // pos = 42, found points to node
+    @endcode
+    
+    @tparam NodeType Node template (RbNodeRk or RbNodeRkVtl).
+    @tparam Key The type of keys stored in the tree.
+    @tparam Compare Comparison functor for ordering keys.
+    
+    @see Gen_Rb_Tree Basic red-black tree without rank support.
+    @see GenTdRbTreeRk Top-down red-black with rank.
     @ingroup Arboles
 */
 template <template <typename> class NodeType, typename Key, class Compare>

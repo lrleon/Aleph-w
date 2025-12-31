@@ -59,7 +59,11 @@
 # include <tpl_rb_tree.H>
 # include <tpl_rbRk.H>
 # include <tpl_tdRbTree.H>
+# include <tpl_tdRbTreeRk.H>
+# include <tpl_hRbTree.H>
+# include <tpl_hRbTreeRk.H>
 # include <tpl_splay_tree.H>
+# include <tpl_splay_treeRk.H>
 
 using namespace Aleph;
 
@@ -259,13 +263,23 @@ namespace Aleph
     template <typename T>
     struct Has_Range_Methods
     {
+      // Test for const select (RB, AVL, etc.)
       template <typename U>
-      static auto test_select(int)
+      static auto test_select_const(int)
         -> decltype(std::declval<const U &>().select(std::declval<size_t>()),
                     std::true_type());
 
       template <typename>
-      static std::false_type test_select(...);
+      static std::false_type test_select_const(...);
+
+      // Test for non-const select (Splay tree - mutates on access)
+      template <typename U>
+      static auto test_select_nonconst(int)
+        -> decltype(std::declval<U &>().select(std::declval<size_t>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_select_nonconst(...);
 
       template <typename U>
       static auto test_remove_pos(int)
@@ -285,34 +299,58 @@ namespace Aleph
       template <typename>
       static std::false_type test_split_pos(...);
 
+      // Test for const position
       template <typename U>
-      static auto test_position(int)
+      static auto test_position_const(int)
         -> decltype(std::declval<const U &>().position(std::declval<const Key &>()),
                     std::true_type());
 
       template <typename>
-      static std::false_type test_position(...);
+      static std::false_type test_position_const(...);
 
+      // Test for non-const position (Splay tree)
       template <typename U>
-      static auto test_find_position(int)
+      static auto test_position_nonconst(int)
+        -> decltype(std::declval<U &>().position(std::declval<const Key &>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_position_nonconst(...);
+
+      // Test for const find_position
+      template <typename U>
+      static auto test_find_position_const(int)
         -> decltype(std::declval<const U &>().find_position(std::declval<const Key &>()),
                     std::true_type());
 
       template <typename>
-      static std::false_type test_find_position(...);
+      static std::false_type test_find_position_const(...);
+
+      // Test for non-const find_position (Splay tree)
+      template <typename U>
+      static auto test_find_position_nonconst(int)
+        -> decltype(std::declval<U &>().find_position(std::declval<const Key &>()),
+                    std::true_type());
+
+      template <typename>
+      static std::false_type test_find_position_nonconst(...);
 
       static constexpr bool has_select =
-          std::is_same<decltype(test_select<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_select_const<T>(0)), std::true_type>::value ||
+          std::is_same<decltype(test_select_nonconst<T>(0)), std::true_type>::value;
       static constexpr bool has_remove_pos =
           std::is_same<decltype(test_remove_pos<T>(0)), std::true_type>::value;
       static constexpr bool has_split_pos =
           std::is_same<decltype(test_split_pos<T>(0)), std::true_type>::value;
       static constexpr bool has_position =
-          std::is_same<decltype(test_position<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_position_const<T>(0)), std::true_type>::value ||
+          std::is_same<decltype(test_position_nonconst<T>(0)), std::true_type>::value;
       static constexpr bool has_find_position =
-          std::is_same<decltype(test_find_position<T>(0)), std::true_type>::value;
+          std::is_same<decltype(test_find_position_const<T>(0)), std::true_type>::value ||
+          std::is_same<decltype(test_find_position_nonconst<T>(0)), std::true_type>::value;
     };
 
+    // call_select for const trees (RB, AVL, etc.)
     template <typename T>
     static auto call_select(const T & t, const size_t i, int)
       -> decltype(t.select(i))
@@ -320,8 +358,23 @@ namespace Aleph
       return t.select(i);
     }
 
+    // call_select for non-const trees (Splay - mutates on access)
+    template <typename T>
+    static auto call_select_nc(T & t, const size_t i, int)
+      -> decltype(t.select(i))
+    {
+      return t.select(i);
+    }
+
     template <typename T>
     static Node * call_select(const T &, const size_t, ...)
+    {
+      ah_domain_error() << "select is not supported by underlying tree";
+      return nullptr;
+    }
+
+    template <typename T>
+    static Node * call_select_nc(T &, const size_t, ...)
     {
       ah_domain_error() << "select is not supported by underlying tree";
       return nullptr;
@@ -940,7 +993,7 @@ namespace Aleph
         @param[in] i desired position
         @return reference to the ith key inserted into the set
     */
-    Key &select(const size_t & i)
+    Key &select(size_t i)
     {
       ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_select)
         << "select is not supported by underlying tree";
@@ -948,13 +1001,14 @@ namespace Aleph
       ah_out_of_range_error_if(i >= num_nodes)
         << "select index out of range";
 
-      Node *p = call_select(tree, i, 0);
+      // Try non-const first (for Splay trees), then const
+      Node *p = call_select_nc(tree, i, 0);
       ah_logic_error_if(p == nullptr)
         << "select returned nullptr";
       return p->get_key();
     }
 
-    const Key &select(const size_t & i) const
+    const Key &select(size_t i) const
     {
       ah_domain_error_if_constexpr(not Has_Range_Methods<Tree_Type>::has_select)
         << "select is not supported by underlying tree";
@@ -962,13 +1016,14 @@ namespace Aleph
       ah_out_of_range_error_if(i >= num_nodes)
         << "select index out of range";
 
+      // For const version, only const select works (not for Splay trees)
       Node *p = call_select(tree, i, 0);
       ah_logic_error_if(p == nullptr)
         << "select returned nullptr";
       return p->get_key();
     }
 
-    Key &operator ()(const size_t & i)
+    Key &operator ()(size_t i)
     {
       return select(i);
     }
@@ -983,7 +1038,7 @@ namespace Aleph
       return *search_or_insert(key);
     }
 
-    Key &access(const size_t & i)
+    Key &access(size_t i)
     {
       return select(i);
     }
@@ -1392,6 +1447,29 @@ namespace Aleph
   };
 
 
+  /** Dynamic set implemented using splay trees with rank support
+      of type Splay_Tree_Rk<Key>.
+
+      Splay trees are self-adjusting BSTs that move recently accessed
+      elements to the root, providing amortized O(log n) for all operations.
+      Frequently accessed elements have faster access times.
+
+      This extended version maintains subtree counts for O(log n) rank
+      operations (select, position).
+
+      @see DynSetTree DynMapTree Splay_Tree_Rk<Key> DynSetSplayTree
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetSplayRkTree : public DynSetTree<Key, Splay_Tree_Rk, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, Splay_Tree_Rk, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(Splay_Tree_Rk, Key, Compare);
+  };
+
+
   /** Dynamic set implemented using randomized binary search trees
       of type Rand_Tree<Key>.
 
@@ -1469,7 +1547,7 @@ namespace Aleph
 
 
   /** Dynamic set implemented using Red-Black binary search trees
-      of type Rb_Tree<Key>.
+      of type Rb_Tree<Key> (bottom-up implementation).
 
       @see DynSetTree DynMapTree Rb_Tree<Key>
       @ingroup Arboles
@@ -1483,8 +1561,27 @@ namespace Aleph
   };
 
 
+  /** Dynamic set implemented using Top-Down Red-Black binary search trees
+      of type TdRbTree<Key>.
+
+      The top-down implementation performs all balancing operations during
+      a single pass down the tree, which can be more cache-friendly and
+      avoids the need for a stack to track the ancestor path.
+
+      @see DynSetTree DynMapTree TdRbTree<Key> DynSetRbTree
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetTdRbTree : public DynSetTree<Key, TdRbTree, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, TdRbTree, Compare>;
+    using Base::Base;
+  };
+
+
   /** Dynamic set implemented using extended Red-Black binary search trees
-      with rank support of type Rb_Tree_Rk<Key>.
+      with rank support of type Rb_Tree_Rk<Key> (bottom-up implementation).
 
       Supports O(log n) select and position operations.
 
@@ -1498,6 +1595,71 @@ namespace Aleph
     using Base = DynSetTree<Key, Rb_Tree_Rk, Compare>;
     using Base::Base;
     SETTREE_ITOR(Rb_Tree_Rk, Key, Compare);
+  };
+
+
+  /** Dynamic set implemented using Top-Down Red-Black binary search trees
+      with rank support of type TdRbTreeRk<Key>.
+
+      The top-down implementation performs all balancing operations during
+      a single pass down the tree. Supports O(log n) select and position.
+
+      @see DynSetTree DynMapTree TdRbTreeRk<Key> DynSetRbRkTree
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetTdRbRkTree : public DynSetTree<Key, TdRbTreeRk, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, TdRbTreeRk, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(TdRbTreeRk, Key, Compare);
+  };
+
+
+  /** Dynamic set implemented using Hybrid Top-Down/Bottom-Up Red-Black trees
+      of type HtdRbTree<Key>.
+
+      This hybrid approach combines:
+      - Top-down insertion with proactive color flipping
+      - Bottom-up deletion with stack-based ancestor tracking
+
+      This can be more efficient than pure top-down for workloads with
+      many deletions.
+
+      @see DynSetTree DynMapTree HtdRbTree<Key> DynSetRbTree DynSetTdRbTree
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetHtdRbTree : public DynSetTree<Key, HtdRbTree, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, HtdRbTree, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(HtdRbTree, Key, Compare);
+  };
+
+
+  /** Dynamic set implemented using Hybrid Red-Black trees with rank support
+      of type HtdRbTreeRk<Key>.
+
+      This is the only red-black implementation with rank support that achieves
+      O(log n) for ALL operations including removal. Combines:
+      - Top-down insertion with rank updates
+      - Bottom-up deletion with rank updates during stack unwind
+
+      Supports O(log n) select and position operations.
+
+      @see DynSetTree DynMapTree HtdRbTreeRk<Key> DynSetRbRkTree DynSetTdRbRkTree
+      @ingroup Arboles
+  */
+  template <typename Key, class Compare = Aleph::less<Key>>
+  class DynSetHtdRbRkTree : public DynSetTree<Key, HtdRbTreeRk, Compare>
+  {
+  public:
+    using Base = DynSetTree<Key, HtdRbTreeRk, Compare>;
+    using Base::Base;
+    SETTREE_ITOR(HtdRbTreeRk, Key, Compare);
   };
 
 

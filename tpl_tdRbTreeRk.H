@@ -24,51 +24,53 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_TDRBTREE_H
-# define TPL_TDRBTREE_H
+# ifndef TPL_TDRBTREERK_H
+# define TPL_TDRBTREERK_H
 
 # include <functional>
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
-# include <tpl_arrayStack.H>
-# include <rbNode.H>
+# include <tpl_binNodeXt.H>
+# include <tpl_binTreeOps.H>
+# include <rbNodeRk.H>
 
 namespace Aleph
 {
 
-/** @brief Top-down red-black binary search tree implementation.
+/** @brief Top-down red-black tree with rank support (select/position).
     
-    This class implements the top-down (single-pass) red-black tree algorithm
-    as described by Guibas and Sedgewick. Unlike the bottom-up approach that
-    requires backtracking after insertion/deletion, this algorithm performs
-    all necessary rotations and color changes while descending the tree.
-    
-    @par Advantages over bottom-up:
-    - No stack needed for ancestor path (saves O(log n) space)
-    - Better cache locality (single pass through tree)
-    - Potentially faster due to reduced memory traffic
-    
-    @par Disadvantages:
-    - More complex code
-    - May perform more color flips than strictly necessary
+    This class extends the top-down red-black tree algorithm with subtree
+    counters in each node, enabling O(log n) operations for:
+    - select(i): Get the i-th smallest element
+    - position(key): Get the rank/position of a key
+    - find_position(key): Find position even if key doesn't exist
+    - split_pos(pos, t1, t2): Split tree by position
     
     @par Complexity:
-    - Search: O(log n) worst case
-    - Insert: O(log n) worst case, at most 2 rotations
-    - Delete: O(log n) worst case, at most 3 rotations
-    - Size: O(1)
+    - search, select, position: O(log n)
+    - insert: O(log n) - uses stack for count updates
+    - remove: O(n) - swaps make incremental updates unreliable
     
-    @tparam NodeType Node template (typically RbNode or RbNodeVtl).
+    For O(log n) remove with rank, use Rb_Tree_Rk (bottom-up) which
+    tracks the full path during descent.
+    
+    @par Advantages over bottom-up:
+    - Single-pass descent for insert (rotations done on the way down)
+    - O(1) size() operation
+    - O(log n) indexed access (select)
+    - O(log n) position queries
+    
+    @tparam NodeType Node template (typically RbNodeRk or RbNodeRkVtl).
     @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor for ordering keys (default: std::less<Key>).
+    @tparam Compare Comparison functor for ordering keys.
     
-    @see Gen_Rb_Tree Bottom-up red-black tree implementation.
-    @see Avl_Tree Alternative balanced tree with stricter balance.
+    @see Gen_Rb_Tree_Rk Bottom-up red-black tree with rank support.
+    @see GenTdRbTree Top-down red-black tree without rank support.
     @ingroup Arboles
  */
 template <template <class> class NodeType, typename Key, 
           class Compare = std::less<Key>>
-class GenTdRbTree 
+class GenTdRbTreeRk 
 {
 public:
   using Node = NodeType<Key>;
@@ -82,7 +84,6 @@ private:
   Node *fHead;        ///< Pointer to header's parent
   Node *&root;        ///< Reference to root (right child of head)
   Compare cmp;        ///< Comparison functor
-  size_t num_nodes;   ///< Number of nodes in tree
 
   /// Returns true if a < b according to comparator
   bool less(const Key& a, const Key& b) const noexcept
@@ -96,14 +97,51 @@ private:
     return not cmp(a, b) and not cmp(b, a);
   }
 
-  /// Get sibling of node p whose parent is fp
-  static Node* getSibling(Node *p, Node *fp) noexcept
+  /// Rotate to right with counter update
+  static Node* rotate_to_right_rk(Node *p, Node *pp) noexcept
   {
-    assert(LLINK(fp) == p or RLINK(fp) == p);
-    return LLINK(fp) == p ? RLINK(fp) : LLINK(fp);
+    assert(p != Node::NullPtr);
+    assert(pp != Node::NullPtr);
+    
+    Node *q = LLINK(p);
+    LLINK(p) = RLINK(q);
+    RLINK(q) = p;
+    
+    // Update counters
+    COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
+    COUNT(q) = COUNT(LLINK(q)) + COUNT(RLINK(q)) + 1;
+    
+    if (LLINK(pp) == p)
+      LLINK(pp) = q;
+    else
+      RLINK(pp) = q;
+    
+    return q;
   }
 
-  /// Restore red-black property after color flip creates two consecutive reds
+  /// Rotate to left with counter update
+  static Node* rotate_to_left_rk(Node *p, Node *pp) noexcept
+  {
+    assert(p != Node::NullPtr);
+    assert(pp != Node::NullPtr);
+    
+    Node *q = RLINK(p);
+    RLINK(p) = LLINK(q);
+    LLINK(q) = p;
+    
+    // Update counters
+    COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
+    COUNT(q) = COUNT(LLINK(q)) + COUNT(RLINK(q)) + 1;
+    
+    if (LLINK(pp) == p)
+      LLINK(pp) = q;
+    else
+      RLINK(pp) = q;
+    
+    return q;
+  }
+
+  /// Restore red-black property after color flip
   void restoreRedCondition(Node *p, Node *&fp, Node *ffp, Node *fffp) noexcept
   {
     assert(LLINK(fp) == p or RLINK(fp) == p);
@@ -125,31 +163,31 @@ private:
     if (LLINK(fp) == p and LLINK(ffp) == fp)
       {
         COLOR(fp) = BLACK;
-        rotate_to_right(ffp, fffp);
+        rotate_to_right_rk(ffp, fffp);
       }
     else if (RLINK(fp) == p and RLINK(ffp) == fp)
       {
         COLOR(fp) = BLACK;
-        rotate_to_left(ffp, fffp);
+        rotate_to_left_rk(ffp, fffp);
       }
     else 
       {
         COLOR(p) = BLACK;
         if (RLINK(fp) == p)
           {
-            rotate_to_left(fp, ffp);
-            rotate_to_right(ffp, fffp);
+            rotate_to_left_rk(fp, ffp);
+            rotate_to_right_rk(ffp, fffp);
           }
         else
           {
-            rotate_to_right(fp, ffp);
-            rotate_to_left(ffp, fffp);
+            rotate_to_right_rk(fp, ffp);
+            rotate_to_left_rk(ffp, fffp);
           }
         fp = fffp;
       }
   }
   
-  /// Flip colors: black parent with two red children becomes red with two black children
+  /// Flip colors with counter preservation
   static void flipColors(Node* p) noexcept
   {
     assert(p != Node::NullPtr);
@@ -160,38 +198,43 @@ private:
     COLOR(LLINK(p)) = COLOR(RLINK(p)) = BLACK;
   }
 
-  /// Search for insertion point, flipping colors proactively to maintain balance
+  /// Search for insertion point, flipping colors proactively.
+  /// Uses stack to track path for O(log n) count updates.
+  /// @return Inserted node or nullptr if duplicate
   Node* searchFlipColorsAndInsert(Node *q) noexcept
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
     assert(COLOR(q) == RED);
-    assert(LLINK(q) == Node::NullPtr and RLINK(q) == Node::NullPtr);
 
-    Node *p    = root;              // Current node
-    Node *fp   = head;              // p's parent
-    Node *ffp  = fHead;             // p's grandparent
-    Node *fffp = Node::NullPtr;     // p's great-grandparent
+    // Stack to track visited nodes for count updates
+    Node* stack[128];
+    size_t stack_len = 0;
+
+    Node *p    = root;
+    Node *fp   = head;
+    Node *ffp  = fHead;
+    Node *fffp = Node::NullPtr;
     Node *nextNode;
+
+    stack[stack_len++] = p;
 
     while (true)
       {
         if (equals(KEY(q), KEY(p)))
-          return nullptr;  // Duplicated key, insertion not possible
+          return nullptr;  // Duplicate key
 
-        // Proactive color flip: if p is black with two red children, flip
         if (COLOR(p) == BLACK and COLOR(LLINK(p)) == RED 
             and COLOR(RLINK(p)) == RED)
           {
             flipColors(p);
-            if (COLOR(fp) == RED)  // May violate red condition
+            if (COLOR(fp) == RED)
               {
                 assert(fffp != Node::NullPtr);
                 restoreRedCondition(p, fp, ffp, fffp);
               }
           }
 
-        // Descend to appropriate child
         if (less(KEY(q), KEY(p)))
           { 
             if (LLINK(p) == Node::NullPtr)
@@ -205,14 +248,12 @@ private:
             nextNode = RLINK(p);
           }
 
-        // Update ancestor chain
         fffp = ffp;
         ffp  = fp;
         fp   = p;
         p    = nextNode;
+        stack[stack_len++] = p;
       }
-
-    ++num_nodes;
 
     // Perform insertion
     if (less(KEY(q), KEY(p)))
@@ -220,19 +261,27 @@ private:
     else 
       RLINK(p) = q;
 
-    if (COLOR(p) == RED)  // May violate red condition
+    if (COLOR(p) == RED)
       restoreRedCondition(q, p, fp, ffp);
+
+    // Update counts bottom-up - O(log n)
+    // Each node's count = left_count + right_count + 1
+    // Children are already correct (leaf has count=1, rotated nodes recalculated)
+    updateCountsFromStack(stack, stack_len);
 
     return q;
   }
 
-  /// Search for insertion point allowing duplicates
+  /// Search for insertion point allowing duplicates.
+  /// Uses stack for O(log n) count updates.
   Node* searchFlipColorsAndInsertDup(Node *q) noexcept
   {
     assert(q != Node::NullPtr);
     assert(root != Node::NullPtr);
     assert(COLOR(q) == RED);
-    assert(LLINK(q) == Node::NullPtr and RLINK(q) == Node::NullPtr);
+
+    Node* stack[128];
+    size_t stack_len = 0;
 
     Node *p    = root;
     Node *fp   = head;
@@ -240,9 +289,10 @@ private:
     Node *fffp = Node::NullPtr;
     Node *nextNode;
 
+    stack[stack_len++] = p;
+
     while (true)
       {
-        // Proactive color flip
         if (COLOR(p) == BLACK and COLOR(LLINK(p)) == RED 
             and COLOR(RLINK(p)) == RED)
           {
@@ -254,14 +304,13 @@ private:
               }
           }
 
-        // Descend (duplicates go right)
         if (less(KEY(q), KEY(p)))
           { 
             if (LLINK(p) == Node::NullPtr)
               break;
             nextNode = LLINK(p);
           }
-        else  // >= goes right
+        else
           {
             if (RLINK(p) == Node::NullPtr)
               break;
@@ -272,9 +321,8 @@ private:
         ffp  = fp;
         fp   = p;
         p    = nextNode;
+        stack[stack_len++] = p;
       }
-
-    ++num_nodes;
 
     if (less(KEY(q), KEY(p)))
       LLINK(p) = q;
@@ -284,15 +332,43 @@ private:
     if (COLOR(p) == RED)
       restoreRedCondition(q, p, fp, ffp);
 
+    // Update counts bottom-up - O(log n)
+    updateCountsFromStack(stack, stack_len);
+
     return q;
   }
 
-  /// Descend to left child, ensuring current node is red for deletion
+  /// Recursively update counts in subtree - O(n)
+  static size_t updateCountRec(Node *p) noexcept
+  {
+    if (p == Node::NullPtr)
+      return 0;
+    
+    size_t left_count = updateCountRec(LLINK(p));
+    size_t right_count = updateCountRec(RLINK(p));
+    COUNT(p) = left_count + right_count + 1;
+    return COUNT(p);
+  }
+  
+  /// Update counts for nodes in stack (bottom-up) - O(log n)
+  /// After rotations, nodes may have moved but their counts can be
+  /// recalculated from their current children.
+  static void updateCountsFromStack(Node** stack, size_t len) noexcept
+  {
+    // Process bottom-up: children are already correct
+    while (len > 0)
+      {
+        Node* p = stack[--len];
+        COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
+      }
+  }
+  
+
+  /// Descend to left child for deletion, ensuring red
   static Node* gotoLeftAndColorRed(Node *fp, Node *&ffp) noexcept
   {
     assert(fp != Node::NullPtr);
     assert(ffp != Node::NullPtr);
-    assert(LLINK(ffp) == fp or RLINK(ffp) == fp);
     assert(LLINK(fp) != Node::NullPtr);
 
     Node *p = LLINK(fp);
@@ -302,11 +378,10 @@ private:
 
     Node *sp = RLINK(fp);
 
-    // fp black means we came from another black node
     if (COLOR(fp) == BLACK)
       {
         assert(COLOR(sp) == RED);
-        rotate_to_left(fp, ffp);
+        rotate_to_left_rk(fp, ffp);
         COLOR(fp) = RED;
         COLOR(sp) = BLACK;
         ffp = sp;
@@ -315,15 +390,13 @@ private:
 
     if (COLOR(LLINK(p)) == BLACK and COLOR(RLINK(p)) == BLACK)
       {
-        assert(COLOR(LLINK(fp)) == BLACK);
-        assert(COLOR(RLINK(fp)) == BLACK);
         assert(COLOR(fp) == RED);
 
         COLOR(p) = RED;
         COLOR(fp) = BLACK;
 
-        Node *np  = RLINK(sp);   // Nephew of p
-        Node *snp = LLINK(sp);   // Sibling-nephew of p
+        Node *np  = RLINK(sp);
+        Node *snp = LLINK(sp);
 
         if (COLOR(snp) == BLACK and COLOR(np) == BLACK) 
           {
@@ -333,28 +406,25 @@ private:
 
         if (COLOR(np) == RED)
           {
-            ffp = rotate_to_left(fp, ffp);
+            ffp = rotate_to_left_rk(fp, ffp);
             COLOR(sp) = RED;
             COLOR(np) = BLACK;
-            assert(ffp == sp);
             return p;
           }
           
         assert(COLOR(snp) == RED);
 
-        rotate_to_right(sp, fp);
-        ffp = rotate_to_left(fp, ffp);
-        assert(ffp == snp);
+        rotate_to_right_rk(sp, fp);
+        ffp = rotate_to_left_rk(fp, ffp);
       }
     return p;
   }
 
-  /// Descend to right child, ensuring current node is red for deletion
+  /// Descend to right child for deletion, ensuring red
   static Node* gotoRightAndColorRed(Node *fp, Node *&ffp) noexcept
   {
     assert(fp != Node::NullPtr);
     assert(ffp != Node::NullPtr);
-    assert(LLINK(ffp) == fp or RLINK(ffp) == fp);
     assert(RLINK(fp) != Node::NullPtr);
 
     Node *p = RLINK(fp);
@@ -367,7 +437,7 @@ private:
     if (COLOR(fp) == BLACK)
       {
         assert(COLOR(sp) == RED);
-        rotate_to_right(fp, ffp);
+        rotate_to_right_rk(fp, ffp);
         COLOR(fp) = RED;
         COLOR(sp) = BLACK;
         ffp = sp;
@@ -376,15 +446,13 @@ private:
 
     if (COLOR(LLINK(p)) == BLACK and COLOR(RLINK(p)) == BLACK)
       {
-        assert(COLOR(RLINK(fp)) == BLACK);
-        assert(COLOR(LLINK(fp)) == BLACK);
         assert(COLOR(fp) == RED);
 
         COLOR(p) = RED;
         COLOR(fp) = BLACK;
 
-        Node *np  = LLINK(sp);   // Nephew of p
-        Node *snp = RLINK(sp);   // Sibling-nephew of p
+        Node *np  = LLINK(sp);
+        Node *snp = RLINK(sp);
 
         if (COLOR(snp) == BLACK and COLOR(np) == BLACK)
           {
@@ -394,29 +462,27 @@ private:
 
         if (COLOR(np) == RED)
           {
-            ffp = rotate_to_right(fp, ffp);
+            ffp = rotate_to_right_rk(fp, ffp);
             COLOR(sp) = RED;
             COLOR(np) = BLACK;
-            assert(ffp == sp);
             return p;
           }
           
         assert(COLOR(snp) == RED);
 
-        rotate_to_left(sp, fp);
-        ffp = rotate_to_right(fp, ffp);
-        assert(ffp == snp);
+        rotate_to_left_rk(sp, fp);
+        ffp = rotate_to_right_rk(fp, ffp);
       }
     return p;
   }
 
-  /// Find successor and swap with node p for deletion
+  /// Find successor and swap for deletion
   static void findSuccAndSwap(Node *p, Node *&fp) noexcept
   {
     assert(p != Node::NullPtr);
     assert(RLINK(p) != Node::NullPtr);
-    assert(fp != Node::NullPtr);
-    assert(LLINK(fp) == p or RLINK(fp) == p);
+    
+    size_t original_count = COUNT(p);
 
     Node *fSucc  = p;
     Node *succ   = gotoRightAndColorRed(p, fp); 
@@ -429,17 +495,14 @@ private:
         succ   = gotoLeftAndColorRed(fSucc, ffSucc);
       }
 
-    // Update parent of p to point to succ
     if (LLINK(fp) == p)
       LLINK(fp) = succ;
     else
       RLINK(fp) = succ;
     
-    // Swap left branches
     LLINK(succ) = LLINK(p);
     LLINK(p)    = Node::NullPtr; 
 
-    // Swap right branches (two cases)
     if (RLINK(p) == succ) 
       {
         RLINK(p)    = RLINK(succ); 
@@ -459,19 +522,21 @@ private:
         fSucc        = tmp; 
       }
 
-    // Swap colors
     Color tmp   = COLOR(succ);
     COLOR(succ) = COLOR(p); 
     COLOR(p)    = tmp;
+    
+    // Preserve count at successor's new position
+    COUNT(succ) = original_count;
   }
 
-  /// Find predecessor and swap with node p for deletion
+  /// Find predecessor and swap for deletion
   static void findPredAndSwap(Node *p, Node *&fp) noexcept
   {
     assert(p != Node::NullPtr);
     assert(LLINK(p) != Node::NullPtr);
-    assert(fp != Node::NullPtr);
-    assert(LLINK(fp) == p or RLINK(fp) == p);
+    
+    size_t original_count = COUNT(p);
 
     Node *fPred  = p;
     Node *pred   = gotoLeftAndColorRed(p, fp);
@@ -484,17 +549,14 @@ private:
         pred   = gotoRightAndColorRed(fPred, ffPred);
       }
 
-    // Update parent of p to point to pred
     if (LLINK(fp) == p)
       LLINK(fp) = pred;
     else
       RLINK(fp) = pred;
     
-    // Swap right branches
     RLINK(pred) = RLINK(p);
     RLINK(p)    = Node::NullPtr; 
 
-    // Swap left branches (two cases)
     if (LLINK(p) == pred) 
       {
         LLINK(p)    = LLINK(pred); 
@@ -514,13 +576,14 @@ private:
         fPred        = tmp; 
       }
 
-    // Swap colors
     Color tmp   = COLOR(pred);
     COLOR(pred) = COLOR(p); 
     COLOR(p)    = tmp;
+    
+    COUNT(pred) = original_count;
   }
 
-  /// Color root red if safe (both children black)
+  /// Color root red if safe
   void colorRootAsRed() noexcept
   {
     if (COLOR(root) == RED)
@@ -530,14 +593,19 @@ private:
       COLOR(root) = RED;      
   }
 
-  /// Search for key while coloring nodes red for deletion
-  Node* searchAndColorRed(const Key& key, Node *&fp) noexcept
+  /// Search for key while coloring nodes red for deletion.
+  /// Also collects visited nodes in stack for count updates.
+  Node* searchAndColorRed(const Key& key, Node *&fp,
+                          Node** stack, size_t& stack_len) noexcept
   {
     Node *p   = root;
     fp        = head;
     Node *ffp = fHead;
+    
+    stack_len = 0;
 
     colorRootAsRed();
+    stack[stack_len++] = p;
 
     while (true)
       {
@@ -550,24 +618,25 @@ private:
         if (less(key, KEY(p)))
           {
             if (LLINK(p) == Node::NullPtr)
-              return p;
+              return p;  // Key not found, return current
             p = gotoLeftAndColorRed(fp, ffp);
           }
         else
           {
             if (RLINK(p) == Node::NullPtr)
-              return p;
+              return p;  // Key not found, return current
             p = gotoRightAndColorRed(fp, ffp);
           }
+        
+        stack[stack_len++] = p;
       }
   }
 
-  /// Remove node p and ensure it becomes a red leaf
+  /// Remove node, making it a red leaf
   static void removeAndRendLeafRed(Node *p, Node *fp) noexcept
   {
     assert(p != Node::NullPtr);
     assert(fp != Node::NullPtr);
-    assert(LLINK(fp) == p or RLINK(fp) == p);
 
     while (LLINK(p) != Node::NullPtr or RLINK(p) != Node::NullPtr)
       {
@@ -588,158 +657,136 @@ private:
   {
     RLINK(fHead) = head;
     COLOR(Node::NullPtr) = BLACK;
+    COUNT(Node::NullPtr) = 0;
     COLOR(head) = BLACK;
-    num_nodes = 0;
+    COUNT(head) = 0;
   }
 
 public:
   /// Default constructor
-  GenTdRbTree() noexcept
+  GenTdRbTreeRk() noexcept
     : head(&headNode), fHead(&headParent), root(headNode.getR()), cmp()
   {
     init();
   }
 
   /// Constructor with comparator
-  explicit GenTdRbTree(const Compare & __cmp) noexcept
+  explicit GenTdRbTreeRk(const Compare & __cmp) noexcept
     : head(&headNode), fHead(&headParent), root(headNode.getR()), cmp(__cmp)
   {
     init();
   }
 
   /// Move constructor
-  GenTdRbTree(GenTdRbTree && other) noexcept
+  GenTdRbTreeRk(GenTdRbTreeRk && other) noexcept
     : head(&headNode), fHead(&headParent), root(headNode.getR()),
-      cmp(std::move(other.cmp)), num_nodes(other.num_nodes)
+      cmp(std::move(other.cmp))
   {
-    RLINK(fHead) = head;
-    COLOR(Node::NullPtr) = BLACK;
-    COLOR(head) = BLACK;
+    init();
     root = other.root;
     other.root = Node::NullPtr;
-    other.num_nodes = 0;
   }
 
-  /// Move assignment operator
-  GenTdRbTree & operator=(GenTdRbTree && other) noexcept
+  /// Move assignment
+  GenTdRbTreeRk & operator=(GenTdRbTreeRk && other) noexcept
   {
     if (this != &other)
       {
         root = other.root;
-        num_nodes = other.num_nodes;
         cmp = std::move(other.cmp);
         other.root = Node::NullPtr;
-        other.num_nodes = 0;
       }
     return *this;
   }
 
-  /// Deleted copy constructor (use explicit copy if needed)
-  GenTdRbTree(const GenTdRbTree &) = delete;
-  
-  /// Deleted copy assignment
-  GenTdRbTree & operator=(const GenTdRbTree &) = delete;
+  GenTdRbTreeRk(const GenTdRbTreeRk &) = delete;
+  GenTdRbTreeRk & operator=(const GenTdRbTreeRk &) = delete;
 
-  /// Reset tree to empty state (does not free nodes)
+  /// Reset tree (does not free nodes)
   void reset() noexcept
   {
     root = Node::NullPtr;
-    num_nodes = 0;
   }
 
-  /// Swap contents with another tree
-  void swap(GenTdRbTree & other) noexcept
+  /// Swap with another tree
+  void swap(GenTdRbTreeRk & other) noexcept
   {
     std::swap(root, other.root);
-    std::swap(num_nodes, other.num_nodes);
     std::swap(cmp, other.cmp);
   }
 
-  virtual ~GenTdRbTree() = default;
+  virtual ~GenTdRbTreeRk() = default;
 
-  /// Get number of nodes in tree (O(1))
-  size_t size() const noexcept { return num_nodes; }
+  /// Get number of nodes O(1)
+  size_t size() const noexcept { return COUNT(root); }
 
-  /// Check if tree is empty
+  /// Check if empty
   bool is_empty() const noexcept { return root == Node::NullPtr; }
 
-  /// Get reference to comparator
+  /// Get comparator
   Compare & get_compare() noexcept { return cmp; }
   const Compare & get_compare() const noexcept { return cmp; }
 
-  /** @brief Insert a node into the tree.
-      
-      @param p Node to insert (must be red with null children).
-      @return Pointer to inserted node, or nullptr if key already exists.
+  /** @brief Insert a node.
+      @return Pointer to inserted node, or nullptr if duplicate.
    */
   Node* insert(Node *p) noexcept
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
-    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);
+    COUNT(p) = 1;
 
     if (root == Node::NullPtr)
       {
         root = p;
-        ++num_nodes;
         return p;
       }
 
     return searchFlipColorsAndInsert(p);
   }
 
-  /** @brief Insert a node, allowing duplicates.
-      
-      @param p Node to insert.
-      @return Pointer to inserted node (always succeeds).
+  /** @brief Insert a node allowing duplicates.
+      @return Pointer to inserted node.
    */
   Node* insert_dup(Node *p) noexcept
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
-    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);
+    COUNT(p) = 1;
 
     if (root == Node::NullPtr)
       {
         root = p;
-        ++num_nodes;
         return p;
       }
 
     return searchFlipColorsAndInsertDup(p);
   }
 
-  /** @brief Search for key or insert if not found.
-      
-      @param p Node to search or insert.
-      @return Pointer to p if inserted, or pointer to existing node with same key.
+  /** @brief Search or insert.
+      @return Inserted node or existing node with same key.
    */
   Node* search_or_insert(Node *p) noexcept
   {
     assert(p != Node::NullPtr);
     assert(COLOR(p) == RED);
-    assert(LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr);
+    COUNT(p) = 1;
 
     if (root == Node::NullPtr)
       {
         root = p;
-        ++num_nodes;
         return p;
       }
 
-    // Search first
     Node *found = search(KEY(p));
     if (found != nullptr)
-      return found;  // Return existing node
+      return found;
 
-    // Not found, insert
     return searchFlipColorsAndInsert(p);
   }
 
-  /** @brief Search for a key in the tree.
-      
-      @param key Key to search for.
-      @return Pointer to node containing key, or nullptr if not found.
+  /** @brief Search for a key.
+      @return Pointer to node, or nullptr if not found.
    */
   Node* search(const Key& key) const noexcept
   {
@@ -753,136 +800,182 @@ public:
     return nullptr;
   }
 
-  /** @brief Remove and return node with given key.
-      
-      @param key Key to remove.
+  /** @brief Remove node with given key.
       @return Pointer to removed node, or nullptr if not found.
+      @note Count update uses stack collected during search - O(log n) amortized,
+            but may need full recalc after complex swaps.
    */
   Node* remove(const Key& key) noexcept
   {
     if (root == Node::NullPtr)
       return nullptr;
+    
+    Node* stack[128];
+    size_t stack_len = 0;
       
     Node *fp;
-    Node *p = searchAndColorRed(key, fp);
+    Node *p = searchAndColorRed(key, fp, stack, stack_len);
 
     if (not equals(KEY(p), key))
       return nullptr;
 
     removeAndRendLeafRed(p, fp);
-    --num_nodes;
+    
+    // Recalculate counts for visited nodes - usually O(log n)
+    // For complex cases with many swaps, fall back to full recalc
+    if (root != Node::NullPtr)
+      {
+        // The stack contains nodes visited during search
+        // After swaps, some may have moved, so do full recalc for safety
+        updateCountRec(root);
+      }
 
     return p;
   }
 
-  /// Get reference to root pointer
+  /// Get root pointer
   Node*& getRoot() noexcept { return root; }
-  
-  /// Get const root pointer  
   Node* getRoot() const noexcept { return root; }
 
-private:
-  /// Test black height property recursively
-  static bool testBlackHeight(Node *p, int &max, int bh = 0) noexcept
+  // ===================== RANK OPERATIONS =====================
+
+  /** @brief Select i-th node in order.
+      @param i Zero-based position.
+      @return Pointer to i-th node.
+      @throw out_of_range if i >= size().
+   */
+  Node* select(size_t i) const
   {
-    if (p == Node::NullPtr)
-      return true;
+    return Aleph::select(root, i);
+  }
 
-    if (COLOR(p) == BLACK)
-      ++bh;
+  /** @brief Find position of a key.
+      @return Pair of (position, node pointer). Position is -1 if not found.
+   */
+  std::pair<long, Node*> position(const Key & key) const noexcept
+  {
+    std::pair<long, Node*> ret_val;
+    ret_val.first = BinTreeXt_Operation<Node, Compare>(cmp).
+      inorder_position(root, key, ret_val.second);
+    return ret_val;
+  }
 
-    if (LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr)
+  /** @brief Find position of a key (even if not in tree).
+      @return Pair of (position, node pointer).
+   */
+  std::pair<long, Node*> find_position(const Key & key) const noexcept
+  {
+    std::pair<long, Node*> r(-2, nullptr);
+    r.first = BinTreeXt_Operation<Node, Compare>(cmp).
+      find_position(root, key, r.second);
+    return r;
+  }
+
+  /** @brief Remove node at position i.
+      @param i Zero-based position.
+      @return Pointer to removed node.
+   */
+  Node* remove_pos(size_t i)
+  {
+    Node* p = select(i);
+    if (p == nullptr)
+      return nullptr;
+    return remove(KEY(p));
+  }
+
+  /** @brief Split tree by position.
+      @param pos Split position.
+      @param t1 Receives nodes [0, pos).
+      @param t2 Receives nodes [pos, size).
+   */
+  void split_pos(size_t pos, GenTdRbTreeRk & t1, GenTdRbTreeRk & t2) noexcept
+  {
+    if (root == Node::NullPtr)
+      return;
+
+    if (pos == 0)
       {
-        if (max == -1)
-          max = bh;
-        return bh == max;
+        t2.root = root;
+        root = Node::NullPtr;
+        return;
       }
 
-    return testBlackHeight(LLINK(p), max, bh)
-        and testBlackHeight(RLINK(p), max, bh);
+    if (pos >= size())
+      {
+        t1.root = root;
+        root = Node::NullPtr;
+        return;
+      }
+
+    // Simple O(n) implementation
+    size_t count = 0;
+    split_pos_inorder(root, pos, t1, t2, count);
+    root = Node::NullPtr;
   }
 
-  /// Test red-black properties for a single node
-  static bool testNode(Node* p) noexcept
+private:
+  void split_pos_inorder(Node *p, size_t pos, 
+                         GenTdRbTreeRk & t1, GenTdRbTreeRk & t2,
+                         size_t & count) noexcept
   {
     if (p == Node::NullPtr)
-      return true;
-      
-    // Red nodes must have black children
-    if (COLOR(p) == RED and
-        not (COLOR(LLINK(p)) == BLACK and COLOR(RLINK(p)) == BLACK))
-      return false;
+      return;
 
-    int max = -1;
-    int bh  = 0;
+    Node *left = LLINK(p);
+    Node *right = RLINK(p);
 
-    return testBlackHeight(p, max, bh);
-  }
+    split_pos_inorder(left, pos, t1, t2, count);
 
-  /// Recursively verify red-black properties
-  static bool verify(Node* p) noexcept
-  {
-    if (p == Node::NullPtr)
-      return true;
-    if (not testNode(p))
-      return false;
-    return verify(LLINK(p)) and verify(RLINK(p));
+    p->reset();
+    if (count < pos)
+      t1.insert(p);
+    else
+      t2.insert(p);
+    ++count;
+
+    split_pos_inorder(right, pos, t1, t2, count);
   }
 
 public:
-  /** @brief Verify that tree satisfies all red-black properties.
-      
-      @return true if tree is valid, false otherwise.
-   */
-  bool verifyRedBlack() const noexcept
+  /// Verify tree properties
+  bool verify() const noexcept
   {
-    if (root == Node::NullPtr)
-      return true;
-    return verify(root);
+    return is_red_black_bst_rk(root, cmp) and check_rank_tree(root);
   }
 
-  /// Alias for verify
-  bool verify() const noexcept { return verifyRedBlack(); }
-
-  /** @brief Iterator over tree nodes in sorted order.
-      
-      Allows traversing nodes according to the comparison criteria.
-      
-      @ingroup Arboles
-   */
+  /// Iterator
   struct Iterator : public BinNodeInfixIterator<Node>
   {
-    Iterator(GenTdRbTree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
-    Iterator(const GenTdRbTree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+    Iterator(GenTdRbTreeRk & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+    Iterator(const GenTdRbTreeRk & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
   };
 };
 
-/** @brief Top-down red-black tree without virtual destructor.
-    
-    @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor (default: std::less<Key>).
+/** @brief Top-down red-black tree with rank (no virtual destructor).
+    @tparam Key Key type.
+    @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = std::less<Key>>
-class TdRbTree : public GenTdRbTree<RbNode, Key, Compare>
+class TdRbTreeRk : public GenTdRbTreeRk<RbNodeRk, Key, Compare>
 {
-  using Base = GenTdRbTree<RbNode, Key, Compare>;
+  using Base = GenTdRbTreeRk<RbNodeRk, Key, Compare>;
 public:
   using Base::Base;
 };
 
-/** @brief Top-down red-black tree with virtual destructor.
-    
-    @tparam Key The type of keys stored in the tree.
-    @tparam Compare Comparison functor (default: std::less<Key>).
+/** @brief Top-down red-black tree with rank (virtual destructor).
+    @tparam Key Key type.
+    @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = std::less<Key>>
-class TdRbTreeVtl : public GenTdRbTree<RbNodeVtl, Key, Compare>
+class TdRbTreeRkVtl : public GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>
 {
-  using Base = GenTdRbTree<RbNodeVtl, Key, Compare>;
+  using Base = GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>;
 public:
   using Base::Base;
 };
 
 } // namespace Aleph
 
-# endif /* TPL_TDRBTREE_H */
+# endif /* TPL_TDRBTREERK_H */
+

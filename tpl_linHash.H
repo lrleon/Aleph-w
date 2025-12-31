@@ -129,9 +129,9 @@ private:
 
   using BucketItor = typename Dnode<Key>::Iterator;
 
-  static size_t multiply_by_two(const size_t & n) noexcept { return n << 1; }
+  static size_t multiply_by_two(size_t n) noexcept { return n << 1; }
 
-  static size_t divide_by_two(const size_t & n) noexcept { return n >> 1; }
+  static size_t divide_by_two(size_t n) noexcept { return n >> 1; }
 
   DynArray<BucketList> table;
   Dlink                entries_list;

@@ -31,6 +31,7 @@
 # include <sstream>
 # include <iostream>
 # include <string>
+# include <ah-errors.H>
 # include <ahFunctional.H>
 # include <ahDry.H>
 # include <ahSort.H>
@@ -207,8 +208,8 @@ namespace Aleph
       if (this == &v)
         return *this;
 
-      if (domain_ptr.get() != v.domain_ptr.get())
-        throw std::domain_error("Vector assignment: domains must be the same");
+      ah_domain_error_if(domain_ptr.get() != v.domain_ptr.get())
+        << "Vector assignment: domains must be the same";
 
       epsilon = v.epsilon;
       entries = v.entries;
@@ -228,8 +229,8 @@ namespace Aleph
       if (this == &v)
         return *this;
 
-      if (domain_ptr.get() != v.domain_ptr.get())
-        throw std::domain_error("Vector assignment: domains must be the same");
+      ah_domain_error_if(domain_ptr.get() != v.domain_ptr.get())
+        << "Vector assignment: domains must be the same";
 
       epsilon = v.epsilon;
       entries.swap(v.entries);

@@ -31,8 +31,6 @@
 # include <tpl_dynArray.H>
  # include <ah-errors.H>
 
-using namespace std;
-
 typedef void * (*Event_Fct)(void*);
 
 class Event_Table

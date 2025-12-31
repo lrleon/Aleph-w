@@ -1041,18 +1041,28 @@ namespace Aleph
       while (t != start)
         {
           auto s = static_cast<typename Net::Node *>(NODE_COOKIE(t));
-          // Find arc connecting s and t directly via iterator (avoids creating DynList)
+          // Find arc connecting s and t with positive residual capacity.
+          // With parallel arcs, we must pick one that can carry flow.
           typename Net::Arc *a = nullptr;
+          typename Net::Arc *fallback = nullptr;
           for (Node_Arc_Iterator<Net> it(t); it.has_curr(); it.next_ne())
             {
               auto arc = it.get_curr();
               if ((arc->src_node == s and arc->tgt_node == t) or
                   (arc->src_node == t and arc->tgt_node == s))
                 {
-                  a = arc;
-                  break;
+                  if (fallback == nullptr)
+                    fallback = arc;  // Keep first match as fallback
+                  // Prefer arc with positive residual capacity
+                  if (remaining_flow<Net>(s, arc) > 0)
+                    {
+                      a = arc;
+                      break;
+                    }
                 }
             }
+          if (a == nullptr)
+            a = fallback;  // Use fallback if no arc with residual capacity
           assert(a != nullptr);
           bool normal = a->tgt_node == t;
           auto slack = normal ? a->cap - a->flow : a->flow;
@@ -1395,7 +1405,14 @@ namespace Aleph
         if (not get<0>(semi_path))
           break;
 
-        increase_flow<Net>(net, get<2>(semi_path), get<1>(semi_path));
+        // Skip paths with zero slack.
+        // This can happen with parallel arcs where one arc is saturated
+        // but the path finder still finds a path through it.
+        auto slack = get<1>(semi_path);
+        if (slack <= typename Net::Flow_Type{0})
+          break;
+
+        increase_flow<Net>(net, get<2>(semi_path), slack);
       }
 
     return net.get_out_flow(net.get_source());

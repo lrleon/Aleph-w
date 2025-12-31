@@ -39,6 +39,7 @@
 
 # include <stdexcept>
 # include <ah-errors.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -226,8 +227,7 @@ public:
    */
   const Container & get_container() const
   {
-    if (container_ptr == nullptr)
-      throw std::domain_error("Filter_Iterator: no container set");
+    ah_domain_error_if(container_ptr == nullptr) << "Filter_Iterator: no container set";
     return *container_ptr;
   }
 

@@ -30,14 +30,12 @@
 
 # include <tpl_cache.H>
 
-using namespace std;
-
     template <class Key, class Data>
 class Protected_Cache : protected Cache<Key, Data>
 {
 private:
 
-  mutex _mutex;
+  std::mutex _mutex;
 
 public:
 
@@ -51,21 +49,21 @@ public:
 
   Cache_Entry * insert(const Key& key, const Data& data)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     return Cache<Key,Data>::insert(key, data);
   }
 
   Cache_Entry * search(const Key & key)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     return Cache<Key,Data>::search(key);
   }
 
   Cache_Entry * insert_and_lock(const Key& key, const Data& data)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     Cache_Entry * cache_entry = Cache<Key,Data>::insert(key, data);
     this->lock_entry(cache_entry);
 
@@ -74,7 +72,7 @@ public:
 
   Cache_Entry * search_and_lock(const Key & key)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     Cache_Entry * cache_entry = Cache<Key,Data>::search(key);
     this->lock_entry(cache_entry);
 
@@ -83,40 +81,40 @@ public:
 
   Cache_Entry * search_next_and_lock(Cache_Entry * cache_entry)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     return Cache<Key,Data>::search_next(cache_entry);
   }
 
   void unlock_entry(Cache_Entry * cache_entry)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     Cache<Key,Data>::unlock_entry(cache_entry);
   }
 
   void remove(Cache_Entry * cache_entry)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     Cache<Key,Data>::remove(cache_entry);
   }
 
   void expand(const size_t & plus_size)
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     Cache<Key,Data>::expand(plus_size);
   }
 
   const size_t & get_size()
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     return Cache<Key,Data>::get_size();
   }
 
   const size_t & get_num_items()
   {
-    lock_guard<mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
 
     return Cache<Key,Data>::get_num_items();
   }

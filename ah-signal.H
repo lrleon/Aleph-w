@@ -30,8 +30,6 @@
 # include <iostream>
 # include <aleph.H>
 
-using namespace std;
-
 class Signal
 {
   using Sigfunc = void (int);
@@ -71,8 +69,8 @@ public:
 
     if (sigaction(signo, &act, &oact) < 0)
       {
-        cerr << "Cannot modify the action associated with the signal "
-             << signo << endl;
+        std::cerr << "Cannot modify the action associated with the signal "
+                  << signo << std::endl;
         abort();
       }
 
@@ -83,8 +81,8 @@ public:
   {
     if (sigaction(signalNumber, &oldSigaction, nullptr) < 0)
       {
-        cerr << "Cannot modify the action associated with the %d signal "
-             << signalNumber << endl;
+        std::cerr << "Cannot modify the action associated with the signal "
+                  << signalNumber << std::endl;
         abort();
       }
   }

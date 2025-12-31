@@ -31,8 +31,6 @@
 
 # include <ahUtils.H>
 
-using namespace std;
-
 /** Aleph exception class
 
    @author Leandro Rabindranath Leon 
@@ -46,24 +44,24 @@ struct AlephException : public std::runtime_error
   const size_t line_number = 0;
   
   /// file name where the exception was thrown 
-  const string file_name = "No defined"; 
+  const std::string file_name = "No defined"; 
 
-  const string type = "No defined"; /// Type name
-  const string msg = "No defined"; /// Message describing the error
+  const std::string type = "No defined"; /// Type name
+  const std::string msg = "No defined"; /// Message describing the error
 
 protected:
 
-  string category_msg = "No defined";
+  std::string category_msg = "No defined";
 
 private:
 
-  static string make_what(const string & category_msg,
-			  size_t line_number,
-			  const string & file_name,
-			  const string & type,
-			  const string & msg)
+  static std::string make_what(const std::string & category_msg,
+			       size_t line_number,
+			       const std::string & file_name,
+			       const std::string & type,
+			       const std::string & msg)
   {
-    ostringstream s;
+    std::ostringstream s;
     s << category_msg << "|" << file_name << "|" << line_number
       << "|" << type << "|" << msg;
     return s.str();
@@ -71,13 +69,13 @@ private:
 
 public:
 
-  AlephException() : runtime_error(msg) {}
+  AlephException() : std::runtime_error(msg) {}
 
-  AlephException(const string & category_msg,
+  AlephException(const std::string & category_msg,
 	       const size_t line_number,
-	       const string & file_name,
-	       const string & type,
-	       const string & msg)
+	       const std::string & file_name,
+	       const std::string & type,
+	       const std::string & msg)
     : runtime_error(make_what(category_msg, line_number, file_name, type, msg)),
       line_number(line_number), file_name(file_name), type(type) {}
 };
@@ -94,9 +92,9 @@ public:
   struct name : public AlephException					\
   {									\
     name(const size_t line_number,					\
-	 const string & file_name,					\
-	 const string & type,						\
-	 const string & msg)						\
+	 const std::string & file_name,					\
+	 const std::string & type,					\
+	 const std::string & msg)					\
       : AlephException(#category_msg, line_number, file_name, type, msg) {} \
   };
 

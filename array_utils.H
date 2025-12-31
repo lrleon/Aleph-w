@@ -32,7 +32,7 @@
 
 # include <ah-errors.H>
 # include <iostream>
-using namespace std;
+# include <utility>
 
 namespace Aleph
 {
@@ -47,7 +47,7 @@ void open_gap(Tarray & ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
       << "num_entries is greater than number of available entries";
 
   for (long k = n - num_entries - 1, i = n - 1; k >= long(pos); --i, --k)
-    ptr[i] = move(ptr[k]);
+    ptr[i] = std::move(ptr[k]);
 }
 
 template <typename T> inline
@@ -62,14 +62,14 @@ void close_gap(T * ptr, size_t n, size_t pos, size_t num_entries = 1)
       << "num_entries is greater than pos";
 
   for (size_t i = pos; i < n - num_entries; ++i)
-    ptr[i] = move(ptr[i + num_entries]);
+    ptr[i] = std::move(ptr[i + num_entries]);
 }
 
   template <typename T> inline
 void reverse(T * ptr, const size_t n)
 {
   for (size_t i = 0; i < n/2; ++i)
-    swap(ptr[i], ptr[n - i - 1]);
+    std::swap(ptr[i], ptr[n - i - 1]);
 }
 
   template <typename T> inline

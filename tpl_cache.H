@@ -270,7 +270,7 @@ protected:
 
 public:
 
-  Cache(size_t (*hash_fct)(const Key&), const size_t & size)
+  Cache(size_t (*hash_fct)(const Key&), size_t size)
     : hash_table(size, hash_fct),
       cache_size(hash_table.capacity()), num_lru(0), num_locked(0)
   {
@@ -391,7 +391,7 @@ public:
     remove_entry_from_hash_table(cache_entry);
   }
 
-  void expand(const size_t & plus_size)
+  void expand(size_t plus_size)
   {
     assert(hash_table.size() <= cache_size);
 

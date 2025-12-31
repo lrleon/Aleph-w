@@ -44,9 +44,6 @@
 # include <htlist.H>
 # include <tpl_dynDlist.H>
 
-using namespace std;
-
-
 namespace Aleph {
 
   /** Dynamic queue of elements of generic type `T` based on single

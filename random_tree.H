@@ -33,7 +33,6 @@
 
 # include <ah-errors.H>
 
-using namespace std;
 using namespace Aleph;
 
 template <typename T>

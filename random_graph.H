@@ -178,7 +178,7 @@ namespace Aleph
       gsl_rng_set(r, seed % rand_max);
     }
 
-    ~Random_Graph_Base()
+    virtual ~Random_Graph_Base()
     {
       if (r != nullptr)
         gsl_rng_free(r);

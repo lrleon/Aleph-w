@@ -29,8 +29,7 @@
 # include <dlink.H>
 # include <point.H>
 # include <ah-errors.H>
-
-using namespace std;
+# include <string>
 
 using namespace Aleph;
 
@@ -535,7 +534,7 @@ public:
   const Point get_vertex(const size_t & i) const
   {
     ah_out_of_range_error_if(i >= num_vertex)
-      << "vertex " << to_string(i) << " is greater than " << to_string(num_vertex);
+      << "vertex " << std::to_string(i) << " is greater than " << std::to_string(num_vertex);
 
         // primer segmento es la vertical negativa desde el
         // centro. Punto inicial es es punto destino de este segmento

@@ -29,6 +29,7 @@
 
 # include <limits>
 # include <fstream>
+# include <vector>
 # include <tpl_dynMat.H>
 # include <tpl_dynDlist.H>
 # include <format.H>
@@ -225,7 +226,7 @@ namespace Aleph
     }
 
     // Performs pivot operation on element (p, q).
-    // Optimized version: caches pivot row and column to reduce matrix accesses.
+    // Optimized version: uses reusable buffers to avoid repeated allocations.
     void to_pivot(size_t p, size_t q)
     {
       assert(p <= num_rest and q <= num_var + num_rest);
@@ -235,19 +236,23 @@ namespace Aleph
       const T pivot = m->read(p, q);
       const T inv_pivot = T{1} / pivot;
 
+      // Resize buffers only if needed (amortized O(1) for repeated calls)
+      if (pivot_row_buffer.size() < cols)
+        pivot_row_buffer.resize(cols);
+      if (pivot_col_buffer.size() < num_rest + 1)
+        pivot_col_buffer.resize(num_rest + 1);
+
       // Cache pivot row (normalized) - avoids repeated reads during elimination
-      std::unique_ptr<T[]> pivot_row(new T[cols]);
       for (size_t j = 0; j <= M; ++j)
-        pivot_row[j] = (j == q) ? T{1} : m->read(p, j) * inv_pivot;
+        pivot_row_buffer[j] = (j == q) ? T{1} : m->read(p, j) * inv_pivot;
 
       // Write normalized pivot row back to matrix
       for (size_t j = 0; j <= M; ++j)
-        m->write(p, j, pivot_row[j]);
+        m->write(p, j, pivot_row_buffer[j]);
 
       // Cache pivot column values before modification
-      std::unique_ptr<T[]> pivot_col(new T[num_rest + 1]);
       for (size_t i = 0; i <= num_rest; ++i)
-        pivot_col[i] = m->read(i, q);
+        pivot_col_buffer[i] = m->read(i, q);
 
       // Eliminate: for each row i != p, subtract (pivot_col[i] * pivot_row)
       for (size_t i = 0; i <= num_rest; ++i)
@@ -255,7 +260,7 @@ namespace Aleph
           if (i == p)
             continue;
 
-          const T factor = pivot_col[i];
+          const T factor = pivot_col_buffer[i];
           if (factor == T{0})
             continue;  // Skip rows where pivot column is already 0
 
@@ -263,7 +268,7 @@ namespace Aleph
             if (j == q)
               m->write(i, j, T{0});  // Pivot column becomes 0
             else
-              m->write(i, j, m->read(i, j) - factor * pivot_row[j]);
+              m->write(i, j, m->read(i, j) - factor * pivot_row_buffer[j]);
         }
     }
 
@@ -301,6 +306,10 @@ namespace Aleph
     size_t num_rest; // Number of restrictions
     std::unique_ptr<T[]> solution; // Solution values
     State state; // Current state
+
+    // Reusable buffers for pivot operations (avoid repeated allocations)
+    mutable std::vector<T> pivot_row_buffer;
+    mutable std::vector<T> pivot_col_buffer;
 
     // Validates variable index is within range.
     void verify_var_index(const size_t i) const

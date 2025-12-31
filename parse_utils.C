@@ -1,6 +1,8 @@
 # include "parse_utils.H"
 # include <ah-errors.H>
 
+using namespace std;
+
 const size_t Buffer_Size = 512;
 
 void put_char_in_buffer(char *& start_addr, char * end_addr, int c)

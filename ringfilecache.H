@@ -41,8 +41,6 @@
 # include <ah-errors.H>
 # include <tpl_array.H>
 
-using namespace std;
-
 // Maximum expected length of the cache filename stored in the pars file
 inline constexpr size_t Ring_Max_Name_Size = 4096;
 
@@ -70,18 +68,18 @@ public:
     size_t n; // Number of entries stored in cache
     size_t head; // next integral position ready for reading
     size_t tail; // next integral position ready for writing
-    size_t size_cache_file = 0; // num of chars of string (including '\0')
+    size_t size_cache_file = 0; // num of chars of std::string (including '\0')
     char cache_file_name[0]; // be careful with this field. DON'T USE IT!
 
-    string to_string() const
+    std::string to_string() const
     {
-      ostringstream s;
+      std::ostringstream s;
       s << dim << " " << n << " " << tail << " " << head << " "
           << size_cache_file;
       return s.str();
     }
 
-    friend ostream &operator <<(ostream & out, const Pars & pars)
+    friend std::ostream &operator <<(std::ostream & out, const Pars & pars)
     {
       return out << pars.to_string();
     }
@@ -89,11 +87,11 @@ public:
 
 private:
   bool initialized = false;
-  string pars_file_name;
-  string cache_file_name;
+  std::string pars_file_name;
+  std::string cache_file_name;
 
-  fstream pars_stream; // the stream for the pars (read/write mode)
-  fstream cache_stream; // the stream for the cache (read/write mode)
+  std::fstream pars_stream; // the stream for the pars (read/write mode)
+  std::fstream cache_stream; // the stream for the cache (read/write mode)
 
   size_t dim = 0; // the maximum number of entries
   size_t n = 0; // the current number of stored entries
@@ -186,23 +184,23 @@ private:
 
 public:
   /// Human-readable dump of the cache internal state (debugging)
-  string to_string() const
+  std::string to_string() const
   {
-    const size_t tg = const_cast<fstream &>(cache_stream).tellg() / sizeof(T);
-    const size_t tp = const_cast<fstream &>(cache_stream).tellp() / sizeof(T);
-    ostringstream s;
-    s << "Cache pars" << endl
-        << "capacity = " << capacity() << endl
-        << "size     = " << size() << endl
-        << "sizeof T = " << sizeof(T) << endl
-        << "head pos = " << head_pos() << endl
-        << "tail pos = " << tail_pos() << endl
-        << "tellg/T  = " << tg << endl
-        << "tellp/T  = " << tp << endl;
+    const size_t tg = const_cast<std::fstream &>(cache_stream).tellg() / sizeof(T);
+    const size_t tp = const_cast<std::fstream &>(cache_stream).tellp() / sizeof(T);
+    std::ostringstream s;
+    s << "Cache pars" << std::endl
+        << "capacity = " << capacity() << std::endl
+        << "size     = " << size() << std::endl
+        << "sizeof T = " << sizeof(T) << std::endl
+        << "head pos = " << head_pos() << std::endl
+        << "tail pos = " << tail_pos() << std::endl
+        << "tellg/T  = " << tg << std::endl
+        << "tellp/T  = " << tp << std::endl;
     return s.str();
   }
 
-  friend ostream &operator <<(ostream & out, const RingFileCache & cache)
+  friend std::ostream &operator <<(std::ostream & out, const RingFileCache & cache)
   {
     return out << cache.to_string();
   }
@@ -228,22 +226,22 @@ public:
       @throw std::domain_error if any file cannot be opened/written.
       @throw std::bad_alloc if memory allocation fails.
   */
-  static void create(const string & pars_file_name,
-                     const string & cache_file_name,
+  static void create(const std::string & pars_file_name,
+                     const std::string & cache_file_name,
                      const size_t num_entries)
   {
-    ostringstream s;
+    std::ostringstream s;
 
-    fstream pars_stream(pars_file_name, ios::binary | ios::out);
+    std::fstream pars_stream(pars_file_name, std::ios::binary | std::ios::out);
     ah_domain_error_if(not pars_stream.is_open() or not pars_stream.good())
       << "cannot open " << pars_file_name;
 
-    fstream cache_stream(cache_file_name, ios::binary | ios::out);
+    std::fstream cache_stream(cache_file_name, std::ios::binary | std::ios::out);
     ah_domain_error_if(not cache_stream.is_open() or not cache_stream.good())
       << "cannot open " << cache_file_name;
 
     const size_t pars_size = sizeof(Pars) + cache_file_name.size() + 1;
-    shared_ptr<Pars> pars_ptr(static_cast<Pars *>(malloc(pars_size)), free);
+    std::shared_ptr<Pars> pars_ptr(static_cast<Pars *>(malloc(pars_size)), free);
 
     ah_bad_alloc_if(pars_ptr == nullptr);
 
@@ -259,33 +257,33 @@ public:
   }
 
 private:
-  static string state(fstream & ss)
+  static std::string state(std::fstream & ss)
   {
-    ostringstream s;
+    std::ostringstream s;
     const auto state = ss.rdstate();
-    if (state & ios::goodbit)
-      s << "    goodbit = true " << endl;
+    if (state & std::ios::goodbit)
+      s << "    goodbit = true " << std::endl;
     else
-      s << "    goodbit = false " << endl;
-    if (state & ios::badbit)
-      s << "    badbit  = true " << endl;
+      s << "    goodbit = false " << std::endl;
+    if (state & std::ios::badbit)
+      s << "    badbit  = true " << std::endl;
     else
-      s << "    badbit  = false " << endl;
-    if (state & ios::failbit)
-      s << "    failbit = true " << endl;
+      s << "    badbit  = false " << std::endl;
+    if (state & std::ios::failbit)
+      s << "    failbit = true " << std::endl;
     else
-      s << "    failbit = false " << endl;
-    if (state & ios::eofbit)
-      s << "    eofbit  = true " << endl;
+      s << "    failbit = false " << std::endl;
+    if (state & std::ios::eofbit)
+      s << "    eofbit  = true " << std::endl;
     else
-      s << "    eofbit  = false " << endl;
+      s << "    eofbit  = false " << std::endl;
     return s.str();
   }
 
   // Helper method for initializing the cache from the pars file
-  void read_pars(const string & pars_file_name)
+  void read_pars(const std::string & pars_file_name)
   {
-    pars_stream.open(pars_file_name, ios::binary | ios::out | ios::in);
+    pars_stream.open(pars_file_name, std::ios::binary | std::ios::out | std::ios::in);
 
     ah_domain_error_if((not pars_stream.is_open()) or (not pars_stream.good()))
       << "cannot open " << pars_file_name;
@@ -301,11 +299,11 @@ private:
     // read the cache file name, which should be saved at the end of
     // pars file
     const size_t name_size = min(Ring_Max_Name_Size, pars.size_cache_file);
-    const shared_ptr<char> name(static_cast<char *>(malloc(name_size)), free);
+    const std::shared_ptr<char> name(static_cast<char *>(malloc(name_size)), free);
     pars_stream.read(name.get(), name_size);
     cache_file_name = name.get();
 
-    cache_stream.open(cache_file_name, ios::binary | ios::out | ios::in);
+    cache_stream.open(cache_file_name, std::ios::binary | std::ios::out | std::ios::in);
     ah_domain_error_if(not cache_stream.is_open() or not cache_stream.good())
       << "cannot open " << cache_file_name;
 
@@ -337,7 +335,7 @@ public:
       if (pos < cache_ptr->dim)
         return;
 
-      ostringstream s;
+      std::ostringstream s;
       s << "position " << pos << " is outside of maximum " << cache_ptr->dim;
       ah_out_of_range_error_if(pos >= cache_ptr->dim) << s.str();
     }
@@ -513,7 +511,7 @@ public:
       @throw domain_error if any file cannot be opened
       @throw std::ios_base::failure if there is a failure in any file.
   */
-  RingFileCache(const string & pars_fname) : pars_file_name(pars_fname)
+  RingFileCache(const std::string & pars_fname) : pars_file_name(pars_fname)
   {
     read_pars(pars_file_name);
   }
@@ -535,23 +533,23 @@ public:
       @return true if pars_fname exists and its associated cache file
       exists too.
   */
-  static bool test(const string & pars_fname)
+  static bool test(const std::string & pars_fname)
   {
-    ifstream pars_stream(pars_fname, ios::binary);
-    if (not pars_stream.good())
+    std::ifstream pars_stream_test(pars_fname, std::ios::binary);
+    if (not pars_stream_test.good())
       return false;
 
     Pars pars;
-    pars_stream.read(reinterpret_cast<char *>(&pars), sizeof pars);
+    pars_stream_test.read(reinterpret_cast<char *>(&pars), sizeof pars);
 
     // read the cache file name, which should be saved at the end of
     // pars file
-    const size_t name_size = min(Ring_Max_Name_Size, pars.size_cache_file);
-    shared_ptr<char> name(static_cast<char *>(malloc(name_size)), free);
-    pars_stream.read(name.get(), name_size);
+    const size_t name_size = std::min(Ring_Max_Name_Size, pars.size_cache_file);
+    std::shared_ptr<char> name(static_cast<char *>(malloc(name_size)), free);
+    pars_stream_test.read(name.get(), name_size);
     const char *cache_file_name = name.get();
 
-    if (ifstream cache_stream(cache_file_name, ios::binary); not cache_stream.good())
+    if (std::ifstream cache_stream(cache_file_name, std::ios::binary); not cache_stream.good())
       return false;
 
     return true;
@@ -566,7 +564,7 @@ public:
       @throw domain_error if a pars file is already opened
       @throw std::ios_base::failure if there is a failure in any file.
   */
-  void init(const string & pars_fname)
+  void init(const std::string & pars_fname)
   {
     ah_domain_error_if(pars_stream.is_open())
       << "this cache has already an opened pars file";

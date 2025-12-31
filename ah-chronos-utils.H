@@ -8,68 +8,66 @@
 # include <string>
 # include <chrono>
 
-using namespace std;
-using namespace std::chrono;
-
 namespace Aleph
 {
 // given a duration, return the number of seconds
-inline double duration_to_seconds(const duration<double> & d)
+inline double duration_to_seconds(const std::chrono::duration<double> & d)
 {
   return d.count();
 }
 
 // given a duration, return the number of milliseconds
-inline double duration_to_milliseconds(const duration<double> & d)
+inline double duration_to_milliseconds(const std::chrono::duration<double> & d)
 {
-  return duration_cast<milliseconds>(d).count();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(d).count();
 }
 
 // given a duration, return the number of microseconds
-inline double duration_to_microseconds(const duration<double> & d)
+inline double duration_to_microseconds(const std::chrono::duration<double> & d)
 {
-  return duration_cast<microseconds>(d).count();
+  return std::chrono::duration_cast<std::chrono::microseconds>(d).count();
 }
 
 // given a duration, return the number of nanoseconds
-inline double duration_to_nanoseconds(const duration<double> & d)
+inline double duration_to_nanoseconds(const std::chrono::duration<double> & d)
 {
-  return duration_cast<nanoseconds>(d).count();
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(d).count();
 }
 
 // given a duration, return the number of minutes
-inline double duration_to_minutes(const duration<double> & d)
+inline double duration_to_minutes(const std::chrono::duration<double> & d)
 {
-  return duration_cast<minutes>(d).count();
+  return std::chrono::duration_cast<std::chrono::minutes>(d).count();
 }
 
 // given a duration, return the number of hours
-inline double duration_to_hours(const duration<double> & d)
+inline double duration_to_hours(const std::chrono::duration<double> & d)
 {
-  return duration_cast<hours>(d).count();
+  return std::chrono::duration_cast<std::chrono::hours>(d).count();
 }
 
 // given a duration, return the number of days
-inline double duration_to_days(const duration<double> & d)
+inline double duration_to_days(const std::chrono::duration<double> & d)
 {
-  return duration_cast<days>(d).count();
+  return std::chrono::duration_cast<std::chrono::days>(d).count();
 }
 
 // given a duration, return a string with the proper units
 // acording to the magnitude of the duration
-inline string duration_to_string(const auto & d)
+inline std::string duration_to_string(const auto & d)
 {
+  using namespace std::chrono;
   if (d < seconds(1))
-    return to_string(duration_to_milliseconds(d)) + " ms";
+    return std::to_string(duration_to_milliseconds(d)) + " ms";
 
   if (d < minutes(1))
-    return to_string(duration_to_seconds(d)) + " s";
+    return std::to_string(duration_to_seconds(d)) + " s";
   if (d < hours(1))
-    return to_string(duration_to_minutes(d)) + " min";
+    return std::to_string(duration_to_minutes(d)) + " min";
   if (d < days(1))
-    return to_string(duration_to_hours(d)) + " h";
+    return std::to_string(duration_to_hours(d)) + " h";
 
-  return to_string(duration_to_days(d)) + " days";
+  return std::to_string(duration_to_days(d)) + " days";
 }
 }
 

@@ -217,7 +217,7 @@ namespace Aleph {
         al menos un 20% mayor que el de cache.
     */
     Hash_Cache(size_t (*hash_fct)(const Key&),
-               size_t __hash_size, const size_t & __cache_size)
+               size_t __hash_size, size_t __cache_size)
       : hash_table(__hash_size, hash_fct),
         num_lru(0), cache_size(__cache_size), num_locked(0)
     {
@@ -370,7 +370,7 @@ namespace Aleph {
     /// bad_alloc si no hay suficiente memoria. El nuevo tamaño de la
     /// tabla es calculado a ser el mismo radio especificado durante
     /// la construcción.
-    void expand(const size_t & plus_size)
+    void expand(size_t plus_size)
     {
       ah_range_error_if(plus_size == 0)
         << "bad plus_size";

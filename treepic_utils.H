@@ -36,8 +36,6 @@
 
 # include <aleph.H>
 
-using namespace std;
-
 const long double sin_45 = sin(M_PI_4);
 const long double cos_45 = cos(M_PI_4);
 
@@ -63,8 +61,8 @@ bool tiny_keys = false;
 extern const long double sin_45;
 extern const long double cos_45;
 
-extern string input_file_name;
-extern string output_file_name;
+extern std::string input_file_name;
+extern std::string output_file_name;
 
 
 extern const char * const font_wrapper; 
@@ -236,7 +234,7 @@ inline long double YPIC(long double y)
 }
 
 
-inline size_t compute_true_len(const string & str)
+inline size_t compute_true_len(const std::string & str)
 {
   const char * ptr = str.c_str();
  
@@ -262,40 +260,40 @@ inline size_t compute_true_len(const string & str)
 }
 
 
-inline void put_string(ofstream& output,
+inline void put_string(std::ofstream& output,
                        const long double& x, const long double& y,
-                       const string & comment, const string & str)
+                       const std::string & comment, const std::string & str)
 {
   if (str.size() == 0)
     return;
 
-  output << endl
-	 << "%    " << comment << endl
+  output << std::endl
+	 << "%    " << comment << std::endl
 	 << "\\put(" << x << "," 
             /* Se ajusta la posicion y del caracter segun si la
 	       impresion es flip o no */   
 	 << (flip_y ? YPIC(y) - font_height() : YPIC(y))
 	 << "){" ;
   if (tiny_keys)
-    output << font_wrapper << "{\\tiny " << str << "}}}" << endl << endl;
+    output << font_wrapper << "{\\tiny " << str << "}}}" << std::endl << std::endl;
   else
-    output << font_wrapper << str << "}}" << endl << endl;
+    output << font_wrapper << str << "}}" << std::endl << std::endl;
 }
 
-inline void put_string_tkiz(ofstream& output,
+inline void put_string_tkiz(std::ofstream& output,
                             const long double& x, const long double& y,
-                            const string & comment, const string & str)
+                            const std::string & comment, const std::string & str)
 {
    if (str.size() == 0)
     return;
 
-  output << endl
-	 << "%    " << comment << endl
+  output << std::endl
+	 << "%    " << comment << std::endl
 	 << "\\draw (" << x << "mm," 
             /* Se ajusta la posicion y del caracter segun si la
 	       impresion es flip o no */   
 	 << (flip_y ? YPIC(y) - font_height() : YPIC(y))
-	 << "mm) node { " << str << " }" << endl << endl;
+	 << "mm) node { " << str << " }" << std::endl << std::endl;
 }
 
 /* parámetros de dibujado de flecha en mm */
@@ -306,7 +304,7 @@ long double dash_len = 1/resolution; // 1m
 long double arrow_width  = arrow_width_in_mm/resolution;
 long double arrow_lenght = arrow_lenght_in_mm/resolution;
 
-inline void draw_arc(ofstream& output,
+inline void draw_arc(std::ofstream& output,
                      long double src_x, long double src_y, 
                      long double tgt_x, long double tgt_y,
                      bool is_dashed, bool with_arrow, bool thick = true)
@@ -343,14 +341,14 @@ inline void draw_arc(ofstream& output,
       dy2 = -dy2;
     }
 
-  output << endl
+  output << std::endl
 	 << "\\path(" << tgt_x << "," << YPIC(tgt_y) << ")(" 
-	 << tgt_x + dx1 << "," << YPIC(tgt_y + dy1) << ")" << endl
+	 << tgt_x + dx1 << "," << YPIC(tgt_y + dy1) << ")" << std::endl
      	 << "\\path(" << tgt_x << "," << YPIC(tgt_y) << ")(" 
- 	 << tgt_x + dx2 << "," << YPIC(tgt_y + dy2) << ")" << endl << endl;
+ 	 << tgt_x + dx2 << "," << YPIC(tgt_y + dy2) << ")" << std::endl << std::endl;
 }
 
-inline void draw_arc_tikz(ofstream& output,
+inline void draw_arc_tikz(std::ofstream& output,
                           long double src_x, long double src_y, 
                           long double tgt_x, long double tgt_y,
                           bool is_dashed, bool with_arrow, bool thick = true)
@@ -387,24 +385,24 @@ inline void draw_arc_tikz(ofstream& output,
       dy2 = -dy2;
     }
 
-  output << endl
+  output << std::endl
 	 << "\\draw (" << tgt_x << "," << YPIC(tgt_y) << ") -- (" 
-	 << tgt_x + dx1 << "mm," << YPIC(tgt_y + dy1) << "mm) ; " << endl
+	 << tgt_x + dx1 << "mm," << YPIC(tgt_y + dy1) << "mm) ; " << std::endl
      	 << "\\draw (" << tgt_x << "mm," << YPIC(tgt_y) << "mm) -- (" 
- 	 << tgt_x + dx2 << "mm," << YPIC(tgt_y + dy2) << "mm) ; " << endl << endl;
+ 	 << tgt_x + dx2 << "mm," << YPIC(tgt_y + dy2) << "mm) ; " << std::endl << std::endl;
 }
 
 /*
   Esta rutina estima el offset x donde se debe colocar la cadena str
   en una ventana de ancho window_size */
-inline long double center_string(const string& str, long double window_size)
+inline long double center_string(const std::string& str, long double window_size)
 {
   return compute_true_len(str)*font_width();
 }
 
 
 /* calcula la longitud de la cadena en puntos segun la resolucion */
-inline long double string_width(const string& str)
+inline long double string_width(const std::string& str)
 {
   return compute_true_len(str)*font_width();
 }

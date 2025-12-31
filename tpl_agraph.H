@@ -415,7 +415,7 @@ namespace Aleph
             {
               tgt->insert_arc(aptr);
             }
-          catch (std::bad_alloc)
+          catch (const std::bad_alloc &)
             {
               src->remove_arc(aptr);
               throw;
@@ -427,7 +427,7 @@ namespace Aleph
           arc_set.append(aptr);
           ++this->num_arcs;
         }
-      catch (std::bad_alloc)
+      catch (const std::bad_alloc &)
         {
           src->remove_arc(aptr);
           if (not this->digraph and src != tgt)
@@ -455,7 +455,7 @@ namespace Aleph
         {
           return try_insert_arc(src, tgt, a);
         }
-      catch (bad_alloc)
+      catch (const std::bad_alloc &)
         {
           if (compress_done)
             throw;

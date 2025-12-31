@@ -57,7 +57,7 @@ namespace Aleph
 
     Node *&operator ()(typename GT::Node *p)
     {
-      return static_cast<Node *&>(HEAPNODE(p));
+      return reinterpret_cast<Node *&>(PRIMINFO(p)->heap_node);
     }
   };
 
@@ -68,7 +68,7 @@ namespace Aleph
 
     Node *&operator ()(typename GT::Node *p)
     {
-      return static_cast<Node *&>(NODE_COOKIE(p));
+      return reinterpret_cast<Node *&>(p->cookie);
     }
   };
 

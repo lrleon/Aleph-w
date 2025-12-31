@@ -76,13 +76,13 @@ namespace Aleph
     [[noreturn]] virtual T & get_item() override
     {
       ah_invalid_argument() << "Access from None type";
-      throw std::logic_error("Access from None type"); // unreachable but satisfies compiler
+      __builtin_unreachable();  // Satisfies compiler after throw
     }
 
     [[noreturn]] virtual const T & get_item() const override
     {
       ah_invalid_argument() << "Access from None type";
-      throw std::logic_error("Access from None type");
+      __builtin_unreachable();
     }
 
     virtual bool is_found() const noexcept override { return false; }
