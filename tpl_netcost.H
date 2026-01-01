@@ -1063,9 +1063,6 @@ namespace Aleph
     /// Initialize data structures.
     void init_structures()
     {
-      size_t n = net.vsize();
-      size_t m = net.esize();
-
       node_info.cut(0);
       arc_info.cut(0);
       node_to_idx.empty();

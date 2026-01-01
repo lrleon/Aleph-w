@@ -59,7 +59,7 @@ protected:
 
 TEST_F(BuildSubgraphTest, SingleNode)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   g.reset_nodes();
   g.reset_arcs();
   
@@ -72,7 +72,7 @@ TEST_F(BuildSubgraphTest, SingleNode)
 
 TEST_F(BuildSubgraphTest, TwoNodesConnected)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   g.reset_nodes();
@@ -87,7 +87,7 @@ TEST_F(BuildSubgraphTest, TwoNodesConnected)
 
 TEST_F(BuildSubgraphTest, TriangleGraph)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -106,7 +106,7 @@ TEST_F(BuildSubgraphTest, TriangleGraph)
 TEST_F(BuildSubgraphTest, DisconnectedGraph_BuildsOneComponent)
 {
   // Create two disconnected components
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -127,7 +127,7 @@ TEST_F(BuildSubgraphTest, DisconnectedGraph_BuildsOneComponent)
 
 TEST_F(BuildSubgraphTest, NodeMapping)
 {
-  auto n1 = g.insert_node(10);
+  [[maybe_unused]] auto n1 = g.insert_node(10);
   auto n2 = g.insert_node(20);
   g.insert_arc(n1, n2);
   g.reset_nodes();
@@ -148,7 +148,7 @@ TEST_F(BuildSubgraphTest, NodeMapping)
 
 TEST_F(BuildSubgraphTest, ReturnSubgraph)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -165,7 +165,7 @@ TEST_F(BuildSubgraphTest, ReturnSubgraph)
 
 TEST_F(BuildSubgraphTest, BuildNodeList)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -182,7 +182,7 @@ TEST_F(BuildSubgraphTest, BuildNodeList)
 
 TEST_F(BuildSubgraphTest, NullptrThrows)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Build_Subgraph<Graph> builder;
   
@@ -195,7 +195,7 @@ TEST_F(BuildSubgraphTest, NullptrThrows)
 
 TEST_F(InconnectedComponentsTest, SingleComponent)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -212,7 +212,7 @@ TEST_F(InconnectedComponentsTest, SingleComponent)
 TEST_F(InconnectedComponentsTest, TwoComponents)
 {
   // Component 1
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -260,11 +260,11 @@ TEST_F(InconnectedComponentsTest, EmptyGraph)
 TEST_F(InconnectedComponentsTest, ComputeAsNodeLists)
 {
   // Two components
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
-  auto n3 = g.insert_node(3);
+  [[maybe_unused]] auto n3 = g.insert_node(3);
   
   DynList<DynList<Graph::Node*>> node_lists;
   Inconnected_Components<Graph> cc;
@@ -275,7 +275,7 @@ TEST_F(InconnectedComponentsTest, ComputeAsNodeLists)
 
 TEST_F(InconnectedComponentsTest, CountComponents)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -289,7 +289,7 @@ TEST_F(InconnectedComponentsTest, CountComponents)
 
 TEST_F(InconnectedComponentsTest, IsConnected_True)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -302,7 +302,7 @@ TEST_F(InconnectedComponentsTest, IsConnected_True)
 
 TEST_F(InconnectedComponentsTest, IsConnected_False)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -406,7 +406,7 @@ TYPED_TEST(ComponentsAllGraphs, BuildSubgraphSingleNode)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   g.reset_nodes();
   g.reset_arcs();
   
@@ -423,7 +423,7 @@ TYPED_TEST(ComponentsAllGraphs, BuildSubgraphTriangle)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -445,7 +445,7 @@ TYPED_TEST(ComponentsAllGraphs, BuildSubgraphNullptrThrows)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Graph sg;
   Build_Subgraph<Graph> builder;
@@ -458,7 +458,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, SingleComponent)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -476,7 +476,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, TwoComponents)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -510,7 +510,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedTrue)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -524,7 +524,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedFalse)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   

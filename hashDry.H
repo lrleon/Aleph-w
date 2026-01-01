@@ -142,7 +142,7 @@ public:
         if (bucket.status != HashTbl::BUSY)
           continue;
 
-        me()->insert(bucket.key);
+        (void)me()->insert(bucket.key);
         ++c;
       }
     assert(me()->N == other.N);

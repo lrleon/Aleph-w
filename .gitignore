@@ -299,3 +299,5 @@ tree-node
 build/*
 cmake-build-debug
 cmake-build-release/
+Testing/
+build_clang/

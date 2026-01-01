@@ -26,11 +26,11 @@ TEST(BellmanFordTest, SimpleGraphNoNegativeCycles) {
   Node* n2 = g.insert_node(2);
   Node* n3 = g.insert_node(3);
 
-  Arc* a01 = g.insert_arc(n0, n1, 1);
-  Arc* a02 = g.insert_arc(n0, n2, 4);
-  Arc* a12 = g.insert_arc(n1, n2, 2);
-  Arc* a13 = g.insert_arc(n1, n3, 5);
-  Arc* a23 = g.insert_arc(n2, n3, 1);
+  [[maybe_unused]] Arc* a01 = g.insert_arc(n0, n1, 1);
+  [[maybe_unused]] Arc* a02 = g.insert_arc(n0, n2, 4);
+  [[maybe_unused]] Arc* a12 = g.insert_arc(n1, n2, 2);
+  [[maybe_unused]] Arc* a13 = g.insert_arc(n1, n3, 5);
+  [[maybe_unused]] Arc* a23 = g.insert_arc(n2, n3, 1);
 
   Bellman_Ford<GT> bf(g);
 
@@ -47,9 +47,9 @@ TEST(BellmanFordTest, GraphWithNegativeCycle) {
   Node* n1 = g.insert_node(1);
   Node* n2 = g.insert_node(2);
 
-  Arc* a01 = g.insert_arc(n0, n1, 1);
-  Arc* a12 = g.insert_arc(n1, n2, -3);
-  Arc* a20 = g.insert_arc(n2, n0, 1); // Cycle: 0->1->2->0 with total weight -1
+  [[maybe_unused]] Arc* a01 = g.insert_arc(n0, n1, 1);
+  [[maybe_unused]] Arc* a12 = g.insert_arc(n1, n2, -3);
+  [[maybe_unused]] Arc* a20 = g.insert_arc(n2, n0, 1); // Cycle: 0->1->2->0 with total weight -1
 
   Bellman_Ford<GT> bf(g);
 
@@ -67,11 +67,11 @@ TEST(BellmanFordTest, SpanningTreePainting) {
   Node* n2 = g.insert_node(2);
   Node* n3 = g.insert_node(3);
 
-  Arc* a01 = g.insert_arc(n0, n1, 1);
-  Arc* a02 = g.insert_arc(n0, n2, 4);
-  Arc* a12 = g.insert_arc(n1, n2, 2);
-  Arc* a13 = g.insert_arc(n1, n3, 5);
-  Arc* a23 = g.insert_arc(n2, n3, 1);
+  [[maybe_unused]] Arc* a01 = g.insert_arc(n0, n1, 1);
+  [[maybe_unused]] Arc* a02 = g.insert_arc(n0, n2, 4);
+  [[maybe_unused]] Arc* a12 = g.insert_arc(n1, n2, 2);
+  [[maybe_unused]] Arc* a13 = g.insert_arc(n1, n3, 5);
+  [[maybe_unused]] Arc* a23 = g.insert_arc(n2, n3, 1);
 
   Bellman_Ford<GT> bf(g);
   bool negative_cycle = bf.paint_spanning_tree(n0);
@@ -638,9 +638,9 @@ TEST(BellmanFordTest, ExtractMinSpanningTreeValidation) {
   Node* n1 = g.insert_node(1);
   Node* n2 = g.insert_node(2);
 
-  Arc* a01 = g.insert_arc(n0, n1, 1);
-  Arc* a02 = g.insert_arc(n0, n2, 5);
-  Arc* a12 = g.insert_arc(n1, n2, 2);
+  [[maybe_unused]] Arc* a01 = g.insert_arc(n0, n1, 1);
+  [[maybe_unused]] Arc* a02 = g.insert_arc(n0, n2, 5);
+  [[maybe_unused]] Arc* a12 = g.insert_arc(n1, n2, 2);
 
   Bellman_Ford<GT> bf(g);
   bf.paint_spanning_tree(n0);
@@ -960,7 +960,7 @@ TEST(BellmanFordTest, SearchNegativeCycleDoubleOverload) {
 TEST(BellmanFordTest, SearchNegativeCycleNoParamsVariant) {
 
   GT g;
-  Node* n0 = g.insert_node(0);
+  [[maybe_unused]] Node* n0 = g.insert_node(0);
   Node* n1 = g.insert_node(1);
   Node* n2 = g.insert_node(2);
 

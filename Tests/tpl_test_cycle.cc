@@ -366,7 +366,7 @@ TEST_F(TestForCycleDirected, ArcFilterBlocksCycle)
   
   // Create triangle with odd arc values
   auto a1 = g.insert_arc(n1, n2, 1); // odd
-  auto a2 = g.insert_arc(n2, n3, 2); // even
+  [[maybe_unused]] auto a2 = g.insert_arc(n2, n3, 2); // even
   auto a3 = g.insert_arc(n3, n1, 3); // odd
   
   // With even filter, only a2 is visible -> no cycle

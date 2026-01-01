@@ -82,24 +82,24 @@ template<typename T> class DynList;
     return traverse<Operation>(operation);                              \
   }
 
-# define Special_Ctors(Set_Type, Type)                              \
-  template <template <typename> class List>                         \
-  Set_Type(const List<Type> & l) : Set_Type()                       \
-  {                                                                 \
-    l.for_each([this] (const Type & item) { this->append(item); }); \
-  }                                                                 \
-                                                                    \
-  template <class It>                                               \
-  Set_Type(It b, It e) : Set_Type()                                 \
-  {                                                                 \
-    for (It it = b; it != e; ++it)                                  \
-      this->append(*it);                                            \
-  }                                                                 \
-                                                                    \
-  Set_Type(std::initializer_list<Type> l) : Set_Type()              \
-  {                                                                 \
-    for (const auto & item : l)                                     \
-      this->append(item);                                           \
+# define Special_Ctors(Set_Type, Type)                                      \
+  template <template <typename> class List>                                 \
+  Set_Type(const List<Type> & l) : Set_Type()                               \
+  {                                                                         \
+    l.for_each([this] (const Type & item) { (void)this->append(item); });   \
+  }                                                                         \
+                                                                            \
+  template <class It>                                                       \
+  Set_Type(It b, It e) : Set_Type()                                         \
+  {                                                                         \
+    for (It it = b; it != e; ++it)                                          \
+      (void)this->append(*it);                                              \
+  }                                                                         \
+                                                                            \
+  Set_Type(std::initializer_list<Type> l) : Set_Type()                      \
+  {                                                                         \
+    for (const auto & item : l)                                             \
+      (void)this->append(item);                                             \
   }
 
 # define Locate_Functions(Type)                                         \

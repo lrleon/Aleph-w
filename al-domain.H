@@ -80,13 +80,13 @@ public:
       ah_domain_error_if(step < 0) << "negative step";
 
       for (long i = start; i <= end; i += step)
-        insert(i);
+        (void)insert(i);
     }
 
     IntRange(const size_t n)
     {
       for (size_t i = 0; i < n; ++i)
-        insert(i);
+        (void)insert(i);
     }
 
   };

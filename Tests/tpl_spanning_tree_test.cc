@@ -60,7 +60,7 @@ protected:
 
 TEST_F(DFSSpanningTreeTest, SingleNode)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Depth_First_Spanning_Tree<Graph> dfs;
   auto root = dfs(g, tree);
@@ -72,7 +72,7 @@ TEST_F(DFSSpanningTreeTest, SingleNode)
 
 TEST_F(DFSSpanningTreeTest, TwoNodesConnected)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -86,7 +86,7 @@ TEST_F(DFSSpanningTreeTest, TwoNodesConnected)
 
 TEST_F(DFSSpanningTreeTest, TriangleGraph)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -103,7 +103,7 @@ TEST_F(DFSSpanningTreeTest, TriangleGraph)
 
 TEST_F(DFSSpanningTreeTest, LinearChain)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   auto n4 = g.insert_node(4);
@@ -145,7 +145,7 @@ TEST_F(DFSSpanningTreeTest, CompleteGraph)
 
 TEST_F(DFSSpanningTreeTest, FromSpecificNode)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -168,7 +168,7 @@ TEST_F(DFSSpanningTreeTest, EmptyGraphThrows)
 
 TEST_F(DFSSpanningTreeTest, NullptrNodeThrows)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Depth_First_Spanning_Tree<Graph> dfs;
   
@@ -177,7 +177,7 @@ TEST_F(DFSSpanningTreeTest, NullptrNodeThrows)
 
 TEST_F(DFSSpanningTreeTest, NodeMapping)
 {
-  auto n1 = g.insert_node(10);
+  [[maybe_unused]] auto n1 = g.insert_node(10);
   auto n2 = g.insert_node(20);
   auto n3 = g.insert_node(30);
   g.insert_arc(n1, n2);
@@ -207,7 +207,7 @@ TEST_F(DFSSpanningTreeTest, NodeMapping)
 
 TEST_F(BFSSpanningTreeTest, SingleNode)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Breadth_First_Spanning_Tree<Graph> bfs;
   auto root = bfs(g, tree);
@@ -219,7 +219,7 @@ TEST_F(BFSSpanningTreeTest, SingleNode)
 
 TEST_F(BFSSpanningTreeTest, TwoNodesConnected)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
@@ -233,7 +233,7 @@ TEST_F(BFSSpanningTreeTest, TwoNodesConnected)
 
 TEST_F(BFSSpanningTreeTest, TriangleGraph)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -270,7 +270,7 @@ TEST_F(BFSSpanningTreeTest, CompleteGraph)
 
 TEST_F(BFSSpanningTreeTest, FromSpecificNode)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -292,7 +292,7 @@ TEST_F(BFSSpanningTreeTest, EmptyGraphThrows)
 
 TEST_F(BFSSpanningTreeTest, NullptrNodeThrows)
 {
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Breadth_First_Spanning_Tree<Graph> bfs;
   
@@ -301,7 +301,7 @@ TEST_F(BFSSpanningTreeTest, NullptrNodeThrows)
 
 TEST_F(BFSSpanningTreeTest, NodeMapping)
 {
-  auto n1 = g.insert_node(10);
+  [[maybe_unused]] auto n1 = g.insert_node(10);
   auto n2 = g.insert_node(20);
   auto n3 = g.insert_node(30);
   g.insert_arc(n1, n2);
@@ -419,7 +419,7 @@ TYPED_TEST(SpanningTreeAllGraphs, DFSSingleNode)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Depth_First_Spanning_Tree<Graph> dfs;
   auto root = dfs(g, tree);
@@ -435,7 +435,7 @@ TYPED_TEST(SpanningTreeAllGraphs, DFSTriangle)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -467,7 +467,7 @@ TYPED_TEST(SpanningTreeAllGraphs, DFSNullptrThrows)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Depth_First_Spanning_Tree<Graph> dfs;
   
@@ -480,7 +480,7 @@ TYPED_TEST(SpanningTreeAllGraphs, BFSSingleNode)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Breadth_First_Spanning_Tree<Graph> bfs;
   auto root = bfs(g, tree);
@@ -496,7 +496,7 @@ TYPED_TEST(SpanningTreeAllGraphs, BFSTriangle)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   g.insert_arc(n1, n2);
@@ -528,7 +528,7 @@ TYPED_TEST(SpanningTreeAllGraphs, BFSNullptrThrows)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   
   Find_Breadth_First_Spanning_Tree<Graph> bfs;
   
@@ -541,7 +541,7 @@ TYPED_TEST(SpanningTreeUndirectedGraphs, DFSLongerChain)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   auto n4 = g.insert_node(4);
@@ -566,7 +566,7 @@ TYPED_TEST(SpanningTreeUndirectedGraphs, BFSLongerChain)
   Graph & g = this->g;
   Graph & tree = this->tree;
   
-  auto n1 = g.insert_node(1);
+  [[maybe_unused]] auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);
   auto n4 = g.insert_node(4);

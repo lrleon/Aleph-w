@@ -43,6 +43,13 @@ public:
 
   Vertex(const Vertex & vertex) : Point(vertex), Dlink() { /* empty */ }
 
+  Vertex & operator=(const Vertex & vertex)
+  {
+    if (this != &vertex)
+      Point::operator=(vertex);
+    return *this;
+  }
+
   static Vertex * dlink_to_vertex(Dlink * link) 
   {
     return static_cast<Vertex*>(link);

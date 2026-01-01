@@ -61,7 +61,7 @@ struct Container : public testing::Test
 	c.append(i);
 	item_list.append(i);
       }
-    sort(item_list);
+    item_list = sort(item_list);
   }
 };
 

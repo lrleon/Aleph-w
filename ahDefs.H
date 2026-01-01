@@ -112,7 +112,13 @@ struct Empty_Class
   /** @brief Copy constructor.
       @param Unused source object.
   */
-  Empty_Class(const Empty_Class &) {}
+  Empty_Class(const Empty_Class &) = default;
+
+  /** @brief Copy assignment operator.
+      @param Unused source object.
+      @return Reference to this object.
+  */
+  Empty_Class & operator=(const Empty_Class &) = default;
 
   /** @brief Equality comparison (always true).
       @return true, since all Empty_Class instances are equal.

@@ -752,7 +752,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, SinglePathNetwork)
 {
   auto net = build_single_path_network();
 
-  auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
+  [[maybe_unused]] auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();
@@ -767,7 +767,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, ParallelPathsNetwork)
 {
   auto net = build_parallel_paths_network();
 
-  auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
+  [[maybe_unused]] auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();
@@ -784,7 +784,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, DiamondNetwork)
 {
   auto net = build_diamond_network();
 
-  auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
+  [[maybe_unused]] auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();
@@ -805,7 +805,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, TextbookNetwork)
 {
   auto net = build_textbook_network();
 
-  auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
+  [[maybe_unused]] auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();
@@ -866,7 +866,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, LargerNetwork)
   net.insert_arc(c, t, 4.0, 1.0);
   net.insert_arc(d, t, 4.0, 1.0);
 
-  auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
+  [[maybe_unused]] auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();
@@ -886,7 +886,7 @@ TEST_F(MaxFlowMinCostIntegrationTest, FunctorInterface)
   auto net = build_parallel_paths_network();
 
   Max_Flow_Min_Cost_By_Cycle_Canceling<Net> algo;
-  auto [cycles, factor] = algo(net);
+  [[maybe_unused]] auto [cycles, factor] = algo(net);
 
   double max_flow = get_max_flow(net);
   double total_cost = net.flow_cost();

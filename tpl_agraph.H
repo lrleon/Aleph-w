@@ -94,7 +94,7 @@ namespace Aleph
       init(Default_Cap);
     }
 
-    Graph_Anode(const Graph_Anode & node) : Base(node.node_info)
+    Graph_Anode(const Graph_Anode & node) : Dlink(), Base(node.node_info)
     {
       init(0);
     }
