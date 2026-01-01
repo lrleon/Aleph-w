@@ -145,7 +145,7 @@ Raw new: ~101 instancias sin delete visible
 
 **Gaps identificados:**
 - ✅ `ah-ranges.H` - **81 tests comprehensivos** (completado)
-- ⚠️ `ahFunctional.H` - Sin tests dedicados
+- ✅ `ahFunctional.H` - **73 tests comprehensivos** (completado, duplicado)
 - ⚠️ `tpl_cache.H`, `tpl_hash_cache.H` - Tests incompletos
 
 ### 4.2 Tests de Algoritmos de Grafos
@@ -170,6 +170,7 @@ Raw new: ~101 instancias sin delete visible
 | `dlink.cc` | 225 | Double links |
 | `htlist_test.cc` | 219 | HTList |
 | `ah_ranges_test.cc` | **81 tests** | C++20 Ranges |
+| `ah-functional.cc` | **73 tests** | Programación funcional |
 
 ### 4.4 Compatibilidad CI
 
