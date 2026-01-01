@@ -220,7 +220,7 @@ public:
    *
    *  @return The number of elements currently in the stack.
    */
-  [[nodiscard]] size_t size() const noexcept { return num_items; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
   /** @brief Check if the stack is empty.
    *

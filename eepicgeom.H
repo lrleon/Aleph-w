@@ -4,11 +4,11 @@
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
    / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+                 |_|
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2018 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,34 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file eepicgeom.H
+ *  @brief EEPIC/LaTeX geometric drawing utilities.
+ *
+ *  This file provides classes for generating EEPIC (Extended EPIC) code
+ *  for LaTeX documents. EEPIC is a macro package that extends the standard
+ *  LaTeX picture environment with additional drawing primitives.
+ *
+ *  The main components are:
+ *  - @ref Eepic_Plane: A 2D canvas that holds geometric objects and generates
+ *    the LaTeX picture environment
+ *  - @ref Eepic_Geom_Object: Abstract base class for drawable geometric objects
+ *  - Various Eepic_* wrapper classes for Points, Segments, Polygons, etc.
+ *
+ *  @section usage Usage Example
+ *  @code
+ *  Eepic_Plane plane(500, 500);  // 500x500 point canvas
+ *  Point p1(0, 0), p2(100, 100);
+ *  Segment seg(p1, p2);
+ *  put_in_plane(plane, seg);
+ *
+ *  std::ofstream file("output.tex");
+ *  plane.draw(file);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ */
+
 # ifndef EEPICGEOM_H
 # define EEPICGEOM_H
 
@@ -34,14 +62,40 @@
 # include <polygon.H>
 # include <ah-errors.H>
 
+/** @brief Global flag to enable tiny font size for keys/labels.
+ *
+ *  When set to true, text labels will be rendered using LaTeX's \\tiny
+ *  font size modifier. Useful for dense diagrams with many labels.
+ */
 extern bool tiny_keys;
 
-// TODO: curvas de poligonos punteadas
+// TODO: dotted polygon curves
 
 class Eepic_Plane;
 
 
-// Objeto geométrico abstracto para dibujarse en un plano Eeepic
+/** @brief Abstract base class for EEPIC-drawable geometric objects.
+ *
+ *  This class serves as the polymorphic base for all geometric objects that
+ *  can be rendered in EEPIC format. Each derived class wraps a concrete
+ *  geometric object (Point, Segment, Polygon, etc.) and provides:
+ *  - A draw() method that generates the EEPIC LaTeX code
+ *  - Methods to query extreme points for bounding box calculations
+ *  - A clone() method for polymorphic copying
+ *
+ *  @section memory_management Memory Management
+ *  The wrapped geometric object can be owned by this class (to_delete=true)
+ *  or externally managed (to_delete=false). When owned, the destructor
+ *  will delete the wrapped object.
+ *
+ *  @section subclassing Creating New Drawable Types
+ *  Use the DEFINE_EEPIC_CLASS macro to create new drawable types:
+ *  @code
+ *  DEFINE_EEPIC_CLASS(MyGeomType);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ */
 class Eepic_Geom_Object
 {
   Eepic_Geom_Object();
@@ -50,27 +104,55 @@ class Eepic_Geom_Object
 
 protected:
 
-  // copia del objeto geométrico ==> es responsabilidad de esta
-  // clase de manejar su memoria 
-  const Geom_Object * const geom_object_ptr; 
+  /** @brief Pointer to the wrapped geometric object.
+   *
+   *  This pointer is const-qualified to prevent accidental modification.
+   *  Memory management depends on the to_delete flag.
+   */
+  const Geom_Object * const geom_object_ptr;
 
-  bool to_delete; // esta bandera en falso indica que no debe llamarse a
-		  // delete geom_object_ptr; en el destructor
+  /** @brief Flag indicating ownership of geom_object_ptr.
+   *
+   *  When true, the destructor will delete geom_object_ptr.
+   *  When false, the caller is responsible for memory management.
+   */
+  bool to_delete;
 
 public:
 
-  Eepic_Geom_Object(Geom_Object * ptr, const bool & __to_delete = false) 
+  /** @brief Construct an EEPIC wrapper for a geometric object.
+   *
+   *  @param ptr Pointer to the geometric object to wrap
+   *  @param __to_delete If true, this object takes ownership and will
+   *                     delete ptr in the destructor
+   */
+  Eepic_Geom_Object(Geom_Object * ptr, const bool & __to_delete = false)
     : geom_object_ptr(ptr), to_delete(__to_delete)
   {
     // empty
   }
 
-  virtual ~Eepic_Geom_Object() 
-  { 
+  /** @brief Virtual destructor.
+   *
+   *  Deletes geom_object_ptr only if to_delete is true.
+   */
+  virtual ~Eepic_Geom_Object()
+  {
     if (to_delete)
       delete geom_object_ptr;
   }
 
+  /** @brief Generate EEPIC code for this object.
+   *
+   *  Derived classes must override this method to produce the appropriate
+   *  EEPIC LaTeX commands for their geometric type.
+   *
+   *  @param plane The Eepic_Plane providing coordinate transformation
+   *  @param output The output stream to write EEPIC code to
+   *
+   *  @throws std::domain_error if geom_object_ptr is null
+   *  @throws std::logic_error if called on the base class (not overridden)
+   */
   virtual void draw(Eepic_Plane *, std::ostream &) const
   {
     ah_domain_error_if(geom_object_ptr == nullptr)
@@ -79,79 +161,132 @@ public:
     ah_logic_error() << "Call to draw() method from abstract class";
   }
 
-  // debe retornar un objeto de la clase derivada
+  /** @brief Create a polymorphic copy of this object.
+   *
+   *  Derived classes must implement this to return a new instance of
+   *  their specific type.
+   *
+   *  @return A new heap-allocated copy of this object
+   */
   virtual Eepic_Geom_Object * clone() const = 0;
 
+  /** @brief Get the highest point (maximum y-coordinate) of this object.
+   *  @return The point with the maximum y-coordinate
+   */
   virtual Point highest_point() const = 0;
 
+  /** @brief Get the lowest point (minimum y-coordinate) of this object.
+   *  @return The point with the minimum y-coordinate
+   */
   virtual Point lowest_point() const = 0;
 
+  /** @brief Get the leftmost point (minimum x-coordinate) of this object.
+   *  @return The point with the minimum x-coordinate
+   */
   virtual Point leftmost_point() const = 0;
 
+  /** @brief Get the rightmost point (maximum x-coordinate) of this object.
+   *  @return The point with the maximum x-coordinate
+   */
   virtual Point rightmost_point() const = 0;
 };
 
 
+/** @brief 2D canvas for generating EEPIC/LaTeX picture environments.
+ *
+ *  Eepic_Plane serves as a container for geometric objects and handles the
+ *  transformation from geometric coordinates to EEPIC picture coordinates.
+ *  It generates a complete LaTeX picture environment that can be included
+ *  in any LaTeX document with the eepic package.
+ *
+ *  @section coordinate_system Coordinate System
+ *  The plane maintains two coordinate systems:
+ *  - **Geometric coordinates**: The original coordinates of the objects
+ *  - **EEPIC coordinates**: Normalized coordinates for the picture environment
+ *
+ *  The transformation between these systems handles:
+ *  - Scaling to fit the specified width and height
+ *  - Optional aspect ratio preservation (squarize mode)
+ *  - Offset adjustments for margins
+ *
+ *  @section drawing_methods Drawing Methods
+ *  The class provides primitive drawing methods for:
+ *  - Points (draw_point)
+ *  - Segments in various styles (draw_segment, draw_dotted_segment, etc.)
+ *  - Arrows (draw_arrow, draw_arrow_extreme)
+ *  - Ellipses (draw_ellipse)
+ *  - Polygons (draw_polygon, draw_closed_polygon, etc.)
+ *  - Splines (draw_spline, draw_dash_spline)
+ *  - Text (draw_text, draw_point_text)
+ *
+ *  @section example Example Usage
+ *  @code
+ *  // Create a 500x500 point canvas
+ *  Eepic_Plane plane(500, 500);
+ *
+ *  // Add geometric objects
+ *  Point p1(0, 0), p2(100, 100);
+ *  Segment seg(p1, p2);
+ *  put_in_plane(plane, seg);
+ *
+ *  // Generate EEPIC output
+ *  std::ofstream file("diagram.tex");
+ *  plane.draw(file);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ */
 class Eepic_Plane
 {
-  // marco de ambiente picture definido en tiempo de construcción
-  double wide;   // ancho en puntos de la resolución
-  double height; // altura en puntos de la resolución
+  // Picture environment frame defined at construction time
+  double wide;   ///< Width in resolution points
+  double height; ///< Height in resolution points
 
-  // marco final resultante según que el usuario decida o no escalar
-  // la figura  
-  double real_wide = 0;   // ancho en puntos de la resolución
-  double real_height = 0; // altura en puntos de la resolución
+  // Final frame dimensions based on user's scaling choice
+  double real_wide = 0;   ///< Actual width after scaling
+  double real_height = 0; ///< Actual height after scaling
 
-  double xoffset;   // margen adicional de ancho
-  double yoffset; // margen adicional de altura
+  double xoffset;  ///< Additional horizontal margin
+  double yoffset;  ///< Additional vertical margin
 
-  Geom_Number geom_wide;   // ancho desde el punto más a la izquierda
-			   // hasta el más a la derecha
-  Geom_Number geom_height; // ancho desde el punto más bajo hasta el
-                           // más alto
+  Geom_Number geom_wide;   ///< Width from leftmost to rightmost point
+  Geom_Number geom_height; ///< Height from lowest to highest point
 
-  DynDlist<Eepic_Geom_Object*> list;
+  DynDlist<Eepic_Geom_Object*> list; ///< List of geometric objects
 
-  Geom_Number geom_x_min; // mínimo valor de x en coordenadas reales
-  Geom_Number geom_y_min; // mínimo valor de y en coordenadas reales
+  Geom_Number geom_x_min; ///< Minimum x value in geometric coordinates
+  Geom_Number geom_y_min; ///< Minimum y value in geometric coordinates
 
-  // ATENCIÓN: estos valores deben inicializarse en cero porque son
-  // usados para calcularse a sí mismos
-  double x_min; // mínimo valor de x en el plano
-  double y_min; // mínimo valor de y en el plano
+  // NOTE: These must be initialized to zero as they are used in
+  // self-referential calculations
+  double x_min; ///< Minimum x value in plane coordinates
+  double y_min; ///< Minimum y value in plane coordinates
 
-  // puntos extremos con los cuales calcular el ancho y la altura de los
-  // objetos (geom_x_min y geom_y_min)
-  Point __leftmost;
-  Point __rightmost;
-  Point __highest;
-  Point __lowest;
+  // Extreme points for computing object dimensions
+  Point __leftmost;  ///< Point with minimum x-coordinate
+  Point __rightmost; ///< Point with maximum x-coordinate
+  Point __highest;   ///< Point with maximum y-coordinate
+  Point __lowest;    ///< Point with minimum y-coordinate
 
-  bool with_cartesian_axis; // indica que se deben dibujar dos segmentos
-			    // correspondientes a los ejes cartesianos 
+  bool with_cartesian_axis; ///< Flag to draw Cartesian axes
 
-  // Radio por omisión en resolución de un punto en el plano. Se utiliza
-  // también para la altura de las letras
+  /// Default radius for drawing points (also used for text height)
   static const double default_r;
 
-  double r; // el radio en puntos reales con que se dibuja un punto
+  double r; ///< Actual radius in real points for drawing a point
 
-  // parámetros que ajustan la manera en que se define el ambiente latex
-  // picture  
-  double resolution; // resolución en milímetros (0.05mm por omisión)
+  // Parameters that control the LaTeX picture environment
+  double resolution; ///< Resolution in millimeters (default: 0.05mm)
 
-  std::string fill_type; // tipo de relleno (black)
+  std::string fill_type;  ///< Fill type for shapes (e.g., "black")
+  std::string shade_type; ///< Shading type for segments
 
-  std::string shade_type; // tipo de sombreado para segmentos 
+  static const double normal_thickness;        ///< Default line thickness
+  static const double default_shade_thickness; ///< Default shading thickness
 
-  static const double normal_thickness;
+  double shade_thickness; ///< Current shading thickness
 
-  static const double default_shade_thickness;
-
-  double shade_thickness;
-
-  static const double dotgap; 
+  static const double dotgap; ///< Gap between dots in dotted lines 
 
   /*
     Realiza una cambio de escala de un punto p en un plano a escala

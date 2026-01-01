@@ -75,7 +75,7 @@ public:
   virtual ~Slinknc() = default;
 
   /// Return `true` if `this` is empty
-  bool is_empty() const noexcept { return next == nullptr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return next == nullptr; }
 
   /**  \~English Init to nullptr
        \~Spanish Inicializa en nullptr
@@ -478,7 +478,7 @@ public:
 
       //!\~English Return true if list is empty \~Spanish Retorna true
       //!si la lista está vacía.
-  bool is_empty() const noexcept { return head == nullptr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return head == nullptr; }
 
        //!\~English Return true if the list contains exactly just one
        //!element \~Spanish Retorna true si la lista contiene

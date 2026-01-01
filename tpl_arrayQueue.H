@@ -588,13 +588,13 @@ public:
   }
 
   /// Return the number of items
-  size_t size() const noexcept { return num_items; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
       /// Return `true` if the queue is empty
-  bool is_empty() const noexcept { return num_items == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
   /// Return the queue capacity (maximum number of element to be stored)
-  size_t capacity() const noexcept { return dim; }
+  [[nodiscard]] constexpr size_t capacity() const noexcept { return dim; }
 
   /** Traverse all the elements from the youngest to the oldest and execute
       `operation` on each on them.

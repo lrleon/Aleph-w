@@ -98,7 +98,7 @@ namespace Aleph
 
         @return true if a negative cycle was detected, false otherwise.
      */
-    bool has_negative_cycle() const noexcept { return negative_cycle; }
+    [[nodiscard]] constexpr bool has_negative_cycle() const noexcept { return negative_cycle; }
 
     /**
         Get the path reconstruction matrix.

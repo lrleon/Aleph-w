@@ -438,7 +438,7 @@ namespace Aleph
     const size_t &
     get_num_busy_slots() const noexcept { return busy_slots_counter; }
 
-    bool is_empty() const noexcept { return N == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return N == 0; }
 
     /** Iterator over a GenLhashTable hash table.
 

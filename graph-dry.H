@@ -675,10 +675,10 @@ public:
   void set_digraph(bool val) { digraph = val; } // TODO: delete after
 
   /// Return the total of nodes of graph
-  size_t get_num_nodes() const noexcept { return num_nodes; }
+  [[nodiscard]] constexpr size_t get_num_nodes() const noexcept { return num_nodes; }
 
   /// \verload get_num_nodes()
-  size_t vsize() const noexcept { return get_num_nodes(); }
+  [[nodiscard]] constexpr size_t vsize() const noexcept { return get_num_nodes(); }
 
   /** Return any node in the graph.
 
@@ -758,7 +758,7 @@ public:
   }
 
   /// \overload degree()
-  size_t get_num_arcs() const noexcept { return num_arcs; }
+  [[nodiscard]] constexpr size_t get_num_arcs() const noexcept { return num_arcs; }
 
   /// Return the total of arcs of a node. Only has sense for non-
   /// directed graphs

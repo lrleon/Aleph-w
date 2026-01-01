@@ -202,10 +202,10 @@ public:
   K2Tree & operator = (const K2Tree &) = delete;
 
   /// @brief Check if the tree is empty.
-  [[nodiscard]] bool is_empty() const noexcept { return N == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return N == 0; }
 
   /// @brief Get the number of points in the tree.
-  [[nodiscard]] size_t size() const noexcept { return N; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return N; }
 
 private:
 

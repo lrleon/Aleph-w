@@ -387,31 +387,31 @@ public:
    *
    *  @return The number of rows in the matrix.
    */
-  [[nodiscard]] size_t rows() const noexcept { return n; }
+  [[nodiscard]] constexpr size_t rows() const noexcept { return n; }
 
   /** @brief Get the number of columns.
    *
    *  @return The number of columns in the matrix.
    */
-  [[nodiscard]] size_t cols() const noexcept { return m; }
+  [[nodiscard]] constexpr size_t cols() const noexcept { return m; }
 
   /** @brief Get the total number of entries.
    *
    *  @return rows() * cols()
    */
-  [[nodiscard]] size_t size() const noexcept { return n * m; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return n * m; }
 
   /** @brief Check if the matrix is square.
    *
    *  @return true if rows() == cols(), false otherwise.
    */
-  [[nodiscard]] bool is_square() const noexcept { return n == m; }
+  [[nodiscard]] constexpr bool is_square() const noexcept { return n == m; }
 
   /** @brief Check if the matrix is empty (uninitialized).
    *
    *  @return true if dimensions are zero, false otherwise.
    */
-  [[nodiscard]] bool is_empty() const noexcept { return n == 0 || m == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return n == 0 || m == 0; }
 
   /** @brief Read the entry at position (i, j).
    *

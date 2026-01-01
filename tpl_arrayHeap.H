@@ -398,13 +398,13 @@ namespace Aleph
     }
 
     /// Return the number of elements
-    size_t size() const noexcept { return num_items; }
+    [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
     /// Return true if the heap is empty
-    bool is_empty() const noexcept { return num_items == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
     /// Return the total capacity of the heap (excluding sentinel slot).
-    size_t capacity() const noexcept { return dim; }
+    [[nodiscard]] constexpr size_t capacity() const noexcept { return dim; }
 
     /** Update the priority of an element stored in the heap.
 

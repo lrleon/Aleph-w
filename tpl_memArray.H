@@ -195,7 +195,7 @@ namespace Aleph
     using Item_Type = T; /// The type of element of array
 
     /// Return the capacity of array (its dimension)
-    size_t capacity() const noexcept { return dim; }
+    [[nodiscard]] constexpr size_t capacity() const noexcept { return dim; }
 
     /// Return the number of elements
     size_t size() const noexcept { return n; }

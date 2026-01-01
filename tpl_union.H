@@ -145,7 +145,7 @@ public:
 
   /// Return the number of connected blocks, which is the number of
   /// equivalence classes
-  size_t get_num_blocks() const noexcept { return num_blocks; }
+  [[nodiscard]] constexpr size_t get_num_blocks() const noexcept { return num_blocks; }
 
   /** Return `true` if item `i` is related to item `j`.
 

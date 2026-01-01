@@ -112,12 +112,12 @@ namespace Aleph
     /// Returns a modifiable reference to the node contents.
     T & get_key() noexcept { return get_data(); }
 
-    const T & get_key() const noexcept { return get_data(); }
+    [[nodiscard]] constexpr const T & get_key() const noexcept { return get_data(); }
 
     /// Returns a modifiable reference to the node contents.
     T & get_data() noexcept { return data; }
 
-    const T & get_data() const noexcept { return data; }
+    [[nodiscard]] constexpr const T & get_data() const noexcept { return data; }
 
     /// Generic data type stored in the node.
     using key_type = T;
@@ -127,16 +127,16 @@ namespace Aleph
     Dlink * get_sibling_list() noexcept { return &sibling; }
 
     /// Returns true if this is the root of the general tree.
-    bool is_root() const noexcept { return flags.is_root; }
+    [[nodiscard]] constexpr bool is_root() const noexcept { return flags.is_root; }
 
     /// Returns true if this is a leaf node.
-    bool is_leaf() const noexcept { return flags.is_leaf; }
+    [[nodiscard]] constexpr bool is_leaf() const noexcept { return flags.is_leaf; }
 
     /// Returns true if this is the leftmost node among its siblings.
-    bool is_leftmost() const noexcept { return flags.is_leftmost; }
+    [[nodiscard]] constexpr bool is_leftmost() const noexcept { return flags.is_leftmost; }
 
     /// Returns true if this is the rightmost node among its siblings.
-    bool is_rightmost() const noexcept { return flags.is_rightmost; }
+    [[nodiscard]] constexpr bool is_rightmost() const noexcept { return flags.is_rightmost; }
 
     void set_is_root(bool value) noexcept { flags.is_root = value; }
 

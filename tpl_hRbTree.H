@@ -739,7 +739,7 @@ namespace Aleph
     Compare & get_compare() noexcept { return cmp; }
     
     /// \overload get_compare() const
-    const Compare & get_compare() const noexcept { return cmp; }
+    [[nodiscard]] constexpr const Compare & get_compare() const noexcept { return cmp; }
 
     /// Default constructor
     HtdRbTree(Compare __cmp = Compare()) noexcept
@@ -801,10 +801,10 @@ namespace Aleph
     virtual ~HtdRbTree() = default;
 
     /// Check if tree is empty
-    bool is_empty() const noexcept { return root == Node::NullPtr; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return root == Node::NullPtr; }
 
     /// Get number of nodes in tree
-    size_t size() const noexcept { return node_count; }
+    [[nodiscard]] constexpr size_t size() const noexcept { return node_count; }
     
     /// Reset tree (does not free nodes)
     void reset() noexcept

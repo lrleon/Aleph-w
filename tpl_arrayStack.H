@@ -57,7 +57,7 @@ namespace Aleph {
       `T`. The stack is store into an internal contiguous array which
       grows and ungrows dynamically according to the number of elements.
 
-      `ArrayStack<T>` is a good trade off between performance and memory
+      `ArrayStack<T>` is a good trade-off between performance and memory
       consumption. In general is faster than a stack implemented with
       linked list, but since the internal array growths in two powers,
       the waste of memory could reach twice the number of elements.
@@ -228,7 +228,7 @@ public:
     /// Empty the stack
   void empty() noexcept { array.empty(); }
 
-    /// Retrun `true` if stack is empty
+    /// Return `true` if stack is empty
   bool is_empty() const noexcept { return array.size() == 0; }
 
     /// Return the number of elements stored in the stack

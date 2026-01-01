@@ -255,7 +255,7 @@ namespace Aleph
     }
 
     /// Returns the dimension of the bit array
-    size_t size() const noexcept { return current_size; }
+    [[nodiscard]] constexpr size_t size() const noexcept { return current_size; }
 
     /// Resets the dimension of the array
     void set_size(const size_t sz)

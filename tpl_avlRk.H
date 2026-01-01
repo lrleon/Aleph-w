@@ -438,7 +438,7 @@ public:
   [[nodiscard]] size_t size() const noexcept { return COUNT(root); }
 
   /// Return true if tree is empty
-  [[nodiscard]] bool is_empty() const noexcept { return root == Node::NullPtr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return root == Node::NullPtr; }
 
   /// Search a node containing key
   Node * search(const Key & key) const noexcept

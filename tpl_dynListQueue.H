@@ -112,7 +112,7 @@ public:
   }
 
   /// Return the number of elements
-  size_t size() const noexcept { return num_items; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
   /// Return `true` if `this` is empty
   bool is_empty() const noexcept { return q.is_empty(); }

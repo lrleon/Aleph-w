@@ -424,7 +424,7 @@ namespace Aleph
 
       @ingroup fcts
    */
-  inline bool are_near(const double v1, const double v2, const double e) { return std::fabs(v1 - v2) <= e; }
+  [[nodiscard]] constexpr bool are_near(const double v1, const double v2, const double e) noexcept { return std::fabs(v1 - v2) <= e; }
 
   /** Generate and execute a R script from a string (containing the script)
 

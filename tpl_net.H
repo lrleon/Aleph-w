@@ -338,10 +338,10 @@ namespace Aleph
     bool is_sink(Node *node) const noexcept { return sink_nodes.contains(node); }
 
     /// Return true if the network has a single source.
-    bool is_single_source() const noexcept { return src_nodes.size() == 1; }
+    [[nodiscard]] constexpr bool is_single_source() const noexcept { return src_nodes.size() == 1; }
 
     /// Return true if the network has a single sink.
-    bool is_single_sink() const noexcept { return sink_nodes.size() == 1; }
+    [[nodiscard]] constexpr bool is_single_sink() const noexcept { return sink_nodes.size() == 1; }
 
     /// Return true if `p` is connected (used for validation).
     bool is_connected(Node *p) const noexcept

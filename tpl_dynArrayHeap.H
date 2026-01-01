@@ -267,10 +267,10 @@ namespace Aleph
     }
 
     /// Return the number of elements.
-    size_t size() const noexcept { return num_items; }
+    [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
     /// Return true if the heap is empty.
-    bool is_empty() const noexcept { return num_items == 0; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
     struct Iterator : DynArray<T>::Iterator
     {

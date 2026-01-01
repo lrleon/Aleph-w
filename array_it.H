@@ -114,7 +114,7 @@ public:
   /** @brief Get the base pointer of the array (const version).
       @return Const pointer to the underlying array.
   */
-  const T * get_base() const noexcept { return ptr; }
+  [[nodiscard]] constexpr const T * get_base() const noexcept { return ptr; }
 
   /// Default constructor - creates an invalid iterator.
   Array_Iterator() = default;
@@ -219,7 +219,7 @@ public:
   /** @brief Get the current position index.
       @return Logical position (0 to num_items-1).
   */
-  [[nodiscard]] long get_pos() const noexcept { return pos; }
+  [[nodiscard]] constexpr long get_pos() const noexcept { return pos; }
 
   /** @brief Get the current item without bounds checking.
       @return Reference to the current item.
@@ -390,17 +390,17 @@ public:
   /** @brief Check if the container is empty.
       @return true if size is 0.
   */
-  [[nodiscard]] bool is_empty() const noexcept { return n == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return n == 0; }
 
   /** @brief Get the number of elements.
       @return Number of elements.
   */
-  [[nodiscard]] size_t size() const noexcept { return n; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return n; }
 
   /** @brief Get the capacity.
       @return Same as size() for this container.
   */
-  [[nodiscard]] size_t capacity() const noexcept { return n; }
+  [[nodiscard]] constexpr size_t capacity() const noexcept { return n; }
 
   /** @brief Get the first element.
       @return Reference to the first element.

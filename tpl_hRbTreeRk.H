@@ -697,7 +697,7 @@ public:
   Compare & key_comp() noexcept { return cmp; }
   const Compare & key_comp() const noexcept { return cmp; }
   Compare & get_compare() noexcept { return cmp; }
-  const Compare & get_compare() const noexcept { return cmp; }
+  [[nodiscard]] constexpr const Compare & get_compare() const noexcept { return cmp; }
 
   HtdRbTreeRk(Compare __cmp = Compare()) noexcept
     : head(&headNode),
@@ -738,7 +738,7 @@ public:
 
   virtual ~HtdRbTreeRk() = default;
 
-  bool is_empty() const noexcept { return root == Node::NullPtr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return root == Node::NullPtr; }
 
   /// O(1) size using root count
   size_t size() const noexcept { return COUNT(root); }
