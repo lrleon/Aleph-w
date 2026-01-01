@@ -583,7 +583,11 @@ Se creó `ah-dry-mixin.H` con mixins CRTP completamente documentados:
 | `FunctionalMixin` | `Functional_Methods` | 16+ métodos funcionales |
 | `KeysMixin` | `Generic_Keys` | `keys()`, `items()` |
 
-**Primera migración real**: `al-vector.H::Vector` ✅ (62 tests pasando)
+**Migraciones completadas**:
+- `al-vector.H::Vector` ✅ (62 tests)
+- `tpl_tree_node.H::Tree_Node` ✅ (13 tests)
+
+**Nota**: `Special_Ctors` no puede migrarse a CRTP (constructores no se heredan en C++).
 
 ### Fase 3: Optimización (Continuo)
 
