@@ -569,7 +569,21 @@ ah_length_error_if(cond) << "msg";
 |--------|-----------|----------|---------|
 | Migrar `assert()` a `ah_*` macros (selectivo) | Media | Alto | Consistencia |
 | ~~Adoptar más `constexpr`~~ | ~~Baja~~ | ~~Medio~~ | ✅ **Completado** (+47 funciones) |
+| ~~Migrar macros ahDry.H a CRTP mixins~~ | ~~Media~~ | ~~Alto~~ | ✅ **Iniciado** (prototipo + 1 migración) |
 | Refactorizar archivos >2000 líneas | Baja | Alto | Mantenibilidad |
+
+#### Migración de Macros a CRTP (ah-dry-mixin.H)
+
+Se creó `ah-dry-mixin.H` con mixins CRTP completamente documentados:
+
+| Mixin | Reemplaza | Métodos |
+|-------|-----------|---------|
+| `TraverseMixin` | `Generic_Traverse` | `traverse()` |
+| `LocateMixin` | `Locate_Functions` | `nth()`, `find_ptr()`, `find_item()` |
+| `FunctionalMixin` | `Functional_Methods` | 16+ métodos funcionales |
+| `KeysMixin` | `Generic_Keys` | `keys()`, `items()` |
+
+**Primera migración real**: `al-vector.H::Vector` ✅ (62 tests pasando)
 
 ### Fase 3: Optimización (Continuo)
 
