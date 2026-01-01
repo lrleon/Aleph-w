@@ -299,6 +299,96 @@ auto doubled = nums.maps<int>([](int x) { return x * 2; });
 auto evens = nums.filter([](int x) { return x % 2 == 0; });
 ```
 
+## Funciones Internas (namespace detail)
+
+Para optimización interna, `ah-ranges.H` proporciona wrappers sobre `std::ranges`:
+
+```cpp
+#include <ah-ranges.H>
+using namespace Aleph;
+
+std::vector<int> vec = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+// Predicados
+bool all_pos = detail::ranges_all_of(vec, [](int x) { return x > 0; });
+bool has_even = detail::ranges_any_of(vec, [](int x) { return x % 2 == 0; });
+bool no_neg = detail::ranges_none_of(vec, [](int x) { return x < 0; });
+
+// Búsqueda
+auto it = detail::ranges_find_if(vec, [](int x) { return x > 5; });
+auto count = detail::ranges_count_if(vec, [](int x) { return x % 2 == 0; });
+
+// Transformación (lazy)
+auto doubled = detail::ranges_transform(vec, [](int x) { return x * 2; });
+auto evens = detail::ranges_filter(vec, [](int x) { return x % 2 == 0; });
+
+// Slicing (lazy)
+auto first3 = detail::ranges_take(vec, 3);
+auto skip2 = detail::ranges_drop(vec, 2);
+auto rev = detail::ranges_reverse(vec);
+
+// Aplanamiento
+std::vector<std::vector<int>> nested = {{1, 2}, {3}, {4, 5, 6}};
+auto flat = detail::ranges_flatten(nested);
+
+// Reducción
+auto sum = detail::ranges_fold_left(vec, 0, std::plus<>{});
+auto product = detail::ranges_fold_left(vec, 1, std::multiplies<>{});
+
+// Convenientes
+auto total = detail::ranges_sum(vec);      // 55
+auto prod = detail::ranges_product(vec);   // 3628800
+
+// Min/Max
+auto min_it = detail::ranges_min(vec);
+auto max_it = detail::ranges_max(vec);
+
+// Sort (in-place)
+detail::ranges_sort(vec);                   // Ascendente
+detail::ranges_sort(vec, std::greater<>{}); // Descendente
+```
+
+## Función collect<Container>()
+
+Para materializar rangos en cualquier contenedor Aleph:
+
+```cpp
+// Funciona con append(), insert(), o push()
+auto list = collect<DynList<int>>(std::views::iota(1, 10));
+auto set = collect<DynSetRbTree<int>>(std::views::iota(1, 10));
+auto stack = collect<DynListStack<int>>(std::views::iota(1, 10));
+```
+
+## Tests
+
+Los tests comprehensivos están en `Tests/ah_ranges_test.cc`:
+
+```bash
+cd Tests/build
+cmake --build . --target ah_ranges_test
+./ah_ranges_test
+```
+
+### Cobertura de Tests (81 tests)
+
+| Categoría | Tests |
+|-----------|-------|
+| Feature Detection | 2 |
+| Pipe Adaptors | 14 |
+| Generic to<>() | 3 |
+| detail::ranges_* | 24 |
+| Lazy Ranges | 5 |
+| Concepts | 2 |
+| Edge Cases | 9 |
+| String Types | 2 |
+| Stress Tests | 5 |
+| Complex Types | 2 |
+| Aleph Container Iteration | 3 |
+| Chained Operations | 3 |
+| Collect Function | 4 |
+| Aleph + std::ranges | 2 |
+| StdRanges sanity | 1 |
+
 ## Compilación
 
 ```bash
@@ -308,5 +398,6 @@ g++ -std=c++20 -I/path/to/Aleph-w my_program.cc -o my_program
 ---
 
 **Versión**: Aleph-w con C++20 Ranges  
-**Fecha**: 2026
+**Fecha**: 2026  
+**Tests**: 81 (100% passing)
 
