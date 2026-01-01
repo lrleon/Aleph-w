@@ -34,12 +34,12 @@
 # include <ah-errors.H>
 # include <ahFunctional.H>
 # include <ahDry.H>
+# include <ah-dry-mixin.H>
 # include <ahSort.H>
 # include <htlist.H>
 # include <ah-zip.H>
 # include <tpl_hash.H>
 # include <al-domain.H>
-# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -62,12 +62,18 @@ namespace Aleph
      @author Leandro Rabindranath Leon
   */
   template <typename T = int, typename NumType = double>
-  class Vector
+  class Vector;  // Forward declaration for CRTP
+
+  template <typename T, typename NumType>
+  class Vector : public TraverseMixin<Vector<T, NumType>, std::pair<T, NumType>>,
+                 public LocateMixin<Vector<T, NumType>, std::pair<T, NumType>>,
+                 public FunctionalMixin<Vector<T, NumType>, std::pair<T, NumType>>
   {
   public:
     using Domain = AlDomain<T>;
     using DomainPtr = std::shared_ptr<Domain>;
     using Map = Aleph::HashMap<T, NumType, MapODhash>;
+    using Item_Type = std::pair<T, NumType>;  // Required by mixins
 
   private:
     static const NumType default_epsilon;
@@ -675,10 +681,10 @@ namespace Aleph
     Iterator get_itor() const noexcept { return Iterator(*this); }
     Iterator get_it() const noexcept { return Iterator(*this); }
 
-    Generic_Traverse(Pair);
-
-    Functional_Methods(Pair);
-    Locate_Functions(Pair);
+    // Note: traverse(), for_each(), all(), exists(), maps(), filter(),
+    // foldl(), fold(), partition(), take(), drop(), rev(), length(),
+    // nth(), nth_ne(), find_ptr(), find_item() are now provided
+    // by the CRTP mixins: TraverseMixin, FunctionalMixin, LocateMixin
   };
 
   template <typename T, typename NumType>
