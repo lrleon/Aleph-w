@@ -99,9 +99,8 @@
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
 
-# include <stdint.h>
-# include <cstdlib>
 # include <cstdint>
+# include <cstdlib>
 # include <cstring>
 # include <string>
 # include <primes.H>
@@ -139,9 +138,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t add_hash(void * key, size_t len) noexcept
+  inline size_t add_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
 
     for (size_t i = 0; i < len; i++)
@@ -160,9 +159,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t xor_hash(void * key, size_t len) noexcept
+  inline size_t xor_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
 
     for (size_t i = 0; i < len; i++)
@@ -177,7 +176,7 @@ namespace Aleph
       "The rotating hash is identical to the XOR hash except instead of
       simply folding each byte of the input into the internal state, it
       also performs a fold of the internal state before combining it with
-      the each byte of the input. This extra mixing step is enough to give
+      the byte of the input. This extra mixing step is enough to give
       the rotating hash a much better distribution. Much of the time, the
       rotating hash is sufficient, and can be considered the minimal
       acceptable algorithm. Notice that with each improvement, the
@@ -187,9 +186,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t rot_hash(void * key, size_t len) noexcept
+  inline size_t rot_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
   
     for (size_t i = 0; i < len; i++)
@@ -203,7 +202,7 @@ namespace Aleph
 
       "Dan Bernstein created this algorithm and posted it in a
       newsgroup. It is known by many as the Chris Torek hash because Chris
-      went a long way toward popularizing it. Since then it has been used
+      went a long way toward popularizing it. Since then, it has been used
       successfully by many, but despite that the algorithm itself is not
       very sound when it comes to avalanche and permutation of the
       internal state. It has proven very good for small character keys,
@@ -227,9 +226,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t djb_hash(void * key, size_t len) noexcept
+  inline size_t djb_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;
   
     for (size_t i = 0; i < len; i++)
@@ -252,9 +251,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t sax_hash(void * key, size_t len) noexcept
+  inline size_t sax_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;  
   
     for (size_t i = 0; i < len; i++)
@@ -290,9 +289,9 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t fnv_hash(void * key, size_t len) noexcept
+  inline size_t fnv_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 2166136261;
 
     for (size_t i = 0; i < len; i++)
@@ -323,9 +322,9 @@ namespace Aleph
       @author Bob Jenkins
       @ingroup Hash
   */
-  inline size_t oat_hash(void * key, size_t len) noexcept
+  inline size_t oat_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    const auto *p = static_cast<const unsigned char *>(key);
     size_t h = 0;  
   
     for (size_t i = 0; i < len; i++) 
@@ -357,7 +356,7 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  extern size_t jsw_hash(void * key, size_t len);
+  extern size_t jsw_hash(const void * key, size_t len);
 
 
   /** ELF hash
@@ -373,15 +372,15 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t elf_hash(void * key, size_t len) noexcept
+  inline size_t elf_hash(const void * key, const size_t len) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
-    size_t h = 0, g;
+    const auto *p = static_cast<const unsigned char *>(key);
+    size_t h = 0;
   
     for (size_t i = 0; i < len; i++) 
       {
         h = (h << 4) + p[i];
-        g = h & 0xf0000000L;
+        size_t g = h & 0xf0000000L;
  
         if(g != 0)
           h ^= g >> 24;
@@ -422,24 +421,24 @@ namespace Aleph
       @author Julienne Walker
       @ingroup Hash
   */
-  inline size_t jen_hash(void * key, size_t length,
-                         unsigned initval = Default_Hash_Seed) noexcept
+  inline size_t jen_hash(const void * key, const size_t length,
+                         const unsigned initval = Default_Hash_Seed) noexcept
   {
-    unsigned char * k = (unsigned char *) key;
-    size_t a, b;
+    const auto * k = static_cast<const unsigned char *>(key);
+    size_t b;
     size_t c = initval;
     size_t len = length;
 
-    a = b = 0x9e3779b9;
+    size_t a = b = 0x9e3779b9;
 
     while (len >= 12)
       {
-        a += (k[0] +((size_t)k[1] << 8) + ((size_t)k[2] << 16) +
-              ((size_t)k[3] << 24));
-        b += (k[4] +((size_t)k[5] << 8) + ((size_t)k[6] << 16) +
-              ((size_t)k[7] << 24));
-        c += (k[8] +((size_t)k[9] << 8) +((size_t)k[10] << 16) +
-              ((size_t)k[11] << 24));
+        a += (k[0] +(static_cast<size_t>(k[1]) << 8) + (static_cast<size_t>(k[2]) << 16) +
+              (static_cast<size_t>(k[3]) << 24));
+        b += (k[4] +(static_cast<size_t>(k[5]) << 8) + (static_cast<size_t>(k[6]) << 16) +
+              (static_cast<size_t>(k[7]) << 24));
+        c += (k[8] +(static_cast<size_t>(k[9]) << 8) + (static_cast<size_t>(k[10]) << 16) +
+              (static_cast<size_t>(k[11]) << 24));
 
         mix(a, b, c);
 
@@ -451,17 +450,17 @@ namespace Aleph
 
     switch(len)
       {
-      case 11: c += ((size_t)k[10] << 24); [[fallthrough]];
-      case 10: c += ((size_t)k[9] << 16);  [[fallthrough]];
-      case 9 : c += ((size_t)k[8] << 8);   [[fallthrough]];
+      case 11: c += (static_cast<size_t>(k[10]) << 24); [[fallthrough]];
+      case 10: c += (static_cast<size_t>(k[9]) << 16);  [[fallthrough]];
+      case 9 : c += (static_cast<size_t>(k[8]) << 8);   [[fallthrough]];
         /* First byte of c reserved for length */
-      case 8 : b += ((size_t)k[7] << 24);  [[fallthrough]];
-      case 7 : b += ((size_t)k[6] << 16);  [[fallthrough]];
-      case 6 : b += ((size_t)k[5] << 8);   [[fallthrough]];
+      case 8 : b += (static_cast<size_t>(k[7]) << 24);  [[fallthrough]];
+      case 7 : b += (static_cast<size_t>(k[6]) << 16);  [[fallthrough]];
+      case 6 : b += (static_cast<size_t>(k[5]) << 8);   [[fallthrough]];
       case 5 : b += k[4];                  [[fallthrough]];
-      case 4 : a += ((size_t)k[3] << 24);  [[fallthrough]];
-      case 3 : a += ((size_t)k[2] << 16);  [[fallthrough]];
-      case 2 : a += ((size_t)k[1] << 8);   [[fallthrough]];
+      case 4 : a += (static_cast<size_t>(k[3]) << 24);  [[fallthrough]];
+      case 3 : a += (static_cast<size_t>(k[2]) << 16);  [[fallthrough]];
+      case 2 : a += (static_cast<size_t>(k[1]) << 8);   [[fallthrough]];
       case 1 : a += k[0];                  break;
       default: break;
       }
@@ -514,9 +513,9 @@ namespace Aleph
   }
 
 
-  inline size_t murmur3hash(char * key, unsigned long seed)
+  inline size_t murmur3hash(const char * key, const unsigned long seed)
   {
-    size_t len = strlen(key);
+    const size_t len = strlen(key);
 # ifdef __x86_64__
     Buf128Bits buf;
     MurmurHash3_x64_128(key, len, seed, &buf);
@@ -532,7 +531,7 @@ namespace Aleph
   }
 
   template <> inline
-  size_t murmur3hash(const std::string & key, unsigned long seed)
+  size_t murmur3hash(const std::string & key, const unsigned long seed)
   {
 # ifdef __x86_64__
     Buf128Bits buf;
@@ -549,7 +548,7 @@ namespace Aleph
   }
 
 
-  /* Paul Hsieh super fast hash function.
+  /* Paul Hsieh superfast hash function.
 
      Taken from
 
@@ -572,23 +571,22 @@ namespace Aleph
       @author Paul Hsieh
       @ingroup Hash
   */
-  inline size_t SuperFastHash(void * key, size_t len) noexcept
+  inline size_t SuperFastHash(const void * key, size_t len) noexcept
   {
-    const unsigned char * data = (unsigned char *) key;
-    size_t hash = len, tmp;
-    int rem;
+    const auto * data = static_cast<const unsigned char *>(key);
+    size_t hash = len;
 
     if (len <= 0 || data == nullptr)
       return 0;
 
-    rem = len & 3;
+    const int rem = len & 3;
     len >>= 2;
 
     /* Main loop */
     for (;len > 0; --len)
       {
         hash  += get16bits (data);
-        tmp    = (get16bits (data+2) << 11) ^ hash;
+        const size_t tmp = (get16bits(data+2) << 11) ^ hash;
         hash   = (hash << 16) ^ tmp;
         data  += 2*sizeof (uint16_t);
         hash  += hash >> 11;
@@ -600,7 +598,7 @@ namespace Aleph
       case 3:
         hash += get16bits (data);
         hash ^= hash << 16;
-        hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
+        hash ^= static_cast<signed char>(data[sizeof(uint16_t)]) << 18;
         hash += hash >> 11;
         break;
       case 2:
@@ -609,7 +607,7 @@ namespace Aleph
         hash += hash >> 17;
         break;
       case 1:
-        hash += (signed char)*data;
+        hash += static_cast<signed char>(*data);
         hash ^= hash << 10;
         hash += hash >> 1;
         break;
@@ -631,67 +629,67 @@ namespace Aleph
   template <typename Key> inline
   size_t add_hash(const Key & key) noexcept
   {
-    return add_hash((void *) &key, sizeof(key));
+    return add_hash(&key, sizeof(key));
   }
 
   template <typename Key> inline
   size_t xor_hash(const Key & key) noexcept
   {
-    return xor_hash((void *) &key, sizeof(key));
+    return xor_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t rot_hash(const Key & key) noexcept
+  size_t rot_hash(const Key & key) noexcept
   {
-    return rot_hash((void *) &key, sizeof(key));
+    return rot_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t djb_hash(const Key & key) noexcept
+  size_t djb_hash(const Key & key) noexcept
   {
-    return djb_hash((void *) &key, sizeof(key));
+    return djb_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t sax_hash(const Key & key) noexcept
+  size_t sax_hash(const Key & key) noexcept
   {
-    return sax_hash((void *) &key, sizeof(key));
+    return sax_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t fnv_hash(const Key & key) noexcept
+  size_t fnv_hash(const Key & key) noexcept
   {
-    return fnv_hash((void *) &key, sizeof(key));
+    return fnv_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t oat_hash(const Key & key) noexcept
+  size_t oat_hash(const Key & key) noexcept
   {
-    return oat_hash((void *) &key, sizeof(key));
+    return oat_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t jsw_hash(const Key & key)
+  size_t jsw_hash(const Key & key)
   {
-    return jsw_hash((void *) &key, sizeof(key));
+    return jsw_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t elf_hash(const Key & key) noexcept
+  size_t elf_hash(const Key & key) noexcept
   {
-    return elf_hash((void *) &key, sizeof(key));
+    return elf_hash(&key, sizeof(key));
   }
 
   template <typename Key>
-  inline size_t jen_hash(const Key &  key, unsigned initval) noexcept
+  size_t jen_hash(const Key &  key, const unsigned initval) noexcept
   {
-    return jen_hash((void *) &key, sizeof(key), initval);
+    return jen_hash(&key, sizeof(key), initval);
   }
 
   template <typename Key>
-  inline size_t SuperFastHash(const Key &  key) noexcept 
+  size_t SuperFastHash(const Key &  key) noexcept
   {
-    return SuperFastHash((void *) &key, sizeof(key));
+    return SuperFastHash(&key, sizeof(key));
   }
 
   inline size_t add_hash(const char * key) noexcept
@@ -707,7 +705,7 @@ namespace Aleph
 
   inline size_t xor_hash(const char * key) noexcept
   {
-    unsigned char * p = (unsigned char *) key;
+    auto p = reinterpret_cast<const unsigned char *>(key);
     size_t h = 0;
   
     while (*p)
@@ -718,7 +716,7 @@ namespace Aleph
 
   inline size_t rot_hash(const char * key) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    auto p = reinterpret_cast<const unsigned char *>(key);
     size_t h = 0;
 
     while (*p)
@@ -729,7 +727,7 @@ namespace Aleph
 
   inline size_t djb_hash(const char * key) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    auto p = reinterpret_cast<const unsigned char *>(key);
     size_t h = 0;
 
     while (*p)
@@ -751,7 +749,7 @@ namespace Aleph
 
   inline size_t fnv_hash(const char * key) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    auto p = reinterpret_cast<const unsigned char *>(key);
     size_t h = 2166136261;
 
     while (*p)
@@ -762,7 +760,7 @@ namespace Aleph
 
   inline size_t oat_hash(const char * key) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
+    auto p = reinterpret_cast<const unsigned char *>(key);
     size_t h = 0;
 
     while (*p)
@@ -783,13 +781,13 @@ namespace Aleph
 
   inline size_t elf_hash(const char * key) noexcept
   {
-    unsigned char *p = (unsigned char *) key;
-    size_t h = 0, g;
+    auto p = reinterpret_cast<const unsigned char *>(key);
+    size_t h = 0;
 
     while (*p)
       {
         h =(h << 4) + *p++;
-        g = h & 0xf0000000L;
+        size_t g = h & 0xf0000000L;
 
         if(g != 0)
           h ^= g >> 24;
@@ -802,7 +800,7 @@ namespace Aleph
 
   inline size_t SuperFastHash(const char * key) noexcept
   {
-    return SuperFastHash((void*) key, strlen(key));
+    return SuperFastHash(key, strlen(key));
   }
 
   template <>
@@ -853,12 +851,12 @@ namespace Aleph
 
   inline size_t jen_hash(const std::string & key, unsigned initval) noexcept
   {
-    return jen_hash((void*) key.c_str(), key.size(), initval);
+    return jen_hash(key.c_str(), key.size(), initval);
   }
 
   inline size_t SuperFastHash(const std::string & key) noexcept
   {
-    return SuperFastHash((void*) key.c_str(), key.size());
+    return SuperFastHash(key.c_str(), key.size());
   }
 
   template <typename Key> inline

@@ -1317,6 +1317,9 @@ public:
 
     using Set_Type = DynArray;
 
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
+
     /// Initializes an iterator on `array`
     Iterator(const DynArray & array) noexcept
       : array_ptr(const_cast<DynArray*>(&array)), curr_idx(0)

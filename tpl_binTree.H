@@ -336,6 +336,8 @@ public:
   */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
     Iterator(GenBinTree & tree) : BinNodeInfixIterator<Node>(tree.getRoot()) {}
     Iterator(const GenBinTree & tree)
       : BinNodeInfixIterator<Node>(tree.getRoot()) {}

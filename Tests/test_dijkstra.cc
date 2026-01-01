@@ -12,6 +12,21 @@
 
 using namespace Aleph;
 
+// Helper iterator for multigraphs that visits ALL arcs including parallel ones
+// and provides the get_current_arc_ne() method required by Dijkstra
+template <class GT, class SA = Dft_Show_Arc<GT>>
+class Out_Iterator_AllArcs : public Out_Iterator<GT, SA>
+{
+public:
+  using Base = Out_Iterator<GT, SA>;
+  using Base::Base;
+
+  typename GT::Arc * get_current_arc_ne() const noexcept
+  {
+    return const_cast<Out_Iterator_AllArcs *>(this)->get_current_arc();
+  }
+};
+
 // Graph type for tests - uses double weights for distances
 using GT = List_Graph<Graph_Node<int>, Graph_Arc<double>>;
 using Node = GT::Node;
@@ -39,8 +54,17 @@ using DijkstraFor =
   Dijkstra_Min_Paths<Graph, Dft_Dist<Graph>, Node_Arc_Iterator,
                      Dft_Show_Arc<Graph>, HeapTag::template Heap>;
 
+// Dijkstra with Out_Iterator_AllArcs for multigraphs (visits ALL arcs, including parallel)
+template <typename HeapTag, typename Graph>
+using DijkstraForAllArcs =
+  Dijkstra_Min_Paths<Graph, Dft_Dist<Graph>, Out_Iterator_AllArcs,
+                     Dft_Show_Arc<Graph>, HeapTag::template Heap>;
+
 template <typename HeapTag>
 using Dijkstra = DijkstraFor<HeapTag, GT>;
+
+template <typename HeapTag>
+using DijkstraAllArcs = DijkstraForAllArcs<HeapTag, GT>;
 
 template <typename HeapTag>
 using DigraphDijkstra = DijkstraFor<HeapTag, DGT>;
@@ -786,6 +810,92 @@ TYPED_TEST(DijkstraHeapTest, ComputeSpanningTreeDisconnected) {
 
   EXPECT_EQ(tree.get_num_nodes(), 2);
   EXPECT_EQ(tree.get_num_arcs(), 1);
+}
+
+// ========== TEST 36: Parallel Arcs (Multigraph) ==========
+// Test that Dijkstra correctly handles graphs with multiple arcs between same nodes
+// NOTE: Uses DijkstraAllArcs which uses Out_Iterator_Ne to visit ALL arcs including parallel ones
+TYPED_TEST(DijkstraHeapTest, ParallelArcsChoosesMinimum) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  // Multiple arcs between n0 and n1 with different weights
+  g.insert_arc(n0, n1, 10.0);  // expensive
+  g.insert_arc(n0, n1, 3.0);   // cheap - should be chosen
+  g.insert_arc(n0, n1, 7.0);   // medium
+
+  // Single arc to destination
+  g.insert_arc(n1, n2, 2.0);
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 4) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  DijkstraAllArcs<TypeParam> dij;
+  Path<GT> path(g);
+  double d = dij(g, n0, n2, path);
+
+  // Shortest path should use the 3.0 arc: 3.0 + 2.0 = 5.0
+  EXPECT_EQ(d, 5.0);
+}
+
+// ========== TEST 37: Parallel Arcs in Both Directions ==========
+TYPED_TEST(DijkstraHeapTest, ParallelArcsBothDirections) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+
+  // Arcs in both directions with different weights
+  g.insert_arc(n0, n1, 5.0);
+  g.insert_arc(n1, n0, 3.0);
+  g.insert_arc(n0, n1, 2.0);  // Best from n0 to n1
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 3) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  DijkstraAllArcs<TypeParam> dij;
+  Path<GT> path(g);
+  double d = dij(g, n0, n1, path);
+
+  // In undirected graph, shortest should be 2.0
+  EXPECT_EQ(d, 2.0);
+}
+
+// ========== TEST 38: Complex Multigraph ==========
+TYPED_TEST(DijkstraHeapTest, ComplexMultigraph) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  // Multiple paths with parallel arcs
+  g.insert_arc(n0, n1, 4.0);
+  g.insert_arc(n0, n1, 2.0);  // Best n0->n1
+  g.insert_arc(n1, n2, 3.0);
+  g.insert_arc(n1, n2, 1.0);  // Best n1->n2
+  g.insert_arc(n2, n3, 5.0);
+  g.insert_arc(n2, n3, 2.0);  // Best n2->n3
+  
+  // Alternative path
+  g.insert_arc(n0, n3, 10.0);
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 7) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  DijkstraAllArcs<TypeParam> dij;
+  Path<GT> path(g);
+  double d = dij(g, n0, n3, path);
+
+  // Best path: 2.0 + 1.0 + 2.0 = 5.0
+  EXPECT_EQ(d, 5.0);
 }
 
 // ========== GoogleTest main ==========

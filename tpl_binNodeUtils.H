@@ -905,8 +905,8 @@ namespace Aleph
   /** Traverse preorder a binary tree without recursion and without stack.
 
       `preOrderThreaded(root,visit)` traverses preorder the binary tree
-      by building partial threads to succesor nodes. This implicates
-      that during the traversal the links coulld be invalid.
+      by building partial threads to successor nodes. This implicates
+      that during the traversal the links could be invalid.
 
       The visit function has the following signature:
 
@@ -1046,9 +1046,9 @@ namespace Aleph
   template <class Node>
   inline std::string code(Node *root)
   {
-    BitArray bits = tree_to_bits(root);
+    const BitArray bits = tree_to_bits(root);
     const size_t n = bits.size();
-    std::string str("");
+    std::string str;
     str.reserve(n);
     for (size_t i = 0; i < n; ++i)
       str.push_back(bits(i) ? 'b' : 'a');
@@ -1060,8 +1060,7 @@ namespace Aleph
   static inline
   Node * __bits_to_tree(const BitArray & array, int & i)
   {
-    int bit = array.read_bit(i++);
-    if (bit == 1)
+    if (const int bit = array.read_bit(i++); bit == 1)
       return Node::NullPtr;
 
     Node *p = new Node;
@@ -1713,7 +1712,7 @@ namespace Aleph
       @param[out] tg tree with keys greater than `key`
       @param[in] cmp comparison criteria
       @return `true` if the tree wa split; that if `key` was not in the
-      tree. Otherwise the split is not performed and it return `false`
+      tree. Otherwise, the split is not performed and it return `false`
 
       @see split_key()
       @ingroup Arboles
@@ -2318,7 +2317,7 @@ namespace Aleph
 
         return left_branch;
       }
-    else if (cmp(KEY(root), KEY(p)))
+    if (cmp(KEY(root), KEY(p)))
       { // insert in right subtree
         Node *right_branch = search_or_insert_root_rec(RLINK(root), p, cmp);
         if (right_branch == p)
@@ -2358,9 +2357,7 @@ namespace Aleph
       s.swap(it.s);
     }
 
-    BinNodePrefixIterator() noexcept
-    { /* empty */
-    }
+    BinNodePrefixIterator() = default;
 
     /// Initialize an iterator on the first node in preorder for the tree
     /// with root `__root`
@@ -2376,7 +2373,7 @@ namespace Aleph
       // empty
     }
 
-    BinNodePrefixIterator(BinNodePrefixIterator && it)
+    BinNodePrefixIterator(BinNodePrefixIterator && it) noexcept
     {
       swap(it);
     }
@@ -2427,14 +2424,14 @@ namespace Aleph
       return *this;
     }
 
-    BinNodePrefixIterator &operator =(BinNodePrefixIterator && it)
+    BinNodePrefixIterator &operator =(BinNodePrefixIterator && it) noexcept
     {
       swap(it);
       return *this;
     }
 
     /// Return `true` if iterator has current node
-    bool has_curr() const noexcept { return curr != Node::NullPtr; }
+    [[nodiscard]] bool has_curr() const noexcept { return curr != Node::NullPtr; }
 
     /// Return the current link guaranteeing no exception. Be careful.
     Node * get_curr_ne() const noexcept { return curr; }
@@ -2494,7 +2491,7 @@ namespace Aleph
        and the next item processed. Otherwise. the traversal stops.
 
        \param root
-       \param[in] operation to be performed on each item
+       \param[in] op to be performed on each item
        \return `true` if all the nodes were visited (`operation` on each
        one always returned `true`) or `false` if the traversal was
        stopped because there was a `false` result on an item.
@@ -2522,7 +2519,7 @@ namespace Aleph
 
           void operation(Node * p)
 
-      Overloadings of this method allow that the signature can be
+      Overloading of this method allow that the signature can be
       lightly different; for example, remove the reference or the
       `const`.
 
@@ -2599,11 +2596,9 @@ namespace Aleph
       s.swap(it.s);
     }
 
-    BinNodeInfixIterator() noexcept
-    { /* empty */
-    }
+    BinNodeInfixIterator() = default;
 
-    /// Initialize an iterator on the first node inorder sense
+    /// Initialize an iterator on the first node inorder
     BinNodeInfixIterator(Node *__root) noexcept
       : root(__root), s(Node::MaxHeight)
     {
@@ -2616,7 +2611,7 @@ namespace Aleph
       // empty
     }
 
-    BinNodeInfixIterator(BinNodeInfixIterator && it) { swap(it); }
+    BinNodeInfixIterator(BinNodeInfixIterator && it) noexcept { swap(it); }
 
     /// Reset the iterator to the first node inorder
     void reset_first() noexcept
@@ -2625,7 +2620,7 @@ namespace Aleph
       init();
     }
 
-    /// Reset the iterator to the first node inorder sense
+    /// Reset the iterator to the first node inorder
     void reset_last() noexcept
     {
       s.empty();
@@ -2752,7 +2747,7 @@ namespace Aleph
 
           void operation(Node * p)
 
-      Overloadings of this method allow that the signature can be
+      Overloading of this method allow that the signature can be
       lightly different; for example, remove the reference or the
       `const`.
 

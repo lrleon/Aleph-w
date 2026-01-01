@@ -324,7 +324,7 @@ struct CtorContainer : public ::testing::Test
   {
     ptr_1 = new C(range<int>(N));
     ptr_2 = new C({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 });
-    ptr_3 = new C(ptr_1->begin(), ptr_2->end());
+    ptr_3 = new C(ptr_1->begin(), ptr_1->end());  // Use same container for begin/end
   }
   ~CtorContainer()
   {

@@ -28,39 +28,72 @@
 # define AH_ITERATOR_H
 
 # include <iterator>
+# include <concepts>
+# include <type_traits>
+# include <utility>
 
-template <class SetType>
-struct StlIterator : public SetType::Iterator
-{
+ /** @brief STL-compatible mutable iterator adapter for Aleph containers.
+ 
+     This adapter wraps an Aleph-style iterator (`SetType::Iterator`) and exposes
+     the operations expected by the STL and C++20 ranges.
+
+     @tparam SetType Aleph container type.
+
+     @note Requirements on `SetType::Iterator`:
+     - Constructible from `SetType&`.
+     - `bool has_curr() const`.
+     - `void next()`.
+     - `auto & get_curr() const` returning the current element.
+     - `auto get_pos() const` returning a position that is stable and comparable
+       between iterators over the same container.
+     - `void end()` to move the iterator to the end sentinel.
+ */
+ template <class SetType>
+ struct StlIterator : public SetType::Iterator
+ {
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
   using iterator_category = std::forward_iterator_tag;
+  using iterator_concept = std::forward_iterator_tag;
 
   using difference_type = std::ptrdiff_t;
 
-  using pointer = T*;
+  using reference = decltype(std::declval<const Itor &>().get_curr());
 
-  using reference = T&;
+  using pointer = std::add_pointer_t<std::remove_reference_t<reference>>;
 
   using value_type = T;
 
+  /// Default constructor creates an "end" iterator (no current element).
+  StlIterator() noexcept = default;
+
   using Itor::Itor;
 
-  StlIterator operator ++ ()
+  /// Pre-increment: advance to the next element.
+  StlIterator& operator ++ ()
   {
     this->next();
     return *this;
   }
 
+  /// Post-increment: advance to the next element and return the old iterator.
   StlIterator operator ++ (int)
   {
-    Itor ret_val = *this;
+    StlIterator ret_val = *this;
     this->next();
     return ret_val;
   }
 
+  /// Equality compares positions when both iterators are valid; otherwise
+  /// both must be in the end state.
   bool operator == (const StlIterator & it) const
   {
+    if constexpr (requires (const Itor & a, const Itor & b)
+                  {
+                    { a == b } -> std::convertible_to<bool>;
+                  })
+      return static_cast<const Itor &>(*this) == static_cast<const Itor &>(it);
+
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
       // return this->get_curr() == it.get_curr();
@@ -71,21 +104,28 @@ struct StlIterator : public SetType::Iterator
     return false;
   }
 
+  /// Inequality.
   bool operator != (const StlIterator & it) const
   {
     return not (*this == it);
   }
 
-  T & operator * () { return const_cast<T&>(this->get_curr()); }
+  // Note: operator* must be const to satisfy std::indirectly_readable.
+  // Constness of the iterator object does not imply constness of the element.
+  /// Dereference: return the current element.
+  reference operator * () const { return this->get_curr(); }
 
-  T * operator -> () { return &const_cast<T&>(this->get_curr()); }
+  /// Member access to the current element.
+  pointer operator -> () const { return &this->get_curr(); }
 
-  static StlIterator begin(const SetType & s)
+  /// Create an iterator positioned at the first element of the container.
+  static StlIterator begin(SetType & s)
   {
     return StlIterator(s);
   }
 
-  static StlIterator end(const SetType & s)
+  /// Create an end iterator for the container.
+  static StlIterator end(SetType & s)
   {
     StlIterator it(s);
     it.Itor::end();
@@ -94,12 +134,19 @@ struct StlIterator : public SetType::Iterator
 };
 
 
-template <class SetType>
-struct StlConstIterator : public SetType::Iterator
-{
+ /** @brief STL-compatible const iterator adapter for Aleph containers.
+ 
+     This adapter provides a read-only view over the underlying Aleph iterator.
+
+     @tparam SetType Aleph container type.
+ */
+ template <class SetType>
+ struct StlConstIterator : public SetType::Iterator
+ {
   using T = typename SetType::Item_Type;
   using Itor = typename SetType::Iterator;
   using iterator_category = std::forward_iterator_tag;
+  using iterator_concept = std::forward_iterator_tag;
 
   using difference_type = std::ptrdiff_t;
 
@@ -109,23 +156,36 @@ struct StlConstIterator : public SetType::Iterator
 
   using value_type = T;
 
+  /// Default constructor creates an "end" iterator (no current element).
+  StlConstIterator() noexcept = default;
+
   using Itor::Itor;
 
-  Itor operator ++ ()
+  /// Pre-increment: advance to the next element.
+  StlConstIterator& operator ++ ()
   {
     this->next();
     return *this;
   }
 
-  Itor operator ++ (int)
+  /// Post-increment: advance to the next element and return the old iterator.
+  StlConstIterator operator ++ (int)
   {
-    Itor ret_val = *this;
+    StlConstIterator ret_val = *this;
     this->next();
     return ret_val;
   }
 
+  /// Equality compares positions when both iterators are valid; otherwise
+  /// both must be in the end state.
   bool operator == (const StlConstIterator & it) const
   {
+    if constexpr (requires (const Itor & a, const Itor & b)
+                  {
+                    { a == b } -> std::convertible_to<bool>;
+                  })
+      return static_cast<const Itor &>(*this) == static_cast<const Itor &>(it);
+
     if (this->has_curr() and it.has_curr())
       return this->get_pos() == it.get_pos();
 
@@ -135,23 +195,25 @@ struct StlConstIterator : public SetType::Iterator
     return false;
   }
 
+  /// Inequality.
   bool operator != (const StlConstIterator & it) const
   {
     return not (*this == it);
   }
 
+  /// Dereference: return the current element.
   const T & operator * () const { return this->get_curr(); }
 
-  T const * operator -> () const
-  {
-    return const_cast<T*>(&this->get_curr());
-  }
+  /// Member access to the current element.
+  const T * operator -> () const { return &this->get_curr(); }
 
+  /// Create a const iterator positioned at the first element of the container.
   static StlConstIterator cbegin(const SetType & s)
   {
     return StlConstIterator(s);
   }
 
+  /// Create a const end iterator for the container.
   static StlConstIterator cend(const SetType & s)
   {
     StlConstIterator it(s);
@@ -161,9 +223,16 @@ struct StlConstIterator : public SetType::Iterator
 };
 
 
-template <class SetName>
-class StlAlephIterator
-{
+ /** @brief Mixin that adds STL `begin()/end()` and `cbegin()/cend()` to Aleph containers.
+
+     Containers inheriting from this class must expose `Item_Type` and `Iterator`,
+     where `Iterator` meets the requirements described in `StlIterator`.
+
+     @tparam SetName Aleph container type.
+ */
+ template <class SetName>
+ class StlAlephIterator
+ {
   SetName * me() { return static_cast<SetName*>(this); }
 
   const SetName * const_me() const { return static_cast<const SetName*>(this); }
@@ -174,36 +243,32 @@ public:
 
   using const_iterator = StlConstIterator<SetName>;
 
+  /// Return an STL-compatible iterator to the first element.
   iterator begin() noexcept { return iterator::begin(*me()); }
 
+  /// Return an STL-compatible end iterator.
   iterator end() noexcept { return iterator::end(*me()); }
 
+  /// Return a const iterator to the first element.
   const_iterator begin() const noexcept
   {
     return const_iterator::cbegin(*const_me());
   }
 
+  /// Return a const end iterator.
   const_iterator end() const noexcept
   {
     return const_iterator::cend(*const_me());
   }
 
+  /// Return a const iterator to the first element.
   const_iterator cbegin() const noexcept
   {
     return const_iterator::cbegin(*const_me());
   }
 
+  /// Return a const end iterator.
   const_iterator cend() const noexcept
-  {
-    return const_iterator::cend(*const_me());
-  }
-
-  const_iterator cbegin() noexcept
-  {
-    return const_iterator::cbegin(*const_me());
-  }
-
-  const_iterator cend() noexcept
   {
     return const_iterator::cend(*const_me());
   }
@@ -222,9 +287,13 @@ public:
 };
 
 
-/** Extract all the item of stl container ans save them in a DynList
+ /** @brief Extract all items from an STL container into an Aleph `DynList`.
 
-    @ingroup Funcional
+     @tparam Container Any STL-like container supporting range-for iteration.
+     @param c Source container.
+     @return A `DynList` containing copies of all elements from `c`.
+
+     @ingroup Functional
  */
 template <class Container> inline
 Aleph::DynList<typename Container::value_type>

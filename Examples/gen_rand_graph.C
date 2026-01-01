@@ -30,35 +30,53 @@
 # include <io_graph.H>
 # include <random_graph.H>
 # include <euclidian-graph-common.H>
+# include <tclap/CmdLine.h>
 
 bool verbose = false;
 
 using namespace Aleph;
+using namespace std;
 
 
 typedef Array_Graph<Graph_Anode<My_P>, Graph_Aarc<int>> Graph;
 
 
-void usage(int argn, char * argc[])
+int main(int argc, char * argv[])
 {
-  if (argn >= 5)
-    return;
+  TCLAP::CmdLine cmd("Generate random euclidian graph", ' ', "1.0");
 
-  printf("usage: %s n m w h seed [file-name]\n", argc[0]);
-  exit(1);
-}
- 
-int main(int argn, char * argc[])
-{
-  usage(argn, argc);
+  TCLAP::ValueArg<size_t> nArg("n", "nodes", "Number of nodes", false, 100, "size_t");
+  TCLAP::ValueArg<size_t> mArg("m", "edges", "Number of edges", false, 1000, "size_t");
+  TCLAP::ValueArg<int> wArg("W", "width", "Width", false, 1000, "int");
+  TCLAP::ValueArg<int> hArg("H", "height", "Height", false, 1000, "int");
+  TCLAP::ValueArg<unsigned int> seedArg("s", "seed", "Random seed", false, 0, "unsigned int");
+  TCLAP::UnlabeledValueArg<string> fileArg("file", "Output file name", false, "", "string");
+
+  cmd.add(nArg);
+  cmd.add(mArg);
+  cmd.add(wArg);
+  cmd.add(hArg);
+  cmd.add(seedArg);
+  cmd.add(fileArg);
+
+  try {
+      cmd.parse(argc, argv);
+  } catch (TCLAP::ArgException &e) {
+      cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+  }
+
+  size_t n = nArg.getValue();
+  size_t m = mArg.getValue();
+  int w = wArg.getValue();
+  int h = hArg.getValue();
+  unsigned int seed = seedArg.getValue();
+  string fileName = fileArg.getValue();
+
+  if (seed == 0)
+    seed = time(nullptr);
   
-  size_t n = atoi(argc[1]);
-  size_t m = atoi(argc[2]);
-  int w = atoi(argc[3]);
-  int h = atoi(argc[4]);
-  unsigned int seed = atoi(argc[5]);
-  
-  cout << argc[0] << " " << n << " " << m << " " << w << " " << h << " " 
+  cout << argv[0] << " " << n << " " << m << " " << w << " " << h << " "
        << seed << endl;
 
   cout << "Preparing system stack size to 256 Mb ... " << endl
@@ -85,9 +103,9 @@ int main(int argn, char * argc[])
 
   Graph g = gen_random_euclidian_graph<Graph>(n, m, w, h, seed);
 
-  if (argn == 7)
+  if (fileName != "")
     {
-      ofstream out(argc[6]);
+      ofstream out(fileName);
       IO_Graph<Graph, Rnode<Graph>, Wnode<Graph>, Rarc<Graph>, Warc<Graph>> 
 	(g).save_in_text_mode(out);
     }
@@ -95,5 +113,3 @@ int main(int argn, char * argc[])
     IO_Graph<Graph, Rnode<Graph>, Wnode<Graph>, Rarc<Graph>, Warc<Graph>> 
       (g).save_in_text_mode(cout);
 }
-
-

@@ -1327,6 +1327,9 @@ namespace Aleph
 
       using Set_Type = DynSetTree;
 
+      /// Default constructor creates an "end" iterator
+      Iterator() noexcept = default;
+
       Iterator(const DynSetTree & tree) : Base(tree.tree)
       { /* empty */
       }

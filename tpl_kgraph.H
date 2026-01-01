@@ -131,14 +131,13 @@ namespace Aleph
     for (typename DynDlist<typename Net::Node *>::Iterator it(sinks);
          it.has_curr(); it.next_ne())
       {
-        auto sink = it.get_curr();
-        auto super_source = net.insert_node();
-        auto super_sink = net.insert_node();
+        const auto sink = it.get_curr();
+        const auto super_source = net.insert_node();
+        const auto super_sink = net.insert_node();
         net.insert_arc(super_source, source, super_cap);
         net.insert_arc(sink, super_sink, super_cap);
 
-        const typename Net::Flow_Type flow = Max_Flow<Net>()(net);
-        if (flow < min_k)
+        if (const typename Net::Flow_Type flow = Max_Flow<Net>()(net); flow < min_k)
           min_k = flow;
 
         net.remove_node(super_source);
@@ -304,11 +303,11 @@ namespace Aleph
         auto a = it.get_curr();
         auto src = mapped_node<GT, Net>(g.get_src_node(a));
         auto tgt = mapped_node<GT, Net>(g.get_tgt_node(a));
-        auto arc = net.insert_arc(tgt, src, typename Net::Flow_Type(1));
+        auto arc = net.insert_arc(tgt, src, static_cast<typename Net::Flow_Type>(1));
         ARC_COOKIE(arc) = a;
         net_arc_map.insert(arc, a);
 
-        arc = net.insert_arc(src, tgt, typename Net::Flow_Type(1));
+        arc = net.insert_arc(src, tgt, static_cast<typename Net::Flow_Type>(1));
         ARC_COOKIE(arc) = a;
         net_arc_map.insert(arc, a);
       }
@@ -321,11 +320,8 @@ namespace Aleph
 
     DynDlist<typename Net::Node *> sinks;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      {
-        auto node = it.get_curr();
-        if (node != source)
+        if (auto node = it.get_curr(); node != source)
           sinks.append(node);
-      }
 
     for (typename DynDlist<typename Net::Node *>::Iterator it(sinks);
          it.has_curr(); it.next_ne())
@@ -347,35 +343,23 @@ namespace Aleph
 
             for (typename DynSetTree<typename Net::Node *>::Iterator it(vs);
                  it.has_curr(); it.next_ne())
-              {
-                auto node = it.get_curr();
-                if (net_node_map.contains(node))
+                if (auto node = it.get_curr(); net_node_map.contains(node))
                   vs_filtered.insert(node);
-              }
 
             for (typename DynSetTree<typename Net::Node *>::Iterator it(vt);
                  it.has_curr(); it.next_ne())
-              {
-                auto node = it.get_curr();
-                if (net_node_map.contains(node))
+                if (auto node = it.get_curr(); net_node_map.contains(node))
                   vt_filtered.insert(node);
-              }
 
             for (typename DynList<typename Net::Arc *>::Iterator it(cuts);
                  it.has_curr(); it.next_ne())
-              {
-                auto arc = it.get_curr();
-                if (net_arc_map.contains(arc))
+                if (auto arc = it.get_curr(); net_arc_map.contains(arc))
                   cuts_filtered.append(arc);
-              }
 
             for (typename DynList<typename Net::Arc *>::Iterator it(cutt);
                  it.has_curr(); it.next_ne())
-              {
-                auto arc = it.get_curr();
-                if (net_arc_map.contains(arc))
+                if (auto arc = it.get_curr(); net_arc_map.contains(arc))
                   cutt_filtered.append(arc);
-              }
 
             min_k = flow;
             tmp_vs.swap(vs_filtered);
@@ -507,8 +491,8 @@ namespace Aleph
         auto a = it.get_curr();
         auto src = mapped_node<GT, Net>(g.get_src_node(a));
         auto tgt = mapped_node<GT, Net>(g.get_tgt_node(a));
-        net.insert_arc(tgt, src, typename Net::Flow_Type(1));
-        net.insert_arc(src, tgt, typename Net::Flow_Type(1));
+        net.insert_arc(tgt, src, static_cast<typename Net::Flow_Type>(1));
+        net.insert_arc(src, tgt, static_cast<typename Net::Flow_Type>(1));
       }
 
     long min_k = min_degree;
@@ -569,7 +553,7 @@ namespace Aleph
                       typename Net::Node *atgt = nullptr;
 
                       if (nsrc == source)
-                        asrc = (typename Net::Node *) NODE_COOKIE(nsrc);
+                        asrc = static_cast<typename Net::Node *>(NODE_COOKIE(nsrc));
                       else
                         {
                           auto arc = map.find(nsrc);
@@ -577,7 +561,7 @@ namespace Aleph
                         }
 
                       if (ntgt == sink)
-                        atgt = (typename Net::Node *) NODE_COOKIE(ntgt);
+                        atgt = static_cast<typename Net::Node *>(NODE_COOKIE(ntgt));
                       else
                         {
                           auto arc = map.find(ntgt);

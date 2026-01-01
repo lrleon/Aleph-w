@@ -380,7 +380,7 @@ public:
     return Fourth;
   }
 
-  /// Convierte a string
+  /// Convert to string representation "[r,theta]".
   [[nodiscard]] std::string to_string() const
   {
     return "[" + std::to_string(geom_number_to_double(r)) + "," +
@@ -480,12 +480,10 @@ private:
       length.
 
       It uses the solution of these equations:
+      - d^2 = (tx-sx)^2 + (ty-sy)^2  (Pythagorean theorem)
+      - ty - sy = m(tx-sx)           (line equation)
 
-         d^2 = (tx-sy)^2 + (ty-sy)^2  (Pitágoras)
-
-         ty - sy = m(tx-sx)           (ecuación de recta)
-
-	 Return the point placed to the east (right).
+      @return The point placed to the east (right).
   */
   static
   Point compute_tgt_point(const Point & __src, // Point of origin
@@ -511,7 +509,7 @@ public:
      -#\f$ y - y_1 = m(x - x_1)\f$ (line equation given point and slope)
 
      @param[in] __src Source point
-     @param[in] m slope (in radians)
+     @param[in] m slope (rise over run, dimensionless)
      @param[in] l length
   */
   Segment(Point  __src, // source point
@@ -769,8 +767,8 @@ public:
         return W;
       }
 
-    // Vertical segment.
-    return src.y > tgt.y ? N : S;
+    // Vertical segment: if target is above source, heading north; else south.
+    return src.y < tgt.y ? N : S;
   }
 
   /// Extend the segment by @p __dist from the source endpoint.
@@ -982,7 +980,7 @@ public:
   }
 
   /// Returns the intersection segment between this triangle and segment @p s.
-  [[nodiscard]] Segment intersection_wih(const Segment & s) const
+  [[nodiscard]] Segment intersection_with(const Segment & s) const
   {
     return s.intersection_with(*this);
   }
@@ -1390,7 +1388,7 @@ y2 = ----------------------------------------------------------------------
 
     const Geom_Number ab = a * b;
 
-    // segmento desplazado al eje de coordenadas con origen en (xc, yc)
+    // Segment translated to coordinate system with origin at (xc, yc).
     const Segment sg_new(sg.get_src_point() - center,
                          sg.get_tgt_point() - center);
 
@@ -1424,7 +1422,7 @@ y2 = ----------------------------------------------------------------------
 
     const Geom_Number sumy = b2 * yr_minus_m_xr;
 
-    // hechas la cuentas principales, calculamos los valores
+    // With the main calculations done, compute the final values.
 
     const Geom_Number x1 = -(ab_root + sumx) / a2m2_plus_b2;
 
@@ -1434,8 +1432,8 @@ y2 = ----------------------------------------------------------------------
 
     const Geom_Number y2 = (ab_m_root + sumy) / a2m2_plus_b2;
 
-    // como los resultados son para la elipse en (0,0), reajustamos los
-    // puntos de intersección al centro real de la elipse
+    // Since results are for the ellipse at (0,0), translate the intersection
+    // points back to the actual ellipse center.
 
     const Point src = Point(x1, y1) + center;
     const Point tgt = Point(x2, y2) + center;
@@ -1490,7 +1488,7 @@ inline size_t aproximate_string_size(const std::string & str)
       switch (ptr[i])
         {
         case '\\':
-          // salte todos los caracteres que conforman el comando LateX
+          // Skip all characters that compose the LaTeX command.
           for (++i; isalnum(ptr[i]) and ptr[i] != '\0'; /* nothing */)
             ++i;
           ++__len;

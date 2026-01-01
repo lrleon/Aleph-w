@@ -842,6 +842,10 @@ public:
     */
     void prev() { locate_prev_available_entry(); }
 
+    /** @brief Default constructor creates an "end" iterator.
+    */
+    Iterator() noexcept = default;
+
     /** @brief Constructs an iterator positioned at the first entry.
         @param table The hash table to iterate over.
     */

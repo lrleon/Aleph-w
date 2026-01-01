@@ -1724,7 +1724,19 @@ TYPED_TEST(DynSetTreeTypedTest, SelfMoveAssignment)
     this->set.insert(i);
 
   // Self move-assignment should be safe (no-op)
+#if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wself-move"
+#elif defined(__GNUC__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wself-move"
+#endif
   this->set = std::move(this->set);
+#if defined(__clang__)
+#  pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#  pragma GCC diagnostic pop
+#endif
 
   // After self-move, behavior is unspecified but should not crash
   // The set should still be in a valid state

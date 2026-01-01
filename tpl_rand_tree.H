@@ -247,7 +247,7 @@ namespace Aleph
 
         @param[in] p pointer to the node to insert
         @return if `p->get_key()` is not in the tree, then the pointer
-        `p` is returned (it was inserted); othewise, `nullptr` is returned
+        `p` is returned (it was inserted); otherwise, `nullptr` is returned
     */
     Node * insert(Node *p) noexcept
     {

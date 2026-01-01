@@ -271,7 +271,9 @@ protected:
 public:
 
   Cache(size_t (*hash_fct)(const Key&), size_t size)
-    : hash_table(size, hash_fct),
+    : hash_table(size, hash_fct, Aleph::equal_to<Key>(),
+                 hash_default_lower_alpha, hash_default_upper_alpha,
+                 false), // don't free buckets - they're in arrays we manage
       cache_size(hash_table.capacity()), num_lru(0), num_locked(0)
   {
     assert(size > 1);
@@ -302,10 +304,12 @@ public:
   {
     assert(hash_table.size() <= cache_size);
 
+    // The hash_table was created with remove_all_buckets=false,
+    // so it won't try to delete our buckets.
+    // We just need to free the chunks (arrays of Cache_Entry).
     while (not chunk_list.is_empty())
       {
         Chunk_Descriptor * current_chunk = chunk_list.remove_next();
-
         delete [] current_chunk->get_data();
         delete current_chunk;
       }

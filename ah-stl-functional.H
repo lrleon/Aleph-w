@@ -75,6 +75,7 @@
 # include <tuple>
 # include <iterator>
 # include <stdexcept>
+# include <ah-ranges.H>
 
 namespace Aleph
 {
@@ -349,10 +350,17 @@ template <typename Pred, typename Container>
 template <typename T, typename Op, typename Container>
 [[nodiscard]] T stl_foldl(T init, Op&& op, const Container& c)
 {
-  T acc = std::move(init);
-  for (const auto& item : c)
-    acc = std::forward<Op>(op)(std::move(acc), item);
-  return acc;
+#if ALEPH_HAS_RANGES
+  if constexpr (std::ranges::range<Container>)
+    return detail::ranges_fold_left(c, std::move(init), std::forward<Op>(op));
+  else
+#endif
+  {
+    T acc = std::move(init);
+    for (const auto& item : c)
+      acc = std::forward<Op>(op)(std::move(acc), item);
+    return acc;
+  }
 }
 
 /**
@@ -468,10 +476,17 @@ template <typename T, typename Op, typename Container>
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_all(Pred&& pred, const Container& c)
 {
-  for (const auto& item : c)
-    if (!std::forward<Pred>(pred)(item))
-      return false;
-  return true;
+#if ALEPH_HAS_RANGES
+  if constexpr (std::ranges::range<Container>)
+    return detail::ranges_all_of(c, std::forward<Pred>(pred));
+  else
+#endif
+  {
+    for (const auto& item : c)
+      if (!std::forward<Pred>(pred)(item))
+        return false;
+    return true;
+  }
 }
 
 /**
@@ -486,10 +501,17 @@ template <typename Pred, typename Container>
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_exists(Pred&& pred, const Container& c)
 {
-  for (const auto& item : c)
-    if (std::forward<Pred>(pred)(item))
-      return true;
-  return false;
+#if ALEPH_HAS_RANGES
+  if constexpr (std::ranges::range<Container>)
+    return detail::ranges_any_of(c, std::forward<Pred>(pred));
+  else
+#endif
+  {
+    for (const auto& item : c)
+      if (std::forward<Pred>(pred)(item))
+        return true;
+    return false;
+  }
 }
 
 /// Alias for stl_exists

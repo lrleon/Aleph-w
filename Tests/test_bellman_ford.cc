@@ -1315,6 +1315,123 @@ TEST(BellmanFordTest, GetDistanceConsistentWithGetMinPath) {
   }
 }
 
+// ========== TEST: Parallel Arcs (Multigraph) ==========
+// Test that Bellman-Ford correctly handles graphs with multiple arcs between same nodes
+TEST(BellmanFordTest, ParallelArcsChoosesMinimum) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  // Multiple arcs between n0 and n1 with different weights
+  g.insert_arc(n0, n1, 10);  // expensive
+  g.insert_arc(n0, n1, 3);   // cheap - should be chosen
+  g.insert_arc(n0, n1, 7);   // medium
+
+  // Single arc to destination
+  g.insert_arc(n1, n2, 2);
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 4) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg = bf.paint_spanning_tree(n0);
+  EXPECT_FALSE(has_neg);
+
+  Path<GT> path(g);
+  int d = bf.get_min_path(n2, path);
+
+  // Shortest path should use the 3 arc: 3 + 2 = 5
+  EXPECT_EQ(d, 5);
+}
+
+// ========== TEST: Parallel Arcs with Negative Weights ==========
+TEST(BellmanFordTest, ParallelArcsNegativeWeights) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+
+  // Multiple arcs including negative
+  g.insert_arc(n0, n1, 5);
+  g.insert_arc(n0, n1, -2);  // Best (negative)
+  g.insert_arc(n1, n2, 3);
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 3) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg = bf.paint_spanning_tree(n0);
+  EXPECT_FALSE(has_neg);  // No negative cycle
+
+  Path<GT> path(g);
+  int d = bf.get_min_path(n2, path);
+
+  // Best path: -2 + 3 = 1
+  EXPECT_EQ(d, 1);
+}
+
+// ========== TEST: Complex Multigraph ==========
+TEST(BellmanFordTest, ComplexMultigraph) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  // Multiple paths with parallel arcs
+  g.insert_arc(n0, n1, 4);
+  g.insert_arc(n0, n1, 2);   // Best n0->n1
+  g.insert_arc(n1, n2, 3);
+  g.insert_arc(n1, n2, 1);   // Best n1->n2
+  g.insert_arc(n2, n3, 5);
+  g.insert_arc(n2, n3, 2);   // Best n2->n3
+  
+  // Alternative direct path
+  g.insert_arc(n0, n3, 10);
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 7) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg = bf.paint_spanning_tree(n0);
+  EXPECT_FALSE(has_neg);
+
+  Path<GT> path(g);
+  int d = bf.get_min_path(n3, path);
+
+  // Best path: 2 + 1 + 2 = 5
+  EXPECT_EQ(d, 5);
+}
+
+// ========== TEST: Parallel Arcs Creating Negative Cycle ==========
+TEST(BellmanFordTest, ParallelArcsNegativeCycle) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+
+  // Parallel arcs that form a negative cycle in undirected interpretation
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n1, n0, -5);  // Creates negative cycle: 1 + (-5) = -4
+
+  // Check if graph supports parallel arcs
+  if (g.get_num_arcs() < 2) {
+    GTEST_SKIP() << "Graph type does not support parallel arcs (multigraph)";
+  }
+
+  Bellman_Ford<GT> bf(g);
+  bool has_neg = bf.paint_spanning_tree(n0);
+
+  // Should detect negative cycle
+  EXPECT_TRUE(has_neg);
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

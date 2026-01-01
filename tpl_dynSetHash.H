@@ -359,6 +359,9 @@ namespace Aleph
 
       using Set_Type = DynHashTable;
 
+      /// Default constructor creates an "end" iterator
+      Iterator() noexcept = default;
+
       Iterator(const DynHashTable & table) : Base::Iterator(table) {}
 
       Key &get_curr_ne() noexcept

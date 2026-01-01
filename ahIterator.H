@@ -94,9 +94,12 @@ namespace Aleph
   {
     STL_ITOR_SPEC(__iterator);
 
-    T &operator *() { return const_cast<T &>(this->get_curr()); }
+    // Note: operator* must be const to satisfy std::indirectly_readable concept
+    // (required by std::ranges::input_iterator). The constness of the iterator
+    // does not affect the constness of the pointed-to value.
+    T &operator *() const { return const_cast<T &>(this->get_curr()); }
 
-    T * operator ->()
+    T * operator ->() const
     {
       return &const_cast<T &>(this->get_curr());
     }

@@ -356,6 +356,8 @@ public:
 */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
     Iterator(GenTdSplayTree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
   };
 };

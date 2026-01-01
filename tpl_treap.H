@@ -540,6 +540,8 @@ namespace Aleph
    */
     struct Iterator : public BinNodeInfixIterator<Node>
     {
+      /// Default constructor creates an "end" iterator
+      Iterator() noexcept = default;
       Iterator(Gen_Treap & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
     };
   };

@@ -271,6 +271,8 @@ namespace Aleph {
     struct Iterator : public Base::Iterator
     {
       using Item_Type = T;
+      /// Default constructor creates an "end" iterator
+      Iterator() noexcept = default;
       Iterator(const DynBinHeap & h)
         : Base::Iterator(h) {}
       const T & get_curr_ne() const noexcept

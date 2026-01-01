@@ -1989,6 +1989,47 @@ namespace Aleph {
    * @throw domain_error If the cookie chain is broken (nullptr encountered).
    * @throw bad_alloc If there is not enough memory.
    */
+  /** @brief Helper to find the spanning tree arc between two nodes in a multigraph.
+   *
+   * When there are parallel arcs between two nodes, this function searches
+   * for the arc that is marked as part of the spanning tree.
+   *
+   * @param g The graph
+   * @param src Source node
+   * @param tgt Target node
+   * @return Pointer to the spanning tree arc, or nullptr if not found
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  typename GT::Arc *
+  search_spanning_tree_arc(const GT & g,
+                           typename GT::Node *src, typename GT::Node *tgt,
+                           SA sa = SA()) noexcept
+  {
+    assert(src != nullptr and tgt != nullptr);
+
+    // For efficiency, iterate over the node with fewer arcs
+    if (not g.is_digraph() and tgt->num_arcs < src->num_arcs)
+      std::swap(tgt, src);
+
+    typename GT::Arc * first_match = nullptr;
+    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
+      {
+        if (it.get_tgt_node_ne() != tgt)
+          continue;
+
+        auto arc = it.get_current_arc_ne();
+        // Prefer arc marked as spanning tree
+        if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+          return arc;
+
+        // Keep first match as fallback
+        if (first_match == nullptr)
+          first_match = arc;
+      }
+
+    return first_match; // Return first match if no spanning tree arc found
+  }
+
   template <class GT, class Distance = Dft_Dist<GT>>
   typename Distance::Distance_Type
   get_min_path(typename GT::Node * s, typename GT::Node * end, Path<GT> & path)
@@ -2000,22 +2041,42 @@ namespace Aleph {
 
     Distance_Type dist{};
     path.empty();
-    path.insert(end);
 
     if (s == end)
-      return dist;
-
-    Distance distance;
-    auto p = end;
-    do
       {
-        p = static_cast<typename GT::Node *>(NODE_COOKIE(p));
-        ah_domain_error_if(p == nullptr)
-          << "get_min_path(): broken cookie chain (nullptr)";
-        path.insert(p);
-        dist += distance(path.get_first_arc());
+        path.init(end);
+        return dist;
       }
-    while (p != s);
+
+    // Build path from end to start following cookies, collecting arcs
+    Distance distance;
+    DynList<std::pair<typename GT::Node*, typename GT::Arc*>> node_arc_list;
+
+    auto curr = end;
+    while (curr != s)
+      {
+        auto prev = static_cast<typename GT::Node *>(NODE_COOKIE(curr));
+        ah_domain_error_if(prev == nullptr)
+          << "get_min_path(): broken cookie chain (nullptr)";
+
+        // Find the spanning tree arc between prev and curr
+        auto arc = search_spanning_tree_arc<GT>(path.get_graph(), prev, curr);
+        ah_domain_error_if(arc == nullptr)
+          << "get_min_path(): no arc connecting nodes in path";
+
+        node_arc_list.insert(std::make_pair(curr, arc));
+        dist += distance(arc);
+        curr = prev;
+      }
+
+    // Now build path from start to end
+    path.init(s);
+    for (auto it = node_arc_list.get_it(); it.has_curr(); it.next())
+      {
+        auto & [node, arc] = it.get_curr();
+        (void)node; // suppress warning
+        path.append(arc);
+      }
 
     return dist;
   }

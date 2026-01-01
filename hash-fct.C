@@ -27,12 +27,12 @@ void init_jsw() noexcept
   init = true; 
 }
 
-size_t jsw_hash(void * key, size_t len)
+size_t jsw_hash(const void * key, size_t len)
 {
   ah_domain_error_if(not init)
       << "jsw_hash: init_jsw() has not been called";
 
-  unsigned char *p = (unsigned char*) key;
+  const unsigned char *p = (const unsigned char*) key;
   size_t h = 16777551;
 
   for (size_t i = 0; i < len; i++)
@@ -46,7 +46,7 @@ size_t jsw_hash(const char * key)
   ah_domain_error_if(not init)
       << "jsw_hash: init_jsw() has not been called";
 
-  unsigned char * p = (unsigned char*) key;
+  const unsigned char * p = (const unsigned char*) key;
   size_t h = 16777551;
   
   while (*p)

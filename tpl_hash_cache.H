@@ -218,7 +218,9 @@ namespace Aleph {
     */
     Hash_Cache(size_t (*hash_fct)(const Key&),
                size_t __hash_size, size_t __cache_size)
-      : hash_table(__hash_size, hash_fct),
+      : hash_table(__hash_size, hash_fct, Cmp(), 
+                   hash_default_lower_alpha, hash_default_upper_alpha,
+                   false), // don't free buckets - they're in arrays we manage
         num_lru(0), cache_size(__cache_size), num_locked(0)
     {
       // apartar entradas del cache
@@ -246,11 +248,13 @@ namespace Aleph {
     }
 
     virtual ~Hash_Cache()
-    {      // recorrer lista de bloques y liberarlos
+    {
+      // The hash_table was created with remove_all_buckets=false,
+      // so it won't try to delete our buckets.
+      // We just need to free the chunks (arrays of Cache_Entry).
       while (not chunk_list.is_empty())
         {
           Chunk_Descriptor * current_chunk = chunk_list.remove_next();
-
           delete [] current_chunk->get_data();
           delete current_chunk;
         }

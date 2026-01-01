@@ -56,6 +56,7 @@
 # include <algorithm>
 # include <optional>
 # include <ah-errors.H>
+# include <ah-ranges.H>
 
 namespace Aleph
 {
@@ -698,10 +699,17 @@ namespace Aleph
   template < typename T, class Container, class Operation> [[nodiscard]] inline
   T foldl(const Container & container, const T & init, Operation operation)
   {
-    T ret_val = init;
-    for (auto it = container.get_it(); it.has_curr(); it.next_ne())
-      ret_val = operation(ret_val, it.get_curr());
-    return ret_val;
+#if ALEPH_HAS_RANGES
+    if constexpr (std::ranges::range<Container>)
+      return detail::ranges_fold_left(container, init, std::move(operation));
+    else
+#endif
+    {
+      T ret_val = init;
+      for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+        ret_val = operation(ret_val, it.get_curr());
+      return ret_val;
+    }
   }
 
 
@@ -2029,10 +2037,17 @@ namespace Aleph
   template <class Container, typename T = typename Container::Item_Type>
   [[nodiscard]] inline T sum(const Container & container, const T & init = T{})
   {
-    T result = init;
-    for (auto it = container.get_it(); it.has_curr(); it.next_ne())
-      result = result + it.get_curr();
-    return result;
+#if ALEPH_HAS_RANGES
+    if constexpr (std::ranges::range<Container>)
+      return detail::ranges_fold_left(container, init, std::plus<>{});
+    else
+#endif
+    {
+      T result = init;
+      for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+        result = result + it.get_curr();
+      return result;
+    }
   }
 
   /** @brief Compute product of all elements.
@@ -2045,10 +2060,17 @@ namespace Aleph
   template <class Container, typename T = typename Container::Item_Type>
   [[nodiscard]] inline T product(const Container & container, const T & init = T{1})
   {
-    T result = init;
-    for (auto it = container.get_it(); it.has_curr(); it.next_ne())
-      result = result * it.get_curr();
-    return result;
+#if ALEPH_HAS_RANGES
+    if constexpr (std::ranges::range<Container>)
+      return detail::ranges_fold_left(container, init, std::multiplies<>{});
+    else
+#endif
+    {
+      T result = init;
+      for (auto it = container.get_it(); it.has_curr(); it.next_ne())
+        result = result * it.get_curr();
+      return result;
+    }
   }
 
   /** @brief Concatenate two containers into a new DynList.

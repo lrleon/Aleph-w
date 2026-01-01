@@ -820,6 +820,9 @@ This class is not intended for public use. Its purpose is to provide
       size_t pos = 0;
 
     public:
+      /// Default constructor creates an "end" iterator
+      Iterator() noexcept : s(Stack_Size) {}
+
       Iterator(const GenBinHeap & h)
         : heap_ptr(&const_cast<GenBinHeap &>(h)), s(Stack_Size)
       {

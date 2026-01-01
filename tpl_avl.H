@@ -604,6 +604,8 @@ public:
   */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
     Iterator(Gen_Avl_Tree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
     Iterator(const Gen_Avl_Tree & tree)
       : BinNodeInfixIterator<Node>(tree.getRoot()) {}
