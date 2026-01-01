@@ -22,7 +22,7 @@ Aleph-w es una biblioteca madura de estructuras de datos y algoritmos con **258 
 | `using namespace std::chrono` (local) | 1 | ✅ Aceptable (dentro de función) |
 | `NULL` vs `nullptr` | 0 | ✅ Migrado |
 | TODO/FIXME pendientes | 17 | ⚠️ Pendientes |
-| `constexpr` usage | 272 | ✅ Bueno |
+| `constexpr` usage | 319 | ✅ Muy Bueno (+47) |
 | `assert()` usage | 984 | ⚠️ Considerar migrar a `ah_*` |
 | Thread-safety indicators | 560 | ✅ Concurrencia soportada |
 | Virtual sin `override` | 26 | ✅ Solo declaraciones originales |
@@ -127,7 +127,7 @@ Raw new: ~101 instancias sin delete visible
 | Concepts | ✅ Usado en `ah-ranges.H` |
 | Ranges | ✅ Integrado |
 | `<=>` operator | ❌ No adoptado |
-| `constexpr` | ⚠️ Uso limitado |
+| `constexpr` | ✅ 319 usos (+47 agregados) |
 
 ---
 
@@ -567,7 +567,7 @@ ah_length_error_if(cond) << "msg";
 | Acción | Prioridad | Esfuerzo | Impacto |
 |--------|-----------|----------|---------|
 | Migrar `assert()` a `ah_*` macros (selectivo) | Media | Alto | Consistencia |
-| Adoptar más `constexpr` | Baja | Medio | Rendimiento compile-time |
+| ~~Adoptar más `constexpr`~~ | ~~Baja~~ | ~~Medio~~ | ✅ **Completado** (+47 funciones) |
 | Refactorizar archivos >2000 líneas | Baja | Alto | Mantenibilidad |
 
 ### Fase 3: Optimización (Continuo)
