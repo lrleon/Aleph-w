@@ -406,8 +406,8 @@ TEST_F(HashVoidPtrTest, IntArrayHash)
 
   EXPECT_EQ(oat_hash(arr1, sizeof(arr1)), oat_hash(arr2, sizeof(arr2)));
   EXPECT_EQ(SuperFastHash(arr1, sizeof(arr1)), SuperFastHash(arr2, sizeof(arr2)));
-  // jen_hash with void* requires explicit cast for arrays
-  EXPECT_EQ(jen_hash((void*)arr1, sizeof(arr1)), jen_hash((void*)arr2, sizeof(arr2)));
+  // jen_hash with void* requires explicit cast for arrays and explicit initval to avoid ambiguity with template overload
+  EXPECT_EQ(jen_hash((void*)arr1, sizeof(arr1), Default_Hash_Seed), jen_hash((void*)arr2, sizeof(arr2), Default_Hash_Seed));
 }
 
 TEST_F(HashVoidPtrTest, StructHash)
