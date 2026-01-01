@@ -53,22 +53,21 @@ namespace Aleph
   template <class GT, class Distance>
   struct Prim_Heap_Info
   {
-    typedef typename ArcHeap<GT, Distance, Prim_Heap_Info>::Node Node;
-
-    Node *&operator ()(typename GT::Node *p)
+    // Returns reference to the heap_node pointer stored in Prim_Info
+    // The actual type is determined by ArcHeap, but stored as void*
+    void *& operator ()(typename GT::Node *p)
     {
-      return reinterpret_cast<Node *&>(PRIMINFO(p)->heap_node);
+      return PRIMINFO(p)->heap_node;
     }
   };
 
   template <class GT, class Distance>
   struct Simple_Prim_Heap
   {
-    typedef typename ArcHeap<GT, Distance, Simple_Prim_Heap>::Node Node;
-
-    Node *&operator ()(typename GT::Node *p)
+    // Returns reference to the cookie pointer used as heap node storage
+    void *& operator ()(typename GT::Node *p)
     {
-      return reinterpret_cast<Node *&>(p->cookie);
+      return p->cookie;
     }
   };
 

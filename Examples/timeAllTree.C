@@ -29,18 +29,27 @@
 # include <cmath>
 # include <cstring>
 
-# include <limits>
-# include <iostream>
-# include <tuple>
+# include <algorithm>
+# include <array>
 # include <chrono>
+# include <iostream>
+# include <limits>
+# include <tuple>
+# include <vector>
 
 # include <tpl_binNodeUtils.H>
 # include <tpl_sort_utils.H>
 # include <tpl_binTree.H>
 # include <tpl_avl.H>
 # include <tpl_treap.H>
+# include <tpl_treapRk.H>
+# include <tpl_avlRk.H>
 # include <tpl_splay_tree.H>
+# include <tpl_splay_treeRk.H>
 # include <tpl_rb_tree.H>
+# include <tpl_rbRk.H>
+# include <tpl_tdRbTree.H>
+# include <tpl_tdRbTreeRk.H>
 # include <tpl_rand_tree.H>
 # include <tpl_dynMapTree.H>
 
@@ -56,9 +65,9 @@ static void printNode(Node *node, int, int)
 }
 
 
-const int Num_Samples = 37;
+constexpr int Num_Samples = 37;
 
-inline bool is_two_power(unsigned int x)
+inline bool is_two_power(const unsigned int x)
 {
   return x != 0 and not (x & x - 1);
 }
@@ -84,7 +93,7 @@ tuple<Stat, Stat, int, int> sample_tree(TreeType<Key, Compare> & tree,
 {
   cout << "Sampling at 2^" << k << " = " << n << " ..." << endl;
   typedef TreeType<Key, Compare> Tree;
-  typename Tree::Node *p = new typename Tree::Node;
+  auto *p = new typename Tree::Node;
 
   cout << "    Computing height ..." << endl;
   size_t height = computeHeightRec(tree.getRoot());
@@ -98,21 +107,21 @@ tuple<Stat, Stat, int, int> sample_tree(TreeType<Key, Compare> & tree,
   // The Num_Samples times are stored in a array
   using Chrono = std::chrono::high_resolution_clock;
   Sample ins_sample[Num_Samples], rem_sample[Num_Samples];
-  double ins_time, rem_time;
+  double rem_time;
   double ins_avg = 0, rem_avg = 0;
 
-  // take Num_Samples distint values and perform 5 insertions and
+  // take Num_Samples distinct values and perform 5 insertions and
   // deletion for each one
   for (int i = 0; i < Num_Samples; ++i)
     {
       int value = gsl_rng_get(r); // select a random sample not in tree
-      while (tree.search(value) != NULL)
+      while (tree.search(value) != nullptr)
         value = gsl_rng_get(r);
       KEY(p) = value;
 
-      static const int Num_Measures = 100;
+      static constexpr int Num_Measures = 100;
       // take 20 mesures for the same value and average them
-      ins_time = rem_time = 0;
+      double ins_time = rem_time = 0;
       for (int k = 0; k < Num_Measures; ++k)
         {
           auto sample_time = Chrono::now();
@@ -199,11 +208,11 @@ void test(unsigned long n, gsl_rng *r)
   for (unsigned int i = 0; i < n; i++)
     {
       while (true)
-          if (int value = gsl_rng_get(r); tree.search(value) == NULL)
-            {
-              tree.insert(new typename Tree::Node(value));
-              break;
-            }
+        if (int value = gsl_rng_get(r); tree.search(value) == nullptr)
+          {
+            tree.insert(new typename Tree::Node(value));
+            break;
+          }
 
       if (is_two_power(i))
         {
@@ -234,39 +243,109 @@ void test(unsigned long n, gsl_rng *r)
     }
 }
 
-enum TreeType
+enum class TreeType
 {
-  INVALID, BIN, AVL, SPLAY, TREAP, RB, RAND
+  BIN,
+  AVL,
+  AVL_RK,
+  SPLAY,
+  SPLAY_RK,
+  TREAP,
+  TREAP_RK,
+  RB,
+  RB_RK,
+  TD_RB,
+  TD_RB_RK,
+  RAND
 };
+
+template <template <typename, class> class Tree>
+void run_tree(unsigned long n, gsl_rng *r)
+{
+  test<Tree>(n, r);
+}
+
+struct TreeBenchmark
+{
+  TreeType type;
+  const char *label;
+
+  void (*runner)(unsigned long, gsl_rng *);
+};
+
+static const std::array<TreeBenchmark, 12> kBenchmarks = {
+      {
+        {TreeType::BIN, "BinTree", run_tree<BinTree>},
+        {TreeType::AVL, "Avl_Tree", run_tree<Avl_Tree>},
+        {TreeType::AVL_RK, "Avl_Tree_Rk", run_tree<Avl_Tree_Rk>},
+        {TreeType::SPLAY, "Splay_Tree", run_tree<Splay_Tree>},
+        {TreeType::SPLAY_RK, "Splay_Tree_Rk", run_tree<Splay_Tree_Rk>},
+        {TreeType::TREAP, "Treap", run_tree<Treap>},
+        {TreeType::TREAP_RK, "Treap_Rk", run_tree<Treap_Rk>},
+        {TreeType::RB, "Rb_Tree", run_tree<Rb_Tree>},
+        {TreeType::RB_RK, "Rb_Tree_Rk", run_tree<Rb_Tree_Rk>},
+        {TreeType::TD_RB, "TdRbTree", run_tree<TdRbTree>},
+        {TreeType::TD_RB_RK, "TdRbTreeRk", run_tree<TdRbTreeRk>},
+        {TreeType::RAND, "Rand_Tree", run_tree<Rand_Tree>}
+      }
+    };
+
+static const TreeBenchmark * find_benchmark(TreeType type)
+{
+  const auto it = ranges::find_if(kBenchmarks,
+                                  [type](const TreeBenchmark & bench)
+                                    {
+                                      return bench.type == type;
+                                    });
+  return it == kBenchmarks.end() ? nullptr : &(*it);
+}
 
 struct Parameters
 {
   long n;
   int seed;
-  TreeType type;
-  char *str;
+  bool run_all = false;
+  std::vector<TreeType> selected;
 
   Parameters(int _n, int _seed)
-    : n(_n), seed(_seed), type(INVALID), str(NULL)
+    : n(_n), seed(_seed)
   {
     // Empty
   }
 };
 
 
-const char *argp_program_version = "timeAllTree 0.0";
-const char *argp_program_bug_address = "lrleon@lavabit.com";
+auto argp_program_version = "timeAllTree 0.0";
+auto argp_program_bug_address = "lrleon@lavabit.com";
 
-static char doc[] = "timeAllTree -- A tester for all binary trees";
-static char argDoc[] = "-n num_nodes -m seed_for_random -<tree type>\n";
+static char doc[] = "timeAllTree -- Benchmark Aleph tree implementations";
+static char argDoc[] = "-n num_nodes -m seed_for_random [tree options]\n";
+
+enum OptionKey
+{
+  OPT_ALL = 'l',
+  OPT_AVL_RK = 1000,
+  OPT_SPLAY_RK,
+  OPT_TREAP_RK,
+  OPT_RB_RK,
+  OPT_TD_RB,
+  OPT_TD_RB_RK
+};
 
 static struct argp_option options[] = {
-      {"bin", 'b', 0, OPTION_ARG_OPTIONAL, "pure binary tree", 0},
-      {"avl", 'a', 0, OPTION_ARG_OPTIONAL, "avl tree", 0},
-      {"splay", 's', 0, OPTION_ARG_OPTIONAL, "splay tree", 0},
-      {"redblack", 'r', 0, OPTION_ARG_OPTIONAL, "red black tree", 0},
-      {"rand", 'd', 0, OPTION_ARG_OPTIONAL, "randomized tree", 0},
-      {"treap", 'p', 0, OPTION_ARG_OPTIONAL, "treap tree", 0},
+      {"bin", 'b', 0, OPTION_ARG_OPTIONAL, "Pure binary tree", 0},
+      {"avl", 'a', 0, OPTION_ARG_OPTIONAL, "AVL tree", 0},
+      {"avlrk", OPT_AVL_RK, 0, OPTION_ARG_OPTIONAL, "AVL tree (rank)", 0},
+      {"splay", 's', 0, OPTION_ARG_OPTIONAL, "Splay tree", 0},
+      {"splayrk", OPT_SPLAY_RK, 0, OPTION_ARG_OPTIONAL, "Splay tree (rank)", 0},
+      {"redblack", 'r', 0, OPTION_ARG_OPTIONAL, "Red-black tree", 0},
+      {"redblackrk", OPT_RB_RK, 0, OPTION_ARG_OPTIONAL, "Red-black tree (rank)", 0},
+      {"tdrb", OPT_TD_RB, 0, OPTION_ARG_OPTIONAL, "Top-down red-black tree", 0},
+      {"tdrbrk", OPT_TD_RB_RK, 0, OPTION_ARG_OPTIONAL, "Top-down red-black tree (rank)", 0},
+      {"rand", 'd', 0, OPTION_ARG_OPTIONAL, "Randomized tree", 0},
+      {"treap", 'p', 0, OPTION_ARG_OPTIONAL, "Treap tree", 0},
+      {"treaprk", OPT_TREAP_RK, 0, OPTION_ARG_OPTIONAL, "Treap tree (rank)", 0},
+      {"all", OPT_ALL, 0, OPTION_ARG_OPTIONAL, "Benchmark all tree types", 0},
       {
         "nodes", 'n', "num_nodes", OPTION_ARG_OPTIONAL,
         "Specify the number of nodes to be generated", 0
@@ -280,13 +359,16 @@ static struct argp_option options[] = {
 
 static error_t parser_opt(int key, char *, struct argp_state *state)
 {
-  Parameters *parsPtr = static_cast<Parameters *>(state->input);
+  auto *parsPtr = static_cast<Parameters *>(state->input);
+
+  auto add_tree = [parsPtr](TreeType type)
+    {
+      parsPtr->selected.push_back(type);
+    };
 
   switch (key)
     {
     case ARGP_KEY_END:
-      if (parsPtr->type == INVALID)
-        argp_usage(state);
       break;
     case 'n':
       char *end;
@@ -298,28 +380,43 @@ static error_t parser_opt(int key, char *, struct argp_state *state)
       state->next++;
       break;
     case 'b':
-      parsPtr->type = BIN;
-      parsPtr->str = "BinTree";
+      add_tree(TreeType::BIN);
       break;
     case 'a':
-      parsPtr->type = AVL;
-      parsPtr->str = "AvlTree";
+      add_tree(TreeType::AVL);
+      break;
+    case OPT_AVL_RK:
+      add_tree(TreeType::AVL_RK);
       break;
     case 'r':
-      parsPtr->type = RB;
-      parsPtr->str = "RbTree";
+      add_tree(TreeType::RB);
+      break;
+    case OPT_RB_RK:
+      add_tree(TreeType::RB_RK);
       break;
     case 's':
-      parsPtr->type = SPLAY;
-      parsPtr->str = "SplayTree";
+      add_tree(TreeType::SPLAY);
+      break;
+    case OPT_SPLAY_RK:
+      add_tree(TreeType::SPLAY_RK);
       break;
     case 'p':
-      parsPtr->type = TREAP;
-      parsPtr->str = "Treap";
+      add_tree(TreeType::TREAP);
+      break;
+    case OPT_TREAP_RK:
+      add_tree(TreeType::TREAP_RK);
+      break;
+    case OPT_TD_RB:
+      add_tree(TreeType::TD_RB);
+      break;
+    case OPT_TD_RB_RK:
+      add_tree(TreeType::TD_RB_RK);
       break;
     case 'd':
-      parsPtr->type = RAND;
-      parsPtr->str = "Randomized";
+      add_tree(TreeType::RAND);
+      break;
+    case OPT_ALL:
+      parsPtr->run_all = true;
       break;
     case 'm':
       if (state->argv[state->next] == NULL)
@@ -341,50 +438,42 @@ int main(int argc, char *argv[])
 {
   Parameters pars(1000, time(0));
 
-  error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars);
-
-  if (status != 0)
+  if (error_t status = argp_parse(&argDefs, argc, argv, 0, 0, &pars); status != 0)
     AH_ERROR(("Internal error"));
-
-  if (pars.type == INVALID)
-    AH_ERROR(("Invalid tree type" ));
 
   unsigned long n = pars.n;
 
   gsl_rng *r = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set(r, pars.seed % gsl_rng_max(r));
 
-  cout << "timeAllTree<" << pars.str << "> " << n << " " << pars.seed
-      << endl;
+  std::vector<const TreeBenchmark *> benches;
+  if (pars.run_all)
+    for (const auto & bench: kBenchmarks)
+      benches.push_back(&bench);
+  else if (! pars.selected.empty())
+    for (const TreeType type: pars.selected)
+      if (const TreeBenchmark *bench = find_benchmark(type))
+        benches.push_back(bench);
+      else
+        benches.push_back(find_benchmark(TreeType::BIN));
+
+  benches.erase(ranges::remove(benches, nullptr).begin(),
+                benches.end());
+
+  if (benches.empty())
+    AH_ERROR(("No valid tree types selected"));
 
   try
     {
-      switch (pars.type)
+      for (const TreeBenchmark *bench: benches)
         {
-        case BIN:
-          test<BinTree>(n, r);
-          break;
-        case AVL:
-          test<Avl_Tree>(n, r);
-          break;
-        case TREAP:
-          test<Treap>(n, r);
-          break;
-        case RAND:
-          test<Rand_Tree>(n, r);
-          break;
-        case SPLAY:
-          test<Splay_Tree>(n, r);
-          break;
-        case RB:
-          test<Rb_Tree>(n, r);
-          break;
-        case INVALID:
-        default: AH_ERROR("Invalid tree type %d", pars.type);
+          cout << "timeAllTree<" << bench->label << "> "
+              << n << " " << pars.seed << endl;
+          gsl_rng_set(r, pars.seed % gsl_rng_max(r));
+          bench->runner(n, r);
+          cout << "timeAllTree<" << bench->label << "> "
+              << n << " " << pars.seed << endl;
         }
-
-      cout << "timeAllTree<" << pars.str << "> " << n << " " << pars.seed
-          << endl;
     }
   catch (exception & e)
     {
