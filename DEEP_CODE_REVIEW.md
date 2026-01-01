@@ -176,7 +176,7 @@ Raw new: ~101 instancias sin delete visible
 | Compilador | Ubuntu 22.04 | Ubuntu 24.04 |
 |------------|--------------|--------------|
 | GCC | ✅ | ✅ |
-| Clang | ⚠️ Issues menores | ⚠️ Issues menores |
+| Clang | ✅ Warnings eliminados | ✅ Warnings eliminados |
 | Sanitizers | ⚠️ | ⚠️ |
 
 ---
@@ -272,9 +272,9 @@ ah_invalid_argument_if(condition) << "message";
 
 | Issue | Archivo | Estado |
 |-------|---------|--------|
-| Ambigüedad de overloads | `hash-fct.H` | ⚠️ Requiere cuidado |
+| Ambigüedad de overloads | `hash-fct.H` | ✅ Resuelto |
 | Tipo incompleto | `Prim.H` | ✅ Resuelto |
-| Warnings estrictos | Varios | ⚠️ -Wno-* requeridos |
+| ~~Warnings estrictos~~ | ~~Varios~~ | ✅ **Eliminados** (0 warnings) |
 
 ### 8.2 Flags de Compilación
 
@@ -558,7 +558,7 @@ ah_length_error_if(cond) << "msg";
 | Acción | Prioridad | Esfuerzo | Impacto |
 |--------|-----------|----------|---------|
 | ~~Agregar `override` a métodos virtuales~~ | ~~Media~~ | ~~Bajo~~ | ✅ **Completado** (37 métodos) |
-| Resolver warnings de Clang en CI | Alta | Medio | CI estable |
+| ~~Resolver warnings de Clang en CI~~ | ~~Alta~~ | ~~Medio~~ | ✅ **Completado** (0 warnings) |
 | ~~Completar tests para `ah-ranges.H`~~ | ~~Alta~~ | ~~Medio~~ | ✅ **Completado** (81 tests) |
 | Documentar TODOs pendientes o resolverlos | Baja | Bajo | Claridad |
 
