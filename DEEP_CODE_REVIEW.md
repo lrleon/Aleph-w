@@ -15,7 +15,7 @@ Aleph-w es una biblioteca madura de estructuras de datos y algoritmos con **258 
 |---------|-------|--------|
 | Headers (.H) | 258 | - |
 | Archivos fuente | 198 | - |
-| Tests | 143 | ⚠️ Cobertura parcial |
+| Tests | 145+ | ✅ Cobertura mejorada |
 | Uso de `noexcept` | 2,244 | ✅ Bueno |
 | Documentación Doxygen | 1,591 bloques | ✅ Bueno |
 | `using namespace std` en headers | 0 | ✅ Eliminado |
@@ -144,7 +144,7 @@ Raw new: ~101 instancias sin delete visible
 - ✅ Árboles RB, AVL, Splay, Treap
 
 **Gaps identificados:**
-- ⚠️ `ah-ranges.H` - Tests básicos existen pero no comprehensivos
+- ✅ `ah-ranges.H` - **81 tests comprehensivos** (completado)
 - ⚠️ `ahFunctional.H` - Sin tests dedicados
 - ⚠️ `tpl_cache.H`, `tpl_hash_cache.H` - Tests incompletos
 
@@ -169,6 +169,7 @@ Raw new: ~101 instancias sin delete visible
 | `rb-tree.cc` | 245 | Red-Black Trees |
 | `dlink.cc` | 225 | Double links |
 | `htlist_test.cc` | 219 | HTList |
+| `ah_ranges_test.cc` | **81 tests** | C++20 Ranges |
 
 ### 4.4 Compatibilidad CI
 
@@ -357,7 +358,7 @@ Patrones similares en múltiples lugares:
 │                    Code Quality                      │
 ├─────────────────────────────────────────────────────┤
 │ Documentation        ████████████░░░░  75%          │
-│ Test Coverage        ██████████░░░░░░  65%          │
+│ Test Coverage        ████████████░░░░  75%          │
 │ Modern C++           ████████████████  95%          │
 │ Error Handling       ████████████████  95%          │
 │ Memory Safety        ██████████████░░  85%          │
@@ -500,17 +501,27 @@ Archivos con soporte de concurrencia:
 
 ### 15.2 Integración con C++20 Ranges
 
-✅ Implementado en `ah-ranges.H`:
+✅ Implementado en `ah-ranges.H` con **81 tests comprehensivos**:
 
 ```cpp
 // Conceptos definidos
 AlephContainer, AlephAppendable, AlephInsertable, AlephPushable
 
 // Adaptadores pipe
-to_dynlist_v, to_dynarray_v, to_dyndlist_v
+to_dynlist_v, to_dynarray_v, to_dyndlist_v, to_dynliststack_v, 
+to_arraystack_v, to_dynlistqueue_v, to_arrayqueue_v, to_randomset_v
 
 // Función genérica
-to<Container>()
+to<Container>(), collect<Container>()
+
+// Funciones internas (detail::)
+ranges_all_of, ranges_any_of, ranges_none_of, ranges_find_if,
+ranges_count_if, ranges_transform, ranges_filter, ranges_take,
+ranges_drop, ranges_reverse, ranges_flatten, ranges_fold_left,
+ranges_sum, ranges_product, ranges_min, ranges_max, ranges_sort
+
+// Lazy generation
+lazy_range(), lazy_iota()
 ```
 
 ### 15.3 Sistema de Errores
@@ -548,7 +559,7 @@ ah_length_error_if(cond) << "msg";
 |--------|-----------|----------|---------|
 | ~~Agregar `override` a métodos virtuales~~ | ~~Media~~ | ~~Bajo~~ | ✅ **Completado** (37 métodos) |
 | Resolver warnings de Clang en CI | Alta | Medio | CI estable |
-| Completar tests para `ah-ranges.H` | Alta | Medio | Confiabilidad |
+| ~~Completar tests para `ah-ranges.H`~~ | ~~Alta~~ | ~~Medio~~ | ✅ **Completado** (81 tests) |
 | Documentar TODOs pendientes o resolverlos | Baja | Bajo | Claridad |
 
 ### Fase 2: Modernización (2-4 semanas)
@@ -578,7 +589,7 @@ ah_length_error_if(cond) << "msg";
 │                                                              │
 │  Arquitectura       ████████████████████  A   (Excelente)    │
 │  Documentación      ████████████████░░░░  B+  (Muy Buena)    │
-│  Tests              ██████████████░░░░░░  B   (Buena)        │
+│  Tests              ████████████████░░░░  B+  (Muy Buena)    │
 │  Modernización C++  ████████████████████  A   (Excelente)    │
 │  Seguridad          ██████████████████░░  A-  (Muy Buena)    │
 │  Mantenibilidad     ████████████████░░░░  B+  (Muy Buena)    │
@@ -601,8 +612,8 @@ ah_length_error_if(cond) << "msg";
 ### Áreas de Mejora
 
 1. **Clang Compatibility** - Algunos edge cases
-2. **Test Coverage** - Gaps en módulos secundarios
-3. **Virtual Override** - 63 métodos sin `override`
+2. **Test Coverage** - Gaps en módulos secundarios (`ahFunctional.H`, caches)
+3. ~~**Virtual Override** - 63 métodos sin `override`~~ ✅ Completado (37 métodos)
 4. **File Size** - Algunos archivos muy grandes
 
 ---
