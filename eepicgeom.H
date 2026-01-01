@@ -969,32 +969,32 @@ public:
                                                                         \
   ~Eepic_##Type() { }                                                   \
                                                                         \
-  virtual Point highest_point() const                                   \
+  Point highest_point() const override                                  \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->highest_point();  \
   }                                                                     \
                                                                         \
-  virtual Point lowest_point() const                                    \
+  Point lowest_point() const override                                   \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->lowest_point();   \
   }                                                                     \
                                                                         \
-  virtual Point leftmost_point() const                                  \
+  Point leftmost_point() const override                                 \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->leftmost_point(); \
   }                                                                     \
                                                                         \
-  virtual Point rightmost_point() const                                 \
+  Point rightmost_point() const override                                \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->rightmost_point(); \
   }                                                                     \
                                                                         \
-  virtual Eepic_Geom_Object * clone() const                             \
+  Eepic_Geom_Object * clone() const override                            \
   {                                                                     \
     return new Eepic_##Type(static_cast<const Type&>(*geom_object_ptr)); \
   }                                                                     \
                                                                         \
-  virtual void draw(Eepic_Plane *, std::ostream &) const;
+  void draw(Eepic_Plane *, std::ostream &) const override;
 
 
 // Métodos comunes de Eepic_Type más el constructor copia

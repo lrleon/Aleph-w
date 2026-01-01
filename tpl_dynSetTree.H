@@ -88,22 +88,22 @@ namespace Aleph
   class DftTreeNodeAllocator : public AbstractTreeNodeAllocator<Node>
   {
   public:
-    virtual Node * alloc_lval(const typename Node::key_type & key)
+    Node * alloc_lval(const typename Node::key_type & key) override
     {
       return new Node(key);
     }
 
-    virtual Node * alloc_rval(typename Node::key_type && key)
+    Node * alloc_rval(typename Node::key_type && key) override
     {
       return new Node(std::forward<typename Node::key_type>(key));
     }
 
-    virtual void unalloc(Node *p)
+    void unalloc(Node *p) override
     {
       delete p;
     }
 
-    virtual ~DftTreeNodeAllocator() = default;
+    ~DftTreeNodeAllocator() override = default;
   };
 
   template <typename Node>
@@ -123,14 +123,14 @@ namespace Aleph
       // empty
     }
 
-    virtual Node * alloc_lval(const typename Node::key_type & key)
+    Node * alloc_lval(const typename Node::key_type & key) override
     {
       Node *ptr = allocate<Node>(arena, key);
       ah_bad_alloc_if(ptr == nullptr);
       return ptr;
     }
 
-    virtual Node * alloc_rval(typename Node::key_type && key)
+    Node * alloc_rval(typename Node::key_type && key) override
     {
       Node *ptr =
           allocate<Node>(arena, std::forward<typename Node::key_type>(key));
@@ -138,7 +138,7 @@ namespace Aleph
       return ptr;
     }
 
-    virtual void unalloc(Node *p)
+    void unalloc(Node *p) override
     {
       dealloc<Node>(arena, p);
     }

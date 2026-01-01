@@ -383,7 +383,7 @@ namespace Aleph
         }
     }
 
-    virtual void create_nodes_and_initialize_arc_index()
+    void create_nodes_and_initialize_arc_index() override
     {
       this->nodes = std::unique_ptr<DynArray<GT_Node *>>
           (new DynArray<GT_Node *>(this->num_nodes));
@@ -405,7 +405,7 @@ namespace Aleph
       this->idx_arc = std::unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
     }
 
-    virtual void connect()
+    void connect() override
     {
       DynList<DynList<GT_Node *>> subgraphs; // list of subgraphs
 
@@ -432,8 +432,8 @@ namespace Aleph
 
     // Create a random graph where the probability of an arc between
     // any pair of nodes is p
-    virtual GT create_p(const size_t & __num_nodes, const double & p,
-                        const bool connected)
+    GT create_p(const size_t & __num_nodes, const double & p,
+                const bool connected) override
     {
       ah_domain_error_if(p > 1.0 or p <= 0.0) << "Invalid value for p";
 
@@ -535,7 +535,7 @@ namespace Aleph
     }
 
   private:
-    virtual void make_eulerian()
+    void make_eulerian() override
     {
       while (this->odd_nodes.size() > 1)
         {
@@ -598,7 +598,7 @@ namespace Aleph
         }
     }
 
-    virtual void make_hamiltonian()
+    void make_hamiltonian() override
     {
       const size_t & n = this->g.get_num_nodes();
       for (size_t i = 0; i + 1 < n; ++i)
@@ -862,7 +862,7 @@ namespace Aleph
         }
     }
 
-    virtual void create_nodes_and_initialize_arc_index()
+    void create_nodes_and_initialize_arc_index() override
     {
       this->nodes = std::unique_ptr<DynArray<GT_Node *>>
           (new DynArray<GT_Node *>(this->num_nodes));
@@ -885,7 +885,7 @@ namespace Aleph
       this->idx_arc = std::unique_ptr<IndexArc<GT>>(new IndexArc<GT>(this->g));
     }
 
-    virtual void connect()
+    void connect() override
     {
       DynList<DynList<typename GT::Node *>> blk_list; // disconnected subgraphs
 
@@ -941,8 +941,8 @@ namespace Aleph
 
     // Create a random graph where the probability of an arc between
     // any pair of nodes is p
-    virtual GT create_p(const size_t & __num_nodes, const double & p,
-                        bool connected)
+    GT create_p(const size_t & __num_nodes, const double & p,
+                bool connected) override
     {
       ah_domain_error_if(p > 1.0 or p <= 0.0) << "Invalid value for p";
 
@@ -1054,7 +1054,7 @@ namespace Aleph
     }
 
   private:
-    virtual void make_eulerian()
+    void make_eulerian() override
     {
       GT_Node *src = nullptr;
       GT_Node *tgt = nullptr;
@@ -1153,7 +1153,7 @@ namespace Aleph
       assert(this->g.get_num_arcs(src) + NODE_COUNTER(tgt) >= n);
     }
 
-    virtual void make_hamiltonian()
+    void make_hamiltonian() override
     {
       this->g.reset_counter_nodes();
 

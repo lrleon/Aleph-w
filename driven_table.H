@@ -131,23 +131,23 @@ private:
       ah_range_error_if(true) << "index out of range";
   }
 
-  virtual Event_Fct read_table(int i) const
+  Event_Fct read_table(int i) const override
   { 
     verify_index(i);
     return table[i]; 
   }
 
-  virtual void write_table(int i, Event_Fct event_fct) 
+  void write_table(int i, Event_Fct event_fct) override
   {
     verify_index(i);
     table[i] = event_fct;
   }
 
-  virtual void cut_table(size_t) { /* empty */ }
+  void cut_table(size_t) override { /* empty */ }
 
 public:
 
-  virtual size_t size() const { return size_table; }
+  size_t size() const override { return size_table; }
   
   Static_Event_Table(size_t num_events = 0) 
     : table(new Event_Fct [num_events]), size_table(num_events)
@@ -168,18 +168,18 @@ private:
 
   DynArray<Event_Fct> table;
 
-  virtual Event_Fct read_table(int i) const { return table[i]; }
+  Event_Fct read_table(int i) const override { return table[i]; }
 
-  virtual void write_table(int i, Event_Fct event_fct) 
+  void write_table(int i, Event_Fct event_fct) override
   {
     table[i] = event_fct;
   }
 
-  virtual void cut_table(size_t dim) { table.cut(dim); }
+  void cut_table(size_t dim) override { table.cut(dim); }
 
 public:
 
-  virtual size_t size() const { return table.size(); }
+  size_t size() const override { return table.size(); }
 
   Dynamic_Event_Table(size_t num_events = 0) : table(num_events) 
   {

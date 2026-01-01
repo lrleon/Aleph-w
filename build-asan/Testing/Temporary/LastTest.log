@@ -1,0 +1,113 @@
+Start testing: Dec 31 11:20 -05
+----------------------------------------------------------
+121/122 Testing: k2tree_test
+121/122 Test: k2tree_test
+Command: "/home/lrleon/Aleph-w/build-asan/k2tree_test"
+Directory: /home/lrleon/Aleph-w/build-asan
+"k2tree_test" start time: Dec 31 11:20 -05
+Output:
+----------------------------------------------------------
+[==========] Running 33 tests from 8 test suites.
+[----------] Global test environment set-up.
+[----------] 7 tests from K2TreeBasic
+[ RUN      ] K2TreeBasic.ConstructorAndEmpty
+[       OK ] K2TreeBasic.ConstructorAndEmpty (0 ms)
+[ RUN      ] K2TreeBasic.InsertSinglePoint
+[       OK ] K2TreeBasic.InsertSinglePoint (0 ms)
+[ RUN      ] K2TreeBasic.InsertMultiplePoints
+[       OK ] K2TreeBasic.InsertMultiplePoints (0 ms)
+[ RUN      ] K2TreeBasic.InsertDuplicatePoint
+[       OK ] K2TreeBasic.InsertDuplicatePoint (0 ms)
+[ RUN      ] K2TreeBasic.ContainsExisting
+[       OK ] K2TreeBasic.ContainsExisting (0 ms)
+[ RUN      ] K2TreeBasic.ContainsNonExisting
+[       OK ] K2TreeBasic.ContainsNonExisting (0 ms)
+[ RUN      ] K2TreeBasic.EmptyTreeContains
+[       OK ] K2TreeBasic.EmptyTreeContains (0 ms)
+[----------] 7 tests from K2TreeBasic (0 ms total)
+
+[----------] 4 tests from K2TreeInsertion
+[ RUN      ] K2TreeInsertion.AscendingOrder
+[       OK ] K2TreeInsertion.AscendingOrder (2 ms)
+[ RUN      ] K2TreeInsertion.DescendingOrder
+[       OK ] K2TreeInsertion.DescendingOrder (1 ms)
+[ RUN      ] K2TreeInsertion.RandomOrder
+[       OK ] K2TreeInsertion.RandomOrder (1 ms)
+[ RUN      ] K2TreeInsertion.ClusteredPoints
+[       OK ] K2TreeInsertion.ClusteredPoints (0 ms)
+[----------] 4 tests from K2TreeInsertion (5 ms total)
+
+[----------] 5 tests from K2TreeNearest
+[ RUN      ] K2TreeNearest.SinglePoint
+[       OK ] K2TreeNearest.SinglePoint (0 ms)
+[ RUN      ] K2TreeNearest.MultiplePoints
+[       OK ] K2TreeNearest.MultiplePoints (0 ms)
+[ RUN      ] K2TreeNearest.EmptyTree
+[       OK ] K2TreeNearest.EmptyTree (0 ms)
+[ RUN      ] K2TreeNearest.ExactMatch
+[       OK ] K2TreeNearest.ExactMatch (0 ms)
+[ RUN      ] K2TreeNearest.GridOfPoints
+[       OK ] K2TreeNearest.GridOfPoints (1 ms)
+[----------] 5 tests from K2TreeNearest (2 ms total)
+
+[----------] 5 tests from K2TreeRange
+[ RUN      ] K2TreeRange.EmptyTree
+[       OK ] K2TreeRange.EmptyTree (0 ms)
+[ RUN      ] K2TreeRange.AllPointsInRange
+[       OK ] K2TreeRange.AllPointsInRange (0 ms)
+[ RUN      ] K2TreeRange.NoPointsInRange
+[       OK ] K2TreeRange.NoPointsInRange (0 ms)
+[ RUN      ] K2TreeRange.SomePointsInRange
+[       OK ] K2TreeRange.SomePointsInRange (0 ms)
+[ RUN      ] K2TreeRange.BoundaryPoints
+[       OK ] K2TreeRange.BoundaryPoints (0 ms)
+[----------] 5 tests from K2TreeRange (0 ms total)
+
+[----------] 4 tests from K2TreeStress
+[ RUN      ] K2TreeStress.LargeNumberOfPoints
+[       OK ] K2TreeStress.LargeNumberOfPoints (160 ms)
+[ RUN      ] K2TreeStress.ManyNearestQueries
+[       OK ] K2TreeStress.ManyNearestQueries (260 ms)
+[ RUN      ] K2TreeStress.ManyRangeQueries
+[       OK ] K2TreeStress.ManyRangeQueries (33 ms)
+[ RUN      ] K2TreeStress.DenseAndSparseRegions
+[       OK ] K2TreeStress.DenseAndSparseRegions (41 ms)
+[----------] 4 tests from K2TreeStress (495 ms total)
+
+[----------] 5 tests from K2TreeEdgeCases
+[ RUN      ] K2TreeEdgeCases.ColinearPoints
+[       OK ] K2TreeEdgeCases.ColinearPoints (0 ms)
+[ RUN      ] K2TreeEdgeCases.VerticalLine
+[       OK ] K2TreeEdgeCases.VerticalLine (0 ms)
+[ RUN      ] K2TreeEdgeCases.HorizontalLine
+[       OK ] K2TreeEdgeCases.HorizontalLine (0 ms)
+[ RUN      ] K2TreeEdgeCases.VeryClosePoints
+[       OK ] K2TreeEdgeCases.VeryClosePoints (0 ms)
+[ RUN      ] K2TreeEdgeCases.NegativeCoordinates
+[       OK ] K2TreeEdgeCases.NegativeCoordinates (0 ms)
+[----------] 5 tests from K2TreeEdgeCases (0 ms total)
+
+[----------] 2 tests from K2TreeCorrectness
+[ RUN      ] K2TreeCorrectness.NearestIsActuallyNearest
+[       OK ] K2TreeCorrectness.NearestIsActuallyNearest (0 ms)
+[ RUN      ] K2TreeCorrectness.RangeIncludesAllInside
+[       OK ] K2TreeCorrectness.RangeIncludesAllInside (1 ms)
+[----------] 2 tests from K2TreeCorrectness (1 ms total)
+
+[----------] 1 test from K2TreeFuzz
+[ RUN      ] K2TreeFuzz.RandomInsertionsAndQueries
+[       OK ] K2TreeFuzz.RandomInsertionsAndQueries (69 ms)
+[----------] 1 test from K2TreeFuzz (70 ms total)
+
+[----------] Global test environment tear-down
+[==========] 33 tests from 8 test suites ran. (576 ms total)
+[  PASSED  ] 33 tests.
+<end of output>
+Test time =   0.63 sec
+----------------------------------------------------------
+Test Passed.
+"k2tree_test" end time: Dec 31 11:20 -05
+"k2tree_test" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Dec 31 11:20 -05

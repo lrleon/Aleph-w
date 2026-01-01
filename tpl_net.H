@@ -635,7 +635,7 @@ namespace Aleph
     }
 
     /// Remove arc `arc` from the network.
-    virtual void remove_arc(Arc *arc)
+    void remove_arc(Arc *arc) override
     {
       auto src = this->get_src_node(arc);
       auto tgt = this->get_tgt_node(arc);
@@ -663,7 +663,7 @@ namespace Aleph
     }
 
     /// Remove node `p` and all its arcs from the network.
-    virtual void remove_node(Node *p) noexcept
+    void remove_node(Node *p) noexcept override
     {
       Graph::remove_node(p); // base removal
       src_nodes.remove(p);

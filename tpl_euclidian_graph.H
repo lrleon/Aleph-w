@@ -155,22 +155,22 @@ public:
 	       false);
   }
 
-  virtual Node * insert_node(Node * node)
+  Node * insert_node(Node * node) override
   {
     return Graph::insert_node(node);
   }
 
-  virtual Node * insert_node(const Node_Type & info)
+  Node * insert_node(const Node_Type & info)
   {
     return insert_node(new Node(info));
   }
 
-  virtual Node * insert_node(const Point & position)
+  Node * insert_node(const Point & position)
   {
     return insert_node(new Node(position));
   }
 
-  virtual Node * insert_node(const Node_Type & info, const Point & position)
+  Node * insert_node(const Node_Type & info, const Point & position)
   {
     return insert_node(new Node(info, position));
   }
