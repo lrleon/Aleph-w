@@ -153,6 +153,7 @@ set(TEST_PROGRAMS
     ah-zip
     ah-functional
     ah-dry
+    ah-dry-mixin_test
     tree-it
     al-domain
     al-vector
