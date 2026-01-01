@@ -30,6 +30,7 @@
 # include <stdexcept>
 # include <dlink.H>
 # include <ahDry.H>
+# include <ah-dry-mixin.H>
 # include <ahIterator.H>
 # include <ahFunction.H>
 # include <ahFunctional.H>
@@ -64,7 +65,10 @@ namespace Aleph
       @ingroup Arboles
   */
   template <class T>
-  class Tree_Node
+  class Tree_Node;  // Forward declaration for CRTP
+
+  template <class T>
+  class Tree_Node : public FunctionalMixin<Tree_Node<T>, Tree_Node<T>*>
   {
     T data;
     Dlink child;
@@ -578,7 +582,9 @@ namespace Aleph
       return const_cast<Tree_Node*>(this)->level_traverse(op);
     }
 
-    Functional_Methods(Tree_Node*);
+    // Note: for_each(), all(), exists(), maps(), filter(), foldl(), 
+    // fold(), partition(), take(), drop(), rev(), length() are now 
+    // provided by FunctionalMixin<Tree_Node<T>, Tree_Node<T>*>
 
     /** Iterator over the children of this
 
