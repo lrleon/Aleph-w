@@ -670,3 +670,496 @@ TEST(enumerate_tuple_test, enumerate_tuple_basic)
   EXPECT_EQ(get<1>(it.get_curr()), "c");
 }
 
+// =============================================================================
+// COMPREHENSIVE TESTS FOR ahFunctional.H
+// =============================================================================
+
+// --- zip_longest tests ---
+
+TEST(zip_longest_test, basic_different_lengths)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2, 3, 4, 5);
+  DynList<int> l2 = build_dynlist<int>(10, 20, 30);
+
+  auto result = zip_longest(l1, l2, -1, -1);
+  EXPECT_EQ(result.size(), 5);
+
+  auto it = result.get_it();
+  EXPECT_EQ(it.get_curr(), make_pair(1, 10)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(2, 20)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(3, 30)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(4, -1)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(5, -1));
+}
+
+TEST(zip_longest_test, second_longer)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2);
+  DynList<int> l2 = build_dynlist<int>(10, 20, 30, 40);
+
+  auto result = zip_longest(l1, l2, 0, 0);
+  EXPECT_EQ(result.size(), 4);
+
+  auto it = result.get_it();
+  EXPECT_EQ(it.get_curr(), make_pair(1, 10)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(2, 20)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(0, 30)); it.next();
+  EXPECT_EQ(it.get_curr(), make_pair(0, 40));
+}
+
+TEST(zip_longest_test, equal_lengths)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2, 3);
+  DynList<int> l2 = build_dynlist<int>(4, 5, 6);
+
+  auto result = zip_longest(l1, l2, -1, -1);
+  EXPECT_EQ(result.size(), 3);
+
+  EXPECT_TRUE(result.all([] (auto & p) {
+    return p.first + 3 == p.second;
+  }));
+}
+
+TEST(zip_longest_test, empty_containers)
+{
+  DynList<int> empty1, empty2;
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  auto r1 = zip_longest(empty1, empty2, 0, 0);
+  EXPECT_TRUE(r1.is_empty());
+
+  auto r2 = zip_longest(l, empty2, 0, -1);
+  EXPECT_EQ(r2.size(), 3);
+  EXPECT_TRUE(r2.all([] (auto & p) { return p.second == -1; }));
+
+  auto r3 = zip_longest(empty1, l, -1, 0);
+  EXPECT_EQ(r3.size(), 3);
+  EXPECT_TRUE(r3.all([] (auto & p) { return p.first == -1; }));
+}
+
+// --- tzip_longest tests ---
+
+TEST(tzip_longest_test, basic_different_lengths)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2, 3);
+  DynList<string> l2 = build_dynlist<string>("a", "b");
+
+  auto result = tzip_longest(l1, l2, 0, string("X"));
+  EXPECT_EQ(result.size(), 3);
+
+  auto it = result.get_it();
+  EXPECT_EQ(get<0>(it.get_curr()), 1);
+  EXPECT_EQ(get<1>(it.get_curr()), "a");
+  it.next();
+  EXPECT_EQ(get<0>(it.get_curr()), 2);
+  EXPECT_EQ(get<1>(it.get_curr()), "b");
+  it.next();
+  EXPECT_EQ(get<0>(it.get_curr()), 3);
+  EXPECT_EQ(get<1>(it.get_curr()), "X");
+}
+
+// --- zip_longest_opt tests ---
+
+TEST(zip_longest_opt_test, basic_different_lengths)
+{
+  DynList<int> l1 = build_dynlist<int>(1, 2, 3, 4);
+  DynList<int> l2 = build_dynlist<int>(10, 20);
+
+  auto result = zip_longest_opt(l1, l2);
+  EXPECT_EQ(result.size(), 4);
+
+  auto it = result.get_it();
+  auto p1 = it.get_curr();
+  EXPECT_TRUE(p1.first.has_value());
+  EXPECT_TRUE(p1.second.has_value());
+  EXPECT_EQ(p1.first.value(), 1);
+  EXPECT_EQ(p1.second.value(), 10);
+
+  it.next(); it.next(); it.next();
+  auto p4 = it.get_curr();
+  EXPECT_TRUE(p4.first.has_value());
+  EXPECT_FALSE(p4.second.has_value());
+  EXPECT_EQ(p4.first.value(), 4);
+}
+
+// --- group_by tests ---
+
+TEST(group_by_test, basic_grouping)
+{
+  DynList<int> l = build_dynlist<int>(1, 1, 2, 2, 2, 3, 1, 1);
+
+  // group_by takes a key function that extracts the grouping key
+  auto result = group_by(l, [] (int x) { return x; });
+  EXPECT_EQ(result.size(), 4);
+
+  auto it = result.get_it();
+  // Each element is pair<key, DynList<T>>
+  EXPECT_EQ(it.get_curr().first, 1);
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(1, 1));
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 2);
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(2, 2, 2));
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 3);
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(3));
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 1);
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(1, 1));
+}
+
+TEST(group_by_test, group_by_parity)
+{
+  DynList<int> l = build_dynlist<int>(1, 3, 5, 2, 4, 6, 7, 9);
+
+  // Group by parity (consecutive groups with same parity)
+  auto result = group_by(l, [] (int x) { return x % 2; });
+  EXPECT_EQ(result.size(), 3);
+
+  auto it = result.get_it();
+  EXPECT_EQ(it.get_curr().first, 1);  // odd
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(1, 3, 5));
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 0);  // even
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(2, 4, 6));
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 1);  // odd again
+  EXPECT_EQ(it.get_curr().second, build_dynlist<int>(7, 9));
+}
+
+TEST(group_by_test, empty_container)
+{
+  DynList<int> empty;
+  auto result = group_by(empty, [] (int x) { return x; });
+  EXPECT_TRUE(result.is_empty());
+}
+
+TEST(group_by_test, single_element)
+{
+  DynList<int> single = build_dynlist<int>(42);
+  auto result = group_by(single, [] (int x) { return x; });
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result.get_first().first, 42);
+  EXPECT_EQ(result.get_first().second, build_dynlist<int>(42));
+}
+
+// --- group_by_reduce tests ---
+
+TEST(group_by_reduce_test, sum_groups)
+{
+  DynList<int> l = build_dynlist<int>(1, 1, 2, 2, 2, 3);
+
+  auto result = group_by_reduce(l,
+    [] (int x) { return x; },                        // key function
+    [] (const DynList<int> & g) { return sum(g); }   // reducer (takes group)
+  );
+
+  // Result should be list of (key, reduced_value) pairs
+  EXPECT_EQ(result.size(), 3);
+
+  auto it = result.get_it();
+  // First group: key=1, sum=1+1=2
+  EXPECT_EQ(it.get_curr().first, 1);
+  EXPECT_EQ(it.get_curr().second, 2);
+  it.next();
+  // Second group: key=2, sum=2+2+2=6
+  EXPECT_EQ(it.get_curr().first, 2);
+  EXPECT_EQ(it.get_curr().second, 6);
+  it.next();
+  // Third group: key=3, sum=3
+  EXPECT_EQ(it.get_curr().first, 3);
+  EXPECT_EQ(it.get_curr().second, 3);
+}
+
+// --- maps and maps_if tests ---
+
+TEST(maps_test, basic_map)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  auto result = maps<int>(l, [] (int x) { return x * x; });
+  EXPECT_EQ(result, build_dynlist<int>(1, 4, 9, 16, 25));
+}
+
+TEST(maps_test, type_conversion)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  auto result = maps<string>(l, [] (int x) { return to_string(x); });
+  EXPECT_EQ(result, build_dynlist<string>("1", "2", "3"));
+}
+
+TEST(filter_map_test, conditional_map)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5, 6);
+
+  // Filter then map: square only even numbers
+  auto filtered = filter(l, [] (int x) { return x % 2 == 0; });
+  auto result = maps<int>(filtered, [] (int x) { return x * x; });
+
+  EXPECT_EQ(result, build_dynlist<int>(4, 16, 36));
+}
+
+TEST(filter_map_test, no_matches)
+{
+  DynList<int> l = build_dynlist<int>(1, 3, 5, 7);
+
+  auto filtered = filter(l, [] (int x) { return x % 2 == 0; });
+  auto result = maps<int>(filtered, [] (int x) { return x * 2; });
+
+  EXPECT_TRUE(result.is_empty());
+}
+
+// --- split tests using DynList split method ---
+
+TEST(split_test, basic_split)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5, 6);
+
+  // Use take and drop to simulate split at position 3
+  auto left = l.take(3);
+  auto right = l.drop(3);
+
+  EXPECT_EQ(left, build_dynlist<int>(1, 2, 3));
+  EXPECT_EQ(right, build_dynlist<int>(4, 5, 6));
+}
+
+// --- take and drop comprehensive tests ---
+
+TEST(take_drop_test, take_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  EXPECT_EQ(l.take(3), build_dynlist<int>(1, 2, 3));
+  EXPECT_EQ(l.take(0), DynList<int>());
+  EXPECT_EQ(l.take(10), l);
+}
+
+TEST(take_drop_test, drop_basic)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  EXPECT_EQ(l.drop(2), build_dynlist<int>(3, 4, 5));
+  EXPECT_EQ(l.drop(0), l);
+  EXPECT_EQ(l.drop(10), DynList<int>());
+}
+
+TEST(take_drop_test, take_drop_range)
+{
+  DynList<int> l = build_dynlist<int>(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+
+  // Take elements from position 3 to 7
+  auto result = l.take(3, 7);
+  EXPECT_EQ(result, build_dynlist<int>(3, 4, 5, 6, 7));
+}
+
+// --- to_dynlist tests ---
+
+TEST(to_dynlist_test, from_tree)
+{
+  DynSetTree<int> tree;
+  for (int i = 0; i < 5; ++i)
+    tree.insert(i);
+
+  auto list = to_dynlist(tree);
+  EXPECT_EQ(list.size(), 5);
+  EXPECT_EQ(list, build_dynlist<int>(0, 1, 2, 3, 4));
+}
+
+TEST(to_dynlist_test, from_array)
+{
+  DynArray<int> arr;
+  for (int i = 0; i < 5; ++i)
+    arr.append(i * 2);
+
+  auto list = to_dynlist(arr);
+  EXPECT_EQ(list.size(), 5);
+  EXPECT_EQ(list, build_dynlist<int>(0, 2, 4, 6, 8));
+}
+
+// --- traverse with filter test ---
+
+TEST(traverse_filter_test, count_evens)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+  size_t count = 0;
+  l.traverse([&count] (int x) {
+    if (x % 2 == 0) ++count;
+    return true;
+  });
+
+  EXPECT_EQ(count, 5);
+}
+
+// --- Edge cases and stress tests ---
+
+TEST(functional_stress_test, large_container)
+{
+  constexpr size_t N = 10000;
+  DynList<size_t> l = range<size_t>(N);
+
+  // Test foldl on large container
+  auto sum = foldl<size_t>(l, 0, [] (size_t a, size_t b) { return a + b; });
+  EXPECT_EQ(sum, N * (N - 1) / 2);
+
+  // Test filter on large container
+  auto evens = filter(l, [] (size_t x) { return x % 2 == 0; });
+  EXPECT_EQ(evens.size(), N / 2);
+
+  // Test maps on large container
+  auto doubled = maps<size_t>(l, [] (size_t x) { return x * 2; });
+  EXPECT_EQ(doubled.size(), N);
+  EXPECT_EQ(doubled.get_first(), 0);
+  EXPECT_EQ(doubled.get_last(), (N - 1) * 2);
+}
+
+TEST(functional_stress_test, chained_operations)
+{
+  DynList<int> l = range(100);
+
+  // Chain: filter even -> map square -> take first 5 -> sum
+  auto result = filter(l, [] (int x) { return x % 2 == 0; });  // 50 evens
+  auto squared = maps<int>(result, [] (int x) { return x * x; });
+  auto first5 = squared.take(5);  // 0, 4, 16, 36, 64
+  auto total = sum(first5);
+
+  EXPECT_EQ(total, 0 + 4 + 16 + 36 + 64);
+}
+
+TEST(functional_edge_test, empty_container_operations)
+{
+  DynList<int> empty;
+
+  // All these should handle empty containers gracefully
+  EXPECT_TRUE(filter(empty, [] (int) { return true; }).is_empty());
+  EXPECT_TRUE(maps<int>(empty, [] (int x) { return x; }).is_empty());
+  EXPECT_EQ(foldl<int>(empty, 42, [] (int a, int b) { return a + b; }), 42);
+  EXPECT_TRUE(all(empty, [] (int) { return false; }));  // vacuously true
+  EXPECT_FALSE(exists(empty, [] (int) { return true; }));
+  EXPECT_TRUE(none(empty, [] (int) { return true; }));
+  EXPECT_EQ(sum(empty), 0);
+  EXPECT_EQ(product(empty), 1);
+  EXPECT_TRUE(reverse(empty).is_empty());
+}
+
+TEST(functional_edge_test, single_element)
+{
+  DynList<int> single = build_dynlist<int>(42);
+
+  EXPECT_EQ(filter(single, [] (int x) { return x > 0; }).size(), 1);
+  EXPECT_EQ(maps<int>(single, [] (int x) { return x * 2; }).get_first(), 84);
+  EXPECT_EQ(sum(single), 42);
+  EXPECT_EQ(product(single), 42);
+  EXPECT_EQ(reverse(single).get_first(), 42);
+  EXPECT_EQ(*min_ptr(single), 42);
+  EXPECT_EQ(*max_ptr(single), 42);
+}
+
+// --- Complex type tests ---
+
+struct Person
+{
+  string name;
+  int age;
+
+  bool operator==(const Person & other) const
+  {
+    return name == other.name && age == other.age;
+  }
+};
+
+TEST(functional_complex_type_test, struct_operations)
+{
+  DynList<Person> people;
+  people.append({"Alice", 30});
+  people.append({"Bob", 25});
+  people.append({"Charlie", 35});
+  people.append({"Diana", 28});
+
+  // Filter by age
+  auto over28 = filter(people, [] (const Person & p) { return p.age > 28; });
+  EXPECT_EQ(over28.size(), 2);
+
+  // Map to names
+  auto names = maps<string>(people, [] (const Person & p) { return p.name; });
+  EXPECT_EQ(names, build_dynlist<string>("Alice", "Bob", "Charlie", "Diana"));
+
+  // Find oldest
+  auto * oldest = max_ptr(people, [] (const Person & a, const Person & b) {
+    return a.age < b.age;
+  });
+  ASSERT_NE(oldest, nullptr);
+  EXPECT_EQ(oldest->name, "Charlie");
+
+  // Sum of ages
+  auto total_age = foldl<int>(people, 0, [] (int acc, const Person & p) {
+    return acc + p.age;
+  });
+  EXPECT_EQ(total_age, 30 + 25 + 35 + 28);
+}
+
+// --- Lazy evaluation / composition tests ---
+
+TEST(functional_composition_test, nested_maps)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  // map twice
+  auto result = maps<int>(maps<int>(l, [] (int x) { return x + 1; }),
+                          [] (int x) { return x * x; });
+  EXPECT_EQ(result, build_dynlist<int>(4, 9, 16));  // (1+1)^2, (2+1)^2, (3+1)^2
+}
+
+TEST(functional_composition_test, filter_then_map)
+{
+  DynList<int> l = range(10);
+
+  auto result = maps<string>(
+    filter(l, [] (int x) { return x % 3 == 0; }),
+    [] (int x) { return "val" + to_string(x); }
+  );
+
+  EXPECT_EQ(result, build_dynlist<string>("val0", "val3", "val6", "val9"));
+}
+
+// --- Quantifier tests ---
+
+TEST(quantifier_test, all_comprehensive)
+{
+  DynList<int> l = build_dynlist<int>(2, 4, 6, 8, 10);
+
+  EXPECT_TRUE(all(l, [] (int x) { return x % 2 == 0; }));  // all even
+  EXPECT_TRUE(all(l, [] (int x) { return x > 0; }));       // all positive
+  EXPECT_FALSE(all(l, [] (int x) { return x > 5; }));      // not all > 5
+
+  // Empty container - vacuously true
+  DynList<int> empty;
+  EXPECT_TRUE(all(empty, [] (int) { return false; }));
+}
+
+TEST(quantifier_test, exists_comprehensive)
+{
+  DynList<int> l = build_dynlist<int>(1, 3, 5, 6, 7);
+
+  EXPECT_TRUE(exists(l, [] (int x) { return x % 2 == 0; }));   // 6 is even
+  EXPECT_TRUE(exists(l, [] (int x) { return x == 7; }));       // 7 exists
+  EXPECT_FALSE(exists(l, [] (int x) { return x > 100; }));     // none > 100
+
+  // Empty container - false
+  DynList<int> empty;
+  EXPECT_FALSE(exists(empty, [] (int) { return true; }));
+}
+
+TEST(quantifier_test, none_comprehensive)
+{
+  DynList<int> l = build_dynlist<int>(1, 3, 5, 7, 9);
+
+  EXPECT_TRUE(none(l, [] (int x) { return x % 2 == 0; }));   // no even
+  EXPECT_TRUE(none(l, [] (int x) { return x > 100; }));      // none > 100
+  EXPECT_FALSE(none(l, [] (int x) { return x == 5; }));      // 5 exists
+
+  // Empty container - vacuously true
+  DynList<int> empty;
+  EXPECT_TRUE(none(empty, [] (int) { return true; }));
+}
+
