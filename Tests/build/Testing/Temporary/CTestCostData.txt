@@ -1,5 +1,0 @@
-dynsettree 1 0.0695652
-primes 1 0.0805983
-random_graph 1 0.00207352
-prim_test 1 0.00206948
----
