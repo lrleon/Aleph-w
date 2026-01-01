@@ -25,7 +25,7 @@ Aleph-w es una biblioteca madura de estructuras de datos y algoritmos con **258 
 | `constexpr` usage | 272 | ✅ Bueno |
 | `assert()` usage | 984 | ⚠️ Considerar migrar a `ah_*` |
 | Thread-safety indicators | 560 | ✅ Concurrencia soportada |
-| Virtual sin `override` | 63 | ⚠️ Agregar `override` |
+| Virtual sin `override` | 26 | ✅ Solo declaraciones originales |
 
 ---
 
@@ -546,7 +546,7 @@ ah_length_error_if(cond) << "msg";
 
 | Acción | Prioridad | Esfuerzo | Impacto |
 |--------|-----------|----------|---------|
-| Agregar `override` a 63 métodos virtuales | Media | Bajo | Mantenibilidad |
+| ~~Agregar `override` a métodos virtuales~~ | ~~Media~~ | ~~Bajo~~ | ✅ **Completado** (37 métodos) |
 | Resolver warnings de Clang en CI | Alta | Medio | CI estable |
 | Completar tests para `ah-ranges.H` | Alta | Medio | Confiabilidad |
 | Documentar TODOs pendientes o resolverlos | Baja | Bajo | Claridad |
