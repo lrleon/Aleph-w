@@ -89,6 +89,7 @@ jobs:
 
       - name: Configure
         run: |
+          rm -rf build
           cmake -S . -B build -G Ninja \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -172,6 +173,7 @@ jobs:
 
       - name: Configure
         run: |
+          rm -rf build-asan
           cmake -S . -B build-asan -G Ninja \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \

@@ -301,3 +301,10 @@ cmake-build-debug
 cmake-build-release/
 Testing/
 build_clang/
+
+# CMake/Ninja build directories (CI)
+build-*/
+build*/
+cmake-build-*/
+Tests/build-*/
+Testing/

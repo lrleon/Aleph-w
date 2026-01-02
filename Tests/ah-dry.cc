@@ -26,6 +26,7 @@
 
 # include <gtest/gtest.h>
 
+# include <vector>
 # include <ah-zip.H>
 # include <ahFunctional.H>
 # include <ah-string-utils.H>
@@ -142,8 +143,18 @@ TYPED_TEST_P(Container, iterator_operations)
   //auto N = this->N;
   auto c = this->c;
   const DynList<int> l = to_dynlist(c); // in the same order than iterator
+  const std::vector<int> v = c.to_vector(); // test to_vector method
+  const DynList<int> l2 = c.to_dynlist(); // test to_dynlist method
 
   ASSERT_EQ(l.size(), c.size());
+  ASSERT_EQ(v.size(), c.size());
+  ASSERT_EQ(l2.size(), c.size());
+  
+  // Verify to_vector and to_dynlist produce same content
+  size_t idx = 0;
+  l2.for_each([&v, &idx](int x) {
+    EXPECT_EQ(x, v[idx++]);
+  });
 
   auto itl = l.get_it();
   for (auto & item : c)

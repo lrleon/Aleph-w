@@ -1179,6 +1179,44 @@ TEST(FunctionalMixin, ToVectorEmpty)
   EXPECT_TRUE(vec.empty());
 }
 
+TEST(FunctionalMixin, ToDynlist)
+{
+  MixinVector<int> v = {1, 2, 3, 4, 5};
+
+  DynList<int> list = v.to_dynlist();
+  EXPECT_EQ(list.size(), 5);
+  
+  // Verify order is preserved
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), 1);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 2);
+}
+
+TEST(FunctionalMixin, ToDynlistEmpty)
+{
+  MixinVector<int> v;
+  DynList<int> list = v.to_dynlist();
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(FunctionalMixin, ToDynlistRoundTrip)
+{
+  // to_vector -> to_dynlist -> verify same content
+  MixinVector<int> v = {10, 20, 30};
+  
+  std::vector<int> vec = v.to_vector();
+  DynList<int> list = v.to_dynlist();
+  
+  // Both should have same size and content
+  EXPECT_EQ(vec.size(), list.size());
+  
+  size_t i = 0;
+  list.for_each([&vec, &i](int x) {
+    EXPECT_EQ(x, vec[i++]);
+  });
+}
+
 TEST(FunctionalMixin, Join)
 {
   MixinVector<int> v = {1, 2, 3};

@@ -39,6 +39,7 @@
 
 # include <ahFunctional.H>
 # include <ahDry.H>
+# include <ah-dry.H>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
 # include <ah-iterator.H>
@@ -46,11 +47,7 @@
 # include <stdexcept>
 # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph {
-
-# include <ah-dry.H>
 
   /** @brief Dynamic doubly linked list with O(1) size and bidirectional access.
 

@@ -39,7 +39,12 @@
 
 # include "ahFunctional.H"
 # include <utility>
+# include <vector>
 # include <ah-errors.H>
+
+using Aleph::DynList;
+using Aleph::Dft_Map_Op;
+using Aleph::Dft_Fold_Op;
 
 /**  Generic traversal of the container through its iterator.
 
@@ -882,9 +887,24 @@ public:
     return maps<__T, Prop, Operation>(prop, op);
   }
 
+  /** Convert container to DynList.
+   *
+   *  @return DynList<T> containing all elements in traversal order.
+   */
   DynList<T> to_dynlist() const
   {
     return maps([] (auto & item) { return item; });
+  }
+
+  /** Convert container to std::vector.
+   *
+   *  @return std::vector<T> containing all elements in traversal order.
+   */
+  std::vector<T> to_vector() const
+  {
+    std::vector<T> ret;
+    const_me()->for_each([&ret] (const T & item) { ret.push_back(item); });
+    return ret;
   }
 
   /** Fold the elements of the container to a specific result.
@@ -1581,7 +1601,4 @@ public:
     return this->find(key);
   }
 };
-
-
-
 # endif // AH_DRY_H

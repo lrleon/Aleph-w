@@ -1672,6 +1672,32 @@ public:
     return ret;
   }
 
+  /** @brief Convert container to DynList.
+   *
+   *  Creates a DynList containing all elements in traversal order.
+   *
+   *  @tparam DynListType DynList type (default: DynList<Type>).
+   *  @return DynList containing all elements.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  BitArray bits = {1, 0, 1, 1};
+   *  DynList<unsigned short> list = bits.to_dynlist();
+   *  @endcode
+   *
+   *  @note Requires DynList to be available (include htlist.H or tpl_dynList.H).
+   */
+  template <typename DynListType = DynList<Type>>
+  [[nodiscard]] DynListType to_dynlist() const
+  {
+    DynListType ret;
+    for_each([&ret] (const Type & item) { ret.append(item); });
+    return ret;
+  }
+
   /** @brief Join elements into a string with separator.
    *
    *  @param sep Separator string (default: ", ").
