@@ -1668,6 +1668,8 @@ public:
   [[nodiscard]] std::vector<Type> to_vector() const
   {
     std::vector<Type> ret;
+    if constexpr (requires { self().size(); })
+      ret.reserve(self().size());
     for_each([&ret] (const Type & item) { ret.push_back(item); });
     return ret;
   }

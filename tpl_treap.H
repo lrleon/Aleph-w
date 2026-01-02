@@ -112,7 +112,7 @@ namespace Aleph
       auto node = tree.search(42);
       if (node != nullptr)
         std::cout << "Found: " << node->get_key()
-                  << " (priority: " << PRIO(node) << ")" << std::endl;
+                  << " (priority: " << PRIO(node) << ")" << '\n';
 
       // Split tree at key 50
       Treap<int> left, right;

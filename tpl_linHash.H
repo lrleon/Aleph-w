@@ -545,7 +545,7 @@ public:
                   std::cout << key << ",";
                 }
           }
-        std::cout << "]" << std::endl;
+        std::cout << "]" << '\n';
       }
   }
 

@@ -94,6 +94,14 @@ public:
     init_mutex(mutex);
   }
 
+  /// Copying disabled (contains mutex)
+  ProtectedLhashTable(const ProtectedLhashTable &) = delete;
+  ProtectedLhashTable & operator=(const ProtectedLhashTable &) = delete;
+
+  /// Moving disabled (contains mutex)
+  ProtectedLhashTable(ProtectedLhashTable &&) = delete;
+  ProtectedLhashTable & operator=(ProtectedLhashTable &&) = delete;
+
   void remove_all_and_delete()
   {
     CRITICAL_SECTION(&mutex);

@@ -1163,3 +1163,312 @@ TEST(quantifier_test, none_comprehensive)
   EXPECT_TRUE(none(empty, [] (int) { return true; }));
 }
 
+// =============================================================================
+// Additional comprehensive tests
+// =============================================================================
+
+// --- scanl comprehensive tests ---
+
+TEST(scanl_comprehensive, scanl_sum_variants)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3, 4, 5);
+
+  // Basic scanl_sum starting from 0
+  auto sums = scanl_sum(l, 0);
+  EXPECT_EQ(sums, build_dynlist<int>(0, 1, 3, 6, 10, 15));
+
+  // scanl_sum with non-zero init
+  auto sums2 = scanl_sum(l, 100);
+  EXPECT_EQ(sums2, build_dynlist<int>(100, 101, 103, 106, 110, 115));
+
+  // Empty container
+  DynList<int> empty;
+  auto empty_scan = scanl_sum(empty, 42);
+  EXPECT_EQ(empty_scan.size(), 1);
+  EXPECT_EQ(empty_scan.get_first(), 42);
+}
+
+TEST(scanl_comprehensive, scanl_custom_op)
+{
+  DynList<int> l = build_dynlist<int>(2, 3, 4);
+
+  // Product scan
+  auto products = scanl<int>(l, 1, [] (int acc, int x) { return acc * x; });
+  EXPECT_EQ(products, build_dynlist<int>(1, 2, 6, 24));
+
+  // Max scan
+  auto maxes = scanl<int>(l, 0, [] (int acc, int x) { return std::max(acc, x); });
+  EXPECT_EQ(maxes, build_dynlist<int>(0, 2, 3, 4));
+}
+
+// --- flat_map comprehensive tests ---
+
+TEST(flat_map_comprehensive, basic_operations)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  // Expand each number to a range
+  auto result = flat_map(l, [] (int x) {
+    return range(x);  // 0..x-1
+  });
+  // 1 -> {0}, 2 -> {0,1}, 3 -> {0,1,2}
+  EXPECT_EQ(result, build_dynlist<int>(0, 0, 1, 0, 1, 2));
+}
+
+TEST(flat_map_comprehensive, replicate_pattern)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  // Replicate each element by its value
+  auto result = flat_map(l, [] (int x) -> DynList<int> {
+    DynList<int> res;
+    for (int i = 0; i < x; ++i)
+      res.append(x);
+    return res;
+  });
+  EXPECT_EQ(result, build_dynlist<int>(1, 2, 2, 3, 3, 3));
+}
+
+TEST(flat_map_comprehensive, empty_inner)
+{
+  DynList<int> l = build_dynlist<int>(1, 2, 3);
+
+  // Some inner results are empty
+  auto result = flat_map(l, [] (int x) {
+    if (x % 2 == 0)
+      return DynList<int>();
+    return build_dynlist<int>(x);
+  });
+  EXPECT_EQ(result, build_dynlist<int>(1, 3));
+}
+
+// --- concat comprehensive tests ---
+
+TEST(concat_comprehensive, various_combinations)
+{
+  DynList<int> a = build_dynlist<int>(1, 2);
+  DynList<int> b = build_dynlist<int>(3, 4, 5);
+  DynList<int> empty;
+
+  EXPECT_EQ(concat(a, b), build_dynlist<int>(1, 2, 3, 4, 5));
+  EXPECT_EQ(concat(empty, b), build_dynlist<int>(3, 4, 5));
+  EXPECT_EQ(concat(a, empty), build_dynlist<int>(1, 2));
+  EXPECT_EQ(concat(empty, empty), DynList<int>());
+}
+
+// --- take_while / drop_while comprehensive tests ---
+
+TEST(while_comprehensive, take_while_various)
+{
+  DynList<int> l = build_dynlist<int>(2, 4, 6, 7, 8, 10);
+
+  // Take while even
+  auto evens = take_while(l, [] (int x) { return x % 2 == 0; });
+  EXPECT_EQ(evens, build_dynlist<int>(2, 4, 6));
+
+  // Take while < 5
+  auto small = take_while(l, [] (int x) { return x < 5; });
+  EXPECT_EQ(small, build_dynlist<int>(2, 4));
+
+  // Take nothing (first element fails)
+  auto none_taken = take_while(l, [] (int x) { return x > 100; });
+  EXPECT_TRUE(none_taken.is_empty());
+
+  // Take all
+  auto all_taken = take_while(l, [] (int) { return true; });
+  EXPECT_EQ(all_taken.size(), l.size());
+}
+
+TEST(while_comprehensive, drop_while_various)
+{
+  DynList<int> l = build_dynlist<int>(2, 4, 6, 7, 8, 10);
+
+  // Drop while even
+  auto after_evens = drop_while(l, [] (int x) { return x % 2 == 0; });
+  EXPECT_EQ(after_evens, build_dynlist<int>(7, 8, 10));
+
+  // Drop while < 5
+  auto after_small = drop_while(l, [] (int x) { return x < 5; });
+  EXPECT_EQ(after_small, build_dynlist<int>(6, 7, 8, 10));
+
+  // Drop nothing (first element fails)
+  auto none_dropped = drop_while(l, [] (int x) { return x > 100; });
+  EXPECT_EQ(none_dropped.size(), l.size());
+
+  // Drop all
+  auto all_dropped = drop_while(l, [] (int) { return true; });
+  EXPECT_TRUE(all_dropped.is_empty());
+}
+
+// --- reverse comprehensive tests ---
+
+TEST(reverse_comprehensive, various_sizes)
+{
+  EXPECT_EQ(reverse(build_dynlist<int>(1)), build_dynlist<int>(1));
+  EXPECT_EQ(reverse(build_dynlist<int>(1, 2)), build_dynlist<int>(2, 1));
+  EXPECT_EQ(reverse(build_dynlist<int>(1, 2, 3)), build_dynlist<int>(3, 2, 1));
+
+  DynList<int> empty;
+  EXPECT_TRUE(reverse(empty).is_empty());
+
+  // Reverse twice = original
+  DynList<int> l = range(10);
+  EXPECT_EQ(reverse(reverse(l)), l);
+}
+
+// --- min/max pointer comprehensive tests ---
+
+TEST(min_max_ptr_comprehensive, with_comparator)
+{
+  DynList<string> names;
+  names.append("Bob");
+  names.append("Alice");
+  names.append("Charlie");
+
+  // By length
+  auto * shortest = min_ptr(names, [] (const string & a, const string & b) {
+    return a.length() < b.length();
+  });
+  ASSERT_NE(shortest, nullptr);
+  EXPECT_EQ(*shortest, "Bob");
+
+  auto * longest = max_ptr(names, [] (const string & a, const string & b) {
+    return a.length() < b.length();
+  });
+  ASSERT_NE(longest, nullptr);
+  EXPECT_EQ(*longest, "Charlie");
+}
+
+TEST(min_max_ptr_comprehensive, minmax_combined)
+{
+  DynList<int> l = build_dynlist<int>(3, 1, 4, 1, 5, 9, 2, 6);
+
+  auto [min_p, max_p] = minmax_ptr(l);
+  ASSERT_NE(min_p, nullptr);
+  ASSERT_NE(max_p, nullptr);
+  EXPECT_EQ(*min_p, 1);
+  EXPECT_EQ(*max_p, 9);
+}
+
+// --- foldl/foldr comprehensive tests ---
+
+TEST(fold_comprehensive, foldl_associativity)
+{
+  DynList<string> words;
+  words.append("a");
+  words.append("b");
+  words.append("c");
+
+  // foldl is left-associative: ((init op a) op b) op c
+  auto result = foldl<string>(words, "START", [] (const string & acc, const string & x) {
+    return "(" + acc + "+" + x + ")";
+  });
+  EXPECT_EQ(result, "(((START+a)+b)+c)");
+}
+
+TEST(fold_comprehensive, foldr_associativity)
+{
+  DynList<string> words;
+  words.append("a");
+  words.append("b");
+  words.append("c");
+
+  // foldr is right-associative: a op (b op (c op init))
+  auto result = foldr<string>(words, "END", [] (const string & x, const string & acc) {
+    return "(" + x + "+" + acc + ")";
+  });
+  EXPECT_EQ(result, "(a+(b+(c+END)))");
+}
+
+// --- zip comprehensive tests ---
+
+TEST(zip_comprehensive, different_lengths)
+{
+  DynList<int> a = build_dynlist<int>(1, 2, 3, 4, 5);
+  DynList<char> b;
+  b.append('a');
+  b.append('b');
+
+  // Regular zip stops at shorter
+  auto zipped = zip(a, b);
+  EXPECT_EQ(zipped.size(), 2);
+}
+
+TEST(zip_comprehensive, zip_all_predicate)
+{
+  DynList<int> a = build_dynlist<int>(1, 2, 3);
+  DynList<int> b = build_dynlist<int>(2, 4, 6);
+
+  // Check if b[i] == 2*a[i] for all i
+  bool all_double = zip_all([] (auto t) { return get<1>(t) == 2 * get<0>(t); }, a, b);
+  EXPECT_TRUE(all_double);
+
+  DynList<int> c = build_dynlist<int>(2, 4, 5);  // 5 != 2*3
+  bool not_all = zip_all([] (auto t) { return get<1>(t) == 2 * get<0>(t); }, a, c);
+  EXPECT_FALSE(not_all);
+}
+
+// --- group_by comprehensive tests ---
+
+TEST(group_by_comprehensive, custom_key)
+{
+  DynList<int> l = build_dynlist<int>(1, 3, 5, 2, 4, 6, 7, 9);
+
+  // Group by parity (odd=1, even=0)
+  auto groups = group_by(l, [] (int x) { return x % 2; });
+
+  EXPECT_EQ(groups.size(), 3);  // odd, even, odd groups
+
+  auto it = groups.get_it();
+  EXPECT_EQ(it.get_curr().first, 1);  // odd
+  EXPECT_EQ(it.get_curr().second.size(), 3);  // 1, 3, 5
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 0);  // even
+  EXPECT_EQ(it.get_curr().second.size(), 3);  // 2, 4, 6
+  it.next();
+  EXPECT_EQ(it.get_curr().first, 1);  // odd
+  EXPECT_EQ(it.get_curr().second.size(), 2);  // 7, 9
+}
+
+// --- Performance / stress tests ---
+
+TEST(functional_performance, large_chain)
+{
+  constexpr size_t N = 10000;
+  auto large = range<int>(0, static_cast<int>(N) - 1);
+
+  // Chain: filter -> map -> sum (first 100 evens)
+  auto evens = filter(large, [] (int x) { return x % 2 == 0; });
+  auto squared = maps<int>(evens, [] (int x) { return x * x; });
+
+  // Take first 100 elements manually
+  DynList<int> first100;
+  size_t count = 0;
+  for (auto it = squared.get_it(); it.has_curr() && count < 100; it.next_ne(), ++count)
+    first100.append(it.get_curr());
+
+  // Sum of squares of first 100 even numbers: 0^2 + 2^2 + 4^2 + ... + 198^2
+  long long expected = 0;
+  for (int i = 0; i < 100; ++i)
+    expected += (2LL * i) * (2LL * i);
+
+  auto total = foldl<long long>(first100, 0LL, [] (long long acc, int x) {
+    return acc + x;
+  });
+  EXPECT_EQ(total, expected);
+}
+
+TEST(functional_performance, deep_nesting)
+{
+  // Deeply nested maps
+  auto l = range(5);
+  auto result = maps<int>(
+    maps<int>(
+      maps<int>(l, [] (int x) { return x + 1; }),
+      [] (int x) { return x * 2; }),
+    [] (int x) { return x - 1; });
+
+  // ((x + 1) * 2) - 1 for x in 0..4
+  EXPECT_EQ(result, build_dynlist<int>(1, 3, 5, 7, 9));
+}
+

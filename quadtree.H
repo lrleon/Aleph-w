@@ -97,14 +97,14 @@
 
     // Check if point is in the tree
     if (tree.contains(Point(50, 50)))
-      std::cout << "Point found" << std::endl;
+      std::cout << "Point found" << '\n';
 
     // Remove a point
     tree.remove(Point(25, 25));
 
     // Traverse all nodes
     tree.for_each([](QuadNode * node) {
-      std::cout << "Node at level " << LEVEL(node) << std::endl;
+      std::cout << "Node at level " << LEVEL(node) << '\n';
     });
     @endcode
 
@@ -336,7 +336,17 @@ public:
     copy_tree(tree.root, root);
   }
 
-  /** @brief Assignment operator - creates a deep copy.
+  /** @brief Move constructor - transfers ownership.
+   *
+   *  @param tree Tree to move from
+   */
+  QuadTree(QuadTree && tree) noexcept
+    : root(tree.root), max_num_points_per_node(tree.max_num_points_per_node)
+  {
+    tree.root = nullptr;
+  }
+
+  /** @brief Copy assignment operator - creates a deep copy.
    *
    *  @param tree Tree to assign from
    *  @return Reference to this
@@ -350,6 +360,23 @@ public:
     max_num_points_per_node = tree.max_num_points_per_node;
     copy_tree(tree.root, root);
 
+    return *this;
+  }
+
+  /** @brief Move assignment operator - transfers ownership.
+   *
+   *  @param tree Tree to move from
+   *  @return Reference to this
+   */
+  QuadTree & operator = (QuadTree && tree) noexcept
+  {
+    if (this != &tree)
+      {
+        empty(root);
+        root = tree.root;
+        max_num_points_per_node = tree.max_num_points_per_node;
+        tree.root = nullptr;
+      }
     return *this;
   }
 

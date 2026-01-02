@@ -119,6 +119,14 @@ public:
     init_mutex(mutex);
   }
 
+  /// Copying disabled (contains mutex)
+  Protected_OdHashTable(const Protected_OdHashTable &) = delete;
+  Protected_OdHashTable & operator=(const Protected_OdHashTable &) = delete;
+
+  /// Moving disabled (contains mutex)
+  Protected_OdHashTable(Protected_OdHashTable &&) = delete;
+  Protected_OdHashTable & operator=(Protected_OdHashTable &&) = delete;
+
   ~Protected_OdHashTable()
   {
     destroy_mutex(mutex);

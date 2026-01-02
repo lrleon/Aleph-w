@@ -105,13 +105,15 @@ template <typename T = int>
 [[nodiscard]] std::vector<T> stl_range(T start, T end, T step = 1)
 {
   std::vector<T> result;
-  if (step > 0)
+  if (step > 0 && start <= end)
     {
+      result.reserve(static_cast<size_t>((end - start) / step + 1));
       for (T i = start; i <= end; i += step)
         result.push_back(i);
     }
-  else if (step < 0)
+  else if (step < 0 && start >= end)
     {
+      result.reserve(static_cast<size_t>((start - end) / (-step) + 1));
       for (T i = start; i >= end; i += step)
         result.push_back(i);
     }
@@ -151,6 +153,7 @@ template <typename T = double>
 {
   std::vector<T> result;
   if (n == 0) return result;
+  result.reserve(n);
   if (n == 1)
     {
       result.push_back(start);
@@ -729,6 +732,9 @@ template <typename Container>
   using T = typename Container::value_type;
 
   std::vector<T> result;
+  size_t size = c.size();
+  if (size > n)
+    result.reserve(size - n);
   size_t count = 0;
   for (const auto& item : c)
     {
@@ -755,6 +761,8 @@ template <typename Container>
 
   std::vector<T> result;
   size_t size = c.size();
+  size_t actual_n = (size > n) ? n : size;
+  result.reserve(actual_n);
   size_t skip = (size > n) ? (size - n) : 0;
 
   size_t count = 0;
@@ -1130,6 +1138,7 @@ template <typename Container1, typename Container2>
   using T2 = typename Container2::value_type;
 
   std::vector<std::pair<T1, T2>> result;
+  result.reserve(std::min(c1.size(), c2.size()));
   auto it1 = c1.begin();
   auto it2 = c2.begin();
   for (; it1 != c1.end() && it2 != c2.end(); ++it1, ++it2)

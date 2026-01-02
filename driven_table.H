@@ -164,7 +164,33 @@ public:
     : table(new Event_Fct [num_events]), size_table(num_events)
   {
     fill_table_to_null(num_events);
-  }  
+  }
+
+  /// Copying disabled (raw pointer management)
+  Static_Event_Table(const Static_Event_Table &) = delete;
+  Static_Event_Table & operator=(const Static_Event_Table &) = delete;
+
+  /// Move construction transfers ownership
+  Static_Event_Table(Static_Event_Table && other) noexcept
+    : table(other.table), size_table(other.size_table)
+  {
+    other.table = nullptr;
+    other.size_table = 0;
+  }
+
+  /// Move assignment transfers ownership
+  Static_Event_Table & operator=(Static_Event_Table && other) noexcept
+  {
+    if (this != &other)
+      {
+        delete [] table;
+        table = other.table;
+        size_table = other.size_table;
+        other.table = nullptr;
+        other.size_table = 0;
+      }
+    return *this;
+  }
 
   ~Static_Event_Table()
   {

@@ -144,7 +144,7 @@ namespace Aleph
       table.insert("world");
       auto ptr = table.search("hello");
       if (ptr != nullptr)
-        std::cout << "Found: " << *ptr << std::endl;
+        std::cout << "Found: " << *ptr << '\n';
       @endcode
 
       @see ODhashTable for double hashing variant.

@@ -466,7 +466,7 @@ namespace Aleph
       @code
       DynList<std::string> names = {"Alice", "Bob", "Carol"};
       enum_for_each(names, [](const std::string& name, size_t i) {
-        std::cout << i << ": " << name << std::endl;
+        std::cout << i << ": " << name << '\n';
       });
       // Output:
       // 0: Alice
@@ -772,7 +772,7 @@ namespace Aleph
       DynList<double> ys = {1.1, 2.2};
       auto tuples = tzip(xs, ys);
       for (const auto& [x, y] : tuples)
-        std::cout << x << ", " << y << std::endl;
+        std::cout << x << ", " << y << '\n';
       @endcode
 
       @see zip() for pair-based version.
@@ -896,7 +896,7 @@ namespace Aleph
       @code
       DynList<std::string> names = {"Alice", "Bob", "Carol"};
       for (const auto& [name, idx] : enumerate(names))
-        std::cout << idx << ": " << name << std::endl;
+        std::cout << idx << ": " << name << '\n';
       // Output:
       // 0: Alice
       // 1: Bob
@@ -1454,7 +1454,7 @@ namespace Aleph
       auto it = get_pair_it(nums, names);
       while (it.has_curr()) {
         auto [num, name] = it.get_curr_ne();
-        std::cout << num << " = " << name << std::endl;
+        std::cout << num << " = " << name << '\n';
         it.next_ne();
       }
       @endcode
@@ -2446,7 +2446,7 @@ namespace Aleph
 
       // Using structured bindings:
       for (const auto& [name, score] : result)
-        std::cout << name << ": " << score << std::endl;
+        std::cout << name << ": " << score << '\n';
       @endcode
 
       @see zip_longest() for pair-based version.
@@ -2519,7 +2519,7 @@ namespace Aleph
         {
           if (opt_a) std::cout << "a=" << *opt_a;
           if (opt_b) std::cout << " b=" << *opt_b;
-          std::cout << std::endl;
+          std::cout << '\n';
         }
       @endcode
 

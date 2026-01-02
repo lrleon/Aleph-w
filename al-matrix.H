@@ -865,14 +865,14 @@ namespace Aleph
     /// Print non-zero entries to stdout.
     void print() const
     {
-      std::cout << "Non zero entries = " << std::endl;
+      std::cout << "Non zero entries = " << '\n';
       entries.for_each([](const Pair & p)
                          {
                            std::cout << "(" << Aleph::to_str(p.first.first) << ","
                                << Aleph::to_str(p.first.second) << ") : "
-                               << Aleph::to_str(p.second) << std::endl;
+                               << Aleph::to_str(p.second) << '\n';
                          });
-      std::cout << std::endl;
+      std::cout << '\n';
     }
 
     /// Convert matrix to a formatted string representation.

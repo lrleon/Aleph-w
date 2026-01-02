@@ -375,9 +375,9 @@ namespace Aleph
               std::cout << "inf ";
             else
               std::cout << dist.access(i, j) << " ";
-          std::cout << std::endl;
+          std::cout << '\n';
         }
-      std::cout << std::endl;
+      std::cout << '\n';
     }
 
     /**

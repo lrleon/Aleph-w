@@ -100,7 +100,7 @@ using namespace Aleph;
     // Search (splays node to root)
     auto node = tree.search(42);
     if (node != nullptr)
-      std::cout << "Found and splayed to root: " << node->get_key() << std::endl;
+      std::cout << "Found and splayed to root: " << node->get_key() << '\n';
 
     // Subsequent access to 42 is now O(1)
     node = tree.search(42);  // Very fast - already at root

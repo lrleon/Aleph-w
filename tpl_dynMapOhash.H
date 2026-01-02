@@ -70,11 +70,11 @@ namespace Aleph
  *
  *  // Search and access
  *  if (ages.has("Alice"))
- *    std::cout << "Alice's age: " << ages["Alice"] << std::endl;
+ *    std::cout << "Alice's age: " << ages["Alice"] << '\n';
  *
  *  // Iterate
  *  ages.traverse([](auto& pair) {
- *    std::cout << pair.first << ": " << pair.second << std::endl;
+ *    std::cout << pair.first << ": " << pair.second << '\n';
  *    return true;
  *  });
  *

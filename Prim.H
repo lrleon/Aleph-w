@@ -88,6 +88,7 @@
 # include <tpl_graph_utils.H>
 # include <archeap.H>
 # include <ah-errors.H>
+# include <cookie_guard.H>
 
 namespace Aleph
 {
@@ -298,6 +299,11 @@ namespace Aleph
       Operate_On_Nodes<GT, Init_Prim_Info<GT>>()(g, init);
       g.reset_arcs();
 
+      // Scope guard for exception safety - ensures Uninit is always called
+      Scope_Guard cleanup_guard(g, [](const GT & graph) {
+        Operate_On_Nodes<GT, Uninit_Prim_Info<GT>>()(graph);
+      });
+
       NODE_BITS(first).set_bit(Aleph::Spanning_Tree, true); // visitado
 
       Heap heap(dist, Acc_Heap());
@@ -350,7 +356,7 @@ namespace Aleph
           GT::map_arcs(min_arc, tree_arc);
         }
 
-      Operate_On_Nodes<GT, Uninit_Prim_Info<GT>>()(g);
+      // cleanup_guard destructor will call Uninit_Prim_Info for all nodes
     }
 
   public:

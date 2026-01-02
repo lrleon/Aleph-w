@@ -133,7 +133,7 @@ namespace Aleph
   {
     void operator ()(std::ostream & output, GT &, typename GT::Node *p)
     {
-      output << p->get_info().x << " " << p->get_info().y << std::endl;
+      output << p->get_info().x << " " << p->get_info().y << '\n';
     }
   };
 
@@ -152,7 +152,7 @@ namespace Aleph
   {
     void operator ()(std::ostream & output, GT &, typename GT::Arc *a)
     {
-      output << a->get_info() << std::endl;
+      output << a->get_info() << '\n';
     }
   };
 

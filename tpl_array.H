@@ -96,7 +96,7 @@ namespace Aleph
     arr.push(99);
 
     // Indexed access (O(1))
-    std::cout << arr[1] << std::endl;  // 17
+    std::cout << arr[1] << '\n';  // 17
     arr[1] = 25;
 
     // Functional operations

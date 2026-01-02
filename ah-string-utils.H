@@ -923,7 +923,7 @@ namespace Aleph
                         {
                           out << s;
                         });
-        out << std::endl;
+        out << '\n';
       }
 
     return out;
@@ -999,7 +999,7 @@ namespace Aleph
                                     {
                                       s << str;
                                     });
-                     s << std::endl;
+                     s << '\n';
                    });
     return s.str();
   }
@@ -1041,7 +1041,7 @@ namespace Aleph
         const auto & line = it.get_curr();
         s << line;
         if (line != lines.get_last())
-          s << std::endl;
+          s << '\n';
       }
 
     return s.str();
@@ -1093,7 +1093,7 @@ namespace Aleph
           // next word doesn't fit into the line
           if (not line.empty())
             {
-              s << std::string(left_margin, ' ') << justify_line(line, width) << std::endl;
+              s << std::string(left_margin, ' ') << justify_line(line, width) << '\n';
               line.clear();
             }
           line = word;
@@ -1124,7 +1124,7 @@ namespace Aleph
     const auto formatted = justify_text(text, width);
     auto lines = split_text_into_lines(formatted);
     std::ostringstream s;
-    s << lines.remove_first() << std::endl;
+    s << lines.remove_first() << '\n';
     s << justify_text(to_string(lines), width, left_margin);
     return s.str();
   }
@@ -1151,7 +1151,7 @@ namespace Aleph
           // next word doesn't fit into the line
           if (not line.empty())
             {
-              s << margin << line << std::endl;
+              s << margin << line << '\n';
               line.clear();
             }
           line = word;
@@ -1182,7 +1182,7 @@ namespace Aleph
     const auto formatted = align_text_to_left(text, width);
     auto lines = split_text_into_lines(formatted);
     std::ostringstream s;
-    s << lines.remove_first() << std::endl;
+    s << lines.remove_first() << '\n';
     s << align_text_to_left(to_string(lines), width, left_margin);
     return s.str();
   }
@@ -1203,7 +1203,7 @@ namespace Aleph
         const auto & line = it.get_curr();
         s << fill << line;
         if (line != lines.get_last())
-          s << std::endl;
+          s << '\n';
       }
     return s.str();
   }

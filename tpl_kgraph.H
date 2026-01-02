@@ -36,6 +36,7 @@
 # include <limits>
 # include <Set.H>
 # include <tpl_net.H>
+# include <cookie_guard.H>
 
 namespace Aleph
 {
@@ -104,6 +105,10 @@ namespace Aleph
 
     typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class>> Net;
     Net net;
+
+    // Cookie_Guard clears cookies when function exits (prevents dangling pointers)
+    Cookie_Guard<GT> cookie_guard(g, true, false);
+
     typename Net::Node *source = nullptr;
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       {
@@ -487,6 +492,10 @@ namespace Aleph
 
     typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class>> Net;
     Net net;
+
+    // Cookie_Guard clears cookies when function exits (prevents dangling pointers)
+    Cookie_Guard<GT> cookie_guard(g, true, false);
+
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       {
         auto p = it.get_curr();

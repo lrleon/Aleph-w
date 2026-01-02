@@ -546,7 +546,7 @@ namespace Aleph
                                if (entries.has(k) != 0)
                                  std::cout << "(" << k << "," << entries(k) << ") ";
                              });
-      std::cout << std::endl;
+      std::cout << '\n';
     }
 
     std::string to_str() const

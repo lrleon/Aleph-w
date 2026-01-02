@@ -40,9 +40,9 @@
 
 # define PRINT_ERROR(str, args...)  (                                   \
                                      (std::cout << input_file_name << "(" << previous_line_number << "," \
-                                      << previous_col_number << "): " << std::endl), \
+                                      << previous_col_number << "): " << '\n'), \
                                      save_parameters(),                 \
-                                     (std::cout << "Last token: " << token_instance << std::endl), \
+                                     (std::cout << "Last token: " << token_instance << '\n'), \
                                      AH_ERROR(str, ##args))
 
 

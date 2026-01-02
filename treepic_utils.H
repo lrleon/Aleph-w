@@ -26,6 +26,11 @@
 
 /** @file treepic_utils.H
  *  @brief Tree picture generation utilities.
+ *
+ *  @warning This file uses static global variables for drawing parameters
+ *           and is NOT thread-safe. Do not use these functions concurrently
+ *           from multiple threads.
+ *
  *  @ingroup Utilidades
  *  @author Leandro Rabindranath León
  */
@@ -303,9 +308,12 @@ inline void put_string_tkiz(std::ofstream& output,
 	 << "mm) node { " << str << " }" << std::endl << std::endl;
 }
 
-/* parámetros de dibujado de flecha en mm */
+/// @name Arrow drawing parameters (in mm)
+/// @warning These global variables are NOT thread-safe
+/// @{
 static long double arrow_width_in_mm = 0.5;
 static long double arrow_lenght_in_mm = 1.5;
+/// @}
 bool with_arrow = false;
 long double dash_len = 1/resolution; // 1m
 long double arrow_width  = arrow_width_in_mm/resolution;

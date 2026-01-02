@@ -38,7 +38,7 @@ void print_container(Container & c)
 {
   if (c.size() == 0)
     {
-      std::cout << "Container is empty" << std::endl;
+      std::cout << "Container is empty" << '\n';
       return;
     }
 
@@ -50,8 +50,8 @@ void print_container(Container & c)
   for (typename Container::iterator it(beg); it != end; /* empty */)
     std::cout << *it++ << " ";
 
-  std::cout << std::endl 
-	    << std::endl; 
+  std::cout << '\n' 
+	    << '\n'; 
 }
 
 
@@ -65,9 +65,9 @@ void print_range(Itor beg, const Itor & end)
       ++n;
     }
 
-  std::cout << std::endl 
-	    << "len = " << n << std::endl
-	    << std::endl; 
+  std::cout << '\n' 
+	    << "len = " << n << '\n'
+	    << '\n'; 
 }
 
 

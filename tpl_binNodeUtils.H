@@ -1264,9 +1264,9 @@ namespace Aleph
     BitArray prefix;
     tree_to_bits(root, prefix);
     prefix.save_in_array_of_chars(array_name + "_cdp", output);
-    output << "const char * " << array_name << "_k[] = { " << std::endl;
+    output << "const char * " << array_name << "_k[] = { " << '\n';
     put_tree_keys_in_array<Node, Get_Key>(root, output);
-    output << "nullptr };" << std::endl;
+    output << "nullptr };" << '\n';
   }
 
 

@@ -174,10 +174,10 @@ namespace Aleph
     // Node initialization for the painting version
     struct Initialize_Node
     {
-      void operator ()(const GT & g, typename GT::Node *p) const noexcept
+      void operator ()(const GT & g, typename GT::Node *p) const
       {
         g.reset_bit(p, Aleph::Spanning_Tree);
-        NODE_COOKIE(p) = new Node_Info;
+        NODE_COOKIE(p) = new Node_Info; // May throw std::bad_alloc
       }
     };
 
@@ -195,10 +195,10 @@ namespace Aleph
     // Arc initialization for the painting version
     struct Initialize_Arc
     {
-      void operator ()(const GT & g, typename GT::Arc *a) const noexcept
+      void operator ()(const GT & g, typename GT::Arc *a) const
       {
         g.reset_bit(a, Aleph::Spanning_Tree);
-        ARC_COOKIE(a) = new Arc_Info;
+        ARC_COOKIE(a) = new Arc_Info; // May throw std::bad_alloc
         POT(a) = 0;
       }
     };
@@ -215,10 +215,10 @@ namespace Aleph
     // Node memory initialization for the tree-building version
     struct Initialize_Tree_Node
     {
-      void operator ()(const GT & g, typename GT::Node *p) const noexcept
+      void operator ()(const GT & g, typename GT::Node *p) const
       {
         g.reset_bit(p, Aleph::Spanning_Tree);
-        NODE_COOKIE(p) = new Tree_Node_Info;
+        NODE_COOKIE(p) = new Tree_Node_Info; // May throw std::bad_alloc
       }
     };
 
@@ -244,10 +244,10 @@ namespace Aleph
     // Arc initialization for the tree-building version
     struct Initialize_Tree_Arc
     {
-      void operator ()(const GT & g, typename GT::Arc *a) const noexcept
+      void operator ()(const GT & g, typename GT::Arc *a) const
       {
         g.reset_bit(a, Aleph::Spanning_Tree);
-        ARC_COOKIE(a) = new Tree_Arc_Info;
+        ARC_COOKIE(a) = new Tree_Arc_Info; // May throw std::bad_alloc
         POT(a) = 0;
         TREEARC(a) = nullptr;
       }

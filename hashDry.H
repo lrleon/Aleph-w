@@ -930,15 +930,15 @@ public:
   */
   void print_stats(const Stats & stats) const
   {
-    std::cout << "M             = " << this->capacity() << std::endl
-              << "N             = " << this->size() << std::endl
-              << "busy slots    = " << stats.num_busy << std::endl
-              << "deleted slots = " << stats.num_deleted << std::endl
-              << "empty slots   = " << stats.num_empty << std::endl
-              << "alpha         = " << const_me()->current_alpha() << std::endl
-              << "max length    = " << stats.max_len << std::endl;
-    for (int i = 0; i < stats.lens.size(); ++i)
-      std::cout << "    " << i << " = " << stats.lens(i) << std::endl;
+    std::cout << "M             = " << this->capacity() << '\n'
+              << "N             = " << this->size() << '\n'
+              << "busy slots    = " << stats.num_busy << '\n'
+              << "deleted slots = " << stats.num_deleted << '\n'
+              << "empty slots   = " << stats.num_empty << '\n'
+              << "alpha         = " << const_me()->current_alpha() << '\n'
+              << "max length    = " << stats.max_len << '\n';
+    for (size_t i = 0; i < stats.lens.size(); ++i)
+      std::cout << "    " << i << " = " << stats.lens(i) << '\n';
   }
 
   /** @brief Returns the current load factor (alpha).
@@ -1078,15 +1078,15 @@ public:
   */
   void print_stats(const Stats & stats) const
   {
-    std::cout << "M          = " << const_me()->capacity() << std::endl
-         << "N          = " << const_me()->size() << std::endl
-         << "busy slots = " << busy_slots_counter << std::endl
-         << "Average    = " << stats.avg << std::endl
-         << "Desv       = " << sqrt(stats.var) << std::endl
+    std::cout << "M          = " << const_me()->capacity() << '\n'
+         << "N          = " << const_me()->size() << '\n'
+         << "busy slots = " << busy_slots_counter << '\n'
+         << "Average    = " << stats.avg << '\n'
+         << "Desv       = " << sqrt(stats.var) << '\n'
          << "alpha      = " << (1.0*const_me()->size())/const_me()->capacity() 
-         << std::endl;
-    for (int i = 0; i < stats.lens.size(); ++i)
-      std::cout << "    " << i << " = " << stats.lens(i) << std::endl;
+         << '\n';
+    for (size_t i = 0; i < stats.lens.size(); ++i)
+      std::cout << "    " << i << " = " << stats.lens(i) << '\n';
   }
 
   /** @brief Sets the upper load factor threshold.

@@ -95,7 +95,7 @@ namespace Aleph
 
     auto node = tree.search(42);
     if (node != nullptr)
-      std::cout << "Found: " << node->get_key() << std::endl;
+      std::cout << "Found: " << node->get_key() << '\n';
 
     tree.remove(42);
     @endcode

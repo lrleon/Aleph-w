@@ -264,7 +264,9 @@ public:
     pars_ptr->dim = num_entries;
     pars_ptr->n = pars_ptr->head = pars_ptr->tail = 0;
     pars_ptr->size_cache_file = cache_file_name.size() + 1;
-    strcpy(pars_ptr->cache_file_name, cache_file_name.c_str());
+    strncpy(pars_ptr->cache_file_name, cache_file_name.c_str(), 
+            pars_ptr->size_cache_file);
+    pars_ptr->cache_file_name[pars_ptr->size_cache_file - 1] = '\0';
     pars_stream.write(reinterpret_cast<const char *>(pars_ptr.get()), pars_size);
 
     T init{};

@@ -87,6 +87,7 @@
 # include <Tarjan.H>
 # include <ah-errors.H>
 # include <ah_init_guard.H>
+# include <cookie_guard.H>
 
 # include <vector>
 
@@ -654,40 +655,12 @@ namespace Aleph
           table.insert(p, static_cast<Node *>(NODE_COOKIE(p)));
         }
 
-      struct Aux_Cookie_Guard
-      {
-        GT & aux;
-        struct Saved
-        {
-          Node *p;
-          void *cookie;
-        };
-        std::vector<Saved> saved;
-
-        explicit Aux_Cookie_Guard(GT & a) : aux(a)
-        {
-          saved.reserve(aux.get_num_nodes());
-
-          for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
-            {
-              auto p = it.get_curr();
-              saved.push_back(Saved{p, NODE_COOKIE(p)});
-
-              NODE_COOKIE(p) = nullptr;
-            }
-        }
-
-        ~Aux_Cookie_Guard()
-        {
-          for (auto & s : saved)
-            {
-              NODE_COOKIE(s.p) = s.cookie;
-            }
-        }
-
-        Aux_Cookie_Guard(const Aux_Cookie_Guard &) = delete;
-        Aux_Cookie_Guard & operator = (const Aux_Cookie_Guard &) = delete;
-      } cookie_guard(aux);
+      // Save and restore cookies around Tarjan call (Tarjan modifies cookies)
+      Cookie_Saver<GT> cookie_saver(aux, true, false);  // only save node cookies
+      
+      // Clear cookies for Tarjan's use
+      for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
+        NODE_COOKIE(it.get_curr()) = nullptr;
 
       if (Path<GT> path(aux); Tarjan_Connected_Components<GT, NAit, SA>(sa).compute_cycle(aux, path))
         {

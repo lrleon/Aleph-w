@@ -65,6 +65,30 @@ public:
     // empty
   }
 
+  /// Copying is disabled (heap manages internal node memory)
+  ArcHeap(const ArcHeap &) = delete;
+  ArcHeap & operator=(const ArcHeap &) = delete;
+
+  /// Move construction transfers ownership of heap nodes
+  ArcHeap(ArcHeap && other) noexcept
+    : Heap(std::move(other)), dist(std::move(other.dist)),
+      access_node(std::move(other.access_node)), dist_cmp(dist)
+  {}
+
+  /// Move assignment transfers ownership of heap nodes
+  ArcHeap & operator=(ArcHeap && other) noexcept
+  {
+    if (this != &other)
+      {
+        empty();
+        Heap::operator=(std::move(other));
+        dist = std::move(other.dist);
+        access_node = std::move(other.access_node);
+        dist_cmp = Distance_Compare<GT, Distance>(dist);
+      }
+    return *this;
+  }
+
   typedef
   BinHeap<typename GT::Arc *, Distance_Compare<GT, Distance>> Heap;
 
@@ -174,6 +198,29 @@ public:
     : dist(__dist), access_node(acc), dist_cmp(dist), heap(dist_cmp)
   {
     // empty
+  }
+
+  /// Copying is disabled (heap manages internal node memory)
+  ArcFibonacciHeap(const ArcFibonacciHeap &) = delete;
+  ArcFibonacciHeap & operator=(const ArcFibonacciHeap &) = delete;
+
+  /// Move construction transfers ownership of heap nodes
+  ArcFibonacciHeap(ArcFibonacciHeap && other) noexcept
+    : dist(std::move(other.dist)), access_node(std::move(other.access_node)),
+      dist_cmp(dist), heap(std::move(other.heap))
+  {}
+
+  /// Move assignment transfers ownership of heap nodes
+  ArcFibonacciHeap & operator=(ArcFibonacciHeap && other) noexcept
+  {
+    if (this != &other)
+      {
+        dist = std::move(other.dist);
+        access_node = std::move(other.access_node);
+        dist_cmp = Compare(dist);
+        heap = std::move(other.heap);
+      }
+    return *this;
   }
 
   /// Insert or update an arc associated with a target node, keeping the

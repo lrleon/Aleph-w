@@ -86,12 +86,12 @@ public:
 
   void print()
   {
-    std::cout << "Uid:" << std::endl
-	      << "    ipAddr        = " << ipAddr << std::endl
-	      << "    port_number   = " << port_number << std::endl
-	      << "    counter       = " << counter << std::endl
-	      << "    random_number = " << random_number << std::endl
-	      << std::endl;
+    std::cout << "Uid:" << '\n'
+	      << "    ipAddr        = " << ipAddr << '\n'
+	      << "    port_number   = " << port_number << '\n'
+	      << "    counter       = " << counter << '\n'
+	      << "    random_number = " << random_number << '\n'
+	      << '\n';
   }
 };
 

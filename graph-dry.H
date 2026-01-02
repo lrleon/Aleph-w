@@ -1267,7 +1267,7 @@ public:
 
           g.traverse_nodes([] (auto p)
 	    {
-	      std::cout << p->get_info() << std::endl;
+	      std::cout << p->get_info() << '\n';
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1338,7 +1338,7 @@ public:
 
           g.traverse_arcs([] (auto a)
 	    {
-	      std::cout << a->get_info() << std::endl;
+	      std::cout << a->get_info() << '\n';
 	      return true; // for instructing to visit the next node
 	    });
 
@@ -1404,7 +1404,7 @@ public:
 
           g.traverse_arcs(p, [] (auto a)
 	  {
-	    std::cout << a->get_info() << std::endl;
+	    std::cout << a->get_info() << '\n';
 	    return true; // for instructing to visit the next node
           });
 

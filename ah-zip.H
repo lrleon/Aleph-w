@@ -80,7 +80,7 @@ namespace Aleph
  * for (auto it = zip_it(ints, strs); it.has_curr(); it.next_ne())
  *   {
  *     auto [i, s] = it.get_curr_ne();
- *     std::cout << i << ": " << s << std::endl;
+ *     std::cout << i << ": " << s << '\n';
  *   }
  * @endcode
  *
@@ -1151,7 +1151,7 @@ auto t_zip_eq(const Cs &... cs)
  *   {
  *     auto t = it.get_curr_ne();
  *     // t is std::tuple<int, string, size_t> where last element is the index
- *     std::cout << std::get<2>(t) << ": " << std::get<0>(t) << std::endl;
+ *     std::cout << std::get<2>(t) << ": " << std::get<0>(t) << '\n';
  *   }
  * @endcode
  *

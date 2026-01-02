@@ -72,9 +72,9 @@ inline long usec_to_nsec(const long & usec)
 }
 
 
-inline char * time_to_char(const Time & t, char * str)
+inline char * time_to_char(const Time & t, char * str, size_t str_size = 64)
 {
-  sprintf(str, "(%ld sec, %ld nsec)", t.tv_sec, t.tv_nsec);
+  snprintf(str, str_size, "(%ld sec, %ld nsec)", t.tv_sec, t.tv_nsec);
 
   return str;
 }

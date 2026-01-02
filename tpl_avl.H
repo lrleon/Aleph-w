@@ -86,7 +86,7 @@ namespace Aleph {
        tree.insert(new Avl_Tree<int>::Node(17));
        auto node = tree.search(42);
        if (node != nullptr)
-         std::cout << "Found: " << node->get_key() << std::endl;
+         std::cout << "Found: " << node->get_key() << '\n';
        @endcode
 
        @note This is a low-level implementation that manages raw nodes.

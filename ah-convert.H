@@ -138,6 +138,8 @@ template <class C>
 [[nodiscard]] std::vector<typename C::Item_Type> to_vector(const C & c)
 {
   std::vector<typename C::Item_Type> ret;
+  if constexpr (requires { c.size(); })
+    ret.reserve(c.size());
   for (auto it = c.get_it(); it.has_curr(); it.next_ne())
     ret.push_back(it.get_curr());
   return ret;

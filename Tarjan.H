@@ -144,7 +144,7 @@ namespace Aleph
    *
    * // Check for cycles
    * if (tarjan.has_cycle(g))
-   *   std::cout << "Graph contains a cycle" << std::endl;
+   *   std::cout << "Graph contains a cycle" << '\n';
    * @endcode
    *
    * @note The algorithm uses node bits (Aleph::Min, Aleph::Depth_First) and

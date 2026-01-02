@@ -262,7 +262,7 @@ namespace Aleph
    */
   inline void error_msg(const std::string & msg)
   {
-    std::cerr << msg << std::endl;
+    std::cerr << msg << '\n';
     abort();
   }
 
@@ -438,12 +438,12 @@ namespace Aleph
   void execute_R_script(const std::string & scr, const std::string & file_name = "tmp.R")
   {
     std::ofstream tmp(file_name);
-    tmp << "#!/usr/bin/Rscript" << std::endl
-        << std::endl
-        << "X11()" << std::endl
-        << scr << std::endl
-        << "message(\"Press Return To Continue\")" << std::endl
-        << "invisible(readLines(\"stdin\", n=1))" << std::endl;
+    tmp << "#!/usr/bin/Rscript" << '\n'
+        << '\n'
+        << "X11()" << '\n'
+        << scr << '\n'
+        << "message(\"Press Return To Continue\")" << '\n'
+        << "invisible(readLines(\"stdin\", n=1))" << '\n';
     const std::string cmd = "Rscript " + file_name;
     system(cmd.c_str());
   }

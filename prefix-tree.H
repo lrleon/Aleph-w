@@ -416,7 +416,7 @@ public:
   void print_words(const size_t max_word_length = 2048) const
   {
     words(max_word_length).for_each([](const std::string & w) { 
-      std::cout << w << std::endl; 
+      std::cout << w << '\n'; 
     });
   }
 

@@ -836,7 +836,7 @@ namespace Aleph
         auto t = static_cast<typename Net::Node *>(a->tgt_node);
         std::cout << s->get_info() << "(" << a->flow << "," << a->cap << ")"
             << t->get_info() << " " << (get<1>(pa) ? "Normal" : "Reduced")
-            << std::endl;
+            << '\n';
       }
   }
 

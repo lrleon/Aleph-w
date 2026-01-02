@@ -168,14 +168,14 @@ public:
 # ifdef DEBUG
   void print_parameters()
   {
-    std::cout << "Number of pointers = " << num_pointers << std::endl
-	      << "Pointer table size = " << pointer_table.size() << std::endl
-	      << "Free table size    = " << free_table.size() << std::endl
-	      << "Threshold          = " << threshold_size << std::endl
-	      << "Heap index         = " << heap_index << std::endl;
+    std::cout << "Number of pointers = " << num_pointers << '\n'
+	      << "Pointer table size = " << pointer_table.size() << '\n'
+	      << "Free table size    = " << free_table.size() << '\n'
+	      << "Threshold          = " << threshold_size << '\n'
+	      << "Heap index         = " << heap_index << '\n';
     if (heap_index > 0)
       std::cout << "pointer_table[" << heap_index - 1 << "]= " 
-                << pointer_table[heap_index - 1] << std::endl;
+                << pointer_table[heap_index - 1] << '\n';
   }
 # endif
 };

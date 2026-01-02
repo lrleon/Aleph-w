@@ -132,7 +132,7 @@ long load_number(ifstream& input_stream)
           ah_domain_error_if(true) << "Invalid number";
         }
     }
-  catch (out_of_range) // Se alcanza fin de archivo
+  catch (const std::out_of_range &) // Se alcanza fin de archivo
     {
       close_token_scanning(buffer, start_addr, end_addr);
       return atoi(buffer);

@@ -25,12 +25,62 @@
 */
 
 /** @file tpl_sort_utils.H
- *  @brief Sorting algorithms and utilities.
+
+*  @brief Comprehensive sorting algorithms and search utilities for Aleph-w.
  *
- *  This file provides a comprehensive collection of sorting algorithms including
- *  quicksort, mergesort, heapsort, insertion sort, and selection sort. It supports
- *  sorting arrays, linked lists, and other container types with custom comparators.
+ *  This file provides a complete collection of sorting algorithms and search
+ *  utilities designed to work with arrays, dynamic arrays, and linked lists.
+ *  All algorithms support custom comparison functors for flexible ordering.
  *
+ *  ## Sorting Algorithms
+ *
+ *  | Algorithm | Time Complexity | Space | Stable | Best For |
+ *  |-----------|-----------------|-------|--------|----------|
+ *  | Selection Sort | O(n²) | O(1) | No | Very small arrays |
+ *  | Insertion Sort | O(n²) | O(1) | Yes | Nearly sorted data |
+ *  | Bubble Sort | O(n²) | O(1) | Yes | Educational purposes |
+ *  | Shell Sort | O(n^1.5) | O(1) | No | Medium arrays |
+ *  | Merge Sort | O(n log n) | O(n) or O(1) | Yes | Lists, guaranteed performance |
+ *  | Quicksort | O(n log n)* | O(log n) | No | General purpose, fastest average |
+ *  | Heapsort | O(n log n) | O(1) | No | Guaranteed O(n log n), in-place |
+ *
+ *  (* Quicksort has O(n²) worst case, but median-of-three pivot selection minimizes this risk)
+ *
+ *  ## Search Algorithms
+ *
+ *  | Algorithm | Time Complexity | Requirements |
+ *  |-----------|-----------------|--------------|
+ *  | Sequential Search | O(n) | None |
+ *  | Binary Search | O(log n) | Sorted container |
+ *  | Random Search | O(n log n) | Partially sorts during search |
+ *  | Random Select | O(n) expected | None (finds k-th element) |
+ *
+ *  ## Usage Examples
+ *
+ *  @code{.cpp}
+ *  #include <tpl_sort_utils.H>
+ *  #include <tpl_dynArray.H>
+ *
+ *  // Sort a dynamic array
+ *  DynArray<int> arr = {5, 2, 8, 1, 9};
+ *  quicksort(arr);  // arr is now {1, 2, 5, 8, 9}
+ *
+ *  // Sort with custom comparator (descending order)
+ *  quicksort(arr, [](int a, int b) { return a > b; });
+ *
+ *  // Sort a linked list
+ *  DynList<int> list = {5, 2, 8, 1, 9};
+ *  mergesort(list);  // O(1) space for lists!
+ *
+ *  // Binary search on sorted array
+ *  long idx = binary_search(arr, 5);  // Returns index of 5
+ *
+ *  // Find k-th smallest element
+ *  const int& third_smallest = random_select(arr.data(), 2, arr.size());
+ *  @endcode
+ *
+ *  @see DynArray, DynList, DynDlist
+ *  @author Leandro Rabindranath León
  *  @ingroup Algorithms
  */
 
@@ -50,16 +100,54 @@
 
 namespace Aleph
 {
+  /** @brief Threshold for switching to insertion sort in hybrid algorithms.
+   *
+   *  When a partition becomes smaller than this threshold, hybrid sorting
+   *  algorithms (like quicksort) switch to insertion sort, which is faster
+   *  for small arrays due to lower overhead.
+   *
+   *  Default value: typically 10-20 elements.
+   *
+   *  @ingroup Algorithms
+   */
   extern size_t Insertion_Threshold;
 
+  /** @brief Threshold for using quicksort vs simpler algorithms.
+   *
+   *  Arrays smaller than this threshold may use simpler O(n²) algorithms.
+   *
+   *  @ingroup Algorithms
+   */
   extern size_t Quicksort_Threshold;
 
+  /** @brief Return value for search functions when element is not found.
+   *
+   *  Typically -1. Used by sequential_search(), random_search(), etc.
+   *
+   *  @ingroup Algorithms
+   */
   extern const int Not_Found;
 
-  /** Return true if the sequence is sorted
-
-      \ingroup Algos
-  */
+  /** @brief Check if a container is sorted in ascending order.
+   *
+   *  Tests whether all elements in the container are arranged in
+   *  non-decreasing order according to the comparison functor.
+   *
+   *  Time complexity: O(n), where n is the container size.
+   *
+   *  @tparam Container Template container type (must provide Iterator).
+   *  @tparam T Element type stored in the container.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param cont The container to check.
+   *  @param cmp Comparison functor defining "less than" relationship.
+   *
+   *  @return `true` if container is empty or sorted; `false` if an
+   *          inversion is found.
+   *
+   *  @see is_inversely_sorted(), search_inversion(), test_sorted()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   [[nodiscard]] bool is_sorted(const Container<T> & cont, Compare cmp = Compare())
@@ -81,15 +169,28 @@ namespace Aleph
     return true;
   }
 
-  /** Check if container is sorted.
-
-      @return a pair whose first element says whether the array is or
-      not sorted. If the array is not sorted, then second contains the
-      index where the inversion was detected. Otherwise, second
-      contains the number of elements that the container has.
-
-      \ingroup Algos
-  */
+  /** @brief Find the first inversion in a container.
+   *
+   *  Searches for the first position where an element is less than its
+   *  predecessor, indicating that the container is not sorted at that point.
+   *
+   *  Time complexity: O(n), where n is the container size.
+   *
+   *  @tparam Container Template container type.
+   *  @tparam T Element type stored in the container.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param cont The container to check.
+   *  @param cmp Comparison functor defining "less than" relationship.
+   *
+   *  @return A pair where:
+   *          - `first` is `true` if the container is sorted, `false` otherwise.
+   *          - `second` is the index of the inversion (if found), or the
+   *            container size (if sorted).
+   *
+   *  @see is_sorted(), test_sorted()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   [[nodiscard]] std::pair<bool, size_t> search_inversion(const Container<T> & cont,
@@ -114,10 +215,25 @@ namespace Aleph
     return std::make_pair(true, i);
   }
 
-  /** Return true if the sequence is inversely sorted
-
-      \ingroup Algos
-  */
+  /** @brief Check if a container is sorted in descending order.
+   *
+   *  Tests whether all elements in the container are arranged in
+   *  non-increasing order according to the comparison functor.
+   *
+   *  Time complexity: O(n), where n is the container size.
+   *
+   *  @tparam Container Template container type.
+   *  @tparam T Element type stored in the container.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param cont The container to check.
+   *  @param cmp Comparison functor defining "less than" relationship.
+   *
+   *  @return `true` if container is empty or inversely sorted; `false` otherwise.
+   *
+   *  @see is_sorted()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   [[nodiscard]] bool is_inversely_sorted(const Container<T> & cont, Compare cmp = Compare())
@@ -139,12 +255,28 @@ namespace Aleph
     return true;
   }
 
-  /** Return a pair where first is `true` if the sequence is sorted. If the
-      sequence is not sorted, then first is `false` and second contains
-      the index where the test was failed
-
-      \ingroup Algos
-  */
+  /** @brief Test if a container is sorted, returning the inversion position.
+   *
+   *  Similar to `is_sorted()` but returns additional information about
+   *  where the ordering test failed or how many elements were checked.
+   *
+   *  Time complexity: O(n), where n is the container size.
+   *
+   *  @tparam Container Template container type.
+   *  @tparam T Element type stored in the container.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param cont The container to test.
+   *  @param cmp Comparison functor defining "less than" relationship.
+   *
+   *  @return A pair where:
+   *          - `first` is `true` if sorted, `false` if an inversion exists.
+   *          - `second` is the index where the test failed (if not sorted),
+   *            or the total number of elements (if sorted).
+   *
+   *  @see is_sorted(), search_inversion()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class Container, typename T,
             class Compare = Aleph::less<T>>
   [[nodiscard]] std::pair<bool, size_t>
@@ -169,29 +301,43 @@ namespace Aleph
   }
 
 
-  /** Sorts an array by the selection method.
-
-      selection_sort(a,n) uses the selection method to sort
-      the arrangement an of n elements.
-
-      The selection method has a performance of \f$O(n^2)\f$.
-      Due to its simplicity of implementation, its constant cost
-      is low, so it is a good method for arrangements of
-      very small dimension.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param[in,out] a pointer to the array to sort.
-      @param[in] n the dimension of the array.
-      @param cmp comparison object.
-      @see insertion_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
-  */
+  /** @brief Sort an array using the selection sort algorithm.
+   *
+   *  Selection sort works by repeatedly finding the minimum element from
+   *  the unsorted portion and placing it at the beginning. It has O(n²)
+   *  time complexity but minimal memory overhead and a simple implementation.
+   *
+   *  ### Algorithm
+   *  1. Find the minimum element in the unsorted portion [i, n)
+   *  2. Swap it with the element at position i
+   *  3. Repeat for i = 0, 1, ..., n-2
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n²) always (best, average, worst)
+   *  - **Space complexity**: O(1) - in-place
+   *  - **Stability**: Not stable (equal elements may be reordered)
+   *  - **Comparisons**: Exactly n(n-1)/2
+   *  - **Swaps**: At most n-1
+   *
+   *  ### When to Use
+   *  - Very small arrays (n < 10-15)
+   *  - When write operations are expensive (minimizes swaps)
+   *  - When simplicity is more important than speed
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] n Number of elements in the array.
+   *  @param cmp Comparison functor; `cmp(x, y)` returns true if x < y.
+   *
+   *  @see insertion_sort(), quicksort(), mergesort(), heapsort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void selection_sort(T *a, const size_t n, Compare cmp = Compare())
+    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>)
   {
     if (n < 2)
       return;
@@ -207,19 +353,28 @@ namespace Aleph
       }
   }
 
-  /** Generic search for an extreme element in a list
-      of Dlink nodes.
-
-      search_extreme(list) searches sequentially in the list of nodes
-      list the extreme, minimum or element
-      maximum according to the comparison criterion Compare.
-
-      @param[in] list the list to search on.
-      @param cmp comparison object.
-      @return pointer to the node containing the extreme element.
-      @note There is no checking if the list is empty.
-      \ingroup Algos
-  */
+  /** @brief Find the extreme (minimum or maximum) element in a linked list.
+   *
+   *  Performs a linear scan through the list to find the element that
+   *  compares as "smallest" according to the provided comparator.
+   *  By changing the comparator, you can find either minimum or maximum.
+   *
+   *  Time complexity: O(n), where n is the number of nodes in the list.
+   *
+   *  @tparam Link Link node type (e.g., Dlink, Slinknc).
+   *  @tparam Compare Comparison functor that compares Link pointers.
+   *
+   *  @param list The list header to search.
+   *  @param cmp Comparator: `cmp(p1, p2)` returns true if p1 is "more extreme".
+   *
+   *  @return Pointer to the node containing the extreme element.
+   *
+   *  @warning Does not check if the list is empty. Behavior is undefined
+   *           for empty lists.
+   *
+   *  @see search_min(), search_max()
+   *  @ingroup Algorithms
+   */
   template <class Link, class Compare>
   inline
   Link * search_extreme(const Link & list, Compare & cmp)
@@ -251,22 +406,23 @@ namespace Aleph
     return search_extreme<Slinknc, Compare>(list, cmp);
   }
 
-  /** Sorts a doubly linked list by selection method.
-
-      selection_sort(list) on a list derived from Dlink sort
-      using the list selection method.
-
-      The routine requires the Compare type parameter that implements the
-      comparison between the members of the list. Compare is invoked as
-      Compare() (l1,l2), where l1 and l2 are two links of type Dlink. He
-      User is responsible for properly instrumenting Compare()()
-      so that the fields of interest are accessed and the
-      comparison.
-
-      @param[in,out] list list to be sorted.
-      @param cmp comparison object.
-      \ingroup Algos
-  */
+  /** @brief Sort a doubly linked list using selection sort.
+   *
+   *  Sorts a list of Dlink nodes by repeatedly extracting the minimum
+   *  element and appending it to an auxiliary list.
+   *
+   *  Time complexity: O(n²) - n iterations × O(n) search_extreme
+   *  Space complexity: O(1) - uses an auxiliary list but no extra memory
+   *
+   *  @tparam Compare Functor comparing Dlink pointers.
+   *                  `cmp(l1, l2)` returns true if l1 < l2.
+   *
+   *  @param[in,out] list The list to sort (modified in place).
+   *  @param cmp Comparison functor.
+   *
+   *  @see selection_sort(Dnode<T>&, Compare)
+   *  @ingroup Algorithms
+   */
   template <class Compare>
   inline
   void selection_sort(Dlink & list, Compare cmp)
@@ -290,12 +446,13 @@ namespace Aleph
     Compare cmp;
 
   public:
-    Compare_Tnode(Compare cmp_fct = Compare())
+    Compare_Tnode(Compare cmp_fct = Compare()) noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : cmp(cmp_fct)
     { /* empty */
     }
 
     bool operator ()(Tlink *l1, Tlink *l2) const
+      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
       auto *n1 = static_cast<Tnode<T> *>(l1);
       auto *n2 = static_cast<Tnode<T> *>(l2);
@@ -307,6 +464,7 @@ namespace Aleph
 
     // To generalize in sequential_search
     bool operator ()(Tlink *l, const T & x) const
+      noexcept(noexcept(std::declval<const Compare&>()(std::declval<const T&>(), std::declval<const T&>())))
     {
       auto *n = static_cast<Tnode<T> *>(l);
 
@@ -320,6 +478,7 @@ namespace Aleph
   struct Compare_Dnode : public Compare_Tnode<Dlink, Dnode, T, Compare>
   {
     Compare_Dnode(Compare cmp = Compare())
+      noexcept(std::is_nothrow_copy_constructible_v<Compare>)
       : Compare_Tnode<Dlink, Dnode, T, Compare>(std::forward<Compare>(cmp))
     { /* empty */
     }
@@ -355,25 +514,27 @@ namespace Aleph
         (list, Compare_Dnode<T, Compare>(cmp));
   }
 
-  /** Sequential search on an array.
-
-      sequential_search(a,x,l,r) search sequentially,
-      in array a, between indices l and r, respectively,
-      the first occurrence of x.
-
-      The function handles two type parameters:
-      -# T: the type of data held by the array.
-      -# Equal: comparison class between elements.
-
-      @param[in] a the array on which the search is performed.
-      @param[in] x the element to search for.
-      @param[in] l left index where the search begins.
-      @param[in] r right index where the search ends.
-      @param eq comparison object.
-      @return index of first position in containing array
-      element x; -1 otherwise.
-      \ingroup Algos
-  */
+  /** @brief Linear search for an element in an array.
+   *
+   *  Scans the array from left to right looking for the first occurrence
+   *  of the specified element.
+   *
+   *  Time complexity: O(n), where n = r - l + 1
+   *
+   *  @tparam T Element type.
+   *  @tparam Equal Equality comparison functor (default: `Aleph::equal_to<T>`).
+   *
+   *  @param a Pointer to the array.
+   *  @param x The element to search for.
+   *  @param l Left index (inclusive) where search begins.
+   *  @param r Right index (inclusive) where search ends.
+   *  @param eq Equality comparator; `eq(a[i], x)` returns true if equal.
+   *
+   *  @return Index of the first occurrence of x, or `Not_Found` (-1) if not found.
+   *
+   *  @see binary_search() for sorted arrays
+   *  @ingroup Algorithms
+   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   [[nodiscard]] inline
   long sequential_search(T *a, const T & x, const long l, const long r,
@@ -683,34 +844,46 @@ namespace Aleph
     return search_extreme<T, Compare>(list, cmp);
   }
 
-  /** Sorts an array by the insert method.
-
-      insertion_sort(a,l,r) uses the selection method to sort
-      the arrangement a between the indices l and r.
-
-      The insert method has a performance of \f$O(n^2)\f$.
-      It is a simple method, so it consumes little constant time.
-      On average, it performs half as many exchanges as the method
-      of selection. Its time tends to be linear if the arrangement is
-      semi-ordered. It is a good method for small arrangements and for
-      partitions made by superior methods but with
-      longer constant times.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param[in,out] a the array to sort.
-      @param[in] l left index of the array.
-      @param[in] r right index of the array.
-      @param cmp comparison object.
-      @see selection_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
-  */
+  /** @brief Sort an array using insertion sort.
+   *
+   *  Insertion sort builds the sorted array one element at a time by
+   *  repeatedly taking the next element and inserting it into its correct
+   *  position among the previously sorted elements.
+   *
+   *  ### Algorithm
+   *  For each element from position l+1 to r:
+   *  1. Store the element temporarily
+   *  2. Shift larger elements one position to the right
+   *  3. Insert the element in its correct position
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n²) worst/average, O(n) best (nearly sorted)
+   *  - **Space complexity**: O(1) - in-place
+   *  - **Stability**: Stable (equal elements maintain relative order)
+   *  - **Adaptive**: Yes - runs faster on nearly sorted data
+   *
+   *  ### When to Use
+   *  - Small arrays (n < 20-50)
+   *  - Nearly sorted data (few inversions)
+   *  - As a base case for recursive sorting algorithms
+   *  - When stability is required with small data
+   *
+   *  @tparam T Element type (must be copy-assignable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] l Left index (inclusive) of the range to sort.
+   *  @param[in] r Right index (inclusive) of the range to sort.
+   *  @param cmp Comparison functor; `cmp(x, y)` returns true if x < y.
+   *
+   *  @see selection_sort(), quicksort(), mergesort(), heapsort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void insertion_sort(T *a, const long l, const long r,
                       Compare cmp = Compare())
+    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_move_assignable_v<T>)
   {
     if (l >= r)
       return;
@@ -755,6 +928,13 @@ namespace Aleph
   inline
   void insert_sorted(HTList & list, Slinknc *p, Compare & cmp)
   {
+    // Handle empty list case
+    if (list.is_empty())
+      {
+        list.insert(p);
+        return;
+      }
+
     if (Slinknc *first = list.get_first(); cmp(p, first) or not cmp(first, p)) // p <= first?
       {
         list.insert(p);
@@ -846,23 +1026,59 @@ namespace Aleph
     list_insertion_sort<Dlink, Cmp>(list, c);
   }
 
-  /** Merges two ordered partitions stored in an array using an auxiliary buffer.
-      \ingroup Algos
-  */
+  /** @brief Merge two sorted partitions of an array using a buffer.
+   *
+   *  Merges the sorted subarrays [l..m] and [m+1..r] into a single sorted
+   *  subarray [l..r]. Uses a provided buffer to avoid repeated allocations.
+   *
+   *  This is the core operation of merge sort. The technique copies elements
+   *  to a buffer with the right half reversed, then merges from both ends
+   *  toward the middle - eliminating the need for end-of-array checks.
+   *
+   *  Time complexity: O(n), where n = r - l + 1
+   *  Space complexity: O(n) for the buffer
+   *
+   *  @tparam T Element type (must be move-assignable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array containing both partitions.
+   *  @param[in] l Left index of the first partition.
+   *  @param[in] m Last index of the first partition (m+1 is start of second).
+   *  @param[in] r Right index of the second partition.
+   *  @param[in,out] buf Buffer for temporary storage (cleared and reused).
+   *  @param cmp Comparison functor.
+   *
+   *  @pre Both [l..m] and [m+1..r] must be sorted.
+   *  @post [l..r] is sorted.
+   *
+   *  @see mergesort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void merge(T *a, const long l, const long m, const long r,
              std::vector<T> & buf, Compare cmp = Compare())
   {
-    buf.clear();
-    long i, j;
-
-    for (i = l; i <= m; ++i) buf.push_back(std::move(a[i]));
-    for (j = r; j > m; --j) buf.push_back(std::move(a[j]));
-
     const long s = r - l + 1;
-    i = 0;
-    j = s - 1;
+
+    // Resize buffer once instead of multiple push_back calls
+    // This avoids repeated capacity checks and potential reallocations
+    if (buf.size() < static_cast<size_t>(s))
+      buf.resize(static_cast<size_t>(s));
+
+    // Copy left partition [l..m] to buffer start
+    long buf_idx = 0;
+    for (long i = l; i <= m; ++i)
+      buf[buf_idx++] = std::move(a[i]);
+
+    // Copy right partition [m+1..r] in reverse to buffer end
+    buf_idx = s - 1;
+    for (long j = m + 1; j <= r; ++j)
+      buf[buf_idx--] = std::move(a[j]);
+
+    // Merge from both ends toward middle
+    long i = 0;
+    long j = s - 1;
 
     for (long k = l; k <= r; ++k)
       if (cmp(buf[i], buf[j]))
@@ -912,26 +1128,40 @@ namespace Aleph
     merge<T, Compare>(a, l, m, r, buf, cmp);
   }
 
-  /** Sorts an arrangement by the shuffle method.
-
-      mergesort(a,l,r) sorts the array a between indices l and r
-      according to the mixing method according to comparison criteria Compare.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      This method has a performance of \f$O(n \; \lg n)\f$, but
-      a space consumption of \f$O(n)\f$.
-
-      @param[in,out] a the array to sort.
-      @param[in] l lower index.
-      @param[in] r top index.
-
-      @see selection_sort() insertion_sort() quicksort_rec() heapsort()
-
-      \ingroup Algos
-  */
+  /** @brief Sort an array using merge sort.
+   *
+   *  Merge sort is a divide-and-conquer algorithm that recursively divides
+   *  the array in half, sorts each half, and merges the sorted halves.
+   *
+   *  ### Algorithm
+   *  1. If l >= r, the subarray is trivially sorted
+   *  2. Find the midpoint m = l + (r - l) / 2
+   *  3. Recursively sort [l..m] and [m+1..r]
+   *  4. Merge the two sorted halves
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) - always (best, average, worst)
+   *  - **Space complexity**: O(n) for the auxiliary buffer
+   *  - **Stability**: Stable (equal elements maintain relative order)
+   *  - **Adaptive**: Semi-adaptive (skips merge if already sorted)
+   *
+   *  ### When to Use
+   *  - When guaranteed O(n log n) is required
+   *  - When stability is needed
+   *  - External sorting (large data on disk)
+   *  - Linked lists (where it achieves O(1) space!)
+   *
+   *  @tparam T Element type (must be move-assignable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] l Left index (inclusive) of the range to sort.
+   *  @param[in] r Right index (inclusive) of the range to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see quicksort(), heapsort(), merge()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void mergesort(T *a, const long l, const long r, Compare cmp = Compare())
@@ -944,22 +1174,31 @@ namespace Aleph
     mergesort(a, l, r, buf, cmp);
   }
 
-  /** Merge two ordered lists into one.
-
-      merge_lists(l1,l2,result) takes two sorted lists l1 and l2
-      and merges them into a single ordered list result according to
-      comparison criterion Compare.
-
-      It is not checked whether lists l1 and l2 are sorted.
-      Results will be incorrect if this premise is not met.
-
-      @param[in,out] l1 an ordered list to merge.
-      @param[in,out] l2 an ordered list to merge.
-      @param[out] result the list where the result will be placed.
-      @param cmp comparison object.
-
-      \ingroup Algos
-  */
+  /** @brief Merge two sorted lists into a single sorted list.
+   *
+   *  Takes two sorted lists and merges them into a single sorted list.
+   *  The input lists are emptied and their nodes are transferred to
+   *  the result list. This is an O(n) operation with O(1) extra space.
+   *
+   *  Time complexity: O(n + m), where n and m are the list sizes
+   *  Space complexity: O(1) - nodes are moved, not copied
+   *
+   *  @tparam Tlist List type (e.g., Dlink, HTList).
+   *  @tparam Compare Comparison functor for list elements.
+   *
+   *  @param[in,out] l1 First sorted list (will be emptied).
+   *  @param[in,out] l2 Second sorted list (will be emptied).
+   *  @param[out] result Empty list to receive merged result.
+   *  @param cmp Comparison functor.
+   *
+   *  @pre l1 and l2 must be sorted; result must be empty.
+   *  @post l1 and l2 are empty; result contains all elements in sorted order.
+   *
+   *  @warning Does not verify that input lists are sorted.
+   *
+   *  @see mergesort()
+   *  @ingroup Algorithms
+   */
   template <typename Tlist, class Compare>
   inline
   void merge_lists(Tlist & l1, Tlist & l2, Tlist & result,
@@ -1005,21 +1244,36 @@ namespace Aleph
     merge_lists<Dnode<T>, Compare_Dnode<T, Compare>>(l1, l2, result, cmp);
   }
 
-  /** Sorts a list according to the mergesort method.
-
-      Sort a list using the mergesort method
-      based on Dlink, according to comparison criteria Compare.
-
-      This method has a deterministic performance of \f$O(n \; \lg n)\f$
-      and a space consumption of \f$O(1)\f$. It is a very good method
-      for lists.
-
-      @param[in,out] list the list to be sorted.
-      @param cmp comparison object.
-
-      @see mergesort(Dnode<T> & list)
-      \ingroup Algos
-  */
+  /** @brief Sort a linked list using merge sort.
+   *
+   *  Merge sort is particularly efficient for linked lists because:
+   *  - Splitting a list at the midpoint is O(n) (vs O(1) for arrays)
+   *  - But merging is O(1) space (just pointer manipulation)
+   *  - Overall, we get O(n log n) time with O(log n) stack space
+   *
+   *  ### Algorithm
+   *  1. If list has 0 or 1 elements, it's sorted
+   *  2. Split the list into two halves
+   *  3. Recursively sort each half
+   *  4. Merge the sorted halves
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) - always
+   *  - **Space complexity**: O(log n) for recursion stack
+   *  - **Stability**: Stable
+   *  - **In-place**: Yes (for lists)
+   *
+   *  This is often the best sorting algorithm for linked lists.
+   *
+   *  @tparam Tlist List type (e.g., Dlink, HTList).
+   *  @tparam Compare Comparison functor type.
+   *
+   *  @param[in,out] list The list to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see merge_lists(), quicksort()
+   *  @ingroup Algorithms
+   */
   template <typename Tlist, class Compare>
   inline
   void mergesort(Tlist & list, Compare cmp = Compare())
@@ -1165,36 +1419,39 @@ namespace Aleph
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  long select_pivot(T *a, long l, long r, Compare cmp = Compare());
+  long select_pivot(T *a, long l, long r, Compare cmp = Compare())
+    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>);
 
 
   template <typename T, class Compare = Aleph::less<T>>
   inline
   long partition(T *a, const long l, const long r, Compare cmp = Compare())
+    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>)
   {
     const long p = select_pivot<T, Compare>(a, l, r, cmp);
     std::swap(a[p], a[r]);
 
-    T pivot = a[r]; // pivot element
+    // Note: pivot stays at a[r] throughout the loop - no copy needed
+    // This saves a potentially expensive copy for large T types
     long i = l - 1; // index first element to the left > pivot
     long j = r;     // index first element to the right < pivot
     while (true)
       {
-        // advance while a[i] < a[pivot]
-        while (cmp(a[++i], pivot)) {}
+        // advance while a[i] < pivot (pivot is at a[r])
+        while (cmp(a[++i], a[r])) {}
 
-        while (cmp(pivot, a[--j])) // advance while a[pivot]< a[j]
+        while (cmp(a[r], a[--j])) // advance while pivot < a[j]
           if (j == l) // Has the left edge been reached?
             break; // yes ==> the iteration must be finished
 
         if (i >= j)
           break;
 
-        // At this point there is an inversion a[i] > a[pivot] > a[j]
-        std::swap(a[i], a[j]); //Eliminate inversion
+        // At this point there is an inversion a[i] > pivot > a[j]
+        std::swap(a[i], a[j]); // Eliminate inversion
       }
 
-    std::swap(a[i], a[r]);
+    std::swap(a[i], a[r]); // Place pivot in its final position
 
     return i;
   }
@@ -1309,6 +1566,7 @@ namespace Aleph
   template <typename T, class Compare>
   inline
   long select_pivot(T *a, const long l, const long r, Compare cmp)
+    noexcept(noexcept(cmp(a[0], a[0])) && std::is_nothrow_swappable_v<T>)
   {
     const long m = l + (r - l) / 2;
 
@@ -1322,40 +1580,43 @@ namespace Aleph
     return m;
   }
 
-  /** Sorts an array by the quicksort method without recursion.
-
-      quicksort_rec(a,l,r) sorts the array a between indices l and r
-      according to the quicksort method according to comparison criteria Compare.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      This method has an expected performance of \f$O(n \; \lg n)\f$
-      and is considered the fastest ordering method.
-
-      This version of quicksort can take up \f$O(n)\f$ space.
-      Use quicksort_rec_min() if you want to guarantee consumption
-      maximum space of \f$O(\lg n)\f$ at the expense of a little more
-      of constant time.
-
-      Quicksort is a probabilistic method. In a very bad case
-      -very bad luck-can be degraded to
-      \f$O(n^2)\f$. To alleviate, to the extent of luck, the bad
-      cases, use quicksort_insertion() which runs heuristics to
-      alleviate the bad cases and invoke the insert method to
-      small array partitions.
-
-      @param[in,out] a the array to sort.
-      @param[in] l lower index.
-      @param[in] r top index.
-      @param cmp
-
-      @see selection_sort() insertion_sort() mergesort() heapsort()
-      @see quicksort_rec_min() quicksort_insertion() quicksort_rec()
-
-      \ingroup Algos
-  */
+  /** @brief Sort an array using iterative quicksort with optimizations.
+   *
+   *  This is the main quicksort implementation, featuring:
+   *  - Iterative (stack-based) instead of recursive to control stack depth
+   *  - Median-of-three pivot selection to avoid worst-case on sorted data
+   *  - Falls back to insertion sort for small partitions (< Quicksort_Threshold)
+   *  - Always processes smaller partition first for O(log n) stack space
+   *
+   *  ### Algorithm (Hoare partition scheme)
+   *  1. Select pivot using median-of-three
+   *  2. Partition: elements < pivot go left, >= pivot go right
+   *  3. Push larger partition onto stack
+   *  4. Process smaller partition immediately (tail recursion elimination)
+   *  5. Repeat until stack is empty
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) expected, O(n²) worst case (rare)
+   *  - **Space complexity**: O(log n) for the stack
+   *  - **Stability**: Not stable
+   *  - **In-place**: Yes
+   *
+   *  ### When to Use
+   *  - General-purpose sorting (fastest in practice for most data)
+   *  - When stability is not required
+   *  - In-memory sorting of moderate to large arrays
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] l Left index (inclusive) of the range to sort.
+   *  @param[in] r Right index (inclusive) of the range to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see quicksort_rec(), quicksort_insertion(), mergesort(), heapsort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void quicksort(T *a, const long l, const long r, Compare cmp = Compare())
@@ -1976,31 +2237,46 @@ namespace Aleph
     return __random_select<T, Compare>(a, i, 0, n, cmp);
   }
 
-  /** Random selection of the ith element of an array.
-
-      random_select(a,i,n) returns the ith smallest element
-      contained in the array a of dimension n.
-
-      The routine uses the quicksort partition to
-      search for position i in time \f$O(n \; \lg n)\f$, which
-      It is a substantially better time than the search
-      sequential (\f$O(n^2)\f$).
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param[in,out] a an array where the ith element will be searched.
-      The arrangement remains semi-ordered through the successive
-      partitions that have been made.
-      @param[in] i position to be accessed.
-      @param[in] n dimension of the array
-      @param cmp comparison object.
-      @return reference to the ith smallest element in the array a.
-      @throw out_of_range if i is greater than or equal to n.
-
-      \ingroup Algos
-  */
+  /** @brief Select the k-th smallest element in an array (Quickselect).
+   *
+   *  Finds the k-th smallest element without fully sorting the array.
+   *  This is a selection algorithm based on quicksort's partition scheme.
+   *
+   *  ### Algorithm (Quickselect / Hoare's selection)
+   *  1. Partition the array around a pivot
+   *  2. If pivot is at position k, we're done
+   *  3. If k < pivot position, recurse on left partition
+   *  4. If k > pivot position, recurse on right partition
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n) expected, O(n²) worst case
+   *  - **Space complexity**: O(log n) for recursion
+   *  - **Side effect**: Partially sorts the array
+   *
+   *  ### Use Cases
+   *  - Finding the median: `random_select(a, n/2, n)`
+   *  - Finding k smallest/largest elements
+   *  - Computing percentiles/quartiles
+   *  - Order statistics
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Array to search (will be partially reordered).
+   *  @param[in] i Position to select (0-indexed, so 0 = minimum).
+   *  @param[in] n Number of elements in the array.
+   *  @param cmp Comparison functor.
+   *
+   *  @return Reference to the i-th smallest element.
+   *
+   *  @throw out_of_range if i >= n.
+   *
+   *  @note After calling, elements at indices < i are not necessarily sorted,
+   *        but are all <= the returned element.
+   *
+   *  @see partition()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   const T &random_select(T *a, const long i, const long n,
                          Compare cmp = Compare())
@@ -2194,24 +2470,36 @@ namespace Aleph
       }
   }
 
-  /** Sorts a dynamic array by the bubble method.
-
-      bubble_sort(a) uses the bubble method to sort
-      the dynamic array of n elements.
-
-      The bubble method has a performance of
-      \f$O(n^2)\f$. It is possibly the most inefficient method of all
-      the existing ones.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param a the array to sort.
-      @param cmp comparison object.
-      @see insertion_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
-  */
+  /** @brief Sort a dynamic array using bubble sort.
+   *
+   *  Bubble sort repeatedly steps through the list, compares adjacent
+   *  elements, and swaps them if they are in the wrong order. The pass
+   *  through the list is repeated until the list is sorted.
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n²) always
+   *  - **Space complexity**: O(1) - in-place
+   *  - **Stability**: Stable
+   *  - **Adaptive**: Can be made adaptive (not this implementation)
+   *
+   *  ### When to Use
+   *  - Educational purposes (simple to understand)
+   *  - Very small arrays where simplicity matters
+   *  - Almost never in production code
+   *
+   *  @warning This is one of the slowest sorting algorithms. Use
+   *           insertion_sort() for simple cases or quicksort() for
+   *           better performance.
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param a The dynamic array to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see insertion_sort(), selection_sort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void bubble_sort(DynArray<T> & a, Compare cmp = Compare())
@@ -2277,51 +2565,84 @@ namespace Aleph
   inline
   void insertion_sort(C<T> & a, Compare cmp = Compare())
   {
-    insertion_sort(a, 0, a.size() - 1, cmp);
+    const auto n = a.size();
+    if (n <= 1)
+      return;
+    insertion_sort(a, 0, static_cast<long>(n) - 1, cmp);
   }
 
-  /** Sorts a dynamic array by the shell method.
-
-      shellsort(a) uses the select method to sort
-      the dynamic arrangement a.
-
-      The shell method tends toward \f$O(n^2)\f$ performance, but in
-      the practice is considerably less.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-
-      @param[in,out] a the array to sort.
-      @param cmp comparison object.
-      @see selection_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
-  */
+  /** @brief Sort a dynamic array using Shell sort.
+   *
+   *  Shell sort is an optimization of insertion sort that allows exchange
+   *  of elements that are far apart. It works by sorting elements at various
+   *  gap intervals, progressively reducing the gap until it becomes 1.
+   *
+   *  ### Algorithm
+   *  Uses Ciura's gap sequence (empirically optimal): 1, 4, 10, 23, 57, 132, ...
+   *  Extended with 2.25x multiplier for larger arrays.
+   *  For each gap h (from largest to smallest):
+   *    Perform h-sorting (insertion sort with stride h)
+   *  When h=1, the array becomes fully sorted.
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n^1.3) empirical with Ciura sequence
+   *  - **Space complexity**: O(1) - in-place
+   *  - **Stability**: Not stable
+   *  - **Adaptive**: Partially (benefits from presortedness)
+   *
+   *  ### When to Use
+   *  - Medium-sized arrays (hundreds to thousands of elements)
+   *  - When simplicity and low overhead matter
+   *  - Embedded systems with limited stack space
+   *  - When code size is a concern
+   *
+   *  @tparam T Element type (must be copy-assignable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a The dynamic array to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see insertion_sort(), quicksort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void shellsort(DynArray<T> & a, Compare cmp = Compare())
   {
     const long n = a.size();
-    static const int incs[16] =
-        {
-          1391376, 463792, 198768, 86961, 33936, 13776,
-          4592, 1968, 861, 336, 112, 48, 21, 7, 3, 1
-        };
+    if (n <= 1)
+      return;
 
-    for (const long h : incs)
+    // Ciura's gap sequence - empirically optimal for most data distributions
+    // Extended with ~2.25x multiplier for larger arrays
+    static const long ciura_gaps[] =
+        {
+          1, 4, 10, 23, 57, 132, 301, 701, 1750, 4024, 9233,
+          21223, 48805, 112217, 258100, 593630, 1365513, 3140680
+        };
+    static const int num_gaps = sizeof(ciura_gaps) / sizeof(ciura_gaps[0]);
+
+    // Find first gap smaller than array size
+    int gap_idx = num_gaps - 1;
+    while (gap_idx >= 0 && ciura_gaps[gap_idx] >= n)
+      --gap_idx;
+
+    // Sort with decreasing gaps
+    for (; gap_idx >= 0; --gap_idx)
       {
+        const long h = ciura_gaps[gap_idx];
         for (long i = h; i < n; i++)
           {
-            T tmp = a(i);
+            T tmp = std::move(a(i));
             long j = i;
 
             while (j >= h and cmp(tmp, a(j - h)))
               {
-                a(j) = a(j - h);
+                a(j) = std::move(a(j - h));
                 j -= h;
               }
 
-            a(j) = tmp;
+            a(j) = std::move(tmp);
           }
       }
   }
@@ -2348,17 +2669,18 @@ namespace Aleph
 
   template <typename T, class Compare>
   inline
-  void sift_down(DynArray<T> & table, const long n, Compare & cmp)
+  void sift_down(DynArray<T> & table, const long start, const long n, Compare & cmp)
   {
-    long i = 1;
+    long i = start;
 
     while (true)
       {
-        long c = i << 1; // c = 2*i
+        long c = i << 1; // c = 2*i (left child)
 
         if (c > n)
           return;
 
+        // Select the smaller/larger child depending on comparator
         if (c + 1 <= n)
           if (cmp(table(back_index(c + 1)), table(back_index(c))))
             c++;
@@ -2371,18 +2693,40 @@ namespace Aleph
       }
   }
 
+  // Legacy overload for backward compatibility
+  template <typename T, class Compare>
+  inline
+  void sift_down(DynArray<T> & table, const long n, Compare & cmp)
+  {
+    sift_down<T, Compare>(table, 1, n, cmp);
+  }
+
+  /** @brief Comparator wrapper that inverts the comparison order.
+   *
+   *  Given a comparator `cmp`, this wrapper creates a comparator that
+   *  returns `cmp(e2, e1)` instead of `cmp(e1, e2)`. This is useful for
+   *  converting a min-heap algorithm to a max-heap algorithm.
+   *
+   *  @tparam T Element type being compared.
+   *  @tparam Compare The underlying comparator type.
+   *
+   *  @see heapsort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare>
   class Negate_Compare
   {
     Compare cmp;
 
   public:
+    /// Construct from a comparator.
     Negate_Compare(Compare __cmp = Compare())
       noexcept(std::is_nothrow_copy_assignable_v<Compare>)
       : cmp(__cmp)
     { /* Empty */
     }
 
+    /// Compare in reverse order: returns cmp(e2, e1).
     bool operator ()(const T & e1, const T & e2) const
       noexcept(noexcept(std::declval<const Compare &>()(e2, e1)))
     {
@@ -2390,41 +2734,66 @@ namespace Aleph
     }
   };
 
-  /** Sorts a dynamic array by the heapsort method.
-
-      heapsort(a) uses the heapsort method to sort
-      the arrangement a of n elements.
-
-      The heapsort has a guaranteed performance of \f$O(n \; \lg n)\f$
-      but it is not a stable sorting algorithm.
-
-      The method uses two type parameters:
-      -# T: the type of elements that the array has.
-      -# Compare: comparison class.
-      @param[in,out] a the array to be ordered.
-      @param cmp comparison object.
-      @see insertion_sort() quicksort_rec() mergesort()
-      @see selection_sort() faster_heapsort()
-      \ingroup Algos
-  */
+  /** @brief Sort a dynamic array using heapsort.
+   *
+   *  Heapsort uses the heap data structure to sort an array. It first
+   *  builds a max-heap using Floyd's algorithm (O(n)), then repeatedly
+   *  extracts the maximum element.
+   *
+   *  ### Algorithm
+   *  1. Build a max-heap using Floyd's bottom-up construction (O(n))
+   *  2. Repeatedly:
+   *     a. Swap root (max element) with last unsorted element
+   *     b. Reduce heap size by 1
+   *     c. Sift down the new root to restore heap property
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) - always (best, average, worst)
+   *  - **Space complexity**: O(1) - in-place
+   *  - **Stability**: Not stable
+   *  - **Adaptive**: No
+   *
+   *  ### When to Use
+   *  - When guaranteed O(n log n) worst case is critical
+   *  - When O(1) extra space is required
+   *  - Real-time systems (predictable performance)
+   *  - When data is expected to be adversarial (quicksort killers)
+   *
+   *  ### Comparison with Other O(n log n) Algorithms
+   *  - Slower than quicksort in practice (poor cache locality)
+   *  - Faster worst-case than quicksort
+   *  - Uses less space than merge sort
+   *  - Not stable like merge sort
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a The dynamic array to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @see quicksort(), mergesort(), selection_sort()
+   *  @ingroup Algorithms
+   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
   void heapsort(DynArray<T> & a, Compare cmp = Compare())
   {
     const long n = a.size();
+    if (n <= 1)
+      return;
 
     auto nc = Negate_Compare<T, Compare>(cmp);
 
-    long i;
-    for (i = 2; i <= n; i++)
-      sift_up<T, Negate_Compare<T, Compare>>(a, i, nc);
+    // Floyd's heap construction: O(n) instead of O(n log n)
+    // Start from last non-leaf node and sift down each node
+    for (long i = n / 2; i >= 1; --i)
+      sift_down<T, Negate_Compare<T, Compare>>(a, i, n, nc);
 
-    for (i = n; i >= 2; i--)
+    // Extract elements from heap one by one
+    for (long i = n; i >= 2; --i)
       {
         std::swap(a(0), a(i - 1));
-
-        sift_down<T, Negate_Compare<T, Compare>>(a, i - 1,
-                                                 nc);
+        sift_down<T, Negate_Compare<T, Compare>>(a, 1, i - 1, nc);
       }
   }
 
@@ -2586,39 +2955,51 @@ namespace Aleph
     return search_extreme<T, Compare>(a, l, r, cmp);
   }
 
-  /**Binary search on a dynamic ordered array.
-
-      binary_search<T,Compare>(a,x,l,r) performs search for x
-      in the arrangement a comprised between the lower limits l and
-      upper r.
-
-      The routine is generic and uses two type parameters:
-      -# The type of data that the array contains.
-      -# The comparison class.
-
-      The routine uses the binary search algorithm, which requires
-      that the arrangement is orderly. This condition is not verified in
-      the algorithm.
-
-      The method always returns an integer between
-      [l..r]. If the element is found, then the return value
-      It is the index where it is located; otherwise, it returns
-      the index where x would be inserted so that the array was
-      tidy.
-
-      @warning The routine does not fail if the array is empty, but
-      be careful about accessing it in this situation
-
-      @param[in] a the dynamic array on which to perform the search.
-      @param[in] x the element to search for.
-      @param[in] l left search index.
-      @param[in] r search right index.
-      @param cmp comparison object.
-      @return index of the element where x is located or the index of
-      the position where x would be inserted.
-      @see sequential_search()
-      \ingroup Algos
-  */
+  /** @brief Binary search on a sorted container.
+   *
+   *  Performs binary search to find an element or its insertion point
+   *  in a sorted container. This is the fundamental search algorithm
+   *  for sorted data, achieving O(log n) time complexity.
+   *
+   *  ### Algorithm
+   *  1. Compare target with middle element
+   *  2. If equal, return index
+   *  3. If target < middle, search left half
+   *  4. If target > middle, search right half
+   *  5. Repeat until found or range exhausted
+   *
+   *  ### Semantics
+   *  The return value has two meanings:
+   *  - If element is found: index where it exists
+   *  - If not found: index where it should be inserted to maintain order
+   *
+   *  To check if the element was actually found:
+   *  @code
+   *  long i = binary_search(a, x);
+   *  if (i < a.size() && are_equals(a(i), x, cmp))
+   *      // found at index i
+   *  @endcode
+   *
+   *  Time complexity: O(log n)
+   *  Space complexity: O(1)
+   *
+   *  @tparam C Container template (must support operator() and size()).
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param a Sorted container to search.
+   *  @param x Element to search for.
+   *  @param l Left index (inclusive) of the search range.
+   *  @param r Right index (inclusive) of the search range.
+   *  @param cmp Comparison functor.
+   *
+   *  @return Index where element is found, or where it should be inserted.
+   *
+   *  @pre Container must be sorted according to cmp.
+   *
+   *  @see bsearch(), sequential_search()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -2985,29 +3366,41 @@ namespace Aleph
     return ret;
   }
 
-  /** Builds and returns an index array that represents the stable ordering
-      of the elements of container `a` according to the comparison functor.
-
-      This function does not move or copy the elements contained in `a`.
-      Instead, it creates a dynamic array of indices `[0, a.size())` and
-      sorts those indices using `cmp(a(i), a(j))` as the ordering criterion.
-      The resulting array can be used to iterate over `a` in sorted order
-      without modifying the original container.
-
-      @tparam C      Template parameter of the container type.
-      @tparam T      Element type stored in the container.
-      @tparam Compare Comparison functor type, defaulting to `Aleph::less<T>`.
-
-      @param a   Constant reference to the container whose elements are to be
-                 indexed according to the sort order.
-      @param cmp Comparison functor that defines a strict weak ordering on
-                 elements of type `T`. It must impose a total ordering
-                 compatible with the semantics of the container.
-
-      @return A `DynArray<size_t>` where each entry is an index into `a`
-              such that `a(ret(0)), a(ret(1)), ..., a(ret(n-1))` are in
-              non-decreasing order according to `cmp`.
-  */
+  /** @brief Build an index array for indirect sorting.
+   *
+   *  Creates an array of indices that represents the sorted order of the
+   *  container's elements without actually moving them. This is useful for:
+   *  - Sorting large objects by a small key
+   *  - Maintaining multiple sort orders simultaneously
+   *  - Non-destructive sorting
+   *
+   *  ### Example
+   *  @code
+   *  DynArray<std::string> names = {"Charlie", "Alice", "Bob"};
+   *  auto idx = build_index(names);
+   *  // idx = {1, 2, 0}  (indices for "Alice", "Bob", "Charlie")
+   *
+   *  // Iterate in sorted order without modifying 'names':
+   *  for (size_t i = 0; i < idx.size(); ++i)
+   *      std::cout << names(idx(i)) << " ";  // Prints: Alice Bob Charlie
+   *  @endcode
+   *
+   *  Time complexity: O(n log n) for the sort
+   *  Space complexity: O(n) for the index array
+   *
+   *  @tparam C Container template type.
+   *  @tparam T Element type in the container.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param a Container whose elements will be indexed.
+   *  @param cmp Comparison functor for element ordering.
+   *
+   *  @return DynArray<size_t> of indices such that accessing a through
+   *          these indices yields elements in sorted order.
+   *
+   *  @see build_index_ptr()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline
@@ -3069,6 +3462,33 @@ namespace Aleph
     return ret;
   }
 
+  /** @brief Optimized quicksort for containers using operator().
+   *
+   *  This is the preferred quicksort implementation for Aleph containers
+   *  like DynArray and Array. It uses the `operator()` access method
+   *  instead of pointer arithmetic, allowing compatibility with various
+   *  container types.
+   *
+   *  ### Optimizations
+   *  - Iterative implementation (no recursion overhead)
+   *  - Median-of-three pivot selection
+   *  - Falls back to insertion sort for small partitions
+   *  - Processes smaller partition first for O(log n) stack space
+   *
+   *  Time complexity: O(n log n) expected
+   *  Space complexity: O(log n) for the stack
+   *
+   *  @tparam C Container template (must support operator() and size()).
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Container to sort.
+   *  @param cmp Comparison functor.
+   *  @param threshold Size below which insertion sort is used.
+   *
+   *  @see quicksort(), partition_op(), insertion_sort()
+   *  @ingroup Algorithms
+   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
   inline

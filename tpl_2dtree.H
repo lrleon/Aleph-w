@@ -98,12 +98,12 @@ using namespace Aleph;
 
     // Check if point exists
     if (tree.contains(Point(25, 50)))
-      std::cout << "Point found!" << std::endl;
+      std::cout << "Point found!" << '\n';
 
     // Find nearest neighbor
     Point nearest = tree.nearest(Point(30, 45));
     std::cout << "Nearest: (" << nearest.get_x() << ", "
-              << nearest.get_y() << ")" << std::endl;
+              << nearest.get_y() << ")" << '\n';
 
     // Range query
     Rectangle rect(20, 20, 80, 80);

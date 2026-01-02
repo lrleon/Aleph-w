@@ -253,6 +253,7 @@ set(EXHAUSTIVE_TESTS
     ranges_iterator_test
     ah_ranges_test
     eepicgeom_test
+    cookie_guard_test
 )
 
 # Create executable for each test program

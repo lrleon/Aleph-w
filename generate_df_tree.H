@@ -26,6 +26,10 @@
 
 /** @file generate_df_tree.H
  *  @brief Depth-first tree picture generation.
+ *
+ *  @warning This file uses a static global counter and is NOT thread-safe.
+ *           Do not use these functions concurrently from multiple threads.
+ *
  *  @ingroup Utilidades
  *  @author Leandro Rabindranath León
  */
@@ -34,7 +38,7 @@
 # include <tpl_tree_node.H>
 # include <generate_tree.H>
 
-
+/// @warning Global counter - NOT thread-safe
 static long global_counter = 0;
 
 

@@ -47,6 +47,7 @@
 # include <tpl_dynDlist.H>
 # include <tpl_net.H>
 # include <ah-errors.H>
+# include <cookie_guard.H>
 
 namespace Aleph
 {
@@ -205,6 +206,10 @@ The routine handles two type parameters:
 
     typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class>> AN;
     AN net;
+
+    // Cookie_Guard ensures cookies are cleared when function exits
+    // (prevents dangling pointers to destroyed 'net' nodes)
+    Cookie_Guard<GT> cookie_guard(g, true, true);
 
     // traverse nodes of g and insert their image in net
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())

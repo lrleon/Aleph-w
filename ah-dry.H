@@ -903,6 +903,8 @@ public:
   std::vector<T> to_vector() const
   {
     std::vector<T> ret;
+    if constexpr (requires { const_me()->size(); })
+      ret.reserve(const_me()->size());
     const_me()->for_each([&ret] (const T & item) { ret.push_back(item); });
     return ret;
   }

@@ -155,7 +155,7 @@ namespace Aleph {
       table.insert(42);
       table.insert(17);
       if (table.has(42))
-        std::cout << "Found 42" << std::endl;
+        std::cout << "Found 42" << '\n';
       table.remove(42);
       @endcode
 
@@ -230,9 +230,9 @@ namespace Aleph {
           case SECOND_PROBE: probe_type_str = "SECOND_PROBE"; break;
           case LINEAR_PROBE: probe_type_str = "LINEAR_PROBE"; break;
           }
-        return out << "Bucket at " << &bucket << std::endl
-                   << "status = " << status_str << std::endl
-                   << "probe_type = " << probe_type_str << std::endl
+        return out << "Bucket at " << &bucket << '\n'
+                   << "status = " << status_str << '\n'
+                   << "probe_type = " << probe_type_str << '\n'
                    << "probe_counter = " << bucket.probe_counter;
       }
     };
