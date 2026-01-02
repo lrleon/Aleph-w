@@ -8,7 +8,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Compiler flags
 set(WARN_FLAGS "-Wall -Wextra -Wcast-align -Wno-sign-compare -Wno-write-strings -Wno-parentheses")
-set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT -D__extern_always_inline=\"extern __always_inline\"")
+set(COMMON_FLAGS "-DMESSAGES -D_GLIBCXX__PTHREADS -D_REENTRANT")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(COMMON_FLAGS "${COMMON_FLAGS} -D__extern_always_inline=\"extern __always_inline\"")
+endif()
 
 # Debug flags with sanitizers (optional)
 option(USE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
