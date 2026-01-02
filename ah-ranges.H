@@ -485,13 +485,17 @@ constexpr void ranges_sort(R&& r, Comp&& comp = Comp{})
 // ============================================================================
 
 /**
- * @brief Tag type for to_aleph pipe adaptor.
+ * @brief Tag type for to_aleph pipe adaptor (containers with append).
+ *
+ * This adaptor converts a range to an Aleph container by appending elements.
+ * The operator| is defined as a free function for better compatibility with
+ * different compilers (especially Clang).
  */
 template <template <typename> class Container>
 struct to_aleph_adaptor
 {
   template <RangeLike R>
-  [[nodiscard]] friend auto operator|(R&& r, to_aleph_adaptor)
+  [[nodiscard]] auto operator()(R&& r) const
   {
     using T = std::ranges::range_value_t<R>;
     Container<T> result;
@@ -500,6 +504,14 @@ struct to_aleph_adaptor
     return result;
   }
 };
+
+/// Free operator| for to_aleph_adaptor - better ADL and Clang compatibility
+template <typename R, template <typename> class Container>
+  requires RangeLike<R>
+[[nodiscard]] auto operator|(R&& r, to_aleph_adaptor<Container> adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
 
 /**
  * @brief Pipe adaptor to convert range to DynList.
@@ -530,7 +542,7 @@ template <template <typename> class Container>
 struct to_aleph_push_adaptor
 {
   template <RangeLike R>
-  [[nodiscard]] friend auto operator|(R&& r, to_aleph_push_adaptor)
+  [[nodiscard]] auto operator()(R&& r) const
   {
     using T = std::ranges::range_value_t<R>;
     Container<T> result;
@@ -539,6 +551,14 @@ struct to_aleph_push_adaptor
     return result;
   }
 };
+
+/// Free operator| for to_aleph_push_adaptor
+template <typename R, template <typename> class Container>
+  requires RangeLike<R>
+[[nodiscard]] auto operator|(R&& r, to_aleph_push_adaptor<Container> adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
 
 /**
  * @brief Pipe adaptor to convert range to DynListStack.
@@ -558,7 +578,7 @@ template <template <typename> class Container>
 struct to_aleph_put_adaptor
 {
   template <RangeLike R>
-  [[nodiscard]] friend auto operator|(R&& r, to_aleph_put_adaptor)
+  [[nodiscard]] auto operator()(R&& r) const
   {
     using T = std::ranges::range_value_t<R>;
     Container<T> result;
@@ -567,6 +587,14 @@ struct to_aleph_put_adaptor
     return result;
   }
 };
+
+/// Free operator| for to_aleph_put_adaptor
+template <typename R, template <typename> class Container>
+  requires RangeLike<R>
+[[nodiscard]] auto operator|(R&& r, to_aleph_put_adaptor<Container> adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
 
 /**
  * @brief Pipe adaptor to convert range to DynListQueue.
@@ -590,7 +618,7 @@ template <template <typename, typename...> class Container, typename... ExtraArg
 struct to_aleph_insert_adaptor
 {
   template <RangeLike R>
-  [[nodiscard]] friend auto operator|(R&& r, to_aleph_insert_adaptor)
+  [[nodiscard]] auto operator()(R&& r) const
   {
     using T = std::ranges::range_value_t<R>;
     Container<T, ExtraArgs...> result;
@@ -599,6 +627,14 @@ struct to_aleph_insert_adaptor
     return result;
   }
 };
+
+/// Free operator| for to_aleph_insert_adaptor
+template <typename R, template <typename, typename...> class Container, typename... ExtraArgs>
+  requires RangeLike<R>
+[[nodiscard]] auto operator|(R&& r, to_aleph_insert_adaptor<Container, ExtraArgs...> adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
 
 /**
  * @brief Generic function to collect a range into any Aleph container.
@@ -653,11 +689,19 @@ template <typename Container>
 struct to_adaptor
 {
   template <RangeLike R>
-  [[nodiscard]] friend Container operator|(R&& r, to_adaptor)
+  [[nodiscard]] Container operator()(R&& r) const
   {
     return collect<Container>(std::forward<R>(r));
   }
 };
+
+/// Free operator| for to_adaptor
+template <typename R, typename Container>
+  requires RangeLike<R>
+[[nodiscard]] Container operator|(R&& r, to_adaptor<Container> adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
 
 /**
  * @brief Create a pipe adaptor for any Aleph container.
