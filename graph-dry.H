@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file graph-dry.H
+ *  @brief Graph base classes and common utilities via CRTP.
+ *
+ *  Provides base functionality for all graph implementations using
+ *  CRTP (Curiously Recurring Template Pattern). Includes node/arc
+ *  iterators, graph traversal, and common graph operations.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GRAPH_DRY_H
 # define GRAPH_DRY_H
 

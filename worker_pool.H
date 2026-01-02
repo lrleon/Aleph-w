@@ -1,3 +1,18 @@
+/** @file worker_pool.H
+ *  @brief General-purpose worker thread pool.
+ *
+ *  Pool of worker threads for parallel task execution.
+ *
+ *  ## Features
+ *  - Configurable thread count
+ *  - Task function template
+ *  - Termination signaling
+ *
+ *  @see q-consumer-threads.H Queue-based variant
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef WORKER_POOL_H
 # define WORKER_POOL_H
 

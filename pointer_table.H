@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file pointer_table.H
+ *  @brief Pointer table utilities.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef POINTER_TABLE_H
 # define POINTER_TABLE_H
 

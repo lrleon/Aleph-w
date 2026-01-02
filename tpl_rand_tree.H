@@ -24,6 +24,22 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_rand_tree.H
+ *  @brief Randomized binary search tree.
+ *
+ *  BST with randomized insertion that maintains expected
+ *  O(log n) height without explicit balancing.
+ *
+ *  ## Features
+ *  - Root insertion with probability 1/(n+1)
+ *  - Expected O(log n) operations
+ *  - Simpler than deterministic balancing
+ *
+ *  @see tpl_treap.H Alternative randomized BST
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RAND_TREE_H
 # define TPL_RAND_TREE_H
 

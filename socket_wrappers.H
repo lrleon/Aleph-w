@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file socket_wrappers.H
+ *  @brief Socket wrapper utilities.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SOCKET_WRAPPERS_H
 # define SOCKET_WRAPPERS_H
 

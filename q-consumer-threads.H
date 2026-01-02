@@ -23,6 +23,23 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file q-consumer-threads.H
+ *  @brief Queue-based consumer thread pool.
+ *
+ *  Pool of threads consuming from a shared queue for
+ *  producer-consumer patterns.
+ *
+ *  ## Features
+ *  - Thread-safe queue
+ *  - Configurable pool size
+ *  - Graceful shutdown
+ *
+ *  @see worker_pool.H Alternative thread pool
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef Q_CONSUMER_THREADS_H
 # define Q_CONSUMER_THREADS_H
 

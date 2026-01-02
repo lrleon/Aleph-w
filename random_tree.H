@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file random_tree.H
+ *  @brief Random binary tree generation.
+ *
+ *  Generates random binary trees for testing and benchmarking.
+ *
+ *  @see random_graph.H Random graph generation
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef RANDOM_TREE_H
 #define RANDOM_TREE_H
 

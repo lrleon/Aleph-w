@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahSearch.H
+ *  @brief Search algorithms for sorted sequences.
+ *
+ *  Provides binary search and related algorithms for finding
+ *  elements in sorted containers. Works with Aleph containers
+ *  and custom comparators.
+ *
+ *  @ingroup Algoritmos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_SEARCH_H
 # define AH_SEARCH_H
 

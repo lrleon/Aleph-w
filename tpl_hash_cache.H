@@ -24,6 +24,22 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_hash_cache.H
+ *  @brief Hash-based LRU cache.
+ *
+ *  Cache using hash table for O(1) lookups combined with
+ *  LRU eviction policy for memory management.
+ *
+ *  ## Features
+ *  - O(1) lookup via hash table
+ *  - LRU eviction
+ *  - Entry locking
+ *
+ *  @see tpl_cache.H Simpler variant
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_HASH_CACHE_H
 # define TPL_HASH_CACHE_H
 

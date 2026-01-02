@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_random_queue.H
+ *  @brief Random access queue (bag) with O(1) random pop.
+ *
+ *  Collection allowing random element extraction.
+ *  Also defines Random_Set for random set operations.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RANDOM_QUEUE_H
 # define TPL_RANDOM_QUEUE_H
 

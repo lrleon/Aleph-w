@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file polygon.H
+ *  @brief Polygon representation and operations.
+ *
+ *  Provides Polygon class for representing 2D polygons as sequences
+ *  of vertices. Supports area, perimeter, containment tests, and
+ *  polygon intersection operations.
+ *
+ *  @ingroup Geometria
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef POLYGON_H
 # define POLYGON_H
 

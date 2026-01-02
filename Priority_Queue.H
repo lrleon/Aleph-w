@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Priority_Queue.H
+ *  @brief STL-compatible priority queue adapter.
+ *
+ *  Aleph implementation of std::priority_queue using binary heap
+ *  for O(log n) push/pop with STL-compatible interface.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_PRIORITY_QUEUE_H
 # define AH_PRIORITY_QUEUE_H
 

@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahNow.H
+ *  @brief High-resolution timer and benchmarking utilities.
+ *
+ *  Provides Now class for precise time measurements using
+ *  std::chrono::high_resolution_clock. Useful for benchmarking
+ *  and performance profiling with nanosecond resolution.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHNOW_H
 # define AHNOW_H
 

@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file rbNodeRk.H
+ *  @brief Red-Black tree node with rank (subtree count).
+ *
+ *  Extends RbNode with subtree size for order statistics.
+ *
+ *  @see tpl_rbRk.H RB tree with rank
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef RBNODERK_H
 # define RBNODERK_H
 

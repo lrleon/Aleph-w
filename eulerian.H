@@ -23,6 +23,55 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file eulerian.H
+ *  @brief Eulerian graph detection and path/cycle finding.
+ *
+ *  This file provides algorithms to test whether a graph or digraph is
+ *  Eulerian (contains an Eulerian cycle) or semi-Eulerian (contains an
+ *  Eulerian path).
+ *
+ *  ## Definitions
+ *
+ *  - **Eulerian Cycle**: A cycle that visits every edge exactly once
+ *  - **Eulerian Path**: A path that visits every edge exactly once
+ *  - **Eulerian Graph**: Contains an Eulerian cycle
+ *  - **Semi-Eulerian Graph**: Contains an Eulerian path but not a cycle
+ *
+ *  ## Conditions for Eulerian Graphs
+ *
+ *  ### Undirected Graphs
+ *  - Eulerian cycle: All vertices have even degree
+ *  - Eulerian path: Exactly 0 or 2 vertices have odd degree
+ *
+ *  ### Directed Graphs
+ *  - Eulerian cycle: in-degree = out-degree for all vertices
+ *  - Eulerian path: At most one vertex with out-in=1, at most one with in-out=1
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | Test Eulerian | O(V + E) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Graph<Node, Arc> g;
+ *  // ... build graph ...
+ *
+ *  Test_Eulerian<decltype(g)> test;
+ *  if (test(g))
+ *    std::cout << "Graph is Eulerian\n";
+ *  ```
+ *
+ *  @see tpl_graph.H Graph data structures
+ *  @see hamiltonian.H Hamiltonian path/cycle algorithms
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef EULERIAN_H
 # define EULERIAN_H
 

@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file hashPars.H
+ *  @brief Hash table parameters.
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HASHPARS_H
 # define HASHPARS_H
 

@@ -24,6 +24,17 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_tree_node.H
+ *  @brief General tree (n-ary tree) node.
+ *
+ *  Node for general trees with arbitrary number of children.
+ *  Uses first-child/next-sibling representation.
+ *
+ *  @see tpl_binNodeUtils.H Binary tree utilities
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TREE_H
 # define TPL_TREE_H
 

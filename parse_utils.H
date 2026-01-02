@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file parse_utils.H
+ *  @brief General parsing utilities.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef PARSE_UTILS_H
 # define PARSE_UTILS_H
 

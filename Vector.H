@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file Vector.H
+ *  @brief STL-compatible vector container.
+ *
+ *  Aleph implementation of std::vector with dynamic array storage.
+ *
+ *  @see tpl_dynArray.H Alternative dynamic array
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 /*
 	Aleph implementation of vector C++ standard container
 */

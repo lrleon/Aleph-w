@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynarray_set.H
+ *  @brief Array-based dynamic set.
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNARRAY_SET_H
 # define TPL_DYNARRAY_SET_H
 

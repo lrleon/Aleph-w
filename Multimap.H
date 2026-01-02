@@ -24,9 +24,15 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
-  Aleph implementation of multimap C++ standard container
-*/
+/** @file Multimap.H
+ *  @brief STL-compatible multimap container.
+ *
+ *  Aleph implementation of std::multimap allowing duplicate keys
+ *  with O(log n) operations using balanced BST.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef ALEPH_MULTIMAP_H
 # define ALEPH_MULTIMAP_H

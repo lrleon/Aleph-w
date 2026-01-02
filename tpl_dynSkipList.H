@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynSkipList.H
+ *  @brief Dynamic skip list.
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNSKIPLIST_H
 # define TPL_DYNSKIPLIST_H
 

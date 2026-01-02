@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file format.H
+ *  @brief Number formatting utilities.
+ *
+ *  Provides format_double function for formatting floating-point
+ *  numbers with specified precision using iostream manipulators.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef FORMAT_H
 # define FORMAT_H
 

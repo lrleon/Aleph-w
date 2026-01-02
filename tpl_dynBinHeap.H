@@ -23,6 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dynBinHeap.H
+ *  @brief Dynamic binary heap with node-based storage.
+ *
+ *  Binary heap using linked nodes instead of array. Supports
+ *  priority updates and arbitrary node removal.
+ *
+ *  ## Features
+ *  - O(log n) insert, extract-min
+ *  - O(log n) decrease-key
+ *  - Node handles for updates
+ *
+ *  @see tpl_binHeap.H Array-based heap
+ *  @see tpl_dynArrayHeap.H Array-based dynamic heap
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNBINHEAP_H
 # define TPL_DYNBINHEAP_H
 

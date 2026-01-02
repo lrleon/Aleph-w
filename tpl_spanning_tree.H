@@ -23,6 +23,26 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_spanning_tree.H
+ *  @brief Spanning tree generation algorithms.
+ *
+ *  Constructs spanning trees using DFS or BFS traversal.
+ *  For minimum spanning trees, see Prim.H and Kruskal.H.
+ *
+ *  ## Features
+ *  - DFS spanning tree
+ *  - BFS spanning tree (shortest paths in unweighted graphs)
+ *  - Random spanning tree
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @see Prim.H Minimum spanning tree
+ *  @see Kruskal.H Minimum spanning tree
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SPANNING_TREE_H
 # define TPL_SPANNING_TREE_H
 

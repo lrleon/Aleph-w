@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file deque.H
+ *  @brief Double-ended queue implementation.
+ *
+ *  Provides deque class supporting efficient insertion and removal
+ *  at both ends, implemented using Aleph's Vector.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # include <Vector.H>
  # include <ah-errors.H>
 

@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file lfit.H
+ *  @brief Linear fitting utilities.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 /* Basic linear regression
 
     Leandro Rabindranath Leon    

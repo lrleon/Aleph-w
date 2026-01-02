@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file warshall.H
+ *  @brief Warshall's algorithm for transitive closure.
+ *
+ *  Computes the transitive closure of a directed graph: determines
+ *  reachability between all pairs of vertices.
+ *
+ *  ## Features
+ *  - Boolean reachability matrix
+ *  - Works on adjacency matrix representation
+ *
+ *  ## Complexity: O(V³)
+ *
+ *  @see Floyd.H All-pairs shortest paths (weighted)
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef WARSHALL_H
 # define WARSHALL_H
 

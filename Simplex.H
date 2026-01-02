@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file Simplex.H
+ *  @brief Simplex algorithm for linear programming.
+ *
+ *  Implements the Simplex method for solving linear programming problems:
+ *  maximize/minimize c'x subject to Ax ≤ b, x ≥ 0.
+ *
+ *  ## Features
+ *  - Two-phase simplex method
+ *  - Handles unbounded and infeasible cases
+ *  - Big-M method for artificial variables
+ *
+ *  ## Complexity: O(2^n) worst case, polynomial average
+ *
+ *  @ingroup Algorittic
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SIMPLEX_H
 # define SIMPLEX_H
 

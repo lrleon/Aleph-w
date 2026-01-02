@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-msg.H
+ *  @brief Message builder for constructing formatted strings.
+ *
+ *  Provides MSG class for building messages using stream-style
+ *  insertion operators. Useful for constructing error messages
+ *  and log entries with mixed types.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_MSG_H
 # define AH_MSG_H
 

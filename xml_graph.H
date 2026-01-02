@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file xml_graph.H
+ *  @brief XML serialization for graphs.
+ *
+ *  Load and save graphs in XML format for interchange.
+ *
+ *  @see generate_graph.H DOT format export
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef XML_GRAPH_H
 # define XML_GRAPH_H
 

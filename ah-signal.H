@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah-signal.H
+ *  @brief POSIX signal handling wrapper.
+ *
+ *  Provides Signal class for registering and managing POSIX
+ *  signal handlers with RAII semantics. Simplifies signal
+ *  handling in C++ applications.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_SIGNAL_H
 # define AH_SIGNAL_H
 

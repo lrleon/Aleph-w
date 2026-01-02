@@ -23,6 +23,54 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file aleph-exceptions.H
+ *  @brief Custom exception classes with source location tracking.
+ *
+ *  This file provides AlephException, a custom exception class that
+ *  captures file name, line number, and function name where the
+ *  exception was thrown.
+ *
+ *  ## Key Features
+ *
+ *  - Inherits from std::runtime_error
+ *  - Captures source location (file, line, function)
+ *  - Human-readable error messages
+ *  - Macro for defining new exception types
+ *
+ *  ## AlephException Members
+ *
+ *  - `line_number`: Line where exception was thrown
+ *  - `file_name`: Source file name
+ *  - `function_name`: Function where thrown
+ *
+ *  ## Defining Custom Exceptions
+ *
+ *  Use the DEFINE_ALEPH_EXCEPTION macro:
+ *
+ *  ```cpp
+ *  DEFINE_ALEPH_EXCEPTION(MyError);
+ *
+ *  // Usage:
+ *  throw MyError(__FILE__, __LINE__, "my_function", "Something failed");
+ *  ```
+ *
+ *  ## Recommended Alternative
+ *
+ *  For new code, prefer using `ah-errors.H` macros which provide
+ *  automatic source location capture:
+ *
+ *  ```cpp
+ *  ah_domain_error_if(x < 0, "x must be positive");
+ *  ```
+ *
+ *  @see ah-errors.H Modern error handling macros
+ *  @see ahUtils.H Utility functions used by exceptions
+ *
+ *  @ingroup Exceptions
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_EXCEPTIONS_H
 # define ALEPH_EXCEPTIONS_H
 

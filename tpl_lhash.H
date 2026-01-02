@@ -24,6 +24,75 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_lhash.H
+ *  @brief Linear hashing with dynamic bucket expansion.
+ *
+ *  This file implements Linear Hashing, a dynamic hash table technique that
+ *  grows gracefully without requiring a complete rehash. Buckets are split
+ *  one at a time as the load factor increases.
+ *
+ *  ## Algorithm Overview
+ *
+ *  Linear hashing uses two hash functions during expansion:
+ *  - h0(k) = k mod m (current level)
+ *  - h1(k) = k mod 2m (next level)
+ *
+ *  When a bucket overflows, the next bucket in sequence is split, not
+ *  necessarily the overflowing one. This ensures predictable growth.
+ *
+ *  ## Key Features
+ *
+ *  - Incremental expansion (no full rehash needed)
+ *  - Configurable load factor thresholds
+ *  - Automatic contraction when load decreases
+ *  - Supports duplicate keys
+ *  - Chaining for collision resolution
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Average | Worst Case |
+ *  |-----------|---------|------------|
+ *  | insert | O(1) | O(n) |
+ *  | search | O(1) | O(n) |
+ *  | remove | O(1) | O(n) |
+ *  | expand | O(1) amortized | O(n) |
+ *
+ *  ## Load Factor Control
+ *
+ *  - `upper_alpha`: When exceeded, triggers bucket split
+ *  - `lower_alpha`: When below, triggers bucket contraction
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  LhashTable<int> table;
+ *
+ *  table.insert(new Bucket(42));
+ *  table.insert(new Bucket(17));
+ *
+ *  auto* found = table.search(42);
+ *  if (found)
+ *    std::cout << "Found: " << found->get_key() << "\n";
+ *
+ *  table.remove(found);
+ *  ```
+ *
+ *  ## Comparison with Other Hash Tables
+ *
+ *  | Feature | LhashTable | ODhashTable | OLhashTable |
+ *  |---------|------------|-------------|-------------|
+ *  | Collision | Chaining | Double hash | Linear probe |
+ *  | Growth | Linear | Full rehash | Full rehash |
+ *  | Memory | Extra pointers | Compact | Compact |
+ *
+ *  @see tpl_odhash.H Open addressing with double hashing
+ *  @see tpl_olhash.H Open addressing with linear probing
+ *  @see tpl_dynSetHash.H High-level hash set interface
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_LHASH_H
 # define TPL_LHASH_H
 

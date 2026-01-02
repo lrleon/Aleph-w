@@ -24,6 +24,26 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_rb_tree.H
+ *  @brief Red-Black tree implementation (bottom-up balancing).
+ *
+ *  Self-balancing BST with color constraints ensuring O(log n) height.
+ *  Uses bottom-up insertion with post-insertion rebalancing.
+ *
+ *  ## Properties
+ *  - Every node is red or black
+ *  - Root is black
+ *  - No two adjacent red nodes
+ *  - All paths have same black-height
+ *
+ *  ## Complexity: O(log n) for all operations
+ *
+ *  @see tpl_tdRbTree.H Top-down variant
+ *  @see tpl_rbRk.H With rank support
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RB_TREE_H
 # define TPL_RB_TREE_H
 

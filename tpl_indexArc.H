@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_indexArc.H
+ *  @brief Arc indexing for fast lookup.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_INDEXARC_H
 # define TPL_INDEXARC_H
 

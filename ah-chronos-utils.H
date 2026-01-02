@@ -1,6 +1,13 @@
-//
-// Created by lrleon on 8/13/24.
-//
+/** @file ah-chronos-utils.H
+ *  @brief Time duration conversion utilities.
+ *
+ *  Provides functions for converting std::chrono durations to various
+ *  time units (seconds, milliseconds, microseconds, nanoseconds) and
+ *  formatting durations as human-readable strings.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
 
 #ifndef AH_CHRONOS_UTILS_H
 #define AH_CHRONOS_UTILS_H

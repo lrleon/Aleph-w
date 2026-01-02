@@ -23,6 +23,66 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Tarjan.H
+ *  @brief Tarjan's algorithm for strongly connected components.
+ *
+ *  This file implements Tarjan's algorithm for finding strongly connected
+ *  components (SCCs) in directed graphs. An SCC is a maximal subset of
+ *  vertices where every vertex is reachable from every other vertex.
+ *
+ *  ## Algorithm Overview
+ *
+ *  Tarjan's algorithm uses a single DFS traversal with a stack to identify
+ *  SCCs. Each node is assigned:
+ *  - **index**: Order of first visit
+ *  - **lowlink**: Lowest index reachable from subtree
+ *
+ *  When lowlink[v] == index[v], v is the root of an SCC.
+ *
+ *  ## Key Features
+ *
+ *  - Single DFS pass (optimal)
+ *  - Returns SCCs in reverse topological order
+ *  - Can build condensation graph (DAG of SCCs)
+ *  - Detects cycles in digraphs
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Space |
+ *  |-----------|------|-------|
+ *  | Find all SCCs | O(V + E) | O(V) |
+ *  | Build condensation | O(V + E) | O(V + E) |
+ *
+ *  ## Applications
+ *
+ *  - Detecting cycles in directed graphs
+ *  - Computing 2-SAT satisfiability
+ *  - Finding strongly connected components
+ *  - Building DAG condensation for topological analysis
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Digraph<Node, Arc> g;
+ *  // ... build digraph ...
+ *
+ *  DynList<DynList<Node*>> sccs;
+ *  Tarjan_Connected_Components<decltype(g)> tarjan;
+ *  tarjan.connected_components(g, sccs);
+ *
+ *  for (auto& scc : sccs) {
+ *    std::cout << "SCC with " << scc.size() << " nodes\n";
+ *  }
+ *  ```
+ *
+ *  @see Kosaraju.H Alternative SCC algorithm (two DFS passes)
+ *  @see topological_sort.H Topological ordering for DAGs
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TARJAN_H
 # define TARJAN_H
 

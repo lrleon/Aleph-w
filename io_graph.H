@@ -23,6 +23,18 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file io_graph.H
+ *  @brief Graph serialization and deserialization.
+ *
+ *  Provides functions for reading and writing graphs to/from files
+ *  in various formats. Supports binary and text formats with
+ *  customizable node/arc serializers.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef IO_GRAPH_H
 # define IO_GRAPH_H
 

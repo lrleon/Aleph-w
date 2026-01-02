@@ -49,6 +49,15 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  */
 
+/** @file ahPair.H
+ *  @brief Pair utilities and make_pair function.
+ *
+ *  Provides pair-related utilities compatible with std::pair.
+ *  Based on SGI STL implementation with Aleph-w extensions.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef AHPAIR_H
 # define AHPAIR_H 1

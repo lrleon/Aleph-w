@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file Map.H
+ *  @brief STL-compatible map container.
+ *
+ *  Aleph implementation of std::map using balanced BST for O(log n)
+ *  key-value operations with STL-compatible interface.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_MAP_H
 # define ALEPH_MAP_H
 /*

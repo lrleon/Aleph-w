@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah-dispatcher.H
+ *  @brief Command dispatcher pattern implementation.
+ *
+ *  Provides AHDispatcher, a registry that maps keys to operations,
+ *  enabling dynamic command dispatching based on runtime keys.
+ *  Uses hash table or tree for efficient lookup.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef AH_DISPATCHER_H
 #define AH_DISPATCHER_H
 

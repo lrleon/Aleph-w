@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file latex_floyd.H
+ *  @brief LaTeX output for Floyd matrices.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef FLOYD_H
 # define FLOYD_H
 

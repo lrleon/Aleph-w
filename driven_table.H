@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file driven_table.H
+ *  @brief Event-driven table abstraction.
+ *
+ *  Provides abstract base classes for static and dynamic event tables,
+ *  supporting read, write, cut, and size operations for event-driven
+ *  simulations.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef DRIVEN_TABLE_H
 # define DRIVEN_TABLE_H
 

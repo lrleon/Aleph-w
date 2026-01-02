@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file archeap.H
+ *  @brief Arc heap for graph algorithms.
+ *
+ *  Provides ArcHeap template for maintaining a priority queue of
+ *  graph arcs ordered by distance/weight. Used by Prim, Dijkstra,
+ *  and other graph algorithms.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ARCHEAP_H
 # define ARCHEAP_H
 

@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_euclidian_graph.H
+ *  @brief Euclidean graph with 2D coordinates.
+ *
+ *  Graph where nodes have 2D positions and arc weights
+ *  are Euclidean distances.
+ *
+ *  @see point_utils.H Point utilities
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_EUCLIDIAN_GRAPH_H
 # define TPL_EUCLIDIAN_GRAPH_H
 

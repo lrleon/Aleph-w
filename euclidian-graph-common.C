@@ -1,4 +1,7 @@
 # include <iostream>
 # include <euclidian-graph-common.H>
 
-gsl_rng * Aleph::rand_gen = NULL;
+namespace Aleph
+{
+  gsl_rng * rand_gen = nullptr;
+}

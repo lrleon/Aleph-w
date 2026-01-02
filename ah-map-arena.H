@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-map-arena.H
+ *  @brief Memory-mapped file arena allocator.
+ *
+ *  Provides MapArena for allocating memory from memory-mapped files,
+ *  enabling persistent allocations that survive process restarts.
+ *  Uses mmap for efficient file-backed memory.
+ *
+ *  @ingroup Memoria
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef AH_MAP_ARENA_H
 #define AH_MAP_ARENA_H
 

@@ -23,6 +23,23 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_cache.H
+ *  @brief LRU cache with fixed capacity.
+ *
+ *  Key-value cache with Least Recently Used eviction policy.
+ *  Fixed capacity with O(1) access and eviction.
+ *
+ *  ## Features
+ *  - O(1) lookup and insert
+ *  - LRU eviction policy
+ *  - Entry locking (prevent eviction)
+ *
+ *  @see tpl_hash_cache.H Hash-based variant
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_CACHE_H
 # define TPL_CACHE_H
 

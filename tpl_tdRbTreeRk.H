@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_tdRbTreeRk.H
+ *  @brief Top-down Red-Black tree with rank support.
+ *
+ *  Extends top-down RB tree with subtree size counts for
+ *  O(log n) select() and position() operations.
+ *
+ *  ## Features
+ *  - select(k): Find k-th smallest element
+ *  - position(key): Find rank of key
+ *  - O(log n) insert with rank updates
+ *
+ *  @see tpl_tdRbTree.H Base implementation
+ *  @see tpl_rbRk.H Bottom-up variant with rank
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TDRBTREERK_H
 # define TPL_TDRBTREERK_H
 

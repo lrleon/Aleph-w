@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_balanceXt.H
+ *  @brief Tree balancing with extended nodes.
+ *
+ *  Utilities for balancing trees with subtree counts.
+ *
+ *  @see tpl_binNodeXt.H Extended nodes
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BALANCEXT_H
 # define TPL_BALANCEXT_H
 

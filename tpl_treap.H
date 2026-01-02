@@ -24,6 +24,25 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_treap.H
+ *  @brief Treap: randomized BST combining tree and heap properties.
+ *
+ *  Each node has a key (BST order) and random priority (heap order).
+ *  Provides expected O(log n) operations with simpler implementation
+ *  than deterministic balanced trees.
+ *
+ *  ## Features
+ *  - Randomized balancing (no rotations needed for balance)
+ *  - Expected O(log n) height
+ *  - Simple split/join operations
+ *
+ *  ## Complexity: O(log n) expected for all operations
+ *
+ *  @see tpl_treapRk.H Treap with rank support
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TREAP_H
 # define TPL_TREAP_H
 

@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file huffman_btreepic.H
+ *  @brief Huffman tree picture generation.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # include <cstdlib>
 # include <tpl_dynMapTree.H>
 # include <Huffman.H>

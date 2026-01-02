@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file generate_spanning_tree_picture.H
+ *  @brief Spanning tree visualization.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # include <generate_graph.H>
 
 

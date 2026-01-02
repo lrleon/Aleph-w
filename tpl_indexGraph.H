@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_indexGraph.H
+ *  @brief Graph indexing utilities.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_INDEXGRAPH
 # define TPL_INDEXGRAPH
 

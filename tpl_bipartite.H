@@ -23,6 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_bipartite.H
+ *  @brief Bipartite graph detection and 2-coloring.
+ *
+ *  Tests if a graph is bipartite (can be 2-colored) and computes
+ *  the bipartition if it exists.
+ *
+ *  ## Features
+ *  - Test bipartiteness via BFS
+ *  - Compute vertex 2-coloring
+ *  - Detect odd cycles (non-bipartite proof)
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BIPARTITE_H
 # define TPL_BIPARTITE_H
 

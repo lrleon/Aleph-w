@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file generate_tree.H
+ *  @brief Tree visualization and output generation.
+ *
+ *  Provides functions for generating visual representations of
+ *  tree structures including DOT format for Graphviz.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GENERATE_TREE_H
 # define GENERATE_TREE_H
 

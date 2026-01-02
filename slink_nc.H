@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file slink_nc.H
+ *  @brief Singly linked node (no check variant).
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SLINK_NC_H
 # define SLINK_NC_H
 

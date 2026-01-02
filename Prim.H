@@ -23,6 +23,64 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Prim.H
+ *  @brief Prim's algorithm for minimum spanning trees.
+ *
+ *  This file implements Prim's algorithm for finding the Minimum Spanning
+ *  Tree (MST) of a connected, undirected, weighted graph. The algorithm
+ *  grows the MST one vertex at a time, always adding the minimum-weight
+ *  edge that connects a vertex in the tree to a vertex outside.
+ *
+ *  ## Algorithm Overview
+ *
+ *  1. Start with an arbitrary vertex
+ *  2. Maintain a priority queue of edges crossing the cut
+ *  3. Extract minimum-weight edge, add its endpoint to the tree
+ *  4. Add new crossing edges to the queue
+ *  5. Repeat until all vertices are in the tree
+ *
+ *  ## Key Features
+ *
+ *  - Finds minimum spanning tree for connected graphs
+ *  - Uses binary heap for efficient edge selection
+ *  - Supports custom distance/weight functions
+ *  - Works with both List_Graph and Array_Graph
+ *
+ *  ## Complexity
+ *
+ *  | Implementation | Time | Space |
+ *  |----------------|------|-------|
+ *  | Binary Heap | O(E log V) | O(V) |
+ *
+ *  ## Comparison with Kruskal
+ *
+ *  | Aspect | Prim | Kruskal |
+ *  |--------|------|---------|
+ *  | Best for | Dense graphs | Sparse graphs |
+ *  | Data structure | Priority queue | Union-Find |
+ *  | Edge processing | One at a time | All sorted first |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Graph<Node, Arc> g;
+ *  // ... build connected graph ...
+ *
+ *  List_Graph<Node, Arc> mst;
+ *  Prim_Min_Spanning_Tree<decltype(g)> prim;
+ *  prim(g, mst);
+ *
+ *  // mst now contains the minimum spanning tree
+ *  ```
+ *
+ *  @see Kruskal.H Alternative MST algorithm (better for sparse graphs)
+ *  @see tpl_graph_utils.H For graph traversal utilities
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef PRIM_H
 # define PRIM_H
 

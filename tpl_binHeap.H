@@ -24,6 +24,71 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_binHeap.H
+ *  @brief Binary heap implementation using tree structure.
+ *
+ *  This file provides a binary heap implementation that uses a binary tree
+ *  structure instead of an array. This allows for dynamic sizing and
+ *  efficient node-based operations.
+ *
+ *  ## Heap Types
+ *
+ *  - **GenBinHeap**: Generic base heap with customizable comparison
+ *  - **BinHeap**: Min-heap (smallest element at root)
+ *  - **BinHeapMax**: Max-heap (largest element at root)
+ *  - **BinHeapVtl**: Min-heap with virtual destructor for polymorphism
+ *
+ *  ## Key Features
+ *
+ *  - Tree-based structure (not array-based)
+ *  - Parent pointers for efficient operations
+ *  - Supports iteration via Iterator class
+ *  - Move semantics for efficient transfers
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | insert | O(log n) |
+ *  | getMin/getMax | O(1) |
+ *  | remove | O(log n) |
+ *  | update | O(log n) |
+ *  | build from n elements | O(n) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  BinHeap<int> heap;
+ *  
+ *  heap.insert(5);
+ *  heap.insert(3);
+ *  heap.insert(7);
+ *  
+ *  while (!heap.is_empty()) {
+ *    int min = heap.getMin();  // Get minimum
+ *    heap.getMin();            // Remove minimum
+ *  }
+ *  ```
+ *
+ *  ## When to Use
+ *
+ *  Use tree-based heap when:
+ *  - Need dynamic resizing without reallocation
+ *  - Working with node pointers directly
+ *  - Need to update priorities of existing nodes
+ *
+ *  For array-based heaps (more cache-friendly), see:
+ *  - tpl_arrayHeap.H
+ *  - tpl_dynArrayHeap.H
+ *
+ *  @see tpl_arrayHeap.H Array-based heap implementation
+ *  @see tpl_dynBinHeap.H Dynamic heap with key updates
+ *  @see tpl_fibonacci_heap.H Fibonacci heap for advanced priority queues
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINHEAP_H
 # define TPL_BINHEAP_H
 

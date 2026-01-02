@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file al-domain.H
+ *  @brief Integer range domain for sparse data structures.
+ *
+ *  Provides IntRange class representing a set of integers within
+ *  a range. Used as domain for sparse matrices and vectors.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AL_DOMAIN_H
 # define AL_DOMAIN_H
 

@@ -23,6 +23,25 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_union.H
+ *  @brief Union-Find (Disjoint Set Union) data structure.
+ *
+ *  Efficiently tracks partitioning of elements into disjoint sets.
+ *  Supports near-constant time union and find operations.
+ *
+ *  ## Features
+ *  - Path compression for find
+ *  - Union by rank
+ *  - Inverse Ackermann amortized complexity
+ *
+ *  ## Complexity: O(α(n)) amortized per operation
+ *
+ *  @see tpl_components.H Graph connectivity using Union-Find
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_UNION_H
 # define TPL_UNION_H
 

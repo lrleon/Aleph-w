@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah-time.H
+ *  @brief Low-level time utilities using POSIX timespec.
+ *
+ *  Provides Time type and macros for time arithmetic using
+ *  struct timespec. Includes conversion macros for milliseconds,
+ *  microseconds, and nanoseconds.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_TIME_H
 # define AH_TIME_H
 

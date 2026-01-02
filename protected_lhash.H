@@ -24,6 +24,20 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file protected_lhash.H
+ *  @brief Thread-safe linear hash table wrapper.
+ *
+ *  Mutex-protected wrapper around LhashTable for concurrent access.
+ *
+ *  ## Features
+ *  - Thread-safe operations
+ *  - RAII lock management
+ *
+ *  @see tpl_lhash.H Underlying hash table
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef PROTECTED_LHASH_H
 # define PROTECTED_LHASH_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_con_queue.H
+ *  @brief Concurrent thread-safe queue.
+ *
+ *  Queue with mutex protection for producer-consumer patterns.
+ *
+ *  @see q-consumer-threads.H Consumer thread pool
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_CON_QUEUE_H
 # define TPL_CON_QUEUE_H
 

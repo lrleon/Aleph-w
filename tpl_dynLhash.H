@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynLhash.H
+ *  @brief Dynamic linear hash table.
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNLHASH_H
 # define TPL_DYNLHASH_H
 

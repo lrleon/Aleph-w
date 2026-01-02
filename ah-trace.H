@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-trace.H
+ *  @brief Conditional tracing macros for debugging.
+ *
+ *  Provides ah_trace_unless and ah_trace_if macros that output
+ *  file:line information when conditions are met. Useful for
+ *  debugging without full assertion overhead.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_TRACE_H
 # define AH_TRACE_H
 

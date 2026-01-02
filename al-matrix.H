@@ -23,6 +23,18 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file al-matrix.H
+ *  @brief Sparse matrix with generic domains.
+ *
+ *  Provides Matrix class for sparse matrices where rows and columns
+ *  can have arbitrary domains. Efficient for matrices with many
+ *  zero elements using hash-based storage.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_MATRIX_H
 # define AH_MATRIX_H
 

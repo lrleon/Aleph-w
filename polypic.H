@@ -23,5 +23,12 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file polypic.H
+ *  @brief Polygon picture generation.
+ *  @ingroup Geometria
+ *  @author Leandro Rabindranath León
+ */
+
 # include <point.H>
 

@@ -23,6 +23,22 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file protected_cache.H
+ *  @brief Thread-safe cache wrapper.
+ *
+ *  Mutex-protected wrapper around Cache for concurrent access.
+ *
+ *  ## Features
+ *  - Thread-safe operations
+ *  - RAII lock management
+ *  - Same interface as Cache
+ *
+ *  @see tpl_cache.H Underlying cache
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_PROTECTED_CACHE_H
 # define TPL_PROTECTED_CACHE_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_binNodeAux.H
+ *  @brief Binary node auxiliary definitions.
+ *
+ *  Base binary node class with left/right pointers.
+ *
+ *  @see tpl_binNodeUtils.H Node utilities
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINNODE_H
 # define TPL_BINNODE_H
  

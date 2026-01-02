@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Queue.H
+ *  @brief STL-compatible queue adapter.
+ *
+ *  Aleph implementation of std::queue using DynListQueue for FIFO
+ *  operations with STL-compatible interface.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_QUEUE_H
 # define AH_QUEUE_H
 

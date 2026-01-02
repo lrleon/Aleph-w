@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file hamiltonian.H
+ *  @brief Hamiltonian path and cycle detection.
+ *
+ *  Provides algorithms to find Hamiltonian paths (visiting every
+ *  vertex exactly once) and Hamiltonian cycles in graphs. Uses
+ *  backtracking with pruning.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HAMILTONIAN_H
 # define HAMILTONIAN_H
 

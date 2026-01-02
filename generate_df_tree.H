@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file generate_df_tree.H
+ *  @brief Depth-first tree picture generation.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # include <tpl_graph_utils.H>
 # include <tpl_tree_node.H>
 # include <generate_tree.H>

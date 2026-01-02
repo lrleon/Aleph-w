@@ -23,6 +23,24 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_net.H
+ *  @brief Network flow graph structures.
+ *
+ *  Defines graph structures for network flow problems with
+ *  capacities, flows, and source/sink management.
+ *
+ *  ## Features
+ *  - Capacity and flow on arcs
+ *  - Source and sink node management
+ *  - Residual graph computation
+ *
+ *  @see tpl_maxflow.H Maximum flow algorithms
+ *  @see tpl_netcost.H Minimum cost flow
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_NET_H
 # define TPL_NET_H
 

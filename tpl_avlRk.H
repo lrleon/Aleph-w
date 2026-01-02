@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_avlRk.H
+ *  @brief AVL tree with rank (order statistics).
+ *
+ *  AVL tree augmented with subtree sizes for order statistics.
+ *  Combines strict balance with rank queries.
+ *
+ *  ## Features
+ *  - select(k): O(log n) k-th element
+ *  - position(x): O(log n) rank of element
+ *  - Strictly balanced (height ≤ 1.44 log n)
+ *
+ *  @see tpl_avl.H Base AVL tree
+ *  @see tpl_rbRk.H RB tree with rank
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_AVLRK_H
 # define TPL_AVLRK_H
 

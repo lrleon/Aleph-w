@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file treapNode.H
+ *  @brief Treap node with key and priority.
+ *
+ *  Defines TreapNode with BST key and heap priority.
+ *
+ *  @see tpl_treap.H Treap implementation
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TREAPNODE_H
 # define TREAPNODE_H
 

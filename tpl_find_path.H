@@ -24,6 +24,25 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_find_path.H
+ *  @brief Path finding algorithms in graphs.
+ *
+ *  Finds paths between nodes using DFS, BFS, or specialized
+ *  algorithms. For weighted shortest paths, see Dijkstra.H.
+ *
+ *  ## Features
+ *  - DFS path finding
+ *  - BFS path finding (shortest in unweighted)
+ *  - All paths enumeration
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @see Dijkstra.H Weighted shortest paths
+ *  @see Bellman_Ford.H Handles negative weights
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_FIND_PATH_H
 # define TPL_FIND_PATH_H
 

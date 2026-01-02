@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file avlNodeRk.H
+ *  @brief AVL tree node with rank (subtree count).
+ *
+ *  Provides AvlNodeRk_Data with balance factor and subtree count
+ *  for order-statistics AVL trees supporting select() and position().
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AVLNODERK_H
 # define AVLNODERK_H
 

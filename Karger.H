@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Karger.H
+ *  @brief Karger's randomized min-cut algorithm.
+ *
+ *  Implements Karger's contraction algorithm for finding minimum
+ *  cuts in graphs. Uses random edge contractions to approximate
+ *  the minimum cut with high probability.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef KARGER_H
 # define KARGER_H
 

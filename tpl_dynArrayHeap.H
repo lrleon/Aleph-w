@@ -23,6 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dynArrayHeap.H
+ *  @brief Array-based dynamic binary heap.
+ *
+ *  Binary heap using DynArray for automatic growth.
+ *  Efficient for priority queues with unknown size.
+ *
+ *  ## Features
+ *  - O(log n) insert, extract-min
+ *  - Automatic resizing
+ *  - Cache-friendly array storage
+ *
+ *  @see tpl_binHeap.H Fixed-size array heap
+ *  @see tpl_dynBinHeap.H Node-based heap
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNARRAYHEAP_H
 # define TPL_DYNARRAYHEAP_H
 

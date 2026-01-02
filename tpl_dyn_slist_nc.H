@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_dyn_slist_nc.H
+ *  @brief Dynamic singly linked list (no check).
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYN_SLIST_NC_H
 # define TPL_DYN_SLIST_NC_H
 

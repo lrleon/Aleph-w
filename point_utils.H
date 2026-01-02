@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file point_utils.H
+ *  @brief Point utilities for geometry.
+ *  @ingroup Geometria
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef POINT_UTILS_H
 # define POINT_UTILS_H
 

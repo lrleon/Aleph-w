@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file btreepic_avl.H
+ *  @brief AVL tree visualization utilities.
+ *
+ *  Provides preorder traversal and utilities for generating
+ *  visual representations of AVL trees.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # include <tpl_avl.H>
 
 

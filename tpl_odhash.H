@@ -24,6 +24,74 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_odhash.H
+ *  @brief Open addressing hash table with double hashing.
+ *
+ *  This file implements an open-addressed hash table that uses double
+ *  hashing for collision resolution. Double hashing provides excellent
+ *  distribution and avoids primary and secondary clustering.
+ *
+ *  ## Double Hashing Strategy
+ *
+ *  When a collision occurs at position h1(k), the probe sequence is:
+ *  ```
+ *  h(k, i) = (h1(k) + i * h2(k)) mod m
+ *  ```
+ *  where h2(k) is a secondary hash function.
+ *
+ *  ## Key Features
+ *
+ *  - No clustering (unlike linear probing)
+ *  - Better cache locality than chaining
+ *  - Automatic resizing based on load factor
+ *  - Supports deletion with tombstones
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Average | Worst Case |
+ *  |-----------|---------|------------|
+ *  | insert | O(1) | O(n) |
+ *  | search | O(1) | O(n) |
+ *  | remove | O(1) | O(n) |
+ *
+ *  Expected probes: 1/(1-α) for unsuccessful, (1/α)ln(1/(1-α)) for successful
+ *  where α is the load factor.
+ *
+ *  ## Load Factor
+ *
+ *  The table resizes when load factor exceeds a threshold (default ~0.5).
+ *  Lower load factors mean faster operations but more memory.
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  ODhashTable<int> table;
+ *
+ *  table.insert(42);
+ *  table.insert(17);
+ *
+ *  if (table.search(42) != nullptr)
+ *    std::cout << "Found 42\n";
+ *
+ *  table.remove(42);
+ *  ```
+ *
+ *  ## Comparison with OLhashTable
+ *
+ *  | Feature | ODhashTable | OLhashTable |
+ *  |---------|-------------|-------------|
+ *  | Probe | Double hash | Linear |
+ *  | Clustering | None | Primary |
+ *  | Cache | Good | Excellent |
+ *
+ *  @see tpl_olhash.H Linear probing variant
+ *  @see tpl_lhash.H Chaining with linear expansion
+ *  @see hashDry.H Common open addressing utilities
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_ODHASH_H
 # define TPL_ODHASH_H
 

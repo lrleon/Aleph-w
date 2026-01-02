@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_snode.H
+ *  @brief Typed singly linked node.
+ *
+ *  Singly linked node storing data of type T.
+ *
+ *  @see slink.H Base singly linked structure
+ *  @see tpl_slist.H Singly linked list
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SNODE_H
 # define TPL_SNODE_H
 

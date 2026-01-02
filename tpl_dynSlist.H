@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynSlist.H
+ *  @brief Dynamic singly linked list.
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNSLIST_H
 # define TPL_DYNSLIST_H
 

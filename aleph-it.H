@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file aleph-it.H
+ *  @brief Iterator definition macros.
+ *
+ *  Provides DEFINE_ITERATOR macro for creating iterator classes
+ *  that inherit from base iterators and define standard methods.
+ *
+ *  @ingroup Iteradores
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_IT_H
 # define ALEPH_IT_H
 

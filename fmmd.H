@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file fmmd.H
+ *  @brief File memory-mapped data utilities.
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # include<tpl_tree.H>
 # include<tpl_binNode.H>
 # include<tpl_dlist.H>

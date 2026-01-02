@@ -24,6 +24,22 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_hash.H
+ *  @brief Unified hash table interface.
+ *
+ *  Provides HashMap and HashSet as convenient wrappers around
+ *  DynSetHash and DynMapHash for STL-like hash container usage.
+ *
+ *  ## Features
+ *  - Simple key-value and set interfaces
+ *  - Automatic resizing
+ *  - Configurable hash functions
+ *
+ *  @see tpl_dynSetHash.H Underlying implementation
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_HASH_H
 # define TPL_HASH_H
 

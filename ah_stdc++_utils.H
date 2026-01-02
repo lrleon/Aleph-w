@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah_stdc++_utils.H
+ *  @brief Utilities for STL exception handling.
+ *
+ *  Provides wrappers and utilities for working with standard
+ *  C++ exceptions in the context of Aleph-w containers.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef __AH_STDC_UTILS__
 # define __AH_STDC_UTILS__
 

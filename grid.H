@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file grid.H
+ *  @brief 2D grid graph generation.
+ *
+ *  Provides Grid_Graph class for generating grid-shaped graphs
+ *  where each node is connected to its neighbors in a rectangular
+ *  lattice pattern.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GRID_H
 # define GRID_H
 

@@ -23,6 +23,75 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file bloom-filter.H
+ *  @brief Probabilistic set membership with Bloom filters.
+ *
+ *  This file implements Bloom filters, a space-efficient probabilistic
+ *  data structure for testing set membership. May return false positives
+ *  but never false negatives.
+ *
+ *  ## How It Works
+ *
+ *  A Bloom filter uses k hash functions to map elements to k positions
+ *  in a bit array of size m. To add an element, set all k bits. To test
+ *  membership, check if all k bits are set.
+ *
+ *  ## Key Properties
+ *
+ *  - **No false negatives**: If an element was added, test returns true
+ *  - **Possible false positives**: Test may return true for non-members
+ *  - **No deletion**: Standard Bloom filters don't support removal
+ *  - **Space efficient**: Uses bits instead of storing elements
+ *
+ *  ## False Positive Rate
+ *
+ *  Probability of false positive: `(1 - e^(-kn/m))^k`
+ *  where n = number of elements, m = bit array size, k = hash functions.
+ *
+ *  ## Optimal Parameters
+ *
+ *  - Optimal k: `(m/n) * ln(2)` ≈ 0.7 * m/n
+ *  - For 1% false positive rate: m ≈ 10n bits
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Space |
+ *  |-----------|------|-------|
+ *  | insert | O(k) | O(1) |
+ *  | contains | O(k) | O(1) |
+ *  | total | - | O(m) bits |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  // Create filter for ~1000 elements with 1% FP rate
+ *  Bloom_Filter<std::string> filter(10000, 7);
+ *
+ *  filter.insert("apple");
+ *  filter.insert("banana");
+ *
+ *  if (filter.contains("apple"))    // Definitely true
+ *    std::cout << "Maybe has apple\n";
+ *
+ *  if (!filter.contains("cherry"))  // Definitely false
+ *    std::cout << "Definitely no cherry\n";
+ *  ```
+ *
+ *  ## Applications
+ *
+ *  - Cache filtering (avoid disk lookups)
+ *  - Spell checkers
+ *  - Network packet filtering
+ *  - Database query optimization
+ *
+ *  @see bitArray.H Underlying bit storage
+ *  @see hash-fct.H Hash functions used
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef BLOOM_FILTER_H
 # define BLOOM_FILTER_H
 

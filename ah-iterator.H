@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-iterator.H
+ *  @brief STL-compatible iterator adapters for Aleph containers.
+ *
+ *  Provides StlIterator and StlConstIterator that wrap Aleph container
+ *  iterators to satisfy std::input_iterator and std::forward_iterator
+ *  concepts, enabling use with std::ranges and STL algorithms.
+ *
+ *  @ingroup Iteradores
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_ITERATOR_H
 # define AH_ITERATOR_H
 

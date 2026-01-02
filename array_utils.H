@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file array_utils.H
+ *  @brief Utility functions for array manipulation.
+ *
+ *  Provides helper functions for resizing, copying, and
+ *  manipulating dynamic arrays including resize and shrink
+ *  operations with exception safety.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ARRAY_UTILS_H
 # define ARRAY_UTILS_H
 

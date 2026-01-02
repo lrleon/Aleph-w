@@ -23,6 +23,25 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_cut_nodes.H
+ *  @brief Articulation points (cut nodes) and bridges.
+ *
+ *  Finds cut vertices and bridge edges whose removal disconnects
+ *  the graph. Uses DFS with low-link values.
+ *
+ *  ## Features
+ *  - Find all cut vertices
+ *  - Find all bridges
+ *  - Compute biconnected components
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @see tpl_components.H Connected components
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_CUT_NODES_H
 # define TPL_CUT_NODES_H
 

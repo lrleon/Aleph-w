@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_binNodeXt.H
+ *  @brief Extended binary node with subtree count.
+ *
+ *  Binary node augmented with subtree size for order statistics.
+ *
+ *  @see tpl_binNodeAux.H Base node
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINNODEXT_H
 # define TPL_BINNODEXT_H
 

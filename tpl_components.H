@@ -23,6 +23,25 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_components.H
+ *  @brief Graph connectivity and connected components.
+ *
+ *  Algorithms for finding connected components in undirected graphs
+ *  and testing connectivity. Uses DFS or Union-Find.
+ *
+ *  ## Features
+ *  - Count connected components
+ *  - Extract component subgraphs
+ *  - Test if graph is connected
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @see Tarjan.H Strongly connected components for digraphs
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_COMPONENTS_H
 # define TPL_COMPONENTS_H
 

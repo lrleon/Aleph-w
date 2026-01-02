@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahTypes.H
+ *  @brief Type traits for primitive type detection.
+ *
+ *  Provides is_primitive_type template and DECLARE_PRIMITIVE
+ *  macro for identifying primitive C++ types at compile time.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHTYPES_H
 # define AHTYPES_H
 

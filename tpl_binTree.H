@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_binTree.H
+ *  @brief Generic unbalanced binary search tree.
+ *
+ *  Basic BST without balancing. Use for educational purposes or when
+ *  data is known to be randomly ordered. For general use, prefer
+ *  balanced trees like AVL or Red-Black.
+ *
+ *  ## Complexity
+ *  - Average: O(log n) for balanced input
+ *  - Worst: O(n) for sorted input
+ *
+ *  @see tpl_avl.H AVL tree (balanced)
+ *  @see tpl_rb_tree.H Red-Black tree (balanced)
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINTREE_H
 # define TPL_BINTREE_H
 

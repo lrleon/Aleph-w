@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file random_graph.H
+ *  @brief Random graph generation utilities.
+ *
+ *  Provides classes for generating random graphs with various
+ *  properties: Erdős–Rényi, random connected, Hamiltonian, Eulerian,
+ *  and scale-free graphs. Uses GSL for randomness.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef RANDOM_GRAPH_H
 # define RANDOM_GRAPH_H
 

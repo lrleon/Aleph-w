@@ -23,6 +23,67 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahSort.H
+ *  @brief Sorting functions for Aleph containers.
+ *
+ *  This file provides sorting functions that work with Aleph containers
+ *  (DynList, DynDlist, DynArray, etc.) using various sorting algorithms.
+ *
+ *  ## Sorting Algorithms Used
+ *
+ *  - **Lists**: Merge sort (stable, O(n log n))
+ *  - **Arrays**: Quicksort or std::sort (O(n log n) average)
+ *
+ *  ## Key Features
+ *
+ *  - Works with all Aleph sequence containers
+ *  - Custom comparators supported
+ *  - Returns sorted copy (original unchanged)
+ *  - In-place sorting variants available
+ *  - Stable sorting for lists
+ *
+ *  ## Functions Provided
+ *
+ *  - `sort(container)` - Returns sorted copy
+ *  - `sort(container, cmp)` - With custom comparator
+ *  - `in_place_sort(container)` - Sorts in place
+ *  - `is_sorted(container)` - Checks if sorted
+ *
+ *  ## Complexity
+ *
+ *  | Container | Algorithm | Time | Space |
+ *  |-----------|-----------|------|-------|
+ *  | DynList | Merge sort | O(n log n) | O(log n) |
+ *  | DynDlist | Merge sort | O(n log n) | O(log n) |
+ *  | DynArray | Quicksort | O(n log n) avg | O(log n) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  DynList<int> list = {5, 2, 8, 1, 9};
+ *
+ *  // Return sorted copy
+ *  auto sorted = sort(list);
+ *
+ *  // Custom comparator (descending)
+ *  auto desc = sort(list, std::greater<int>());
+ *
+ *  // In-place sorting
+ *  in_place_sort(list);
+ *
+ *  // Check if sorted
+ *  if (is_sorted(list))
+ *    std::cout << "List is sorted\n";
+ *  ```
+ *
+ *  @see tpl_sort_utils.H Low-level sorting algorithms
+ *  @see ahFunctional.H Functional utilities used by sort
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef AHSORT_H
 #define AHSORT_H
 

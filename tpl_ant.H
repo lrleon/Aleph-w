@@ -23,6 +23,22 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_ant.H
+ *  @brief Ant Colony Optimization framework.
+ *
+ *  Implements ACO metaheuristic for combinatorial optimization
+ *  on graphs (TSP, routing, etc.).
+ *
+ *  ## Features
+ *  - Pheromone trail management
+ *  - Configurable ant behavior
+ *  - Graph-based optimization
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_ANT_H
 # define TPL_ANT_H
 

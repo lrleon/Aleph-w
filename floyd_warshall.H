@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file floyd_warshall.H
+ *  @brief Floyd-Warshall matrix generation utilities.
+ *
+ *  Provides utilities for building adjacency matrices used by
+ *  the Floyd-Warshall algorithm for all-pairs shortest paths.
+ *
+ *  @see Floyd.H Main Floyd-Warshall implementation
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef FLOYD_WARSHALL_H
 # define FLOYD_WARSHALL_H
 

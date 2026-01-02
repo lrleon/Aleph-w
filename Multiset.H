@@ -23,9 +23,16 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-/*
-       Aleph implementation of multiset C++ standard container
-*/
+
+/** @file Multiset.H
+ *  @brief STL-compatible multiset container.
+ *
+ *  Aleph implementation of std::multiset allowing duplicate elements
+ *  with O(log n) operations using balanced BST.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef AH_MULTISET_H
 # define AH_MULTISET_H

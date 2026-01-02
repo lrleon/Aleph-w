@@ -24,6 +24,71 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file bitArray.H
+ *  @brief Space-efficient bit array implementation.
+ *
+ *  This file provides a compact bit array that stores boolean values using
+ *  only 1 bit per element, achieving 8x memory savings compared to using
+ *  `bool` arrays.
+ *
+ *  ## Classes Provided
+ *
+ *  - **Byte**: Low-level byte manipulation utilities
+ *  - **BitArray**: Dynamic bit array with automatic resizing
+ *  - **BitProxy**: Proxy class for bit-level assignment via operator[]
+ *
+ *  ## Key Features
+ *
+ *  - Memory-efficient: 1 bit per boolean value
+ *  - Dynamic resizing with configurable block size
+ *  - Bitwise operations (AND, OR, XOR, NOT)
+ *  - File I/O support (save/load)
+ *  - STL-compatible iteration
+ *  - Functional methods via CRTP mixin
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Space |
+ *  |-----------|------|-------|
+ *  | read_bit | O(1) | O(1) |
+ *  | write_bit | O(1) | O(1) |
+ *  | resize | O(n) | O(n/8) |
+ *  | AND/OR/XOR | O(n) | O(1) |
+ *  | popcount | O(n) | O(1) |
+ *
+ *  ## Memory Layout
+ *
+ *  Bits are packed into bytes, with bit 0 of element i stored in
+ *  the lowest bit of byte i/8, position i%8.
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  BitArray bits(100);  // 100 bits, all initialized to 0
+ *
+ *  bits[0] = 1;         // Set bit 0
+ *  bits[50] = true;     // Set bit 50
+ *
+ *  if (bits[0])         // Check bit 0
+ *    std::cout << "Bit 0 is set\n";
+ *
+ *  // Bitwise operations
+ *  BitArray other(100);
+ *  BitArray result = bits & other;  // AND
+ *  result = bits | other;           // OR
+ *  result = ~bits;                  // NOT
+ *
+ *  // Count set bits
+ *  size_t count = bits.popcount();
+ *  ```
+ *
+ *  @see bloom-filter.H Uses BitArray for Bloom filter implementation
+ *  @see tpl_dynArray.H Underlying storage mechanism
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef BITARRAY_H
 # define BITARRAY_H
 

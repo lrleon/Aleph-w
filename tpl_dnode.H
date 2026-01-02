@@ -24,6 +24,61 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dnode.H
+ *  @brief Doubly linked list node with typed data.
+ *
+ *  This file provides Dnode<T>, a node for circular doubly linked lists
+ *  that inherits from Dlink. Each node stores a value of type T.
+ *
+ *  ## Key Features
+ *
+ *  - Circular doubly linked structure
+ *  - Inherits navigation from Dlink
+ *  - O(1) insertion and removal
+ *  - Bidirectional traversal
+ *
+ *  ## Memory Layout
+ *
+ *  ```
+ *  +------+------+------+
+ *  | prev | next | data |
+ *  +------+------+------+
+ *  ```
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | insert_next/prev | O(1) |
+ *  | remove_next/prev | O(1) |
+ *  | get_data | O(1) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Dnode<int> head;  // Header node (sentinel)
+ *
+ *  head.insert_next(new Dnode<int>(42));
+ *  head.insert_next(new Dnode<int>(17));
+ *
+ *  // Traverse forward
+ *  for (auto* p = head.get_next(); p != &head; p = p->get_next())
+ *    std::cout << p->get_data() << " ";
+ *  ```
+ *
+ *  ## Design Pattern
+ *
+ *  Uses a sentinel (header) node pattern: the list is never empty as
+ *  the header always exists. This simplifies boundary conditions.
+ *
+ *  @see dlink.H Base doubly linked structure
+ *  @see tpl_dynDlist.H High-level doubly linked list
+ *  @see tpl_snode.H Singly linked node alternative
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DNODE_H
 # define TPL_DNODE_H
 

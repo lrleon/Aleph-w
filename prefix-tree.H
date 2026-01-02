@@ -24,6 +24,21 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file prefix-tree.H
+ *  @brief Trie (prefix tree) implementation.
+ *
+ *  Efficient string prefix search structure for autocomplete,
+ *  dictionary lookup, and prefix matching.
+ *
+ *  ## Features
+ *  - O(k) lookup for k-length strings
+ *  - Prefix search support
+ *  - Memory-efficient for shared prefixes
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef PREFIX_TREE_H
 #define PREFIX_TREE_H
 

@@ -24,6 +24,25 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_tdRbTree.H
+ *  @brief Top-down Red-Black tree implementation.
+ *
+ *  Red-Black tree with top-down single-pass insertion.
+ *  Simpler code path than bottom-up variant.
+ *
+ *  ## Features
+ *  - Single pass from root to leaf
+ *  - No parent pointers needed
+ *  - Color flips during descent
+ *
+ *  ## Complexity: O(log n) for all operations
+ *
+ *  @see tpl_rb_tree.H Bottom-up variant
+ *  @see tpl_tdRbTreeRk.H With rank support
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TDRBTREE_H
 # define TPL_TDRBTREE_H
 

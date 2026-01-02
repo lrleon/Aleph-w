@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Kruskal.H
+ *  @brief Kruskal's minimum spanning tree algorithm.
+ *
+ *  Implements Kruskal's algorithm for finding minimum spanning trees
+ *  using union-find data structure. Sorts edges by weight and greedily
+ *  adds edges that don't create cycles. O(E log E) complexity.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef KRUSKAL_H
 # define KRUSKAL_H
 

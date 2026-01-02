@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file geom_algorithms.H
+ *  @brief Computational geometry algorithms.
+ *
+ *  Provides algorithms for polygon operations, convex hull,
+ *  point-in-polygon tests, and other geometric computations.
+ *
+ *  @ingroup Geometria
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GEOM_ALGORITHMS_H
 # define GEOM_ALGORITHMS_H
 

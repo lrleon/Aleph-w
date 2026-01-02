@@ -23,6 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_treapRk.H
+ *  @brief Treap with rank (order statistics).
+ *
+ *  Randomized BST augmented with subtree sizes.
+ *  Simple implementation with expected O(log n).
+ *
+ *  ## Features
+ *  - select(k): Expected O(log n)
+ *  - position(x): Expected O(log n)
+ *  - Implicit keys possible
+ *
+ *  @see tpl_treap.H Base treap
+ *  @see tpl_rbRk.H Deterministic alternative
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TREAPRK_H
 # define TPL_TREAPRK_H
 

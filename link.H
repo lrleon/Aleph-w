@@ -23,6 +23,15 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file link.H
+ *  @brief Compatibility alias for dlink.H.
+ *
+ *  @see dlink.H Doubly linked base
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef LINK_H
 # define LINK_H
 

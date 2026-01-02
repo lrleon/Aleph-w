@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file primes.H
+ *  @brief Prime number utilities for hash tables.
+ *
+ *  Provides functions for finding prime numbers, used for
+ *  determining hash table sizes. Includes next_prime() for
+ *  finding primes larger than a given value.
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef PRIMES_H
 # define PRIMES_H
 

@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynMapOhash.H
+ *  @brief Dynamic map with open hashing.
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef TPL_DYNMAPOHASH_H
 #define TPL_DYNMAPOHASH_H
 

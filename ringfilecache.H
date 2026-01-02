@@ -23,6 +23,22 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ringfilecache.H
+ *  @brief File-backed ring buffer cache.
+ *
+ *  Circular buffer cache stored in a file for persistent
+ *  storage with fixed memory footprint.
+ *
+ *  ## Features
+ *  - Persistent storage
+ *  - Ring buffer semantics
+ *  - Fixed memory usage
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef RINGFILECACHE_H
 # define RINGFILECACHE_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file graph_to_tree.H
+ *  @brief Convert spanning tree graph to tree structure.
+ *
+ *  Provides functions to convert a spanning tree represented as
+ *  a graph into a Tree_Node structure for easier tree operations.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GRAPH_TO_TREE_H
 # define GRAPH_TO_TREE_H
 

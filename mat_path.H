@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file mat_path.H
+ *  @brief Matrix-based path algorithms.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef MAT_PATH_H
 # define MAT_PATH_H
 

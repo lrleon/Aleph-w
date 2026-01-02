@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file slink.H
+ *  @brief Singly linked list base class.
+ *
+ *  Low-level singly linked node without data. Base for Snode.
+ *
+ *  @see tpl_snode.H Typed singly linked node
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SLINK_H
 # define SLINK_H
 

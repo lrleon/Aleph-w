@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file aleph-graph.H
+ *  @brief Simplified graph interface for common use cases.
+ *
+ *  Provides AlephGraph, a simplified graph class that wraps
+ *  the more complex List_Graph with easier-to-use methods
+ *  and automatic memory management.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_GRAPH_H
 # define ALEPH_GRAPH_H
 

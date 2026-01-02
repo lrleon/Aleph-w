@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ah-mapping.H
+ *  @brief Bidirectional mapping between two types.
+ *
+ *  Provides AHMapping for maintaining bijective mappings where both
+ *  forward (A→B) and reverse (B→A) lookups are efficient. Uses
+ *  tree-based storage for O(log n) operations.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef AH_MAPPING_H
 #define AH_MAPPING_H
 

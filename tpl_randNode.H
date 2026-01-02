@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_randNode.H
+ *  @brief Randomized tree node.
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RANDNODE_H
 # define TPL_RANDNODE_H
 # include <tpl_binNodeXt.H>

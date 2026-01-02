@@ -23,6 +23,61 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Bellman_Ford.H
+ *  @brief Bellman-Ford algorithm for single-source shortest paths.
+ *
+ *  This file implements the Bellman-Ford algorithm, which computes shortest
+ *  paths from a single source vertex to all other vertices in a weighted
+ *  directed graph. Unlike Dijkstra's algorithm, Bellman-Ford can handle
+ *  graphs with negative edge weights and can detect negative-weight cycles.
+ *
+ *  ## Algorithms Provided
+ *
+ *  - **Standard Bellman-Ford**: O(V*E) time complexity
+ *  - **SPFA (Shortest Path Faster Algorithm)**: Queue-based optimization
+ *    that is often faster in practice on sparse graphs
+ *
+ *  ## Key Features
+ *
+ *  - Handles negative edge weights
+ *  - Detects negative-weight cycles
+ *  - Can return the negative cycle as a path
+ *  - Supports both painted (in-place) and separate tree construction
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Space |
+ *  |-----------|------|-------|
+ *  | Standard | O(V*E) | O(V) |
+ *  | SPFA (avg) | O(E) | O(V) |
+ *  | SPFA (worst) | O(V*E) | O(V) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Digraph<Node, Arc> g;
+ *  // ... build graph ...
+ *
+ *  Bellman_Ford<List_Digraph<Node, Arc>> bf(g);
+ *  
+ *  // Check for negative cycles and compute shortest paths
+ *  if (bf.has_negative_cycle(start_node)) {
+ *    Path<Graph> cycle = bf.build_negative_cycle();
+ *    // handle negative cycle
+ *  } else {
+ *    // Use the shortest path tree
+ *  }
+ *  ```
+ *
+ *  @see Dijkstra.H For graphs without negative weights (more efficient)
+ *  @see Floyd.H For all-pairs shortest paths
+ *  @see Johnson.H For all-pairs with negative weights (uses Bellman-Ford)
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef BELLMAN_FORD_H
 # define BELLMAN_FORD_H
 

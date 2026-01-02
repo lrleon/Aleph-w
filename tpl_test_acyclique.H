@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_test_acyclique.H
+ *  @brief DAG (acyclic) graph testing.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TEST_ACYCLIQUE_H
 # define TPL_TEST_ACYCLIQUE_H
 

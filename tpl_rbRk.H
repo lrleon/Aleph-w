@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_rbRk.H
+ *  @brief Red-Black tree with rank (order statistics).
+ *
+ *  Bottom-up RB tree augmented with subtree sizes for
+ *  order statistics queries.
+ *
+ *  ## Features
+ *  - select(k): O(log n) k-th element
+ *  - position(x): O(log n) rank of element
+ *  - split_pos(): Split at position
+ *
+ *  @see tpl_rb_tree.H Base RB tree
+ *  @see tpl_avlRk.H AVL with rank
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RBRK_H
 # define TPL_RBRK_H
 

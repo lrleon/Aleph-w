@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file avlNode.H
+ *  @brief AVL tree node with balance factor.
+ *
+ *  Provides AvlNode_Data class storing the balance factor (height
+ *  difference) for AVL tree nodes. Used internally by AVL tree
+ *  implementations.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AVLNODE_H
 # define AVLNODE_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file euclidian-graph-common.H
+ *  @brief Common utilities for Euclidean graphs.
+ *
+ *  Provides point structures and distance calculations for graphs
+ *  embedded in Euclidean space with 2D/3D coordinates.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef EUCLIDIAN_GRAPH_COMMON_H
 # define  EUCLIDIAN_GRAPH_COMMON_H
 

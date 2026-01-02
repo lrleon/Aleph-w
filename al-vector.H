@@ -24,6 +24,17 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file al-vector.H
+ *  @brief Sparse vector with named elements.
+ *
+ *  Provides Vector class for sparse vectors where elements are
+ *  indexed by arbitrary types. Efficient for vectors with many
+ *  zero/default elements using hash-based storage.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AL_VECTOR
 # define AL_VECTOR
 

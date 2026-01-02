@@ -24,9 +24,15 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*
-	Aleph implementation of list C++ standard container
-*/
+/** @file List.H
+ *  @brief STL-compatible list container.
+ *
+ *  Aleph implementation of std::list providing doubly-linked list
+ *  with STL-compatible interface for portability.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef ALEPH_LIST_H
 # define ALEPH_LIST_H

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file graph-traverse.H
+ *  @brief Graph traversal algorithms (DFS, BFS).
+ *
+ *  Provides depth-first search (DFS) and breadth-first search (BFS)
+ *  traversal algorithms with customizable visitor callbacks.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GRAPH_TRAVERSE_H
 # define GRAPH_TRAVERSE_H
 

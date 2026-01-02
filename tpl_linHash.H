@@ -1,3 +1,20 @@
+/** @file tpl_linHash.H
+ *  @brief Linear hashing with chaining.
+ *
+ *  Hash table with linear expansion and separate chaining.
+ *  Combines benefits of chaining and incremental growth.
+ *
+ *  ## Features
+ *  - Incremental bucket splitting
+ *  - Handles high load factors
+ *  - No clustering
+ *
+ *  @see tpl_lhash.H Alternative linear hashing
+ *  @see tpl_odhash.H Open addressing
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_LINHASH_H
 # define TPL_LINHASH_H
 

@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_rbNode.H
+ *  @brief Red-Black node type alias.
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RBNODE_H
 # define TPL_RBNODE_H
 

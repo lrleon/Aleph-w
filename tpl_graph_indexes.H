@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_graph_indexes.H
+ *  @brief Graph node and arc indexing.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_GRAPH_INDEXES_H
 # define TPL_GRAPH_INDEXES_H
 

@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Dijkstra.H
+ *  @brief Dijkstra's shortest path algorithm.
+ *
+ *  Implements Dijkstra's algorithm for finding shortest paths from a
+ *  source vertex to all other vertices in a weighted graph with
+ *  non-negative edge weights. Uses binary heap for O((V+E)log V).
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef DIJKSTRA_H
 # define DIJKSTRA_H
 

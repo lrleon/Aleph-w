@@ -23,6 +23,67 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_memArray.H
+ *  @brief Simple, scalable, contiguous dynamic array.
+ *
+ *  This file provides MemArray, a dynamic array that maintains all elements
+ *  in a single contiguous memory block. Unlike DynArray (which uses a
+ *  two-level directory), MemArray offers direct array-like access but
+ *  requires reallocation when growing beyond capacity.
+ *
+ *  ## Key Features
+ *
+ *  - Contiguous memory layout (cache-friendly)
+ *  - Direct O(1) access like raw arrays
+ *  - Automatic growth with configurable factor
+ *  - Move semantics for efficient transfers
+ *  - STL-compatible iteration
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Notes |
+ *  |-----------|------|-------|
+ *  | access [] | O(1) | Direct memory access |
+ *  | append | O(1) amortized | O(n) when reallocating |
+ *  | insert at i | O(n-i) | Shifts elements |
+ *  | remove at i | O(n-i) | Shifts elements |
+ *  | reserve | O(n) | May reallocate |
+ *
+ *  ## Growth Strategy
+ *
+ *  When capacity is exceeded, the array grows by a configurable factor
+ *  (default: 2x). This gives amortized O(1) appends.
+ *
+ *  ## Comparison with DynArray
+ *
+ *  | Feature | MemArray | DynArray |
+ *  |---------|----------|----------|
+ *  | Memory layout | Contiguous | Two-level directory |
+ *  | Reallocation | Full copy | Segment-based |
+ *  | Cache locality | Excellent | Good |
+ *  | Large arrays | May fail to allocate | Handles well |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  MemArray<int> arr(100);  // Initial capacity 100
+ *
+ *  arr.append(42);          // Add element
+ *  arr[0] = 17;             // Direct access
+ *
+ *  for (auto& x : arr)      // Range-based for
+ *    std::cout << x << " ";
+ *  ```
+ *
+ *  @see tpl_dynArray.H For very large arrays or frequent resizing
+ *  @see tpl_arrayStack.H Stack built on MemArray
+ *  @see tpl_arrayQueue.H Queue built on MemArray
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_MEMARRAY_H
 # define TPL_MEMARRAY_H
 

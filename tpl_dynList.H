@@ -24,5 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynList.H
+ *  @brief Alias for htlist.H (DynList implementation).
+ *
+ *  This file simply includes htlist.H which contains the actual
+ *  DynList implementation. Kept for backward compatibility.
+ *
+ *  @see htlist.H Actual DynList implementation
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # include <htlist.H>
 

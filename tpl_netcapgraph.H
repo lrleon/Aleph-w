@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_netcapgraph.H
+ *  @brief Network flow graph with capacities.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef TPL_NETCAPGRAPH_H
 #define TPL_NETCAPGRAPH_H
 

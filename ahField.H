@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file ahField.H
+ *  @brief Field abstraction for numeric types with bounds.
+ *
+ *  Provides Field template class representing numeric fields with
+ *  minimum, maximum, and invalid value sentinels. Useful for
+ *  domain-specific numeric constraints.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHFIELD_H
 # define AHFIELD_H
 

@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Stack.H
+ *  @brief STL-compatible stack adapter.
+ *
+ *  Aleph implementation of std::stack using DynListStack for LIFO
+ *  operations with STL-compatible interface.
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_STACK_H
 # define AH_STACK_H
 

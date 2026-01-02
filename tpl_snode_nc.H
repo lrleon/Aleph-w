@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_snode_nc.H
+ *  @brief Typed singly linked node (no check).
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SNODE_NC_H
 # define TPL_SNODE_NC_H
 

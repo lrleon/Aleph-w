@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_test_connectivity.H
+ *  @brief Graph connectivity testing.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TEST_CONNECTIVITY_H
 # define TPL_TEST_CONNECTIVITY_H
 

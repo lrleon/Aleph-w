@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file rbNode.H
+ *  @brief Red-Black tree node definition.
+ *
+ *  Defines RbNode with color (red/black) and key storage.
+ *
+ *  @see tpl_rb_tree.H RB tree implementation
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RBNODE_H
 # define TPL_RBNODE_H
 

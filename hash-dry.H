@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file hash-dry.H
+ *  @brief Common hash table utilities and base classes.
+ *
+ *  Provides default hash functions, equal comparators, and common
+ *  utilities used by all hash table implementations.
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HASH_DRY_H
 # define HASH_DRY_H
 

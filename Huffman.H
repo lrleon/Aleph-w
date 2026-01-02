@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Huffman.H
+ *  @brief Huffman coding for data compression.
+ *
+ *  Implements Huffman coding algorithm for building optimal prefix-free
+ *  codes based on symbol frequencies. Provides encoding and decoding
+ *  using binary trees.
+ *
+ *  @ingroup Algoritmos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HUFFMAN_H
 # define HUFFMAN_H
 

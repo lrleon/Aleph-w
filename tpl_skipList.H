@@ -23,6 +23,25 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_skipList.H
+ *  @brief Skip list: probabilistic sorted linked structure.
+ *
+ *  Multi-level linked list with random tower heights providing
+ *  expected O(log n) search, insert, and delete.
+ *
+ *  ## Features
+ *  - Simple implementation (no rotations)
+ *  - Good cache locality
+ *  - Lock-free variants possible
+ *
+ *  ## Complexity: O(log n) expected for all operations
+ *
+ *  @see tpl_dynSkipList.H Dynamic variant
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SKIPLIST_H
 # define TPL_SKIPLIST_H
 

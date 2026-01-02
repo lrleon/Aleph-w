@@ -24,6 +24,16 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynTreap.H
+ *  @brief Dynamic treap alias.
+ *
+ *  Compatibility wrapper for treap.
+ *
+ *  @see tpl_treap.H Main treap implementation
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNTREAP_H
 # define TPL_DYNTREAP_H
 

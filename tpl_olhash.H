@@ -24,6 +24,70 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_olhash.H
+ *  @brief Open addressing hash table with linear probing.
+ *
+ *  This file implements an open-addressed hash table using linear probing
+ *  for collision resolution. Linear probing offers excellent cache
+ *  performance due to sequential memory access patterns.
+ *
+ *  ## Linear Probing Strategy
+ *
+ *  When a collision occurs at position h(k), the probe sequence is:
+ *  ```
+ *  h(k, i) = (h(k) + i) mod m
+ *  ```
+ *  Simply checking the next slot until an empty one is found.
+ *
+ *  ## Key Features
+ *
+ *  - Excellent cache locality (sequential access)
+ *  - Simple implementation
+ *  - Automatic resizing based on load factor
+ *  - Supports deletion with tombstones
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Average | Worst Case |
+ *  |-----------|---------|------------|
+ *  | insert | O(1) | O(n) |
+ *  | search | O(1) | O(n) |
+ *  | remove | O(1) | O(n) |
+ *
+ *  ## Primary Clustering
+ *
+ *  Linear probing suffers from primary clustering: consecutive occupied
+ *  slots form clusters that grow over time. Keep load factor < 0.5 to
+ *  minimize this effect.
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  OLhashTable<int> table;
+ *
+ *  table.insert(42);
+ *  table.insert(17);
+ *
+ *  if (table.search(42) != nullptr)
+ *    std::cout << "Found 42\n";
+ *
+ *  table.remove(42);
+ *  ```
+ *
+ *  ## When to Use
+ *
+ *  - Small to medium tables
+ *  - Cache performance is critical
+ *  - Keys are uniformly distributed
+ *
+ *  @see tpl_odhash.H Double hashing (less clustering)
+ *  @see tpl_lhash.H Chaining (no clustering)
+ *  @see hashDry.H Common open addressing utilities
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_OLHASH_H
 # define TPL_OLHASH_H
 

@@ -24,6 +24,23 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_dynMat.H
+ *  @brief Dynamic matrix with lazy allocation.
+ *
+ *  2D matrix using DynArray for flexible, sparse storage.
+ *  Only allocates cells that are actually accessed.
+ *
+ *  ## Features
+ *  - Sparse matrix support
+ *  - Row/column resizing
+ *  - Matrix arithmetic operations
+ *
+ *  @see tpl_dynArray.H Underlying storage
+ *  @see tpl_matgraph.H Graph adjacency matrices
+ *  @ingroup Matrices
+ *  @author Leandro Rabindranath León
+ */
+
 #ifndef TPL_DYNMAT_H
 #define TPL_DYNMAT_H
 

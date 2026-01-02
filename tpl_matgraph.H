@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_matgraph.H
+ *  @brief Adjacency matrix graph representation.
+ *
+ *  Graph using adjacency matrix for O(1) edge queries.
+ *  Better for dense graphs.
+ *
+ *  @see tpl_graph.H Adjacency list representation
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_MAT_GRAPH_H
 # define TPL_MAT_GRAPH_H
 

@@ -24,6 +24,12 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file line.H
+ *  @brief 2D line representation.
+ *  @ingroup Geometria
+ *  @author Leandro Rabindranath León
+ */
+
 /** Line equation helper class
 
     Aleph-w Leandro Rabindranath Leon    

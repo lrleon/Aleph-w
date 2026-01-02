@@ -24,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file ah-arena.H
+ *  @brief Memory arena for fast bulk allocations.
+ *
+ *  Provides Arena allocator that allocates memory in large chunks,
+ *  enabling O(1) allocations with minimal fragmentation. Memory is
+ *  freed all at once when the arena is destroyed.
+ *
+ *  @ingroup Memoria
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_ARENA_H
 # define AH_ARENA_H
 

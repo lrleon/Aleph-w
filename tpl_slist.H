@@ -24,6 +24,55 @@
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_slist.H
+ *  @brief Singly linked list with typed nodes.
+ *
+ *  This file provides Slist, a simple singly linked list where each node
+ *  stores a value of type T. Designed for minimal memory overhead and
+ *  simple forward traversal.
+ *
+ *  ## Key Features
+ *
+ *  - One pointer per node (minimal overhead)
+ *  - O(1) insertion at head
+ *  - Forward traversal only
+ *  - Move semantics support
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | insert_first | O(1) |
+ *  | remove_first | O(1) |
+ *  | search | O(n) |
+ *  | reverse | O(n) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Slist<int> list;
+ *
+ *  list.insert_first(new Snode<int>(42));
+ *  list.insert_first(new Snode<int>(17));
+ *
+ *  for (auto it = list.get_first(); it != nullptr; it = it->get_next())
+ *    std::cout << it->get_data() << " ";
+ *  ```
+ *
+ *  ## When to Use
+ *
+ *  - Memory is extremely constrained
+ *  - Only forward traversal needed
+ *  - LIFO access pattern (stack-like)
+ *
+ *  @see tpl_dnode.H Doubly linked nodes
+ *  @see tpl_dynDlist.H Full-featured doubly linked list
+ *  @see tpl_snode.H Node definition
+ *
+ *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SLIST_H
 # define TPL_SLIST_H
 

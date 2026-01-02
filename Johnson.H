@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Johnson.H
+ *  @brief Johnson's algorithm for all-pairs shortest paths.
+ *
+ *  Implements Johnson's algorithm combining Bellman-Ford and Dijkstra
+ *  for finding all-pairs shortest paths in sparse graphs, including
+ *  graphs with negative edge weights. O(V²log V + VE) complexity.
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef JOHNSON_H
 # define JOHNSON_H
 

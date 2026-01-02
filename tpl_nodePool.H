@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_nodePool.H
+ *  @brief Tree node memory pool allocator.
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_NODEPOOL_H
 # define TPL_NODEPOOL_H
 

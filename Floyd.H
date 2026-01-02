@@ -23,6 +23,69 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file Floyd.H
+ *  @brief Floyd-Warshall algorithm for all-pairs shortest paths.
+ *
+ *  This file implements the Floyd-Warshall algorithm, a dynamic programming
+ *  approach to compute the shortest paths between all pairs of vertices in
+ *  a weighted graph.
+ *
+ *  ## Algorithm Overview
+ *
+ *  Floyd-Warshall works by iteratively improving path estimates. For each
+ *  intermediate vertex k, it checks if going through k provides a shorter
+ *  path between any pair (i, j).
+ *
+ *  ## Key Features
+ *
+ *  - Computes shortest paths between ALL pairs of vertices
+ *  - Handles negative edge weights (but not negative cycles)
+ *  - Returns both distance matrix and path reconstruction matrix
+ *  - Can detect negative cycles (diagonal becomes negative)
+ *
+ *  ## Complexity
+ *
+ *  | Metric | Value |
+ *  |--------|-------|
+ *  | Time | O(V³) |
+ *  | Space | O(V²) for matrices |
+ *
+ *  ## When to Use
+ *
+ *  - Dense graphs where you need all-pairs distances
+ *  - Small to medium graphs (V < 1000)
+ *  - When negative weights are present (but no negative cycles)
+ *
+ *  For sparse graphs or single-source queries, consider:
+ *  - Dijkstra (single-source, no negative weights)
+ *  - Bellman-Ford (single-source, with negative weights)
+ *  - Johnson (all-pairs, sparse graphs with negative weights)
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Graph<Node, Arc> g;
+ *  // ... build graph ...
+ *
+ *  Floyd_All_Shortest_Paths<decltype(g)> floyd(g);
+ *  floyd.compute();
+ *
+ *  // Get distance between nodes i and j
+ *  auto dist = floyd.get_dist(node_i, node_j);
+ *
+ *  // Reconstruct path
+ *  Path<Graph> path = floyd.get_min_path(node_i, node_j);
+ *  ```
+ *
+ *  @see Dijkstra.H For single-source shortest paths
+ *  @see Bellman_Ford.H For negative weight handling
+ *  @see Johnson.H For sparse all-pairs with negative weights
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef FLOYD_H
 # define FLOYD_H
 

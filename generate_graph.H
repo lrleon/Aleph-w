@@ -23,6 +23,72 @@
    You should have received a copy of the GNU General Public License
    along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file generate_graph.H
+ *  @brief Graph visualization and output generation utilities.
+ *
+ *  This file provides functions for generating graph representations in
+ *  various formats suitable for visualization tools and external processing.
+ *
+ *  ## Supported Formats
+ *
+ *  - **DOT (Graphviz)**: For generating PNG, SVG, PDF visualizations
+ *  - **Custom text formats**: For debugging and logging
+ *
+ *  ## Key Functions
+ *
+ *  - `generate_dot()` - Generate DOT format output
+ *  - `generate_cross_graph()` - Create cross product of graphs
+ *  - `generate_path()` - Create a path graph
+ *  - `generate_cycle()` - Create a cycle graph
+ *  - `generate_complete()` - Create complete graph K_n
+ *
+ *  ## DOT Format Example
+ *
+ *  The DOT format is used by Graphviz tools (dot, neato, etc.):
+ *
+ *  ```dot
+ *  digraph G {
+ *    A -> B [label="5"];
+ *    B -> C [label="3"];
+ *    A -> C [label="10"];
+ *  }
+ *  ```
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Graph<Node, Arc> g;
+ *  // ... build graph ...
+ *
+ *  // Generate DOT file
+ *  std::ofstream out("graph.dot");
+ *  generate_dot(g, out);
+ *  out.close();
+ *
+ *  // Then run: dot -Tpng graph.dot -o graph.png
+ *  ```
+ *
+ *  ## Special Graph Generators
+ *
+ *  ```cpp
+ *  // Create path P_5: 0-1-2-3-4
+ *  auto path = generate_path<Graph>(5);
+ *
+ *  // Create cycle C_6: 0-1-2-3-4-5-0
+ *  auto cycle = generate_cycle<Graph>(6);
+ *
+ *  // Create complete graph K_4
+ *  auto complete = generate_complete<Graph>(4);
+ *  ```
+ *
+ *  @see random_graph.H For random graph generation
+ *  @see tpl_graph.H Graph data structures
+ *
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef GENERATE_GRAPH_H
 # define GENERATE_GRAPH_H
 

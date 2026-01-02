@@ -24,6 +24,24 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file tpl_avl.H
+ *  @brief AVL tree implementation (height-balanced BST).
+ *
+ *  Self-balancing binary search tree maintaining height difference ≤ 1
+ *  between subtrees. Guarantees O(log n) for all operations.
+ *
+ *  ## Features
+ *  - Strict balance (heights differ by at most 1)
+ *  - Single and double rotations for rebalancing
+ *  - Faster lookups than Red-Black trees
+ *
+ *  ## Complexity: O(log n) for insert, search, remove
+ *
+ *  @see tpl_rb_tree.H Red-Black tree alternative
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_AVL_H
 # define TPL_AVL_H
 

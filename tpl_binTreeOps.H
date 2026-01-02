@@ -23,6 +23,17 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_binTreeOps.H
+ *  @brief Binary tree operations (split, join, rotate).
+ *
+ *  Common operations for binary search trees including
+ *  rotations, splits, and joins.
+ *
+ *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINTREEOPS_H
 # define TPL_BINTREEOPS_H
 

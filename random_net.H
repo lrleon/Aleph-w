@@ -23,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file random_net.H
+ *  @brief Random network flow graph generation.
+ *
+ *  Generates random capacitated networks for flow algorithm testing.
+ *
+ *  @see random_graph.H Random graph generation
+ *  @see tpl_net.H Network structures
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef RANDOM_NET_H
 # define RANDOM_NET_H
 

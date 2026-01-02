@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file tpl_net_sup_dem.H
+ *  @brief Supply-demand network flow.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 #line 620 "reducciones.nw"
 # ifndef TPL_NET_SUP_DEM_H
 # define TPL_NET_SUP_DEM_H

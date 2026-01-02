@@ -103,8 +103,7 @@ set(LIBCCCSRCS
     timeoutQueue.C
     uid.C
     gmpfrxx.C
-    euclidian-graph-common.C
-    eepicgeom.C
+        eepicgeom.C
     ahUtils.C
     tpl_sort_utils.C
     hash-fct.C
@@ -112,6 +111,7 @@ set(LIBCCCSRCS
     aleph-graph.C
     ahNow.C
     point.C
+    euclidian-graph-common.C
 )
 
 # C source files

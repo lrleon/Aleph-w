@@ -23,6 +23,13 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file single_graph.H
+ *  @brief Single graph utilities.
+ *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SINGLE_GRAPH_H
 # define SINGLE_GRAPH_H
 

@@ -24,6 +24,20 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/** @file protected_odhash.H
+ *  @brief Thread-safe open hash table wrapper.
+ *
+ *  Mutex-protected wrapper around ODhashTable for concurrent access.
+ *
+ *  ## Features
+ *  - Thread-safe operations
+ *  - RAII lock management
+ *
+ *  @see tpl_odhash.H Underlying hash table
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef PROTECTED_ODHASH_H
 # define PROTECTED_ODHASH_H
 
