@@ -48,6 +48,8 @@
 # include <tpl_splay_treeRk.H>
 # include <tpl_rb_tree.H>
 # include <tpl_rbRk.H>
+
+using namespace std;
 # include <tpl_tdRbTree.H>
 # include <tpl_tdRbTreeRk.H>
 # include <tpl_rand_tree.H>
@@ -315,8 +317,8 @@ struct Parameters
 };
 
 
-auto argp_program_version = "timeAllTree 0.0";
-auto argp_program_bug_address = "lrleon@lavabit.com";
+const char * argp_program_version = "timeAllTree 0.0";
+const char * argp_program_bug_address = "lrleon@lavabit.com";
 
 static char doc[] = "timeAllTree -- Benchmark Aleph tree implementations";
 static char argDoc[] = "-n num_nodes -m seed_for_random [tree options]\n";

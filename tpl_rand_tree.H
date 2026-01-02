@@ -253,6 +253,36 @@ namespace Aleph
       std::swap(cmp, tree.cmp);
     }
 
+    /// Move constructor - transfers ownership of tree and RNG
+    Gen_Rand_Tree(Gen_Rand_Tree && other) noexcept
+      : tree_root(other.tree_root), r(other.r), cmp(std::move(other.cmp))
+    {
+      other.tree_root = Node::NullPtr;
+      other.r = nullptr;
+    }
+
+    /// Move assignment - transfers ownership of tree and RNG
+    Gen_Rand_Tree &operator =(Gen_Rand_Tree && other) noexcept
+    {
+      if (this != &other)
+        {
+          // Clean up current resources
+          if (r != nullptr)
+            gsl_rng_free(r);
+          destroyRec(tree_root);
+
+          // Transfer ownership
+          tree_root = other.tree_root;
+          r = other.r;
+          cmp = std::move(other.cmp);
+
+          // Reset other
+          other.tree_root = Node::NullPtr;
+          other.r = nullptr;
+        }
+      return *this;
+    }
+
     virtual ~Gen_Rand_Tree() noexcept
     {
       if (r != nullptr)

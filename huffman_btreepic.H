@@ -72,7 +72,7 @@ typedef DynMapTree<Freq_Node *, Level_Desc, Treap>  Level_Table;
 
 Level_Table level_table;
 
-ofstream *output_ptr = nullptr;
+std::ofstream *output_ptr = nullptr;
 
 void save_infix_pos(Freq_Node * p, int level, int pos)
 {
@@ -128,7 +128,7 @@ void write_leaves(Freq_Node * p, int, int pos)
   if (not (LLINK(p) == nullptr and RLINK(p) == nullptr))
     return;
 
-  const string & key =  p->get_key().first;
+  const std::string & key =  p->get_key().first;
 
   *output_ptr << "TAG " << pos << " \"";
 
@@ -167,7 +167,7 @@ void write_leaves(Freq_Node * p, int, int pos)
 
 size_t num_digits(const int & n)
 {
-  return to_string(n).size();
+  return std::to_string(n).size();
 }
 
 
@@ -210,7 +210,7 @@ void adjust_nodes(Freq_Node * p, int p_level, int p_infix_pos)
   
   Infix_Desc & p_infix_desc = infix_table[p];
 
-  const string & kp = p->get_key().first;
+  const std::string & kp = p->get_key().first;
   const size_t kp_sz = kp.size();
   if (p_infix_desc.offset == NO_OFFSET) // ya fue desplazado?
     {
@@ -221,7 +221,7 @@ void adjust_nodes(Freq_Node * p, int p_level, int p_infix_pos)
 
   assert(p_succ_infix_desc.offset == NO_OFFSET);
 
-  const string & k_succ = p_succ->get_key().first;
+  const std::string & k_succ = p_succ->get_key().first;
   const size_t k_succ_sz = k_succ.size();
   //  if (k_succ_sz > 1)
     *output_ptr << "xoffset " << p_succ_infix_pos << " " 

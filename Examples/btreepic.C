@@ -43,6 +43,7 @@
 # include "parse_utils.H"
 # include "treepic_utils.H"
 
+using namespace std;
 
 /* TODO:: opcion THREAD para dibujar una arco threads parábola entre 2
    nodos (esta cas lista)

@@ -38,6 +38,8 @@
 
 # include <argp.h>
 
+using namespace std;
+
 # define TERMINATE(n) (save_parameters(), exit(n))
 
 // TODO: corregir tag con los angulos de 45 al punto de intersección con

@@ -196,7 +196,7 @@ void floyd_all_shortest_paths_latex
 (GT &                                                g, 
  Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
  Ady_Mat<GT, long> &                                 path,
- ofstream &                                          output)
+ std::ofstream &                                     output)
 {
   typedef Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> Dist_Mat;
   typedef Ady_Mat<GT, long>                                 Path_Mat;
@@ -268,7 +268,7 @@ void floyd_all_shortest_paths_latex
 (GT &                                                g, 
  Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> & dist,
  Ady_Mat<GT, long> &                                 path,
- ofstream &                                          output)
+ std::ofstream &                                     output)
 {
   typedef Ady_Mat<GT, typename GT::Arc_Type::Distance_Type> Dist_Mat;
   typedef typename GT::Arc_Type::Distance_Type Dist_T;

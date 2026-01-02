@@ -56,9 +56,9 @@ Tree create_tree(unsigned long n)
 
 void usage()
 {
-  cout << "usage: " << endl
-       << "    ./test n seed" << endl
-       << endl;
+  std::cout << "usage: " << std::endl
+            << "    ./test n seed" << std::endl
+            << std::endl;
   exit(0);
 }
 
@@ -72,7 +72,7 @@ int main(int argn, char *argc[])
   r = gsl_rng_alloc (gsl_rng_mt19937);
   gsl_rng_set(r, seed % gsl_rng_max(r));
 
-  cout << argc[0] << " " << n << " " << seed << endl;
+  std::cout << argc[0] << " " << n << " " << seed << std::endl;
 
   Tree t1 = create_tree(n);
   Tree t2 = create_tree(n);

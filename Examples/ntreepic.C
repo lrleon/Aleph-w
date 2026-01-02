@@ -76,9 +76,9 @@ long double y_offset = font_height()/2.0; /* offset vertical etiqueta */
 long double x_picture_offset = 0; // offset horizontal para dibujo
 long double y_picture_offset = 0; // offset vertical para dibujo
 
-string command_line;
-string input_file_name;
-string output_file_name;
+std::string command_line;
+std::string input_file_name;
+std::string output_file_name;
 
 
 bool latex_header = false; // envolver salida con un latex header

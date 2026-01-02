@@ -43,12 +43,12 @@ namespace Aleph
 	    class    _W_i,  // formato de índice de fila
 	    class    _W_j,  // formato de índice de columna
 	    class    _W_ij> // formato de entrada de a matriz
-void mat_to_latex(Mat &          mat, 
-		  const long &   n, 
-		  const long &   m, 
-		  ofstream &     out, 
-		  const string & prefix = "", 
-		  const string & suffix = "")
+void mat_to_latex(Mat &               mat, 
+		  const long &        n, 
+		  const long &        m, 
+		  std::ofstream &     out, 
+		  const std::string & prefix = "", 
+		  const std::string & suffix = "")
 {
   out << prefix;
   out << "\\begin{tabular}{|c|";
