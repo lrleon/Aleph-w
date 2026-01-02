@@ -36,6 +36,8 @@
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+# include <ahDry.H>
+# include <ah-dry-mixin.H>
 
 namespace Aleph
 {
@@ -115,7 +117,7 @@ namespace Aleph
       @author Alejandro Mujica
       @author Leandro Rabindranath Leon
    */
-  class BitArray
+  class BitArray : public FunctionalMixin<BitArray, unsigned int>
   {
     size_t current_size;
     DynArray<Byte> array_of_bytes;
@@ -216,7 +218,8 @@ namespace Aleph
 
    public:
 
-    using Item_Type = unsigned char;
+    /// Type returned by Iterator::get_curr() - individual bits as unsigned int
+    using Item_Type = unsigned int;
 
     /** Bit array constructor.
 
@@ -1019,9 +1022,9 @@ namespace Aleph
       return traverse<Operation>(operation);
     }
 
-    Functional_Methods(unsigned short);
-
-    Generic_Items(unsigned char);
+    // Functional methods provided by FunctionalMixin<BitArray, unsigned int>
+    
+    Generic_Items(unsigned int);
 
     STL_ALEPH_ITERATOR(BitArray);
 

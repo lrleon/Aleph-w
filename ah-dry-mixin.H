@@ -66,6 +66,9 @@
 #include <tuple>
 #include <functional>
 #include <utility>
+#include <type_traits>
+#include <vector>
+#include <string>
 
 #include <ah-errors.H>
 
@@ -1005,6 +1008,772 @@ public:
         ret.append(item);
       return true;
     });
+    return ret;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Aggregation (Numeric)
+  // ---------------------------------------------------------------------------
+
+  /** @brief Compute the sum of all elements.
+   *
+   *  @param init Initial value (default: Type{}).
+   *  @return Sum of all elements starting from init.
+   *
+   *  @par Requirements
+   *  Type must support operator+.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto total = list.sum();      // 15
+   *  auto offset = list.sum(10);   // 25
+   *  @endcode
+   */
+  [[nodiscard]] Type sum(const Type & init = Type{}) const
+    requires requires(Type a, Type b) { { a + b } -> std::convertible_to<Type>; }
+  {
+    Type result = init;
+    for_each([&result] (const Type & item)
+    {
+      result = result + item;
+    });
+    return result;
+  }
+
+  /** @brief Compute the product of all elements.
+   *
+   *  @param init Initial value (default: Type{1} for numeric types).
+   *  @return Product of all elements starting from init.
+   *
+   *  @par Requirements
+   *  Type must support operator*.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4};
+   *  auto prod = list.product(1);  // 24
+   *  @endcode
+   */
+  [[nodiscard]] Type product(const Type & init) const
+    requires requires(Type a, Type b) { { a * b } -> std::convertible_to<Type>; }
+  {
+    Type result = init;
+    for_each([&result] (const Type & item)
+    {
+      result = result * item;
+    });
+    return result;
+  }
+
+  /** @brief Find the minimum element.
+   *
+   *  @return Pointer to minimum element, or nullptr if empty.
+   *
+   *  @par Requirements
+   *  Type must support operator<.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {3, 1, 4, 1, 5};
+   *  auto min_ptr = list.min();  // points to 1
+   *  @endcode
+   */
+  [[nodiscard]] const Type * min() const
+    requires requires(Type a, Type b) { { a < b } -> std::convertible_to<bool>; }
+  {
+    const Type * result = nullptr;
+    for_each([&result] (const Type & item)
+    {
+      if (result == nullptr || item < *result)
+        result = &item;
+    });
+    return result;
+  }
+
+  /** @brief Find the maximum element.
+   *
+   *  @return Pointer to maximum element, or nullptr if empty.
+   *
+   *  @par Requirements
+   *  Type must support operator<.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {3, 1, 4, 1, 5};
+   *  auto max_ptr = list.max();  // points to 5
+   *  @endcode
+   */
+  [[nodiscard]] const Type * max() const
+    requires requires(Type a, Type b) { { a < b } -> std::convertible_to<bool>; }
+  {
+    const Type * result = nullptr;
+    for_each([&result] (const Type & item)
+    {
+      if (result == nullptr || *result < item)
+        result = &item;
+    });
+    return result;
+  }
+
+  /** @brief Find the minimum element using a custom comparator.
+   *
+   *  @tparam Compare Comparator type.
+   *  @param cmp Comparator function (returns true if first < second).
+   *  @return Pointer to minimum element, or nullptr if empty.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<std::string> list = {"apple", "pie", "a"};
+   *  auto shortest = list.min_by([](auto& a, auto& b) { 
+   *    return a.length() < b.length(); 
+   *  });  // points to "a"
+   *  @endcode
+   */
+  template <class Compare>
+  [[nodiscard]] const Type * min_by(Compare cmp) const
+  {
+    const Type * result = nullptr;
+    for_each([&result, &cmp] (const Type & item)
+    {
+      if (result == nullptr || cmp(item, *result))
+        result = &item;
+    });
+    return result;
+  }
+
+  /** @brief Find the maximum element using a custom comparator.
+   *
+   *  @tparam Compare Comparator type.
+   *  @param cmp Comparator function (returns true if first < second).
+   *  @return Pointer to maximum element, or nullptr if empty.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<std::string> list = {"apple", "pie", "a"};
+   *  auto longest = list.max_by([](auto& a, auto& b) { 
+   *    return a.length() < b.length(); 
+   *  });  // points to "apple"
+   *  @endcode
+   */
+  template <class Compare>
+  [[nodiscard]] const Type * max_by(Compare cmp) const
+  {
+    const Type * result = nullptr;
+    for_each([&result, &cmp] (const Type & item)
+    {
+      if (result == nullptr || cmp(*result, item))
+        result = &item;
+    });
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search and Counting
+  // ---------------------------------------------------------------------------
+
+  /** @brief Check if container has a value.
+   *
+   *  @param val Value to search for.
+   *  @return true if val is found, false otherwise.
+   *
+   *  @par Requirements
+   *  Type must support operator==.
+   *
+   *  @par Complexity
+   *  O(n) worst case, O(1) best case (found early).
+   *
+   *  @note Named `has_value()` to avoid conflicts with `contains()` in
+   *        tree/hash containers which have O(log n) or O(1) implementations.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  list.has_value(2);  // true
+   *  list.has_value(5);  // false
+   *  @endcode
+   */
+  [[nodiscard]] bool has_value(const Type & val) const
+    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+  {
+    return exists([&val] (const Type & item) { return item == val; });
+  }
+
+  /** @brief Check if no element satisfies a predicate.
+   *
+   *  @tparam Predicate Predicate type.
+   *  @param pred Predicate function.
+   *  @return true if no element satisfies pred, false otherwise.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @note This is the logical complement of exists().
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {2, 4, 6};
+   *  list.none([](int x) { return x % 2 != 0; });  // true (all even)
+   *  @endcode
+   */
+  template <class Predicate>
+  [[nodiscard]] bool none(Predicate & pred) const
+  {
+    return not exists(pred);
+  }
+
+  /// \overload
+  template <class Predicate>
+  [[nodiscard]] bool none(Predicate && pred) const
+  {
+    return not exists(std::forward<Predicate>(pred));
+  }
+
+  /** @brief Count elements satisfying a predicate.
+   *
+   *  @tparam Predicate Predicate type.
+   *  @param pred Predicate function.
+   *  @return Number of elements for which pred returns true.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto evens = list.count_if([](int x) { return x % 2 == 0; });  // 2
+   *  @endcode
+   */
+  template <class Predicate>
+  [[nodiscard]] size_t count_if(Predicate pred) const
+  {
+    size_t count = 0;
+    for_each([&count, &pred] (const Type & item)
+    {
+      if (pred(item))
+        ++count;
+    });
+    return count;
+  }
+
+  // ---------------------------------------------------------------------------
+  // First/Last Element Access
+  // ---------------------------------------------------------------------------
+
+  /** @brief Get the first element.
+   *
+   *  @return Pointer to first element, or nullptr if empty.
+   *
+   *  @par Complexity
+   *  O(1).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  auto first_ptr = list.first();  // points to 1
+   *  @endcode
+   */
+  [[nodiscard]] const Type * first() const
+  {
+    const Type * result = nullptr;
+    self().traverse([&result] (const Type & item)
+    {
+      result = &item;
+      return false;  // stop after first
+    });
+    return result;
+  }
+
+  /** @brief Get the first element or a default value.
+   *
+   *  @param default_val Value to return if container is empty.
+   *  @return First element or default_val if empty.
+   *
+   *  @par Complexity
+   *  O(1).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> empty;
+   *  auto val = empty.first_or(-1);  // -1
+   *  @endcode
+   */
+  [[nodiscard]] Type first_or(const Type & default_val) const
+  {
+    auto ptr = first();
+    return ptr ? *ptr : default_val;
+  }
+
+  /** @brief Get the last element.
+   *
+   *  @return Pointer to last element, or nullptr if empty.
+   *
+   *  @par Complexity
+   *  O(n) - must traverse all elements.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  auto last_ptr = list.last();  // points to 3
+   *  @endcode
+   */
+  [[nodiscard]] const Type * last() const
+  {
+    const Type * result = nullptr;
+    for_each([&result] (const Type & item)
+    {
+      result = &item;
+    });
+    return result;
+  }
+
+  /** @brief Get the last element or a default value.
+   *
+   *  @param default_val Value to return if container is empty.
+   *  @return Last element or default_val if empty.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> empty;
+   *  auto val = empty.last_or(-1);  // -1
+   *  @endcode
+   */
+  [[nodiscard]] Type last_or(const Type & default_val) const
+  {
+    auto ptr = last();
+    return ptr ? *ptr : default_val;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Enumeration and Indexing
+  // ---------------------------------------------------------------------------
+
+  /** @brief Enumerate elements with their indices.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @return Container of pairs (index, element).
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<std::string> list = {"a", "b", "c"};
+   *  for (auto [idx, val] : list.enumerate())
+   *    std::cout << idx << ": " << val << "\n";
+   *  // Output: 0: a, 1: b, 2: c
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<std::pair<size_t, Type>> enumerate() const
+  {
+    Container<std::pair<size_t, Type>> ret;
+    size_t idx = 0;
+    for_each([&ret, &idx] (const Type & item)
+    {
+      ret.append(std::make_pair(idx++, item));
+    });
+    return ret;
+  }
+
+  /** @brief Find the index of the first element satisfying a predicate.
+   *
+   *  @tparam Predicate Predicate type.
+   *  @param pred Predicate function.
+   *  @return Index of first matching element, or size_t(-1) if not found.
+   *
+   *  @par Complexity
+   *  O(n) worst case.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto idx = list.find_index([](int x) { return x > 3; });  // 3
+   *  @endcode
+   */
+  template <class Predicate>
+  [[nodiscard]] size_t find_index(Predicate pred) const
+  {
+    size_t idx = 0;
+    size_t result = static_cast<size_t>(-1);
+    self().traverse([&idx, &result, &pred] (const Type & item)
+    {
+      if (pred(item))
+      {
+        result = idx;
+        return false;
+      }
+      ++idx;
+      return true;
+    });
+    return result;
+  }
+
+  /** @brief Find the index of a specific value.
+   *
+   *  @param val Value to search for.
+   *  @return Index of val, or size_t(-1) if not found.
+   *
+   *  @par Requirements
+   *  Type must support operator==.
+   *
+   *  @par Complexity
+   *  O(n) worst case.
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto idx = list.index_of(3);  // 2
+   *  auto bad = list.index_of(99); // size_t(-1)
+   *  @endcode
+   */
+  [[nodiscard]] size_t index_of(const Type & val) const
+    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+  {
+    return find_index([&val] (const Type & item) { return item == val; });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transformation (Advanced)
+  // ---------------------------------------------------------------------------
+
+  /** @brief Remove consecutive duplicate elements.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @return New container with consecutive duplicates removed.
+   *
+   *  @par Requirements
+   *  Type must support operator==.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 1, 2, 2, 2, 3, 1, 1};
+   *  auto u = list.unique();  // {1, 2, 3, 1}
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<Type> unique() const
+    requires requires(Type a, Type b) { { a == b } -> std::convertible_to<bool>; }
+  {
+    Container<Type> ret;
+    const Type * prev = nullptr;
+    for_each([&ret, &prev] (const Type & item)
+    {
+      if (prev == nullptr || !(*prev == item))
+      {
+        ret.append(item);
+        prev = &item;
+      }
+    });
+    return ret;
+  }
+
+  /** @brief Remove consecutive duplicates using a custom equality predicate.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @tparam EqPred Equality predicate type.
+   *  @param eq Predicate that returns true if two elements are equal.
+   *  @return New container with consecutive duplicates removed.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<std::string> list = {"a", "A", "b", "B"};
+   *  auto u = list.unique_by([](auto& a, auto& b) {
+   *    return tolower(a[0]) == tolower(b[0]);
+   *  });  // {"a", "b"}
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList, class EqPred>
+  [[nodiscard]] Container<Type> unique_by(EqPred eq) const
+  {
+    Container<Type> ret;
+    const Type * prev = nullptr;
+    for_each([&ret, &prev, &eq] (const Type & item)
+    {
+      if (prev == nullptr || !eq(*prev, item))
+      {
+        ret.append(item);
+        prev = &item;
+      }
+    });
+    return ret;
+  }
+
+  /** @brief Intersperse a separator between elements.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @param sep Separator to insert between each pair of elements.
+   *  @return New container with separator interspersed.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  auto i = list.intersperse(0);  // {1, 0, 2, 0, 3}
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<Type> intersperse(const Type & sep) const
+  {
+    Container<Type> ret;
+    bool first = true;
+    for_each([&ret, &sep, &first] (const Type & item)
+    {
+      if (!first)
+        ret.append(sep);
+      ret.append(item);
+      first = false;
+    });
+    return ret;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Chunking and Windowing
+  // ---------------------------------------------------------------------------
+
+  /** @brief Split into chunks of fixed size.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @param n Chunk size.
+   *  @return Container of containers, each with at most n elements.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto chunks = list.chunk(2);  // {{1,2}, {3,4}, {5}}
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<Container<Type>> chunk(size_t n) const
+  {
+    Container<Container<Type>> ret;
+    if (n == 0) return ret;
+
+    Container<Type> current;
+    size_t count = 0;
+
+    for_each([&ret, &current, &count, n] (const Type & item)
+    {
+      current.append(item);
+      if (++count >= n)
+      {
+        ret.append(std::move(current));
+        current = Container<Type>{};
+        count = 0;
+      }
+    });
+
+    if (count > 0)
+      ret.append(std::move(current));
+
+    return ret;
+  }
+
+  /** @brief Create sliding windows of fixed size.
+   *
+   *  @tparam Container Result container type (default: DynList).
+   *  @param size Window size.
+   *  @param step Step between windows (default: 1).
+   *  @return Container of windows.
+   *
+   *  @par Complexity
+   *  O(n * size).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3, 4, 5};
+   *  auto windows = list.sliding(3);     // {{1,2,3}, {2,3,4}, {3,4,5}}
+   *  auto windows2 = list.sliding(2, 2); // {{1,2}, {3,4}}
+   *  @endcode
+   */
+  template <template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<Container<Type>> sliding(size_t size, size_t step = 1) const
+  {
+    Container<Container<Type>> ret;
+    if (size == 0 || step == 0) return ret;
+
+    // Collect all elements first
+    Container<Type> all;
+    for_each([&all] (const Type & item) { all.append(item); });
+
+    size_t total = all.size();
+    if (total < size) return ret;
+
+    for (size_t start = 0; start + size <= total; start += step)
+    {
+      Container<Type> window;
+      size_t idx = 0;
+      all.traverse([&window, &idx, start, size] (const Type & item)
+      {
+        if (idx >= start && idx < start + size)
+          window.append(item);
+        ++idx;
+        return idx < start + size;
+      });
+      ret.append(std::move(window));
+    }
+
+    return ret;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Conversion
+  // ---------------------------------------------------------------------------
+
+  /** @brief Convert to std::vector.
+   *
+   *  @return std::vector containing all elements.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  std::vector<int> vec = list.to_vector();
+   *  @endcode
+   */
+  [[nodiscard]] std::vector<Type> to_vector() const
+  {
+    std::vector<Type> ret;
+    for_each([&ret] (const Type & item) { ret.push_back(item); });
+    return ret;
+  }
+
+  /** @brief Join elements into a string with separator.
+   *
+   *  @param sep Separator string (default: ", ").
+   *  @return String with all elements joined.
+   *
+   *  @par Requirements
+   *  Type must be convertible to string via std::to_string or operator<<.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> list = {1, 2, 3};
+   *  auto s = list.join(", ");  // "1, 2, 3"
+   *  @endcode
+   */
+  template <typename StringType = std::string>
+  [[nodiscard]] StringType join(const StringType & sep = StringType{", "}) const
+    requires requires(Type a) { std::to_string(a); }
+  {
+    StringType ret;
+    bool first = true;
+    for_each([&ret, &sep, &first] (const Type & item)
+    {
+      if (!first)
+        ret += sep;
+      ret += std::to_string(item);
+      first = false;
+    });
+    return ret;
+  }
+
+  /** @brief Join string elements with separator.
+   *
+   *  @param sep Separator string (default: ", ").
+   *  @return String with all elements joined.
+   *
+   *  @par Complexity
+   *  O(n).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<std::string> list = {"a", "b", "c"};
+   *  auto s = list.join_str("-");  // "a-b-c"
+   *  @endcode
+   */
+  [[nodiscard]] std::string join_str(const std::string & sep = ", ") const
+    requires std::is_convertible_v<Type, std::string>
+  {
+    std::string ret;
+    bool first = true;
+    for_each([&ret, &sep, &first] (const Type & item)
+    {
+      if (!first)
+        ret += sep;
+      ret += static_cast<std::string>(item);
+      first = false;
+    });
+    return ret;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Zip Operations
+  // ---------------------------------------------------------------------------
+
+  /** @brief Zip with another container.
+   *
+   *  @tparam Other The other container type.
+   *  @tparam Container Result container type (default: DynList).
+   *  @param other The container to zip with.
+   *  @return Container of pairs (element from this, element from other).
+   *
+   *  @note Stops at the shorter container.
+   *
+   *  @par Complexity
+   *  O(min(n, m)).
+   *
+   *  @par Example
+   *  @code
+   *  DynList<int> a = {1, 2, 3};
+   *  DynList<char> b = {'a', 'b', 'c'};
+   *  auto zipped = a.zip_with(b);  // {(1,'a'), (2,'b'), (3,'c')}
+   *  @endcode
+   */
+  template <class Other, template <typename> class Container = Aleph::DynList>
+  [[nodiscard]] Container<std::pair<Type, typename Other::Item_Type>> 
+  zip_with(const Other & other) const
+  {
+    using OtherType = typename Other::Item_Type;
+    Container<std::pair<Type, OtherType>> ret;
+
+    auto it1 = self().get_it();
+    auto it2 = other.get_it();
+
+    while (it1.has_curr() && it2.has_curr())
+    {
+      ret.append(std::make_pair(it1.get_curr(), it2.get_curr()));
+      it1.next();
+      it2.next();
+    }
+
     return ret;
   }
 };
