@@ -80,20 +80,47 @@
 namespace Aleph
 {
 
-    /** Determina si un grafo o digrafo es euleriano
-
-	La clase Test_Eulerian efectúa verifica si el grafo o digrafo es
-	euleriano; es decir, si contiene un ciclo euleriano.
-
-	La clase recibe tres parámetros tipo:
-	-# GT: el grafo
-	-# SN: clase filtro para el iterador de nodos.
-	-# SA: clase filtro para el iterador de arcos.
-	.
-
-	@ingroup Grafos
-	@author Leandro R. León
-     */
+/**
+ * @brief Tests whether a graph or digraph is Eulerian.
+ *
+ * A graph is Eulerian if it contains an Eulerian cycle (a cycle that
+ * visits every edge exactly once). This class tests the necessary and
+ * sufficient conditions for Eulerian graphs.
+ *
+ * ## Conditions Tested
+ *
+ * **Undirected graphs**: All vertices must have even degree.
+ *
+ * **Directed graphs**: For every vertex, in-degree must equal out-degree.
+ *
+ * @tparam GT Graph type (List_Graph, Array_Graph, etc.)
+ * @tparam SN Node filter for iteration (default: show all nodes)
+ * @tparam SA Arc filter for iteration (default: show all arcs)
+ *
+ * ## Complexity
+ *
+ * - Time: O(V + E) for undirected, O(V + E) for directed
+ * - Space: O(1) additional
+ *
+ * @par Example
+ * @code
+ * List_Graph<Node, Arc> g;
+ * // Build a graph where all vertices have even degree
+ * auto n1 = g.insert_node();
+ * auto n2 = g.insert_node();
+ * auto n3 = g.insert_node();
+ * g.insert_arc(n1, n2);
+ * g.insert_arc(n2, n3);
+ * g.insert_arc(n3, n1);  // Triangle - all degrees are 2
+ *
+ * Test_Eulerian<decltype(g)> test;
+ * assert(test(g) == true);  // Graph is Eulerian
+ * @endcode
+ *
+ * @see hamiltonian.H For Hamiltonian path/cycle testing
+ * @ingroup Grafos
+ * @author Leandro R. León
+ */
 template <class GT, 
 	  class SN = Dft_Show_Node<GT>,
 	  class SA = Dft_Show_Arc<GT> >
@@ -102,6 +129,14 @@ class Test_Eulerian
   SN & sn;
   SA & sa;
 
+  /**
+   * @brief Test if an undirected graph is Eulerian.
+   *
+   * Checks that all vertices have even degree.
+   *
+   * @param g The undirected graph to test
+   * @return true if all vertices have even degree
+   */
   bool test_graph(GT & g)
   {
     assert(not g.is_digraph());
@@ -113,16 +148,26 @@ class Test_Eulerian
     return true;
   }
 
+  /**
+   * @brief Test if a directed graph is Eulerian.
+   *
+   * Checks that for every vertex, in-degree equals out-degree.
+   * Uses node counters to track in-degrees.
+   *
+   * @param g The directed graph to test
+   * @return true if in-degree == out-degree for all vertices
+   */
   bool test_digraph(GT & g)
   {
     assert(g.is_digraph());
 
     g.reset_counter_nodes();
 
-      // una primera pasada sobre arcos para contar grados de entrada
+    // First pass: count in-degrees using node counters
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       NODE_COUNTER(it.get_tgt_node_ne())++;
 
+    // Second pass: verify in-degree == out-degree for each vertex
     for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
       {
 	typename GT::Node * p = it.get_curr();
@@ -135,13 +180,30 @@ class Test_Eulerian
 
 public:
 
+  /**
+   * @brief Construct an Eulerian tester with optional filters.
+   *
+   * @param __sn Node filter (default: show all nodes)
+   * @param __sa Arc filter (default: show all arcs)
+   */
   Test_Eulerian(SN && __sn = SN(), SA && __sa = SA()) 
     : sn(__sn), sa(__sa)
   {
     // empty 
   }
 
-      // retorna true si el grafo el euleriano
+  /**
+   * @brief Test if a graph is Eulerian.
+   *
+   * Automatically detects whether the graph is directed or undirected
+   * and applies the appropriate test.
+   *
+   * @param g The graph to test
+   * @return true if the graph contains an Eulerian cycle
+   *
+   * @note The graph must be connected for an Eulerian cycle to exist.
+   *       This function only checks the degree conditions.
+   */
   bool operator () (GT & g)
   {
     if (g.is_digraph())

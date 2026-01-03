@@ -25,11 +25,47 @@
 */
 
 /** @file hamiltonian.H
- *  @brief Hamiltonian path and cycle detection.
+ *  @brief Hamiltonian sufficiency testing for graphs.
  *
- *  Provides algorithms to find Hamiltonian paths (visiting every
- *  vertex exactly once) and Hamiltonian cycles in graphs. Uses
- *  backtracking with pruning.
+ *  This file provides algorithms to test sufficient conditions for a
+ *  graph to contain a Hamiltonian cycle. A Hamiltonian cycle visits
+ *  every vertex exactly once and returns to the starting vertex.
+ *
+ *  ## Definitions
+ *
+ *  - **Hamiltonian Cycle**: A cycle visiting every vertex exactly once
+ *  - **Hamiltonian Path**: A path visiting every vertex exactly once
+ *  - **Hamiltonian Graph**: Contains a Hamiltonian cycle
+ *
+ *  ## Ore's Theorem (Sufficiency Condition)
+ *
+ *  For an undirected simple graph G with n ≥ 3 vertices:
+ *  If for every pair of non-adjacent vertices u and v,
+ *  deg(u) + deg(v) ≥ n, then G is Hamiltonian.
+ *
+ *  @note This tests sufficiency, not necessity. A graph may be
+ *        Hamiltonian without satisfying Ore's condition.
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | Sufficiency test (undirected) | O(V²) |
+ *  | Sufficiency test (directed) | O(V² + E) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Graph<Node, Arc> g;
+ *  // ... build complete graph K5 ...
+ *
+ *  Test_Hamiltonian_Sufficiency<decltype(g)> test;
+ *  if (test(g))
+ *    std::cout << "Graph satisfies Ore's condition (is Hamiltonian)\n";
+ *  ```
+ *
+ *  @see eulerian.H Eulerian path/cycle detection
+ *  @see tpl_find_path.H Path finding algorithms
  *
  *  @ingroup Grafos
  *  @author Leandro Rabindranath León
@@ -43,23 +79,45 @@
 namespace Aleph 
 {
 
-    /** Determina si un grafo o digrafo satisface las pruebas de
-	suficiencia para ser hamiltoniano.
-
-	La clase Test_Hamiltonian_Sufficiency efectúa una prueba de
-	suficiencia hamiltoniana para el grafo o digrafo parámetro.
-
-	La clase recibe tres parámetros tipo:
-	-# GT: el grafo
-	-# SN: clase filtro para el iterador de nodos.
-	-# SA: clase filtro para el iterador de arcos.
-	.
-
-	La prueba está basada en el teorema de suficiencia de Ore.
-
-	@ingroup Grafos
-	@author Leandro R. León
-     */
+/**
+ * @brief Tests Ore's sufficient condition for Hamiltonian graphs.
+ *
+ * This class tests whether a graph satisfies Ore's theorem, which provides
+ * a sufficient (but not necessary) condition for a graph to be Hamiltonian.
+ *
+ * ## Ore's Theorem
+ *
+ * For an undirected graph G with n ≥ 3 vertices: if for every pair of
+ * non-adjacent vertices u and v, deg(u) + deg(v) ≥ n, then G has a
+ * Hamiltonian cycle.
+ *
+ * For directed graphs, the condition is extended to in-degree + out-degree.
+ *
+ * @tparam GT Graph type (List_Graph, Array_Graph, etc.)
+ * @tparam SN Node filter for iteration (default: show all nodes)
+ * @tparam SA Arc filter for iteration (default: show all arcs)
+ *
+ * ## Complexity
+ *
+ * - Undirected: O(V²) - checks all pairs of non-adjacent vertices
+ * - Directed: O(V² + E) - also counts in-degrees
+ *
+ * @par Example
+ * @code
+ * // Complete graph K5 satisfies Ore's condition
+ * List_Graph<Node, Arc> k5;
+ * // ... build K5 ...
+ *
+ * Test_Hamiltonian_Sufficiency<decltype(k5)> test;
+ * assert(test(k5) == true);  // All deg sums ≥ n for non-adjacent
+ * @endcode
+ *
+ * @warning A graph may be Hamiltonian without satisfying this condition.
+ *          This is a sufficiency test only.
+ *
+ * @ingroup Grafos
+ * @author Leandro R. León
+ */
 template <class GT, 
 	  class SN = Dft_Show_Node<GT>,
 	  class SA = Dft_Show_Arc<GT> >
@@ -68,6 +126,15 @@ class Test_Hamiltonian_Sufficiency
   SN & sn;
   SA & sa;
 
+  /**
+   * @brief Test Ore's condition for undirected graphs.
+   *
+   * Checks that for all pairs of vertices u, v:
+   * deg(u) + deg(v) ≥ n
+   *
+   * @param g Undirected graph to test
+   * @return true if Ore's condition is satisfied
+   */
   bool test_graph(GT & g)
   {
     assert(not g.is_digraph());
@@ -89,13 +156,22 @@ class Test_Hamiltonian_Sufficiency
     return true;
   }
 
+  /**
+   * @brief Test Ore's condition for directed graphs.
+   *
+   * For digraphs, checks that for each pair (u,v) without arc u→v:
+   * out-deg(u) + in-deg(v) ≥ n
+   *
+   * @param g Directed graph to test
+   * @return true if the digraph version of Ore's condition is satisfied
+   */
   bool test_digraph(GT & g)
   {
     assert(g.is_digraph());
 
     g.reset_counter_nodes();
 
-      // una primera pasada sobre arcos para contar grados de entrada
+    // First pass: count in-degrees using node counters
     for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
       NODE_COUNTER(it.get_tgt_node_ne())++;
 
@@ -115,7 +191,7 @@ class Test_Hamiltonian_Sufficiency
 	    if (g.get_num_arcs(src) + NODE_COUNTER(tgt) >= n)
 	      continue;
 
-	        // buscar si hay arco src-->tgt
+	    // Check if arc src→tgt exists
 	    bool terminate = true;
 	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); 
 		 it.next_ne())
@@ -135,14 +211,30 @@ class Test_Hamiltonian_Sufficiency
 
 public:
 
+  /**
+   * @brief Construct a Hamiltonian sufficiency tester.
+   *
+   * @param __sn Node filter (default: show all nodes)
+   * @param __sa Arc filter (default: show all arcs)
+   */
   Test_Hamiltonian_Sufficiency(SN && __sn = SN(), SA && __sa = SA()) 
     : sn(__sn), sa(__sa)
   {
     // empty 
   }
 
-      // retorna true si el grafo o digrafo satisface la prueba de
-      // suficiencia para ser hamiltoniano.
+  /**
+   * @brief Test if a graph satisfies Ore's Hamiltonian condition.
+   *
+   * Automatically detects directed vs undirected and applies the
+   * appropriate test.
+   *
+   * @param g Graph to test
+   * @return true if Ore's sufficient condition is satisfied
+   *
+   * @note Returns true only guarantees the graph IS Hamiltonian.
+   *       Returns false does NOT mean it isn't Hamiltonian.
+   */
   bool operator () (GT & g)
   {
     if (g.is_digraph())

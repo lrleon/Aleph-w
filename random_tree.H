@@ -25,11 +25,39 @@
 */
 
 /** @file random_tree.H
- *  @brief Random binary tree generation.
+ *  @brief Random tree generation using GSL random number generator.
  *
- *  Generates random binary trees for testing and benchmarking.
+ *  This file provides the RandTree class for generating uniformly random
+ *  trees with n nodes. Uses the recursive bijection between binary trees
+ *  and general trees for generation.
  *
+ *  ## Algorithm
+ *
+ *  The algorithm generates random binary trees by:
+ *  1. Choosing a random inorder position i for the root (0 to n-1)
+ *  2. Recursively building left subtree with i nodes
+ *  3. Recursively building right subtree with n-i-1 nodes
+ *  4. Converting binary tree to general tree
+ *
+ *  This produces uniformly distributed random trees.
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  #include <random_tree.H>
+ *
+ *  RandTree<int> gen(42);  // Seed = 42
+ *  Tree_Node<int>* tree = gen(100);  // Generate tree with 100 nodes
+ *
+ *  // ... use tree ...
+ *
+ *  destroyRec(tree);  // Clean up
+ *  ```
+ *
+ *  @see tpl_tree_node.H General tree node
+ *  @see tpl_binNode.H Binary tree node
  *  @see random_graph.H Random graph generation
+ *
  *  @ingroup Arboles
  *  @author Leandro Rabindranath León
  */
@@ -46,17 +74,50 @@
 
 using namespace Aleph;
 
+/**
+ * @brief Generator for uniformly random trees.
+ *
+ * Uses the GSL Mersenne Twister (MT19937) random number generator to
+ * create uniformly distributed random trees with a specified number
+ * of nodes.
+ *
+ * @tparam T Type of data stored in tree nodes (not used for generation)
+ *
+ * ## Complexity
+ *
+ * - Time: O(n) expected for n nodes
+ * - Space: O(n) for the tree structure
+ *
+ * @par Example
+ * @code
+ * // Create generator with specific seed for reproducibility
+ * RandTree<std::string> gen(12345);
+ *
+ * // Generate random tree with 50 nodes
+ * Tree_Node<std::string>* root = gen(50);
+ *
+ * // Tree structure is random but deterministic for same seed
+ * @endcode
+ *
+ * @ingroup Arboles
+ */
 template <typename T>
 class RandTree
 {
-  gsl_rng * r = nullptr;
+  gsl_rng * r = nullptr;  ///< GSL random number generator
 
+  /**
+   * @brief Recursively generate random binary tree.
+   *
+   * @param n Number of nodes in the subtree
+   * @return Root of the generated subtree, or nullptr if n=0
+   */
   BinNode<T> * random(unsigned long n)
   {
     if (n == 0)
       return nullptr;
 
-    // inorder position of the root
+    // inorder position of the root (random choice)
     unsigned long i = gsl_rng_uniform_int(r, n);
     BinNode<T> * root = new BinNode<T>();
     LLINK(root) = random(i);
@@ -66,6 +127,12 @@ class RandTree
 
 public:
 
+  /**
+   * @brief Construct generator with specified seed.
+   *
+   * @param seed Random seed for reproducibility
+   * @throw std::bad_alloc if GSL allocation fails
+   */
   RandTree(unsigned long seed)
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
@@ -74,14 +141,39 @@ public:
     gsl_rng_set(r, seed % gsl_rng_max(r));
   }
 
+  /**
+   * @brief Construct generator with time-based seed.
+   *
+   * Uses current time as seed for non-reproducible random trees.
+   */
   RandTree() : RandTree(time(nullptr)) {}
 
+  /**
+   * @brief Destructor releases GSL resources.
+   */
   ~RandTree()
   {
     if (r != nullptr)
       gsl_rng_free(r);
   }
 
+  /**
+   * @brief Generate a random tree with n nodes.
+   *
+   * @param n Number of nodes in the tree (must be > 0)
+   * @return Pointer to root of newly allocated tree
+   *
+   * @pre n > 0
+   * @note Caller is responsible for freeing the returned tree
+   *
+   * @par Example
+   * @code
+   * RandTree<int> gen(42);
+   * Tree_Node<int>* tree = gen(100);
+   * // ... use tree ...
+   * destroyRec(tree);  // Don't forget to clean up!
+   * @endcode
+   */
   Tree_Node<T> * operator () (size_t n)
   {
     assert(n != 0);
