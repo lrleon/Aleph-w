@@ -25,11 +25,29 @@
 */
 
 /** @file rbNode.H
- *  @brief Red-Black tree node definition.
+ *  @brief Red-Black tree node definition and validation utilities.
  *
- *  Defines RbNode with color (red/black) and key storage.
+ *  This file defines the RbNode structure for Red-Black trees, including
+ *  the color attribute (RED or BLACK) and functions to validate RB tree
+ *  properties.
  *
- *  @see tpl_rb_tree.H RB tree implementation
+ *  ## Red-Black Tree Properties
+ *
+ *  1. Every node is either red or black
+ *  2. The root is black
+ *  3. All leaves (NIL) are black
+ *  4. Red nodes have only black children
+ *  5. All paths from a node to leaves have same black height
+ *
+ *  ## Validation Functions
+ *
+ *  - `is_red_black()`: Tests all RB properties
+ *  - `test_black_condition()`: Verifies black-height property
+ *  - `is_red_black_bst()`: Verifies RB + BST ordering
+ *
+ *  @see tpl_rb_tree.H Bottom-up Red-Black tree
+ *  @see tpl_tdRbTree.H Top-down Red-Black tree
+ *
  *  @ingroup Arboles
  *  @author Leandro Rabindranath León
  */
@@ -39,29 +57,63 @@
 
 # include <tpl_binNode.H>
 
+/// Color type for RB nodes
 typedef unsigned char Color;
+
+/// Access the color of node p
 # define COLOR(p) ((p)->getColor())
+
+/// Red color constant (newly inserted nodes are red)
 # define RED      (0)
+
+/// Black color constant
 # define BLACK    (1)
+
+/**
+ * @brief Data portion of a Red-Black tree node.
+ *
+ * Stores the color attribute (red or black) used for balancing.
+ * Newly created nodes start as RED; the sentinel is BLACK.
+ *
+ * @ingroup Arboles
+ */
 class RbNode_Data
 {
 private:  
 
-  Color  color; // RED o BLACK
+  Color  color;  ///< Node color: RED or BLACK
 
 public:
 
+  /// Default constructor creates a red node
   RbNode_Data() : color(RED) {}
+
+  /// Sentinel constructor creates a black node
   RbNode_Data(SentinelCtor) : color(BLACK) {}
 
+  /// Get reference to node color
   Color & getColor() { return color; }
 
+  /// Reset node to red (for reinsertion)
   void reset() { color = RED; }
 
 }; 
 
+/// Declare RbNode type with 128-byte pool allocation
 DECLARE_BINNODE_SENTINEL(RbNode, 128, RbNode_Data);
 
+/**
+ * @brief Test the black-height property of an RB tree.
+ *
+ * Verifies that all paths from node p to leaves have the same
+ * number of black nodes (black-height).
+ *
+ * @tparam Node RB node type
+ * @param p Root of subtree to test
+ * @param max Reference to store/compare black heights (-1 initially)
+ * @param bh Current black height along this path (default 0)
+ * @return true if all leaf paths have equal black height
+ */
     template <class Node>
 bool test_black_condition(Node *p, int &max, int bh = 0)
 {
@@ -69,11 +121,11 @@ bool test_black_condition(Node *p, int &max, int bh = 0)
     return true;
 
   if (COLOR(p) == BLACK)
-    bh++; // se ha visto otro nodo negro
+    bh++; // count this black node
 
   if (LLINK(p) == Node::NullPtr and RLINK(p) == Node::NullPtr)
     {
-      if (max == -1) // cierto cuando se alcanza la primera hoja
+      if (max == -1) // first leaf reached
         max = bh;
       
       return bh == max;
@@ -83,6 +135,18 @@ bool test_black_condition(Node *p, int &max, int bh = 0)
          test_black_condition(RLINK(p), max, bh);
 }
 
+/**
+ * @brief Test all Red-Black tree properties for a node.
+ *
+ * Validates that:
+ * - Node color is valid (RED or BLACK)
+ * - Red nodes don't have red children
+ * - Black-height is consistent across all paths
+ *
+ * @tparam Node RB node type
+ * @param node Node to test
+ * @return true if all RB properties are satisfied
+ */
     template <class Node>
 bool is_red_black(Node * node)
 {
@@ -92,6 +156,7 @@ bool is_red_black(Node * node)
   if (not (COLOR(node) == RED or COLOR(node) == BLACK))
     return false;
 
+  // Red nodes cannot have red children
   if (COLOR(node) == RED)
     if (COLOR(LLINK(node)) == RED or COLOR(RLINK(node)) == RED)
       return false; 
@@ -101,6 +166,15 @@ bool is_red_black(Node * node)
   return test_black_condition(node, max, 0);
 }
 
+/**
+ * @brief Test RB properties for entire subtree.
+ *
+ * Recursively validates RB properties for node and all descendants.
+ *
+ * @tparam Node RB node type
+ * @param node Root of subtree to test
+ * @return true if entire subtree is a valid RB tree
+ */
     template <class Node>
 bool is_red_black_tree(Node * node)
 {
@@ -113,7 +187,17 @@ bool is_red_black_tree(Node * node)
   return true;
 }
 
-    /// Verifies that tree rooted at node is a valid red-black BST
+/**
+ * @brief Verify that tree is both a valid RB tree and valid BST.
+ *
+ * Combines RB property validation with BST ordering validation.
+ *
+ * @tparam Node RB node type
+ * @tparam Compare Comparison functor for keys
+ * @param node Root of tree to validate
+ * @param cmp Comparison function object
+ * @return true if tree is a valid RB-BST
+ */
     template <class Node, class Compare>
 bool is_red_black_bst(Node * node, Compare & cmp)
 {
@@ -123,4 +207,3 @@ bool is_red_black_bst(Node * node, Compare & cmp)
   return check_bst(node, cmp);
 }
 # endif // TPL_RBNODE_H
-
