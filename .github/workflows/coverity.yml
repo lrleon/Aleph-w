@@ -1,0 +1,96 @@
+name: Coverity Scan
+
+on:
+  # Weekly automatic scan on default branch (Sunday at midnight UTC)
+  schedule:
+    - cron: '0 0 * * 0'
+  # Manual trigger - can select any branch from GitHub Actions UI
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverity:
+    name: Coverity Static Analysis
+    runs-on: ubuntu-24.04
+    
+    env:
+      COVERITY_PROJECT: lrleon/Aleph-w
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev
+
+      - name: Download Coverity Build Tool
+        run: |
+          echo "Downloading Coverity Build Tool..."
+          curl -fsS -o cov-analysis.tar.gz \
+            --form token=${{ secrets.COVERITY_SCAN_TOKEN }} \
+            --form project=${{ env.COVERITY_PROJECT }} \
+            https://scan.coverity.com/download/cxx/linux64
+          
+          mkdir -p cov-analysis
+          tar xzf cov-analysis.tar.gz --strip-components=1 -C cov-analysis
+          echo "${{ github.workspace }}/cov-analysis/bin" >> $GITHUB_PATH
+
+      - name: Configure project
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_EXAMPLES=OFF
+
+      - name: Build with Coverity
+        run: |
+          echo "Running Coverity build analysis..."
+          cov-build --dir cov-int cmake --build build --parallel
+          
+          # Show capture summary
+          cat cov-int/build-log.txt | tail -20
+
+      - name: Package results
+        run: |
+          echo "Packaging Coverity results..."
+          tar czf aleph-w-coverity.tgz cov-int
+          ls -lh aleph-w-coverity.tgz
+
+      - name: Submit to Coverity Scan
+        run: |
+          echo "Submitting to Coverity Scan..."
+          
+          # Get version info
+          VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
+          DESCRIPTION="GitHub Actions build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
+          
+          curl -fsS \
+            --form token=${{ secrets.COVERITY_SCAN_TOKEN }} \
+            --form email=${{ secrets.COVERITY_SCAN_EMAIL }} \
+            --form file=@aleph-w-coverity.tgz \
+            --form version="$VERSION" \
+            --form description="$DESCRIPTION" \
+            "https://scan.coverity.com/builds?project=${{ env.COVERITY_PROJECT }}"
+          
+          echo ""
+          echo "✅ Build submitted successfully!"
+          echo "📊 View results at: https://scan.coverity.com/projects/lrleon-aleph-w"
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverity-build-log
+          path: |
+            cov-int/build-log.txt
+            cov-int/emit/*/emit-db.write-log
+          retention-days: 7
+
