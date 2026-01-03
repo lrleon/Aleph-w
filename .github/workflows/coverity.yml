@@ -1,6 +1,10 @@
 name: Coverity Scan
 
 on:
+  # Trigger on push to workflow file (makes it visible in Actions UI)
+  push:
+    paths:
+      - '.github/workflows/coverity.yml'
   # Weekly automatic scan on default branch (Sunday at midnight UTC)
   schedule:
     - cron: '0 0 * * 0'
