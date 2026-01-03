@@ -155,14 +155,12 @@ jobs:
             build/CMakeCache.txt
 
   sanitizers:
-    name: sanitizers (ubuntu-24.04, clang, Debug)
+    name: sanitizers (ubuntu-24.04, gcc, Debug)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      CC: clang
-      CXX: clang++
-      CXXFLAGS: -stdlib=libc++
-      # Don't set LDFLAGS globally - it breaks C compiler detection
+      CC: gcc
+      CXX: g++
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
@@ -174,11 +172,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake ninja-build pkg-config ccache \
-            clang \
+            g++ \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
-            libgtest-dev \
-            libc++-dev libc++abi-dev
+            libgtest-dev
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -188,31 +185,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sanitizers-ccache-
 
-      - name: Build and install GoogleTest for libc++
-        run: |
-          set -euo pipefail
-          
-          echo "Building GoogleTest from source for Clang + libc++"
-          GTEST_SRC=""
-          if [ -d /usr/src/googletest ]; then
-            GTEST_SRC=/usr/src/googletest
-          elif [ -d /usr/src/gtest ]; then
-            GTEST_SRC=/usr/src/gtest
-          else
-            echo "No googletest sources found"
-            exit 1
-          fi
-          
-          sudo rm -rf "$GTEST_SRC/build" 2>/dev/null || true
-          # Use clang for both C and C++ to avoid mixing compilers
-          sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-            -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
-          sudo cmake --build "$GTEST_SRC/build"
-          sudo cmake --install "$GTEST_SRC/build"
-
       - name: Configure
         run: |
           rm -rf build-asan
@@ -220,7 +192,6 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_EXE_LINKER_FLAGS="-lc++abi" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON \
             -DUSE_SANITIZERS=ON
@@ -231,9 +202,7 @@ jobs:
 
       - name: Test
         env:
-          # alloc_dealloc_mismatch=0: Disable false positive with libc++ exceptions
-          # (libc++ uses its own allocator for exception strings, ASan sees mismatch)
-          ASAN_OPTIONS: detect_leaks=1:alloc_dealloc_mismatch=0
+          ASAN_OPTIONS: detect_leaks=1
         run: |
           ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
 
