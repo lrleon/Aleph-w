@@ -322,7 +322,7 @@ long double arrow_lenght = arrow_lenght_in_mm/resolution;
 inline void draw_arc(std::ofstream& output,
                      long double src_x, long double src_y, 
                      long double tgt_x, long double tgt_y,
-                     bool is_dashed, bool with_arrow, bool thick = true)
+                     bool is_dashed, bool with_arrow, [[maybe_unused]] bool thick = true)
 {
   if (is_dashed)
     output << "\\dashline{" << dash_len << "}(";
@@ -366,7 +366,7 @@ inline void draw_arc(std::ofstream& output,
 inline void draw_arc_tikz(std::ofstream& output,
                           long double src_x, long double src_y, 
                           long double tgt_x, long double tgt_y,
-                          bool is_dashed, bool with_arrow, bool thick = true)
+                          bool is_dashed, bool with_arrow, [[maybe_unused]] bool thick = true)
 {
   if (is_dashed)
     output << "\\draw[dashed] (";
@@ -410,7 +410,7 @@ inline void draw_arc_tikz(std::ofstream& output,
 /*
   Esta rutina estima el offset x donde se debe colocar la cadena str
   en una ventana de ancho window_size */
-inline long double center_string(const std::string& str, long double window_size)
+inline long double center_string(const std::string& str, [[maybe_unused]] long double window_size)
 {
   return compute_true_len(str)*font_width();
 }
@@ -444,7 +444,7 @@ inline void
 compute_mid_point_line(const long double & sx, const long double & sy, 
                        const long double & tx, const long double & ty,
                        const long double & d, 
-                       const bool &        left, 
+                       [[maybe_unused]] const bool & left, 
                        long double & mx, long double & my)
 {
   const long double lx = fabsl(tx - sx);

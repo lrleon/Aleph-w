@@ -305,7 +305,7 @@ Token_Type get_token(ifstream& input_stream)
       skip_white_spaces(input_stream);
       c = read_char_from_stream(input_stream); 
     }
-  catch (out_of_range) 
+  catch (const std::out_of_range&) 
     {
       return END_FILE; 
     }

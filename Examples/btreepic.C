@@ -599,7 +599,7 @@ Token_Type get_token(ifstream& input_stream)
   skip_white_spaces(input_stream);
 
   try { current_char = read_char_from_stream(input_stream); }
-  catch (out_of_range) { return END_FILE; }
+  catch (const std::out_of_range&) { return END_FILE; }
 
   if (current_char == EOF)
     return END_FILE;
@@ -1461,7 +1461,7 @@ EepicNode<long> * build_tree()
 	  if (not with_string_key)
 	    fill_type = "black";
 
-	    set_picture_size(root);
+	  set_picture_size(root);
 
 	  return root; /* con nodos externos solo se dibuja forma */
 	}

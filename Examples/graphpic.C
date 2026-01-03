@@ -273,7 +273,7 @@ Token_Type get_token(ifstream & input_stream)
       skip_white_spaces(input_stream);
       c = read_char_from_stream(input_stream); 
     }
-  catch (out_of_range) 
+  catch (const std::out_of_range&) 
     {
       return END_FILE; 
     }
@@ -433,7 +433,7 @@ Graph * build_poly_graph(ifstream & input_stream, Graph * g)
 	}
     }
 
-  catch (domain_error)
+  catch (const std::domain_error&)
     {
       AH_ERROR("Expecting for side-size or an arc");
     }
@@ -477,7 +477,7 @@ Graph * build_net_graph(ifstream & input_stream, Graph * g)
 	}
     }
   
-  catch (domain_error)
+  catch (const std::domain_error&)
     {
       AH_ERROR("Expecting for num-of-levels or a distance");
     }
@@ -532,7 +532,7 @@ Graph * build_cross_net_graph(ifstream & input_stream, Graph * g)
 	}
     }
   
-  catch (domain_error)
+  catch (const std::domain_error&)
     {
       AH_ERROR("Expecting for num-of-levels or a distance");
     }
@@ -591,7 +591,7 @@ Graph * parse_graph_definition(ifstream & input_stream)
   if (token == NET_GRAPH or token == NET_DIGRAPH)
     return build_net_graph(input_stream, g);
 
-    return build_cross_net_graph(input_stream, g);
+  return build_cross_net_graph(input_stream, g);
 }
 
 
