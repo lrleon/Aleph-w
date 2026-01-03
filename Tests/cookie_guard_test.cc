@@ -270,7 +270,14 @@ TEST_F(CookieGuardTest, SaverWithCleanup)
 
   {
     Cookie_Saver<Graph> saver(g,
-      [](Node*) { cleanup_count++; },
+      [](Node* node) { 
+        cleanup_count++;
+        // Free the allocated memory if it's a valid heap pointer
+        // (not the sentinel value 0x1 or nullptr)
+        void* cookie = NODE_COOKIE(node);
+        if (cookie != nullptr && cookie != reinterpret_cast<void*>(0x1))
+          delete static_cast<int*>(cookie);
+      },
       nullptr);
 
     // Allocate temporary data

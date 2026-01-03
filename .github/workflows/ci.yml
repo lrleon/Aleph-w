@@ -39,13 +39,17 @@ jobs:
             g++ clang \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
-            libgtest-dev
+            libgtest-dev \
+            libc++-dev libc++abi-dev
 
       - name: Configure compiler
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
             echo "CXX=clang++" >> "$GITHUB_ENV"
+            # Use libc++ with Clang for better C++20 std::ranges support
+            echo "CXXFLAGS=-stdlib=libc++" >> "$GITHUB_ENV"
+            echo "LDFLAGS=-stdlib=libc++ -lc++abi" >> "$GITHUB_ENV"
           else
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
@@ -121,6 +125,8 @@ jobs:
     env:
       CC: clang
       CXX: clang++
+      CXXFLAGS: -stdlib=libc++
+      LDFLAGS: -stdlib=libc++ -lc++abi
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
@@ -135,7 +141,8 @@ jobs:
             clang \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
-            libgtest-dev
+            libgtest-dev \
+            libc++-dev libc++abi-dev
 
       - name: Cache ccache
         uses: actions/cache@v4

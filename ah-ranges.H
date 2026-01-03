@@ -485,33 +485,55 @@ constexpr void ranges_sort(R&& r, Comp&& comp = Comp{})
 // ============================================================================
 
 /**
+ * @brief Base tag type for all Aleph range adaptors.
+ *
+ * All Aleph pipe adaptors inherit from this to enable a single generic
+ * operator| that only matches Aleph adaptors (avoiding conflicts with
+ * std::views adaptors).
+ */
+struct aleph_adaptor_tag {};
+
+/**
+ * @brief Concept to identify Aleph range adaptors.
+ */
+template <typename T>
+concept AlephAdaptor = std::derived_from<std::remove_cvref_t<T>, aleph_adaptor_tag>;
+
+/**
+ * @brief Generic pipe operator for all Aleph range adaptors.
+ *
+ * This single operator handles all adaptor types that inherit from
+ * aleph_adaptor_tag. This avoids conflicts with std::views adaptors.
+ *
+ * @tparam R The range type (must satisfy std::ranges::range)
+ * @tparam Adaptor The adaptor type (must inherit from aleph_adaptor_tag)
+ */
+template <typename R, AlephAdaptor Adaptor>
+  requires std::ranges::range<std::remove_cvref_t<R>>
+[[nodiscard]] auto operator|(R&& r, const Adaptor& adaptor)
+{
+  return adaptor(std::forward<R>(r));
+}
+
+/**
  * @brief Tag type for to_aleph pipe adaptor (containers with append).
  *
  * This adaptor converts a range to an Aleph container by appending elements.
- * The operator| is defined as a free function for better compatibility with
- * different compilers (especially Clang).
  */
 template <template <typename> class Container>
-struct to_aleph_adaptor
+struct to_aleph_adaptor : aleph_adaptor_tag
 {
-  template <RangeLike R>
+  template <typename R>
+    requires std::ranges::range<std::remove_cvref_t<R>>
   [[nodiscard]] auto operator()(R&& r) const
   {
-    using T = std::ranges::range_value_t<R>;
+    using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
     for (auto&& elem : r)
       result.append(std::forward<decltype(elem)>(elem));
     return result;
   }
 };
-
-/// Free operator| for to_aleph_adaptor - better ADL and Clang compatibility
-template <typename R, template <typename> class Container>
-  requires RangeLike<R>
-[[nodiscard]] auto operator|(R&& r, to_aleph_adaptor<Container> adaptor)
-{
-  return adaptor(std::forward<R>(r));
-}
 
 /**
  * @brief Pipe adaptor to convert range to DynList.
@@ -539,26 +561,19 @@ inline constexpr to_aleph_adaptor<DynDlist> to_dyndlist_v{};
  * @brief Tag type for stack containers (uses push instead of append).
  */
 template <template <typename> class Container>
-struct to_aleph_push_adaptor
+struct to_aleph_push_adaptor : aleph_adaptor_tag
 {
-  template <RangeLike R>
+  template <typename R>
+    requires std::ranges::range<std::remove_cvref_t<R>>
   [[nodiscard]] auto operator()(R&& r) const
   {
-    using T = std::ranges::range_value_t<R>;
+    using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
     for (auto&& elem : r)
       result.push(std::forward<decltype(elem)>(elem));
     return result;
   }
 };
-
-/// Free operator| for to_aleph_push_adaptor
-template <typename R, template <typename> class Container>
-  requires RangeLike<R>
-[[nodiscard]] auto operator|(R&& r, to_aleph_push_adaptor<Container> adaptor)
-{
-  return adaptor(std::forward<R>(r));
-}
 
 /**
  * @brief Pipe adaptor to convert range to DynListStack.
@@ -575,26 +590,19 @@ inline constexpr to_aleph_push_adaptor<ArrayStack> to_arraystack_v{};
  * @brief Tag type for queue containers (uses put instead of append).
  */
 template <template <typename> class Container>
-struct to_aleph_put_adaptor
+struct to_aleph_put_adaptor : aleph_adaptor_tag
 {
-  template <RangeLike R>
+  template <typename R>
+    requires std::ranges::range<std::remove_cvref_t<R>>
   [[nodiscard]] auto operator()(R&& r) const
   {
-    using T = std::ranges::range_value_t<R>;
+    using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T> result;
     for (auto&& elem : r)
       result.put(std::forward<decltype(elem)>(elem));
     return result;
   }
 };
-
-/// Free operator| for to_aleph_put_adaptor
-template <typename R, template <typename> class Container>
-  requires RangeLike<R>
-[[nodiscard]] auto operator|(R&& r, to_aleph_put_adaptor<Container> adaptor)
-{
-  return adaptor(std::forward<R>(r));
-}
 
 /**
  * @brief Pipe adaptor to convert range to DynListQueue.
@@ -615,26 +623,19 @@ inline constexpr to_aleph_adaptor<Random_Set> to_randomset_v{};
  * @brief Tag type for to_aleph pipe adaptor using insert (for sets/trees).
  */
 template <template <typename, typename...> class Container, typename... ExtraArgs>
-struct to_aleph_insert_adaptor
+struct to_aleph_insert_adaptor : aleph_adaptor_tag
 {
-  template <RangeLike R>
+  template <typename R>
+    requires std::ranges::range<std::remove_cvref_t<R>>
   [[nodiscard]] auto operator()(R&& r) const
   {
-    using T = std::ranges::range_value_t<R>;
+    using T = std::ranges::range_value_t<std::remove_cvref_t<R>>;
     Container<T, ExtraArgs...> result;
     for (auto&& elem : r)
       result.insert(std::forward<decltype(elem)>(elem));
     return result;
   }
 };
-
-/// Free operator| for to_aleph_insert_adaptor
-template <typename R, template <typename, typename...> class Container, typename... ExtraArgs>
-  requires RangeLike<R>
-[[nodiscard]] auto operator|(R&& r, to_aleph_insert_adaptor<Container, ExtraArgs...> adaptor)
-{
-  return adaptor(std::forward<R>(r));
-}
 
 /**
  * @brief Generic function to collect a range into any Aleph container.
@@ -686,22 +687,15 @@ template <typename Container, RangeLike R>
  * @endcode
  */
 template <typename Container>
-struct to_adaptor
+struct to_adaptor : aleph_adaptor_tag
 {
-  template <RangeLike R>
+  template <typename R>
+    requires std::ranges::range<std::remove_cvref_t<R>>
   [[nodiscard]] Container operator()(R&& r) const
   {
     return collect<Container>(std::forward<R>(r));
   }
 };
-
-/// Free operator| for to_adaptor
-template <typename R, typename Container>
-  requires RangeLike<R>
-[[nodiscard]] Container operator|(R&& r, to_adaptor<Container> adaptor)
-{
-  return adaptor(std::forward<R>(r));
-}
 
 /**
  * @brief Create a pipe adaptor for any Aleph container.

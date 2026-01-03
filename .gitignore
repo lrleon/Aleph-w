@@ -308,3 +308,4 @@ build*/
 cmake-build-*/
 Tests/build-*/
 Testing/
+CMakePresets.json
