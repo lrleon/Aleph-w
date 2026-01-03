@@ -231,7 +231,9 @@ jobs:
 
       - name: Test
         env:
-          ASAN_OPTIONS: detect_leaks=1
+          # alloc_dealloc_mismatch=0: Disable false positive with libc++ exceptions
+          # (libc++ uses its own allocator for exception strings, ASan sees mismatch)
+          ASAN_OPTIONS: detect_leaks=1:alloc_dealloc_mismatch=0
         run: |
           ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
 
