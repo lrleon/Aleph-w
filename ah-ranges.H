@@ -33,9 +33,47 @@
  * - **Internal utilities** using std::ranges for improved performance
  * - **Lazy range views** compatible with Aleph containers
  *
- * ## Requirements
- * - C++20 or later with ranges support
- * - GCC 10+, Clang 13+, or MSVC 19.29+
+ * ============================================================================
+ * COMPILER AND STANDARD LIBRARY REQUIREMENTS
+ * ============================================================================
+ *
+ * ## Minimum Requirements
+ * - C++20 or later (-std=c++20)
+ * - GCC 12+ with libstdc++, OR
+ * - Clang 14+ with libc++ (-stdlib=libc++), OR
+ * - MSVC 19.29+
+ *
+ * ## IMPORTANT: Clang + libstdc++ Incompatibility
+ *
+ * Clang 14-15 with libstdc++ (GCC's standard library) has BROKEN std::ranges
+ * support. The combination fails to satisfy iterator concepts correctly,
+ * causing compilation errors like:
+ *
+ *   - "no matching function for call to '__begin'"
+ *   - "constraints not satisfied for alias template 'sentinel_t'"
+ *   - "invalid operands to binary expression"
+ *
+ * ### Solutions (choose one):
+ *
+ * 1. **Use libc++ with Clang (RECOMMENDED)**:
+ *    @code
+ *    clang++ -std=c++20 -stdlib=libc++ -lc++abi myfile.cpp
+ *    @endcode
+ *
+ * 2. **Use GCC instead of Clang**:
+ *    @code
+ *    g++ -std=c++20 myfile.cpp
+ *    @endcode
+ *
+ * 3. **Upgrade to Clang 16+** (has better libstdc++ compatibility)
+ *
+ * ### Why does this happen?
+ *
+ * libc++ is Clang's native C++ standard library with full std::ranges support.
+ * libstdc++ is GCC's library; older Clang versions have subtle incompatibilities
+ * with its iterator concept implementations.
+ *
+ * ============================================================================
  *
  * ## Usage Example
  * @code
