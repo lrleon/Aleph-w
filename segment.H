@@ -25,7 +25,35 @@
 */
 
 /** @file segment.H
- *  @brief 2D line segment.
+ *  @brief 2D line segment representation and operations.
+ *
+ *  This file provides the Segment class for representing and manipulating
+ *  line segments in 2D space. A segment is defined by two endpoint Point
+ *  objects.
+ *
+ *  ## Features
+ *
+ *  - Segment-segment intersection testing
+ *  - Horizontal line intersection computation
+ *  - Endpoint access and comparison
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Point p1(0, 0), p2(10, 10);
+ *  Point p3(0, 10), p4(10, 0);
+ *
+ *  Segment s1(&p1, &p2);  // Diagonal from (0,0) to (10,10)
+ *  Segment s2(&p3, &p4);  // Diagonal from (0,10) to (10,0)
+ *
+ *  if (s1.intersect(s2))
+ *    std::cout << "Segments cross at (5,5)\n";
+ *  ```
+ *
+ *  @see point.H Point class definition
+ *  @see line.H Infinite line representation
+ *  @see polygon.H Polygon operations
+ *
  *  @ingroup Geometria
  *  @author Leandro Rabindranath León
  */
@@ -34,56 +62,123 @@
 # define SEGMENT_H
 
 # include "point.H"
-//# include "points_utils.H"
 
+/**
+ * @brief 2D line segment defined by two endpoints.
+ *
+ * Represents a finite line segment in 2D Cartesian space. The segment
+ * is defined by pointers to two Point objects (the endpoints).
+ *
+ * @note This class stores pointers to Points, not copies. The Points
+ *       must remain valid for the lifetime of the Segment.
+ *
+ * @ingroup Geometria
+ */
 class Segment
 {
 
-  const Point * a;
-  const Point * b;
+  const Point * a;  ///< First endpoint of the segment
+  const Point * b;  ///< Second endpoint of the segment
 
 public:
 
+  /**
+   * @brief Default constructor creates an uninitialized segment.
+   *
+   * Both endpoints are set to nullptr. Must be assigned before use.
+   */
   Segment() : a(nullptr), b(nullptr)
   { 
     /* empty */  
   }
   
+  /**
+   * @brief Construct segment from two point pointers.
+   *
+   * @param __a Pointer to first endpoint
+   * @param __b Pointer to second endpoint
+   */
   Segment(const Point * __a, const Point * __b) : a(__a), b(__b) 
   { 
     /* empty */ 
   }
 
+  /**
+   * @brief Construct segment from two point references.
+   *
+   * @param __a Reference to first endpoint (address taken)
+   * @param __b Reference to second endpoint (address taken)
+   *
+   * @warning Points must outlive the Segment object.
+   */
   Segment(const Point & __a, const Point & __b) : a(&__a), b(&__b) 
   { 
     /* empty */ 
   }
   
+  /// Destructor (no-op, doesn't own the Points)
   ~Segment()
   {
     /* empty */
   }
   
+  /**
+   * @brief Test equality of two segments.
+   *
+   * Two segments are equal if they have the same endpoints
+   * (regardless of order: {a,b} == {b,a}).
+   *
+   * @param segment Segment to compare with
+   * @return true if segments have the same endpoints
+   */
   const bool operator == (const Segment & segment) const 
   {
     return ((*a == *segment.a and *b == *segment.b) or
 	    (*a == *segment.b and *b == *segment.a));
   }
   
-  /* Verifica si el segmento intersecta otro segmento  */
+  /**
+   * @brief Test if this segment intersects another segment.
+   *
+   * Uses the cross-product method to determine if the segments
+   * properly intersect (endpoints straddling each other's line).
+   *
+   * @param segment The other segment to test against
+   * @return true if the segments intersect
+   *
+   * @see intersectp() in point.H for the underlying algorithm
+   */
   const bool intersect(const Segment & segment) const
   {
     return intersectp(*a, *b, *segment.a, *segment.b);
   }
 
-  const Point * get_a() { return a ;} //Retorna el punto 'a' del segmento
+  /**
+   * @brief Get the first endpoint.
+   * @return Pointer to point a
+   */
+  const Point * get_a() { return a ;}
 
-  const Point * get_b() { return b; } //Retorna el punto 'b' del segmento
+  /**
+   * @brief Get the second endpoint.
+   * @return Pointer to point b
+   */
+  const Point * get_b() { return b; }
 
 
-  /* Recibe la coordenada 'y' de una linea horizontal y devuelve */
-  /*     el punto de interseccion con el segmento                */
-  Point  horiz_line_inter(const Geom_Number & __y)
+  /**
+   * @brief Compute intersection with a horizontal line.
+   *
+   * Given a horizontal line at y-coordinate __y, computes the
+   * point where this segment intersects that line.
+   *
+   * @param __y The y-coordinate of the horizontal line
+   * @return The intersection point
+   *
+   * @pre The segment must not be horizontal (would cause division by zero)
+   * @pre The horizontal line must actually intersect the segment
+   */
+  Point horiz_line_inter(const Geom_Number & __y)
   {
     
     Geom_Number intersection_x;
@@ -98,7 +193,11 @@ public:
     return intersection_point;
   }
 
-  /* Retorna el punto mas alto entre a y b  */  
+  /**
+   * @brief Get the endpoint with the larger y-coordinate.
+   *
+   * @return Pointer to the higher endpoint
+   */
   const Point * highest_point()
   {
 
@@ -108,7 +207,11 @@ public:
       return b;
   }
 
-  /* Retorna el punto mas bajo entre a y b  */  
+  /**
+   * @brief Get the endpoint with the smaller y-coordinate.
+   *
+   * @return Pointer to the lower endpoint
+   */
   const Point * lowest_point()
   {
     if (a->get_y() < b->get_y())
