@@ -25,13 +25,44 @@
 */
 
 /** @file ahIterator.H
- *  @brief Iterator traits and utilities.
+ *  @brief Iterator traits and STL-compatible iterator wrappers.
  *
- *  This file provides iterator trait definitions and utilities for working
- *  with Aleph-w iterators, enabling generic algorithm implementations
- *  compatible with both STL and Aleph-w containers.
+ *  This file provides iterator infrastructure for Aleph-w containers,
+ *  enabling compatibility with STL algorithms and C++20 ranges.
+ *
+ *  ## Features
+ *
+ *  - `iterator_traits<Itor>`: Type traits for iterators
+ *  - `__iterator<Set>`: Mutable STL-compatible iterator wrapper
+ *  - `__const_iterator<Set>`: Const STL-compatible iterator wrapper
+ *  - `STL_ALEPH_ITERATOR`: Macro to add begin/end to containers
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  // Container uses macro to get STL interface
+ *  class MyContainer {
+ *    using Iterator = ...;
+ *    STL_ALEPH_ITERATOR(MyContainer);
+ *  };
+ *
+ *  // Now works with range-for and STL algorithms
+ *  MyContainer c;
+ *  for (auto& item : c) { ... }
+ *  std::find(c.begin(), c.end(), value);
+ *  ```
+ *
+ *  ## C++20 Ranges Compatibility
+ *
+ *  The iterators satisfy `std::input_iterator` requirements:
+ *  - `operator*` is const (required for `std::indirectly_readable`)
+ *  - Proper `==` and `!=` operators
+ *  - Prefix and postfix `++`
+ *
+ *  @see ah-ranges.H C++20 ranges support
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef AHITERATOR_H
@@ -41,13 +72,22 @@
 
 namespace Aleph
 {
+
+/**
+ * @brief Iterator traits for Aleph-w iterators.
+ *
+ * Provides standard type aliases for iterator properties,
+ * similar to std::iterator_traits.
+ *
+ * @tparam Itor Iterator type with nested type definitions
+ */
   template <class Itor>
   struct iterator_traits
   {
-    typedef typename Itor::value_type value_type;
-    typedef typename Itor::difference_type difference_type;
-    typedef typename Itor::pointer pointer;
-    typedef typename Itor::reference reference;
+    typedef typename Itor::value_type value_type;         ///< Element type
+    typedef typename Itor::difference_type difference_type; ///< Distance type
+    typedef typename Itor::pointer pointer;               ///< Pointer to element
+    typedef typename Itor::reference reference;           ///< Reference to element
   };
 
 # define STL_ITOR_SPEC(It_Name)						\
@@ -88,7 +128,16 @@ namespace Aleph
   }
 
 
-  // Define an general iterator whose interface is minimally std-c++ compliant
+/**
+ * @brief STL-compatible mutable iterator wrapper.
+ *
+ * Wraps an Aleph-w Iterator to provide STL-compatible interface
+ * including `operator*`, `operator->`, `operator++`, and comparison.
+ *
+ * @tparam Set_Type Container type with nested Iterator class
+ *
+ * @note `operator*` is const to satisfy `std::indirectly_readable` concept.
+ */
   template <class Set_Type>
   struct __iterator : public Set_Type::Iterator
   {
@@ -117,6 +166,13 @@ namespace Aleph
     }
   };
 
+/**
+ * @brief STL-compatible const iterator wrapper.
+ *
+ * Like `__iterator` but provides only const access to elements.
+ *
+ * @tparam Set_Type Container type with nested Iterator class
+ */
   template <class Set_Type>
   struct __const_iterator : public Set_Type::Iterator
   {

@@ -1,12 +1,36 @@
 /** @file worker_pool.H
- *  @brief General-purpose worker thread pool.
+ *  @brief General-purpose worker thread pool for parallel task execution.
  *
- *  Pool of worker threads for parallel task execution.
+ *  This file provides WorkersSet, a configurable thread pool that executes
+ *  user-provided worker functions in parallel.
  *
  *  ## Features
- *  - Configurable thread count
- *  - Task function template
- *  - Termination signaling
+ *
+ *  - Configurable number of worker threads
+ *  - Generic worker function via template
+ *  - Job completion signaling
+ *  - Graceful shutdown
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  // Worker function: returns true when job is done
+ *  bool my_worker(void* params) {
+ *    auto* data = static_cast<MyData*>(params);
+ *    // Process data...
+ *    return data->is_last;  // true stops all workers
+ *  }
+ *
+ *  WorkersSet<decltype(&my_worker)> pool(&my_worker, 100, 4);
+ *
+ *  // Schedule work items
+ *  for (auto& item : items) {
+ *    auto* data = new MyData(item);
+ *    pool.schedule_call(data);
+ *  }
+ *
+ *  pool.wait_until_all_workers_finished_or_job_is_done();
+ *  ```
  *
  *  @see q-consumer-threads.H Queue-based variant
  *  @ingroup Utilidades
@@ -27,16 +51,24 @@
 
 using namespace Aleph;
 
-// this class implement a pool of worket threads. The client set how
-// many threads wants to use. This number. among the actual number of
-// cpus, limits the parallelism of the application.
-//
-// The client set a function parameterized function to be executed by
-// the workers. This function is part of the class template. The
-// function could have an arbitrary number of parameters, but must
-// return a bool. If the function returns true, the workers will stop,
-// otherwise they will continue to execute the function.
-
+/**
+ * @brief Thread pool for parallel worker function execution.
+ *
+ * Manages a pool of worker threads that execute a user-provided function.
+ * Work items are scheduled via a queue and distributed to available workers.
+ *
+ * @tparam WorkerFct Function pointer type: `bool (*)(void*)`
+ *
+ * ## Worker Function Contract
+ *
+ * The worker function receives a `void*` to parameters and returns `bool`:
+ * - Return `false`: Continue processing more items
+ * - Return `true`: Signal "job done", stop all workers
+ *
+ * @note The pool takes ownership of scheduled `void*` pointers and frees them.
+ *
+ * @ingroup Utilidades
+ */
 template <class WorkerFct>
 class WorkersSet
 {
@@ -106,7 +138,14 @@ private:
   }
   
 public:
-  
+
+  /**
+   * @brief Construct worker pool with specified thread count.
+   *
+   * @param worker_fct Function to execute for each work item
+   * @param qsize Maximum number of queued work items
+   * @param n Number of worker threads (default 16)
+   */
   WorkersSet(WorkerFct worker_fct,
              const size_t qsize, const size_t n = 16)
     : worker_fct(worker_fct), num_threads(n), q(qsize)
@@ -115,6 +154,11 @@ public:
       threads.append(std::thread(&WorkersSet::worker_handler, this));
   }
 
+  /**
+   * @brief Signal all workers to shut down.
+   *
+   * Workers will complete their current task and exit.
+   */
   void shutdown()
   {
     std::unique_lock<std::mutex> lock(m);
@@ -122,23 +166,34 @@ public:
     cond.notify_all();
   }
 
+  /// Destructor shuts down and joins all worker threads
   ~WorkersSet()
   {
     shutdown();
     threads.mutable_for_each([] (std::thread & th) { th.join(); });
   }
 
+  /**
+   * @brief Set expected number of work items.
+   *
+   * @param n Number of work items to expect
+   */
   void prepare_num_workers(size_t n)
   {
     std::unique_lock<std::mutex> lock(m);
     num_workers = n;
   }
 
-  // schedule a call to a worker with parameters contained in
-  // pars_ptr. After to have called the workers, the run-time will
-  // execute a delete on pars_ptr. The client is responsible of
-  // allocating pars_ptr as well as to guarantee its ocnsistency
-  // respect the expected values
+  /**
+   * @brief Schedule a work item for execution.
+   *
+   * The work item is added to the queue and will be picked up
+   * by an available worker thread.
+   *
+   * @param pars_ptr Pointer to parameters (freed after worker returns)
+   *
+   * @note Caller allocates pars_ptr; pool takes ownership and frees it.
+   */
   void schedule_call(void * pars_ptr)
   {
     std::unique_lock<std::mutex> lock(m);
@@ -146,12 +201,24 @@ public:
     cond.notify_one();
   }
 
+  /**
+   * @brief Check if a worker has signaled job completion.
+   *
+   * @return true if worker returned true (job done)
+   */
   bool is_jobs_done() const
   {
     std::unique_lock<std::mutex> lock(m);
     return job_done;
   }
 
+  /**
+   * @brief Block until all work items processed or job done signaled.
+   *
+   * Returns when either:
+   * - All scheduled work items have been processed, or
+   * - A worker function returned true (job done)
+   */
   void wait_until_all_workers_finished_or_job_is_done()
   {
     std::unique_lock<std::mutex> lock(job_done_mutex);
