@@ -27,9 +27,30 @@
 /** @file array_utils.H
  *  @brief Utility functions for array manipulation.
  *
- *  Provides helper functions for resizing, copying, and
- *  manipulating dynamic arrays including resize and shrink
- *  operations with exception safety.
+ *  This file provides efficient algorithms for manipulating contiguous
+ *  arrays including gap operations and rotations.
+ *
+ *  ## Functions
+ *
+ *  | Function | Description | Complexity |
+ *  |----------|-------------|------------|
+ *  | open_gap | Insert space at position | O(n) |
+ *  | close_gap | Remove elements at position | O(n) |
+ *  | reverse | Reverse array in-place | O(n) |
+ *  | rotate_left | Rotate elements left | O(n) |
+ *  | rotate_right | Rotate elements right | O(n) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  int arr[] = {1, 2, 3, 4, 5};
+ *
+ *  // Rotate left by 2: {3, 4, 5, 1, 2}
+ *  Aleph::rotate_left(arr, 5, 2);
+ *
+ *  // Reverse: {2, 1, 5, 4, 3}
+ *  Aleph::reverse(arr, 5);
+ *  ```
  *
  *  @ingroup Utilidades
  *  @author Leandro Rabindranath León
@@ -49,6 +70,22 @@
 namespace Aleph
 {
 
+/**
+ * @brief Open a gap in an array by shifting elements right.
+ *
+ * Moves elements from [pos, n-num_entries) to [pos+num_entries, n),
+ * creating space for num_entries new elements at position pos.
+ *
+ * @tparam Tarray Array-like type with operator[]
+ * @param ptr Array to modify
+ * @param n Current number of elements
+ * @param pos Position where to open gap (default 0)
+ * @param num_entries Number of positions to open (default 1)
+ *
+ * @throw std::out_of_range if pos >= n or num_entries > available space
+ *
+ * @note Uses move semantics for efficiency
+ */
 template <class Tarray> inline
 void open_gap(Tarray & ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
 {
@@ -62,6 +99,22 @@ void open_gap(Tarray & ptr, size_t n, size_t pos = 0, size_t num_entries = 1)
     ptr[i] = std::move(ptr[k]);
 }
 
+/**
+ * @brief Close a gap in an array by shifting elements left.
+ *
+ * Removes num_entries elements starting at pos by shifting
+ * subsequent elements left.
+ *
+ * @tparam T Element type
+ * @param ptr Pointer to array
+ * @param n Number of elements
+ * @param pos Position of gap to close
+ * @param num_entries Number of positions to close (default 1)
+ *
+ * @throw std::out_of_range if pos >= n or num_entries > remaining elements
+ *
+ * @note Uses move semantics for efficiency
+ */
 template <typename T> inline
 void close_gap(T * ptr, size_t n, size_t pos, size_t num_entries = 1)
 {
@@ -77,6 +130,21 @@ void close_gap(T * ptr, size_t n, size_t pos, size_t num_entries = 1)
     ptr[i] = std::move(ptr[i + num_entries]);
 }
 
+/**
+ * @brief Reverse an array in-place.
+ *
+ * Swaps elements symmetrically around the center.
+ *
+ * @tparam T Element type
+ * @param ptr Pointer to array
+ * @param n Number of elements
+ *
+ * @par Example
+ * @code
+ * int arr[] = {1, 2, 3, 4, 5};
+ * reverse(arr, 5);  // arr = {5, 4, 3, 2, 1}
+ * @endcode
+ */
   template <typename T> inline
 void reverse(T * ptr, const size_t n)
 {
@@ -84,6 +152,22 @@ void reverse(T * ptr, const size_t n)
     std::swap(ptr[i], ptr[n - i - 1]);
 }
 
+/**
+ * @brief Rotate array elements left by m positions.
+ *
+ * Uses the three-reversal algorithm for O(n) time and O(1) space.
+ *
+ * @tparam T Element type
+ * @param ptr Pointer to array
+ * @param n Number of elements
+ * @param m Number of positions to rotate (wrapped if > n)
+ *
+ * @par Example
+ * @code
+ * int arr[] = {1, 2, 3, 4, 5};
+ * rotate_left(arr, 5, 2);  // arr = {3, 4, 5, 1, 2}
+ * @endcode
+ */
   template <typename T> inline
 void rotate_left(T * ptr, const size_t n, size_t m)
 {
@@ -95,6 +179,22 @@ void rotate_left(T * ptr, const size_t n, size_t m)
   reverse(ptr, n);
 }
 
+/**
+ * @brief Rotate array elements right by m positions.
+ *
+ * Uses the three-reversal algorithm for O(n) time and O(1) space.
+ *
+ * @tparam T Element type
+ * @param ptr Pointer to array
+ * @param n Number of elements
+ * @param m Number of positions to rotate (wrapped if > n)
+ *
+ * @par Example
+ * @code
+ * int arr[] = {1, 2, 3, 4, 5};
+ * rotate_right(arr, 5, 2);  // arr = {4, 5, 1, 2, 3}
+ * @endcode
+ */
     template <typename T> inline
 void rotate_right(T * ptr, const size_t n, size_t m)
 {
