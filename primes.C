@@ -1,7 +1,6 @@
 # include <exception>
 # include <string>
 # include <algorithm>
-# include <span>
 
 # include <ah-errors.H>
 # include <primes.H>
@@ -370,9 +369,8 @@ namespace Primes
       }
 
     // For n >= primeList[0], we use the precomputed list.
-    std::span view{primeList};
-    auto it = std::ranges::lower_bound(view, n);
-    if (it != view.end())
+    auto it = std::lower_bound(std::begin(primeList), std::end(primeList), n);
+    if (it != std::end(primeList))
       return *it;
 
     return Primes::next_prime_number_greater_than(n);
