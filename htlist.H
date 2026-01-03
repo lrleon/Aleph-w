@@ -47,6 +47,7 @@
 # include <ah-args-ctor.H>
 # include <ah-iterator.H>
 # include <ah-errors.H>
+# include <ah-dry.H>
 
 # define NEXT(p) (p->get_next())
 
@@ -1323,8 +1324,6 @@ public:
       append(remove_first());
   }
 };
-
-# include <ah-dry.H>
 
     /** @brief Dynamic singly linked list with functional programming support.
 

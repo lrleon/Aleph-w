@@ -44,10 +44,9 @@
 # include <ahFunctional.H>
 # include <ahIterator.H>
 # include <ah-iterator.H>
+# include <ah-dry.H>
 
 namespace Aleph {
-
-# include <ah-dry.H>
 
 /** @brief Dynamic ordered set implemented with a Skip List.
  *

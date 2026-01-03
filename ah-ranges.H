@@ -107,14 +107,26 @@
 // Check for C++20 ranges support
 // We need both the header AND the actual implementation.
 // libc++ in Clang 14 has <ranges> header but incomplete implementation.
-// __cpp_lib_ranges >= 202110L ensures full C++20 ranges support.
+//
+// Detection strategy:
+// - GCC 11+: __cpp_lib_ranges >= 202106L (basic ranges support)
+// - GCC 12+: __cpp_lib_ranges >= 202110L (complete ranges support)
+// - Clang with libc++: Often has <ranges> but incomplete std::views
+//
+// We accept __cpp_lib_ranges >= 202106L for GCC, but exclude Clang + libc++
+// which has the header but incomplete views implementation.
 #if __cplusplus >= 202002L && __has_include(<ranges>)
 #  include <ranges>
 #  include <algorithm>
 #  include <iterator>
 #  include <concepts>
-#  if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202110L
-#    define ALEPH_HAS_RANGES 1
+#  if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202106L
+     // Exclude Clang with libc++ (incomplete std::views implementation)
+#    if defined(_LIBCPP_VERSION) && _LIBCPP_VERSION < 160000
+#      define ALEPH_HAS_RANGES 0
+#    else
+#      define ALEPH_HAS_RANGES 1
+#    endif
 #  else
 #    define ALEPH_HAS_RANGES 0
 #  endif
