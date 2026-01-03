@@ -23,6 +23,14 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/** @file test_multigraph.H
+ *  @brief Test file for multigraph operations.
+ *
+ *  @note This is a test file, not a library header.
+ *  @ingroup Tests
+ */
+
 # include <tpl_list_graph.H>
 
 
