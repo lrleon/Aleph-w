@@ -25,12 +25,16 @@
 */
 
 /** @file Queue.H
- *  @brief STL-compatible queue adapter.
+ *  @brief STL-compatible queue adapter (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::queue.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::queue` directly or `Aleph::DynListQueue` for Aleph-native features.
  *
  *  Aleph implementation of std::queue using DynListQueue for FIFO
  *  operations with STL-compatible interface.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

@@ -25,12 +25,16 @@
 */
 
 /** @file Map.H
- *  @brief STL-compatible map container.
+ *  @brief STL-compatible map container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::map.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::map` directly or `Aleph::DynMapTree` for Aleph-native features.
  *
  *  Aleph implementation of std::map using balanced BST for O(log n)
  *  key-value operations with STL-compatible interface.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

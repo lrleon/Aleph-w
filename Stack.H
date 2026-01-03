@@ -25,12 +25,16 @@
 */
 
 /** @file Stack.H
- *  @brief STL-compatible stack adapter.
+ *  @brief STL-compatible stack adapter (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::stack.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::stack` directly or `Aleph::DynListStack` for Aleph-native features.
  *
  *  Aleph implementation of std::stack using DynListStack for LIFO
  *  operations with STL-compatible interface.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

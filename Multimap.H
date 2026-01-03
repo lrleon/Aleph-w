@@ -25,12 +25,16 @@
 */
 
 /** @file Multimap.H
- *  @brief STL-compatible multimap container.
+ *  @brief STL-compatible multimap container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::multimap.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::multimap` directly or `Aleph::DynMapTree` with duplicate support.
  *
  *  Aleph implementation of std::multimap allowing duplicate keys
  *  with O(log n) operations using balanced BST.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

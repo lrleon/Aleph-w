@@ -25,12 +25,16 @@
 */
 
 /** @file Vector.H
- *  @brief STL-compatible vector container.
+ *  @brief STL-compatible vector container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::vector.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::vector` directly or `Aleph::DynArray` for Aleph-native features.
  *
  *  Aleph implementation of std::vector with dynamic array storage.
  *
- *  @see tpl_dynArray.H Alternative dynamic array
- *  @ingroup Secuencias
+ *  @see tpl_dynArray.H Recommended alternative dynamic array
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

@@ -25,12 +25,16 @@
 */
 
 /** @file Priority_Queue.H
- *  @brief STL-compatible priority queue adapter.
+ *  @brief STL-compatible priority queue adapter (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::priority_queue.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::priority_queue` directly or `Aleph::DynBinHeap` for Aleph-native features.
  *
  *  Aleph implementation of std::priority_queue using binary heap
  *  for O(log n) push/pop with STL-compatible interface.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

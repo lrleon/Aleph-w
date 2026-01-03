@@ -25,12 +25,16 @@
 */
 
 /** @file Set.H
- *  @brief STL-compatible set container.
+ *  @brief STL-compatible set container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::set.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::set` directly or `Aleph::DynSetTree` for Aleph-native features.
  *
  *  Aleph implementation of std::set using balanced BST for O(log n)
  *  set operations with STL-compatible interface.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

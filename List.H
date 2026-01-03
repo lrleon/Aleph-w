@@ -25,12 +25,16 @@
 */
 
 /** @file List.H
- *  @brief STL-compatible list container.
+ *  @brief STL-compatible list container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::list.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::list` directly or `Aleph::DynDlist` for Aleph-native features.
  *
  *  Aleph implementation of std::list providing doubly-linked list
  *  with STL-compatible interface for portability.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

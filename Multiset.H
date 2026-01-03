@@ -25,12 +25,16 @@
 */
 
 /** @file Multiset.H
- *  @brief STL-compatible multiset container.
+ *  @brief STL-compatible multiset container (legacy).
+ *
+ *  @deprecated This is a legacy Aleph implementation of std::multiset.
+ *  It will be deprecated in future versions. For new code, prefer using
+ *  `std::multiset` directly or `Aleph::DynSetTree` with duplicate support.
  *
  *  Aleph implementation of std::multiset allowing duplicate elements
  *  with O(log n) operations using balanced BST.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
