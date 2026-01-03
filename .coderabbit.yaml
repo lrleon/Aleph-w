@@ -1,16 +1,23 @@
 # CodeRabbit Configuration for Aleph-w
 # https://docs.coderabbit.ai/guides/configure-coderabbit
 
-language: "es"  # Respuestas en español
+language: "es-ES"
 
 reviews:
-  # Enable automatic reviews on PRs
+  # Enable reviews on ALL branches, not just default
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  # Enable auto review
   auto_review:
     enabled: true
-    # Review when PR is opened or updated
-    drafts: false  # Don't review draft PRs
+    drafts: false
+    # Review PRs to ANY base branch
+    base_branches:
+      - ".*"  # Regex: match all branches
   
-  # What to focus on
   path_instructions:
     - path: "**/*.H"
       instructions: |
@@ -28,22 +35,5 @@ reviews:
         Archivo de tests con Google Test. Verifica cobertura de casos edge,
         que los tests sean determinísticos, y que no haya memory leaks.
 
-  # Review profile
-  profile: "assertive"  # Be thorough but not nitpicky
-  
-  # High-level summary
-  request_changes_workflow: true
-  
-  # Code suggestions
-  collapse_walkthrough: false
-
 chat:
-  # Enable chat in PR comments
   auto_reply: true
-
-# Ignore these paths
-path_filters:
-  - "!Examples/**"      # Skip examples (legacy code)
-  - "!**/CMakeLists.txt"  # Skip build files
-  - "!.github/**"       # Skip CI config
-
