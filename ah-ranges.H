@@ -105,12 +105,19 @@
 #define AH_RANGES_H
 
 // Check for C++20 ranges support
+// We need both the header AND the actual implementation.
+// libc++ in Clang 14 has <ranges> header but incomplete implementation.
+// __cpp_lib_ranges >= 202110L ensures full C++20 ranges support.
 #if __cplusplus >= 202002L && __has_include(<ranges>)
-#  define ALEPH_HAS_RANGES 1
 #  include <ranges>
 #  include <algorithm>
 #  include <iterator>
 #  include <concepts>
+#  if defined(__cpp_lib_ranges) && __cpp_lib_ranges >= 202110L
+#    define ALEPH_HAS_RANGES 1
+#  else
+#    define ALEPH_HAS_RANGES 0
+#  endif
 #else
 #  define ALEPH_HAS_RANGES 0
 #endif
@@ -786,6 +793,66 @@ template <typename Container, typename Pred>
 [[nodiscard]] bool fallback_none_of(const Container& c, Pred&& pred)
 {
   return !fallback_any_of(c, std::forward<Pred>(pred));
+}
+
+/**
+ * @brief Fallback fold_left using range-based for loop.
+ *
+ * Works with any container that supports range-based for loop.
+ * This is the function used by ahFunctional.H when std::ranges is unavailable.
+ */
+template <typename Container, typename T, typename BinaryOp>
+[[nodiscard]] constexpr T ranges_fold_left(Container&& c, T init, BinaryOp&& op)
+{
+  for (auto&& elem : c)
+    init = op(std::move(init), elem);
+  return init;
+}
+
+/**
+ * @brief Fallback all_of using range-based for loop.
+ */
+template <typename Container, typename Pred>
+[[nodiscard]] bool ranges_all_of(const Container& c, Pred&& pred)
+{
+  for (const auto& elem : c)
+    if (!pred(elem))
+      return false;
+  return true;
+}
+
+/**
+ * @brief Fallback any_of using range-based for loop.
+ */
+template <typename Container, typename Pred>
+[[nodiscard]] bool ranges_any_of(const Container& c, Pred&& pred)
+{
+  for (const auto& elem : c)
+    if (pred(elem))
+      return true;
+  return false;
+}
+
+/**
+ * @brief Fallback none_of using range-based for loop.
+ */
+template <typename Container, typename Pred>
+[[nodiscard]] bool ranges_none_of(const Container& c, Pred&& pred)
+{
+  return !ranges_any_of(c, std::forward<Pred>(pred));
+}
+
+/**
+ * @brief Fallback count_if using range-based for loop.
+ */
+template <typename Container, typename Pred>
+[[nodiscard]] auto ranges_count_if(const Container& c, Pred&& pred)
+{
+  size_t count = 0;
+  for (const auto& elem : c)
+    if (pred(elem))
+      ++count;
+  return count;
 }
 
 } // namespace detail
