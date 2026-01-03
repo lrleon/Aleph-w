@@ -242,7 +242,6 @@ set(EXHAUSTIVE_TESTS
     future_utils_test
     fibonacci_heap_test
     quadtree_test
-    k2tree_test
     container_edge_cases_test
     netcapgraph_test
     tdrbtree_test
@@ -255,6 +254,12 @@ set(EXHAUSTIVE_TESTS
     eepicgeom_test
     cookie_guard_test
 )
+
+# k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
+# (system GMP is compiled with libstdc++). Only include for GCC.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    list(APPEND TEST_PROGRAMS k2tree_test)
+endif()
 
 # Create executable for each test program
 foreach(test_program ${TEST_PROGRAMS})
