@@ -25,15 +25,37 @@
 */
 
 /** @file lfit.H
- *  @brief Linear fitting utilities.
+ *  @brief Linear regression (least squares fitting) using GSL.
+ *
+ *  This file provides the LFit struct for performing simple linear
+ *  regression on paired (x, y) data using the GNU Scientific Library.
+ *
+ *  ## Features
+ *
+ *  - Least squares linear fitting: y = c + m*x
+ *  - Coefficient of determination (R²)
+ *  - Mean squared error and standard deviation
+ *  - Prediction with error estimates
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Array<double> x = {1, 2, 3, 4, 5};
+ *  Array<double> y = {2.1, 3.9, 6.1, 8.0, 10.2};
+ *
+ *  LFit fit(x, y);
+ *  std::cout << "y = " << fit.c << " + " << fit.m << " * x\n";
+ *  std::cout << "R² = " << fit.r2 << "\n";
+ *
+ *  auto [predicted, error] = fit.predict(6.0);
+ *  ```
+ *
+ *  @see line.H Line equation class
+ *
  *  @ingroup Utilidades
  *  @author Leandro Rabindranath León
  */
 
-/* Basic linear regression
-
-    Leandro Rabindranath Leon    
- */
 # ifndef LFIT_H
 # define LFIT_H
 
@@ -48,27 +70,44 @@
 
 # include <aleph-exceptions.H>
 
-
-/* Basic linear regression calculator class
-
-   This class receives a pair of arrays x and y and performs a linear
-   regression for computing the best fit; i.e. the straight with
-   minimum square sum.
-
-   @ingroup Utils
+/**
+ * @brief Linear regression calculator using least squares method.
+ *
+ * Computes the best-fit line y = c + m*x that minimizes the sum of
+ * squared residuals. Uses GSL for numerical computation.
+ *
+ * ## Computed Statistics
+ *
+ * | Field | Description |
+ * |-------|-------------|
+ * | c | Y-intercept |
+ * | m | Slope |
+ * | r2 | Coefficient of determination (0-1) |
+ * | sumsq | Sum of squared residuals |
+ * | sigma | Standard deviation of errors |
+ * | mse | Mean squared error |
+ *
+ * @ingroup Utilidades
  */
 struct LFit
 {
-  mutable double c = 0;     ///
-  mutable double m = 1;
-  mutable double cov00 = 0;
-  mutable double cov01 = 0;
-  mutable double cov11 = 0;
-  mutable double sumsq = 0;
-  mutable double r2 = 0;
-  mutable double sigma = 0;
-  mutable double mse = 0;
+  mutable double c = 0;       ///< Y-intercept of fitted line
+  mutable double m = 1;       ///< Slope of fitted line
+  mutable double cov00 = 0;   ///< Covariance matrix element (0,0)
+  mutable double cov01 = 0;   ///< Covariance matrix element (0,1)
+  mutable double cov11 = 0;   ///< Covariance matrix element (1,1)
+  mutable double sumsq = 0;   ///< Sum of squared residuals
+  mutable double r2 = 0;      ///< Coefficient of determination
+  mutable double sigma = 0;   ///< Standard deviation of errors
+  mutable double mse = 0;     ///< Mean squared error
 
+  /**
+   * @brief Output stream operator for fit results.
+   *
+   * @param out Output stream
+   * @param f LFit object to output
+   * @return Reference to output stream
+   */
   friend ostream & operator << (ostream & out, const LFit & f)
   {
     return out << "r2 = " << f.r2 << std::endl
@@ -79,11 +118,27 @@ struct LFit
 	       << "m     = " << f.m << std::endl;
   }
 
-  /// Creates an invalid fit
+  /// Default constructor creates an identity fit (y = x)
   LFit() noexcept {}
 
   /**
-
+   * @brief Construct and compute linear regression.
+   *
+   * Fits the model y = c + m*x to minimize sum of squared errors.
+   * Computes R², standard deviation, and MSE.
+   *
+   * @param x Array of independent variable values
+   * @param y Array of dependent variable values
+   *
+   * @throw SizeMismatch if x and y have different sizes
+   * @throw SizeMismatch if arrays have only 1 element
+   *
+   * @par Example
+   * @code
+   * Array<double> x = {1, 2, 3, 4};
+   * Array<double> y = {2, 4, 6, 8};
+   * LFit fit(x, y);  // Perfect fit: y = 2x, R² = 1.0
+   * @endcode
    */
   LFit(const Array<double> & x, const Array<double> & y)
   {
@@ -120,11 +175,24 @@ struct LFit
       }) / n);
 
     mse = sqrt(sum_mse/n);
-    // std::cout << "x = " << join(x) << std::endl
-    // 	 << "y = " << join(y) << std::endl
-    // 	 << *this << std::endl;
   }
 
+  /**
+   * @brief Predict y-value and error for given x.
+   *
+   * Uses the fitted model to predict y at the given x value,
+   * along with an error estimate based on the covariance matrix.
+   *
+   * @param x Independent variable value
+   * @return Pair (predicted_y, error_estimate)
+   *
+   * @par Example
+   * @code
+   * LFit fit(x_data, y_data);
+   * auto [y, err] = fit.predict(10.0);
+   * // y ± err is the predicted range
+   * @endcode
+   */
   pair<double, double> predict(double x) const noexcept
   {
     double y = 0, y_err = 0;
