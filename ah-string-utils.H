@@ -119,11 +119,11 @@ namespace Aleph
   */
   inline void ltrim(std::string & s)
   {
-    s.erase(s.begin(), std::ranges::find_if(s,
-                                       [](const unsigned char ch)
-                                         {
-                                           return not std::isspace(ch);
-                                         }));
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+                                    [](const unsigned char ch)
+                                      {
+                                        return not std::isspace(ch);
+                                      }));
   }
 
   // trim from end
