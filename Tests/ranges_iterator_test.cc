@@ -16,16 +16,16 @@
  */
 
 #include <gtest/gtest.h>
-#include <ranges>
 #include <algorithm>
-#include <concepts>
-#include <iterator>
 
+#include <ah-ranges.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynSetTree.H>
 
 using namespace Aleph;
+
+#if ALEPH_HAS_RANGES
 
 //============================================================================
 // Concept Verification Tests
@@ -376,6 +376,16 @@ TEST(RangesDynSetTreeTest, BasicAlgorithms)
   auto min_it = std::ranges::min_element(set);
   EXPECT_EQ(*min_it, 1);
 }
+
+#else // !ALEPH_HAS_RANGES
+
+// Dummy test when ranges are not available
+TEST(RangesIterator, RangesNotAvailable)
+{
+  GTEST_SKIP() << "std::ranges not fully supported on this platform";
+}
+
+#endif // ALEPH_HAS_RANGES
 
 //============================================================================
 // Main

@@ -387,7 +387,7 @@ TEST(SortUtilsHelpers, __random_select_raw_pointer)
 {
   int a[] = {4, 1, 3, 2, 0, 2};
   std::vector<int> expected(std::begin(a), std::end(a));
-  ranges::sort(expected);
+  std::sort(expected.begin(), expected.end());
 
   Aleph::less<int> cmp;
   EXPECT_EQ((Aleph::__random_select<int, Aleph::less<int>>(a, 0, 0, 5, cmp)), expected[0]);

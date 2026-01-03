@@ -63,7 +63,7 @@ TEST(ArrayHeap, ExtractsSortedOrder)
     drained.push_back(heap.getMin());
 
   std::vector<int> sorted = input;
-  std::ranges::sort(sorted);
+  std::sort(sorted.begin(), sorted.end());
   EXPECT_EQ(drained, sorted);
   EXPECT_TRUE(heap.is_empty());
 }

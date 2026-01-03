@@ -1,16 +1,19 @@
 #include <gtest/gtest.h>
 
-#include <concepts>
-#include <iterator>
-#include <ranges>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include <ah-ranges.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynSetTree.H>
 
 using namespace Aleph;
+
+#if ALEPH_HAS_RANGES
+
+#include <concepts>
+#include <iterator>
 
 namespace
 {
@@ -158,3 +161,13 @@ TEST(AhIteratorSemantics, PostIncrementReturnsOldValue)
   EXPECT_EQ(*old, 1);
   EXPECT_EQ(*it, 2);
 }
+
+#else // !ALEPH_HAS_RANGES
+
+// Dummy test when ranges/concepts are not available
+TEST(AhIterator, ConceptsNotAvailable)
+{
+  GTEST_SKIP() << "C++20 concepts not fully supported on this platform";
+}
+
+#endif // ALEPH_HAS_RANGES
