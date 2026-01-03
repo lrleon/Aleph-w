@@ -48,8 +48,10 @@ jobs:
             echo "CC=clang" >> "$GITHUB_ENV"
             echo "CXX=clang++" >> "$GITHUB_ENV"
             # Use libc++ with Clang for better C++20 std::ranges support
+            # Note: -stdlib=libc++ only applies to C++, not C
             echo "CXXFLAGS=-stdlib=libc++" >> "$GITHUB_ENV"
-            echo "LDFLAGS=-stdlib=libc++ -lc++abi" >> "$GITHUB_ENV"
+            # Don't set LDFLAGS globally as it affects C compiler tests
+            # CMake will add -lc++abi when needed via CMAKE_EXE_LINKER_FLAGS
           else
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
@@ -84,10 +86,13 @@ jobs:
             fi
             
             sudo rm -rf "$GTEST_SRC/build" 2>/dev/null || true
+            # Use clang for both C and C++ to avoid mixing compilers
+            # Pass libc++ flags only to C++ compiler, not C
             sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
+              -DCMAKE_C_COMPILER=clang \
               -DCMAKE_CXX_COMPILER=clang++ \
               -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-              -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++abi"
+              -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
             sudo cmake --build "$GTEST_SRC/build"
             sudo cmake --install "$GTEST_SRC/build"
             exit 0
@@ -119,10 +124,16 @@ jobs:
       - name: Configure
         run: |
           rm -rf build
+          # For Clang, add libc++abi to linker flags
+          EXTRA_LINKER_FLAGS=""
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            EXTRA_LINKER_FLAGS="-lc++abi"
+          fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_EXE_LINKER_FLAGS="$EXTRA_LINKER_FLAGS" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON
 
@@ -151,7 +162,7 @@ jobs:
       CC: clang
       CXX: clang++
       CXXFLAGS: -stdlib=libc++
-      LDFLAGS: -stdlib=libc++ -lc++abi
+      # Don't set LDFLAGS globally - it breaks C compiler detection
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
@@ -193,10 +204,12 @@ jobs:
           fi
           
           sudo rm -rf "$GTEST_SRC/build" 2>/dev/null || true
+          # Use clang for both C and C++ to avoid mixing compilers
           sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
+            -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-            -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++abi"
+            -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
           sudo cmake --build "$GTEST_SRC/build"
           sudo cmake --install "$GTEST_SRC/build"
 
@@ -207,6 +220,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXE_LINKER_FLAGS="-lc++abi" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON \
             -DUSE_SANITIZERS=ON
