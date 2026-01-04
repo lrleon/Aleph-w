@@ -68,7 +68,7 @@ namespace Aleph
 
 /** Johnson's algorithm for all-pairs shortest paths.
 
-    This class implements Johnson's algorithm for computing shortest paths
+    This class implements Johnson's algorithm for computing the shortest paths
     between all pairs of vertices in a weighted directed graph. It handles
     graphs with negative edge weights (but not negative cycles).
 
@@ -91,7 +91,7 @@ namespace Aleph
     try {
       Johnson<List_Digraph<Node, Arc>> johnson(g);
       
-      // Query shortest path between any pair
+      // Query the shortest path between any pair
       auto path = johnson.find_path(src, tgt);
       auto dist = johnson.get_distance(src, tgt);
     }
