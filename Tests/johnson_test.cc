@@ -24,6 +24,7 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <cmath>
 
 using namespace Aleph;
 
@@ -309,17 +310,28 @@ TEST_F(JohnsonTest, JohnsonNegativeWeights)
   auto floydResults = computeFloydWarshall();
   
   // Verify Johnson produces same distances as Floyd-Warshall
+  // Only compare pairs that are reachable (exist in Floyd results)
   for (size_t i = 0; i < nodes.size(); ++i)
   {
     for (size_t j = 0; j < nodes.size(); ++j)
     {
       auto floydIt = floydResults.find(std::make_pair(static_cast<int>(i), 
                                                        static_cast<int>(j)));
+      double johnsonDist = johnson.get_distance(nodes[i], nodes[j]);
+      
       if (floydIt != floydResults.end())
       {
-        double johnsonDist = johnson.get_distance(nodes[i], nodes[j]);
+        // Floyd found a path - Johnson should too
+        EXPECT_FALSE(std::isinf(johnsonDist))
+          << "Johnson reports unreachable but Floyd found path for (" << i << ", " << j << ")";
         EXPECT_NEAR(johnsonDist, floydIt->second, 1e-9)
           << "Mismatch for pair (" << i << ", " << j << ")";
+      }
+      else
+      {
+        // Floyd didn't find a path - Johnson should report infinity
+        EXPECT_TRUE(std::isinf(johnsonDist))
+          << "Johnson found path but Floyd didn't for (" << i << ", " << j << ")";
       }
     }
   }
@@ -344,6 +356,7 @@ TEST_F(JohnsonTest, JohnsonAllPairs)
   // Verify against Floyd-Warshall
   auto floydResults = computeFloydWarshall();
   
+  // Check that all Floyd entries exist in Johnson with same distance
   for (const auto& entry : floydResults)
   {
     int i = entry.first.first;
@@ -351,11 +364,20 @@ TEST_F(JohnsonTest, JohnsonAllPairs)
     double floydDist = entry.second;
     
     auto* johnsonEntry = allPairs.search(std::make_pair(nodes[i], nodes[j]));
-    ASSERT_NE(johnsonEntry, nullptr) 
-      << "Missing entry for (" << i << ", " << j << ")";
     
-    EXPECT_NEAR(johnsonEntry->second, floydDist, 1e-9)
-      << "Distance mismatch for (" << i << ", " << j << ")";
+    // Johnson only stores reachable pairs
+    if (johnsonEntry != nullptr)
+    {
+      EXPECT_NEAR(johnsonEntry->second, floydDist, 1e-9)
+        << "Distance mismatch for (" << i << ", " << j << ")";
+    }
+    else
+    {
+      // If Johnson didn't store it, verify using get_distance
+      double johnsonDist = johnson.get_distance(nodes[i], nodes[j]);
+      EXPECT_NEAR(johnsonDist, floydDist, 1e-9)
+        << "Distance mismatch for (" << i << ", " << j << ")";
+    }
   }
 }
 

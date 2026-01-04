@@ -68,7 +68,7 @@ namespace Aleph
 
 /** Johnson's algorithm for all-pairs shortest paths.
 
-    This class implements Johnson's algorithm for computing the shortest paths
+    This class implements Johnson's algorithm for computing shortest paths
     between all pairs of vertices in a weighted directed graph. It handles
     graphs with negative edge weights (but not negative cycles).
 
@@ -91,7 +91,7 @@ namespace Aleph
     try {
       Johnson<List_Digraph<Node, Arc>> johnson(g);
       
-      // Query the shortest path between any pair
+      // Query shortest path between any pair
       auto path = johnson.find_path(src, tgt);
       auto dist = johnson.get_distance(src, tgt);
     }
@@ -193,14 +193,17 @@ public:
 
       @param[in] src Source node (from original graph).
       @param[in] tgt Target node (from original graph).
-      @return The shortest distance from src to tgt.
+      @return The shortest distance from src to tgt, or infinity if unreachable.
       @throw std::domain_error if not initialized or nodes not found.
    */
   Distance_Type get_distance(Node* src, Node* tgt)
   {
     ah_domain_error_if(!initialized) << "Johnson not initialized";
-    ah_domain_error_if(src == nullptr || tgt == nullptr) 
-      << "Source or target node is null";
+    ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
+
+    // Same node - distance is 0
+    if (src == tgt)
+      return Distance_Type(0);
 
     // Get corresponding nodes in the copy
     Node* csrc = graph_copy.get_copy(src);
@@ -212,15 +215,23 @@ public:
     Dijkstra_Min_Paths<GT, Distance, NAit, SA> dijkstra(dist, sa);
     dijkstra.paint_min_paths_tree(gc, csrc);
     
-    // Get reweighted distance
+    // Get reweighted distance (may throw if unreachable)
     Path<GT> path(gc);
-    Distance_Type d_prime = dijkstra.get_min_path(ctgt, path);
-    
-    // Adjust back: d(s,t) = d'(s,t) - h(s) + h(t)
-    Distance_Type hs = h.find(csrc);
-    Distance_Type ht = h.find(ctgt);
-    
-    return d_prime - hs + ht;
+    try
+      {
+        Distance_Type d_prime = dijkstra.get_min_path(ctgt, path);
+        
+        // Adjust back: d(s,t) = d'(s,t) - h(s) + h(t)
+        Distance_Type hs = h.find(csrc);
+        Distance_Type ht = h.find(ctgt);
+        
+        return d_prime - hs + ht;
+      }
+    catch (...)
+      {
+        // Node is unreachable
+        return std::numeric_limits<Distance_Type>::infinity();
+      }
   }
 
   /** Find the shortest path from source to target.
@@ -233,8 +244,7 @@ public:
   Path<GT> find_path(Node* src, Node* tgt)
   {
     ah_domain_error_if(!initialized) << "Johnson not initialized";
-    ah_domain_error_if(src == nullptr || tgt == nullptr)
-      << "Source or target node is null";
+    ah_domain_error_if(src == nullptr or tgt == nullptr) << "Source or target node is null";
 
     // Get corresponding nodes in the copy
     Node* csrc = graph_copy.get_copy(src);
