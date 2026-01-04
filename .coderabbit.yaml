@@ -14,9 +14,11 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    # Review PRs to ANY base branch
+    # Review PRs only to main, develop, and release branches
     base_branches:
-      - ".*"  # Regex: match all branches
+      - "^main$"
+      - "^develop$"
+      - "^release/.*"
   
   path_instructions:
     - path: "**/*.H"
