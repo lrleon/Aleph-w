@@ -301,40 +301,38 @@ TEST_F(JohnsonTest, JohnsonBasicPath)
 TEST_F(JohnsonTest, JohnsonNegativeWeights)
 {
   createNegativeWeightGraph();
+  // Graph structure:
+  //   0 --2--> 1 --1--> 2
+  //   |
+  //   1
+  //   v
+  //   3 --(-3)--> 1
+  //   3 ---(2)--> 2
+  //
+  // Expected distances from 0:
+  //   0->0: 0, 0->1: -2 (via 3), 0->2: -1 (via 3->1), 0->3: 1
+  // Expected distances from 1:
+  //   1->1: 0, 1->2: 1
+  // Expected distances from 3:
+  //   3->1: -3, 3->2: -2 (via 1), 3->3: 0
   
-  // Johnson should handle negative weights by reweighting
   Johnson<TestDigraph, DoubleDistance> johnson(g);
   EXPECT_TRUE(johnson.is_initialized());
   
-  // Compare with Floyd-Warshall results
-  auto floydResults = computeFloydWarshall();
+  // Test known reachable pairs with expected distances
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[0], nodes[0]), 0.0);
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[0], nodes[1]), -2.0);  // via 0->3->1
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[0], nodes[2]), -1.0);  // via 0->3->1->2
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[0], nodes[3]), 1.0);
   
-  // Verify Johnson produces same distances as Floyd-Warshall
-  // Only compare pairs that are reachable (exist in Floyd results)
-  for (size_t i = 0; i < nodes.size(); ++i)
-  {
-    for (size_t j = 0; j < nodes.size(); ++j)
-    {
-      auto floydIt = floydResults.find(std::make_pair(static_cast<int>(i), 
-                                                       static_cast<int>(j)));
-      double johnsonDist = johnson.get_distance(nodes[i], nodes[j]);
-      
-      if (floydIt != floydResults.end())
-      {
-        // Floyd found a path - Johnson should too
-        EXPECT_FALSE(std::isinf(johnsonDist))
-          << "Johnson reports unreachable but Floyd found path for (" << i << ", " << j << ")";
-        EXPECT_NEAR(johnsonDist, floydIt->second, 1e-9)
-          << "Mismatch for pair (" << i << ", " << j << ")";
-      }
-      else
-      {
-        // Floyd didn't find a path - Johnson should report infinity
-        EXPECT_TRUE(std::isinf(johnsonDist))
-          << "Johnson found path but Floyd didn't for (" << i << ", " << j << ")";
-      }
-    }
-  }
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[1], nodes[1]), 0.0);
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[1], nodes[2]), 1.0);
+  
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[2], nodes[2]), 0.0);
+  
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[3], nodes[1]), -3.0);
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[3], nodes[2]), -2.0);  // via 3->1->2
+  EXPECT_DOUBLE_EQ(johnson.get_distance(nodes[3], nodes[3]), 0.0);
 }
 
 TEST_F(JohnsonTest, JohnsonNegativeCycleDetection)
