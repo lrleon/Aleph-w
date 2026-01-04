@@ -1126,7 +1126,13 @@ struct __gmp_cbrt_function // not in gmpxx
 struct __gmp_root_function // not in gmpxx
 {
   static void eval(mpfr_ptr f, mpfr_srcptr g, unsigned long int l)
-  { mpfr_root(f, g, l, MpFrC::get_rnd()); }
+  {
+#if MPFR_VERSION_MAJOR >= 4
+    mpfr_rootn_ui(f, g, l, MpFrC::get_rnd());  // New API (MPFR >= 4.0)
+#else
+    mpfr_root(f, g, l, MpFrC::get_rnd());      // Legacy API (MPFR < 4.0)
+#endif
+  }
 };
 
 struct __gmp_pow_function // not in gmpxx

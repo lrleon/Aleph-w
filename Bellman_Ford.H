@@ -149,30 +149,28 @@ namespace Aleph
       int idx; // index in the predecessor arrays
     };
 
-    Distance_Type &accum(Node *p) noexcept
+    static Distance_Type &accum(Node *p) noexcept
     {
       return static_cast<Sni *>(NODE_COOKIE(p))->accum;
     }
 
-    int &idx(Node *p) noexcept
+    static int &idx(Node *p) noexcept
     {
       return static_cast<Ni *>(NODE_COOKIE(p))->idx;
     }
 
     // Checked addition to prevent integer overflow
-    Distance_Type checked_add(const Distance_Type &a, const Distance_Type &b) const
+    Distance_Type checked_add(const Distance_Type & a, const Distance_Type & b) const
     {
       if constexpr (std::is_integral_v<Distance_Type>)
         {
           // Check for positive overflow
-          if (b > 0 && a > std::numeric_limits<Distance_Type>::max() - b)
-            ah_overflow_error() << "Integer overflow in distance addition: "
-                                << a << " + " << b;
+          ah_overflow_error_if(b > 0 && a > std::numeric_limits<Distance_Type>::max() - b)
+            << "Integer overflow in distance addition: " << a << " + " << b;
 
           // Check for negative overflow (underflow)
-          if (b < 0 && a < std::numeric_limits<Distance_Type>::min() - b)
-            ah_overflow_error() << "Integer underflow in distance addition: "
-                                << a << " + " << b;
+          ah_overflow_error_if(b < 0 && a < std::numeric_limits<Distance_Type>::min() - b)
+            << "Integer underflow in distance addition: " << a << " + " << b;
         }
 
       return a + b;
@@ -211,7 +209,11 @@ namespace Aleph
     /// Initialize node cookies with predecessor tracking for path reconstruction.
     void init_with_indexes(Node *start)
     {
-      Init_Guard guard([this]() { uninit<Ni>(); arcs.cut(); });
+      Init_Guard guard([this]()
+                         {
+                           uninit<Ni>();
+                           arcs.cut();
+                         });
 
       arcs.reserve(g.get_num_nodes());
       typename GT::Node_Iterator it(g);
@@ -284,11 +286,11 @@ namespace Aleph
 
     /// Check if a shortest-path tree has been computed or painted.
     /// @return true if a previous computation exists, false otherwise.
-    bool has_computation() const noexcept { return s != nullptr; }
+    [[nodiscard]] bool has_computation() const noexcept { return s != nullptr; }
 
     /// Check if a shortest-path tree has been painted.
     /// @return true if a tree has been painted, false otherwise.
-    bool is_painted() const noexcept { return painted; }
+    [[nodiscard]] bool is_painted() const noexcept { return painted; }
 
     /// Get the start node of the last computation.
     /// @return Pointer to the start node, or nullptr if no computation exists.
@@ -296,7 +298,7 @@ namespace Aleph
 
     /// Get reference to the graph.
     /// @return Reference to the graph.
-    const GT & get_graph() const noexcept { return g; }
+    const GT &get_graph() const noexcept { return g; }
 
   private:
     /// Relax all arcs n-1 times (standard Bellman-Ford).
@@ -562,7 +564,7 @@ namespace Aleph
           if (not released)
             {
               // Remove all inserted arcs
-              for (auto arc : inserted_arcs)
+              for (auto arc: inserted_arcs)
                 graph.remove_arc(arc);
 
               // Remove dummy node
@@ -575,6 +577,7 @@ namespace Aleph
         void release() { released = true; }
 
         Dummy_Guard(const Dummy_Guard &) = delete;
+
         Dummy_Guard & operator=(const Dummy_Guard &) = delete;
       };
 
@@ -656,8 +659,8 @@ namespace Aleph
         }
 
       // Save and restore cookies around Tarjan call (Tarjan modifies cookies)
-      Cookie_Saver<GT> cookie_saver(aux, true, false);  // only save node cookies
-      
+      Cookie_Saver<GT> cookie_saver(aux, true, false); // only save node cookies
+
       // Clear cookies for Tarjan's use
       for (typename GT::Node_Iterator it(aux); it.has_curr(); it.next_ne())
         NODE_COOKIE(it.get_curr()) = nullptr;
@@ -896,7 +899,7 @@ namespace Aleph
         node.
      */
     std::tuple<Path<GT>, size_t> search_negative_cycle(double it_factor,
-                                                  const size_t step)
+                                                       const size_t step)
     {
       auto start = create_dummy_node();
       auto ret_val = search_negative_cycle(start, it_factor, step);
@@ -971,15 +974,12 @@ namespace Aleph
 
           // Find the arc from parent to curr
           for (NAit<GT, SA> it(parent, sa); it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_curr();
-              if (g.get_tgt_node(arc) == curr &&
-                  IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-                {
-                  total = checked_add(total, dist(arc));
-                  break;
-                }
-            }
+            if (auto arc = it.get_curr(); g.get_tgt_node(arc) == curr &&
+                                          IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              {
+                total = checked_add(total, dist(arc));
+                break;
+              }
           curr = parent;
         }
       return total;
@@ -993,7 +993,7 @@ namespace Aleph
 
         @param[in] tree a graph where the minimal spanning tree will be
         put.
-        @param[in] with_map if true the the extracted tree is mapped
+        @param[in] with_map if true the extracted tree is mapped
         through the cookies with the graph.
      */
     void build_tree(GT & tree, bool with_map = true)
@@ -1034,10 +1034,8 @@ namespace Aleph
 
           auto tsrc_ptr = table.search(gsrc);
           auto ttgt_ptr = table.search(gtgt);
-          ah_logic_error_unless(tsrc_ptr)
-            << "Source node not found in mapping table";
-          ah_logic_error_unless(ttgt_ptr)
-            << "Target node not found in mapping table";
+          ah_logic_error_unless(tsrc_ptr) << "Source node not found in mapping table";
+          ah_logic_error_unless(ttgt_ptr) << "Target node not found in mapping table";
           auto tarc = tree.insert_arc(tsrc_ptr->second, ttgt_ptr->second,
                                       garc->get_info());
           if (with_map)
@@ -1080,8 +1078,7 @@ namespace Aleph
      */
     Distance_Type get_min_path(typename GT::Node *end, Path<GT> & path)
     {
-      ah_domain_error_if(not painted)
-        << "Graph has not previously painted";
+      ah_domain_error_if(not painted) << "Graph has not previously painted";
 
       return Aleph::get_min_path<GT, Distance>(s, end, path);
     }
@@ -1091,22 +1088,20 @@ namespace Aleph
          node. This routine is specifically designed for Johnson's algorithm
          for computing all minimum paths from a given node.
 
-         @param[in] m a dynamic AVL mapping of the form Node*-->w from
-         node pointer to weight associated with the node.
-         @return true if the graph does not have a negative cycle, in which
-         case the values in m can be used for Johnson's algorithm. Returns
-         false if a negative cycle is detected.
+        @return An AVL mapping where each node is mapped to its weight.
+        @throw std::domain_error if negative cycles are detected.
      */
     DynMapTree<Node *, Distance_Type> compute_nodes_weights()
     {
       Node *dummy = create_dummy_node();
 
-      Init_Guard guard([this, dummy]() {
-        uninit<Ni>();
-        arcs.cut();
-        if (dummy != nullptr)
-          remove_dummy_node<Ni>(dummy);
-      });
+      Init_Guard guard([this, dummy]()
+                         {
+                           uninit<Ni>();
+                           arcs.cut();
+                           if (dummy != nullptr)
+                             remove_dummy_node<Ni>(dummy);
+                         });
 
       init_with_indexes(s);
 
@@ -1127,8 +1122,7 @@ namespace Aleph
             {
               if (i++ > n)
                 break;
-              else
-                put_in_queue(q, sentinel);
+              put_in_queue(q, sentinel);
             }
           else
             relax_arcs(src, q);
@@ -1154,8 +1148,7 @@ namespace Aleph
       remove_dummy_node<Ni>(dummy);
       guard.release(); // Prevent double cleanup
 
-      ah_domain_error_if(negative_cycle)
-        << "negative cycles detected";
+      ah_domain_error_if(negative_cycle) << "negative cycles detected";
 
       return ret;
     }
@@ -1278,7 +1271,6 @@ namespace Aleph
           search_negative_cycle();
     }
   };
-
 } // end namespace Aleph
 
 # endif // BELLMAN_FORD_H

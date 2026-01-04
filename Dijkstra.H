@@ -303,13 +303,13 @@ namespace Aleph
     /** Check if a computation has been performed.
         @return true if a graph has been processed, false otherwise.
      */
-    bool has_computation() const noexcept { return ptr_g != nullptr; }
+    [[nodiscard]] bool has_computation() const noexcept { return ptr_g != nullptr; }
 
     /** Check if the graph has been painted.
         @return true if paint_min_paths_tree or paint_partial_min_paths_tree
                 was called, false otherwise.
      */
-    bool is_painted() const noexcept { return painted; }
+    [[nodiscard]] bool is_painted() const noexcept { return painted; }
 
     /** Get the start node of the last computation.
         @return Pointer to the start node, or nullptr if no computation done.

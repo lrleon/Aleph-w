@@ -1501,7 +1501,7 @@ public:
 
       The complexity for this primitive always is \f$O(E)\f$.
 
-      @param[in] operation to be performed on each node.
+      @param[in] op to be performed on each node.
       @throw anything that can throw `operation`.
   */
   template <class Operation>
@@ -2195,6 +2195,340 @@ public:
   bool exists_arc(Node *p, Operation && op = Operation()) const
   {
     return exists_arc(p, op);
+  }
+
+  /** Determine if no node satisfies a condition.
+  
+      `none_node(op)` returns `true` if no node of graph satisfies the
+      condition expressed by `op`. It is the logical complement of
+      `exists_node()`.
+      
+      Equivalent to: `not exists_node(op)`
+      
+      The operation has \f$O(V)\f$ complexity for the worst case.
+      
+      @param op predicate to test
+      @return `true` if no node satisfies the condition; `false` otherwise
+      @see exists_node()
+   */
+  template <class Operation>
+  bool none_node(Operation & op) const
+  {
+    return not exists_node(op);
+  }
+
+  /// \overload none_node()
+  template <class Operation>
+  bool none_node(Operation && op) const
+  {
+    return none_node(op);
+  }
+
+  /** Determine if no arc satisfies a condition.
+  
+      `none_arc(op)` returns `true` if no arc of graph satisfies the
+      condition expressed by `op`. It is the logical complement of
+      `exists_arc()`.
+      
+      Equivalent to: `not exists_arc(op)`
+      
+      The operation has \f$O(E)\f$ complexity for the worst case.
+      
+      @param op predicate to test
+      @return `true` if no arc satisfies the condition; `false` otherwise
+      @see exists_arc()
+   */
+  template <class Operation>
+  bool none_arc(Operation & op) const
+  {
+    return not exists_arc(op);
+  }
+
+  /// \overload none_arc()
+  template <class Operation>
+  bool none_arc(Operation && op) const
+  {
+    return none_arc(op);
+  }
+
+  /** Determine if no arc adjacent to a node satisfies a condition.
+  
+      @param p node from which to check adjacent arcs
+      @param op predicate to test
+      @return `true` if no adjacent arc satisfies the condition
+      @see exists_arc(Node*, Operation&)
+   */
+  template <class Operation>
+  bool none_arc(Node *p, Operation & op) const
+  {
+    return not exists_arc(p, op);
+  }
+
+  /// \overload none_arc(Node*, Operation&)
+  template <class Operation>
+  bool none_arc(Node *p, Operation && op) const
+  {
+    return none_arc(p, op);
+  }
+
+  /** Count the nodes satisfying a condition.
+  
+      `count_nodes(op)` traverses all nodes and counts how many satisfy
+      the predicate `op`.
+      
+      The operation has \f$O(V)\f$ complexity.
+      
+      @param op predicate to test (default: count all nodes)
+      @return number of nodes satisfying the condition
+      
+      @par Example:
+      @code
+      // Count nodes with value > 10
+      size_t n = g.count_nodes([](auto p) { return p->get_info() > 10; });
+      @endcode
+   */
+  template <class Operation = std::function<bool(Node*)>>
+  size_t count_nodes(Operation op = [](Node*) { return true; }) const
+  {
+    size_t count = 0;
+    for_each_node([&count, &op](Node *p) { if (op(p)) ++count; });
+    return count;
+  }
+
+  /** Count the arcs satisfying a condition.
+  
+      `count_arcs(op)` traverses all arcs and counts how many satisfy
+      the predicate `op`.
+      
+      The operation has \f$O(E)\f$ complexity.
+      
+      @param op predicate to test (default: count all arcs)
+      @return number of arcs satisfying the condition
+      
+      @par Example:
+      @code
+      // Count arcs with weight > 5.0
+      size_t n = g.count_arcs([](auto a) { return a->get_info() > 5.0; });
+      @endcode
+   */
+  template <class Operation = std::function<bool(Arc*)>>
+  size_t count_arcs(Operation op = [](Arc*) { return true; }) const
+  {
+    size_t count = 0;
+    for_each_arc([&count, &op](Arc *a) { if (op(a)) ++count; });
+    return count;
+  }
+
+  /** Count arcs adjacent to a node satisfying a condition.
+  
+      @param p node from which to count adjacent arcs
+      @param op predicate to test (default: count all adjacent arcs)
+      @return number of adjacent arcs satisfying the condition
+   */
+  template <class Operation = std::function<bool(Arc*)>>
+  size_t count_arcs(Node *p, Operation op = [](Arc*) { return true; }) const
+  {
+    size_t count = 0;
+    for_each_arc(p, [&count, &op](Arc *a) { if (op(a)) ++count; });
+    return count;
+  }
+
+  /** Sum values derived from arcs adjacent to a node.
+  
+      `sum_arcs(p, extract)` sums the values extracted from each arc
+      adjacent to node `p` using the `extract` function.
+      
+      @tparam T the numeric type to sum (default: double)
+      @param p node from which to sum adjacent arc values
+      @param extract function Arc* -> T (default: arc info)
+      @return sum of extracted values
+      
+      @par Example:
+      @code
+      // Sum weights of adjacent arcs
+      double total = g.sum_arcs<double>(p, [](auto a) { return a->get_info(); });
+      @endcode
+   */
+  template <typename T = double, class Extract>
+  T sum_arcs(Node *p, Extract extract) const
+  {
+    T sum = T{0};
+    for_each_arc(p, [&sum, &extract](Arc *a) { sum += extract(a); });
+    return sum;
+  }
+  
+  /// \overload sum_arcs with default extractor (arc info)
+  template <typename T = double>
+  T sum_arcs(Node *p) const
+  {
+    T sum = T{0};
+    for_each_arc(p, [&sum](Arc *a) { sum += static_cast<T>(a->get_info()); });
+    return sum;
+  }
+
+  /** Find the minimum arc adjacent to a node.
+  
+      `min_arc(p, cmp)` returns the arc adjacent to `p` with the minimum
+      value according to the comparator `cmp`.
+      
+      @param p node from which to find minimum adjacent arc
+      @param cmp comparator (default: compare arc info with <)
+      @return pointer to minimum arc, or nullptr if no arcs
+      
+      @par Example:
+      @code
+      // Find arc with minimum weight
+      auto min_a = g.min_arc(p);
+      @endcode
+   */
+  template <class Compare = std::function<bool(Arc*, Arc*)>>
+  Arc* min_arc(Node *p, Compare cmp = [](Arc *a, Arc *b) { 
+    return a->get_info() < b->get_info(); 
+  }) const
+  {
+    Arc* result = nullptr;
+    for_each_arc(p, [&result, &cmp](Arc *a) {
+      if (result == nullptr or cmp(a, result))
+        result = a;
+    });
+    return result;
+  }
+
+  /** Find the maximum arc adjacent to a node.
+  
+      `max_arc(p, cmp)` returns the arc adjacent to `p` with the maximum
+      value according to the comparator `cmp`.
+      
+      @param p node from which to find maximum adjacent arc
+      @param cmp comparator (default: compare arc info with <)
+      @return pointer to maximum arc, or nullptr if no arcs
+      
+      @par Example:
+      @code
+      // Find arc with maximum weight
+      auto max_a = g.max_arc(p);
+      @endcode
+   */
+  template <class Compare = std::function<bool(Arc*, Arc*)>>
+  Arc* max_arc(Node *p, Compare cmp = [](Arc *a, Arc *b) { 
+    return a->get_info() < b->get_info(); 
+  }) const
+  {
+    Arc* result = nullptr;
+    for_each_arc(p, [&result, &cmp](Arc *a) {
+      if (result == nullptr or cmp(result, a))
+        result = a;
+    });
+    return result;
+  }
+
+  /** Find the minimum arc in the entire graph.
+  
+      @param cmp comparator (default: compare arc info with <)
+      @return pointer to minimum arc, or nullptr if graph has no arcs
+   */
+  template <class Compare = std::function<bool(Arc*, Arc*)>>
+  Arc* min_arc(Compare cmp = [](Arc *a, Arc *b) { 
+    return a->get_info() < b->get_info(); 
+  }) const
+  {
+    Arc* result = nullptr;
+    for_each_arc([&result, &cmp](Arc *a) {
+      if (result == nullptr or cmp(a, result))
+        result = a;
+    });
+    return result;
+  }
+
+  /** Find the maximum arc in the entire graph.
+  
+      @param cmp comparator (default: compare arc info with <)
+      @return pointer to maximum arc, or nullptr if graph has no arcs
+   */
+  template <class Compare = std::function<bool(Arc*, Arc*)>>
+  Arc* max_arc(Compare cmp = [](Arc *a, Arc *b) { 
+    return a->get_info() < b->get_info(); 
+  }) const
+  {
+    Arc* result = nullptr;
+    for_each_arc([&result, &cmp](Arc *a) {
+      if (result == nullptr or cmp(result, a))
+        result = a;
+    });
+    return result;
+  }
+
+  /** Partition nodes into two groups based on a predicate.
+  
+      `partition_nodes(op)` divides all nodes into two lists: those that
+      satisfy `op` and those that don't.
+      
+      The operation has \f$O(V)\f$ complexity.
+      
+      @param op predicate to partition by
+      @return pair of (nodes satisfying op, nodes not satisfying op)
+      
+      @par Example:
+      @code
+      auto [high, low] = g.partition_nodes([](auto p) { return p->get_info() > 10; });
+      @endcode
+   */
+  template <class Operation>
+  std::pair<DynList<Node*>, DynList<Node*>> partition_nodes(Operation op) const
+  {
+    DynList<Node*> yes, no;
+    for_each_node([&yes, &no, &op](Node *p) {
+      if (op(p))
+        yes.append(p);
+      else
+        no.append(p);
+    });
+    return {std::move(yes), std::move(no)};
+  }
+
+  /** Partition arcs into two groups based on a predicate.
+  
+      `partition_arcs(op)` divides all arcs into two lists: those that
+      satisfy `op` and those that don't.
+      
+      The operation has \f$O(E)\f$ complexity.
+      
+      @param op predicate to partition by
+      @return pair of (arcs satisfying op, arcs not satisfying op)
+   */
+  template <class Operation>
+  std::pair<DynList<Arc*>, DynList<Arc*>> partition_arcs(Operation op) const
+  {
+    DynList<Arc*> yes, no;
+    for_each_arc([&yes, &no, &op](Arc *a) {
+      if (op(a))
+        yes.append(a);
+      else
+        no.append(a);
+    });
+    return {std::move(yes), std::move(no)};
+  }
+
+  /** Get all adjacent nodes (neighbors) of a node.
+  
+      For undirected graphs, returns all connected nodes.
+      For directed graphs, returns the union of in-nodes and out-nodes.
+      
+      @param p node from which to get neighbors
+      @return list of all adjacent nodes (without duplicates for digraphs)
+      
+      @par Example:
+      @code
+      auto neighbors = g.adjacent_nodes(p);
+      @endcode
+   */
+  DynList<Node*> adjacent_nodes(Node *p) const
+  {
+    DynList<Node*> result;
+    for_each_arc(p, [this, p, &result](Arc *a) {
+      result.append(get_connected_node(a, p));
+    });
+    return result;
   }
 
   /** Linear search of a node.
