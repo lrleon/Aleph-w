@@ -467,14 +467,14 @@ namespace Aleph
     }
 
   public:
-    /** Paint the minimal spanning tree for the a `start` node.
+    /** Paint the shortest paths tree from a `start` node.
 
-        @param[in] start source node from which the minimal path will be
-        computed
+        @param[in] start source node from which the shortest paths will be
+        computed.
         @return true if negative cycles are detected, in which case the
-        spanning minimal tree has no sense. Otherwise, `false` is
-        returned and the minimal spanning tree is painted with the bit
-        `Spanning_Tree`
+        shortest paths tree has no sense. Otherwise, `false` is
+        returned and the shortest paths tree is painted with the bit
+        `Spanning_Tree`.
     */
     bool paint_spanning_tree(Node *start)
     {
@@ -491,17 +491,17 @@ namespace Aleph
       return negative_cycle;
     }
 
-    /** Faster minimal spanning tree painting from a `start` node.
+    /** Faster shortest paths tree painting from a `start` node.
 
-        This method executes a probably faster version of Bellman-Ford
-        algorithm
+        This method executes a faster version of Bellman-Ford algorithm
+        (SPFA variant) which is often more efficient in practice.
 
-        @param[in] start source node from which the minimal path will be
-        computed
+        @param[in] start source node from which the shortest paths will be
+        computed.
         @return true if negative cycles are detected, in which case the
-        spanning minimal tree has no sense. Otherwise, `false` is
-        returned and the minimal spanning tree is painted with the bit
-        `Spanning_Tree`
+        shortest paths tree has no sense. Otherwise, `false` is
+        returned and the shortest paths tree is painted with the bit
+        `Spanning_Tree`.
     */
     bool faster_paint_spanning_tree(Node *start)
     {
@@ -830,18 +830,11 @@ namespace Aleph
     }
 
     /** Searches a negative cycle using the faster version of Bellman-Ford
-        algorithm.
+        algorithm (SPFA variant).
 
-        @param[in] start node from which the spanning tree is build.
-        @param[in] it_factor iterative factor since then the negative
-        cycle is searched.
-        @param[in] step next step from which the next negative cycle will
-        be done.
-        @return a tuple whose `get<0>` value corresponds to the found
-        negative cycle (if this one exists) and `get<1>` value is the
-        external iteration when the cycle was found. The idea of this
-        second field is to give feedback in order to eventually refine the
-        `it_factor` value.
+        @param[in] start source node from which the shortest paths tree is built.
+        @return a path containing the negative cycle if found, or an empty path
+        if no negative cycle exists reachable from the start node.
      */
     Path<GT> search_negative_cycle(Node *start)
     {
@@ -919,15 +912,14 @@ namespace Aleph
     }
 
 
-    /** Extract the minimal spanning tree in a compressed form.
+    /** Extract the shortest paths tree in a compressed form.
 
-        On a previously painted minimal spanning tree of shortest paths
-        starting on source node, this method extract the tree and loads it
-        in an array of arcs.
+        On a previously painted shortest paths tree starting from a source
+        node, this method extracts the tree and loads it in an array of arcs.
 
-        @return an array of arcs belonging to the minimal spanning tree.
-        @throw domain_error if the minimal spanning tree has not
-        previously built
+        @return an array of arcs belonging to the shortest paths tree.
+        @throw domain_error if the shortest paths tree has not been
+        previously built.
     */
     DynArray<Arc *> extract_min_spanning_tree()
     {
@@ -985,14 +977,12 @@ namespace Aleph
       return total;
     }
 
-    /** Extract from the graph a previously painted minimal spanning tree
-        of minimal paths.
+    /** Extract from the graph a previously painted shortest paths tree.
 
-        This method requires that a minimal spanning tree has been
-        executed with a `paint()` method.
+        This method requires that the shortest paths tree has been
+        computed with `paint_spanning_tree()` or `faster_paint_spanning_tree()`.
 
-        @param[in] tree a graph where the minimal spanning tree will be
-        put.
+        @param[in] tree a graph where the shortest paths tree will be stored.
         @param[in] with_map if true the extracted tree is mapped
         through the cookies with the graph.
      */
@@ -1078,17 +1068,18 @@ namespace Aleph
      */
     Distance_Type get_min_path(typename GT::Node *end, Path<GT> & path)
     {
-      ah_domain_error_if(not painted) << "Graph has not previously painted";
+      ah_domain_error_if(not painted) << "Graph has not been previously painted";
 
       return Aleph::get_min_path<GT, Distance>(s, end, path);
     }
 
-    /** Returns in the AVL mapping the weights associated with each node
-         obtained after executing the Bellman-Ford algorithm from a dummy
-         node. This routine is specifically designed for Johnson's algorithm
-         for computing all minimum paths from a given node.
+    /** Returns a mapping with the shortest distances to each node obtained
+        after executing the Bellman-Ford algorithm from a dummy node connected
+        to all nodes with zero-weight edges. This routine is specifically
+        designed for Johnson's algorithm for computing all-pairs shortest paths.
 
-        @return An AVL mapping where each node is mapped to its weight.
+        @return A tree mapping where each node is mapped to its distance from
+        the dummy source (used as potential for edge reweighting).
         @throw std::domain_error if negative cycles are detected.
      */
     DynMapTree<Node *, Distance_Type> compute_nodes_weights()
@@ -1156,21 +1147,19 @@ namespace Aleph
 
   /** Detects if a negative cycle exists and eventually computes it.
 
-      This class takes a digraph and a destination node, executes the
+      This functor takes a digraph and optionally a source node, executes the
       Bellman-Ford algorithm and if a negative cycle is detected
       then it stores it in a path.
 
-      The procedure is parameterized with the following
-      specifications:
-      -# GT: the graph type based on List_Graph.
-      -# Distance<GT>: The arc weight reading class that must
-      export the following attributes:
-        -# typedef Distance<GT>::Distance_Type: the data type that
-        represents a weight on an arc.
-        -# Distance<GT>::Distance_Type operator()(typename GT::Arc *a):
-        which returns the weight value on arc a.
-        .
-      -# SA: arc filter.
+      The procedure is parameterized with the following specifications:
+      - `GT`: the graph type based on List_Graph or List_Digraph.
+      - `Distance`: The arc weight reading class that must export the
+        following attributes:
+        - `Distance::Distance_Type`: the data type that represents a
+          weight on an arc.
+        - `Distance::Distance_Type operator()(typename GT::Arc *a)`:
+          returns the weight value on arc `a`.
+      - `SA`: arc filter.
 
       @ingroup Grafos
    */

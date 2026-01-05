@@ -193,13 +193,13 @@ public:
 
       @return Number of nodes in the mapping.
    */
-  size_t num_nodes() const noexcept { return node_map.size(); }
+  [[nodiscard]] size_t num_nodes() const noexcept { return node_map.size(); }
 
   /** Get the number of arcs in the copied graph.
 
       @return Number of arcs in the copy.
    */
-  size_t num_arcs() const noexcept { return copied_graph.get_num_arcs(); }
+  [[nodiscard]] size_t num_arcs() const noexcept { return copied_graph.get_num_arcs(); }
 
   /** Apply a function to each (original, copy) node pair.
 
