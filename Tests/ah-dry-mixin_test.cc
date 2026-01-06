@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file ah-dry-mixin_test.cc
+ * @brief Tests for Ah Dry Mixin
+ */
 #include <gtest/gtest.h>
 
 #include <vector>

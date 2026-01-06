@@ -5,6 +5,11 @@
  * of Kruskal's minimum spanning tree algorithm implementation in Aleph-w.
  */
 
+
+/**
+ * @file test_kruskal.cc
+ * @brief Tests for Test Kruskal
+ */
 #include <gtest/gtest.h>
 
 #include <limits>

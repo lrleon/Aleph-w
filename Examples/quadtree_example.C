@@ -58,6 +58,8 @@
  * - **Simulations**: N-body simulations (Barnes-Hut algorithm)
  * 
  * @see quadtree.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  * @see quadnode.H
  */
 

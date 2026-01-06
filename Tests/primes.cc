@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file primes.cc
+ * @brief Tests for Primes
+ */
 # include <gtest/gtest.h>
 
 # include <primes.H>

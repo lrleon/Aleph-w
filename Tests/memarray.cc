@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file memarray.cc
+ * @brief Tests for Memarray
+ */
 # include <gtest/gtest.h>
 
 # include <tpl_memArray.H>

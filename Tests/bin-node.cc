@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file bin-node.cc
+ * @brief Tests for Bin Node
+ */
 # include <gtest/gtest.h>
 
 # include <string>

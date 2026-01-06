@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file ah-arena.cc
+ * @brief Tests for Ah Arena
+ */
 # include <gsl/gsl_rng.h>
 
 # include <tclap/CmdLine.h>

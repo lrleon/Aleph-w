@@ -23,6 +23,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file al-domain.cc
+ * @brief Tests for Al Domain
+ */
 # include <gtest/gtest.h>
 
 # include <al-domain.H>

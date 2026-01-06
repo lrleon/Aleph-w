@@ -56,7 +56,7 @@ private:                                                                \
                                                                         \
    Key * key_ptr = search(key_copy);                                    \
    assert(key_ptr != nullptr);                                          \
-   assert(*key_ptr == key_copy);                                        \
+   assert(cmp(*key_ptr, key_copy));                                     \
                                                                         \
    return key_ptr;                                                      \
  }                                                                      \

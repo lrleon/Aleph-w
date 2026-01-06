@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,6 +23,33 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file joseph.C
+ * @brief Josephus Problem using circular doubly-linked list.
+ *
+ * The Josephus problem is a famous theoretical problem: n people stand
+ * in a circle, and every k-th person is eliminated until only one remains.
+ *
+ * This implementation uses DynDlist (doubly-linked circular list) to
+ * efficiently simulate the elimination process.
+ *
+ * ## Algorithm
+ *
+ * 1. Create a circular list with persons numbered 1 to n
+ * 2. Starting from position 1, count k persons
+ * 3. Eliminate the k-th person and continue from the next
+ * 4. Repeat until only one person remains
+ *
+ * ## Usage
+ *
+ *     joseph -n <num-persons> -p <step>
+ *
+ * @see DynDlist
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
+ */
+
 #include "tpl_dynDlist.H"
 #include <tclap/CmdLine.h>
 #include <cstdio>

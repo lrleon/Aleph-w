@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file ah-functional.cc
+ * @brief Tests for Ah Functional
+ */
 # include <gtest/gtest.h>
 
 # include <ah-zip.H>

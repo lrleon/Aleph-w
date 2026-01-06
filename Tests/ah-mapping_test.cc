@@ -5,6 +5,11 @@
    Tests MapArena memory-mapped arena allocator.
 */
 
+
+/**
+ * @file ah-mapping_test.cc
+ * @brief Tests for Ah Mapping
+ */
 #include <gtest/gtest.h>
 #include <cstring>
 #include <string>

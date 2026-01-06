@@ -1193,8 +1193,11 @@ TEST(DynListQueueEquality, EqualQueuesAreEqual)
   DynListQueue<int> q1 = {1, 2, 3, 4, 5};
   DynListQueue<int> q2 = {1, 2, 3, 4, 5};
 
-  EXPECT_TRUE(q1 == q2);
-  EXPECT_FALSE(q1 != q2);
+  // Use intermediate variables to avoid -Ofast optimization issues
+  bool eq = (q1 == q2);
+  bool neq = (q1 != q2);
+  EXPECT_TRUE(eq);
+  EXPECT_FALSE(neq);
 }
 
 TEST(DynListQueueEquality, DifferentSizesAreNotEqual)
@@ -1202,8 +1205,10 @@ TEST(DynListQueueEquality, DifferentSizesAreNotEqual)
   DynListQueue<int> q1 = {1, 2, 3};
   DynListQueue<int> q2 = {1, 2, 3, 4};
 
-  EXPECT_FALSE(q1 == q2);
-  EXPECT_TRUE(q1 != q2);
+  bool eq = (q1 == q2);
+  bool neq = (q1 != q2);
+  EXPECT_FALSE(eq);
+  EXPECT_TRUE(neq);
 }
 
 TEST(DynListQueueEquality, DifferentElementsAreNotEqual)
@@ -1211,8 +1216,10 @@ TEST(DynListQueueEquality, DifferentElementsAreNotEqual)
   DynListQueue<int> q1 = {1, 2, 3};
   DynListQueue<int> q2 = {1, 2, 4};
 
-  EXPECT_FALSE(q1 == q2);
-  EXPECT_TRUE(q1 != q2);
+  bool eq = (q1 == q2);
+  bool neq = (q1 != q2);
+  EXPECT_FALSE(eq);
+  EXPECT_TRUE(neq);
 }
 
 TEST(DynListQueueEquality, EmptyQueuesAreEqual)
@@ -1220,16 +1227,21 @@ TEST(DynListQueueEquality, EmptyQueuesAreEqual)
   DynListQueue<int> q1;
   DynListQueue<int> q2;
 
-  EXPECT_TRUE(q1 == q2);
-  EXPECT_FALSE(q1 != q2);
+  bool eq = (q1 == q2);
+  bool neq = (q1 != q2);
+  EXPECT_TRUE(eq);
+  EXPECT_FALSE(neq);
 }
 
 TEST(DynListQueueEquality, SelfEquality)
 {
   DynListQueue<int> q = {1, 2, 3};
 
-  EXPECT_TRUE(q == q);
-  EXPECT_FALSE(q != q);
+  // Use intermediate variables to avoid compiler optimization issues with -Ofast
+  bool eq = (q == q);
+  bool neq = (q != q);
+  EXPECT_TRUE(eq);
+  EXPECT_FALSE(neq);
 }
 
 TEST(DynListQueueEquality, EmptyVsNonEmpty)
@@ -1237,8 +1249,10 @@ TEST(DynListQueueEquality, EmptyVsNonEmpty)
   DynListQueue<int> empty;
   DynListQueue<int> non_empty = {1};
 
-  EXPECT_FALSE(empty == non_empty);
-  EXPECT_TRUE(empty != non_empty);
+  bool eq = (empty == non_empty);
+  bool neq = (empty != non_empty);
+  EXPECT_FALSE(eq);
+  EXPECT_TRUE(neq);
 }
 
 // =============================================================================

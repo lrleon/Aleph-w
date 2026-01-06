@@ -23,6 +23,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file al-matrix.cc
+ * @brief Tests for Al Matrix
+ */
 # include <gtest/gtest.h>
 
 # include <ahSort.H>

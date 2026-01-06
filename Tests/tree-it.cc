@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file tree-it.cc
+ * @brief Tests for Tree It
+ */
 # include <gtest/gtest.h>
 
 # include <tpl_dynSetTree.H>

@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file tarjan_test.cc
+ * @brief Tests for Tarjan
+ */
 #include <gtest/gtest.h>
 #include <tpl_graph.H>
 #include <Tarjan.H>

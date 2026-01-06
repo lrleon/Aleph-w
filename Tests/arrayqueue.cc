@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file arrayqueue.cc
+ * @brief Tests for Arrayqueue
+ */
 # include <gtest/gtest.h>
 
 # include <tpl_arrayQueue.H>

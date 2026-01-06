@@ -57,6 +57,8 @@
  *       For graphs with negative weights, use Bellman-Ford.
  * 
  * @see Dijkstra.H for the implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  * @see Bellman_Ford.H for negative weight handling
  */
 

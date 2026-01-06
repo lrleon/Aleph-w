@@ -64,6 +64,8 @@
  * - For Ford-Fulkerson, there must be exactly one source and one sink
  * 
  * @see tpl_net.H for network graph structures
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

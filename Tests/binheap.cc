@@ -2,6 +2,11 @@
  * Tests for DynBinHeap
  */
 
+
+/**
+ * @file binheap.cc
+ * @brief Tests for Binheap
+ */
 #include <algorithm>
 #include <functional>
 #include <numeric>

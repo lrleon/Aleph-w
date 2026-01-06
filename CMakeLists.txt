@@ -56,8 +56,24 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -g3 -O0")
 
 # Release flags
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -Ofast -fPIE -fpic")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -Ofast -fPIE -fpic")
+# Note: Using -O2 instead of -O3 because -O3 can cause issues with certain
+# template-heavy code patterns.
+#
+# IMPORTANT: -fno-strict-aliasing is REQUIRED!
+# ==============================================
+# htlist.H (Snodenc<T>::get_next()) uses reinterpret_cast to return a reference
+# to the base class pointer (Slinknc*) as a derived class pointer reference
+# (Snodenc<T>*&). This violates C++ strict aliasing rules. Without this flag,
+# GCC's optimizer may generate incorrect code, causing segfaults in DynList,
+# DynListStack, DynListQueue, and other data structures that use these lists.
+#
+# The original Makefile (2017) always included this flag. It was accidentally
+# omitted when migrating to CMake. See htlist.H for a proposed CRTP refactoring
+# that would eliminate this requirement.
+#
+# DO NOT REMOVE -fno-strict-aliasing without first refactoring htlist.H!
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -O2 -fno-strict-aliasing -fPIE -fpic")
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

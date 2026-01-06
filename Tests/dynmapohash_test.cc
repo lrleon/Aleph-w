@@ -5,6 +5,11 @@
    Tests MapOpenHash, MapODhash, and MapOLhash implementations.
 */
 
+
+/**
+ * @file dynmapohash_test.cc
+ * @brief Tests for Dynmapohash
+ */
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>

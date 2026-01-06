@@ -53,6 +53,8 @@
  * Both run in O(V + E) time.
  * 
  * @see topological_sort.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

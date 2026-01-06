@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file snodenc.cc
+ * @brief Tests for Snodenc
+ */
 # include <gtest/gtest.h>
 
 # include <htlist.H>

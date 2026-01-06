@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file graph_traverse_test.cc
+ * @brief Tests for Graph Traverse
+ */
 #include <gtest/gtest.h>
 #include <vector>
 #include <set>
@@ -431,9 +436,9 @@ TEST_F(GraphTraverseTest, DualOpVisitsNodesAndArcs)
 
   EXPECT_EQ(nodes_visited, 5);
   EXPECT_EQ(visited_nodes.size(), 5);
-  // In a connected graph with 5 nodes, DFS spanning tree has 4 arcs
-  EXPECT_EQ(arcs_visited, 4);
-  EXPECT_EQ(arc_count, 4);
+  // The graph has 5 arcs, DFS visits all of them (tree + back edges)
+  EXPECT_EQ(arcs_visited, 5);
+  EXPECT_EQ(arc_count, 5);
 }
 
 TEST_F(GraphTraverseTest, DualOpNodeEarlyTermination)

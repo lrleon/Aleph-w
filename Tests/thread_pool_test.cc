@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file thread_pool_test.cc
+ * @brief Tests for Thread Pool
+ */
 #include <gtest/gtest.h>
 #include <thread_pool.H>
 #include <atomic>

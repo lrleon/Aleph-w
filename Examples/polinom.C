@@ -63,6 +63,8 @@
  * @note This is a self-contained example with no command-line arguments.
  * 
  * @see DynDlist for the underlying list implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 # include <tpl_dynDlist.H>

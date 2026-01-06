@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,6 +23,31 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file btreepic.C
+ * @brief Generate LaTeX/eepic pictures of binary trees.
+ *
+ * Reads a tree specification from a file and generates LaTeX code
+ * for visualizing binary trees using the eepic package.
+ *
+ * ## Features
+ *
+ * - Node positioning with configurable spacing
+ * - Edge drawing between parent and children
+ * - Support for various node shapes and styles
+ * - Thread visualization for threaded trees
+ * - Multiple output formats (LaTeX, eepic)
+ *
+ * ## Input Format
+ *
+ * The input file specifies tree structure using a simple DSL with
+ * commands for nodes, edges, colors, and positioning.
+ *
+ * @see ntreepic.C For n-ary tree visualization
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
+ */
     
 # include <stdio.h>
 # include <math.h>

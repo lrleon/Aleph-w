@@ -55,6 +55,8 @@
  * - **T9 predictive text**: Phone keyboards
  * 
  * @see prefix-tree.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

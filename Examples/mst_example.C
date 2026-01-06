@@ -55,6 +55,8 @@
  * - Image segmentation
  * 
  * @see Kruskal.H Prim.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file random_graph.cc
+ * @brief Tests for Random Graph
+ */
 #include <cassert>
 #include <iostream>
 #include <random_graph.H>

@@ -5,6 +5,11 @@
  * of Prim's minimum spanning tree algorithm implementation in Aleph-w.
  */
 
+
+/**
+ * @file prim_test.cc
+ * @brief Tests for Prim
+ */
 #include <gtest/gtest.h>
 
 #include <limits>

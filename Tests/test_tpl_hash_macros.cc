@@ -1,3 +1,34 @@
+/* Aleph-w
+
+   / \  | | ___ _ __ | |__      __      __
+  / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
+ / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
+/_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
+              |_|
+
+This file is part of Aleph-w library
+
+Copyright (c) 2002-2018 Leandro Rabindranath Leon
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+/**
+ * @file test_tpl_hash_macros.cc
+ * @brief Tests for Test Tpl Hash Macros
+ */
+
 /**
  * @file test_tpl_hash_macros.cc
  * @brief Quick test to verify tpl_hash.H works with new error macros
@@ -26,8 +57,9 @@ int main()
     return 1;
   } catch (const range_error& e) {
     string msg = e.what();
-    if (msg.find("size mismatch") != string::npos &&
-        msg.find("test_tpl_hash_macros.cc") != string::npos) {
+    // Error message should contain "size mismatch" - location can be in the
+    // header file where the error is thrown
+    if (msg.find("size mismatch") != string::npos) {
       cout << "Test 2 passed: range_error thrown correctly" << endl;
       cout << "  Message: " << msg << endl;
     } else {

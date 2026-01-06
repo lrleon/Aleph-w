@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file rand-tree.cc
+ * @brief Tests for Rand Tree
+ */
 #include <gtest/gtest.h>
 
 #include <tpl_rand_tree.H>

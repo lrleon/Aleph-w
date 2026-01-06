@@ -5,6 +5,11 @@
  * of Dijkstra's shortest path algorithm implementation in Aleph-w.
  */
 
+
+/**
+ * @file test_dijkstra.cc
+ * @brief Tests for Test Dijkstra
+ */
 #include <gtest/gtest.h>
 
 #include <Dijkstra.H>

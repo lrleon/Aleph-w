@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file array-it.cc
+ * @brief Tests for Array It
+ */
 # include <gtest/gtest.h>
 
 # include <array_it.H>

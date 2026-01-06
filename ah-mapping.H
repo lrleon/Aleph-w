@@ -144,10 +144,11 @@ public:
    * @brief Accesses the value associated with the given key.
    * @param key The key to look up
    * @return Reference to the associated value (creates if doesn't exist)
+   * @note If key doesn't exist, inserts a default-constructed value
    */
   ValueType& operator[](const Key &key)
   {
-    return tbl.touch(key);
+    return tbl[key];
   }
 
   /**

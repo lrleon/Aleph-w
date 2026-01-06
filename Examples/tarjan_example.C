@@ -56,6 +56,8 @@
  * Time complexity: O(V + E)
  * 
  * @see Tarjan.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

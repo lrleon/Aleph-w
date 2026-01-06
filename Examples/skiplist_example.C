@@ -60,6 +60,8 @@
  * - Range queries
  * 
  * @see tpl_dynSkipList.H for the implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  * @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
  */
 

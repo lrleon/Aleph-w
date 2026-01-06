@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file lin-hash.cc
+ * @brief Tests for Lin Hash
+ */
 #include <gtest/gtest.h>
 
 #include <tpl_linHash.H>

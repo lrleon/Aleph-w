@@ -23,6 +23,11 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file dynsetohash.cc
+ * @brief Tests for Dynsetohash
+ */
 # include <gtest/gtest.h>
 
 # include <tpl_dynMapOhash.H>

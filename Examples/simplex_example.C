@@ -57,6 +57,8 @@
  * - Average case: Polynomial (typically fast in practice)
  * 
  * @see Simplex.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

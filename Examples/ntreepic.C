@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,6 +23,32 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file ntreepic.C
+ * @brief Generate LaTeX/eepic pictures of n-ary trees.
+ *
+ * Reads a tree specification from a file and generates LaTeX code
+ * for visualizing general (n-ary) trees using the eepic package.
+ *
+ * ## Features
+ *
+ * - Support for trees with any number of children per node
+ * - Deway notation for node identification
+ * - Configurable node shapes, colors, and spacing
+ * - Edge styles including dashed connections
+ * - Forest visualization (multiple trees)
+ *
+ * ## Input Format
+ *
+ * The input file specifies tree structure using Deway notation
+ * (e.g., 1.2.3 for third child of second child of root).
+ *
+ * @see btreepic.C For binary tree visualization
+ * @see Tree_Node N-ary tree node structure
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
+ */
 
 # include <iostream>
 # include <fstream>

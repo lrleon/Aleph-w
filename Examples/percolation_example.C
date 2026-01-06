@@ -57,6 +57,8 @@
  * For 2D square lattice: p* ≈ 0.593
  * 
  * @see tpl_union.H for Union-Find implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

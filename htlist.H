@@ -61,6 +61,28 @@ template <typename T> class Snodenc; // forward declaration
     Link of a single linked list non-circular and without header node.
 
      @ingroup Sequencies
+     
+     @note STRICT ALIASING DESIGN NOTE:
+     
+     This class stores `next` as `Slinknc*`. Derived classes like `Snodenc<T>`
+     need to return `Snodenc<T>*&` from `get_next()`, which requires a
+     `reinterpret_cast`. This violates C++ strict aliasing rules and requires
+     the compiler flag `-fno-strict-aliasing` for correct behavior.
+     
+     A cleaner design would use CRTP (Curiously Recurring Template Pattern):
+     @code
+     template <typename Derived>
+     class Slinknc_Base {
+       Derived* next = nullptr;  // Type is already correct
+     public:
+       Derived*& get_next() { return next; }  // No cast needed
+     };
+     
+     template <typename T>
+     class Snodenc : public Slinknc_Base<Snodenc<T>> { ... };
+     @endcode
+     
+     This refactoring is left for future work to avoid breaking changes.
 
   \~Spanish
     Enlace a una lista simple no circular y sin nodo cabecera
@@ -360,9 +382,21 @@ public:
 
   /** \~English Return the node following to `this`
       \~Spanish Retorna el nodo siguiente a `this`
+      
+      @warning This function uses reinterpret_cast to return a reference to
+      the base class pointer as a derived class pointer reference. This is
+      technically a strict aliasing violation in C++. The code REQUIRES the
+      compiler flag -fno-strict-aliasing to work correctly with optimizations.
+      
+      A future refactoring using CRTP (Curiously Recurring Template Pattern)
+      could eliminate this requirement by making the base class templated on
+      the derived type, so that `next` is stored as `Derived*` instead of
+      `Slinknc*`. See Slinknc class documentation for details.
   */
   Snodenc *& get_next() noexcept
   {
+    // STRICT ALIASING WARNING: This reinterpret_cast violates C++ strict
+    // aliasing rules. Requires -fno-strict-aliasing compiler flag.
     return reinterpret_cast<Snodenc *&>(Slinknc::get_next());
   }
 

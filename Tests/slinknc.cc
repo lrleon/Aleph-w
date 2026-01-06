@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file slinknc.cc
+ * @brief Tests for Slinknc
+ */
 # include <gtest/gtest.h>
 
 # include <htlist.H>

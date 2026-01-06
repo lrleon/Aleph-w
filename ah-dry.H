@@ -1434,7 +1434,7 @@ public:
   */
   bool equal_to(const Container & r) const noexcept
   {
-    if (this == &r)
+    if (const_me() == &r)  // Use const_me() to get correct pointer in case of multiple inheritance
       return true;
 
     if (const_me()->size() != r.size())

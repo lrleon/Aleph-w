@@ -69,6 +69,8 @@
  * @note The graph includes negative edge weights but no negative cycles.
  * 
  * @see floyd_all_shortest_paths_latex for the LaTeX generation routine
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  * @see Ady_Mat for the adjacency matrix representation
  */
 

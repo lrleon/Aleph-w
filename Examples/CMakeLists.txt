@@ -51,6 +51,22 @@ set(EXAMPLE_PROGRAMS
     write_floyd
     write_huffman
     write_tree
+    zip_example
+    zip_utils_example
+    uni_functional_example
+    comb_example
+    string_utils_example
+    eulerian_example
+    bloom_filter_example
+    hamiltonian_example
+    random_graph_example
+    bipartite_example
+    ranges_example
+    dispatcher_example
+    geom_example
+    mapping_example
+    stl_utils_example
+    map_arena_example
 )
 
 # Function to get source file from program name

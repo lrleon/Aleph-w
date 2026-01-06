@@ -55,6 +55,8 @@
  * | merge         | O(n)        | O(1)           |
  * 
  * @see tpl_binHeap.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  * @see tpl_dynBinHeap.H
  * @see tpl_fibonacci_heap.H
  */

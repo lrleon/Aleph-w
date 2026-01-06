@@ -53,6 +53,8 @@
  * - Order doesn't matter
  * 
  * @see tpl_dynMapTree.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
  */
 
 #include <iostream>

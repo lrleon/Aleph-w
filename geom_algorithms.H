@@ -27,11 +27,69 @@
 /** @file geom_algorithms.H
  *  @brief Computational geometry algorithms.
  *
- *  Provides algorithms for polygon operations, convex hull,
- *  point-in-polygon tests, and other geometric computations.
+ *  This file provides fundamental algorithms for computational geometry:
+ *
+ *  ## Triangulation
+ *
+ *  - **CuttingEarsTriangulation**: Triangulate a simple polygon using the
+ *    ear-cutting algorithm. Complexity: O(n²)
+ *
+ *  ## Convex Hull
+ *
+ *  Three algorithms to compute the convex hull of a point set:
+ *
+ *  | Algorithm | Complexity | Best For |
+ *  |-----------|------------|----------|
+ *  | BruteForceConvexHull | O(n³) | Small sets, educational |
+ *  | GiftWrappingConvexHull | O(nh) | Few hull points (h small) |
+ *  | QuickHull | O(n log n) avg, O(n²) worst | General use |
+ *
+ *  where n = number of points, h = number of hull points.
+ *
+ *  ## Dependencies
+ *
+ *  Requires `polygon.H` for geometric primitives:
+ *  - Point: 2D point with x, y coordinates
+ *  - Segment: Line segment between two points
+ *  - Polygon: Sequence of connected vertices
+ *  - Triangle: Three-point polygon
+ *  - Vertex: Point with connectivity information
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  #include <geom_algorithms.H>
+ *
+ *  // Create a point set
+ *  DynList<Point> points;
+ *  points.append(Point(0, 0));
+ *  points.append(Point(4, 0));
+ *  points.append(Point(4, 4));
+ *  points.append(Point(0, 4));
+ *  points.append(Point(2, 2));  // Interior point
+ *
+ *  // Compute convex hull
+ *  QuickHull qh;
+ *  Polygon hull = qh(points);  // Returns square (excludes interior point)
+ *
+ *  // Triangulate a polygon
+ *  Polygon square;
+ *  square.add_vertex(Point(0, 0));
+ *  square.add_vertex(Point(4, 0));
+ *  square.add_vertex(Point(4, 4));
+ *  square.add_vertex(Point(0, 4));
+ *  square.close();
+ *
+ *  CuttingEarsTriangulation triangulator;
+ *  DynList<Triangle> triangles = triangulator(square);
+ *  ```
+ *
+ *  @see polygon.H Geometric primitives
+ *  @see Point, Segment, Polygon, Triangle
  *
  *  @ingroup Geometria
  *  @author Leandro Rabindranath León
+ *  @author Alejandro J. Mujica
  */
 
 # ifndef GEOM_ALGORITHMS_H
@@ -43,35 +101,108 @@
 # include <tpl_sort_utils.H>
 # include <ah-errors.H>
 
-// Triangulation algorithms
+namespace Aleph
+{
 
-/** Triangulation algorithm by cutting ears.
+// ============================================================================
+// Triangulation Algorithms
+// ============================================================================
 
-    @author Alejandro J. Mujica
-    @ingroup Geometry
-*/
+/**
+ * @brief Polygon triangulation using the ear-cutting algorithm.
+ *
+ * Decomposes a simple polygon into a set of non-overlapping triangles.
+ * An "ear" is a triangle formed by three consecutive vertices where
+ * the diagonal between the first and third vertices lies entirely
+ * inside the polygon.
+ *
+ * ## Algorithm
+ *
+ * 1. Find all ears (vertices whose diagonal is inside the polygon)
+ * 2. Remove an ear, creating a triangle
+ * 3. Update the ear status of adjacent vertices
+ * 4. Repeat until only a triangle remains
+ *
+ * ## Complexity
+ *
+ * - Time: O(n²) where n = number of vertices
+ * - Space: O(n) for the ears set
+ *
+ * ## Requirements
+ *
+ * - Input must be a simple polygon (no self-intersections)
+ * - Polygon must have at least 3 vertices
+ * - Vertices should be in counter-clockwise order
+ *
+ * ## Example
+ *
+ * ```cpp
+ * // Create a convex quadrilateral
+ * Polygon quad;
+ * quad.add_vertex(Point(0, 0));
+ * quad.add_vertex(Point(4, 0));
+ * quad.add_vertex(Point(4, 3));
+ * quad.add_vertex(Point(0, 3));
+ * quad.close();
+ *
+ * CuttingEarsTriangulation triangulator;
+ * DynList<Triangle> triangles = triangulator(quad);
+ * // Result: 2 triangles
+ * ```
+ *
+ * @warning The input polygon is modified (vertices are removed).
+ *          Pass a copy if you need to preserve the original.
+ *
+ * @see Triangle Output triangle type
+ * @see Polygon Input polygon type
+ *
+ * @ingroup Geometria
+ * @author Alejandro J. Mujica
+ */
 class CuttingEarsTriangulation
 {
   using EarsSet = DynSetTree<const Vertex *, Treap_Rk>;
 
 public:
+
+  /**
+   * @brief Check if a segment is a valid diagonal of the polygon.
+   *
+   * A diagonal is valid if it doesn't intersect any edge of the polygon
+   * (except at endpoints).
+   *
+   * @param p The polygon.
+   * @param s The candidate diagonal segment.
+   * @return true if s is a valid diagonal.
+   */
   static bool diagonalie(const Polygon & p, const Segment & s)
   {
     for (Polygon::Segment_Iterator it(p); it.has_curr(); it.next_ne())
       {
-        if (Segment curr = it.get_current_segment(); (curr.get_src_point() != s.get_src_point()) and
-                                                     (curr.get_tgt_point() != s.get_src_point()) and
-                                                     (curr.get_src_point() != s.get_tgt_point()) and
-                                                     (curr.get_tgt_point() != s.get_tgt_point()) and
-                                                     s.intersects_with(curr))
+        if (Segment curr = it.get_current_segment(); 
+            (curr.get_src_point() != s.get_src_point()) and
+            (curr.get_tgt_point() != s.get_src_point()) and
+            (curr.get_src_point() != s.get_tgt_point()) and
+            (curr.get_tgt_point() != s.get_tgt_point()) and
+            s.intersects_with(curr))
           return false;
       }
     return true;
   }
 
+  /**
+   * @brief Check if vertex b is inside the cone formed at vertex a.
+   *
+   * The cone is defined by the edges adjacent to a (from prev to next).
+   *
+   * @param p The polygon.
+   * @param a The vertex forming the cone apex.
+   * @param b The vertex to test.
+   * @return true if b is visible from a within the polygon.
+   */
   static bool in_cone(const Polygon & p, const Vertex & a, const Vertex & b)
   {
-    // a0 -> a -> a1 son vértices consecutivos
+    // a0 -> a -> a1 are consecutive vertices
     const Vertex & a0 = p.get_prev_vertex(a);
     const Vertex & a1 = p.get_next_vertex(a);
 
@@ -82,12 +213,26 @@ public:
                 a0.is_to_left_on_from(b, a));
   }
 
+  /**
+   * @brief Check if segment (a, b) is a valid internal diagonal.
+   *
+   * @param p The polygon.
+   * @param a First vertex of the diagonal.
+   * @param b Second vertex of the diagonal.
+   * @return true if (a, b) is a valid diagonal.
+   */
   static bool diagonal(const Polygon & p, const Vertex & a, const Vertex & b)
   {
     return in_cone(p, a, b) and in_cone(p, b, a) and
            diagonalie(p, Segment(a, b));
   }
 
+  /**
+   * @brief Initialize the set of ear vertices.
+   *
+   * @param p The polygon.
+   * @return Set of pointers to ear vertices.
+   */
   static EarsSet init_ears(const Polygon & p)
   {
     EarsSet ret;
@@ -105,9 +250,20 @@ public:
   }
 
 public:
+
+  /**
+   * @brief Triangulate the polygon.
+   *
+   * @param p The polygon to triangulate (will be modified).
+   * @return List of triangles forming the triangulation.
+   *
+   * @throws domain_error if the polygon has fewer than 3 vertices.
+   *
+   * @note The input polygon is consumed (vertices removed).
+   */
   DynList<Triangle> operator ()(Polygon & p)
   {
-    ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertexs";
+    ah_domain_error_if(p.size() < 3) << "Polygon has less than 3 vertices";
 
     EarsSet ears = init_ears(p);
 
@@ -149,13 +305,39 @@ public:
   }
 };
 
-// Convex hull algorithms
+// ============================================================================
+// Convex Hull Algorithms
+// ============================================================================
 
-/** Builds a convex hull from a points set by brute force.
-
-    @author Alejandro J. Mujica
-    @ingroup Geometry
-*/
+/**
+ * @brief Brute force convex hull algorithm.
+ *
+ * Computes the convex hull by testing all pairs of points to find
+ * extreme edges (edges where all other points are on one side).
+ *
+ * ## Algorithm
+ *
+ * For each pair of points (p, q):
+ *   If all other points are to the left of segment (p, q),
+ *   then (p, q) is an edge of the convex hull.
+ *
+ * ## Complexity
+ *
+ * - Time: O(n³) - checks n² pairs, each against n points
+ * - Space: O(n) for the edge set
+ *
+ * ## Use Cases
+ *
+ * - Educational purposes
+ * - Very small point sets (< 20 points)
+ * - Verification of other algorithms
+ *
+ * @see GiftWrappingConvexHull O(nh) algorithm
+ * @see QuickHull O(n log n) average algorithm
+ *
+ * @ingroup Geometria
+ * @author Alejandro J. Mujica
+ */
 class BruteForceConvexHull
 {
   struct CmpSegment
@@ -179,7 +361,6 @@ class BruteForceConvexHull
   };
 
   using SegmentSet = DynSetTree<Segment, Treap_Rk, CmpSegment>;
-
   using PointIt = DynList<Point>::Iterator;
 
   bool are_all_points_on_left(DynList<Point> & l, const Segment & s)
@@ -221,6 +402,13 @@ class BruteForceConvexHull
   }
 
 public:
+
+  /**
+   * @brief Compute the convex hull of a point set.
+   *
+   * @param point_set The input points.
+   * @return A closed polygon representing the convex hull.
+   */
   Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
@@ -255,11 +443,35 @@ public:
   }
 };
 
-/** Builds a convex hull from a points set by gift wrapping algorithm.
-
-    @author Alejandro J. Mujica
-    @ingroup Geometry
-*/
+/**
+ * @brief Gift wrapping (Jarvis march) convex hull algorithm.
+ *
+ * Computes the convex hull by starting from the lowest point and
+ * "wrapping" around the point set, always selecting the point that
+ * makes the smallest counter-clockwise angle.
+ *
+ * ## Algorithm
+ *
+ * 1. Start with the lowest point (guaranteed to be on hull)
+ * 2. Find the point that makes the smallest angle with the last edge
+ * 3. Add it to the hull
+ * 4. Repeat until returning to the starting point
+ *
+ * ## Complexity
+ *
+ * - Time: O(nh) where n = total points, h = hull points
+ * - Space: O(1) additional
+ *
+ * ## Use Cases
+ *
+ * - When the convex hull has few points (h << n)
+ * - When output-sensitive algorithm is preferred
+ *
+ * @see QuickHull For general-purpose convex hull
+ *
+ * @ingroup Geometria
+ * @author Alejandro J. Mujica
+ */
 class GiftWrappingConvexHull
 {
   Point * get_lowest_point(DynList<Point> & point_set)
@@ -280,6 +492,13 @@ class GiftWrappingConvexHull
   }
 
 public:
+
+  /**
+   * @brief Compute the convex hull of a point set.
+   *
+   * @param point_set The input points.
+   * @return A closed polygon representing the convex hull.
+   */
   Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
@@ -330,11 +549,34 @@ public:
   }
 };
 
-/** Builds a convex hull from a points set by quick hull algorithm.
-
-    @author Alejandro J. Mujica
-    @ingroup Geometry
-*/
+/**
+ * @brief QuickHull convex hull algorithm.
+ *
+ * Computes the convex hull using a divide-and-conquer approach similar
+ * to QuickSort. Recursively finds the farthest point from a line and
+ * partitions the remaining points.
+ *
+ * ## Algorithm
+ *
+ * 1. Find leftmost and rightmost points (guaranteed on hull)
+ * 2. Partition points into those above and below the line
+ * 3. For each partition, find the farthest point from the line
+ * 4. Recursively process the sub-partitions
+ *
+ * ## Complexity
+ *
+ * - Time: O(n log n) average, O(n²) worst case
+ * - Space: O(n) for recursive calls
+ *
+ * ## Use Cases
+ *
+ * - General-purpose convex hull computation
+ * - Large point sets
+ * - When average-case performance matters more than worst-case
+ *
+ * @ingroup Geometria
+ * @author Alejandro J. Mujica
+ */
 class QuickHull
 {
   Point get_fartest_point(DynList<Point> & point_set, const Segment & s)
@@ -441,6 +683,13 @@ class QuickHull
   }
 
 public:
+
+  /**
+   * @brief Compute the convex hull of a point set.
+   *
+   * @param point_set The input points.
+   * @return A closed polygon representing the convex hull.
+   */
   Polygon operator ()(DynList<Point> & point_set)
   {
     Polygon ret;
@@ -464,5 +713,7 @@ public:
     return ret;
   }
 };
+
+} // namespace Aleph
 
 # endif // GEOM_ALGORITHMS_H

@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file array_utils.cc
+ * @brief Tests for Array Utils
+ */
 # include <gtest/gtest.h>
 
 # include <iostream>

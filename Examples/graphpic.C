@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,6 +23,34 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file graphpic.C
+ * @brief Generate LaTeX/eepic pictures of graphs.
+ *
+ * Reads a graph specification from a file and generates LaTeX code
+ * for visualizing graphs and digraphs using the eepic package.
+ *
+ * ## Features
+ *
+ * - Support for both directed (digraph) and undirected graphs
+ * - Configurable node positions, shapes, and colors
+ * - Edge labels and weights
+ * - Arrow styles for directed edges
+ * - Multiple node shapes (circle, ellipse, rectangle)
+ *
+ * ## Input Format
+ *
+ * The input file uses a DSL with commands:
+ * - GRAPH/DIGRAPH: Specify graph type
+ * - NODE: Define nodes with positions
+ * - ARC/EDGE: Define connections
+ * - Various style commands for colors, shapes, etc.
+ *
+ * @see btreepic.C, ntreepic.C For tree visualization
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
+ */
  
 # include <iostream>
 # include <fstream>

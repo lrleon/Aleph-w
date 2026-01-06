@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,6 +23,28 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file gen_rand_graph.C
+ * @brief Generate random Euclidean graphs.
+ *
+ * Creates a random graph where nodes have 2D coordinates (x, y) within
+ * a specified width and height. Edges connect nearby nodes.
+ *
+ * ## Output Format
+ *
+ * The graph is saved in Aleph-w text format, which can be loaded with
+ * IO_Graph for visualization or further processing.
+ *
+ * ## Usage
+ *
+ *     gen_rand_graph -n <nodes> -m <edges> -W <width> -H <height> [-s <seed>] [file]
+ *
+ * @see Random_Graph, euclidian-graph-common.H
+ * @author Leandro Rabindranath León
+ * @ingroup Ejemplos
+ */
+
 # include <sys/resource.h>
 # include <tpl_sgraph.H>
 # include <tpl_agraph.H>

@@ -24,6 +24,11 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file cookie_guard_test.cc
+ * @brief Tests for Cookie Guard
+ */
 #include <gtest/gtest.h>
 #include <cookie_guard.H>
 #include <tpl_graph.H>
