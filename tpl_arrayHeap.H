@@ -36,6 +36,7 @@
     parent/child arithmetic.
 
     @ingroup Trees
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef TPL_ARRAYHEAP_H

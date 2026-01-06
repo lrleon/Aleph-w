@@ -33,6 +33,7 @@
  *  These are fundamental building blocks used throughout Aleph-w.
  *
  *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef HTLIST_H

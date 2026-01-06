@@ -32,6 +32,7 @@
  *  various std::string transformation functions.
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef AH_STRING_UTILS_H

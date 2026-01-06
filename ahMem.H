@@ -41,6 +41,9 @@
  * void * ptr = Aleph::allocate(256);
  * Aleph::deallocate(ptr);
  * @endcode
+ *
+ * @ingroup Utilidades
+ * @author Leandro Rabindranath León
  */
 
 #ifndef AHMEM_H

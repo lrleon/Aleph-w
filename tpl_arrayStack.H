@@ -34,6 +34,7 @@
     Both provide LIFO semantics with push/pop operations.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef TPL_ARRAYSTACK_H

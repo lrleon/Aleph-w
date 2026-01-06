@@ -40,6 +40,9 @@
  * - Since C++11, initialization of function-local statics is thread-safe.
  * - Destruction happens at program termination, in reverse construction order
  *   across translation units (usual static deinitialization rules).
+ *
+ * @ingroup Utilidades
+ * @author Leandro Rabindranath León
  */
 
 /** @brief Inject a Meyers singleton accessor into a class.

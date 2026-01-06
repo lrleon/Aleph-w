@@ -33,6 +33,7 @@
     mixin classes.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef TPL_ARRAY_H
@@ -120,6 +121,7 @@ namespace Aleph
     @see DynList Doubly linked list alternative (O(1) insertion, O(n) access).
     @see FunctionalMethods Inherited functional operations.
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
  */
 template<typename T>
 class Array : public LocateFunctions<Array<T>, T>,

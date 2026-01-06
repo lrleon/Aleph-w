@@ -100,6 +100,7 @@ namespace Aleph
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T = int>
 [[nodiscard]] std::vector<T> stl_range(T start, T end, T step = 1)
@@ -127,6 +128,7 @@ template <typename T = int>
  * @return std::vector<T> with values 0 to n-1.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T = int>
 [[nodiscard]] std::vector<T> stl_range(T n)
@@ -147,6 +149,7 @@ template <typename T = int>
  * @return std::vector with n values.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T = double>
 [[nodiscard]] std::vector<T> stl_linspace(T start, T end, size_t n)
@@ -175,6 +178,7 @@ template <typename T = double>
  * @return std::vector with n copies of value.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T>
 [[nodiscard]] std::vector<T> stl_rep(size_t n, const T& value)
@@ -190,6 +194,7 @@ template <typename T>
  * @return std::vector with generated values.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Gen>
 [[nodiscard]] auto stl_generate(size_t n, Gen&& gen)
@@ -213,6 +218,7 @@ template <typename Gen>
  * @param c Container.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 void stl_for_each(Op&& op, const Container& c)
@@ -228,6 +234,7 @@ void stl_for_each(Op&& op, const Container& c)
  * @param c Container.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 void stl_for_each_indexed(Op&& op, const Container& c)
@@ -250,6 +257,7 @@ void stl_for_each_indexed(Op&& op, const Container& c)
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 [[nodiscard]] auto stl_map(Op&& op, const Container& c)
@@ -272,6 +280,7 @@ template <typename Op, typename Container>
  * @return std::vector<R> with transformed values.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 [[nodiscard]] auto stl_mapi(Op&& op, const Container& c)
@@ -295,6 +304,7 @@ template <typename Op, typename Container>
  * @return std::vector with filtered elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_filter(Pred&& pred, const Container& c)
@@ -316,6 +326,7 @@ template <typename Pred, typename Container>
  * @return std::vector with filtered elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_filteri(Pred&& pred, const Container& c)
@@ -349,6 +360,7 @@ template <typename Pred, typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
 [[nodiscard]] T stl_foldl(T init, Op&& op, const Container& c)
@@ -385,6 +397,7 @@ template <typename T, typename Op, typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
 [[nodiscard]] T stl_foldr(T init, Op&& op, const Container& c)
@@ -410,6 +423,7 @@ template <typename T, typename Op, typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
 [[nodiscard]] std::vector<T> stl_scan_left(T init, Op&& op, const Container& c)
@@ -436,6 +450,7 @@ template <typename T, typename Op, typename Container>
  * @return std::vector containing all intermediate results (in reverse order) and init.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
 [[nodiscard]] std::vector<T> stl_scan_right(T init, Op&& op, const Container& c)
@@ -475,6 +490,7 @@ template <typename T, typename Op, typename Container>
  * @return `true` if all elements satisfy predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_all(Pred&& pred, const Container& c)
@@ -500,6 +516,7 @@ template <typename Pred, typename Container>
  * @return `true` if any element satisfies predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_exists(Pred&& pred, const Container& c)
@@ -528,6 +545,7 @@ template <typename Pred, typename Container>
  * @brief Check if no element satisfies predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_none(Pred&& pred, const Container& c)
@@ -547,6 +565,7 @@ template <typename Pred, typename Container>
  * @return std::optional with element if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_find(Pred&& pred, const Container& c)
@@ -567,6 +586,7 @@ template <typename Pred, typename Container>
  * @return std::optional with element if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_find_last(Pred&& pred, const Container& c)
@@ -588,6 +608,7 @@ template <typename Pred, typename Container>
  * @return std::optional<size_t> with index if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] std::optional<size_t> stl_find_index(Pred&& pred, const Container& c)
@@ -610,6 +631,7 @@ template <typename Pred, typename Container>
  * @return First non-empty result from op.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 [[nodiscard]] auto stl_find_mapi(Op&& op, const Container& c)
@@ -635,6 +657,7 @@ template <typename Op, typename Container>
  * @return `true` if target is found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
 [[nodiscard]] bool stl_mem(const T& target, const Container& c)
@@ -657,6 +680,7 @@ template <typename T, typename Container>
  * @return Number of elements satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] size_t stl_count(Pred&& pred, const Container& c)
@@ -676,6 +700,7 @@ template <typename Pred, typename Container>
  * @return Number of occurrences.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
 [[nodiscard]] size_t stl_count_value(const T& target, const Container& c)
@@ -699,6 +724,7 @@ template <typename T, typename Container>
  * @return std::vector with first n elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_take(size_t n, const Container& c)
@@ -725,6 +751,7 @@ template <typename Container>
  * @return std::vector with remaining elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_drop(size_t n, const Container& c)
@@ -753,6 +780,7 @@ template <typename Container>
  * @return std::vector with last n elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_take_last(size_t n, const Container& c)
@@ -783,6 +811,7 @@ template <typename Container>
  * @return std::vector with elements taken while predicate is true.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_take_while(Pred&& pred, const Container& c)
@@ -807,6 +836,7 @@ template <typename Pred, typename Container>
  * @return std::vector with remaining elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_drop_while(Pred&& pred, const Container& c)
@@ -836,6 +866,7 @@ template <typename Pred, typename Container>
  * @return std::optional with first element if container is not empty.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_first(const Container& c)
@@ -855,6 +886,7 @@ template <typename Container>
  * @return std::optional with last element if container is not empty.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_last(const Container& c)
@@ -877,6 +909,7 @@ template <typename Container>
  * @return std::optional with n-th element if exists.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_nth(size_t n, const Container& c)
@@ -904,6 +937,7 @@ template <typename Container>
  * @return std::optional with minimum element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_min(const Container& c)
@@ -929,6 +963,7 @@ template <typename Container>
  * @return std::optional with maximum element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_max(const Container& c)
@@ -954,6 +989,7 @@ template <typename Container>
  * @return std::optional<std::pair<T, T>> with (min, max).
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_min_max(const Container& c)
@@ -985,6 +1021,7 @@ template <typename Container>
  * @return std::optional with element having minimum key.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
 [[nodiscard]] auto stl_min_by(Key&& key, const Container& c)
@@ -1019,6 +1056,7 @@ template <typename Key, typename Container>
  * @return std::optional with element having maximum key.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
 [[nodiscard]] auto stl_max_by(Key&& key, const Container& c)
@@ -1056,6 +1094,7 @@ template <typename Key, typename Container>
  * @return Sum of all elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_sum(const Container& c)
@@ -1074,6 +1113,7 @@ template <typename Container>
  * @return Product of all elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_product(const Container& c)
@@ -1101,6 +1141,7 @@ template <typename Container>
  * @return Pair of vectors: (elements satisfying pred, elements not satisfying pred).
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_partition(Pred&& pred, const Container& c)
@@ -1130,6 +1171,7 @@ template <typename Pred, typename Container>
  * @return std::vector of pairs.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
 [[nodiscard]] auto stl_zip_to_pairs(const Container1& c1, const Container2& c2)
@@ -1153,6 +1195,7 @@ template <typename Container1, typename Container2>
  * @return Pair of vectors.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_unzip_pairs(const Container& c)
@@ -1181,6 +1224,7 @@ template <typename Container>
  * @return std::vector of pairs (index, element).
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_enumerate_to_pairs(const Container& c)
@@ -1207,6 +1251,7 @@ template <typename Container>
  * @return `true` if containers have same elements in same order.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
 [[nodiscard]] bool stl_equal(const Container1& c1, const Container2& c2)
@@ -1227,6 +1272,7 @@ template <typename Container1, typename Container2>
  * @return -1 if c1 < c2, 0 if equal, 1 if c1 > c2.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
 [[nodiscard]] int stl_compare(const Container1& c1, const Container2& c2)
@@ -1255,6 +1301,7 @@ template <typename Container1, typename Container2>
  * @return std::vector with elements in reverse order.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_reverse(const Container& c)
@@ -1273,6 +1320,7 @@ template <typename Container>
  * @return std::vector with sorted elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_sort(const Container& c)
@@ -1292,6 +1340,7 @@ template <typename Container>
  * @return std::vector with sorted elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Cmp, typename Container>
 [[nodiscard]] auto stl_sort_by(Cmp&& cmp, const Container& c)
@@ -1314,6 +1363,7 @@ template <typename Cmp, typename Container>
  * @return std::vector with consecutive duplicates removed.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_unique(const Container& c)
@@ -1339,6 +1389,7 @@ template <typename Container>
  *       use a set-based approach.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_distinct(const Container& c)
@@ -1373,6 +1424,7 @@ template <typename Container>
  * @return std::vector with all elements from c1 followed by c2.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
 [[nodiscard]] auto stl_concat(const Container1& c1, const Container2& c2)
@@ -1395,6 +1447,7 @@ template <typename Container1, typename Container2>
  * @return std::vector with all nested elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_flatten(const Container& c)
@@ -1417,6 +1470,7 @@ template <typename Container>
  * @return std::vector with flattened mapped results.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 [[nodiscard]] auto stl_flat_map(Op&& op, const Container& c)
@@ -1443,6 +1497,7 @@ template <typename Op, typename Container>
  * @return std::vector of vectors, each containing consecutive equal elements.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_group(const Container& c)
@@ -1480,6 +1535,7 @@ template <typename Container>
  * @note This is an O(n²) implementation. For better performance, use a map.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
 [[nodiscard]] auto stl_group_by(Key&& key, const Container& c)
@@ -1601,6 +1657,7 @@ bool arrangements_impl(const std::vector<T>& arr, size_t k,
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 bool stl_traverse_permutations(Op&& op, const Container& c)
@@ -1619,6 +1676,7 @@ bool stl_traverse_permutations(Op&& op, const Container& c)
  * @note For n elements, generates n! permutations. Use with care for large n.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_permutations(const Container& c)
@@ -1656,6 +1714,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 bool stl_traverse_combinations(size_t k, Op&& op, const Container& c)
@@ -1679,6 +1738,7 @@ bool stl_traverse_combinations(size_t k, Op&& op, const Container& c)
  * @return Vector of vectors, each containing one combination.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_combinations(size_t k, const Container& c)
@@ -1716,6 +1776,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 bool stl_traverse_arrangements(size_t k, Op&& op, const Container& c)
@@ -1740,6 +1801,7 @@ bool stl_traverse_arrangements(size_t k, Op&& op, const Container& c)
  * @return Vector of vectors, each containing one arrangement.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_arrangements(size_t k, const Container& c)
@@ -1769,6 +1831,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T>
 [[nodiscard]] auto stl_cartesian_product(const std::vector<std::vector<T>>& containers)
@@ -1806,6 +1869,7 @@ template <typename T>
  * @return Vector of vectors containing all 2^n subsets.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_power_set(const Container& c)
@@ -1847,6 +1911,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_sliding_window(size_t n, const Container& c)
@@ -1879,6 +1944,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_chunks(size_t n, const Container& c)
@@ -1913,6 +1979,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
 [[nodiscard]] auto stl_intersperse(const T& sep, const Container& c)
@@ -1939,6 +2006,7 @@ template <typename T, typename Container>
  * @return Pair of vectors.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_split_at(size_t n, const Container& c)
@@ -1969,6 +2037,7 @@ template <typename Container>
  * @return Pair of vectors.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_span(Pred&& pred, const Container& c)
@@ -1999,6 +2068,7 @@ template <typename Pred, typename Container>
  * @return Vector without last element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_init(const Container& c)
@@ -2019,6 +2089,7 @@ template <typename Container>
  * @return Vector without first element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_tail(const Container& c)
@@ -2047,6 +2118,7 @@ template <typename Container>
  * @note Uses O(n²) algorithm. For large containers, use a map.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_tally(const Container& c)
@@ -2079,6 +2151,7 @@ template <typename Container>
  * @return Vector with elements not satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] auto stl_reject(Pred&& pred, const Container& c)

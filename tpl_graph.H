@@ -33,6 +33,7 @@
  *  and provide efficient adjacency list representations with iterators.
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_GRAPH_H

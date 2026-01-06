@@ -32,6 +32,7 @@
  *  various balanced BST implementations (AVL, Treap, Red-Black, etc.).
  *
  *  @ingroup Trees
+ *  @author Leandro Rabindranath León
  *  @ingroup Maps
  */
 

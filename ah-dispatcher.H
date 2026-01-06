@@ -125,6 +125,7 @@
  * ```
  *
  * @ingroup Utilidades
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, class Operation>
 class AHDispatcher
@@ -257,6 +258,7 @@ public:
  * - Key comparison is simpler than hashing
  *
  * @ingroup Utilidades
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, class Operation>
 class AhHashDispatcher

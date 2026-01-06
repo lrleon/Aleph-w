@@ -192,6 +192,9 @@ class Huffman_Encoder_Engine
     // empty
   }
 
+    /// Destructor - frees all allocated memory
+  ~Huffman_Encoder_Engine() { clear_build_state(); }
+
   private:
 
   struct Get_Key

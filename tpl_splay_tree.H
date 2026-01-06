@@ -34,6 +34,7 @@
  *  @note This code is adapted from Danny Sleator's implementation.
  *  @see http://www.link.cs.cmu.edu/link/ftp-site/splaying/
  *  @ingroup Trees
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_SPLAY_TREE_H
@@ -121,6 +122,7 @@ using namespace Aleph;
     @see Avl_Tree Alternative with O(log n) worst-case guarantee.
     @see DynSetSplayTree High-level wrapper with automatic memory management.
     @ingroup Trees
+ *  @author Leandro Rabindranath León
  */
 template <template <class> class NodeType, typename Key, class Compare>
 class GenTdSplayTree

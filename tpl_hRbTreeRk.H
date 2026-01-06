@@ -80,6 +80,7 @@ namespace Aleph
     @see Gen_Rb_Tree_Rk Bottom-up tree with rank
     @see GenTdRbTreeRk Top-down tree with rank (O(n) remove)
     @ingroup Arboles
+    @author Leandro Rabindranath León
 */
 template <class Key, class Compare = Aleph::less<Key>>
 class HtdRbTreeRk

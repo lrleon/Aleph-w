@@ -36,6 +36,7 @@
     @see Splay_Tree_Rk Convenient typedef.
     @see DynSetSplayTree High-level wrapper with automatic memory management.
     @ingroup Arboles
+ *  @author Leandro Rabindranath León
 */
 
 # ifndef TPL_SPLAY_TREE_RK_H

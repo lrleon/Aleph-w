@@ -32,6 +32,7 @@
  *  efficient alternatives to the standard graph classes.
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_SGRAPH_H

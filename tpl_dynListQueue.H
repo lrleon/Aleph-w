@@ -32,6 +32,7 @@
  *  and efficient memory management.
  *
  *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_DYNLISTQUEUE_H

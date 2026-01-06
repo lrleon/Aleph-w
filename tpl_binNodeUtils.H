@@ -32,6 +32,7 @@
  *  construction, copying, destruction, rotation, and various query operations.
  *
  *  @ingroup Trees
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_BINNODEUTILS_H
@@ -268,6 +269,7 @@ namespace Aleph
          };
 
      @ingroup arboles
+ *  @author Leandro Rabindranath León
  */
   template <class Node>
   class For_Each_Preorder

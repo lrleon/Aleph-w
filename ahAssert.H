@@ -36,6 +36,7 @@
           symbol is defined.
 
     @ingroup Utils
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef AHASSERT_H

@@ -36,6 +36,7 @@
     compatible with Aleph-w's functional interfaces.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 #include <cassert>

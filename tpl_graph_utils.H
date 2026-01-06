@@ -32,6 +32,7 @@
  *  graph copying, and various utility functions for working with graphs.
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_GRAPH_UTILS_H

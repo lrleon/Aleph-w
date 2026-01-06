@@ -29,6 +29,7 @@
  *
  *  @note This is a test file, not a library header.
  *  @ingroup Tests
+ *  @author Leandro Rabindranath León
  */
 
 # include <tpl_list_graph.H>

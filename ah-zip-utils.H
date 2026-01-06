@@ -215,6 +215,7 @@ using iterator_wrapper_t = typename IteratorWrapperSelector<Container>::type;
  *
  * @see uni_zip() Factory function
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 class UniZipIterator
@@ -301,6 +302,7 @@ public:
  *
  * @tparam Containers Types of containers being zipped.
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 class UniZipView
@@ -367,6 +369,7 @@ public:
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip(const Containers&... cs)
@@ -383,6 +386,7 @@ template <typename... Containers>
  * @return UniZipIterator positioned at first element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_it(const Containers&... cs)
@@ -402,6 +406,7 @@ template <typename... Containers>
  * @return `true` if pred is true for all tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_all(Pred&& pred, const Containers&... cs)
@@ -416,6 +421,7 @@ template <typename Pred, typename... Containers>
  * @brief Check if all tuples satisfy predicate AND containers have equal length.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_all_eq(Pred&& pred, const Containers&... cs)
@@ -435,6 +441,7 @@ template <typename Pred, typename... Containers>
  * @return `true` if any tuple satisfies pred.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_exists(Pred&& pred, const Containers&... cs)
@@ -456,6 +463,7 @@ template <typename Pred, typename... Containers>
  * @brief Check if no tuple satisfies the predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_none(Pred&& pred, const Containers&... cs)
@@ -470,6 +478,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 void uni_zip_for_each(Op&& op, const Containers&... cs)
@@ -485,6 +494,7 @@ void uni_zip_for_each(Op&& op, const Containers&... cs)
  * @param cs Containers to zip.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
@@ -503,6 +513,7 @@ void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
  * @return Final accumulated value.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] T uni_zip_foldl(T init, Op&& op, const Containers&... cs)
@@ -528,6 +539,7 @@ template <typename T, typename Op, typename... Containers>
  * @return std::vector of transformed values.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_map(Op&& op, const Containers&... cs)
@@ -549,6 +561,7 @@ template <typename Op, typename... Containers>
  * @return std::vector of tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_filter(Pred&& pred, const Containers&... cs)
@@ -573,6 +586,7 @@ template <typename Pred, typename... Containers>
  * @return std::optional containing tuple if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_find_first(Pred&& pred, const Containers&... cs)
@@ -592,6 +606,7 @@ template <typename Pred, typename... Containers>
  * @brief Count tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] size_t uni_zip_count(Pred&& pred, const Containers&... cs)
@@ -607,6 +622,7 @@ template <typename Pred, typename... Containers>
  * @brief Get zip length (minimum of all container sizes).
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] size_t uni_zip_length(const Containers&... cs)
@@ -621,6 +637,7 @@ template <typename... Containers>
  * @brief Check if all containers have equal length.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] bool uni_zip_equal_length(const Containers&... cs)
@@ -635,6 +652,7 @@ template <typename... Containers>
  * @brief Get n-th tuple from zipped containers.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_nth(size_t n, const Containers&... cs)
@@ -652,6 +670,7 @@ template <typename... Containers>
  * @brief Take first n tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_take(size_t n, const Containers&... cs)
@@ -670,6 +689,7 @@ template <typename... Containers>
  * @brief Skip first n tuples, return the rest.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_drop(size_t n, const Containers&... cs)
@@ -691,6 +711,7 @@ template <typename... Containers>
  * @brief Take tuples while predicate is true.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_take_while(Pred&& pred, const Containers&... cs)
@@ -712,6 +733,7 @@ template <typename Pred, typename... Containers>
  * @brief Skip tuples while predicate is true, return the rest.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_drop_while(Pred&& pred, const Containers&... cs)
@@ -733,6 +755,7 @@ template <typename Pred, typename... Containers>
  * @brief Get first tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_first(const Containers&... cs)
@@ -744,6 +767,7 @@ template <typename... Containers>
  * @brief Get last tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_last(const Containers&... cs)
@@ -760,6 +784,7 @@ template <typename... Containers>
  * @brief Partition tuples by predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_partition(Pred&& pred, const Containers&... cs)
@@ -782,6 +807,7 @@ template <typename Pred, typename... Containers>
  * @brief Materialize zipped tuples into a vector.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_to_vector(const Containers&... cs)
@@ -798,6 +824,7 @@ template <typename... Containers>
  * @brief Traverse while predicate returns true.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_traverse(Pred&& pred, const Containers&... cs)
@@ -820,6 +847,7 @@ template <typename Pred, typename... Containers>
  * @return std::vector of transformed values.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_mapi(Op&& op, const Containers&... cs)
@@ -842,6 +870,7 @@ template <typename Op, typename... Containers>
  * @return std::vector of tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto uni_zip_filteri(Pred&& pred, const Containers&... cs)
@@ -868,6 +897,7 @@ template <typename Pred, typename... Containers>
  * @return std::vector containing init and all intermediate results.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_scan_left(T init, Op&& op, const Containers&... cs)
@@ -892,6 +922,7 @@ template <typename T, typename Op, typename... Containers>
  * @return First non-empty result from op, or std::nullopt.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_find_mapi(Op&& op, const Containers&... cs)
@@ -917,6 +948,7 @@ template <typename Op, typename... Containers>
  * @return `true` if all tuples satisfy eq AND containers have equal length.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Eq, typename... Containers>
 [[nodiscard]] bool uni_zip_equal_by(Eq&& eq, const Containers&... cs)
@@ -936,6 +968,7 @@ template <typename Eq, typename... Containers>
  * @return `true` if target is found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Tuple, typename... Containers>
 [[nodiscard]] bool uni_zip_mem(const Tuple& target, const Containers&... cs)
@@ -954,6 +987,7 @@ template <typename Tuple, typename... Containers>
  * @return Optional containing the full tuple if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, typename... Containers>
 [[nodiscard]] auto uni_zip_assoc(const Key& key, const Containers&... cs)
@@ -976,6 +1010,7 @@ template <typename Key, typename... Containers>
  * @return Optional containing the minimum tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_min(const Containers&... cs)
@@ -1005,6 +1040,7 @@ template <typename... Containers>
  * @return Optional containing the maximum tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_max(const Containers&... cs)
@@ -1034,6 +1070,7 @@ template <typename... Containers>
  * @return Optional pair of (min, max) tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_min_max(const Containers&... cs)
@@ -1087,6 +1124,7 @@ namespace Aleph
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto uni_unzip(const Container& c)
@@ -1155,6 +1193,7 @@ void append_tuple_elements(const Tuple& t, ResultTuple& result, std::index_seque
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto uni_unzip_tuple(const Container& c)
@@ -1190,6 +1229,7 @@ template <typename Container>
  * @return DynList of tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto uni_zip_to_dynlist(const Containers&... cs)

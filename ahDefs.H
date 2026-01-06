@@ -32,6 +32,7 @@
     the Aleph-w library.
 
     @ingroup Utils
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef AHDEFS_H

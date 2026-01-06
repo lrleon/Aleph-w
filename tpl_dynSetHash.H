@@ -32,6 +32,7 @@
  *  table variants are supported including linear probing and separate chaining.
  *
  *  @ingroup Sets
+ *  @author Leandro Rabindranath León
  *  @ingroup Hash
  */
 

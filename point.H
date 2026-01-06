@@ -32,6 +32,7 @@
  *  Used by graph visualization and geometric algorithms.
  *
  *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef POINT_H
@@ -330,6 +331,7 @@ extern const Point NullPoint;
  * convertible back into @ref Point objects.
  *
  * @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 class Polar_Point : public Geom_Object
 {

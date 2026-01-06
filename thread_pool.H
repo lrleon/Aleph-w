@@ -165,6 +165,7 @@ private:
  *        the returned future and rethrown when `get()` is called.
  *
  *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
  */
 class ThreadPool
 {

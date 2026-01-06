@@ -32,6 +32,7 @@
  *  and a rich set of functional operations (map, filter, fold, etc.).
  *
  *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_DYNDLIST_H

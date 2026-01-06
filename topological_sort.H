@@ -40,6 +40,7 @@
     if the graph contains cycles.
 
     @ingroup Grafos
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef TOPOLOGICAL_SORT_H

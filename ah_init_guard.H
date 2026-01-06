@@ -35,6 +35,7 @@
     proper cleanup of node/arc cookies even if exceptions are thrown.
 
     @ingroup Algos
+ *  @author Leandro Rabindranath León
 */
 
 #include <utility>

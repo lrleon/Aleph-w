@@ -107,6 +107,7 @@ namespace Aleph {
  *  Not thread-safe. Each thread should use its own guard.
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 class Cookie_Guard
@@ -261,6 +262,7 @@ public:
  *  Not thread-safe. Each thread should use its own saver.
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 class Cookie_Saver
@@ -478,6 +480,7 @@ private:
  *  @endcode
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT, class Func>
 auto with_clean_cookies(GT & g, Func && func) -> decltype(func())
@@ -509,6 +512,7 @@ auto with_clean_cookies(GT & g, Func && func) -> decltype(func())
  *  @endcode
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT, class Func>
 auto with_saved_cookies(GT & g, Func && func) -> decltype(func())
@@ -543,6 +547,7 @@ auto with_saved_cookies(GT & g, Func && func) -> decltype(func())
  *  @endcode
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT, class Cleanup>
 class Scope_Guard

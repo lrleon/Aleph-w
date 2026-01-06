@@ -36,6 +36,7 @@
     network using Bellman-Ford until no more negative cycles exist.
 
     @ingroup Redes
+ *  @author Leandro Rabindranath León
 */
 
 # ifndef TPL_NETCOST_H

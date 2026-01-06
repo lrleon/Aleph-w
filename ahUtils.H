@@ -32,6 +32,7 @@
  *  and various mathematical helpers used throughout Aleph-w.
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef AHUTILS_H

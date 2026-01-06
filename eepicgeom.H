@@ -49,6 +49,7 @@
  *  @endcode
  *
  *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef EEPICGEOM_H
@@ -95,6 +96,7 @@ class Eepic_Plane;
  *  @endcode
  *
  *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 class Eepic_Geom_Object
 {
@@ -235,6 +237,7 @@ public:
  *  @endcode
  *
  *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 class Eepic_Plane
 {

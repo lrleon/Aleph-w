@@ -71,6 +71,7 @@ namespace Aleph
     @tparam Compare Comparison functor (default: Aleph::less<Key>)
     
     @ingroup Arboles
+    @author Leandro Rabindranath León
 */
   template <class Key, class Compare = Aleph::less<Key>>
   class HtdRbTree

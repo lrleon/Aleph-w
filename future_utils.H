@@ -55,6 +55,7 @@
  *  @endcode
  *
  *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
  */
 
 namespace Aleph

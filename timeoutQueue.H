@@ -89,7 +89,9 @@
  * @see ah-time.H For time utilities
  * @see useMutex.H For threading utilities
  * 
- * @author Leandro Rabindranath León
+ * @author Leandro Rabindranath León *
+ *  @ingroup Utilidades
+
  */
 
 # ifndef TIMEOUTQUEUE_H
@@ -112,7 +114,9 @@
  * ## Thread Safety
  * 
  * All public methods are thread-safe and can be called from any thread.
- * The background thread handles event execution.
+ * The background thread handles event execution. *
+ *  @ingroup Utilidades
+
  */
 class TimeoutQueue
 {
@@ -123,7 +127,9 @@ public:
    * @brief Base class for scheduled events
    * 
    * Derive from this class and override EventFct() to create
-   * custom events that can be scheduled in the TimeoutQueue.
+   * custom events that can be scheduled in the TimeoutQueue. *
+ *  @ingroup Utilidades
+
    */
   class Event : private BinHeapVtl<Time>::Node
   {
@@ -133,6 +139,8 @@ public:
 
     /**
      * @brief Possible states of an event in its lifecycle
+ *
+ *  @ingroup Utilidades
      */
     enum Execution_Status
       {
@@ -195,7 +203,9 @@ public:
      * 
      * This pure virtual function is called when the event's trigger
      * time arrives. Override this in derived classes to implement
-     * custom event behavior.
+     * custom event behavior. *
+ *  @ingroup Utilidades
+
      */
     virtual void EventFct() = 0;
   }; /* end class Event */
@@ -227,33 +237,43 @@ public:
   /**
    * @brief Schedule an event at a specific time
    * @param t Absolute trigger time
-   * @param event Event to schedule
+   * @param event Event to schedule *
+ *  @ingroup Utilidades
+
    */
   void schedule_event(const Time &, Event*);
 
   /**
    * @brief Schedule an event using its internal trigger time
-   * @param event Event to schedule (uses event's getAbsoluteTime())
+   * @param event Event to schedule (uses event's getAbsoluteTime()) *
+ *  @ingroup Utilidades
+
    */
   void schedule_event(Event*);
 
   /**
    * @brief Cancel a scheduled event
    * @param event Event to cancel
-   * @return true if event was in queue and canceled
+   * @return true if event was in queue and canceled *
+ *  @ingroup Utilidades
+
    */
   bool cancel_event(Event*);
 
   /**
    * @brief Reschedule an event to a new time
    * @param t New absolute trigger time
-   * @param event Event to reschedule
+   * @param event Event to reschedule *
+ *  @ingroup Utilidades
+
    */
   void reschedule_event(const Time &, Event*);
 
   /**
    * @brief Cancel and delete an event
-   * @param event Pointer to event (set to nullptr after deletion)
+   * @param event Pointer to event (set to nullptr after deletion) *
+ *  @ingroup Utilidades
+
    */
   void cancel_delete_event(Event *&);
 

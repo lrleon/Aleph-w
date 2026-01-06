@@ -33,6 +33,7 @@
  *  algorithm implementations.
  *
  *  @ingroup Functors
+ *  @author Leandro Rabindranath León
  */
 
 // Functor implementations -*- C++ -*-

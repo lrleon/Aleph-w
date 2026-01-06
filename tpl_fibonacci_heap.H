@@ -32,6 +32,7 @@
  *  making it ideal for algorithms like Dijkstra and Prim.
  *
  *  @ingroup Heaps
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_FIBONACCI_HEAP_H

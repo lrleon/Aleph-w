@@ -32,6 +32,7 @@
  *  dense graphs and efficient indexed access to nodes.
  *
  *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_AGRAPH_H

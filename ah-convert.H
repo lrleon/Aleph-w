@@ -31,6 +31,7 @@
     Aleph-w container types such as Array, DynList, and DynArray.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef AH_CONVERT_H

@@ -45,6 +45,7 @@
     @see ODhashTable
     @see OLhashTable
     @ingroup Hash
+ *  @author Leandro Rabindranath León
 */
 
 # include <aleph.H>

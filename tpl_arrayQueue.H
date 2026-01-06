@@ -34,6 +34,7 @@
     Both use circular indexing for O(1) enqueue/dequeue operations.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 #ifndef TPL_ARRAYQUEUE_H

@@ -48,6 +48,7 @@ namespace Aleph {
  *
  *  @see Knuth, D.E. "Optimum Binary Search Trees" Acta Informatica 1 (1971)
  *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
  */
 
 // Internal macros for 2D array access using 1D storage
@@ -178,6 +179,7 @@ template <class Node, typename Key>
  *  @note The caller is responsible for deleting the returned tree.
  *
  *  @ingroup Arboles
+ *  @author Leandro Rabindranath León
  */
 template <class Node, typename Key>
 [[nodiscard]] Node * build_optimal_tree(Key keys[], double p[], const size_t n)

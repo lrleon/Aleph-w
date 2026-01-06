@@ -82,6 +82,7 @@
  *  @see DynArray, DynList, DynDlist
  *  @author Leandro Rabindranath León
  *  @ingroup Algorithms
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef TPL_SORT_UTILS_H

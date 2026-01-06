@@ -85,7 +85,9 @@
  * 
  * @see useCondVar.H For condition variable support
  * 
- * @author Leandro Rabindranath León
+ * @author Leandro Rabindranath León *
+ *  @ingroup Utilidades
+
  */
 
 # ifndef USEMUTEX_H
@@ -122,7 +124,9 @@ using namespace Aleph;
  * ## Thread Safety
  * 
  * This class wraps POSIX mutexes, providing the same thread safety
- * guarantees as the underlying pthread_mutex_t.
+ * guarantees as the underlying pthread_mutex_t. *
+ *  @ingroup Utilidades
+
  */
 class UseMutex
 {
@@ -133,7 +137,9 @@ public:
 
   /**
    * @brief Explicitly unlock the mutex
-   * @throws std::domain_error if mutex pointer is null
+   * @throws std::domain_error if mutex pointer is null *
+ *  @ingroup Utilidades
+
    */
   void unlock()
   {
@@ -145,7 +151,9 @@ public:
 
   /**
    * @brief Explicitly lock the mutex
-   * @throws std::domain_error if mutex pointer is null
+   * @throws std::domain_error if mutex pointer is null *
+ *  @ingroup Utilidades
+
    */
   void lock()
   {
@@ -157,7 +165,9 @@ public:
 
   /**
    * @brief Construct and lock (pointer version)
-   * @param m Pointer to initialized mutex
+   * @param m Pointer to initialized mutex *
+ *  @ingroup Utilidades
+
    */
   UseMutex(pthread_mutex_t *m) : mutex(m), unlock_when_destroy(true)
   {
@@ -166,7 +176,9 @@ public:
 
   /**
    * @brief Construct and lock (reference version)
-   * @param m Reference to initialized mutex
+   * @param m Reference to initialized mutex *
+ *  @ingroup Utilidades
+
    */
   UseMutex(pthread_mutex_t & m): mutex(&m), unlock_when_destroy(true)
   {

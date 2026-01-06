@@ -28,12 +28,14 @@
  * @file ahDaemonize.H
  * @brief Functionality for daemonizing a process
  * @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 /**
  * @defgroup Daemonization Daemonization Utilities
  * @brief Functions for creating Unix daemons
  * @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef AHDAEMONIZE_H

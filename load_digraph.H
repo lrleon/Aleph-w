@@ -36,6 +36,7 @@
     optional styling based on node attributes.
 
     @ingroup Grafos
+ *  @author Leandro Rabindranath León
 */
 
 #include <fstream>

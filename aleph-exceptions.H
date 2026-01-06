@@ -151,6 +151,7 @@ public:
    @param[in] type aleph exception class name
    @param[in] msg message describing the error
    @ingroup Exceptions
+ *  @author Leandro Rabindranath León
  */
 # define ALEPHTHROW(type, msg) throw type(__LINE__, __FILE__, #type, msg)
 

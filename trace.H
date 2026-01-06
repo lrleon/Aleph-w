@@ -65,7 +65,9 @@
  * @note Output goes to stdout via printf.
  * @note For production code, consider using a proper logging framework.
  * 
- * @author Leandro Rabindranath León
+ * @author Leandro Rabindranath León *
+ *  @ingroup Utilidades
+
  */
 
 # ifndef TRACE_H
@@ -78,7 +80,9 @@
  * @brief RAII helper for function entry/exit tracing
  * 
  * Prints an "ENTER" message on construction and "LEAVE" on destruction,
- * providing automatic function tracing without explicit logging calls.
+ * providing automatic function tracing without explicit logging calls. *
+ *  @ingroup Utilidades
+
  */
 class Trace
 {
@@ -108,7 +112,9 @@ public:
  * @param name String identifier for this trace point
  * 
  * Creates a uniquely-named Trace object that will print entry/exit
- * messages for the current scope.
+ * messages for the current scope. *
+ *  @ingroup Utilidades
+
  */
 # define TRACE(name) Trace __trace__##__LINE__(__FILE__, __LINE__, name)
 

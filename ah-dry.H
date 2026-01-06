@@ -32,6 +32,7 @@
  *  containers through their iterators. These follow the DRY principle.
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef AH_DRY_H

@@ -42,6 +42,7 @@
           not mathematical permutations of a set.
 
     @ingroup Algos
+ *  @author Leandro Rabindranath León
 */
 
 # include <htlist.H>

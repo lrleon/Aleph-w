@@ -32,6 +32,9 @@
  *  These functions wrap POSIX @c strptime/@c mktime functionality with
  *  Aleph-w error handling in order to surface invalid inputs early and to
  *  provide a consistent interface for common conversions involving @c time_t.
+ *
+ *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
  */
 
 # include <array>

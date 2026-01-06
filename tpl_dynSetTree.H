@@ -33,6 +33,7 @@
  *  for ranked operations and functional programming patterns.
  *
  *  @ingroup Trees
+ *  @author Leandro Rabindranath León
  *  @ingroup Sets
  */
 

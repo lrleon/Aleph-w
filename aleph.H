@@ -32,6 +32,7 @@
  *  are used throughout the library.
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef ALEPH_H

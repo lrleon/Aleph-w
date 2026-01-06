@@ -59,6 +59,7 @@
  *
  *  @ingroup Geometria
  *  @author Leandro Rabindranath León
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef LINE_H
@@ -77,6 +78,7 @@
  *       For vertical lines, use parametric or implicit form.
  *
  * @ingroup Geometria
+ *  @author Leandro Rabindranath León
  */
 struct LineEq
 {

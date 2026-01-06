@@ -58,6 +58,7 @@
  *  @see tpl_graph.H Graph types
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  *  @author Alejandro Mujica
  */
 

@@ -37,6 +37,7 @@
     for use with Aleph-w containers and iterators.
 
     @ingroup Algos
+ *  @author Leandro Rabindranath León
 */
 
 #include <ahAssert.H>

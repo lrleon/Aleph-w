@@ -38,6 +38,7 @@
  *
  *  @see Tarjan.H for an alternative SCC algorithm that uses only one DFS
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef KOSARAJU_H
@@ -191,6 +192,7 @@ inline static void __dfp(const GT & g,
  *  @see tarjan_connected_components() for an alternative algorithm
  *  @see invert_digraph() used internally to create the transposed graph
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 inline void kosaraju_connected_components(const GT & g,
@@ -276,6 +278,7 @@ inline void kosaraju_connected_components(const GT & g,
  *  @see kosaraju_connected_components(g, blk_list, arc_list) for the
  *       version that builds mapped subgraphs
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 inline DynList<DynList<typename GT::Node*>>
@@ -320,6 +323,7 @@ kosaraju_connected_components(const GT & g)
  *
  *  @see kosaraju_connected_components()
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 struct Kosaraju_Connected_Components
@@ -358,6 +362,7 @@ struct Kosaraju_Connected_Components
  *  @return The number of strongly connected components.
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 inline size_t kosaraju_scc_count(const GT & g)
@@ -378,6 +383,7 @@ inline size_t kosaraju_scc_count(const GT & g)
  *        strongly connected.
  *
  *  @ingroup Grafos
+ *  @author Leandro Rabindranath León
  */
 template <class GT>
 inline bool is_strongly_connected(const GT & g)

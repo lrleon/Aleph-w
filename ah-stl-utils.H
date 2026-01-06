@@ -35,6 +35,7 @@
     as well as utilities for working with tuples.
 
     @ingroup Algos
+ *  @author Leandro Rabindranath León
 */
 
 #include <list>

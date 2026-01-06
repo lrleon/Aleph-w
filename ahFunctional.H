@@ -47,6 +47,7 @@
     - **Partitioning**: `partition()`, `take_while()`, `drop_while()`
 
     @ingroup Algos
+ *  @author Leandro Rabindranath León
 */
 
 # include <stdexcept>

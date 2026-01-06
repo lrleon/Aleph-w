@@ -39,6 +39,7 @@
     and enables symmetric forward/backward traversal.
 
     @ingroup Secuencias
+ *  @author Leandro Rabindranath León
 */
 
 # include <aleph.H>

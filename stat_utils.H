@@ -68,7 +68,9 @@
  * 
  * @see sort_utils.H For sorting algorithms used
  * 
- * @author Leandro Rabindranath León
+ * @author Leandro Rabindranath León *
+ *  @ingroup Utilidades
+
  */
 
 # ifndef STAT_UTILS_H
@@ -97,7 +99,9 @@
  * @note The array data[l..r] is sorted as a side effect.
  * @note The variance uses the sample variance formula: Var = (n*sum² - sum²)/(n*(n-1))
  * 
- * @warning Requires at least 2 elements for valid variance calculation.
+ * @warning Requires at least 2 elements for valid variance calculation. *
+ *  @ingroup Utilidades
+
  */
     template <class T>
 void compute_stats(T * data, int l, int r,

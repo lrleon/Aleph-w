@@ -32,6 +32,7 @@
  *  and includes functional operations like map, filter, and fold.
  *
  *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_DYNLISTSTACK_H
@@ -90,6 +91,7 @@ namespace Aleph {
  *  @see FixedStack For a compile-time fixed-size stack
  *
  *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
  */
 template <typename T>
 class DynListStack

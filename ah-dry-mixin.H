@@ -57,6 +57,7 @@
  *  - `get_it()` - returns an Iterator positioned at the first element
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef AH_DRY_MIXIN_H
@@ -102,6 +103,7 @@ template <typename T, typename R> struct Dft_Map_Op;
  *  - `get_it()` method returning an Iterator
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>
 class TraverseMixin
@@ -208,6 +210,7 @@ public:
  *  The derived class must provide `traverse()` method (typically via TraverseMixin).
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>
 class LocateMixin
@@ -442,6 +445,7 @@ public:
  *  - `for_each()` method (provided by this mixin, but needs traverse)
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>
 class FunctionalMixin

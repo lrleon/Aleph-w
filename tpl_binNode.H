@@ -32,6 +32,7 @@
  *  These serve as building blocks for all binary tree implementations.
  *
  *  @ingroup Trees
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef TPL_BINNODE_H

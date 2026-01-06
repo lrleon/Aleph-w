@@ -32,6 +32,7 @@
  *  Only elements that satisfy the filter predicate are visible during iteration.
  *
  *  @ingroup Secuencias
+ *  @author Leandro Rabindranath León
  */
 
 # ifndef FILTER_ITERATOR_H

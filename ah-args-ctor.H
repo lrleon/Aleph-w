@@ -31,6 +31,7 @@
  *  containers to be initialized with multiple elements at construction time.
  *
  *  @ingroup Utils
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef AH_ARGS_CTOR_H

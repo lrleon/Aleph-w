@@ -100,6 +100,7 @@ using namespace Aleph;
  * @endcode
  *
  * @ingroup Arboles
+ *  @author Leandro Rabindranath León
  */
 template <typename T>
 class RandTree

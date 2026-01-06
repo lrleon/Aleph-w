@@ -133,6 +133,7 @@ namespace stl_zip_detail
  *
  * @see stl_zip() Factory function to create zip views
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 class StlZipIterator
@@ -312,6 +313,7 @@ public:
  *
  * @see stl_zip() Factory function
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 class StlZipView
@@ -400,6 +402,7 @@ public:
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] constexpr auto stl_zip(const Containers&... cs)
@@ -419,6 +422,7 @@ template <typename... Containers>
  * @return StlZipIterator positioned at first element.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] constexpr auto stl_zip_it(const Containers&... cs)
@@ -457,6 +461,7 @@ template <typename... Containers>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_all(Pred&& pred, const Containers&... cs)
@@ -477,6 +482,7 @@ template <typename Pred, typename... Containers>
  * @return `true` if pred is true for all tuples and lengths match.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_all_eq(Pred&& pred, const Containers&... cs)
@@ -512,6 +518,7 @@ template <typename Pred, typename... Containers>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_exists(Pred&& pred, const Containers&... cs)
@@ -540,6 +547,7 @@ template <typename Pred, typename... Containers>
  * @return `true` if no tuple satisfies pred.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_none(Pred&& pred, const Containers&... cs)
@@ -568,6 +576,7 @@ template <typename Pred, typename... Containers>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 void stl_zip_for_each(Op&& op, const Containers&... cs)
@@ -583,6 +592,7 @@ void stl_zip_for_each(Op&& op, const Containers&... cs)
  * @param cs Containers to zip.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 void stl_zip_for_each_indexed(Op&& op, const Containers&... cs)
@@ -620,6 +630,7 @@ void stl_zip_for_each_indexed(Op&& op, const Containers&... cs)
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] T stl_zip_foldl(T init, Op&& op, const Containers&... cs)
@@ -663,6 +674,7 @@ template <typename T, typename Op, typename... Containers>
  *       For lazy transformation, use stl_zip() with a transforming view.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto stl_zip_map(Op&& op, const Containers&... cs)
@@ -686,6 +698,7 @@ template <typename Op, typename... Containers>
  * @return std::vector of tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_filter(Pred&& pred, const Containers&... cs)
@@ -710,6 +723,7 @@ template <typename Pred, typename... Containers>
  * @return std::optional containing tuple if found, empty otherwise.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_find_first(Pred&& pred, const Containers&... cs)
@@ -732,6 +746,7 @@ template <typename Pred, typename... Containers>
  * @return Number of tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] size_t stl_zip_count(Pred&& pred, const Containers&... cs)
@@ -750,6 +765,7 @@ template <typename Pred, typename... Containers>
  * @return Number of tuples that would be produced.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] size_t stl_zip_length(const Containers&... cs)
@@ -767,6 +783,7 @@ template <typename... Containers>
  * @return `true` if all containers have the same size.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] bool stl_zip_equal_length(const Containers&... cs)
@@ -785,6 +802,7 @@ template <typename... Containers>
  * @return std::optional containing tuple if index is valid, empty otherwise.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_nth(size_t n, const Containers&... cs)
@@ -806,6 +824,7 @@ template <typename... Containers>
  * @return std::vector of up to n tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_take(size_t n, const Containers&... cs)
@@ -828,6 +847,7 @@ template <typename... Containers>
  * @return std::vector of remaining tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_drop(size_t n, const Containers&... cs)
@@ -858,6 +878,7 @@ template <typename... Containers>
  * @return Pair of vectors: (matching, non-matching).
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_partition(Pred&& pred, const Containers&... cs)
@@ -888,6 +909,7 @@ template <typename Pred, typename... Containers>
  * @note This allocates memory. For single-pass iteration, use stl_zip().
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_to_vector(const Containers&... cs)
@@ -915,6 +937,7 @@ template <typename... Containers>
  * @return `true` if pred was true for all tuples, `false` if stopped early.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_traverse(Pred&& pred, const Containers&... cs)
@@ -933,6 +956,7 @@ template <typename Pred, typename... Containers>
  * @return `true` if pred was true for all AND containers have equal length.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool stl_zip_traverse_eq(Pred&& pred, const Containers&... cs)
@@ -981,6 +1005,7 @@ namespace stl_zip_detail
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Cmp, typename... Containers>
 [[nodiscard]] bool stl_zip_cmp(Cmp&& cmp, const Containers&... cs)
@@ -1010,6 +1035,7 @@ template <typename Cmp, typename... Containers>
  *
  * @see stl_enumerate() Factory function
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 class StlEnumerateIterator
@@ -1059,6 +1085,7 @@ public:
  *
  * @tparam Container Container type.
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 class StlEnumerateView
@@ -1098,6 +1125,7 @@ public:
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] constexpr auto stl_enumerate(const Container& c)
@@ -1132,6 +1160,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_take_while(Pred&& pred, const Containers&... cs)
@@ -1160,6 +1189,7 @@ template <typename Pred, typename... Containers>
  * @return std::vector of tuples after pred becomes false.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_drop_while(Pred&& pred, const Containers&... cs)
@@ -1190,6 +1220,7 @@ template <typename Pred, typename... Containers>
  * @return std::optional containing first tuple, or empty if containers are empty.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_first(const Containers&... cs)
@@ -1206,6 +1237,7 @@ template <typename... Containers>
  * @note This iterates through all elements - O(n) complexity.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_last(const Containers&... cs)
@@ -1226,6 +1258,7 @@ template <typename... Containers>
  * @return std::optional containing last matching tuple, or empty if none found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_find_last(Pred&& pred, const Containers&... cs)
@@ -1250,6 +1283,7 @@ template <typename Pred, typename... Containers>
  * @return Index of first match, or total count if not found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] size_t stl_zip_find_index(Pred&& pred, const Containers&... cs)
@@ -1281,6 +1315,7 @@ template <typename Pred, typename... Containers>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename U>
 [[nodiscard]] auto stl_unzip(const std::vector<std::pair<T, U>>& pairs)
@@ -1316,6 +1351,7 @@ template <typename T, typename U>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Ts>
 [[nodiscard]] auto stl_unzip_tuple(const std::vector<std::tuple<Ts...>>& tuples)
@@ -1365,6 +1401,7 @@ template <typename... Ts>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Container>
 [[nodiscard]] auto stl_adjacent(const Container& c)
@@ -1402,6 +1439,7 @@ template <typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
 [[nodiscard]] auto stl_adjacent_map(Op&& op, const Container& c)
@@ -1445,6 +1483,7 @@ template <typename Op, typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_adjacent_all(Pred&& pred, const Container& c)
@@ -1473,6 +1512,7 @@ template <typename Pred, typename Container>
  * @return `true` if any consecutive pair satisfies predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
 [[nodiscard]] bool stl_adjacent_exists(Pred&& pred, const Container& c)
@@ -1514,6 +1554,7 @@ template <typename Pred, typename Container>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto stl_zip_mapi(Op&& op, const Containers&... cs)
@@ -1538,6 +1579,7 @@ template <typename Op, typename... Containers>
  * @return std::vector of tuples satisfying predicate.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
 [[nodiscard]] auto stl_zip_filteri(Pred&& pred, const Containers&... cs)
@@ -1574,6 +1616,7 @@ template <typename Pred, typename... Containers>
  * @endcode
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] auto stl_zip_scan_left(T init, Op&& op, const Containers&... cs)
@@ -1600,6 +1643,7 @@ template <typename T, typename Op, typename... Containers>
  * @return First non-empty result from op, or std::nullopt.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto stl_zip_find_mapi(Op&& op, const Containers&... cs)
@@ -1627,6 +1671,7 @@ template <typename Op, typename... Containers>
  * @return `true` if sequences are equal.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] bool stl_zip_equal(const Containers&... cs)
@@ -1646,6 +1691,7 @@ template <typename... Containers>
  * @return `true` if all tuples satisfy eq AND containers have equal length.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Eq, typename... Containers>
 [[nodiscard]] bool stl_zip_equal_by(Eq&& eq, const Containers&... cs)
@@ -1666,6 +1712,7 @@ template <typename Eq, typename... Containers>
  * @return -1 if first < second, 0 if equal, 1 if first > second.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers1, typename... Containers2>
 [[nodiscard]] int stl_zip_compare(
@@ -1698,6 +1745,7 @@ template <typename... Containers1, typename... Containers2>
  * @return `true` if target is found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Tuple, typename... Containers>
 [[nodiscard]] bool stl_zip_mem(const Tuple& target, const Containers&... cs)
@@ -1718,6 +1766,7 @@ template <typename Tuple, typename... Containers>
  * @return Optional containing the full tuple if found.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename Key, typename... Containers>
 [[nodiscard]] auto stl_zip_assoc(const Key& key, const Containers&... cs)
@@ -1740,6 +1789,7 @@ template <typename Key, typename... Containers>
  * @return Optional containing the minimum tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_min(const Containers&... cs)
@@ -1769,6 +1819,7 @@ template <typename... Containers>
  * @return Optional containing the maximum tuple.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_max(const Containers&... cs)
@@ -1798,6 +1849,7 @@ template <typename... Containers>
  * @return Optional pair of (min, max) tuples.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_min_max(const Containers&... cs)
@@ -1831,6 +1883,7 @@ template <typename... Containers>
  * @return Optional tuple with sums.
  *
  * @ingroup Algos
+ *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
 [[nodiscard]] auto stl_zip_sum(const Containers&... cs)

@@ -25,7 +25,8 @@ options = {
     '-DBUILD_EXAMPLES=OFF',
     '-DBUILD_TESTS=ON'
   ],
-  compiler: 'g++'
+  compiler: 'g++',
+  with_sanitizers: false
 }
 
 OptionParser.new do |opts|
@@ -43,6 +44,7 @@ OptionParser.new do |opts|
       --cmake-arg ARG          Forward ARG to the cmake configure step (repeatable).
       --compiler BIN           Use BIN as the C++ compiler (default: g++).
       --with-examples          Configure with BUILD_EXAMPLES=ON (tests only needs OFF).
+      --with-sanitizers        Enable AddressSanitizer + UBSan (uses build-sanitizers dir).
   USAGE
   opts.on('-B DIR', '--build-dir DIR', 'CMake build directory (default: ../build)') do |dir|
     options[:build_dir] = File.expand_path(dir)
@@ -66,6 +68,9 @@ OptionParser.new do |opts|
   opts.on('--compiler BIN', 'C++ compiler to pass as CMAKE_CXX_COMPILER (default: g++)') do |bin|
     options[:compiler] = bin
   end
+  opts.on('--with-sanitizers', 'Enable AddressSanitizer and UndefinedBehaviorSanitizer') do
+    options[:with_sanitizers] = true
+  end
 end.parse!
 
 build_dir = options[:build_dir]
@@ -74,6 +79,18 @@ cmake_args = options[:cmake_args]
 unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
   cmake_args << "-DCMAKE_CXX_COMPILER=#{options[:compiler]}"
 end
+
+# Add sanitizer flags if requested
+if options[:with_sanitizers]
+  cmake_args << '-DUSE_SANITIZERS=ON'
+  cmake_args << '-DCMAKE_BUILD_TYPE=Debug'
+  # Use a separate build directory for sanitizer builds
+  build_dir = File.join(ROOT_DIR, 'build-sanitizers') unless options[:build_dir] != DEFAULT_BUILD_DIR
+  ENV['ASAN_OPTIONS'] = 'detect_leaks=1:halt_on_error=1'
+  ENV['UBSAN_OPTIONS'] = 'print_stacktrace=1'
+  puts "Running with AddressSanitizer and UndefinedBehaviorSanitizer enabled"
+end
+
 cmake_cache = File.join(build_dir, 'CMakeCache.txt')
 
 unless options[:skip_configure]

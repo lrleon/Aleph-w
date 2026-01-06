@@ -99,6 +99,7 @@
  *  - `verify_pointer()`: Strong guarantee (throws on mismatch)
  *
  *  @ingroup Utilidades
+ *  @author Leandro Rabindranath León
  */
 class Pointer_Table
 {
