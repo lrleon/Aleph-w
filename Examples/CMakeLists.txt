@@ -10,35 +10,47 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # List of all example programs present in the directory
 set(EXAMPLE_PROGRAMS
+    bfs_dfs_example
     btreepic
+    cut_nodes_example
     deway
+    dijkstra_example
+    dynmap_example
+    dynset_trees
     evalExp
-    fib
-    fib_stack
     fibonacci
+    functional_example
     gen_rand_graph
+    bitarray_example
+    matrix_example
     generate_forest
     graphpic
     hash_resize
+    heap_example
     joseph
+    mst_example
+    network_flow_example
     ntreepic
+    percolation_example
     polinom
+    quadtree_example
+    simplex_example
+    skiplist_example
+    sort_benchmark
+    tarjan_example
+    thread_pool_example
     timeAllTree
-    writeAllTrees
-    writeAvl
+    topological_sort_example
+    trie_example
     writeBalance
-    writeBinTree
     writeHeap
     writeInsertRoot
     writeJoin
-    writeRandTree
     writeRankTree
-    writeRb
-    writeSplay
     writeSplit
-    writeTreap
     write_floyd
     write_huffman
+    write_tree
 )
 
 # Function to get source file from program name

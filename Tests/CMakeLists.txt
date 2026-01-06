@@ -257,6 +257,7 @@ set(EXHAUSTIVE_TESTS
     graph_functional_test
     johnson_test
     graph_copy_test
+    thread_pool_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++

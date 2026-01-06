@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -25,41 +24,69 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <stdlib.h>
+/**
+ * @file writeHeap.C
+ * @brief Demonstrates array-based heap structure and generates visualization files
+ * 
+ * This program creates an array-based min-heap with random unique values
+ * and generates visualization files showing the heap in various traversal orders.
+ * 
+ * The heap is stored in an array where:
+ * - Parent of node i is at i/2
+ * - Left child of node i is at 2*i
+ * - Right child of node i is at 2*i + 1
+ * 
+ * Output files:
+ * - heap-ejm-aux.Tree: Preorder and inorder traversals for btreepic
+ * - heap-ejm-aux.tex: Level-order traversal for LaTeX
+ * 
+ * Usage: writeHeap [-n <count>] [-s <seed>]
+ */
+
+# include <cstdlib>
 # include <iostream>
 # include <fstream>
-# include <time.h>
+# include <ctime>
+# include <tclap/CmdLine.h>
 # include <tpl_arrayHeap.H>
-
 
 using namespace std;
 using namespace Aleph;
 
+// Local macros for heap navigation (1-indexed array)
+# define HEAP_LLINK(i) (2*(i))
+# define HEAP_RLINK(i) (2*(i) + 1)
 
-# define NIL (-1)
-# define LLINK(i, n) (2*i)
-# define RLINK(i, n) (2*i + 1)
+// Output streams
+ofstream output;
+ofstream output_tex;
 
-
-ofstream output("heap-ejm-aux.Tree", ios::out);
-ofstream output1("heap-ejm-aux.tex", ios::out);
-
+/**
+ * @brief Write preorder traversal of heap
+ * @param v Heap array (1-indexed)
+ * @param n Number of elements
+ * @param i Current index
+ */
 void preorder(int v[], int n, int i)
 {
   if (i > n)
     return;
 
   output << " " << v[i];
-
   cout << " " << v[i];
 
   assert(v[i] > 0);
 
-  preorder(v, n, LLINK(i, n));
-  preorder(v, n, RLINK(i, n));
+  preorder(v, n, HEAP_LLINK(i));
+  preorder(v, n, HEAP_RLINK(i));
 }
 
-
+/**
+ * @brief Write inorder traversal of heap
+ * @param v Heap array (1-indexed)
+ * @param n Number of elements
+ * @param i Current index
+ */
 void inorder(int v[], int n, int i)
 {
   if (i > n)
@@ -67,77 +94,138 @@ void inorder(int v[], int n, int i)
 
   assert(v[i] > 0);
 
-  inorder(v, n, LLINK(i, n));
+  inorder(v, n, HEAP_LLINK(i));
   output << " " << v[i];
   cout << " " << v[i];
-  inorder(v, n, RLINK(i, n));
+  inorder(v, n, HEAP_RLINK(i));
 }
 
-void level(int v[], int n)
+/**
+ * @brief Write level-order traversal for LaTeX output
+ * @param v Heap array (1-indexed)
+ * @param n Number of elements
+ */
+void level_order(int v[], int n)
 {
   for (int i = 1; i <= n; ++i)
     {
       assert(v[i] > 0);
-      output1 << v[i] << " ";
+      output_tex << v[i] << " ";
     }
-} 
+}
 
-bool existe(ArrayHeap<int> & heap, const int & x)
+/**
+ * @brief Check if value exists in heap
+ * @param heap The heap to search
+ * @param x Value to find
+ * @return true if found
+ */
+bool exists_in_heap(ArrayHeap<int>& heap, int x)
 {
   for (int i = 1; i < heap.size(); ++i)
     if (heap[i] == x)
       return true;
-
   return false;
 }
 
-int main(int argn, char* argc[])
+int main(int argc, char* argv[])
 {
-  srand(time(0));
-  unsigned int n = 10;
+  try
+    {
+      TCLAP::CmdLine cmd(
+        "Demonstrate array-based heap structure.\n"
+        "Creates a heap and generates visualization files.",
+        ' ', "1.0");
 
-  if (argn > 1)
-    n = atoi(argc[1]);
+      TCLAP::ValueArg<unsigned int> nArg("n", "count",
+                                          "Number of elements",
+                                          false, 10, "unsigned int");
+      cmd.add(nArg);
 
-  unsigned int t = time(0);
+      TCLAP::ValueArg<unsigned int> seedArg("s", "seed",
+                                             "Random seed (0 = use time)",
+                                             false, 0, "unsigned int");
+      cmd.add(seedArg);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+      cmd.parse(argc, argv);
 
-  srand(t);
+      unsigned int n = nArg.getValue();
+      unsigned int t = seedArg.getValue();
 
-  cout << argc[0] << " " << n << " " << t << endl;
+      if (t == 0)
+        t = time(nullptr);
 
-  {
-    ArrayHeap<int> heap;
-    int i, value;
+      srand(t);
 
-    for (i = 0; i < n; i++)
-      {
-	do
-	  {
-	    value = 1 + (int) (10.0*n*rand()/(RAND_MAX + 10.0*n)); 
-	    assert(value > 0);
-	  }
-	while (existe(heap, value));
-	
-	heap.insert(value);
-	cout << value << " ";
-      }
+      cout << "=== Array-Based Heap Demo ===" << endl;
+      cout << "Elements: " << n << ", Seed: " << t << endl << endl;
 
-    cout << endl;
+      // Open output files
+      output.open("heap-ejm-aux.Tree", ios::out);
+      output_tex.open("heap-ejm-aux.tex", ios::out);
 
-    output << "Prefix ";
-    preorder(&heap[0], heap.size(), 1);
-    cout << endl;
+      if (!output.is_open() || !output_tex.is_open())
+        {
+          cerr << "Error: cannot open output files" << endl;
+          return 1;
+        }
 
-    output << endl 
-	   << "Infix ";
+      // Build heap with unique positive values
+      ArrayHeap<int> heap;
 
-    inorder(&heap[0], heap.size(), 1);
+      cout << "Inserting values: ";
+      for (unsigned int i = 0; i < n; i++)
+        {
+          int value;
+          do
+            {
+              value = 1 + static_cast<int>(10.0 * n * rand() / (RAND_MAX + 10.0 * n));
+              assert(value > 0);
+            }
+          while (exists_in_heap(heap, value));
 
-    output << endl;
+          heap.insert(value);
+          cout << value << " ";
+        }
+      cout << endl << endl;
 
-    level(&heap[0], heap.size());
-  }
+      cout << "Heap size: " << heap.size() << endl;
+      cout << "Min element (root): " << heap.top() << endl << endl;
+
+      // Write preorder traversal
+      output << "Prefix ";
+      cout << "Preorder: ";
+      preorder(&heap[0], heap.size(), 1);
+      cout << endl;
+
+      // Write inorder traversal
+      output << endl << "Infix ";
+      cout << "Inorder:  ";
+      inorder(&heap[0], heap.size(), 1);
+      output << endl;
+      cout << endl;
+
+      // Write level-order for LaTeX
+      cout << "Level-order: ";
+      for (int i = 1; i <= heap.size(); ++i)
+        cout << heap[i] << " ";
+      cout << endl;
+      level_order(&heap[0], heap.size());
+      output_tex << endl;
+
+      // Close files
+      output.close();
+      output_tex.close();
+
+      cout << endl << "Generated files:" << endl;
+      cout << "  - heap-ejm-aux.Tree (preorder + inorder for btreepic)" << endl;
+      cout << "  - heap-ejm-aux.tex (level-order for LaTeX)" << endl;
+    }
+  catch (TCLAP::ArgException& e)
+    {
+      cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
+
+  return 0;
 }

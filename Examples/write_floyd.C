@@ -25,6 +25,53 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/**
+ * @file write_floyd.C
+ * @brief Floyd-Warshall algorithm with LaTeX output generation
+ * 
+ * This example demonstrates the Floyd-Warshall all-pairs shortest path
+ * algorithm and generates step-by-step LaTeX matrices showing the
+ * algorithm's progression.
+ * 
+ * ## Output
+ * 
+ * Generates `mat-floyd.tex` containing:
+ * - Initial distance matrix D^(0)
+ * - Intermediate matrices D^(k) for each iteration
+ * - Path reconstruction matrix
+ * - All formatted as LaTeX tables
+ * 
+ * ## Test Graph
+ * 
+ * Uses a predefined 9-node directed graph (A-I) with weighted edges,
+ * including some negative weights to demonstrate the algorithm's
+ * capability to handle them.
+ * 
+ * ## Key Components
+ * 
+ * - `Ady_Mat<Grafo, double>`: Adjacency matrix for distances
+ * - `Ady_Mat<Grafo, long>`: Path reconstruction matrix
+ * - `floyd_all_shortest_paths_latex`: Generates LaTeX output
+ * 
+ * ## Usage
+ * 
+ * Simply run the program (no arguments needed):
+ * ```bash
+ * ./write_floyd
+ * ```
+ * 
+ * Then compile the generated LaTeX:
+ * ```bash
+ * pdflatex mat-floyd.tex
+ * ```
+ * 
+ * @note This is a self-contained example with hardcoded test data.
+ * @note The graph includes negative edge weights but no negative cycles.
+ * 
+ * @see floyd_all_shortest_paths_latex for the LaTeX generation routine
+ * @see Ady_Mat for the adjacency matrix representation
+ */
+
 # include <limits>
 # include <iostream>
 # include <tpl_matgraph.H>

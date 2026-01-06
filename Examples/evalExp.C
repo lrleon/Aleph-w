@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -24,36 +23,74 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file evalExp.C
+ * @brief Arithmetic expression evaluator using operator precedence
+ * 
+ * This example demonstrates a classic expression evaluator using two stacks:
+ * one for operands and one for operators. It implements the shunting-yard
+ * algorithm for handling operator precedence.
+ * 
+ * Supported operators: +, -, *, /
+ * Supports parentheses for grouping.
+ * 
+ * Usage: evalExp "expression"
+ * Example: evalExp "3 + 4 * 2"
+ *          evalExp "(3 + 4) * 2"
+ */
+
 # include <cctype>
 # include <cstring>
+# include <cstdlib>
+# include <iostream>
+# include <tclap/CmdLine.h>
 # include <tpl_arrayStack.H>
+
+using namespace std;
+using namespace Aleph;
 
 enum Token_Type { Value, Operator, Lpar, Rpar, End, Error };
 
+/**
+ * @brief Lexer - extracts next token from input string
+ * 
+ * @param str Pointer to current position in string (updated on return)
+ * @param len Length of extracted token (updated on return)
+ * @return Token_Type The type of token found
+ */
 Token_Type lexer(char *& str, size_t & len)
 {
   str += len;
   len = 1;
+  
   while (isblank(*str))
     str++;
+    
   switch (*str)
-  {
-   case '(':  return Lpar;
-   case ')':  return Rpar;
-   case '+':
-   case '-':
-   case '*':
-   case '/':  return Operator;
-   case '\0': return End;
-  }
+    {
+    case '(':  return Lpar;
+    case ')':  return Rpar;
+    case '+':
+    case '-':
+    case '*':
+    case '/':  return Operator;
+    case '\0': return End;
+    }
+    
   if (not isdigit(*str)) 
     return Error;
+    
   char* base = str + 1;
   while (isdigit(*base++))
     len++;
+    
   return Value;
 }
 
+/**
+ * @brief Convert token string to null-terminated string
+ */
 char * str_to_token(const char * token_str, const size_t & len)
 {
   static char buffer[256];
@@ -62,51 +99,83 @@ char * str_to_token(const char * token_str, const size_t & len)
   return buffer;
 }
 
-unsigned precedence(const char & op) // $ < ( < +- < */
+/**
+ * @brief Get operator precedence
+ * 
+ * Precedence levels: $ < ( < +- < /
+ */
+unsigned precedence(const char & op)
 {
   switch (op)
     {
-    case '$': return 0;
+    case '$': return 0;  // Stack bottom marker
     case '(': return 1;
     case '+':
     case '-': return 2;
     case '/':
     case '*': return 3;
-
-    default: AH_ERROR("Invalid operator %c\n", op);
-      return 0;
+    default: 
+      cerr << "Invalid operator: " << op << endl;
+      exit(1);
     }
 }
 
-void apply(ArrayStack<int>&  val_stack, ArrayStack<char>& op_stack)
+/**
+ * @brief Apply operator to top two values on stack
+ */
+void apply(ArrayStack<int>& val_stack, ArrayStack<char>& op_stack)
 {
-
-  assert(op_stack.size() > 0);
-  assert(val_stack.size() >= 2);
+  if (op_stack.size() == 0)
+    {
+      cerr << "Error: operator stack empty" << endl;
+      exit(1);
+    }
+  if (val_stack.size() < 2)
+    {
+      cerr << "Error: not enough operands" << endl;
+      exit(1);
+    }
 
   const char the_operator = op_stack.pop(); 
   const int right_operand = val_stack.pop();
   const int left_operand  = val_stack.pop();
   int result;
+  
   switch (the_operator)
     {
     case '+': result = left_operand + right_operand; break;
     case '-': result = left_operand - right_operand; break;
     case '*': result = left_operand * right_operand; break;
-    case '/': result = left_operand / right_operand; break;
-
-    default: AH_ERROR("Operator %c invalid", the_operator);
-
+    case '/': 
+      if (right_operand == 0)
+        {
+          cerr << "Error: division by zero" << endl;
+          exit(1);
+        }
+      result = left_operand / right_operand; 
+      break;
+    default: 
+      cerr << "Invalid operator: " << the_operator << endl;
+      exit(1);
     }
+    
   val_stack.push(result);
 }
 
+/**
+ * @brief Evaluate arithmetic expression
+ * 
+ * @param input The expression string to evaluate
+ * @return int The result of the evaluation
+ */
 int eval(char* input)
 {
   ArrayStack<int>  val_stack;
   ArrayStack<char> op_stack;
   size_t token_len = 0;
-  op_stack.push('$');
+  
+  op_stack.push('$');  // Stack bottom marker
+  
   while (true)
     {
       switch (lexer(input, token_len))
@@ -117,46 +186,84 @@ int eval(char* input)
             val_stack.push(operand);
             break;
           }
+          
         case Lpar: 
-          {
-            op_stack.push(*input); // introducir parentesis en op_stack
-            break;
-          }
+          op_stack.push(*input);
+          break;
+          
         case Operator: 
-          {
-            while (precedence(op_stack.top()) >= precedence(*input))
-              apply(val_stack, op_stack);
-            op_stack.push(*input); // introducir operador en op_stack
-            break;
-          }
+          while (precedence(op_stack.top()) >= precedence(*input))
+            apply(val_stack, op_stack);
+          op_stack.push(*input);
+          break;
+          
         case Rpar: 
-          {
-            while (op_stack.top() != '(')
+          while (op_stack.top() != '(')
+            {
+              if (op_stack.top() == '$')
+                {
+                  cerr << "Error: mismatched parentheses" << endl;
+                  exit(1);
+                }
               apply(val_stack, op_stack);
-            op_stack.pop(); /* saca el parentesis izquierdo */
-            break;
-          }
+            }
+          op_stack.pop();  // Remove the '('
+          break;
+          
         case End:
-          {
-            while (op_stack.top() != '$')
-              apply(val_stack, op_stack);
-            op_stack.pop(); // debe ser '$'
-            const int ret_val = val_stack.pop();
+          while (op_stack.top() != '$')
+            apply(val_stack, op_stack);
+          op_stack.pop();  // Remove '$'
+          
+          if (val_stack.size() != 1 or op_stack.size() != 0)
+            {
+              cerr << "Error: malformed expression" << endl;
+              exit(1);
+            }
+          return val_stack.pop();
 
-            if ((val_stack.size() != 0) or (op_stack.size() != 0))
-              AH_ERROR("Bad expression");
-
-            return ret_val;
-          }
-
-        case  Error:
-        default: AH_ERROR("Bad token detected");
-
+        case Error:
+        default: 
+          cerr << "Error: invalid token at position" << endl;
+          exit(1);
         } 
     }
 }
 
-int main(int, char** argc)
+int main(int argc, char** argv)
 {
-  printf("\t%d\n\n", eval(argc[1]));
+  try
+    {
+      TCLAP::CmdLine cmd("Arithmetic expression evaluator", ' ', "1.0");
+
+      TCLAP::UnlabeledValueArg<string> exprArg("expression",
+                                                "Arithmetic expression to evaluate (use quotes)",
+                                                true, "", "expression");
+      cmd.add(exprArg);
+
+      cmd.parse(argc, argv);
+
+      string expr = exprArg.getValue();
+      
+      cout << "Expression Evaluator" << endl;
+      cout << "====================" << endl;
+      cout << "Input: " << expr << endl;
+      
+      // Create mutable copy for lexer
+      char* input = new char[expr.size() + 1];
+      strcpy(input, expr.c_str());
+      
+      int result = eval(input);
+      
+      cout << "Result: " << result << endl;
+      
+      delete[] input;
+    }
+  catch (TCLAP::ArgException &e)
+    {
+      cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
+
+  return 0;
 }

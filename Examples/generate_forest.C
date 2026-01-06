@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -25,17 +24,25 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/**
+ * @file generate_forest.C
+ * @brief Example demonstrating forest generation from binary trees
+ * 
+ * This example generates a random binary search tree, converts it to
+ * a forest representation, and outputs the forest structure to a file
+ * in a format suitable for visualization.
+ */
+
 # include <cstdlib>
 # include <ctime> 
-
 # include <iostream>
-
+# include <fstream>
+# include <tclap/CmdLine.h>
 # include <tpl_tree_node.H>  
 # include <generate_tree.H>
 # include <tpl_binTree.H>
 
 using namespace Aleph;
-
 using namespace std;
 
 static void printNode(BinTreeVtl<int>::Node* node, int, int)
@@ -43,7 +50,10 @@ static void printNode(BinTreeVtl<int>::Node* node, int, int)
   cout << node->get_key() << " ";
 }
 
-struct WN
+/**
+ * @brief Functor to convert tree node to string for output
+ */
+struct WriteNode
 {
   string operator () (Tree_Node<int> * p)
   {
@@ -51,65 +61,96 @@ struct WN
   }
 };
 
-
-int main(int argn, char *argc[])
+int main(int argc, char *argv[])
 {
-  int i, n = argc[1] ? atoi(argc[1]) : 1000;
-
-  unsigned int t = time(0);
-
-  if (argn > 2)
-    t = atoi(argc[2]);
-
-  srand(t);
-
-  cout << argc[0] << " " << n << " " << t << endl;
-
-  BinTreeVtl<int>  tree;
-  BinTreeVtl<int>::Node *node;
-  int value;
-
-  cout << "Inserting " << n << " random values in treee ...\n";
-
-  int ins_count = 0;
-
-  for (i = 0; i < n; i++)
+  try
     {
-      do 
-	{
-	  value = (int) (10.0*n*rand()/(RAND_MAX+1.0));
-	  node = tree.search(value);
-	  }
-      while (node not_eq NULL);
+      TCLAP::CmdLine cmd("Generate forest from random binary tree", ' ', "1.0");
 
-      node = new BinTreeVtl<int>::Node (value);
-      tree.insert(node);
-      ins_count++;
+      TCLAP::ValueArg<int> nArg("n", "nodes", 
+                                 "Number of nodes in the tree",
+                                 false, 100, "int");
+      cmd.add(nArg);
 
-      cout << value << " ";
+      TCLAP::ValueArg<unsigned int> seedArg("s", "seed",
+                                             "Random seed (0 = use time)",
+                                             false, 0, "unsigned int");
+      cmd.add(seedArg);
+
+      TCLAP::ValueArg<string> outputArg("o", "output",
+                                         "Output file name",
+                                         false, "arborescencia.Tree", "string");
+      cmd.add(outputArg);
+
+      cmd.parse(argc, argv);
+
+      int n = nArg.getValue();
+      unsigned int t = seedArg.getValue();
+      string outputFile = outputArg.getValue();
+
+      if (t == 0)
+        t = time(nullptr);
+
+      srand(t);
+
+      cout << "Forest Generation Example" << endl;
+      cout << "=========================" << endl;
+      cout << "Parameters: n=" << n << ", seed=" << t << endl;
+      cout << "Output file: " << outputFile << endl << endl;
+
+      BinTreeVtl<int> tree;
+      BinTreeVtl<int>::Node *node;
+      int value;
+
+      cout << "Inserting " << n << " random values into BST..." << endl;
+
+      int ins_count = 0;
+
+      for (int i = 0; i < n; i++)
+        {
+          do 
+            {
+              value = static_cast<int>(10.0 * n * rand() / (RAND_MAX + 1.0));
+              node = tree.search(value);
+            }
+          while (node != nullptr);
+
+          node = new BinTreeVtl<int>::Node(value);
+          tree.insert(node);
+          ins_count++;
+        }
+      
+      cout << ins_count << " insertions completed" << endl;
+
+      assert(tree.verifyBin());
+      cout << "BST verification: PASSED" << endl << endl;
+
+      cout << "Preorder traversal: ";
+      preOrderRec(tree.getRoot(), printNode);
+      cout << endl << endl;
+
+      // Convert to forest
+      Tree_Node<int> * root = 
+        bin_to_forest<Tree_Node<int>, BinNodeVtl<int>>(tree.getRoot()); 
+
+      // Write to file
+      ofstream output(outputFile, ios::trunc);
+      generate_forest<Tree_Node<int>, WriteNode>(root, output); 
+      output.close();
+
+      cout << "Forest written to " << outputFile << endl;
+
+      // Cleanup
+      destroy_tree(root);
+      destroyRec(tree.getRoot());
+
+      cout << endl << "Done." << endl;
     }
-  cout << endl << endl;
+  catch (TCLAP::ArgException &e)
+    {
+      cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
 
-  assert(tree.verifyBin());
-  cout << endl << ins_count << " insertions" << endl
-       << "prefijo: " << endl;
-  preOrderRec(tree.getRoot(), printNode);
-  cout << endl << endl;
-
-  Tree_Node<int> * root = 
-    bin_to_forest < Tree_Node<int>, BinNodeVtl<int> > (tree.getRoot()); 
-
-  ofstream o("arborescencia.Tree", ios::trunc);
-
-  generate_forest<Tree_Node<int>, WN> (root, o); 
-
-  destroy_tree(root);
-
-  destroyRec(tree.getRoot());
-
-  cout << "testBinTreeVtl " << n << " " << t << endl;
+  return 0;
 }
-
-// 1018058241
-
-

@@ -25,6 +25,46 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/**
+ * @file polinom.C
+ * @brief Polynomial arithmetic demonstration using DynDlist
+ * 
+ * This example demonstrates a sparse polynomial representation and
+ * arithmetic operations using doubly linked lists (DynDlist).
+ * 
+ * ## Implementation Details
+ * 
+ * The polynomial is represented as a sorted list of terms, where each
+ * term contains a coefficient and an exponent. Only non-zero terms are
+ * stored (sparse representation), making it efficient for polynomials
+ * with many zero coefficients.
+ * 
+ * ## Supported Operations
+ * 
+ * - **Addition (+, +=)**: Merges terms with matching exponents
+ * - **Multiplication (*)**: Distributes each term and combines results
+ * - **Subtraction (-)**: Negates and adds
+ * 
+ * ## Example Output
+ * 
+ * The program creates two polynomials:
+ * - p1 = X^1 + X^3 + X^5 + ... + X^19 (odd powers from 1 to 19)
+ * - p2 = X^0 + X^1 + X^2 + ... + X^39 (all powers from 0 to 39)
+ * 
+ * Then demonstrates:
+ * - p1 += p2 (in-place addition)
+ * - p1 * p2 (multiplication)
+ * 
+ * ## Key Data Structures
+ * 
+ * - `DynDlist<Termino>`: Stores polynomial terms sorted by exponent
+ * - `Termino`: Represents a single term (coefficient, exponent pair)
+ * 
+ * @note This is a self-contained example with no command-line arguments.
+ * 
+ * @see DynDlist for the underlying list implementation
+ */
+
 # include <tpl_dynDlist.H>
 
 class Polinomio

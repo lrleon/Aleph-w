@@ -897,7 +897,7 @@ Graph * read_input_and_build_graph(ifstream & input_stream)
 	    break;
 	
 	  case VRADIO:
-	    parse_hradio_definition(input_stream);
+	    parse_vradio_definition(input_stream);
 	    break;
 	
 	  default:

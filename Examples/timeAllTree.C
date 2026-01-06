@@ -24,6 +24,40 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/**
+ * @file timeAllTree.C
+ * @brief Benchmark for all BST implementations in Aleph-w
+ * 
+ * This program measures insertion and deletion times for various binary
+ * search tree implementations at different sizes (powers of 2).
+ * 
+ * Supported tree types:
+ * - BinTree: Pure (unbalanced) binary search tree
+ * - Avl_Tree / Avl_Tree_Rk: AVL tree (with optional rank)
+ * - Splay_Tree / Splay_Tree_Rk: Splay tree (with optional rank)
+ * - Treap / Treap_Rk: Treap (with optional rank)
+ * - Rb_Tree / Rb_Tree_Rk: Red-Black tree (with optional rank)
+ * - TdRbTree / TdRbTreeRk: Top-down Red-Black tree (with optional rank)
+ * - Rand_Tree: Randomized BST
+ * 
+ * For each power of 2, it measures:
+ * - Insertion time (min, avg, median, sigma, max)
+ * - Deletion time (min, avg, median, sigma, max)
+ * - Tree height
+ * - Internal path length (IPL)
+ * 
+ * Usage: timeAllTree -n <nodes> -m <seed> [tree options]
+ *        -l, --all     : Benchmark all tree types
+ *        -a, --avl     : AVL tree
+ *        -b, --bin     : Pure binary tree
+ *        -r, --redblack: Red-Black tree
+ *        -s, --splay   : Splay tree
+ *        -p, --treap   : Treap
+ *        -d, --rand    : Randomized tree
+ * 
+ * @note Requires GNU Scientific Library (GSL) for random number generation.
+ */
+
 # include <gsl/gsl_rng.h>
 
 # include <cmath>
@@ -49,7 +83,6 @@
 # include <tpl_rb_tree.H>
 # include <tpl_rbRk.H>
 
-using namespace std;
 # include <tpl_tdRbTree.H>
 # include <tpl_tdRbTreeRk.H>
 # include <tpl_rand_tree.H>
@@ -71,7 +104,7 @@ constexpr int Num_Samples = 37;
 
 inline bool is_two_power(const unsigned int x)
 {
-  return x != 0 and not (x & x - 1);
+  return x != 0 and not (x & (x - 1));
 }
 
 typedef tuple<double, double, double, double, double> Stat;
@@ -127,12 +160,12 @@ tuple<Stat, Stat, int, int> sample_tree(TreeType<Key, Compare> & tree,
       for (int k = 0; k < Num_Measures; ++k)
         {
           auto sample_time = Chrono::now();
-          tree.insert(p);
+          (void) tree.insert(p);  // Ignore nodiscard - benchmarking
           auto dd = Chrono::now() - sample_time;
           ins_time += dd.count();
 
           sample_time = Chrono::now();
-          tree.remove(KEY(p));
+          (void) tree.remove(KEY(p));  // Ignore nodiscard - benchmarking
           rem_time += (Chrono::now() - sample_time).count();
         }
 
@@ -212,7 +245,7 @@ void test(unsigned long n, gsl_rng *r)
       while (true)
         if (int value = gsl_rng_get(r); tree.search(value) == nullptr)
           {
-            tree.insert(new typename Tree::Node(value));
+            (void) tree.insert(new typename Tree::Node(value));  // Ignore nodiscard
             break;
           }
 

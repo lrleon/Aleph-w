@@ -231,9 +231,10 @@ TEST_F(DynSkipListTest, RemoveExisting)
   sl.insert(2);
   sl.insert(3);
   
-  size_t remaining = sl.remove(2);
+  size_t removed = sl.remove(2);
   
-  EXPECT_EQ(remaining, 2);
+  EXPECT_EQ(removed, 1);  // 1 element was removed
+  EXPECT_EQ(sl.size(), 2);
   EXPECT_FALSE(sl.has(2));
   EXPECT_TRUE(sl.has(1));
   EXPECT_TRUE(sl.has(3));
@@ -244,9 +245,10 @@ TEST_F(DynSkipListTest, RemoveNonExisting)
   sl.insert(1);
   sl.insert(2);
   
-  size_t remaining = sl.remove(99);
+  size_t removed = sl.remove(99);
   
-  EXPECT_EQ(remaining, 2);  // Unchanged
+  EXPECT_EQ(removed, 0);  // Nothing was removed
+  EXPECT_EQ(sl.size(), 2);
 }
 
 TEST_F(DynSkipListTest, RemoveFirst)
