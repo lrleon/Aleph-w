@@ -49,7 +49,6 @@
 # include <vector>
 # include <tpl_dynMat.H>
 # include <tpl_dynDlist.H>
-# include <format.H>
 # include <ah-errors.H>
 
 namespace Aleph

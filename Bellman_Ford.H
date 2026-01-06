@@ -71,7 +71,7 @@
  *  ```
  *
  *  @see Dijkstra.H For graphs without negative weights (more efficient)
- *  @see Floyd.H For all-pairs shortest paths
+ *  @see Floyd_Warshall.H For all-pairs shortest paths
  *  @see Johnson.H For all-pairs with negative weights (uses Bellman-Ford)
  *
  *  @ingroup Grafos

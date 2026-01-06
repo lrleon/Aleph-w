@@ -24,7 +24,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/** @file Floyd.H
+/** @file Floyd_Warshall.H
  *  @brief Floyd-Warshall algorithm for all-pairs shortest paths.
  *
  *  This file implements the Floyd-Warshall algorithm, a dynamic programming
@@ -86,8 +86,8 @@
  *  @author Leandro Rabindranath León
  */
 
-# ifndef FLOYD_H
-# define FLOYD_H
+# ifndef FLOYD_WARSHALL_H
+# define FLOYD_WARSHALL_H
 
 # include <sstream>
 # include <iostream>
@@ -437,4 +437,4 @@ namespace Aleph
   };
 } // end namespace Aleph
 
-# endif // FLOYD_H
+# endif // FLOYD_WARSHALL_H

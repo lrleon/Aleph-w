@@ -36,7 +36,7 @@
  *
  *  ## Complexity: O(V³)
  *
- *  @see Floyd.H All-pairs shortest paths (weighted)
+ *  @see Floyd_Warshall.H All-pairs shortest paths (weighted)
  *  @ingroup Grafos
  *  @author Leandro Rabindranath León
  */

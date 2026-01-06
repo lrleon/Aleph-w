@@ -32,7 +32,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 #include <gtest/gtest.h>
 
 #include <tpl_graph_utils.H>
-#include <Floyd.H>
+#include <Floyd_Warshall.H>
 
 using namespace Aleph;
 using namespace std;
