@@ -1945,21 +1945,21 @@ TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)
 {
   const int num_tasks = 500;  // Fewer tasks because async is slow
   
-  auto compute = [](int x) {
-    int sum = 0;
+  auto compute = [](int x) -> long long {
+    long long sum = 0;
     for (int i = 0; i < 1000; ++i)
-      sum += i * x;
+      sum += static_cast<long long>(i) * x;
     return sum;
   };
   
   // std::async
   auto async_start = std::chrono::high_resolution_clock::now();
-  std::vector<std::future<int>> async_futures;
+  std::vector<std::future<long long>> async_futures;
   async_futures.reserve(num_tasks);
   for (int i = 0; i < num_tasks; ++i)
     async_futures.push_back(std::async(std::launch::async, compute, i));
   
-  int async_sum = 0;
+  long long async_sum = 0;
   for (auto& f : async_futures)
     async_sum += f.get();
   auto async_end = std::chrono::high_resolution_clock::now();
@@ -1969,12 +1969,12 @@ TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)
   ThreadPool pool(std::thread::hardware_concurrency());
   
   auto pool_start = std::chrono::high_resolution_clock::now();
-  std::vector<std::future<int>> pool_futures;
+  std::vector<std::future<long long>> pool_futures;
   pool_futures.reserve(num_tasks);
   for (int i = 0; i < num_tasks; ++i)
     pool_futures.push_back(pool.enqueue(compute, i));
   
-  int pool_sum = 0;
+  long long pool_sum = 0;
   for (auto& f : pool_futures)
     pool_sum += f.get();
   auto pool_end = std::chrono::high_resolution_clock::now();

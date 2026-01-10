@@ -1011,13 +1011,13 @@ public:
             const Geom_Number & __xmax, const Geom_Number & __ymax)
     : xmin(__xmin), ymin(__ymin), xmax(__xmax), ymax(__ymax)
   {
-    ah_range_error_if(xmax < xmin || ymax < ymin) << "Invalid rectangle";
+    ah_range_error_if(xmax < xmin or ymax < ymin) << "Invalid rectangle";
   }
 
   void set_rect(const Geom_Number & __xmin, const Geom_Number & __ymin,
                 const Geom_Number & __xmax, const Geom_Number & __ymax)
   {
-    ah_range_error_if(__xmax < __xmin || __ymax < __ymin)
+    ah_range_error_if(__xmax < __xmin or __ymax < __ymin)
       << "Invalid rectangle";
 
     xmin = __xmin;

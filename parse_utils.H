@@ -623,7 +623,7 @@ namespace Aleph
     std::string to_string() const
     {
       std::ostringstream oss;
-      if (! filename.empty())
+      if (not filename.empty())
         oss << filename << ":";
       oss << line << ":" << column;
       return oss.str();
@@ -768,7 +768,7 @@ namespace Aleph
   inline void skip_line_comment(std::ifstream & input_stream)
   {
     int c;
-    while (! input_stream.eof())
+    while (not input_stream.eof())
       {
         c = input_stream.get();
         if (c == '\n')
@@ -802,11 +802,9 @@ namespace Aleph
   {
     size_t match_pos = 0;
 
-    while (! input_stream.eof())
+    while (not input_stream.eof())
       {
-        int c = input_stream.get();
-
-        if (c == '\n')
+        if (const int c = input_stream.get(); c == '\n')
           {
             current_line_number++;
             current_col_number = 0;
@@ -823,9 +821,7 @@ namespace Aleph
                   return; // Found closing sequence
               }
             else
-              {
-                match_pos = (c == close[0]) ? 1 : 0;
-              }
+              match_pos = (c == close[0]) ? 1 : 0;
           }
       }
 
@@ -848,22 +844,16 @@ namespace Aleph
    */
   inline void skip_whitespace_and_comments(std::ifstream & input_stream)
   {
-    while (! input_stream.eof())
+    while (not input_stream.eof())
       {
-        int c = peek_char(input_stream);
-
-        if (std::isspace(c))
-          {
-            read_char_from_stream(input_stream);
-          }
+        if (const int c = peek_char(input_stream); std::isspace(c))
+          read_char_from_stream(input_stream);
         else if (c == '/')
           {
             // Peek ahead for // or /*
             input_stream.get();
             current_col_number++;
-            int next = peek_char(input_stream);
-
-            if (next == '/')
+            if (const int next = peek_char(input_stream); next == '/')
               {
                 input_stream.get();
                 current_col_number++;
@@ -890,9 +880,7 @@ namespace Aleph
             skip_line_comment(input_stream);
           }
         else
-          {
-            return; // Non-whitespace, non-comment found
-          }
+          return; // Non-whitespace, non-comment found
       }
   }
 
@@ -936,7 +924,7 @@ namespace Aleph
     int c = read_char_from_stream(input_stream);
 
     // Optional sign
-    if (c == '-' || c == '+')
+    if (c == '-' or c == '+')
       {
         put_char_in_buffer(ptr, end, c);
         c = read_char_from_stream(input_stream);
@@ -966,22 +954,22 @@ namespace Aleph
           }
       }
 
-    if (! has_digits)
+    if (not has_digits)
       throw ParseError("Invalid floating-point number: no digits");
 
     // Exponent part
-    if (c == 'e' || c == 'E')
+    if (c == 'e' or c == 'E')
       {
         put_char_in_buffer(ptr, end, c);
         c = read_char_from_stream(input_stream);
 
-        if (c == '+' || c == '-')
+        if (c == '+' or c == '-')
           {
             put_char_in_buffer(ptr, end, c);
             c = read_char_from_stream(input_stream);
           }
 
-        if (! std::isdigit(c))
+        if (not std::isdigit(c))
           throw ParseError("Invalid exponent in floating-point number");
 
         while (std::isdigit(c))
@@ -1030,12 +1018,12 @@ namespace Aleph
       throw ParseError("Hexadecimal number must start with 0x");
 
     c = read_char_from_stream(input_stream);
-    if (c != 'x' && c != 'X')
+    if (c != 'x' and c != 'X')
       throw ParseError("Hexadecimal number must start with 0x");
 
     c = read_char_from_stream(input_stream);
 
-    if (! std::isxdigit(c))
+    if (not std::isxdigit(c))
       throw ParseError("Invalid hexadecimal number");
 
     while (std::isxdigit(c))
@@ -1083,10 +1071,10 @@ namespace Aleph
     c = read_char_from_stream(input_stream);
 
     // Check it's not hex (0x)
-    if (c == 'x' || c == 'X')
+    if (c == 'x' or c == 'X')
       throw ParseError("Expected octal number, got hexadecimal");
 
-    while (c >= '0' && c <= '7')
+    while (c >= '0' and c <= '7')
       {
         put_char_in_buffer(ptr, end, c);
         c = read_char_from_stream(input_stream);
@@ -1133,15 +1121,15 @@ namespace Aleph
       throw ParseError("Binary number must start with 0b");
 
     c = read_char_from_stream(input_stream);
-    if (c != 'b' && c != 'B')
+    if (c != 'b' and c != 'B')
       throw ParseError("Binary number must start with 0b");
 
     c = read_char_from_stream(input_stream);
 
-    if (c != '0' && c != '1')
+    if (c != '0' and c != '1')
       throw ParseError("Invalid binary number");
 
-    while (c == '0' || c == '1')
+    while (c == '0' or c == '1')
       {
         put_char_in_buffer(ptr, end, c);
         c = read_char_from_stream(input_stream);
@@ -1186,7 +1174,7 @@ namespace Aleph
     int c = read_char_from_stream(input_stream);
 
     // Must start with letter or underscore
-    if (! std::isalpha(c) && c != '_')
+    if (not std::isalpha(c) and c != '_')
       throw ParseError("Identifier must start with letter or underscore");
 
     put_char_in_buffer(ptr, end, c);
@@ -1195,7 +1183,7 @@ namespace Aleph
       {
         c = read_char_from_stream(input_stream);
 
-        if (std::isalnum(c) || c == '_')
+        if (std::isalnum(c) or c == '_')
           put_char_in_buffer(ptr, end, c);
         else
           break;
@@ -1206,7 +1194,7 @@ namespace Aleph
       current_col_number--;
 
     close_token_scanning(buffer, ptr, end);
-    return std::string(buffer);
+    return {buffer};
   }
 
   /**
@@ -1226,7 +1214,7 @@ namespace Aleph
    */
   inline bool is_keyword(const std::string & s, const std::vector<std::string> & keywords)
   {
-    return std::find(keywords.begin(), keywords.end(), s) != keywords.end();
+    return std::ranges::find(keywords, s) != keywords.end();
   }
 
   // ============================================================================
@@ -1254,9 +1242,7 @@ namespace Aleph
   inline void expect_char(std::ifstream & input_stream, char expected)
   {
     skip_white_spaces(input_stream);
-    int c = read_char_from_stream(input_stream);
-
-    if (c != expected)
+    if (const int c = read_char_from_stream(input_stream); c != expected)
       {
         std::string msg = "Expected '";
         msg += expected;
@@ -1289,14 +1275,9 @@ namespace Aleph
     skip_white_spaces(input_stream);
     init_token_scanning();
 
-    for (char ch: expected)
-      {
-        int c = read_char_from_stream(input_stream);
-        if (c != ch)
-          {
-            throw ParseError("Expected '" + expected + "'");
-          }
-      }
+    for (const char ch: expected)
+      if (const int c = read_char_from_stream(input_stream); c != ch)
+        throw ParseError("Expected '" + expected + "'");
 
     token_instance = expected;
   }
@@ -1317,9 +1298,7 @@ namespace Aleph
     StreamPosition pos = mark_position(input_stream);
     skip_white_spaces(input_stream);
 
-    int c = read_char_from_stream(input_stream);
-
-    if (c == ch)
+    if (const int c = read_char_from_stream(input_stream); c == ch)
       return true;
 
     restore_position(input_stream, pos);
@@ -1421,7 +1400,7 @@ namespace Aleph
       }
 
     close_token_scanning(buffer, ptr, end);
-    return std::string(buffer);
+    return {buffer};
   }
 
   /**
@@ -1532,10 +1511,10 @@ namespace Aleph
       : type(t), value(v), location(loc) {}
 
     /// Check if this is an end-of-file token
-    bool is_eof() const { return type == TokenType::END_OF_FILE; }
+    [[nodiscard]] bool is_eof() const { return type == TokenType::END_OF_FILE; }
 
     /// String representation for debugging
-    std::string to_string() const
+    [[nodiscard]] std::string to_string() const
     {
       return token_type_to_string(type) + "(\"" + value + "\") at " +
              location.to_string();
@@ -1576,7 +1555,7 @@ namespace Aleph
   inline std::vector<std::string> load_file_lines(const std::string & filename)
   {
     std::ifstream file(filename);
-    if (! file.is_open())
+    if (not file.is_open())
       throw std::runtime_error("Cannot open file: " + filename);
 
     std::vector<std::string> lines;
@@ -1616,14 +1595,14 @@ namespace Aleph
   inline std::string trim(const std::string & str)
   {
     size_t start = 0;
-    while (start < str.size() && std::isspace(str[start]))
+    while (start < str.size() and std::isspace(str[start]))
       start++;
 
     if (start == str.size())
       return "";
 
     size_t end = str.size() - 1;
-    while (end > start && std::isspace(str[end]))
+    while (end > start and std::isspace(str[end]))
       end--;
 
     return str.substr(start, end - start + 1);

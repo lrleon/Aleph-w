@@ -46,6 +46,7 @@
 # include <archeap.H>
 # include <tpl_find_path.H>
 # include <tpl_agraph.H>
+# include <shortest_path_common.H>
 
 namespace Aleph
 {
@@ -352,6 +353,10 @@ namespace Aleph
     template <class DN, class DA>
     void uninit()
     {
+      // Clear heap first to avoid use-after-free when heap destructor
+      // tries to compare arcs whose cookies have been freed
+      heap.empty();
+
       Operate_On_Nodes<GT, DN>()(*ptr_g);
       (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
     }
@@ -361,17 +366,7 @@ namespace Aleph
     checked_add(const typename Distance::Distance_Type & a,
                 const typename Distance::Distance_Type & b) const
     {
-      using DT = typename Distance::Distance_Type;
-      if constexpr (std::is_integral_v<DT>)
-        {
-          ah_overflow_error_if(b > 0 and a > std::numeric_limits<DT>::max() - b)
-            << "Integer overflow in distance addition: " << a << " + " << b;
-
-          ah_overflow_error_if(b < 0 and a < std::numeric_limits<DT>::min() - b)
-            << "Integer underflow in distance addition: " << a << " + " << b;
-        }
-
-      return a + b;
+      return shortest_path_detail::checked_add(a, b);
     }
 
   public:
@@ -662,28 +657,13 @@ namespace Aleph
       ah_domain_error_if(not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
         << "node is not reachable from start";
 
-      typename Distance::Distance_Type total = 0;
+      // Functor to extract parent from node cookie
+      auto get_parent = [](typename GT::Node* n) {
+        return static_cast<typename GT::Node*>(NODE_COOKIE(n));
+      };
 
-      for (auto curr = node; curr != s;)
-        {
-          auto parent = static_cast<typename GT::Node *>(NODE_COOKIE(curr));
-          if (parent == nullptr)
-            break;
-
-          for (Itor<GT, SA> it(parent, sa); it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_current_arc_ne();
-              auto tgt = it.get_tgt_node();
-              if (tgt == curr and IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-                {
-                  total += Distance()(arc);
-                  break;
-                }
-            }
-          curr = parent;
-        }
-
-      return total;
+      return shortest_path_detail::compute_path_distance<GT, Distance, Itor>(
+        s, node, sa, get_parent);
     }
   };
 

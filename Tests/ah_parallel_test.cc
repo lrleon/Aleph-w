@@ -38,6 +38,8 @@
 #include <numeric>
 #include <atomic>
 #include <chrono>
+#include <random>
+#include <algorithm>
 #include <cmath>
 
 using namespace Aleph;
@@ -495,7 +497,8 @@ TEST_F(ParallelTest, PsortAlreadySorted)
 TEST_F(ParallelTest, PsortLargeData)
 {
   std::vector<int> data = large_vec;
-  std::random_shuffle(data.begin(), data.end());
+  std::mt19937 rng(42);  // Fixed seed for reproducibility
+  std::shuffle(data.begin(), data.end(), rng);
   psort(pool, data);
   for (size_t i = 0; i < data.size(); ++i)
     EXPECT_EQ(data[i], static_cast<int>(i + 1));
@@ -726,7 +729,8 @@ TEST_F(ParallelTest, BenchmarkSortSpeedup)
 {
   std::vector<int> data(100000);
   std::iota(data.begin(), data.end(), 0);
-  std::random_shuffle(data.begin(), data.end());
+  std::mt19937 rng(123);  // Fixed seed for reproducibility
+  std::shuffle(data.begin(), data.end(), rng);
   
   std::vector<int> data_copy = data;
   

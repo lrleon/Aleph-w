@@ -252,10 +252,10 @@ class ThreadPool
         {
           std::unique_lock<std::mutex> lock(queue_mutex);
           condition.wait(lock, [this] {
-            return stop || !tasks.empty();
+            return stop or not tasks.empty();
           });
 
-          if (stop && tasks.empty())
+          if (stop and tasks.empty())
             return;
 
           // Check if we should notify waiters after popping
@@ -445,8 +445,8 @@ public:
       // Update peak queue size
       size_t current_size = tasks.size();
       size_t peak = peak_queue_size_.load();
-      while (current_size > peak && 
-             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+      while (current_size > peak and
+             not peak_queue_size_.compare_exchange_weak(peak, current_size))
         ;
     }
 
@@ -525,8 +525,8 @@ public:
       // Update peak queue size
       size_t current_size = tasks.size();
       size_t peak = peak_queue_size_.load();
-      while (current_size > peak && 
-             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+      while (current_size > peak and
+             not peak_queue_size_.compare_exchange_weak(peak, current_size))
         ;
     }
 
@@ -965,7 +965,7 @@ public:
    */
   void wait_all(std::chrono::milliseconds poll_interval = std::chrono::milliseconds(1))
   {
-    while (!is_idle())
+    while (not is_idle())
       std::this_thread::sleep_for(poll_interval);
   }
 
@@ -1144,8 +1144,8 @@ public:
       // Update peak queue size
       size_t current_size = tasks.size();
       size_t peak = peak_queue_size_.load();
-      while (current_size > peak && 
-             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+      while (current_size > peak and
+             not peak_queue_size_.compare_exchange_weak(peak, current_size))
         ;
     }
     

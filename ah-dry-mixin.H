@@ -178,14 +178,14 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation (temporary lambdas).
   template <class Operation>
-  bool traverse(Operation && operation = Operation()) const
+  bool traverse(Operation and operation = Operation()) const
   {
     return traverse<Operation>(operation);
   }
 
   /// @overload
   template <class Operation>
-  bool traverse(Operation && operation = Operation())
+  bool traverse(Operation and operation = Operation())
   {
     return traverse<Operation>(operation);
   }
@@ -354,14 +354,14 @@ public:
   /// @overload
   /// @brief Version accepting rvalue operation.
   template <class Operation>
-  Type * find_ptr(Operation && operation = Operation()) const
+  Type * find_ptr(Operation and operation = Operation()) const
   {
     return find_ptr<Operation>(operation);
   }
 
   /// @overload
   template <class Operation>
-  Type * find_ptr(Operation && operation = Operation())
+  Type * find_ptr(Operation and operation = Operation())
   {
     return find_ptr<Operation>(operation);
   }
@@ -1098,7 +1098,7 @@ public:
     const Type * result = nullptr;
     for_each([&result] (const Type & item)
     {
-      if (result == nullptr || item < *result)
+      if (result == nullptr or item < *result)
         result = &item;
     });
     return result;
@@ -1126,7 +1126,7 @@ public:
     const Type * result = nullptr;
     for_each([&result] (const Type & item)
     {
-      if (result == nullptr || *result < item)
+      if (result == nullptr or *result < item)
         result = &item;
     });
     return result;
@@ -1155,7 +1155,7 @@ public:
     const Type * result = nullptr;
     for_each([&result, &cmp] (const Type & item)
     {
-      if (result == nullptr || cmp(item, *result))
+      if (result == nullptr or cmp(item, *result))
         result = &item;
     });
     return result;
@@ -1184,7 +1184,7 @@ public:
     const Type * result = nullptr;
     for_each([&result, &cmp] (const Type & item)
     {
-      if (result == nullptr || cmp(*result, item))
+      if (result == nullptr or cmp(*result, item))
         result = &item;
     });
     return result;
@@ -1487,7 +1487,7 @@ public:
     const Type * prev = nullptr;
     for_each([&ret, &prev] (const Type & item)
     {
-      if (prev == nullptr || !(*prev == item))
+      if (prev == nullptr or not (*prev == item))
       {
         ret.append(item);
         prev = &item;
@@ -1521,7 +1521,7 @@ public:
     const Type * prev = nullptr;
     for_each([&ret, &prev, &eq] (const Type & item)
     {
-      if (prev == nullptr || !eq(*prev, item))
+      if (prev == nullptr or not eq(*prev, item))
       {
         ret.append(item);
         prev = &item;
@@ -1552,7 +1552,7 @@ public:
     bool first = true;
     for_each([&ret, &sep, &first] (const Type & item)
     {
-      if (!first)
+      if (not first)
         ret.append(sep);
       ret.append(item);
       first = false;
@@ -1626,7 +1626,7 @@ public:
   [[nodiscard]] Container<Container<Type>> sliding(size_t size, size_t step = 1) const
   {
     Container<Container<Type>> ret;
-    if (size == 0 || step == 0) return ret;
+    if (size == 0 or step == 0) return ret;
 
     // Collect all elements first
     Container<Type> all;
@@ -1641,7 +1641,7 @@ public:
       size_t idx = 0;
       all.traverse([&window, &idx, start, size] (const Type & item)
       {
-        if (idx >= start && idx < start + size)
+        if (idx >= start and idx < start + size)
           window.append(item);
         ++idx;
         return idx < start + size;
@@ -1729,7 +1729,7 @@ public:
     bool first = true;
     for_each([&ret, &sep, &first] (const Type & item)
     {
-      if (!first)
+      if (not first)
         ret += sep;
       ret += std::to_string(item);
       first = false;
@@ -1758,7 +1758,7 @@ public:
     bool first = true;
     for_each([&ret, &sep, &first] (const Type & item)
     {
-      if (!first)
+      if (not first)
         ret += sep;
       ret += static_cast<std::string>(item);
       first = false;
@@ -1799,7 +1799,7 @@ public:
     auto it1 = self().get_it();
     auto it2 = other.get_it();
 
-    while (it1.has_curr() && it2.has_curr())
+    while (it1.has_curr() and it2.has_curr())
     {
       ret.append(std::make_pair(it1.get_curr(), it2.get_curr()));
       it1.next();

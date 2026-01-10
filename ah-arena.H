@@ -182,7 +182,7 @@ public:
    */
   ~AhArenaAllocator()
   {
-    if (owns_memory_ && base_addr_ != nullptr)
+    if (owns_memory_ and base_addr_ != nullptr)
       std::free(base_addr_);
   }
 
@@ -289,7 +289,7 @@ public:
    */
   [[nodiscard]] void* alloc_aligned(size_t size, size_t alignment) noexcept
   {
-    if (size == 0 || alignment == 0)
+    if (size == 0 or alignment == 0)
       return nullptr;
 
     // Calculate aligned address
@@ -318,7 +318,7 @@ public:
    */
   void dealloc(const void* addr, size_t size) noexcept
   {
-    if (size == 0 || addr == nullptr)
+    if (size == 0 or addr == nullptr)
       return;
 
     // Only deallocate if this was the last allocation (LIFO)
@@ -431,8 +431,8 @@ public:
    */
   [[nodiscard]] bool contains(const void* ptr) const noexcept
   {
-    const char* p = static_cast<const char*>(ptr);
-    return p >= base_addr_ && p < end_addr_;
+    const auto p = static_cast<const char*>(ptr);
+    return p >= base_addr_ and p < end_addr_;
   }
 
   // === Backward compatibility aliases ===

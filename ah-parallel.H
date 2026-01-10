@@ -816,8 +816,8 @@ template <typename Container, typename Pred>
                 {
                   // Atomically update minimum
                   size_t expected = min_index.load(std::memory_order_relaxed);
-                  while (i < expected && 
-                         !min_index.compare_exchange_weak(expected, i,
+                  while (i < expected and
+                         not min_index.compare_exchange_weak(expected, i,
                            std::memory_order_relaxed))
                     ;
                   return;
@@ -1139,7 +1139,7 @@ void psort(ThreadPool& pool, Container& c, Compare cmp = Compare{},
     return;
 
   // For small sizes, use regular sort
-  if (n <= min_parallel_size || pool.num_threads() <= 1)
+  if (n <= min_parallel_size or pool.num_threads() <= 1)
     {
       std::sort(std::begin(c), std::end(c), cmp);
       return;

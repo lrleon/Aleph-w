@@ -925,7 +925,7 @@ public:
 
   /** Map the nodes through their cookies.
 
-      `map_nodes(p, q)` is intended to biyectively to map the node `p`
+      `map_nodes(p, q)` is intended to bijectively to map the node `p`
       towards the node `q` through their cookies. Basically, after
       calling the cookie of `p` points to `q` and the cookie of `q`
       points to `p`.
@@ -935,14 +935,14 @@ public:
       perform the composition. This could be very useful for having
       several mapping.
 
-      Supposse that we have three nodes `p`, `q` and `r` belonging to
+      Suppose that we have three nodes `p`, `q` and `r` belonging to
       three different, but from certain way isomorphic, graphs `g1` and
       `g2` of type `GT`, and `g3` of type `GTT`. Note that the types of
       graph could variate. Thus, this call:
 
           g1.map_nodes(p, q);
 
-      Instruments a biyective mapping \f$p \longleftrightarrow q\f$.
+      Instruments a bijective mapping \f$p \longleftrightarrow q\f$.
       Note that since `p` and `q` are of the same type (although
       belong to different graphs), it is not necessary to specify as
       template parameters the graph types. Another way for invoking
@@ -967,11 +967,11 @@ public:
       In our experiences, this is the fastest way for implementing
       mappings. Apart from the fact that the retrieval is \f$O(1)\f$,
       this is also deterministic. Compare this fact with other
-      approaches requiring bookkeeping throug hash tables or trees. In
+      approaches requiring bookkeeping through hash tables or trees. In
       addiction, if many (or all) nodes are required to map, then this
       approach is also the less space consuming. More still, correctly
       used, this approach could be simpler than hash tables or trees,
-      since you do not require additional declarations, inicializations,
+      since you do not require additional declarations, initialization,
       etc.
 
       Of course, this approach has the big con that it is not very typed
@@ -1003,7 +1003,7 @@ public:
 
   /** Map the arcs through their cookies.
 
-      `map_arcs(p, q)` is intended to biyectively to map the arc `p`
+      `map_arcs(p, q)` is intended to bijectively to map the arc `p`
       towards the arc `q` through their cookies. Basically, after
       calling the cookie of `p` points to `q` and the cookie of `q`
       points to `p`.
@@ -1101,7 +1101,7 @@ public:
       @remark If this method does not throw exception, then this always
       returns a valid pointer,
 
-      @param[in] node_info infopr to copy to the new node. The copy
+      @param[in] node_info info to copy to the new node. The copy
       constructor and the assign operator must be defined for the class
       Node_Type.
       @return a pointer to the new inserted node.
@@ -1262,7 +1262,7 @@ public:
       then the next node is traversed. Otherwise, the traversal stops and
       the remainder nodes are not visited.
 
-      For example, supposse that we wish print out the nodes content for
+      For example, suppose that we wish print out the nodes content for
       all the nodes. Then we could do it as follows:
 
           g.traverse_nodes([] (auto p)
@@ -1277,14 +1277,14 @@ public:
 
       The operation is \f$O(V)\f$ for the worst and average case.
 
-      @remark According to the compiler, invalid or uncompliant
+      @remark According to the compiler, invalid or non-compliant
       signatures for `operation`, by example, to not return anything,
       not only they probably will not compile, but the diagnostic errors
-      could be hard to undertand. Perhaps, on some compilers, bad
+      could be hard to understand. Perhaps, on some compilers, bad
       signatures could compile. So, be sure to match the correct
       operation signature.
 
-      @param[in] operation operation to be performed on each node. The
+      @param[in] op operation to be performed on each node. The
       operation must imperatively return a `bool` indicating whether or
       not the next node must be visited.
       @return a `bool` with the last `operation`result. If `true` then
@@ -1312,7 +1312,7 @@ public:
 
   /** Conditioned traversal of all the arcs of a graph.
 
-      `traverse_arc(operation)` condionally traverses all the arcs  of
+      `traverse_arc(operation)` conditionally traverses all the arcs  of
       a graph and on each arc `a` executes `operation(a)`. The
       `operation` must have the following functor structure:
 
@@ -1321,19 +1321,19 @@ public:
       This signature can be accomplished through a function pointer, a
       functor or a lambda (via the overloaded rvalue version).  Note
       that there is a return value. If `operation(p)` returns `true`,
-      then the next node is traversed. Otherwise the traversal stops and
+      then the next node is traversed. Otherwise, the traversal stops and
       the remainder nodes are not visited.
 
       if the graph type was `GT` then the arc type would be
       `GT::Arc`. In this primitive as well for the majority of
       functional primitives, you could declare the parameter types as
       auto and to leave to compiler to infer them. This could be more
-      practical and easier for writing but it also could hide the true
-      type and in some cases to do incomprehensible the the type.
+      practical and easier for writing, but it also could hide the true
+      type and in some cases to do incomprehensible the type.
 
       The operation is \f$O(E)\f$ for the worst and average case.
 
-      For example, supposse that we wish print out the arcs content for
+      For example, suppose that we wish print out the arcs content for
       all the arcs. Then we could do it as follows:
 
           g.traverse_arcs([] (auto a)
@@ -1350,8 +1350,8 @@ public:
       operation signature.
 
       @param[in] op operation to be performed on each arc. The
-      operation must imperatively return a `bool` indicating whether or
-      not the next arc must be visited.
+      operation must imperatively return a `bool` indicating whether
+      the next arc must be visited.
       @return a `bool` with the last `operation`result. If `true` then
       all the arcs were visited and on each one `operation`
       executed. Otherwise, the traversal was stopped.
