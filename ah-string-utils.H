@@ -24,14 +24,20 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/** @file ah-std::string-utils.H
+/** @file ah-string-utils.H
  *  @brief String manipulation utilities.
  *
- *  This file provides a comprehensive set of std::string utilities including
- *  trimming, splitting, joining, case conversion, numeric parsing, and
- *  various std::string transformation functions.
+ *  This file provides a comprehensive set of string utilities including:
+ *  - Trimming (ltrim, rtrim, trim)
+ *  - Case conversion (tolower, toupper, to_lower, to_upper)
+ *  - Splitting (split, split_string, split_to_list, split_to_array)
+ *  - Joining (join, concat)
+ *  - Numeric parsing and validation (is_double, is_float, is_long, safe_atol, safe_atof)
+ *  - Text formatting (justify_text, align_text_to_left)
  *
- *  @ingroup Utils
+ *  Most functions operate on byte strings and use C locale ctype functions.
+ *
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -59,19 +65,6 @@
 
 namespace Aleph
 {
-  /** \file ah-std::string-utils.H
-
-      \brief Assorted std::string utilities.
-
-      This header provides small, header-only helpers for:
-      - Converting containers to strings
-      - Trimming and case conversion
-      - Tokenizing/splitting
-      - Simple numeric validation
-      - Text layout (justify/align)
-
-      Most functions operate on byte strings and use C locale `ctype` functions.
-  */
 
   /** Convert a `std::vector<T>` to a comma-separated std::string.
 

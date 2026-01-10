@@ -26,7 +26,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * @file ahSingleton_test.cc
- * @brief Tests for Ahsingleton
+ * @brief Unit tests for ahSingleton.H
+ *
+ * Tests cover:
+ * - Single instance guarantee (same address on multiple calls)
+ * - Macro-based singleton functionality
+ * - Mutability of singleton state
+ * - Copy/move operations are deleted
+ * - Thread-safe initialization (concurrent access)
+ * - noexcept guarantee
  */
 
 #include <gtest/gtest.h>
@@ -95,6 +103,13 @@ TEST(AhSingleton, CopyAndMoveAreDisabled)
   static_assert(!std::is_copy_assignable_v<MacroSingletonMutable>);
   static_assert(!std::is_move_constructible_v<MacroSingletonMutable>);
   static_assert(!std::is_move_assignable_v<MacroSingletonMutable>);
+}
+
+TEST(AhSingleton, GetInstanceIsNoexcept)
+{
+  // Verify that get_instance() is noexcept for both Singleton class and macro
+  static_assert(noexcept(Singleton::get_instance()));
+  static_assert(noexcept(MacroSingletonMutable::get_instance()));
 }
 
 TEST(AhSingleton, ThreadSafeInitializationMeyersSingleton)

@@ -10,6 +10,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # List of all example programs present in the directory
 set(EXAMPLE_PROGRAMS
+    ah_parallel_example
     bfs_dfs_example
     btreepic
     cut_nodes_example

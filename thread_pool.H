@@ -117,6 +117,9 @@
 #include <memory>
 #include <limits>
 #include <optional>
+#include <chrono>
+#include <numeric>
+#include <iterator>
 
 namespace Aleph
 {
@@ -145,6 +148,37 @@ private:
   size_t current_size_;
   size_t hard_limit_;
 };
+
+/** @brief Statistics collected by ThreadPool.
+ *
+ *  Provides insight into pool performance for monitoring and tuning.
+ */
+struct ThreadPoolStats
+{
+  size_t tasks_completed = 0;         ///< Total tasks completed
+  size_t tasks_failed = 0;            ///< Tasks that threw exceptions (detached)
+  size_t current_queue_size = 0;      ///< Current pending tasks
+  size_t current_active = 0;          ///< Currently executing tasks
+  size_t num_workers = 0;             ///< Number of worker threads
+  size_t peak_queue_size = 0;         ///< Maximum queue size observed
+  
+  /// Total tasks processed (completed + failed)
+  [[nodiscard]] size_t total_processed() const noexcept 
+  { 
+    return tasks_completed + tasks_failed; 
+  }
+  
+  /// Queue utilization as percentage (0-100)
+  [[nodiscard]] double queue_utilization(size_t soft_limit) const noexcept
+  {
+    if (soft_limit == 0 || soft_limit == std::numeric_limits<size_t>::max())
+      return 0.0;
+    return (100.0 * current_queue_size) / soft_limit;
+  }
+};
+
+/// Type for exception callback in detached tasks
+using ExceptionCallback = std::function<void(std::exception_ptr)>;
 
 /** @brief A reusable thread pool for efficient parallel task execution.
  *
@@ -192,12 +226,21 @@ class ThreadPool
   mutable std::mutex queue_mutex;
   std::condition_variable condition;        ///< Notifies workers of new tasks
   std::condition_variable space_available;  ///< Notifies enqueuers of queue space
+  std::condition_variable idle_condition;   ///< Notifies wait_all() of idle state
   std::atomic<bool> stop{false};
   std::atomic<size_t> active_tasks{0};
   
   // Queue limits for bounded enqueue
   size_t soft_limit_ = std::numeric_limits<size_t>::max();  ///< Block threshold
   size_t hard_limit_ = std::numeric_limits<size_t>::max();  ///< Exception threshold
+  
+  // Statistics
+  std::atomic<size_t> tasks_completed_{0};
+  std::atomic<size_t> tasks_failed_{0};
+  std::atomic<size_t> peak_queue_size_{0};
+  
+  // Exception callback for detached tasks
+  ExceptionCallback exception_callback_;
 
   /// Worker thread main loop
   void worker_loop()
@@ -228,7 +271,16 @@ class ThreadPool
           space_available.notify_all();
 
         task->execute();
+        
+        // Update stats and check for idle state
         --active_tasks;
+        
+        // Notify wait_all if we're now idle
+        {
+          std::unique_lock<std::mutex> lock(queue_mutex);
+          if (tasks.empty() && active_tasks == 0)
+            idle_condition.notify_all();
+        }
       }
   }
 
@@ -357,8 +409,11 @@ public:
     auto promise = std::make_shared<std::promise<return_type>>();
     std::future<return_type> result = promise->get_future();
 
+    // Capture stats counter for task completion tracking
+    auto completed_counter = &tasks_completed_;
+    
     // Create the task that will execute and set the promise
-    auto task_func = [invocable = std::move(invocable), promise]() mutable {
+    auto task_func = [invocable = std::move(invocable), promise, completed_counter]() mutable {
       try
         {
           if constexpr (std::is_void_v<return_type>)
@@ -370,10 +425,12 @@ public:
             {
               promise->set_value(invocable());
             }
+          ++(*completed_counter);
         }
       catch (...)
         {
           promise->set_exception(std::current_exception());
+          ++(*completed_counter);  // Still counts as processed
         }
     };
 
@@ -384,6 +441,13 @@ public:
         throw std::runtime_error("enqueue on stopped ThreadPool");
 
       tasks.push(std::make_unique<Task<decltype(task_func)>>(std::move(task_func)));
+      
+      // Update peak queue size
+      size_t current_size = tasks.size();
+      size_t peak = peak_queue_size_.load();
+      while (current_size > peak && 
+             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+        ;
     }
 
     condition.notify_one();
@@ -421,14 +485,32 @@ public:
   {
     auto invocable = make_invocable(std::forward<F>(f), std::forward<Args>(args)...);
 
-    auto task_func = [invocable = std::move(invocable)]() mutable {
+    // Capture stats and callback
+    auto completed_counter = &tasks_completed_;
+    auto failed_counter = &tasks_failed_;
+    ExceptionCallback callback;
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      callback = exception_callback_;
+    }
+
+    auto task_func = [invocable = std::move(invocable), 
+                      completed_counter, failed_counter,
+                      callback = std::move(callback)]() mutable {
       try
         {
           invocable();
+          ++(*completed_counter);
         }
       catch (...)
         {
-          // Silently ignore exceptions in detached tasks
+          ++(*failed_counter);
+          // Call exception callback if set
+          if (callback)
+            {
+              try { callback(std::current_exception()); }
+              catch (...) { /* Ignore callback exceptions */ }
+            }
         }
     };
 
@@ -439,6 +521,13 @@ public:
         throw std::runtime_error("enqueue_detached on stopped ThreadPool");
 
       tasks.push(std::make_unique<Task<decltype(task_func)>>(std::move(task_func)));
+      
+      // Update peak queue size
+      size_t current_size = tasks.size();
+      size_t peak = peak_queue_size_.load();
+      while (current_size > peak && 
+             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+        ;
     }
 
     condition.notify_one();
@@ -879,7 +968,481 @@ public:
     while (!is_idle())
       std::this_thread::sleep_for(poll_interval);
   }
+
+  /** @brief Wait until all current tasks complete, with timeout.
+   *
+   *  Blocks until either:
+   *  - The task queue is empty and no tasks are running, OR
+   *  - The timeout expires
+   *
+   *  @param timeout Maximum time to wait.
+   *  @return true if pool became idle, false if timeout expired.
+   */
+  template <typename Rep, typename Period>
+  [[nodiscard]] bool wait_all_for(std::chrono::duration<Rep, Period> timeout)
+  {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    return idle_condition.wait_for(lock, timeout, [this] {
+      return tasks.empty() && active_tasks == 0;
+    });
+  }
+
+  /** @brief Wait until all current tasks complete, with deadline.
+   *
+   *  Blocks until either:
+   *  - The task queue is empty and no tasks are running, OR
+   *  - The deadline is reached
+   *
+   *  @param deadline Time point at which to stop waiting.
+   *  @return true if pool became idle, false if deadline reached.
+   */
+  template <typename Clock, typename Duration>
+  [[nodiscard]] bool wait_all_until(std::chrono::time_point<Clock, Duration> deadline)
+  {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    return idle_condition.wait_until(lock, deadline, [this] {
+      return tasks.empty() && active_tasks == 0;
+    });
+  }
+
+  /** @brief Get current pool statistics.
+   *
+   *  Returns a snapshot of various performance counters.
+   *
+   *  @return ThreadPoolStats struct with current values.
+   */
+  [[nodiscard]] ThreadPoolStats get_stats() const
+  {
+    ThreadPoolStats stats;
+    stats.tasks_completed = tasks_completed_.load();
+    stats.tasks_failed = tasks_failed_.load();
+    stats.current_active = active_tasks.load();
+    stats.num_workers = workers.size();
+    stats.peak_queue_size = peak_queue_size_.load();
+    
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      stats.current_queue_size = tasks.size();
+    }
+    
+    return stats;
+  }
+
+  /** @brief Reset statistics counters to zero.
+   */
+  void reset_stats()
+  {
+    tasks_completed_ = 0;
+    tasks_failed_ = 0;
+    peak_queue_size_ = 0;
+  }
+
+  /** @brief Set callback for exceptions in detached tasks.
+   *
+   *  When a detached task throws an exception, this callback is invoked
+   *  with the exception pointer. This allows logging or handling of
+   *  exceptions that would otherwise be silently ignored.
+   *
+   *  @param callback Function to call with exception_ptr on task failure.
+   *                  Pass nullptr to disable.
+   *
+   *  ## Example
+   *
+   *  ```cpp
+   *  pool.set_exception_callback([](std::exception_ptr ep) {
+   *    try {
+   *      std::rethrow_exception(ep);
+   *    } catch (const std::exception& e) {
+   *      std::cerr << "Detached task failed: " << e.what() << std::endl;
+   *    }
+   *  });
+   *  ```
+   */
+  void set_exception_callback(ExceptionCallback callback)
+  {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    exception_callback_ = std::move(callback);
+  }
+
+  /** @brief Submit multiple tasks with a single notification.
+   *
+   *  More efficient than calling enqueue() multiple times when you have
+   *  many tasks to submit, as it reduces mutex contention and notification
+   *  overhead.
+   *
+   *  @tparam F    Callable type.
+   *  @tparam Container Container of argument tuples.
+   *
+   *  @param f    The callable to execute for each argument set.
+   *  @param args_list Container where each element is the arguments for one call.
+   *
+   *  @return Vector of futures for all submitted tasks.
+   *
+   *  ## Example
+   *
+   *  ```cpp
+   *  std::vector<std::tuple<int, int>> work = {{1, 2}, {3, 4}, {5, 6}};
+   *  auto futures = pool.enqueue_batch([](int a, int b) { return a + b; }, work);
+   *  // Submits all 3 tasks with one lock acquisition
+   *  ```
+   */
+  template <typename F, typename Container>
+  [[nodiscard]] auto enqueue_batch(F&& f, const Container& args_list)
+    -> std::vector<std::future<decltype(std::apply(f, *std::begin(args_list)))>>
+  {
+    using ArgsTuple = typename Container::value_type;
+    using return_type = decltype(std::apply(f, std::declval<ArgsTuple>()));
+    
+    std::vector<std::future<return_type>> results;
+    results.reserve(std::distance(std::begin(args_list), std::end(args_list)));
+    
+    std::vector<std::unique_ptr<TaskBase>> batch_tasks;
+    batch_tasks.reserve(results.capacity());
+    
+    // Capture stats counter
+    auto completed_counter = &tasks_completed_;
+    
+    for (const auto& args : args_list)
+      {
+        auto promise = std::make_shared<std::promise<return_type>>();
+        results.push_back(promise->get_future());
+        
+        auto task_func = [func = f, args, promise, completed_counter]() mutable {
+          try
+            {
+              if constexpr (std::is_void_v<return_type>)
+                {
+                  std::apply(func, args);
+                  promise->set_value();
+                }
+              else
+                {
+                  promise->set_value(std::apply(func, args));
+                }
+              ++(*completed_counter);
+            }
+          catch (...)
+            {
+              promise->set_exception(std::current_exception());
+              ++(*completed_counter);
+            }
+        };
+        
+        batch_tasks.push_back(
+          std::make_unique<Task<decltype(task_func)>>(std::move(task_func)));
+      }
+    
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      
+      if (stop)
+        throw std::runtime_error("enqueue_batch on stopped ThreadPool");
+      
+      for (auto& task : batch_tasks)
+        tasks.push(std::move(task));
+      
+      // Update peak queue size
+      size_t current_size = tasks.size();
+      size_t peak = peak_queue_size_.load();
+      while (current_size > peak && 
+             !peak_queue_size_.compare_exchange_weak(peak, current_size))
+        ;
+    }
+    
+    // Notify all workers for batch
+    condition.notify_all();
+    
+    return results;
+  }
 };
+
+// =============================================================================
+// Parallel Algorithms
+// =============================================================================
+
+/** @brief Execute a function in parallel over a range.
+ *
+ *  Divides the range [begin, end) into chunks and executes the function
+ *  on each chunk in parallel using the thread pool.
+ *
+ *  @tparam Iterator Random access iterator type.
+ *  @tparam F        Function type: void(Iterator begin, Iterator end) or void(T&).
+ *
+ *  @param pool  Thread pool to use.
+ *  @param begin Start of range.
+ *  @param end   End of range.
+ *  @param f     Function to apply. Can be:
+ *               - void(Iterator, Iterator) - receives chunk bounds
+ *               - void(T&) - receives each element by reference
+ *  @param chunk_size Number of elements per chunk (0 = auto-calculate).
+ *
+ *  ## Example
+ *
+ *  ```cpp
+ *  std::vector<int> data(10000);
+ *  
+ *  // Per-element function
+ *  parallel_for(pool, data.begin(), data.end(), [](int& x) { x *= 2; });
+ *  
+ *  // Chunk function
+ *  parallel_for(pool, data.begin(), data.end(), 
+ *               [](auto begin, auto end) {
+ *                 for (auto it = begin; it != end; ++it) *it *= 2;
+ *               });
+ *  ```
+ */
+template <typename Iterator, typename F>
+void parallel_for(ThreadPool& pool, Iterator begin, Iterator end, F&& f, 
+                  size_t chunk_size = 0)
+{
+  using value_type = typename std::iterator_traits<Iterator>::value_type;
+  
+  const size_t total = std::distance(begin, end);
+  if (total == 0)
+    return;
+  
+  // Auto-calculate chunk size if not specified
+  if (chunk_size == 0)
+    chunk_size = std::max(size_t(1), total / (pool.num_threads() * 4));
+  
+  std::vector<std::future<void>> futures;
+  futures.reserve((total + chunk_size - 1) / chunk_size);
+  
+  // Check if F accepts (Iterator, Iterator) or (T&)
+  if constexpr (std::is_invocable_v<F, Iterator, Iterator>)
+    {
+      // Chunk-based function
+      for (Iterator chunk_begin = begin; chunk_begin < end; )
+        {
+          Iterator chunk_end = chunk_begin;
+          std::advance(chunk_end, std::min(chunk_size, 
+                       static_cast<size_t>(std::distance(chunk_begin, end))));
+          
+          futures.push_back(pool.enqueue([f, chunk_begin, chunk_end]() {
+            f(chunk_begin, chunk_end);
+          }));
+          
+          chunk_begin = chunk_end;
+        }
+    }
+  else
+    {
+      // Per-element function
+      for (Iterator chunk_begin = begin; chunk_begin < end; )
+        {
+          Iterator chunk_end = chunk_begin;
+          std::advance(chunk_end, std::min(chunk_size, 
+                       static_cast<size_t>(std::distance(chunk_begin, end))));
+          
+          futures.push_back(pool.enqueue([f, chunk_begin, chunk_end]() {
+            for (Iterator it = chunk_begin; it != chunk_end; ++it)
+              f(*it);
+          }));
+          
+          chunk_begin = chunk_end;
+        }
+    }
+  
+  // Wait for all chunks to complete
+  for (auto& fut : futures)
+    fut.get();
+}
+
+/** @brief Transform elements in parallel and store results.
+ *
+ *  Applies a transformation function to each element and stores the result.
+ *  Similar to std::transform but parallelized.
+ *
+ *  @tparam InputIt  Input iterator type.
+ *  @tparam OutputIt Output iterator type.
+ *  @tparam F        Transformation function type.
+ *
+ *  @param pool  Thread pool to use.
+ *  @param first Start of input range.
+ *  @param last  End of input range.
+ *  @param d_first Start of output range.
+ *  @param f     Transformation function.
+ *  @param chunk_size Elements per chunk (0 = auto).
+ *
+ *  @return Iterator to end of output range.
+ *
+ *  ## Example
+ *
+ *  ```cpp
+ *  std::vector<int> input = {1, 2, 3, 4, 5};
+ *  std::vector<int> output(5);
+ *  
+ *  parallel_transform(pool, input.begin(), input.end(), output.begin(),
+ *                     [](int x) { return x * x; });
+ *  // output = {1, 4, 9, 16, 25}
+ *  ```
+ */
+template <typename InputIt, typename OutputIt, typename F>
+OutputIt parallel_transform(ThreadPool& pool, InputIt first, InputIt last, 
+                            OutputIt d_first, F&& f, size_t chunk_size = 0)
+{
+  const size_t total = std::distance(first, last);
+  if (total == 0)
+    return d_first;
+  
+  if (chunk_size == 0)
+    chunk_size = std::max(size_t(1), total / (pool.num_threads() * 4));
+  
+  std::vector<std::future<void>> futures;
+  futures.reserve((total + chunk_size - 1) / chunk_size);
+  
+  InputIt chunk_in = first;
+  OutputIt chunk_out = d_first;
+  
+  while (chunk_in < last)
+    {
+      size_t chunk_len = std::min(chunk_size, 
+                                  static_cast<size_t>(std::distance(chunk_in, last)));
+      InputIt chunk_in_end = chunk_in;
+      std::advance(chunk_in_end, chunk_len);
+      
+      futures.push_back(pool.enqueue([f, chunk_in, chunk_in_end, chunk_out]() {
+        InputIt in = chunk_in;
+        OutputIt out = chunk_out;
+        while (in != chunk_in_end)
+          {
+            *out = f(*in);
+            ++in;
+            ++out;
+          }
+      }));
+      
+      chunk_in = chunk_in_end;
+      std::advance(chunk_out, chunk_len);
+    }
+  
+  for (auto& fut : futures)
+    fut.get();
+  
+  return d_first + total;
+}
+
+/** @brief Reduce elements in parallel.
+ *
+ *  Computes a reduction (like std::reduce) but parallelized.
+ *  The binary operation must be associative and commutative.
+ *
+ *  @tparam Iterator Iterator type.
+ *  @tparam T        Value type for result.
+ *  @tparam BinaryOp Binary operation type.
+ *
+ *  @param pool  Thread pool to use.
+ *  @param first Start of range.
+ *  @param last  End of range.
+ *  @param init  Initial value.
+ *  @param op    Binary operation (must be associative & commutative).
+ *  @param chunk_size Elements per chunk (0 = auto).
+ *
+ *  @return Reduction result.
+ *
+ *  ## Example
+ *
+ *  ```cpp
+ *  std::vector<int> data = {1, 2, 3, 4, 5};
+ *  
+ *  // Sum
+ *  int sum = parallel_reduce(pool, data.begin(), data.end(), 0,
+ *                            std::plus<int>());
+ *  // sum = 15
+ *  
+ *  // Product
+ *  int prod = parallel_reduce(pool, data.begin(), data.end(), 1,
+ *                             std::multiplies<int>());
+ *  // prod = 120
+ *  ```
+ */
+template <typename Iterator, typename T, typename BinaryOp>
+T parallel_reduce(ThreadPool& pool, Iterator first, Iterator last, 
+                  T init, BinaryOp op, size_t chunk_size = 0)
+{
+  const size_t total = std::distance(first, last);
+  if (total == 0)
+    return init;
+  
+  if (chunk_size == 0)
+    chunk_size = std::max(size_t(1), total / (pool.num_threads() * 4));
+  
+  std::vector<std::future<T>> futures;
+  futures.reserve((total + chunk_size - 1) / chunk_size);
+  
+  for (Iterator chunk_begin = first; chunk_begin < last; )
+    {
+      Iterator chunk_end = chunk_begin;
+      std::advance(chunk_end, std::min(chunk_size, 
+                   static_cast<size_t>(std::distance(chunk_begin, last))));
+      
+      futures.push_back(pool.enqueue([op, chunk_begin, chunk_end]() {
+        T local_result = *chunk_begin;
+        for (Iterator it = chunk_begin + 1; it != chunk_end; ++it)
+          local_result = op(local_result, *it);
+        return local_result;
+      }));
+      
+      chunk_begin = chunk_end;
+    }
+  
+  // Reduce partial results
+  T result = init;
+  for (auto& fut : futures)
+    result = op(result, fut.get());
+  
+  return result;
+}
+
+/** @brief Apply a function to each element in parallel (index-based).
+ *
+ *  Convenience function for parallel loops with index access.
+ *
+ *  @param pool  Thread pool to use.
+ *  @param start Start index (inclusive).
+ *  @param end   End index (exclusive).
+ *  @param f     Function: void(size_t index).
+ *  @param chunk_size Iterations per chunk (0 = auto).
+ *
+ *  ## Example
+ *
+ *  ```cpp
+ *  std::vector<int> data(1000);
+ *  parallel_for_index(pool, 0, data.size(), [&data](size_t i) {
+ *    data[i] = expensive_compute(i);
+ *  });
+ *  ```
+ */
+template <typename F>
+void parallel_for_index(ThreadPool& pool, size_t start, size_t end, F&& f,
+                        size_t chunk_size = 0)
+{
+  if (start >= end)
+    return;
+  
+  const size_t total = end - start;
+  
+  if (chunk_size == 0)
+    chunk_size = std::max(size_t(1), total / (pool.num_threads() * 4));
+  
+  std::vector<std::future<void>> futures;
+  futures.reserve((total + chunk_size - 1) / chunk_size);
+  
+  for (size_t chunk_start = start; chunk_start < end; )
+    {
+      size_t chunk_end = std::min(chunk_start + chunk_size, end);
+      
+      futures.push_back(pool.enqueue([f, chunk_start, chunk_end]() {
+        for (size_t i = chunk_start; i < chunk_end; ++i)
+          f(i);
+      }));
+      
+      chunk_start = chunk_end;
+    }
+  
+  for (auto& fut : futures)
+    fut.get();
+}
 
 /** @brief Global default thread pool.
  *

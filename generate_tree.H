@@ -95,26 +95,29 @@ namespace Aleph
 
   const size_t Max_Tree_Node_Depth = 1024;
 
-  /** Genera una entrada para el programa de dibujado de árboles ntrepic.
-
-      generate_tree(root, out, tree_number) genera una especificación de
-      dibujado del árbol con raíz root para el programa de dibujado
-      ntreepic. La salida es escrita en el archivo asociado a out.
-
-      Para escribir el contenido del nodo, la rutina usa la clase
-      parametrizada Write, cuyo operador Write()(nodo) transforma la
-      clave contenida en el nodo a la cadena que se desea sea escrita
-      como contenido del nodo.
-
-      @param[in] root raíz del árbol a dibujar.
-      @param[out] out archivo asociado donde se desea escribir la
-      especificación de dibujado.
-      @param[in] tree_number para uso interno \b NO \b USAR.
-
-      @see generate_forest()
-
-      @ingroup Arboles
-  */
+/** @brief Generate a tree specification for the ntreepic drawing tool.
+   *
+   *  Produces a text specification that can be used with the ntreepic
+   *  program to generate visual representations of tree structures.
+   *
+   *  The output format uses Dewey decimal notation to identify nodes:
+   *  - Root is at position 0
+   *  - First child of root is 0.0, second is 0.1, etc.
+   *  - Children are numbered left-to-right
+   *
+   *  @tparam Node Tree node type (must be Tree_Node or compatible)
+   *  @tparam Write Functor that converts node key to string for display.
+   *          Must provide: `std::string operator()(Node*)`
+   *
+   *  @param root Root of the tree to draw
+   *  @param out Output stream for the drawing specification
+   *  @param tree_number Internal use - tree index in a forest (default: 0)
+   *
+   *  @see generate_forest() For drawing multiple trees
+   *  @see Dft_Write Default writer using to_str()
+   *
+   *  @ingroup Arboles
+   */
   template <typename Node, class Write = Dft_Write<Node>>
   void generate_tree(Node *         root, 
                      std::ostream & out, 
@@ -140,26 +143,27 @@ namespace Aleph
     delete [] deway;
   }
 
-  /** Genera una entrada para el programa de dibujado de árboles ntreepic.
-
-      generate_forest(root, out, tree_number) genera una especificación de
-      dibujado de la arborescencia cuyo primer árbol es root para el
-      programa de dibujado ntreepic. La salida es escrita en el
-      archivo asociado a out. 
-
-      Para escribir el contenido del nodo, la rutina usa la clase
-      parametrizada Write, cuyo operador Write()(nodo) transforma la
-      clave contenida en el nodo a la cadena que se desea sea escrita
-      como contenido del nodo.
-
-      @param[in] root raíz del árbol a dibujar.
-      @param[out] out archivo asociado donde se desea escribir la
-      especificación de dibujado.
-
-      @see generate_tree()
-
-      @ingroup Arboles
-  */
+/** @brief Generate a forest specification for the ntreepic drawing tool.
+   *
+   *  Produces a text specification for drawing a forest (collection of
+   *  trees linked as siblings). Each tree is numbered starting from 0.
+   *
+   *  The forest is represented as siblings of the first root node:
+   *  - First tree: root
+   *  - Second tree: root->get_right_sibling()
+   *  - And so on...
+   *
+   *  @tparam Node Tree node type (must be Tree_Node or compatible)
+   *  @tparam Write Functor that converts node key to string for display.
+   *          Must provide: `std::string operator()(Node*)`
+   *
+   *  @param root Root of the first tree in the forest
+   *  @param out Output stream for the drawing specification
+   *
+   *  @see generate_tree() For drawing a single tree
+   *
+   *  @ingroup Arboles
+   */
   template <typename Node, class Write = Dft_Write<Node>>
   void generate_forest(Node * root, std::ostream & out)
   {
@@ -170,22 +174,29 @@ namespace Aleph
   }
 
 
-  /** Genera una entrada para el programa de dibujado de árboles
-      binarios btrepic.
-
-      Para escribir el contenido del nodo, la rutina usa la clase
-      parametrizada Write, cuyo operador Write()(nodo) transforma la
-      clave contenida en el nodo a la cadena que se desea sea escrita
-      como contenido del nodo.
-
-      @param[in] root raíz del árbol a dibujar.
-      @param[out] out archivo asociado donde se desea escribir la
-      especificación de dibujado.
-
-      @see generate_tree()
-
-      @ingroup Arboles
-  */
+/** @brief Generate a binary tree specification for the btreepic drawing tool.
+   *
+   *  Produces a text specification for drawing binary trees using the
+   *  btreepic program. The output contains both prefix and infix
+   *  traversal sequences.
+   *
+   *  Output format:
+   *  ```
+   *  start-prefix <prefix traversal>
+   *  start_infix <infix traversal>
+   *  ```
+   *
+   *  @tparam Node Binary tree node type
+   *  @tparam Write Functor that writes node content to output stream.
+   *          Invoked as: `Write()(node)` during traversals
+   *
+   *  @param root Root of the binary tree to draw
+   *  @param out Output stream for the drawing specification
+   *
+   *  @see generate_tree() For general (non-binary) trees
+   *
+   *  @ingroup Arboles
+   */
   template <typename Node, class Write>
   void generate_btree(Node * root, std::ostream & out)
   { 

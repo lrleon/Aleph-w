@@ -168,9 +168,13 @@ set(TEST_PROGRAMS
     ah_init_guard
     ah-utils
     index-node
-    # sort_arrays  # TODO: to_vector not declared
+    sort_arrays
     primes
     generate_tree
+    graph_visualization_test
+    latex_floyd_test
+    tpl_matgraph_test
+    parse_utils_test
     fixedqueue
     randomqueue
     slink
@@ -192,6 +196,14 @@ set(TEST_PROGRAMS
     test_filter_iterator
     ah-comb
     ah-convert
+    polygon_test
+    parse_csv_test
+    line_test
+    mat_latex_path_test
+    io_graph_test
+    huffman_btreepic_test
+    stat_utils_test
+    ah_parallel_test
     topological_sort_test
     huffman
     test_tpl_hash_macros
@@ -224,6 +236,7 @@ set(EXHAUSTIVE_TESTS
     graph_scenarios_test
     graph_stress_test
     tpl_net_test
+    net_sup_dem_test
     tpl_netcost_test
     tpl_kgraph_test
     tpl_agraph_test
@@ -239,6 +252,9 @@ set(EXHAUSTIVE_TESTS
     dynmapohash_test
     ah-mapping_test
     ahSingleton_test
+    ah_signal_test
+    ah_arena_test
+    ah_stdc_utils_test
     tpl_dynMapTree_test
     euclidian_graph_common_test
     future_utils_test
@@ -251,9 +267,11 @@ set(EXHAUSTIVE_TESTS
     htdrbtreerk_test
     hash_fct_test
     point_test
+    segment_test
     ranges_iterator_test
     ah_ranges_test
     eepicgeom_test
+    ahSort_test
     cookie_guard_test
     pointer_table_test
     graph_functional_test
@@ -265,6 +283,7 @@ set(EXHAUSTIVE_TESTS
     dynliststack_test
     tpl_dynListQueue
     tpl_dynListStack
+    astar_test
 )
 
 # k2tree_test uses gmpfrxx which has ABI incompatibility with libc++
@@ -319,7 +338,7 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
                 GTest::gtest
                 ${ALEPH_SYSTEM_LIBS}
             )
-        elseif(test_program STREQUAL "bipartite_test" OR test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "priority_queue_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "graph_scenarios_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "tpl_netcost_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "prim_test" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-mapping_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test" OR test_program STREQUAL "quadtree_test" OR test_program STREQUAL "k2tree_test" OR test_program STREQUAL "container_edge_cases_test" OR test_program STREQUAL "netcapgraph_test" OR test_program STREQUAL "tdrbtree_test" OR test_program STREQUAL "tdrbtreerk_test" OR test_program STREQUAL "htdrbtreerk_test" OR test_program STREQUAL "hash_fct_test" OR test_program STREQUAL "point_test" OR test_program STREQUAL "hash_cache_test" OR test_program STREQUAL "cache_test" OR test_program STREQUAL "ranges_iterator_test" OR test_program STREQUAL "ah_ranges_test" OR test_program STREQUAL "eepicgeom_test" OR test_program STREQUAL "pointer_table_test" OR test_program STREQUAL "graph_functional_test" OR test_program STREQUAL "cookie_guard_test" OR test_program STREQUAL "graph_stress_test" OR test_program STREQUAL "fibonacci_heap_test" OR test_program STREQUAL "ahSingleton_test" OR test_program STREQUAL "johnson_test" OR test_program STREQUAL "graph_copy_test" OR test_program STREQUAL "graph_traverse_test" OR test_program STREQUAL "test_ah_errors" OR test_program STREQUAL "dynliststack_test" OR test_program STREQUAL "tpl_dynListQueue" OR test_program STREQUAL "tpl_dynListStack")
+        elseif(test_program STREQUAL "bipartite_test" OR test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "priority_queue_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "graph_scenarios_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "net_sup_dem_test" OR test_program STREQUAL "tpl_netcost_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "prim_test" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-mapping_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test" OR test_program STREQUAL "quadtree_test" OR test_program STREQUAL "k2tree_test" OR test_program STREQUAL "container_edge_cases_test" OR test_program STREQUAL "netcapgraph_test" OR test_program STREQUAL "tdrbtree_test" OR test_program STREQUAL "tdrbtreerk_test" OR test_program STREQUAL "htdrbtreerk_test" OR test_program STREQUAL "hash_fct_test" OR test_program STREQUAL "point_test" OR test_program STREQUAL "segment_test" OR test_program STREQUAL "hash_cache_test" OR test_program STREQUAL "cache_test" OR test_program STREQUAL "ranges_iterator_test" OR test_program STREQUAL "ah_ranges_test" OR test_program STREQUAL "eepicgeom_test" OR test_program STREQUAL "pointer_table_test" OR test_program STREQUAL "graph_functional_test" OR test_program STREQUAL "cookie_guard_test" OR test_program STREQUAL "graph_stress_test" OR test_program STREQUAL "fibonacci_heap_test" OR test_program STREQUAL "ahSingleton_test" OR test_program STREQUAL "johnson_test" OR test_program STREQUAL "graph_copy_test" OR test_program STREQUAL "graph_traverse_test" OR test_program STREQUAL "test_ah_errors" OR test_program STREQUAL "dynliststack_test" OR test_program STREQUAL "tpl_dynListQueue" OR test_program STREQUAL "tpl_dynListStack" OR test_program STREQUAL "ahSort_test" OR test_program STREQUAL "astar_test")
             target_link_libraries(${test_program} PRIVATE
                 Aleph
                 GTest::gtest_main

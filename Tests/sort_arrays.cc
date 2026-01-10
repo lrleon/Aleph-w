@@ -48,6 +48,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 # include <gtest/gtest.h>
 
 # include <ah-string-utils.H>
+# include <ah-stl-utils.H>
 # include <ahSort.H>
 
 using namespace Aleph;
@@ -84,6 +85,11 @@ struct TenVectors : public Test
   vector <int> h = rand_vec(1000000, rng);
   vector <int> i = rand_vec(1000000, rng);
   vector <int> j = rand_vec(1000000, rng);
+
+  ~TenVectors()
+  {
+    gsl_rng_free(rng);
+  }
 };
 
 TEST_F(SimpleArray, sort)

@@ -118,7 +118,6 @@ set(LIBCCCSRCS
     useMutex.C
     ahDaemonize.C
     socket_wrappers.C
-    parse_utils.C
     timeoutQueue.C
     uid.C
     gmpfrxx.C

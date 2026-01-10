@@ -354,11 +354,11 @@ namespace Aleph
       if constexpr (std::is_integral_v<DT>)
         {
           // Check for positive overflow
-          ah_overflow_error_if(b > 0 && a > std::numeric_limits<DT>::max() - b)
+          ah_overflow_error_if(b > 0 and a > std::numeric_limits<DT>::max() - b)
           << "Integer overflow in distance addition: " << a << " + " << b;
 
           // Check for negative overflow (underflow)
-          ah_overflow_error_if(b < 0 && a < std::numeric_limits<DT>::min() - b)
+          ah_overflow_error_if(b < 0 and a < std::numeric_limits<DT>::min() - b)
             << "Integer underflow in distance addition: " << a << " + " << b;
         }
 
@@ -604,7 +604,7 @@ namespace Aleph
           if (tgt == end) // is end_node in the spanning tree?
             {
               ret_val = true;
-              break; // yes ==> shortest path is already painted
+              break; // yes ==> the shortest path is already painted
             }
 
           ACC(tgt) = checked_add(ACC(src), ARC_DIST(garc)); // total distance from start
@@ -829,7 +829,7 @@ namespace Aleph
             {
               auto arc = it.get_current_arc_ne();
               auto tgt = it.get_tgt_node();
-              if (tgt == curr && IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              if (tgt == curr and IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
                 {
                   dist += Distance()(arc);
                   break;

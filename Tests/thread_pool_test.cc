@@ -1995,6 +1995,451 @@ TEST_F(ThreadPoolTest, BenchmarkVsStdAsync)
   EXPECT_GT(speedup, 1.0);
 }
 
+// =============================================================================
+// New Features Tests
+// =============================================================================
+
+// --- Statistics Tests ---
+
+TEST_F(ThreadPoolTest, GetStatsInitialValues)
+{
+  ThreadPool pool(2);
+  auto stats = pool.get_stats();
+  
+  EXPECT_EQ(stats.tasks_completed, 0u);
+  EXPECT_EQ(stats.tasks_failed, 0u);
+  EXPECT_EQ(stats.current_queue_size, 0u);
+  EXPECT_EQ(stats.current_active, 0u);
+  EXPECT_EQ(stats.num_workers, 2u);
+  EXPECT_EQ(stats.peak_queue_size, 0u);
+  EXPECT_EQ(stats.total_processed(), 0u);
+}
+
+TEST_F(ThreadPoolTest, StatsTrackCompletedTasks)
+{
+  ThreadPool pool(2);
+  
+  std::vector<std::future<int>> futures;
+  for (int i = 0; i < 10; ++i)
+    futures.push_back(pool.enqueue([] { return 42; }));
+  
+  for (auto& f : futures)
+    f.get();
+  
+  pool.wait_all();
+  
+  auto stats = pool.get_stats();
+  EXPECT_EQ(stats.tasks_completed, 10u);
+  EXPECT_EQ(stats.total_processed(), 10u);
+}
+
+TEST_F(ThreadPoolTest, StatsTrackPeakQueueSize)
+{
+  ThreadPool pool(1);
+  
+  // Block the worker
+  std::promise<void> blocker;
+  pool.enqueue([&blocker] { blocker.get_future().wait(); });
+  
+  // Queue up several tasks
+  for (int i = 0; i < 5; ++i)
+    pool.enqueue_detached([] {});
+  
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  
+  auto stats = pool.get_stats();
+  EXPECT_GE(stats.peak_queue_size, 5u);
+  
+  // Release worker
+  blocker.set_value();
+  pool.wait_all();
+}
+
+TEST_F(ThreadPoolTest, ResetStatsWorks)
+{
+  ThreadPool pool(2);
+  
+  pool.enqueue([] { return 1; }).get();
+  
+  auto stats1 = pool.get_stats();
+  EXPECT_GE(stats1.tasks_completed, 1u);
+  
+  pool.reset_stats();
+  
+  auto stats2 = pool.get_stats();
+  EXPECT_EQ(stats2.tasks_completed, 0u);
+  EXPECT_EQ(stats2.peak_queue_size, 0u);
+}
+
+// --- Exception Callback Tests ---
+
+TEST_F(ThreadPoolTest, ExceptionCallbackInvokedOnDetachedTaskFailure)
+{
+  ThreadPool pool(2);
+  
+  std::atomic<bool> callback_called{false};
+  std::atomic<bool> correct_exception{false};
+  
+  pool.set_exception_callback([&](std::exception_ptr ep) {
+    callback_called = true;
+    try {
+      std::rethrow_exception(ep);
+    } catch (const std::runtime_error& e) {
+      correct_exception = (std::string(e.what()) == "test error");
+    } catch (...) {
+      correct_exception = false;
+    }
+  });
+  
+  pool.enqueue_detached([] {
+    throw std::runtime_error("test error");
+  });
+  
+  pool.wait_all();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  
+  EXPECT_TRUE(callback_called.load());
+  EXPECT_TRUE(correct_exception.load());
+}
+
+TEST_F(ThreadPoolTest, ExceptionCallbackCanBeCleared)
+{
+  ThreadPool pool(2);
+  
+  std::atomic<int> callback_count{0};
+  
+  pool.set_exception_callback([&](std::exception_ptr) {
+    ++callback_count;
+  });
+  
+  pool.enqueue_detached([] { throw std::runtime_error("error"); });
+  pool.wait_all();
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  
+  EXPECT_EQ(callback_count.load(), 1);
+  
+  // Clear callback
+  pool.set_exception_callback(nullptr);
+  
+  pool.enqueue_detached([] { throw std::runtime_error("error"); });
+  pool.wait_all();
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  
+  // Count should still be 1
+  EXPECT_EQ(callback_count.load(), 1);
+}
+
+TEST_F(ThreadPoolTest, StatsTrackFailedDetachedTasks)
+{
+  ThreadPool pool(2);
+  
+  pool.enqueue_detached([] { throw std::runtime_error("fail"); });
+  pool.enqueue_detached([] { throw std::logic_error("fail"); });
+  pool.enqueue_detached([] { /* success */ });
+  
+  pool.wait_all();
+  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  
+  auto stats = pool.get_stats();
+  EXPECT_EQ(stats.tasks_failed, 2u);
+  EXPECT_EQ(stats.tasks_completed, 1u);
+  EXPECT_EQ(stats.total_processed(), 3u);
+}
+
+// --- wait_all_for/wait_all_until Tests ---
+
+TEST_F(ThreadPoolTest, WaitAllForSucceedsWhenIdle)
+{
+  ThreadPool pool(2);
+  
+  pool.enqueue([] { return 42; }).get();
+  
+  bool result = pool.wait_all_for(std::chrono::milliseconds(100));
+  EXPECT_TRUE(result);
+}
+
+TEST_F(ThreadPoolTest, WaitAllForTimesOutWhenBusy)
+{
+  ThreadPool pool(1);
+  
+  // Start a long task
+  pool.enqueue_detached([] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  });
+  
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  
+  bool result = pool.wait_all_for(std::chrono::milliseconds(50));
+  EXPECT_FALSE(result);
+  
+  // Wait for cleanup
+  pool.wait_all();
+}
+
+TEST_F(ThreadPoolTest, WaitAllUntilWorks)
+{
+  ThreadPool pool(2);
+  
+  pool.enqueue([] { return 1; }).get();
+  
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+  bool result = pool.wait_all_until(deadline);
+  EXPECT_TRUE(result);
+}
+
+// --- enqueue_batch Tests ---
+
+TEST_F(ThreadPoolTest, EnqueueBatchExecutesAllTasks)
+{
+  ThreadPool pool(4);
+  
+  std::vector<std::tuple<int, int>> args = {
+    {1, 2}, {3, 4}, {5, 6}, {7, 8}
+  };
+  
+  auto futures = pool.enqueue_batch([](int a, int b) { return a + b; }, args);
+  
+  EXPECT_EQ(futures.size(), 4u);
+  
+  std::vector<int> results;
+  for (auto& f : futures)
+    results.push_back(f.get());
+  
+  EXPECT_EQ(results, (std::vector<int>{3, 7, 11, 15}));
+}
+
+TEST_F(ThreadPoolTest, EnqueueBatchWithLargeWorkload)
+{
+  ThreadPool pool(4);
+  
+  std::vector<std::tuple<int>> args;
+  for (int i = 0; i < 100; ++i)
+    args.emplace_back(i);
+  
+  auto futures = pool.enqueue_batch([](int x) { return x * x; }, args);
+  
+  int sum = 0;
+  for (auto& f : futures)
+    sum += f.get();
+  
+  // Sum of squares 0^2 + 1^2 + ... + 99^2 = 328350
+  EXPECT_EQ(sum, 328350);
+}
+
+TEST_F(ThreadPoolTest, EnqueueBatchEmptyContainer)
+{
+  ThreadPool pool(2);
+  
+  std::vector<std::tuple<int>> empty;
+  auto futures = pool.enqueue_batch([](int x) { return x; }, empty);
+  
+  EXPECT_TRUE(futures.empty());
+}
+
+// --- parallel_for Tests ---
+
+TEST_F(ThreadPoolTest, ParallelForModifiesElements)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data(100, 1);
+  
+  parallel_for(pool, data.begin(), data.end(), [](int& x) { x *= 2; });
+  
+  for (int x : data)
+    EXPECT_EQ(x, 2);
+}
+
+TEST_F(ThreadPoolTest, ParallelForWithChunkFunction)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data(100, 1);
+  
+  parallel_for(pool, data.begin(), data.end(), 
+               [](auto begin, auto end) {
+                 for (auto it = begin; it != end; ++it)
+                   *it = 5;
+               });
+  
+  for (int x : data)
+    EXPECT_EQ(x, 5);
+}
+
+TEST_F(ThreadPoolTest, ParallelForEmptyRange)
+{
+  ThreadPool pool(2);
+  
+  std::vector<int> empty;
+  
+  // Should not throw or crash
+  parallel_for(pool, empty.begin(), empty.end(), [](int& x) { x = 0; });
+  
+  EXPECT_TRUE(empty.empty());
+}
+
+TEST_F(ThreadPoolTest, ParallelForCustomChunkSize)
+{
+  ThreadPool pool(2);
+  
+  std::vector<std::atomic<int>> data(50);
+  for (auto& x : data)
+    x = 0;
+  
+  parallel_for(pool, data.begin(), data.end(), 
+               [](std::atomic<int>& x) { ++x; },
+               10);  // chunk size = 10
+  
+  for (const auto& x : data)
+    EXPECT_EQ(x.load(), 1);
+}
+
+// --- parallel_for_index Tests ---
+
+TEST_F(ThreadPoolTest, ParallelForIndexWorks)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data(100, 0);
+  
+  parallel_for_index(pool, 0, data.size(), [&data](size_t i) {
+    data[i] = static_cast<int>(i * 2);
+  });
+  
+  for (size_t i = 0; i < data.size(); ++i)
+    EXPECT_EQ(data[i], static_cast<int>(i * 2));
+}
+
+TEST_F(ThreadPoolTest, ParallelForIndexEmptyRange)
+{
+  ThreadPool pool(2);
+  
+  // Should not throw
+  parallel_for_index(pool, 10, 10, [](size_t) { /* nothing */ });
+  parallel_for_index(pool, 10, 5, [](size_t) { /* nothing */ });
+}
+
+// --- parallel_transform Tests ---
+
+TEST_F(ThreadPoolTest, ParallelTransformBasic)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> input = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  std::vector<int> output(10);
+  
+  parallel_transform(pool, input.begin(), input.end(), output.begin(),
+                     [](int x) { return x * x; });
+  
+  EXPECT_EQ(output, (std::vector<int>{1, 4, 9, 16, 25, 36, 49, 64, 81, 100}));
+}
+
+TEST_F(ThreadPoolTest, ParallelTransformLargeData)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> input(1000);
+  std::iota(input.begin(), input.end(), 0);
+  
+  std::vector<int> output(1000);
+  
+  parallel_transform(pool, input.begin(), input.end(), output.begin(),
+                     [](int x) { return x + 1; });
+  
+  for (int i = 0; i < 1000; ++i)
+    EXPECT_EQ(output[i], i + 1);
+}
+
+TEST_F(ThreadPoolTest, ParallelTransformEmpty)
+{
+  ThreadPool pool(2);
+  
+  std::vector<int> input;
+  std::vector<int> output;
+  
+  auto end = parallel_transform(pool, input.begin(), input.end(), 
+                                output.begin(), [](int x) { return x; });
+  
+  EXPECT_EQ(end, output.begin());
+}
+
+// --- parallel_reduce Tests ---
+
+TEST_F(ThreadPoolTest, ParallelReduceSum)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  
+  int sum = parallel_reduce(pool, data.begin(), data.end(), 0, std::plus<int>());
+  
+  EXPECT_EQ(sum, 55);
+}
+
+TEST_F(ThreadPoolTest, ParallelReduceProduct)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data = {1, 2, 3, 4, 5};
+  
+  int product = parallel_reduce(pool, data.begin(), data.end(), 1, 
+                                std::multiplies<int>());
+  
+  EXPECT_EQ(product, 120);
+}
+
+TEST_F(ThreadPoolTest, ParallelReduceMax)
+{
+  ThreadPool pool(4);
+  
+  std::vector<int> data = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};
+  
+  int max_val = parallel_reduce(pool, data.begin(), data.end(), 
+                                std::numeric_limits<int>::min(),
+                                [](int a, int b) { return std::max(a, b); });
+  
+  EXPECT_EQ(max_val, 9);
+}
+
+TEST_F(ThreadPoolTest, ParallelReduceLargeData)
+{
+  ThreadPool pool(4);
+  
+  std::vector<long long> data(10000);
+  std::iota(data.begin(), data.end(), 1LL);
+  
+  long long sum = parallel_reduce(pool, data.begin(), data.end(), 0LL,
+                                  std::plus<long long>());
+  
+  // Sum 1+2+...+10000 = 10000*10001/2 = 50005000
+  EXPECT_EQ(sum, 50005000LL);
+}
+
+TEST_F(ThreadPoolTest, ParallelReduceEmpty)
+{
+  ThreadPool pool(2);
+  
+  std::vector<int> empty;
+  
+  int result = parallel_reduce(pool, empty.begin(), empty.end(), 42,
+                               std::plus<int>());
+  
+  EXPECT_EQ(result, 42);  // Returns init for empty range
+}
+
+// --- ThreadPoolStats Tests ---
+
+TEST_F(ThreadPoolTest, ThreadPoolStatsQueueUtilization)
+{
+  ThreadPoolStats stats;
+  stats.current_queue_size = 50;
+  
+  EXPECT_NEAR(stats.queue_utilization(100), 50.0, 0.01);
+  EXPECT_NEAR(stats.queue_utilization(200), 25.0, 0.01);
+  EXPECT_NEAR(stats.queue_utilization(0), 0.0, 0.01);  // Edge case
+  EXPECT_NEAR(stats.queue_utilization(std::numeric_limits<size_t>::max()), 0.0, 0.01);
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

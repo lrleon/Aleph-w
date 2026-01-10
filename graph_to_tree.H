@@ -25,10 +25,44 @@
 */
 
 /** @file graph_to_tree.H
- *  @brief Convert spanning tree graph to tree structure.
+ *  @brief Convert spanning tree graphs to Tree_Node structures.
  *
- *  Provides functions to convert a spanning tree represented as
- *  a graph into a Tree_Node structure for easier tree operations.
+ *  This file provides utilities for converting spanning trees represented
+ *  as adjacency-list graphs into Tree_Node<Key> structures, enabling the
+ *  use of tree-specific algorithms and visualization tools.
+ *
+ *  ## Purpose
+ *
+ *  While spanning trees can be represented using graph structures like
+ *  List_Graph, the Tree_Node representation offers advantages for:
+ *  - Tree drawing and visualization (e.g., with ntreepic)
+ *  - Tree-specific traversal algorithms
+ *  - Simpler recursive tree operations
+ *
+ *  ## Key Limitations
+ *
+ *  Tree_Node<Key> is less versatile than graph representations:
+ *  - No storage for arc/edge data (only node data)
+ *  - Key type may differ from the graph's node type
+ *  - Requires a Convert class to map graph nodes to tree keys
+ *
+ *  ## Usage
+ *
+ *  ```cpp
+ *  // Define a converter from graph node to tree key
+ *  struct MyConvert {
+ *    void operator()(Graph::Node* gnode, Tree_Node<int>* tnode) {
+ *      tnode->get_key() = gnode->get_info().value;
+ *    }
+ *  };
+ *
+ *  // Convert spanning tree to Tree_Node
+ *  Tree_Node<int>* root = Graph_To_Tree_Node<Graph, int, MyConvert>()(g, groot);
+ *  ```
+ *
+ *  @see Tree_Node For the target tree structure
+ *  @see generate_tree.H For tree visualization
+ *  @see tpl_spanning_tree.H For spanning tree algorithms
  *
  *  @ingroup Grafos
  *  @author Leandro Rabindranath León
@@ -54,75 +88,48 @@ __graph_to_tree_node(GT & g, typename GT::Node * groot,
 void __graph_to_tree_node(GT & g, typename GT::Node * groot,
                           Tree_Node<Key> * troot);
 
-     /** Convierte un árbol representado en una representación de grafo a un 
-         árbol Tree_Node.
-
-         graph_to_tree_node() toma un árbol representado mediante algún
-         tipo de grafo representado con listas de adyacencia y un nodo 
-         groot que se asume raíz del árbol y lo convierte a un árbol
-         representado con el tipo Tree_Node<Key>.
-
-         El interés de esta rutina es obtener una representación del
-         árbol en la cual se puedan aplicar otras técnicas, clases y
-         algoritmos. Un ejemplo representativo es el dibujado de árboles
-         inherentes a los grafos; en la ocurrencia, árboles
-         abarcadores. 
-
-         El procedimiento utiliza el bit spanning_tree para marcar los nodos 
-         y arcos ya visitados.
-
-         Como medio de representación, el tipo Tree_Node<Key> es menos
-         versátil que cualquier tipo basado en un grafo representado con
-         listas de adyacencia; por ejemplo, List_graph. Note, por
-         instancia, que List_Graph<Node,Arc> estipula un tipo para los
-         arcos, mientras que no ocurre lo mismo para Tree_Node<Key>. En
-         este sentido, como representación, Tree_Node<Key> no tiene
-         ningún medio para guardar los datos asociados a los
-         arcos. Consecuentemente, sólo se podría manejar los datos
-         contenidos en los nodos. Por otra parte, el tipo guardado en
-         GT::Node puede ser de índole distinta al guardado en Tree_Node<Key>.
-
-         A menudo (ese es el caso típico del dibujado), el tipo de dato
-         a guardar en Tree_Node<Key> es de índole distinta al guardado
-         en GT::Node. Otras veces, lo que se desea guardar en cada
-         Tree_Node<Key> es un subconjunto de lo que está guardado en
-         GT::Node. Puesto que es imposible generizar todos los casos
-         posibles, la escritura de cada Tree_Node<Key> se delega a una
-         clase cuyo operador ()() es invocado por la rutina de
-         conversión para cada nodo del grafo. La clase en cuestión es el
-         parámetro tipo Convert.
-
-         La clase Convert se invoca de la siguiente manera:  
-
-             void Convert::operator () (gnode, tnode)
-
-             donde:
-             -# gnode es de tipo GT::Node
-             -# tnode de tipo Tree_Node<Key>
-
-         La rutina hace una prueba de aciclicidad sobre g mediante la
-         función is_graph_acyclique(), lo que no afecta la complejidad
-         algorítmica de pero que toma tiempo adicional.
-
-         El procedimiento maneja los siguientes tipos parametrizados:
-         -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-         -# Key: el tipo de dato que albergará el árbol en su
-         representación Tree_Node<Key>.
-         -# Convert: clase de conversión de GT::Node a Key, cuyo
-         operador ()(gnode,tnode) es invocado por cada nodo de g cuando
-         se realiza la conversión a uno Tree_Node.
-         -# SA: filtro de arcos.
-
-         @param[in] g el árbol de tipo GT (derivado de List_Graph) que
-         se desea convertir.
-         @param[in] groot el nodo de g que se considera raíz del árbol.
-         @return la raíz de un árbol de tipo Tree_Node<Key>
-         correspondiente a la conversión
-         @throw bad_alloc si no hay memoria para apartar el árbol de
-         tipo Tree_Node<Key>
-         @ingroup Grafos
-         @see Tree_Node is_graph_acyclique() 
-      */
+/** @brief Convert a tree graph to a Tree_Node structure.
+ *
+ *  Takes a tree represented as an adjacency-list graph and converts it
+ *  to a Tree_Node<Key> structure rooted at the specified node.
+ *
+ *  This enables the use of tree-specific algorithms and visualization
+ *  tools on spanning trees extracted from graphs.
+ *
+ *  ## Conversion Process
+ *
+ *  The Convert class is invoked for each node:
+ *  ```cpp
+ *  void Convert::operator()(GT::Node* gnode, Tree_Node<Key>* tnode)
+ *  ```
+ *  It should copy/transform data from the graph node to the tree node.
+ *
+ *  ## Limitations
+ *
+ *  - Tree_Node<Key> cannot store arc data (only node data)
+ *  - The Key type may differ from GT::Node's data type
+ *  - Requires the input graph to be acyclic (a tree)
+ *
+ *  @tparam GT Graph type (derived from List_Graph)
+ *  @tparam Key Data type for tree nodes
+ *  @tparam Convert Converter class with operator()(gnode, tnode)
+ *  @tparam SA Arc filter (default: show all arcs)
+ *
+ *  @param g The tree graph to convert
+ *  @param groot Node to use as the tree root
+ *  @return Root of the new Tree_Node<Key> tree
+ *
+ *  @throw std::domain_error If the graph is not acyclic
+ *  @throw std::bad_alloc If memory allocation fails
+ *
+ *  @note Uses the Convert_Tree bit to mark visited arcs.
+ *  @note Performs an acyclicity check which adds O(V+E) overhead.
+ *
+ *  @see Tree_Node Target tree structure
+ *  @see is_graph_acyclique() Acyclicity verification
+ *
+ *  @ingroup Grafos
+ */
     template <class GT, typename Key, 
               class Convert, class SA = Dft_Show_Arc<GT>> inline
 Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
@@ -139,68 +146,40 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
   return troot;
 }
 
-     /** Convierte un árbol representado en una representación de grafo a un 
-         árbol Tree_Node.
-
-         graph_to_tree_node() toma un árbol representado mediante algún
-         tipo de grafo representado con listas de adyacencia y un nodo 
-         groot que se asume raíz del árbol y lo convierte a un árbol
-         representado con el tipo Tree_Node<Key>.
-
-         El interés de esta rutina es obtener una representación del
-         árbol en la cual se puedan aplicar otras técnicas, clases y
-         algoritmos. Un ejemplo representativo es el dibujado de árboles
-         inherentes a los grafos; en la ocurrencia, árboles
-         abarcadores. 
-
-         El procedimiento utiliza el bit spanning_tree para marcar los nodos 
-         y arcos ya visitados.
-
-         Como medio de representación, el tipo Tree_Node<Key> es menos
-         versátil que cualquier tipo basado en un grafo representado con
-         listas de adyacencia; por ejemplo, List_graph. Note, por
-         instancia, que List_Graph<Node,Arc> estipula un tipo para los
-         arcos, mientras que no ocurre lo mismo para Tree_Node<Key>. En
-         este sentido, como representación, Tree_Node<Key> no tiene
-         ningún medio para guardar los datos asociados a los
-         arcos. Consecuentemente, sólo se podría manejar los datos
-         contenidos en los nodos. Por otra parte, el tipo guardado en
-         GT::Node puede ser de índole distinta al guardado en Tree_Node<Key>.
-
-         A menudo (ese es el caso típico del dibujado), el tipo de dato
-         a guardar en Tree_Node<Key> es de índole distinta al guardado
-         en GT::Node. Otras veces, lo que se desea guardar en cada
-         Tree_Node<Key> es un subconjunto de lo que está guardado en
-         GT::Node. Puesto que es imposible generizar todos los casos
-         posibles, la escritura de cada Tree_Node<Key> se delega a una
-         clase cuyo operador ()() es invocado por la rutina de
-         conversión para cada nodo del grafo. La clase en cuestión es el
-         parámetro tipo Convert.
-
-         La clase Convert se invoca de la siguiente manera:  
-
-             void Convert::operator () (gnode, tnode)
-
-             donde:
-             -# gnode es de tipo GT::Node
-             -# tnode de tipo Tree_Node<Key>
-
-         La rutina hace una prueba de aciclicidad sobre g mediante la
-         función is_graph_acyclique(), lo que no afecta la complejidad
-         algorítmica de pero que toma tiempo adicional.
-
-         El procedimiento maneja los siguientes tipos parametrizados:
-         -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-         -# Key: el tipo de dato que albergará el árbol en su
-         representación Tree_Node<Key>.
-         -# Convert: clase de conversión de GT::Node a Key, cuyo
-         operador ()(gnode,tnode) es invocado por cada nodo de g cuando
-         se realiza la conversión a uno Tree_Node.
-         -# SA: el filtro de arcos.
-
-         @ingroup Grafos
-         @see Tree_Node is_graph_acyclique() 
-      */
+/** @brief Functor class to convert a tree graph to Tree_Node structure.
+ *
+ *  Provides a callable interface for converting spanning trees from
+ *  graph representation to Tree_Node<Key> representation.
+ *
+ *  This class version offers more flexibility than the free function,
+ *  allowing the arc filter to be configured at construction time.
+ *
+ *  ## Template Parameters
+ *
+ *  - **GT**: Graph type (derived from List_Graph)
+ *  - **Key**: Data type to store in tree nodes
+ *  - **Convert**: Functor class with `operator()(gnode, tnode)` that
+ *    copies data from graph nodes to tree nodes
+ *  - **SA**: Arc filter class (default: show all arcs)
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  struct MyConvert {
+ *    void operator()(Graph::Node* gn, Tree_Node<int>* tn) {
+ *      tn->get_key() = gn->get_info().id;
+ *    }
+ *  };
+ *
+ *  Graph_To_Tree_Node<Graph, int, MyConvert> converter;
+ *  auto* root = converter(g, start_node);
+ *  ```
+ *
+ *  @see graph_to_tree_node() Free function alternative
+ *  @see Tree_Node Target tree structure
+ *
+ *  @ingroup Grafos
+ */
     template <class GT, typename Key, 
 	      class Convert, 
 	      class SA = Dft_Show_Arc<GT> > 
@@ -255,16 +234,15 @@ public:
 
   Graph_To_Tree_Node(SA __sa = SA()) : sa(__sa) { /* empty */ }
 
-  /** Invoca a la conversión de grafo hacia árbol abarcador.
-
-      @param[in] g el árbol de tipo GT (derivado de List_Graph) que
-      se desea convertir.
-      @param[in] groot el nodo de g que se considera raíz del árbol.
-      @param[in] conv clase de conversión.
-      @return la raíz de un árbol de tipo Tree_Node<Key>
-      correspondiente a la conversión
-      @throw bad_alloc si no hay memoria para apartar el árbol de
-      tipo Tree_Node<Key>      
+/** @brief Convert a tree graph to Tree_Node structure.
+   *
+   *  @param g The tree graph to convert (must be acyclic)
+   *  @param groot Node to use as the tree root
+   *  @param conv Converter functor instance
+   *  @return Root of the new Tree_Node<Key> tree
+   *
+   *  @throw std::domain_error If the graph is not acyclic
+   *  @throw std::bad_alloc If memory allocation fails
    */
       Tree_Node<Key> * 
   operator () (GT & g, typename GT::Node * groot, Convert && conv = Convert())

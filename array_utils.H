@@ -145,8 +145,8 @@ void close_gap(T * ptr, size_t n, size_t pos, size_t num_entries = 1)
  * reverse(arr, 5);  // arr = {5, 4, 3, 2, 1}
  * @endcode
  */
-  template <typename T> inline
-void reverse(T * ptr, const size_t n)
+template <typename T> inline
+void reverse(T * ptr, const size_t n) noexcept
 {
   for (size_t i = 0; i < n/2; ++i)
     std::swap(ptr[i], ptr[n - i - 1]);
@@ -167,12 +167,18 @@ void reverse(T * ptr, const size_t n)
  * int arr[] = {1, 2, 3, 4, 5};
  * rotate_left(arr, 5, 2);  // arr = {3, 4, 5, 1, 2}
  * @endcode
+ *
+ * @note No-op if n <= 1 or m == 0
  */
-  template <typename T> inline
-void rotate_left(T * ptr, const size_t n, size_t m)
+template <typename T> inline
+void rotate_left(T * ptr, const size_t n, size_t m) noexcept
 {
-  if (m > n)
-    m = m % n;
+  if (n <= 1 or m == 0)
+    return;
+
+  m = m % n;  // Safe: n > 0 guaranteed
+  if (m == 0)
+    return;
 
   reverse(ptr, m);
   reverse(ptr + m, n - m);
@@ -194,12 +200,18 @@ void rotate_left(T * ptr, const size_t n, size_t m)
  * int arr[] = {1, 2, 3, 4, 5};
  * rotate_right(arr, 5, 2);  // arr = {4, 5, 1, 2, 3}
  * @endcode
+ *
+ * @note No-op if n <= 1 or m == 0
  */
-    template <typename T> inline
-void rotate_right(T * ptr, const size_t n, size_t m)
+template <typename T> inline
+void rotate_right(T * ptr, const size_t n, size_t m) noexcept
 {
-  if (m > n)
-    m = m % n;
+  if (n <= 1 or m == 0)
+    return;
+
+  m = m % n;  // Safe: n > 0 guaranteed
+  if (m == 0)
+    return;
 
   reverse(ptr, n);
   reverse(ptr, m);

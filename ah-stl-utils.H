@@ -2,7 +2,7 @@
 
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \|  __/ |_) | | | |_____\ V  V /  version 1.9c
+   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
                  |_|
 
@@ -73,7 +73,10 @@ template<class F, class...Ts, std::size_t...Is>
 inline void tuple_for_each(const std::tuple<Ts...> & tuple,
                            F func, std::index_sequence<Is...>)
 {
+  // Use fold expression (C++17) or initializer list expansion
+  // The (void) cast silences unused-value warnings
   using expander = int[];
+  (void)func;  // Silence warning when tuple is empty
   (void)expander { 0, ((void)func(std::get<Is>(tuple)), 0)... };
 }
 

@@ -41,8 +41,6 @@
 # include <tpl_graph.H>
 # include <tpl_dynMapTree.H>
 
-# include <autosprintf.h>
-
 # include <libxml++/libxml++.h>
 # include <libxml++/parsers/textreader.h>
 # include <libxml++/nodes/node.h>
@@ -243,12 +241,10 @@ namespace Aleph
           xmlpp::Element * arc = arcs->add_child(arc_name);
 
           const size_t & src = map.find(g.get_src_node(a));
-          std::string s = gnu::autosprintf("%ld", src);
-          arc->set_attribute("src", s);
+          arc->set_attribute("src", std::to_string(src));
 
           const size_t & tgt = map.find(g.get_tgt_node(a));
-          std::string t = gnu::autosprintf("%ld", tgt);
-          arc->set_attribute("tgt", t);
+          arc->set_attribute("tgt", std::to_string(tgt));
 
           DynArray <Attr> attrs;
 

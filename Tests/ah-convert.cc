@@ -31,6 +31,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <gtest/gtest.h>
 #include <string>
+#include <set>
+#include <map>
 
 #include <ah-convert.H>
 
@@ -415,3 +417,1003 @@ TEST(LargeContainers, VectorConversions)
     EXPECT_EQ(result[i], static_cast<int>(i * 2));
 }
 
+// ==================== vector_to_DynArray Tests ====================
+
+TEST(VectorToDynArray, FromEmptyVector)
+{
+  std::vector<int> vec;
+  auto arr = vector_to_DynArray(vec);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(VectorToDynArray, FromSingleElementVector)
+{
+  std::vector<int> vec = {42};
+  auto arr = vector_to_DynArray(vec);
+
+  ASSERT_EQ(arr.size(), 1);
+  EXPECT_EQ(arr(0), 42);
+}
+
+TEST(VectorToDynArray, FromMultipleElementVector)
+{
+  std::vector<std::string> vec = {"alpha", "beta", "gamma"};
+  auto arr = vector_to_DynArray(vec);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), "alpha");
+  EXPECT_EQ(arr(1), "beta");
+  EXPECT_EQ(arr(2), "gamma");
+}
+
+// ==================== to_DynArray Tests ====================
+
+TEST(ToDynArray, FromEmptyDynList)
+{
+  DynList<int> list;
+  auto arr = to_DynArray(list);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(ToDynArray, FromMultipleElementDynList)
+{
+  DynList<int> list;
+  list.append(7);
+  list.append(14);
+  list.append(21);
+
+  auto arr = to_DynArray(list);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 7);
+  EXPECT_EQ(arr(1), 14);
+  EXPECT_EQ(arr(2), 21);
+}
+
+TEST(ToDynArray, FromArray)
+{
+  Array<double> source;
+  source.append(1.5);
+  source.append(2.5);
+
+  auto arr = to_DynArray(source);
+
+  ASSERT_EQ(arr.size(), 2);
+  EXPECT_DOUBLE_EQ(arr(0), 1.5);
+  EXPECT_DOUBLE_EQ(arr(1), 2.5);
+}
+
+// ==================== array_to_DynArray Tests ====================
+
+TEST(ArrayToDynArray, FromEmptyArray)
+{
+  Array<int> source;
+  auto arr = array_to_DynArray(source);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(ArrayToDynArray, FromMultipleElementArray)
+{
+  Array<int> source;
+  source.append(10);
+  source.append(20);
+  source.append(30);
+
+  auto arr = array_to_DynArray(source);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 10);
+  EXPECT_EQ(arr(1), 20);
+  EXPECT_EQ(arr(2), 30);
+}
+
+// ==================== dynarray_to_Array Tests ====================
+
+TEST(DynarrayToArray, FromEmptyDynArray)
+{
+  DynArray<int> source;
+  auto arr = dynarray_to_Array(source);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(DynarrayToArray, FromMultipleElementDynArray)
+{
+  DynArray<int> source;
+  source.append(100);
+  source.append(200);
+  source.append(300);
+
+  auto arr = dynarray_to_Array(source);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 100);
+  EXPECT_EQ(arr(1), 200);
+  EXPECT_EQ(arr(2), 300);
+}
+
+// ==================== to_deque Tests ====================
+
+TEST(ToDeque, FromEmptyDynList)
+{
+  DynList<int> list;
+  auto deq = to_deque(list);
+  EXPECT_TRUE(deq.empty());
+}
+
+TEST(ToDeque, FromMultipleElementDynList)
+{
+  DynList<int> list;
+  list.append(1);
+  list.append(2);
+  list.append(3);
+
+  auto deq = to_deque(list);
+
+  ASSERT_EQ(deq.size(), 3U);
+  EXPECT_EQ(deq[0], 1);
+  EXPECT_EQ(deq[1], 2);
+  EXPECT_EQ(deq[2], 3);
+}
+
+TEST(ToDeque, FromArray)
+{
+  Array<std::string> arr;
+  arr.append("x");
+  arr.append("y");
+
+  auto deq = to_deque(arr);
+
+  ASSERT_EQ(deq.size(), 2U);
+  EXPECT_EQ(deq[0], "x");
+  EXPECT_EQ(deq[1], "y");
+}
+
+// ==================== deque_to_* Tests ====================
+
+TEST(DequeToDynList, FromEmptyDeque)
+{
+  std::deque<int> deq;
+  auto list = deque_to_DynList(deq);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(DequeToDynList, FromMultipleElementDeque)
+{
+  std::deque<int> deq = {5, 10, 15};
+  auto list = deque_to_DynList(deq);
+
+  ASSERT_EQ(list.size(), 3);
+  int expected = 5;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(it.get_curr(), expected);
+      expected += 5;
+    }
+}
+
+TEST(DequeToArray, FromEmptyDeque)
+{
+  std::deque<int> deq;
+  auto arr = deque_to_Array(deq);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(DequeToArray, FromMultipleElementDeque)
+{
+  std::deque<int> deq = {11, 22, 33, 44};
+  auto arr = deque_to_Array(deq);
+
+  ASSERT_EQ(arr.size(), 4);
+  EXPECT_EQ(arr(0), 11);
+  EXPECT_EQ(arr(1), 22);
+  EXPECT_EQ(arr(2), 33);
+  EXPECT_EQ(arr(3), 44);
+}
+
+TEST(DequeToDynArray, FromEmptyDeque)
+{
+  std::deque<int> deq;
+  auto arr = deque_to_DynArray(deq);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(DequeToDynArray, FromMultipleElementDeque)
+{
+  std::deque<double> deq = {1.1, 2.2, 3.3};
+  auto arr = deque_to_DynArray(deq);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_DOUBLE_EQ(arr(0), 1.1);
+  EXPECT_DOUBLE_EQ(arr(1), 2.2);
+  EXPECT_DOUBLE_EQ(arr(2), 3.3);
+}
+
+// ==================== DynDlist Conversion Tests ====================
+
+TEST(DyndlistToDynList, FromEmptyDynDlist)
+{
+  DynDlist<int> dlist;
+  auto list = dyndlist_to_DynList(dlist);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(DyndlistToDynList, FromMultipleElementDynDlist)
+{
+  DynDlist<int> dlist;
+  dlist.append(1);
+  dlist.append(2);
+  dlist.append(3);
+
+  auto list = dyndlist_to_DynList(dlist);
+
+  ASSERT_EQ(list.size(), 3);
+  int expected = 1;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(it.get_curr(), expected);
+      ++expected;
+    }
+}
+
+TEST(DynlistToDynDlist, FromEmptyDynList)
+{
+  DynList<int> list;
+  auto dlist = dynlist_to_DynDlist(list);
+  EXPECT_TRUE(dlist.is_empty());
+}
+
+TEST(DynlistToDynDlist, FromMultipleElementDynList)
+{
+  DynList<int> list;
+  list.append(10);
+  list.append(20);
+  list.append(30);
+
+  auto dlist = dynlist_to_DynDlist(list);
+
+  ASSERT_EQ(dlist.size(), 3);
+  int expected = 10;
+  for (auto it = dlist.get_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(it.get_curr(), expected);
+      expected += 10;
+    }
+}
+
+TEST(DyndlistToDynArray, FromEmptyDynDlist)
+{
+  DynDlist<int> dlist;
+  auto arr = dyndlist_to_DynArray(dlist);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(DyndlistToDynArray, FromMultipleElementDynDlist)
+{
+  DynDlist<int> dlist;
+  dlist.append(7);
+  dlist.append(8);
+  dlist.append(9);
+
+  auto arr = dyndlist_to_DynArray(dlist);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 7);
+  EXPECT_EQ(arr(1), 8);
+  EXPECT_EQ(arr(2), 9);
+}
+
+TEST(DynarrayToDynDlist, FromEmptyDynArray)
+{
+  DynArray<int> arr;
+  auto dlist = dynarray_to_DynDlist(arr);
+  EXPECT_TRUE(dlist.is_empty());
+}
+
+TEST(DynarrayToDynDlist, FromMultipleElementDynArray)
+{
+  DynArray<int> arr;
+  arr.append(100);
+  arr.append(200);
+  arr.append(300);
+
+  auto dlist = dynarray_to_DynDlist(arr);
+
+  ASSERT_EQ(dlist.size(), 3);
+  int expected = 100;
+  for (auto it = dlist.get_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(it.get_curr(), expected);
+      expected += 100;
+    }
+}
+
+TEST(VectorToDynDlist, FromEmptyVector)
+{
+  std::vector<int> vec;
+  auto dlist = vector_to_DynDlist(vec);
+  EXPECT_TRUE(dlist.is_empty());
+}
+
+TEST(VectorToDynDlist, FromMultipleElementVector)
+{
+  std::vector<std::string> vec = {"a", "b", "c"};
+  auto dlist = vector_to_DynDlist(vec);
+
+  ASSERT_EQ(dlist.size(), 3);
+  auto it = dlist.get_it();
+  EXPECT_EQ(it.get_curr(), "a");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "b");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "c");
+}
+
+// ==================== Additional Round-trip Tests ====================
+
+TEST(RoundTrip, VectorToDynArrayAndBack)
+{
+  std::vector<int> original = {1, 2, 3, 4, 5};
+  auto arr = vector_to_DynArray(original);
+  auto result = to_vector(arr);
+
+  ASSERT_EQ(result.size(), original.size());
+  for (size_t i = 0; i < original.size(); ++i)
+    EXPECT_EQ(result[i], original[i]);
+}
+
+TEST(RoundTrip, DynDlistToDynArrayAndBack)
+{
+  DynDlist<int> original;
+  original.append(10);
+  original.append(20);
+  original.append(30);
+
+  auto arr = dyndlist_to_DynArray(original);
+  auto result = dynarray_to_DynDlist(arr);
+
+  ASSERT_EQ(result.size(), original.size());
+  auto it1 = original.get_it();
+  auto it2 = result.get_it();
+  while (it1.has_curr())
+    {
+      EXPECT_EQ(it1.get_curr(), it2.get_curr());
+      it1.next_ne();
+      it2.next_ne();
+    }
+}
+
+TEST(RoundTrip, DequeToArrayAndBack)
+{
+  std::deque<double> original = {1.5, 2.5, 3.5};
+  auto arr = deque_to_Array(original);
+  auto result = to_deque(arr);
+
+  ASSERT_EQ(result.size(), original.size());
+  for (size_t i = 0; i < original.size(); ++i)
+    EXPECT_DOUBLE_EQ(result[i], original[i]);
+}
+
+// ==================== Move Semantics Tests ====================
+
+TEST(MoveSemantics, VectorToDynListMove)
+{
+  std::vector<std::string> vec = {"hello", "world", "test"};
+  size_t original_size = vec.size();
+
+  auto list = vector_to_DynList(std::move(vec));
+
+  ASSERT_EQ(list.size(), original_size);
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), "hello");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "world");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "test");
+}
+
+TEST(MoveSemantics, VectorToArrayMove)
+{
+  std::vector<std::string> vec = {"alpha", "beta"};
+  size_t original_size = vec.size();
+
+  auto arr = vector_to_Array(std::move(vec));
+
+  ASSERT_EQ(arr.size(), original_size);
+  EXPECT_EQ(arr(0), "alpha");
+  EXPECT_EQ(arr(1), "beta");
+}
+
+TEST(MoveSemantics, VectorToDynArrayMove)
+{
+  std::vector<std::string> vec = {"x", "y", "z"};
+  size_t original_size = vec.size();
+
+  auto arr = vector_to_DynArray(std::move(vec));
+
+  ASSERT_EQ(arr.size(), original_size);
+  EXPECT_EQ(arr(0), "x");
+  EXPECT_EQ(arr(1), "y");
+  EXPECT_EQ(arr(2), "z");
+}
+
+TEST(MoveSemantics, VectorToDynDlistMove)
+{
+  std::vector<std::string> vec = {"one", "two"};
+  size_t original_size = vec.size();
+
+  auto dlist = vector_to_DynDlist(std::move(vec));
+
+  ASSERT_EQ(dlist.size(), original_size);
+  auto it = dlist.get_it();
+  EXPECT_EQ(it.get_curr(), "one");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "two");
+}
+
+// ==================== std::set Conversion Tests ====================
+
+TEST(SetConversions, SetToDynListEmpty)
+{
+  std::set<int> s;
+  auto list = set_to_DynList(s);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(SetConversions, SetToDynListMultiple)
+{
+  std::set<int> s = {3, 1, 4, 1, 5, 9}; // duplicates removed, sorted
+  auto list = set_to_DynList(s);
+
+  ASSERT_EQ(list.size(), 5); // unique: 1, 3, 4, 5, 9
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), 1);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 3);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 4);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 5);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 9);
+}
+
+TEST(SetConversions, SetToArray)
+{
+  std::set<std::string> s = {"banana", "apple", "cherry"};
+  auto arr = set_to_Array(s);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), "apple");  // sorted
+  EXPECT_EQ(arr(1), "banana");
+  EXPECT_EQ(arr(2), "cherry");
+}
+
+TEST(SetConversions, SetToDynArray)
+{
+  std::set<int> s = {10, 20, 30};
+  auto arr = set_to_DynArray(s);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 10);
+  EXPECT_EQ(arr(1), 20);
+  EXPECT_EQ(arr(2), 30);
+}
+
+TEST(SetConversions, ToSetFromDynList)
+{
+  DynList<int> list;
+  list.append(5);
+  list.append(3);
+  list.append(5); // duplicate
+  list.append(1);
+
+  auto s = to_set(list);
+
+  ASSERT_EQ(s.size(), 3U); // unique: 1, 3, 5
+  EXPECT_TRUE(s.count(1));
+  EXPECT_TRUE(s.count(3));
+  EXPECT_TRUE(s.count(5));
+}
+
+TEST(SetConversions, ToSetFromArray)
+{
+  Array<std::string> arr;
+  arr.append("a");
+  arr.append("b");
+  arr.append("a"); // duplicate
+
+  auto s = to_set(arr);
+
+  ASSERT_EQ(s.size(), 2U);
+  EXPECT_TRUE(s.count("a"));
+  EXPECT_TRUE(s.count("b"));
+}
+
+// ==================== std::map Conversion Tests ====================
+
+TEST(MapConversions, MapToDynListEmpty)
+{
+  std::map<int, std::string> m;
+  auto list = map_to_DynList(m);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(MapConversions, MapToDynListMultiple)
+{
+  std::map<int, std::string> m = {{1, "one"}, {2, "two"}, {3, "three"}};
+  auto list = map_to_DynList(m);
+
+  ASSERT_EQ(list.size(), 3);
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr().first, 1);
+  EXPECT_EQ(it.get_curr().second, "one");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr().first, 2);
+  EXPECT_EQ(it.get_curr().second, "two");
+}
+
+TEST(MapConversions, MapToArray)
+{
+  std::map<std::string, int> m = {{"a", 1}, {"b", 2}};
+  auto arr = map_to_Array(m);
+
+  ASSERT_EQ(arr.size(), 2);
+  EXPECT_EQ(arr(0).first, "a");
+  EXPECT_EQ(arr(0).second, 1);
+  EXPECT_EQ(arr(1).first, "b");
+  EXPECT_EQ(arr(1).second, 2);
+}
+
+TEST(MapConversions, MapKeysToDynList)
+{
+  std::map<std::string, int> m = {{"x", 10}, {"y", 20}, {"z", 30}};
+  auto keys = map_keys_to_DynList(m);
+
+  ASSERT_EQ(keys.size(), 3);
+  auto it = keys.get_it();
+  EXPECT_EQ(it.get_curr(), "x");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "y");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "z");
+}
+
+TEST(MapConversions, MapValuesToDynList)
+{
+  std::map<std::string, int> m = {{"a", 100}, {"b", 200}};
+  auto values = map_values_to_DynList(m);
+
+  ASSERT_EQ(values.size(), 2);
+  auto it = values.get_it();
+  EXPECT_EQ(it.get_curr(), 100);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 200);
+}
+
+// ==================== initializer_list Conversion Tests ====================
+
+TEST(InitializerList, InitToDynListEmpty)
+{
+  auto list = init_to_DynList<int>({});
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(InitializerList, InitToDynListMultiple)
+{
+  auto list = init_to_DynList({1, 2, 3, 4, 5});
+
+  ASSERT_EQ(list.size(), 5);
+  int expected = 1;
+  for (auto it = list.get_it(); it.has_curr(); it.next_ne())
+    {
+      EXPECT_EQ(it.get_curr(), expected);
+      ++expected;
+    }
+}
+
+TEST(InitializerList, InitToArrayEmpty)
+{
+  auto arr = init_to_Array<int>({});
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(InitializerList, InitToArrayMultiple)
+{
+  auto arr = init_to_Array({10, 20, 30});
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 10);
+  EXPECT_EQ(arr(1), 20);
+  EXPECT_EQ(arr(2), 30);
+}
+
+TEST(InitializerList, InitToDynArrayEmpty)
+{
+  auto arr = init_to_DynArray<int>({});
+  EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(InitializerList, InitToDynArrayMultiple)
+{
+  auto arr = init_to_DynArray({100, 200, 300, 400});
+
+  ASSERT_EQ(arr.size(), 4);
+  EXPECT_EQ(arr(0), 100);
+  EXPECT_EQ(arr(1), 200);
+  EXPECT_EQ(arr(2), 300);
+  EXPECT_EQ(arr(3), 400);
+}
+
+TEST(InitializerList, InitToDynDlistEmpty)
+{
+  auto dlist = init_to_DynDlist<int>({});
+  EXPECT_TRUE(dlist.is_empty());
+}
+
+TEST(InitializerList, InitToDynDlistMultiple)
+{
+  auto dlist = init_to_DynDlist<std::string>({"hello", "world"});
+
+  ASSERT_EQ(dlist.size(), 2);
+  auto it = dlist.get_it();
+  EXPECT_EQ(it.get_curr(), "hello");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "world");
+}
+
+TEST(InitializerList, InitWithStrings)
+{
+  auto list = init_to_DynList<std::string>({"alpha", "beta", "gamma"});
+
+  ASSERT_EQ(list.size(), 3);
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), "alpha");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "beta");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "gamma");
+}
+
+// ==================== DynSetTree Conversion Tests ====================
+
+TEST(DynSetTreeConversions, SetTreeToDynListEmpty)
+{
+  DynSetTree<int> s;
+  auto list = settree_to_DynList(s);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(DynSetTreeConversions, SetTreeToDynListMultiple)
+{
+  DynSetTree<int> s = {3, 1, 4, 1, 5, 9}; // duplicates ignored
+  auto list = settree_to_DynList(s);
+
+  ASSERT_EQ(list.size(), 5); // unique: 1, 3, 4, 5, 9
+  // Elements are in sorted order (in-order traversal)
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), 1);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 3);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 4);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 5);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 9);
+}
+
+TEST(DynSetTreeConversions, SetTreeToArray)
+{
+  DynSetTree<std::string> s = {"banana", "apple", "cherry"};
+  auto arr = settree_to_Array(s);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), "apple");  // sorted
+  EXPECT_EQ(arr(1), "banana");
+  EXPECT_EQ(arr(2), "cherry");
+}
+
+TEST(DynSetTreeConversions, SetTreeToDynArray)
+{
+  DynSetTree<int> s = {10, 20, 30};
+  auto arr = settree_to_DynArray(s);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 10);
+  EXPECT_EQ(arr(1), 20);
+  EXPECT_EQ(arr(2), 30);
+}
+
+TEST(DynSetTreeConversions, SetTreeToVector)
+{
+  DynSetTree<int> s = {5, 2, 8};
+  auto vec = settree_to_vector(s);
+
+  ASSERT_EQ(vec.size(), 3U);
+  EXPECT_EQ(vec[0], 2);
+  EXPECT_EQ(vec[1], 5);
+  EXPECT_EQ(vec[2], 8);
+}
+
+TEST(DynSetTreeConversions, SetTreeToStdSet)
+{
+  DynSetTree<int> s = {1, 2, 3};
+  auto stdset = settree_to_stdset(s);
+
+  ASSERT_EQ(stdset.size(), 3U);
+  EXPECT_TRUE(stdset.count(1));
+  EXPECT_TRUE(stdset.count(2));
+  EXPECT_TRUE(stdset.count(3));
+}
+
+TEST(DynSetTreeConversions, ToDynSetTreeFromDynList)
+{
+  DynList<int> list;
+  list.append(5);
+  list.append(3);
+  list.append(5); // duplicate
+  list.append(1);
+
+  auto s = to_DynSetTree(list);
+
+  ASSERT_EQ(s.size(), 3); // unique: 1, 3, 5
+  EXPECT_TRUE(s.contains(1));
+  EXPECT_TRUE(s.contains(3));
+  EXPECT_TRUE(s.contains(5));
+}
+
+TEST(DynSetTreeConversions, VectorToDynSetTree)
+{
+  std::vector<std::string> vec = {"a", "b", "a", "c"};
+  auto s = vector_to_DynSetTree(vec);
+
+  ASSERT_EQ(s.size(), 3);
+  EXPECT_TRUE(s.contains("a"));
+  EXPECT_TRUE(s.contains("b"));
+  EXPECT_TRUE(s.contains("c"));
+}
+
+// ==================== DynSetHash Conversion Tests ====================
+
+TEST(DynSetHashConversions, SetHashToDynList)
+{
+  DynSetLhash<int> s;
+  s.insert(10);
+  s.insert(20);
+  s.insert(30);
+
+  auto list = sethash_to_DynList(s);
+  ASSERT_EQ(list.size(), 3);
+
+  // Verify all elements are present (order is hash-dependent)
+  DynSetTree<int> check;
+  list.for_each([&check](int x) { check.insert(x); });
+  EXPECT_TRUE(check.contains(10));
+  EXPECT_TRUE(check.contains(20));
+  EXPECT_TRUE(check.contains(30));
+}
+
+TEST(DynSetHashConversions, SetHashToArray)
+{
+  DynSetLhash<std::string> s;
+  s.insert("x");
+  s.insert("y");
+
+  auto arr = sethash_to_Array(s);
+  ASSERT_EQ(arr.size(), 2);
+
+  DynSetTree<std::string> check;
+  for (size_t i = 0; i < arr.size(); ++i)
+    check.insert(arr(i));
+  EXPECT_TRUE(check.contains("x"));
+  EXPECT_TRUE(check.contains("y"));
+}
+
+TEST(DynSetHashConversions, SetHashToDynArray)
+{
+  DynSetLhash<int> s;
+  s.insert(1);
+  s.insert(2);
+  s.insert(3);
+
+  auto arr = sethash_to_DynArray(s);
+  ASSERT_EQ(arr.size(), 3);
+
+  DynSetTree<int> check;
+  for (size_t i = 0; i < arr.size(); ++i)
+    check.insert(arr(i));
+  EXPECT_TRUE(check.contains(1));
+  EXPECT_TRUE(check.contains(2));
+  EXPECT_TRUE(check.contains(3));
+}
+
+TEST(DynSetHashConversions, SetHashToVector)
+{
+  DynSetLhash<int> s;
+  s.insert(100);
+  s.insert(200);
+
+  auto vec = sethash_to_vector(s);
+  ASSERT_EQ(vec.size(), 2U);
+
+  std::set<int> check(vec.begin(), vec.end());
+  EXPECT_TRUE(check.count(100));
+  EXPECT_TRUE(check.count(200));
+}
+
+// ==================== DynMapTree Conversion Tests ====================
+
+TEST(DynMapTreeConversions, MapTreeToDynListEmpty)
+{
+  DynMapTree<int, std::string> m;
+  auto list = maptree_to_DynList(m);
+  EXPECT_TRUE(list.is_empty());
+}
+
+TEST(DynMapTreeConversions, MapTreeToDynListMultiple)
+{
+  DynMapTree<int, std::string> m;
+  m.insert(1, "one");
+  m.insert(2, "two");
+  m.insert(3, "three");
+
+  auto list = maptree_to_DynList(m);
+  ASSERT_EQ(list.size(), 3);
+
+  // Verify pairs (in sorted key order)
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr().first, 1);
+  EXPECT_EQ(it.get_curr().second, "one");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr().first, 2);
+  EXPECT_EQ(it.get_curr().second, "two");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr().first, 3);
+  EXPECT_EQ(it.get_curr().second, "three");
+}
+
+TEST(DynMapTreeConversions, MapTreeToArray)
+{
+  DynMapTree<std::string, int> m;
+  m.insert("a", 1);
+  m.insert("b", 2);
+
+  auto arr = maptree_to_Array(m);
+  ASSERT_EQ(arr.size(), 2);
+  EXPECT_EQ(arr(0).first, "a");
+  EXPECT_EQ(arr(0).second, 1);
+  EXPECT_EQ(arr(1).first, "b");
+  EXPECT_EQ(arr(1).second, 2);
+}
+
+TEST(DynMapTreeConversions, MapTreeToStdMap)
+{
+  DynMapTree<std::string, int> m;
+  m.insert("x", 10);
+  m.insert("y", 20);
+
+  auto stdmap = maptree_to_stdmap(m);
+  ASSERT_EQ(stdmap.size(), 2U);
+  EXPECT_EQ(stdmap["x"], 10);
+  EXPECT_EQ(stdmap["y"], 20);
+}
+
+TEST(DynMapTreeConversions, MapTreeKeysToDynList)
+{
+  DynMapTree<std::string, int> m;
+  m.insert("alpha", 1);
+  m.insert("beta", 2);
+  m.insert("gamma", 3);
+
+  auto keys = maptree_keys_to_DynList(m);
+  ASSERT_EQ(keys.size(), 3);
+
+  auto it = keys.get_it();
+  EXPECT_EQ(it.get_curr(), "alpha");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "beta");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "gamma");
+}
+
+TEST(DynMapTreeConversions, MapTreeValuesToDynList)
+{
+  DynMapTree<int, std::string> m;
+  m.insert(1, "a");
+  m.insert(2, "b");
+
+  auto values = maptree_values_to_DynList(m);
+  ASSERT_EQ(values.size(), 2);
+
+  auto it = values.get_it();
+  EXPECT_EQ(it.get_curr(), "a");
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), "b");
+}
+
+TEST(DynMapTreeConversions, StdMapToDynMapTree)
+{
+  std::map<std::string, int> stdmap = {{"a", 1}, {"b", 2}, {"c", 3}};
+  auto m = stdmap_to_DynMapTree(stdmap);
+
+  ASSERT_EQ(m.size(), 3);
+  EXPECT_EQ(m["a"], 1);
+  EXPECT_EQ(m["b"], 2);
+  EXPECT_EQ(m["c"], 3);
+}
+
+// ==================== MapOpenHash Conversion Tests ====================
+
+TEST(MapHashConversions, MapHashToDynList)
+{
+  MapODhash<std::string, int> m;
+  m.insert("one", 1);
+  m.insert("two", 2);
+
+  auto list = maphash_to_DynList(m);
+  ASSERT_EQ(list.size(), 2);
+
+  // Verify all pairs are present (order is hash-dependent)
+  std::map<std::string, int> check;
+  list.for_each([&check](const auto & p) { check[p.first] = p.second; });
+  EXPECT_EQ(check["one"], 1);
+  EXPECT_EQ(check["two"], 2);
+}
+
+TEST(MapHashConversions, MapHashToArray)
+{
+  MapODhash<int, std::string> m;
+  m.insert(10, "ten");
+  m.insert(20, "twenty");
+
+  auto arr = maphash_to_Array(m);
+  ASSERT_EQ(arr.size(), 2);
+
+  std::map<int, std::string> check;
+  for (size_t i = 0; i < arr.size(); ++i)
+    check[arr(i).first] = arr(i).second;
+  EXPECT_EQ(check[10], "ten");
+  EXPECT_EQ(check[20], "twenty");
+}
+
+TEST(MapHashConversions, MapHashToStdMap)
+{
+  MapODhash<std::string, int> m;
+  m.insert("x", 100);
+  m.insert("y", 200);
+
+  auto stdmap = maphash_to_stdmap(m);
+  ASSERT_EQ(stdmap.size(), 2U);
+  EXPECT_EQ(stdmap["x"], 100);
+  EXPECT_EQ(stdmap["y"], 200);
+}
+
+TEST(MapHashConversions, MapHashKeysToDynList)
+{
+  MapODhash<std::string, int> m;
+  m.insert("a", 1);
+  m.insert("b", 2);
+
+  auto keys = maphash_keys_to_DynList(m);
+  ASSERT_EQ(keys.size(), 2);
+
+  DynSetTree<std::string> check;
+  keys.for_each([&check](const auto & k) { check.insert(k); });
+  EXPECT_TRUE(check.contains("a"));
+  EXPECT_TRUE(check.contains("b"));
+}
+
+TEST(MapHashConversions, MapHashValuesToDynList)
+{
+  MapODhash<std::string, int> m;
+  m.insert("x", 10);
+  m.insert("y", 20);
+
+  auto values = maphash_values_to_DynList(m);
+  ASSERT_EQ(values.size(), 2);
+
+  DynSetTree<int> check;
+  values.for_each([&check](int v) { check.insert(v); });
+  EXPECT_TRUE(check.contains(10));
+  EXPECT_TRUE(check.contains(20));
+}

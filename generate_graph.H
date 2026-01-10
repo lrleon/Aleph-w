@@ -124,42 +124,29 @@ namespace Aleph {
   }
 
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado.
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,output) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a output.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo.
-      -# SA: clase filtro de arcos.
-      -# Write_Node: convierte el contenido de un nodo a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Write_Arc: convierte el contenido de un arco a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Shade_Node: comando a emitir para un nodo oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Node).
-      -# Shade_Arc: comando a emitir para un arco oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Arc.
-      -# SA: filtro para el iterador de arcos
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[in] xdist separación horizontal entre los nodos.
-      @param[out] output archivo hacia donde se emitirá la salida.
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Generate a graphpic specification for graph visualization.
+   *
+   *  Creates a text specification for the graphpic drawing program.
+   *  Handles both graphs and digraphs, with support for curved arcs
+   *  when bidirectional edges exist.
+   *
+   *  ## Template Parameters
+   *
+   *  - **GT**: Graph or digraph type
+   *  - **Write_Node**: Functor returning node label as string
+   *  - **Write_Arc**: Functor returning arc label as string  
+   *  - **Shade_Node**: Functor returning shading command (e.g., "SHADOW-NODE")
+   *  - **Shade_Arc**: Functor returning shading command (e.g., "SHADOW-ARC")
+   *  - **SA**: Arc filter class
+   *
+   *  @param g The graph or digraph to visualize
+   *  @param xdist Horizontal distance between nodes
+   *  @param ydist Vertical distance between levels (currently unused)
+   *  @param output Output stream for the graphpic specification
+   *
+   *  @see Filter_Iterator For arc filtering
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Write_Node, class Write_Arc,
             class Shade_Node, class Shade_Arc, class SA>
@@ -216,43 +203,32 @@ namespace Aleph {
       }
   }
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado.
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,output) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a output.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo.
-      -# Write_Node: convierte el contenido de un nodo a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Write_Arc: convierte el contenido de un arco a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Shade_Node: comando a emitir para un nodo oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía.
-      -# Shade_Arc: comando a emitir para un arco oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía.
-      -# Dashed_Node: comando para generar línea del nodo punteada.
-      -# Dashed_Arc: comando para generar línea del arco punteada.
-      -# SA: filtro para el iterador de arcos.
-      -# SN: filtro para el iterador de nodos.
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[out] output archivo hacia donde se emitirá la salida.
-      @param[in] rankdir dirección del dibujado entre los valores
-      "TB", "BT", "LR" y "RL"
-      @param[in] ranksep separación entre rangos topológicos (cuando aplique)
-      @param[in] nodesep separación entre los nodos
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Generate a Graphviz DOT specification for graph visualization.
+   *
+   *  Creates a DOT format specification for the Graphviz system (dot, neato, etc.).
+   *  Supports both graphs and digraphs with configurable layout direction.
+   *
+   *  ## Template Parameters
+   *
+   *  - **GT**: Graph or digraph type
+   *  - **Write_Node**: Functor returning node label
+   *  - **Write_Arc**: Functor returning arc label
+   *  - **Shade_Node**: Returns true to apply bold style to node
+   *  - **Shade_Arc**: Returns true to apply bold style to arc
+   *  - **Dashed_Node**: (unused) For dashed node borders
+   *  - **Dashed_Arc**: (unused) For dashed arc lines
+   *  - **SA**: Arc filter class
+   *  - **SN**: Node filter class
+   *
+   *  @param g The graph or digraph to visualize
+   *  @param output Output stream for the DOT specification
+   *  @param rankdir Layout direction: "TB" (top-bottom), "BT", "LR", "RL"
+   *  @param ranksep Separation between ranks (topological levels)
+   *  @param nodesep Separation between nodes in the same rank
+   *
+   *  @see Filter_Iterator For node/arc filtering
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Write_Node,
             class Write_Arc,
@@ -338,35 +314,41 @@ namespace Aleph {
   }
 
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado.
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,output) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a output.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo
-      -# Node_Attr: genera la especifcación dot de un nodo
-      -# Arc_attr:  genera la especifcación dot de un arco
-      correspondiente al texto que se desea emitir.
-      -# SN: filtro para el iterador de nodos
-      -# SA: filtro para el iterador de arcos
-      .
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[out] out archivo hacia donde se emitirá la salida.
-      @param[in] rankdir dirección del dibujado entre los valores
-      "TB", "BT", "LR" y "RL"
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Generate Graphviz DOT output with custom attribute functors.
+   *
+   *  Creates a DOT specification using custom functors to generate
+   *  node and arc attributes. This is the most flexible version,
+   *  allowing complete control over the DOT output.
+   *
+   *  ## Attribute Functors
+   *
+   *  - **Node_Attr**: Called as `node_attr(g, node, out)` to write attributes
+   *  - **Arc_Attr**: Called as `arc_attr(g, arc, out)` to write attributes
+   *
+   *  Example attribute functor:
+   *  ```cpp
+   *  struct MyNodeAttr {
+   *    void operator()(const Graph& g, Graph::Node* n, std::ostream& out) {
+   *      out << "label=\"" << n->get_info() << "\" color=blue";
+   *    }
+   *  };
+   *  ```
+   *
+   *  @tparam GT Graph type
+   *  @tparam Node_Attr Node attribute generator functor
+   *  @tparam Arc_Attr Arc attribute generator functor
+   *  @tparam SN Node filter class
+   *  @tparam SA Arc filter class
+   *
+   *  @param g Graph to visualize
+   *  @param out Output stream for DOT specification
+   *  @param node_attr Functor for node attributes
+   *  @param arc_attr Functor for arc attributes
+   *  @param rankdir Layout direction: "TB", "BT", "LR", "RL"
+   *
+   *  @see Filter_Iterator For filtering
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Node_Attr,
             class Arc_Attr,
@@ -431,35 +413,27 @@ namespace Aleph {
     out << "}" << std::endl;
   }
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado.
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,output) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a output.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo
-      -# Node_Attr: genera la especifcación dot de un nodo
-      -# Arc_attr:  genera la especifcación dot de un arco
-      correspondiente al texto que se desea emitir.
-      -# SN: filtro para el iterador de nodos
-      -# SA: filtro para el iterador de arcos
-      .
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[out] out archivo hacia donde se emitirá la salida.
-      @param[in] rankdir dirección del dibujado entre los valores
-      "TB", "BT", "LR" y "RL"
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Generate Graphviz DOT output specifically for digraphs.
+   *
+   *  Similar to generate_graphviz() but always outputs "digraph {}"
+   *  regardless of the graph type. Useful when you want to force
+   *  directed edge notation.
+   *
+   *  @tparam GT Graph type
+   *  @tparam Node_Attr Node attribute generator
+   *  @tparam Arc_Attr Arc attribute generator
+   *  @tparam SN Node filter
+   *  @tparam SA Arc filter
+   *
+   *  @param g Graph to visualize
+   *  @param out Output stream
+   *  @param node_attr Node attribute functor
+   *  @param arc_attr Arc attribute functor
+   *  @param rankdir Layout direction (default: "LR" for left-to-right)
+   *
+   *  @see generate_graphviz() For automatic graph/digraph detection
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Node_Attr,
             class Arc_Attr,
@@ -523,35 +497,31 @@ namespace Aleph {
     out << "}" << std::endl;
   }
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado.
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,output) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a output.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo
-      -# Node_Attr: genera la especifcación dot de un nodo
-      -# Arc_attr:  genera la especifcación dot de un arco
-      correspondiente al texto que se desea emitir.
-      -# SN: filtro para el iterador de nodos
-      -# SA: filtro para el iterador de arcos
-      .
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[out] out archivo hacia donde se emitirá la salida.
-      @param[in] rankdir dirección del dibujado entre los valores
-      "TB", "BT", "LR" y "RL"
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Generate Graphviz DOT output with topological ranking.
+   *
+   *  Creates a DOT specification that groups nodes by their topological
+   *  rank (level in DAG). Each rank is placed in a separate subgraph
+   *  for visual grouping.
+   *
+   *  This is useful for visualizing DAGs where the vertical position
+   *  should reflect dependencies.
+   *
+   *  @tparam GT Graph type (must be a DAG)
+   *  @tparam Node_Attr Node attribute generator
+   *  @tparam Arc_Attr Arc attribute generator
+   *  @tparam SN Node filter
+   *  @tparam SA Arc filter
+   *
+   *  @param g Graph to visualize (should be a DAG)
+   *  @param out Output stream
+   *  @param node_attr Node attribute functor
+   *  @param arc_attr Arc attribute functor
+   *  @param rankdir Layout direction (default: "LR")
+   *  @return Number of topological ranks
+   *
+   *  @see Q_Topological_Sort For rank computation
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Node_Attr,
             class Arc_Attr,
@@ -640,54 +610,54 @@ namespace Aleph {
     }
   };
 
-  /** Genera una especificaciòn de un grafo para el programa de
-      dibujado graphviz.
-
-      TO_Graphviz es una clase de mediano nivel que recorre
-      enteramente el grafo g y genera una especificaciòn dot para el
-      programa de dibujado graphviz. La responsabilidad de To_Graphviz
-      y de sus funciones asociadas es generar la estructura topològica
-      en tèrminos del lenguaje dot. Los contenidos de los noso y
-      arcos, asì como los distintos atributos que puedan asociárseles
-      son delegados a clases especiales.
-
-      Los parámetros tipo de To_Graphviz son los siguientes:
-
-      - GT: el tipo de grafo derivado de la clase base List_Graph
-      - Node_Attr: clase encargada de escribir en el stream de salida
-      toda información y atributos pertinentes al nodo. Por cada
-      nodo del grafo, se escribe la línea dot:
-      \code
-      i [ resultado-de-Node_Attr ]
-      \endcode
-      es el índice del nodo designado por la la clase. La clase
-      - es invocada del siguiente modo:
-      \code
-      Node_Attr () (g, p, out);
-      \endcode
-      donde g es el grafo, p es el nodo y out es el stream de
-      salida
-      - Arc_Attr:  clase encargada de escribir en el stream de salida
-      toda información y atributos pertinentes al arc. Por cada
-      nodo del grafo, se escribe la línea dot:
-      \code
-      i [ resultado-de-Node_Attr ]
-      \endcode
-      La clase es invocada del siguiente modo
-      \code
-      Node_Attr () (g, p, out);
-      \endcode
-      donde g es el grafo, p es el nodo y out es el stream de
-      salida
-      - SN: filtro de nodos. sólo se examinan los nodos que muestra el
-      - iterador filtro instanciado con esta clase
-      - SA: filtro de arcos. Sólo se examinan los arcos que muestra el
-      - iterador filtro instanciado con esta clase
-      .
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Functor class for generating Graphviz DOT specifications.
+   *
+   *  A high-level class that traverses a graph and generates a DOT
+   *  specification for the Graphviz visualization system. The class
+   *  handles the topological structure while delegating content
+   *  generation to customizable attribute classes.
+   *
+   *  ## Template Parameters
+   *
+   *  - **GT**: Graph type (derived from List_Graph)
+   *  - **Node_Attr**: Functor for node attributes. Invoked as:
+   *    ```cpp
+   *    Node_Attr()(g, node, out);  // writes to out stream
+   *    ```
+   *  - **Arc_Attr**: Functor for arc attributes. Invoked as:
+   *    ```cpp
+   *    Arc_Attr()(g, arc, out);    // writes to out stream
+   *    ```
+   *  - **SN**: Node filter - only filtered nodes are included
+   *  - **SA**: Arc filter - only filtered arcs are included
+   *
+   *  ## Generated Output
+   *
+   *  For each node:
+   *  ```dot
+   *  i [ <Node_Attr output> ]
+   *  ```
+   *
+   *  For each arc:
+   *  ```dot
+   *  src -> tgt [ <Arc_Attr output> ]   // for digraphs
+   *  src -- tgt [ <Arc_Attr output> ]   // for graphs
+   *  ```
+   *
+   *  ## Usage Example
+   *
+   *  ```cpp
+   *  To_Graphviz<MyGraph> to_dot;
+   *  std::ofstream out("graph.dot");
+   *  to_dot(my_graph, out);
+   *  ```
+   *
+   *  @see Filter_Iterator For node/arc filtering
+   *  @see Dft_Node_Attr Default node attribute generator
+   *  @see Dft_Arc_Attr Default arc attribute generator
+   *
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Node_Attr = Dft_Node_Attr<GT>,
             class Arc_Attr  = Dft_Arc_Attr<GT>,
@@ -695,15 +665,14 @@ namespace Aleph {
             class SA        = Dft_Show_Arc<GT>>
   struct To_Graphviz
   {
-    /** Invoca a la generación de la especificación dot del grafo.
-
-        @param[in] g el grafo
-        @param[in] out el stream hacia el cual se desea escribir la
-        especificación.
-        \param[in] node_attr operación de generación de atributo para nodo.
-        \param[in] arc_attr operación de generación de atributo para arco.
-        @param[in] rankdir la dirección del dibujado.
-    */
+/** @brief Generate DOT specification for a graph.
+     *
+     *  @param g The graph to visualize
+     *  @param out Output stream for DOT specification
+     *  @param node_attr Node attribute generator functor
+     *  @param arc_attr Arc attribute generator functor
+     *  @param rankdir Layout direction ("TB", "BT", "LR", "RL")
+     */
     void operator () (const GT & g, std::ostream & out,
                       const Node_Attr & node_attr = Node_Attr(),
                       const Arc_Attr & arc_attr   = Arc_Attr(),
@@ -743,36 +712,24 @@ namespace Aleph {
   };
 
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado. 
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,out) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a out.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo.
-      -# Write_Node: convierte el contenido de un nodo a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Write_Arc: convierte el contenido de un arco a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Shade_Node: comando a emitir para un nodo oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía.
-      -# Shade_Arc: comando a emitir para un arco oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía.
-      -# Dashed_Node: comando para generar línea del nodo punteada.
-      -# Dashed_Arc: comando para generar línea del arco punteada.
-      -# SA: filtro para el iterador de arcos.
-      -# SN: filtro para el iterador de nodos.
-
-      @see Filter_Iterator
-      @ingroup Grafos
-  */
+/** @brief Functor for generating Graphviz specifications.
+   *
+   *  A convenience functor class that wraps generate_graphviz() with
+   *  full template parameter control.
+   *
+   *  @tparam GT Graph type
+   *  @tparam Write_Node Functor returning node label string
+   *  @tparam Write_Arc Functor returning arc label string
+   *  @tparam Shade_Node Functor for node shading (returns string command)
+   *  @tparam Shade_Arc Functor for arc shading (returns string command)
+   *  @tparam Dashed_Node (unused) For dashed node styling
+   *  @tparam Dashed_Arc (unused) For dashed arc styling
+   *  @tparam SA Arc filter
+   *  @tparam SN Node filter
+   *
+   *  @see generate_graphviz() The underlying function
+   *  @ingroup Grafos
+   */
   template <class GT, 
             class Write_Node, 
             class Write_Arc,
@@ -784,15 +741,14 @@ namespace Aleph {
             class SN = Dft_Show_Node<GT> > 
   struct Generate_Graphviz
   {
-    /** Invoca la generación de la especificación dot.
-
-        @param[in] g grafo o digrafo del que se desea generar el dibujo.
-        @param[out] out archivo hacia donde se emitirá la salida.
-        @param[in] rankdir dirección del dibujado entre los valores
-        "TB", "BT", "LR" y "RL"
-        @param[in] ranksep separación entre rangos topológicos (cuando aplique)
-        @param[in] nodesep separación entre los nodos
-    */
+    /** @brief Generate DOT specification for the graph.
+     *
+     *  @param g Graph to visualize
+     *  @param out Output stream
+     *  @param rankdir Layout direction: "TB", "BT", "LR", "RL"
+     *  @param ranksep Separation between ranks
+     *  @param nodesep Separation between nodes
+     */
     void operator () (GT & g, std::ostream & out,
                       const std::string & rankdir = "TB",
                       float ranksep = 0.4, float nodesep = 0.4)
@@ -803,44 +759,27 @@ namespace Aleph {
     }
   };
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo grafo cruzado. 
-
-      En un dibujo de grafo cruzado, se distribuyen nodes_by_level - 1
-      nodos los niveles pares y num_nodes_by_level en los impares.
-
-      generate_cross_graph(g,nodes_by_level,xdist,ydist,out) genera
-      una entrada a graphpic de un grafo cruzado de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a out.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo.
-      -# SA: clase filtro de arcos.
-      -# Write_Node: convierte el contenido de un nodo a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Write_Arc: convierte el contenido de un arco a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Shade_Node: comando a emitir para un nodo oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Node). 
-      -# Shade_Arc: comando a emitir para un arco oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Arc.
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[in] nodes_by_level cantidad de nodos por nivel. El número
-      de nodos del último nivel dependerá de la cantidad de nodos que
-      contenga el grafo.
-      @param[in] xdist separación horizontal entre los nodos.
-      @param[in] ydist separación vertical entre los nodos.
-      @param[out] out archivo hacia donde se emitirá la salida.
-
-      @ingroup Grafos
-  */
+/** @brief Generate a cross-graph layout specification for graphpic.
+   *
+   *  Creates a graphpic specification with nodes arranged in a cross pattern.
+   *  In this layout, even levels have (nodes_by_level - 1) nodes and odd
+   *  levels have nodes_by_level nodes, creating a staggered pattern.
+   *
+   *  @tparam GT Graph type
+   *  @tparam Write_Node Functor returning node label string
+   *  @tparam Write_Arc Functor returning arc label string
+   *  @tparam Shade_Node Functor returning shading command (e.g., "SHADOW-NODE")
+   *  @tparam Shade_Arc Functor returning shading command (e.g., "SHADOW-ARC")
+   *  @tparam SA Arc filter
+   *
+   *  @param g Graph to visualize
+   *  @param nodes_by_level Nodes per level (last level may have fewer)
+   *  @param xdist Horizontal distance between nodes
+   *  @param ydist Vertical distance between levels
+   *  @param out Output stream for graphpic specification
+   *
+   *  @ingroup Grafos
+   */
   template <class GT,
             class Write_Node, class Write_Arc,
             class Shade_Node, class Shade_Arc, class SA>
@@ -877,44 +816,26 @@ namespace Aleph {
       (g, nodes_by_level, xdist, ydist, out);
   }
 
-  /** Genera una especificación para el programa de dibujado de grafos
-      graphpic de tipo red. 
-
-      En un dibujo de red, siempre se distribuyen nodes_by_level nodos
-      por nivel.
-
-      generate_net_graph(g,nodes_by_level,xdist,ydist,out) genera
-      una entrada a graphpic de un grafo red de nodes_by_level,
-      separados horizontalmente por xdist y verticalmente por
-      ydist. La salida se emite al archivo asociado a out.
-
-      Para tratar con los contenidos de los nodos y arcos y lo que se
-      desee generar, se emplean los siguientes parámetros tipo:
-      -# GT: el tipo de grafo o digrafo.
-      -# SA: clase filtro de arcos.
-      -# Write_Node: convierte el contenido de un nodo a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Write_Arc: convierte el contenido de un arco a un std::string
-      correspondiente al texto que se desea emitir.
-      -# Shade_Node: comando a emitir para un nodo oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Node. 
-      -# Shade_Arc: comando a emitir para un arco oscuro. Si no se
-      desea oscurecer, entonces se debe generar la cadena vacía; de lo
-      contrario, generar el comando graphpic (por lo general
-      Shadow-Arc.
-
-      @param[in] g grafo o digrafo del que se desea generar el dibujo.
-      @param[in] nodes_by_level cantidad de nodos por nivel. El número
-      de nodos del último nivel dependerá de la cantidad de nodos que
-      contenga el grafo.
-      @param[in] xdist separación horizontal entre los nodos.
-      @param[in] ydist separación vertical entre los nodos.
-      @param[out] out archivo hacia donde se emitirá la salida.
-
-      @ingroup Grafos
-  */
+/** @brief Generate a net-graph layout specification for graphpic.
+   *
+   *  Creates a graphpic specification with nodes arranged in a regular
+   *  grid (net) pattern. Each level has exactly nodes_by_level nodes.
+   *
+   *  @tparam GT Graph type
+   *  @tparam Write_Node Functor returning node label string
+   *  @tparam Write_Arc Functor returning arc label string
+   *  @tparam Shade_Node Functor returning shading command (e.g., "SHADOW-NODE")
+   *  @tparam Shade_Arc Functor returning shading command (e.g., "SHADOW-ARC")
+   *  @tparam SA Arc filter
+   *
+   *  @param g Graph to visualize
+   *  @param nodes_by_level Nodes per level (last level may have fewer)
+   *  @param xdist Horizontal distance between nodes
+   *  @param ydist Vertical distance between levels
+   *  @param out Output stream for graphpic specification
+   *
+   *  @ingroup Grafos
+   */
   template <class GT, 
             class Write_Node, class Write_Arc,
             class Shade_Node, class Shade_Arc, class SA>
