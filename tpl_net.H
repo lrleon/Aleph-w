@@ -551,8 +551,14 @@ namespace Aleph
       return register_node(Graph::insert_node(node_info));
     }
 
+    /// Insert a new node with default info.
+    Node * insert_node()
+    {
+      return register_node(Graph::insert_node(Node_Type()));
+    }
+
     /// Insert a new node by moving `info`.
-    Node * insert_node(Node_Type && info = Node_Type())
+    Node * insert_node(Node_Type && info)
     {
       return register_node(Graph::insert_node(std::move(info)));
     }

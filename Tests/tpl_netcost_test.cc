@@ -1373,13 +1373,18 @@ protected:
       simplex.put_objetive_function_coef(i, -arcs[i].cost);
     simplex.put_objetive_function_coef(NUM_ARCS, M);  // x_5 coefficient
 
+    // Helper lambda to create zero-initialized coefficient vector
+    auto make_coefs = [NUM_VARS]() {
+      return std::vector<double>(NUM_VARS + 1, 0.0);
+    };
+
     // Capacity constraints: x_i <= cap_i
     for (size_t i = 0; i < NUM_ARCS; ++i)
       {
-        double coefs[NUM_VARS + 1] = {0};
+        auto coefs = make_coefs();
         coefs[i] = 1.0;
         coefs[NUM_VARS] = arcs[i].cap;  // RHS
-        simplex.put_restriction(coefs);
+        simplex.put_restriction(coefs.data());
       }
 
     // Flow conservation at node a (node 1):
@@ -1387,21 +1392,21 @@ protected:
     // Outgoing: x_2 (a->t)
     // x_0 + x_3 - x_2 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[0] = 1.0;   // x_0: s->a
       coefs[3] = 1.0;   // x_3: b->a
       coefs[2] = -1.0;  // x_2: a->t
       coefs[NUM_VARS] = 0.0;  // RHS
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
     // x_2 - x_0 - x_3 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[2] = 1.0;   // x_2: a->t
       coefs[0] = -1.0;  // x_0: s->a
       coefs[3] = -1.0;  // x_3: b->a
       coefs[NUM_VARS] = 0.0;  // RHS
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
 
     // Flow conservation at node b (node 2):
@@ -1409,41 +1414,41 @@ protected:
     // Outgoing: x_3 (b->a), x_4 (b->t)
     // x_1 - x_3 - x_4 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[1] = 1.0;   // x_1: s->b
       coefs[3] = -1.0;  // x_3: b->a
       coefs[4] = -1.0;  // x_4: b->t
       coefs[NUM_VARS] = 0.0;  // RHS
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
     // x_3 + x_4 - x_1 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[3] = 1.0;   // x_3: b->a
       coefs[4] = 1.0;   // x_4: b->t
       coefs[1] = -1.0;  // x_1: s->b
       coefs[NUM_VARS] = 0.0;  // RHS
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
 
     // Source flow definition: x_5 = x_0 + x_1
     // x_0 + x_1 - x_5 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[0] = 1.0;
       coefs[1] = 1.0;
       coefs[NUM_ARCS] = -1.0;  // x_5
       coefs[NUM_VARS] = 0.0;
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
     // x_5 - x_0 - x_1 <= 0
     {
-      double coefs[NUM_VARS + 1] = {0};
+      auto coefs = make_coefs();
       coefs[NUM_ARCS] = 1.0;  // x_5
       coefs[0] = -1.0;
       coefs[1] = -1.0;
       coefs[NUM_VARS] = 0.0;
-      simplex.put_restriction(coefs);
+      simplex.put_restriction(coefs.data());
     }
 
     simplex.prepare_linear_program();
