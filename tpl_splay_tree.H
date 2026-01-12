@@ -134,6 +134,72 @@ private:
   Node headnode;
   Node *head, *&root;
   Compare cmp;
+  static constexpr signed char CmpLess = -1;
+  static constexpr signed char CmpEqual = 0;
+  static constexpr signed char CmpGreater = 1;
+
+  signed char splay_impl(const Key & key) noexcept
+  {
+    Node headNode;
+    Node *l = &headNode;
+    Node *r = &headNode;
+    Node *t = root;
+    signed char cmp_result = CmpEqual;
+
+    while (true)
+      {
+        const Key & tk = KEY(t);
+        if (cmp(key, tk))
+          {
+            cmp_result = CmpLess;
+            if (LLINK(t) == Node::NullPtr)
+              break;
+
+            if (cmp(key, KEY(LLINK(t))))
+              {
+                t = rotate_to_right(t);
+                if (LLINK(t) == Node::NullPtr)
+                  break;
+              }
+
+            LLINK(r) = t;
+            r = t;
+            t = LLINK(t);
+          }
+        else if (cmp(tk, key))
+          {
+            cmp_result = CmpGreater;
+            if (RLINK(t) == Node::NullPtr)
+              break;
+
+            if (cmp(KEY(RLINK(t)), key))
+              {
+                t = rotate_to_left(t);
+                if (RLINK(t) == Node::NullPtr)
+                  break;
+              }
+
+            RLINK(l) = t;
+            l = t;
+            t = RLINK(t);
+          }
+        else
+          {
+            cmp_result = CmpEqual;
+            break;
+          }
+      }
+
+    /* reassembling of sub trees in one with current as root */
+    RLINK(l) = LLINK(t);
+    LLINK(r) = RLINK(t);
+    LLINK(t) = headNode.getR();
+    RLINK(t) = headNode.getL();
+
+    root = t;
+
+    return cmp_result;
+  }
 
 public:
   /// The key type stored in the node
@@ -149,54 +215,7 @@ public:
       Node::NullPtr */
   void splay(const Key & key) noexcept
   {
-    Node headNode;
-    Node *l = &headNode;
-    Node *r = &headNode;
-    Node *t = root;
-
-    while (true)
-      if (cmp(key, KEY(t)))
-        {
-          if (LLINK(t) == Node::NullPtr)
-            break;
-
-          if (cmp(key, KEY(LLINK(t))))
-            {
-              t = rotate_to_right(t);
-              if (LLINK(t) == Node::NullPtr)
-                break;
-            }
-
-          LLINK(r) = t;
-          r = t;
-          t = LLINK(t);
-        }
-      else if (cmp(KEY(t), key))
-        {
-          if (RLINK(t) == Node::NullPtr)
-            break;
-
-          if (cmp(KEY(RLINK(t)), key))
-            {
-              t = rotate_to_left(t);
-              if (RLINK(t) == Node::NullPtr)
-                break;
-            }
-
-          RLINK(l) = t;
-          l = t;
-          t = RLINK(t);
-        }
-      else
-        break;
-
-    /* reassembling of sub trees in one with current as root */
-    RLINK(l) = LLINK(t);
-    LLINK(r) = RLINK(t);
-    LLINK(t) = headNode.getR();
-    RLINK(t) = headNode.getL();
-
-    root = t;
+    (void) splay_impl(key);
   }
 
   /// Constructor
@@ -220,7 +239,9 @@ public:
 private:
   Node * __insert(Node *p) noexcept
   {
-    if (cmp(KEY(p), KEY(root)))
+    const Key & pk = KEY(p);
+    const Key & rk = KEY(root);
+    if (cmp(pk, rk))
       { /* root is predecessor of p */
         LLINK(p) = LLINK(root);
         RLINK(p) = root;
@@ -253,9 +274,9 @@ public:
 
     const Key & key = KEY(p);
 
-    splay(key);
+    const signed char cmp_result = splay_impl(key);
 
-    if (are_equals<Key, Compare>(KEY(root), key, cmp))
+    if (cmp_result == CmpEqual)
       return nullptr; // item is already in tree
 
     return __insert(p);
@@ -270,7 +291,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    splay(KEY(p));
+    splay_impl(KEY(p));
 
     return __insert(p);
   }
@@ -287,9 +308,9 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
       
-    splay(key);
+    const signed char cmp_result = splay_impl(key);
 
-    return are_equals<Key, Compare>(KEY(root), key, cmp) ? root : nullptr;
+    return cmp_result == CmpEqual ? root : nullptr;
   }
 
   Node * search_or_insert(Node *p) noexcept
@@ -298,8 +319,8 @@ public:
       return root = p;
 
     const Key & key = KEY(p);
-    splay(key);
-    if (are_equals<Key, Compare>(key, KEY(root), cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result == CmpEqual)
       return root;
 
     return __insert(p);
@@ -319,9 +340,8 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    splay(key);
-
-    if (no_equals<Key, Compare>(KEY(root), key, cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result != CmpEqual)
       return nullptr; /* key not found */
 
     Node *ret_val = root; /* store node to delete */
@@ -332,7 +352,7 @@ public:
       {
         Node *p = RLINK(root);
         root = LLINK(root);
-        splay(key);
+        splay_impl(key);
         RLINK(root) = p;
       }
 

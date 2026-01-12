@@ -1020,7 +1020,7 @@ TEST(SortUtilsRandomSelect, random_select_out_of_range_and_empty)
   {
     int b[] = {4, 1, 3};
     using Cmp = Aleph::less<int>;
-    auto fn = static_cast<const int & (*)(int *, const long, const long, Cmp)>(
+    auto fn = static_cast<const int & (*)(int *, const long, const long, const Cmp &)>(
       &Aleph::random_select<int, Cmp>);
     EXPECT_THROW(fn(b, 3, 3, Cmp()), std::out_of_range);
   }
@@ -1090,7 +1090,7 @@ TEST(SortUtilsSearch, random_select_dynarray_and_raw)
 
   int b[] = {4, 1, 3, 2, 0, 2};
   using Cmp = Aleph::less<int>;
-  auto fn = static_cast<const int & (*)(int *, const long, const long, Cmp)>(
+  auto fn = static_cast<const int & (*)(int *, const long, const long, const Cmp &)>(
     &Aleph::random_select<int, Cmp>);
   EXPECT_EQ(fn(b, 0, 6, Cmp()), 0);
   EXPECT_EQ(fn(b, 5, 6, Cmp()), 4);

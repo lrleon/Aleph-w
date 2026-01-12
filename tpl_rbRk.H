@@ -111,37 +111,61 @@ private:
   Node *& root;
   FixedStack<Node *> rb_stack;
   Compare cmp;
+  static constexpr signed char CmpLess = -1;
+  static constexpr signed char CmpEqual = 0;
+  static constexpr signed char CmpGreater = 1;
 
-  Node * search_and_stack_rb(const Key & key)
+  Node * search_and_stack_rb(const Key & key,
+                             signed char & cmp_result)
   {
     Node * p = root;
     rb_stack.push(head);
+    cmp_result = CmpEqual;
     do
       {
         rb_stack.push(p);
-        if (cmp(key, KEY(p)))
-          p = LLINK(p);
-        else if (cmp(KEY(p), key))
-          p = RLINK(p);
+        const Key & pk = KEY(p);
+        if (cmp(key, pk))
+          {
+            cmp_result = CmpLess;
+            p = LLINK(p);
+          }
+        else if (cmp(pk, key))
+          {
+            cmp_result = CmpGreater;
+            p = RLINK(p);
+          }
         else
-          return p;
+          {
+            cmp_result = CmpEqual;
+            return p;
+          }
       }
     while (p != Node::NullPtr);
 
     return rb_stack.top();
   }
 
-  Node * search_dup_and_stack_rb(const Key & key)
+  Node * search_dup_and_stack_rb(const Key & key,
+                                 signed char & cmp_result)
   {
     Node * p = root;
     rb_stack.push(head);
+    cmp_result = CmpEqual;
     do
       {
         rb_stack.push(p);
-        if (cmp(key, KEY(p)))
-          p = LLINK(p);
+        const Key & pk = KEY(p);
+        if (cmp(key, pk))
+          {
+            cmp_result = CmpLess;
+            p = LLINK(p);
+          }
         else
-          p = RLINK(p);
+          {
+            cmp_result = CmpGreater;
+            p = RLINK(p);
+          }
       }
     while (p != Node::NullPtr);
 
@@ -474,10 +498,11 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * q = search_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q)))
+    signed char cmp_result = CmpEqual;
+    Node * q = search_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
-    else if (cmp(KEY(q), KEY(p)))
+    else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
       {
@@ -499,10 +524,11 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    Node * q = search_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q)))
+    signed char cmp_result = CmpEqual;
+    Node * q = search_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
-    else if (cmp(KEY(q), KEY(p)))
+    else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
       {
@@ -524,7 +550,9 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    if (Node * q = search_dup_and_stack_rb(KEY(p)); cmp(KEY(p), KEY(q)))
+    signed char cmp_result = CmpEqual;
+    Node * q = search_dup_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
     else
       RLINK(q) = p;
@@ -542,8 +570,9 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    Node * q = search_and_stack_rb(key);
-    if (no_equals<Key, Compare>(KEY(q), key, cmp))
+    signed char cmp_result = CmpEqual;
+    Node * q = search_and_stack_rb(key, cmp_result);
+    if (cmp_result != CmpEqual)
       {
         rb_stack.empty();
         return nullptr;

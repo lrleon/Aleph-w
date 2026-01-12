@@ -1328,7 +1328,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  bool check_bst(Node *p, Compare cmp = Compare())
+  bool check_bst(Node *p, const Compare& cmp = Compare())
   {
     if (p == Node::NullPtr)
       return true;
@@ -1392,7 +1392,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * searchInBinTree(Node *root, const typename Node::key_type & key,
-                         Compare cmp = Compare()) noexcept
+                         const Compare& cmp = Compare()) noexcept
   {
     while (root != Node::NullPtr)
       if (cmp(key, KEY(root)))
@@ -1510,7 +1510,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * search_parent(Node *root, const typename Node::key_type & key,
-                       Node *& parent, Compare cmp = Compare()) noexcept
+                       Node *& parent, const Compare& cmp = Compare()) noexcept
   {
     assert((LLINK(parent) == root) or (RLINK(parent) == root));
     assert(root != Node::NullPtr);
@@ -1558,7 +1558,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline Node *
   search_rank_parent(Node *root, const typename Node::key_type & key,
-                     Compare cmp = Compare()) noexcept
+                     const Compare& cmp = Compare()) noexcept
   {
     assert(root != Node::NullPtr);
 
@@ -1596,7 +1596,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_in_bst(Node *& r, Node *p, Compare cmp = Compare()) noexcept
+  Node * insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare()) noexcept
   {
     if (r == Node::NullPtr)
       return r = p;
@@ -1624,7 +1624,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_dup_in_bst(Node *& root, Node *p, Compare cmp = Compare())
+  Node * insert_dup_in_bst(Node *& root, Node *p, const Compare& cmp = Compare())
     noexcept
   {
     if (root == Node::NullPtr)
@@ -1653,7 +1653,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * search_or_insert_in_bst(Node *& r, Node *p, Compare cmp = Compare())
+  Node * search_or_insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare())
     noexcept
   {
     if (r == Node::NullPtr)
@@ -1723,7 +1723,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   bool split_key_rec(Node *& root, const typename Node::key_type & key,
-                     Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
+                     Node *& ts, Node *& tg, const Compare& cmp = Compare()) noexcept
   {
     const bool ret = __split_key_rec(root, key, ts, tg, cmp);
     if (ret)
@@ -1774,7 +1774,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
-                         Node *& ts, Node *& tg, Compare cmp = Compare()) noexcept
+                         Node *& ts, Node *& tg, const Compare& cmp = Compare()) noexcept
   {
     __split_key_dup_rec(root, key, ts, tg, cmp);
     root = Node::NullPtr;
@@ -1828,7 +1828,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
-                         Compare cmp = Compare()) noexcept
+                         const Compare& cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return Node::NullPtr;
@@ -1863,7 +1863,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_root(Node *& root, Node *p, Compare cmp = Compare()) noexcept
+  Node * insert_root(Node *& root, Node *p, const Compare& cmp = Compare()) noexcept
   {
     Node *l = Node::NullPtr, *r = Node::NullPtr;
 
@@ -1890,7 +1890,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_dup_root(Node *& root, Node *p, Compare cmp = Compare()) noexcept
+  Node * insert_dup_root(Node *& root, Node *p, const Compare& cmp = Compare()) noexcept
   {
     split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
     return root = p;
@@ -1914,7 +1914,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * join_preorder(Node *t1, Node *t2, Node *& dup,
-                       Compare cmp = Compare()) noexcept
+                       const Compare& cmp = Compare()) noexcept
   {
     if (t2 == Node::NullPtr)
       return t1;
@@ -1948,7 +1948,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * join(Node *t1, Node *t2, Node *& dup, Compare cmp = Compare())
+  Node * join(Node *t1, Node *t2, Node *& dup, const Compare& cmp = Compare())
     noexcept
   {
     if (t1 == Node::NullPtr)
@@ -2084,7 +2084,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
-                 Compare cmp = Compare()) noexcept
+                 const Compare& cmp = Compare()) noexcept
   {
     assert(l == Node::NullPtr and r == Node::NullPtr);
     if (root == Node::NullPtr)
@@ -2261,7 +2261,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * insert_root_rec(Node *root, Node *p,
-                         Compare cmp = Compare()) noexcept
+                         const Compare& cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return p; /* insertion in empty tree */
@@ -2302,7 +2302,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * search_or_insert_root_rec(Node *root, Node *p,
-                                   Compare cmp = Compare()) noexcept
+                                   const Compare& cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return p; // insertion in empty tree

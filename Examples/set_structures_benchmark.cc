@@ -604,7 +604,7 @@ void run_sequential_test(size_t n)
 int main(int argc, char* argv[])
 {
   // Default parameters
-  size_t n = 100000;
+  size_t n = 1000000; // 1,000,000 keys by default
   unsigned seed = 42;
   bool include_ranked = false;
   bool run_sequential = false;

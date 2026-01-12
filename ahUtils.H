@@ -75,7 +75,7 @@ namespace Aleph
       @ingroup Functions
    */
   template <class T, class Compare = Aleph::less<T>>
-  inline const T * median(const T & a, const T & b, const T & c, Compare cmp = Compare())
+  inline const T * median(const T & a, const T & b, const T & c, const Compare & cmp = Compare())
   {
     if (cmp(a, b))
       {

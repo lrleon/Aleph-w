@@ -340,14 +340,15 @@ namespace Aleph
     /// find inside the table; otherwise, nullptr is returned.
     [[nodiscard]] Key *search(const Key &key) const noexcept
     {
-      long i = hash_fct(key) % len;
-      long c = 0;
-      while (c < len and table[i].status != EMPTY)
+      size_t i = hash_fct(key) % len;
+      for (size_t c = 0; c < len; ++c)
         {
-          if (table[i].status == BUSY and cmp(table[i].key, key))
+          if (table[i].status == EMPTY) [[unlikely]]
+            return nullptr;
+
+          if (table[i].status == BUSY and cmp(table[i].key, key)) [[likely]]
             return &table[i].key;
 
-          ++c;
           if (++i == len)
             i = 0;
         }
@@ -365,29 +366,29 @@ namespace Aleph
       for (size_t c = 0; c < len; ++c)
         {
           auto & b = table[i];
-          if (b.status == BUSY)
-            {
-              if (cmp(key, b.key))
-                return nullptr;
-            }
-          else if (b.status == DELETED)
-            {
-              if (first_deleted == nullptr)
-                first_deleted = &b;
-            }
-          else // EMPTY
+          if (b.status == EMPTY) [[likely]]
             {
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
               return bucket;
             }
+          if (b.status == BUSY)
+            {
+              if (cmp(key, b.key)) [[unlikely]]
+                  return nullptr;  // Duplicate
+            }
+          else // DELETED
+            {
+              if (first_deleted == nullptr)
+                first_deleted = &b;
+            }
 
           if (++i == len)
             i = 0;
         }
 
-      if (first_deleted != nullptr)
+      if (first_deleted != nullptr) [[unlikely]]
         {
           first_deleted->status = BUSY;
           ++N;
@@ -409,36 +410,36 @@ namespace Aleph
       for (size_t c = 0; c < len; ++c)
         {
           auto & b = table[i];
-          if (b.status == BUSY)
-            {
-              if (cmp(key, b.key))
-                return std::make_tuple(&b, true);
-            }
-          else if (b.status == DELETED)
-            {
-              if (first_deleted == nullptr)
-                first_deleted = &b;
-            }
-          else // EMPTY
+          if (b.status == EMPTY) [[likely]]
             {
               Bucket *bucket = first_deleted != nullptr ? first_deleted : &b;
               bucket->status = BUSY;
               ++N;
-              return std::make_tuple(bucket, false);
+              return {bucket, false};
+            }
+          else if (b.status == BUSY)
+            {
+              if (cmp(key, b.key))
+                return {&b, true};  // Found existing
+            }
+          else // DELETED
+            {
+              if (first_deleted == nullptr)
+                first_deleted = &b;
             }
 
           if (++i == len)
             i = 0;
         }
 
-      if (first_deleted != nullptr)
+      if (first_deleted != nullptr) [[unlikely]]
         {
           first_deleted->status = BUSY;
           ++N;
-          return std::make_tuple(first_deleted, false);
+          return {first_deleted, false};
         }
 
-      return std::make_tuple(static_cast<Bucket*>(nullptr), false);
+      return {nullptr, false};
     }
 
     /// Removes the record pointed to by record from the table. Obviously,
@@ -461,17 +462,30 @@ namespace Aleph
 
    public:
 
-    /** Remove the key referenced by key. key must be a valid refernce
+    /** Remove the key referenced by key. key must be a valid reference
         to the key previously inserted or retrieved in the table. If
         the key is not in the table, then a domain_error exception is
         thrown. */
     void remove(const Key &key)
     {
-      Key *key_ptr = search(key);
-      if (key_ptr == nullptr)
-        ah_domain_error_if(true) << "Key not in hash table";
+      size_t i = hash_fct(key) % len;
+      for (size_t c = 0; c < len; ++c)
+        {
+          if (table[i].status == EMPTY) [[unlikely]]
+            ah_domain_error() << "Key not in hash table";
 
-      this->remove_ptr(key_ptr);
+          if (table[i].status == BUSY and cmp(table[i].key, key)) [[likely]]
+            {
+              table[i].status = DELETED;
+              --N;
+              return;
+            }
+
+          if (++i == len)
+            i = 0;
+        }
+
+      ah_domain_error() << "Key not in hash table";
     }
 
    OHASH_COMMON(OLhashTable);

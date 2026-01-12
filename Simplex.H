@@ -275,15 +275,15 @@ namespace Aleph
     // Uses Bland's rule if enabled (select smallest index among ties).
     int compute_pivot_row(int p) const noexcept
     {
-      assert(p >= 0 and p < static_cast<int>(num_var + num_rest));
+      assert(p >= 0 and p < static_cast<int>(num_var + num_rest + num_artificial));
 
       int q = -1;
       T min_ratio = std::numeric_limits<T>::max();
-      const int M = num_var + num_rest;
+      const size_t rhs_col = num_var + num_rest + num_artificial;
 
       for (int i = 1; i <= static_cast<int>(num_rest); ++i)
         {
-          const T val = m->read(i, M); // RHS value
+          const T val = m->read(i, rhs_col); // RHS value
           if (val < -eps)
             continue;
 
@@ -334,10 +334,11 @@ namespace Aleph
     // Optimized version: uses reusable buffers to avoid repeated allocations.
     void to_pivot(size_t p, size_t q)
     {
-      assert(p <= num_rest and q <= num_var + num_rest);
+      assert(p <= num_rest and q <= num_var + num_rest + num_artificial);
 
-      const size_t M = num_var + num_rest;  // number of columns
-      const size_t cols = M + 1;            // total columns including RHS
+      // Total columns: decision vars + slack/surplus + artificial + RHS
+      const size_t M = num_var + num_rest + num_artificial;  // last data column
+      const size_t cols = M + 1;                             // total columns including RHS
       const T pivot = m->read(p, q);
       const T inv_pivot = T{1} / pivot;
 
@@ -378,11 +379,17 @@ namespace Aleph
     }
 
     // Finds the value of variable j from the tableau.
+    // A variable is basic if its column has exactly one 1 and all other
+    // entries are 0 (including row 0!). The value is the RHS of that row.
     T find_value(const size_t j) const noexcept
     {
       assert(j < num_var);
 
-      T ret_val = 0.0;
+      // First check row 0: must be 0 for a basic variable
+      if (std::abs(m->read(0, j)) > eps)
+        return T{0};  // Not basic: non-zero in objective row
+
+      T ret_val = T{0};
       int count = 0;
       const size_t rhs_col = num_var + num_rest + num_artificial;
 
@@ -397,10 +404,10 @@ namespace Aleph
               if (count++ == 0)
                 ret_val = m->read(i, rhs_col);
               else
-                return 0.0; // Not a basic variable (multiple 1s)
+                return T{0}; // Not a basic variable (multiple 1s)
             }
           else
-            return 0.0; // Not a basic variable
+            return T{0}; // Not a basic variable
         }
       return ret_val;
     }
@@ -478,7 +485,12 @@ namespace Aleph
       // Big-M value for artificial variables
       const T big_m = T{1e9};
 
-      // Determine objective multiplier (negate for maximization)
+      // Objective coefficient multiplier:
+      // - For MAX c·x: Row 0 = -c, and we look for negative coefficients to pivot
+      //   (a negative coef means increasing that var improves the objective)
+      // - For MIN c·x: Row 0 = c, and we look for negative coefficients to pivot
+      //   (a negative coef means increasing that var REDUCES the objective, good for MIN)
+      // With this convention, compute_pivot_col always looks for negatives.
       const T obj_mult = (opt_type == OptimizationType::Maximize) ? T{-1} : T{1};
 
       // Fill objective function coefficients
@@ -486,13 +498,14 @@ namespace Aleph
         m->write(0, i, obj_mult * objetive[i]);
 
       // Fill artificial variable coefficients in objective (Big-M penalty)
+      // With the tableau always using -c (maximization form), artificial
+      // variables need +M coefficient so they are penalized and driven out.
       size_t art_idx = num_var + num_rest;
       for (auto it = rest_types.get_it(); it.has_curr(); it.next_ne())
         {
           if (it.get_curr() != ConstraintType::LE)
             {
-              // Artificial variables get huge penalty in objective
-              m->write(0, art_idx, (opt_type == OptimizationType::Maximize) ? big_m : -big_m);
+              m->write(0, art_idx, big_m);  // Always +M
               ++art_idx;
             }
         }
@@ -539,6 +552,36 @@ namespace Aleph
       basic_vars.resize(num_rest);
       for (size_t i = 0; i < num_rest; ++i)
         basic_vars[i] = static_cast<int>(num_var + i); // Initially slack vars
+
+      // Big-M elimination: For artificial variables to be in valid basis form,
+      // we need to eliminate their coefficient from row 0 by subtracting
+      // M * constraint_row from row 0. This ensures the artificial var's
+      // column has 0 in row 0 (basic variable form).
+      if (num_artificial > 0)
+        {
+          size_t row = 1;
+          size_t art_col = num_var + num_rest;
+          auto type_it = rest_types.get_it();
+
+          for (; type_it.has_curr(); type_it.next_ne(), ++row)
+            {
+              ConstraintType ctype = type_it.get_curr();
+              if (ctype == ConstraintType::LE)
+                continue;
+
+              // For GE/EQ constraints, artificial variable is in basis initially
+              // Update basic_vars to reflect this
+              basic_vars[row - 1] = static_cast<int>(art_col);
+
+              // Eliminate M from row 0 by: row0 -= M * row_i
+              // (for MAX, artificial has +M in row0; for MIN, it has -M)
+              const T art_coef = m->read(0, art_col);  // This is ±M
+              for (size_t j = 0; j < total_cols; ++j)
+                m->write(0, j, m->read(0, j) - art_coef * m->read(row, j));
+
+              ++art_col;
+            }
+        }
     }
 
   public:
@@ -1006,15 +1049,32 @@ namespace Aleph
      */
     [[nodiscard]] bool verify_solution() const
     {
-      for (auto it = rest_list.get_it(); it.has_curr(); it.next_ne())
+      auto type_it = rest_types.get_it();
+      for (auto it = rest_list.get_it(); it.has_curr();
+           it.next_ne(), type_it.next_ne())
         {
           const T *rest = it.get_curr();
+          ConstraintType ctype = type_it.get_curr();
           T sum = 0;
           for (size_t j = 0; j < num_var; ++j)
             sum += rest[j] * solution[j];
 
-          if (sum > rest[num_var])
-            return false;
+          const T rhs = rest[num_var];
+          switch (ctype)
+            {
+            case ConstraintType::LE:
+              if (sum > rhs + eps)
+                return false;
+              break;
+            case ConstraintType::GE:
+              if (sum < rhs - eps)
+                return false;
+              break;
+            case ConstraintType::EQ:
+              if (std::abs(sum - rhs) > eps)
+                return false;
+              break;
+            }
         }
       return true;
     }

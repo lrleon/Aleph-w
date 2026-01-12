@@ -126,7 +126,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void heapsort(T *array, const size_t n, Compare cmp = Compare())
+  void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
     Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
@@ -156,7 +156,7 @@ namespace Aleph
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
-  void faster_heapsort(T *array, const size_t n, Compare cmp = Compare())
+  void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
     Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
 
@@ -174,7 +174,7 @@ namespace Aleph
   /// Compare()()
   template <typename T, class Compare = Aleph::less<T>>
   bool valid_heap(T *array, const size_t l, const size_t r,
-                  Compare cmp = Compare())
+                  const Compare & cmp = Compare())
   {
     size_t i;
     for (i = l_index(l) /* i = 2*l */; i <= r; i++)

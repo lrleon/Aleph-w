@@ -159,7 +159,9 @@ namespace Aleph
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
 
       Node *result;
-      if (cmp(KEY(p), KEY(root))) // KEY(p) < KEY(root) ?
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      if (cmp(pk, rk)) // KEY(p) < KEY(root) ?
         {
           result = random_insert(LLINK(root), p);
           if (result != Node::NullPtr) // p was inserted?
@@ -169,7 +171,7 @@ namespace Aleph
               return root;
             }
         }
-      else if (cmp(KEY(root), KEY(p))) // KEY(p) > KEY(root) ?
+      else if (cmp(rk, pk)) // KEY(p) > KEY(root) ?
         {
           result = random_insert(RLINK(root), p);
           if (result != Node::NullPtr) // p was inserted?
@@ -189,12 +191,50 @@ namespace Aleph
       if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) // p wins the raffle?
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
-      if (cmp(KEY(p), KEY(root))) // KEY(p) < KEY(root) ?
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      if (cmp(pk, rk)) // KEY(p) < KEY(root) ?
         LLINK(root) = random_insert_dup(LLINK(root), p);
       else
         RLINK(root) = random_insert_dup(RLINK(root), p);
 
       ++COUNT(root);
+
+      return root;
+    }
+
+    Node * random_search_or_insert(Node *& root, Node * p) noexcept
+    {
+      if (root == Node::NullPtr)
+        return root = p;
+
+      const long & n = COUNT(root);
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n)
+        {
+          if (BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p) != Node::NullPtr)
+            return p;
+
+          return searchInBinTree<Node, Compare>(root, KEY(p), cmp);
+        }
+
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      if (cmp(pk, rk))
+        {
+          Node * ret = random_search_or_insert(LLINK(root), p);
+          if (ret == p)
+            ++COUNT(root);
+
+          return ret;
+        }
+      if (cmp(rk, pk))
+        {
+          Node * ret = random_search_or_insert(RLINK(root), p);
+          if (ret == p)
+            ++COUNT(root);
+
+          return ret;
+        }
 
       return root;
     }
@@ -232,7 +272,7 @@ namespace Aleph
 
     /// Initialize a random tree with random `seed` and comparison criteria
     /// `__cmp`
-    Gen_Rand_Tree(const unsigned int seed, Compare __cmp = Compare()) noexcept
+    Gen_Rand_Tree(const unsigned int seed, const Compare & __cmp = Compare()) noexcept
       : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
     {
       init(seed);
@@ -240,7 +280,7 @@ namespace Aleph
 
     /// Initialize a random tree with random seed from system time and
     /// comparison criteria `cmp`
-    Gen_Rand_Tree(Compare cmp = Compare()) noexcept
+    Gen_Rand_Tree(const Compare & cmp = Compare()) noexcept
       : Gen_Rand_Tree(time(nullptr), cmp)
     { /* empty */
     }
@@ -352,7 +392,8 @@ namespace Aleph
         return Node::NullPtr;
 
       Node *ret_val;
-      if (cmp(key, KEY(root)))
+      const Key & rk = KEY(root);
+      if (cmp(key, rk))
         {
           ret_val = random_remove(LLINK(root), key);
           if (ret_val != Node::NullPtr)
@@ -360,7 +401,7 @@ namespace Aleph
 
           return ret_val;
         }
-      if (cmp(KEY(root), key))
+      if (cmp(rk, key))
         {
           ret_val = random_remove(RLINK(root), key);
           if (ret_val != Node::NullPtr)
@@ -420,13 +461,7 @@ namespace Aleph
       assert(p != Node::NullPtr);
       assert(COUNT(p) == 1);
 
-      Node *result = search(KEY(p));
-      if (result != nullptr)
-        return result;
-
-      tree_root = random_insert(tree_root, p);
-
-      return p;
+      return random_search_or_insert(tree_root, p);
     }
 
     /// Return `true` if this is a consistent randomized tree

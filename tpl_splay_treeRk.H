@@ -106,23 +106,11 @@ public:
 private:
   Node *root;
   Compare cmp;
+  static constexpr signed char CmpLess = -1;
+  static constexpr signed char CmpEqual = 0;
+  static constexpr signed char CmpGreater = 1;
 
-public:
-  /// The key type stored in the node
-  typedef Key key_type;
-
-  /// Returns a reference to the comparison functor
-  Compare &key_comp() { return cmp; }
-
-  /// \overload key_comp()
-  Compare &get_compare() { return key_comp(); }
-
-  /** search key within tree and splay that node.
-
-      @warning The tree must not be empty. All public methods check for
-      empty tree before calling splay().
-   */
-  void splay(const Key & key) noexcept
+  signed char splay_impl(const Key & key) noexcept
   {
     assert(root != Node::NullPtr); // splay requires non-empty tree
     Node header(sentinelCtor);
@@ -133,44 +121,53 @@ public:
 
     size_t l_size = 0;
     size_t r_size = 0;
+    signed char cmp_result = CmpEqual;
 
     while (true)
-      if (cmp(key, KEY(t)))
-        {
-          if (LLINK(t) == Node::NullPtr)
+      {
+        const Key & tk = KEY(t);
+        if (cmp(key, tk))
+          {
+            cmp_result = CmpLess;
+            if (LLINK(t) == Node::NullPtr)
+              break;
+
+            if (cmp(key, KEY(LLINK(t))))
+              {
+                t = rotate_to_right_xt(t);
+                if (LLINK(t) == Node::NullPtr)
+                  break;
+              }
+
+            LLINK(r) = t;
+            r = t;
+            t = LLINK(t);
+            r_size += 1 + COUNT(RLINK(r));
+          }
+        else if (cmp(tk, key))
+          {
+            cmp_result = CmpGreater;
+            if (RLINK(t) == Node::NullPtr)
+              break;
+
+            if (cmp(KEY(RLINK(t)), key))
+              {
+                t = rotate_to_left_xt(t);
+                if (RLINK(t) == Node::NullPtr)
+                  break;
+              }
+
+            RLINK(l) = t;
+            l = t;
+            t = RLINK(t);
+            l_size += 1 + COUNT(LLINK(l));
+          }
+        else
+          {
+            cmp_result = CmpEqual;
             break;
-
-          if (cmp(key, KEY(LLINK(t))))
-            {
-              t = rotate_to_right_xt(t);
-              if (LLINK(t) == Node::NullPtr)
-                break;
-            }
-
-          LLINK(r) = t;
-          r = t;
-          t = LLINK(t);
-          r_size += 1 + COUNT(RLINK(r));
-        }
-      else if (cmp(KEY(t), key))
-        {
-          if (RLINK(t) == Node::NullPtr)
-            break;
-
-          if (cmp(KEY(RLINK(t)), key))
-            {
-              t = rotate_to_left_xt(t);
-              if (RLINK(t) == Node::NullPtr)
-                break;
-            }
-
-          RLINK(l) = t;
-          l = t;
-          t = RLINK(t);
-          l_size += 1 + COUNT(LLINK(l));
-        }
-      else
-        break;
+          }
+      }
 
     l_size += COUNT(LLINK(t));
     r_size += COUNT(RLINK(t));
@@ -196,6 +193,28 @@ public:
       }
 
     root = t;
+
+    return cmp_result;
+  }
+
+public:
+  /// The key type stored in the node
+  typedef Key key_type;
+
+  /// Returns a reference to the comparison functor
+  Compare &key_comp() { return cmp; }
+
+  /// \overload key_comp()
+  Compare &get_compare() { return key_comp(); }
+
+  /** search key within tree and splay that node.
+
+      @warning The tree must not be empty. All public methods check for
+      empty tree before calling splay().
+   */
+  void splay(const Key & key) noexcept
+  {
+    (void) splay_impl(key);
   }
 
   /// Constructor
@@ -220,7 +239,9 @@ private:
   Node * __insert(Node *p)
   {
     COUNT(p) = COUNT(root) + 1;
-    if (cmp(KEY(p), KEY(root)))
+    const Key & pk = KEY(p);
+    const Key & rk = KEY(root);
+    if (cmp(pk, rk))
       {
         COUNT(root) -= COUNT(LLINK(root));
         LLINK(p) = LLINK(root);
@@ -257,9 +278,8 @@ public:
 
     const Key & key = KEY(p);
 
-    splay(key);
-
-    if (are_equals<Key, Compare>(KEY(root), key, cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result == CmpEqual)
       return nullptr; // item is already in tree
 
     return __insert(p);
@@ -274,7 +294,7 @@ public:
     if (root == Node::NullPtr)
       return root = p;
 
-    splay(KEY(p));
+    splay_impl(KEY(p));
 
     return __insert(p);
   }
@@ -291,9 +311,9 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    splay(key);
+    const signed char cmp_result = splay_impl(key);
 
-    return are_equals<Key, Compare>(KEY(root), key, cmp) ? root : nullptr;
+    return cmp_result == CmpEqual ? root : nullptr;
   }
 
   Node * search_or_insert(Node *p)
@@ -302,8 +322,8 @@ public:
       return root = p;
 
     const Key & key = KEY(p);
-    splay(key);
-    if (are_equals<Key, Compare>(key, KEY(root), cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result == CmpEqual)
       return root;
 
     return __insert(p);
@@ -382,9 +402,8 @@ public:
     if (root == Node::NullPtr)
       return nullptr;
 
-    splay(key);
-
-    if (no_equals<Key, Compare>(KEY(root), key, cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result != CmpEqual)
       return nullptr; /* key not found */
 
     Node *ret_val = root; /* store node to delete */
@@ -450,9 +469,8 @@ public:
     if (root == Node::NullPtr)
       return {-1, nullptr};
 
-    splay(key);
-
-    if (are_equals<Key, Compare>(key, KEY(root), cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result == CmpEqual)
       return {static_cast<long>(COUNT(LLINK(root))), root};
 
     return {-1, nullptr};
@@ -490,13 +508,12 @@ public:
     if (root == Node::NullPtr)
       return {-1, nullptr};
 
-    splay(key);
-
-    if (are_equals<Key, Compare>(key, KEY(root), cmp))
+    const signed char cmp_result = splay_impl(key);
+    if (cmp_result == CmpEqual)
       return {static_cast<long>(COUNT(LLINK(root))), root};
 
     // key not found - determine position it would have
-    if (cmp(key, KEY(root)))
+    if (cmp_result == CmpLess)
       return {static_cast<long>(COUNT(LLINK(root))) - 1, root}; // less than root
     return {static_cast<long>(COUNT(LLINK(root))) + 1, root};
     // greater than root

@@ -180,7 +180,7 @@ namespace Aleph
 
     /// Initialize a treap with random `seed` and comparison criteria
     /// `__cmp`
-    Gen_Treap(const unsigned long seed, Compare & __cmp = Compare())
+    Gen_Treap(const unsigned long seed, const Compare & __cmp = Compare())
       : head_ptr(&head), tree_root(RLINK(head_ptr)), r(nullptr), cmp(__cmp)
     {
       init(seed);
@@ -188,7 +188,7 @@ namespace Aleph
 
     /// Initialize a treap with random seed from system time and
     /// comparison criteria `cmp`
-    Gen_Treap(Compare cmp = Compare())
+    Gen_Treap(const Compare & cmp = Compare())
       : Gen_Treap(time(nullptr), cmp)
     { /* empty */
     }
@@ -223,8 +223,10 @@ namespace Aleph
       if (root == Node::NullPtr)
         return p;
 
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
       Node *insertion_result = nullptr;
-      if (cmp(KEY(p), KEY(root)))
+      if (cmp(pk, rk))
         {
           insertion_result = insert(LLINK(root), p);
           if (insertion_result == Node::NullPtr)
@@ -235,7 +237,7 @@ namespace Aleph
             return rotate_to_right(root);
           return root;
         }
-      if (cmp(KEY(root), KEY(p)))
+      if (cmp(rk, pk))
         {
           insertion_result = insert(RLINK(root), p);
           if (insertion_result == Node::NullPtr)
@@ -255,7 +257,9 @@ namespace Aleph
       if (root == Node::NullPtr)
         return root = p;
 
-      if (cmp(KEY(p), KEY(root)))
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      if (cmp(pk, rk))
         {
           Node *ret = search_or_insert(LLINK(root), p);
           if (ret == p) // p was inserted?
@@ -264,7 +268,7 @@ namespace Aleph
 
           return ret;
         }
-      if (cmp(KEY(root), KEY(p)))
+      if (cmp(rk, pk))
         {
           Node *ret = search_or_insert(RLINK(root), p);
           if (ret == p) // p was inserted?
@@ -282,7 +286,9 @@ namespace Aleph
       if (root == Node::NullPtr)
         return p;
 
-      if (cmp(KEY(p), KEY(root)))
+      const Key & pk = KEY(p);
+      const Key & rk = KEY(root);
+      if (cmp(pk, rk))
         {
           if (Node *result = LLINK(root) = insert_dup(LLINK(root), p); PRIO(result) < PRIO(root))
             return rotate_to_right(root);
@@ -370,18 +376,21 @@ namespace Aleph
       Node *p = tree_root;
 
       while (p != Node::NullPtr) // descender buscando la clave
-        if (cmp(key, KEY(p)))
-          {
-            pp = &LLINK(p);
-            p = LLINK(p);
-          }
-        else if (cmp(KEY(p), key))
-          {
-            pp = &RLINK(p);
-            p = RLINK(p);
-          }
-        else
-          break; //found!
+        {
+          const Key & pk = KEY(p);
+          if (cmp(key, pk))
+            {
+              pp = &LLINK(p);
+              p = LLINK(p);
+            }
+          else if (cmp(pk, key))
+            {
+              pp = &RLINK(p);
+              p = RLINK(p);
+            }
+          else
+            break; //found!
+        }
 
       if (p == Node::NullPtr)
         return nullptr; // Key was not found
@@ -429,9 +438,10 @@ namespace Aleph
       if (root == Node::NullPtr)
         return Node::NullPtr;
 
-      if (cmp(key, KEY(root)))
+      const Key & rk = KEY(root);
+      if (cmp(key, rk))
         return remove(LLINK(root), key);
-      if (cmp(KEY(root), key))
+      if (cmp(rk, key))
         return remove(RLINK(root), key);
 
       Node *ret = root; // key found!

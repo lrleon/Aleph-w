@@ -461,14 +461,14 @@ namespace Aleph
     }
 
     /// Instantiate a dynamic set
-    DynSetTree(Compare cmp = Compare())
+    DynSetTree(const Compare & cmp = Compare())
       : tree(cmp), num_nodes(0)
     {
       // empty
     }
 
     DynSetTree(const char *base_addr, const size_t & sz,
-               Compare cmp = Compare())
+               const Compare & cmp = Compare())
       : tree(cmp), num_nodes(0)
     {
       // empty

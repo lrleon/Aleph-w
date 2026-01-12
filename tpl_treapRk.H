@@ -260,7 +260,9 @@ private:
         return true;
       }
 
-    if (cmp(KEY(p), KEY(root)))
+    const Key & pk = KEY(p);
+    const Key & rk = KEY(root);
+    if (cmp(pk, rk))
       {
         if (insert(LLINK(root), p))
           {
@@ -271,7 +273,7 @@ private:
             return true;
           }
       }
-    else if (cmp(KEY(root), KEY(p)))
+    else if (cmp(rk, pk))
       {
         if (insert(RLINK(root), p))
           {
@@ -293,7 +295,9 @@ private:
     if (root == Node::NullPtr)
       return root = p;
 
-    if (cmp(KEY(p), KEY(root)))
+    const Key & pk = KEY(p);
+    const Key & rk = KEY(root);
+    if (cmp(pk, rk))
       {
         Node * ret = search_or_insert(LLINK(root), p);
         if (ret == p) // insertion done?
@@ -308,7 +312,7 @@ private:
 
         return ret;
       }
-    if (cmp(KEY(root), KEY(p)))
+    if (cmp(rk, pk))
       {
         Node * ret = search_or_insert(RLINK(root), p);
         if (ret == p) // insertion done?
@@ -335,7 +339,9 @@ private:
     if (root == Node::NullPtr)
       return root = p;
 
-    if (cmp(KEY(p), KEY(root)))
+    const Key & pk = KEY(p);
+    const Key & rk = KEY(root);
+    if (cmp(pk, rk))
       {
         insert_dup(LLINK(root), p);
         ++COUNT(root);
@@ -440,9 +446,10 @@ private:
       return Node::NullPtr;
 
     Node * ret_val;
-    if (cmp(key, KEY(root) ))
+    const Key & rk = KEY(root);
+    if (cmp(key, rk))
       ret_val = remove(LLINK(root), key);
-    else if (cmp(KEY(root), key))
+    else if (cmp(rk, key))
       ret_val = remove(RLINK(root), key);
     else
       {
