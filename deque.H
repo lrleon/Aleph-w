@@ -30,7 +30,7 @@
  *  Provides deque class supporting efficient insertion and removal
  *  at both ends, implemented using Aleph's Vector.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

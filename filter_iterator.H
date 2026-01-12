@@ -31,7 +31,7 @@
  *  iterator and filters elements based on a user-defined predicate.
  *  Only elements that satisfy the filter predicate are visible during iteration.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -109,7 +109,7 @@ namespace Aleph
  *        internally to handle boundary conditions gracefully. Other exceptions
  *        from the filter functor will propagate to the caller.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 template <class Container, class It, class Show_Item>

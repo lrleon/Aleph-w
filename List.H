@@ -52,7 +52,7 @@ namespace Aleph
       La implantación está fundamentada sobre la clase Aleph Dlist<T>.
 
       @see Dlist<T>
-      @ingroup stl
+      @ingroup STL
    */
     template <class T>
 class list
@@ -105,7 +105,7 @@ public:
   /** Iterador sobre List<T>
 
       
-      @ingroup stl
+      @ingroup STL
    */
   class iterator
   {

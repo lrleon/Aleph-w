@@ -36,7 +36,7 @@
  *  - Simpler than deterministic balancing
  *
  *  @see tpl_treap.H Alternative randomized BST
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -139,7 +139,7 @@ namespace Aleph
       @see Treap Alternative randomized tree (often faster by constant factor).
       @see TreapRk Treap with rank support.
       @see DynSetRandTree High-level wrapper with automatic memory management.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <template <typename> class NodeType, typename Key, class Compare>
   class Gen_Rand_Tree
@@ -463,7 +463,7 @@ namespace Aleph
         to the node containing it. If `key` is not in the tree, then
         first the first value is -1.
 
-        @ingroup Arboles
+        @ingroup Trees
     */
     std::pair<long, Node *> position(const Key & key) const noexcept
     {
@@ -728,7 +728,7 @@ namespace Aleph
 
         The visit order is inorder.
 
-        @ingroup Arboles
+        @ingroup Trees
     */
     struct Iterator : public BinNodeInfixIterator<Node>
     {
@@ -768,7 +768,7 @@ namespace Aleph
 
       @see Treap Treap_Vtl Treap_Rk
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   struct Rand_Tree : public Gen_Rand_Tree<RandNode, Key, Compare>
@@ -805,7 +805,7 @@ namespace Aleph
 
       @see Treap Treap_Vtl Treap_Rk
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   struct Rand_Tree_Vtl : public Gen_Rand_Tree<RandNodeVtl, Key, Compare>

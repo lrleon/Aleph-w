@@ -31,7 +31,7 @@
  *  struct timespec. Includes conversion macros for milliseconds,
  *  microseconds, and nanoseconds.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

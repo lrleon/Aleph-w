@@ -31,7 +31,7 @@
  *  insertion operators. Useful for constructing error messages
  *  and log entries with mixed types.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

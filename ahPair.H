@@ -55,7 +55,7 @@
  *  Provides pair-related utilities compatible with std::pair.
  *  Based on SGI STL implementation with Aleph-w extensions.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

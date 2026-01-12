@@ -47,7 +47,7 @@
  *
  * @see DynDlist
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include "tpl_dynDlist.H"

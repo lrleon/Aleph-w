@@ -38,7 +38,7 @@
  *  ## Complexity: O(log n) expected for all operations
  *
  *  @see tpl_dynSkipList.H Dynamic variant
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -81,7 +81,7 @@ namespace Aleph
    *
    *  @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees"
    *       Communications of the ACM, 1990.
-   *  @ingroup Secuencias
+   *  @ingroup Sequences
    */
   template <class Key, class Type>
   class SkipList

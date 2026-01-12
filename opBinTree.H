@@ -47,7 +47,7 @@ namespace Aleph {
  *  Space complexity: O(n²)
  *
  *  @see Knuth, D.E. "Optimum Binary Search Trees" Acta Informatica 1 (1971)
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -178,7 +178,7 @@ template <class Node, typename Key>
  *  @note Keys must be in sorted order for the resulting tree to be a valid BST.
  *  @note The caller is responsible for deleting the returned tree.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 template <class Node, typename Key>

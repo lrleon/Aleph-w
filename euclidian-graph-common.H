@@ -30,7 +30,7 @@
  *  Provides point structures and distance calculations for graphs
  *  embedded in Euclidean space with 2D/3D coordinates.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

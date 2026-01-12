@@ -26,7 +26,7 @@
 
 /** @file tpl_snode_nc.H
  *  @brief Typed singly linked node (no check).
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

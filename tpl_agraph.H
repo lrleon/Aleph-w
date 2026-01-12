@@ -49,7 +49,7 @@ namespace Aleph
 
   /** Node of `Array_Graph`
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <typename Node_Info = Empty_Class>
   class Graph_Anode
@@ -603,7 +603,7 @@ namespace Aleph
       the Graph_Aarc class, either by attribute inclusion,
       by derivation, or by a combination of both.
       @see Graph_Anode Graph_Aarc Digraph
-      @ingroup Grafos
+      @ingroup Graphs
       @see Array_Graph
    */
   template <typename __Graph_Node = Graph_Anode<int>,

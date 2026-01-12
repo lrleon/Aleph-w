@@ -11,7 +11,7 @@
       imprica que la operación retorno true para todos los
       elementos. false de lo contrarion
 
-    @addtogroup Funcional
+    @addtogroup Functional
  */
 
 /** \fn 
@@ -20,5 +20,5 @@
 
     \param
 
-    @ingroup Funcional
+    @ingroup Functional
  */

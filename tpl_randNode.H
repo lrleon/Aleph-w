@@ -26,7 +26,7 @@
 
 /** @file tpl_randNode.H
  *  @brief Randomized tree node.
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

@@ -85,7 +85,7 @@
  *  @see random_graph.H For random graph generation
  *  @see tpl_graph.H Graph data structures
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -145,7 +145,7 @@ namespace Aleph {
    *  @param output Output stream for the graphpic specification
    *
    *  @see Filter_Iterator For arc filtering
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Write_Node, class Write_Arc,
@@ -227,7 +227,7 @@ namespace Aleph {
    *  @param nodesep Separation between nodes in the same rank
    *
    *  @see Filter_Iterator For node/arc filtering
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Write_Node,
@@ -347,7 +347,7 @@ namespace Aleph {
    *  @param rankdir Layout direction: "TB", "BT", "LR", "RL"
    *
    *  @see Filter_Iterator For filtering
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Node_Attr,
@@ -432,7 +432,7 @@ namespace Aleph {
    *  @param rankdir Layout direction (default: "LR" for left-to-right)
    *
    *  @see generate_graphviz() For automatic graph/digraph detection
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Node_Attr,
@@ -520,7 +520,7 @@ namespace Aleph {
    *  @return Number of topological ranks
    *
    *  @see Q_Topological_Sort For rank computation
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Node_Attr,
@@ -656,7 +656,7 @@ namespace Aleph {
    *  @see Dft_Node_Attr Default node attribute generator
    *  @see Dft_Arc_Attr Default arc attribute generator
    *
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Node_Attr = Dft_Node_Attr<GT>,
@@ -728,7 +728,7 @@ namespace Aleph {
    *  @tparam SN Node filter
    *
    *  @see generate_graphviz() The underlying function
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT, 
             class Write_Node, 
@@ -778,7 +778,7 @@ namespace Aleph {
    *  @param ydist Vertical distance between levels
    *  @param out Output stream for graphpic specification
    *
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT,
             class Write_Node, class Write_Arc,
@@ -834,7 +834,7 @@ namespace Aleph {
    *  @param ydist Vertical distance between levels
    *  @param out Output stream for graphpic specification
    *
-   *  @ingroup Grafos
+   *  @ingroup Graphs
    */
   template <class GT, 
             class Write_Node, class Write_Arc,

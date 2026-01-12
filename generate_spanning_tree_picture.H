@@ -49,7 +49,7 @@
  *  @see generate_graph.H For underlying graph visualization
  *  @see tpl_spanning_tree.H For spanning tree algorithms
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -110,7 +110,7 @@ struct Shade_Span_Arc
  *
  *  @see generate_cross_graph() For the underlying layout function
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <typename GT, class Write_Node, class Write_Arc, class SA>
 void generate_cross_spanning_tree(GT &            g, 
@@ -156,7 +156,7 @@ void generate_cross_spanning_tree(GT &            g,
  *
  *  @see generate_net_graph() For the underlying layout function
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <typename GT, class Write_Node, class Write_Arc, class SA>
 void generate_net_spanning_tree(GT &            g, 

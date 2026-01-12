@@ -52,7 +52,7 @@
  *
  *  @see line.H Line equation class
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -87,7 +87,7 @@
  * | sigma | Standard deviation of errors |
  * | mse | Mean squared error |
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  */
 struct LFit
 {

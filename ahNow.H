@@ -31,7 +31,7 @@
  *  std::chrono::high_resolution_clock. Useful for benchmarking
  *  and performance profiling with nanosecond resolution.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -66,7 +66,7 @@ namespace Aleph
    *  std::cout << "Time elapsed: " << Now::elapsed(t) << "ms\n";
    *  \endcode
    *
-   *  @ingroup utils
+   *  @ingroup Utilities
    *  @author Alejandro J. Mujica
    */
   class Now

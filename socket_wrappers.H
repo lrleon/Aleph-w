@@ -26,7 +26,7 @@
 
 /** @file socket_wrappers.H
  *  @brief Socket wrapper utilities.
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

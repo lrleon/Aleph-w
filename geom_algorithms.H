@@ -87,7 +87,7 @@
  *  @see polygon.H Geometric primitives
  *  @see Point, Segment, Polygon, Triangle
  *
- *  @ingroup Geometria
+ *  @ingroup Geometry
  *  @author Leandro Rabindranath León
  *  @author Alejandro J. Mujica
  */
@@ -156,7 +156,7 @@ namespace Aleph
  * @see Triangle Output triangle type
  * @see Polygon Input polygon type
  *
- * @ingroup Geometria
+ * @ingroup Geometry
  * @author Alejandro J. Mujica
  */
 class CuttingEarsTriangulation
@@ -335,7 +335,7 @@ public:
  * @see GiftWrappingConvexHull O(nh) algorithm
  * @see QuickHull O(n log n) average algorithm
  *
- * @ingroup Geometria
+ * @ingroup Geometry
  * @author Alejandro J. Mujica
  */
 class BruteForceConvexHull
@@ -469,7 +469,7 @@ public:
  *
  * @see QuickHull For general-purpose convex hull
  *
- * @ingroup Geometria
+ * @ingroup Geometry
  * @author Alejandro J. Mujica
  */
 class GiftWrappingConvexHull
@@ -574,7 +574,7 @@ public:
  * - Large point sets
  * - When average-case performance matters more than worst-case
  *
- * @ingroup Geometria
+ * @ingroup Geometry
  * @author Alejandro J. Mujica
  */
 class QuickHull

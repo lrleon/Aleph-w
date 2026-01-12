@@ -61,7 +61,7 @@ template <typename T> class Snodenc; // forward declaration
   \~English
     Link of a single linked list non-circular and without header node.
 
-     @ingroup Sequencies
+     @ingroup Sequences
      
      @note STRICT ALIASING DESIGN NOTE:
      
@@ -88,7 +88,7 @@ template <typename T> class Snodenc; // forward declaration
   \~Spanish
     Enlace a una lista simple no circular y sin nodo cabecera
 
-    @ingroup Secuencias
+    @ingroup Sequences
    */
 class Slinknc
 {
@@ -195,12 +195,12 @@ public:
      \~English
      Iterator on single links
 
-     \ingroup Sequencies
+     \ingroup Sequences
 
      \~Spanish
      Iterador sobre enlaces simples
 
-     \ingroup Secuencias
+     \ingroup Sequences
    */
   class Iterator
   {
@@ -310,12 +310,12 @@ public:
      Node belonging to a single non-circular linked list without header
      node.
 
-     \ingroup Sequencies
+     \ingroup Sequences
 
      \~Spanish
      Nodo perteneciente a una lista simple no circular sin nodo cabecera.
 
-     \ingroup Secuencias
+     \ingroup Sequences
   */
     template <typename T>
 class Snodenc : public Slinknc
@@ -470,7 +470,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
        @see Slinknc Snodenc DynList
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
 
        \~Spanish
 
@@ -495,7 +495,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
        @see Slinknc Snodenc DynList
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
     */
 class HTList
 {
@@ -1061,12 +1061,12 @@ public:
     \~English
       Iterator on HTList.
 
-      \ingroup Sequencies
+      \ingroup Sequences
 
     \~Spanish
       Iterador sobre HTList
 
-      \ingroup Secuencias
+      \ingroup Sequences
    */
   class Iterator
   {
@@ -1697,7 +1697,7 @@ public:
 
   /** Iterator on the items of list
 
-      \ingroup Secuencias
+      \ingroup Sequences
    */
   class Iterator : public HTList::Iterator
   {

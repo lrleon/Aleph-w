@@ -77,7 +77,7 @@
  *  @see Kruskal.H Alternative MST algorithm (better for sparse graphs)
  *  @see tpl_graph_utils.H For graph traversal utilities
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -199,7 +199,7 @@ namespace Aleph
       -# SA: filtro de arcos
 
       @see Kruskal_Min_Spanning_Tree
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT,
             class Distance = Dft_Dist<GT>,

@@ -31,7 +31,7 @@
  *           and is NOT thread-safe. Do not use these functions concurrently
  *           from multiple threads.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

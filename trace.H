@@ -66,7 +66,7 @@
  * @note For production code, consider using a proper logging framework.
  * 
  * @author Leandro Rabindranath León *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 
@@ -81,7 +81,7 @@
  * 
  * Prints an "ENTER" message on construction and "LEAVE" on destruction,
  * providing automatic function tracing without explicit logging calls. *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 class Trace
@@ -113,7 +113,7 @@ public:
  * 
  * Creates a uniquely-named Trace object that will print entry/exit
  * messages for the current scope. *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 # define TRACE(name) Trace __trace__##__LINE__(__FILE__, __LINE__, name)

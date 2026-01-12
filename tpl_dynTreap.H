@@ -30,7 +30,7 @@
  *  Compatibility wrapper for treap.
  *
  *  @see tpl_treap.H Main treap implementation
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

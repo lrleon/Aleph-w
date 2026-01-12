@@ -54,7 +54,7 @@
  *  Aleph::swap(a, b);  // Uses optimized primitive swap
  *  ```
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

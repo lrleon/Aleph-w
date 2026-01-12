@@ -35,7 +35,7 @@
     separated pairs of node IDs). Also provides DOT format export with
     optional styling based on node attributes.
 
-    @ingroup Grafos
+    @ingroup Graphs
  *  @author Leandro Rabindranath León
 */
 
@@ -69,7 +69,7 @@ using Digrafo = List_Digraph<Nodo, Arco>;
     @param separators String containing separator characters.
     @param words Output list to receive the tokens.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 inline void split(const std::string & text,
                   const std::string & separators,
@@ -89,7 +89,7 @@ inline void split(const std::string & text,
 }
 
 /** @brief Functor to compare nodes by their ID.
-    @ingroup Grafos
+    @ingroup Graphs
 */
 struct Equal_Node
 {
@@ -116,7 +116,7 @@ struct Equal_Node
     @note This performs a linear search. For large graphs, consider
           using a hash index.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 inline Digrafo::Node * search_node(Digrafo & g, const std::string & s)
 {
@@ -155,7 +155,7 @@ constexpr size_t MIN_NODE_FIELDS = 7;
     @param nodes_input Input stream for node data.
     @param arcs_input Input stream for arc data.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 inline void load_digraph(Digrafo & g,
                          std::istream & nodes_input,
@@ -194,7 +194,7 @@ inline void load_digraph(Digrafo & g,
     @note Consider using a configuration struct instead of global variables
           in new code.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 /// @{
 
@@ -234,7 +234,7 @@ inline bool vertical = true;
     @param g The digraph to export.
     @param output Output stream for the DOT data.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 inline void generate_dot_file(Digrafo & g, std::ostream & output)
 {

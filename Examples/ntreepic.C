@@ -47,7 +47,7 @@
  * @see btreepic.C For binary tree visualization
  * @see Tree_Node N-ary tree node structure
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 # include <iostream>

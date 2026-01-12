@@ -30,7 +30,7 @@
  *  Provides DEFINE_ITERATOR macro for creating iterator classes
  *  that inherit from base iterators and define standard methods.
  *
- *  @ingroup Iteradores
+ *  @ingroup Iterators
  *  @author Leandro Rabindranath León
  */
 

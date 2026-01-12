@@ -37,7 +37,7 @@
  *
  *  @see tpl_avl.H Base AVL tree
  *  @see tpl_rbRk.H RB tree with rank
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -67,7 +67,7 @@ namespace Aleph {
     for selecting by position and finding the position of a key.
 
     @see Avl_Tree_Rk Avl_Tree_Rk_Vtl
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <template <typename> class NodeType, typename Key, class Compare>
 class Gen_Avl_Tree_Rk
@@ -1294,7 +1294,7 @@ public:
 
       The visit order is inorder.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   class Iterator : public BinTreeXt_Iterator<Gen_Avl_Tree_Rk, Node, Key, Compare>
   {
@@ -1315,7 +1315,7 @@ public:
     @param Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree_Rk_Vtl
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Avl_Tree_Rk : public Gen_Avl_Tree_Rk<AvlNodeRk, Key, Compare>
@@ -1332,7 +1332,7 @@ struct Avl_Tree_Rk : public Gen_Avl_Tree_Rk<AvlNodeRk, Key, Compare>
     @param Compare key comparison class; by default, this is the
     less-than relational operator for type Key.
     @see Avl_Tree_Rk
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Avl_Tree_Rk_Vtl : public Gen_Avl_Tree_Rk<AvlNodeRkVtl, Key, Compare>

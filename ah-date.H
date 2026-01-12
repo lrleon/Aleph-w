@@ -33,7 +33,7 @@
  *  Aleph-w error handling in order to surface invalid inputs early and to
  *  provide a consistent interface for common conversions involving @c time_t.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

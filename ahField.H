@@ -31,7 +31,7 @@
  *  minimum, maximum, and invalid value sentinels. Useful for
  *  domain-specific numeric constraints.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

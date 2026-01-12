@@ -30,7 +30,7 @@
  *  Binary node augmented with subtree size for order statistics.
  *
  *  @see tpl_binNodeAux.H Base node
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -63,14 +63,14 @@ public:
 
     \class BinNodeXt
 
-    @ingroup Arboles
+    @ingroup Trees
 */
 DECLARE_BINNODE_SENTINEL(BinNodeXt, 255, BinNodeXt_Data);
 
   /** Return the number of nodes of the tree fron `p` is root.
 
       @param p pointer to root
-      @ingroup Arboles
+      @ingroup Trees
    */
 template <class Node> inline auto & COUNT(Node * p) noexcept
 {
@@ -102,7 +102,7 @@ Node * __select_rec(Node * r, const size_t i) noexcept
       of overall  tree
       @see select()
 
-      @ingroup Arboles
+      @ingroup Trees
   */
     template <class Node> inline
 Node * select_rec(Node * r, const size_t i)
@@ -120,7 +120,7 @@ Node * select_rec(Node * r, const size_t i)
         @return a pointer to the node at the inorder position pos
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select_ne(Node * r, const size_t pos) noexcept
@@ -152,7 +152,7 @@ Node * select_ne(Node * r, const size_t pos) noexcept
         of nodes.
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select(Node * r, const size_t pos)
@@ -173,7 +173,7 @@ Node * select(Node * r, const size_t pos)
         of nodes.
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select(Node * root, const size_t pos, Node *& parent)
@@ -207,7 +207,7 @@ Node * select(Node * root, const size_t pos, Node *& parent)
     @param[in] cmp comparison criteria
     @return inorder position of `key`
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node, class Compare> inline
 long inorder_position(Node * r,
@@ -283,7 +283,7 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
         @param[in] cmp comparison criteria
         @return the positions of `key` in the tree
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
@@ -341,7 +341,7 @@ long find_position(Node * r, const typename Node::key_type & key,
         @return if `p->get_key()` is not in the tree, then `p` is
         returned (is was inserted). Otherwise it returns `Node::NullPtr`
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
@@ -386,7 +386,7 @@ Node * insert_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
     @param[in] cmp comparison criteria
     @return the pointer p
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node, class Compare> inline
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
@@ -509,7 +509,7 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
     @return `true` if tree was split; that is if `key` is not in the
     tree. Otherwise, if `key` is in the tree, `false` is returned
 
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <class Node, class Compare> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
@@ -569,7 +569,7 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
     @param[out] r tree with keys greater than `key`
     @param[in] cmp comparison criteria
 
-    @ingroup Arboles
+    @ingroup Trees
 */
  template <class Node, class Compare> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
@@ -602,7 +602,7 @@ void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
         `p`, since this was inserted and has become the root. Otherwise,
         it returns `Node::NullPtr`
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
@@ -643,7 +643,7 @@ Node * insert_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
         @param[in] cmp comparison criteria
         @return pointer to the inserted node `p` that has became root
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_dup_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
@@ -711,7 +711,7 @@ void __split_pos_rec(Node * r, size_t i, Node *& ts, Node *& tg) noexcept
         @param[out] ts tree where the rank of keys \f$[0, i)\f$ will be put
         @param[out] tg tree where the rank of keys \f$[i, n]\f$ will be put
 
-        @ingroup Arboles
+        @ingroup Trees
     */
 template <class Node> inline
 void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
@@ -742,7 +742,7 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
         @param[in] p node to insert
         @param[in] pos position to insert the node
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node>  inline
 void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
@@ -763,7 +763,7 @@ void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
         @param[in] ts extended binary search tree with keys lesser than `tg`
         @param[in] tg extended binary search tree with keys greater than `tg`
 
-        @ingroup Arboles
+        @ingroup Trees
         @see remove_by_key_xt()
      */
     template <class Node> inline
@@ -802,7 +802,7 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
     returned. Otherwise, the function returns `Node::NullPtr`
 
     @see join_exclusive_xt()
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
@@ -881,7 +881,7 @@ Node * __remove_by_pos_xt(Node *& root, size_t pos) noexcept
     @return pointer to the removed node
     \throw out_of_range if `pos` is greater than the number of nodes of tree
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node> inline
 Node * remove_by_pos_xt(Node *& root, size_t pos)
@@ -893,7 +893,7 @@ Node * remove_by_pos_xt(Node *& root, size_t pos)
 
 /** Return `true` if `root` is a valid extended binary tree.
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node> inline
 bool check_rank_tree(Node * root) noexcept
@@ -911,7 +911,7 @@ bool check_rank_tree(Node * root) noexcept
 
 	 @param[in] p root to rotate
 	 @return pointer to the new root
-         @ingroup Arboles
+         @ingroup Trees
      */
     template <class Node> inline
 Node * rotate_to_right_xt(Node* p) noexcept
@@ -932,7 +932,7 @@ Node * rotate_to_right_xt(Node* p) noexcept
 
          @param[in] p root to rotate.
          @return pointer to the new root.
-         @ingroup Arboles
+         @ingroup Trees
      */
     template <class Node> inline
 Node * rotate_to_left_xt(Node* p) noexcept
@@ -1023,7 +1023,7 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p,
     @tparam Key the key type
     @tparam Compare comparison functor
 
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <class TreeType, class Node, typename Key, class Compare>
 class BinTreeXt_Iterator

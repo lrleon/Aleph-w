@@ -103,7 +103,7 @@ namespace Aleph
         \note A node has three additional attributes: the control bits,
         the counter and the cookie.
 
-        @ingroup Grafos
+        @ingroup Graphs
         @see List_Graph List_Digraph Graph_Arc Bit_Fields
     */
   template <typename __Node_Info = Empty_Class>
@@ -205,7 +205,7 @@ namespace Aleph
         \note An arc has three additional attributes: the control bits,
         the counter and the cookie.
 
-        @ingroup Grafos
+        @ingroup Graphs
         @see List_Graph List_Digraph Graph_Node Bit_Fields
     */
   template <typename _Arc_Info = Empty_Class>
@@ -410,7 +410,7 @@ namespace Aleph
         graph.
 
         @see Graph_Node Graph_Arc Array_Graph List_SGraph
-        @ingroup Grafos
+        @ingroup Graphs
         @see List_Digraph Path
     */
   template <typename _Graph_Node = Graph_Node<unsigned long>,
@@ -759,7 +759,7 @@ namespace Aleph
 
           This is an iterator on all the nodes of graph.
 
-          @ingroup Grafos
+          @ingroup Graphs
       */
     struct Node_Iterator : public GTNodeIterator<List_Graph>
     {
@@ -793,7 +793,7 @@ namespace Aleph
 
           \see In_Iterator Out_Iterator
 
-          @ingroup Grafos
+          @ingroup Graphs
       */
 
     class Node_Arc_Iterator : public Dlink::Iterator
@@ -963,7 +963,7 @@ namespace Aleph
         The default filtering action is none: that is, all the arcs would
         be shown.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   struct Dft_Show_Arc
@@ -978,7 +978,7 @@ namespace Aleph
     }
   };
 
-  /** \addtogroup Grafos
+  /** \addtogroup Graphs
         @{
         Filtered iterators
         ==================
@@ -1079,7 +1079,7 @@ namespace Aleph
 
         So, this iterator will only show those arcs satisfying the filter.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
   struct Node_Arc_Iterator :
@@ -1126,7 +1126,7 @@ namespace Aleph
         bool operator () (GT::Arc * arc) { /// the filter condition }
         };
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
   struct Arc_Iterator :
@@ -1155,7 +1155,7 @@ namespace Aleph
 
         The condition is always `true`. So. all the node would be seen.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   struct Dft_Show_Node
@@ -1168,7 +1168,7 @@ namespace Aleph
 
   /** Filtered iterator on the nodes of a graph.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Show_Node = Dft_Show_Node<GT>>
   class Node_Iterator :
@@ -1202,7 +1202,7 @@ namespace Aleph
         @param[in] operation to be executed on each seen node
         @param[in] sn a node filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SN = Dft_Show_Node<GT>>
   void for_each_node(const GT & g,
@@ -1220,7 +1220,7 @@ namespace Aleph
         @param[in] operation to be executed on each seen arc
         @param[in] sa an arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   void for_each_arc(const GT & g,
@@ -1239,7 +1239,7 @@ namespace Aleph
         @param[in] operation to be executed on each seen arc
         @param[in] sa an arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   void for_each_arc(const GT & g,
@@ -1259,7 +1259,7 @@ namespace Aleph
         @param[in] sn node filter
         \result `true` if all the nodes satisfy the condition; `false` otherwise
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SN = Dft_Show_Node<GT>>
   bool forall_node(const GT & g,
@@ -1280,7 +1280,7 @@ namespace Aleph
         @param[in] sa arc filter
         \result `true` if all the arcs satisfy the condition; `false` otherwise
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   bool forall_arc(const GT & g,
@@ -1301,7 +1301,7 @@ namespace Aleph
         @param[in] sa arc filter
         \result `true` if all the arcs satisfy the condition; `false` otherwise
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   bool forall_arc(typename GT::Node *p,
@@ -1322,7 +1322,7 @@ namespace Aleph
         \result a `Container<T>` object with all the nodes mapped through the
         transformation
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T,
             template<typename> class Container = DynList,
@@ -1346,7 +1346,7 @@ namespace Aleph
         @param[in] sa arc filter
         \result a `Container<T>` object with all the arcs mapped through the
         transformation
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T,
             template<typename> class Container = DynList,
@@ -1371,7 +1371,7 @@ namespace Aleph
         @param[in] sa node filter
         \result a  `Container<T>` object with all the nodes arcs mapped through the
         transformation
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T,
             template<typename> class Container = DynList,
@@ -1397,7 +1397,7 @@ namespace Aleph
         @param[in] sn node filter
         \result the final folded result
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T, class SN = Dft_Show_Node<GT>>
   T foldl_nodes(GT & g, const T & init,
@@ -1419,7 +1419,7 @@ namespace Aleph
         @param[in] operation folding operation on the arc
         @param[in] sa arc filter
         \result the final folded result
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
   T foldl_arcs(GT & g, const T & init,
@@ -1442,7 +1442,7 @@ namespace Aleph
         @param[in] operation folding operation on the arc
         @param[in] sa arc filter
         \result the final folded result
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, typename T, class SA = Dft_Show_Arc<GT>>
   T foldl_arcs(GT & g, typename GT::Node *p,
@@ -1475,7 +1475,7 @@ namespace Aleph
       the Graph_Arc class, either by attribute inclusion,
       by derivation, or by a combination of both.
       @see Graph_Node Graph_Arc Digraph
-      @ingroup Grafos
+      @ingroup Graphs
       @see List_Graph
    */
   template <typename __Graph_Node = Graph_Node<int>,
@@ -1486,7 +1486,7 @@ namespace Aleph
   /** Alias used for encapsulating a pair of arc and node (related between
         them).
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   using ArcPair = std::tuple<typename GT::Arc *, typename GT::Node *>;
@@ -1496,7 +1496,7 @@ namespace Aleph
         This filter is used by the directed graphs implemented with
         `List_Graph`.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   class __Out_Filt
@@ -1526,7 +1526,7 @@ namespace Aleph
         This filter is used by the directed graphs implemented with
         `List_Graph`.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   class __In_Filt
@@ -1553,7 +1553,7 @@ namespace Aleph
 
   /** Filtered iterator on directed graphs.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Filter>
   class Digraph_Iterator
@@ -1671,7 +1671,7 @@ namespace Aleph
 
   /** Basic iterator for outcoming arcs of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   using _Out_Iterator = Digraph_Iterator<GT, __Out_Filt<GT>>;
@@ -1679,7 +1679,7 @@ namespace Aleph
 
   /** Basic iterator for incoming arcs of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   using _In_Iterator = Digraph_Iterator<GT, __In_Filt<GT>>;
@@ -1691,7 +1691,7 @@ namespace Aleph
 
       @tparam GT The graph type
       @tparam Show_Arc Arc filter predicate (default shows all arcs)
-      @ingroup Grafos
+      @ingroup Graphs
     */
   template <class GT, class Show_Arc = Dft_Show_Arc<GT>>
   class Out_Iterator : public Digraph_Iterator<GT, __Out_Filt<GT>>
@@ -1736,7 +1736,7 @@ namespace Aleph
 
       @tparam GT The graph type
       @tparam SA Arc filter predicate (default shows all arcs)
-      @ingroup Grafos
+      @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class In_Iterator : public Digraph_Iterator<GT, __In_Filt<GT>>
@@ -1781,7 +1781,7 @@ namespace Aleph
         \result A `DynList<typename GT::Node*>` with the pointer to the
         outcoming nodes
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Node *> out_nodes(typename GT::Node *p, SA sa = SA())
@@ -1798,7 +1798,7 @@ namespace Aleph
         @param[in] sa arc filter
         \result A `DynList<typename GT::Node*>` with the pointer to the
         incoming nodes
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Node *> in_nodes(typename GT::Node *p, SA sa = SA())
@@ -1814,7 +1814,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] sa arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> out_arcs(typename GT::Node *p, SA sa = SA())
@@ -1830,7 +1830,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] sa arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> in_arcs(typename GT::Node *p, SA sa = SA())
@@ -1845,7 +1845,7 @@ namespace Aleph
 
         @param[in] p node pointer
         @param[in] sa arc filter
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<typename GT::Arc *> arcs(typename GT::Node *p, SA sa = SA())
@@ -1860,7 +1860,7 @@ namespace Aleph
 
         @param[in] p node pointer
         @param[in] sa arc filter
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<ArcPair<GT>> in_pairs(typename GT::Node *p, SA sa = SA())
@@ -1879,7 +1879,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] sa arc filter
         \result a `DynList<ArcPair<GT>>` containing the outcoming pairs
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   DynList<ArcPair<GT>> out_pairs(typename GT::Node *p, SA sa = SA())
@@ -1900,7 +1900,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] sa arc filter
         \result the incoming degree
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   size_t in_degree(typename GT::Node *p, SA sa = SA())
@@ -1928,7 +1928,7 @@ namespace Aleph
         @param[in] sa arc filter
         \result the outcoming degree
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   size_t out_degree(typename GT::Node *p, SA sa = SA())
@@ -1968,7 +1968,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] op operation to be performed on each arc
         \result `true` if all the arcs were traversed: `false` otherwise
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Itor, class Operation>
   inline
@@ -1995,7 +1995,7 @@ namespace Aleph
         @param[in] p node pointer
         @param[in] op operation to be performed on each arc
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Itor, class Operation>
   inline
@@ -2015,7 +2015,7 @@ namespace Aleph
         is `false`, then the traversal stops and the traverse returns
         `false`; otherwise, all the ars are traversed and it returns `true`
         \result `true` is all the arcs were traversed: `false` otherwise
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Op>
   inline
@@ -2028,7 +2028,7 @@ namespace Aleph
 
         @param[in] p node pointer
         @param[in] op operation to perform on each node
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Op>
   inline
@@ -2188,7 +2188,7 @@ namespace Aleph
         is `false`, then the traversal stops and the traverse returns
         `false`; otherwise, all the ars are traversed and it returns `true`
         \result `true` is all the arcs were traversed: `false` otherwise
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Op>
   inline
@@ -2201,7 +2201,7 @@ namespace Aleph
 
         @param[in] p node pointer
         @param[in] op operation to perform on each node
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Op>
   inline
@@ -2362,7 +2362,7 @@ namespace Aleph
         @param[in] tgt another node
         @param[in] sa filtering condition
         @return pointer to found node; \c nullptr otherwise
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
@@ -2390,7 +2390,7 @@ namespace Aleph
         @param sa arc filter
         @return a pointer to a directed linking arc if this is found; \c
         nullptr otherwise.
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
@@ -2409,7 +2409,7 @@ namespace Aleph
 
   /** Return the mapped node through the cookie of `p`
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   typename GT::Node * mapped_node(typename GT::Node *p) noexcept
@@ -2453,7 +2453,7 @@ namespace Aleph
         @param[in] cookie_map boolean indicating if the result must be
         mapped through the nodes and arcs cookies.
         @throw bad_alloc if there is no enough memory
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   inline
@@ -2462,7 +2462,7 @@ namespace Aleph
   /** Clean a graph: all its nodes and arcs are removed and freed.
 
         @param[in] g the graph
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   inline void clear_graph(GT & g) noexcept;
@@ -2475,7 +2475,7 @@ namespace Aleph
         2. `Operation`: operation functor to be performed on each node
         3. `SN`: node filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Operation, class SN = Dft_Show_Node<GT>>
   class Operate_On_Nodes
@@ -2520,7 +2520,7 @@ namespace Aleph
         2. `Operation`: operation functor to be performed on each arc
         3. `SA`: arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Operation, class SA = Dft_Show_Arc<GT>>
   class Operate_On_Arcs
@@ -2608,7 +2608,7 @@ namespace Aleph
         `insert_directed()` and `append_directed()`. You could observe
         very extraneous behaviors if you forget this separation.
 
-        @ingroup Grafos
+        @ingroup Graphs
         @see Path::Iterator
     */
   template <class GT>
@@ -3142,7 +3142,7 @@ namespace Aleph
 
     /** Iterator on nodes and arcs of a path
 
-          @ingroup Grafos
+          @ingroup Graphs
           @see Path
       */
     class Iterator : public DynDlist<Path_Desc>::Iterator
@@ -3410,7 +3410,7 @@ namespace Aleph
         an empty path otherwise
         @throw bad_alloc if there is no enough memory
         @see find_path_breadth_first()
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT>
   inline
@@ -3447,7 +3447,7 @@ namespace Aleph
 
         @param[in] p pointer to the source node
         @param[in] q pointer to the target node
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GTS, class GTT>
   void map_nodes(typename GTS::Node *p, typename GTT::Node *q) noexcept
@@ -3475,7 +3475,7 @@ namespace Aleph
         @param[in] p pointer to the source arc
         @param[in] q pointer to the target arc
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GTS, class GTT>
   void map_arcs(typename GTS::Arc *p, typename GTT::Arc *q) noexcept
@@ -3565,7 +3565,7 @@ namespace Aleph
 
   /** Default copy node functor
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GTT, class GTS>
   struct Dft_Copy_Node
@@ -3578,7 +3578,7 @@ namespace Aleph
 
   /** Default copy arc functor
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GTT, class GTS>
   struct Dft_Copy_Arc
@@ -3595,7 +3595,7 @@ namespace Aleph
         @param[in] gsrc source graph
         @param[in] cookie_map if `true` ==> a mapping will be done through
         nodes and arcs cookies
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GTT, class GTS,
             class Copy_Node = Dft_Copy_Node<GTT, GTS>,
@@ -3658,7 +3658,7 @@ namespace Aleph
         - `SN`: node filter
         - `SA`: arc filter
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class SN = Dft_Show_Node<GT>, class SA = Dft_Show_Arc<GT>>
   class Copy_Graph
@@ -3745,7 +3745,7 @@ namespace Aleph
         simple filter filters those arc and addition computes the
         accumulative distance between all the seen arcs.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
   template <class GT, class Distance>
   struct Painted_Min_Spanning_Tree

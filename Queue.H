@@ -52,7 +52,7 @@ namespace Aleph {
 	versión de queue<T> no emplea un contenedor genérico como
 	parámetro.
 
-	@ingroup stl
+	@ingroup STL
      */
     template <class T>
 class queue : public Aleph::DynListQueue<T>

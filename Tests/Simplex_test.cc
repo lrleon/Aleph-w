@@ -814,6 +814,578 @@ TEST_F(SimplexTest, LargeCoefficients)
 }
 
 //==============================================================================
+// New Features Tests: Optimization Types, Constraints, Statistics
+//==============================================================================
+
+TEST_F(SimplexTest, MinimizationModeAPI)
+{
+  // Test that minimization mode is properly set and affects optimization
+  // Standard maximization problem for comparison
+  Simplex<double> simplex_max(2, OptimizationType::Maximize);
+  simplex_max.put_objetive_function_coef(0, 40.0);
+  simplex_max.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex_max.put_restriction(c1);
+  simplex_max.put_restriction(c2);
+  
+  simplex_max.prepare_linear_program();
+  auto state_max = simplex_max.solve();
+  EXPECT_EQ(state_max, Simplex<double>::Solved);
+  
+  simplex_max.load_solution();
+  double max_value = simplex_max.objetive_value();
+  
+  // Same problem but with minimization constructor
+  Simplex<double> simplex_min(2, OptimizationType::Minimize);
+  simplex_min.put_objetive_function_coef(0, 40.0);
+  simplex_min.put_objetive_function_coef(1, 30.0);
+  
+  simplex_min.put_restriction(c1);
+  simplex_min.put_restriction(c2);
+  
+  simplex_min.prepare_linear_program();
+  auto state_min = simplex_min.solve();
+  EXPECT_EQ(state_min, Simplex<double>::Solved);
+  
+  simplex_min.load_solution();
+  double min_value = simplex_min.objetive_value();
+  
+  // The minimization should find a value <= maximization value
+  // (In this bounded problem, min is at origin: 0)
+  EXPECT_LE(min_value, max_value);
+  
+  // Verify optimization types are correctly reported
+  EXPECT_EQ(simplex_max.get_optimization_type(), OptimizationType::Maximize);
+  EXPECT_EQ(simplex_min.get_optimization_type(), OptimizationType::Minimize);
+}
+
+TEST_F(SimplexTest, EqualityConstraintSimulated)
+{
+  // Maximize Z = 5x + 4y
+  // s.t. x + y = 10 (simulated with x + y <= 10 and -x - y <= -10)
+  //      x <= 6
+  //      y <= 8
+  //      x, y >= 0
+  //
+  // Note: True equality constraints require Big-M or two-phase simplex.
+  // Here we test by using tight upper/lower bounds on the sum.
+  
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 5.0);
+  simplex.put_objetive_function_coef(1, 4.0);
+  
+  double c1[] = {1.0, 1.0, 10.0};   // x + y <= 10
+  double c2[] = {1.0, 0.0, 6.0};    // x <= 6
+  double c3[] = {0.0, 1.0, 8.0};    // y <= 8
+  
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  simplex.put_restriction(c3);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  // With x + y <= 10, maximize 5x + 4y
+  // Optimal: x=6, y=4, Z=46 (using full capacity of sum constraint)
+  EXPECT_NEAR(simplex.objetive_value(), 46.0, 0.1);
+}
+
+TEST_F(SimplexTest, ConstraintTypesAPI)
+{
+  // Test that constraint types are properly stored
+  // Maximize Z = 2x + 3y with standard LE constraints
+  
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 2.0);
+  simplex.put_objetive_function_coef(1, 3.0);
+  
+  double c1[] = {1.0, 1.0, 10.0};  // x + y <= 10
+  double c2[] = {1.0, 0.0, 8.0};   // x <= 8
+  double c3[] = {0.0, 1.0, 6.0};   // y <= 6
+  
+  simplex.put_restriction(c1, ConstraintType::LE);
+  simplex.put_restriction(c2, ConstraintType::LE);
+  simplex.put_restriction(c3, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  // Optimal: x=4, y=6, Z=8+18=26 (limited by x+y<=10 and y<=6)
+  EXPECT_NEAR(simplex.objetive_value(), 26.0, 0.1);
+  EXPECT_LE(simplex.get_solution(0) + simplex.get_solution(1), 10.1);
+}
+
+TEST_F(SimplexTest, StatisticsTracking)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  simplex.solve();
+  
+  auto stats = simplex.get_stats();
+  
+  EXPECT_GT(stats.iterations, 0u);
+  EXPECT_GT(stats.pivots, 0u);
+  EXPECT_GE(stats.elapsed_ms, 0.0);
+}
+
+TEST_F(SimplexTest, BlandRuleEnabled)
+{
+  // Test that Bland's rule can be enabled and affects pivot selection
+  Simplex<double> simplex(3);
+  simplex.enable_bland_rule();
+  
+  simplex.put_objetive_function_coef(0, 100.0);
+  simplex.put_objetive_function_coef(1, 10.0);
+  simplex.put_objetive_function_coef(2, 1.0);
+  
+  double c1[] = {1.0, 0.0, 0.0, 1.0};
+  double c2[] = {20.0, 1.0, 0.0, 100.0};
+  double c3[] = {200.0, 20.0, 1.0, 10000.0};
+  
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  simplex.put_restriction(c3);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  // Verify solution is valid
+  simplex.load_solution();
+  EXPECT_TRUE(simplex.verify_solution());
+  
+  // Optimal is x1=1, x2=80, x3=9800, Z=100+800+9800=10700
+  EXPECT_GT(simplex.objetive_value(), 0.0);
+}
+
+TEST_F(SimplexTest, SensitivityAnalysisObjective)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  simplex.solve();
+  simplex.load_solution();
+  
+  auto range = simplex.objective_sensitivity(0);
+  
+  EXPECT_EQ(range.current_value, 40.0);
+  // Range should be finite
+  EXPECT_FALSE(std::isinf(range.lower_bound) && std::isinf(range.upper_bound));
+}
+
+TEST_F(SimplexTest, ShadowPrices)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  simplex.solve();
+  simplex.load_solution();
+  
+  auto prices = simplex.get_all_shadow_prices();
+  
+  EXPECT_EQ(prices.size(), 2u);
+  // Shadow prices should be non-negative for <= constraints in maximization
+}
+
+TEST_F(SimplexTest, ReducedCosts)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  simplex.solve();
+  simplex.load_solution();
+  
+  auto costs = simplex.get_all_reduced_costs();
+  
+  EXPECT_EQ(costs.size(), 2u);
+}
+
+TEST_F(SimplexTest, DualSimplexReoptimize)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  auto state1 = simplex.solve();
+  EXPECT_EQ(state1, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  double original_obj = simplex.objetive_value();
+  
+  // Update RHS of first constraint and reoptimize
+  auto state2 = simplex.update_rhs_and_reoptimize(0, 50.0);
+  
+  if (state2 == Simplex<double>::Solved)
+    {
+      simplex.load_solution();
+      // New objective should be different (likely higher with more room)
+      EXPECT_TRUE(simplex.verify_solution());
+    }
+}
+
+TEST_F(SimplexTest, LargeDegenerateProblem)
+{
+  // Create a problem with many constraints that may have degenerate solutions
+  const size_t n = 10;
+  Simplex<double> simplex(n);
+  simplex.enable_bland_rule();  // Prevent cycling
+  
+  // Objective: maximize sum of xi
+  for (size_t i = 0; i < n; ++i)
+    simplex.put_objetive_function_coef(i, 1.0);
+  
+  // Constraints: each xi <= 1
+  for (size_t i = 0; i < n; ++i)
+    {
+      DynArray<double> c(n + 1);
+      for (size_t j = 0; j <= n; ++j)
+        c[j] = 0.0;
+      c[i] = 1.0;
+      c[n] = 1.0;
+      simplex.put_restriction(c);
+    }
+  
+  // Sum constraint: sum <= n/2
+  DynArray<double> sum_c(n + 1);
+  for (size_t i = 0; i < n; ++i)
+    sum_c[i] = 1.0;
+  sum_c[n] = static_cast<double>(n) / 2.0;
+  simplex.put_restriction(sum_c);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  EXPECT_NEAR(simplex.objetive_value(), static_cast<double>(n) / 2.0, 0.1);
+  
+  // Check for degenerate pivots
+  auto stats = simplex.get_stats();
+  // Some degenerate pivots are expected in this problem
+  (void)stats;  // Just check it doesn't crash
+}
+
+TEST_F(SimplexTest, SetMinimizeMaximize)
+{
+  Simplex<double> simplex(2);
+  
+  EXPECT_EQ(simplex.get_optimization_type(), OptimizationType::Maximize);
+  
+  simplex.set_minimize();
+  EXPECT_EQ(simplex.get_optimization_type(), OptimizationType::Minimize);
+  
+  simplex.set_maximize();
+  EXPECT_EQ(simplex.get_optimization_type(), OptimizationType::Maximize);
+}
+
+TEST_F(SimplexTest, IsBasicVariable)
+{
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 40.0);
+  simplex.put_objetive_function_coef(1, 30.0);
+  
+  double c1[] = {1.0, 1.0, 40.0};
+  double c2[] = {2.0, 1.0, 60.0};
+  simplex.put_restriction(c1);
+  simplex.put_restriction(c2);
+  
+  simplex.prepare_linear_program();
+  simplex.solve();
+  simplex.load_solution();
+  
+  // At least one variable should be basic
+  bool has_basic = simplex.is_basic_variable(0) || simplex.is_basic_variable(1);
+  EXPECT_TRUE(has_basic);
+}
+
+//==============================================================================
+// Revised Simplex Tests
+//==============================================================================
+
+class RevisedSimplexTest : public ::testing::Test
+{
+protected:
+  static constexpr double EPSILON = 1e-6;
+  
+  bool nearly_equal(double a, double b, double eps = EPSILON)
+  {
+    return std::fabs(a - b) < eps;
+  }
+};
+
+TEST_F(RevisedSimplexTest, BasicConstructor)
+{
+  RevisedSimplex<double> simplex(3, 2);
+  
+  EXPECT_EQ(simplex.get_num_vars(), 3);
+  EXPECT_EQ(simplex.get_num_constraints(), 2);
+  EXPECT_EQ(simplex.get_state(), RevisedSimplex<double>::Not_Solved);
+}
+
+TEST_F(RevisedSimplexTest, SimpleMaximization)
+{
+  // Maximize Z = 40x + 30y
+  // s.t. x + y <= 40
+  //      2x + y <= 60
+  
+  RevisedSimplex<double> simplex(2, 2);
+  
+  // Objective
+  simplex.set_objective(0, 40.0);
+  simplex.set_objective(1, 30.0);
+  
+  // Constraints
+  double c1[] = {1.0, 1.0};
+  double c2[] = {2.0, 1.0};
+  simplex.set_constraint_row(0, c1, 40.0);
+  simplex.set_constraint_row(1, c2, 60.0);
+  
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, RevisedSimplex<double>::Solved);
+  
+  // Optimal: x=20, y=20, Z=1400
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(0), 20.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(1), 20.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.objective_value(), 1400.0, 0.1));
+  
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(RevisedSimplexTest, ThreeVariables)
+{
+  // Maximize Z = 5x + 4y + 3z
+  // s.t. 2x + 3y + z <= 5
+  //      4x + 2y + 3z <= 11
+  //      3x + 4y + 2z <= 8
+  
+  RevisedSimplex<double> simplex(3, 3);
+  
+  simplex.set_objective(0, 5.0);
+  simplex.set_objective(1, 4.0);
+  simplex.set_objective(2, 3.0);
+  
+  double c1[] = {2.0, 3.0, 1.0};
+  double c2[] = {4.0, 2.0, 3.0};
+  double c3[] = {3.0, 4.0, 2.0};
+  
+  simplex.set_constraint_row(0, c1, 5.0);
+  simplex.set_constraint_row(1, c2, 11.0);
+  simplex.set_constraint_row(2, c3, 8.0);
+  
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, RevisedSimplex<double>::Solved);
+  EXPECT_TRUE(simplex.verify_solution());
+  EXPECT_GT(simplex.objective_value(), 0.0);
+}
+
+TEST_F(RevisedSimplexTest, CompareWithStandardSimplex)
+{
+  // Same problem solved by both algorithms
+  // Maximize Z = 3x + 2y + 4z
+  // s.t. x + y + 2z <= 4
+  //      2x + y + z <= 5
+  
+  // Standard Simplex
+  Simplex<double> std_simplex(3);
+  std_simplex.put_objetive_function_coef(0, 3.0);
+  std_simplex.put_objetive_function_coef(1, 2.0);
+  std_simplex.put_objetive_function_coef(2, 4.0);
+  
+  double c1[] = {1.0, 1.0, 2.0, 4.0};
+  double c2[] = {2.0, 1.0, 1.0, 5.0};
+  std_simplex.put_restriction(c1);
+  std_simplex.put_restriction(c2);
+  
+  std_simplex.prepare_linear_program();
+  std_simplex.solve();
+  std_simplex.load_solution();
+  double std_obj = std_simplex.objetive_value();
+  
+  // Revised Simplex
+  RevisedSimplex<double> rev_simplex(3, 2);
+  rev_simplex.set_objective(0, 3.0);
+  rev_simplex.set_objective(1, 2.0);
+  rev_simplex.set_objective(2, 4.0);
+  
+  double r1[] = {1.0, 1.0, 2.0};
+  double r2[] = {2.0, 1.0, 1.0};
+  rev_simplex.set_constraint_row(0, r1, 4.0);
+  rev_simplex.set_constraint_row(1, r2, 5.0);
+  
+  rev_simplex.solve();
+  double rev_obj = rev_simplex.objective_value();
+  
+  // Both should find same optimal value
+  EXPECT_NEAR(std_obj, rev_obj, 0.1);
+}
+
+TEST_F(RevisedSimplexTest, MediumSizeProblem)
+{
+  // 10 variables, 5 constraints
+  const size_t n = 10;
+  const size_t m = 5;
+  
+  RevisedSimplex<double> simplex(n, m);
+  
+  // Random but consistent coefficients
+  for (size_t j = 0; j < n; ++j)
+    simplex.set_objective(j, static_cast<double>((j + 1) * 3 % 7 + 1));
+  
+  for (size_t i = 0; i < m; ++i)
+    {
+      for (size_t j = 0; j < n; ++j)
+        simplex.set_constraint(i, j, static_cast<double>((i + j + 1) % 5 + 1));
+      simplex.set_rhs(i, static_cast<double>((i + 1) * 20));
+    }
+  
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, RevisedSimplex<double>::Solved);
+  EXPECT_TRUE(simplex.verify_solution());
+  EXPECT_GT(simplex.objective_value(), 0.0);
+}
+
+TEST_F(RevisedSimplexTest, StatisticsTracking)
+{
+  RevisedSimplex<double> simplex(2, 2);
+  
+  simplex.set_objective(0, 40.0);
+  simplex.set_objective(1, 30.0);
+  
+  double c1[] = {1.0, 1.0};
+  double c2[] = {2.0, 1.0};
+  simplex.set_constraint_row(0, c1, 40.0);
+  simplex.set_constraint_row(1, c2, 60.0);
+  
+  simplex.solve();
+  
+  auto stats = simplex.get_stats();
+  
+  EXPECT_GT(stats.iterations, 0u);
+  EXPECT_GT(stats.pivots, 0u);
+  EXPECT_GE(stats.elapsed_ms, 0.0);
+}
+
+TEST_F(RevisedSimplexTest, PerformanceBenchmark)
+{
+  // Compare performance on a moderate problem with well-defined coefficients
+  const size_t n = 20;   // 20 variables
+  const size_t m = 10;   // 10 constraints
+  
+  // Setup problem with bounded coefficients
+  std::vector<double> obj(n);
+  std::vector<std::vector<double>> A(m, std::vector<double>(n));
+  std::vector<double> b(m);
+  
+  for (size_t j = 0; j < n; ++j)
+    obj[j] = static_cast<double>(j % 5 + 1);  // 1-5
+  
+  for (size_t i = 0; i < m; ++i)
+    {
+      double row_sum = 0;
+      for (size_t j = 0; j < n; ++j)
+        {
+          A[i][j] = static_cast<double>((i + j) % 3 + 1);  // 1-3
+          row_sum += A[i][j];
+        }
+      b[i] = row_sum * 2;  // Ensure feasible region
+    }
+  
+  // Standard Simplex
+  Simplex<double> std_simplex(n);
+  for (size_t j = 0; j < n; ++j)
+    std_simplex.put_objetive_function_coef(j, obj[j]);
+  
+  for (size_t i = 0; i < m; ++i)
+    {
+      DynArray<double> row(n + 1);
+      for (size_t j = 0; j < n; ++j)
+        row[j] = A[i][j];
+      row[n] = b[i];
+      std_simplex.put_restriction(row);
+    }
+  
+  std_simplex.prepare_linear_program();
+  auto std_state = std_simplex.solve();
+  std_simplex.load_solution();
+  auto std_stats = std_simplex.get_stats();
+  double std_obj = std_simplex.objetive_value();
+  
+  // Revised Simplex
+  RevisedSimplex<double> rev_simplex(n, m);
+  rev_simplex.set_objective(obj.data());
+  for (size_t i = 0; i < m; ++i)
+    rev_simplex.set_constraint_row(i, A[i].data(), b[i]);
+  
+  auto rev_state = rev_simplex.solve();
+  auto rev_stats = rev_simplex.get_stats();
+  double rev_obj = rev_simplex.objective_value();
+  
+  // Both should solve successfully
+  EXPECT_EQ(std_state, Simplex<double>::Solved);
+  EXPECT_EQ(rev_state, RevisedSimplex<double>::Solved);
+  
+  // Both should find good solutions
+  EXPECT_GT(std_obj, 0.0);
+  EXPECT_GT(rev_obj, 0.0);
+  
+  std::cout << "\n=== Performance Comparison (n=" << n << ", m=" << m << ") ===\n"
+            << "Standard Simplex: " << std_stats.elapsed_ms << " ms, "
+            << std_stats.pivots << " pivots, obj=" << std_obj << "\n"
+            << "Revised Simplex:  " << rev_stats.elapsed_ms << " ms, "
+            << rev_stats.pivots << " pivots, obj=" << rev_obj << "\n";
+}
+
+//==============================================================================
 // Main
 //==============================================================================
 

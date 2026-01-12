@@ -86,7 +86,7 @@ namespace Aleph
       instrumentará el mapeo. Por omisión si usa Treap_Rk
 
       @see Treap_Rk set multiset multimap
-      @ingroup stl
+      @ingroup STL
   */
   template <class Key,
             class Elem,
@@ -147,7 +147,7 @@ namespace Aleph
 
     /** Iterador sobre un mapeo.
 
-        @ingroup stl
+        @ingroup STL
     */
     class iterator
     {

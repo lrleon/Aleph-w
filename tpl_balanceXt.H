@@ -30,7 +30,7 @@
  *  Utilities for balancing trees with subtree counts.
  *
  *  @see tpl_binNodeXt.H Extended nodes
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -60,7 +60,7 @@ namespace Aleph {
         de nodos del árbol binario.
         @see select() select_rec()
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select_gotoup_root(Node * root, const size_t & i) 

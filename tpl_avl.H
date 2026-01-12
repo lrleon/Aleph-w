@@ -38,7 +38,7 @@
  *  ## Complexity: O(log n) for insert, search, remove
  *
  *  @see tpl_rb_tree.H Red-Black tree alternative
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -94,7 +94,7 @@ namespace Aleph {
 
        @see Avl_Tree Convenient typedef with default node type.
        @see DynSetAvlTree High-level wrapper with automatic memory management.
-       @ingroup Arboles
+       @ingroup Trees
     */
   template <template <typename> class NodeType, typename Key, class Compare>
 class Gen_Avl_Tree
@@ -618,7 +618,7 @@ public:
       according to the comparison criterion specified at tree
       instantiation.
 
-     @ingroup Arboles
+     @ingroup Trees
   */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
@@ -643,7 +643,7 @@ public:
        @param Compare key comparison class; by default, this is the
        less-than relational operator for type Key.
        @see Avl_Tree_Vtl
-       @ingroup Arboles
+       @ingroup Trees
     */
     template <typename Key, class Compare = Aleph::less<Key>>
 struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
@@ -665,7 +665,7 @@ struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
        @param Compare key comparison class; by default, this is the
        less-than relational operator for type Key.
        @see Avl_Tree
-       @ingroup Arboles
+       @ingroup Trees
     */
     template <typename Key, class Compare = Aleph::less<Key>>
 struct Avl_Tree_Vtl : public Gen_Avl_Tree<AvlNodeVtl, Key, Compare>

@@ -32,7 +32,7 @@
  *  algorithms that use cookies need to operate on the copy without
  *  destroying the mapping relationship.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -76,7 +76,7 @@ namespace Aleph
     auto& copied_graph = copy.get_graph();
     @endcode
 
-    @ingroup Grafos
+    @ingroup Graphs
     @see copy_graph map_nodes Johnson
  */
 template <class GT,

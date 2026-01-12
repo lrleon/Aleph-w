@@ -33,7 +33,7 @@
 
     Both provide LIFO semantics with push/pop operations.
 
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
 */
 
@@ -67,7 +67,7 @@ namespace Aleph {
       does not dynamically grow, it does not still perform bound_min_clock checks.
 
       @see FixedStack DynListStack
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
@@ -276,7 +276,7 @@ public:
 
       The visit order goes from the oldest to the youngest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Iterator : public MemArray<T>::Iterator
   {
@@ -302,7 +302,7 @@ public:
       maximum stack size and this last is not too big.
 
       @see ArrayStack DynListStack
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class FixedStack : public LocateFunctions<FixedStack<T>, T>,
@@ -530,7 +530,7 @@ public:
 
       The visit order goes from the youngest item to the oldest.
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Iterator : public Array_Iterator<T>
   {

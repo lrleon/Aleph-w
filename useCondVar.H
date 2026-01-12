@@ -68,7 +68,7 @@
  * @see useMutex.H For the companion mutex wrapper
  * 
  * @author Leandro Rabindranath León *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 
@@ -127,7 +127,7 @@
  * Provides a simple interface for pthread condition variable operations.
  * Does not own the condition variable or mutex - they must be managed
  * separately. *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 class UseCondVar 
@@ -143,7 +143,7 @@ public:
    * @brief Construct wrapper for condition variable and mutex
    * @param c Pointer to initialized condition variable
    * @param m Pointer to initialized mutex (must be held when waiting) *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
    */
   UseCondVar(pthread_cond_t *c, pthread_mutex_t *m)
@@ -156,7 +156,7 @@ public:
    * @brief Wait for the condition variable to be signaled
    * @return 0 on success, error code on failure
    * @note The mutex must be held when calling this function *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
    */
   int wait()
@@ -168,7 +168,7 @@ public:
   /**
    * @brief Signal one waiting thread
    * @return 0 on success, error code on failure *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
    */
   int signal()
@@ -180,7 +180,7 @@ public:
   /**
    * @brief Wake all waiting threads
    * @return 0 on success, error code on failure *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
    */
   int broadcast()

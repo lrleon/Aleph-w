@@ -26,7 +26,7 @@
 
 /** @file tpl_indexArc.H
  *  @brief Arc indexing for fast lookup.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -74,7 +74,7 @@ namespace Aleph
       of them can be indexed.
 
       @see IndexNode Index_Graph
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <
     class GT,

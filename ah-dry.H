@@ -31,7 +31,7 @@
  *  functional operations (for_each, exists, all, filter, map, etc.) for
  *  containers through their iterators. These follow the DRY principle.
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -56,7 +56,7 @@ using Aleph::Dft_Fold_Op;
 
      typename Container::Iterator
 
-     \ingroup Secuencias
+     \ingroup Sequences
 */
 template <class Container>
 struct GenericTraverse
@@ -155,7 +155,7 @@ bool traverse(const Container & c, Operation && op)
     many cases, alteration of that data will corrupt the internal
     state of container.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename Type>
 class LocateFunctions
@@ -441,7 +441,7 @@ public:
     use this class unless that you are absolutely sure that the derived
     class has been initialized.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename T>
 struct SpecialCtors
@@ -485,7 +485,7 @@ struct SpecialCtors
     This class contains many and practice methods that are common to any
     `Aleph-w` (\f$\aleph_\omega\f$) container.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename T>
 class FunctionalMethods
@@ -1370,7 +1370,7 @@ public:
 
 /** Generic list of items stored in a container.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename T>
 struct GenericItems
@@ -1395,7 +1395,7 @@ struct GenericItems
 
 /** Alias to GenricItems functor
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename T>
 using GenericKeys = GenericItems<Container, T>;
@@ -1403,7 +1403,7 @@ using GenericKeys = GenericItems<Container, T>;
 
 /** Equality test for containers.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container>
 class EqualToMethod
@@ -1460,7 +1460,7 @@ public:
 
 /** Common methods to mapping containers.
 
-    \ingroup Secuencias
+    \ingroup Sequences
 */
 template <class Container, typename Key, typename Data>
 class MapSequencesMethods

@@ -37,7 +37,7 @@
  *
  *  @see tpl_binHeap.H Array-based heap
  *  @see tpl_dynArrayHeap.H Array-based dynamic heap
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -61,7 +61,7 @@ namespace Aleph {
       dynamically (no backing array), so the structure can grow or shrink as
       needed.
 
-      @ingroup Arboles
+      @ingroup Trees
       @author Leandro Rabindranath León
   */
   template <class T, class Compare = Aleph::less<T>>

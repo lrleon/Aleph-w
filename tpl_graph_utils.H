@@ -93,7 +93,7 @@ namespace Aleph {
    * @note Resets the `Depth_First` control bit on all nodes and arcs.
    * @note Uses the `Depth_First` control bit on both nodes and arcs.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see Depth_First_Traversal, breadth_first_traversal, test_connectivity
    */
   template <class GT> inline size_t 
@@ -121,7 +121,7 @@ namespace Aleph {
 
   /** @brief Default visit operation for traversals (never stops).
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT>
   struct Default_Visit_Op
@@ -150,7 +150,7 @@ namespace Aleph {
    *
    * @note Uses the `Depth_First` control bit on both nodes and arcs.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see depth_first_traversal, Breadth_First_Traversal
    */
   template <class GT, 
@@ -312,7 +312,7 @@ namespace Aleph {
    * @note Resets the `Breadth_First` control bit on all nodes and arcs.
    * @note Uses the `Breadth_First` control bit on both nodes and arcs.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see breadth_first_traversal(const GT&, bool (*)(...)),
    *      depth_first_traversal, Breadth_First_Traversal
    */
@@ -399,7 +399,7 @@ namespace Aleph {
    * @note Resets the `Breadth_First` control bit on all nodes and arcs.
    * @note Uses the `Breadth_First` control bit on both nodes and arcs.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see breadth_first_traversal, Depth_First_Traversal
    */
   template <class GT, 
@@ -541,7 +541,7 @@ namespace Aleph {
    * @return A `Path<GT>` describing the found path; an empty path if no path exists.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see find_path_depth_first(), test_for_path()
    */
   template <class GT> inline 
@@ -628,7 +628,7 @@ namespace Aleph {
    * @note This function is not intended for multigraphs.
    * @throw domain_error If `g` is a directed graph.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see depth_first_traversal()
    */
   template <class GT> inline 
@@ -666,7 +666,7 @@ namespace Aleph {
    * @param[in] src Source node (must be non-null and belong to `g`).
    * @return `true` if a cycle returning to `src` is found; `false` otherwise.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique()
    */
   template <class GT> inline 
@@ -757,7 +757,7 @@ namespace Aleph {
    * `false` otherwise.
    * @throw domain_error If `g` is a directed graph.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique(const GT&)
    */
   template <class GT> inline 
@@ -797,7 +797,7 @@ namespace Aleph {
    * @return `true` if `g` is acyclic; `false` otherwise.
    * @throw domain_error If `g` is a directed graph.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see has_cycle(), is_graph_acyclique(const GT&, typename GT::Node*)
    */
   template <class GT> inline 
@@ -838,7 +838,7 @@ namespace Aleph {
    * @param[in] g Graph to test.
    * @return `true` if `g` contains a cycle; `false` otherwise.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see is_graph_acyclique()
    */
   template <class GT> 
@@ -860,7 +860,7 @@ namespace Aleph {
    * @param[in] end_node End node (must be non-null and belong to `g`).
    * @return `true` if `end_node` is reachable from `start_node`; `false` otherwise.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see find_path_depth_first(), find_path_breadth_first()
    */
   template <class GT> inline 
@@ -940,7 +940,7 @@ namespace Aleph {
    * @return List of mapped subgraphs, one per connected component.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see build_subgraph(), copy_graph()
    */
   template <class GT> inline
@@ -984,7 +984,7 @@ namespace Aleph {
    * @param[in,out] node_count Visited node counter.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see inconnected_components(), copy_graph()
    */
   template <class GT> inline 
@@ -1052,7 +1052,7 @@ namespace Aleph {
    * @return A mapped spanning tree of the reachable component.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see find_breadth_first_spanning_tree()
    */
   template <class GT> inline
@@ -1145,7 +1145,7 @@ namespace Aleph {
    * @return A mapped spanning tree of the reachable component.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see find_depth_first_spanning_tree()
    */
   template <class GT> inline
@@ -1227,7 +1227,7 @@ namespace Aleph {
    * @return A graph containing exactly the arcs provided in `arcs`.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT>
   GT build_spanning_tree(const DynArray<typename GT::Arc*> & arcs)
@@ -1318,7 +1318,7 @@ namespace Aleph {
    * @throw domain_error If `g` is a directed graph.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see paint_subgraphs(), map_subgraph(), map_cut_graph()
    */
   template <class GT>
@@ -1614,7 +1614,7 @@ namespace Aleph {
    * @param[in] cut_node_list Cut nodes list (as returned by compute_cut_nodes()).
    * @return Next unused color id (one past the last used color).
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see compute_cut_nodes(), map_subgraph(), map_cut_graph()
    */
   template <class GT> inline long 
@@ -1687,7 +1687,7 @@ namespace Aleph {
    * @throw domain_error If `color` does not exist in `g`.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see paint_subgraphs(), compute_cut_nodes(), map_cut_graph()
    */
   template <class GT>
@@ -1735,7 +1735,7 @@ namespace Aleph {
    * @return `{cut_graph, cross_arc_list}`.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @see map_subgraph(), compute_cut_nodes(), paint_subgraphs()
    */
   template <class GT>
@@ -1789,7 +1789,7 @@ namespace Aleph {
    * @tparam GT Graph type.
    * @tparam Distance Distance accessor functor.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT, class Distance> 
   struct Distance_Compare
@@ -1820,7 +1820,7 @@ namespace Aleph {
    * @throw domain_error If `g` is not a digraph.
    * @throw bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT> 
   GT invert_digraph(const GT & g)
@@ -1870,7 +1870,7 @@ namespace Aleph {
    *
    * Nodes are always preserved (including isolated nodes).
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class Invert_Digraph
@@ -1934,7 +1934,7 @@ namespace Aleph {
    *
    * @note Intended for numeric arc info types.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT>
   class Dft_Dist
@@ -2096,7 +2096,7 @@ namespace Aleph {
    * @tparam Distance Distance accessor (defaults to Dft_Dist).
    * @tparam SA Arc filter for Arc_Iterator.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT, 
             class Distance = Dft_Dist<GT>, 

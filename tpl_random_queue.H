@@ -30,7 +30,7 @@
  *  Collection allowing random element extraction.
  *  Also defines Random_Set for random set operations.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -56,7 +56,7 @@ namespace Aleph {
 	By default, the Mersene twister is used and the seed is taken from
 	system time. 
 
-	@ingroup Secuencias 
+	@ingroup Sequences 
      */
     template <class T> 
 class Random_Set
@@ -258,7 +258,7 @@ public:
       The order will be random if the insertion were performed with
       `append()`: otherwise, the order will be the same that the put order.
 
-      @ingroup Secuencias 
+      @ingroup Sequences 
    */
   struct Iterator : public DynArray<T>
   {
@@ -306,7 +306,7 @@ public:
 
     @param[in] c container to be shuffled
     @return a shuffled permutation of `c`
-    @ingroup Secuencias 
+    @ingroup Sequences 
  */
   template <typename T, template <typename> class C>
 auto shuffle(const C<T> & c)
@@ -327,7 +327,7 @@ auto shuffle(const C<T> & c)
      @param[in] c container to be shuffled
      @return a shuffled permutation of pointer to items in the sequence `c`
 
-    @ingroup Secuencias 
+    @ingroup Sequences 
  */
   template <typename T, template <typename> class C>
 C<T*> shuffle_ptr(const C<T> & c)

@@ -39,7 +39,7 @@
  *  ## Complexity: O(log n) expected for all operations
  *
  *  @see tpl_treapRk.H Treap with rank support
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -135,7 +135,7 @@ namespace Aleph
       @see TreapRk Treap variant with rank support for O(log n) indexed access.
       @see Rand_Tree Alternative randomized tree with top-down balancing.
       @see DynSetTreap High-level wrapper with automatic memory management.
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <template <typename> class NodeType, typename Key, class Compare>
   class Gen_Treap
@@ -555,7 +555,7 @@ namespace Aleph
 
        The visit order is inorder.
 
-       @ingroup Arboles
+       @ingroup Trees
    */
     struct Iterator : public BinNodeInfixIterator<Node>
     {
@@ -587,7 +587,7 @@ namespace Aleph
         By default, the Mersenne twister is used and the seed is taken from
         system time.
 
-        @ingroup Arboles
+        @ingroup Trees
         @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
      */
   template <typename Key, class Compare = Aleph::less<Key>>
@@ -620,7 +620,7 @@ namespace Aleph
         By default, the Mersenne twister is used and the seed is taken from
         system time.
 
-        @ingroup Arboles
+        @ingroup Trees
         @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
      */
   template <typename Key, class Compare = Aleph::less<Key>>

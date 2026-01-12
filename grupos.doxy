@@ -496,7 +496,7 @@ in one of these ways:
 */
 
 /**
-   @defgroup Grafos Grafos
+   @defgroup Graphs Grafos
 
    Introduction
     ============
@@ -531,7 +531,7 @@ in one of these ways:
     */
 
 /**
-   @defgroup Algos Algoritmos
+   @defgroup Algorithms Algoritmos
    @{ Algoritmos genéricos
    
    \f$\aleph_\omega\f$ Aleph-w exporta una amplia gama de
@@ -561,7 +561,7 @@ in one of these ways:
 
 
 /**
-   @defgroup Secuencias Sequences
+   @defgroup Sequences Sequences
    @{ 
    
    In `Aleph-w` (\f$\aleph_\omega\f$) a sequence is any data structure
@@ -589,7 +589,7 @@ in one of these ways:
 
 
 /**
-   @defgroup Arboles Trees
+   @defgroup Trees Trees
    @{ Trees
 
    Aleph maneja distintos tipos y funciones vinculados a los árboles con raíz.
@@ -612,7 +612,7 @@ in one of these ways:
 */
 
 /**
-   @defgroup utils Utilitarios
+   @defgroup Utilities Utilitarios
    @{ Utilitarios diversos
 
    Aleph maneja exporta distintos tipos de funciones y clases
@@ -625,7 +625,7 @@ in one of these ways:
 
 
 /** 
-   @defgroup stl Contenedores de la biblioteca estándar C++.
+   @defgroup STL Contenedores de la biblioteca estándar C++.
    @{ Contenedores estándar
    
    Aleph instrumenta, por medio de sus propias clases y algoritmos, gran
@@ -652,7 +652,7 @@ in one of these ways:
 
 
 /**
-   @defgroup Geometria Geometría computacional
+   @defgroup Geometry Geometría computacional
    @{ Geometría computacional
 
    
@@ -662,7 +662,7 @@ in one of these ways:
 */
 
 /**
-   @defgroup fcts Funciones especiales
+   @defgroup Functions Funciones especiales
    @{  Funciones especiales utilitarias de \f$\aleph_\omega\f$ Aleph-w.
    
    \f$\aleph_\omega\f$ Aleph-w contiene un conjunto de 
@@ -1029,7 +1029,7 @@ in one of these ways:
 */
  
 /**
-   @defgroup Funcional Programación funcional
+   @defgroup Functional Programación funcional
    @{ Programación funcional
    
    \f$\aleph_\omega\f$ Aleph-w exporta primitivas de programación

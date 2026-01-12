@@ -47,7 +47,7 @@
  * - Legacy code interoperability
  *
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

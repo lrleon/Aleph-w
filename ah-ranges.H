@@ -97,7 +97,7 @@
  * @note The public API of ahFunctional.H is preserved. This header provides
  *       internal optimizations and additional range-based utilities.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 

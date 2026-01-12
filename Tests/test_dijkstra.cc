@@ -903,6 +903,87 @@ TYPED_TEST(DijkstraHeapTest, ComplexMultigraph) {
   EXPECT_EQ(d, 5.0);
 }
 
+// ========== TEST 39: Get Min Path From Tree ==========
+TYPED_TEST(DijkstraHeapTest, GetMinPathFromTreeMethod) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+  Node* n4 = g.insert_node(4);
+
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n1, n2, 2.0);
+  g.insert_arc(n2, n3, 3.0);
+  g.insert_arc(n3, n4, 4.0);
+  g.insert_arc(n0, n4, 100.0);  // Long direct path
+
+  Dijkstra<TypeParam> dij;
+  GT tree;
+
+  // First compute the spanning tree
+  auto tree_start = dij.compute_min_paths_tree(g, n0, tree);
+  ASSERT_NE(tree_start, nullptr);
+
+  // Now extract paths from the tree to different destinations
+  Path<GT> path_to_n2(g);
+  double d2 = dij.get_min_path(tree, n2, path_to_n2);
+  EXPECT_EQ(d2, 3.0);  // 1 + 2
+  EXPECT_FALSE(path_to_n2.is_empty());
+
+  Path<GT> path_to_n4(g);
+  double d4 = dij.get_min_path(tree, n4, path_to_n4);
+  EXPECT_EQ(d4, 10.0);  // 1 + 2 + 3 + 4
+  EXPECT_FALSE(path_to_n4.is_empty());
+
+  // Verify path nodes for n4
+  DynList<int> path_nodes;
+  for (Path<GT>::Iterator it(path_to_n4); it.has_curr(); it.next())
+    path_nodes.append(it.get_current_node()->get_info());
+
+  ASSERT_EQ(path_nodes.size(), 5);
+  auto pit = path_nodes.get_it();
+  EXPECT_EQ(pit.get_curr(), 0); pit.next();
+  EXPECT_EQ(pit.get_curr(), 1); pit.next();
+  EXPECT_EQ(pit.get_curr(), 2); pit.next();
+  EXPECT_EQ(pit.get_curr(), 3); pit.next();
+  EXPECT_EQ(pit.get_curr(), 4);
+}
+
+// ========== TEST 40: Get Min Path From Tree Multiple Queries ==========
+TYPED_TEST(DijkstraHeapTest, GetMinPathFromTreeMultipleQueries) {
+  GT g;
+  Node* n0 = g.insert_node(0);
+  Node* n1 = g.insert_node(1);
+  Node* n2 = g.insert_node(2);
+  Node* n3 = g.insert_node(3);
+
+  // Star graph from n0
+  g.insert_arc(n0, n1, 1.0);
+  g.insert_arc(n0, n2, 2.0);
+  g.insert_arc(n0, n3, 3.0);
+
+  Dijkstra<TypeParam> dij;
+  GT tree;
+  dij.compute_min_paths_tree(g, n0, tree);
+
+  // Query multiple destinations from same tree (efficient!)
+  Path<GT> p1(g), p2(g), p3(g);
+  
+  double d1 = dij.get_min_path(tree, n1, p1);
+  double d2 = dij.get_min_path(tree, n2, p2);
+  double d3 = dij.get_min_path(tree, n3, p3);
+
+  EXPECT_EQ(d1, 1.0);
+  EXPECT_EQ(d2, 2.0);
+  EXPECT_EQ(d3, 3.0);
+
+  // Each path should have 2 nodes (start + destination)
+  EXPECT_EQ(p1.size(), 2);
+  EXPECT_EQ(p2.size(), 2);
+  EXPECT_EQ(p3.size(), 2);
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {

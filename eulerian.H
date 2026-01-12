@@ -68,7 +68,7 @@
  *  @see tpl_graph.H Graph data structures
  *  @see hamiltonian.H Hamiltonian path/cycle algorithms
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -118,7 +118,7 @@ namespace Aleph
  * @endcode
  *
  * @see hamiltonian.H For Hamiltonian path/cycle testing
- * @ingroup Grafos
+ * @ingroup Graphs
  * @author Leandro R. León
  */
 template <class GT, 

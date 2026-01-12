@@ -26,7 +26,7 @@
 
 /** @file tpl_kgraph.H
  *  @brief K-connected graph structures.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -65,7 +65,7 @@ namespace Aleph
    * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,
@@ -165,7 +165,7 @@ namespace Aleph
    * @tparam GT Graph type (undirected).
    * @tparam Max_Flow Maximum flow functor.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow>
@@ -218,7 +218,7 @@ namespace Aleph
    * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow,
@@ -409,7 +409,7 @@ namespace Aleph
    * @tparam Max_Flow Maximum flow functor.
    * @tparam SA Arc filter functor.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT,
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow,
@@ -452,7 +452,7 @@ namespace Aleph
    * @throw std::domain_error If `g` is a digraph.
    * @throw std::bad_alloc If there is not enough memory.
    *
-   * @ingroup Grafos
+   * @ingroup Graphs
    */
   template <class GT,
             template <class> class Max_Flow = Random_Preflow_Maximum_Flow,

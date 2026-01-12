@@ -31,7 +31,7 @@
  *  codes based on symbol frequencies. Provides encoding and decoding
  *  using binary trees.
  *
- *  @ingroup Algoritmos
+ *  @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 
@@ -110,7 +110,7 @@ static inline bool is_leaf(BinNode<std::string> * p) noexcept
 	    /** Huffman encoder.
 
 	        @see Huffman_Decoder_Engine
-	        @ingroup Arboles
+	        @ingroup Trees
 	     */
 class Huffman_Encoder_Engine
 {
@@ -658,7 +658,7 @@ class Huffman_Encoder_Engine
 	    /** Huffman decoder.
 
         @see Huffman_Encoder_Engine
-        @ingroup Arboles
+        @ingroup Trees
      */
 class Huffman_Decoder_Engine
 {

@@ -26,7 +26,7 @@
 
 /** @file tpl_nodePool.H
  *  @brief Tree node memory pool allocator.
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -45,7 +45,7 @@
 	de nodos de reserva. 
 
        @author Leandro Rabindranath León
-       @ingroup utils
+       @ingroup Utilities
      */
     template <class Node>
 class Node_Pool

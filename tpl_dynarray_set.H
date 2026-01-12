@@ -26,7 +26,7 @@
 
 /** @file tpl_dynarray_set.H
  *  @brief Array-based dynamic set.
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -59,7 +59,7 @@ namespace Aleph
       boolean binary predicate.
 
       @see DynArray
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   class DynArray_Set : public DynArray<T>

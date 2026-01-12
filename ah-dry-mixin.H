@@ -56,7 +56,7 @@
  *    - `next_ne()` - advances to next element (no exception version)
  *  - `get_it()` - returns an Iterator positioned at the first element
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -102,7 +102,7 @@ template <typename T, typename R> struct Dft_Map_Op;
  *  - `Iterator` nested type
  *  - `get_it()` method returning an Iterator
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>
@@ -209,7 +209,7 @@ public:
  *  @par Requirements
  *  The derived class must provide `traverse()` method (typically via TraverseMixin).
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>
@@ -444,7 +444,7 @@ public:
  *  - `traverse()` method (typically via TraverseMixin)
  *  - `for_each()` method (provided by this mixin, but needs traverse)
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <typename Derived, typename Type>

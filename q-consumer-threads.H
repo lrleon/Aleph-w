@@ -36,7 +36,7 @@
  *  - Graceful shutdown
  *
  *  @see worker_pool.H Alternative thread pool
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -73,7 +73,7 @@ public:
 
 /** Pool of consumer threads form a queue.
 
-    @ingroup utils
+    @ingroup Utilities
  */
 template <typename T>
 class QueueTheadsPool

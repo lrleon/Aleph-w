@@ -473,7 +473,7 @@ public:
 
        /** Iterator dynamic list.
 
-           @ingroup Secuencias
+           @ingroup Sequences
        */
   class Iterator : public Dnode<T>::Iterator
   {

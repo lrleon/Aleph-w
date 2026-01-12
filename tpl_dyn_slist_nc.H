@@ -26,7 +26,7 @@
 
 /** @file tpl_dyn_slist_nc.H
  *  @brief Dynamic singly linked list (no check).
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -49,7 +49,7 @@ namespace Aleph
 
       @see Slink, Snode_Nc, Dyn_Slist_Nc::Iterator
 
-      @ingroup Secuencias
+      @ingroup Sequences
 
       @author Leandro R. León
       @author Alejandro J. Mujica

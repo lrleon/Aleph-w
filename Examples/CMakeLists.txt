@@ -11,7 +11,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 # List of all example programs present in the directory
 set(EXAMPLE_PROGRAMS
     ah_parallel_example
+    astar_example
     bfs_dfs_example
+    set_structures_benchmark
+    bellman_ford_example
+    kosaraju_example
+    johnson_example
     btreepic
     cut_nodes_example
     deway

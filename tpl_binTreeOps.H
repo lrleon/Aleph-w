@@ -30,7 +30,7 @@
  *  Common operations for binary search trees including
  *  rotations, splits, and joins.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -45,7 +45,7 @@ namespace Aleph {
   /** Functor encompassing basic operation for binary search trees.
 
       \see BinNode
-      \ingroup Arboles
+      \ingroup Trees
   */
   template <class Node, class Cmp = Aleph::less<typename Node::key_type>>
   class BinTree_Operation
@@ -110,7 +110,7 @@ namespace Aleph {
         @return pointer to a node containing `key` if this node exists
         or the last visited node otherwise
         @note It is not verified if the tree is empty
-        @ingroup Arboles
+        @ingroup Trees
     */
     Node * search_rank_parent(Node * root, const Key & key) noexcept
     {
@@ -565,7 +565,7 @@ namespace Aleph {
   /** Functor encompassing basic operation for extended binary search trees.
 
       \see BinNode
-      \ingroup Arboles
+      \ingroup Trees
   */
   template <class Node,
             class Cmp = Aleph::less<typename Node::key_type>>
@@ -590,7 +590,7 @@ namespace Aleph {
         @return inorder position of `key` if this is in the tree or -1 if
         `key` is not found
 
-        @ingroup Arboles
+        @ingroup Trees
     */
     long inorder_position(Node * r, const Key & key, Node *& p) noexcept
     {
@@ -758,7 +758,7 @@ namespace Aleph {
         `p`, since this was inserted and has became the root. Otherwise,
         it returns `Node::NullPtr`
 
-        @ingroup Arboles
+        @ingroup Trees
     */
     Node * insert_root(Node *& root, Node * p) noexcept
     {

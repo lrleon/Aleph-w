@@ -26,7 +26,7 @@
 
 /** @file tpl_test_cycle.H
  *  @brief Cycle detection in graphs.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -95,7 +95,7 @@ namespace Aleph {
  * @see has_cycle() To check if *any* cycle exists in the graph
  * @see is_graph_acyclique() To verify the entire graph is acyclic
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Test_For_Cycle

@@ -35,7 +35,7 @@
     then iteratively finds and cancels negative-cost cycles in the residual
     network using Bellman-Ford until no more negative cycles exist.
 
-    @ingroup Redes
+    @ingroup Networks
  *  @author Leandro Rabindranath León
 */
 
@@ -43,6 +43,7 @@
 # define TPL_NETCOST_H
 
 # include <limits>
+# include <chrono>
 # include <tpl_net.H>
 # include <tpl_dynMapTree.H>
 # include <tpl_find_path.H>
@@ -58,7 +59,7 @@ namespace Aleph
       Uses the same node type as regular flow networks.
 
       @tparam Node_Info Type of information stored in the node.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Node_Info = Empty_Class>
   using Net_Cost_Node = Net_Node<Node_Info>;
@@ -79,7 +80,7 @@ namespace Aleph
                      Must be the same type used for node flow accumulations.
 
       @see Net_Arc Net_Cost_Graph
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Arc_Info = Empty_Class, typename F_Type = double>
   struct Net_Cost_Arc : public Net_Arc<Arc_Info, F_Type>
@@ -132,7 +133,7 @@ namespace Aleph
       @tparam ArcT Arc type (should be Net_Cost_Arc or compatible).
 
       @see max_flow_min_cost_by_cycle_canceling Max_Flow_Min_Cost_By_Cycle_Canceling
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class NodeT = Net_Cost_Node<Empty_Class>,
             class ArcT = Net_Cost_Arc<Empty_Class, double>>
@@ -341,7 +342,7 @@ namespace Aleph
       Filters arcs based on residual capacity (cap > flow).
 
       @tparam Net Network type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   struct Res_Filt
@@ -370,7 +371,7 @@ namespace Aleph
       algorithms.
 
       @tparam Net Network type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   struct Rcost
@@ -410,7 +411,7 @@ namespace Aleph
       arc and a pointer to the mirror arc in the opposite direction.
 
       @tparam Ftype Flow/cost numeric type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Ftype>
   struct Res_Arc : public Net_Cost_Arc<Empty_Class, Ftype>
@@ -429,7 +430,7 @@ namespace Aleph
   /** Residual network type alias.
 
       @tparam Ftype Flow/cost numeric type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Ftype>
   using Residual_Net = Net_Cost_Graph<Net_Node<Empty_Class>, Res_Arc<Ftype>>;
@@ -451,7 +452,7 @@ namespace Aleph
       @return Pointer to the forward arc.
 
       @pre flow <= cap and cost >= 0
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Res_Net>
   typename Res_Net::Arc *
@@ -495,7 +496,7 @@ namespace Aleph
       @return Pointer to the source node in the residual network.
 
       @throw domain_error If network is not single source and single sink.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   typename Residual_Net<typename Net::Flow_Type>::Node *
@@ -543,7 +544,7 @@ namespace Aleph
       @tparam Res_Net Residual network type.
       @param[in] net The residual network to check.
       @return true if all mirror pointers are consistent.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Res_Net>
   bool check_residual_net(const Res_Net & net)
@@ -565,7 +566,7 @@ namespace Aleph
 
       @pre path must be a non-empty cycle with positive residual capacity
            on all arcs.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Res_Net>
   void cancel_cycle(const Res_Net &, const Path<Res_Net> & path)
@@ -602,7 +603,7 @@ namespace Aleph
 
       @tparam Net Original network type.
       @param[in] arcs Mapping from original arcs to residual arcs.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   void residual_to_net(const DynMapTree<void *, void *> & arcs)
@@ -658,7 +659,7 @@ namespace Aleph
       @endcode
 
       @see Max_Flow_Min_Cost_By_Cycle_Canceling
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
@@ -725,7 +726,7 @@ namespace Aleph
       @tparam Max_Flow_Algo Maximum flow algorithm template.
 
       @see max_flow_min_cost_by_cycle_canceling
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
@@ -756,7 +757,7 @@ namespace Aleph
       @tparam Net Network type.
       @param[in] net The network to output.
       @param[out] out Output stream.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   void print_net_cost(const Net & net, std::ostream & out)
@@ -794,7 +795,7 @@ namespace Aleph
       @tparam Net Original network type (used for Flow_Type).
       @param[in] net The residual network to output.
       @param[out] out Output stream.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   void print_residual_net(const Residual_Net<typename Net::Flow_Type> & net,
@@ -843,7 +844,7 @@ namespace Aleph
       - Partial: 0 < flow < capacity
 
       @tparam Net Network type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   using Feasible_Tree = std::tuple<DynList<typename Net::Arc *>,
@@ -858,7 +859,7 @@ namespace Aleph
       @tparam Net Network type.
       @param[in] net Network to classify.
       @return Tuple of (empty, full, partial) arc lists.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   inline Feasible_Tree<Net> build_feasible_spanning_tree(const Net & net)
@@ -885,7 +886,7 @@ namespace Aleph
       @tparam Net Network type.
       @param[in] net Network to scan.
       @return List of arcs with partial flow.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net>
   inline DynList<typename Net::Arc *> get_partial_arcs(const Net & net)
@@ -905,7 +906,7 @@ namespace Aleph
       efficient tree membership testing.
 
       @tparam Ftype Flow/cost numeric type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Ftype>
   struct Simplex_Node_Info
@@ -933,7 +934,7 @@ namespace Aleph
   /** Arc state in Network Simplex.
 
       Indicates whether an arc is in the basis (tree) and its bound state.
-      @ingroup Redes
+      @ingroup Networks
   */
   enum class Simplex_Arc_State : unsigned char
   {
@@ -946,13 +947,51 @@ namespace Aleph
   /** Arc information for Network Simplex algorithm.
 
       @tparam Ftype Flow/cost numeric type.
-      @ingroup Redes
+      @ingroup Networks
   */
   template <typename Ftype>
   struct Simplex_Arc_Info
   {
     /// Arc state (Lower, Upper, or Tree).
     Simplex_Arc_State state = Simplex_Arc_State::Lower;
+    /// Skip this arc temporarily (failed pivot, will retry later).
+    bool skip = false;
+    /// Lower bound on flow (default 0).
+    Ftype lower_bound = Ftype{0};
+  };
+
+
+  /** Execution statistics for Network Simplex algorithm.
+
+      Tracks performance metrics and algorithm behavior during solving.
+      @ingroup Networks
+  */
+  struct NetworkSimplexStats
+  {
+    size_t total_pivots = 0;         ///< Total pivot operations
+    size_t phase1_pivots = 0;        ///< Pivots in Phase I (feasibility)
+    size_t phase2_pivots = 0;        ///< Pivots in Phase II (optimization)
+    size_t degenerate_pivots = 0;    ///< Pivots with zero flow change
+    size_t tree_arcs = 0;            ///< Number of arcs in spanning tree
+    double phase1_time_ms = 0.0;     ///< Phase I elapsed time in milliseconds
+    double phase2_time_ms = 0.0;     ///< Phase II elapsed time in milliseconds
+    double total_time_ms = 0.0;      ///< Total elapsed time in milliseconds
+    size_t initial_partial_arcs = 0; ///< Arcs with partial flow before Phase I
+    size_t forced_into_tree = 0;     ///< Arcs forced into tree in Phase I
+
+    void reset() noexcept
+    {
+      total_pivots = 0;
+      phase1_pivots = 0;
+      phase2_pivots = 0;
+      degenerate_pivots = 0;
+      tree_arcs = 0;
+      phase1_time_ms = 0.0;
+      phase2_time_ms = 0.0;
+      total_time_ms = 0.0;
+      initial_partial_arcs = 0;
+      forced_into_tree = 0;
+    }
   };
 
 
@@ -960,22 +999,31 @@ namespace Aleph
 
       This class implements the Network Simplex algorithm, a specialized
       version of the Simplex method for minimum cost network flow problems.
-      It is generally more efficient than cycle-canceling, especially for
-      large sparse networks.
+      It maintains a spanning tree of basic arcs and iteratively improves
+      the solution through pivoting operations.
 
       ## Algorithm Overview
 
-      The algorithm maintains a spanning tree of basic arcs and iteratively
-      improves the solution by:
-      1. Finding an entering arc with negative reduced cost
-      2. Finding the cycle created by adding this arc
-      3. Determining the leaving arc (blocking arc in the cycle)
-      4. Pivoting: updating flows and tree structure
+      The algorithm uses a two-phase approach:
+
+      ### Phase I: Establish Basic Feasible Solution
+      After Ford-Fulkerson, some arcs may have partial flow (0 < flow < cap).
+      For a valid basic solution, these arcs MUST be in the spanning tree
+      (non-basic arcs must be at their bounds). Phase I forces all partial-flow
+      arcs into the tree through pivots.
+
+      ### Phase II: Cost Optimization
+      Standard Network Simplex that iteratively:
+      1. Finds an entering arc with negative reduced cost
+      2. Identifies the cycle created by adding this arc
+      3. Determines the leaving arc (blocking arc in the cycle)
+      4. Performs the pivot: updates flows and tree structure
 
       ## Implementation Notes
 
       This implementation follows the presentation in Sedgewick's "Algorithms"
-      with some adaptations for the Aleph-w graph representation.
+      with some adaptations for the Aleph-w graph representation and the
+      addition of Phase I to handle the basic feasibility requirement.
 
       The algorithm assumes the network already has a feasible flow (typically
       from a max-flow algorithm like Ford-Fulkerson). It then optimizes the
@@ -984,7 +1032,8 @@ namespace Aleph
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
 
       @see max_flow_min_cost_by_network_simplex
-      @ingroup Redes
+      @see max_flow_min_cost_by_cycle_canceling
+      @ingroup Networks
   */
   template <class Net>
   class Network_Simplex
@@ -1005,6 +1054,8 @@ namespace Aleph
     Node *root = nullptr;
     size_t num_pivots = 0;
     long lca_mark = 0;  // Counter for LCA marking
+    mutable NetworkSimplexStats stats;
+    bool support_lower_bounds = false;
 
     static constexpr Flow_Type Inf = std::numeric_limits<Flow_Type>::max();
 
@@ -1079,31 +1130,32 @@ namespace Aleph
           ++idx;
         }
 
-      // Map arcs to indices and classify by flow
+      // Map arcs to indices - DO NOT classify yet, let build_spanning_tree handle it
       idx = 0;
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto a = it.get_curr();
           arc_to_idx.insert(a, idx);
           arc_info.touch(idx) = Arc_Info{};
-
-          // Initial classification based on flow
-          if (a->flow <= 0)
-            arc_info(idx).state = Simplex_Arc_State::Lower;
-          else if (a->flow >= a->cap - eps())
-            arc_info(idx).state = Simplex_Arc_State::Upper;
-          else
-            arc_info(idx).state = Simplex_Arc_State::Tree;  // Candidate for tree
-
+          // Initially mark all arcs as Lower; build_spanning_tree will fix this
+          arc_info(idx).state = Simplex_Arc_State::Lower;
           ++idx;
         }
     }
 
-    /** Build initial spanning tree from source using BFS.
+    /// Check if arc has partial flow (strictly between bounds).
+    bool is_partial_flow(Arc *a) const
+    {
+      return a->flow > eps() and a->flow < a->cap - eps();
+    }
+
+    /** Build initial spanning tree from source.
 
         Creates a spanning tree rooted at the source node and computes
-        initial potentials. Non-tree arcs are classified as Lower or Upper
-        based on their current flow.
+        initial potentials. Prioritizes arcs with partial flow.
+
+        Non-tree arcs are classified as Lower or Upper based on their
+        current flow relative to capacity.
     */
     void build_spanning_tree()
     {
@@ -1116,59 +1168,92 @@ namespace Aleph
           auto &ni = ninfo(p);
           ni.parent = nullptr;
           ni.parent_arc = nullptr;
-          ni.depth = -1;  // Not in tree yet
+          ni.depth = -1;
           ni.potential = 0;
           ni.mark = 0;
         }
 
-      // BFS to build spanning tree
+      // Reset all arcs to Lower
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        ainfo(it.get_curr()).state = Simplex_Arc_State::Lower;
+
+      const size_t total_nodes = net.vsize();
       DynListQueue<Node *> queue;
       queue.put(root);
       ninfo(root).depth = 0;
       ninfo(root).potential = 0;
 
       size_t nodes_in_tree = 1;
-      const size_t total_nodes = net.vsize();
 
+      // Helper to add a node to tree via an arc
+      auto add_to_tree = [&](Node *p, Arc *a, Node *other) -> bool {
+        if (ninfo(other).depth >= 0)
+          return false;  // Already in tree
+
+        const auto &pi = ninfo(p);
+        auto &oi = ninfo(other);
+        oi.parent = p;
+        oi.parent_arc = a;
+        oi.depth = pi.depth + 1;
+
+        auto src = static_cast<Node *>(a->src_node);
+        if (src == p)
+          {
+            oi.arc_from_parent = true;
+            oi.potential = pi.potential - a->cost;
+          }
+        else
+          {
+            oi.arc_from_parent = false;
+            oi.potential = pi.potential + a->cost;
+          }
+
+        ainfo(a).state = Simplex_Arc_State::Tree;
+        ++nodes_in_tree;
+        queue.put(other);
+        return true;
+      };
+
+      // Build tree with multiple priority passes
       while (not queue.is_empty() and nodes_in_tree < total_nodes)
         {
           auto p = queue.get();
-          const auto &pi = ninfo(p);
 
-          // Try all arcs (both directions)
+          // Collect all candidate arcs with priorities
+          struct ArcPriority {
+            Arc* arc;
+            Node* other;
+            int priority;  // 0 = partial flow, 1 = with flow, 2 = no flow
+          };
+          DynList<ArcPriority> candidates;
+
           for (Node_Arc_Iterator<Net> it(p); it.has_curr(); it.next_ne())
             {
               auto a = it.get_curr();
               auto other = net.get_connected_node(a, p);
+              if (ninfo(other).depth >= 0)
+                continue;  // Already in tree
 
-              if (ninfo(other).depth >= 0)  // Already in tree
-                continue;
-
-              // Add to tree
-              auto &oi = ninfo(other);
-              oi.parent = p;
-              oi.parent_arc = a;
-              oi.depth = pi.depth + 1;
-
-              // Determine arc direction and compute potential
-              auto src = static_cast<Node *>(a->src_node);
-              if (src == p)
-                {
-                  // Arc goes from p (parent) to other
-                  oi.arc_from_parent = true;
-                  oi.potential = pi.potential - a->cost;
-                }
+              int prio;
+              if (is_partial_flow(a))
+                prio = 0;  // Highest priority
+              else if (a->flow > eps())
+                prio = 1;  // Medium priority
               else
+                prio = 2;  // Lowest priority
+
+              candidates.append(ArcPriority{a, other, prio});
+            }
+
+          // Sort by priority (partial flow first)
+          // Since DynList doesn't have sort, process in order
+          for (int target_prio = 0; target_prio <= 2; ++target_prio)
+            {
+              for (auto& ap : candidates)
                 {
-                  // Arc goes from other to p (parent)
-                  oi.arc_from_parent = false;
-                  oi.potential = pi.potential + a->cost;
+                  if (ap.priority == target_prio)
+                    add_to_tree(p, ap.arc, ap.other);
                 }
-
-              ainfo(a).state = Simplex_Arc_State::Tree;
-              ++nodes_in_tree;
-
-              queue.put(other);
             }
         }
 
@@ -1179,11 +1264,17 @@ namespace Aleph
           if (ainfo(a).state == Simplex_Arc_State::Tree)
             continue;
 
-          // Classify based on flow
           if (a->flow <= eps())
             ainfo(a).state = Simplex_Arc_State::Lower;
-          else
+          else if (a->flow >= a->cap - eps())
             ainfo(a).state = Simplex_Arc_State::Upper;
+          else
+            {
+              // Partial flow arc NOT in tree - classify based on reduced cost
+              auto rc = reduced_cost(a);
+              ainfo(a).state = (rc < -eps()) ?
+                  Simplex_Arc_State::Upper : Simplex_Arc_State::Lower;
+            }
         }
     }
 
@@ -1194,41 +1285,59 @@ namespace Aleph
         - Arc at Lower bound (flow=0): should have reduced_cost >= 0
         - Arc at Upper bound (flow=cap): should have reduced_cost <= 0
 
+        This implementation checks BOTH directions for each arc:
+        - Forward direction: increase flow (requires flow < cap, benefits if rc < 0)
+        - Backward direction: decrease flow (requires flow > 0, benefits if rc > 0)
+
+        This is essential for finding all negative cycles, including those
+        that require reversing flow through arcs with flow > 0.
+
         @return Entering arc, or nullptr if optimal.
     */
     Arc *find_entering_arc()
     {
       Arc *best = nullptr;
       Flow_Type best_violation = eps();  // Threshold to avoid tiny violations
+      bool best_is_increase = true;
 
       for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
         {
           auto a = it.get_curr();
-          const auto state = ainfo(a).state;
+          auto &ai = ainfo(a);
 
-          if (state == Simplex_Arc_State::Tree)
+          if (ai.state == Simplex_Arc_State::Tree)
+            continue;
+
+          if (ai.skip)  // Skip arcs that failed in this round
             continue;
 
           const auto rc = reduced_cost(a);
+          const bool can_increase = (a->flow < a->cap - eps());
+          const bool can_decrease = (a->flow > eps());
 
-          if (state == Simplex_Arc_State::Lower)
+          // Check FORWARD direction: increase flow (rc < 0 is good)
+          if (can_increase and rc < -best_violation)
             {
-              // At lower bound: can increase flow if rc < 0
-              if (rc < -best_violation)
-                {
-                  best_violation = -rc;
-                  best = a;
-                }
+              best_violation = -rc;
+              best = a;
+              best_is_increase = true;
             }
-          else  // Upper
+
+          // Check BACKWARD direction: decrease flow (rc > 0 is good)
+          // This is equivalent to using the "reverse arc" in residual network
+          if (can_decrease and rc > best_violation)
             {
-              // At upper bound: can decrease flow if rc > 0
-              if (rc > best_violation)
-                {
-                  best_violation = rc;
-                  best = a;
-                }
+              best_violation = rc;
+              best = a;
+              best_is_increase = false;
             }
+        }
+
+      // Update state based on direction
+      if (best != nullptr)
+        {
+          ainfo(best).state = best_is_increase ?
+              Simplex_Arc_State::Lower : Simplex_Arc_State::Upper;
         }
 
       return best;
@@ -1305,12 +1414,13 @@ namespace Aleph
       else
         ++arcs_with_decrease;
 
+
       // Walk from u to lca and count
       Node *p = u;
       while (p != lca)
         {
           bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering != from_parent);
+          bool flow_increases = (increase_on_entering == from_parent);
 
           if (flow_increases)
             ++arcs_with_increase;
@@ -1326,7 +1436,7 @@ namespace Aleph
       while (p != lca)
         {
           bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering == from_parent);
+          bool flow_increases = (increase_on_entering != from_parent);
 
           if (flow_increases)
             ++arcs_with_increase;
@@ -1358,12 +1468,16 @@ namespace Aleph
       leaving_goes_lower = increase_on_entering;
 
       // Walk from u to lca
+      // Direction: lca → ... → u (following tree direction)
+      // If increase_on_entering, flow increases in arcs pointing towards u
       p = u;
       while (p != lca)
         {
           Arc *pa = parent_arc(p);
           bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering != from_parent);
+          // from_parent=true means arc goes parent→child (towards u)
+          // So flow increases when both are true or both are false
+          bool flow_increases = (increase_on_entering == from_parent);
 
           Flow_Type slack;
           bool goes_lower;
@@ -1391,12 +1505,16 @@ namespace Aleph
         }
 
       // Walk from v to lca
+      // Direction: v → ... → lca (against tree direction)
+      // If increase_on_entering, flow decreases in arcs pointing towards v
       p = v;
       while (p != lca)
         {
           Arc *pa = parent_arc(p);
           bool from_parent = ninfo(p).arc_from_parent;
-          bool flow_increases = (increase_on_entering == from_parent);
+          // from_parent=true means arc goes parent→child (towards v)
+          // Since we go against tree direction, flow decreases when from_parent=true
+          bool flow_increases = (increase_on_entering != from_parent);
 
           Flow_Type slack;
           bool goes_lower;
@@ -1422,8 +1540,10 @@ namespace Aleph
           p = parent(p);
         }
 
-      // Only update flows if delta is positive
-      if (delta > eps())
+      // Allow degenerate pivots (delta=0) if we found a valid leaving arc
+      // This restructures the tree without changing flow, potentially enabling
+      // future pivots that were previously blocked.
+      if (delta >= 0 and leaving != nullptr)
         {
           // Update entering arc
           if (increase_on_entering)
@@ -1431,24 +1551,8 @@ namespace Aleph
           else
             entering->flow -= delta;
 
-          // Update u-side
+          // Update u-side (same logic as above)
           p = u;
-          while (p != lca)
-            {
-              Arc *pa = parent_arc(p);
-              bool from_parent = ninfo(p).arc_from_parent;
-              bool flow_increases = (increase_on_entering != from_parent);
-
-              if (flow_increases)
-                pa->flow += delta;
-              else
-                pa->flow -= delta;
-
-              p = parent(p);
-            }
-
-          // Update v-side
-          p = v;
           while (p != lca)
             {
               Arc *pa = parent_arc(p);
@@ -1463,10 +1567,26 @@ namespace Aleph
               p = parent(p);
             }
 
-          return true;
+          // Update v-side (same logic as above)
+          p = v;
+          while (p != lca)
+            {
+              Arc *pa = parent_arc(p);
+              bool from_parent = ninfo(p).arc_from_parent;
+              bool flow_increases = (increase_on_entering != from_parent);
+
+              if (flow_increases)
+                pa->flow += delta;
+              else
+                pa->flow -= delta;
+
+              p = parent(p);
+            }
+
+          return true;  // Successful pivot (including degenerate with delta=0)
         }
 
-      return false;  // Degenerate pivot (delta = 0)
+      return false;  // Failed - no valid cycle found
     }
 
     /** Update tree structure after pivot.
@@ -1497,11 +1617,18 @@ namespace Aleph
       ainfo(entering).state = Simplex_Arc_State::Tree;
 
       // Find which end of leaving arc becomes the new subtree root
+      // One of the endpoints must have leaving as its parent_arc
       auto leaving_src = static_cast<Node *>(leaving->src_node);
       auto leaving_tgt = static_cast<Node *>(leaving->tgt_node);
 
       Node *subtree_root;
-      if (parent_arc(leaving_src) == leaving)
+      bool src_has_leaving = (parent_arc(leaving_src) == leaving);
+      bool tgt_has_leaving = (parent_arc(leaving_tgt) == leaving);
+
+      if (not src_has_leaving and not tgt_has_leaving)
+        return;  // Invalid pivot
+
+      if (src_has_leaving)
         subtree_root = leaving_src;
       else
         subtree_root = leaving_tgt;
@@ -1546,8 +1673,23 @@ namespace Aleph
         }
       if (p == subtree_root)
         path.insert(subtree_root);
+      else
+        return;  // in_subtree not descendant of subtree_root
 
       // Reverse parent relationships along the path
+      // Path is: [subtree_root, X, Y, ..., in_subtree] (built by prepending)
+      //
+      // Original tree (parent pointers):
+      //   in_subtree --> Y --> X --> subtree_root --> (via leaving to rest of tree)
+      //   (each node's parent is to its right)
+      //
+      // After reversal (parent pointers):
+      //   subtree_root --> X --> Y --> in_subtree --> out_subtree --> ...
+      //   (each node's parent is to its right, but in_subtree connects via entering)
+      //
+      // For each pair (curr, next) in [subtree_root, X, Y, ...]:
+      // - Original: next.parent = curr, so parent_arc(next) = arc between them
+      // - New: curr.parent = next, using the same arc
       for (auto it = path.get_it(); it.has_curr(); )
         {
           Node *curr = it.get_curr();
@@ -1558,15 +1700,14 @@ namespace Aleph
 
           Node *next = it.get_curr();
 
-          // curr becomes parent of next
-          Arc *arc_between = parent_arc(next);  // Arc from next to its old parent (curr)
-          auto &next_info = ninfo(next);
-          next_info.parent = curr;
-          next_info.parent_arc = arc_between;
+          // Original: next was child of curr, so parent_arc(next) = arc between curr and next
+          Arc *arc_between = parent_arc(next);
+          auto &curr_info = ninfo(curr);
+          curr_info.parent = next;
+          curr_info.parent_arc = arc_between;
 
-          // Determine new direction
           auto arc_src = static_cast<Node *>(arc_between->src_node);
-          next_info.arc_from_parent = (arc_src == curr);
+          curr_info.arc_from_parent = (arc_src == next);
         }
 
       // Link in_subtree to out_subtree via entering arc
@@ -1622,6 +1763,74 @@ namespace Aleph
     */
     explicit Network_Simplex(Net &network) : net(network) {}
 
+    /** Set lower bound for an arc.
+
+        Sets the minimum flow that must pass through an arc.
+        Default lower bound is 0.
+
+        @param[in] a Arc to set lower bound for.
+        @param[in] lower_bound Minimum flow value.
+
+        @note Must be called before run().
+    */
+    void set_lower_bound(Arc *a, Flow_Type lower_bound)
+    {
+      support_lower_bounds = true;
+      ainfo(a).lower_bound = lower_bound;
+    }
+
+    /** Get lower bound for an arc.
+
+        @param[in] a Arc to query.
+        @return Lower bound value (0 if not set).
+    */
+    [[nodiscard]] Flow_Type get_lower_bound(Arc *a) const
+    {
+      return ainfo(a).lower_bound;
+    }
+
+    /** Check if arc flow is at lower bound.
+
+        @param[in] a Arc to check.
+        @return true if flow equals lower bound.
+    */
+    [[nodiscard]] bool is_at_lower_bound(Arc *a) const
+    {
+      return std::abs(a->flow - ainfo(a).lower_bound) < eps();
+    }
+
+    /** Check if arc flow is at upper bound (capacity).
+
+        @param[in] a Arc to check.
+        @return true if flow equals capacity.
+    */
+    [[nodiscard]] bool is_at_upper_bound(Arc *a) const
+    {
+      return std::abs(a->flow - a->cap) < eps();
+    }
+
+    /** Get residual capacity (room to increase flow).
+
+        @param[in] a Arc to query.
+        @return Available capacity above current flow.
+    */
+    [[nodiscard]] Flow_Type residual_capacity(Arc *a) const
+    {
+      return a->cap - a->flow;
+    }
+
+    /** Get residual lower (room to decrease flow).
+
+        @param[in] a Arc to query.
+        @return Available decrease to lower bound.
+    */
+    [[nodiscard]] Flow_Type residual_lower(Arc *a) const
+    {
+      return a->flow - ainfo(a).lower_bound;
+    }
+
+
+  public:
     /** Execute Network Simplex algorithm.
 
         Computes minimum cost flow. If the network already has a feasible
@@ -1635,10 +1844,27 @@ namespace Aleph
       ah_domain_error_if(not (net.is_single_source() and net.is_single_sink()))
           << "Network is not single source and single sink";
 
+      stats.reset();
+      auto total_start = std::chrono::high_resolution_clock::now();
+
       init_structures();
       build_spanning_tree();
 
-      num_pivots = 0;
+      // Count initial partial-flow arcs
+      stats.initial_partial_arcs = count_non_tree_partial_arcs();
+
+      // PHASE I: Establish valid basic feasible solution
+      auto phase1_start = std::chrono::high_resolution_clock::now();
+      size_t phase1_pivots = force_partial_arcs_into_tree();
+      auto phase1_end = std::chrono::high_resolution_clock::now();
+      stats.phase1_time_ms = std::chrono::duration<double, std::milli>(
+        phase1_end - phase1_start).count();
+      stats.phase1_pivots = phase1_pivots;
+      stats.forced_into_tree = phase1_pivots;
+
+      // PHASE II: Optimize cost using standard Network Simplex
+      auto phase2_start = std::chrono::high_resolution_clock::now();
+      num_pivots = phase1_pivots;
       size_t failed_attempts = 0;
       const size_t max_pivots = net.vsize() * net.esize() * 10 + 1000;
       const size_t max_failures = net.esize() + 1;
@@ -1658,29 +1884,290 @@ namespace Aleph
 
           if (success)
             {
+              if (std::abs(delta) < eps())
+                ++stats.degenerate_pivots;
+
               pivot_tree(entering, leaving, leaving_goes_lower);
               ++num_pivots;
-              failed_attempts = 0;  // Reset failure counter
+              failed_attempts = 0;
+
+              // Reset skip flags after successful pivot
+              for (typename Net::Arc_Iterator ait(net); ait.has_curr(); ait.next_ne())
+                ainfo(ait.get_curr()).skip = false;
             }
           else
             {
-              // Failed pivot (invalid cycle, e.g., parallel arcs)
-              // Mark the arc to avoid selecting it again
-              // by swapping its bound state
-              auto &ai = ainfo(entering);
-              if (ai.state == Simplex_Arc_State::Lower)
-                ai.state = Simplex_Arc_State::Upper;
-              else
-                ai.state = Simplex_Arc_State::Lower;
+              ainfo(entering).skip = true;
               ++failed_attempts;
             }
         }
+
+      auto phase2_end = std::chrono::high_resolution_clock::now();
+      stats.phase2_time_ms = std::chrono::duration<double, std::milli>(
+        phase2_end - phase2_start).count();
+      stats.phase2_pivots = num_pivots - phase1_pivots;
+
+      auto total_end = std::chrono::high_resolution_clock::now();
+      stats.total_time_ms = std::chrono::duration<double, std::milli>(
+        total_end - total_start).count();
+      stats.total_pivots = num_pivots;
+
+      // Count tree arcs
+      stats.tree_arcs = 0;
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        if (ainfo(it.get_curr()).state == Simplex_Arc_State::Tree)
+          ++stats.tree_arcs;
 
       return num_pivots;
     }
 
     /// Return number of pivots performed in last run.
     [[nodiscard]] size_t get_num_pivots() const { return num_pivots; }
+
+    /// Return execution statistics from last run.
+    [[nodiscard]] const NetworkSimplexStats & get_stats() const noexcept { return stats; }
+
+    /// Print execution statistics to stdout.
+    void print_stats() const
+    {
+      std::cout << "=== Network Simplex Statistics ===\n"
+                << "Total pivots: " << stats.total_pivots << "\n"
+                << "  Phase I pivots: " << stats.phase1_pivots << "\n"
+                << "  Phase II pivots: " << stats.phase2_pivots << "\n"
+                << "  Degenerate pivots: " << stats.degenerate_pivots << "\n"
+                << "Tree arcs: " << stats.tree_arcs << " (expected " << (net.vsize() - 1) << ")\n"
+                << "Initial partial-flow arcs: " << stats.initial_partial_arcs << "\n"
+                << "Arcs forced into tree: " << stats.forced_into_tree << "\n"
+                << "Timing:\n"
+                << "  Phase I: " << stats.phase1_time_ms << " ms\n"
+                << "  Phase II: " << stats.phase2_time_ms << " ms\n"
+                << "  Total: " << stats.total_time_ms << " ms\n";
+    }
+
+    /** Phase I: Force all partial-flow arcs into the spanning tree.
+
+        For a valid basic feasible solution in Network Simplex, all arcs
+        with flow strictly between bounds (0 < flow < cap) MUST be in the
+        spanning tree. Non-basic arcs must be at their bounds.
+
+        This method identifies arcs with partial flow that are not in the
+        tree and forces pivots to include them. Each pivot replaces one
+        tree arc with the entering arc, maintaining exactly N-1 tree arcs.
+
+        @return Number of forced pivots performed.
+    */
+    size_t force_partial_arcs_into_tree()
+    {
+      size_t forced_pivots = 0;
+      bool made_progress = true;
+
+      while (made_progress)
+        {
+          made_progress = false;
+
+          // Find a non-tree arc with partial flow
+          for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+            {
+              auto a = it.get_curr();
+              if (ainfo(a).state == Simplex_Arc_State::Tree)
+                continue;
+
+              if (not is_partial_flow(a))
+                continue;
+
+              // Found a partial-flow arc not in tree - force it in
+              // Mark it as Lower (to increase flow direction)
+              ainfo(a).state = Simplex_Arc_State::Lower;
+
+              Flow_Type delta;
+              Arc *leaving;
+              bool leaving_goes_lower;
+
+              // Try to find a valid cycle and leaving arc
+              bool success = augment_and_find_leaving(a, delta, leaving, leaving_goes_lower);
+
+              if (success and leaving != nullptr and leaving != a)
+                {
+                  // Verify leaving arc is in tree
+                  if (ainfo(leaving).state != Simplex_Arc_State::Tree)
+                    {
+                      ainfo(a).state = Simplex_Arc_State::Lower;
+                      continue;
+                    }
+
+                  pivot_tree(a, leaving, leaving_goes_lower);
+                  ++forced_pivots;
+                  made_progress = true;
+                  break;
+                }
+              else
+                {
+                  // Try the other direction (Upper = decrease flow)
+                  ainfo(a).state = Simplex_Arc_State::Upper;
+                  success = augment_and_find_leaving(a, delta, leaving, leaving_goes_lower);
+
+                  if (success and leaving != nullptr and leaving != a)
+                    {
+                      pivot_tree(a, leaving, leaving_goes_lower);
+                      ++forced_pivots;
+                      made_progress = true;
+                      break;
+                    }
+                  else
+                    {
+                      // Cannot add this arc - restore to appropriate bound
+                      if (a->flow <= eps())
+                        ainfo(a).state = Simplex_Arc_State::Lower;
+                      else if (a->flow >= a->cap - eps())
+                        ainfo(a).state = Simplex_Arc_State::Upper;
+                      else
+                        ainfo(a).state = Simplex_Arc_State::Lower;  // Should not happen
+                    }
+                }
+            }
+        }
+
+      return forced_pivots;
+    }
+
+    /** Check if current solution is a valid basic feasible solution.
+
+        A valid BFS requires:
+        1. All tree arcs can have any flow
+        2. All non-tree arcs must be at their bounds (flow=0 or flow=cap)
+
+        @return true if valid BFS, false otherwise.
+    */
+    bool is_valid_basic_solution() const
+    {
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          if (ainfo(a).state == Simplex_Arc_State::Tree)
+            continue;
+
+          // Non-tree arc must be at bounds
+          if (is_partial_flow(a))
+            return false;
+        }
+      return true;
+    }
+
+    /** Count arcs with partial flow not in tree. */
+    size_t count_non_tree_partial_arcs() const
+    {
+      size_t count = 0;
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          if (ainfo(a).state != Simplex_Arc_State::Tree and is_partial_flow(a))
+            ++count;
+        }
+      return count;
+    }
+
+    /** Verify that tree arcs have zero reduced cost.
+
+        In a valid basic solution, all tree arcs must have reduced cost = 0.
+        This is a consistency check for the potential values.
+
+        @return true if all tree arcs have rc=0, false otherwise.
+    */
+    bool verify_tree_reduced_costs() const
+    {
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          if (ainfo(a).state != Simplex_Arc_State::Tree)
+            continue;
+
+          auto rc = reduced_cost(a);
+          if (std::abs(rc) > eps() * 100)  // Allow small tolerance
+            return false;
+        }
+      return true;
+    }
+
+    /** Verify tree integrity - all parent_arcs should be Tree arcs.
+
+        @return true if tree structure is consistent.
+    */
+    [[nodiscard]] bool verify_tree_integrity() const
+    {
+      for (typename Net::Node_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto p = it.get_curr();
+          if (p == root)
+            continue;
+
+          auto pa = parent_arc(p);
+          if (pa == nullptr)
+            return false;
+
+          if (ainfo(pa).state != Simplex_Arc_State::Tree)
+            return false;
+        }
+      return true;
+    }
+
+    /** Print diagnostic information about current state. */
+    void print_diagnostics() const
+    {
+      std::cout << "\n=== Network Simplex Diagnostics ===\n";
+
+      // Count arc types
+      size_t tree_arcs = 0, lower_arcs = 0, upper_arcs = 0;
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          switch (ainfo(it.get_curr()).state)
+            {
+            case Simplex_Arc_State::Tree: ++tree_arcs; break;
+            case Simplex_Arc_State::Lower: ++lower_arcs; break;
+            case Simplex_Arc_State::Upper: ++upper_arcs; break;
+            }
+        }
+
+      std::cout << "Arcs: Tree=" << tree_arcs << " Lower=" << lower_arcs
+                << " Upper=" << upper_arcs << " Total=" << net.esize() << "\n";
+      std::cout << "Expected tree arcs: " << (net.vsize() - 1) << "\n";
+
+      // Verify tree reduced costs
+      bool tree_rc_ok = verify_tree_reduced_costs();
+      std::cout << "Tree arcs rc=0: " << (tree_rc_ok ? "YES" : "NO") << "\n";
+
+      // Check for optimality violations
+      size_t violations = 0;
+      for (typename Net::Arc_Iterator it(net); it.has_curr(); it.next_ne())
+        {
+          auto a = it.get_curr();
+          auto state = ainfo(a).state;
+          auto rc = reduced_cost(a);
+
+          if (state == Simplex_Arc_State::Lower)
+            {
+              // Lower: flow=0, can increase. Optimal if rc >= 0
+              if (rc < -eps() and a->flow < a->cap - eps())
+                {
+                  ++violations;
+                  std::cout << "  VIOLATION: Lower arc with rc=" << rc
+                            << " flow=" << a->flow << "/" << a->cap << "\n";
+                }
+            }
+          else if (state == Simplex_Arc_State::Upper)
+            {
+              // Upper: flow=cap, can decrease. Optimal if rc <= 0
+              if (rc > eps() and a->flow > eps())
+                {
+                  ++violations;
+                  std::cout << "  VIOLATION: Upper arc with rc=" << rc
+                            << " flow=" << a->flow << "/" << a->cap << "\n";
+                }
+            }
+        }
+
+      std::cout << "Optimality violations: " << violations << "\n";
+      std::cout << "==================================\n";
+    }
   };
 
 
@@ -1688,10 +2175,12 @@ namespace Aleph
 
       This algorithm first computes a maximum flow using a max-flow algorithm
       (Ford-Fulkerson by default), then optimizes cost using the Network
-      Simplex algorithm.
+      Simplex algorithm with a two-phase approach:
 
-      The Network Simplex is generally faster than cycle-canceling for
-      large sparse networks.
+      - **Phase I**: Establishes a valid basic feasible solution by forcing
+        all arcs with partial flow (0 < flow < cap) into the spanning tree.
+      - **Phase II**: Standard Network Simplex optimization that finds arcs
+        with negative reduced cost and performs pivots until optimal.
 
       @tparam Net Network type (must be Net_Cost_Graph or compatible).
       @tparam Max_Flow_Algo Maximum flow algorithm template.
@@ -1699,7 +2188,7 @@ namespace Aleph
       @param[in,out] net The network to compute max-flow min-cost on.
                          Flow values are modified in place.
 
-      @return Number of simplex pivots performed.
+      @return Number of simplex pivots performed (Phase I + Phase II).
 
       @throw bad_alloc If there is not enough memory.
       @throw domain_error If network is not single source and single sink.
@@ -1717,7 +2206,7 @@ namespace Aleph
       @endcode
 
       @see max_flow_min_cost_by_cycle_canceling Network_Simplex
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>
@@ -1735,7 +2224,7 @@ namespace Aleph
       @tparam Max_Flow_Algo Maximum flow algorithm template.
 
       @see max_flow_min_cost_by_network_simplex
-      @ingroup Redes
+      @ingroup Networks
   */
   template <class Net,
             template <class> class Max_Flow_Algo = Ford_Fulkerson_Maximum_Flow>

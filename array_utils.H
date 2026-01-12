@@ -52,7 +52,7 @@
  *  Aleph::reverse(arr, 5);
  *  ```
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

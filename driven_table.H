@@ -31,7 +31,7 @@
  *  supporting read, write, cut, and size operations for event-driven
  *  simulations.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

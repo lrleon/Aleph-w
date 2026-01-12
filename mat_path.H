@@ -70,7 +70,7 @@
  *  @see Floyd_Warshall.H Standard Floyd-Warshall implementation
  *  @see tpl_matgraph.H Matrix-based graph representations
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -117,7 +117,7 @@ namespace Aleph
  *
  *  @see floyd_all_shortest_paths()
  *  @see find_min_path(Mat&, typename Mat::Node*, typename Mat::Node*, Path<typename Mat::Graph_Type>&)
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class Mat>
 void find_min_path(Mat & p, long src_idx, long tgt_idx,
@@ -169,7 +169,7 @@ void find_min_path(Mat & p, long src_idx, long tgt_idx,
  *
  *  @see find_min_path(Mat&, long, long, Path<typename Mat::Graph_Type>&)
  *  @see floyd_all_shortest_paths()
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class Mat>
 void find_min_path(Mat & p, 
@@ -194,7 +194,7 @@ void find_min_path(Mat & p,
  *  finder(path_matrix, 0L, 5L, path);
  *  @endcode
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class Mat>
 class Find_Min_Path

@@ -70,7 +70,7 @@
  *  @see tpl_matgraph.H For adjacency matrix representation
  *  @see mat_latex.H For LaTeX matrix formatting
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -159,7 +159,7 @@ struct Initialize_Dist
  *  @note The path matrix can be used with find_min_path() to reconstruct paths.
  *  @warning Does not detect negative cycles.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT, class Compare, class Plus> 
 void floyd_all_shortest_paths(
@@ -219,7 +219,7 @@ void floyd_all_shortest_paths(
  *
  *  @pre Path matrix must have been computed by floyd_all_shortest_paths()
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class Mat>
 void find_min_path(Mat &                           p, 
@@ -255,7 +255,7 @@ void find_min_path(Mat &                           p,
  *
  *  @see find_min_path(Mat&, const long, const long, Path<GT>&)
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class Mat>
 void find_min_path(Mat &                           p, 
@@ -294,7 +294,7 @@ void find_min_path(Mat &                           p,
  *
  *  @see floyd_all_shortest_paths() For algorithm without LaTeX output
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT, class Compare, class Plus, 
           template <class> class P_i,   // Row/column index format for dist and path

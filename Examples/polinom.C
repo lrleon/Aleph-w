@@ -64,7 +64,7 @@
  * 
  * @see DynDlist for the underlying list implementation
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 # include <tpl_dynDlist.H>

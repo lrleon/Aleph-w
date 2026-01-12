@@ -46,7 +46,7 @@
  * ```
  *
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
  *

@@ -39,7 +39,7 @@
     Both algorithms assume the input is a DAG. Behavior is undefined
     if the graph contains cycles.
 
-    @ingroup Grafos
+    @ingroup Graphs
  *  @author Leandro Rabindranath León
 */
 
@@ -64,7 +64,7 @@ namespace Aleph {
     @tparam Itor Iterator type for traversing outgoing arcs (default: Out_Iterator).
     @tparam SA Arc filter/selector (default: Dft_Show_Arc<GT>).
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 template <class GT,
           template <typename, class> class Itor = Out_Iterator,
@@ -177,7 +177,7 @@ public:
     @tparam Itor Iterator type for traversing outgoing arcs (default: Out_Iterator).
     @tparam SA Arc filter/selector (default: Dft_Show_Arc<GT>).
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 template <class GT,
           template <typename, class> class Itor = Out_Iterator,

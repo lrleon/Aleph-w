@@ -31,7 +31,7 @@
  *  the more complex List_Graph with easier-to-use methods
  *  and automatic memory management.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -60,7 +60,7 @@ static const long No_Visited = 0; // nodo o arco no ha sido visitado
 
       @see Bit_Fields
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
 enum Graph_Bits
 {
@@ -81,21 +81,21 @@ enum Graph_Bits
 
 
   /** The node or arc has already been processed
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Processed; 
 
   /** The node are being processed; probably it is inside a queue, stack
       or heap 
 
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Processing;
 
   /** The node have not bees processed. This must be the initial state
       before general processing 
 
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Unprocessed;
 
@@ -121,7 +121,7 @@ enum Graph_Bits
         some systems. Possibly this would only happen on little-endian
         systems. Therefore, do not use these mechanisms.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
 class Bit_Fields
 {
@@ -291,7 +291,7 @@ public:
 
     @see Bit_Fields NODE_BITS NODE_COUNTER NODE_COLOR IS_NODE_VISITED NODE_COOKIE ARC_COUNTER ARC_COLOR ARC_BITS IS_ARC_VISITED ARC_COOKIE
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 struct Graph_Attr
 {
@@ -311,19 +311,19 @@ struct Graph_Attr
 
     /** Get the control bits of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
 # define NODE_BITS(p)            ((p)->attrs.control_bits)
 
     /** Get the counter of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COUNTER(p)         ((p)->attrs.counter)
 
     /** Synonymous of NODE_COUNTER
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COLOR(p)         ((p)->attrs.counter)
 
@@ -333,31 +333,31 @@ struct Graph_Attr
         @param bit number of bit to read
         @return true if the bit is 1; false if 0
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define IS_NODE_VISITED(p, bit) (NODE_BITS(p).get_bit(bit))
 
     /** Return the node `cookie`
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COOKIE(p)          ((p)->attrs.cookie) 
 
     /** Return the `counter` of arc p
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COUNTER(p)          ((p)->attrs.counter)
 
     /** Return the color of arc p 
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COLOR(p)          ((p)->attrs.counter)
 
     /** Return the control bits of arc p
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_BITS(p)             ((p)->attrs.control_bits)
 
@@ -366,13 +366,13 @@ struct Graph_Attr
         @param p pointer to arc
         @param bit number of bit to be read
         @return true if `bit` is 1; false otherwise (`bit` is set to 0)
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define IS_ARC_VISITED(p, bit)  (ARC_BITS(p).get_bit(bit))
 
     /** Return the arc `cookie`
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COOKIE(p)           ((p)->attrs.cookie) 
 

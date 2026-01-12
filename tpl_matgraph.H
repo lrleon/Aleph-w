@@ -52,7 +52,7 @@
  *
  *  @see tpl_graph.H Adjacency list graph representation
  *  @see Floyd_Warshall.H Floyd-Warshall algorithm
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -236,7 +236,7 @@ write_matrix(DynArray<Entry>& mat, long i, long j, long n, const Entry& entry)
  *
  * @see Matrix_Graph For a matrix that stores copies of attributes
  * @see Ady_Mat For auxiliary matrices with custom entry types
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
 class Map_Matrix_Graph
@@ -475,7 +475,7 @@ Map_Matrix_Graph<GT, SA>::copy_list_graph(GT& g)
  *
  * @see Map_Matrix_Graph For pointer-based matrix
  * @see Ady_Mat For auxiliary matrices with custom types
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <typename GT, class SA = Dft_Show_Arc<GT>>
 class Matrix_Graph
@@ -680,7 +680,7 @@ public:
  * @tparam SA Arc filter (default: show all arcs)
  *
  * @see Floyd_Warshall.H Usage in Floyd-Warshall algorithm
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, typename __Entry_Type, class SA = Dft_Show_Arc<GT>>
 class Ady_Mat
@@ -1055,7 +1055,7 @@ Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix(void* ptr)
  *
  * @see BitArray Underlying bit array implementation
  * @see warshall_compute_transitive_closure()
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
 class Bit_Mat_Graph
@@ -1193,9 +1193,7 @@ public:
   Bit_Mat_Graph& operator=(GT& g)
   {
     if (&g != lgraph)
-      {
         set_list_graph(g);
-      }
     return *this;
   }
 

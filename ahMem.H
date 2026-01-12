@@ -42,7 +42,7 @@
  * Aleph::deallocate(ptr);
  * @endcode
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  * @author Leandro Rabindranath León
  */
 

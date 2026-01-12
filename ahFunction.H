@@ -831,7 +831,7 @@ namespace Aleph
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool less_than(const T & op1, const T & op2, Compare & cmp)
@@ -841,7 +841,7 @@ bool less_than(const T & op1, const T & op2, Compare & cmp)
 
  
   /**
-     @ingroup fcts
+     @ingroup Functions
      \overload less_than()
   */
     template <class T, class Compare> inline
@@ -855,7 +855,7 @@ bool less_than(const T & op1, const T & op2, Compare && cmp = Compare())
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool less_or_equal_than(const T& op1, const T& op2, Compare & cmp)
@@ -871,7 +871,7 @@ bool less_or_equal_than(const T& op1, const T& op2, Compare & cmp)
 
 
   /**
-     @ingroup fcts
+     @ingroup Functions
      \overload less_or_equal_than()
   */
     template <class T, class Compare> inline
@@ -885,7 +885,7 @@ bool less_or_equal_than(const T& op1, const T& op2, Compare && cmp = Compare())
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_than(const T& op1, const T& op2, Compare && cmp = Compare())
@@ -896,7 +896,7 @@ bool greater_than(const T& op1, const T& op2, Compare && cmp = Compare())
 
   /** \overload greater_than()
 
-      @ingroup fcts
+      @ingroup Functions
   */
   template <class T, class Compare> inline
 bool greater_than(const T& op1, const T& op2, Compare & cmp)
@@ -908,7 +908,7 @@ bool greater_than(const T& op1, const T& op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_or_equal_than(const T& op1, const T & op2, 
@@ -919,7 +919,7 @@ bool greater_or_equal_than(const T& op1, const T & op2,
 
   /** \overload greater_or_equal_than()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
@@ -931,7 +931,7 @@ bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
@@ -941,7 +941,7 @@ bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 
   /** \overload no_equals()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare & cmp)
@@ -953,7 +953,7 @@ bool no_equals(const T & op1, const T & op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool are_equals(const T & op1, const T & op2, Compare && cmp = Compare())
@@ -963,7 +963,7 @@ bool are_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 
   /** \overload are_equals()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool are_equals(const T & op1, const T & op2, Compare & cmp) 
@@ -975,7 +975,7 @@ bool are_equals(const T & op1, const T & op2, Compare & cmp)
 
       Si, por ejemplo, Compare es <, entonces Inversed_Compare efectúa >=.
 
-      @ingroup fcts
+      @ingroup Functions
    */
     template <class T, class Compare>
 class Inversed_Compare
@@ -998,7 +998,7 @@ public:
 
    /**
 
-     @ingroup fcts
+     @ingroup Functions
    */
     template <class T, class Compare>
 struct Compare_Dup 

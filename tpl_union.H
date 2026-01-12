@@ -38,7 +38,7 @@
  *  ## Complexity: O(α(n)) amortized per operation
  *
  *  @see tpl_components.H Graph connectivity using Union-Find
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -70,7 +70,7 @@
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 class Fixed_Relation
 {
@@ -227,7 +227,7 @@ public:
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 class Relation : public Fixed_Relation
 {
@@ -273,7 +273,7 @@ public:
 
     @see Relation Relation_T
     @author Leandro Rabindranath Leon 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 template <typename T, class Compare = Aleph::less<T>>
 class Relation_T : public Relation

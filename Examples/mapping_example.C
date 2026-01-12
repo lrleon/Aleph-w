@@ -51,7 +51,7 @@
  * Examples use Colombian data: departments, cities, and cultural elements.
  *
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

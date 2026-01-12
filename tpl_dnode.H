@@ -75,7 +75,7 @@
  *  @see tpl_dynDlist.H High-level doubly linked list
  *  @see tpl_snode.H Singly linked node alternative
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -93,7 +93,7 @@ namespace Aleph {
 
     /** Node belonging to a double circular linked list with header node.
 
-        @ingroup Secuencias
+        @ingroup Sequences
         @see Dnode::Iterator
     */ 
 template <typename T> class Dnode : public Dlink 
@@ -249,7 +249,7 @@ public:
 
       /** Iterator on a list of `Dnode` objects
 
-          @ingroup Secuencias
+          @ingroup Sequences
        */
   class Iterator : public Dlink::Iterator
   {

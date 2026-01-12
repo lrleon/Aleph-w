@@ -50,7 +50,7 @@
  *  @see tpl_cut_nodes.H For cut-vertex (articulation point) algorithms
  *  @see generate_tree.H For general tree visualization
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath Leon
  */
 
@@ -206,7 +206,7 @@ inline void visitar_low(Grafo &, Grafo::Node * nodo, Grafo::Arc *)
  *  @see compute_cut_nodes() For cut-vertex computation
  *  @see generate_tree() For tree output format
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT, class Key>
 void write_df_low_tree(GT & g, typename GT::Node * src, std::ofstream & f)

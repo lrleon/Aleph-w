@@ -59,7 +59,7 @@
  * @see graph-traverse.H
  * @see tpl_find_path.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

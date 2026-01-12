@@ -26,7 +26,7 @@
 
 /** @file tpl_graph_indexes.H
  *  @brief Graph node and arc indexing.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

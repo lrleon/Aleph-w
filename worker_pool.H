@@ -59,7 +59,7 @@
  *  ```
  *
  *  @see q-consumer-threads.H Queue-based variant
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -93,7 +93,7 @@ using namespace Aleph;
  *
  * @note The pool takes ownership of scheduled `void*` pointers and frees them.
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <class WorkerFct>

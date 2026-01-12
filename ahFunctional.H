@@ -46,7 +46,7 @@
     - **Comparison**: `eq()`, `lesser()`, `diff()`
     - **Partitioning**: `partition()`, `take_while()`, `drop_while()`
 
-    @ingroup Algos
+    @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
 
@@ -216,7 +216,7 @@ namespace Aleph
       @endcode
 
       @see range() for generating ranges with custom step.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T = int, template <typename> class Container = DynList>
   [[nodiscard]] inline Container<T> contiguous_range(T start, const size_t n)
@@ -233,7 +233,7 @@ namespace Aleph
       @param[in] n size of range.
       @return a container with the range.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T = int, template <typename> class Container = DynList>
   [[nodiscard]] inline Container<T> range(const T n)
@@ -251,7 +251,7 @@ namespace Aleph
       @param[in] item the value to be repeated.
       @return a container with n instances of item value.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T = int> [[nodiscard]] inline
   DynList<T> rep(size_t n, const T & item)
@@ -289,7 +289,7 @@ namespace Aleph
       *ptrs.get_first() = 10;  // modifies nums[0]
       @endcode
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]]
   DynList<typename Container::Item_Type*> pointers_list(Container & c)
@@ -330,7 +330,7 @@ namespace Aleph
       each(1, 5, [&count]() { ++count; });  // count = 5
       @endcode
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Op>
   void each(size_t start, size_t end, Op & op)
@@ -412,7 +412,7 @@ namespace Aleph
       @endcode
 
       @see enum_for_each() for version with index.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Operation> inline
   Container & for_each(Container & container, Operation & operation)
@@ -477,7 +477,7 @@ namespace Aleph
 
       @see for_each() for version without index.
       @see enumerate() for getting pairs of (element, index).
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation & operation)
@@ -515,7 +515,7 @@ namespace Aleph
 
       @see exists() for testing if any element satisfies predicate.
       @see none() for testing if no element satisfies predicate.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Operation> inline
   bool all(Container & container, Operation & operation)
@@ -566,7 +566,7 @@ namespace Aleph
 
       @see all() for testing if all elements satisfy predicate.
       @see none() for testing if no element satisfies predicate.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation & operation)
@@ -680,7 +680,7 @@ namespace Aleph
       result of @a op(item).
 
       @note The name maps is used to avoid clashes with std::map.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class C, class Op>
   [[nodiscard]] DynList<T> maps(const C & c, Op op)
@@ -695,7 +695,7 @@ namespace Aleph
 
       Computes f(...f(f(init, x1), x2), ..., xn).
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template < typename T, class Container, class Operation> [[nodiscard]] inline
   T foldl(const Container & container, const T & init, Operation operation)
@@ -736,7 +736,7 @@ namespace Aleph
       @see zipEq() for version that throws on length mismatch.
       @see zip_longest() for version that pads shorter container.
       @see tzip() for tuple-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<typename Container1::Item_Type,
@@ -779,7 +779,7 @@ namespace Aleph
       @see zip() for pair-based version.
       @see tzipEq() for version that throws on length mismatch.
       @see tzip_longest() for version that pads shorter container.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::tuple<typename Container1::Item_Type,
@@ -823,7 +823,7 @@ namespace Aleph
 
       @see zip() for version that stops at shorter container.
       @see tzipEq() for tuple-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<typename Container1::Item_Type,
@@ -860,7 +860,7 @@ namespace Aleph
 
       @see tzip() for version that stops at shorter container.
       @see zipEq() for pair-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::tuple<typename Container1::Item_Type,
@@ -906,7 +906,7 @@ namespace Aleph
 
       @see enumerate_tuple() for tuple-based version.
       @see enum_for_each() for applying operation with index.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]]
   auto inline enumerate(const Container & c)
@@ -946,7 +946,7 @@ namespace Aleph
 
       @see diff() for inequality check.
       @see are_eq() for detailed mismatch information.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
@@ -999,7 +999,7 @@ namespace Aleph
       @endcode
 
       @see eq() for simple boolean result.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
@@ -1045,7 +1045,7 @@ namespace Aleph
       lesser(a, a);  // false (equal)
       @endcode
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2,
             class Cmp = std::less<typename C1::Item_Type>> [[nodiscard]] inline
@@ -1083,7 +1083,7 @@ namespace Aleph
       @return true if containers are not equal.
 
       @see eq() for equality check.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2,
             class Eq = std::equal_to<typename C1::Item_Type>> [[nodiscard]] inline
@@ -1114,7 +1114,7 @@ namespace Aleph
 
       @see zip() for the inverse operation.
       @see tunzip() for tuple-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]] inline
   auto unzip(const Container & l)
@@ -1157,7 +1157,7 @@ namespace Aleph
 
       @see tzip() for the inverse operation.
       @see unzip() for pair-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <template <typename> class Container, typename T1, typename T2>
   [[nodiscard]] inline std::tuple<Container<T1>, Container<T2>>
@@ -1250,7 +1250,7 @@ namespace Aleph
       // nums unchanged: {1, 2, 3, 4, 5}
       @endcode
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container>
   [[nodiscard]] inline Container<T> reverse(const Container<T> & l)
@@ -1282,7 +1282,7 @@ namespace Aleph
       @endcode
 
       @note The source container must have at least n elements.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]]
   auto gen_seq_list_tuples(const Container & c, size_t n)
@@ -1328,7 +1328,7 @@ namespace Aleph
 
       @see group_by() for grouping by a key function.
       @see unique_sequential() for getting unique consecutive values.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container, class Equal>
   [[nodiscard]] std::pair<DynList<DynList<T>>, size_t>
@@ -1398,7 +1398,7 @@ namespace Aleph
             are preserved. For global unique, sort first.
 
       @see sequential_groups() for getting groups of consecutive equals.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container, class Equal>
   [[nodiscard]] std::pair<DynList<T>, size_t>
@@ -1461,7 +1461,7 @@ namespace Aleph
       @endcode
 
       @see get_pair_it() for creating Pair_Iterator instances.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Itor1, class Itor2 = Itor1>
   class Pair_Iterator
@@ -1551,7 +1551,7 @@ namespace Aleph
       @return Pair_Iterator positioned at the beginning of both containers.
 
       @see Pair_Iterator for usage examples.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2>
   [[nodiscard]] Pair_Iterator<typename C1::Iterator, typename C2::Iterator> inline
@@ -1713,7 +1713,7 @@ namespace Aleph
       @endcode
 
       @see flat_map() for map followed by flatten.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T,
             template <typename> class C1,
@@ -1739,7 +1739,7 @@ namespace Aleph
       @param c Triply-nested container.
       @return DynList with all elements from all inner containers.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T,
             template <typename> class C1,
@@ -1762,7 +1762,7 @@ namespace Aleph
       @param c Quadruply-nested container.
       @return DynList with all elements from all inner containers.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T,
             template <typename> class C1,
@@ -1786,7 +1786,7 @@ namespace Aleph
       @param c Five-times-nested container.
       @return DynList with all elements from all inner containers.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T,
             template <typename> class C1,
@@ -1819,7 +1819,7 @@ namespace Aleph
       @endcode
 
       @see contains() for searching in any container type.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T> [[nodiscard]] inline
   bool is_inside(const T & val, const DynList<T> & values)
@@ -1845,7 +1845,7 @@ namespace Aleph
       is_equal(4, 1, 3, 5, 7);  // false
       @endcode
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T> [[nodiscard]] inline
   bool is_equal(const T &) { return false; }
@@ -1866,7 +1866,7 @@ namespace Aleph
 
       This is the complement of exists().
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Operation> [[nodiscard]] inline
   bool none(const Container & container, Operation & operation)
@@ -1906,7 +1906,7 @@ namespace Aleph
       @param pred Predicate to test each element.
       @return Pointer to the first matching element, or nullptr if not found.
       @see find_opt For a safer alternative that returns a copy.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Pred> [[nodiscard]] inline
   typename Container::Item_Type *
@@ -1979,7 +1979,7 @@ namespace Aleph
       @return std::optional containing a copy of the first matching element,
               or std::nullopt if not found.
       @see find_ptr For a pointer-returning version (use with caution).
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Pred> [[nodiscard]] inline
   std::optional<typename Container::Item_Type>
@@ -2013,7 +2013,7 @@ namespace Aleph
       @note Unlike foldl, this traverses from right to left conceptually,
             but physically still iterates left-to-right, so the associativity
             and operation order differ from foldl.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Container, class Operation> [[nodiscard]] inline
   T foldr(const Container & container, const T & init, Operation operation)
@@ -2033,7 +2033,7 @@ namespace Aleph
       @param container Source container.
       @param init Starting value (defaults to T{}).
       @return Sum of all elements plus init.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, typename T = typename Container::Item_Type>
   [[nodiscard]] inline T sum(const Container & container, const T & init = T{})
@@ -2056,7 +2056,7 @@ namespace Aleph
       @param container Source container.
       @param init Starting value (defaults to T{1}).
       @return Product of all elements times init.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, typename T = typename Container::Item_Type>
   [[nodiscard]] inline T product(const Container & container, const T & init = T{1})
@@ -2079,7 +2079,7 @@ namespace Aleph
       @param c1 First container.
       @param c2 Second container.
       @return DynList with elements of c1 followed by elements of c2.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class C1, class C2> [[nodiscard]] inline
   DynList<typename C1::Item_Type>
@@ -2098,7 +2098,7 @@ namespace Aleph
       @param c Source container.
       @param pred Predicate to test.
       @return DynList with initial elements satisfying pred.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Pred> [[nodiscard]] inline
   DynList<typename Container::Item_Type>
@@ -2120,7 +2120,7 @@ namespace Aleph
       @param c Source container.
       @param pred Predicate to test.
       @return DynList with remaining elements after predicate becomes false.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Pred> [[nodiscard]] inline
   DynList<typename Container::Item_Type>
@@ -2146,7 +2146,7 @@ namespace Aleph
       @param container Source container.
       @param op Operation returning a container for each element.
       @return Flattened DynList of all results.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Op> [[nodiscard]] inline
   auto flat_map(const Container & container, Op op)
@@ -2170,7 +2170,7 @@ namespace Aleph
       @param container Source container.
       @param init Starting value.
       @return DynList with all intermediate accumulator values.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Container> [[nodiscard]] inline
   DynList<T> scanl_sum(const Container & container, const T & init)
@@ -2194,7 +2194,7 @@ namespace Aleph
       @param init Initial accumulator value.
       @param op Binary operation.
       @return DynList with all intermediate accumulator values.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Container, class Op> [[nodiscard]] inline
   DynList<T> scanl(const Container & container, const T & init, Op op)
@@ -2215,7 +2215,7 @@ namespace Aleph
       @param container Source container.
       @param cmp Comparator (defaults to std::less).
       @return Pointer to the minimum element, or nullptr if container is empty.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container,
             class Cmp = std::less<typename Container::Item_Type>>
@@ -2241,7 +2241,7 @@ namespace Aleph
       @param container Source container.
       @param cmp Comparator (defaults to std::less, finds max by reversing comparison).
       @return Pointer to the maximum element, or nullptr if container is empty.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container,
             class Cmp = std::less<typename Container::Item_Type>>
@@ -2267,7 +2267,7 @@ namespace Aleph
       @param container Source container.
       @param cmp Comparator (defaults to std::less).
       @return Pair of pointers (min, max), or (nullptr, nullptr) if container is empty.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container,
             class Cmp = std::less<typename Container::Item_Type>>
@@ -2298,7 +2298,7 @@ namespace Aleph
       @param container Source container.
       @param pred Predicate to test.
       @return Number of elements satisfying pred.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container, class Pred> [[nodiscard]] inline
   size_t count_if(const Container & container, Pred pred)
@@ -2315,7 +2315,7 @@ namespace Aleph
       @param container Source container.
       @param value Value to search for.
       @return true if value is found.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]] inline
   bool contains(const Container & container,
@@ -2333,7 +2333,7 @@ namespace Aleph
 
       @param container Source container.
       @return DynList of tuples (size_t, T).
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container> [[nodiscard]] inline
   DynList<std::tuple<size_t, typename Container::Item_Type>>
@@ -2381,7 +2381,7 @@ namespace Aleph
 
       @see zip() for version that stops at the shorter container.
       @see tzip_longest() for tuple-based version.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<typename Container1::Item_Type,
@@ -2452,7 +2452,7 @@ namespace Aleph
 
       @see zip_longest() for pair-based version.
       @see tzip() for version that stops at the shorter container.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::tuple<typename Container1::Item_Type,
@@ -2525,7 +2525,7 @@ namespace Aleph
       @endcode
 
       @see zip_longest() for version with explicit fill values.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <class Container1, class Container2> [[nodiscard]] inline
   DynList<std::pair<std::optional<typename Container1::Item_Type>,
@@ -2610,7 +2610,7 @@ namespace Aleph
 
       @see sequential_groups() for grouping by equality.
       @see unique_sequential() for getting unique consecutive values.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container, class KeyFunc>
   [[nodiscard]]
@@ -2677,7 +2677,7 @@ namespace Aleph
       @endcode
 
       @see group_by() for version using operator==.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container,
             class KeyFunc, class KeyEqual>
@@ -2751,7 +2751,7 @@ namespace Aleph
       @endcode
 
       @see group_by() for version without reduction.
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, template <typename> class Container,
             class KeyFunc, class Reducer>

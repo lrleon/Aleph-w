@@ -50,7 +50,7 @@
  *
  *  @see useMutex.H Mutex utilities
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -80,7 +80,7 @@
  * - Release: `TIMESTAMP (thread_id:pid): MESSAGE`
  * - Debug: `TIMESTAMP (file:line:thread_id:pid): MESSAGE`
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  */
 class Log_Manager
 {

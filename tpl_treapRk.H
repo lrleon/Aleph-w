@@ -37,7 +37,7 @@
  *
  *  @see tpl_treap.H Base treap
  *  @see tpl_rbRk.H Deterministic alternative
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -561,7 +561,7 @@ public:
       @return inorder position of `key` if this is in the tree or -1 if
       `key` is not found
 
-      @ingroup Arboles
+      @ingroup Trees
    */
   std::pair<int, Node*> position(const Key & key) const noexcept
   {
@@ -738,7 +738,7 @@ public:
 
       The visit order is inorder.
 
-      @ingroup Arboles
+      @ingroup Trees
    */
   class Iterator
   {
@@ -1057,7 +1057,7 @@ public:
       By default, the Mersenne twister is used and the seed is taken from
       system time.
 
-      @ingroup Arboles
+      @ingroup Trees
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
    */
     template <typename Key, class Compare = Aleph::less<Key>>
@@ -1103,7 +1103,7 @@ struct Treap_Rk : public Gen_Treap_Rk<Treap_Rk_Node, Key, Compare>
       By default, the Mersenne twister is used and the seed is taken from
       system time.
 
-      @ingroup Arboles
+      @ingroup Trees
       @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
    */
     template <typename Key, class Compare = Aleph::less<Key>>

@@ -64,7 +64,7 @@
  *  @see generate_tree.H For tree visualization
  *  @see tpl_spanning_tree.H For spanning tree algorithms
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -128,7 +128,7 @@ void __graph_to_tree_node(GT & g, typename GT::Node * groot,
  *  @see Tree_Node Target tree structure
  *  @see is_graph_acyclique() Acyclicity verification
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
     template <class GT, typename Key, 
               class Convert, class SA = Dft_Show_Arc<GT>> inline
@@ -178,7 +178,7 @@ Tree_Node<Key> * graph_to_tree_node(GT & g, typename GT::Node * groot)
  *  @see graph_to_tree_node() Free function alternative
  *  @see Tree_Node Target tree structure
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
     template <class GT, typename Key, 
 	      class Convert, 

@@ -98,7 +98,7 @@
     - Input containers should not be modified during parallel operations
     - Output containers are constructed locally and returned by value
 
-    @ingroup Algos
+    @ingroup Algorithms
     @author Leandro Rabindranath León
 */
 
@@ -196,7 +196,7 @@ namespace parallel_detail
     // strings = {"1", "2", "3", "4", "5"}
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename ResultT = void, typename Container, typename Op>
 [[nodiscard]] auto pmaps(ThreadPool& pool, const Container& c, Op op,
@@ -274,7 +274,7 @@ template <typename ResultT = void, typename Container, typename Op>
 
     @note Order is preserved by processing chunks sequentially at the merge stage.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] auto pfilter(ThreadPool& pool, const Container& c, Pred pred,
@@ -366,7 +366,7 @@ template <typename Container, typename Pred>
     // msg = "Hello World"
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, typename Container, typename BinaryOp>
 [[nodiscard]] T pfoldl(ThreadPool& pool, const Container& c, T init, BinaryOp op,
@@ -442,7 +442,7 @@ template <typename T, typename Container, typename BinaryOp>
     });
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Op>
 void pfor_each(ThreadPool& pool, Container& c, Op op, size_t chunk_size = 0)
@@ -536,7 +536,7 @@ void pfor_each(ThreadPool& pool, const Container& c, Op op, size_t chunk_size = 
     // all_even = true
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] bool pall(ThreadPool& pool, const Container& c, Pred pred,
@@ -607,7 +607,7 @@ template <typename Container, typename Pred>
     // has_three = true
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] bool pexists(ThreadPool& pool, const Container& c, Pred pred,
@@ -670,7 +670,7 @@ template <typename Container, typename Pred>
 
     @return true if no element satisfies pred, false otherwise.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] bool pnone(ThreadPool& pool, const Container& c, Pred pred,
@@ -702,7 +702,7 @@ template <typename Container, typename Pred>
     // evens = 5
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] size_t pcount_if(ThreadPool& pool, const Container& c, Pred pred,
@@ -773,7 +773,7 @@ template <typename Container, typename Pred>
     // idx = 3 (value 4)
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] std::optional<size_t> pfind(ThreadPool& pool, const Container& c, 
@@ -858,7 +858,7 @@ template <typename Container, typename Pred>
     // found = "banana"
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] auto pfind_value(ThreadPool& pool, const Container& c, 
@@ -896,7 +896,7 @@ template <typename Container, typename Pred>
     // total = 15
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, 
           typename T = std::decay_t<decltype(*std::begin(std::declval<Container>()))>>
@@ -915,7 +915,7 @@ template <typename Container,
 
     @return Product of all elements times init.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container,
           typename T = std::decay_t<decltype(*std::begin(std::declval<Container>()))>>
@@ -933,7 +933,7 @@ template <typename Container,
 
     @return Optional with minimum element, or nullopt if empty.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container>
 [[nodiscard]] auto pmin(ThreadPool& pool, const Container& c, size_t chunk_size = 0)
@@ -990,7 +990,7 @@ template <typename Container>
 
     @return Optional with maximum element, or nullopt if empty.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container>
 [[nodiscard]] auto pmax(ThreadPool& pool, const Container& c, size_t chunk_size = 0)
@@ -1047,7 +1047,7 @@ template <typename Container>
 
     @return Optional pair (min, max), or nullopt if empty.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container>
 [[nodiscard]] auto pminmax(ThreadPool& pool, const Container& c, size_t chunk_size = 0)
@@ -1128,7 +1128,7 @@ template <typename Container>
     // nums = {9, 8, 5, 3, 2, 1}
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Compare = std::less<>>
 void psort(ThreadPool& pool, Container& c, Compare cmp = Compare{},
@@ -1245,7 +1245,7 @@ void psort(ThreadPool& pool, Container& c, Compare cmp = Compare{},
     // sum = 1*4 + 2*5 + 3*6 = 32
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container1, typename Container2, typename Op>
 void pzip_for_each(ThreadPool& pool, const Container1& c1, const Container2& c2,
@@ -1312,7 +1312,7 @@ void pzip_for_each(ThreadPool& pool, const Container1& c1, const Container2& c2,
     // products = {4, 10, 18}
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container1, typename Container2, typename Op>
 [[nodiscard]] auto pzip_maps(ThreadPool& pool, const Container1& c1, 
@@ -1390,7 +1390,7 @@ template <typename Container1, typename Container2, typename Op>
     // dot_product = 32
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container1, typename Container2, typename T, typename Op>
 [[nodiscard]] T pzip_foldl(ThreadPool& pool, const Container1& c1, 
@@ -1471,7 +1471,7 @@ template <typename Container1, typename Container2, typename T, typename Op>
     // evens = {2, 4, 6}, odds = {1, 3, 5}
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Pred>
 [[nodiscard]] auto ppartition(ThreadPool& pool, const Container& c, Pred pred,
@@ -1660,7 +1660,7 @@ namespace parallel_zip_detail
           Use std::apply if you need tuple access.
     @note Use `pzip_for_each` for 2 containers, `pzip_for_each_n` for 3+.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Op, typename... Containers>
 void pzip_for_each_n(ThreadPool& pool, Op op, const Containers&... cs)
@@ -1738,7 +1738,7 @@ void pzip_for_each_n(ThreadPool& pool, Op op, const Containers&... cs)
 
     @note Use `pzip_maps` for 2 containers, `pzip_maps_n` for 3+.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Op, typename... Containers>
 [[nodiscard]] auto pzip_maps_n(ThreadPool& pool, Op op, const Containers&... cs)
@@ -1829,7 +1829,7 @@ template <typename Op, typename... Containers>
 
     @note Use `pzip_foldl` for 2 containers, `pzip_foldl_n` for 3+.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, typename Op, typename Combiner, typename... Containers>
 [[nodiscard]] T pzip_foldl_n(ThreadPool& pool, T init, Op op, Combiner combiner,
@@ -1923,7 +1923,7 @@ template <typename T, typename Op, typename Combiner, typename... Containers>
     // all_less = true
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool pzip_all_n(ThreadPool& pool, Pred pred, const Containers&... cs)
@@ -2010,7 +2010,7 @@ template <typename Pred, typename... Containers>
     // any_equal = true (2 == 2)
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool pzip_exists_n(ThreadPool& pool, Pred pred, const Containers&... cs)
@@ -2084,7 +2084,7 @@ template <typename Pred, typename... Containers>
 
     @return Number of tuples satisfying pred.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Pred, typename... Containers>
 [[nodiscard]] size_t pzip_count_if_n(ThreadPool& pool, Pred pred, 
@@ -2167,7 +2167,7 @@ template <typename Pred, typename... Containers>
     // data[i] = i * 2
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Op>
 void penumerate_for_each(ThreadPool& pool, Container& c, Op op,
@@ -2265,7 +2265,7 @@ void penumerate_for_each(ThreadPool& pool, const Container& c, Op op,
     // indexed = {"0: hello", "1: world"}
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Container, typename Op>
 [[nodiscard]] auto penumerate_maps(ThreadPool& pool, const Container& c, Op op,

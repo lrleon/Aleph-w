@@ -39,7 +39,7 @@
  *
  *  @see Prim.H Minimum spanning tree
  *  @see Kruskal.H Minimum spanning tree
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -99,7 +99,7 @@ namespace Aleph {
  * @see Find_Breadth_First_Spanning_Tree For BFS-based spanning tree
  * @see graph_to_tree_node() To convert to Tree_Node representation
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Find_Depth_First_Spanning_Tree
@@ -302,7 +302,7 @@ public:
  *
  * @see Find_Depth_First_Spanning_Tree For DFS-based spanning tree
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Find_Breadth_First_Spanning_Tree
@@ -453,7 +453,7 @@ public:
  *
  * @tparam GT Graph type.
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT>
 class Build_Spanning_Tree

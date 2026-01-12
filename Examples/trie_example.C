@@ -56,7 +56,7 @@
  * 
  * @see prefix-tree.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

@@ -82,7 +82,7 @@
  *  } // saver destructor restores original cookies
  *  @endcode
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -106,7 +106,7 @@ namespace Aleph {
  *  @par Thread Safety
  *  Not thread-safe. Each thread should use its own guard.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -261,7 +261,7 @@ public:
  *  @par Thread Safety
  *  Not thread-safe. Each thread should use its own saver.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -479,7 +479,7 @@ private:
  *  });
  *  @endcode
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT, class Func>
@@ -511,7 +511,7 @@ auto with_clean_cookies(GT & g, Func && func) -> decltype(func())
  *  // Original cookies are restored
  *  @endcode
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT, class Func>
@@ -546,7 +546,7 @@ auto with_saved_cookies(GT & g, Func && func) -> decltype(func())
  *  // Destructor calls uninit_algorithm(g) automatically
  *  @endcode
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT, class Cleanup>

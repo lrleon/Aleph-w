@@ -73,7 +73,7 @@
  *
  *  @author Leandro Rabindranath Leon
  *  @date 2002-2025 *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 
@@ -93,7 +93,7 @@ namespace Aleph
    *  Used internally by the error handling macros.
    *
    *  @tparam E Exception type to throw (must derive from std::exception) *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
    */
   template<class E>
@@ -104,7 +104,7 @@ namespace Aleph
      *  @param s Stream with the formatted error message
      *  @return Does not return (throws exception)
      *  @throw E Exception of the specified type with the constructed message *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
      */
     int operator,(const std::ostream &s)
@@ -129,7 +129,7 @@ namespace Aleph
  *  @code
  *  ah_warning_unless(std::cerr, ptr != nullptr) << "Pointer is null";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_warning_unless(out, C)                                       \
@@ -145,7 +145,7 @@ namespace Aleph
  *  @code
  *  ah_warning_if(std::cerr, size > MAX_SIZE) << "Size exceeds maximum";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_warning_if(out, C)                                           \
@@ -160,7 +160,7 @@ namespace Aleph
  *  @code
  *  ah_warning(std::cerr) << "Deprecated function called";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_warning(out)                                                 \
@@ -179,7 +179,7 @@ namespace Aleph
  *  @code
  *  ah_range_error_unless(index < size) << "Index " << index << " out of range";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_range_error_unless(C)                                        \
@@ -195,7 +195,7 @@ namespace Aleph
  *  @code
  *  ah_range_error_if(value < min || value > max) << "Value out of range";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_range_error_if(C)                                            \
@@ -211,7 +211,7 @@ namespace Aleph
  *  @code
  *  ah_range_error() << "Value is out of valid range";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_range_error()                                                \
@@ -238,7 +238,7 @@ namespace Aleph
  *  @code
  *  ah_runtime_error_unless(file.is_open()) << "Failed to open file";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_runtime_error_unless(C)                                      \
@@ -254,7 +254,7 @@ namespace Aleph
  *  @code
  *  ah_runtime_error_if(errno != 0) << "System error: " << strerror(errno);
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_runtime_error_if(C)                                          \
@@ -270,7 +270,7 @@ namespace Aleph
  *  @code
  *  ah_runtime_error() << "Unexpected runtime error occurred";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_runtime_error()                                              \
@@ -297,7 +297,7 @@ namespace Aleph
  *  @code
  *  ah_logic_error_unless(is_valid_state()) << "Invalid object state";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_logic_error_unless(C)                                        \
@@ -313,7 +313,7 @@ namespace Aleph
  *  @code
  *  ah_logic_error_if(ptr == nullptr) << "Unexpected null pointer";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_logic_error_if(C)                                            \
@@ -329,7 +329,7 @@ namespace Aleph
  *  @code
  *  ah_logic_error() << "Program logic invariant violated";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_logic_error()                                                \
@@ -356,7 +356,7 @@ namespace Aleph
  *  @code
  *  ah_underflow_error_if(result < min_value) << "Arithmetic underflow";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_underflow_error_if(C)                                        \
@@ -372,7 +372,7 @@ namespace Aleph
  *  @code
  *  ah_underflow_error_unless(value >= min_limit) << "Value too small";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_underflow_error_unless(C)                                    \
@@ -388,7 +388,7 @@ namespace Aleph
  *  @code
  *  ah_underflow_error() << "Arithmetic underflow detected";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_underflow_error()                                            \
@@ -410,7 +410,7 @@ namespace Aleph
 /** @def ah_bad_alloc()
  *  @brief Throws std::bad_alloc unconditionally (no message stream)
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  */
 #define ah_bad_alloc()                                                   \
   do { [[unlikely]] throw std::bad_alloc(); } while (false)
@@ -418,7 +418,7 @@ namespace Aleph
 /** @def ah_bad_alloc_if(C)
  *  @brief Throws std::bad_alloc if condition holds
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  */
 #define ah_bad_alloc_if(C)                                               \
   do { if (C) [[unlikely]] throw std::bad_alloc(); } while (false)
@@ -426,7 +426,7 @@ namespace Aleph
 /** @def ah_bad_alloc_unless(C)
  *  @brief Throws std::bad_alloc if condition does NOT hold
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  */
 #define ah_bad_alloc_unless(C)                                           \
   do { if (!(C)) [[unlikely]] throw std::bad_alloc(); } while (false)
@@ -451,7 +451,7 @@ namespace Aleph
  *  @code
  *  ah_overflow_error_if(result > max_value) << "Arithmetic overflow";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_overflow_error_if(C)                                         \
@@ -467,7 +467,7 @@ namespace Aleph
  *  @code
  *  ah_overflow_error_unless(value <= max_limit) << "Value too large";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_overflow_error_unless(C)                                     \
@@ -483,7 +483,7 @@ namespace Aleph
  *  @code
  *  ah_overflow_error() << "Arithmetic overflow detected";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_overflow_error()                                             \
@@ -510,7 +510,7 @@ namespace Aleph
  *  @code
  *  ah_domain_error_if(x < 0) << "sqrt requires non-negative input";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_domain_error_if(C)                                           \
@@ -526,7 +526,7 @@ namespace Aleph
  *  @code
  *  ah_domain_error_unless(divisor != 0) << "Division by zero";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_domain_error_unless(C)                                       \
@@ -542,7 +542,7 @@ namespace Aleph
  *  @code
  *  ah_domain_error() << "Value outside function domain";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_domain_error()                                               \
@@ -567,7 +567,7 @@ namespace Aleph
  *  @code
  *  ah_out_of_range_error_if(index >= size) << "Index out of bounds";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_out_of_range_error_if(C)                                     \
@@ -583,7 +583,7 @@ namespace Aleph
  *  @code
  *  ah_out_of_range_error_unless(index < size) << "Invalid index";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_out_of_range_error_unless(C)                                 \
@@ -599,7 +599,7 @@ namespace Aleph
  *  @code
  *  ah_out_of_range_error() << "Index out of bounds";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_out_of_range_error()                                         \
@@ -627,7 +627,7 @@ namespace Aleph
  *  @code
  *  ah_invalid_argument_if(name.empty()) << "Name cannot be empty";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_invalid_argument_if(C)                                       \
@@ -643,7 +643,7 @@ namespace Aleph
  *  @code
  *  ah_invalid_argument_unless(size > 0) << "Size must be positive";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_invalid_argument_unless(C)                                   \
@@ -659,7 +659,7 @@ namespace Aleph
  *  @code
  *  ah_invalid_argument() << "Invalid argument provided";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_invalid_argument()                                           \
@@ -686,7 +686,7 @@ namespace Aleph
  *  @code
  *  ah_length_error_if(new_size > max_size()) << "Container size exceeded";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_length_error_if(C)                                           \
@@ -702,7 +702,7 @@ namespace Aleph
  *  @code
  *  ah_length_error_unless(size <= max_size()) << "Size exceeds limit";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_length_error_unless(C)                                       \
@@ -718,7 +718,7 @@ namespace Aleph
  *  @code
  *  ah_length_error() << "Container size limit exceeded";
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_length_error()                                               \
@@ -747,7 +747,7 @@ namespace Aleph
  *    ah_fatal_error() << "This should never happen!";
  *  }
  *  @endcode *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
 
  */
 #define ah_fatal_error()                                                \

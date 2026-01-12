@@ -30,7 +30,7 @@
  *  Load and save graphs in XML format for interchange.
  *
  *  @see generate_graph.H DOT format export
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

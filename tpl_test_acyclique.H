@@ -26,7 +26,7 @@
 
 /** @file tpl_test_acyclique.H
  *  @brief DAG (acyclic) graph testing.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -55,7 +55,7 @@ namespace Aleph {
           La clase usa el bit is_acyclique y lo reinicia al principio del 
           algoritmo para marcar los nodos y arcos ya visitados.
 
-          @ingroup Grafos
+          @ingroup Graphs
        */
       template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Is_Graph_Acyclique
@@ -178,7 +178,7 @@ public:
           La clase usa el bit is_acyclique y lo reinicia al principio del 
           algoritmo para marcar los nodos y arcos ya visitados.
 
-          @ingroup Grafos
+          @ingroup Graphs
        */
       template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Has_Cycle

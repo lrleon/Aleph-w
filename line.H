@@ -78,7 +78,7 @@
  *  @see segment.H Finite line segments
  *  @see point.H Point representation
  *
- *  @ingroup Geometria
+ *  @ingroup Geometry
  *  @author Leandro Rabindranath León
  */
 
@@ -95,7 +95,7 @@ namespace Aleph
 {
 
 /** @brief Default epsilon for floating-point comparisons.
- *  @ingroup Geometria
+ *  @ingroup Geometry
  */
 inline constexpr double LINE_EPSILON = 1e-10;
 
@@ -109,7 +109,7 @@ inline constexpr double LINE_EPSILON = 1e-10;
  * @note This representation cannot handle vertical lines (infinite slope).
  *       For vertical lines, use parametric or implicit form.
  *
- * @ingroup Geometria
+ * @ingroup Geometry
  */
 struct LineEq
 {

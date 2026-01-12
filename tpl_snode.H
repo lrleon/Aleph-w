@@ -31,7 +31,7 @@
  *
  *  @see slink.H Base singly linked structure
  *  @see tpl_slist.H Singly linked list
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -53,7 +53,7 @@ namespace Aleph {
       @tparam T type of the stored value
 
       @see DynSlist Snode Slink
-      @ingroup Secuencias
+      @ingroup Sequences
    */
 template <typename T> 
 class Snode : public Slink

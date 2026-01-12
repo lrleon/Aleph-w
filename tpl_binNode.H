@@ -46,7 +46,7 @@
 # include <ahAssert.H>
  # include <ah-errors.H>
 
-/** \addtogroup Arboles
+/** \addtogroup Trees
     @{
 
     General convention for binary trees
@@ -244,7 +244,7 @@ public:                                                               \
       @param height maximum height that could have the tree
       @param Control_Data control data according to tree type
       @see DECLARE_BINNODE_SENTINEL
-      @ingroup Arboles
+      @ingroup Trees
   */
 # define DECLARE_BINNODE(Name, height, Control_Data)                    \
   INIT_CLASS_BINNODE(Name, height, Control_Data)                        \
@@ -284,7 +284,7 @@ public:                                                               \
        @param Control_Data control data according to tree type
 
        @see DECLARE_BINNODE
-       @ingroup Arboles
+       @ingroup Trees
   */
 # define DECLARE_BINNODE_SENTINEL(Name, height, Control_Data)       \
   INIT_CLASS_BINNODE(Name, height, Control_Data)                    \
@@ -310,7 +310,7 @@ private:                                                            \
     &Name##Vtl<Key>::sentinel_node
 
   /** Return a pointer to left subtree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   constexpr inline Node *&LLINK(Node *p) noexcept
@@ -326,7 +326,7 @@ private:                                                            \
 
   /** Return the right tree of p
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   constexpr inline Node *&RLINK(Node *p) noexcept
@@ -342,7 +342,7 @@ private:                                                            \
 
   /** Return a modifiable reference to the key stored in the node.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   constexpr inline
@@ -380,8 +380,8 @@ private:                                                            \
 
       \class BinNode
 
-      @ingroup Arbores
-      @ingroup Arboles
+      @ingroup Trees
+      @ingroup Trees
   */
   DECLARE_BINNODE(BinNode, 2048, Empty_Node);
 } // end namespace Aleph

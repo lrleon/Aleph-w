@@ -67,7 +67,7 @@ namespace Aleph
       instrumentará el conjunto. Por omisión si usa Treap_Rk
 
       @see Treap_Rk map multiset multimap
-      @ingroup Contenedores
+      @ingroup Containers
    */
     template <typename T, 
 	      class Compare = Aleph::less<T>,
@@ -714,7 +714,7 @@ public:
       @return número de elementos que separan a ambos iteradores.
       @throw domain_error si los iteradores no están asociados al mismo
       contenedor. 
-      @ingroup Contenedores
+      @ingroup Containers
    */
     template <typename T>
 typename iterator_traits<typename set<T>::iterator>::difference_type

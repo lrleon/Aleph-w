@@ -38,7 +38,7 @@
     The circular design with sentinel node simplifies boundary conditions
     and enables symmetric forward/backward traversal.
 
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
 */
 
@@ -88,7 +88,7 @@ namespace Aleph {
       @see Dnode Node with embedded data.
       @see DynDlist High-level dynamic doubly linked list.
       @see Dlink::Iterator Bidirectional iterator for Dlink lists.
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Dlink
   {
@@ -631,7 +631,7 @@ namespace Aleph {
 
     /**  Iterator on `Dlink` lists
 
-         @ingroup Secuencias
+         @ingroup Sequences
     */
     class Iterator
     {
@@ -928,7 +928,7 @@ namespace Aleph {
       `Dlink` field
       @param link_name the name of the `Dlink` field inside the class
       or struct.
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define DLINK_TO_TYPE(type_name, link_name)                            \
   inline static type_name * dlink_to_##type_name(Dlink * link) noexcept \
@@ -978,7 +978,7 @@ namespace Aleph {
       @param type_name the name of struct or class containing to the
       `Dlink` object.
       @param link_name the name of `Dlink` field
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define LINKNAME_TO_TYPE(type_name, link_name)                         \
   inline static type_name * link_name##_to_##type_name(Dlink * link) noexcept \
@@ -1014,7 +1014,7 @@ namespace Aleph {
       @param type_name the name of class of struct containing the
       `Dlink` field.
       @param link_name the name of `Dlink` field inside the class or struct
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define DLINK_TO_BASE(type_name, link_name)                            \
   inline static type_name * dlink_to_base(Dlink * link)	noexcept        \

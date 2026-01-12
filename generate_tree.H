@@ -30,7 +30,7 @@
  *  Provides functions for generating visual representations of
  *  tree structures including DOT format for Graphviz.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -116,7 +116,7 @@ namespace Aleph
    *  @see generate_forest() For drawing multiple trees
    *  @see Dft_Write Default writer using to_str()
    *
-   *  @ingroup Arboles
+   *  @ingroup Trees
    */
   template <typename Node, class Write = Dft_Write<Node>>
   void generate_tree(Node *         root, 
@@ -162,7 +162,7 @@ namespace Aleph
    *
    *  @see generate_tree() For drawing a single tree
    *
-   *  @ingroup Arboles
+   *  @ingroup Trees
    */
   template <typename Node, class Write = Dft_Write<Node>>
   void generate_forest(Node * root, std::ostream & out)
@@ -195,7 +195,7 @@ namespace Aleph
    *
    *  @see generate_tree() For general (non-binary) trees
    *
-   *  @ingroup Arboles
+   *  @ingroup Trees
    */
   template <typename Node, class Write>
   void generate_btree(Node * root, std::ostream & out)

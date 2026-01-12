@@ -62,7 +62,7 @@ namespace Aleph {
         `std::priority_queue`; therefore the constructors differ slightly.
 
         @see DynBinHeap
-        @ingroup stl
+        @ingroup STL
     */
     template <typename T, class Compare = Aleph::less<T> >
  class priority_queue : private Aleph::DynBinHeap<T, Compare>

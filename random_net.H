@@ -31,7 +31,7 @@
  *
  *  @see random_graph.H Random graph generation
  *  @see tpl_net.H Network structures
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

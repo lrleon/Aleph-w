@@ -31,7 +31,7 @@
  *  can have arbitrary domains. Efficient for matrices with many
  *  zero elements using hash-based storage.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

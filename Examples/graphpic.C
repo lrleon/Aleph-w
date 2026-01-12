@@ -49,7 +49,7 @@
  *
  * @see btreepic.C, ntreepic.C For tree visualization
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
  
 # include <iostream>

@@ -70,7 +70,7 @@ namespace Aleph {
    * require `Data` to be default-constructible.
    *
    * @see BinTree Avl_Tree Splay_Tree Rb_Tree Treap Rand_Tree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <
     typename Key, typename Data,
@@ -362,20 +362,20 @@ namespace Aleph {
 namespace Aleph {
   /** @brief Dynamic map implemented with a classic binary search tree.
    * @see BinTree DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapBinTree : public DynMapTree<Key, Type, BinTree, Compare> {};
 
   /** @brief Dynamic map implemented with an AVL tree.
    * @see Avl_Tree DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapAvlTree : public DynMapTree<Key, Type, Avl_Tree, Compare> {};
   /** @brief Dynamic map implemented with a red-black tree.
    * @see Rb_Tree DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRbTree : public DynMapTree<Key, Type, Rb_Tree, Compare>
@@ -383,7 +383,7 @@ namespace Aleph {
 
   /** @brief Dynamic map implemented with a randomized BST.
    * @see Rand_Tree DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapRandTree : public DynMapTree<Key, Type, Rand_Tree, Compare>
@@ -391,7 +391,7 @@ namespace Aleph {
 
   /** @brief Dynamic map implemented with a treap.
    * @see Treap DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreap : public DynMapTree<Key, Type, Treap, Compare>
@@ -403,7 +403,7 @@ namespace Aleph {
    * from the underlying tree type.
    *
    * @see Treap_Rk DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapTreapRk : public DynMapTree<Key, Type, Treap_Rk, Compare>
@@ -411,7 +411,7 @@ namespace Aleph {
 
   /** @brief Dynamic map implemented with a splay tree.
    * @see Splay_Tree DynMapTree
-   * @ingroup Arboles
+   * @ingroup Trees
    */
   template <typename Key, typename Type, class Compare = Aleph::less<Key> >
   class DynMapSplayTree : public DynMapTree<Key, Type, Splay_Tree, Compare>

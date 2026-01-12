@@ -79,7 +79,7 @@
  *  @see Kosaraju.H Alternative SCC algorithm (two DFS passes)
  *  @see topological_sort.H Topological ordering for DAGs
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -155,7 +155,7 @@ namespace Aleph
    *          in undefined behavior.
    *
    * @see Compute_Cycle_In_Digraph
-   * @ingroup Grafos
+   * @ingroup Graphs
    * @author Leandro Rabindranath León (lrleon at ula dot ve)
    */
   template <class GT,
@@ -981,7 +981,7 @@ namespace Aleph
 
       The class uses the build_subtree bit to mark visited nodes and arcs.
 
-      @ingroup Grafos
+      @ingroup Graphs
 
       @note This class is intended for directed graphs. Behavior on undirected
             graphs is undefined.

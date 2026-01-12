@@ -31,7 +31,7 @@
  *  using union-find data structure. Sorts edges by weight and greedily
  *  adds edges that don't create cycles. O(E log E) complexity.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

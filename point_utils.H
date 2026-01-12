@@ -44,7 +44,7 @@
  *  @see point.H Point class
  *  @see segment.H Segment class
  *
- *  @ingroup Geometria
+ *  @ingroup Geometry
  *  @author Leandro Rabindranath León
  */
 

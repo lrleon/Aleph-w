@@ -30,7 +30,7 @@
  *  Provides preorder traversal and utilities for generating
  *  visual representations of AVL trees.
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

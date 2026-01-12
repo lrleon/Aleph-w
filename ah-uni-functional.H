@@ -58,7 +58,7 @@
  *
  * @note `foldr` is only available for STL containers with reverse iterators.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 
@@ -162,7 +162,7 @@ namespace Aleph
    * @param op Callable `(element) -> void`.
    * @param c Container (STL or Aleph).
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Op, typename Container>
   void uni_for_each(Op && op, const Container & c)
@@ -181,7 +181,7 @@ namespace Aleph
    * @param op Callable `(size_t idx, element) -> void`.
    * @param c Container.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Op, typename Container>
   void uni_for_each_indexed(Op && op, const Container & c)
@@ -202,7 +202,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector<R> with transformed values.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Op, typename Container>
   [[nodiscard]] auto uni_map(Op && op, const Container & c)
@@ -232,7 +232,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector<R> with transformed values.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Op, typename Container>
   [[nodiscard]] auto uni_mapi(Op && op, const Container & c)
@@ -263,7 +263,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with filtered elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_filter(Pred && pred, const Container & c)
@@ -294,7 +294,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with filtered elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_filteri(Pred && pred, const Container & c)
@@ -327,7 +327,7 @@ namespace Aleph
    * @param c Container.
    * @return Final accumulated value.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename T, typename Op, typename Container>
   [[nodiscard]] T uni_foldl(T init, Op && op, const Container & c)
@@ -358,7 +358,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector containing init and all intermediate results.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename T, typename Op, typename Container>
   [[nodiscard]] std::vector<T> uni_scan_left(T init, Op && op, const Container & c)
@@ -394,7 +394,7 @@ namespace Aleph
    * @param c Container.
    * @return `true` if all elements satisfy predicate.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_all(Pred && pred, const Container & c)
@@ -421,7 +421,7 @@ namespace Aleph
    * @param c Container.
    * @return `true` if any element satisfies predicate.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_exists(Pred && pred, const Container & c)
@@ -451,7 +451,7 @@ namespace Aleph
   /**
    * @brief Check if no element satisfies predicate.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_none(Pred && pred, const Container & c)
@@ -470,7 +470,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with element if found.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_find(Pred && pred, const Container & c)
@@ -502,7 +502,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional<size_t> with index if found.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] std::optional<size_t> uni_find_index(Pred && pred, const Container & c)
@@ -534,7 +534,7 @@ namespace Aleph
    * @param c Container.
    * @return First non-empty result from op.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Op, typename Container>
   [[nodiscard]] auto uni_find_mapi(Op && op, const Container & c)
@@ -566,7 +566,7 @@ namespace Aleph
    * @param c Container.
    * @return `true` if target is found.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename T, typename Container>
   [[nodiscard]] bool uni_mem(const T & target, const Container & c)
@@ -597,7 +597,7 @@ namespace Aleph
    * @param c Container.
    * @return Number of elements satisfying predicate.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] size_t uni_count(Pred && pred, const Container & c)
@@ -625,7 +625,7 @@ namespace Aleph
    * @param c Container.
    * @return Number of elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] size_t uni_length(const Container & c)
@@ -654,7 +654,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with first n elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_take(size_t n, const Container & c)
@@ -689,7 +689,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with remaining elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_drop(size_t n, const Container & c)
@@ -724,7 +724,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with elements taken while predicate is true.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_take_while(Pred && pred, const Container & c)
@@ -762,7 +762,7 @@ namespace Aleph
    * @param c Container.
    * @return std::vector with remaining elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_drop_while(Pred && pred, const Container & c)
@@ -806,7 +806,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with first element if container is not empty.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_first(const Container & c)
@@ -835,7 +835,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with last element if container is not empty.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_last(const Container & c)
@@ -864,7 +864,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with n-th element if exists.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_nth(size_t n, const Container & c)
@@ -901,7 +901,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with minimum element.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_min(const Container & c)
@@ -947,7 +947,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional with maximum element.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_max(const Container & c)
@@ -993,7 +993,7 @@ namespace Aleph
    * @param c Container.
    * @return std::optional<std::pair<T, T>> with (min, max).
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_min_max(const Container & c)
@@ -1048,7 +1048,7 @@ namespace Aleph
    * @param c Container of numeric values.
    * @return Sum of all elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_sum(const Container & c)
@@ -1075,7 +1075,7 @@ namespace Aleph
    * @param c Container of numeric values.
    * @return Product of all elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_product(const Container & c)
@@ -1117,7 +1117,7 @@ namespace Aleph
    * @param c Container.
    * @return Pair of vectors: (elements satisfying pred, elements not satisfying pred).
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Pred, typename Container>
   [[nodiscard]] auto uni_partition(Pred && pred, const Container & c)
@@ -1160,7 +1160,7 @@ namespace Aleph
    * @param c Container (STL or Aleph).
    * @return std::vector with all elements.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container>
   [[nodiscard]] auto uni_to_vector(const Container & c)
@@ -1194,7 +1194,7 @@ namespace Aleph
    * @param c2 Second container.
    * @return `true` if containers have same elements in same order.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container1, typename Container2>
   [[nodiscard]] bool uni_equal(const Container1 & c1, const Container2 & c2)
@@ -1219,7 +1219,7 @@ namespace Aleph
    * @param c2 Second container.
    * @return -1 if c1 < c2, 0 if equal, 1 if c1 > c2.
    *
-   * @ingroup Algos
+   * @ingroup Algorithms
    */
   template <typename Container1, typename Container2>
   [[nodiscard]] int uni_compare(const Container1 & c1, const Container2 & c2)

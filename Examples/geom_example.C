@@ -46,7 +46,7 @@
  * Examples use Colombian geographical locations and landmarks.
  *
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

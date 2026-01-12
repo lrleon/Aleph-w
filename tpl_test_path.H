@@ -26,7 +26,7 @@
 
 /** @file tpl_test_path.H
  *  @brief Path existence testing.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -55,7 +55,7 @@ namespace Aleph {
           visitados durante la búsqueda.
 
          @see find_path_depth_first() find_path_breadth_first()
-         @ingroup Grafos
+         @ingroup Graphs
        */
       template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Test_For_Path

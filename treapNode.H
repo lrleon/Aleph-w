@@ -51,7 +51,7 @@
  *  @see tpl_treap.H Treap implementation
  *  @see tpl_rand_tree.H Randomized BST
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -77,7 +77,7 @@ const long Min_Priority = 0;
  * Stores the random priority used to maintain heap property.
  * Lower priority values are closer to the root.
  *
- * @ingroup Arboles
+ * @ingroup Trees
  */
 class TreapNode_Data
 {
@@ -108,7 +108,7 @@ DECLARE_BINNODE_SENTINEL(TreapNode, 80, TreapNode_Data);
  * @param p Pointer to node
  * @return Reference to the node's priority
  *
- * @ingroup Arboles
+ * @ingroup Trees
  */
 template <class Node> 
 unsigned long & PRIO(Node * p) noexcept { return p->getPriority(); }

@@ -37,7 +37,7 @@
  *  ## Complexity: O(V³)
  *
  *  @see Floyd_Warshall.H All-pairs shortest paths (weighted)
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -68,7 +68,7 @@ namespace Aleph {
         @throw std::bad_alloc if there is not enough memory.
         @see List_Graph Bit_Mat_Graph
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     template <class GT, class SA = Dft_Show_Arc<GT> >
 void warshall_compute_transitive_clausure(GT &                    g, 
@@ -101,7 +101,7 @@ void warshall_compute_transitive_clausure(GT &                    g,
 
         @see List_Graph Bit_Mat_Graph
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     template <class GT, class SA = Dft_Show_Arc<GT> >
 class Warshall_Compute_Transitive_Clausure

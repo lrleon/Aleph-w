@@ -35,7 +35,7 @@
 
     @see Splay_Tree_Rk Convenient typedef.
     @see DynSetSplayTree High-level wrapper with automatic memory management.
-    @ingroup Arboles
+    @ingroup Trees
  *  @author Leandro Rabindranath León
 */
 
@@ -95,7 +95,7 @@ using namespace Aleph;
 
     @see Splay_Tree Basic splay tree without rank support.
     @see DynSetSplayTree High-level wrapper.
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <template <class> class NodeType, typename Key, class Compare>
 class GenTdSplayTreeRk

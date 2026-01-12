@@ -26,7 +26,7 @@
 
 /** @file uid.H
  *  @brief Unique identifier generation.
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

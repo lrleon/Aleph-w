@@ -37,7 +37,7 @@
  *  Space complexity: O(V + E) for the transposed graph
  *
  *  @see Tarjan.H for an alternative SCC algorithm that uses only one DFS
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -191,7 +191,7 @@ inline static void __dfp(const GT & g,
  *
  *  @see tarjan_connected_components() for an alternative algorithm
  *  @see invert_digraph() used internally to create the transposed graph
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -277,7 +277,7 @@ inline void kosaraju_connected_components(const GT & g,
  *
  *  @see kosaraju_connected_components(g, blk_list, arc_list) for the
  *       version that builds mapped subgraphs
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -322,7 +322,7 @@ kosaraju_connected_components(const GT & g)
  *  @tparam GT Graph type (must be a directed graph).
  *
  *  @see kosaraju_connected_components()
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -361,7 +361,7 @@ struct Kosaraju_Connected_Components
  *  @param[in] g The directed graph.
  *  @return The number of strongly connected components.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>
@@ -382,7 +382,7 @@ inline size_t kosaraju_scc_count(const GT & g)
  *  @note An empty graph or a graph with a single node is considered
  *        strongly connected.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 template <class GT>

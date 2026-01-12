@@ -27,7 +27,7 @@
 /** 
  * @file parse_utils.H
  * @brief Comprehensive parsing utilities for text processing and compiler construction
- * @ingroup Utilidades
+ * @ingroup Utilities
  * @author Leandro Rabindranath León
  *
  * This header provides a complete toolkit for parsing text files, suitable for

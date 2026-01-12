@@ -69,7 +69,7 @@ namespace Aleph
       instrumentará el conjunto. Por omisión si usa Treap_Rk
 
       @see Treap_Rk Rand_Tree set map multimap 
-      @ingroup stl
+      @ingroup STL
    */
   template <class T, 
             class Compare = Aleph::less<T>,
@@ -134,7 +134,7 @@ namespace Aleph
 
     /** Iterador sobre un multi-conjunto (multiset).
 
-        @ingroup stl
+        @ingroup STL
     */
     class iterator
     {

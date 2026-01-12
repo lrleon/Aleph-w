@@ -33,7 +33,7 @@
 
     Both use circular indexing for O(1) enqueue/dequeue operations.
 
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
 */
 
@@ -59,7 +59,7 @@ namespace Aleph {
       The array is allocated with `new` operator and dynamically grows
       according to the size.
 
-      @ingroup Secuencias
+      @ingroup Sequences
       @note If you are sure of knowing the bounds, then use `FixedStack`,
       which is faster because it does not perform bound_statics checks,
    */
@@ -349,7 +349,7 @@ public:
 
       The visit order is from the youngest to the oldest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public MemArray<T>::Iterator
   {
@@ -373,7 +373,7 @@ public:
       sure that you usage is correct.
 
       @see ArrayQueue DynListQueue
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
@@ -640,7 +640,7 @@ public:
 
       The visit order is from the youngest to the oldest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public MemArray<T>::Iterator
   {

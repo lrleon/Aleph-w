@@ -38,7 +38,7 @@
  *  ## Complexity: O(V + E)
  *
  *  @see tpl_components.H Connected components
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -103,7 +103,7 @@ method is provided, which computes the cut nodes, paints the
 components, and calculates the mapped copies of the connected
 components as well as the cross arcs.
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class Compute_Cut_Nodes

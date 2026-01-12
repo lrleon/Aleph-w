@@ -40,7 +40,7 @@
  *
  *  @see tpl_tdRbTree.H Top-down variant
  *  @see tpl_rbRk.H With rank support
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -106,7 +106,7 @@ namespace Aleph
     @see GenTdRbTree Top-down (single-pass) alternative implementation.
     @see DynSetRbTree High-level wrapper with automatic memory management.
     @see Avl_Tree Alternative balanced tree (stricter balance, more rotations).
-    @ingroup Arboles
+    @ingroup Trees
  */
 template <template <typename> class NodeType, typename Key, class Compare>
 class Gen_Rb_Tree
@@ -618,7 +618,7 @@ public:
       
       Allows traversing nodes according to the comparison criteria.
       
-      @ingroup Arboles
+      @ingroup Trees
    */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
@@ -634,7 +634,7 @@ public:
    @tparam Key Key type stored in tree nodes.
    @tparam Compare Comparison functor between keys.
    @see Rb_Tree_Vtl
-   @ingroup Arboles
+   @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare>
@@ -648,7 +648,7 @@ struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare>
    @tparam Key Key type stored in tree nodes.
    @tparam Compare Comparison functor between keys.
    @see Rb_Tree
-   @ingroup Arboles
+   @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Rb_Tree_Vtl : public Gen_Rb_Tree<RbNodeVtl, Key, Compare>

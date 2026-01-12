@@ -51,7 +51,7 @@ namespace Aleph {
       linked list.  
 
       @see DynDlist DynList
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T> 
 class DynListQueue 
@@ -305,7 +305,7 @@ public:
 
       The visit order is from the oldest (front) to the youngest (rear) item.
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public DynList<T>::Iterator
   {

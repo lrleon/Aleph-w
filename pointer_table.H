@@ -67,7 +67,7 @@
  *  have been used at some point. When removing the top pointer, the
  *  heap contracts automatically, releasing memory.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath Leon
  */
 
@@ -98,7 +98,7 @@
  *  - `remove_pointer()`: Strong guarantee (throws on invalid index)
  *  - `verify_pointer()`: Strong guarantee (throws on mismatch)
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 class Pointer_Table

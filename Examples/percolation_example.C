@@ -58,7 +58,7 @@
  * 
  * @see tpl_union.H for Union-Find implementation
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

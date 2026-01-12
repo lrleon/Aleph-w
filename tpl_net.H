@@ -37,7 +37,7 @@
  *
  *  @see tpl_maxflow.H Maximum flow algorithms
  *  @see tpl_netcost.H Minimum cost flow
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -68,7 +68,7 @@ namespace Aleph
    * @tparam Arc_Info Base arc info type.
    * @tparam Flow_Type Numeric type for capacity/flow.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <typename Arc_Info, typename Flow_Type>
   struct Net_Arc_Info : public Arc_Info
@@ -99,7 +99,7 @@ namespace Aleph
    * instantiate it directly. Use Net_Graph::insert_arc() instead.
    *
    * @see Array_Graph Net_Graph Net_Node
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <typename Arc_Info, typename F_Type = double>
   struct Net_Arc : public Graph_Aarc<Arc_Info> // Arc type for flow networks.
@@ -160,7 +160,7 @@ namespace Aleph
 
   /** @brief Arc filter for residual traversal in flow networks.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Net_Filt
@@ -221,7 +221,7 @@ namespace Aleph
    * If `a` is residual with respect to `src`, the remaining flow is the
    * current flow. Otherwise, it is the residual capacity.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type
@@ -244,7 +244,7 @@ namespace Aleph
    * - NodeT: node type (must derive from Net_Node).
    * - ArcT: arc type (must derive from Net_Arc).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class NodeT = Net_Node<Empty_Class>,
             class ArcT = Net_Arc<Empty_Class, double>>
@@ -802,7 +802,7 @@ namespace Aleph
    *
    * Second field is true for a forward arc, false for a residual arc.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   using Parc = std::tuple<typename Net::Arc *, bool>; // second field marks forward.
@@ -812,7 +812,7 @@ namespace Aleph
    * - Flow_Type: slack value of the path
    * - DynList<Parc<Net>>: arc list with direction flags
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   using SemiPath = std::tuple<bool, typename Net::Flow_Type, DynList<Parc<Net>>>;
@@ -846,7 +846,7 @@ namespace Aleph
    * @param[in] path Augmenting path.
    * @return Slack value used to increase the flow.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type increase_flow(Net & net, const Path<Net> & path)
@@ -891,7 +891,7 @@ namespace Aleph
    * @param[in] semi_path Semi-path arc list.
    * @param[in] slack Slack to apply (not validated).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   void increase_flow(Net & net,
@@ -923,7 +923,7 @@ namespace Aleph
    * @param[in] semi_path Semi-path arc list.
    * @param[in] slack Slack to apply (not validated).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   void decrease_flow(Net &, const DynList<Parc<Net>> & semi_path,
@@ -949,7 +949,7 @@ namespace Aleph
    *
    * The network is modeled with a graph class (not a digraph class).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, template <typename T> class Q>
   class Find_Aumenting_Path
@@ -1161,7 +1161,7 @@ namespace Aleph
    * @param[in] net Flow network.
    * @param[in] min_slack Minimum slack required.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, template <typename T> class Q>
   Path<Net> find_aumenting_path(const Net & net,
@@ -1197,7 +1197,7 @@ namespace Aleph
    * @param[in] slack Minimum slack required.
    * @return Semi-path tuple (found, slack, arc list).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, template <typename T> class Q>
   SemiPath<Net> find_aumenting_semi_path(const Net & net,
@@ -1233,7 +1233,7 @@ namespace Aleph
    * @param[in] slack Minimum slack required.
    * @return Semi-path tuple (found, slack, arc list).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, template <typename T> class Q>
   SemiPath<Net>
@@ -1408,7 +1408,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net,
             template <class> class Find_Path>
@@ -1442,7 +1442,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type ford_fulkerson_maximum_flow(Net & net)
@@ -1453,7 +1453,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for ford_fulkerson_maximum_flow().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Ford_Fulkerson_Maximum_Flow
@@ -1470,7 +1470,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type edmonds_karp_maximum_flow(Net & net)
@@ -1481,7 +1481,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for edmonds_karp_maximum_flow().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Edmonds_Karp_Maximum_Flow
@@ -1579,7 +1579,7 @@ namespace Aleph
    * @return Maximized flow value.
    *
    * @see fifo_preflow_maximum_flow() heap_preflow_maximum_flow() random_preflow_maximum_flow()
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, class Q_Type>
   typename Net::Flow_Type
@@ -1676,7 +1676,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type
@@ -1689,7 +1689,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for fifo_preflow_maximum_flow().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Fifo_Preflow_Maximum_Flow
@@ -1718,7 +1718,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type
@@ -1731,7 +1731,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for heap_preflow_maximum_flow().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Heap_Preflow_Maximum_Flow
@@ -1748,7 +1748,7 @@ namespace Aleph
    * @param[in,out] net Flow network (must have a single source and sink).
    * @return Maximized flow value.
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   typename Net::Flow_Type
@@ -1761,7 +1761,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for random_preflow_maximum_flow().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net>
   struct Random_Preflow_Maximum_Flow
@@ -1783,7 +1783,7 @@ namespace Aleph
    * @param[out] cutt Arcs from V_t to V_s.
    * @return Max flow value (equal to min-cut capacity).
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net, template <class> class Maxflow>
   typename Net::Flow_Type min_cut(Net & net,
@@ -1836,7 +1836,7 @@ namespace Aleph
 
   /** @brief Functor wrapper for min_cut().
    *
-   * @ingroup Redes
+   * @ingroup Networks
    */
   template <class Net,
             template <class> class Maxflow = Heap_Preflow_Maximum_Flow>

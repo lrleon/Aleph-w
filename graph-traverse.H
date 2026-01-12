@@ -30,7 +30,7 @@
  *  Provides depth-first search (DFS) and breadth-first search (BFS)
  *  traversal algorithms with customizable visitor callbacks.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -61,7 +61,7 @@ namespace // local constants to avoid collisions with aleph-graph.H
     @tparam Q Queue type: DynListStack for DFS, DynListQueue for BFS
     @tparam Show_Arc Arc filter functor
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 template <class GT, class Itor,
           template <typename T> class Q = DynListStack,

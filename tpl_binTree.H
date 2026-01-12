@@ -37,7 +37,7 @@
  *
  *  @see tpl_avl.H AVL tree (balanced)
  *  @see tpl_rb_tree.H Red-Black tree (balanced)
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -123,7 +123,7 @@ namespace Aleph {
         @see Avl_Tree Balanced alternative with O(log n) worst-case guarantee.
         @see Treap Randomized alternative with O(log n) expected (simpler than AVL).
         @see DynSetBinTree High-level wrapper with automatic memory management.
-        @ingroup Arboles
+        @ingroup Trees
      */
   template <template <typename> class NodeType, typename Key, class Compare>
 class GenBinTree 
@@ -349,7 +349,7 @@ public:
 
       The visit order is inorder.
 
-     @ingroup Arboles
+     @ingroup Trees
   */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
@@ -365,7 +365,7 @@ public:
 
         @see GenBinTree BinTreeVtl DynBinTree
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <typename Key, class Compare = Aleph::less<Key>>
 struct BinTree : public GenBinTree<BinNode, Key, Compare>
@@ -379,7 +379,7 @@ struct BinTree : public GenBinTree<BinNode, Key, Compare>
 
         @see GenBinTree BinTreeVtl DynBinTree
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <typename Key, class Compare = Aleph::less<Key>>
 struct BinTreeVtl : public GenBinTree<BinNodeVtl, Key, Compare>

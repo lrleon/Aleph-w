@@ -59,7 +59,7 @@
  *
  *  @see ah-dry.H for CRTP class implementations
  *  @see ah-dry-mixin.H for documented mixin implementations
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

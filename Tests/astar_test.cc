@@ -46,6 +46,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 using namespace Aleph;
 
+// ==================== Heap Type Tags ====================
+
+struct BinHeapTag
+{
+  template <class G, class D, class A>
+  using Heap = ArcHeap<G, D, A>;
+};
+
+struct FibHeapTag
+{
+  template <class G, class D, class A>
+  using Heap = ArcFibonacciHeap<G, D, A>;
+};
+
 // ==================== Type definitions ====================
 
 // Simple weighted graph
@@ -429,6 +443,343 @@ TEST(AStarComparison, RandomGraphMatchesDijkstra)
         << "Mismatch for start=" << start->get_info()
         << " end=" << end->get_info();
     }
+}
+
+// ==================== Tests for New Dijkstra-Compatible Methods ====================
+
+class AStarDijkstraModeTest : public ::testing::Test
+{
+protected:
+  SimpleGraph g;
+  std::vector<SimpleGraph::Node*> nodes;
+
+  void SetUp() override
+  {
+    // Create a larger graph for testing complete tree
+    //     1        2
+    // 0 ----> 1 ----> 2
+    //  \      |       ^
+    //   \5    |3      |1
+    //    \    v       |
+    //     --> 3 ------+
+    for (int i = 0; i < 4; ++i)
+      nodes.push_back(g.insert_node(i));
+
+    g.insert_arc(nodes[0], nodes[1], 1.0);
+    g.insert_arc(nodes[1], nodes[2], 2.0);
+    g.insert_arc(nodes[0], nodes[3], 5.0);
+    g.insert_arc(nodes[1], nodes[3], 3.0);
+    g.insert_arc(nodes[3], nodes[2], 1.0);
+  }
+};
+
+// Test compute_min_paths_tree (Dijkstra mode - complete tree)
+TEST_F(AStarDijkstraModeTest, ComputeMinPathsTreeBuildsCompleteTree)
+{
+  SimpleGraph tree;
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  auto root = astar.compute_min_paths_tree(g, nodes[0], tree);
+
+  ASSERT_NE(root, nullptr);
+  // Tree should have all reachable nodes
+  EXPECT_EQ(tree.get_num_nodes(), g.get_num_nodes());
+  // Tree should have n-1 arcs for n nodes (spanning tree)
+  EXPECT_EQ(tree.get_num_arcs(), g.get_num_nodes() - 1);
+}
+
+// Test paint_min_paths_tree (Dijkstra mode - complete)
+TEST_F(AStarDijkstraModeTest, PaintMinPathsTreePaintsAll)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar.paint_min_paths_tree(g, nodes[0]);
+
+  EXPECT_TRUE(astar.is_painted());
+  EXPECT_TRUE(astar.has_computation());
+  EXPECT_EQ(astar.get_start_node(), nodes[0]);
+
+  // All nodes should be reachable
+  for (auto node : nodes)
+    {
+      Path<SimpleGraph> path(g);
+      auto dist = astar.get_min_path(node, path);
+      EXPECT_LT(dist, std::numeric_limits<double>::max());
+    }
+}
+
+// Test find_min_path (Dijkstra mode - no heuristic)
+TEST_F(AStarDijkstraModeTest, FindMinPathMatchesDijkstra)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+  Dijkstra_Min_Paths<SimpleGraph, DoubleDistance> dijkstra;
+
+  Path<SimpleGraph> astar_path(g);
+  Path<SimpleGraph> dijkstra_path(g);
+
+  auto astar_cost = astar.find_min_path(g, nodes[0], nodes[2], astar_path);
+  auto dijkstra_cost = dijkstra.find_min_path(g, nodes[0], nodes[2], dijkstra_path);
+
+  EXPECT_DOUBLE_EQ(astar_cost, dijkstra_cost);
+  EXPECT_EQ(astar_path.size(), dijkstra_path.size());
+}
+
+// Test compute_partial_min_paths_tree (without heuristic)
+TEST_F(AStarDijkstraModeTest, ComputePartialMinPathsTree)
+{
+  SimpleGraph tree;
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar.compute_partial_min_paths_tree(g, nodes[0], nodes[2], tree);
+
+  // Tree should contain at least the path nodes
+  EXPECT_GE(tree.get_num_nodes(), 2u);
+  // But may not contain all nodes (partial)
+  EXPECT_LE(tree.get_num_nodes(), g.get_num_nodes());
+}
+
+// Test paint_partial_min_paths_tree (without heuristic)
+TEST_F(AStarDijkstraModeTest, PaintPartialMinPathsTree)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  bool found = astar.paint_partial_min_paths_tree(g, nodes[0], nodes[2]);
+
+  EXPECT_TRUE(found);
+  EXPECT_TRUE(astar.is_painted());
+
+  // Can extract path
+  Path<SimpleGraph> path(g);
+  auto cost = astar.get_min_path(nodes[2], path);
+  EXPECT_EQ(cost, 3.0); // 0->1->2
+}
+
+// Test get_distance after painting
+TEST_F(AStarDijkstraModeTest, GetDistanceAfterPainting)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar.paint_min_paths_tree(g, nodes[0]);
+
+  // Distance to node 0 (start) should be 0
+  EXPECT_DOUBLE_EQ(astar.get_distance(nodes[0]), 0.0);
+
+  // Distance to node 1 should be 1
+  EXPECT_DOUBLE_EQ(astar.get_distance(nodes[1]), 1.0);
+
+  // Distance to node 2 should be 3 (0->1->2)
+  EXPECT_DOUBLE_EQ(astar.get_distance(nodes[2]), 3.0);
+
+  // Distance to node 3 should be 4 (0->1->3)
+  EXPECT_DOUBLE_EQ(astar.get_distance(nodes[3]), 4.0);
+}
+
+// Test copy_painted_min_paths_tree
+TEST_F(AStarDijkstraModeTest, CopyPaintedMinPathsTree)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar.paint_min_paths_tree(g, nodes[0]);
+
+  SimpleGraph tree;
+  auto total_dist = astar.copy_painted_min_paths_tree(g, tree);
+  (void)total_dist;  // May be 0 depending on Paint_Filt implementation
+
+  // Tree should have all nodes
+  EXPECT_EQ(tree.get_num_nodes(), g.get_num_nodes());
+  // Tree should have n-1 arcs
+  EXPECT_EQ(tree.get_num_arcs(), g.get_num_nodes() - 1);
+}
+
+// Test operator() for Dijkstra mode (tree version)
+TEST_F(AStarDijkstraModeTest, OperatorTreeVersion)
+{
+  SimpleGraph tree;
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar(g, nodes[0], tree);
+
+  EXPECT_EQ(tree.get_num_nodes(), g.get_num_nodes());
+}
+
+// Test get_distance throws if not painted
+TEST(AStarErrorCases, GetDistanceThrowsIfNotPainted)
+{
+  SimpleGraph g;
+  auto node = g.insert_node(0);
+
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  EXPECT_THROW(astar.get_distance(node), std::domain_error);
+}
+
+// Test copy_painted throws if not painted
+TEST(AStarErrorCases, CopyPaintedThrowsIfNotPainted)
+{
+  SimpleGraph g;
+  g.insert_node(0);
+
+  SimpleGraph tree;
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  EXPECT_THROW(astar.copy_painted_min_paths_tree(g, tree), std::domain_error);
+}
+
+// Compare A* Dijkstra mode trees with actual Dijkstra trees
+TEST_F(AStarDijkstraModeTest, TreesMatchDijkstra)
+{
+  SimpleGraph astar_tree, dijkstra_tree;
+
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+  Dijkstra_Min_Paths<SimpleGraph, DoubleDistance> dijkstra;
+
+  astar.compute_min_paths_tree(g, nodes[0], astar_tree);
+  dijkstra.compute_min_paths_tree(g, nodes[0], dijkstra_tree);
+
+  // Same number of nodes and arcs
+  EXPECT_EQ(astar_tree.get_num_nodes(), dijkstra_tree.get_num_nodes());
+  EXPECT_EQ(astar_tree.get_num_arcs(), dijkstra_tree.get_num_arcs());
+}
+
+// Test disconnected graph
+TEST(AStarDijkstraMode, DisconnectedGraph)
+{
+  SimpleGraph g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  (void)g.insert_node(2);  // n2 is intentionally disconnected
+
+  g.insert_arc(n0, n1, 1.0);
+
+  SimpleGraph tree;
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  astar.compute_min_paths_tree(g, n0, tree);
+
+  // Tree should only contain connected component
+  EXPECT_EQ(tree.get_num_nodes(), 2u);
+}
+
+// Test state getters
+TEST_F(AStarDijkstraModeTest, StateGetters)
+{
+  AStar_Min_Path<SimpleGraph, DoubleDistance> astar;
+
+  // Before computation
+  EXPECT_FALSE(astar.has_computation());
+  EXPECT_FALSE(astar.is_painted());
+  EXPECT_EQ(astar.get_start_node(), nullptr);
+  EXPECT_EQ(astar.get_graph(), nullptr);
+
+  astar.paint_min_paths_tree(g, nodes[0]);
+
+  // After computation
+  EXPECT_TRUE(astar.has_computation());
+  EXPECT_TRUE(astar.is_painted());
+  EXPECT_EQ(astar.get_start_node(), nodes[0]);
+  EXPECT_EQ(astar.get_graph(), &g);
+}
+
+// ==================== Typed Tests for Both Heap Types ====================
+
+template <typename HeapTag>
+class AStarHeapTest : public ::testing::Test
+{
+protected:
+  SimpleGraph g;
+  std::vector<SimpleGraph::Node*> nodes;
+
+  void SetUp() override
+  {
+    for (int i = 0; i < 5; ++i)
+      nodes.push_back(g.insert_node(i));
+
+    // Create graph: 0 -> 1 -> 2 -> 3 -> 4
+    //                \---------^
+    g.insert_arc(nodes[0], nodes[1], 1.0);
+    g.insert_arc(nodes[1], nodes[2], 2.0);
+    g.insert_arc(nodes[2], nodes[3], 3.0);
+    g.insert_arc(nodes[3], nodes[4], 4.0);
+    g.insert_arc(nodes[0], nodes[2], 10.0);  // Long path
+  }
+};
+
+using HeapTypes = ::testing::Types<BinHeapTag, FibHeapTag>;
+TYPED_TEST_SUITE(AStarHeapTest, HeapTypes);
+
+// Test A* with both heap types - find_path (with heuristic)
+TYPED_TEST(AStarHeapTest, FindPathWithHeuristic)
+{
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance,
+                               Zero_Heuristic<SimpleGraph, DoubleDistance>,
+                               Node_Arc_Iterator, Dft_Show_Arc<SimpleGraph>,
+                               TypeParam::template Heap>;
+  AStar astar;
+  Path<SimpleGraph> path(this->g);
+
+  auto cost = astar.find_path(this->g, this->nodes[0], this->nodes[4], path);
+
+  EXPECT_EQ(cost, 10.0);  // 1+2+3+4
+  EXPECT_FALSE(path.is_empty());
+}
+
+// Test A* with both heap types - compute_min_paths_tree (Dijkstra mode)
+TYPED_TEST(AStarHeapTest, ComputeMinPathsTree)
+{
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance,
+                               Zero_Heuristic<SimpleGraph, DoubleDistance>,
+                               Node_Arc_Iterator, Dft_Show_Arc<SimpleGraph>,
+                               TypeParam::template Heap>;
+  AStar astar;
+  SimpleGraph tree;
+
+  auto root = astar.compute_min_paths_tree(this->g, this->nodes[0], tree);
+
+  EXPECT_NE(root, nullptr);
+  EXPECT_EQ(tree.get_num_nodes(), 5u);
+  EXPECT_EQ(tree.get_num_arcs(), 4u);
+}
+
+// Test A* with both heap types - paint and get_distance
+TYPED_TEST(AStarHeapTest, PaintAndGetDistance)
+{
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance,
+                               Zero_Heuristic<SimpleGraph, DoubleDistance>,
+                               Node_Arc_Iterator, Dft_Show_Arc<SimpleGraph>,
+                               TypeParam::template Heap>;
+  AStar astar;
+
+  astar.paint_min_paths_tree(this->g, this->nodes[0]);
+
+  EXPECT_EQ(astar.get_distance(this->nodes[0]), 0.0);
+  EXPECT_EQ(astar.get_distance(this->nodes[1]), 1.0);
+  EXPECT_EQ(astar.get_distance(this->nodes[2]), 3.0);  // 1+2
+  EXPECT_EQ(astar.get_distance(this->nodes[3]), 6.0);  // 1+2+3
+  EXPECT_EQ(astar.get_distance(this->nodes[4]), 10.0); // 1+2+3+4
+}
+
+// Test A* vs Dijkstra with both heap types
+TYPED_TEST(AStarHeapTest, MatchesDijkstra)
+{
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance,
+                               Zero_Heuristic<SimpleGraph, DoubleDistance>,
+                               Node_Arc_Iterator, Dft_Show_Arc<SimpleGraph>,
+                               TypeParam::template Heap>;
+  using Dijkstra = Dijkstra_Min_Paths<SimpleGraph, DoubleDistance,
+                                      Node_Arc_Iterator, Dft_Show_Arc<SimpleGraph>,
+                                      TypeParam::template Heap>;
+
+  AStar astar;
+  Dijkstra dijkstra;
+
+  Path<SimpleGraph> astar_path(this->g);
+  Path<SimpleGraph> dijkstra_path(this->g);
+
+  auto astar_cost = astar.find_min_path(this->g, this->nodes[0], this->nodes[4], astar_path);
+  auto dijkstra_cost = dijkstra.find_min_path(this->g, this->nodes[0], this->nodes[4], dijkstra_path);
+
+  EXPECT_DOUBLE_EQ(astar_cost, dijkstra_cost);
+  EXPECT_EQ(astar_path.size(), dijkstra_path.size());
 }
 
 int main(int argc, char **argv)

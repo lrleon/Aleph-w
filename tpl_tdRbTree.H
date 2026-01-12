@@ -39,7 +39,7 @@
  *
  *  @see tpl_rb_tree.H Bottom-up variant
  *  @see tpl_tdRbTreeRk.H With rank support
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -83,7 +83,7 @@ namespace Aleph
     
     @see Gen_Rb_Tree Bottom-up red-black tree implementation.
     @see Avl_Tree Alternative balanced tree with stricter balance.
-    @ingroup Arboles
+    @ingroup Trees
  */
 template <template <class> class NodeType, typename Key, 
           class Compare = std::less<Key>>
@@ -867,7 +867,7 @@ public:
       
       Allows traversing nodes according to the comparison criteria.
       
-      @ingroup Arboles
+      @ingroup Trees
    */
   struct Iterator : public BinNodeInfixIterator<Node>
   {

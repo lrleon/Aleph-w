@@ -80,7 +80,7 @@
  *  @see tpl_arrayStack.H Stack built on MemArray
  *  @see tpl_arrayQueue.H Queue built on MemArray
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -126,7 +126,7 @@ namespace Aleph
       set. Instead, it is conceived as implementation support of single
       sequentially based set as stacks and queues.
 
-      @ingroup Secuencias
+      @ingroup Sequences
    */
   template <typename T>
   class MemArray
@@ -676,7 +676,7 @@ namespace Aleph
 
     /** Simple iterator on elements of array
 
-        @ingroup Secuencias
+        @ingroup Sequences
     */
     struct Iterator : public Array_Iterator<T>
     {

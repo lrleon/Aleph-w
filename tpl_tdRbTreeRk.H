@@ -37,7 +37,7 @@
  *
  *  @see tpl_tdRbTree.H Base implementation
  *  @see tpl_rbRk.H Bottom-up variant with rank
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -83,7 +83,7 @@ namespace Aleph
     
     @see Gen_Rb_Tree_Rk Bottom-up red-black tree with rank support.
     @see GenTdRbTree Top-down red-black tree without rank support.
-    @ingroup Arboles
+    @ingroup Trees
  */
 template <template <class> class NodeType, typename Key, 
           class Compare = std::less<Key>>

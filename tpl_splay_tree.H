@@ -354,7 +354,7 @@ public:
     This class allows traversing the tree nodes in sorted order according
     to the comparison criteria specified when the tree is instantiated.
 
-   @ingroup Arboles
+   @ingroup Trees
 */
   struct Iterator : public BinNodeInfixIterator<Node>
   {

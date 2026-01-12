@@ -67,7 +67,7 @@
  *  @see tpl_binNode.H Extended node with sentinel support
  *  @see tpl_binNodeUtils.H Node utility functions
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

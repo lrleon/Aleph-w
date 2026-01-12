@@ -31,7 +31,7 @@
  *  graph arcs ordered by distance/weight. Used by Prim, Dijkstra,
  *  and other graph algorithms.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

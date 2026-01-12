@@ -103,7 +103,7 @@
     auto keys = map_keys_to_DynList(m);
     ```
 
-    @ingroup Secuencias
+    @ingroup Sequences
     @author Leandro Rabindranath León
 */
 
@@ -135,7 +135,7 @@ namespace Aleph
     @param a The source Array.
     @return A DynList containing copies of all elements from a.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> to_DynList(const Array<T> & a)
@@ -155,7 +155,7 @@ template <class T>
     @param c The source container.
     @return An Array containing copies of all elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] Array<typename C::Item_Type> to_Array(const C & c)
@@ -175,7 +175,7 @@ template <class C>
     @param a The source DynArray.
     @return A DynList containing copies of all elements from a.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> dynarray_to_DynList(const DynArray<T> & a)
@@ -195,7 +195,7 @@ template <class T>
     @param l The source DynList.
     @return A DynArray containing copies of all elements from l.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> dynlist_to_DynArray(const DynList<T> & l)
@@ -216,7 +216,7 @@ template <class T>
     @param c The source container.
     @return A std::vector containing copies of all elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] std::vector<typename C::Item_Type> to_vector(const C & c)
@@ -238,7 +238,7 @@ template <class C>
     @param v The source std::vector.
     @return A DynList containing copies of all elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> vector_to_DynList(const std::vector<T> & v)
@@ -258,7 +258,7 @@ template <class T>
     @param v The source std::vector.
     @return An Array containing copies of all elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] Array<T> vector_to_Array(const std::vector<T> & v)
@@ -278,7 +278,7 @@ template <class T>
     @param v The source std::vector.
     @return A DynArray containing copies of all elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> vector_to_DynArray(const std::vector<T> & v)
@@ -300,7 +300,7 @@ template <class T>
     @param c The source container.
     @return A DynArray containing copies of all elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] DynArray<typename C::Item_Type> to_DynArray(const C & c)
@@ -320,7 +320,7 @@ template <class C>
     @param a The source Array.
     @return A DynArray containing copies of all elements from a.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> array_to_DynArray(const Array<T> & a)
@@ -340,7 +340,7 @@ template <class T>
     @param a The source DynArray.
     @return An Array containing copies of all elements from a.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] Array<T> dynarray_to_Array(const DynArray<T> & a)
@@ -361,7 +361,7 @@ template <class T>
     @param c The source container.
     @return A std::deque containing copies of all elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] std::deque<typename C::Item_Type> to_deque(const C & c)
@@ -381,7 +381,7 @@ template <class C>
     @param d The source std::deque.
     @return A DynList containing copies of all elements from d.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> deque_to_DynList(const std::deque<T> & d)
@@ -401,7 +401,7 @@ template <class T>
     @param d The source std::deque.
     @return An Array containing copies of all elements from d.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] Array<T> deque_to_Array(const std::deque<T> & d)
@@ -421,7 +421,7 @@ template <class T>
     @param d The source std::deque.
     @return A DynArray containing copies of all elements from d.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> deque_to_DynArray(const std::deque<T> & d)
@@ -443,7 +443,7 @@ template <class T>
     @param l The source DynDlist.
     @return A DynList containing copies of all elements from l.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> dyndlist_to_DynList(const DynDlist<T> & l)
@@ -462,7 +462,7 @@ template <class T>
     @param l The source DynList.
     @return A DynDlist containing copies of all elements from l.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynDlist<T> dynlist_to_DynDlist(const DynList<T> & l)
@@ -481,7 +481,7 @@ template <class T>
     @param l The source DynDlist.
     @return A DynArray containing copies of all elements from l.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> dyndlist_to_DynArray(const DynDlist<T> & l)
@@ -500,7 +500,7 @@ template <class T>
     @param a The source DynArray.
     @return A DynDlist containing copies of all elements from a.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynDlist<T> dynarray_to_DynDlist(const DynArray<T> & a)
@@ -520,7 +520,7 @@ template <class T>
     @param v The source std::vector.
     @return A DynDlist containing copies of all elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynDlist<T> vector_to_DynDlist(const std::vector<T> & v)
@@ -543,7 +543,7 @@ template <class T>
     @param v The source std::vector (rvalue reference).
     @return A DynList containing moved elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> vector_to_DynList(std::vector<T> && v)
@@ -564,7 +564,7 @@ template <class T>
     @param v The source std::vector (rvalue reference).
     @return An Array containing moved elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] Array<T> vector_to_Array(std::vector<T> && v)
@@ -585,7 +585,7 @@ template <class T>
     @param v The source std::vector (rvalue reference).
     @return A DynArray containing moved elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> vector_to_DynArray(std::vector<T> && v)
@@ -606,7 +606,7 @@ template <class T>
     @param v The source std::vector (rvalue reference).
     @return A DynDlist containing moved elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynDlist<T> vector_to_DynDlist(std::vector<T> && v)
@@ -630,7 +630,7 @@ template <class T>
     @param s The source std::set.
     @return A DynList containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T, class Compare, class Alloc>
 [[nodiscard]] DynList<T> set_to_DynList(const std::set<T, Compare, Alloc> & s)
@@ -652,7 +652,7 @@ template <class T, class Compare, class Alloc>
     @param s The source std::set.
     @return An Array containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T, class Compare, class Alloc>
 [[nodiscard]] Array<T> set_to_Array(const std::set<T, Compare, Alloc> & s)
@@ -674,7 +674,7 @@ template <class T, class Compare, class Alloc>
     @param s The source std::set.
     @return A DynArray containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T, class Compare, class Alloc>
 [[nodiscard]] DynArray<T> set_to_DynArray(const std::set<T, Compare, Alloc> & s)
@@ -694,7 +694,7 @@ template <class T, class Compare, class Alloc>
     @param c The source container.
     @return A std::set containing unique elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] std::set<typename C::Item_Type> to_set(const C & c)
@@ -719,7 +719,7 @@ template <class C>
     @param m The source std::map.
     @return A DynList of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class K, class V, class Compare, class Alloc>
 [[nodiscard]] DynList<std::pair<K, V>>
@@ -743,7 +743,7 @@ map_to_DynList(const std::map<K, V, Compare, Alloc> & m)
     @param m The source std::map.
     @return An Array of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class K, class V, class Compare, class Alloc>
 [[nodiscard]] Array<std::pair<K, V>>
@@ -767,7 +767,7 @@ map_to_Array(const std::map<K, V, Compare, Alloc> & m)
     @param m The source std::map.
     @return A DynList containing all keys from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class K, class V, class Compare, class Alloc>
 [[nodiscard]] DynList<K> map_keys_to_DynList(const std::map<K, V, Compare, Alloc> & m)
@@ -790,7 +790,7 @@ template <class K, class V, class Compare, class Alloc>
     @param m The source std::map.
     @return A DynList containing all values from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class K, class V, class Compare, class Alloc>
 [[nodiscard]] DynList<V> map_values_to_DynList(const std::map<K, V, Compare, Alloc> & m)
@@ -817,7 +817,7 @@ template <class K, class V, class Compare, class Alloc>
     auto list = init_to_DynList({1, 2, 3, 4, 5});
     @endcode
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynList<T> init_to_DynList(std::initializer_list<T> il)
@@ -842,7 +842,7 @@ template <class T>
     auto arr = init_to_Array({1, 2, 3, 4, 5});
     @endcode
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] Array<T> init_to_Array(std::initializer_list<T> il)
@@ -867,7 +867,7 @@ template <class T>
     auto arr = init_to_DynArray({1, 2, 3, 4, 5});
     @endcode
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynArray<T> init_to_DynArray(std::initializer_list<T> il)
@@ -892,7 +892,7 @@ template <class T>
     auto list = init_to_DynDlist({1, 2, 3, 4, 5});
     @endcode
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynDlist<T> init_to_DynDlist(std::initializer_list<T> il)
@@ -916,7 +916,7 @@ template <class T>
     @param s The source DynSetTree.
     @return A DynList containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] DynList<Key> settree_to_DynList(const DynSetTree<Key, Tree, Compare> & s)
@@ -937,7 +937,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
     @param s The source DynSetTree.
     @return An Array containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] Array<Key> settree_to_Array(const DynSetTree<Key, Tree, Compare> & s)
@@ -958,7 +958,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
     @param s The source DynSetTree.
     @return A DynArray containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] DynArray<Key> settree_to_DynArray(const DynSetTree<Key, Tree, Compare> & s)
@@ -976,7 +976,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
     @param s The source DynSetTree.
     @return A std::vector containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] std::vector<Key> settree_to_vector(const DynSetTree<Key, Tree, Compare> & s)
@@ -995,7 +995,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
     @param s The source DynSetTree.
     @return A std::set containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] std::set<Key> settree_to_stdset(const DynSetTree<Key, Tree, Compare> & s)
@@ -1014,7 +1014,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
     @param c The source container.
     @return A DynSetTree containing unique elements from c.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class C>
 [[nodiscard]] DynSetTree<typename C::Item_Type> to_DynSetTree(const C & c)
@@ -1031,7 +1031,7 @@ template <class C>
     @param v The source std::vector.
     @return A DynSetTree containing unique elements from v.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 [[nodiscard]] DynSetTree<T> vector_to_DynSetTree(const std::vector<T> & v)
@@ -1052,7 +1052,7 @@ template <class T>
     @param s The source DynHashTable.
     @return A DynList containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class HashTable, class Cmp>
 [[nodiscard]] DynList<Key> sethash_to_DynList(const DynHashTable<Key, HashTable, Cmp> & s)
@@ -1070,7 +1070,7 @@ template <typename Key, template <typename, class> class HashTable, class Cmp>
     @param s The source DynHashTable.
     @return An Array containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class HashTable, class Cmp>
 [[nodiscard]] Array<Key> sethash_to_Array(const DynHashTable<Key, HashTable, Cmp> & s)
@@ -1088,7 +1088,7 @@ template <typename Key, template <typename, class> class HashTable, class Cmp>
     @param s The source DynHashTable.
     @return A DynArray containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class HashTable, class Cmp>
 [[nodiscard]] DynArray<Key> sethash_to_DynArray(const DynHashTable<Key, HashTable, Cmp> & s)
@@ -1106,7 +1106,7 @@ template <typename Key, template <typename, class> class HashTable, class Cmp>
     @param s The source DynHashTable.
     @return A std::vector containing copies of all elements from s.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, template <typename, class> class HashTable, class Cmp>
 [[nodiscard]] std::vector<Key> sethash_to_vector(const DynHashTable<Key, HashTable, Cmp> & s)
@@ -1131,7 +1131,7 @@ template <typename Key, template <typename, class> class HashTable, class Cmp>
     @param m The source DynMapTree.
     @return A DynList of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data,
           template <typename, class> class Tree, class Compare>
@@ -1152,7 +1152,7 @@ maptree_to_DynList(const DynMapTree<Key, Data, Tree, Compare> & m)
     @param m The source DynMapTree.
     @return An Array of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data,
           template <typename, class> class Tree, class Compare>
@@ -1173,7 +1173,7 @@ maptree_to_Array(const DynMapTree<Key, Data, Tree, Compare> & m)
     @param m The source DynMapTree.
     @return A std::map containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data,
           template <typename, class> class Tree, class Compare>
@@ -1196,7 +1196,7 @@ maptree_to_stdmap(const DynMapTree<Key, Data, Tree, Compare> & m)
     @param m The source DynMapTree.
     @return A DynList containing all keys from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data,
           template <typename, class> class Tree, class Compare>
@@ -1217,7 +1217,7 @@ maptree_keys_to_DynList(const DynMapTree<Key, Data, Tree, Compare> & m)
     @param m The source DynMapTree.
     @return A DynList containing all values from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data,
           template <typename, class> class Tree, class Compare>
@@ -1238,7 +1238,7 @@ maptree_values_to_DynList(const DynMapTree<Key, Data, Tree, Compare> & m)
     @param m The source std::map.
     @return A DynMapTree containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class K, class V, class Compare, class Alloc>
 [[nodiscard]] DynMapTree<K, V>
@@ -1261,7 +1261,7 @@ stdmap_to_DynMapTree(const std::map<K, V, Compare, Alloc> & m)
     @param m The source MapOpenHash.
     @return A DynList of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data, class Cmp,
           template <typename, class> class HashTable>
@@ -1282,7 +1282,7 @@ maphash_to_DynList(const MapOpenHash<Key, Data, Cmp, HashTable> & m)
     @param m The source MapOpenHash.
     @return An Array of pairs containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data, class Cmp,
           template <typename, class> class HashTable>
@@ -1303,7 +1303,7 @@ maphash_to_Array(const MapOpenHash<Key, Data, Cmp, HashTable> & m)
     @param m The source MapOpenHash.
     @return A std::map containing all key-value pairs from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data, class Cmp,
           template <typename, class> class HashTable>
@@ -1326,7 +1326,7 @@ maphash_to_stdmap(const MapOpenHash<Key, Data, Cmp, HashTable> & m)
     @param m The source MapOpenHash.
     @return A DynList containing all keys from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data, class Cmp,
           template <typename, class> class HashTable>
@@ -1347,7 +1347,7 @@ maphash_keys_to_DynList(const MapOpenHash<Key, Data, Cmp, HashTable> & m)
     @param m The source MapOpenHash.
     @return A DynList containing all values from m.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename Key, typename Data, class Cmp,
           template <typename, class> class HashTable>

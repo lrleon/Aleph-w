@@ -101,7 +101,7 @@ namespace Aleph
       @param TTree la clase de árbol binario de búsqueda con rangos
       conque se indizan las claves asociadas.
 
-      @ingroup stl
+      @ingroup STL
       @see BinNodeXt Treap_Rk Rand_Tree set map multiset
       @author Leandro Rabindranath León
   */
@@ -275,7 +275,7 @@ namespace Aleph
 
     /** Iterador sobre un multimapeo
 
-        @ingroup stl
+        @ingroup STL
     */
     class iterator
     {

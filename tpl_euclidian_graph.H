@@ -31,7 +31,7 @@
  *  are Euclidean distances.
  *
  *  @see point_utils.H Point utilities
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -47,7 +47,7 @@ namespace Aleph
 
   /**
 
-     @ingroup Grafos
+     @ingroup Graphs
    */
       template <typename Node_Info>
 class Euclidian_Node : public Graph_Node <Node_Info>

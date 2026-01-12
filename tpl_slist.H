@@ -69,7 +69,7 @@
  *  @see tpl_dynDlist.H Full-featured doubly linked list
  *  @see tpl_snode.H Node definition
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -90,7 +90,7 @@ namespace Aleph {
       storing the payload of type `T`.
 
       @tparam T data type held by each node
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   template <typename T> class Slist : public Snode<T>
   {

@@ -31,7 +31,7 @@
  *  indexed by arbitrary types. Efficient for vectors with many
  *  zero/default elements using hash-based storage.
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

@@ -31,7 +31,7 @@
  *  time units (seconds, milliseconds, microseconds, nanoseconds) and
  *  formatting durations as human-readable strings.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

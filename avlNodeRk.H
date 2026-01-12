@@ -30,7 +30,7 @@
  *  Provides AvlNodeRk_Data with balance factor and subtree count
  *  for order-statistics AVL trees supporting select() and position().
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

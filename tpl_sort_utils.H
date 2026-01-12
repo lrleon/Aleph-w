@@ -506,7 +506,7 @@ namespace Aleph
 
       @param[in,out] list the list to be sorted.
       @param cmp comparison object.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline void selection_sort(Dnode<T> & list, Compare cmp)
@@ -578,7 +578,7 @@ namespace Aleph
       been written. It is guaranteed that input that has not been
       mapped to a block will not be accessed.
       @see DynArray
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
@@ -637,7 +637,7 @@ namespace Aleph
       @return pointer to the first containing node
       element x; nullptr otherwise.
       @see Dnode
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
@@ -676,7 +676,7 @@ namespace Aleph
       @return pointer to the first element with value equal to x;
       nullptr otherwise.
       @see DynDlist
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Equal = Aleph::equal_to<T>>
   inline
@@ -729,7 +729,7 @@ namespace Aleph
       @param cmp comparison object.
       @return containing index of the endpoint.
       @note There is no checking if the stream is empty.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -745,7 +745,7 @@ namespace Aleph
 
   /** Returns the smallest element of the array a between l and r.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -756,7 +756,7 @@ namespace Aleph
 
   /** Returns the maximum element of the array a between l and r.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::greater<T>>
   inline
@@ -766,7 +766,7 @@ namespace Aleph
   }
 
   /** \overload search_extreme
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -791,7 +791,7 @@ namespace Aleph
       @param cmp comparison object.
       @return pointer to the containing node of the extreme element.
       @note There is no checking if the list is empty.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -825,7 +825,7 @@ namespace Aleph
 
   /** Returns the minimum element of the list
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -836,7 +836,7 @@ namespace Aleph
 
   /** Returns the maximum element of the list
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::greater<T>>
   inline
@@ -909,7 +909,7 @@ namespace Aleph
       @param[in] p the node to be inserted.
       @param cmp comparison object.
       @see Dlink
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <class Compare>
   inline
@@ -973,7 +973,7 @@ namespace Aleph
 
       @param[in,out] list the list to be ordered.
       @param cmp comparison object.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <class ListType, class Compare>
   inline
@@ -1100,7 +1100,7 @@ namespace Aleph
       @param[in] r right index of the array
       @param cmp comparison object.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1235,7 +1235,7 @@ namespace Aleph
       @param[out] result the list where the result will be placed.
       @param cmp comparison object.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1307,7 +1307,7 @@ namespace Aleph
 
       @see mergesort(Dnode<T> & list)
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <template <typename> class Tlist, typename T,
             class Compare = Aleph::less<T>>
@@ -1367,7 +1367,7 @@ namespace Aleph
 
       @see mergesort(Dlink & list) quicksort(Dnode<T>)
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1393,7 +1393,7 @@ namespace Aleph
 
       @see quicksort(DynDlist<T> & list)
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1488,7 +1488,7 @@ namespace Aleph
       @see selection_sort() insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort()
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1541,7 +1541,7 @@ namespace Aleph
       @param[in] r final index by which to sort.
       @param cmp comparison object.
       @see quicksort_rec() quicksort() quicksort_insertion()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1670,7 +1670,7 @@ namespace Aleph
 
       @param[in,out] list the list to sort.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <class Compare>
   void quicksort(Dlink & list, Compare cmp = Compare())
@@ -1715,7 +1715,7 @@ namespace Aleph
 
       @see Dnode Dlist DynDlist
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   void quicksort(Dnode<T> & list, Compare cmp = Compare())
@@ -1788,7 +1788,7 @@ namespace Aleph
       @see insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort()
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -1874,7 +1874,7 @@ namespace Aleph
       value x if it is within the array;
       Not_Found (usually -1) otherwise.
 
-      \ingroup Algos
+      \ingroup Algorithms
       @see sequential_search() binary_search_rec()
   */
   template <typename T, class Compare = Aleph::less<T>>
@@ -1937,7 +1937,7 @@ namespace Aleph
 
       @see random_search(Dlink&list,const T&x)
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare>
   inline
@@ -2004,7 +2004,7 @@ namespace Aleph
 
       @see dlink_random_search
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   Dnode<T> * random_search(Dlink & list, const T & x, Compare cmp = Compare())
@@ -2039,7 +2039,7 @@ namespace Aleph
 
       @see DynDlist
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2100,7 +2100,7 @@ namespace Aleph
   /** Selects a pivot element as the median between
       the ends and the center.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2113,7 +2113,7 @@ namespace Aleph
   /** Selects a pivot element as the median between
       the ends and the center.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2313,7 +2313,7 @@ namespace Aleph
       @return pointer to Dlink corresponding to position i inside
       of the list;
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <class Compare>
   Dlink * dlink_random_select(Dlink & list, const size_t i,
@@ -2388,7 +2388,7 @@ namespace Aleph
       @return pointer to Dlink corresponding to position i inside
       of the list; nullptr if i is out of range.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   Dnode<T> * random_select(Dlink & list, const size_t i, Compare cmp = Compare())
@@ -2419,7 +2419,7 @@ namespace Aleph
       @return pointer to the corresponding dynamic list element
       to position i within the list; nullptr if i is out of range.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   T * random_select(DynDlist<T> & list, const size_t i, Compare cmp = Compare())
@@ -2448,7 +2448,7 @@ namespace Aleph
       @param cmp comparison object.
       @param[in,out] a the array to sort.
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2539,7 +2539,7 @@ namespace Aleph
       order.
       @param cmp comparison object.
       @see selection_sort() quicksort_rec() mergesort() heapsort()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -2559,7 +2559,7 @@ namespace Aleph
 
   /**
      \overload insertion_sort()
-     \ingroup Algos
+     \ingroup Algorithms
   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -2883,7 +2883,7 @@ namespace Aleph
       @see selection_sort() insertion_sort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort_rec()
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2928,7 +2928,7 @@ namespace Aleph
       @param cmp comparison object.
       @return containing index of the endpoint.
       @note There is no checking if the stream is empty.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -2946,7 +2946,7 @@ namespace Aleph
 
   /** Returns the maximum element of the array a between l and r.
 
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::greater<T>>
   inline
@@ -3077,7 +3077,7 @@ namespace Aleph
       @return index of the element where x is located or the index of
       the position where x would be inserted.
       @see sequential_search()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -3256,7 +3256,7 @@ namespace Aleph
       @return Index of the found element or the insertion position.
 
       @see binary_search()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -3293,7 +3293,7 @@ namespace Aleph
    *
    * @see binary_search_dup()
    * @see binary_search()
-   * \ingroup Algos
+   * \ingroup Algorithms
    */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -3442,7 +3442,7 @@ namespace Aleph
       @return A `DynArray<T*>` where each entry is a pointer to an element of
               `a` such that `*ret(0), *ret(1), ..., *ret(n-1)` are in
               non-decreasing order according to `cmp`.
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <template <typename> class C, typename T,
             class Compare = Aleph::less<T>>
@@ -3575,7 +3575,7 @@ namespace Aleph
       @return index of the element where x is located or the index of
       the position where x would be inserted.
       @see sequential_search()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -3623,7 +3623,7 @@ namespace Aleph
       @return index of the element where x is located or the index of
       the position where x would be inserted.
       @see sequential_search()
-      \ingroup Algos
+      \ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline

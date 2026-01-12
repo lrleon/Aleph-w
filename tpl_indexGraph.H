@@ -26,7 +26,7 @@
 
 /** @file tpl_indexGraph.H
  *  @brief Graph indexing utilities.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -75,7 +75,7 @@ namespace Aleph
 
       @see IndexArc IndexNode
 
-      @ingroup Grafos
+      @ingroup Graphs
       @author Leandro Rabindranath León (lrleon en ula punto ve)
       @author Alejandro Mujica (aledrums en gmail punto com)
   */

@@ -31,7 +31,7 @@
     global configuration variables, and diagnostic macros used throughout
     the Aleph-w library.
 
-    @ingroup Utils
+    @ingroup Utilities
  *  @author Leandro Rabindranath León
 */
 
@@ -53,7 +53,7 @@
 
     Used to select constructors that perform minimal or no initialization.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 enum EmptyCtor { emptyCtor };
 
@@ -61,7 +61,7 @@ enum EmptyCtor { emptyCtor };
 
     Used to select constructors that guarantee no exceptions will be thrown.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 enum NoExceptionCtor { no_exception_ctor };
 
@@ -70,7 +70,7 @@ enum NoExceptionCtor { no_exception_ctor };
     Used to select constructors that create sentinel/guard nodes
     in linked data structures.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 enum SentinelCtor { sentinelCtor };
 
@@ -78,12 +78,12 @@ namespace Aleph
 {
 
 /** @brief Type alias for IPv4 addresses stored as 32-bit integers.
-    @ingroup Utils
+    @ingroup Utilities
 */
 typedef uint32_t IPv4_Address;
 
 /** @brief Null/invalid IPv4 address constant.
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern const IPv4_Address Null_IPv4_Address;
 
@@ -93,7 +93,7 @@ extern const IPv4_Address Null_IPv4_Address;
     when no actual data is needed. Provides equality comparison
     and stream operators for compatibility.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 struct Empty_Class
 {
@@ -160,17 +160,17 @@ const int UnknownLine = -1;
 const int UnknownLoad = -1;
 
 /** @brief Flag indicating if the process is running as a daemon.
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern bool daemonized;
 
 /** @brief Flag enabling verbose output.
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern bool verbose;
 
 /** @brief Maximum allowed execution time (in seconds).
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern double max_time;
 
@@ -181,7 +181,7 @@ extern double max_time;
     @param format Printf-style format string.
     @param ... Format arguments.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern void message(const char * file, int line, const char *format, ...);
 
@@ -192,7 +192,7 @@ extern void message(const char * file, int line, const char *format, ...);
     @param format Printf-style format string.
     @param ... Format arguments.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern void error(const char * file, int line, const char *format, ...);
 
@@ -203,7 +203,7 @@ extern void error(const char * file, int line, const char *format, ...);
     @param format Printf-style format string.
     @param ... Format arguments.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern void exit(const char * file, int line, const char *format, ...);
 
@@ -214,7 +214,7 @@ extern void exit(const char * file, int line, const char *format, ...);
     @param format Printf-style format string.
     @param ... Format arguments.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern void warning(const char * file, int line, const char *format, ...);
 
@@ -223,7 +223,7 @@ extern void warning(const char * file, int line, const char *format, ...);
     @param format Printf-style format string.
     @param ap Variable argument list.
 
-    @ingroup Utils
+    @ingroup Utilities
 */
 extern void syslog(const char * format, va_list ap);
 
@@ -234,7 +234,7 @@ extern void syslog(const char * format, va_list ap);
 /** @brief Print an informational message (enabled when MESSAGES is defined).
     @param format Printf-style format string.
     @param args Format arguments.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define MESSAGE(format, args...) \
         Aleph::message(__FILE__, __LINE__, format , ##args)
@@ -242,7 +242,7 @@ extern void syslog(const char * format, va_list ap);
 /** @brief Print a warning message (enabled when MESSAGES is defined).
     @param format Printf-style format string.
     @param args Format arguments.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define WARNING(format, args...) \
         Aleph::warning(__FILE__, __LINE__, format , ##args)
@@ -260,7 +260,7 @@ extern void syslog(const char * format, va_list ap);
 /** @brief Print an error message (always enabled).
     @param format Printf-style format string.
     @param args Format arguments.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define AH_ERROR(format, args...) \
         Aleph::error(__FILE__, __LINE__, format , ##args)
@@ -268,7 +268,7 @@ extern void syslog(const char * format, va_list ap);
 /** @brief Print a message and exit the program (always enabled).
     @param format Printf-style format string.
     @param args Format arguments.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define EXIT(format, args...) \
         Aleph::exit(__FILE__, __LINE__, format , ##args)
@@ -276,21 +276,21 @@ extern void syslog(const char * format, va_list ap);
 /** @brief Check if a pointer was found (not null).
     @param ptr Pointer to check.
     @return true if ptr is not nullptr.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define POINTER_HAS_BEEN_FOUND(ptr) ((ptr) not_eq nullptr)
 
 /** @brief Check if a pointer was not found (is null).
     @param ptr Pointer to check.
     @return true if ptr is nullptr.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define POINTER_HAS_NOT_BEEN_FOUND(ptr) ((ptr) == nullptr)
 
 /** @brief Exception specification macro (deprecated in modern C++).
     @param list Exception types that may be thrown.
     @deprecated Exception specifications are deprecated in C++17 and removed in C++20.
-    @ingroup Utils
+    @ingroup Utilities
 */
 #define Exception_Prototypes(list...) throw(std::exception, ##list)
 

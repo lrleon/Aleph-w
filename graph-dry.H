@@ -31,7 +31,7 @@
  *  CRTP (Curiously Recurring Template Pattern). Includes node/arc
  *  iterators, graph traversal, and common graph operations.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -45,7 +45,7 @@
 // ============================================================================
 
 /** @defgroup GraphConcepts C++20 Concepts for Graph Iterators
-    @ingroup Grafos
+    @ingroup Graphs
     
     These concepts define the interface contracts for Aleph-w graph iterators.
     They provide:
@@ -243,7 +243,7 @@ concept NodeArcIterator = GraphArcIterator<It, Arc> && requires(const It cit)
     that are derived for Dlink class. This is currently the case for
     List_Graph and Array_Graph.
 
-    \ingroup Grafos
+    \ingroup Graphs
 */
 template <class GT>
 struct GTNodeIterator : public Dlink::Iterator
@@ -288,7 +288,7 @@ struct GTNodeIterator : public Dlink::Iterator
      that are derived for Dlink class. This is currently the case for
      List_Graph and Array_Graph.
 
-     \ingroup Grafos
+     \ingroup Graphs
  */
 template <class GT>
 struct GTArcIterator : public Dlink::Iterator
@@ -355,7 +355,7 @@ struct GTArcIterator : public Dlink::Iterator
 
 /** Used internally for some graphs for compare their nodes.
 
-    \ingroup Grafos
+    \ingroup Graphs
 */
 template <class GT, class Cmp>
 struct Cmp_Dlink_Node
@@ -382,7 +382,7 @@ struct Cmp_Dlink_Node
 
 /** Used internally for some graphs for compare their arcs.
 
-    \ingroup Grafos
+    \ingroup Graphs
 */
 template <class GT, class Cmp>
 struct Cmp_Dlink_Arc
@@ -422,7 +422,7 @@ struct Cmp_Dlink_Arc
     @warning This class is not intended to be used explicitly by the
     user. Its use is internal to the graphs implementations.
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 template <typename NodeInfo>
 class GTNodeCommon
@@ -515,7 +515,7 @@ public:
     @warning This class is not intended to be used explicitly by the
     user. Its use is internal to the graphs implementations.
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 template <typename ArcInfo>
 class GTArcCommon
@@ -605,7 +605,7 @@ public:
 
 /** Common methods to the `Aleph-w` (\f$\aleph_\omega\f$) graph classes.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 template <class GT, class Node, class Arc>
 class GraphCommon
@@ -2852,7 +2852,7 @@ public:
       Normally you must not worry by the existence of this class. It is
       transparently used by the class `In_Iterator`
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
   struct In_Filt
   {
@@ -2909,7 +2909,7 @@ public:
       Normally you must not worry by the existence of this class. It is
       transparently used by the class `Out_Iterator`
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
   struct Out_Filt
   {
@@ -2959,7 +2959,7 @@ public:
       identical to the `Aleph-w` (\f$\aleph_\omega\f$) iterators.
 
       @see Out_Iterator In_Iterator Filter_Iterator
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class Filter>
   class Digraph_Iterator
@@ -3776,7 +3776,7 @@ public:
     @note This macro does NOT generate the destructor, as destruction logic
           varies between graph implementations.
 
-    @ingroup Grafos
+    @ingroup Graphs
 */
 #define ALEPH_GRAPH_COPY_MOVE_CTORS(GraphClass)                              \
   /** Copy constructor. Creates a deep copy of the graph. */                 \
@@ -3835,7 +3835,7 @@ namespace Aleph
     using List_Digraph = Digraph<List_Graph<Node, Arc>>;
     ```
 
-    @ingroup Grafos
+    @ingroup Graphs
     @see List_Graph List_SGraph Array_Graph
 */
 template <class BaseGraph>

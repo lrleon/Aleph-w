@@ -241,7 +241,7 @@ namespace Aleph
       @see Rb_Tree Low-level Red-Black tree (manual memory management).
       @see TreapRk Low-level Treap with rank (manual memory management).
       @see FunctionalMethods Inherited functional operations.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key,
             template <typename, class> class Tree = Avl_Tree,
@@ -1205,7 +1205,7 @@ namespace Aleph
         @note After the calls, tree t becomes empty and this becomes
         the union of both trees.
         @return this
-        @ingroup Arboles
+        @ingroup Trees
     */
     DynSetTree &join(DynSetTree & t, DynSetTree & dup)
     {
@@ -1233,7 +1233,7 @@ namespace Aleph
         @note After the calls the t-tree becomes empty and this becomes
         the union of both trees;
         @return this
-        @ingroup Arboles
+        @ingroup Trees
     */
     DynSetTree &join_dup(DynSetTree & t)
     {
@@ -1410,7 +1410,7 @@ namespace Aleph
       of type BinTree<Key>.
 
       @see DynSetTree DynMapTree BinTree<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetBinTree : public DynSetTree<Key, BinTree, Compare>
@@ -1425,7 +1425,7 @@ namespace Aleph
       of type Avl_Tree<Key>.
 
       @see DynSetTree DynMapTree Avl_Tree<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetAvlTree : public DynSetTree<Key, Avl_Tree, Compare>
@@ -1440,7 +1440,7 @@ namespace Aleph
       of type Splay_Tree<Key>.
 
       @see DynSetTree DynMapTree Splay_Tree<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetSplayTree : public DynSetTree<Key, Splay_Tree, Compare>
@@ -1462,7 +1462,7 @@ namespace Aleph
       operations (select, position).
 
       @see DynSetTree DynMapTree Splay_Tree_Rk<Key> DynSetSplayTree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetSplayRkTree : public DynSetTree<Key, Splay_Tree_Rk, Compare>
@@ -1478,7 +1478,7 @@ namespace Aleph
       of type Rand_Tree<Key>.
 
       @see DynSetTree DynMapTree Rand_Tree<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetRandTree : public DynSetTree<Key, Rand_Tree, Compare>
@@ -1506,7 +1506,7 @@ namespace Aleph
       of type Treap<Key>.
 
       @see DynSetTree DynMapTree Treap<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTreap : public DynSetTree<Key, Treap, Compare>
@@ -1520,7 +1520,7 @@ namespace Aleph
       with rank support of type Treap_Rk<Key>.
 
       @see DynSetTree DynMapTree Treap_Rk<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTreapRk : public DynSetTree<Key, Treap_Rk, Compare>
@@ -1538,7 +1538,7 @@ namespace Aleph
       Supports O(log n) select and position operations.
 
       @see DynSetTree DynMapTree Avl_Tree_Rk<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetAvlRkTree : public DynSetTree<Key, Avl_Tree_Rk, Compare>
@@ -1554,7 +1554,7 @@ namespace Aleph
       of type Rb_Tree<Key> (bottom-up implementation).
 
       @see DynSetTree DynMapTree Rb_Tree<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetRbTree : public DynSetTree<Key, Rb_Tree, Compare>
@@ -1573,7 +1573,7 @@ namespace Aleph
       avoids the need for a stack to track the ancestor path.
 
       @see DynSetTree DynMapTree TdRbTree<Key> DynSetRbTree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTdRbTree : public DynSetTree<Key, TdRbTree, Compare>
@@ -1590,7 +1590,7 @@ namespace Aleph
       Supports O(log n) select and position operations.
 
       @see DynSetTree DynMapTree Rb_Tree_Rk<Key>
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetRbRkTree : public DynSetTree<Key, Rb_Tree_Rk, Compare>
@@ -1609,7 +1609,7 @@ namespace Aleph
       a single pass down the tree. Supports O(log n) select and position.
 
       @see DynSetTree DynMapTree TdRbTreeRk<Key> DynSetRbRkTree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetTdRbRkTree : public DynSetTree<Key, TdRbTreeRk, Compare>
@@ -1632,7 +1632,7 @@ namespace Aleph
       many deletions.
 
       @see DynSetTree DynMapTree HtdRbTree<Key> DynSetRbTree DynSetTdRbTree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetHtdRbTree : public DynSetTree<Key, HtdRbTree, Compare>
@@ -1655,7 +1655,7 @@ namespace Aleph
       Supports O(log n) select and position operations.
 
       @see DynSetTree DynMapTree HtdRbTreeRk<Key> DynSetRbRkTree DynSetTdRbRkTree
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
   class DynSetHtdRbRkTree : public DynSetTree<Key, HtdRbTreeRk, Compare>

@@ -26,7 +26,7 @@
 
 /** @file fmmd.H
  *  @brief File memory-mapped data utilities.
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

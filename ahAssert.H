@@ -35,7 +35,7 @@
     @note These macros are only active when the DEBUG preprocessor
           symbol is defined.
 
-    @ingroup Utils
+    @ingroup Utilities
  *  @author Leandro Rabindranath León
 */
 

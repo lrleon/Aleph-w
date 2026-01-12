@@ -61,7 +61,7 @@
  * int result = stl_foldr(0, [](int x, int acc) { return x - acc; }, nums);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 
@@ -99,7 +99,7 @@ namespace Aleph
  * auto r2 = stl_range(0, 10, 2); // {0, 2, 4, 6, 8, 10}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T = int>
@@ -127,7 +127,7 @@ template <typename T = int>
  * @param n Number of elements.
  * @return std::vector<T> with values 0 to n-1.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T = int>
@@ -148,7 +148,7 @@ template <typename T = int>
  * @param n Number of values to generate.
  * @return std::vector with n values.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T = double>
@@ -177,7 +177,7 @@ template <typename T = double>
  * @param value Value to repeat.
  * @return std::vector with n copies of value.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T>
@@ -193,7 +193,7 @@ template <typename T>
  * @param gen Generator function `(size_t index) -> T`.
  * @return std::vector with generated values.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Gen>
@@ -217,7 +217,7 @@ template <typename Gen>
  * @param op Callable `(element) -> void`.
  * @param c Container.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -233,7 +233,7 @@ void stl_for_each(Op&& op, const Container& c)
  * @param op Callable `(size_t idx, element) -> void`.
  * @param c Container.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -256,7 +256,7 @@ void stl_for_each_indexed(Op&& op, const Container& c)
  * auto squares = stl_map([](int x) { return x * x; }, nums);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -279,7 +279,7 @@ template <typename Op, typename Container>
  * @param c Container.
  * @return std::vector<R> with transformed values.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -303,7 +303,7 @@ template <typename Op, typename Container>
  * @param c Container.
  * @return std::vector with filtered elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -325,7 +325,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::vector with filtered elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -359,7 +359,7 @@ template <typename Pred, typename Container>
  * int sum = stl_foldl(0, [](int acc, int x) { return acc + x; }, nums);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
@@ -396,7 +396,7 @@ template <typename T, typename Op, typename Container>
  * int result = stl_foldr(0, [](int x, int acc) { return x - acc; }, {1, 2, 3});
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
@@ -422,7 +422,7 @@ template <typename T, typename Op, typename Container>
  * auto sums = stl_scan_left(0, [](int acc, int x) { return acc + x; }, {1,2,3,4});
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
@@ -449,7 +449,7 @@ template <typename T, typename Op, typename Container>
  * @param c Container.
  * @return std::vector containing all intermediate results (in reverse order) and init.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename Container>
@@ -489,7 +489,7 @@ template <typename T, typename Op, typename Container>
  * @param c Container.
  * @return `true` if all elements satisfy predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -515,7 +515,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return `true` if any element satisfies predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -544,7 +544,7 @@ template <typename Pred, typename Container>
 /**
  * @brief Check if no element satisfies predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -564,7 +564,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::optional with element if found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -585,7 +585,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::optional with element if found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -607,7 +607,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::optional<size_t> with index if found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -630,7 +630,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return First non-empty result from op.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -656,7 +656,7 @@ template <typename Op, typename Container>
  * @param c Container.
  * @return `true` if target is found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
@@ -679,7 +679,7 @@ template <typename T, typename Container>
  * @param c Container.
  * @return Number of elements satisfying predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -699,7 +699,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return Number of occurrences.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
@@ -723,7 +723,7 @@ template <typename T, typename Container>
  * @param c Container.
  * @return std::vector with first n elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -750,7 +750,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with remaining elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -779,7 +779,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with last n elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -810,7 +810,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with elements taken while predicate is true.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -835,7 +835,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::vector with remaining elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -865,7 +865,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return std::optional with first element if container is not empty.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -885,7 +885,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional with last element if container is not empty.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -908,7 +908,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional with n-th element if exists.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -936,7 +936,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional with minimum element.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -962,7 +962,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional with maximum element.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -988,7 +988,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional<std::pair<T, T>> with (min, max).
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1020,7 +1020,7 @@ template <typename Container>
  * @param c Container.
  * @return std::optional with element having minimum key.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
@@ -1055,7 +1055,7 @@ template <typename Key, typename Container>
  * @param c Container.
  * @return std::optional with element having maximum key.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
@@ -1093,7 +1093,7 @@ template <typename Key, typename Container>
  * @param c Container of numeric values.
  * @return Sum of all elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1112,7 +1112,7 @@ template <typename Container>
  * @param c Container of numeric values.
  * @return Product of all elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1140,7 +1140,7 @@ template <typename Container>
  * @param c Container.
  * @return Pair of vectors: (elements satisfying pred, elements not satisfying pred).
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -1170,7 +1170,7 @@ template <typename Pred, typename Container>
  * @param c2 Second container.
  * @return std::vector of pairs.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
@@ -1194,7 +1194,7 @@ template <typename Container1, typename Container2>
  * @param c Container of pairs.
  * @return Pair of vectors.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1223,7 +1223,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector of pairs (index, element).
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1250,7 +1250,7 @@ template <typename Container>
  * @param c2 Second container.
  * @return `true` if containers have same elements in same order.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
@@ -1271,7 +1271,7 @@ template <typename Container1, typename Container2>
  * @param c2 Second container.
  * @return -1 if c1 < c2, 0 if equal, 1 if c1 > c2.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
@@ -1300,7 +1300,7 @@ template <typename Container1, typename Container2>
  * @param c Container.
  * @return std::vector with elements in reverse order.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1319,7 +1319,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with sorted elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1339,7 +1339,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with sorted elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Cmp, typename Container>
@@ -1362,7 +1362,7 @@ template <typename Cmp, typename Container>
  * @param c Container.
  * @return std::vector with consecutive duplicates removed.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1388,7 +1388,7 @@ template <typename Container>
  * @note Uses O(n²) algorithm. For better performance with large containers,
  *       use a set-based approach.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1423,7 +1423,7 @@ template <typename Container>
  * @param c2 Second container.
  * @return std::vector with all elements from c1 followed by c2.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container1, typename Container2>
@@ -1446,7 +1446,7 @@ template <typename Container1, typename Container2>
  * @param c Container of containers.
  * @return std::vector with all nested elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1469,7 +1469,7 @@ template <typename Container>
  * @param c Container.
  * @return std::vector with flattened mapped results.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -1496,7 +1496,7 @@ template <typename Op, typename Container>
  * @param c Container.
  * @return std::vector of vectors, each containing consecutive equal elements.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1534,7 +1534,7 @@ template <typename Container>
  *
  * @note This is an O(n²) implementation. For better performance, use a map.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Key, typename Container>
@@ -1656,7 +1656,7 @@ bool arrangements_impl(const std::vector<T>& arr, size_t k,
  * // Output: all 6 permutations
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -1675,7 +1675,7 @@ bool stl_traverse_permutations(Op&& op, const Container& c)
  *
  * @note For n elements, generates n! permutations. Use with care for large n.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1713,7 +1713,7 @@ template <typename Container>
  * // Output: {1,2}, {1,3}, {1,4}, {2,3}, {2,4}, {3,4}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -1737,7 +1737,7 @@ bool stl_traverse_combinations(size_t k, Op&& op, const Container& c)
  * @param c Container.
  * @return Vector of vectors, each containing one combination.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1775,7 +1775,7 @@ template <typename Container>
  * // Output: {1,2}, {1,3}, {2,1}, {2,3}, {3,1}, {3,2}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -1800,7 +1800,7 @@ bool stl_traverse_arrangements(size_t k, Op&& op, const Container& c)
  * @param c Container.
  * @return Vector of vectors, each containing one arrangement.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1830,7 +1830,7 @@ template <typename Container>
  * // Result: {{1,3}, {1,4}, {2,3}, {2,4}}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T>
@@ -1868,7 +1868,7 @@ template <typename T>
  * @param c Container.
  * @return Vector of vectors containing all 2^n subsets.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1910,7 +1910,7 @@ template <typename Container>
  * // Result: {{1,2,3}, {2,3,4}, {3,4,5}}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1943,7 +1943,7 @@ template <typename Container>
  * // Result: {{1,2}, {3,4}, {5}}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1978,7 +1978,7 @@ template <typename Container>
  * // Result: {1, 0, 2, 0, 3}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Container>
@@ -2005,7 +2005,7 @@ template <typename T, typename Container>
  * @param c Container.
  * @return Pair of vectors.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -2036,7 +2036,7 @@ template <typename Container>
  * @param c Container.
  * @return Pair of vectors.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -2067,7 +2067,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return Vector without last element.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -2088,7 +2088,7 @@ template <typename Container>
  * @param c Container.
  * @return Vector without first element.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -2117,7 +2117,7 @@ template <typename Container>
  *
  * @note Uses O(n²) algorithm. For large containers, use a map.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -2150,7 +2150,7 @@ template <typename Container>
  * @param c Container.
  * @return Vector with elements not satisfying predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>

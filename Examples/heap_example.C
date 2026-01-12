@@ -56,7 +56,7 @@
  * 
  * @see tpl_binHeap.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  * @see tpl_dynBinHeap.H
  * @see tpl_fibonacci_heap.H
  */

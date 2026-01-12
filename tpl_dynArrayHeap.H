@@ -37,7 +37,7 @@
  *
  *  @see tpl_binHeap.H Fixed-size array heap
  *  @see tpl_dynBinHeap.H Node-based heap
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -122,7 +122,7 @@ namespace Aleph
       @tparam Compare comparator defining the priority order
 
       @see BinHeap DynBinHeap ArrayHeap
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <typename T, class Compare = Aleph::less<T>>
   class DynArrayHeap : public LocateFunctions<DynArrayHeap<T, Compare>, T>,

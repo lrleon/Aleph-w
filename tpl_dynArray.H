@@ -191,7 +191,7 @@ namespace Aleph {
      directory allocation, but the directory is allocated once at
      construction time.
 
-     @ingroup Secuencias
+     @ingroup Sequences
    */
     template <typename T>
 class DynArray : public LocateFunctions<DynArray<T>, T>,
@@ -1331,7 +1331,7 @@ public:
       It is assumed that all the entries between 0 and current dimension
       have been allocated.
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Iterator
   {

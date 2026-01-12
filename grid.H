@@ -57,7 +57,7 @@
  *  @see random_graph.H Random graph generation
  *  @see tpl_graph.H Graph types
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  *  @author Alejandro Mujica
  */
@@ -143,7 +143,7 @@ struct Default_Operation_On_Arc
  * builder(g, 5, 5);
  * @endcode
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  * @author Alejandro Mujica
  */
 template <

@@ -31,7 +31,7 @@
  *  cuts in graphs. Uses random edge contractions to approximate
  *  the minimum cut with high probability.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -83,7 +83,7 @@ namespace Aleph
       @note The graph must have at least 2 nodes and 1 arc.
 
       @see https://en.wikipedia.org/wiki/Karger%27s_algorithm
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   class Karger_Min_Cut

@@ -36,7 +36,7 @@
     This file provides implementations of common STL algorithms adapted
     for use with Aleph-w containers and iterators.
 
-    @ingroup Algos
+    @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
 
@@ -64,7 +64,7 @@ using size_type = size_t;
     @param op Operation to apply to each element.
     @return A copy of the operation op.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class Operation>
 inline Operation for_each(Itor beg, const Itor & end, Operation op)
@@ -87,7 +87,7 @@ inline Operation for_each(Itor beg, const Itor & end, Operation op)
     @param op Unary predicate to test elements.
     @return The number of elements satisfying the predicate.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class Operation>
 [[nodiscard]] inline typename Itor::difference_type
@@ -114,7 +114,7 @@ count_if(Itor beg, const Itor & end, Operation op)
     @param value Value to compare against.
     @return The number of elements equal to value.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 [[nodiscard]] inline typename Itor::difference_type
@@ -135,7 +135,7 @@ count(const Itor & beg, const Itor & end, const T & value)
     @param op Comparison function (defaults to less-than).
     @return Iterator to the minimum element.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, 
          class CompFunc = Aleph::less<typename Itor::value_type>>
@@ -171,7 +171,7 @@ template<class Itor,
     @param op Comparison function (defaults to greater-than).
     @return Iterator to the maximum element.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, 
          class CompFunc = Aleph::greater<typename Itor::value_type>>
@@ -193,7 +193,7 @@ template<class Itor,
     @param op Unary predicate to test elements.
     @return Iterator to the found element, or end if not found.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class UnaryPredicate>
 [[nodiscard]] inline Itor find_if(Itor beg, const Itor & end, UnaryPredicate op)
@@ -218,7 +218,7 @@ template<class Itor, class UnaryPredicate>
     @param value Value to search for.
     @return Iterator to the found element, or end if not found.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class T>
 [[nodiscard]] inline Itor find(const Itor & beg, const Itor & end, const T & value)
@@ -242,7 +242,7 @@ template<class Itor, class T>
     @param op Binary predicate for comparison (defaults to equality).
     @return Iterator to the first of the consecutive elements, or end.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class Size, class T, 
          class BinaryPredicate = Aleph::equal_to<T>>
@@ -296,7 +296,7 @@ template<class Itor, class Size, class T,
     @note The ranges can be of different container types as long as op
           can compare their elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor1, class Itor2, 
          class BinaryPredicate = Aleph::equal_to<typename Itor1::value_type>>
@@ -351,7 +351,7 @@ template<class Itor1, class Itor2,
     @param op Binary predicate for comparison.
     @return Iterator to the first element of the last occurrence, or end.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor1, class Itor2, 
          class BinaryPredicate = Aleph::equal_to<typename Itor1::value_type>>
@@ -392,7 +392,7 @@ template<class Itor1, class Itor2,
     @param op Binary predicate for comparison.
     @return Iterator to the first matching element, or end.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor1, class Itor2, 
          class BinaryPredicate = Aleph::equal_to<typename Itor1::value_type>>
@@ -430,7 +430,7 @@ template<class Itor1, class Itor2,
     @param op Binary predicate for comparison.
     @return Iterator to the first of the equal pair, or end.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, 
          class BinaryPredicate = Aleph::equal_to<typename Itor::value_type>>
@@ -469,7 +469,7 @@ template<class Itor,
     @param op Binary predicate for comparison.
     @return true if all corresponding elements are equal.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, 
           class BinaryPredicate = Aleph::equal_to<typename Itor1::value_type>>
@@ -502,7 +502,7 @@ template <class Itor1, class Itor2,
     @param op Binary predicate for comparison.
     @return Pair of iterators to the first mismatching elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, 
           class BinaryPredicate = Aleph::equal_to<typename Itor1::value_type>>
@@ -534,7 +534,7 @@ mismatch(Itor1 beg, const Itor1& end,
     @param op Comparison function.
     @return true if the first range is lexicographically less than the second.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, 
           class Comp = Aleph::less<typename Itor1::value_type>>
@@ -572,7 +572,7 @@ template <class Itor1, class Itor2,
     @param destBeg Iterator to the first destination position.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 copy(Itor1 sourceBeg, const Itor1& sourceEnd, Itor2 destBeg)
@@ -595,7 +595,7 @@ inline Itor2 copy(Itor1 sourceBeg, const Itor1& sourceEnd, Itor2 destBeg)
     @param destEnd Iterator past the last destination position.
     @return Iterator to the first copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 copy_backward(const Itor1 & sourceBeg, Itor1 sourceEnd, Itor2 destEnd)
@@ -620,7 +620,7 @@ inline Itor2 copy_backward(const Itor1 & sourceBeg, Itor1 sourceEnd, Itor2 destE
     @param op Unary operation to apply.
     @return Iterator past the last transformed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class UnaryFunc>
 inline Itor2 transform(Itor1 sourceBeg, Itor1 sourceEnd, 
@@ -648,7 +648,7 @@ inline Itor2 transform(Itor1 sourceBeg, Itor1 sourceEnd,
     @param op Binary operation to apply.
     @return Iterator past the last transformed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class Itor3, class BinaryFunc>
 inline Itor3 transform(Itor1 source1Beg, Itor1 source1End, 
@@ -674,7 +674,7 @@ inline Itor3 transform(Itor1 source1Beg, Itor1 source1End,
     @param beg2 Iterator to the first element of the second range.
     @return Iterator past the last swapped element in the second range.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 swap_ranges(Itor1 beg1, const Itor1& end1, Itor2 beg2)
@@ -695,7 +695,7 @@ inline Itor2 swap_ranges(Itor1 beg1, const Itor1& end1, Itor2 beg2)
     @param end Iterator past the last element.
     @param value Value to assign.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 inline void fill(Itor beg, const Itor& end, const T & value)
@@ -715,7 +715,7 @@ inline void fill(Itor beg, const Itor& end, const T & value)
     @param num Number of elements to fill.
     @param value Value to assign.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T, class Size>
 inline void fill_n(Itor beg, Size num, const T & value)
@@ -734,7 +734,7 @@ inline void fill_n(Itor beg, Size num, const T & value)
     @param end Iterator past the last element.
     @param op Generator function.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class Func>
 inline void generate(Itor beg, const Itor& end, Func op)
@@ -754,7 +754,7 @@ inline void generate(Itor beg, const Itor& end, Func op)
     @param num Number of elements to generate.
     @param op Generator function.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class Size, class Func>
 inline void generate_n(Itor beg, Size num, Func op)
@@ -776,7 +776,7 @@ inline void generate_n(Itor beg, Size num, Func op)
     @param op Unary predicate to test elements.
     @param value Replacement value.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class UnaryPredicate, class T>
 inline void replace_if(Itor beg, const Itor& end, 
@@ -803,7 +803,7 @@ inline void replace_if(Itor beg, const Itor& end,
     @param old_value Value to be replaced.
     @param new_value Replacement value.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 inline void replace(Itor beg, const Itor& end, 
@@ -830,7 +830,7 @@ inline void replace(Itor beg, const Itor& end,
     @param value Replacement value.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class UnaryPredicate, class T>
 inline Itor2 replace_copy_if(Itor1 sourceBeg, const Itor1& sourceEnd, 
@@ -866,7 +866,7 @@ inline Itor2 replace_copy_if(Itor1 sourceBeg, const Itor1& sourceEnd,
     @param new_value Replacement value.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class T>
 inline Itor2 replace_copy(const Itor1& sourceBeg, const Itor1& sourceEnd, 
@@ -893,7 +893,7 @@ inline Itor2 replace_copy(const Itor1& sourceBeg, const Itor1& sourceEnd,
     @param __pred Unary predicate to test elements.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class In_Itor, class Out_Itor, class Predicate>
 inline Out_Itor remove_copy_if(In_Itor __first, const In_Itor & __last,
@@ -922,7 +922,7 @@ inline Out_Itor remove_copy_if(In_Itor __first, const In_Itor & __last,
     @param __pred Unary predicate to test elements.
     @return Iterator to the new logical end of the range.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Fw_Itor, class Predicate>
 inline Fw_Itor remove_if(Fw_Itor __first, const Fw_Itor & __last,
@@ -950,7 +950,7 @@ inline Fw_Itor remove_if(Fw_Itor __first, const Fw_Itor & __last,
     @param __value Value to remove.
     @return Iterator to the new logical end of the range.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Fw_Itor, class T>
 inline Fw_Itor remove(Fw_Itor __first, const Fw_Itor & __last, 
@@ -994,7 +994,7 @@ static inline Out_Itor __unique_copy(In_Itor __first, In_Itor __last,
     @param __result Iterator to the first destination position.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class In_Itor, class Out_Itor>
 inline Out_Itor unique_copy(In_Itor __first, In_Itor __last,
@@ -1020,7 +1020,7 @@ inline Out_Itor unique_copy(In_Itor __first, In_Itor __last,
     @param __binary_pred Binary predicate for comparison.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class In_Itor, class Out_Itor, class BinaryPredicate>
 inline Out_Itor unique_copy(In_Itor __first, In_Itor __last,
@@ -1045,7 +1045,7 @@ inline Out_Itor unique_copy(In_Itor __first, In_Itor __last,
     @param __binary_pred Binary predicate for comparison.
     @return Iterator to the new logical end of the range.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor,
          class BinaryPredicate = Aleph::equal_to<typename Itor::value_type>>
@@ -1082,7 +1082,7 @@ inline Itor unique(Itor __first, Itor __last,
     @param beg Iterator to the first element.
     @param end Iterator past the last element.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor>
 inline void reverse(Itor beg, Itor end)
@@ -1102,7 +1102,7 @@ inline void reverse(Itor beg, Itor end)
     @param destBeg Iterator to the first destination position.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 reverse_copy(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
@@ -1126,7 +1126,7 @@ inline Itor2 reverse_copy(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
     @param pos Iterator to the new first element.
     @param end Iterator past the last element.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor>
 inline void rotate(Itor beg, Itor pos, Itor end)
@@ -1149,7 +1149,7 @@ inline void rotate(Itor beg, Itor pos, Itor end)
     @param tgt_beg Iterator to the first destination position.
     @return Iterator past the last copied element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 rotate_copy(const Itor1& beg, const Itor1& pos, const Itor1& end, 
@@ -1178,7 +1178,7 @@ inline Itor2 rotate_copy(const Itor1& beg, const Itor1& pos, const Itor1& end,
     @note This is a linear implementation suitable for forward iterators.
           For random access iterators, consider using binary search.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 [[nodiscard]] inline Itor lower_bound(Itor beg, Itor end, const T& value)
@@ -1203,7 +1203,7 @@ template <class Itor, class T>
     @param op Binary comparison predicate.
     @return Iterator to the lower bound.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T, class BinaryPredicate>
 [[nodiscard]] inline Itor lower_bound(Itor beg, Itor end, const T& value, 
@@ -1227,7 +1227,7 @@ template <class Itor, class T, class BinaryPredicate>
     @param value Value to compare against.
     @return Iterator to the upper bound.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 [[nodiscard]] inline Itor upper_bound(Itor beg, Itor end, const T& value)
@@ -1249,7 +1249,7 @@ template <class Itor, class T>
     @param op Binary comparison predicate.
     @return Iterator to the upper bound.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T, class BinaryPredicate>
 [[nodiscard]] inline Itor upper_bound(Itor beg, Itor end, const T& value, 
@@ -1272,7 +1272,7 @@ template <class Itor, class T, class BinaryPredicate>
     @param value Value to search for.
     @return true if value is found.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class T>
 [[nodiscard]] inline bool binary_search(Itor beg, Itor end, const T& value)
@@ -1295,7 +1295,7 @@ template<class Itor, class T>
     @param op Binary comparison predicate.
     @return true if value is found.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Itor, class T, class BinaryPredicate>
 [[nodiscard]] inline bool binary_search(Itor beg, Itor end, const T& value, 
@@ -1317,7 +1317,7 @@ template<class Itor, class T, class BinaryPredicate>
     @param value Value to search for.
     @return Pair of iterators [lower_bound, upper_bound).
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 [[nodiscard]] inline std::pair<Itor, Itor> 
@@ -1338,7 +1338,7 @@ equal_range(Itor beg, Itor end, const T& value)
     @param op Binary comparison predicate.
     @return Pair of iterators [lower_bound, upper_bound).
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T, class BinaryPredicate>
 [[nodiscard]] inline std::pair<Itor, Itor> 
@@ -1361,7 +1361,7 @@ equal_range(Itor beg, Itor end, const T& value, BinaryPredicate op)
     @param searchEnd Iterator past the last element of the search range.
     @return true if all search elements are found.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 [[nodiscard]] inline bool includes(Itor1 beg, Itor1 end, 
@@ -1398,7 +1398,7 @@ template <class Itor1, class Itor2>
     @param destBeg Iterator to the first destination position.
     @return Iterator past the last merged element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class Itor3>
 inline Itor3 merge(Itor1 source1Beg, Itor1 source1End, 
@@ -1440,7 +1440,7 @@ inline Itor3 merge(Itor1 source1Beg, Itor1 source1End,
     @param op Binary comparison predicate.
     @return Iterator past the last merged element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class Itor3, class BinaryPredicate>
 inline Itor3 merge(Itor1 source1Beg, Itor1 source1End, 
@@ -1481,7 +1481,7 @@ inline Itor3 merge(Itor1 source1Beg, Itor1 source1End,
     @param initValue Initial value for the accumulation.
     @return The accumulated value.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T>
 [[nodiscard]] inline T accumulate(Itor beg, Itor end, T initValue)
@@ -1506,7 +1506,7 @@ template <class Itor, class T>
     @param op Binary operation for combining values.
     @return The accumulated value.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor, class T, class BinaryFunc>
 [[nodiscard]] inline T accumulate(Itor beg, Itor end, T initValue, BinaryFunc op)
@@ -1531,7 +1531,7 @@ template <class Itor, class T, class BinaryFunc>
     @param initValue Initial value for the accumulation.
     @return The inner product.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class T>
 [[nodiscard]] inline T inner_product(Itor1 beg1, Itor1 end1, Itor2 beg2, T initValue)
@@ -1560,7 +1560,7 @@ template <class Itor1, class Itor2, class T>
     @param op2 Binary operation for combining element pairs.
     @return The generalized inner product.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class T, class BinaryFunc1, class BinaryFunc2>
 [[nodiscard]] inline T inner_product(Itor1 beg1, Itor1 end1, Itor2 beg2, 
@@ -1584,7 +1584,7 @@ template <class Itor1, class Itor2, class T, class BinaryFunc1, class BinaryFunc
     @param destBeg Iterator to the first destination position.
     @return Iterator past the last computed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 partial_sum(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
@@ -1619,7 +1619,7 @@ inline Itor2 partial_sum(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
     @param op Binary operation for combining values.
     @return Iterator past the last computed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class BinaryFunc>
 inline Itor2 partial_sum(Itor1 sourceBeg, Itor1 sourceEnd, 
@@ -1655,7 +1655,7 @@ inline Itor2 partial_sum(Itor1 sourceBeg, Itor1 sourceEnd,
     @param destBeg Iterator to the first destination position.
     @return Iterator past the last computed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2>
 inline Itor2 adjacent_difference(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg)
@@ -1691,7 +1691,7 @@ inline Itor2 adjacent_difference(Itor1 sourceBeg, Itor1 sourceEnd, Itor2 destBeg
     @param op Binary operation for computing differences.
     @return Iterator past the last computed element in destination.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Itor1, class Itor2, class BinaryFunc>
 inline Itor2 adjacent_difference(Itor1 sourceBeg, Itor1 sourceEnd, 

@@ -46,7 +46,7 @@
  *
  * @see ntreepic.C For n-ary tree visualization
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
     
 # include <stdio.h>

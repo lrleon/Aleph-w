@@ -34,700 +34,859 @@
  *
  *  The heuristic must be admissible (never overestimate) for optimal paths.
  *
- *  @ingroup Grafos
+ *  When no goal is specified (e.g., compute_min_paths_tree), the algorithm
+ *  behaves like Dijkstra's algorithm (zero heuristic).
+ *
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
-# ifndef ASTAR_H
-# define ASTAR_H
+#ifndef ASTAR_H
+#define ASTAR_H
 
-# include <ahFunction.H>
-# include <ah-errors.H>
-# include <archeap.H>
-# include <tpl_find_path.H>
-# include <tpl_agraph.H>
-# include <shortest_path_common.H>
+#include <ahFunction.H>
+#include <ah-errors.H>
+#include <archeap.H>
+#include <tpl_find_path.H>
+#include <tpl_agraph.H>
+#include <shortest_path_common.H>
 
 namespace Aleph
 {
-  // Cookie to Node_Info conversion
-# define ANassert(p) ((Node_Info*) NODE_COOKIE((p)))
 
-  // Access to tree node in the graph
-# define ATREENODE(p) (((Tree_Node_Info*)ANassert(p))->tree_node)
+/** @brief Default heuristic for A* (zero heuristic, degrades to Dijkstra).
+ *
+ *  This is a trivial heuristic that always returns 0. When used,
+ *  A* behaves identically to Dijkstra's algorithm.
+ *
+ *  @tparam GT Graph type.
+ *  @tparam Distance Distance accessor functor.
+ *
+ *  @ingroup Graphs
+ */
+template <class GT, class Distance = Dft_Dist<GT>>
+struct Zero_Heuristic
+{
+  using Distance_Type = typename Distance::Distance_Type;
 
-# define AACC(p) (ANassert(p)->g_cost)      // g(n): accumulated cost from start
-# define AFCOST(p) (ANassert(p)->f_cost)    // f(n) = g(n) + h(n)
-# define AHEAPNODE(p) (ANassert(p)->heap_node)
-# define APARENT(p) (ANassert(p)->ret_node)
-
-# define AAassert(p) ((Arc_Info*) ARC_COOKIE(p))
-# define AARC_DIST(p) (Distance () (p))
-# define ATREEARC(p) (((Tree_Arc_Info*)AAassert(p))->tree_arc)
-# define APOT(p) (AAassert(p)->pot)        // f-cost for the arc's target
-# define AGRAPHNODE(p) (static_cast<typename GT::Node*>(NODE_COOKIE(p)))
-
-  /** @brief Default heuristic for A* (zero heuristic, degrades to Dijkstra).
-   *
-   *  This is a trivial heuristic that always returns 0. When used,
-   *  A* behaves identically to Dijkstra's algorithm.
-   *
-   *  @tparam GT Graph type.
-   *  @tparam Distance Distance accessor functor.
-   *
-   *  @ingroup Grafos
-   */
-  template <class GT, class Distance = Dft_Dist<GT>>
-  struct Zero_Heuristic
+  Distance_Type operator()(typename GT::Node*, typename GT::Node*) const
   {
-    using Distance_Type = typename Distance::Distance_Type;
+    return Distance_Type(0);
+  }
+};
 
-    Distance_Type operator()(typename GT::Node *, typename GT::Node *) const
-    {
-      return Distance_Type(0);
-    }
-  };
+/** @brief A* algorithm for finding shortest path between two nodes.
+ *
+ *  @details This class implements the A* algorithm to find the shortest
+ *  path from a source node `start` to a destination node `end` in a
+ *  weighted graph.
+ *
+ *  A* uses a heuristic function h(n) that estimates the cost from node n
+ *  to the goal. The algorithm expands nodes in order of f(n) = g(n) + h(n)
+ *  where g(n) is the actual cost from start to n.
+ *
+ *  For the algorithm to find optimal paths, the heuristic must be
+ *  *admissible* (never overestimate the true cost) and *consistent*
+ *  (satisfy h(n) <= d(n,m) + h(m) for any edge n->m).
+ *
+ *  This class also provides Dijkstra-compatible methods (compute_min_paths_tree,
+ *  paint_min_paths_tree) that use zero heuristic for computing all shortest
+ *  paths from a source.
+ *
+ *  The class receives the following template parameters:
+ *  -# `GT`: graph type.
+ *  -# `Distance<GT>`: class reading the weight.
+ *  -# `Heuristic<GT, Distance>`: heuristic functor.
+ *  -# `Itor<GT, SA>`: arc iterator type (defaults to Node_Arc_Iterator).
+ *  -# `SA`: arc filter for internal iterators.
+ *  -# `HeapT<GT, Distance, Access>`: priority-queue adapter.
+ *
+ *  @note To use a Fibonacci heap, pass ArcFibonacciHeap as HeapT.
+ *
+ *  @warning This class is **not thread-safe**. Concurrent calls require
+ *           external synchronization.
+ *
+ *  @see Dijkstra_Min_Paths Floyd_All_Shortest_Paths
+ *
+ *  @ingroup Graphs
+ */
+template <class GT,
+          class Distance = Dft_Dist<GT>,
+          class Heuristic = Zero_Heuristic<GT, Distance>,
+          template <typename, class> class Itor = Node_Arc_Iterator,
+          class SA = Dft_Show_Arc<GT>,
+          template <class, class, class> class HeapT = ArcHeap>
+class AStar_Min_Path
+  : public Shortest_Path_Base<GT, Distance, Itor, SA, HeapT>
+{
+  using Base = Shortest_Path_Base<GT, Distance, Itor, SA, HeapT>;
 
-  /** @brief A* algorithm for finding shortest path between two nodes.
+  // Import types from base class
+  using typename Base::Node_Info;
+  using typename Base::Tree_Node_Info;
+  using typename Base::Arc_Info;
+  using typename Base::Tree_Arc_Info;
+  using typename Base::Initialize_Node;
+  using typename Base::Initialize_Arc;
+  using typename Base::Initialize_Tree_Node;
+  using typename Base::Initialize_Tree_Arc;
+  using typename Base::Destroy_Node;
+  using typename Base::Destroy_Arc;
+  using typename Base::Destroy_Tree_Node;
+  using typename Base::Destroy_Tree_Arc;
+
+  // Local cookie access macros
+#define ANassert(p) (static_cast<Node_Info*>(NODE_COOKIE(p)))
+#define ATREENODE(p) (static_cast<Tree_Node_Info*>(NODE_COOKIE(p))->tree_node)
+#define AACC(p) (ANassert(p)->dist)
+#define AHEAPNODE(p) (ANassert(p)->heap_node)
+#define APARENT(p) (ANassert(p)->ret_node)
+#define AAassert(p) (static_cast<Arc_Info*>(ARC_COOKIE(p)))
+#define AARC_DIST(p) (Distance()(p))
+#define ATREEARC(p) (static_cast<Tree_Arc_Info*>(ARC_COOKIE(p))->tree_arc)
+#define APOT(p) (AAassert(p)->pot)
+
+  // Import member variables from base
+  using Base::sa;
+  using Base::heap;
+  using Base::painted;
+  using Base::ptr_g;
+  using Base::s;
+
+  // A* specific: heuristic functor
+  Heuristic heuristic;
+
+public:
+  /** Constructor.
    *
-   *  @details This class implements the A* algorithm to find the shortest
-   *  path from a source node `start` to a destination node `end` in a
-   *  weighted graph.
-   *
-   *  A* uses a heuristic function h(n) that estimates the cost from node n
-   *  to the goal. The algorithm expands nodes in order of f(n) = g(n) + h(n)
-   *  where g(n) is the actual cost from start to n.
-   *
-   *  For the algorithm to find optimal paths, the heuristic must be
-   *  *admissible* (never overestimate the true cost) and *consistent*
-   *  (satisfy h(n) <= d(n,m) + h(m) for any edge n->m).
-   *
-   *  The class receives the following template parameters:
-   *  -# `GT`: graph type.
-   *  -# `Distance<GT>`: class reading the weight. It should export:
-   *     - `typedef Distance<GT>::Distance_Type`: Data type for weights.
-   *     - `Distance<GT>::Distance_Type operator()(typename GT::Arc *a)`:
-   *       returns the weight of arc `a`.
-   *  -# `Heuristic<GT, Distance>`: heuristic functor. It should export:
-   *     - `Distance_Type operator()(Node *from, Node *to)`: returns the
-   *       estimated cost from `from` to `to`.
-   *  -# `Itor<GT, SA>`: arc iterator type (defaults to Node_Arc_Iterator).
-   *  -# `SA`: arc filter for internal iterators.
-   *  -# `HeapT<GT, Distance, Access>`: priority-queue adapter.
-   *
-   *  @note To use a Fibonacci heap, pass ArcFibonacciHeap as HeapT.
-   *
-   *  @warning This class is **not thread-safe**. Concurrent calls require
-   *           external synchronization.
-   *
-   *  @see Dijkstra_Min_Paths Floyd_All_Shortest_Paths
-   *
-   *  @ingroup Grafos
+   *  @param[in] dist Distance functor for arc weights.
+   *  @param[in] __heuristic Heuristic functor for estimating remaining cost.
+   *  @param[in] __sa Arc filter for iterators.
    */
-  template <class GT,
-            class Distance = Dft_Dist<GT>,
-            class Heuristic = Zero_Heuristic<GT, Distance>,
-            template <typename, class> class Itor = Node_Arc_Iterator,
-            class SA = Dft_Show_Arc<GT>,
-            template <class, class, class> class HeapT = ArcHeap>
-  class AStar_Min_Path
+  AStar_Min_Path(Distance dist = Distance(),
+                 Heuristic __heuristic = Heuristic(),
+                 SA __sa = SA())
+    : Base(dist, __sa), heuristic(__heuristic)
   {
-    // Information to place on the arc for the painting version
-    struct Arc_Info
-    {
-      typename Distance::Distance_Type pot; // f-cost through this arc
-    };
+    // empty
+  }
 
-    // Information for the tree-building version
-    struct Tree_Arc_Info : public Arc_Info
-    {
-      typename GT::Arc *tree_arc = nullptr;
-    };
+  // Import public methods from base
+  using Base::has_computation;
+  using Base::is_painted;
+  using Base::get_start_node;
+  using Base::get_graph;
+  using Base::get_distance;
+  using Base::get_min_path;
+  using Base::copy_painted_min_paths_tree;
 
-    // Wrapper to get arc potential (f-cost)
-    struct Get_Potential_Arc : public Distance
-    {
-      Get_Potential_Arc() = default;
+  // =========================================================================
+  // Methods WITH Heuristic (A* specific)
+  // =========================================================================
 
-      Get_Potential_Arc(Distance & d) noexcept : Distance(d)
-      { /* empty */ }
+  /** Computes the shortest path from start to end using A*.
+   *
+   *  Builds a partial spanning tree containing the shortest path from
+   *  start to end, stopping as soon as end is reached.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @param[out] tree The partial tree containing the path, mapped to g.
+   *  @return Pointer to tree node corresponding to end, or nullptr if
+   *          no path exists.
+   *  @throw bad_alloc If there is not enough memory.
+   *  @throw domain_error If start or end is nullptr, or g is empty.
+   */
+  typename GT::Node*
+  compute_partial_path(const GT& g,
+                       typename GT::Node* start,
+                       typename GT::Node* end,
+                       GT& tree)
+  {
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(end == nullptr) << "end node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
-      typename Distance::Distance_Type
-      operator()(typename GT::Arc *a) const noexcept
+    this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    clear_graph(tree);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+    ATREENODE(start) = tree.insert_node(start->get_info());
+    NODE_COOKIE(ATREENODE(start)) = start;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
       {
-        auto arc_info = static_cast<Arc_Info *>(ARC_COOKIE(a));
-        return arc_info->pot;
+        auto arc = it.get_current_arc_ne();
+        auto tgt = it.get_tgt_node();
+        auto g_cost = AARC_DIST(arc);
+        auto h_cost = heuristic(tgt, end);
+        APOT(arc) = this->checked_add(g_cost, h_cost);
+        heap.put_arc(arc, tgt);
       }
-    };
 
-    // Information for node in painting version
-    struct Node_Info
-    {
-      typename Distance::Distance_Type g_cost = 0; // cost from start
-      typename Distance::Distance_Type f_cost = 0; // g + h (total estimate)
-      void *heap_node = nullptr;
-      void *ret_node = nullptr; // parent in path
-    };
+    typename GT::Node* result = nullptr;
 
-    // Information for node in tree-building version
-    struct Tree_Node_Info : public Node_Info
-    {
-      typename GT::Node *tree_node = nullptr;
-    };
-
-    // Access to the arc heap
-    struct AStar_Heap_Info
-    {
-      void *&operator()(typename GT::Node *p) const noexcept
+    while (not heap.is_empty())
       {
-        return AHEAPNODE(p);
-      }
-    };
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
 
-    // Node initialization for painting version
-    struct Initialize_Node
-    {
-      void operator()(const GT & g, typename GT::Node *p) const
-      {
-        g.reset_bit(p, Aleph::Spanning_Tree);
-        NODE_COOKIE(p) = new Node_Info;
-      }
-    };
+        auto gsrc = g.get_src_node(garc);
+        auto gtgt = g.get_tgt_node(garc);
 
-    // Node cleanup for painting version
-    struct Destroy_Node
-    {
-      void operator()(const GT &, typename GT::Node *p) const noexcept
-      {
-        void *tmp = APARENT(p);
-        delete ANassert(p);
-        NODE_COOKIE(p) = tmp;
-      }
-    };
+        if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          continue;
 
-    // Arc initialization for painting version
-    struct Initialize_Arc
-    {
-      void operator()(const GT & g, typename GT::Arc *a) const
-      {
-        g.reset_bit(a, Aleph::Spanning_Tree);
-        ARC_COOKIE(a) = new Arc_Info;
-        APOT(a) = 0;
-      }
-    };
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
 
-    // Arc cleanup for painting version
-    struct Destroy_Arc
-    {
-      void operator()(const GT &, typename GT::Arc *ga) const noexcept
-      {
-        delete AAassert(ga);
-      }
-    };
+        if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          std::swap(gsrc, gtgt);
 
-    // Node initialization for tree-building version
-    struct Initialize_Tree_Node
-    {
-      void operator()(const GT & g, typename GT::Node *p) const
-      {
-        g.reset_bit(p, Aleph::Spanning_Tree);
-        NODE_COOKIE(p) = new Tree_Node_Info;
-      }
-    };
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
 
-    // Node cleanup and mapping for tree-building version
-    struct Destroy_Tree_Node
-    {
-      void operator()(const GT &, typename GT::Node *p) const noexcept
-      {
-        auto aux = static_cast<Tree_Node_Info *>(ANassert(p));
-        auto tp = ATREENODE(p);
-        if (tp != nullptr)
+        auto ttgt = tree.insert_node(gtgt->get_info());
+        ATREENODE(gtgt) = ttgt;
+        auto tsrc = ATREENODE(gsrc);
+
+        auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        ATREEARC(garc) = tarc;
+
+        AACC(gtgt) = this->checked_add(AACC(gsrc), AARC_DIST(garc));
+
+        if (gtgt == end)
           {
-            NODE_COOKIE(p) = NODE_COOKIE(tp) = nullptr;
-            GT::map_nodes(p, tp);
-          }
-        else
-          NODE_COOKIE(p) = nullptr;
-
-        delete aux;
-      }
-    };
-
-    // Arc initialization for tree-building version
-    struct Initialize_Tree_Arc
-    {
-      void operator()(const GT & g, typename GT::Arc *a) const
-      {
-        g.reset_bit(a, Aleph::Spanning_Tree);
-        ARC_COOKIE(a) = new Tree_Arc_Info;
-        APOT(a) = 0;
-        ATREEARC(a) = nullptr;
-      }
-    };
-
-    // Arc cleanup and mapping for tree-building version
-    struct Destroy_Tree_Arc
-    {
-      void operator()(const GT &, typename GT::Arc *ga) const noexcept
-      {
-        auto aux = static_cast<Tree_Arc_Info *>(AAassert(ga));
-        typename GT::Arc *ta = ATREEARC(ga);
-        if (ta != nullptr)
-          {
-            assert(IS_ARC_VISITED(ga, Aleph::Spanning_Tree));
-            GT::map_arcs(ga, ta);
+            result = ttgt;
+            break;
           }
 
-        delete aux;
+        const auto& g_cost = AACC(gtgt);
+
+        for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
+
+            auto tgt = it.get_tgt_node();
+            if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+              continue;
+
+            auto new_g = this->checked_add(g_cost, AARC_DIST(arc));
+            auto h = heuristic(tgt, end);
+            APOT(arc) = this->checked_add(new_g, h);
+            heap.put_arc(arc, tgt);
+          }
       }
-    };
 
-    typedef AStar_Heap_Info Heap_Info;
-    typedef HeapT<GT, Get_Potential_Arc, Heap_Info> Heap;
+    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
 
-    SA sa;
-    Distance dist;
-    Heuristic heuristic;
-    Get_Potential_Arc get_pot;
-    Heap heap;
-    bool painted = false;
-    GT *ptr_g = nullptr;
-    typename GT::Node *s = nullptr;
+    return result;
+  }
 
-  public:
-    /** Constructor.
-     *
-     *  @param[in] __dist Distance functor for arc weights.
-     *  @param[in] __heuristic Heuristic functor for estimating remaining cost.
-     *  @param[in] __sa Arc filter for iterators.
-     */
-    AStar_Min_Path(Distance __dist = Distance(),
-                   Heuristic __heuristic = Heuristic(),
-                   SA __sa = SA())
-      : sa(__sa), dist(__dist), heuristic(__heuristic),
-        get_pot(dist), heap(get_pot, Heap_Info()),
-        painted(false), ptr_g(nullptr), s(nullptr)
-    {
-      // empty
-    }
-
-    /// @name State getters
-    /// @{
-
-    /** Check if a computation has been performed.
-     *  @return true if a path has been computed, false otherwise.
-     */
-    [[nodiscard]] bool has_computation() const noexcept { return ptr_g != nullptr; }
-
-    /** Check if the graph has been painted.
-     *  @return true if paint_path was called, false otherwise.
-     */
-    [[nodiscard]] bool is_painted() const noexcept { return painted; }
-
-    /** Get the start node of the last computation.
-     *  @return Pointer to the start node, or nullptr if none.
-     */
-    typename GT::Node * get_start_node() const noexcept { return s; }
-
-    /** Get the graph of the last computation.
-     *  @return Pointer to the graph, or nullptr if none.
-     */
-    GT * get_graph() const noexcept { return ptr_g; }
-
-    /// @}
-
-  private:
-    template <class IN, class IA>
-    void init(const GT & g, typename GT::Node *start)
-    {
-      heap.empty();
-
-      ptr_g = &const_cast<GT &>(g);
-      s = start;
-
-      Operate_On_Nodes<GT, IN>()(g);
-      (Operate_On_Arcs<GT, IA>(sa))(g);
-    }
-
-    template <class DN, class DA>
-    void uninit()
-    {
-      // Clear heap first to avoid use-after-free when heap destructor
-      // tries to compare arcs whose cookies have been freed
-      heap.empty();
-
-      Operate_On_Nodes<GT, DN>()(*ptr_g);
-      (Operate_On_Arcs<GT, DA, SA>(sa))(*ptr_g);
-    }
-
-    /// Checked addition to prevent integer overflow
-    typename Distance::Distance_Type
-    checked_add(const typename Distance::Distance_Type & a,
-                const typename Distance::Distance_Type & b) const
-    {
-      return shortest_path_detail::checked_add(a, b);
-    }
-
-  public:
-    /** Computes the shortest path from start to end using A*.
-     *
-     *  Builds a partial spanning tree containing the shortest path from
-     *  start to end, stopping as soon as end is reached.
-     *
-     *  @param[in] g The graph.
-     *  @param[in] start The starting node.
-     *  @param[in] end The destination node.
-     *  @param[out] tree The partial tree containing the path, mapped to g.
-     *  @return Pointer to tree node corresponding to end, or nullptr if
-     *          no path exists.
-     *  @throw bad_alloc If there is not enough memory.
-     *  @throw domain_error If start or end is nullptr, or g is empty.
-     */
-    typename GT::Node *
-    compute_path(const GT & g,
-                 typename GT::Node *start,
-                 typename GT::Node *end,
-                 GT & tree)
-    {
-      ah_domain_error_if(start == nullptr) << "start node cannot be null";
-      ah_domain_error_if(end == nullptr) << "end node cannot be null";
-      ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
-
-      init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
-      clear_graph(tree);
-
-      NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      AACC(start) = 0;
-      AFCOST(start) = heuristic(start, end);
-      ATREENODE(start) = tree.insert_node(start->get_info());
-      NODE_COOKIE(ATREENODE(start)) = start;
-
-      // Insert initial arcs from start
-      for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
-        {
-          auto arc = it.get_current_arc_ne();
-          auto tgt = it.get_tgt_node();
-          auto g_cost = AARC_DIST(arc);
-          auto h_cost = heuristic(tgt, end);
-          APOT(arc) = checked_add(g_cost, h_cost); // f = g + h
-          heap.put_arc(arc, tgt);
-        }
-
-      typename GT::Node *result = nullptr;
-
-      while (not heap.is_empty())
-        {
-          auto garc = heap.get_min_arc();
-          if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-            continue;
-
-          auto gsrc = g.get_src_node(garc);
-          auto gtgt = g.get_tgt_node(garc);
-
-          // Skip if both nodes already visited (would create cycle)
-          if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
-              IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-            continue;
-
-          ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
-
-          if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
-            std::swap(gsrc, gtgt);
-
-          NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
-
-          auto ttgt = tree.insert_node(gtgt->get_info());
-          ATREENODE(gtgt) = ttgt;
-          auto tsrc = ATREENODE(gsrc);
-
-          auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
-          ATREEARC(garc) = tarc;
-
-          AACC(gtgt) = checked_add(AACC(gsrc), AARC_DIST(garc));
-
-          // Check if we reached the destination
-          if (gtgt == end)
-            {
-              result = ttgt;
-              break;
-            }
-
-          const auto & g_cost = AACC(gtgt);
-
-          // Expand neighbors
-          for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_current_arc_ne();
-              if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-                continue;
-
-              auto tgt = it.get_tgt_node();
-              if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-                continue;
-
-              auto new_g = checked_add(g_cost, AARC_DIST(arc));
-              auto h = heuristic(tgt, end);
-              APOT(arc) = checked_add(new_g, h); // f = g + h
-              heap.put_arc(arc, tgt);
-            }
-        }
-
-      uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
-
-      return result;
-    }
-
-    /** Paints the shortest path from start to end on the graph.
-     *
-     *  This is the memory-efficient version that marks the path
-     *  directly on the graph using spanning tree bits.
-     *
-     *  @param[in] g The graph.
-     *  @param[in] start The starting node.
-     *  @param[in] end The destination node.
-     *  @return true if a path was found, false otherwise.
-     *  @throw bad_alloc If there is not enough memory.
-     *  @throw domain_error If start or end is nullptr, or g is empty.
-     */
-    bool paint_path(const GT & g,
-                    typename GT::Node *start,
-                    typename GT::Node *end)
-    {
-      ah_domain_error_if(start == nullptr) << "start node cannot be null";
-      ah_domain_error_if(end == nullptr) << "end node cannot be null";
-      ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
-
-      // Special case: start equals end
-      if (start == end)
-        {
-          ptr_g = &const_cast<GT &>(g);
-          s = start;
-          painted = true;
-          return true;
-        }
-
-      init<Initialize_Node, Initialize_Arc>(g, start);
-
-      NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
-      AACC(start) = 0;
-      AFCOST(start) = heuristic(start, end);
-
-      // Insert initial arcs from start
-      for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
-        {
-          auto arc = it.get_current_arc_ne();
-          auto tgt = it.get_tgt_node();
-          auto g_cost = AARC_DIST(arc);
-          auto h_cost = heuristic(tgt, end);
-          APOT(arc) = checked_add(g_cost, h_cost);
-          heap.put_arc(arc, tgt);
-        }
-
-      bool found = false;
-
-      while (not heap.is_empty())
-        {
-          auto garc = heap.get_min_arc();
-          if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
-            continue;
-
-          auto src = g.get_src_node(garc);
-          auto tgt = g.get_tgt_node(garc);
-
-          if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
-              IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-            continue;
-
-          ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
-
-          if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
-            std::swap(src, tgt);
-
-          NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
-          APARENT(tgt) = src;
-
-          // Check if destination reached
-          if (tgt == end)
-            {
-              found = true;
-              break;
-            }
-
-          AACC(tgt) = checked_add(AACC(src), AARC_DIST(garc));
-          const auto & g_cost = AACC(tgt);
-
-          // Expand neighbors
-          for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
-            {
-              auto arc = it.get_current_arc_ne();
-              if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
-                continue;
-
-              auto t = it.get_tgt_node();
-              if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
-                continue;
-
-              auto new_g = checked_add(g_cost, AARC_DIST(arc));
-              auto h = heuristic(t, end);
-              APOT(arc) = checked_add(new_g, h);
-              heap.put_arc(arc, t);
-            }
-        }
-
-      uninit<Destroy_Node, Destroy_Arc>();
-      painted = true;
-
-      return found;
-    }
-
-    /** Extracts the shortest path from a previously painted graph.
-     *
-     *  @param[in] end Destination node.
-     *  @param[out] path Path where the result will be stored.
-     *  @return The total cost of the path.
-     *  @throw domain_error If the graph has not been painted.
-     */
-    typename Distance::Distance_Type
-    get_min_path(typename GT::Node *end, Path<GT> & path)
-    {
-      ah_domain_error_if(ptr_g == nullptr) << "Path has not been computed";
-      ah_domain_error_if(not painted) << "Graph has not been painted";
-
-      return Aleph::get_min_path<GT, Distance>(s, end, path);
-    }
-
-    /** Finds the shortest path from start to end using A*.
-     *
-     *  This is the recommended entry point. It paints the graph and
-     *  extracts the path in one call.
-     *
-     *  @param[in] g The graph.
-     *  @param[in] start The starting node.
-     *  @param[in] end The destination node.
-     *  @param[out] path The shortest path (empty if no path exists).
-     *  @return The total cost, or max value if no path exists.
-     *  @throw bad_alloc If there is not enough memory.
-     */
-    typename Distance::Distance_Type
-    find_path(const GT & g,
-              typename GT::Node *start,
-              typename GT::Node *end,
-              Path<GT> & path)
-    {
-      path.empty();
-      if (paint_path(g, start, end))
-        return get_min_path(end, path);
-
-      return std::numeric_limits<typename Distance::Distance_Type>::max();
-    }
-
-    /** Operator shortcut for find_path.
-     *
-     *  @param[in] g The graph.
-     *  @param[in] start The starting node.
-     *  @param[in] end The destination node.
-     *  @param[out] path The shortest path.
-     *  @return The total cost.
-     */
-    typename Distance::Distance_Type
-    operator()(const GT & g,
-               typename GT::Node *start,
-               typename GT::Node *end,
-               Path<GT> & path)
-    {
-      return find_path(g, start, end, path);
-    }
-
-    /** Gets the g-cost (accumulated distance) to a node after painting.
-     *
-     *  @param[in] node The node to query.
-     *  @return The accumulated distance from start to node.
-     *  @throw domain_error If not painted or node unreachable.
-     */
-    typename Distance::Distance_Type
-    get_g_cost(typename GT::Node *node)
-    {
-      ah_domain_error_if(not painted) << "Graph has not been painted";
-      ah_domain_error_if(node == nullptr) << "node cannot be null";
-
-      if (node == s)
-        return 0;
-
-      ah_domain_error_if(not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
-        << "node is not reachable from start";
-
-      // Functor to extract parent from node cookie
-      auto get_parent = [](typename GT::Node* n) {
-        return static_cast<typename GT::Node*>(NODE_COOKIE(n));
-      };
-
-      return shortest_path_detail::compute_path_distance<GT, Distance, Itor>(
-        s, node, sa, get_parent);
-    }
-  };
-
-  /** @brief Euclidean distance heuristic for A* in 2D grids.
+  /** Paints the shortest path from start to end on the graph using A*.
    *
-   *  Example heuristic for graphs where nodes have (x, y) coordinates.
-   *  Assumes `node->get_info()` returns a struct with `x` and `y` fields.
+   *  This is the memory-efficient version that marks the path
+   *  directly on the graph using spanning tree bits.
    *
-   *  @tparam GT Graph type.
-   *  @tparam Distance Distance accessor functor.
-   *
-   *  @ingroup Grafos
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @return true if a path was found, false otherwise.
+   *  @throw bad_alloc If there is not enough memory.
+   *  @throw domain_error If start or end is nullptr, or g is empty.
    */
-  template <class GT, class Distance = Dft_Dist<GT>>
-  struct Euclidean_Heuristic
+  bool paint_partial_path(const GT& g,
+                          typename GT::Node* start,
+                          typename GT::Node* end)
   {
-    using Distance_Type = typename Distance::Distance_Type;
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(end == nullptr) << "end node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
-    Distance_Type operator()(typename GT::Node *from, typename GT::Node *to) const
-    {
-      auto & f = from->get_info();
-      auto & t = to->get_info();
-      auto dx = f.x - t.x;
-      auto dy = f.y - t.y;
-      return static_cast<Distance_Type>(std::sqrt(dx*dx + dy*dy));
-    }
-  };
+    if (start == end)
+      {
+        ptr_g = &const_cast<GT&>(g);
+        s = start;
+        painted = true;
+        return true;
+      }
 
-  /** @brief Manhattan distance heuristic for A* in grid graphs.
+    this->template init<Initialize_Node, Initialize_Arc>(g, start);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
+      {
+        auto arc = it.get_current_arc_ne();
+        auto tgt = it.get_tgt_node();
+        auto g_cost = AARC_DIST(arc);
+        auto h_cost = heuristic(tgt, end);
+        APOT(arc) = this->checked_add(g_cost, h_cost);
+        heap.put_arc(arc, tgt);
+      }
+
+    bool found = false;
+
+    while (not heap.is_empty())
+      {
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
+
+        auto src = g.get_src_node(garc);
+        auto tgt = g.get_tgt_node(garc);
+
+        if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          continue;
+
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+
+        if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          std::swap(src, tgt);
+
+        NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
+        APARENT(tgt) = src;
+
+        if (tgt == end)
+          {
+            found = true;
+            break;
+          }
+
+        AACC(tgt) = this->checked_add(AACC(src), AARC_DIST(garc));
+        const auto& g_cost = AACC(tgt);
+
+        for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
+
+            auto t = it.get_tgt_node();
+            if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
+              continue;
+
+            auto new_g = this->checked_add(g_cost, AARC_DIST(arc));
+            auto h = heuristic(t, end);
+            APOT(arc) = this->checked_add(new_g, h);
+            heap.put_arc(arc, t);
+          }
+      }
+
+    this->template uninit<Destroy_Node, Destroy_Arc>();
+    painted = true;
+
+    return found;
+  }
+
+  /** Finds the shortest path from start to end using A*.
    *
-   *  Example heuristic for graphs where nodes have (x, y) coordinates
-   *  and movement is restricted to horizontal/vertical directions.
-   *  Assumes `node->get_info()` returns a struct with `x` and `y` fields.
+   *  This is the recommended entry point for A* with heuristic.
+   *  It paints the graph and extracts the path in one call.
    *
-   *  @tparam GT Graph type.
-   *  @tparam Distance Distance accessor functor.
-   *
-   *  @ingroup Grafos
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @param[out] path The shortest path (empty if no path exists).
+   *  @return The total cost, or max value if no path exists.
+   *  @throw bad_alloc If there is not enough memory.
    */
-  template <class GT, class Distance = Dft_Dist<GT>>
-  struct Manhattan_Heuristic
+  typename Distance::Distance_Type
+  find_path(const GT& g,
+            typename GT::Node* start,
+            typename GT::Node* end,
+            Path<GT>& path)
   {
-    using Distance_Type = typename Distance::Distance_Type;
+    path.empty();
+    if (paint_partial_path(g, start, end))
+      return this->get_min_path(end, path);
 
-    Distance_Type operator()(typename GT::Node *from, typename GT::Node *to) const
-    {
-      auto & f = from->get_info();
-      auto & t = to->get_info();
-      return static_cast<Distance_Type>(std::abs(f.x - t.x) + std::abs(f.y - t.y));
-    }
-  };
+    return std::numeric_limits<typename Distance::Distance_Type>::max();
+  }
 
-# undef ANassert
-# undef APARENT
-# undef ATREENODE
-# undef AACC
-# undef AFCOST
-# undef AHEAPNODE
-# undef AAassert
-# undef AARC_DIST
-# undef ATREEARC
-# undef APOT
-# undef AGRAPHNODE
+  // =========================================================================
+  // Backward Compatibility Aliases
+  // =========================================================================
+
+  /// @brief Alias for compute_partial_path (backward compatibility).
+  typename GT::Node*
+  compute_path(const GT& g, typename GT::Node* start,
+               typename GT::Node* end, GT& tree)
+  {
+    return compute_partial_path(g, start, end, tree);
+  }
+
+  /// @brief Alias for paint_partial_path (backward compatibility).
+  bool paint_path(const GT& g, typename GT::Node* start, typename GT::Node* end)
+  {
+    return paint_partial_path(g, start, end);
+  }
+
+  // =========================================================================
+  // Methods WITHOUT Heuristic (Dijkstra-compatible)
+  // =========================================================================
+
+  /** Computes the spanning tree of ALL shortest paths from the start node.
+   *
+   *  This method uses zero heuristic, making it equivalent to Dijkstra's
+   *  algorithm. Use this when you need the complete shortest paths tree
+   *  from a source to all reachable nodes.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node for all shortest paths.
+   *  @param[out] tree The spanning tree of all shortest paths starting
+   *  from start, mapped via cookies to the graph g.
+   *  @return Pointer to the tree node corresponding to the start node.
+   *  @note For disconnected graphs, the resulting tree spans only the
+   *        component reachable from start.
+   *  @throw bad_alloc If there is not enough memory.
+   *  @throw domain_error If start is nullptr or g is empty.
+   */
+  typename GT::Node*
+  compute_min_paths_tree(const GT& g, typename GT::Node* start, GT& tree)
+  {
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
+
+    this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+
+    clear_graph(tree);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+    auto ret = ATREENODE(start) = tree.insert_node(start->get_info());
+    NODE_COOKIE(ATREENODE(start)) = start;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
+      {
+        auto arc = it.get_current_arc_ne();
+        APOT(arc) = AARC_DIST(arc);  // No heuristic: pot = g only
+        heap.put_arc(arc, it.get_tgt_node());
+      }
+
+    const auto& n = g.get_num_nodes();
+
+    while (tree.get_num_nodes() < n and not heap.is_empty())
+      {
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
+
+        auto gsrc = g.get_src_node(garc);
+        auto gtgt = g.get_tgt_node(garc);
+
+        if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          continue;
+
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+
+        if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          std::swap(gsrc, gtgt);
+
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
+
+        auto ttgt = tree.insert_node(gtgt->get_info());
+        ATREENODE(gtgt) = ttgt;
+        auto tsrc = ATREENODE(gsrc);
+
+        auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        ATREEARC(garc) = tarc;
+
+        AACC(gtgt) = this->checked_add(AACC(gsrc), AARC_DIST(garc));
+        const auto& acc = AACC(gtgt);
+
+        for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
+
+            auto tgt = it.get_tgt_node();
+            if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+              continue;
+
+            APOT(arc) = this->checked_add(acc, AARC_DIST(arc));
+            heap.put_arc(arc, tgt);
+          }
+      }
+
+    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
+
+    return ret;
+  }
+
+  /** Computes partial spanning tree from start to end (without heuristic).
+   *
+   *  Uses Dijkstra's algorithm (zero heuristic) but stops when end is reached.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @param[out] tree The partial spanning tree.
+   *  @throw bad_alloc If there is not enough memory.
+   *  @throw domain_error If start or end is nullptr, or g is empty.
+   */
+  void compute_partial_min_paths_tree(const GT& g,
+                                      typename GT::Node* start,
+                                      typename GT::Node* end,
+                                      GT& tree)
+  {
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(end == nullptr) << "end node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
+
+    this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
+    clear_graph(tree);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+    ATREENODE(start) = tree.insert_node(start->get_info());
+    NODE_COOKIE(ATREENODE(start)) = start;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
+      {
+        auto arc = it.get_current_arc_ne();
+        APOT(arc) = AARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
+      }
+
+    const auto& n = g.get_num_nodes();
+
+    while (tree.get_num_nodes() < n and not heap.is_empty())
+      {
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
+
+        auto gsrc = g.get_src_node(garc);
+        auto gtgt = g.get_tgt_node(garc);
+
+        if (IS_NODE_VISITED(gsrc, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          continue;
+
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+
+        if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
+          std::swap(gsrc, gtgt);
+
+        auto ttgt = tree.insert_node(gtgt->get_info());
+        ATREENODE(gtgt) = ttgt;
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
+
+        auto tarc = tree.insert_arc(ATREENODE(gsrc), ATREENODE(gtgt), garc->get_info());
+        ATREEARC(garc) = tarc;
+
+        if (gtgt == end)
+          break;
+
+        AACC(gtgt) = this->checked_add(AACC(gsrc), AARC_DIST(garc));
+        const auto& acc = AACC(gtgt);
+
+        for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto arc = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree))
+              continue;
+
+            auto tgt = it.get_tgt_node();
+            if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+              continue;
+
+            APOT(arc) = this->checked_add(acc, AARC_DIST(arc));
+            heap.put_arc(arc, tgt);
+          }
+      }
+
+    this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
+  }
+
+  /** Paints on graph g the partial shortest paths tree (without heuristic).
+   *
+   *  Uses Dijkstra's algorithm but stops when end is reached.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @return true if end was found, false otherwise.
+   *  @throw bad_alloc If there is not enough memory.
+   *  @throw domain_error If start or end is nullptr, or g is empty.
+   */
+  bool paint_partial_min_paths_tree(const GT& g,
+                                    typename GT::Node* start,
+                                    typename GT::Node* end)
+  {
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(end == nullptr) << "end node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
+
+    bool ret_val = false;
+    this->template init<Initialize_Node, Initialize_Arc>(g, start);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
+      {
+        auto arc = it.get_current_arc_ne();
+        APOT(arc) = AARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
+      }
+
+    const auto& n = g.get_num_nodes();
+    size_t tn = 1;
+
+    while (tn < n and not heap.is_empty())
+      {
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
+
+        auto src = g.get_src_node(garc);
+        auto tgt = g.get_tgt_node(garc);
+
+        if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          continue;
+
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+
+        if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          std::swap(src, tgt);
+
+        NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
+        APARENT(tgt) = src;
+
+        ++tn;
+
+        if (tgt == end)
+          {
+            ret_val = true;
+            break;
+          }
+
+        AACC(tgt) = this->checked_add(AACC(src), AARC_DIST(garc));
+        const auto& acc = AACC(tgt);
+
+        for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+              continue;
+
+            auto t = it.get_tgt_node();
+            if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
+              continue;
+
+            APOT(a) = this->checked_add(acc, AARC_DIST(a));
+            heap.put_arc(a, t);
+          }
+      }
+
+    this->template uninit<Destroy_Node, Destroy_Arc>();
+    painted = true;
+
+    return ret_val;
+  }
+
+  /** Paints on graph g the spanning tree of ALL shortest paths
+      starting from start (without heuristic).
+
+      Uses Dijkstra's algorithm (zero heuristic).
+
+      @param[in] g The graph.
+      @param[in] start The starting node.
+      @throw bad_alloc If there is not enough memory.
+      @throw domain_error If start is nullptr or g is empty.
+  */
+  void paint_min_paths_tree(const GT& g, typename GT::Node* start)
+  {
+    ah_domain_error_if(start == nullptr) << "start node cannot be null";
+    ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
+
+    this->template init<Initialize_Node, Initialize_Arc>(g, start);
+
+    NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+    AACC(start) = 0;
+
+    for (Itor<GT, SA> it(start, sa); it.has_curr(); it.next_ne())
+      {
+        auto arc = it.get_current_arc_ne();
+        APOT(arc) = AARC_DIST(arc);
+        heap.put_arc(arc, it.get_tgt_node());
+      }
+
+    const auto& n = g.get_num_nodes();
+    size_t tn = 1;
+
+    while (tn < n and not heap.is_empty())
+      {
+        auto garc = heap.get_min_arc();
+        if (IS_ARC_VISITED(garc, Aleph::Spanning_Tree))
+          continue;
+
+        auto src = g.get_src_node(garc);
+        auto tgt = g.get_tgt_node(garc);
+
+        if (IS_NODE_VISITED(src, Aleph::Spanning_Tree) and
+            IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          continue;
+
+        ARC_BITS(garc).set_bit(Aleph::Spanning_Tree, true);
+
+        if (IS_NODE_VISITED(tgt, Aleph::Spanning_Tree))
+          std::swap(src, tgt);
+
+        NODE_BITS(tgt).set_bit(Aleph::Spanning_Tree, true);
+        APARENT(tgt) = src;
+
+        ++tn;
+
+        AACC(tgt) = this->checked_add(AACC(src), AARC_DIST(garc));
+        const auto& acc = AACC(tgt);
+
+        for (Itor<GT, SA> it(tgt, sa); it.has_curr(); it.next_ne())
+          {
+            auto a = it.get_current_arc_ne();
+            if (IS_ARC_VISITED(a, Aleph::Spanning_Tree))
+              continue;
+
+            auto t = it.get_tgt_node();
+            if (IS_NODE_VISITED(t, Aleph::Spanning_Tree))
+              continue;
+
+            APOT(a) = this->checked_add(acc, AARC_DIST(a));
+            heap.put_arc(a, t);
+          }
+      }
+
+    this->template uninit<Destroy_Node, Destroy_Arc>();
+    painted = true;
+  }
+
+  /** Computes shortest path by painting the graph (without heuristic).
+   *
+   *  Dijkstra-compatible interface.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] start The starting node.
+   *  @param[in] end The destination node.
+   *  @param[out] min_path The shortest path.
+   *  @return The total cost, or max value if no path.
+   *  @throw bad_alloc If there is not enough memory.
+   */
+  typename Distance::Distance_Type
+  find_min_path(const GT& g,
+                typename GT::Node* start,
+                typename GT::Node* end,
+                Path<GT>& min_path)
+  {
+    min_path.empty();
+    if (paint_partial_min_paths_tree(g, start, end))
+      return this->get_min_path(end, min_path);
+
+    return std::numeric_limits<typename Distance::Distance_Type>::max();
+  }
+
+  // =========================================================================
+  // Operator Interfaces
+  // =========================================================================
+
+  /** Computes the spanning tree of all shortest paths.
+   *
+   *  Dijkstra-compatible operator interface.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] s The starting node.
+   *  @param[out] tree The spanning tree.
+   */
+  void operator()(const GT& g, typename GT::Node* s, GT& tree)
+  {
+    compute_min_paths_tree(g, s, tree);
+  }
+
+  /** Finds shortest path using A* heuristic.
+   *
+   *  @param[in] g The graph.
+   *  @param[in] s The starting node.
+   *  @param[in] e The destination node.
+   *  @param[out] path The shortest path.
+   *  @return The total cost.
+   */
+  typename Distance::Distance_Type operator()(const GT& g,
+                                              typename GT::Node* s,
+                                              typename GT::Node* e,
+                                              Path<GT>& path)
+  {
+    return find_path(g, s, e, path);
+  }
+
+#undef ANassert
+#undef APARENT
+#undef ATREENODE
+#undef AACC
+#undef AHEAPNODE
+#undef AAassert
+#undef AARC_DIST
+#undef ATREEARC
+#undef APOT
+};
+
+/** @brief Euclidean distance heuristic for A* in 2D grids.
+ *
+ *  Example heuristic for graphs where nodes have (x, y) coordinates.
+ *  Assumes `node->get_info()` returns a struct with `x` and `y` fields.
+ *
+ *  @tparam GT Graph type.
+ *  @tparam Distance Distance accessor functor.
+ *
+ *  @ingroup Graphs
+ */
+template <class GT, class Distance = Dft_Dist<GT>>
+struct Euclidean_Heuristic
+{
+  using Distance_Type = typename Distance::Distance_Type;
+
+  Distance_Type operator()(typename GT::Node* from, typename GT::Node* to) const
+  {
+    auto& f = from->get_info();
+    auto& t = to->get_info();
+    auto dx = f.x - t.x;
+    auto dy = f.y - t.y;
+    return static_cast<Distance_Type>(std::sqrt(dx * dx + dy * dy));
+  }
+};
+
+/** @brief Manhattan distance heuristic for A* in grid graphs.
+ *
+ *  Example heuristic for graphs where nodes have (x, y) coordinates
+ *  and movement is restricted to horizontal/vertical directions.
+ *
+ *  @tparam GT Graph type.
+ *  @tparam Distance Distance accessor functor.
+ *
+ *  @ingroup Graphs
+ */
+template <class GT, class Distance = Dft_Dist<GT>>
+struct Manhattan_Heuristic
+{
+  using Distance_Type = typename Distance::Distance_Type;
+
+  Distance_Type operator()(typename GT::Node* from, typename GT::Node* to) const
+  {
+    auto& f = from->get_info();
+    auto& t = to->get_info();
+    return static_cast<Distance_Type>(std::abs(f.x - t.x) + std::abs(f.y - t.y));
+  }
+};
 
 } // end namespace Aleph
 
-# endif // ASTAR_H
+#endif // ASTAR_H

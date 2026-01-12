@@ -53,7 +53,7 @@
  * @note This header is NOT thread-safe. Concurrent access to iterators
  *       or containers from multiple threads leads to undefined behavior.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 
@@ -85,7 +85,7 @@ namespace Aleph
  * @endcode
  *
  * @see get_zip_it(), zip_it(), EnumZipIterator
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 template <class HeadC, class ... TailC>
@@ -232,7 +232,7 @@ class ZipIterator<C> : public C::Iterator
 
     @param cs Containers to zip.
     @return ZipIterator positioned at the first element.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -246,7 +246,7 @@ ZipIterator<Cs...> get_zip_it(const Cs &... cs)
     @param pos Starting position.
     @param cs Containers to zip.
     @return ZipIterator advanced `pos` positions.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -278,7 +278,7 @@ ZipIterator<Cs...> zip_it_pos(size_t pos, const Cs &... cs)
 
     @param cs Containers to compare.
     @return `true` iff all containers have equal size.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -316,7 +316,7 @@ bool equal_length(const Cs &... cs)
     @endcode
     
     @see zip_traverse_eq for version that verifies equal lengths
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -334,7 +334,7 @@ bool zip_traverse(Op &&op, const Cs &... cs)
     @param cs Containers to zip.
     @return `true` if all containers have equal length and `op` returned `true`
             for every tuple.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -374,7 +374,7 @@ bool zip_traverse_eq(Op &&op, const Cs &... cs)
     
     @see zip_for_each_eq for version that verifies equal lengths
     @see zip_for_each_indexed for version with index
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 inline
@@ -389,7 +389,7 @@ void zip_for_each(Op &&op, const Cs &... cs)
     @param op Callable to invoke on each tuple.
     @param cs Containers to zip.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 inline
@@ -411,7 +411,7 @@ void zip_for_each_eq(Op &&op, const Cs &... cs)
     @param op Predicate.
     @param cs Containers to zip.
     @return `true` iff `op` is `true` for all tuples and lengths match.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -433,7 +433,7 @@ bool zip_all(Op &&op, const Cs &... cs)
     @param op Predicate.
     @param cs Containers to zip.
     @return `true` iff `op` is `true` for all tuples.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -448,7 +448,7 @@ bool zip_all_short(Op &&op, const Cs &... cs)
 
 /** Alias for `zip_all`. Like ML's `forall` with length verification.
     @see zip_all
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -459,7 +459,7 @@ bool zip_forall(Op &&op, const Cs &... cs)
 
 /** Alias for `zip_all_short`. Like ML's `forall` without length verification.
     @see zip_all_short
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -475,7 +475,7 @@ bool zip_forall_short(Op &&op, const Cs &... cs)
     @param op Predicate.
     @param cs Containers to zip.
     @return `true` if any tuple satisfies `op`.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -490,7 +490,7 @@ bool zip_exists(Op &&op, const Cs &... cs)
 
 /** Alias for `zip_exists`. Like Python/JS `any()`.
     @see zip_exists
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -506,7 +506,7 @@ bool zip_any(Op &&op, const Cs &... cs)
     @param op Predicate.
     @param cs Containers to zip.
     @return `true` if no tuple satisfies `op`.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -520,7 +520,7 @@ bool zip_none(Op &&op, const Cs &... cs)
     @param op Predicate.
     @param cs Containers to zip.
     @return Number of tuples for which `op` returns `true`.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]] inline
@@ -537,7 +537,7 @@ size_t zip_count(Op &&op, const Cs &... cs)
 
     @param cs Containers to zip.
     @return Number of tuples that would be produced.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -555,7 +555,7 @@ size_t zip_length(const Cs &... cs)
     @param cs Containers to zip.
     @return A pair (tuple, found). If found is true, tuple contains the match.
             If found is false, tuple is default-constructed.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -576,7 +576,7 @@ auto zip_find_first(Op &&op, const Cs &... cs)
     @param cs Containers to zip.
     @return A pair (tuple, found). If found is true, tuple contains the match.
             If found is false, tuple is default-constructed.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -603,7 +603,7 @@ auto zip_find_last(Op &&op, const Cs &... cs)
     @param cs Containers to zip.
     @return A pair (tuple, found). If found is true, tuple contains the element.
             If n >= zip_length, found is false and tuple is default-constructed.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]]
@@ -624,7 +624,7 @@ auto zip_nth(size_t n, const Cs &... cs)
     @param cs Containers to zip.
     @return A pair (tuple, found). If found is true, tuple contains the element.
             If containers are empty, found is false.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]]
@@ -661,7 +661,7 @@ auto zip_first(const Cs &... cs)
     
     @see zip_map for auto-deduced return type version
     @see zip_maps_eq for version that verifies equal lengths
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Op, class ... Cs>
 [[nodiscard]]
@@ -680,7 +680,7 @@ DynList<T> zip_maps(Op op, const Cs &... cs)
     @param op Transformation callable.
     @param cs Containers to zip.
     @return DynList of transformed values for tuples where `prop` is `true`.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Prop, class Op, class ... Cs>
 [[nodiscard]]
@@ -720,7 +720,7 @@ DynList<T> zip_maps_if(Prop prop, Op op, const Cs &... cs)
     // total = 0 + 10*2 + 20*3 + 30*1 = 110
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Op, class ... Cs>
 [[nodiscard]]
@@ -740,7 +740,7 @@ T zip_foldl(const T &init, Op op, const Cs &... cs)
     @param cs Containers to zip.
     @return Final accumulated value.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Op, class ... Cs>
 [[nodiscard]]
@@ -764,7 +764,7 @@ T zip_foldl_eq(const T &init, Op op, const Cs &... cs)
     @param cs Containers to zip.
     @return DynList of transformed values.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Op, class ... Cs>
 [[nodiscard]]
@@ -789,7 +789,7 @@ DynList<T> zip_maps_eq(Op op, const Cs &... cs)
     @param cs Containers to zip.
     @return DynList of transformed values for tuples where `prop` is `true`.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Prop, class Op, class ... Cs>
 [[nodiscard]]
@@ -815,7 +815,7 @@ DynList<T> zip_maps_if_eq(Prop prop, Op op, const Cs &... cs)
     @param op Transformation callable.
     @param cs Containers to zip.
     @return DynList of transformed values (type auto-deduced).
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -836,7 +836,7 @@ auto zip_map(Op &&op, const Cs &... cs)
     @param cs Containers to zip.
     @return DynList of transformed values (type auto-deduced).
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -877,7 +877,7 @@ auto zip_map_eq(Op &&op, const Cs &... cs)
     // result contains: {(2, 20), (4, 40)}
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -918,7 +918,7 @@ auto zip_filter(Op op, const Cs &... cs)
     auto bad = zip_filter_eq([](auto) { return true; }, nums, short_list);
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -996,7 +996,7 @@ bool zip_cmp(Cmp cmp, const Cs &... cs)
     @param cs Containers to zip.
     @return Index of the first matching tuple, or the total number of tuples
             if none match.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -1043,7 +1043,7 @@ size_t zip_find_index(Op op, const Cs &... cs)
     // odd_count is 3
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -1094,7 +1094,7 @@ auto zip_partition(Op op, const Cs &... cs)
     
     @see t_zip_eq for version that verifies equal lengths
     @see t_unzip for the inverse operation
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -1114,7 +1114,7 @@ auto t_zip(const Cs &... cs)
     @param cs Containers to zip.
     @return DynList of tuples.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -1156,7 +1156,7 @@ auto t_zip_eq(const Cs &... cs)
  * @endcode
  *
  * @see get_enum_zip_it(), enum_zip_it(), ZipIterator
- * @ingroup Algos
+ * @ingroup Algorithms
  */
 template <class HeadC, class ... TailC>
 class EnumZipIterator : public EnumZipIterator<TailC...>
@@ -1275,7 +1275,7 @@ class EnumZipIterator<C> : public C::Iterator
 
     @param cs Containers to zip.
     @return EnumZipIterator positioned at the first element (index 0).
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -1290,7 +1290,7 @@ EnumZipIterator<Cs...> get_enum_zip_it(const Cs &... cs)
     @param c First container.
     @param cs Additional containers.
     @return EnumZipIterator advanced `pos` positions.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class C, class ... Cs>
 [[nodiscard]] inline
@@ -1326,7 +1326,7 @@ EnumZipIterator<Cs...> enum_zip_it_pos(size_t pos, const Cs &... cs)
 
     @param cs Containers to zip.
     @return DynList of tuples with index.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -1346,7 +1346,7 @@ auto t_enum_zip(const Cs &... cs)
     @param cs Containers to zip.
     @return DynList of tuples with index.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]] inline
@@ -1380,7 +1380,7 @@ auto t_unzip_impl(const DynList<std::tuple<Ts...>> &l,
 
     @param tuples Input list of tuples.
     @return Tuple of DynLists, one per tuple element.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class... Ts>
 [[nodiscard]] inline
@@ -1404,7 +1404,7 @@ auto t_unzip(const DynList<std::tuple<Ts...>> &tuples)
 
     { {1, 5, 9}, {2, 6, 0}, {3, 7, 10}, {4, 8, 11} }
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class C, typename ... Lists>
 [[nodiscard]]
@@ -1423,7 +1423,7 @@ auto zip_lists(const C &c, const Lists &... lists)
     @param lists Additional containers.
     @return DynList of DynLists.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class C, typename ... Lists>
 [[nodiscard]]
@@ -1558,7 +1558,7 @@ auto std_zip_n(const Cs &... cs)
     @param op Transformation to apply.
     @param cs Containers to zip.
     @return `std::vector` of transformed values.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -1580,7 +1580,7 @@ auto zip_transform(Op &&op, const Cs &... cs)
     @param cs Containers to zip.
     @return `std::vector` of transformed values.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 [[nodiscard]]
@@ -1605,7 +1605,7 @@ auto zip_transform_eq(Op &&op, const Cs &... cs)
     
     @param op Callable `(size_t index, tuple) -> void`.
     @param cs Containers to zip.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 inline
@@ -1621,7 +1621,7 @@ void zip_for_each_indexed(Op &&op, const Cs &... cs)
     @param op Callable `(size_t index, tuple) -> void`.
     @param cs Containers to zip.
     @throw std::length_error if container sizes mismatch.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class ... Cs>
 inline
@@ -1641,7 +1641,7 @@ void zip_for_each_indexed_eq(Op &&op, const Cs &... cs)
     @param n Maximum number of tuples to take.
     @param cs Containers to zip.
     @return DynList of up to `n` tuples.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]]
@@ -1660,7 +1660,7 @@ auto zip_take(size_t n, const Cs &... cs)
     @param n Number of tuples to skip.
     @param cs Containers to zip.
     @return DynList of remaining tuples after skipping `n`.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class ... Cs>
 [[nodiscard]]
@@ -1685,7 +1685,7 @@ auto zip_drop(size_t n, const Cs &... cs)
     @param pred Predicate `(tuple) -> bool`.
     @param cs Containers to zip.
     @return DynList of tuples while `pred` is satisfied.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Pred, class ... Cs>
 [[nodiscard]]
@@ -1708,7 +1708,7 @@ auto zip_take_while(Pred &&pred, const Cs &... cs)
     @param pred Predicate `(tuple) -> bool`.
     @param cs Containers to zip.
     @return DynList of tuples after `pred` becomes false.
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Pred, class ... Cs>
 [[nodiscard]]
@@ -1808,7 +1808,7 @@ namespace zip_index_detail
     // t2 is now (2, 4, 6)
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class Tuple>
 void for_each_in_tuple(Op &&op, Tuple &&t)
@@ -1846,7 +1846,7 @@ void for_each_in_tuple(Op &&op, Tuple &&t)
     // strings is ("1", "2", "3") with type std::tuple<string, string, string>
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Op, class Tuple>
 [[nodiscard]]
@@ -1876,7 +1876,7 @@ auto transform_tuple(Op &&op, Tuple &&t)
     // all_even is true
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Pred, class Tuple>
 [[nodiscard]]
@@ -1905,7 +1905,7 @@ bool all_of_tuple(Pred &&pred, const Tuple &t)
     // has_negative is true (because -5 < 0)
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Pred, class Tuple>
 [[nodiscard]]
@@ -1934,7 +1934,7 @@ bool any_of_tuple(Pred &&pred, const Tuple &t)
     // no_negatives is true (no element is negative)
     @endcode
     
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <class Pred, class Tuple>
 [[nodiscard]]

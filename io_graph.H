@@ -117,7 +117,7 @@
  *  @see tpl_graph.H Graph class definitions
  *  @see load_digraph.H Alternative digraph loading utilities
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -139,7 +139,7 @@ namespace Aleph
  *  to binary streams, or using operator<< for text streams.
  *
  *  @tparam GT Graph type
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT>
 struct Dft_Store_Node
@@ -172,7 +172,7 @@ struct Dft_Store_Node
  *  to binary streams, or using operator<< for text streams.
  *
  *  @tparam GT Graph type
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT>
 struct Dft_Store_Arc
@@ -205,7 +205,7 @@ struct Dft_Store_Arc
  *  or using operator>> for text streams.
  *
  *  @tparam GT Graph type
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT>
 struct Dft_Load_Node
@@ -238,7 +238,7 @@ struct Dft_Load_Node
  *  or using operator>> for text streams.
  *
  *  @tparam GT Graph type
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT>
 struct Dft_Load_Arc
@@ -292,7 +292,7 @@ struct Dft_Load_Arc
  *  @see Dft_Load_Node Default node loading implementation
  *  @see Dft_Load_Arc Default arc loading implementation
  *  @see Filter_Iterator For filter functor requirements
- *  @ingroup Grafos
+ *  @ingroup Graphs
  */
 template <class GT, 
           class Load_Node  = Dft_Load_Node<GT>,

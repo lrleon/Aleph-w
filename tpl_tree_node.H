@@ -31,7 +31,7 @@
  *  Uses first-child/next-sibling representation.
  *
  *  @see tpl_binNodeUtils.H Binary tree utilities
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -73,7 +73,7 @@ namespace Aleph
 
       @param Key the data type stored in each tree node.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class T>
   class Tree_Node;  // Forward declaration for CRTP
@@ -823,7 +823,7 @@ namespace Aleph
       @see forest_preorder_traversal() tree_postorder_traversal()
       @see forest_postorder_traversal()
       @throw domain_error if root is not a root node of a tree.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void tree_preorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
@@ -855,7 +855,7 @@ namespace Aleph
       @throw domain_error if root is not a root node of a tree.
       @see tree_preorder_traversal() tree_postorder_traversal()
       @see forest_postorder_traversal()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void forest_preorder_traversal(Node * root,
@@ -903,7 +903,7 @@ namespace Aleph
       @param[in] visitFct pointer to the visit function.
       @see forest_preorder_traversal() tree_preorder_traversal()
       @see forest_postorder_traversal()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void tree_postorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
@@ -932,7 +932,7 @@ namespace Aleph
       @see tree_postorder_traversal()
       @throw domain_error if root is not the root node of the leftmost tree
       of the forest.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void forest_postorder_traversal(Node * root, void (*visitFct)(Node *, int, int))
@@ -950,7 +950,7 @@ namespace Aleph
 
   /** Returns true if t1 is equal to t2
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Eq>
   inline bool are_tree_equal(Node * t1, Node * t2, Eq & eq)
@@ -991,7 +991,7 @@ namespace Aleph
       tree whose root is root.
 
       @param[in] root root of the tree to be freed.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void destroy_tree(Node * root)
@@ -1025,7 +1025,7 @@ namespace Aleph
       to be destroyed.
       @throw domain_error if root is not the root node of the leftmost
       tree of the forest.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   void destroy_forest(Node * root)
@@ -1050,7 +1050,7 @@ namespace Aleph
 
       @param[in] root tree root.
       @return height of the tree rooted at root.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   size_t compute_height(Node * root)
@@ -1098,7 +1098,7 @@ namespace Aleph
       @param[in] size length of the Dewey number.
       @return pointer to the node corresponding to the given Dewey number;
       nullptr if it does not exist,
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node> inline
   Node * deway_search(Node * root, int path [], const size_t & size)
@@ -1133,7 +1133,7 @@ namespace Aleph
       @return pointer to the node containing key;
       nullptr if there is no node with key,
       @throw overflow_error if size is not sufficient to store the Dewey sequence.
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node,
             class Equal = Aleph::equal_to<typename Node::key_type> > inline
@@ -1207,7 +1207,7 @@ namespace Aleph
       @return root of the binary tree equivalent to the given forest.
       @throw bad_alloc if there is not enough memory.
       @see bin_to_forest()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class TNode, class BNode>
   BNode * forest_to_bin(TNode * root)
@@ -1274,7 +1274,7 @@ namespace Aleph
       @return root of the first tree equivalent to the given binary tree.
       @throw bad_alloc if there is not enough memory.
       @see forest_to_bin()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class TNode, class BNode> inline
   TNode * bin_to_forest(BNode * broot)

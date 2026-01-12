@@ -26,7 +26,7 @@
 
 /** @file single_graph.H
  *  @brief Single graph utilities.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -46,7 +46,7 @@ namespace Aleph {
     -# SA: clase filtro para el iterador de arcos.
     .
 
-    @ingroup Grafos
+    @ingroup Graphs
     @author Leandro R. León
 */
 template <class GT, 

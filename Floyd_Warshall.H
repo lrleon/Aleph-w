@@ -82,7 +82,7 @@
  *  @see Bellman_Ford.H For negative weight handling
  *  @see Johnson.H For sparse all-pairs with negative weights
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -135,7 +135,7 @@ namespace Aleph
       find_path_depth_first()
       find_min_path() bellman_ford_min_spanning_tree()
       q_bellman_ford_min_spanning_tree()
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT,
             class Distance = Dft_Dist<GT>,

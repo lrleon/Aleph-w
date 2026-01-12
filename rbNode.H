@@ -48,7 +48,7 @@
  *  @see tpl_rb_tree.H Bottom-up Red-Black tree
  *  @see tpl_tdRbTree.H Top-down Red-Black tree
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -75,7 +75,7 @@ typedef unsigned char Color;
  * Stores the color attribute (red or black) used for balancing.
  * Newly created nodes start as RED; the sentinel is BLACK.
  *
- * @ingroup Arboles
+ * @ingroup Trees
  */
 class RbNode_Data
 {

@@ -67,7 +67,7 @@
  *  @see eulerian.H Eulerian path/cycle detection
  *  @see tpl_find_path.H Path finding algorithms
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -115,7 +115,7 @@ namespace Aleph
  * @warning A graph may be Hamiltonian without satisfying this condition.
  *          This is a sufficiency test only.
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  * @author Leandro R. León
  */
 template <class GT, 

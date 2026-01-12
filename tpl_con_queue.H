@@ -30,7 +30,7 @@
  *  Queue with mutex protection for producer-consumer patterns.
  *
  *  @see q-consumer-threads.H Consumer thread pool
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

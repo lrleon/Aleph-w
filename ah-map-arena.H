@@ -31,7 +31,7 @@
  *  enabling persistent allocations that survive process restarts.
  *  Uses mmap for efficient file-backed memory.
  *
- *  @ingroup Memoria
+ *  @ingroup Memory
  *  @author Leandro Rabindranath León
  */
 

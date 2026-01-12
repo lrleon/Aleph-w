@@ -26,7 +26,7 @@
 
 /** @file tpl_dynSlist.H
  *  @brief Dynamic singly linked list.
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -49,7 +49,7 @@ namespace Aleph {
       @tparam T data type stored in each node
 
       @see Slist Snode Slink
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   template <typename T>
   class DynSlist : public Slist<T>

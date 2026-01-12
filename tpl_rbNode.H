@@ -26,7 +26,7 @@
 
 /** @file tpl_rbNode.H
  *  @brief Red-Black node type alias.
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

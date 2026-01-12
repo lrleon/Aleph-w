@@ -39,7 +39,7 @@
  *
  *  @see Dijkstra.H Weighted shortest paths
  *  @see Bellman_Ford.H Handles negative weights
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -80,7 +80,7 @@ namespace Aleph
       @see find_path_breadth_first()
       @see dijkstra_min_spanning_tree() dijkstra_min_path()
       @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
-      @ingroup Grafos
+      @ingroup Graphs
   */
   template <class GT,
             template <class, class> class Itor = Node_Arc_Iterator,
@@ -260,7 +260,7 @@ recorrido
 @see find_path_depth_first()
 @see dijkstra_min_spanning_tree() dijkstra_min_path()
 @see bellman_ford_min_spanning_tree() q_bellman_ford_min_spanning_tree()
-@ingroup Grafos
+@ingroup Graphs
   */
   template <class GT,
             template <typename, class> class Itor = Node_Arc_Iterator,
@@ -422,7 +422,7 @@ recorrido
   /** Búsqueda de caminos sobre grafos dirigidos definidos mediante una
       clase grafo (no digrafo).
 
-     @ingroup Grafos
+     @ingroup Graphs
    */
   template <class GT,
             template <typename, class> class Itor = Out_Iterator,

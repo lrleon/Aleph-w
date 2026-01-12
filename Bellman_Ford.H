@@ -74,7 +74,7 @@
  *  @see Floyd_Warshall.H For all-pairs shortest paths
  *  @see Johnson.H For all-pairs with negative weights (uses Bellman-Ford)
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -124,7 +124,7 @@ namespace Aleph
       @note For graphs without negative weights, Dijkstra's algorithm is more
       efficient (O((V+E) log V) vs O(V*E)).
 
-      @ingroup Grafos
+      @ingroup Graphs
       @see Dijkstra_Min_Paths Johnson Floyd_All_Shortest_Paths
    */
   template <class GT,
@@ -1161,7 +1161,7 @@ namespace Aleph
           returns the weight value on arc `a`.
       - `SA`: arc filter.
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT,
             class Distance = Dft_Dist<GT>,

@@ -26,7 +26,7 @@
 
 /** @file tpl_indexNode.H
  *  @brief Node indexing for fast lookup.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

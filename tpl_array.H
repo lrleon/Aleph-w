@@ -32,7 +32,7 @@
     or removed. It supports functional programming operations through
     mixin classes.
 
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
 */
 
@@ -120,7 +120,7 @@ namespace Aleph
     @see DynArray Lazy dynamic array with three-level indexing for sparse data.
     @see DynList Doubly linked list alternative (O(1) insertion, O(n) access).
     @see FunctionalMethods Inherited functional operations.
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 template<typename T>
@@ -385,7 +385,7 @@ public:
 
   /** Iterator on the items of array.
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public MemArray<T>::Iterator
   {

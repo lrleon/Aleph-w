@@ -31,7 +31,7 @@
  *  properties: Erdős–Rényi, random connected, Hamiltonian, Eulerian,
  *  and scale-free graphs. Uses GSL for randomness.
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -56,7 +56,7 @@ namespace Aleph
       is required.
 
       @tparam GT Graph type.
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT>
   struct Dft_Init_Rand_Node
@@ -75,7 +75,7 @@ namespace Aleph
       is required.
 
       @tparam GT Graph type.
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT>
   struct Dft_Init_Rand_Arc
@@ -299,7 +299,7 @@ namespace Aleph
         @throw bad_alloc if there is not enough memory.
         @throw domain_error if `p` is not in the range (0, 1].
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     GT sufficient_hamiltonian(const size_t & __num_nodes,
                               const double & p = 0.5)
@@ -354,7 +354,7 @@ namespace Aleph
       memory overhead.
 
       @author Leandro Rabindranath Leon
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT,
             class Init_Node = Dft_Init_Rand_Node<GT>,
@@ -696,7 +696,7 @@ namespace Aleph
         @throw bad_alloc if there is not enough memory.
         @throw domain_error if `p` is not in the range (0, 1].
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     GT sufficient_hamiltonian(const size_t & __num_nodes,
                               const double & p = 0.5)
@@ -725,7 +725,7 @@ namespace Aleph
       - **Init_Arc**: Functor class for initializing arc data.
 
       @author Leandro Rabindranath Leon
-      @ingroup Grafos
+      @ingroup Graphs
    */
   template <class GT,
             class Init_Node = Dft_Init_Rand_Node<GT>,

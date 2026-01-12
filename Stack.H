@@ -53,7 +53,7 @@ namespace Aleph {
 	versión de stack<T> no emplea un contenedor genérico como
 	parámetro.
 
-	@ingroup stl
+	@ingroup STL
      */
     template <typename T>
 class stack : public Aleph::DynListStack<T>

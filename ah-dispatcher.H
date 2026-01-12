@@ -91,7 +91,7 @@
  *  @see DynMapTree Tree-based map for AHDispatcher
  *  @see ODhashTable Hash table for AhHashDispatcher
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -124,7 +124,7 @@
  * double result = ops.run('+', 10.0, 5.0);  // 15.0
  * ```
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <typename Key, class Operation>
@@ -257,7 +257,7 @@ public:
  * - You need ordered iteration over keys
  * - Key comparison is simpler than hashing
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 template <typename Key, class Operation>

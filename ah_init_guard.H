@@ -34,7 +34,7 @@
     unless explicitly released. Commonly used in graph algorithms to ensure
     proper cleanup of node/arc cookies even if exceptions are thrown.
 
-    @ingroup Algos
+    @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
 
@@ -67,7 +67,7 @@ namespace Aleph
     }
     @endcode
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename CleanupFunc>
 class Init_Guard
@@ -157,7 +157,7 @@ Init_Guard(CleanupFunc) -> Init_Guard<CleanupFunc>;
     @param f Cleanup function.
     @return Init_Guard wrapping the cleanup function.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename CleanupFunc>
 [[nodiscard]] inline auto make_init_guard(CleanupFunc f)

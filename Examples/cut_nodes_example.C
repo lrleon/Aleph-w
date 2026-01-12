@@ -60,7 +60,7 @@
  * 
  * @see tpl_cut_nodes.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

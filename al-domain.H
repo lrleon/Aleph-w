@@ -51,7 +51,7 @@
  *
  *  @see tpl_dynMat.H Sparse matrix using domains
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -72,7 +72,7 @@ namespace Aleph
  *
  * @tparam T Element type (default: int)
  *
- * @ingroup Utilidades
+ * @ingroup Utilities
  */
   template <typename T = int>
 class AlDomain : public Aleph::HashSet<T, SetODhash>
@@ -150,7 +150,7 @@ public:
    * | IntRange(0, 4) | {0, 1, 2, 3, 4} |
    * | IntRange(0, 10, 2) | {0, 2, 4, 6, 8, 10} |
    *
-   * @ingroup Utilidades
+   * @ingroup Utilities
    */
   struct IntRange : public AlDomain<int>
   {

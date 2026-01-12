@@ -38,7 +38,7 @@
  *  ## Complexity: O(V + E)
  *
  *  @see Tarjan.H Strongly connected components for digraphs
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -90,7 +90,7 @@ namespace Aleph {
  * @see Inconnected_Components For computing all connected components
  * @see copy_graph() For copying an entire graph
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
 class Build_Subgraph
@@ -302,7 +302,7 @@ public:
  * @see Build_Subgraph For building a single component
  * @see copy_graph() For copying an entire connected graph
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
 class Inconnected_Components

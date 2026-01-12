@@ -51,7 +51,7 @@
  *  For sparse graphs (E = O(V)), this is O(V² log V), better than
  *  Floyd-Warshall's O(V³).
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -105,7 +105,7 @@ namespace Aleph
 
     @see Bellman_Ford Dijkstra_Min_Paths Floyd_All_Shortest_Paths
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 template <class GT,
           class Distance = Dft_Dist<GT>,

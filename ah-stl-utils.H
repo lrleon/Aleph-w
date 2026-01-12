@@ -34,7 +34,7 @@
     (DynList, Array, DynArray) and STL containers (std::vector, std::list),
     as well as utilities for working with tuples.
 
-    @ingroup Algos
+    @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
 
@@ -67,7 +67,7 @@ namespace Aleph
     @param func Function to apply to each element.
     @param index_sequence Index sequence for unpacking.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class F, class...Ts, std::size_t...Is>
 inline void tuple_for_each(const std::tuple<Ts...> & tuple,
@@ -89,7 +89,7 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple,
     @param tuple The tuple to iterate over.
     @param func Function to apply to each element.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class F, class...Ts>
 inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
@@ -103,7 +103,7 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
     @param v Source vector.
     @return DynList containing copies of all elements from the vector.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline DynList<T> vector_to_DynList(const std::vector<T> & v)
@@ -120,7 +120,7 @@ template <typename T>
     @param v Source vector.
     @return DynList containing copies of all elements from the vector.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline DynList<T> to_DynList(const std::vector<T> & v)
@@ -135,7 +135,7 @@ template <typename T>
     @param end End iterator.
     @return DynList containing copies of all elements in the range.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename Iterator>
 [[nodiscard]] inline auto range_to_DynList(Iterator begin, Iterator end)
@@ -153,7 +153,7 @@ template <typename Iterator>
     @param v Source vector.
     @return Array containing copies of all elements from the vector.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline Array<T> to_Array(const std::vector<T> & v)
@@ -173,7 +173,7 @@ template <typename T>
     @param container Source container.
     @return std::vector containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename C>
 [[nodiscard]] inline std::vector<typename C::Item_Type>
@@ -193,7 +193,7 @@ to_vector(const C & container)
     @param op Function to apply to each element.
     @return std::vector with transformed elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, class Op>
 [[nodiscard]] inline auto map_vector(const std::vector<T> & v, Op op)
@@ -214,7 +214,7 @@ template <typename T, class Op>
     @param args Arguments to pack into a vector.
     @return std::vector containing all arguments.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, typename... Args>
 [[nodiscard]] inline std::vector<T> variadic_to_vector(Args&&... args)
@@ -229,7 +229,7 @@ template <typename T, typename... Args>
     @param args Arguments to pack into a DynList.
     @return DynList containing all arguments.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T, typename... Args>
 [[nodiscard]] inline DynList<T> variadic_to_DynList(Args&&... args)
@@ -271,7 +271,7 @@ template <typename T, typename... Args>
 
     @tparam Indexes The integer indices stored in this type.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<unsigned... Indexes>
 struct index_tuple
@@ -290,7 +290,7 @@ struct index_tuple
 
     @tparam Size The number of indices to generate.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<unsigned Size>
 struct make_index_tuple
@@ -311,7 +311,7 @@ struct make_index_tuple<0u>
 
     @tparam Types The types whose count determines the index sequence length.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<typename... Types>
 using to_index_tuple = typename make_index_tuple<sizeof...(Types)>::type;
@@ -338,7 +338,7 @@ tuple_to_container_impl(const std::tuple<T, U...> & t, index_tuple<I...>)
     @param t Source tuple.
     @return Container with all tuple elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<class Container, typename T, typename... U>
 [[nodiscard]] inline Container tuple_to_container(const std::tuple<T, U...> & t)
@@ -354,7 +354,7 @@ template<class Container, typename T, typename... U>
     @param t Source tuple.
     @return DynList containing all tuple elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<typename T, typename... U>
 [[nodiscard]] inline DynList<T> tuple_to_dynlist(const std::tuple<T, U...> & t)
@@ -369,7 +369,7 @@ template<typename T, typename... U>
     @param t Source tuple.
     @return Array containing all tuple elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template<typename T, typename... U>
 [[nodiscard]] inline Array<T> tuple_to_array(const std::tuple<T, U...> & t)
@@ -386,7 +386,7 @@ template<typename T, typename... U>
     @param container Source container.
     @return DynList containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename StlContainer>
 [[nodiscard]] inline auto stl_container_to_dynList(const StlContainer & container)
@@ -404,7 +404,7 @@ template <typename StlContainer>
     @param l Source std::list.
     @return DynList containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline DynList<T> list_to_DynList(const std::list<T> & l)
@@ -421,7 +421,7 @@ template <typename T>
     @param l Source DynList.
     @return std::list containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline std::list<T> DynList_to_list(const DynList<T> & l)
@@ -441,7 +441,7 @@ template <typename T>
     @param arr Source DynArray.
     @return std::vector containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline std::vector<T> DynArray_to_vector(const DynArray<T> & arr)
@@ -459,7 +459,7 @@ template <typename T>
     @param v Source vector.
     @return DynArray containing copies of all elements.
 
-    @ingroup Algos
+    @ingroup Algorithms
 */
 template <typename T>
 [[nodiscard]] inline DynArray<T> vector_to_DynArray(const std::vector<T> & v)

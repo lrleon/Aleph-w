@@ -76,7 +76,7 @@
  *
  * @note All zip operations stop at the shortest container.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */
 
@@ -132,7 +132,7 @@ namespace stl_zip_detail
  * @note Iteration stops when ANY underlying iterator reaches its end.
  *
  * @see stl_zip() Factory function to create zip views
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -312,7 +312,7 @@ public:
  * @tparam Containers Types of containers being zipped.
  *
  * @see stl_zip() Factory function
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -401,7 +401,7 @@ public:
  *   std::cout << num << ": " << str << "\n";
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -421,7 +421,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return StlZipIterator positioned at first element.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -460,7 +460,7 @@ template <typename... Containers>
  * }, xs, ys);  // true
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -481,7 +481,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if pred is true for all tuples and lengths match.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -517,7 +517,7 @@ template <typename Pred, typename... Containers>
  * }, xs, ys);  // true
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -546,7 +546,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if no tuple satisfies pred.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -575,7 +575,7 @@ template <typename Pred, typename... Containers>
  * }, names, ages);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
@@ -591,7 +591,7 @@ void stl_zip_for_each(Op&& op, const Containers&... cs)
  * @param op Callable `(size_t index, tuple) -> void`.
  * @param cs Containers to zip.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
@@ -629,7 +629,7 @@ void stl_zip_for_each_indexed(Op&& op, const Containers&... cs)
  * // total = 10*2 + 20*3 + 30*1 = 110
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
@@ -673,7 +673,7 @@ template <typename T, typename Op, typename... Containers>
  * @note This DOES allocate memory for the result vector.
  *       For lazy transformation, use stl_zip() with a transforming view.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
@@ -697,7 +697,7 @@ template <typename Op, typename... Containers>
  * @param cs Containers to zip.
  * @return std::vector of tuples satisfying predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -722,7 +722,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return std::optional containing tuple if found, empty otherwise.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -745,7 +745,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return Number of tuples satisfying predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -764,7 +764,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return Number of tuples that would be produced.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -782,7 +782,7 @@ template <typename... Containers>
  * @param cs Containers to compare.
  * @return `true` if all containers have the same size.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -801,7 +801,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return std::optional containing tuple if index is valid, empty otherwise.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -823,7 +823,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return std::vector of up to n tuples.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -846,7 +846,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return std::vector of remaining tuples.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -877,7 +877,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return Pair of vectors: (matching, non-matching).
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -908,7 +908,7 @@ template <typename Pred, typename... Containers>
  *
  * @note This allocates memory. For single-pass iteration, use stl_zip().
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -936,7 +936,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if pred was true for all tuples, `false` if stopped early.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -955,7 +955,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if pred was true for all AND containers have equal length.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1004,7 +1004,7 @@ namespace stl_zip_detail
  * // true
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Cmp, typename... Containers>
@@ -1034,7 +1034,7 @@ template <typename Cmp, typename... Containers>
  * @tparam Container Container type.
  *
  * @see stl_enumerate() Factory function
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1084,7 +1084,7 @@ public:
  * @brief Lazy view that pairs each element with its index.
  *
  * @tparam Container Container type.
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1124,7 +1124,7 @@ public:
  * // 2: Charlie
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1159,7 +1159,7 @@ template <typename Container>
  * // result contains: {(1,10), (2,20), (3,30)}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1188,7 +1188,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return std::vector of tuples after pred becomes false.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1219,7 +1219,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return std::optional containing first tuple, or empty if containers are empty.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1236,7 +1236,7 @@ template <typename... Containers>
  *
  * @note This iterates through all elements - O(n) complexity.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1257,7 +1257,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return std::optional containing last matching tuple, or empty if none found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1282,7 +1282,7 @@ template <typename Pred, typename... Containers>
  * @param cs Containers to zip.
  * @return Index of first match, or total count if not found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1314,7 +1314,7 @@ template <typename Pred, typename... Containers>
  * // nums = {1, 2}, strs = {"a", "b"}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename U>
@@ -1350,7 +1350,7 @@ template <typename T, typename U>
  * // ints = {1, 2}, doubles = {1.1, 2.2}, chars = {'a', 'b'}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Ts>
@@ -1400,7 +1400,7 @@ template <typename... Ts>
  *   std::cout << curr - prev << " ";  // 1 1 1 1
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Container>
@@ -1438,7 +1438,7 @@ template <typename Container>
  * // diffs = {2, 3, 4}
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename Container>
@@ -1482,7 +1482,7 @@ template <typename Op, typename Container>
  * // sorted = true (ascending order)
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -1511,7 +1511,7 @@ template <typename Pred, typename Container>
  * @param c Container.
  * @return `true` if any consecutive pair satisfies predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename Container>
@@ -1553,7 +1553,7 @@ template <typename Pred, typename Container>
  * }, xs, ys);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
@@ -1578,7 +1578,7 @@ template <typename Op, typename... Containers>
  * @param cs Containers to zip.
  * @return std::vector of tuples satisfying predicate.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Pred, typename... Containers>
@@ -1615,7 +1615,7 @@ template <typename Pred, typename... Containers>
  * }, xs, ys);
  * @endcode
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename T, typename Op, typename... Containers>
@@ -1642,7 +1642,7 @@ template <typename T, typename Op, typename... Containers>
  * @param cs Containers to zip.
  * @return First non-empty result from op, or std::nullopt.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Op, typename... Containers>
@@ -1670,7 +1670,7 @@ template <typename Op, typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if sequences are equal.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1690,7 +1690,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return `true` if all tuples satisfy eq AND containers have equal length.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Eq, typename... Containers>
@@ -1711,7 +1711,7 @@ template <typename Eq, typename... Containers>
  * @param cs2 Second set of containers.
  * @return -1 if first < second, 0 if equal, 1 if first > second.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers1, typename... Containers2>
@@ -1744,7 +1744,7 @@ template <typename... Containers1, typename... Containers2>
  * @param cs Containers to zip.
  * @return `true` if target is found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Tuple, typename... Containers>
@@ -1765,7 +1765,7 @@ template <typename Tuple, typename... Containers>
  * @param cs Containers to zip (first container contains keys).
  * @return Optional containing the full tuple if found.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename Key, typename... Containers>
@@ -1788,7 +1788,7 @@ template <typename Key, typename... Containers>
  * @param cs Containers to zip.
  * @return Optional containing the minimum tuple.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1818,7 +1818,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return Optional containing the maximum tuple.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1848,7 +1848,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return Optional pair of (min, max) tuples.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>
@@ -1882,7 +1882,7 @@ template <typename... Containers>
  * @param cs Containers to zip.
  * @return Optional tuple with sums.
  *
- * @ingroup Algos
+ * @ingroup Algorithms
  *  @author Leandro Rabindranath León
  */
 template <typename... Containers>

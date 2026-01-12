@@ -31,7 +31,7 @@
  *  fundamental includes for definitions, utilities, and assertions that
  *  are used throughout the library.
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

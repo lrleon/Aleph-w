@@ -53,7 +53,7 @@
  *  @see DynSetTree DynSetHash
  *  @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @ingroup Sets
  *  @author Leandro Rabindranath León
  */
@@ -99,7 +99,7 @@ namespace Aleph {
  *  - size(): O(1)
  *
  *  @see DynSetTree DynSetHash
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  */
 template <typename Key, class Compare = std::less<Key>>
 class DynSkipList

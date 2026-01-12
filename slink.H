@@ -30,7 +30,7 @@
  *  Low-level singly linked node without data. Base for Snode.
  *
  *  @see tpl_snode.H Typed singly linked node
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

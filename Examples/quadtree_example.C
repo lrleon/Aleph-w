@@ -59,7 +59,7 @@
  * 
  * @see quadtree.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  * @see quadnode.H
  */
 

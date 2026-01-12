@@ -79,7 +79,7 @@ distance(typename vector<T>::iterator, typename vector<T>::iterator);
       acceso que otra implantación basada estrictamente en vectores
       contiguos de memoria.
 
-      @ingroup stl
+      @ingroup STL
    */
     template <typename T>
 class vector
@@ -108,7 +108,7 @@ public:
 
   /** Iterador sobre un vector<T>.
 
-      @ingroup stl
+      @ingroup STL
    */
   class iterator 
   { 

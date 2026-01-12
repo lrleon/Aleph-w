@@ -35,7 +35,7 @@
  *  - Prefix search support
  *  - Memory-efficient for shared prefixes
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -99,7 +99,7 @@ namespace Aleph {
  * - The tree uses a leftmost-child, right-sibling representation
  *
  * @see Tree_Node
- * @ingroup Arboles
+ * @ingroup Trees
  */
 class Cnode : public Tree_Node<char>
 {

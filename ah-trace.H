@@ -31,7 +31,7 @@
  *  file:line information when conditions are met. Useful for
  *  debugging without full assertion overhead.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

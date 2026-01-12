@@ -30,7 +30,7 @@
  *  Extends RbNode with subtree size for order statistics.
  *
  *  @see tpl_rbRk.H RB tree with rank
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 

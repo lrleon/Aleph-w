@@ -79,7 +79,7 @@ namespace Aleph
       - cookie: opaque pointer to any other temporary information
         to be associated with the node.
 
-      @ingroup Grafos
+      @ingroup Graphs
       @see List_SGraph List_SDigraph Graph_Sarc Bit_Fields
    */
   template <typename Node_Info = Empty_Class>
@@ -183,7 +183,7 @@ namespace Aleph
       - cookie: opaque pointer to any other temporary information
         to be associated with the arc.
 
-      @ingroup Grafos
+      @ingroup Graphs
       @see List_SGraph List_SDigraph Graph_Snode Bit_Fields
    */
   template <typename Arc_Info = Empty_Class>
@@ -257,7 +257,7 @@ namespace Aleph
       the Graph_Sarc class, either by attribute inclusion,
       by derivation, or by a combination of both.
       @see Graph_Snode Graph_Sarc
-      @ingroup Grafos
+      @ingroup Graphs
       @see List_SDigraph Path
    */
   template <typename __Graph_Node = Graph_Snode<unsigned long>,
@@ -310,7 +310,7 @@ namespace Aleph
 
         This class iterates over all nodes of a graph.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     class Node_Iterator : public DynSetNode::Iterator
     {
@@ -346,7 +346,7 @@ namespace Aleph
         This class iterates over all adjacent arcs of a node
         belonging to a graph or digraph.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
     class Node_Arc_Iterator : public DynList<void *>::Iterator
     {
@@ -642,7 +642,7 @@ namespace Aleph
       the Graph_Sarc class, either by attribute inclusion,
       by derivation, or by a combination of both.
       @see Graph_Snode Graph_Sarc Digraph
-      @ingroup Grafos
+      @ingroup Graphs
       @see List_SGraph
    */
   template <typename __Graph_Node = Graph_Snode<int>,

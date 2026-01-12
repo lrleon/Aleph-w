@@ -26,7 +26,7 @@
 
 /** @file tpl_netcapgraph.H
  *  @brief Network flow graph with capacities.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -54,7 +54,7 @@ namespace Aleph {
  * @tparam F_Type Numeric type for flow values (default: double).
  *
  * @see Net_Cap_Graph Net_Graph
- * @ingroup Redes
+ * @ingroup Networks
  */
 template <typename Node_Info = Empty_Class, typename F_Type = double>
 class Net_Cap_Node : public Graph_Anode<Node_Info>
@@ -222,7 +222,7 @@ public:
  * @tparam ArcT Arc type (must derive from Net_Arc).
  *
  * @see Net_Graph compute_aux_net() Net_Cap_Node
- * @ingroup Redes
+ * @ingroup Networks
  */
 template <class NodeT = Net_Cap_Node<Empty_Class, double>,
           class ArcT = Net_Arc<Empty_Class, double>>

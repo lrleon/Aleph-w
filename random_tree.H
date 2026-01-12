@@ -58,7 +58,7 @@
  *  @see tpl_binNode.H Binary tree node
  *  @see random_graph.H Random graph generation
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -99,7 +99,7 @@ using namespace Aleph;
  * // Tree structure is random but deterministic for same seed
  * @endcode
  *
- * @ingroup Arboles
+ * @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 template <typename T>

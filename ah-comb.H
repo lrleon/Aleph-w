@@ -41,7 +41,7 @@
     @note "Permutation" in this context means the cartesian product of the input lists,
           not mathematical permutations of a set.
 
-    @ingroup Algos
+    @ingroup Algorithms
  *  @author Leandro Rabindranath León
 */
 
@@ -128,7 +128,7 @@ namespace Aleph
       @note If `l` is empty, an empty matrix is returned.
       @note In debug builds, non-rectangular inputs trigger an assertion.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T>
   [[nodiscard]] inline
@@ -179,7 +179,7 @@ namespace Aleph
       @note If `l` is empty, the function is a no-op.
       @note In debug builds, non-rectangular inputs trigger an assertion.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <template <typename> class C, typename T>
   inline
@@ -217,7 +217,7 @@ namespace Aleph
       @note If `l` is empty, the function is a no-op.
       @note In debug builds, non-rectangular inputs trigger an assertion.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T>
   inline
@@ -342,7 +342,7 @@ namespace Aleph
       otherwise. Note that `true` is returned only if `op()` always
       returned `true`.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Op>
   inline
@@ -380,7 +380,7 @@ namespace Aleph
       @param[in] l List of lists.
       @param[in] op Operation to run on each permutation.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Op>
   inline
@@ -412,7 +412,7 @@ namespace Aleph
 
       @note The output size is the product of input list sizes.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T>
   [[nodiscard]]
@@ -433,7 +433,7 @@ namespace Aleph
       @param[in] l List of lists.
       @return Unique sorted combinations.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T>
   [[nodiscard]]
@@ -464,7 +464,7 @@ namespace Aleph
       @param[in] op Folding operation.
       @return Final accumulator.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, typename Tc, class Op = Dft_Fold_Op<Tc, T>>
   [[nodiscard]]
@@ -499,7 +499,7 @@ namespace Aleph
       @param[in] l List of lists.
       @return Total permutation count.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T>
   [[nodiscard]]
@@ -526,7 +526,7 @@ namespace Aleph
       @param[in] pred Predicate to test.
       @return `true` if at least one permutation satisfies `pred`.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Pred>
   [[nodiscard]]
@@ -566,7 +566,7 @@ namespace Aleph
       @param[in] pred Predicate to test.
       @return `true` if all permutations satisfy `pred`.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Pred>
   [[nodiscard]]
@@ -596,7 +596,7 @@ namespace Aleph
       @param[in] pred Predicate to test.
       @return `true` if no permutation satisfies `pred`.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Pred>
   [[nodiscard]]
@@ -624,7 +624,7 @@ namespace Aleph
       @param[in] pred Predicate to select permutations.
       @return List of permutations for which `pred` returned `true`.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Pred>
   [[nodiscard]]
@@ -659,7 +659,7 @@ namespace Aleph
       @param[in] op Mapping operation.
       @return List of results from applying `op` to each permutation.
 
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename R, typename T, class Op>
   [[nodiscard]]

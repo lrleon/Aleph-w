@@ -31,7 +31,7 @@
  *  forward (A→B) and reverse (B→A) lookups are efficient. Uses
  *  tree-based storage for O(log n) operations.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

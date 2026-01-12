@@ -50,7 +50,7 @@
  *  @see tpl_avl.H AVL tree implementation
  *  @see rbNode.H Red-Black tree node (alternative balancing)
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -65,7 +65,7 @@
  * Stores the balance factor (height difference between right and left
  * subtrees). Valid values are -1, 0, or +1.
  *
- * @ingroup Arboles
+ * @ingroup Trees
  */
 class AvlNode_Data
 {

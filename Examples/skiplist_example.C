@@ -61,7 +61,7 @@
  * 
  * @see tpl_dynSkipList.H for the implementation
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  * @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
  */
 

@@ -61,7 +61,7 @@
  *
  *  @see ah-ranges.H C++20 ranges support
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

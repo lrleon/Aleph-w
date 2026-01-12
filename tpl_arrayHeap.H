@@ -122,7 +122,7 @@ namespace Aleph
       @param[in] n number of elements in the range
       @see insertion_sort() quicksort_rec() mergesort()
       @see selection_sort() faster_heapsort()
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline
@@ -152,7 +152,7 @@ namespace Aleph
       @param[in] n number of elements in the range
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       @see selection_sort()
-      @ingroup Algos
+      @ingroup Algorithms
   */
   template <typename T, class Compare = Aleph::less<T>>
   inline

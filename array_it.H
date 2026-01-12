@@ -35,7 +35,7 @@
     Array_Container as a lightweight wrapper that makes a raw array
     compatible with Aleph-w's functional interfaces.
 
-    @ingroup Secuencias
+    @ingroup Sequences
  *  @author Leandro Rabindranath León
 */
 
@@ -64,7 +64,7 @@ template <typename T> class Array_Container;
 
     @tparam T Element type.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <class T>
 class Array_Iterator
@@ -318,7 +318,7 @@ public:
     @param n Number of elements.
     @return Array_Iterator for the array.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename T>
 [[nodiscard]] inline Array_Iterator<T> get_array_it(const T * array, size_t n)
@@ -333,7 +333,7 @@ template <typename T>
     @param n Number of elements.
     @return Array_Container wrapping the array.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename T>
 [[nodiscard]] inline Array_Container<T> make_array_container(T * array, size_t n)
@@ -354,7 +354,7 @@ template <typename T>
 
     @tparam T Element type.
 
-    @ingroup Secuencias
+    @ingroup Sequences
 */
 template <typename T>
 class Array_Container

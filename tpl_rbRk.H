@@ -37,7 +37,7 @@
  *
  *  @see tpl_rb_tree.H Base RB tree
  *  @see tpl_avlRk.H AVL with rank
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -95,7 +95,7 @@ namespace Aleph {
     
     @see Gen_Rb_Tree Basic red-black tree without rank support.
     @see GenTdRbTreeRk Top-down red-black with rank.
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <template <typename> class NodeType, typename Key, class Compare>
 class Gen_Rb_Tree_Rk
@@ -1473,7 +1473,7 @@ public:
 
       The visit order is inorder.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   class Iterator : public BinTreeXt_Iterator<Gen_Rb_Tree_Rk, Node, Key, Compare>
   {
@@ -1493,7 +1493,7 @@ public:
     @param Key key type stored in the tree nodes.
     @param Compare comparison functor between keys.
     @see Rb_Tree_Rk_Vtl
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Rb_Tree_Rk : public Gen_Rb_Tree_Rk<RbNodeRk, Key, Compare>
@@ -1509,7 +1509,7 @@ struct Rb_Tree_Rk : public Gen_Rb_Tree_Rk<RbNodeRk, Key, Compare>
     @param Key key type stored in the tree nodes.
     @param Compare comparison functor between keys.
     @see Rb_Tree_Rk
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <typename Key, class Compare = Aleph::less<Key>>
 struct Rb_Tree_Rk_Vtl : public Gen_Rb_Tree_Rk<RbNodeRkVtl, Key, Compare>

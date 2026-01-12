@@ -31,7 +31,7 @@
  *  iterators to satisfy std::input_iterator and std::forward_iterator
  *  concepts, enabling use with std::ranges and STL algorithms.
  *
- *  @ingroup Iteradores
+ *  @ingroup Iterators
  *  @author Leandro Rabindranath León
  */
 

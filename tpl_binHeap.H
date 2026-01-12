@@ -85,7 +85,7 @@
  *  @see tpl_dynBinHeap.H Dynamic heap with key updates
  *  @see tpl_fibonacci_heap.H Fibonacci heap for advanced priority queues
  *
- *  @ingroup Arboles
+ *  @ingroup Trees
  *  @author Leandro Rabindranath León
  */
 
@@ -159,7 +159,7 @@ This class is not intended for public use. Its purpose is to provide
 
       @see BinHeap BinHeapVtl DynBinHeap
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <template <class> class NodeType, typename Key,
             class Compare = Aleph::less<Key>>
@@ -991,7 +991,7 @@ This class is not intended for public use. Its purpose is to provide
 
       @see BinHeapVtl DynBinHeap
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Key, typename Compare = Aleph::less<Key>>
   struct BinHeap : public GenBinHeap<BinHeapNode, Key, Compare>
@@ -1016,7 +1016,7 @@ This class is not intended for public use. Its purpose is to provide
 
       @see BinHeap DynBinHeap
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Key, typename Compare = Aleph::less<Key>>
   struct BinHeapVtl : public GenBinHeap<BinHeapNodeVtl, Key, Compare>

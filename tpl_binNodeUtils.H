@@ -87,7 +87,7 @@ namespace Aleph
       @param[in] visitFct pointer to visit function
       @return the number of nodes of tree
       @see preOrderRec() postOrderRec() For_Each_In_Order traverse()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -133,7 +133,7 @@ namespace Aleph
       @param[in] visitFct pointer to visit function
       @return the number of nodes of tree
       @see preOrderRec() postOrderRec()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -179,7 +179,7 @@ namespace Aleph
       @param[in] visitFct pointer to visit function
       @return the number of nodes of tree
       @see preOrderRec() postOrderRec()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -203,7 +203,7 @@ namespace Aleph
            }
          };
 
-      @ingroup arboles
+      @ingroup Trees
    */
   template <class Node>
   class For_Each_In_Order
@@ -246,7 +246,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] op operation to be executed on each node
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Op>
   inline
@@ -268,7 +268,7 @@ namespace Aleph
            }
          };
 
-     @ingroup arboles
+     @ingroup Trees
  *  @author Leandro Rabindranath León
  */
   template <class Node>
@@ -312,7 +312,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] op operation to be executed on each node
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Op>
   void for_each_preorder(Node *root, Op && op)
@@ -334,7 +334,7 @@ namespace Aleph
         }
       };
 
-      @ingroup arboles
+      @ingroup Trees
   */
   template <class Node>
   class For_Each_Postorder
@@ -377,7 +377,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] op operation to be executed on each node
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Op>
   void for_each_postorder(Node *root, Op && op)
@@ -424,7 +424,7 @@ namespace Aleph
       @param[in] root of tree
       @return a list of nodes sorted by preorder traversal
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   DynList<Node *> prefix(Node *root)
@@ -439,7 +439,7 @@ namespace Aleph
       @param[in] root of tree
       @return a list of nodes sorted by inorder traversal
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   DynList<Node *> infix(Node *root)
@@ -454,7 +454,7 @@ namespace Aleph
       @param[in] root of tree
       @return a list of nodes sorted by postorder traversal
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   DynList<Node *> suffix(Node *root)
@@ -469,7 +469,7 @@ namespace Aleph
 
       @param[in] root of tree
       @return the number of nodes
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -494,7 +494,7 @@ namespace Aleph
 
       @param[in] root of tree
       @return the height
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline size_t computeHeightRec(Node *root) noexcept
@@ -514,7 +514,7 @@ namespace Aleph
       operator.
 
       @param[in] root of tree to free
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -532,7 +532,7 @@ namespace Aleph
   /** Traverses recursively the tree and calls key's destructors
 
           @param[in] root of tree to free
-          @ingroup Arboles
+          @ingroup Trees
        */
   template <class Node>
   inline
@@ -554,7 +554,7 @@ namespace Aleph
       @param[in] root of tre to be copied
       @return a copy of tree with `root`
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -660,7 +660,7 @@ namespace Aleph
       @param[in] visitFct visit function
       @return number of visited nodes
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
      */
   template <class Node>
   inline
@@ -701,7 +701,7 @@ namespace Aleph
       @param[in] operation to execute on each visited node
       @return `true` if all the nodes were visited; `false` otherwise
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Operation>
   inline
@@ -747,7 +747,7 @@ namespace Aleph
       @param[in] r_i last index in `inorder`
       @return the root of built tree
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <template <class> class Node, typename Key>
   inline
@@ -834,7 +834,7 @@ namespace Aleph
       @param[in] level desired to be counted
       @return a list with all the nodes of `level`
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -864,7 +864,7 @@ namespace Aleph
       @param[in] visitFct pointer to visit function
       @return the number of nodes of tree
       @see preOrderThreaded()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -923,7 +923,7 @@ namespace Aleph
       @param[in] visitFct pointer to visit function
       @return the number of nodes of tree
       @see inOrderThreaded()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -979,7 +979,7 @@ namespace Aleph
       @param[in] p root of tree
       @return the internal path lenght
 
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -999,7 +999,7 @@ namespace Aleph
       @see bits_to_tree() BitArray save_tree_keys_in_prefix()
       load_tree_keys_in_prefix()
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -1027,7 +1027,7 @@ namespace Aleph
       @see bits_to_tree() BitArray save_tree_keys_in_prefix()
       load_tree_keys_in_prefix()
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -1083,7 +1083,7 @@ namespace Aleph
       \throw bad_alloc if there is no enough memory
 
       @see tree_to_bits() BitArray save_tree_keys_in_prefix() load_tree_keys_in_prefix()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -1106,7 +1106,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[out] output stream
-      @ingroup Arboles
+      @ingroup Trees
       @see load_tree_keys_in_prefix()
   */
   template <class Node>
@@ -1129,7 +1129,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] input stream where are the keys in preorder
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -1157,7 +1157,7 @@ namespace Aleph
       @param[out] output stream
       \throw bad_alloc if there is no enough memory
       @see load_tree()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -1179,7 +1179,7 @@ namespace Aleph
       @return the root of loaded and builded binary tree
       \throw bad_alloc if there is no enough memory
       @see save_tree()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -1255,7 +1255,7 @@ namespace Aleph
       @param[out] output stream where the arrays should be written
 
       @see load_tree_from_array() BitArray
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Get_Key>
   inline
@@ -1299,7 +1299,7 @@ namespace Aleph
       \throw bad_alloc if there is no enough memory
 
       @see save_tree_in_array_of_chars() BitArray
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Load_Key>
   inline
@@ -1323,7 +1323,7 @@ namespace Aleph
       @return `true` if `p` is a binary search tree according to
       `Compare` criteria.
 
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1355,7 +1355,7 @@ namespace Aleph
       @param[in] r upper index
       @return root of resulting tree
       \throw bad_alloc if there is no enough memory
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline Node *
@@ -1386,7 +1386,7 @@ namespace Aleph
       @param[in] cmp key comparison criteria
       @return a valid pointer to the node containing the searched key
       if this was found; `Node::NullPtr` otherwise
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1410,7 +1410,7 @@ namespace Aleph
       @param[in] root of tree
       @return pointer to node containing minimum key
       @note It is not verified if tree is empty
-      @ingroup Arboles
+      @ingroup Trees
       @see find_max()
    */
   template <class Node>
@@ -1428,7 +1428,7 @@ namespace Aleph
       @param[in] root of tree
       @return pointer to node containing maximum key
       @note It is not verified if tree is empty
-      @ingroup Arboles
+      @ingroup Trees
       @see find_max()
    */
   template <class Node>
@@ -1447,7 +1447,7 @@ namespace Aleph
       @param[out] pp p's parent
       @return successor of `p`
       @see find_predecessor()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node>
   inline
@@ -1473,7 +1473,7 @@ namespace Aleph
       @param[out] pp p's parent
       @return predecessor of `p`
       @see find_successor()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -1504,7 +1504,7 @@ namespace Aleph
       @return a valid pointer to a node containing `key` if this is
       found; otherwise, it returns a pointer to the last visited node
       @see searchInBinTree()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1552,7 +1552,7 @@ namespace Aleph
       @return pointer to a node containing `key` if this node exists
       or the last visited node otherwise
       @note It is not verified if the tree is empty
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1591,7 +1591,7 @@ namespace Aleph
       @param[in] cmp comparison criteria.
       @return `p` if this was inserted; that is if `p->get_key()` is
       not in the tree; otherwise, `Node::NullPtr` is returned
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1619,7 +1619,7 @@ namespace Aleph
       @param[in] p pointer to the node to be inserted
       @param[in] cmp comparison criteria
       @return the pointer `p`
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1648,7 +1648,7 @@ namespace Aleph
       @return `p` if its key was not in the tree; otherwise, a pointer
       containing the tree is returned.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1717,7 +1717,7 @@ namespace Aleph
       tree. Otherwise, the split is not performed and it return `false`
 
       @see split_key()
-      @ingroup Arboles
+      @ingroup Trees
       */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1768,7 +1768,7 @@ namespace Aleph
       @param[out] tg tree with the keys greater or equal than `key`
       @param[in] cmp comparison criteria
       @see split_key()
-      @ingroup Arboles
+      @ingroup Trees
       */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1791,7 +1791,7 @@ namespace Aleph
       @return the root of resulting joined tree
       @warning No validation about the exclusive ranges is done
 
-      @ingroup Arboles
+      @ingroup Trees
       @see remove_from_bst()
        */
   template <class Node>
@@ -1822,7 +1822,7 @@ namespace Aleph
       in the tree, `Node::NullPtr` otherwise
 
       @see join_exclusive()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1858,7 +1858,7 @@ namespace Aleph
       `p->get_key()` was not present in the tree. Otherwise, no insertion
       is done and `Node::NullPtr` is returned
       @see insert_root_rec()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1885,7 +1885,7 @@ namespace Aleph
       @param[in] cmp comparison criteria
       @return the pointer `p` which has became the root of tree
       @see insert_root_rec()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1908,7 +1908,7 @@ namespace Aleph
       @param[in] cmp comparison criteria
       @return a pointer to the resulting root of tree
       @see join()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1943,7 +1943,7 @@ namespace Aleph
       @param[in] cmp comparison criteria
       @return pointer to the root of resulting join
       @see join_preorder()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -1982,7 +1982,7 @@ namespace Aleph
   /** Rotate to the right the tree with root `p`
 
       @param[in] p root to rotate
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2000,7 +2000,7 @@ namespace Aleph
   /** Rotate to the right the tree with root `p` and update its parent
 
       @param[in] p root to rotate
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2025,7 +2025,7 @@ namespace Aleph
   /** Rotate to the left the tree with root `p`
 
       @param[in] p root to rotate
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2043,7 +2043,7 @@ namespace Aleph
   /** Rotate to the left the tree with root `p` and update its parent
 
       @param[in] p root to rotate
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2078,7 +2078,7 @@ namespace Aleph
       @param[out] r tree with keys greater or equal than `key`
       @param[in] cmp comparison criteria
       @see split_key_rec()
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node, class Key,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -2144,7 +2144,7 @@ namespace Aleph
       @param[in] q successor of `p`
       @param[in,out] pq parent of `q`
       @see swap_node_with_predecessor()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2198,7 +2198,7 @@ namespace Aleph
       @param[in] q predecessor of `p`
       @param[in,out] pq parent of `q`
       @see swap_node_with_successor()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   inline
@@ -2255,7 +2255,7 @@ namespace Aleph
       @return pointer to `p` if `p->get_key()` is not in the
       tree. Otherwise the function returns `Node::NullPtr`
       @see insert_root()
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Key,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -2296,7 +2296,7 @@ namespace Aleph
       @return if `p` is inserted, then it returns `p`; otherwise, it
       returns a pointer to the tree node containing to `p->get_key()`
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node, class Key,
             class Compare = Aleph::less<typename Node::key_type>>
@@ -2341,7 +2341,7 @@ namespace Aleph
     This class export a full iterator for the nodes of a binary tree
     where the visit order corresponds to a preorder sense.
 
-    @ingroup Arboles
+    @ingroup Trees
 */
   template <class Node>
   class BinNodePrefixIterator
@@ -2499,7 +2499,7 @@ namespace Aleph
        stopped because there was a `false` result on an item.
        \throw anything that could throw `operation`
 
-       @ingroup Arboles
+       @ingroup Trees
    */
   template <class Node, class Op>
   bool prefix_traverse(Node *root, Op op)
@@ -2543,7 +2543,7 @@ namespace Aleph
       This class export a full iterator for the nodes of a binary tree
       where the visit order corresponds to a inorder sense.
 
-      @ingroup Arboles
+      @ingroup Trees
   */
   template <class Node>
   class BinNodeInfixIterator
@@ -2718,7 +2718,7 @@ namespace Aleph
        stopped because there was a `false` result on an item.
        \throw anything that could throw `operation`
 
-       @ingroup Arboles
+       @ingroup Trees
    */
   template <class Node, class Op>
   bool infix_traverse(Node *root, Op op)
@@ -2731,7 +2731,7 @@ namespace Aleph
 
   /** \overload infix_traverse()
 
-      @ingroup Arboles
+      @ingroup Trees
    */
   template <class Node, class Op>
   bool traverse(Node *root, Op op)

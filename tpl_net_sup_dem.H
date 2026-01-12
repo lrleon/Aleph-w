@@ -63,7 +63,7 @@
  *
  *  @see tpl_net.H Base network flow classes
  *  @see tpl_netcapgraph.H Capacity graph algorithms
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -87,7 +87,7 @@ namespace Aleph
  * @tparam Node_Info Type of information stored in the node
  * @tparam F_Type Type representing flow values (default: long)
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <typename Node_Info, typename F_Type = long>
 class Net_Sup_Dem_Node : public Graph_Anode<Node_Info>
@@ -190,7 +190,7 @@ public:
  * @tparam NodeT Node type (default: Net_Sup_Dem_Node with double flow)
  * @tparam ArcT Arc type (default: Net_Arc with double flow)
  *
- * @ingroup Grafos
+ * @ingroup Graphs
  */
 template <class NodeT = Net_Sup_Dem_Node<Empty_Class, double>,
           class ArcT = Net_Arc<Empty_Class, double>>

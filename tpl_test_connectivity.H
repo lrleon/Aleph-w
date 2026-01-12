@@ -26,7 +26,7 @@
 
 /** @file tpl_test_connectivity.H
  *  @brief Graph connectivity testing.
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 
@@ -54,7 +54,7 @@
            el la clase que determina si el arco debe o no mostrarse al
            recorrido. 
 
-           @ingroup Grafos
+           @ingroup Graphs
            @see depth_first_traversal() is_reachable()
         */
     template <class GT, class SA = Dft_Show_Arc<GT> > 

@@ -85,7 +85,7 @@
  *  @see bloom-filter.H Uses BitArray for Bloom filter implementation
  *  @see tpl_dynArray.H Underlying storage mechanism
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

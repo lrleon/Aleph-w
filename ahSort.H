@@ -104,7 +104,7 @@
  *  @see tpl_sort_utils.H Low-level sorting algorithms (mergesort, quicksort, etc.)
  *  @see ahFunctional.H Functional utilities including comparison functors
  *
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

@@ -31,7 +31,7 @@
  *  DynList implementation. Kept for backward compatibility.
  *
  *  @see htlist.H Actual DynList implementation
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 

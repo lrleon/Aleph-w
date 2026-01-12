@@ -51,7 +51,7 @@
  * 5. Hash-based dispatcher for high-volume operations
  *
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

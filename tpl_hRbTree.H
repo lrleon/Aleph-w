@@ -70,7 +70,7 @@ namespace Aleph
     @tparam Key The type of keys stored in the tree
     @tparam Compare Comparison functor (default: Aleph::less<Key>)
     
-    @ingroup Arboles
+    @ingroup Trees
     @author Leandro Rabindranath León
 */
   template <class Key, class Compare = Aleph::less<Key>>

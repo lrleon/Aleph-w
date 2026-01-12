@@ -54,7 +54,7 @@
  * 
  * @see topological_sort.H
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  */
 
 #include <iostream>

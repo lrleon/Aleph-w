@@ -30,7 +30,7 @@
  *  This file provides macros for generating variadic constructors that allow
  *  containers to be initialized with multiple elements at construction time.
  *
- *  @ingroup Utils
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 

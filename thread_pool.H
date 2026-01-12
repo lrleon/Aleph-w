@@ -96,7 +96,7 @@
  *
  *  @see worker_pool.H Alternative with different API
  *  @see future_utils.H Utilities for working with futures
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -198,7 +198,7 @@ using ExceptionCallback = std::function<void(std::exception_ptr)>;
  *  @note Tasks that throw exceptions will have those exceptions stored in
  *        the returned future and rethrown when `get()` is called.
  *
- *  @ingroup Utilidades
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 class ThreadPool

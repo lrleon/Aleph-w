@@ -37,7 +37,7 @@
  *
  *  ## Complexity: O(V + E)
  *
- *  @ingroup Grafos
+ *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
 

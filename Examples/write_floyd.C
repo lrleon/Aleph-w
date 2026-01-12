@@ -70,7 +70,7 @@
  * 
  * @see floyd_all_shortest_paths_latex for the LaTeX generation routine
  * @author Leandro Rabindranath León
- * @ingroup Ejemplos
+ * @ingroup Examples
  * @see Ady_Mat for the adjacency matrix representation
  */
 

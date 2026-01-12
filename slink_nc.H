@@ -26,7 +26,7 @@
 
 /** @file slink_nc.H
  *  @brief Singly linked node (no check variant).
- *  @ingroup Secuencias
+ *  @ingroup Sequences
  *  @author Leandro Rabindranath León
  */
 
@@ -43,7 +43,7 @@ namespace Aleph
       Slink_Nc modeliza un puntero a un nodo dentro de una lista
       simplemente enlazada no circular. 
 
-      @ingroup Secuencias
+      @ingroup Sequences
       @see Snode Slist DynSlist Dlink 
    */
   class Slink_Nc
