@@ -421,7 +421,7 @@ namespace Aleph
     {
       DynList<DynList<GT_Node *>> subgraphs; // list of subgraphs
 
-      Inconnected_Components<GT>()(this->g, subgraphs);
+      Unconnected_Components<GT>()(this->g, subgraphs);
 
       const size_t & num_subs = subgraphs.size();
 

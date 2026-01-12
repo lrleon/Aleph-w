@@ -185,18 +185,13 @@ namespace Aleph
     /// Move constructor.
     Net_Cost_Graph(Net_Cost_Graph &&) = default;
 
-    /// Copy assignment operator.
+    /// Copy assignment operator (uses copy-and-swap idiom).
     Net_Cost_Graph &operator =(const Net_Cost_Graph & net)
     {
       if (this == &net)
         return *this;
-      Base::operator=(net);
-      zip(this->arcs(), net.arcs()).for_each([](const auto & p)
-                                               {
-                                                 auto atgt = p.first;
-                                                 auto asrc = p.second;
-                                                 atgt->cost = asrc->cost;
-                                               });
+      Net_Cost_Graph tmp(net);  // copy construct (copies capacity, flow, and cost)
+      this->swap(tmp);          // swap with copy
       return *this;
     }
 

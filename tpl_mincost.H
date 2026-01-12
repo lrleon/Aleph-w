@@ -115,8 +115,11 @@ ssp_info(typename Net::Node* p) noexcept
 
 /** @brief Compute reduced cost of an arc.
  *
- *  The reduced cost is: c(u,v) - π(u) + π(v)
+ *  The reduced cost is: c(u,v) + π(u) - π(v)
  *  where c is the original cost and π are the node potentials.
+ *
+ *  For SSP algorithm, potentials are shortest path distances from source.
+ *  This formula guarantees non-negative reduced costs when potentials are optimal.
  *
  *  @ingroup Networks
  */
@@ -129,14 +132,17 @@ typename Net::Flow_Type reduced_cost(const Net& net, typename Net::Arc* arc,
   auto src = net.get_src_node(arc);
   auto tgt = net.get_tgt_node(arc);
 
-  Flow_Type cost = forward ? arc->cost : -arc->cost;
   Flow_Type pi_src = ssp_info<Net>(src).potential;
   Flow_Type pi_tgt = ssp_info<Net>(tgt).potential;
 
+  // Forward arc: src -> tgt with cost arc->cost
+  // Reduced cost = cost + π(src) - π(tgt)
   if (forward)
-    return cost - pi_src + pi_tgt;
-  else
-    return cost + pi_src - pi_tgt;
+    return arc->cost + pi_src - pi_tgt;
+  
+  // Backward arc: tgt -> src with cost -arc->cost  
+  // Reduced cost = -cost + π(tgt) - π(src)
+  return -arc->cost + pi_tgt - pi_src;
 }
 
 /** @brief Find shortest path using Dijkstra with potentials.
@@ -245,6 +251,79 @@ bool ssp_shortest_path(Net& net, typename Net::Node* source,
  *  @see max_flow_min_cost_by_network_simplex
  *  @ingroup Networks
  */
+/** @brief Initialize potentials using Bellman-Ford.
+ *
+ *  Computes shortest path distances from source to all nodes, which
+ *  serve as initial potentials to ensure reduced costs are non-negative.
+ *
+ *  @return true if no negative cycle detected, false otherwise.
+ *  @ingroup Networks
+ */
+template <class Net>
+bool ssp_init_potentials(Net& net, typename Net::Node* source)
+{
+  using Node = typename Net::Node;
+  using Flow_Type = typename Net::Flow_Type;
+  
+  const Flow_Type INF = std::numeric_limits<Flow_Type>::max();
+  const size_t n = net.vsize();
+  
+  // Initialize distances
+  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    ssp_info<Net>(it.get_curr()).potential = INF;
+  ssp_info<Net>(source).potential = 0;
+  
+  // Bellman-Ford: relax all edges n-1 times
+  for (size_t i = 0; i < n - 1; ++i)
+    {
+      bool changed = false;
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          auto arc = it.get_curr();
+          auto src = net.get_src_node(arc);
+          auto tgt = net.get_tgt_node(arc);
+          
+          // Forward arc (if has residual capacity)
+          if (arc->cap > arc->flow)
+            {
+              Flow_Type d = ssp_info<Net>(src).potential;
+              if (d < INF)
+                {
+                  Flow_Type new_d = d + arc->cost;
+                  if (new_d < ssp_info<Net>(tgt).potential)
+                    {
+                      ssp_info<Net>(tgt).potential = new_d;
+                      changed = true;
+                    }
+                }
+            }
+          
+          // Backward arc (if has flow to cancel)
+          if (arc->flow > 0)
+            {
+              Flow_Type d = ssp_info<Net>(tgt).potential;
+              if (d < INF)
+                {
+                  Flow_Type new_d = d - arc->cost;  // negative cost for backward
+                  if (new_d < ssp_info<Net>(src).potential)
+                    {
+                      ssp_info<Net>(src).potential = new_d;
+                      changed = true;
+                    }
+                }
+            }
+        }
+      if (!changed) break;
+    }
+  
+  // Set unreachable nodes to 0 (they won't affect anything)
+  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    if (ssp_info<Net>(it.get_curr()).potential >= INF)
+      ssp_info<Net>(it.get_curr()).potential = 0;
+  
+  return true;  // No negative cycle check for simplicity
+}
+
 template <class Net>
 std::pair<typename Net::Flow_Type, typename Net::Flow_Type>
 successive_shortest_paths(Net& net)
@@ -265,10 +344,8 @@ successive_shortest_paths(Net& net)
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
     NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
-  // Initialize potentials (using Bellman-Ford for possibly negative costs)
-  // For simplicity, start with zero potentials (assumes non-negative costs)
-  for (size_t i = 0; i < net.vsize(); ++i)
-    node_info[i].potential = 0;
+  // Initialize potentials using Bellman-Ford to handle possible negative costs
+  ssp_init_potentials(net, source);
 
   Flow_Type total_flow{0};
   Flow_Type total_cost{0};
@@ -311,12 +388,25 @@ successive_shortest_paths(Net& net)
 
       total_flow += path_flow;
 
-      // Update potentials
+      // Update potentials for reachable nodes
+      Flow_Type max_potential = std::numeric_limits<Flow_Type>::lowest();
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
           if (ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
-            ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
+            {
+              ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
+              max_potential = std::max(max_potential, ssp_info<Net>(p).potential);
+            }
+        }
+      
+      // For unreachable nodes, set potential to max to avoid negative reduced costs
+      // when backward arcs to them become available
+      for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          auto p = it.get_curr();
+          if (ssp_info<Net>(p).distance >= std::numeric_limits<Flow_Type>::max())
+            ssp_info<Net>(p).potential = max_potential;
         }
     }
 

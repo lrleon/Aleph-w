@@ -305,7 +305,7 @@ public:
  * @ingroup Graphs
  */
 template <class GT, class SA = Dft_Show_Arc<GT>>
-class Inconnected_Components
+class Unconnected_Components
 {
   SA sa;
 
@@ -316,7 +316,7 @@ public:
    * @param arc_filter Arc filter to control which arcs are traversed
    *        (default: show all arcs).
    */
-  Inconnected_Components(SA arc_filter = SA())
+  Unconnected_Components(SA arc_filter = SA())
     : sa(arc_filter) { /* empty */ }
 
   /** @brief Compute connected components as mapped subgraphs.

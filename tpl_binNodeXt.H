@@ -718,7 +718,7 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
 {
   ah_out_of_range_error_if(i > COUNT(r)) << "infix position out of range";
 
-  if (i == COUNT(r)) // ¿Es la última posición?
+  if (i == COUNT(r)) // Is it the last position?
     {
       ts = r;
       r = tg = Node::NullPtr;
@@ -778,12 +778,12 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
   LLINK(tg) = join_exclusive_xt(RLINK(ts), LLINK(tg));
   RLINK(ts) = tg;
 
-      // actualizar contadores
+      // Update Counters
   COUNT(tg) = COUNT(LLINK(tg)) + 1 + COUNT(RLINK(tg));
   COUNT(ts) = COUNT(LLINK(ts)) + 1 + COUNT(RLINK(ts));
 
   Node * ret_val = ts;
-  ts = tg = Node::NullPtr; // deben quedar vacíos después del join
+  ts = tg = Node::NullPtr; // should be empty after joining
 
   return ret_val;
 }

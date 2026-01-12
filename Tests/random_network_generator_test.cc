@@ -247,31 +247,30 @@ TEST(CostNetworkGeneratorTest, ErdosRenyiWithCosts)
   EXPECT_GT(cost, 0.0);
 }
 
-// NOTE: This test hangs with successive_shortest_paths - needs investigation
-// TEST(CostNetworkGeneratorTest, LayeredWithCosts)
-// {
-//   NetworkGeneratorConfig config;
-//   config.density = 0.5;
-//   config.min_cost = 1.0;
-//   config.max_cost = 10.0;
-//   config.ensure_connected = true;
-//   config.seed = 888;
-//   
-//   LayeredNetworkGenerator<CostNet> gen(config, 4, 4);
-//   CostNet net;
-//   gen.generate(net);
-//   
-//   // Consolidate sources/sinks if needed
-//   if (!net.is_single_source())
-//     net.make_super_source();
-//   if (!net.is_single_sink())
-//     net.make_super_sink();
-//   
-//   auto [flow, cost] = successive_shortest_paths(net);
-//   
-//   EXPECT_GT(flow, 0.0);
-//   EXPECT_GT(cost, 0.0);
-// }
+TEST(CostNetworkGeneratorTest, LayeredWithCosts)
+{
+  NetworkGeneratorConfig config;
+  config.density = 0.5;
+  config.min_cost = 1.0;
+  config.max_cost = 10.0;
+  config.ensure_connected = true;
+  config.seed = 888;
+  
+  LayeredNetworkGenerator<CostNet> gen(config, 4, 4);
+  CostNet net;
+  gen.generate(net);
+  
+  // Consolidate sources/sinks if needed
+  if (!net.is_single_source())
+    net.make_super_source();
+  if (!net.is_single_sink())
+    net.make_super_sink();
+  
+  auto [flow, cost] = successive_shortest_paths(net);
+  
+  EXPECT_GT(flow, 0.0);
+  EXPECT_GT(cost, 0.0);
+}
 
 
 //==============================================================================
@@ -291,20 +290,29 @@ TEST(StressTest, MultipleRandomNetworks)
     config.seed = 1000 + i;
     
     ErdosRenyiGenerator<TestNet> gen(config);
-    TestNet net;
-    gen.generate(net);
     
-    // Test with different algorithms
-    auto flow_ek = edmonds_karp_maximum_flow(net);
+    // Test Edmonds-Karp
+    gen.reseed();  // Reset RNG to get reproducible network
+    TestNet net1;
+    gen.generate(net1);
+    auto flow_ek = edmonds_karp_maximum_flow(net1);
     
-    // Reset flow for next algorithm
-    for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
-      it.get_curr()->flow = 0;
+    // Test Dinic on identical network
+    gen.reseed();  // Reset RNG to generate identical network
+    TestNet net2;
+    gen.generate(net2);
+    auto flow_dinic = dinic_maximum_flow(net2);
     
-    auto flow_dinic = dinic_maximum_flow(net);
-    
-    // Both should give same result
+    // Both should give same result (within floating-point tolerance)
     EXPECT_NEAR(flow_ek, flow_dinic, 1e-6);
+    
+    // Both should find positive flow
+    EXPECT_GT(flow_ek, 0.0);
+    EXPECT_GT(flow_dinic, 0.0);
+    
+    // Networks should be valid after max flow
+    EXPECT_TRUE(net1.check_network());
+    EXPECT_TRUE(net2.check_network());
   }
 }
 

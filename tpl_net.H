@@ -376,13 +376,18 @@ namespace Aleph
       auto out_flow = get_out_flow(node);
       auto in_flow = get_in_flow(node);
 
+      // Use tolerance for floating-point comparison
+      const auto eps = std::max(std::abs(out_flow), std::abs(in_flow)) * 1e-9;
+      const auto nearly_zero = [eps](auto x) { return std::abs(x) <= eps; };
+      const auto nearly_equal = [eps](auto a, auto b) { return std::abs(a - b) <= eps; };
+
       if (is_sink(node))
-        return out_flow == 0 and in_flow >= 0;
+        return nearly_zero(out_flow) and in_flow >= -eps;
 
       if (is_source(node))
-        return in_flow == 0 and out_flow >= 0;
+        return nearly_zero(in_flow) and out_flow >= -eps;
 
-      return out_flow == in_flow;
+      return nearly_equal(out_flow, in_flow);
     }
 
   private:
@@ -710,10 +715,12 @@ namespace Aleph
     /// Swap contents with another network. O(1) operation.
     void swap(Net_Graph & other) noexcept
     {
+      Graph::common_swap(other);  // swap num_nodes, num_arcs, digraph, cookie
       Graph::get_node_dlink().swap(other.get_node_dlink());
       Graph::get_arc_dlink().swap(other.get_arc_dlink());
       src_nodes.swap(other.src_nodes);
       sink_nodes.swap(other.sink_nodes);
+      std::swap(Infinity, other.Infinity);
       std::swap(with_super_source, other.with_super_source);
       std::swap(with_super_sink, other.with_super_sink);
     }
@@ -731,6 +738,17 @@ namespace Aleph
     {
       if (this != &other)
         swap(other);
+      return *this;
+    }
+
+    /// Copy-assign a network. Throws bad_alloc on allocation failure.
+    Net_Graph & operator=(const Net_Graph & net)
+    {
+      if (this == &net)
+        return *this;
+      
+      Net_Graph tmp(net);  // copy construct
+      swap(tmp);           // swap with copy
       return *this;
     }
 
@@ -775,9 +793,13 @@ namespace Aleph
       const auto total_out = total_source_out_flow();
       const auto total_in = total_sink_in_flow();
 
+      // Use tolerance for floating-point comparison
+      const auto eps = std::max(std::abs(total_out), std::abs(total_in)) * 1e-9;
+      const bool flow_balanced = std::abs(total_out - total_in) <= eps;
+
       return this->nodes().all([this](Node *p) { return check_node(p); }) and
              this->arcs().all([](Arc *a) { return a->check_arc(); }) and
-             total_out == total_in;
+             flow_balanced;
     }
 
     /** @brief Return the total flow value of the network. */
@@ -1029,6 +1051,11 @@ namespace Aleph
           for (Itor it(curr); it.has_curr(); it.next_ne())
             {
               auto a = it.get_curr();
+              
+              // Skip arcs already processed or already in queue
+              if (a->state() != Unprocessed)
+                continue;
+              
               if (remaining_flow<Net>(curr, a) < min_slack)
                 continue;
 

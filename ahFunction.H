@@ -980,11 +980,11 @@ bool are_equals(const T & op1, const T & op2, Compare & cmp)
     template <class T, class Compare>
 class Inversed_Compare
 {
-  Compare & cmp;
+  const Compare & cmp;
 
 public:
 
-  Inversed_Compare(Compare & __cmp) noexcept : cmp(__cmp) { /* empty */ }
+  Inversed_Compare(const Compare & __cmp) noexcept : cmp(__cmp) { /* empty */ }
 
   Inversed_Compare(Compare && cmp = Compare()) noexcept
   : Inversed_Compare(cmp)

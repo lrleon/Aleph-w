@@ -115,14 +115,14 @@ namespace Aleph
 
   /** Traverse recursively in preorder a binary tree.
 
-      `preOrderRec(root,visit)` performs a inorder traversal of tree
-      rooted by `root` and on each node exceutes a visit function with
+      `preOrderRec(root,visit)` performs an inorder traversal of tree
+      rooted by `root` and on each node executes a visit function with
       the following signature:
 
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
-      -# `p`: pointer to visted node.
+      -# `p`: pointer to visited node.
       -# `level`: level of node `p`.
       -# `pos`: ordinal indicating the visit order
 
@@ -161,16 +161,16 @@ namespace Aleph
 
   /** Traverse recursively in postorder a binary tree.
 
-      `postOrderRec(root,visit)` performs a inorder traversal of tree
-      rooted by `root` and on each node exceutes a visit function with
+      `postOrderRec(root,visit)` performs an inorder traversal of tree
+      rooted by `root` and on each node executes a visit function with
       the following signature:
 
           void (*visitFct)(Node* p, int level, int pos)
 
       Where:
-      -# `p`: pointer to visted node.
+      -# `p`: pointer to visited node.
       -# `level`: level of node `p`.
-      -# `pos`: ordinal indicating the visitt order
+      -# `pos`: ordinal indicating the visit order
 
       \deprecated Probably this function will be removed in future
       versions. Use the functor For_Each_Postorder instead
@@ -508,7 +508,7 @@ namespace Aleph
     return 1 + std::max(left_height, right_height);
   }
 
-  /** Free recursively all the memory occuped by the tree `root`
+  /** Free recursively all the memory occupied by the tree `root`
 
       \note It is assumed that the nodes were allocated with `new`
       operator.
@@ -873,10 +873,10 @@ namespace Aleph
     if (root == Node::NullPtr)
       return;
 
-    Node *p = root, *r = Node::NullPtr, *q;
+    Node *p = root, *r = Node::NullPtr;
     while (p != Node::NullPtr)
       {
-        q = LLINK(p);
+        Node *q = LLINK(p);
         if (q == Node::NullPtr)
           { // No left branch ==> visit p
             (*visitFct)(p);
@@ -932,10 +932,10 @@ namespace Aleph
     if (node == Node::NullPtr)
       return;
 
-    Node *p = node, *r = Node::NullPtr, *q;
+    Node *p = node, *r = Node::NullPtr;
     while (p != Node::NullPtr)
       {
-        q = LLINK(p);
+        Node *q = LLINK(p);
 
         if (q == Node::NullPtr)
           {
@@ -974,10 +974,10 @@ namespace Aleph
            __internal_path_length(RLINK(p), level + 1);
   }
 
-  /** Compute the internal path lenght
+  /** Compute the internal path length
 
       @param[in] p root of tree
-      @return the internal path lenght
+      @return the internal path length
 
       @ingroup Trees
    */
@@ -1074,7 +1074,7 @@ namespace Aleph
 
   /** Build a binary tree given its bits code.
 
-      `bits_to_tree(array, idx)` takes a bit array array and from the
+      `bits_to_tree(array, idx)` takes a bit array and from the
       starting index `idx` builds the corresponding tree.
 
       @param[in] array bits array
@@ -1122,7 +1122,7 @@ namespace Aleph
     save_tree_keys_in_prefix(RLINK(root), output);
   }
 
-  /** Load the keys stored in preorder from a input stream.
+  /** Load the keys stored in preorder from an input stream.
 
       `load_tree_keys_in_prefix(root, input)` traverses recursively
       the tree `root`. For each visited node a key is loaded from the stream
@@ -1151,7 +1151,7 @@ namespace Aleph
       the stream `output`. The tree could be restored through
       `load_tree()`.
 
-      The operator `<<` must overloaded for the key of node.
+      The operator `<<` must overload for the key of node.
 
       @param[in] root of tree
       @param[out] output stream
@@ -1233,14 +1233,14 @@ namespace Aleph
 
       `save_tree_in_array_of_chars(root, array_name, output)`
       generates two array declarations that would allow to restore the
-      orifinal binary tree. The generated declarations would have the
+      original binary tree. The generated declarations would have the
       following form:
 
           const unsigned char array_name_cdp[n] = { unsigned char list };
 
           const char * array_name_k[] = { key in prefix order };
 
-      The first array is a bit arrat containing the tree code (its
+      The first array is a bit array containing the tree code (its
       Lukasiewicz word). The second array contains a strinficted version
       of the key values that were generated through the functor `Get_Key`,
       whose structure must be as follows:
@@ -1276,7 +1276,7 @@ namespace Aleph
 
       `load_tree_from_array(bits, num_bits, keys)` takes a bit array
       `bits` of `num_bits`, whose values of `unsigned char` type contain
-      the a tree code. The code is therefore read and the tree is
+      the tree code. The code is therefore read and the tree is
       built. Afterward, the array `keys` is read and the values set to the
       nodes keys in preorder.
 
@@ -1290,7 +1290,7 @@ namespace Aleph
       `true` then it is assumed that the key was already set and the process
       advances to the next key. Otherwise, `str` continues to be the
       current key and the process advances to the next node.
-      para el siguiente nodo en el recorrido prefijo.
+      for the next node in the prefix path.
 
       @param[in] bits array where the tree code is stored
       @param[in] num_bits number of bits to be read
@@ -1328,7 +1328,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  bool check_bst(Node *p, const Compare& cmp = Compare())
+  bool check_bst(Node *p, const Compare & cmp = Compare())
   {
     if (p == Node::NullPtr)
       return true;
@@ -1392,7 +1392,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * searchInBinTree(Node *root, const typename Node::key_type & key,
-                         const Compare& cmp = Compare()) noexcept
+                         const Compare & cmp = Compare()) noexcept
   {
     while (root != Node::NullPtr)
       {
@@ -1513,7 +1513,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * search_parent(Node *root, const typename Node::key_type & key,
-                       Node *& parent, const Compare& cmp = Compare()) noexcept
+                       Node *& parent, const Compare & cmp = Compare()) noexcept
   {
     assert((LLINK(parent) == root) or (RLINK(parent) == root));
     assert(root != Node::NullPtr);
@@ -1564,30 +1564,27 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline Node *
   search_rank_parent(Node *root, const typename Node::key_type & key,
-                     const Compare& cmp = Compare()) noexcept
+                     const Compare & cmp = Compare()) noexcept
   {
     assert(root != Node::NullPtr);
 
     while (true)
-      {
-        const auto & root_key = KEY(root);
-        if (cmp(key, root_key))
-          {
-            if (LLINK(root) == Node::NullPtr)
-              return root;
+      if (const auto & root_key = KEY(root); cmp(key, root_key))
+        {
+          if (LLINK(root) == Node::NullPtr)
+            return root;
 
-            root = LLINK(root);
-          }
-        else if (cmp(root_key, key))
-          {
-            if (RLINK(root) == Node::NullPtr)
-              return root;
+          root = LLINK(root);
+        }
+      else if (cmp(root_key, key))
+        {
+          if (RLINK(root) == Node::NullPtr)
+            return root;
 
-            root = RLINK(root);
-          }
-        else
-          return root;
-      }
+          root = RLINK(root);
+        }
+      else
+        return root;
   }
 
   /** Insert a node `p` in a binary search tree
@@ -1605,10 +1602,10 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare()) noexcept
+  Node * insert_in_bst(Node *& r, Node *p, const Compare & cmp = Compare()) noexcept
   {
     if (r == Node::NullPtr) [[unlikely]]
-      return r = p;
+        return r = p;
 
     const auto & pk = KEY(p);
     const auto & rk = KEY(r);
@@ -1636,11 +1633,11 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_dup_in_bst(Node *& root, Node *p, const Compare& cmp = Compare())
+  Node * insert_dup_in_bst(Node *& root, Node *p, const Compare & cmp = Compare())
     noexcept
   {
     if (root == Node::NullPtr) [[unlikely]]
-      return root = p;
+        return root = p;
 
     const auto & pk = KEY(p);
     const auto & rk = KEY(root);
@@ -1655,7 +1652,7 @@ namespace Aleph
 
       `search_or_insert_in_bst(root, p, cmp)` searches in `root` a node
       containing `p->get_key()`. If found, then this node is
-      returned. Otherwise `p` is inserted and returned.
+      returned. Otherwise, `p` is inserted and returned.
 
       @param[in,out] r roor of tree
       @param[in] p node to search or insert
@@ -1668,11 +1665,11 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * search_or_insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare())
+  Node * search_or_insert_in_bst(Node *& r, Node *p, const Compare & cmp = Compare())
     noexcept
   {
     if (r == Node::NullPtr) [[unlikely]]
-      return r = p;
+        return r = p;
 
     const auto & pk = KEY(p);
     const auto & rk = KEY(r);
@@ -1741,7 +1738,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   bool split_key_rec(Node *& root, const typename Node::key_type & key,
-                     Node *& ts, Node *& tg, const Compare& cmp = Compare()) noexcept
+                     Node *& ts, Node *& tg, const Compare & cmp = Compare()) noexcept
   {
     const bool ret = __split_key_rec(root, key, ts, tg, cmp);
     if (ret)
@@ -1792,7 +1789,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
-                         Node *& ts, Node *& tg, const Compare& cmp = Compare()) noexcept
+                         Node *& ts, Node *& tg, const Compare & cmp = Compare()) noexcept
   {
     __split_key_dup_rec(root, key, ts, tg, cmp);
     root = Node::NullPtr;
@@ -1846,7 +1843,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * remove_from_bst(Node *& root, const typename Node::key_type & key,
-                         const Compare& cmp = Compare()) noexcept
+                         const Compare & cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return Node::NullPtr;
@@ -1881,7 +1878,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_root(Node *& root, Node *p, const Compare& cmp = Compare()) noexcept
+  Node * insert_root(Node *& root, Node *p, const Compare & cmp = Compare()) noexcept
   {
     Node *l = Node::NullPtr, *r = Node::NullPtr;
 
@@ -1908,7 +1905,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * insert_dup_root(Node *& root, Node *p, const Compare& cmp = Compare()) noexcept
+  Node * insert_dup_root(Node *& root, Node *p, const Compare & cmp = Compare()) noexcept
   {
     split_key_dup_rec(root, KEY(p), LLINK(p), RLINK(p), cmp);
     return root = p;
@@ -1932,7 +1929,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * join_preorder(Node *t1, Node *t2, Node *& dup,
-                       const Compare& cmp = Compare()) noexcept
+                       const Compare & cmp = Compare()) noexcept
   {
     if (t2 == Node::NullPtr)
       return t1;
@@ -1966,7 +1963,7 @@ namespace Aleph
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
-  Node * join(Node *t1, Node *t2, Node *& dup, const Compare& cmp = Compare())
+  Node * join(Node *t1, Node *t2, Node *& dup, const Compare & cmp = Compare())
     noexcept
   {
     if (t1 == Node::NullPtr)
@@ -2061,6 +2058,7 @@ namespace Aleph
   /** Rotate to the left the tree with root `p` and update its parent
 
       @param[in] p root to rotate
+      @param pp parent of `p`
       @ingroup Trees
   */
   template <class Node>
@@ -2087,7 +2085,7 @@ namespace Aleph
   /** Split a binary search tree according to a key.
 
       `split_key(root, key, l, r, cmp)` splits the tree `root`
-      according to `key`. At the end, `l` contains all the keays lesser
+      according to `key`. At the end, `l` contains all the keys lesser
       than `key` and `r ` all the keys greater or equal than `key`.
 
       @param[in,out] root of tree to split
@@ -2102,7 +2100,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   void split_key(Node *& root, const Key & key, Node *& l, Node *& r,
-                 const Compare& cmp = Compare()) noexcept
+                 const Compare & cmp = Compare()) noexcept
   {
     assert(l == Node::NullPtr and r == Node::NullPtr);
     if (root == Node::NullPtr)
@@ -2279,7 +2277,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * insert_root_rec(Node *root, Node *p,
-                         const Compare& cmp = Compare()) noexcept
+                         const Compare & cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return p; /* insertion in empty tree */
@@ -2320,7 +2318,7 @@ namespace Aleph
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * search_or_insert_root_rec(Node *root, Node *p,
-                                   const Compare& cmp = Compare()) noexcept
+                                   const Compare & cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
       return p; // insertion in empty tree

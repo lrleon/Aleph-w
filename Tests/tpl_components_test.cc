@@ -233,7 +233,7 @@ TEST_F(InconnectedComponentsTest, SingleComponent)
   g.insert_arc(n2, n3);
   
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 1);
@@ -253,7 +253,7 @@ TEST_F(InconnectedComponentsTest, TwoComponents)
   g.insert_arc(n3, n4);
   
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 2);
@@ -273,7 +273,7 @@ TEST_F(InconnectedComponentsTest, ThreeComponents)
   g.insert_node(3);
   
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 3);
@@ -282,7 +282,7 @@ TEST_F(InconnectedComponentsTest, ThreeComponents)
 TEST_F(InconnectedComponentsTest, EmptyGraph)
 {
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 0);
@@ -298,7 +298,7 @@ TEST_F(InconnectedComponentsTest, ComputeAsNodeLists)
   [[maybe_unused]] auto n3 = g.insert_node(3);
   
   DynList<DynList<Graph::Node*>> node_lists;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, node_lists);
   
   EXPECT_EQ(node_lists.size(), 2);
@@ -313,7 +313,7 @@ TEST_F(InconnectedComponentsTest, CountComponents)
   g.insert_node(3);  // Isolated
   g.insert_node(4);  // Isolated
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_EQ(cc.count_components(g), 3);
 }
@@ -326,7 +326,7 @@ TEST_F(InconnectedComponentsTest, IsConnected_True)
   g.insert_arc(n1, n2);
   g.insert_arc(n2, n3);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));
 }
@@ -339,14 +339,14 @@ TEST_F(InconnectedComponentsTest, IsConnected_False)
   
   g.insert_node(3);  // Isolated
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_FALSE(cc.is_connected(g));
 }
 
 TEST_F(InconnectedComponentsTest, IsConnected_EmptyGraph)
 {
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));  // Empty graph is considered connected
 }
@@ -355,7 +355,7 @@ TEST_F(InconnectedComponentsTest, IsConnected_SingleNode)
 {
   g.insert_node(1);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));
 }
@@ -370,7 +370,7 @@ TEST_F(InconnectedComponentsTest, ManyComponents)
   for (int i = 0; i < 50; ++i)
     g.insert_node(i);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_EQ(cc.count_components(g), 50);
 }
@@ -387,7 +387,7 @@ TEST_F(InconnectedComponentsTest, LargeConnectedGraph)
   for (int i = 0; i < N - 1; ++i)
     g.insert_arc(nodes(i), nodes(i + 1));
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));
   EXPECT_EQ(cc.count_components(g), 1);
@@ -496,7 +496,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, SingleComponent)
   g.insert_arc(n2, n3);
   
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 1);
@@ -516,7 +516,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, TwoComponents)
   g.insert_arc(n3, n4);
   
   DynList<Graph> components;
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   cc(g, components);
   
   EXPECT_EQ(components.size(), 2);
@@ -531,7 +531,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, CountComponents)
   g.insert_node(2);
   g.insert_node(3);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_EQ(cc.count_components(g), 3);
 }
@@ -545,7 +545,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedTrue)
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));
 }
@@ -561,7 +561,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, IsConnectedFalse)
   
   g.insert_node(3);
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_FALSE(cc.is_connected(g));
 }
@@ -571,7 +571,7 @@ TYPED_TEST(ComponentsUndirectedGraphs, EmptyGraphIsConnected)
   using Graph = TypeParam;
   Graph & g = this->g;
   
-  Inconnected_Components<Graph> cc;
+  Unconnected_Components<Graph> cc;
   
   EXPECT_TRUE(cc.is_connected(g));
 }

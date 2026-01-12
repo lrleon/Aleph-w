@@ -130,7 +130,7 @@ void demo_erdos_renyi()
   // Check connectivity
   print_subsection("Connectivity analysis");
   
-  Inconnected_Components<UGraph> components;
+  Unconnected_Components<UGraph> components;
   DynList<UGraph> subgraphs;
   components(g, subgraphs);
   
@@ -179,7 +179,7 @@ void demo_connected()
   print_graph_stats("Dense G", g);
   
   // Verify connectivity
-  Inconnected_Components<UGraph> components;
+  Unconnected_Components<UGraph> components;
   DynList<UGraph> subgraphs;
   components(g, subgraphs);
   
@@ -356,7 +356,7 @@ void demo_parameters()
     {
       UGraph g = gen(n, m);
       
-      Inconnected_Components<UGraph> ic;
+      Unconnected_Components<UGraph> ic;
       DynList<UGraph> comps;
       ic(g, comps);
       

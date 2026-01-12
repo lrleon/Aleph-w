@@ -99,6 +99,20 @@ public:
   
   virtual ~RandomNetworkGenerator() = default;
   
+  /// Reset the random number generator to the original seed.
+  /// Call this before generate() to get reproducible networks.
+  void reseed()
+  {
+    rng.seed(config.seed == 0 ? std::random_device()() : config.seed);
+  }
+  
+  /// Reset with a specific seed (also updates config.seed)
+  void reseed(unsigned new_seed)
+  {
+    config.seed = new_seed;
+    rng.seed(new_seed);
+  }
+  
   // Generate a network (fills the provided network reference to avoid copy issues)
   virtual void generate(Net& out) = 0;
   
