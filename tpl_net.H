@@ -702,9 +702,36 @@ namespace Aleph
                                                {
                                                  auto atgt = p.first;
                                                  auto asrc = p.second;
-                                                 atgt->cap = asrc->cap;
-                                                 atgt->flow = asrc->flow;
-                                               });
+                                                atgt->cap = asrc->cap;
+                                                atgt->flow = asrc->flow;
+                                              });
+    }
+
+    /// Swap contents with another network. O(1) operation.
+    void swap(Net_Graph & other) noexcept
+    {
+      Graph::get_node_dlink().swap(other.get_node_dlink());
+      Graph::get_arc_dlink().swap(other.get_arc_dlink());
+      src_nodes.swap(other.src_nodes);
+      sink_nodes.swap(other.sink_nodes);
+      std::swap(with_super_source, other.with_super_source);
+      std::swap(with_super_sink, other.with_super_sink);
+    }
+
+    /// Move-construct a network. O(1) operation.
+    Net_Graph(Net_Graph && other) noexcept
+      : Infinity(std::numeric_limits<typename Arc::Flow_Type>::max()),
+        with_super_source(false), with_super_sink(false)
+    {
+      swap(other);
+    }
+
+    /// Move-assign a network. O(1) operation.
+    Net_Graph & operator=(Net_Graph && other) noexcept
+    {
+      if (this != &other)
+        swap(other);
+      return *this;
     }
 
     /// Set the capacity of an arc.

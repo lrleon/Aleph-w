@@ -358,6 +358,281 @@ TEST(FlowStatisticsTest, AfterFlow)
 
 
 //==============================================================================
+// Min-Cut Validation Tests (Max-Flow Min-Cut Theorem)
+//==============================================================================
+
+// Helper function to compute min-cut capacity by BFS from source
+template <class Net>
+double compute_min_cut_capacity(Net& net)
+{
+  using Node = typename Net::Node;
+  using Arc = typename Net::Arc;
+  
+  auto source = net.get_source();
+  auto sink = net.get_sink();
+  
+  // Find reachable nodes from source via residual network
+  std::set<Node*> reachable;
+  std::queue<Node*> q;
+  
+  reachable.insert(source);
+  q.push(source);
+  
+  while (!q.empty())
+  {
+    Node* u = q.front();
+    q.pop();
+    
+    // Explore all adjacent arcs
+    for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      Node* v = net.get_connected_node(arc, u);
+      
+      if (reachable.count(v) > 0)
+        continue;  // Already visited
+      
+      // Check if there is residual capacity
+      bool forward = (net.get_src_node(arc) == u);
+      double residual = forward ? (arc->cap - arc->flow) : arc->flow;
+      
+      if (residual > 1e-9)  // Has residual capacity
+      {
+        reachable.insert(v);
+        q.push(v);
+      }
+    }
+  }
+  
+  // Compute cut capacity: sum of capacities of arcs from reachable to non-reachable
+  double cut_capacity = 0.0;
+  
+  for (auto u : reachable)
+  {
+    for (Out_Iterator<Net> it(u); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      Node* v = net.get_tgt_node(arc);
+      
+      if (reachable.count(v) == 0)  // Arc crosses the cut
+        cut_capacity += arc->cap;
+    }
+  }
+  
+  return cut_capacity;
+}
+
+// Helper to verify max-flow = min-cut
+template <class Net>
+bool verify_max_flow_min_cut(Net& net, double max_flow)
+{
+  double min_cut = compute_min_cut_capacity(net);
+  return std::abs(max_flow - min_cut) < 1e-6;
+}
+
+TEST(MinCutTest, LinearNetwork)
+{
+  TestNet net;
+  build_linear_network(net);
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  // Verify max-flow = min-cut theorem
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+  
+  // The min-cut should be at the bottleneck (middle arc with cap=5)
+  double min_cut = compute_min_cut_capacity(net);
+  EXPECT_DOUBLE_EQ(min_cut, 5.0);
+}
+
+TEST(MinCutTest, DiamondNetwork)
+{
+  TestNet net;
+  build_diamond_network(net);
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+  
+  double min_cut = compute_min_cut_capacity(net);
+  EXPECT_DOUBLE_EQ(min_cut, 20.0);
+}
+
+TEST(MinCutTest, ComplexNetwork)
+{
+  TestNet net;
+  build_complex_network(net);
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+  
+  double min_cut = compute_min_cut_capacity(net);
+  EXPECT_DOUBLE_EQ(min_cut, 23.0);
+}
+
+TEST(MinCutTest, GridNetwork)
+{
+  TestNet net;
+  build_grid_network(net, 5, 5, 10);
+  
+  auto flow = edmonds_karp_maximum_flow(net);
+  
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+}
+
+TEST(MinCutTest, SingleBottleneck)
+{
+  // Build network where min-cut is obvious
+  TestNet net;
+  auto s = net.insert_node(0);
+  auto a = net.insert_node(1);
+  auto b = net.insert_node(2);
+  auto t = net.insert_node(3);
+  
+  // Wide source side, narrow bottleneck, wide sink side
+  net.insert_arc(s, a, 100);
+  net.insert_arc(s, b, 100);
+  net.insert_arc(a, t, 5);   // Bottleneck
+  net.insert_arc(b, t, 5);   // Bottleneck
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  EXPECT_DOUBLE_EQ(flow, 10.0);
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+  
+  double min_cut = compute_min_cut_capacity(net);
+  EXPECT_DOUBLE_EQ(min_cut, 10.0);
+}
+
+TEST(MinCutTest, ParallelArcs)
+{
+  TestNet net;
+  auto s = net.insert_node(0);
+  auto t = net.insert_node(1);
+  
+  // Three parallel arcs
+  net.insert_arc(s, t, 10);
+  net.insert_arc(s, t, 20);
+  net.insert_arc(s, t, 30);
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  EXPECT_DOUBLE_EQ(flow, 60.0);
+  EXPECT_TRUE(verify_max_flow_min_cut(net, flow));
+  
+  double min_cut = compute_min_cut_capacity(net);
+  EXPECT_DOUBLE_EQ(min_cut, 60.0);
+}
+
+TEST(MinCutTest, AllAlgorithmsGiveSameMinCut)
+{
+  // Build 4 identical networks
+  TestNet net1, net2, net3, net4;
+  build_complex_network(net1);
+  build_complex_network(net2);
+  build_complex_network(net3);
+  build_complex_network(net4);
+  
+  auto flow_ff = ford_fulkerson_maximum_flow(net1);
+  auto flow_ek = edmonds_karp_maximum_flow(net2);
+  auto flow_dinic = dinic_maximum_flow(net3);
+  auto flow_cs = capacity_scaling_maximum_flow(net4);
+  
+  // All should satisfy max-flow = min-cut
+  EXPECT_TRUE(verify_max_flow_min_cut(net1, flow_ff));
+  EXPECT_TRUE(verify_max_flow_min_cut(net2, flow_ek));
+  EXPECT_TRUE(verify_max_flow_min_cut(net3, flow_dinic));
+  EXPECT_TRUE(verify_max_flow_min_cut(net4, flow_cs));
+  
+  // All min-cuts should be equal
+  double cut1 = compute_min_cut_capacity(net1);
+  double cut2 = compute_min_cut_capacity(net2);
+  double cut3 = compute_min_cut_capacity(net3);
+  double cut4 = compute_min_cut_capacity(net4);
+  
+  EXPECT_DOUBLE_EQ(cut1, cut2);
+  EXPECT_DOUBLE_EQ(cut2, cut3);
+  EXPECT_DOUBLE_EQ(cut3, cut4);
+}
+
+TEST(MinCutTest, VerifyCutPartition)
+{
+  // Verify that the cut actually partitions the graph correctly
+  TestNet net;
+  build_diamond_network(net);
+  
+  auto flow = dinic_maximum_flow(net);
+  
+  auto source = net.get_source();
+  auto sink = net.get_sink();
+  
+  // Find reachable set from source
+  std::set<Node*> S_side;  // Source side of cut
+  std::queue<Node*> q;
+  
+  S_side.insert(source);
+  q.push(source);
+  
+  while (!q.empty())
+  {
+    Node* u = q.front();
+    q.pop();
+    
+    for (typename TestNet::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      Node* v = net.get_connected_node(arc, u);
+      
+      if (S_side.count(v) > 0)
+        continue;
+      
+      bool forward = (net.get_src_node(arc) == u);
+      double residual = forward ? (arc->cap - arc->flow) : arc->flow;
+      
+      if (residual > 1e-9)
+      {
+        S_side.insert(v);
+        q.push(v);
+      }
+    }
+  }
+  
+  // Source should be in S, sink should not be in S
+  EXPECT_TRUE(S_side.count(source) > 0);
+  EXPECT_FALSE(S_side.count(sink) > 0);
+  
+  // Verify all arcs crossing the cut are saturated (forward) or empty (backward)
+  for (auto u : S_side)
+  {
+    for (Out_Iterator<TestNet> it(u); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      Node* v = net.get_tgt_node(arc);
+      
+      if (S_side.count(v) == 0)  // Arc crosses the cut
+      {
+        // Forward arc crossing cut should be saturated
+        EXPECT_NEAR(arc->flow, arc->cap, 1e-6);
+      }
+    }
+    
+    for (In_Iterator<TestNet> it(u); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      Node* v = net.get_src_node(arc);
+      
+      if (S_side.count(v) == 0)  // Arc crosses the cut (backward)
+      {
+        // Backward arc crossing cut should have zero flow
+        EXPECT_NEAR(arc->flow, 0.0, 1e-6);
+      }
+    }
+  }
+}
+
+
+//==============================================================================
 // Algorithm Comparison Tests
 //==============================================================================
 

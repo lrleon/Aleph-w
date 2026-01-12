@@ -201,6 +201,8 @@ namespace Aleph
       assert(COLOR(q) == RED);
       assert(LLINK(q) == Node::NullPtr && RLINK(q) == Node::NullPtr);
 
+      const Key & qk = KEY(q);
+
       Node *p = root; // Current node
       Node *fp = head; // p's parent
       Node *ffp = fHead; // p's grand parent
@@ -209,7 +211,9 @@ namespace Aleph
 
       while (true)
         {
-          if (are_equals<Key, Compare>(KEY(q), KEY(p), cmp))
+          const Key & pk = KEY(p);
+
+          if (are_equals<Key, Compare>(qk, pk, cmp)) [[unlikely]]
             return nullptr; /* Duplicated key, insertion is not possible */
 
           if (COLOR(p) == BLACK && COLOR(LLINK(p)) == RED
@@ -223,7 +227,7 @@ namespace Aleph
                 }
             }
 
-          if (cmp(KEY(q), KEY(p)))
+          if (cmp(qk, pk))
             {
               if (LLINK(p) == Node::NullPtr)
                 break;
@@ -245,7 +249,8 @@ namespace Aleph
       ++node_count;
 
       /* Insertion act */
-      if (cmp(KEY(q), KEY(p)))
+      const Key & pk = KEY(p);
+      if (cmp(qk, pk))
         LLINK(p) = q;
 
       else
@@ -265,6 +270,8 @@ namespace Aleph
       assert(COLOR(q) == RED);
       assert(LLINK(q) == Node::NullPtr && RLINK(q) == Node::NullPtr);
 
+      const Key & qk = KEY(q);
+
       Node *p = root; // Current node
       Node *fp = head; // p's parent
       Node *ffp = fHead; // p's grand parent
@@ -273,6 +280,8 @@ namespace Aleph
 
       while (true)
         {
+          const Key & pk = KEY(p);
+
           if (COLOR(p) == BLACK && COLOR(LLINK(p)) == RED
               && COLOR(RLINK(p)) == RED)
             {
@@ -284,7 +293,7 @@ namespace Aleph
                 }
             }
 
-          if (cmp(KEY(q), KEY(p)))
+          if (cmp(qk, pk))
             {
               if (LLINK(p) == Node::NullPtr)
                 break;
@@ -305,7 +314,8 @@ namespace Aleph
 
       ++node_count;
 
-      if (cmp(KEY(q), KEY(p)))
+      const Key & pk = KEY(p);
+      if (cmp(qk, pk))
         LLINK(p) = q;
       else
         RLINK(p) = q;
@@ -337,7 +347,9 @@ namespace Aleph
         {
           path.push(p);
 
-          if (are_equals<Key, Compare>(key, KEY(p), cmp))
+          const Key & pk = KEY(p);
+
+          if (are_equals<Key, Compare>(key, pk, cmp))
             {
 #           ifdef DEBUG
               assert(path.size() - 1.0 <= 2*log(node_count + 1)/log(2));
@@ -345,7 +357,7 @@ namespace Aleph
               return p;
             }
 
-          if (cmp(key, KEY(p)))
+          if (cmp(key, pk))
             {
               if (LLINK(p) == Node::NullPtr)
                 {
@@ -825,7 +837,7 @@ namespace Aleph
       assert(COLOR(p) == RED);
       assert(LLINK(p) == Node::NullPtr && RLINK(p) == Node::NullPtr);
 
-      if (root == Node::NullPtr)
+      if (root == Node::NullPtr) [[unlikely]]
         {
           root = p;
           ++node_count;
@@ -846,15 +858,16 @@ namespace Aleph
       assert(COLOR(p) == RED);
       assert(LLINK(p) == Node::NullPtr && RLINK(p) == Node::NullPtr);
 
-      if (root == Node::NullPtr)
+      if (root == Node::NullPtr) [[unlikely]]
         {
           root = p;
           ++node_count;
           return p;
         }
 
-      Node *found = search(KEY(p));
-      if (found != nullptr)
+      const Key & pk = KEY(p);
+      Node *found = search(pk);
+      if (found != nullptr) [[unlikely]]
         return found;
 
       return insert(p);
@@ -871,7 +884,7 @@ namespace Aleph
       assert(COLOR(p) == RED);
       assert(LLINK(p) == Node::NullPtr && RLINK(p) == Node::NullPtr);
 
-      if (root == Node::NullPtr)
+      if (root == Node::NullPtr) [[unlikely]]
         {
           root = p;
           ++node_count;
@@ -899,7 +912,7 @@ namespace Aleph
     */
     Node * remove(const Key & key) noexcept
     {
-      if (root == Node::NullPtr)
+      if (root == Node::NullPtr) [[unlikely]]
         return nullptr;
 
       Node *p = searchAndBuildPath(key);

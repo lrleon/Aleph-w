@@ -240,6 +240,8 @@ private:
     assert(COLOR(q) == RED);
     assert(COUNT(q) == 1);
 
+    const Key & qk = KEY(q);
+
     // Track path for count updates
     Node* insertPath[128];
     size_t insertPathLen = 0;
@@ -254,7 +256,9 @@ private:
 
     while (true)
       {
-        if (equals(KEY(q), KEY(p)))
+        const Key & pk = KEY(p);
+
+        if (equals(qk, pk)) [[unlikely]]
           return nullptr;  // Duplicate key
 
         if (COLOR(p) == BLACK && COLOR(LLINK(p)) == RED
@@ -268,7 +272,7 @@ private:
               }
           }
 
-        if (less(KEY(q), KEY(p)))
+        if (less(qk, pk))
           {
             if (LLINK(p) == Node::NullPtr)
               break;
@@ -289,7 +293,8 @@ private:
       }
 
     // Perform insertion
-    if (less(KEY(q), KEY(p)))
+    const Key & pk = KEY(p);
+    if (less(qk, pk))
       LLINK(p) = q;
     else
       RLINK(p) = q;
@@ -314,6 +319,8 @@ private:
     assert(COLOR(q) == RED);
     assert(COUNT(q) == 1);
 
+    const Key & qk = KEY(q);
+
     Node* insertPath[128];
     size_t insertPathLen = 0;
 
@@ -327,6 +334,8 @@ private:
 
     while (true)
       {
+        const Key & pk = KEY(p);
+
         if (COLOR(p) == BLACK && COLOR(LLINK(p)) == RED
             && COLOR(RLINK(p)) == RED)
           {
@@ -338,7 +347,7 @@ private:
               }
           }
 
-        if (less(KEY(q), KEY(p)))
+        if (less(qk, pk))
           {
             if (LLINK(p) == Node::NullPtr)
               break;
@@ -358,7 +367,8 @@ private:
         insertPath[insertPathLen++] = p;
       }
 
-    if (less(KEY(q), KEY(p)))
+    const Key & pk = KEY(p);
+    if (less(qk, pk))
       LLINK(p) = q;
     else
       RLINK(p) = q;
@@ -389,10 +399,12 @@ private:
       {
         path.push(p);
 
-        if (equals(key, KEY(p)))
+        const Key & pk = KEY(p);
+
+        if (equals(key, pk))
           return p;
 
-        if (less(key, KEY(p)))
+        if (less(key, pk))
           {
             if (LLINK(p) == Node::NullPtr)
               return p;
@@ -752,7 +764,7 @@ public:
     assert(COLOR(p) == RED);
     COUNT(p) = 1;
 
-    if (root == Node::NullPtr)
+    if (root == Node::NullPtr) [[unlikely]]
       {
         root = p;
         return p;
@@ -767,14 +779,15 @@ public:
     assert(COLOR(p) == RED);
     COUNT(p) = 1;
 
-    if (root == Node::NullPtr)
+    if (root == Node::NullPtr) [[unlikely]]
       {
         root = p;
         return p;
       }
 
-    Node *found = search(KEY(p));
-    if (found != nullptr)
+    const Key & pk = KEY(p);
+    Node *found = search(pk);
+    if (found != nullptr) [[unlikely]]
       return found;
 
     return insert(p);
@@ -786,7 +799,7 @@ public:
     assert(COLOR(p) == RED);
     COUNT(p) = 1;
 
-    if (root == Node::NullPtr)
+    if (root == Node::NullPtr) [[unlikely]]
       {
         root = p;
         return p;
@@ -800,16 +813,17 @@ public:
     Node *p = root;
     while (p != Node::NullPtr)
       {
-        if (equals(key, KEY(p)))
+        const Key & pk = KEY(p);
+        if (equals(key, pk))
           return p;
-        p = less(key, KEY(p)) ? LLINK(p) : RLINK(p);
+        p = less(key, pk) ? LLINK(p) : RLINK(p);
       }
     return nullptr;
   }
 
   Node * remove(const Key & key) noexcept
   {
-    if (root == Node::NullPtr)
+    if (root == Node::NullPtr) [[unlikely]]
       return nullptr;
 
     Node *p = searchAndBuildPath(key);

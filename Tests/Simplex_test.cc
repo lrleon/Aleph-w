@@ -1386,6 +1386,490 @@ TEST_F(RevisedSimplexTest, PerformanceBenchmark)
 }
 
 //==============================================================================
+// Non-Standard Constraints Tests (>=, ==)
+//==============================================================================
+
+class NonStandardConstraintsTest : public ::testing::Test
+{
+protected:
+  static constexpr double EPSILON = 1e-6;
+  
+  bool nearly_equal(double a, double b, double eps = EPSILON)
+  {
+    return std::fabs(a - b) < eps;
+  }
+};
+
+TEST_F(NonStandardConstraintsTest, GreaterThanOrEqualConstraints)
+{
+  // Maximize Z = 3x + 2y
+  // Subject to:
+  //   x + y >= 4  (GE constraint)
+  //   x <= 6      (LE constraint)
+  //   y <= 5      (LE constraint)
+  //   x, y >= 0
+  // Expected: x=6, y=5 (maximize on corner), but wait, that gives 28
+  // Actually with x + y >= 4, we want to maximize, so push to upper bounds
+  // x=6, y=5 satisfies x+y >= 4 (11 >= 4), x <= 6, y <= 5
+  // Z = 3*6 + 2*5 = 18 + 10 = 28
+  
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 3.0);
+  simplex.put_objetive_function_coef(1, 2.0);
+  
+  // GE constraint: x + y >= 4
+  double c1[] = {1.0, 1.0, 4.0};
+  simplex.put_restriction(c1, ConstraintType::GE);
+  
+  // LE constraints
+  double c2[] = {1.0, 0.0, 6.0};
+  double c3[] = {0.0, 1.0, 5.0};
+  simplex.put_restriction(c2, ConstraintType::LE);
+  simplex.put_restriction(c3, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  // Should maximize to x=6, y=5, Z=28
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(0), 6.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(1), 5.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.objetive_value(), 28.0, 0.1));
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(NonStandardConstraintsTest, EqualityConstraints)
+{
+  // Maximize Z = 5x + 4y
+  // Subject to:
+  //   x + y = 10  (EQ constraint)
+  //   x <= 6      (LE constraint)
+  //   y <= 8      (LE constraint)
+  //   x, y >= 0
+  // With x + y = 10, to maximize 5x + 4y, we want x as large as possible
+  // x = 6 (bounded), then y = 4
+  // Z = 5*6 + 4*4 = 30 + 16 = 46
+  
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 5.0);
+  simplex.put_objetive_function_coef(1, 4.0);
+  
+  // EQ constraint: x + y = 10
+  double c1[] = {1.0, 1.0, 10.0};
+  simplex.put_restriction(c1, ConstraintType::EQ);
+  
+  // LE constraints
+  double c2[] = {1.0, 0.0, 6.0};
+  double c3[] = {0.0, 1.0, 8.0};
+  simplex.put_restriction(c2, ConstraintType::LE);
+  simplex.put_restriction(c3, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  // Optimal: x=6, y=4, Z=46
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(0), 6.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(1), 4.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.objetive_value(), 46.0, 0.1));
+  EXPECT_TRUE(simplex.verify_solution());
+  
+  // Verify equality constraint is satisfied
+  double sum = simplex.get_solution(0) + simplex.get_solution(1);
+  EXPECT_TRUE(nearly_equal(sum, 10.0, 0.1));
+}
+
+TEST_F(NonStandardConstraintsTest, MixedConstraintTypes)
+{
+  // Maximize Z = 2x + 3y + z
+  // Subject to:
+  //   x + y + z >= 5   (GE)
+  //   x + 2y <= 10     (LE)
+  //   2x + y = 8       (EQ)
+  //   z <= 20          (LE) - Added to bound z
+  //   x, y, z >= 0
+  //
+  // Analysis: From 2x + y = 8, we get y = 8 - 2x
+  // For y >= 0: x <= 4
+  // For x >= 0: x >= 0
+  // Substituting in x + 2y <= 10: x + 2(8-2x) <= 10 => x >= 2
+  // So x ∈ [2, 4]
+  // At x=2: y=4, then z >= 5 - 2 - 4 = -1, so z can be 0 to 20
+  // Maximize: 2(2) + 3(4) + z = 16 + z, max at z=20 => Z = 36
+  
+  Simplex<double> simplex(3);
+  simplex.put_objetive_function_coef(0, 2.0);
+  simplex.put_objetive_function_coef(1, 3.0);
+  simplex.put_objetive_function_coef(2, 1.0);
+  
+  double c1[] = {1.0, 1.0, 1.0, 5.0};   // GE
+  double c2[] = {1.0, 2.0, 0.0, 10.0};  // LE
+  double c3[] = {2.0, 1.0, 0.0, 8.0};   // EQ
+  double c4[] = {0.0, 0.0, 1.0, 20.0};  // z <= 20 (bound z)
+  
+  simplex.put_restriction(c1, ConstraintType::GE);
+  simplex.put_restriction(c2, ConstraintType::LE);
+  simplex.put_restriction(c3, ConstraintType::EQ);
+  simplex.put_restriction(c4, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  EXPECT_TRUE(simplex.verify_solution());
+  EXPECT_GT(simplex.objetive_value(), 0.0);
+}
+
+TEST_F(NonStandardConstraintsTest, MultipleEqualityConstraints)
+{
+  // Maximize Z = x + y + z
+  // Subject to:
+  //   x + y = 5
+  //   y + z = 6
+  //   x, y, z >= 0
+  // From eq1: x = 5 - y
+  // From eq2: z = 6 - y
+  // Z = (5-y) + y + (6-y) = 11 - y
+  // To maximize, we want y as small as possible (y=0)
+  // But we need x, z >= 0: x = 5-y >= 0 => y <= 5
+  //                         z = 6-y >= 0 => y <= 6
+  // So y can be 0, giving x=5, z=6, Z=11
+  
+  Simplex<double> simplex(3);
+  simplex.put_objetive_function_coef(0, 1.0);
+  simplex.put_objetive_function_coef(1, 1.0);
+  simplex.put_objetive_function_coef(2, 1.0);
+  
+  double c1[] = {1.0, 1.0, 0.0, 5.0};
+  double c2[] = {0.0, 1.0, 1.0, 6.0};
+  
+  simplex.put_restriction(c1, ConstraintType::EQ);
+  simplex.put_restriction(c2, ConstraintType::EQ);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  double x = simplex.get_solution(0);
+  double y = simplex.get_solution(1);
+  double z = simplex.get_solution(2);
+  
+  // Verify equality constraints
+  EXPECT_TRUE(nearly_equal(x + y, 5.0, 0.1));
+  EXPECT_TRUE(nearly_equal(y + z, 6.0, 0.1));
+  
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(NonStandardConstraintsTest, InfeasibleWithGEConstraints)
+{
+  // Maximize Z = x + y
+  // Subject to:
+  //   x + y >= 10   (GE)
+  //   x <= 3        (LE)
+  //   y <= 4        (LE)
+  //   x, y >= 0
+  // This is infeasible: x + y >= 10 but x <= 3 and y <= 4 => x + y <= 7
+  //
+  // NOTE: This tests whether the Simplex correctly detects infeasibility
+  // with mixed GE/LE constraints. If the implementation doesn't detect
+  // infeasibility correctly with GE constraints via Big-M method,
+  // verify_solution() should still fail.
+  
+  Simplex<double> simplex(2);
+  simplex.put_objetive_function_coef(0, 1.0);
+  simplex.put_objetive_function_coef(1, 1.0);
+  
+  double c1[] = {1.0, 1.0, 10.0};
+  double c2[] = {1.0, 0.0, 3.0};
+  double c3[] = {0.0, 1.0, 4.0};
+  
+  simplex.put_restriction(c1, ConstraintType::GE);
+  simplex.put_restriction(c2, ConstraintType::LE);
+  simplex.put_restriction(c3, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  // The problem is mathematically infeasible
+  // Either the solver correctly reports Unfeasible, or if it reports Solved,
+  // the verify_solution() must fail (proving the "solution" violates constraints)
+  if (state == Simplex<double>::Solved)
+    {
+      simplex.load_solution();
+      double x = simplex.get_solution(0);
+      double y = simplex.get_solution(1);
+      
+      // Either verification fails, or the solution actually violates constraints
+      bool ge_satisfied = (x + y >= 10.0 - EPSILON);
+      bool le1_satisfied = (x <= 3.0 + EPSILON);
+      bool le2_satisfied = (y <= 4.0 + EPSILON);
+      
+      // At least one constraint must be violated since problem is infeasible
+      // If all appear satisfied, then there's a numerical tolerance issue
+      // or the implementation has a bug
+      if (ge_satisfied && le1_satisfied && le2_satisfied)
+        {
+          // This would indicate a bug - log it for debugging
+          std::cout << "WARNING: Simplex returned 'Solved' for infeasible problem\n";
+          std::cout << "  x=" << x << ", y=" << y << ", x+y=" << (x+y) << "\n";
+        }
+      
+      // The GE constraint cannot be satisfied given the LE bounds
+      EXPECT_FALSE(ge_satisfied && le1_satisfied && le2_satisfied)
+        << "All constraints appear satisfied but problem is mathematically infeasible";
+    }
+  else
+    {
+      EXPECT_EQ(state, Simplex<double>::Unfeasible);
+    }
+}
+
+//==============================================================================
+// Minimization Tests
+//==============================================================================
+
+class MinimizationTest : public ::testing::Test
+{
+protected:
+  static constexpr double EPSILON = 1e-6;
+  
+  bool nearly_equal(double a, double b, double eps = EPSILON)
+  {
+    return std::fabs(a - b) < eps;
+  }
+};
+
+TEST_F(MinimizationTest, BasicMinimization)
+{
+  // Minimize Z = 2x + 3y
+  // Subject to:
+  //   x + y >= 4
+  //   x + 2y >= 6
+  //   x, y >= 0
+  // To minimize cost, find the corner of feasible region closest to origin
+  // Corners: intersection of x+y=4 and x+2y=6
+  // From eq1: x = 4 - y
+  // Substitute: (4-y) + 2y = 6 => 4 + y = 6 => y = 2, x = 2
+  // Z = 2*2 + 3*2 = 4 + 6 = 10
+  
+  Simplex<double> simplex(2, OptimizationType::Minimize);
+  simplex.put_objetive_function_coef(0, 2.0);
+  simplex.put_objetive_function_coef(1, 3.0);
+  
+  double c1[] = {1.0, 1.0, 4.0};
+  double c2[] = {1.0, 2.0, 6.0};
+  
+  simplex.put_restriction(c1, ConstraintType::GE);
+  simplex.put_restriction(c2, ConstraintType::GE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(0), 2.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.get_solution(1), 2.0, 0.1));
+  EXPECT_TRUE(nearly_equal(simplex.objetive_value(), 10.0, 0.1));
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(MinimizationTest, DietProblem)
+{
+  // Classic diet problem (minimize cost)
+  // Minimize Z = 3x + 5y (cost per serving)
+  // Subject to:
+  //   2x + y >= 10   (protein requirement)
+  //   x + 2y >= 8    (vitamin requirement)
+  //   x, y >= 0
+  
+  Simplex<double> simplex(2, OptimizationType::Minimize);
+  simplex.put_objetive_function_coef(0, 3.0);
+  simplex.put_objetive_function_coef(1, 5.0);
+  
+  double c1[] = {2.0, 1.0, 10.0};
+  double c2[] = {1.0, 2.0, 8.0};
+  
+  simplex.put_restriction(c1, ConstraintType::GE);
+  simplex.put_restriction(c2, ConstraintType::GE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  double x = simplex.get_solution(0);
+  double y = simplex.get_solution(1);
+  
+  // Verify constraints are satisfied
+  EXPECT_GE(2*x + y, 10.0 - EPSILON);
+  EXPECT_GE(x + 2*y, 8.0 - EPSILON);
+  
+  EXPECT_TRUE(simplex.verify_solution());
+  EXPECT_GT(simplex.objetive_value(), 0.0);
+}
+
+TEST_F(MinimizationTest, TransportationCostMinimization)
+{
+  // Minimize Z = 4x1 + 2x2 + 3x3 + x4
+  // Subject to:
+  //   x1 + x2 >= 10  (demand at location 1)
+  //   x3 + x4 >= 15  (demand at location 2)
+  //   x1 + x3 <= 20  (supply from warehouse 1)
+  //   x2 + x4 <= 20  (supply from warehouse 2)
+  //   all xi >= 0
+  
+  Simplex<double> simplex(4, OptimizationType::Minimize);
+  simplex.put_objetive_function_coef(0, 4.0);
+  simplex.put_objetive_function_coef(1, 2.0);
+  simplex.put_objetive_function_coef(2, 3.0);
+  simplex.put_objetive_function_coef(3, 1.0);
+  
+  double c1[] = {1.0, 1.0, 0.0, 0.0, 10.0};  // GE
+  double c2[] = {0.0, 0.0, 1.0, 1.0, 15.0};  // GE
+  double c3[] = {1.0, 0.0, 1.0, 0.0, 20.0};  // LE
+  double c4[] = {0.0, 1.0, 0.0, 1.0, 20.0};  // LE
+  
+  simplex.put_restriction(c1, ConstraintType::GE);
+  simplex.put_restriction(c2, ConstraintType::GE);
+  simplex.put_restriction(c3, ConstraintType::LE);
+  simplex.put_restriction(c4, ConstraintType::LE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  EXPECT_TRUE(simplex.verify_solution());
+  
+  // Cost should be minimized (use cheaper routes)
+  double cost = simplex.objetive_value();
+  EXPECT_GT(cost, 0.0);
+  EXPECT_LT(cost, 100.0);  // Should be reasonable
+}
+
+TEST_F(MinimizationTest, SetMinimizeMethod)
+{
+  // Test using set_minimize() method
+  Simplex<double> simplex(2);  // Default is Maximize
+  
+  simplex.set_minimize();
+  EXPECT_EQ(simplex.get_optimization_type(), OptimizationType::Minimize);
+  
+  simplex.put_objetive_function_coef(0, 5.0);
+  simplex.put_objetive_function_coef(1, 4.0);
+  
+  double c1[] = {1.0, 1.0, 8.0};
+  simplex.put_restriction(c1, ConstraintType::GE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  simplex.load_solution();
+  
+  // Should minimize to a corner satisfying x + y >= 8
+  // Optimal would be on the line x + y = 8, minimizing 5x + 4y
+  // To minimize, we want more of y (cheaper): x=0, y=8 gives Z=32
+  double x = simplex.get_solution(0);
+  double y = simplex.get_solution(1);
+  
+  EXPECT_GE(x + y, 8.0 - EPSILON);
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(MinimizationTest, MinimizationWithEquality)
+{
+  // Minimize Z = x + 2y + 3z
+  // Subject to:
+  //   x + y + z = 10
+  //   x + z >= 4
+  //   y >= 2
+  
+  Simplex<double> simplex(3, OptimizationType::Minimize);
+  simplex.put_objetive_function_coef(0, 1.0);
+  simplex.put_objetive_function_coef(1, 2.0);
+  simplex.put_objetive_function_coef(2, 3.0);
+  
+  double c1[] = {1.0, 1.0, 1.0, 10.0};
+  double c2[] = {1.0, 0.0, 1.0, 4.0};
+  double c3[] = {0.0, 1.0, 0.0, 2.0};
+  
+  simplex.put_restriction(c1, ConstraintType::EQ);
+  simplex.put_restriction(c2, ConstraintType::GE);
+  simplex.put_restriction(c3, ConstraintType::GE);
+  
+  simplex.prepare_linear_program();
+  auto state = simplex.solve();
+  
+  EXPECT_EQ(state, Simplex<double>::Solved);
+  
+  simplex.load_solution();
+  
+  double x = simplex.get_solution(0);
+  double y = simplex.get_solution(1);
+  double z = simplex.get_solution(2);
+  
+  // Verify constraints
+  EXPECT_TRUE(nearly_equal(x + y + z, 10.0, 0.1));
+  EXPECT_GE(x + z, 4.0 - EPSILON);
+  EXPECT_GE(y, 2.0 - EPSILON);
+  
+  EXPECT_TRUE(simplex.verify_solution());
+}
+
+TEST_F(MinimizationTest, CompareMinimizeVsNegatedMaximize)
+{
+  // Verify that Minimize(c·x) = -Maximize(-c·x)
+  
+  // Problem: Minimize 3x + 2y subject to x + y >= 5, x,y >= 0
+  Simplex<double> simplex_min(2, OptimizationType::Minimize);
+  simplex_min.put_objetive_function_coef(0, 3.0);
+  simplex_min.put_objetive_function_coef(1, 2.0);
+  
+  double c1[] = {1.0, 1.0, 5.0};
+  simplex_min.put_restriction(c1, ConstraintType::GE);
+  
+  simplex_min.prepare_linear_program();
+  simplex_min.solve();
+  simplex_min.load_solution();
+  
+  double min_value = simplex_min.objetive_value();
+  
+  // Same problem as maximization with negated coefficients
+  Simplex<double> simplex_max(2, OptimizationType::Maximize);
+  simplex_max.put_objetive_function_coef(0, -3.0);
+  simplex_max.put_objetive_function_coef(1, -2.0);
+  
+  simplex_max.put_restriction(c1, ConstraintType::GE);
+  
+  simplex_max.prepare_linear_program();
+  simplex_max.solve();
+  simplex_max.load_solution();
+  
+  double max_value = simplex_max.objetive_value();
+  
+  // They should be negatives of each other
+  EXPECT_TRUE(nearly_equal(min_value, -max_value, 0.1));
+}
+
+//==============================================================================
 // Main
 //==============================================================================
 

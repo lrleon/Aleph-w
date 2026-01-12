@@ -389,13 +389,12 @@ Net generate_layered_network(const std::vector<size_t>& layer_sizes,
         {
           bool connected = false;
           for (size_t j = 0; j < layers[l+1].size(); ++j)
-            {
               if (prob_dist(gen) < edge_prob)
                 {
                   net.insert_arc(layers[l][i], layers[l+1][j], capacity);
                   connected = true;
                 }
-            }
+            
           // Ensure at least one connection
           if (not connected and not layers[l+1].empty())
             {

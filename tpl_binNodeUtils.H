@@ -1395,12 +1395,15 @@ namespace Aleph
                          const Compare& cmp = Compare()) noexcept
   {
     while (root != Node::NullPtr)
-      if (cmp(key, KEY(root)))
-        root = LLINK(root);
-      else if (cmp(KEY(root), key))
-        root = RLINK(root);
-      else
-        break;
+      {
+        const auto & root_key = KEY(root);
+        if (cmp(key, root_key))
+          root = LLINK(root);
+        else if (cmp(root_key, key))
+          root = RLINK(root);
+        else
+          break;
+      }
 
     return root;
   }
@@ -1516,24 +1519,27 @@ namespace Aleph
     assert(root != Node::NullPtr);
 
     while (true)
-      if (cmp(key, KEY(root)))
-        {
-          if (LLINK(root) == Node::NullPtr)
-            return root;
+      {
+        const auto & root_key = KEY(root);
+        if (cmp(key, root_key))
+          {
+            if (LLINK(root) == Node::NullPtr)
+              return root;
 
-          parent = root;
-          root = LLINK(root);
-        }
-      else if (cmp(KEY(root), key))
-        {
-          if (RLINK(root) == Node::NullPtr)
-            return root;
+            parent = root;
+            root = LLINK(root);
+          }
+        else if (cmp(root_key, key))
+          {
+            if (RLINK(root) == Node::NullPtr)
+              return root;
 
-          parent = root;
-          root = RLINK(root);
-        }
-      else
-        return root;
+            parent = root;
+            root = RLINK(root);
+          }
+        else
+          return root;
+      }
   }
 
   /** Rank search of a key in a binary search tree.
@@ -1563,22 +1569,25 @@ namespace Aleph
     assert(root != Node::NullPtr);
 
     while (true)
-      if (cmp(key, KEY(root)))
-        {
-          if (LLINK(root) == Node::NullPtr)
-            return root;
+      {
+        const auto & root_key = KEY(root);
+        if (cmp(key, root_key))
+          {
+            if (LLINK(root) == Node::NullPtr)
+              return root;
 
-          root = LLINK(root);
-        }
-      else if (cmp(KEY(root), key))
-        {
-          if (RLINK(root) == Node::NullPtr)
-            return root;
+            root = LLINK(root);
+          }
+        else if (cmp(root_key, key))
+          {
+            if (RLINK(root) == Node::NullPtr)
+              return root;
 
-          root = RLINK(root);
-        }
-      else
-        return root;
+            root = RLINK(root);
+          }
+        else
+          return root;
+      }
   }
 
   /** Insert a node `p` in a binary search tree
@@ -1598,15 +1607,18 @@ namespace Aleph
   inline
   Node * insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare()) noexcept
   {
-    if (r == Node::NullPtr)
+    if (r == Node::NullPtr) [[unlikely]]
       return r = p;
 
-    if (cmp(KEY(p), KEY(r)))
+    const auto & pk = KEY(p);
+    const auto & rk = KEY(r);
+
+    if (cmp(pk, rk))
       return insert_in_bst<Node, Compare>(LLINK(r), p, cmp);
-    if (cmp(KEY(r), KEY(p)))
+    if (cmp(rk, pk))
       return insert_in_bst<Node, Compare>(RLINK(r), p, cmp);
 
-    return Node::NullPtr;
+    [[unlikely]] return Node::NullPtr;
   }
 
   /** Insert a node `p` in a binary search tree
@@ -1627,10 +1639,13 @@ namespace Aleph
   Node * insert_dup_in_bst(Node *& root, Node *p, const Compare& cmp = Compare())
     noexcept
   {
-    if (root == Node::NullPtr)
+    if (root == Node::NullPtr) [[unlikely]]
       return root = p;
 
-    if (cmp(KEY(p), KEY(root)))
+    const auto & pk = KEY(p);
+    const auto & rk = KEY(root);
+
+    if (cmp(pk, rk))
       return insert_dup_in_bst(LLINK(root), p, cmp);
 
     return insert_dup_in_bst(RLINK(root), p, cmp);
@@ -1656,15 +1671,18 @@ namespace Aleph
   Node * search_or_insert_in_bst(Node *& r, Node *p, const Compare& cmp = Compare())
     noexcept
   {
-    if (r == Node::NullPtr)
+    if (r == Node::NullPtr) [[unlikely]]
       return r = p;
 
-    if (cmp(KEY(p), KEY(r)))
+    const auto & pk = KEY(p);
+    const auto & rk = KEY(r);
+
+    if (cmp(pk, rk))
       return search_or_insert_in_bst<Node, Compare>(LLINK(r), p, cmp);
-    if (cmp(KEY(r), KEY(p)))
+    if (cmp(rk, pk))
       return search_or_insert_in_bst<Node, Compare>(RLINK(r), p, cmp);
 
-    return r;
+    [[unlikely]] return r;
   }
 
 
