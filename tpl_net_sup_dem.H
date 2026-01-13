@@ -266,7 +266,7 @@ public:
    * @return Pointer to the newly created node
    * @throw std::bad_alloc if memory allocation fails
    */
-  Node* insert_node(const Flow_Type& supply = 0)
+  Node* insert_node(const Flow_Type& supply)
   {
     return insert_node(Node_Type(), supply);
   }
@@ -305,8 +305,8 @@ public:
     ah_domain_error_if(exist_aux_net())
       << "Auxiliary net is already computed";
 
-    super_source = insert_node();  // auxiliary source
-    super_sink = insert_node();    // auxiliary sink
+    super_source = insert_node(0);  // auxiliary source
+    super_sink = insert_node(0);    // auxiliary sink
 
     // Connect super-source/sink based on supply/demand values
     for (Node_Iterator<Net_Sup_Dem_Graph> it(*this); it.has_curr(); it.next_ne())

@@ -126,13 +126,7 @@ TEST_F(NetSupDemGraphTest, InsertTransitNode)
   EXPECT_EQ(p->supply_flow, 0);
 }
 
-TEST_F(NetSupDemGraphTest, InsertNodeDefaultSupply)
-{
-  auto* p = net.insert_node();
-  EXPECT_EQ(p->supply_flow, 0);
-}
-
-// =============================================================================
+// ==============================================================================
 // Supply/Demand Query Tests
 // =============================================================================
 

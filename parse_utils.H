@@ -1214,7 +1214,7 @@ namespace Aleph
    */
   inline bool is_keyword(const std::string & s, const std::vector<std::string> & keywords)
   {
-    return std::ranges::find(keywords, s) != keywords.end();
+    return std::find(keywords.begin(), keywords.end(), s) != keywords.end();
   }
 
   // ============================================================================
