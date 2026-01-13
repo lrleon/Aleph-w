@@ -182,8 +182,8 @@ protected:
       for (int x = 0; x < GRID_SIZE; ++x)
         {
           int idx = y * GRID_SIZE + x;
-          auto node = new GridNode(idx, x, y);
-          nodes[idx] = g.insert_node(node->get_info());
+          GridNode node(idx, x, y);  // Stack-allocated, no leak
+          nodes[idx] = g.insert_node(node.get_info());
           nodes[idx]->x = x;
           nodes[idx]->y = y;
         }

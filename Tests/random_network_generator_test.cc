@@ -253,6 +253,10 @@ TEST(CostNetworkGeneratorTest, LayeredWithCosts)
   config.density = 0.5;
   config.min_cost = 1.0;
   config.max_cost = 10.0;
+  // Use small capacities to keep SSP iterations reasonable
+  // SSP has O(V * U * ...) complexity where U is max flow value
+  config.min_capacity = 1.0;
+  config.max_capacity = 10.0;
   config.ensure_connected = true;
   config.seed = 888;
   
