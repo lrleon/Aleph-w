@@ -205,21 +205,16 @@ void floyd_all_shortest_paths(
   floyd_all_shortest_paths<GT, Aleph::less<Dist_T>, Aleph::plus<Dist_T>>(g, dist, path);
 }
 
-/** @brief Reconstruct shortest path from path matrix using indices.
+/** \overload
  *
- *  Given the path matrix computed by floyd_all_shortest_paths(), reconstructs
- *  the actual path from source to target.
+ *  Variant that accepts const indices.
  *
- *  @tparam Mat Path matrix type (Ady_Mat<GT, long>)
+ *  See mat_path.H for the primary definition and full documentation.
+ *  This overload is provided for compatibility with const index values.
  *
- *  @param p The path matrix from Floyd-Warshall
- *  @param src_index Source node index
- *  @param tgt_index Target node index
- *  @param[out] path The reconstructed path
- *
- *  @pre Path matrix must have been computed by floyd_all_shortest_paths()
- *
+ *  @see mat_path.H For the primary definition with non-const indices
  *  @ingroup Graphs
+ *  @internal This is an overload; parameters are documented in mat_path.H
  */
 template <class Mat>
 void find_min_path(Mat &                           p, 
@@ -242,19 +237,20 @@ void find_min_path(Mat &                           p,
   }
 }
 
-/** @brief Reconstruct shortest path from path matrix using node pointers.
+/** \overload
+ *
+ *  Reconstruct shortest path from path matrix using node pointers.
  *
  *  Convenience overload that accepts node pointers instead of indices.
  *
  *  @tparam Mat Path matrix type
  *
- *  @param p The path matrix from Floyd-Warshall
- *  @param src_node Source node pointer
- *  @param tgt_node Target node pointer  
+ *  @param[in] p The path matrix from Floyd-Warshall
+ *  @param[in] src_node Source node pointer
+ *  @param[in] tgt_node Target node pointer
  *  @param[out] path The reconstructed path
  *
  *  @see find_min_path(Mat&, const long, const long, Path<GT>&)
- *
  *  @ingroup Graphs
  */
 template <class Mat>

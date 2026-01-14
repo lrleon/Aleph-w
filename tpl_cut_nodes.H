@@ -333,13 +333,24 @@ components as well as the cross arcs.
       /* empty */
     }
 
-    /// \overload cut_nodes()
+    /** \overload
+     *
+     *  Compute cut nodes starting from the first node of the graph.
+     *
+     *  @param[out] list Output list of cut nodes.
+     */
     void operator ()(DynDlist<typename GT::Node *> & list)
     {
       cut_nodes(gptr->get_first_node(), list);
     }
 
-    /// \overload cut_nodes()
+    /** \overload
+     *
+     *  Compute cut nodes starting from a specific node.
+     *
+     *  @param[in] start Starting node for the computation.
+     *  @param[out] list Output list of cut nodes.
+     */
     void operator ()(typename GT::Node *start,
                      DynDlist<typename GT::Node *> & list)
     {

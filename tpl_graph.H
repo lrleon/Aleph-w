@@ -1316,10 +1316,14 @@ namespace Aleph
 
   /** Map the filtered nodes of a graph to a transformed type.
 
-        @param[in] g the grapg
+        @tparam GT Graph type
+        @tparam T Result type
+        @tparam Container Container type (default: DynList)
+        @tparam SN Node filter type (default: Dft_Show_Node<GT>)
+        @param[in] g the graph
         @param[in] transformation function `Node*` --> T`
-        @param[in] sn node filter
-        \result a `Container<T>` object with all the nodes mapped through the
+        @param[in] sn node filter (default: Dft_Show_Node<GT>)
+        @return a `Container<T>` object with all the nodes mapped through the
         transformation
 
         @ingroup Graphs
@@ -1341,10 +1345,14 @@ namespace Aleph
 
   /** Map the filtered arcs of a graph to a transformed type.
 
-        @param[in] g the grapg
+        @tparam GT Graph type
+        @tparam T Result type
+        @tparam Container Container type (default: DynList)
+        @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
+        @param[in] g the graph
         @param[in] transformation function `Arc*` --> T`
-        @param[in] sa arc filter
-        \result a `Container<T>` object with all the arcs mapped through the
+        @param[in] sa arc filter (default: Dft_Show_Arc<GT>)
+        @return a `Container<T>` object with all the arcs mapped through the
         transformation
         @ingroup Graphs
     */
@@ -1363,16 +1371,26 @@ namespace Aleph
     return ret_val;
   }
 
-  /** Map the filtered nodes of node graph to a transformed type.
-
-        @param[in] g the graph
-        @param[in] p node pointer
-        @param[in] transformation function `Node*` --> T`
-        @param[in] sa node filter
-        \result a  `Container<T>` object with all the nodes arcs mapped through the
-        transformation
-        @ingroup Graphs
-    */
+  /** \overload
+   *
+   *  Map the filtered arcs of a specific node in a graph to a transformed type.
+   *
+   *  This overload filters arcs connected to a specific node `p`.
+   *
+   *  @tparam GT Graph type
+   *  @tparam T Result type
+   *  @tparam Container Container type (default: DynList)
+   *  @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
+   *  @param[in] g the graph
+   *  @param[in] p node pointer (arcs connected to this node are filtered)
+   *  @param[in] transformation function `Arc*` --> T`
+   *  @param[in] sa arc filter (default: Dft_Show_Arc<GT>)
+   *  @return a `Container<T>` object with all the arcs mapped through the
+   *          transformation
+   *  @see arcs_map(GT &, std::function<T (typename GT::Arc *)>, SA) For the
+   *       version that maps all arcs in the graph.
+   *  @ingroup Graphs
+   */
   template <class GT, typename T,
             template<typename> class Container = DynList,
             class SA = Dft_Show_Arc<GT>>
@@ -1612,7 +1630,8 @@ namespace Aleph
       return it.get_curr_ne();
     }
 
-    /// \overload get_curr()
+    /// \overload
+    /// Alias for get_curr(). Returns current arc.
     auto get_current_arc() const
     {
       return get_curr();
@@ -1631,7 +1650,8 @@ namespace Aleph
       return this->get_node(this->get_curr());
     }
 
-    /// \overload  get_node()
+    /// \overload
+    /// Alias for get_node(). Returns target node of current arc.
     auto get_tgt_node() const
     {
       return get_node();
@@ -1643,7 +1663,8 @@ namespace Aleph
       return this->get_node(this->get_curr_ne());
     }
 
-    /// \overload  get_node()
+    /// \overload
+    /// Alias for get_node_ne(). Returns target node of current arc (no exceptions).
     auto get_tgt_node_ne() const noexcept
     {
       return get_node_ne();
@@ -2387,14 +2408,14 @@ namespace Aleph
         @param[in] g the graph
         @param[in] src source node pointer
         @param[in] tgt target node pointer
-        @param sa arc filter
+        @param[in] sa arc filter (default: Dft_Show_Arc)
         @return a pointer to a directed linking arc if this is found; \c
         nullptr otherwise.
         @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
   typename GT::Arc *
-  search_directed_arc(const GT &,
+  search_directed_arc(const GT & g,
                       typename GT::Node *src, typename GT::Node *tgt,
                       SA sa = SA()) noexcept
   {

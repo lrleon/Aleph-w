@@ -195,7 +195,7 @@ public:
  * - All incoming arcs to v now go to v_in
  * - All outgoing arcs from v now come from v_out
  *
- * @section usage Usage Pattern
+ * @section tpl_netcapgraph_usage Usage Pattern
  *
  * @code
  * Net_Cap_Graph<MyNode, MyArc> net;

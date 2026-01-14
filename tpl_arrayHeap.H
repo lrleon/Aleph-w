@@ -120,6 +120,7 @@ namespace Aleph
       @tparam Compare comparator defining the heap order
       @param[in,out] array pointer to the first element to sort
       @param[in] n number of elements in the range
+      @param[in] cmp comparison function (default: Aleph::less<T>)
       @see insertion_sort() quicksort_rec() mergesort()
       @see selection_sort() faster_heapsort()
       @ingroup Algorithms
@@ -150,6 +151,7 @@ namespace Aleph
       @tparam Compare comparator defining the heap order
       @param[in,out] array pointer to the first element to sort
       @param[in] n number of elements in the range
+      @param[in] cmp comparison function (default: Aleph::less<T>)
       @see insertion_sort() quicksort_rec() mergesort() heapsort()
       @see selection_sort()
       @ingroup Algorithms

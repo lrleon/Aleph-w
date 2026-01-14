@@ -392,7 +392,7 @@ TEST(K2TreeStress, LargeNumberOfPoints)
     {
       Point p(dis(gen), dis(gen));
       points.push_back(p);
-      Point * result = tree.insert(p);
+      tree.insert(p);
       // May return nullptr for duplicates
     }
   

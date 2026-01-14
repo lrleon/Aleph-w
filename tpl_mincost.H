@@ -251,11 +251,18 @@ bool ssp_shortest_path(Net& net, typename Net::Node* source,
  *  @see max_flow_min_cost_by_network_simplex
  *  @ingroup Networks
  */
+template <class Net>
+std::pair<typename Net::Flow_Type, typename Net::Flow_Type>
+successive_shortest_paths(Net& net);
+
 /** @brief Initialize potentials using Bellman-Ford.
  *
  *  Computes shortest path distances from source to all nodes, which
  *  serve as initial potentials to ensure reduced costs are non-negative.
  *
+ *  @tparam Net Network type (must be Net_Cost_Graph or compatible).
+ *  @param[in,out] net Flow network with costs.
+ *  @param[in] source Source node for shortest path computation.
  *  @return true if no negative cycle detected, false otherwise.
  *  @ingroup Networks
  */
@@ -395,7 +402,7 @@ successive_shortest_paths(Net& net)
           auto p = it.get_curr();
           if (ssp_info<Net>(p).distance < std::numeric_limits<Flow_Type>::max())
             {
-              ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
+            ssp_info<Net>(p).potential += ssp_info<Net>(p).distance;
               max_potential = std::max(max_potential, ssp_info<Net>(p).potential);
             }
         }

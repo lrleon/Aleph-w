@@ -1969,35 +1969,15 @@ namespace Aleph {
     typename Dft_Dist<GT>::Distance_Type{};
   
 
-  /** @brief Reconstruct a path encoded via node cookies and compute its cost.
-   *
-   * Many shortest-path algorithms store a predecessor pointer in each node
-   * cookie. This function follows that predecessor chain from `end` back to `s`,
-   * builds the corresponding `Path<GT>` (in forward order), and returns the
-   * total cost according to the `Distance` accessor.
-   *
-   * Preconditions:
-   * - For every node `p` on the path (except `s`), `NODE_COOKIE(p)` must point
-   *   to its predecessor node.
-   * - `path` must already be associated with the graph containing the nodes
-   *   (i.e., `path.empty()` and `path.insert()` must be valid operations).
-   *
-   * @param[in] s Start node.
-   * @param[in] end End node.
-   * @param[in,out] path Output path (cleared and rebuilt).
-   * @return Total distance along the reconstructed path.
-   * @throw invalid_argument If `s` or `end` is nullptr.
-   * @throw domain_error If the cookie chain is broken (nullptr encountered).
-   * @throw bad_alloc If there is not enough memory.
-   */
   /** @brief Helper to find the spanning tree arc between two nodes in a multigraph.
    *
    * When there are parallel arcs between two nodes, this function searches
    * for the arc that is marked as part of the spanning tree.
    *
-   * @param g The graph
-   * @param src Source node
-   * @param tgt Target node
+   * @param[in] g The graph
+   * @param[in] src Source node
+   * @param[in] tgt Target node
+   * @param[in] sa Arc filter (default: Dft_Show_Arc<GT>)
    * @return Pointer to the spanning tree arc, or nullptr if not found
    */
   template <class GT, class SA = Dft_Show_Arc<GT>>

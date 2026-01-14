@@ -579,4 +579,681 @@ TEST(OLhashTable, Stress_WithAutoResize)
     }
 }
 
+// ============================================================================
+// DELETED CLEANUP TESTS (Knuth's optimization)
+// ============================================================================
+
+// Helper to count bucket states
+struct BucketStats
+{
+  size_t empty = 0;
+  size_t busy = 0;
+  size_t deleted = 0;
+};
+
+template <typename HashTable>
+BucketStats count_bucket_states(const HashTable &tbl)
+{
+  BucketStats stats;
+  for (size_t i = 0; i < tbl.capacity(); ++i)
+    {
+      switch (tbl.table[i].status)
+        {
+        case HashTable::EMPTY: ++stats.empty; break;
+        case HashTable::BUSY: ++stats.busy; break;
+        case HashTable::DELETED: ++stats.deleted; break;
+        }
+    }
+  return stats;
+}
+
+// Test: removing last element in chain should mark as EMPTY, not DELETED
+TEST(OLhashTable, DeletedCleanup_LastInChainBecomesEmpty)
+{
+  // Use bad hash to force all elements into same chain
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  // Insert elements: they will all collide at index 0
+  // Chain: [0] -> [1] -> [2] -> [3] -> [4]
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(tbl.insert(i), nullptr);
+  
+  auto before = count_bucket_states(tbl);
+  EXPECT_EQ(before.busy, 5);
+  EXPECT_EQ(before.deleted, 0);
+  
+  // Remove last element (4) - should become EMPTY since next is EMPTY
+  tbl.remove(4);
+  
+  auto after = count_bucket_states(tbl);
+  EXPECT_EQ(after.busy, 4);
+  EXPECT_EQ(after.deleted, 0) << "Last element should become EMPTY, not DELETED";
+  EXPECT_EQ(after.empty, before.empty + 1);
+  
+  // Verify remaining elements are still findable
+  for (int i = 0; i < 4; ++i)
+    EXPECT_NE(tbl.search(i), nullptr) << "Element " << i << " should still exist";
+  
+  EXPECT_EQ(tbl.search(4), nullptr);
+}
+
+// Test: backward propagation of EMPTY status
+TEST(OLhashTable, DeletedCleanup_BackwardPropagation)
+{
+  // Use bad hash to force chain
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  // Insert chain: positions 0,1,2,3,4
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(tbl.insert(i), nullptr);
+  
+  // Remove middle elements first (they become DELETED)
+  tbl.remove(3);  // position 3 -> DELETED (next is BUSY at 4)
+  tbl.remove(2);  // position 2 -> DELETED (next is DELETED at 3)
+  
+  auto mid_stats = count_bucket_states(tbl);
+  EXPECT_EQ(mid_stats.busy, 3);  // 0, 1, 4 are BUSY
+  EXPECT_EQ(mid_stats.deleted, 2);  // 2, 3 are DELETED
+  
+  // Now remove element 4 (last in chain)
+  // This should trigger backward cleanup: 4->EMPTY, 3->EMPTY, 2->EMPTY
+  tbl.remove(4);
+  
+  auto final_stats = count_bucket_states(tbl);
+  EXPECT_EQ(final_stats.busy, 2);  // 0, 1 are BUSY
+  EXPECT_EQ(final_stats.deleted, 0) << "All trailing DELETED should become EMPTY";
+  
+  // Verify remaining elements
+  EXPECT_NE(tbl.search(0), nullptr);
+  EXPECT_NE(tbl.search(1), nullptr);
+  EXPECT_EQ(tbl.search(2), nullptr);
+  EXPECT_EQ(tbl.search(3), nullptr);
+  EXPECT_EQ(tbl.search(4), nullptr);
+}
+
+// Test: DELETED in middle of chain stays DELETED
+TEST(OLhashTable, DeletedCleanup_MiddleStaysDeleted)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  // Insert chain: 0,1,2,3,4
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(tbl.insert(i), nullptr);
+  
+  // Remove element in middle (2) - should stay DELETED because 3,4 follow
+  tbl.remove(2);
+  
+  auto stats = count_bucket_states(tbl);
+  EXPECT_EQ(stats.busy, 4);
+  EXPECT_EQ(stats.deleted, 1) << "Middle element should stay DELETED";
+  
+  // All other elements still findable
+  for (int i = 0; i < 5; ++i)
+    {
+      if (i == 2)
+        EXPECT_EQ(tbl.search(i), nullptr);
+      else
+        EXPECT_NE(tbl.search(i), nullptr);
+    }
+}
+
+// Test: no DELETED accumulation after many insert/remove cycles
+TEST(OLhashTable, DeletedCleanup_NoAccumulationAfterCycles)
+{
+  OLhashTable<int> tbl(100);
+  
+  // Perform many insert/remove cycles
+  const int cycles = 50;
+  const int elements = 30;
+  
+  for (int cycle = 0; cycle < cycles; ++cycle)
+    {
+      // Insert
+      for (int i = 0; i < elements; ++i)
+        tbl.insert(cycle * 1000 + i);
+      
+      // Remove all
+      for (int i = 0; i < elements; ++i)
+        tbl.remove(cycle * 1000 + i);
+    }
+  
+  // After all cycles, table should be mostly EMPTY with no DELETED
+  auto stats = count_bucket_states(tbl);
+  EXPECT_EQ(stats.busy, 0);
+  EXPECT_EQ(stats.deleted, 0) << "Should have no DELETED after complete removal";
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// Test: cleanup with wrap-around at table boundary
+TEST(OLhashTable, DeletedCleanup_WrapAround)
+{
+  // Hash function that puts elements near end of table
+  OLhashTable<int> tbl(17);  // Prime size
+  
+  // Force insertion near end by using specific values
+  // that hash near len-1
+  auto near_end_hash = [](const int &k) -> size_t { 
+    return static_cast<size_t>(k + 15); // Will wrap around
+  };
+  
+  OLhashTable<int> tbl2(17, near_end_hash);
+  
+  // Insert elements that will wrap around
+  for (int i = 0; i < 5; ++i)
+    ASSERT_NE(tbl2.insert(i), nullptr);
+  
+  EXPECT_EQ(tbl2.size(), 5);
+  
+  // Remove all - should handle wrap-around correctly
+  for (int i = 4; i >= 0; --i)
+    {
+      EXPECT_NO_THROW(tbl2.remove(i));
+    }
+  
+  auto stats = count_bucket_states(tbl2);
+  EXPECT_EQ(stats.deleted, 0) << "Wrap-around cleanup should leave no DELETED";
+  EXPECT_TRUE(tbl2.is_empty());
+}
+
+// Stress test: verify no DELETED accumulation with random operations
+TEST(OLhashTable, DeletedCleanup_StressNoAccumulation)
+{
+  OLhashTable<int> tbl(500);
+  set<int> oracle;
+  
+  mt19937 rng(12345);
+  uniform_int_distribution<int> key_dist(0, 200);
+  uniform_real_distribution<double> op_dist(0.0, 1.0);
+  
+  const int num_ops = 5000;
+  
+  for (int i = 0; i < num_ops; ++i)
+    {
+      int key = key_dist(rng);
+      double op = op_dist(rng);
+      
+      if (op < 0.5)
+        {
+          auto ptr = tbl.insert(key);
+          if (ptr) oracle.insert(key);
+        }
+      else if (oracle.count(key))
+        {
+          tbl.remove(key);
+          oracle.erase(key);
+        }
+    }
+  
+  auto stats = count_bucket_states(tbl);
+  
+  // The number of DELETED should be minimal compared to capacity
+  // With Knuth's cleanup, DELETED only accumulates in middle of chains
+  double deleted_ratio = static_cast<double>(stats.deleted) / tbl.capacity();
+  EXPECT_LT(deleted_ratio, 0.1) 
+    << "DELETED ratio should be low with cleanup. Got " 
+    << stats.deleted << "/" << tbl.capacity();
+  
+  // Verify integrity
+  EXPECT_EQ(tbl.size(), oracle.size());
+  for (int key : oracle)
+    EXPECT_NE(tbl.search(key), nullptr);
+}
+
+// ============================================================================
+// COPY/MOVE SEMANTICS TESTS
+// ============================================================================
+
+TEST(OLhashTable, CopyConstructor)
+{
+  OLhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  OLhashTable<int> copy(original);
+  
+  EXPECT_EQ(copy.size(), original.size());
+  EXPECT_EQ(copy.capacity(), original.capacity());
+  
+  // Verify all elements exist in both
+  for (int i = 0; i < 50; ++i)
+    {
+      EXPECT_NE(original.search(i), nullptr);
+      EXPECT_NE(copy.search(i), nullptr);
+    }
+  
+  // Modify copy, original should be unchanged
+  copy.remove(25);
+  EXPECT_EQ(copy.search(25), nullptr);
+  EXPECT_NE(original.search(25), nullptr);
+}
+
+TEST(OLhashTable, MoveConstructor)
+{
+  OLhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  const size_t orig_size = original.size();
+  const size_t orig_cap = original.capacity();
+  
+  OLhashTable<int> moved(std::move(original));
+  
+  EXPECT_EQ(moved.size(), orig_size);
+  EXPECT_EQ(moved.capacity(), orig_cap);
+  
+  // Verify all elements exist in moved
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(moved.search(i), nullptr);
+}
+
+TEST(OLhashTable, CopyAssignment)
+{
+  OLhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  OLhashTable<int> copy(10);
+  copy.insert(999);
+  
+  copy = original;
+  
+  EXPECT_EQ(copy.size(), original.size());
+  
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(copy.search(i), nullptr);
+  
+  EXPECT_EQ(copy.search(999), nullptr);  // Old element gone
+}
+
+TEST(OLhashTable, MoveAssignment)
+{
+  OLhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  const size_t orig_size = original.size();
+  
+  OLhashTable<int> target(10);
+  target.insert(999);
+  
+  target = std::move(original);
+  
+  EXPECT_EQ(target.size(), orig_size);
+  
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(target.search(i), nullptr);
+}
+
+TEST(OLhashTable, SelfAssignment)
+{
+  OLhashTable<int> tbl(100);
+  for (int i = 0; i < 50; ++i)
+    tbl.insert(i);
+  
+  tbl = tbl;  // Self-assignment
+  
+  EXPECT_EQ(tbl.size(), 50);
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+// ============================================================================
+// DELETED SLOT REUSE TESTS
+// ============================================================================
+
+TEST(OLhashTable, DeletedSlotReuse)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  // Insert chain: 0,1,2,3,4 at positions 0,1,2,3,4
+  for (int i = 0; i < 5; ++i)
+    tbl.insert(i);
+  
+  // Remove middle element (2) - becomes DELETED
+  tbl.remove(2);
+  
+  auto before = count_bucket_states(tbl);
+  EXPECT_EQ(before.deleted, 1);
+  
+  // Insert new element - should reuse DELETED slot at position 2
+  tbl.insert(100);
+  
+  auto after = count_bucket_states(tbl);
+  EXPECT_EQ(after.deleted, 0) << "DELETED slot should be reused";
+  EXPECT_EQ(after.busy, 5);
+  
+  // All elements should be findable
+  EXPECT_NE(tbl.search(0), nullptr);
+  EXPECT_NE(tbl.search(1), nullptr);
+  EXPECT_EQ(tbl.search(2), nullptr);  // Was removed
+  EXPECT_NE(tbl.search(3), nullptr);
+  EXPECT_NE(tbl.search(4), nullptr);
+  EXPECT_NE(tbl.search(100), nullptr);  // New element
+}
+
+// ============================================================================
+// SEARCH_OR_INSERT AND CONTAINS_OR_INSERT TESTS
+// ============================================================================
+
+TEST(OLhashTable, SearchOrInsert_NewKey)
+{
+  OLhashTable<int> tbl(100);
+  
+  auto ptr = tbl.search_or_insert(42);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, 42);
+  EXPECT_EQ(tbl.size(), 1);
+}
+
+TEST(OLhashTable, SearchOrInsert_ExistingKey)
+{
+  OLhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  auto ptr = tbl.search_or_insert(42);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, 42);
+  EXPECT_EQ(tbl.size(), 1);  // No duplicate
+}
+
+TEST(OLhashTable, ContainsOrInsert_NewKey)
+{
+  OLhashTable<int> tbl(100);
+  
+  auto [ptr, existed] = tbl.contains_or_insert(42);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, 42);
+  EXPECT_FALSE(existed);
+  EXPECT_EQ(tbl.size(), 1);
+}
+
+TEST(OLhashTable, ContainsOrInsert_ExistingKey)
+{
+  OLhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  auto [ptr, existed] = tbl.contains_or_insert(42);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(*ptr, 42);
+  EXPECT_TRUE(existed);
+  EXPECT_EQ(tbl.size(), 1);
+}
+
+// ============================================================================
+// REHASH TESTS
+// ============================================================================
+
+TEST(OLhashTable, ManualRehash)
+{
+  OLhashTable<int> tbl(100);
+  set<int> oracle;
+  
+  for (int i = 0; i < 50; ++i)
+    {
+      tbl.insert(i);
+      oracle.insert(i);
+    }
+  
+  // Remove half to create DELETED slots
+  for (int i = 0; i < 50; i += 2)
+    {
+      tbl.remove(i);
+      oracle.erase(i);
+    }
+  
+  auto before = count_bucket_states(tbl);
+  // Some DELETED may exist (those in middle of chains)
+  
+  // Manual rehash should eliminate all DELETED
+  tbl.rehash();
+  
+  auto after = count_bucket_states(tbl);
+  EXPECT_EQ(after.deleted, 0) << "Rehash should eliminate all DELETED";
+  EXPECT_EQ(after.busy, oracle.size());
+  
+  // All remaining elements should be findable
+  for (int key : oracle)
+    EXPECT_NE(tbl.search(key), nullptr);
+}
+
+TEST(OLhashTable, ResizeUp)
+{
+  OLhashTable<int> tbl(50);
+  
+  for (int i = 0; i < 30; ++i)
+    tbl.insert(i);
+  
+  const size_t old_cap = tbl.capacity();
+  tbl.resize(200);
+  
+  EXPECT_GT(tbl.capacity(), old_cap);
+  EXPECT_EQ(tbl.size(), 30);
+  
+  for (int i = 0; i < 30; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+TEST(OLhashTable, ResizeDown)
+{
+  OLhashTable<int> tbl(200);
+  
+  for (int i = 0; i < 30; ++i)
+    tbl.insert(i);
+  
+  tbl.resize(50);
+  
+  EXPECT_EQ(tbl.size(), 30);
+  
+  for (int i = 0; i < 30; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+// ============================================================================
+// EDGE CASES
+// ============================================================================
+
+TEST(OLhashTable, EmptyTableOperations)
+{
+  OLhashTable<int> tbl(100);
+  
+  EXPECT_TRUE(tbl.is_empty());
+  EXPECT_EQ(tbl.size(), 0);
+  EXPECT_EQ(tbl.search(42), nullptr);
+  EXPECT_FALSE(tbl.has(42));
+  EXPECT_FALSE(tbl.contains(42));
+  EXPECT_THROW(tbl.remove(42), std::domain_error);
+}
+
+TEST(OLhashTable, SingleElement)
+{
+  OLhashTable<int> tbl(100);
+  
+  tbl.insert(42);
+  EXPECT_EQ(tbl.size(), 1);
+  EXPECT_NE(tbl.search(42), nullptr);
+  
+  tbl.remove(42);
+  EXPECT_EQ(tbl.size(), 0);
+  EXPECT_TRUE(tbl.is_empty());
+  EXPECT_EQ(tbl.search(42), nullptr);
+  
+  // Table should be clean (no DELETED for single element at end)
+  auto stats = count_bucket_states(tbl);
+  EXPECT_EQ(stats.deleted, 0);
+}
+
+TEST(OLhashTable, DuplicateInsertReturnsNull)
+{
+  OLhashTable<int> tbl(100);
+  
+  auto first = tbl.insert(42);
+  ASSERT_NE(first, nullptr);
+  
+  auto second = tbl.insert(42);
+  EXPECT_EQ(second, nullptr) << "Duplicate insert should return nullptr";
+  
+  EXPECT_EQ(tbl.size(), 1);
+}
+
+TEST(OLhashTable, HasAndContains)
+{
+  OLhashTable<int> tbl(100);
+  
+  EXPECT_FALSE(tbl.has(42));
+  EXPECT_FALSE(tbl.contains(42));
+  
+  tbl.insert(42);
+  
+  EXPECT_TRUE(tbl.has(42));
+  EXPECT_TRUE(tbl.contains(42));
+  EXPECT_FALSE(tbl.has(43));
+  EXPECT_FALSE(tbl.contains(43));
+}
+
+TEST(OLhashTable, Find)
+{
+  OLhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  EXPECT_NO_THROW({
+    int& ref = tbl.find(42);
+    EXPECT_EQ(ref, 42);
+  });
+  
+  EXPECT_THROW(tbl.find(999), std::domain_error);
+}
+
+// ============================================================================
+// ITERATOR TESTS
+// ============================================================================
+
+TEST(OLhashTable, IteratorBasic)
+{
+  OLhashTable<int> tbl(100);
+  set<int> oracle;
+  
+  for (int i = 0; i < 50; ++i)
+    {
+      tbl.insert(i);
+      oracle.insert(i);
+    }
+  
+  set<int> visited;
+  for (auto it = tbl.get_it(); it.has_curr(); it.next())
+    visited.insert(it.get_curr());
+  
+  EXPECT_EQ(visited, oracle);
+}
+
+TEST(OLhashTable, IteratorEmpty)
+{
+  OLhashTable<int> tbl(100);
+  
+  auto it = tbl.get_it();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(OLhashTable, IteratorSingleElement)
+{
+  OLhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  auto it = tbl.get_it();
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), 42);
+  
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(OLhashTable, IteratorDelete)
+{
+  OLhashTable<int> tbl(100);
+  
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  // Delete all elements via iterator
+  auto it = tbl.get_it();
+  while (it.has_curr())
+    it.del();
+  
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// ============================================================================
+// STATS TEST
+// ============================================================================
+
+TEST(OLhashTable, StatsCorrectness)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  OLhashTable<int> tbl(100, bad_hash);
+  
+  // Insert chain
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  // Remove some in middle
+  tbl.remove(3);
+  tbl.remove(5);
+  tbl.remove(7);
+  
+  auto stats = tbl.stats();
+  
+  EXPECT_EQ(stats.num_busy, 7);
+  // Some DELETED may exist depending on cleanup
+  EXPECT_EQ(stats.num_busy + stats.num_deleted + stats.num_empty, tbl.capacity());
+}
+
+// ============================================================================
+// FUNCTIONAL METHODS TEST  
+// ============================================================================
+
+TEST(OLhashTable, ForEach)
+{
+  OLhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  int sum = 0;
+  tbl.for_each([&sum](int x) { sum += x; });
+  
+  EXPECT_EQ(sum, 45);  // 0+1+2+...+9
+}
+
+TEST(OLhashTable, All)
+{
+  OLhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i * 2);  // Even numbers
+  
+  EXPECT_TRUE(tbl.all([](int x) { return x % 2 == 0; }));
+  EXPECT_FALSE(tbl.all([](int x) { return x > 5; }));
+}
+
+TEST(OLhashTable, Exists)
+{
+  OLhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  EXPECT_TRUE(tbl.exists([](int x) { return x == 5; }));
+  EXPECT_FALSE(tbl.exists([](int x) { return x == 100; }));
+}
+
+TEST(OLhashTable, Filter)
+{
+  OLhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  auto evens = tbl.filter([](int x) { return x % 2 == 0; });
+  
+  EXPECT_EQ(evens.size(), 5);
+}
 

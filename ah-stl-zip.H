@@ -1706,9 +1706,12 @@ template <typename Eq, typename... Containers>
 /**
  * @brief Compare two zipped sequences lexicographically.
  *
- * @param cmp Comparison function `(tuple1, tuple2) -> int` (negative/0/positive).
- * @param cs1 First set of containers.
- * @param cs2 Second set of containers.
+ * Uses default comparison (operator<) for elements at corresponding positions.
+ *
+ * @tparam Containers1 Types of first set of containers.
+ * @tparam Containers2 Types of second set of containers.
+ * @param cs1 First set of containers (as tuple).
+ * @param cs2 Second set of containers (as tuple).
  * @return -1 if first < second, 0 if equal, 1 if first > second.
  *
  * @ingroup Algorithms

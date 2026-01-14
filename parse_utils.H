@@ -49,7 +49,7 @@
  *
  * ### String Parsing
  * - Quoted and unquoted strings
- * - Escape sequence processing (\n, \t, \\, \", etc.)
+ * - Escape sequence processing (\\n, \\t, \\\\, \\\", etc.)
  * - Character literals ('a', '\n')
  *
  * ### Lexer/Tokenizer Support
@@ -404,7 +404,7 @@ namespace Aleph
    * Parses and returns a string from the input stream. The string may
    * be quoted with double quotes or unquoted.
    *
-   * - **Quoted strings**: Start and end with `"`. May contain spaces
+   * - **Quoted strings**: Start and end with a double quote character (\").
    *   and special characters. The quotes are not included in the result.
    * - **Unquoted strings**: End at whitespace or EOF. Cannot contain spaces.
    *
@@ -788,7 +788,7 @@ namespace Aleph
    * Updates line/column tracking appropriately.
    *
    * @param input_stream The input file stream
-   * @param open Opening sequence (default "/*")
+   * @param open Opening sequence (default "/ *")
    * @param close Closing sequence (default "* /")
    *
    * @throws ParseError if EOF is reached before comment closes
@@ -797,8 +797,8 @@ namespace Aleph
    *       the opening sequence has already been consumed.
    */
   inline void skip_block_comment(std::ifstream & input_stream,
-                                 const std::string & = "/*",
-                                 const std::string & close = "*/")
+                                 const std::string & open = "/" "*",
+                                 const std::string & close = "*" "/")
   {
     size_t match_pos = 0;
 
@@ -850,7 +850,7 @@ namespace Aleph
           read_char_from_stream(input_stream);
         else if (c == '/')
           {
-            // Peek ahead for // or /*
+            // Peek ahead for // or /* ... */
             input_stream.get();
             current_col_number++;
             if (const int next = peek_char(input_stream); next == '/')
@@ -1319,13 +1319,13 @@ namespace Aleph
    * @return The unescaped character
    *
    * @par Supported escapes
-   * - `\n` → newline
-   * - `\t` → tab
-   * - `\r` → carriage return
-   * - `\\` → backslash
-   * - `\"` → double quote
-   * - `\'` → single quote
-   * - `\0` → null
+   * - `\\n` → newline
+   * - `\\t` → tab
+   * - `\\r` → carriage return
+   * - `\\\\` → backslash
+   * - `\\\"` → double quote
+   * - `\\'` → single quote
+   * - `\\0` → null
    */
   inline char process_escape(int c)
   {
@@ -1349,7 +1349,7 @@ namespace Aleph
   /**
    * @brief Load a string with escape sequence processing
    *
-   * Like load_string() but processes escape sequences like \n, \t, etc.
+   * Like load_string() but processes escape sequences like \\n, \\t, etc.
    * Only works with quoted strings.
    *
    * @param input_stream The input file stream
@@ -1416,8 +1416,8 @@ namespace Aleph
    *
    * @par Accepted formats
    * - `'a'`
-   * - `'\n'`
-   * - `'\t'`
+   * - `'\\n'`
+   * - `'\\t'`
    */
   inline char load_char_literal(std::ifstream & input_stream)
   {
@@ -1589,23 +1589,23 @@ namespace Aleph
   /**
    * @brief Trim whitespace from both ends of a string
    *
-   * @param str The string to trim
+   * @param text The string to trim
    * @return Trimmed string
    */
-  inline std::string trim(const std::string & str)
+  inline std::string trim(const std::string & text)
   {
     size_t start = 0;
-    while (start < str.size() and std::isspace(str[start]))
+    while (start < text.size() and std::isspace(text[start]))
       start++;
 
-    if (start == str.size())
+    if (start == text.size())
       return "";
 
-    size_t end = str.size() - 1;
-    while (end > start and std::isspace(str[end]))
+    size_t end = text.size() - 1;
+    while (end > start and std::isspace(text[end]))
       end--;
 
-    return str.substr(start, end - start + 1);
+    return text.substr(start, end - start + 1);
   }
 } // namespace Aleph
 

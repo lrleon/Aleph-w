@@ -236,12 +236,12 @@ public:
 
   /**
    * @brief Schedule an event at a specific time
-   * @param t Absolute trigger time
+   * @param trigger_time Absolute trigger time
    * @param event Event to schedule *
  *  @ingroup Utilities
 
    */
-  void schedule_event(const Time &, Event*);
+  void schedule_event(const Time &trigger_time, Event*);
 
   /**
    * @brief Schedule an event using its internal trigger time
@@ -262,12 +262,12 @@ public:
 
   /**
    * @brief Reschedule an event to a new time
-   * @param t New absolute trigger time
+   * @param trigger_time New absolute trigger time
    * @param event Event to reschedule *
  *  @ingroup Utilities
 
    */
-  void reschedule_event(const Time &, Event*);
+  void reschedule_event(const Time &trigger_time, Event*);
 
   /**
    * @brief Cancel and delete an event

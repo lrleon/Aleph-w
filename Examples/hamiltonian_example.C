@@ -325,6 +325,108 @@ void demo_density()
 }
 
 // =============================================================================
+// 5. Dirac's Theorem (Faster Alternative)
+// =============================================================================
+
+void demo_dirac()
+{
+  print_section("DIRAC'S THEOREM (O(V) Alternative to Ore)");
+  
+  cout << "Dirac's Theorem:\n";
+  cout << "For a graph G with n >= 3 vertices, if deg(v) >= n/2 for ALL vertices,\n";
+  cout << "then G has a Hamiltonian cycle.\n\n";
+  
+  cout << "Comparison with Ore's Theorem:\n";
+  cout << "  | Property     | Dirac       | Ore         |\n";
+  cout << "  |--------------|-------------|-------------|\n";
+  cout << "  | Complexity   | O(V)        | O(V^2)      |\n";
+  cout << "  | Condition    | deg >= n/2  | sum >= n    |\n";
+  cout << "  | Strictness   | More strict | Less strict |\n\n";
+  
+  // Complete graph K6 - satisfies both
+  print_subsection("Example 1: Complete graph K6");
+  
+  UGraph k6;
+  build_complete_graph(k6, 6);
+  
+  cout << "K6: Complete graph with 6 vertices\n";
+  cout << "  Each vertex has degree 5\n";
+  cout << "  n/2 = 3, so need deg >= 3\n";
+  cout << "  5 >= 3 ✓\n\n";
+  
+  Test_Dirac_Condition<UGraph> dirac1;
+  Test_Hamiltonian_Sufficiency<UGraph> ore1;
+  
+  cout << "Dirac: " << (dirac1(k6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Ore:   " << (ore1(k6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Min required degree: " << dirac1.min_required_degree(k6) << endl;
+  
+  // Cycle C5 - fails Dirac but may satisfy Ore in some cases
+  print_subsection("Example 2: Cycle C6");
+  
+  UGraph c6;
+  vector<UGraph::Node*> cycle_nodes;
+  for (int i = 0; i < 6; i++)
+    cycle_nodes.push_back(c6.insert_node(to_string(i)));
+  for (int i = 0; i < 6; i++)
+    c6.insert_arc(cycle_nodes[i], cycle_nodes[(i+1) % 6], 1);
+  
+  cout << "C6: Cycle 0-1-2-3-4-5-0\n";
+  cout << "  Each vertex has degree 2\n";
+  cout << "  n/2 = 3, need deg >= 3\n";
+  cout << "  2 < 3 ✗\n\n";
+  
+  Test_Dirac_Condition<UGraph> dirac2;
+  Test_Hamiltonian_Sufficiency<UGraph> ore2;
+  
+  cout << "Dirac: " << (dirac2(c6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Ore:   " << (ore2(c6) ? "SATISFIED" : "NOT satisfied") << endl;
+  
+  auto [min_deg, min_node] = dirac2.find_min_degree_vertex(c6);
+  cout << "Min degree found: " << min_deg << " (at vertex " << min_node->get_info() << ")\n";
+  cout << "\nBUT: C6 IS Hamiltonian! (The cycle itself is the Hamiltonian cycle)\n";
+  
+  // Near-complete graph - satisfies Dirac
+  print_subsection("Example 3: Dense graph (nearly complete)");
+  
+  UGraph dense;
+  vector<UGraph::Node*> dense_nodes;
+  const size_t n = 8;
+  for (size_t i = 0; i < n; i++)
+    dense_nodes.push_back(dense.insert_node(to_string(i)));
+  
+  // Connect each vertex to at least n/2 others
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = i + 1; j < n; j++)
+      if (j - i <= n/2 or i + n - j <= n/2)  // Connect nearby vertices
+        dense.insert_arc(dense_nodes[i], dense_nodes[j], 1);
+  
+  print_degrees(dense);
+  
+  Test_Dirac_Condition<UGraph> dirac3;
+  cout << "\nMin required degree (n/2): " << dirac3.min_required_degree(dense) << endl;
+  cout << "Dirac: " << (dirac3(dense) ? "SATISFIED" : "NOT satisfied") << endl;
+  
+  // Speed comparison
+  print_subsection("Why use Dirac over Ore?");
+  
+  cout << "For large graphs:\n";
+  cout << "  - Ore checks ALL pairs of non-adjacent vertices: O(V^2)\n";
+  cout << "  - Dirac checks EACH vertex's degree: O(V)\n\n";
+  
+  cout << "Example timing for n=1000:\n";
+  cout << "  Ore:   ~1,000,000 pair comparisons\n";
+  cout << "  Dirac: ~1,000 degree checks\n\n";
+  
+  cout << "Use Dirac when:\n";
+  cout << "  - Graph is expected to be dense\n";
+  cout << "  - Quick preliminary test needed\n";
+  cout << "  - Performance is critical\n\n";
+  
+  cout << "Note: If Dirac passes, Ore also passes (but not vice versa).\n";
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -340,7 +442,7 @@ int main(int argc, char* argv[])
     
     TCLAP::ValueArg<string> sectionArg(
       "s", "section",
-      "Run only specific section: compare, ore, practical, density, or 'all'",
+      "Run specific section: compare, ore, practical, density, dirac, or 'all'",
       false, "all", "section", cmd
     );
     
@@ -364,6 +466,9 @@ int main(int argc, char* argv[])
     
     if (section == "all" or section == "density")
       demo_density();
+    
+    if (section == "all" or section == "dirac")
+      demo_dirac();
     
     cout << "\n" << string(60, '=') << "\n";
     cout << "Hamiltonian graphs demo completed!\n";

@@ -342,21 +342,24 @@ public:
 
   /** Instantiate a generic linear hash table.
 
-      Instantiate a generic linear hash table of size __len.
+      Instantiate a generic linear hash table of size `len`.
 
-      @param[in] __hash_fct hash function.
-      @param[in] __len initial and minimum table size.
-      @param[in] __upper_alpha upper threshold at which the table should
-      expand.
-      @param[in] __lower_alpha lower threshold at which the table should
+      @param[in] len initial and minimum table size.
+      @param[in] hash_fct hash function.
+      @param[in] cmp comparison functor for keys.
+      @param[in] lower_alpha lower threshold at which the table should
       contract.
-      @param[in] __remove_all_buckets if true, then the table's buckets
+      @param[in] upper_alpha upper threshold at which the table should
+      expand.
+      @param[in] remove_all_buckets if true, then the table's buckets
       are freed. Otherwise, they remain intact. By default the value is true.
+      @param[in] with_resize if true, the table will resize automatically
+      based on load factors.
 
-      @throw length_error if __len is equal or greater than the maximum
+      @throw length_error if `len` is equal or greater than the maximum
       dimension allowed for a dynamic array.
-      @throw domain_error if __upper_alpha is less than or equal to
-      __lower_alpha.
+      @throw domain_error if `upper_alpha` is less than or equal to
+      `lower_alpha`.
       @throw bad_alloc if there is not enough memory
       @throw overflow_error if an overflow occurs from DynArray
       (caused by its internal calculations).
@@ -391,19 +394,6 @@ public:
     std::swap(len, other.len);
   }
 
-  /** \fn set_upper_alpha
-
-      Change the upper load threshold at which the table begins to
-      expand. Throws domain_error if the new threshold is less than
-      the lower threshold (lower_alpha)
-  */
-
-  /** \fn set_lower_alpha
-
-      Change the lower load threshold at which the table begins to
-      contract. Throws domain_error if the new threshold is greater than
-      the upper threshold (upper_alpha)
-  */
 
       /// Empty the entire table. All buckets are freed and the size
       /// is adjusted to the initial one.

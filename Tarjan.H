@@ -757,7 +757,15 @@ namespace Aleph
           scc_by_len(v);
     }
 
-    /// \overload connected_components
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as mapped subgraphs
+     *  with bridges (arcs connecting different SCCs).
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blk_list List of strongly connected components as mapped subgraphs.
+     *  @param[out] arc_list List of bridge arcs connecting different SCCs.
+     */
     void operator ()(const GT & g,
                      DynList<GT> & blk_list,
                      DynList<typename GT::Arc *> & arc_list)
@@ -765,7 +773,13 @@ namespace Aleph
       connected_components(g, blk_list, arc_list);
     }
 
-    /// \overload connected_components
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as lists of nodes.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blks List of strongly connected components, each as a list of nodes.
+     */
     void operator ()(const GT & g,
                      DynList<DynList<typename GT::Node *>> & blks)
     {
@@ -777,7 +791,15 @@ namespace Aleph
       return connected_components(g);
     }
 
-    /// \overload connected_components
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as mapped subgraphs
+     *  with bridges, using DynDlist containers.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blk_list List of strongly connected components as mapped subgraphs.
+     *  @param[out] arc_list List of bridge arcs connecting different SCCs.
+     */
     void operator ()(const GT & g,
                      DynDlist<GT> & blk_list,
                      DynDlist<typename GT::Arc *> & arc_list)
@@ -798,7 +820,14 @@ namespace Aleph
         arc_list.append(it.get_curr());
     }
 
-    /// \overload connected_components
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as lists of nodes,
+     *  using DynDlist containers.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blks List of strongly connected components, each as a list of nodes.
+     */
     void operator ()(const GT & g,
                      DynDlist<DynDlist<typename GT::Node *>> & blks)
     {

@@ -77,6 +77,10 @@ set(EXAMPLE_PROGRAMS
     mincost_flow_example
     net_apps_example
     net_utils_example
+    union_find_example
+    hash_tables_example
+    linear_structures_example
+    graph_components_example
 )
 
 # Function to get source file from program name

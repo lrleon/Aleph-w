@@ -108,13 +108,13 @@
 namespace Aleph
 {
 
-  /** @defgroup Hash Hash Functions
-      @brief Collection of hash functions for various applications.
-
-      This module provides hash functions ranging from simple educational
-      examples to production-quality implementations suitable for hash tables,
-      checksums, and data fingerprinting.
-  */
+  /** @brief Hash functions (implementaciones concretas).
+   *
+   *  Este header aporta implementaciones de funciones hash (educativas y
+   *  de uso general) para usarlas con las distintas tablas hash de Aleph-w.
+   *
+   *  @ingroup Hash
+   */
 
   /** Default seed value for seeded hash functions.
 

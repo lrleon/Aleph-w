@@ -101,25 +101,25 @@ struct Empty_Class
   Empty_Class() { /* empty */ }
 
   /** @brief Empty constructor variant.
-      @param Unused tag parameter.
+      @param unused Tag parameter (not used).
   */
-  Empty_Class(EmptyCtor) { /* empty */ }
+  Empty_Class(EmptyCtor unused) { (void) unused; /* empty */ }
 
   /** @brief Sentinel constructor variant.
-      @param Unused tag parameter.
+      @param unused Tag parameter (not used).
   */
-  Empty_Class(SentinelCtor) { /* empty */ }
+  Empty_Class(SentinelCtor unused) { (void) unused; /* empty */ }
 
   /** @brief Copy constructor.
-      @param Unused source object.
+      @param unused Source object (not used).
   */
-  Empty_Class(const Empty_Class &) = default;
+  Empty_Class(const Empty_Class & unused) { (void) unused; }
 
   /** @brief Copy assignment operator.
-      @param Unused source object.
+      @param unused Source object (not used).
       @return Reference to this object.
   */
-  Empty_Class & operator=(const Empty_Class &) = default;
+  Empty_Class & operator=(const Empty_Class & unused) { (void) unused; return *this; }
 
   /** @brief Equality comparison (always true).
       @return true, since all Empty_Class instances are equal.

@@ -190,9 +190,14 @@ public:
      forward_density*num_nodes_by_rank.
 
 
-     @param[in] sigma desviación estándard del número de nodos por rango
-     @param[in] cap_mean media de la capacidad por arco.
-     @param[in] sigma_cap desviación estándar de la capacidadde arcos
+     @param[in] num_ranks número de rangos en la red
+     @param[in] num_nodes_by_rank número promedio de nodos por rango
+     @param[in] rank_sigma desviación estándar del número de nodos por rango (0-1)
+     @param[in] cap_mean media de la capacidad por arco
+     @param[in] cap_sigma desviación estándar de la capacidad de arcos
+     @param[in] forward_density densidad de arcos hacia adelante (0-1)
+     @param[in] backward_density densidad de arcos hacia atrás (0-1)
+     @return puntero a la red generada
    */
   Net * operator ()(size_t num_ranks,
                     size_t num_nodes_by_rank,

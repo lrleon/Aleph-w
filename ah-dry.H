@@ -99,21 +99,21 @@ public:
     return true;
   }
 
-  /// \overload traverse()
+  /// Const overload of `traverse(Operation&)`.
   template <class Operation>
   bool traverse(Operation & operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return const_cast<GenericTraverse*>(this)->traverse<Operation>(operation);
   }
 
-  /// \overload traverse()
+  /// Overload of `traverse(Operation&) const` that accepts rvalues.
   template <class Operation>
   bool traverse(Operation && operation) const noexcept(traverse_is_noexcept<Operation>())
   {
     return traverse<Operation>(operation);
   }
 
-  /// \overload traverse()
+  /// Overload of `traverse(Operation&)` that accepts rvalues.
   template <class Operation>
   bool traverse(Operation && operation) noexcept(traverse_is_noexcept<Operation>())
   {
@@ -202,7 +202,7 @@ public:
     return ret;
   }
 
-  /// \overload get_it()
+  /// Alias of `get_it()`.
   auto get_itor() const { return get_it(); }
 
   Type & nth_ne(const size_t n) noexcept
@@ -219,7 +219,7 @@ public:
     return *ptr;
   }
 
-  /// \overload nth()
+  /// Const overload of `nth_ne(size_t)`.
   const Type & nth_ne(const size_t n) const noexcept
   {
     return base()->nth_ne(n);
@@ -258,7 +258,7 @@ public:
     return *ptr;
   }
 
-  /// \overload nth()
+  /// Const overload of `nth(size_t)`.
   const Type & nth(const size_t n) const
   {
     return base()->nth(n);
@@ -303,7 +303,7 @@ public:
     return ptr;
   }
 
-  /// \overload find_ptr()
+  /// Const overload of `find_ptr(Operation&)`.
   template <class Operation>
   const Type * find_ptr(Operation & operation) const
     noexcept(operation_is_noexcept<Operation>())
@@ -311,7 +311,7 @@ public:
     return base()->find_ptr(operation);
   }
 
-  /// \overload find_ptr()
+  /// Overload of `find_ptr(Operation&) const` that accepts rvalues.
   template <class Operation>
   const Type * find_ptr(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
@@ -319,7 +319,7 @@ public:
     return find_ptr<Operation>(operation);
   }
 
-  /// \overload find_ptr()
+  /// Overload of `find_ptr(Operation&)` that accepts rvalues.
   template <class Operation>
   Type * find_ptr(Operation && operation)
     noexcept(operation_is_noexcept<Operation>())
@@ -364,7 +364,7 @@ public:
     return i;
   }
 
-  /// \overload find_index()
+  /// Overload of `find_index(Operation&)` that accepts rvalues.
   template <class Operation>
   size_t find_index(Operation && operation) const
     noexcept(operation_is_noexcept<Operation>())
@@ -622,8 +622,7 @@ public:
       lightly different; for example, remove the reference or the
       `const`.
 
-      \param[in] `operation` to be done on each element.
-      \return an reference to `this`
+      \param[in] operation to be done on each element.
       \throw anything that can throw `operation`
   */
   template <class Operation>
@@ -636,60 +635,60 @@ public:
                    });
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Const overload of `for_each(Operation&)`.
   template <class Operation>
   void for_each(Operation & operation) const
   {
     base()->for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Overload of `for_each(Operation&) const` that accepts rvalues.
   template <class Operation>
   void for_each(Operation && operation) const
   {
     for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Overload of `for_each(Operation&)` that accepts rvalues.
   template <class Operation>
   void for_each(Operation && operation)
   {
     for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Alias of `for_each(Operation&)`.
   template <class Operation>
   void each(Operation & operation)
   {
     for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Const alias of `for_each(Operation&)`.
   template <class Operation>
   void each(Operation & operation) const
   {
     for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Const alias of `for_each(Operation&)` that accepts rvalues.
   template <class Operation>
   void each(Operation && operation) const
   {
     for_each(operation);
   }
 
-  /// \overload for_each(Operation & operation)
+  /// Alias of `for_each(Operation&)` that accepts rvalues.
   template <class Operation>
   void each(Operation && operation)
   {
     for_each(operation);
   }
 
-  /** Traverse all the container and performs a mutable operation on
-      each element.
+  /** Traverse the container starting at `pos` taking one item every `slice`,
+      performing a mutable operation on each visited element.
 
-      `mutable_for_each(operation)` traverses the container and on each
-      element `item` is performed `operation(item)`.
+      `each(pos, slice, operation)` traverses the container and on each visited
+      element `item` performs `operation(item)`.
 
       `operation` could have the following signature:
 
@@ -700,10 +699,9 @@ public:
       state of container. This would be the case for heaps, binary
       trees and hash tables.
 
-      \param pos
-      \param slice
-      \param[in] `operation` to be done on each element.
-      \return an reference to `this`
+      \param[in] pos starting position (0-based)
+      \param[in] slice number of items to skip between visits
+      \param[in] operation to be done on each visited element.
       \throw anything that can throw `operation`
   */
   template <class Operation>
@@ -764,7 +762,7 @@ public:
     return const_me()->traverse(operation);
   }
 
-  /// \overload all(Operation & operation)
+  /// Overload of `all(Operation&)` that accepts rvalues.
   template <class Operation>
   bool all(Operation && operation) const
   {
@@ -791,7 +789,7 @@ public:
       traverse([&op] (const T & i) { return not op(i); });
   }
 
-  /// \overload exists(Operation & op)
+  /// Overload of `exists(Operation&)` that accepts rvalues.
   template <class Operation>
   bool exists(Operation && op) const
   {
@@ -849,7 +847,7 @@ public:
     return ret_val;
   }
 
-  /// \overload map(Operation & op)
+  /// Overload of `maps(Operation&)` that accepts rvalues.
   template <typename __T = T, class Operation = Dft_Map_Op<__T, __T>>
   DynList<__T> maps(Operation && op) const { return maps<__T, Operation>(op); }
 
@@ -881,11 +879,11 @@ public:
     return ret_val;
   }
 
-  /// \overload map(Prop & prop, Operation & op)
+  /// Overload of `maps_if(Prop, Operation&)` that accepts rvalues.
   template <typename __T = T, class Prop, class Operation>
   DynList<__T> maps_if(Prop prop, Operation && op) const
   {
-    return maps<__T, Prop, Operation>(prop, op);
+    return maps_if<__T, Prop, Operation>(prop, op);
   }
 
   /** Convert container to DynList.
@@ -968,7 +966,7 @@ public:
     return ret_val;
   }
 
-  /// \overload foldl(const __T & init, Op & op)
+  /// Overload of `foldl(const __T&, Op&)` that accepts rvalues.
   template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
     __T foldl(const __T & init, Op && op = Op()) const
   {
@@ -981,7 +979,7 @@ public:
     return const_me()->template foldl<__T>(init, op);
   }
 
-  /// \overload fold_left(Op & op, const __T & init)
+  /// Overload of `fold_left(const __T&, Op&)` that accepts rvalues.
   template <typename __T = T, class Op = Dft_Fold_Op<__T, T>>
   __T fold_left(const __T & init, Op && op = Op()) const
   {
@@ -1004,7 +1002,7 @@ public:
     return ret_val;
   }
 
-  /// \overload fold(const T & init, Operation & operation)
+  /// Overload of `fold(const T&, Operation&)` that accepts rvalues.
   template <class Operation>
   T fold(const T & init, Operation && operation) const
   {
@@ -1046,7 +1044,7 @@ public:
     return ret_val;
   }
 
-  /// \overload filter(Operation & operation)
+  /// Overload of `filter(Operation&)` that accepts rvalues.
   template <class Operation>
   DynList<T> filter(Operation && operation) const
   {
@@ -1128,7 +1126,7 @@ public:
     return ret_val;
   }
 
-  /// \overload pfilter(Operation & operation)
+  /// Overload of `pfilter(Operation&)` that accepts rvalues.
   template <class Operation>
   DynList<std::tuple<T, size_t>> pfilter(Operation && operation) const
   {
@@ -1166,7 +1164,7 @@ public:
     return ret_val;
   }
 
-  /// \overload partition(Operation & op
+  /// Overload of `partition(Operation&)` that accepts rvalues.
   template <class Operation>
   std::pair<DynList<T>, DynList<T>> partition(Operation && op) const
   {
@@ -1240,11 +1238,11 @@ public:
     return std::tuple<DynList<T>, DynList<T>>(r1, r2);
   }
 
-  /// \overload tpartition(Operation & op)
+  /// Overload of `tpartition(Operation&)` that accepts rvalues.
   template <class Operation>
   std::tuple<DynList<T>, DynList<T>> tpartition(Operation && op) const
   {
-    return partition(op);
+    return tpartition(op);
   }
 
   /** Count the number of elements of a container.

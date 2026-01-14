@@ -206,13 +206,12 @@ namespace Aleph {
 
         Assign a rvalue list to `this` without copying.
 
+        @param[in] l rvalue reference to the list to move from.
         \note Since `l` is rvalue reference, take care of that if you are
         interested in to avoid the copy. So, if you have a lvalue
         reference to a list, use `std::move()`, upon your responsability,
         if and only if you are absolutely sure that the list will not be
         needed after.
-
-        \param[in] rvalue reference to list to be copied
     */
     Dlink & operator = (Dlink && l) noexcept
     {
@@ -490,22 +489,26 @@ namespace Aleph {
       return retValue;
     }
 
-    Dlink * remove_last_ne() noexcept /// \overload remove_prev()
+    /// \overload remove_prev()
+    Dlink * remove_last_ne() noexcept
     {
       return remove_prev();
     }
 
-    Dlink * remove_first_ne() noexcept /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * remove_first_ne() noexcept
     {
       return remove_next();
     }
 
-    Dlink * remove_last() noexcept /// \overload remove_prev()
+    /// \overload remove_prev()
+    Dlink * remove_last() noexcept
     {
       return remove_prev();
     }
 
-    Dlink * remove_first() noexcept /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * remove_first() noexcept
     {
       return remove_next();
     }
@@ -517,7 +520,8 @@ namespace Aleph {
       return get_next();
     }
 
-    Dlink * pop() /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * pop()
     {
       ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
       return remove_next();

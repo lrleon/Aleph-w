@@ -152,7 +152,7 @@ namespace Aleph {
             class Shade_Node, class Shade_Arc, class SA>
   void generate_graphpic(const GT &      g,
                          const double &  xdist,
-                         const double &  /* ydist no usado por ahora */,
+                         const double &  ydist,
                          std::ostream & output)
   {
     DynArray<typename GT::Node *> nodes;

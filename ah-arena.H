@@ -336,14 +336,14 @@ public:
    *
    * @tparam T Type to construct.
    * @tparam Args Constructor argument types.
-   * @param[in] tag Disambiguation tag (use TemplateType::TEMPLATE).
+   * @param[in] tag Disambiguation tag (use TemplateType::TEMPLATE) - unused parameter.
    * @param[in] args Constructor arguments (forwarded).
    * @return Pointer to constructed object, or nullptr if allocation fails.
    *
    * @note If allocation fails, no object is constructed and nullptr is returned.
    */
   template <typename T, typename... Args>
-  [[nodiscard]] T* alloc(TemplateType /*tag*/, Args&&... args)
+  [[nodiscard]] T* alloc(TemplateType tag, Args&&... args)
   {
     void* ptr = alloc_aligned(sizeof(T), alignof(T));
     if (ptr == nullptr)
@@ -358,11 +358,11 @@ public:
    * (only succeeds for LIFO deallocation pattern).
    *
    * @tparam T Type of object.
-   * @param[in] tag Disambiguation tag (use TemplateType::TEMPLATE).
+   * @param[in] tag Disambiguation tag (use TemplateType::TEMPLATE) - unused parameter.
    * @param[in] ptr Pointer to object.
    */
   template <typename T>
-  void dealloc(TemplateType /*tag*/, void* ptr) noexcept
+  void dealloc(TemplateType tag, void* ptr) noexcept
   {
     if (ptr == nullptr)
       return;

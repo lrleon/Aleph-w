@@ -233,7 +233,7 @@ inline void save_infix_pos(Freq_Node * p, int level, int pos)
  * @param pos Position in level (unused)
  * @param is_left True if node is a left child
  */
-inline void save_level_pos_1(Freq_Node * p, int, bool is_left)
+inline void save_level_pos_1(Freq_Node * p, int pos, bool is_left)
 {
   level_table.insert(p, Level_Desc(is_left));
 }
@@ -248,7 +248,7 @@ inline void save_level_pos_1(Freq_Node * p, int, bool is_left)
  * @param pos Position in level-order traversal
  * @param is_left Unused
  */
-inline void save_level_pos_2(Freq_Node * p, int pos, bool)
+inline void save_level_pos_2(Freq_Node * p, int pos, bool is_left)
 {
   if (pos == 0)
     {
@@ -274,7 +274,7 @@ inline void save_level_pos_2(Freq_Node * p, int pos, bool)
  * @param level Unused
  * @param prefix_pos Unused
  */
-inline void write_prefix(Freq_Node * p, int, int)
+inline void write_prefix(Freq_Node * p, int level, int prefix_pos)
 {
   const Infix_Desc & infix_desc = infix_table[p];
   *output_ptr << static_cast<int>(infix_desc.pos) << " ";
@@ -290,7 +290,7 @@ inline void write_prefix(Freq_Node * p, int, int)
  * @param level Unused
  * @param pos Unused
  */
-inline void write_freq(Freq_Node * p, int, int)
+inline void write_freq(Freq_Node * p, int level, int pos)
 {
   const size_t & freq = p->get_key().second;
   *output_ptr << "\"" << freq << "\" ";
@@ -307,7 +307,7 @@ inline void write_freq(Freq_Node * p, int, int)
  * @param level Unused
  * @param pos In-order position
  */
-inline void write_leaves(Freq_Node * p, int, int pos)
+inline void write_leaves(Freq_Node * p, int level, int pos)
 {
   // Only process leaf nodes
   if (not (LLINK(p) == nullptr and RLINK(p) == nullptr))

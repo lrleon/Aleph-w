@@ -563,7 +563,6 @@ public:
 
   /**Compute the inorder position of a key
 
-      @param[in] r root of tree
       @param[in] key to be searched
       @return inorder position of `key` if this is in the tree or -1 if
       `key` is not found

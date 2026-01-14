@@ -658,7 +658,6 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] visitFct visit function
-      @return number of visited nodes
       \throw bad_alloc if there is no enough memory
       @ingroup Trees
      */
@@ -862,7 +861,6 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] visitFct pointer to visit function
-      @return the number of nodes of tree
       @see preOrderThreaded()
       @ingroup Trees
    */
@@ -921,7 +919,6 @@ namespace Aleph
 
       @param[in] node of tree
       @param[in] visitFct pointer to visit function
-      @return the number of nodes of tree
       @see inOrderThreaded()
       @ingroup Trees
   */
@@ -1379,6 +1376,36 @@ namespace Aleph
     return root;
   }
 
+  /// Constants for three-way comparison results
+  enum ThreeWayCmp : int
+  {
+    CmpLess = -1,    ///< First argument is less than second
+    CmpEqual = 0,    ///< Arguments are equal
+    CmpGreater = 1   ///< First argument is greater than second
+  };
+
+  /** Three-way comparison using a binary comparator.
+
+      Returns CmpLess if a < b, CmpEqual if a == b, CmpGreater if a > b.
+      This reduces two comparisons to one when the result is cached.
+
+      @param[in] a first value to compare
+      @param[in] b second value to compare
+      @param[in] cmp binary less-than comparator
+      @return CmpLess, CmpEqual, or CmpGreater indicating the ordering
+      @ingroup Trees
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline ThreeWayCmp three_way_compare(const T & a, const T & b,
+                                       const Compare & cmp = Compare()) noexcept
+  {
+    if (cmp(a, b))
+      return CmpLess;
+    if (cmp(b, a))
+      return CmpGreater;
+    return CmpEqual;
+  }
+
   /** Search a key in a binary search tree
 
       @param[in] root of tree
@@ -1395,15 +1422,12 @@ namespace Aleph
                          const Compare & cmp = Compare()) noexcept
   {
     while (root != Node::NullPtr)
-      {
-        const auto & root_key = KEY(root);
-        if (cmp(key, root_key))
-          root = LLINK(root);
-        else if (cmp(root_key, key))
-          root = RLINK(root);
-        else
-          break;
-      }
+      if (const auto c = three_way_compare(key, KEY(root), cmp); c == CmpLess) [[likely]]
+        root = LLINK(root);
+      else if (c == CmpGreater) [[likely]]
+        root = RLINK(root);
+      else [[unlikely]]
+        break;
 
     return root;
   }
@@ -1520,8 +1544,8 @@ namespace Aleph
 
     while (true)
       {
-        const auto & root_key = KEY(root);
-        if (cmp(key, root_key))
+        const auto c = three_way_compare(key, KEY(root), cmp);
+        if (c == CmpLess) [[likely]]
           {
             if (LLINK(root) == Node::NullPtr)
               return root;
@@ -1529,7 +1553,7 @@ namespace Aleph
             parent = root;
             root = LLINK(root);
           }
-        else if (cmp(root_key, key))
+        else if (c == CmpGreater) [[likely]]
           {
             if (RLINK(root) == Node::NullPtr)
               return root;
@@ -1537,7 +1561,7 @@ namespace Aleph
             parent = root;
             root = RLINK(root);
           }
-        else
+        else [[unlikely]]
           return root;
       }
   }
@@ -2015,6 +2039,8 @@ namespace Aleph
   /** Rotate to the right the tree with root `p` and update its parent
 
       @param[in] p root to rotate
+      @param[in] pp parent of p
+      @return pointer to the new root after rotation
       @ingroup Trees
   */
   template <class Node>
@@ -2543,7 +2569,6 @@ namespace Aleph
 
       \param root
       \param[in] `op` operation to be done on each element.
-      \return `true` if all the nodes were visites; `false` otherwise
       \throw anything that can throw `operation`
    */
   template <class Node, class Op>
@@ -2771,7 +2796,6 @@ namespace Aleph
 
       \param root
       \param[in] op `operation` to be done on each element.
-      \return `true` if all the nodes were visites; `false` otherwise
       \throw anything that can throw `operation`
    */
   template <class Node, class Op>

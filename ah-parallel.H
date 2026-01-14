@@ -476,7 +476,18 @@ void pfor_each(ThreadPool& pool, Container& c, Op op, size_t chunk_size = 0)
     f.get();
 }
 
-/** @overload pfor_each for const containers. */
+/** \overload
+ *
+ *  Parallel for_each for const containers.
+ *
+ *  @tparam Container Container type.
+ *  @tparam Op Operation type.
+ *  @param pool Thread pool to use.
+ *  @param c Container (elements accessed by const reference).
+ *  @param op Function to apply: `void op(const T&)`.
+ *  @param chunk_size Elements per chunk (0 = auto).
+ *  @see pfor_each(ThreadPool&, Container&, Op, size_t) For the non-const version.
+ */
 template <typename Container, typename Op>
 void pfor_each(ThreadPool& pool, const Container& c, Op op, size_t chunk_size = 0)
 {
@@ -2202,7 +2213,18 @@ void penumerate_for_each(ThreadPool& pool, Container& c, Op op,
     f.get();
 }
 
-/** @overload penumerate_for_each for const containers. */
+/** \overload
+ *
+ *  Parallel enumerate_for_each for const containers.
+ *
+ *  @tparam Container Container type.
+ *  @tparam Op Operation type: void(size_t index, const T&).
+ *  @param pool Thread pool to use.
+ *  @param c Container.
+ *  @param op Function: void(size_t index, const T& element).
+ *  @param chunk_size Elements per chunk (0 = auto).
+ *  @see penumerate_for_each(ThreadPool&, Container&, Op, size_t) For the non-const version.
+ */
 template <typename Container, typename Op>
 void penumerate_for_each(ThreadPool& pool, const Container& c, Op op,
                          size_t chunk_size = 0)

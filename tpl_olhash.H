@@ -254,7 +254,7 @@ namespace Aleph
                 Hash_Fct_Ptr hash_fct = Aleph::dft_hash_fct<Key>,
                 Cmp cmp = Cmp(),
                 float lower_alpha = hash_default_lower_alpha,
-                float upper_alpha = hash_default_upper_alpha,
+                float upper_alpha = 0.70f,
                 bool with_resize = true)
       : OLhashTable(len, Hash_Fct(hash_fct), cmp,
                     lower_alpha, upper_alpha, with_resize) {}
@@ -336,13 +336,16 @@ namespace Aleph
       return *this;
     }
 
-    /// Finds the key key and returns the associated record if key is
+    /// Finds the key and returns the associated record if key is
     /// find inside the table; otherwise, nullptr is returned.
     [[nodiscard]] Key *search(const Key &key) const noexcept
     {
       size_t i = hash_fct(key) % len;
       for (size_t c = 0; c < len; ++c)
         {
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
+
           if (table[i].status == EMPTY) [[unlikely]]
             return nullptr;
 
@@ -365,6 +368,9 @@ namespace Aleph
 
       for (size_t c = 0; c < len; ++c)
         {
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
+
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
@@ -409,6 +415,9 @@ namespace Aleph
 
       for (size_t c = 0; c < len; ++c)
         {
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
+
           auto & b = table[i];
           if (b.status == EMPTY) [[likely]]
             {
@@ -442,9 +451,47 @@ namespace Aleph
       return {nullptr, false};
     }
 
+    /// Index of previous bucket (handles wrap-around)
+    size_t prev_index(const size_t i) const noexcept
+    {
+      return (i == 0) ? len - 1 : i - 1;
+    }
+
+    /// Index of next bucket (handles wrap-around)
+    size_t next_index(const size_t i) const noexcept
+    {
+      return (i + 1 == len) ? 0 : i + 1;
+    }
+
+    /// Cleanup DELETED entries that are at the end of collision chains.
+    /// If the bucket at idx has a following EMPTY bucket, it can be marked
+    /// EMPTY instead of DELETED. Then propagate backwards to clean any
+    /// DELETED buckets that now also end in EMPTY.
+    /// This implements Knuth's optimization to avoid tombstone accumulation.
+    void cleanup_deleted_chain(size_t idx) noexcept
+    {
+      // If next bucket is not EMPTY, we must keep this as DELETED
+      if (table[next_index(idx)].status != EMPTY)
+        return;
+
+      // Next is EMPTY, so we can mark this as EMPTY
+      table[idx].status = EMPTY;
+
+      // Propagate backwards: any DELETED bucket whose next is now EMPTY
+      // can also become EMPTY
+      size_t prev = prev_index(idx);
+      size_t count = 0;
+      while (table[prev].status == DELETED and count < len)
+        {
+          table[prev].status = EMPTY;
+          prev = prev_index(prev);
+          ++count;
+        }
+    }
+
     /// Removes the record pointed to by record from the table. Obviously,
     /// record must point to an entry returned by insert() or
-    /// search(). Fires invalid_argument exceptions if record is not a
+    /// search(). Fires invalid_argument exceptions if record is not an
     /// address within table range or domain_error if bucket
     /// of the registry is not busy.
     void deallocate_bucket(Bucket *bucket)
@@ -456,8 +503,9 @@ namespace Aleph
         << "Bucket containing record is not busy";
 
       --N;
-      const auto idx = static_cast<size_t>(bucket - &table[0]); // gap index
+      const auto idx = static_cast<size_t>(bucket - &table[0]);
       table[idx].status = DELETED;
+      cleanup_deleted_chain(idx);
     }
 
    public:
@@ -471,6 +519,9 @@ namespace Aleph
       size_t i = hash_fct(key) % len;
       for (size_t c = 0; c < len; ++c)
         {
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
+
           if (table[i].status == EMPTY) [[unlikely]]
             ah_domain_error() << "Key not in hash table";
 
@@ -478,6 +529,7 @@ namespace Aleph
             {
               table[i].status = DELETED;
               --N;
+              cleanup_deleted_chain(i);
               return;
             }
 
@@ -543,7 +595,7 @@ namespace Aleph
       float var = 0;
       for (size_t i = 0; i < lens.size(); ++i)
         {
-          float s = i - avg;
+          const float s = i - avg;
           var += lens(i) * s * s;
         }
       var /= sum;

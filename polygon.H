@@ -278,7 +278,7 @@ class Polygon : public Geom_Object
   }
 
   /// @brief Copy vertices from a regular polygon.
-  /// @param poly The regular polygon to copy.
+  /// @param[in] poly The regular polygon to copy.
   void copy_regular_polygon(const Regular_Polygon & poly);
 
 public:
@@ -1062,13 +1062,9 @@ public:
   [[nodiscard]] Point rightmost_point() const { return center + Point(r, 0); }
 };
 
-/** @brief Copy vertices from a regular polygon.
+/** \overload
  *
- *  This method copies all vertices from a Regular_Polygon and closes
- *  the resulting Polygon.
- *
- *  @param poly The regular polygon to copy from.
- *  @pre The polygon must be empty (num_vertex == 0) and not closed.
+ *  Copy vertices from a regular polygon. See declaration for parameter documentation.
  */
 inline void Polygon::copy_regular_polygon(const Regular_Polygon & poly)
 {

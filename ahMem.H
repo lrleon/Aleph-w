@@ -34,7 +34,7 @@
  * - Currently, it is a lightweight wrapper around `<cstddef>` and `<new>`, 
  *   enabling future expansion into custom allocators.
  * 
- * @section usage Usage
+ * @section ahmem_usage Usage
  * @code
  * #include <ahMem.H>
  * 

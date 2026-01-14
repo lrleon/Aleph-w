@@ -1175,6 +1175,8 @@ namespace Aleph
         @param[in] g the graph.
         @param[out] path the path where the cycle is stored in case
         a negative cycle is detected.
+        @param[in,out] d distance map (modified during computation).
+        @param[in] sa arc filter for traversal.
         @return true if a negative cycle exists; false otherwise.
         @throw bad_alloc if there is not enough memory.
      */
@@ -1198,6 +1200,8 @@ namespace Aleph
         @param[in] s the starting node.
         @param[out] path the path where the cycle is stored in case
         a negative cycle is detected.
+        @param[in,out] d distance map (modified during computation).
+        @param[in] sa arc filter for traversal.
         @return true if a negative cycle exists; false otherwise.
         @throw bad_alloc if there is not enough memory.
      */

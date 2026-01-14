@@ -115,10 +115,7 @@ public:
     if (this == &s)
       return *this;
 
-    if (s.size() > size())
-      array.reserve(s.size());
-    else
-      array.cut(s.size);
+    array.cut(0);  // Clear the array first
     s.for_each([this] (auto item) { this->append(item); });
 
     return *this;

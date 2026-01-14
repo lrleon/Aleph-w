@@ -253,14 +253,17 @@ TEST(CostNetworkGeneratorTest, LayeredWithCosts)
   config.density = 0.5;
   config.min_cost = 1.0;
   config.max_cost = 10.0;
-  // Use small capacities to keep SSP iterations reasonable
+  // Use small network and unit capacities to keep SSP iterations reasonable
   // SSP has O(V * U * ...) complexity where U is max flow value
+  // In Debug mode with Clang, even small networks can be slow
   config.min_capacity = 1.0;
-  config.max_capacity = 10.0;
+  config.max_capacity = 1.0;  // Unit capacity for minimal iterations
   config.ensure_connected = true;
   config.seed = 888;
   
-  LayeredNetworkGenerator<CostNet> gen(config, 4, 4);
+  // Small network: 3 layers with 2 nodes per intermediate layer
+  // Total: 1 (source) + 2 (intermediate) + 1 (sink) = 4 nodes
+  LayeredNetworkGenerator<CostNet> gen(config, 3, 2);
   CostNet net;
   gen.generate(net);
   

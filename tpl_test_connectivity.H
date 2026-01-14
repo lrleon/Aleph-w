@@ -68,7 +68,7 @@ public:
 	    mantenga un estado.
 
             @param[in] g el grafo o digrafo a verificar.
-	    \param[in] sa el filtro de arcos del grafo.
+	    @param[in] sa el filtro de arcos del grafo (default: Dft_Show_Arc<GT>)
             @return true si el grafo es conexo; false de lo contrario.
             @note Debido a la prueba con el número de arcos, esta función
             es incorrecta para multigrafos.
@@ -93,7 +93,7 @@ public:
 	    mantenga un estado.
 
             @param[in] g el grafo o digrafo a verificar.
-	    \param[in] sa el filtro de arcos del grafo.
+	    @param[in] sa el filtro de arcos del grafo (por referencia)
             @return true si el grafo es conexo; false de lo contrario.
             @note Debido a la prueba con el número de arcos, esta función
             es incorrecta para multigrafos.

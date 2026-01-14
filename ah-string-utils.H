@@ -874,7 +874,9 @@ namespace Aleph
   }
 
   /**
-     @param[in] lens parallel row containing the maximum lenght og each colunm
+     @param[in] lens parallel row containing the maximum length of each column
+     @param[in] mat matrix of strings to format
+     @return formatted matrix with strings aligned according to lens
   */
   inline DynList<DynList<std::string>>
   format_string(const DynList<size_t> & lens,
@@ -1204,10 +1206,12 @@ namespace Aleph
 
   /** Base case for `build_pars_list(std::string&, ...)`.
 
-      \param[in,out] Unused; terminates recursion.
+      \param[in,out] unused Terminates recursion (not used).
   */
-  inline void build_pars_list(std::string &)
-  {}
+  inline void build_pars_list(std::string & unused)
+  {
+    (void) unused;
+  }
 
   template <typename T>
     requires requires(std::ostream & out, const T & v)

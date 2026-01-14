@@ -85,6 +85,8 @@ namespace Aleph
  * @endcode
  *
  * @see get_zip_it(), zip_it(), EnumZipIterator
+ * @note This class uses recursive template inheritance (CRTP pattern).
+ *       The base class is a different specialization: ZipIterator<TailC...>
  * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
  */

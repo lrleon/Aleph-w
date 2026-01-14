@@ -108,9 +108,6 @@ namespace Aleph
     Node *head_ptr;
     Node *& root;
     Compare cmp;
-    static constexpr signed char CmpLess = -1;
-    static constexpr signed char CmpEqual = 0;
-    static constexpr signed char CmpGreater = 1;
 
     bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
 
@@ -125,22 +122,16 @@ namespace Aleph
       Node *p = root;
       do // descend searching for key and push the search path
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
-          if (const Key & pk = KEY(p); cmp(key, pk)) // key < KEY(p)?
-            {
-              cmp_result = CmpLess;
-              p = LLINK(p);
-            }
-          else if (cmp(pk, key)) // key > KEY(p)?
-            {
-              cmp_result = CmpGreater;
-              p = RLINK(p);
-            }
-          else
-            {
-              cmp_result = CmpEqual;
-              return p; // duplicated key
-            }
+          cmp_result = three_way_compare(key, KEY(p), cmp);
+          if (cmp_result == CmpLess) [[likely]]
+            p = LLINK(p);
+          else if (cmp_result == CmpGreater) [[likely]]
+            p = RLINK(p);
+          else [[unlikely]]
+            return p; // duplicated key
         }
       while (p != Node::NullPtr);
 
@@ -156,8 +147,10 @@ namespace Aleph
       Node *p = root;
       do // descend searching for key and push the search path
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
-          if (const Key & pk = KEY(p); cmp(key, pk)) // key < KEY(p)?
+          if (cmp(key, KEY(p))) // key < KEY(p)?
             {
               cmp_result = CmpLess;
               p = LLINK(p);
@@ -173,7 +166,7 @@ namespace Aleph
       return avl_stack.top();
     }
 
-    static Node * rotateLeft(Node *p) noexcept
+    [[gnu::always_inline]] static Node * rotateLeft(Node *p) noexcept
     {
       assert(DIFF(p) == 2);
       assert(RLINK(p) != Node::NullPtr);
@@ -193,7 +186,7 @@ namespace Aleph
       return q;
     }
 
-    static Node * rotateRight(Node *p) noexcept
+    [[gnu::always_inline]] static Node * rotateRight(Node *p) noexcept
     {
       assert(DIFF(p) == -2);
       assert(LLINK(p) != Node::NullPtr);
@@ -213,7 +206,7 @@ namespace Aleph
       return q;
     }
 
-    static Node * doubleRotateLeft(Node *p) noexcept
+    [[gnu::always_inline]] static Node * doubleRotateLeft(Node *p) noexcept
     {
       assert(DIFF(p) == 2 or DIFF(p) == -2);
       assert(RLINK(p) != Node::NullPtr and LLINK(RLINK(p)) != Node::NullPtr);
@@ -250,7 +243,7 @@ namespace Aleph
       return r;
     }
 
-    static Node * doubleRotateRight(Node *p) noexcept
+    [[gnu::always_inline]] static Node * doubleRotateRight(Node *p) noexcept
     {
       assert(DIFF(p) == 2 or DIFF(p) == -2);
       assert(LLINK(p) != Node::NullPtr and RLINK(LLINK(p)) != Node::NullPtr);
@@ -493,7 +486,7 @@ namespace Aleph
 
     /** Insert the node pointed by `p` in the tree.
 
-        `insert(p)' inserts the node `p` inte AVL tree. If `KEY(p)` is
+        `insert(p)' inserts the node `p` into AVL tree. If `KEY(p)` is
         found in the tree, then no insertion is done and `nullptr` is
         returned. Otherwise, `p` is inserted and this same value is
         returned.
@@ -536,7 +529,7 @@ namespace Aleph
 
         @param[in] p the node whose key must be searched and
         eventually inserted,
-        @return if `p` is inserted, the this value is returned;
+        @return if `p` is inserted, the value is returned;
         otherwise, a pointer to the node containing `KEY(p)` is returned.
      */
     [[nodiscard]] Node * search_or_insert(Node *p) noexcept

@@ -216,7 +216,7 @@ namespace Aleph
         @param[in] op functor que implementa el criterio de búsqueda. El
         functor ecibe como parámetro el nodo y debe retornar `true` si el
         nodo satisface el criterio `false` de lo contrario.
-        @rreturn path el camino visto durante la búsqueda en
+        @return path el camino visto durante la búsqueda en
         profundidad; si no existe tal camino entonces el camino es va
         @throw bad_alloc si no hay memoria para continuar construyendo
         el camino
@@ -363,9 +363,8 @@ recorrido
 
     @param[in] g el grafo sobre el cual se desea buscar el camino.
     @param[in] start puntero al nodo inicio del camino.
-    @param[out] path el camino visto durante la búsqueda en
-    amplitud; sólo tiene sentido si el valor de retorno es true.
     @param[in] op criterio de fin de búsqueda sobre el nodo visitado
+    @return el camino visto durante la búsqueda en amplitud
     @throw bad_alloc si no hay memoria para continuar construyendo
     el camino o para la cola interna del recorrido en amplitud.
     */
@@ -389,7 +388,7 @@ recorrido
 
         @param[in] g el grafo sobre el cual se desea buscar el camino.
         @param[in] start puntero al nodo inicio del camino.
-        @graph_utilsparam[in] end puntero al nodo destino del camino.
+        @param[in] end puntero al nodo destino del camino.
         @param[out] path el camino visto durante la búsqueda en
         amplitud; sólo tiene sentido si el valor de retorno es true.
         @throw bad_alloc si no hay memoria para continuar construyendo

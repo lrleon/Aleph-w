@@ -688,7 +688,7 @@ public:
   /// Return the total of nodes of graph
   [[nodiscard]] constexpr size_t get_num_nodes() const noexcept { return num_nodes; }
 
-  /// \verload get_num_nodes()
+  /// \overload get_num_nodes()
   [[nodiscard]] constexpr size_t vsize() const noexcept { return get_num_nodes(); }
 
   /** Return any node in the graph.
@@ -1303,7 +1303,7 @@ public:
     return true;
   }
 
-  /// \overload traverse_nodes()
+  /// Overload of `traverse_nodes(Operation&)` that accepts rvalues.
   template <class Operation>
   bool traverse_nodes(Operation && op = Operation()) const
   {
@@ -1368,7 +1368,7 @@ public:
     return true;
   }
 
-  /// \overload traverse_arcs()
+  /// Overload of `traverse_arcs(Operation&)` that accepts rvalues.
   template <class Operation>
   bool traverse_arcs(Operation && op = Operation()) const
   {
@@ -1435,7 +1435,7 @@ public:
     return true;
   }
 
-  /// \overload traverse_arcs(Node * p, Operation & operation)
+  /// Overload of `traverse_arcs(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   bool traverse_arcs(Node *p, Operation && op = Operation()) const
   {
@@ -1473,7 +1473,7 @@ public:
       operation(it.get_curr());
   }
 
-  /// \overload for_each_node()
+  /// Overload of `for_each_node(Operation&)` that accepts rvalues.
   template <class Operation>
   void for_each_node(Operation && operation = Operation()) const
   {
@@ -1501,8 +1501,8 @@ public:
 
       The complexity for this primitive always is \f$O(E)\f$.
 
-      @param[in] op to be performed on each node.
-      @throw anything that can throw `operation`.
+      @param[in] op to be performed on each arc.
+      @throw anything that can throw `op`.
   */
   template <class Operation>
   void for_each_arc(Operation & op) const
@@ -1511,7 +1511,7 @@ public:
       op(it.get_curr());
   }
 
-  /// \overload for_each_arc(Operation & operation)
+  /// Overload of `for_each_arc(Operation&)` that accepts rvalues.
   template <class Operation>
   void for_each_arc(Operation && operation = Operation()) const
   {
@@ -1547,9 +1547,9 @@ public:
       @remark For directed graphs use `for_each_in_arc()` or
       `for_each_out_arc()`-
 
-      @param[i] p pointer to the node from you want to see its arcs.
-      @param[in] operation to be performed on each node.
-      @throw anything that can throw `operation`.
+      @param[in] p pointer to the node from which you want to traverse adjacent arcs.
+      @param[in] op operation to be performed on each arc.
+      @throw anything that can throw `op`.
    */
   template <class Operation>
   void for_each_arc(Node *p, Operation & op) const
@@ -1558,7 +1558,7 @@ public:
       op(it.get_curr());
   }
 
-  /// \overlaod for_each_arc(Node * p, Operation & operation)
+  /// Overload of `for_each_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   void for_each_arc(Node *p, Operation && op = Operation()) const
   {
@@ -1588,7 +1588,7 @@ public:
 
       The complexity for this primitive always is \f$O(V)\f$ worst case.
 
-      @param[in] operation condition to test on each node.
+      @param[in] op condition to test on each node.
       @return `true` if all the nodes satisfy the condition; `false`
       otherwise.
 
@@ -1600,7 +1600,7 @@ public:
     return traverse_nodes(op);
   }
 
-  /// \overload all_nodes()
+  /// Overload of `all_nodes(Operation&)` that accepts rvalues.
   template <class Operation>
   bool all_nodes(Operation && op = Operation()) const
   {
@@ -1630,7 +1630,7 @@ public:
 
     The complexity for this primitive always is \f$O(E)\f$ worst case.
 
-    @param[in] operation condition to test on each arc.
+    @param[in] op condition to test on each arc.
     @return `true` if all the arcs satisfy the condition; `false`
     otherwise.
 
@@ -1642,7 +1642,7 @@ public:
     return traverse_arcs(op);
   }
 
-  /// \overload all_arcs(Operation & operation)
+  /// Overload of `all_arcs(Operation&)` that accepts rvalues.
   template <class Operation>
   bool all_arcs(Operation && op = Operation()) const
   {
@@ -1675,7 +1675,7 @@ public:
       for dense graphs.
 
       @param[in] p node pointer
-      @param[in] operation condition to test on each arc.
+      @param[in] op condition to test on each arc.
       @return `true` if all the arcs satisfy the condition; `false`
       otherwise.
 
@@ -1687,7 +1687,7 @@ public:
     return traverse_arcs(p, op);
   }
 
-  /// \overload all_arcs(Node * p, Operation & operation)
+  /// Overload of `all_arcs(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   bool all_arcs(Node *p, Operation && op = Operation()) const
   {
@@ -1728,11 +1728,10 @@ public:
 
          g.template nodes_map<ulong>([] (auto p) { return p->get_info(); });
 
-     @param[in] operation transformation from `Node*` to `T` to be
-     performed on each node.
+     @param[in] op transformation from `Node*` to `T` to be performed on each node.
      @return a `DynList<T>` containing the mapping.
      @throw bad_alloc if there is no enough memory for fuilding the
-     dynamic list or anything else that can throw `operation`
+     dynamic list or anything else that can throw `op`
    */
   template <typename T = Node_Type>
   auto nodes_map(std::function<T(Node *)> op) const
@@ -1826,11 +1825,11 @@ public:
 
          g.template arcs_map<ulong>([] (auto p) { return p->get_info(); });
 
-     @param[in] operation transformation from `Arc*` to `T` to be
-     performed on each arc.
+     @param[in] p node from which you want to traverse adjacent arcs.
+     @param[in] operation transformation from `Arc*` to `T` to be performed on each arc.
      @return a `DynList<T>` containing the mapping.
-     @throw bad_alloc if there is no enough memory for fuilding the
-     dynamic list or anything else that can throw `operation`
+     @throw bad_alloc if there is no enough memory for building the dynamic list
+            or anything else that can throw `operation`.
    */
   template <typename T = Arc_Type>
   auto arcs_map(Node *p, std::function<T(Arc *)> operation) const
@@ -1873,7 +1872,7 @@ public:
 	  });
 
       @param[in] init initial value of accumulator
-      @param[in] operation to be performed, which must match the
+      @param[in] op to be performed, which must match the
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
@@ -1915,7 +1914,7 @@ public:
 	  });
 
       @param[in] init initial value of accumulator
-      @param[in] operation to be performed, which must match the
+      @param[in] op to be performed, which must match the
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
@@ -1958,7 +1957,7 @@ public:
 
       @param[in] p node from where to access its adjacent arcs
       @param[in] init initial value of accumulator
-      @param[in] operation to be performed, which must match the
+      @param[in] op to be performed, which must match the
       signature previously explained.
       @return the final value of accumulator after full traversal.
    */
@@ -2004,7 +2003,7 @@ public:
     return ret;
   }
 
-  /// \overload filter_nodes(Op & op)
+  /// Overload of `filter_nodes(Op&)` that accepts rvalues.
   template <class Op>
   auto filter_nodes(Op && op) const
   {
@@ -2044,7 +2043,7 @@ public:
     return ret;
   }
 
-  /// \overload filter_arcs(Op & op)
+  /// Overload of `filter_arcs(Op&)` that accepts rvalues.
   template <class Op>
   auto filter_arcs(Op && op) const
   {
@@ -2093,7 +2092,7 @@ public:
     return ret;
   }
 
-  /// \overload filter_arcs()
+  /// Overload of `filter_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   auto filter_arcs(Node *p, Op && op) const
   {
@@ -2113,7 +2112,7 @@ public:
 
           not g.all_nodes([&op] (auto p) { return not op(p); });
 
-      \param[in] operation for testing existing condition
+      \param[in] op operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
       found; `false` otherwise.
       @see all_nodes()
@@ -2124,7 +2123,7 @@ public:
     return not traverse_nodes([&op](Node *p) { return not op(p); });
   }
 
-  /// \overload exists_node()
+  /// Overload of `exists_node(Operation&)` that accepts rvalues.
   template <class Operation>
   bool exists_node(Operation && op = Operation()) const
   {
@@ -2144,7 +2143,7 @@ public:
 
           not g.all_arc([&op] (auto p) { return not op(p); });
 
-      \param[in] operation for testing existing condition
+      \param[in] op operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
       found; `false` otherwise.
       @see all_arcs()
@@ -2155,7 +2154,7 @@ public:
     return not traverse_arcs([&op](Arc *a) { return not op(a); });
   }
 
-  /// \overload exists_arc(Operation & operation)
+  /// Overload of `exists_arc(Operation&)` that accepts rvalues.
   template <class Operation>
   bool exists_arc(Operation && op = Operation()) const
   {
@@ -2179,7 +2178,7 @@ public:
           not g.all_arc(p, [&op] (auto p) { return not op(p); });
 
       \param[in] p node from which you want to access its arcs
-      \param[in] operation for testing existing condition
+      \param[in] op operation for testing existing condition
       \return `true` if at least a node satisfaying the condition is
       found; `false` otherwise.
       @see all_arcs(Node * p)
@@ -2190,7 +2189,7 @@ public:
     return not traverse_arcs(p, [&op](Arc *a) { return not op(a); });
   }
 
-  /// \overload exists_arc(Node * p, Operation & operation)
+  /// Overload of `exists_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   bool exists_arc(Node *p, Operation && op = Operation()) const
   {
@@ -2217,7 +2216,7 @@ public:
     return not exists_node(op);
   }
 
-  /// \overload none_node()
+  /// Overload of `none_node(Operation&)` that accepts rvalues.
   template <class Operation>
   bool none_node(Operation && op) const
   {
@@ -2244,7 +2243,7 @@ public:
     return not exists_arc(op);
   }
 
-  /// \overload none_arc()
+  /// Overload of `none_arc(Operation&)` that accepts rvalues.
   template <class Operation>
   bool none_arc(Operation && op) const
   {
@@ -2264,7 +2263,7 @@ public:
     return not exists_arc(p, op);
   }
 
-  /// \overload none_arc(Node*, Operation&)
+  /// Overload of `none_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   bool none_arc(Node *p, Operation && op) const
   {
@@ -2357,7 +2356,7 @@ public:
     return sum;
   }
   
-  /// \overload sum_arcs with default extractor (arc info)
+  /// Overload of `sum_arcs(Node*, Extract)` using the arc info as extractor.
   template <typename T = double>
   T sum_arcs(Node *p) const
   {
@@ -2559,7 +2558,7 @@ public:
     return nullptr;
   }
 
-  /// \overload search_node()
+  /// Overload of `search_node(Op&)` that accepts rvalues.
   template <class Op>
   Node * search_node(Op && op) const
   {
@@ -2610,7 +2609,7 @@ public:
     return nullptr;
   }
 
-  /// \overload search_arc(Op & op)
+  /// Overload of `search_arc(Op&)` that accepts rvalues.
   template <class Op>
   Arc * search_arc(Op && op) const
   {
@@ -2663,7 +2662,7 @@ public:
     return nullptr;
   }
 
-  /// \overload search_arc(Node * p, Operation & op)
+  /// Overload of `search_arc(Node*, Operation&)` that accepts rvalues.
   template <class Operation>
   Arc * search_arc(Node *p, Operation && op = Operation()) const
   {
@@ -2687,7 +2686,7 @@ public:
       The complexity is $\f$O(V)\f$ worst case.
 
       \param[in] src source node
-      \paran[in] tgt target node
+      \param[in] tgt target node
       \return a valid pointer to an arc if this was found or `nullptr`
       otherwise.
 
@@ -3020,7 +3019,7 @@ public:
       return this->get_node(this->get_curr_ne());
     }
 
-    /// \overload get_node()
+    /// Backward-compatible alias: return target node (same as `get_node_ne()`).
     auto get_tgt_node_ne() const noexcept { return get_node_ne(); }
 
     typename GT::Node * get_node() const
@@ -3028,7 +3027,7 @@ public:
       return this->get_node(this->get_curr());
     }
 
-    /// \overload get_node()
+    /// Backward-compatible alias: return target node (same as `get_node()`).
     auto get_tgt_node() const { return get_node(); }
 
     /// Reset the iterator to first arc
@@ -3282,12 +3281,12 @@ public:
       outcoming arcs.
 
       \param[in] p node to traverse its arcs
-      \param[in] operation to perform on each arc given by the
+      \param[in] op to perform on each arc given by the
       iterator. The convention is the the same than for `traverse`
-      methods. If `operation`return `true`, then the next arc is
+      methods. If `op` return `true`, then the next arc is
       revised; otherwise the traversal stops.
       \return `true` if all the arcs were traversed; `false` otherwise.
-      \throw whatever could throw `operation`
+      \throw whatever could throw `op`
 
       \see traverse(Node * p, Operation & operation)
    */
@@ -3300,12 +3299,12 @@ public:
     return true;
   }
 
-  /// Perform `operation` on each arc of node `p`
+  /// Perform `op` on each arc of node `p`
   template <class Itor, class Operation>
   void for_each_arc(Node *p, Operation & op) const
   {
     for (Itor it(p); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
+      op(it.get_curr());
   }
 
   /// Traverse the incoming arcs of node `p` executing the conditioned
@@ -3316,21 +3315,21 @@ public:
     return traverse_arcs<In_Iterator, Op>(p, op);
   }
 
-  /// \overload traverse_in_arcs(Node * p, Op & op)
+  /// Overload of `traverse_in_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool traverse_in_arcs(Node *p, Op && op = Op()) const
   {
     return traverse_in_arcs(p, op);
   }
 
-  /// Perform `operation` on each incoming arc of node `p`
+  /// Perform `op` on each incoming arc of node `p`
   template <class Op>
   void for_each_in_arc(Node *p, Op & op) const
   {
-    for_each_arc(p, op);
+    for_each_arc<In_Iterator>(p, op);
   }
 
-  // \overload for_each_in_arc(Node * p, Op & op)
+  /// Overload of `for_each_in_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   void for_each_in_arc(Node *p, Op && op = Op()) const
   {
@@ -3344,11 +3343,11 @@ public:
     return traverse_in_arcs(p, [&op](auto a) { return op(a); });
   }
 
-  /// \overload all_in_arcs(Node * p, Op & op)
+  /// Overload of `all_in_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool all_in_arcs(Node *p, Op && op = Op()) const
   {
-    return all_in_arc(p, op);
+    return all_in_arcs(p, op);
   }
 
   /// Return true if it exists a incoming arc to `p` returning `true`
@@ -3359,7 +3358,7 @@ public:
     return not traverse_in_arcs(p, [&op](auto a) { return not op(a); });
   }
 
-  /// \overload exists_in_arc(Node * p, Op & op)
+  /// Overload of `exists_in_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool exists_in_arc(Node *p, Op && op = Op()) const
   {
@@ -3395,7 +3394,7 @@ public:
     return ret;
   }
 
-  /// \overload search_in_arc(Node * p, Op & op)
+  /// Overload of `search_in_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   auto search_in_arc(Node *p, Op && op = Op()) const
   {
@@ -3453,7 +3452,7 @@ public:
     return ret;
   }
 
-  /// \overload filter_in_arcs(Node * p, Op & op)
+  /// Overload of `filter_in_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   auto filter_in_arcs(Node *p, Op && op = Op()) const
   {
@@ -3465,24 +3464,24 @@ public:
   template <class Op>
   bool traverse_out_arcs(Node *p, Op & op) const
   {
-    return traverse_arcs(p, op);
+    return traverse_arcs<Out_Iterator>(p, op);
   }
 
-  /// \overload traverse_out_arcs(Node * p, Op & op)
+  /// Overload of `traverse_out_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool traverse_out_arcs(Node *p, Op && op = Op()) const
   {
     return traverse_out_arcs(p, op);
   }
 
-  /// Perform `operation` on each incoming arc of node `p`
+  /// Perform `op` on each outcoming arc of node `p`
   template <class Op>
   void for_each_out_arc(Node *p, Op & op) const
   {
-    for_each_arc(p, op);
+    for_each_arc<Out_Iterator>(p, op);
   }
 
-  /// \overload for_each_out_arc(Node * p, Op & op)
+  /// Overload of `for_each_out_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   void for_each_out_arc(Node *p, Op && op = Op()) const
   {
@@ -3496,11 +3495,11 @@ public:
     return traverse_out_arcs(p, [&op](auto a) { return op(a); });
   }
 
-  /// \overload all_out_arcs(Node * p, Op & op)
+  /// Overload of `all_out_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool all_out_arcs(Node *p, Op && op = Op()) const
   {
-    return all_out_arc(p, op);
+    return all_out_arcs(p, op);
   }
 
   /// Return true if it exists a outcoming arc to `p` returning `true`
@@ -3511,7 +3510,7 @@ public:
     return not traverse_out_arcs(p, [&op](auto a) { return not op(a); });
   }
 
-  /// \overload exists_out_arc(Node * p, Op & op)
+  /// Overload of `exists_out_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   bool exists_out_arc(Node *p, Op && op = Op()) const
   {
@@ -3547,7 +3546,7 @@ public:
     return ret;
   }
 
-  /// \overload search_out_arc(Node * p, Op & op)
+  /// Overload of `search_out_arc(Node*, Op&)` that accepts rvalues.
   template <class Op>
   auto search_out_arc(Node *p, Op && op = Op()) const
   {
@@ -3570,7 +3569,7 @@ public:
     return ret;
   }
 
-  /// \overload out_arcs_map(Node * p, std::function<T(Arc*)> op)
+  /// Fold-left over outcoming arcs of a node.
   template <typename T = Arc_Type>
   T foldl_out_arcs(Node *p, const T & init,
                    std::function<T(const T &, Arc *)> op) const
@@ -3599,7 +3598,7 @@ public:
     return ret;
   }
 
-  /// \overload filter_out_arcs(Node * p, Op & op)
+  /// Overload of `filter_out_arcs(Node*, Op&)` that accepts rvalues.
   template <class Op>
   auto filter_out_arcs(Node *p, Op && op = Op()) const
   {

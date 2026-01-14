@@ -79,12 +79,14 @@ struct Default_Operation_On_Node
   /**
    * @brief Called for each created node.
    *
-   * @param g The graph (unused)
-   * @param n The created node (unused)
-   * @param row Row index of node
-   * @param col Column index of node
+   * Default no-op implementation. Override to customize node initialization.
+   *
+   * @param[in] g The graph
+   * @param[in] n The created node
+   * @param[in] row Row index of node (0-based)
+   * @param[in] col Column index of node (0-based)
    */
-  void operator () (GT &, typename GT::Node *, const size_t &, const size_t &) { /* Empty */ }
+  void operator () (GT & g, typename GT::Node * n, const size_t & row, const size_t & col) { (void)g; (void)n; (void)row; (void)col; }
 };
 
 /**
@@ -98,12 +100,14 @@ struct Default_Operation_On_Arc
   /**
    * @brief Called for each created arc.
    *
-   * @param g The graph (unused)
-   * @param a The created arc (unused)
-   * @param row Row index of source node
-   * @param col Column index of source node
+   * Default no-op implementation. Override to customize arc initialization.
+   *
+   * @param[in] g The graph
+   * @param[in] a The created arc
+   * @param[in] row Row index of source node (0-based)
+   * @param[in] col Column index of source node (0-based)
    */
-  void operator () (GT &, typename GT::Arc *, const size_t &, const size_t &) { /* Empty */ }
+  void operator () (GT & g, typename GT::Arc * a, const size_t & row, const size_t & col) { (void)g; (void)a; (void)row; (void)col; }
 };
 
 /**

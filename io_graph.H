@@ -149,7 +149,7 @@ struct Dft_Store_Node
    *  @param g Reference to the graph (unused in default implementation)
    *  @param p Node pointer to store
    */
-  void operator()(std::ofstream & output, GT &, typename GT::Node * p)
+  void operator()(std::ofstream & output, GT & g, typename GT::Node * p)
   {
     output.write(reinterpret_cast<const char*>(&p->get_info()), 
                  sizeof(typename GT::Node_Type));
@@ -160,7 +160,7 @@ struct Dft_Store_Node
    *  @param g Reference to the graph (unused in default implementation)
    *  @param p Node pointer to store
    */
-  void operator()(std::ostream & output, GT &, typename GT::Node * p)
+  void operator()(std::ostream & output, GT & g, typename GT::Node * p)
   {
     output << p->get_info() << std::endl;
   }
@@ -182,7 +182,7 @@ struct Dft_Store_Arc
    *  @param g Reference to the graph (unused in default implementation)
    *  @param a Arc pointer to store
    */
-  void operator()(std::ofstream & output, GT &, typename GT::Arc * a)
+  void operator()(std::ofstream & output, GT & g, typename GT::Arc * a)
   {
     output.write(reinterpret_cast<const char*>(&a->get_info()), 
                  sizeof(typename GT::Arc_Type));
@@ -193,7 +193,7 @@ struct Dft_Store_Arc
    *  @param g Reference to the graph (unused in default implementation)
    *  @param a Arc pointer to store
    */
-  void operator()(std::ostream & output, GT &, typename GT::Arc * a)
+  void operator()(std::ostream & output, GT & g, typename GT::Arc * a)
   {
     output << a->get_info() << std::endl;
   }
@@ -215,7 +215,7 @@ struct Dft_Load_Node
    *  @param g Reference to the graph (unused in default implementation)
    *  @param p Node pointer to load into
    */
-  void operator()(std::ifstream & input, GT &, typename GT::Node * p)
+  void operator()(std::ifstream & input, GT & g, typename GT::Node * p)
   {
     input.read(reinterpret_cast<char*>(&p->get_info()), 
                sizeof(typename GT::Node_Type));
@@ -226,7 +226,7 @@ struct Dft_Load_Node
    *  @param g Reference to the graph (unused in default implementation)
    *  @param p Node pointer to load into
    */
-  void operator()(std::istream & input, GT &, typename GT::Node * p)
+  void operator()(std::istream & input, GT & g, typename GT::Node * p)
   {
     input >> p->get_info();
   }
@@ -248,7 +248,7 @@ struct Dft_Load_Arc
    *  @param g Reference to the graph (unused in default implementation)
    *  @param a Arc pointer to load into
    */
-  void operator()(std::ifstream & input, GT &, typename GT::Arc * a)
+  void operator()(std::ifstream & input, GT & g, typename GT::Arc * a)
   {
     input.read(reinterpret_cast<char*>(&a->get_info()), 
                sizeof(typename GT::Arc_Type));
@@ -259,7 +259,7 @@ struct Dft_Load_Arc
    *  @param g Reference to the graph (unused in default implementation)
    *  @param a Arc pointer to load into
    */
-  void operator()(std::istream & input, GT &, typename GT::Arc * a)
+  void operator()(std::istream & input, GT & g, typename GT::Arc * a)
   {
     input >> a->get_info();
   }

@@ -300,7 +300,8 @@ namespace Aleph
     return ret;
   }
 
-  /** @overload pointers_list for const containers.
+  /** @overload pointers_list
+      @brief Const container overload.
       @return DynList of const pointers.
   */
   template <class Container> [[nodiscard]]
@@ -425,7 +426,7 @@ namespace Aleph
     return container;
   }
 
-  /** @overload for_each for const containers. */
+  /** @overload for_each */
   template <class Container, class Operation> inline
   const Container & for_each(const Container & container, Operation & operation)
   {
@@ -437,7 +438,7 @@ namespace Aleph
     return container;
   }
 
-  /** @overload for_each with rvalue operation. */
+  /** @overload for_each */
   template <class Container, class Operation> inline
   Container& for_each(Container & container,
 		      Operation && operation = Operation())
@@ -445,7 +446,7 @@ namespace Aleph
     return for_each<Container, Operation>(container, operation);
   }
 
-  /** @overload for_each with rvalue operation for const containers. */
+  /** @overload for_each */
   template <class Container, class Operation> inline const Container &
   for_each(const Container & container, Operation && operation = Operation())
   {
@@ -487,7 +488,7 @@ namespace Aleph
       operation(it.get_curr(), i);
   }
 
-  /** @overload enum_for_each with rvalue operation. */
+  /** @overload enum_for_each */
   template <class Container, class Operation> inline
   void enum_for_each(const Container & container, Operation && operation)
   {
@@ -523,21 +524,21 @@ namespace Aleph
     return container.traverse(operation);
   }
 
-  /** @overload all for const containers. */
+  /** @overload all */
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation & operation)
   {
     return container.template traverse<Operation>(operation);
   }
 
-  /** @overload all with rvalue operation. */
+  /** @overload all */
   template <class Container, class Operation> inline
   bool all(Container & container, Operation && operation = Operation())
   {
     return all<Container, Operation>(container, operation);
   }
 
-  /** @overload all with rvalue operation for const containers. */
+  /** @overload all */
   template <class Container, class Operation> inline
   bool all(const Container & container, Operation && operation = Operation())
   {
@@ -578,7 +579,7 @@ namespace Aleph
                          });
   }
 
-  /** @overload exists for const containers. */
+  /** @overload exists */
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation & operation)
   {
@@ -589,14 +590,14 @@ namespace Aleph
                          });
   }
 
-  /** @overload exists with rvalue operation. */
+  /** @overload exists */
   template <class Container, class Operation> inline
   bool exists(Container & container, Operation && operation = Operation())
   {
     return exists<Container, Operation>(container, operation);
   }
 
-  /** @overload exists with rvalue operation for const containers. */
+  /** @overload exists */
   template <class Container, class Operation> inline
   bool exists(const Container & container, Operation && operation = Operation())
   {
@@ -636,7 +637,7 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @overload filter for const containers. */
+  /** @overload filter */
   template <class Container1,
             template <typename> class Container2 = Aleph::DynList,
             class Operation = Dft_Filter_Op<typename Container1::Item_Type>>
@@ -653,7 +654,7 @@ namespace Aleph
     return ret_val;
   }
 
-  /** @overload filter with rvalue operation. */
+  /** @overload filter */
   template <class Container1,
             template <typename> class Container2 = Aleph::DynList,
             class Operation = Dft_Filter_Op<typename Container1::Item_Type>>
@@ -664,7 +665,7 @@ namespace Aleph
   }
 
 
-  /** @overload filter with rvalue operation for const containers. */
+  /** @overload filter */
   template <class Container1,
             template <typename> class Container2 = Aleph::DynList,
             class Operation = Dft_Filter_Op<typename Container1::Item_Type>>
@@ -1848,7 +1849,11 @@ namespace Aleph
       @ingroup Algorithms
   */
   template <typename T> [[nodiscard]] inline
-  bool is_equal(const T &) { return false; }
+  bool is_equal(const T & val)
+  {
+    (void) val;
+    return false;
+  }
 
   /** @overload is_equal
       @param val Value to compare.
@@ -1874,7 +1879,7 @@ namespace Aleph
     return not exists(container, operation);
   }
 
-  /** @overload none with rvalue operation. */
+  /** @overload none */
   template <class Container, class Operation> [[nodiscard]] inline
   bool none(const Container & container, Operation && operation = Operation())
   {
@@ -1925,7 +1930,7 @@ namespace Aleph
     return result;
   }
 
-  /** @overload find_ptr for const containers. */
+  /** @overload find_ptr */
   template <class Container, class Pred> [[nodiscard]] inline
   const typename Container::Item_Type *
   find_ptr(const Container & container, Pred & pred)
@@ -1943,7 +1948,7 @@ namespace Aleph
     return result;
   }
 
-  /** @overload find_ptr with rvalue predicate. */
+  /** @overload find_ptr */
   template <class Container, class Pred> [[nodiscard]] inline
   typename Container::Item_Type *
   find_ptr(Container & container, Pred && pred)
@@ -1951,7 +1956,7 @@ namespace Aleph
     return find_ptr<Container, Pred>(container, pred);
   }
 
-  /** @overload find_ptr with rvalue predicate for const containers. */
+  /** @overload find_ptr */
   template <class Container, class Pred> [[nodiscard]] inline
   const typename Container::Item_Type *
   find_ptr(const Container & container, Pred && pred)
@@ -1998,7 +2003,7 @@ namespace Aleph
     return result;
   }
 
-  /** @overload find_opt with rvalue predicate. */
+  /** @overload find_opt */
   template <class Container, class Pred> [[nodiscard]] inline
   std::optional<typename Container::Item_Type>
   find_opt(const Container & container, Pred && pred)

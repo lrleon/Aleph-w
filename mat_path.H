@@ -84,7 +84,7 @@ namespace Aleph
 
 /** @brief Build a minimum path from Floyd-Warshall path matrix using indices.
  *
- *  Takes a path matrix p computed by Floyd-Warshall algorithm and two
+ *  Takes a path matrix computed by Floyd-Warshall algorithm and two
  *  matrix indices (source and target), then constructs the minimum path
  *  in the adjacency list representation.
  *
@@ -95,14 +95,14 @@ namespace Aleph
  *
  *  @param[in] p Path index matrix from Floyd-Warshall. Entry p(i,j) contains
  *               the index of the next node after i on the shortest path to j.
- *  @param[in] src_idx Source node index in the path matrix (0-based)
- *  @param[in] tgt_idx Target node index in the path matrix (0-based)
+ *  @param[in] src_index Source node index in the path matrix (0-based).
+ *  @param[in] tgt_index Target node index in the path matrix (0-based).
  *  @param[out] path The reconstructed minimum path in the adjacency list graph.
  *                   The path is cleared and rebuilt from scratch.
  *
- *  @pre The path matrix p must have been computed by floyd_all_shortest_paths().
- *  @pre src_idx and tgt_idx must be valid indices (0 <= idx < n).
- *  @pre A path must exist between src_idx and tgt_idx (no infinite distance).
+ *  @pre The path matrix `p` must have been computed by floyd_all_shortest_paths().
+ *  @pre `src_idx` and `tgt_idx` must be valid indices (0 <= idx < n).
+ *  @pre A path must exist between `src_idx` and `tgt_idx` (no infinite distance).
  *
  *  @warning Results are undefined if:
  *           - The path matrix is invalid or not properly computed
@@ -117,6 +117,7 @@ namespace Aleph
  *
  *  @see floyd_all_shortest_paths()
  *  @see find_min_path(Mat&, typename Mat::Node*, typename Mat::Node*, Path<typename Mat::Graph_Type>&)
+ *  @see latex_floyd.H For variant with const indices
  *  @ingroup Graphs
  */
 template <class Mat>
@@ -146,29 +147,14 @@ void find_min_path(Mat & p, long src_idx, long tgt_idx,
     }
 }
 
-/** @brief Build a minimum path from Floyd-Warshall path matrix using node pointers.
+/** \overload
  *
- *  Takes a path matrix p computed by Floyd-Warshall algorithm and two node
- *  pointers (source and target) from the adjacency list representation,
- *  then constructs the minimum path.
+ *  Build a minimum path using node pointers instead of indices.
  *
- *  This is a convenience overload that converts node pointers to matrix
- *  indices and delegates to the index-based version.
- *
- *  @tparam Mat Matrix type from Map_Matrix_Graph
- *
- *  @param[in] p Path index matrix from Floyd-Warshall.
- *  @param[in] src_node Source node pointer in adjacency list representation.
- *  @param[in] tgt_node Target node pointer in adjacency list representation.
- *  @param[out] path The minimum path in the adjacency list graph.
- *
- *  @pre Both src_node and tgt_node must be valid nodes in the graph.
- *  @pre The path matrix p must have been computed by floyd_all_shortest_paths().
- *
- *  @throw std::bad_alloc If insufficient memory to build the path.
+ *  Convenience overload that accepts node pointers and converts them to
+ *  matrix indices before calling the index-based version.
  *
  *  @see find_min_path(Mat&, long, long, Path<typename Mat::Graph_Type>&)
- *  @see floyd_all_shortest_paths()
  *  @ingroup Graphs
  */
 template <class Mat>

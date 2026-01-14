@@ -84,17 +84,17 @@ set(HLIST
     tpl_dynBinHeap.H generate_tree.H generate_graph.H tpl_tree_node.H
     point.H tpl_treapRk.H Set.H Map.H array_it.H al-domain.H
     Multiset.H Multimap.H List.H Vector.H ahAlgo.H Stack.H
-    Queue.H tpl_odhash.H tpl_nodePool.H random_graph.H Priority_Queue.H
-    tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H
+    Queue.H tpl_odhash.H tpl_nodePool.H random_graph.H
+        tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H
     tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H graph-traverse.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H
     ahMem.H ahAssert.H ahDefs.H aleph.H euclidian-graph-common.H
     tpl_linearHash.H signal.H ahUtils.H ran_array.h tpl_dynDlist.H
     tpl_skipList.H tpl_tdRbTree.H tpl_splay_tree.H
     tpl_dynTreap.H tpl_union.H tpl_binNode.H tpl_splay_treeRk.H
-    useMutex.H protected_cache.H socket_wrappers.H tpl_dynListStack.H
+    useMutex.H socket_wrappers.H tpl_dynListStack.H
     tpl_autoPtr.H trace.H tpl_cache.H format.H random_net.H
-    protected_lhash.H protected_odhash.H log.H useCondVar.H
+        log.H useCondVar.H
     tpl_dynListQueue.H al-vector.H ahSingleton.H comb.H
     treepic_utils.H driven_table.H pointer_table.H Karger.H al-matrix.H
     timeoutQueue.H parse_utils.H ah_stdc++_utils.H eulerian.H

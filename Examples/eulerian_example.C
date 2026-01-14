@@ -40,6 +40,8 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <map>
+#include <vector>
 
 #include <tclap/CmdLine.h>
 
@@ -384,6 +386,193 @@ void demo_practical()
 }
 
 // =============================================================================
+// 5. Finding Eulerian Paths with Hierholzer's Algorithm
+// =============================================================================
+
+void demo_hierholzer()
+{
+  print_section("HIERHOLZER'S ALGORITHM: Finding Eulerian Paths");
+  
+  cout << "Hierholzer's algorithm constructs an Eulerian path/cycle in O(E) time.\n";
+  cout << "Instead of just testing existence, it finds the actual path!\n\n";
+  
+  // Triangle - Eulerian cycle
+  print_subsection("Example 1: Triangle (find the cycle)");
+  
+  UGraph triangle;
+  auto a = triangle.insert_node("A");
+  auto b = triangle.insert_node("B");
+  auto c = triangle.insert_node("C");
+  triangle.insert_arc(a, b, 1);
+  triangle.insert_arc(b, c, 1);
+  triangle.insert_arc(c, a, 1);
+  
+  Find_Eulerian_Path<UGraph> finder1;
+  auto result1 = finder1(triangle);
+  
+  cout << "Triangle graph: A-B-C\n";
+  cout << "Classification: ";
+  switch (result1.type) {
+    case Eulerian_Type::Cycle: cout << "EULERIAN CYCLE\n"; break;
+    case Eulerian_Type::Path:  cout << "EULERIAN PATH\n"; break;
+    case Eulerian_Type::None:  cout << "NOT EULERIAN\n"; break;
+  }
+  
+  cout << "Path found (" << result1.path.size() << " edges):\n  ";
+  
+  auto nodes1 = finder1.find_node_sequence(triangle);
+  bool first = true;
+  for (auto node : nodes1) {
+    if (!first) cout << " -> ";
+    cout << node->get_info();
+    first = false;
+  }
+  cout << endl;
+  
+  // Path graph - Eulerian path (not cycle)
+  print_subsection("Example 2: Path graph (Eulerian path, not cycle)");
+  
+  UGraph path;
+  auto p1 = path.insert_node("1");
+  auto p2 = path.insert_node("2");
+  auto p3 = path.insert_node("3");
+  auto p4 = path.insert_node("4");
+  path.insert_arc(p1, p2, 1);
+  path.insert_arc(p2, p3, 1);
+  path.insert_arc(p3, p4, 1);
+  
+  Find_Eulerian_Path<UGraph> finder2;
+  auto result2 = finder2(path);
+  
+  cout << "Linear path: 1-2-3-4\n";
+  cout << "Classification: ";
+  switch (result2.type) {
+    case Eulerian_Type::Cycle: cout << "EULERIAN CYCLE\n"; break;
+    case Eulerian_Type::Path:  cout << "EULERIAN PATH\n"; break;
+    case Eulerian_Type::None:  cout << "NOT EULERIAN\n"; break;
+  }
+  
+  if (result2.type != Eulerian_Type::None) {
+    cout << "Path found (" << result2.path.size() << " edges):\n  ";
+    auto nodes2 = finder2.find_node_sequence(path);
+    first = true;
+    for (auto node : nodes2) {
+      if (!first) cout << " -> ";
+      cout << node->get_info();
+      first = false;
+    }
+    cout << endl;
+  }
+  
+  // Bow-tie graph - complex Eulerian cycle
+  print_subsection("Example 3: Bow-tie graph (two triangles sharing a vertex)");
+  
+  UGraph bowtie;
+  auto center = bowtie.insert_node("Center");
+  auto top1 = bowtie.insert_node("Top1");
+  auto top2 = bowtie.insert_node("Top2");
+  auto bot1 = bowtie.insert_node("Bot1");
+  auto bot2 = bowtie.insert_node("Bot2");
+  
+  // Upper triangle
+  bowtie.insert_arc(center, top1, 1);
+  bowtie.insert_arc(top1, top2, 1);
+  bowtie.insert_arc(top2, center, 1);
+  // Lower triangle
+  bowtie.insert_arc(center, bot1, 1);
+  bowtie.insert_arc(bot1, bot2, 1);
+  bowtie.insert_arc(bot2, center, 1);
+  
+  Find_Eulerian_Path<UGraph> finder3;
+  auto result3 = finder3(bowtie);
+  
+  cout << "Bow-tie: Two triangles sharing 'Center'\n";
+  cout << "  Center has degree 4 (even)\n";
+  cout << "  All others have degree 2 (even)\n";
+  cout << "Classification: ";
+  switch (result3.type) {
+    case Eulerian_Type::Cycle: cout << "EULERIAN CYCLE\n"; break;
+    case Eulerian_Type::Path:  cout << "EULERIAN PATH\n"; break;
+    case Eulerian_Type::None:  cout << "NOT EULERIAN\n"; break;
+  }
+  
+  cout << "Path found (" << result3.path.size() << " edges):\n  ";
+  auto nodes3 = finder3.find_node_sequence(bowtie);
+  first = true;
+  for (auto node : nodes3) {
+    if (!first) cout << " -> ";
+    cout << node->get_info();
+    first = false;
+  }
+  cout << endl;
+  
+  cout << "\nHierholzer's algorithm visits both triangles, returning to start!\n";
+}
+
+// =============================================================================
+// 6. Using Eulerian_Type enum
+// =============================================================================
+
+void demo_eulerian_type()
+{
+  print_section("EULERIAN CLASSIFICATION WITH compute()");
+  
+  cout << "The compute() method returns detailed classification:\n";
+  cout << "  - Eulerian_Type::Cycle - Has Eulerian cycle\n";
+  cout << "  - Eulerian_Type::Path  - Has Eulerian path but not cycle\n";
+  cout << "  - Eulerian_Type::None  - Not Eulerian\n\n";
+  
+  // Test various graphs
+  struct TestCase {
+    string name;
+    UGraph g;
+    vector<pair<string, string>> edges;
+  };
+  
+  vector<TestCase> tests;
+  
+  // Triangle (cycle)
+  TestCase t1{"Triangle", {}, {{"A","B"},{"B","C"},{"C","A"}}};
+  // Path (path only)
+  TestCase t2{"Path 1-2-3", {}, {{"1","2"},{"2","3"}}};
+  // Star (none)
+  TestCase t3{"Star", {}, {{"C","1"},{"C","2"},{"C","3"},{"C","4"}}};
+  
+  tests.push_back(t1);
+  tests.push_back(t2);
+  tests.push_back(t3);
+  
+  cout << setw(20) << "Graph" << setw(15) << "Result" << setw(20) << "has_eulerian_path()" << endl;
+  cout << string(55, '-') << endl;
+  
+  for (auto& tc : tests) {
+    // Build graph
+    map<string, UGraph::Node*> node_map;
+    for (auto& [u, v] : tc.edges) {
+      if (node_map.find(u) == node_map.end())
+        node_map[u] = tc.g.insert_node(u);
+      if (node_map.find(v) == node_map.end())
+        node_map[v] = tc.g.insert_node(v);
+      tc.g.insert_arc(node_map[u], node_map[v], 1);
+    }
+    
+    Test_Eulerian<UGraph> tester;
+    auto result = tester.compute(tc.g);
+    
+    string result_str;
+    switch (result) {
+      case Eulerian_Type::Cycle: result_str = "CYCLE"; break;
+      case Eulerian_Type::Path:  result_str = "PATH"; break;
+      case Eulerian_Type::None:  result_str = "NONE"; break;
+    }
+    
+    cout << setw(20) << tc.name 
+         << setw(15) << result_str 
+         << setw(20) << (tester.has_eulerian_path(tc.g) ? "true" : "false") << endl;
+  }
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -399,7 +588,7 @@ int main(int argc, char* argv[])
     
     TCLAP::ValueArg<string> sectionArg(
       "s", "section",
-      "Run only specific section: cycle, konigsberg, directed, practical, or 'all'",
+      "Run specific section: cycle, konigsberg, directed, practical, hierholzer, types, or 'all'",
       false, "all", "section", cmd
     );
     
@@ -423,6 +612,12 @@ int main(int argc, char* argv[])
     
     if (section == "all" or section == "practical")
       demo_practical();
+    
+    if (section == "all" or section == "hierholzer")
+      demo_hierholzer();
+    
+    if (section == "all" or section == "types")
+      demo_eulerian_type();
     
     cout << "\n" << string(60, '=') << "\n";
     cout << "Eulerian graphs demo completed!\n";

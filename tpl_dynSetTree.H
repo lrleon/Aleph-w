@@ -1106,7 +1106,13 @@ namespace Aleph
       For_Each_Preorder<Node>()(root, node_op);
     }
 
-    /// \overload for_each_preorder
+    /** \overload
+     *
+     *  Performs a preorder traversal over all keys using a temporary operation object.
+     *
+     *  @tparam Key_Op Operation type (default-constructible).
+     *  @param[in] key_op Operation to execute on each key (default-constructed if not provided).
+     */
     template <class Key_Op>
     void for_each_preorder(Key_Op && key_op = Key_Op()) const
     {
@@ -1147,7 +1153,13 @@ namespace Aleph
       For_Each_In_Order<Node>()(root, node_op);
     }
 
-    /// \overload for_each_inorder
+    /** \overload
+     *
+     *  Performs an infix traversal over all keys using a temporary operation object.
+     *
+     *  @tparam Key_Op Operation type (default-constructible).
+     *  @param[in] key_op Operation to execute on each key (default-constructed if not provided).
+     */
     template <class Key_Op>
     void for_each_inorder(Key_Op && key_op = Key_Op()) const
     {
@@ -1188,7 +1200,13 @@ namespace Aleph
       For_Each_Postorder<Node>()(root, node_op);
     }
 
-    /// \overload for_each_postorder
+    /** \overload
+     *
+     *  Performs a postorder traversal over all keys using a temporary operation object.
+     *
+     *  @tparam Key_Op Operation type (default-constructible).
+     *  @param[in] key_op Operation to execute on each key (default-constructed if not provided).
+     */
     template <class Key_Op>
     void for_each_postorder(Key_Op && key_op = Key_Op()) const
     {
@@ -1217,7 +1235,15 @@ namespace Aleph
       return *this;
     }
 
-    /// \overload join
+    /** \overload
+     *
+     *  Union of two binary search trees using a move-constructed duplicate tree.
+     *
+     *  @param[in] t Binary search tree to join with this.
+     *  @param[in] dup Binary search tree with duplicate keys (move-constructed, default empty).
+     *  @return Reference to this tree.
+     *  @note After the call, tree t becomes empty and this becomes the union of both trees.
+     */
     DynSetTree &join(DynSetTree & t, DynSetTree && dup = DynSetTree())
     {
       return join(t, dup);

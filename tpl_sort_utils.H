@@ -1017,6 +1017,7 @@ namespace Aleph
       The insert method has a performance of \f$O(n^2)\f$.
 
       @param[in,out] list the list to sort.
+      @param cmp Comparison functor defining "less than" relationship.
       @see Dnode selection_sort(Dlink * link)
   */
   template <typename T, class Compare = Aleph::less<T>>
@@ -1364,6 +1365,7 @@ namespace Aleph
       for lists.
 
       @param[in,out] list the list to be sorted.
+      @param cmp Comparison functor defining "less than" relationship.
 
       @see mergesort(Dlink & list) quicksort(Dnode<T>)
 
@@ -1390,6 +1392,7 @@ namespace Aleph
       for lists.
 
       @param[in,out] list the list to be sorted.
+      @param cmp Comparison functor defining "less than" relationship.
 
       @see quicksort(DynDlist<T> & list)
 
@@ -1484,6 +1487,7 @@ namespace Aleph
       @param[in,out] a the array to sort.
       @param[in] l lower index.
       @param[in] r top index.
+      @param cmp Comparison functor defining "less than" relationship.
 
       @see selection_sort() insertion_sort() mergesort() heapsort()
       @see quicksort_rec_min() quicksort_insertion() quicksort()
@@ -1669,6 +1673,7 @@ namespace Aleph
       and is considered the fastest ordering method.
 
       @param[in,out] list the list to sort.
+      @param cmp Comparison functor defining "less than" relationship.
 
       \ingroup Algorithms
   */
@@ -1712,6 +1717,7 @@ namespace Aleph
       This primitive can be used for lists of type Dlist and DynDlist.
 
       @param[in,out] list the list to sort.
+      @param cmp Comparison functor defining "less than" relationship.
 
       @see Dnode Dlist DynDlist
 
@@ -1870,6 +1876,7 @@ namespace Aleph
       @param[in] x element to search for.
       @param[in] l lower index of the start of the search.
       @param[in] r top index of search term.
+      @param cmp Comparison functor defining "less than" relationship.
       @return index of an array entry containing the
       value x if it is within the array;
       Not_Found (usually -1) otherwise.
@@ -1999,6 +2006,7 @@ namespace Aleph
       @param[in,out] list list in which the search is performed;
       is partially modified after the search.
       @param[in] x element to search for.
+      @param cmp Comparison functor defining "less than" relationship.
       @return pointer to the node containing the value x if it is
       found within the list; nullptr otherwise.
 
@@ -2306,10 +2314,11 @@ namespace Aleph
       It is a substantially better time than the search
       sequential (\f$O(n^2)\f$).
 
-      @param[in,out] list list where the ith element will be searched.
+      @param[in,out] list the list to select from (will be partially reordered).
       The list is left semi-ordered through successive
       partitions that have been made.
-      @param[in] i position to be accessed.
+      @param[in] i position to be accessed (0-based).
+      @param cmp Comparison functor defining "less than" relationship.
       @return pointer to Dlink corresponding to position i inside
       of the list;
 

@@ -713,9 +713,9 @@ namespace Aleph
                                                {
                                                  auto atgt = p.first;
                                                  auto asrc = p.second;
-                                                atgt->cap = asrc->cap;
-                                                atgt->flow = asrc->flow;
-                                              });
+                                                 atgt->cap = asrc->cap;
+                                                 atgt->flow = asrc->flow;
+                                               });
     }
 
     /// Swap contents with another network. O(1) operation.
@@ -981,7 +981,7 @@ namespace Aleph
    * @ingroup Networks
    */
   template <class Net>
-  void decrease_flow(Net &, const DynList<Parc<Net>> & semi_path,
+  void decrease_flow(Net & net, const DynList<Parc<Net>> & semi_path,
                      const typename Net::Flow_Type slack)
   {
     // Decrease flow: reverse the direction logic from increase_flow

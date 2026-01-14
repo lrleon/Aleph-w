@@ -49,6 +49,7 @@
 # include <tpl_arrayStack.H>
 # include <tpl_binNodeXt.H>
 # include <tpl_binTreeOps.H>
+# include <tpl_binNodeUtils.H>
 # include <avlNodeRk.H>
 # include <ah-errors.H>
 
@@ -81,9 +82,6 @@ namespace Aleph
     Node *head_ptr;
     Node *& root;
     Compare cmp;
-    static constexpr signed char CmpLess = -1;
-    static constexpr signed char CmpEqual = 0;
-    static constexpr signed char CmpGreater = 1;
 
     bool avl_stack_empty() noexcept { return avl_stack.top() == head_ptr; }
 
@@ -98,22 +96,16 @@ namespace Aleph
       Node *p = root;
       do
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
-          if (const Key & pk = KEY(p); cmp(key, pk))
-            {
-              cmp_result = CmpLess;
-              p = LLINK(p);
-            }
-          else if (cmp(pk, key))
-            {
-              cmp_result = CmpGreater;
-              p = RLINK(p);
-            }
-          else
-            {
-              cmp_result = CmpEqual;
-              return p; // duplicated key
-            }
+          cmp_result = three_way_compare(key, KEY(p), cmp);
+          if (cmp_result == CmpLess) [[likely]]
+            p = LLINK(p);
+          else if (cmp_result == CmpGreater) [[likely]]
+            p = RLINK(p);
+          else [[unlikely]]
+            return p; // duplicated key
         }
       while (p != Node::NullPtr);
 
@@ -129,13 +121,15 @@ namespace Aleph
       Node *p = root;
       do
         {
+          __builtin_prefetch(LLINK(p));
+          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
-          if (const Key & pk = KEY(p); cmp(key, pk))
+          if (cmp(key, KEY(p))) // key < KEY(p)?
             {
               cmp_result = CmpLess;
               p = LLINK(p);
             }
-          else
+          else // key >= KEY(p)
             {
               cmp_result = CmpGreater;
               p = RLINK(p);
@@ -147,7 +141,7 @@ namespace Aleph
     }
 
     // Rotate to left with counter update
-    static Node * rotateLeft(Node *p) noexcept
+    [[gnu::always_inline]] static Node * rotateLeft(Node *p) noexcept
     {
       assert(DIFF(p) == 2);
       assert(RLINK(p) != Node::NullPtr);
@@ -172,7 +166,7 @@ namespace Aleph
     }
 
     // Rotate to right with counter update
-    static Node * rotateRight(Node *p) noexcept
+    [[gnu::always_inline]] static Node * rotateRight(Node *p) noexcept
     {
       assert(DIFF(p) == -2);
       assert(LLINK(p) != Node::NullPtr);
@@ -197,7 +191,7 @@ namespace Aleph
     }
 
     // Double rotate left with counter update
-    static Node * doubleRotateLeft(Node *p) noexcept
+    [[gnu::always_inline]] static Node * doubleRotateLeft(Node *p) noexcept
     {
       assert(DIFF(p) == 2 or DIFF(p) == -2);
       assert(RLINK(p) != Node::NullPtr and LLINK(RLINK(p)) != Node::NullPtr);
@@ -236,6 +230,7 @@ namespace Aleph
     }
 
     // Double rotate right with counter update
+    [[gnu::always_inline]]
     static Node * doubleRotateRight(Node *p) noexcept
     {
       assert(DIFF(p) == 2 or DIFF(p) == -2);
@@ -863,8 +858,8 @@ namespace Aleph
     }
 
     // Join when h1 > h2 + 1: descend right spine of t1
-    static Node * join_right(Node *t1, size_t h1, Node *pivot,
-                             Node *t2, size_t h2) noexcept
+    static Node * join_right(Node *t1, const size_t h1, Node *pivot,
+                             Node *t2, const size_t h2) noexcept
     {
       FixedStack<Node **> stack(Node::MaxHeight);
       Node **pp = &t1;

@@ -573,6 +573,8 @@ namespace Aleph
       for (size_t count = 0; count < len; ++count)
         {
           index_forward(i);
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
           switch (table[i].status)
             {
             case EMPTY:
@@ -659,6 +661,8 @@ namespace Aleph
       for (size_t c = 0; c < len; ++c)
         {
           index_forward(i);
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
 
           if (table[i].status == EMPTY)
             {
@@ -784,6 +788,8 @@ namespace Aleph
       for (size_t c = 0; c < len; ++c)
         {
           index_forward(i);
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
           switch (table[i].status)
             {
             case BUSY:
@@ -937,6 +943,8 @@ namespace Aleph
       for (size_t c = 0; c < len; ++c)
         {
           index_forward(i);
+          // Prefetch next bucket for better cache performance
+          __builtin_prefetch(&table[(i + 1 < len) ? i + 1 : 0], 0, 1);
 
           switch (table[i].status)
             {

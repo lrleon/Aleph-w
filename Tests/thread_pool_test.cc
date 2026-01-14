@@ -2061,6 +2061,8 @@ TEST_F(ThreadPoolTest, ResetStatsWorks)
   ThreadPool pool(2);
   
   pool.enqueue([] { return 1; }).get();
+  // Wait for stats to be updated (tasks_completed incremented after future is set)
+  pool.wait_all();
   
   auto stats1 = pool.get_stats();
   EXPECT_GE(stats1.tasks_completed, 1u);

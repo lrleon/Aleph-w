@@ -143,13 +143,7 @@ namespace Aleph
  *  @note The function advances the stream position past the end of the row
  *        (including the newline character).
  *
- *  @code{.cpp}
- *  std::istringstream ss("name,age,city\nJohn,30,\"New York\"");
- *  Array<std::string> row1 = csv_read_row(ss);
- *  // row1 = ["name", "age", "city"]
- *  Array<std::string> row2 = csv_read_row(ss);
- *  // row2 = ["John", "30", "New York"]
- *  @endcode
+ *  Example: reading two CSV rows from a stream.
  *
  *  @see csv_read_row(std::string &, char)
  *  @see csv_read_all()

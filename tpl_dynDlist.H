@@ -426,9 +426,9 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containing the first n/2 first items
-      \param[out] l list containing the last n/2 first items
-      @throw domain_error any of the lists is noty empty
+      \param[out] l list containing the first n/2 items
+      \param[out] r list containing the last n/2 items
+      @throw domain_error any of the lists is not empty
      */
   void split_list_ne(DynDlist & l, DynDlist & r) noexcept
   {
@@ -454,9 +454,9 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containing the first n/2 first items
-      \param[out] l list containing the last n/2 first items
-      @throw domain_error any of the lists is noty empty
+      \param[out] l list containing the first n/2 items (must be empty)
+      \param[out] r list containing the last n/2 items (must be empty)
+      @throw domain_error if any of the lists is not empty
      */
   void split_list(DynDlist & l, DynDlist & r)
   {
@@ -465,7 +465,8 @@ public:
     split_list_ne(l, r);
   }
 
-  /// \overload split_list
+  /// \overload
+  /// Alias for split_list. See split_list for parameter documentation.
   void split(DynDlist & l, DynDlist & r)
   {
     split_list(l, r);

@@ -848,3 +848,431 @@ TEST(ODhashTable, Debug_SearchOrInsertBug)
     }
 }
 
+// ============================================================================
+// COPY/MOVE SEMANTICS TESTS
+// ============================================================================
+
+TEST(ODhashTable, CopyConstructor)
+{
+  ODhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  ODhashTable<int> copy(original);
+  
+  EXPECT_EQ(copy.size(), original.size());
+  EXPECT_EQ(copy.capacity(), original.capacity());
+  
+  for (int i = 0; i < 50; ++i)
+    {
+      EXPECT_NE(original.search(i), nullptr);
+      EXPECT_NE(copy.search(i), nullptr);
+    }
+  
+  copy.remove(25);
+  EXPECT_EQ(copy.search(25), nullptr);
+  EXPECT_NE(original.search(25), nullptr);
+}
+
+TEST(ODhashTable, MoveConstructor)
+{
+  ODhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  const size_t orig_size = original.size();
+  const size_t orig_cap = original.capacity();
+  
+  ODhashTable<int> moved(std::move(original));
+  
+  EXPECT_EQ(moved.size(), orig_size);
+  EXPECT_EQ(moved.capacity(), orig_cap);
+  
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(moved.search(i), nullptr);
+}
+
+TEST(ODhashTable, CopyAssignment)
+{
+  ODhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  ODhashTable<int> copy(10);
+  copy.insert(999);
+  
+  copy = original;
+  
+  EXPECT_EQ(copy.size(), original.size());
+  
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(copy.search(i), nullptr);
+  
+  EXPECT_EQ(copy.search(999), nullptr);
+}
+
+TEST(ODhashTable, MoveAssignment)
+{
+  ODhashTable<int> original(100);
+  for (int i = 0; i < 50; ++i)
+    original.insert(i);
+  
+  const size_t orig_size = original.size();
+  
+  ODhashTable<int> target(10);
+  target.insert(999);
+  
+  target = std::move(original);
+  
+  EXPECT_EQ(target.size(), orig_size);
+  
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(target.search(i), nullptr);
+}
+
+TEST(ODhashTable, SelfAssignment)
+{
+  ODhashTable<int> tbl(100);
+  for (int i = 0; i < 50; ++i)
+    tbl.insert(i);
+  
+  tbl = tbl;
+  
+  EXPECT_EQ(tbl.size(), 50);
+  for (int i = 0; i < 50; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+// ============================================================================
+// EDGE CASES
+// ============================================================================
+
+TEST(ODhashTable, EmptyTableOperations)
+{
+  ODhashTable<int> tbl(100);
+  
+  EXPECT_TRUE(tbl.is_empty());
+  EXPECT_EQ(tbl.size(), 0);
+  EXPECT_EQ(tbl.search(42), nullptr);
+  EXPECT_FALSE(tbl.has(42));
+  EXPECT_FALSE(tbl.contains(42));
+  EXPECT_THROW(tbl.remove(42), std::domain_error);
+}
+
+TEST(ODhashTable, SingleElement)
+{
+  ODhashTable<int> tbl(100);
+  
+  tbl.insert(42);
+  EXPECT_EQ(tbl.size(), 1);
+  EXPECT_NE(tbl.search(42), nullptr);
+  
+  tbl.remove(42);
+  EXPECT_EQ(tbl.size(), 0);
+  EXPECT_TRUE(tbl.is_empty());
+  EXPECT_EQ(tbl.search(42), nullptr);
+}
+
+TEST(ODhashTable, DuplicateInsertReturnsNull)
+{
+  ODhashTable<int> tbl(100);
+  
+  auto first = tbl.insert(42);
+  ASSERT_NE(first, nullptr);
+  
+  auto second = tbl.insert(42);
+  EXPECT_EQ(second, nullptr);
+  
+  EXPECT_EQ(tbl.size(), 1);
+}
+
+TEST(ODhashTable, HasAndContains)
+{
+  ODhashTable<int> tbl(100);
+  
+  EXPECT_FALSE(tbl.has(42));
+  EXPECT_FALSE(tbl.contains(42));
+  
+  tbl.insert(42);
+  
+  EXPECT_TRUE(tbl.has(42));
+  EXPECT_TRUE(tbl.contains(42));
+  EXPECT_FALSE(tbl.has(43));
+  EXPECT_FALSE(tbl.contains(43));
+}
+
+TEST(ODhashTable, Find)
+{
+  ODhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  EXPECT_NO_THROW({
+    int& ref = tbl.find(42);
+    EXPECT_EQ(ref, 42);
+  });
+  
+  EXPECT_THROW(tbl.find(999), std::domain_error);
+}
+
+// ============================================================================
+// REHASH/RESIZE TESTS
+// ============================================================================
+
+TEST(ODhashTable, ManualRehash)
+{
+  ODhashTable<int> tbl(100);
+  set<int> oracle;
+  
+  for (int i = 0; i < 50; ++i)
+    {
+      tbl.insert(i);
+      oracle.insert(i);
+    }
+  
+  for (int i = 0; i < 50; i += 2)
+    {
+      tbl.remove(i);
+      oracle.erase(i);
+    }
+  
+  tbl.rehash();
+  
+  EXPECT_EQ(tbl.size(), oracle.size());
+  
+  for (int key : oracle)
+    EXPECT_NE(tbl.search(key), nullptr);
+}
+
+TEST(ODhashTable, ResizeUp)
+{
+  ODhashTable<int> tbl(50);
+  
+  for (int i = 0; i < 30; ++i)
+    tbl.insert(i);
+  
+  const size_t old_cap = tbl.capacity();
+  tbl.resize(200);
+  
+  EXPECT_GT(tbl.capacity(), old_cap);
+  EXPECT_EQ(tbl.size(), 30);
+  
+  for (int i = 0; i < 30; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+TEST(ODhashTable, ResizeDown)
+{
+  ODhashTable<int> tbl(200);
+  
+  for (int i = 0; i < 30; ++i)
+    tbl.insert(i);
+  
+  tbl.resize(50);
+  
+  EXPECT_EQ(tbl.size(), 30);
+  
+  for (int i = 0; i < 30; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+}
+
+// ============================================================================
+// ITERATOR TESTS
+// ============================================================================
+
+TEST(ODhashTable, IteratorBasic)
+{
+  ODhashTable<int> tbl(100);
+  set<int> oracle;
+  
+  for (int i = 0; i < 50; ++i)
+    {
+      tbl.insert(i);
+      oracle.insert(i);
+    }
+  
+  set<int> visited;
+  for (auto it = tbl.get_it(); it.has_curr(); it.next())
+    visited.insert(it.get_curr());
+  
+  EXPECT_EQ(visited, oracle);
+}
+
+TEST(ODhashTable, IteratorEmpty)
+{
+  ODhashTable<int> tbl(100);
+  
+  auto it = tbl.get_it();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(ODhashTable, IteratorSingleElement)
+{
+  ODhashTable<int> tbl(100);
+  tbl.insert(42);
+  
+  auto it = tbl.get_it();
+  ASSERT_TRUE(it.has_curr());
+  EXPECT_EQ(it.get_curr(), 42);
+  
+  it.next();
+  EXPECT_FALSE(it.has_curr());
+}
+
+TEST(ODhashTable, IteratorDelete)
+{
+  ODhashTable<int> tbl(100);
+  
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  auto it = tbl.get_it();
+  while (it.has_curr())
+    it.del();
+  
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// ============================================================================
+// PROBE_COUNTER CLEANUP TESTS (ODhashTable specific)
+// ============================================================================
+
+// Helper to count bucket states for ODhashTable
+struct ODhashBucketStats
+{
+  size_t empty = 0;
+  size_t busy = 0;
+  size_t deleted = 0;
+};
+
+template <typename HashTable>
+ODhashBucketStats count_odhash_bucket_states(const HashTable &tbl)
+{
+  ODhashBucketStats stats;
+  for (size_t i = 0; i < tbl.capacity(); ++i)
+    {
+      switch (tbl.table[i].status)
+        {
+        case HashTable::EMPTY: ++stats.empty; break;
+        case HashTable::BUSY: ++stats.busy; break;
+        case HashTable::DELETED: ++stats.deleted; break;
+        }
+    }
+  return stats;
+}
+
+// ODhashTable uses probe_counter to convert DELETED->EMPTY when counter reaches 0
+TEST(ODhashTable, ProbeCounterCleanup_LastInChainBecomesEmpty)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  ODhashTable<int> tbl(100, bad_hash, bad_hash);
+  
+  // Insert chain
+  for (int i = 0; i < 5; ++i)
+    tbl.insert(i);
+  
+  auto before = count_odhash_bucket_states(tbl);
+  EXPECT_EQ(before.busy, 5);
+  EXPECT_EQ(before.deleted, 0);
+  
+  // Remove last element - should become EMPTY due to probe_counter
+  tbl.remove(4);
+  
+  auto after = count_odhash_bucket_states(tbl);
+  EXPECT_EQ(after.busy, 4);
+  // With probe_counter, DELETED becomes EMPTY when no one depends on it
+  EXPECT_EQ(after.deleted, 0) << "Last element should become EMPTY via probe_counter";
+  
+  for (int i = 0; i < 4; ++i)
+    EXPECT_NE(tbl.search(i), nullptr);
+  EXPECT_EQ(tbl.search(4), nullptr);
+}
+
+TEST(ODhashTable, ProbeCounterCleanup_MiddleStaysDeleted)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  ODhashTable<int> tbl(100, bad_hash, bad_hash);
+  
+  for (int i = 0; i < 5; ++i)
+    tbl.insert(i);
+  
+  // Remove middle - should stay DELETED because others depend on it
+  tbl.remove(2);
+  
+  auto stats = count_odhash_bucket_states(tbl);
+  EXPECT_EQ(stats.busy, 4);
+  EXPECT_EQ(stats.deleted, 1) << "Middle should stay DELETED";
+  
+  for (int i = 0; i < 5; ++i)
+    {
+      if (i == 2)
+        EXPECT_EQ(tbl.search(i), nullptr);
+      else
+        EXPECT_NE(tbl.search(i), nullptr);
+    }
+}
+
+TEST(ODhashTable, ProbeCounterCleanup_ChainCleanup)
+{
+  auto bad_hash = [](const int &) -> size_t { return 0; };
+  ODhashTable<int> tbl(100, bad_hash, bad_hash);
+  
+  for (int i = 0; i < 5; ++i)
+    tbl.insert(i);
+  
+  // Remove in reverse order - each should become EMPTY
+  for (int i = 4; i >= 0; --i)
+    tbl.remove(i);
+  
+  auto stats = count_odhash_bucket_states(tbl);
+  EXPECT_EQ(stats.busy, 0);
+  EXPECT_EQ(stats.deleted, 0) << "All should become EMPTY when removed in reverse";
+  EXPECT_TRUE(tbl.is_empty());
+}
+
+// ============================================================================
+// FUNCTIONAL METHODS TEST  
+// ============================================================================
+
+TEST(ODhashTable, ForEach)
+{
+  ODhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  int sum = 0;
+  tbl.for_each([&sum](int x) { sum += x; });
+  
+  EXPECT_EQ(sum, 45);
+}
+
+TEST(ODhashTable, All)
+{
+  ODhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i * 2);
+  
+  EXPECT_TRUE(tbl.all([](int x) { return x % 2 == 0; }));
+  EXPECT_FALSE(tbl.all([](int x) { return x > 5; }));
+}
+
+TEST(ODhashTable, Exists)
+{
+  ODhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  EXPECT_TRUE(tbl.exists([](int x) { return x == 5; }));
+  EXPECT_FALSE(tbl.exists([](int x) { return x == 100; }));
+}
+
+TEST(ODhashTable, Filter)
+{
+  ODhashTable<int> tbl(100);
+  for (int i = 0; i < 10; ++i)
+    tbl.insert(i);
+  
+  auto evens = tbl.filter([](int x) { return x % 2 == 0; });
+  
+  EXPECT_EQ(evens.size(), 5);
+}
+

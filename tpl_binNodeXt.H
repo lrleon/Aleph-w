@@ -506,6 +506,7 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
     @param[in] key for splitting
     @param[out] l tree with keys lesser than `key`
     @param[out] r tree with keys greater than `key`
+    @param[in,out] cmp comparison function
     @return `true` if tree was split; that is if `key` is not in the
     tree. Otherwise, if `key` is in the tree, `false` is returned
 

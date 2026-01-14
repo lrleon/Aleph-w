@@ -58,9 +58,9 @@ namespace Aleph {
        While any expression of the Table Type [Key] that
        Involve reading corresponds to a search.
 
-       @Param Key the type of indexing key
-       @Param Record the type of range associated with the keys.
-       @param CMP Comparison class between the keys.
+       @tparam Key the type of indexing key
+       @tparam Record the type of range associated with the keys.
+       @tparam CMP Comparison class between the keys.
 
        @ingroup Hash
     */
@@ -171,10 +171,10 @@ public:
 
 private:
 
-  void copy(DynLhashTable & table)
+  void copy(const DynLhashTable & table)
   {
-    for (typename LhashTable<Key>::Iterator it(table); it.has_curr();
-         it.next_ne())
+    for (typename LhashTable<Key>::Iterator it(const_cast<DynLhashTable&>(table)); 
+         it.has_curr(); it.next_ne())
       {
         DLBucket * Bucket = (DLBucket*) it.get_curr();
         insert(Bucket->get_key(), Bucket->record);
@@ -184,7 +184,7 @@ private:
 public:
 
   DynLhashTable(const DynLhashTable & table)
-    : LhashTable<Key>(table.hash_fct, table.len)
+    : LhashTable<Key>()
   {
     copy(table);
   }

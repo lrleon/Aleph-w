@@ -176,7 +176,7 @@ public:
     return ret_val;
   }
 
-  /** Convert `this` to a `Snodenc<T>.
+  /** Convert `this` to a `Snodenc<T>`.
 
       @note Invalid and probably buggy behavior if `this` is not a
       valid pointer
@@ -662,12 +662,17 @@ public:
 
   /**
      \~English
-     \param [in] link Element where 'list' will start
-     \param [in] list List that will be inserted after link
+     Insert list `l` starting from `this`. After insertion, `l` becomes empty.
+
+     \param [in,out] l List that will be inserted starting from `this`.
+                        After the call, `l` is empty.
 
      \~Spanish
-     \param [in] link Elemento donde 'list' comenzará
-     \param [in] list Lista que será insertada luego de link
+     Inserta la lista `l` a partir de `this`. Después de la inserción,
+     `l` deviene vacía.
+
+     \param [in,out] l Lista que será insertada a partir de `this`.
+                        Después de la llamada, `l` está vacía.
   */
   void insert(HTList & l) noexcept
   {
@@ -1087,8 +1092,8 @@ public:
       : lptr(& const_cast<HTList &>(list)), curr(lptr->head), prev(curr)
     { /* empty */ }
 
-    //!\~English Reset the iterator at the first item \~Reestablece el
-    //!iterador al primer elemento
+    //!\~English Reset the iterator at the first item
+    //!\~Spanish Reestablece el iterador al primer elemento
     void reset() noexcept
     {
       prev = curr = lptr->head;
@@ -1966,7 +1971,7 @@ public:
     return it.get_curr();
   }
 
-  /// \overload get(const size_t & i)
+  /// Array-style access to the i-th item. Equivalent to `get(i)`.
   T & operator [] (const size_t & i)
   {
     return get(i);
