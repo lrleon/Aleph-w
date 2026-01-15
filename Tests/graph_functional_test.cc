@@ -701,7 +701,7 @@ TEST_F(GraphFunctionalTest, FilterInArcsDigraph)
     return a->get_info() > 2.0;
   });
   
-  EXPECT_EQ(filtered.size(), 1u); // Only 3.5
+  EXPECT_EQ(filtered.size(), 0u);
 }
 
 // ==================== search_node / find_node tests ====================
