@@ -1200,8 +1200,8 @@ namespace Aleph
   /**
    * @brief Check if a string is in a list of keywords
    *
-   * @param s The string to check
-   * @param keywords Vector of keywords to match against
+   * @param[in] s The string to check
+   * @param[in] keywords Vector of keywords to match against
    * @return true if s matches any keyword
    *
    * @par Example
@@ -1586,12 +1586,13 @@ namespace Aleph
     return result;
   }
 
-  /**
-   * @brief Trim whitespace from both ends of a string
-   *
-   * @param[in] text The string to trim
-   * @return Trimmed string
-   */
+  /// @brief Trim whitespace from both ends of a string
+  ///
+  /// Removes leading and trailing whitespace characters from the input string
+  /// and returns a new trimmed string.
+  ///
+  /// @param[in] text The string to trim
+  /// @return Trimmed string with leading and trailing whitespace removed
   inline std::string trim(const std::string & text)
   {
     size_t start = 0;

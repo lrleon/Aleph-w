@@ -57,17 +57,47 @@ using namespace Aleph;
 
 namespace Aleph
 {
-  /** Extended AVL balanced binary search tree with select and position.
+  /** @brief AVL balanced binary search tree with rank (order statistics).
 
-      An AVL tree is a binary search tree deterministically balanced.
-      The maximum height of an AVL tree of n nodes is
-      1.4404 * lg(n + 2) - 0.3277.
+      An AVL tree is a self-balancing binary search tree where the heights
+      of the two child subtrees of any node differ by at most one.
+      This guarantees O(log n) worst-case time complexity for search,
+      insertion, and deletion operations.
+
+      The maximum height of an AVL tree with n nodes is bounded by:
+      \f$ 1.4404 \lg{(n + 2)} - 0.3277 \f$
 
       This extended version maintains a count in each node representing
       the number of nodes in its subtree, enabling O(log n) operations
       for selecting by position and finding the position of a key.
 
-      @see Avl_Tree_Rk Avl_Tree_Rk_Vtl
+      @tparam NodeType Template for the node type (typically AvlNodeRk).
+      @tparam Key The type of keys stored in the tree.
+      @tparam Compare Comparison functor for ordering keys.
+
+      @par Complexity:
+      - Search: O(log n) worst case
+      - Insert: O(log n) worst case
+      - Delete: O(log n) worst case
+      - Select: O(log n) worst case
+      - Position: O(log n) worst case
+      - Space: O(n)
+
+      @par Example:
+      @code
+      Avl_Tree_Rk<int> tree;
+      tree.insert(new Avl_Tree_Rk<int>::Node(42));
+      tree.insert(new Avl_Tree_Rk<int>::Node(17));
+      auto node = tree.select(0);  // Get smallest element
+      auto [pos, found] = tree.position(42);  // Get position of key 42
+      @endcode
+
+      @note This is a low-level implementation that manages raw nodes.
+            For automatic memory management, use DynSetAvlTreeRk instead.
+
+      @see Avl_Tree_Rk Convenient typedef with default node type.
+      @see Avl_Tree_Rk_Vtl Version with virtual destructor nodes.
+      @see tpl_avl.H Base AVL tree without rank operations.
       @ingroup Trees
   */
   template <template <typename> class NodeType, typename Key, class Compare>
@@ -454,10 +484,10 @@ namespace Aleph
     using key_type = Key; /// The key type
 
     /// Return a reference to the comparison criteria
-    Compare &key_comp() noexcept { return cmp; }
+    [[nodiscard]] constexpr Compare &key_comp() noexcept { return cmp; }
 
     /// \overload key_comp()
-    Compare &get_compare() noexcept { return key_comp(); }
+    [[nodiscard]] constexpr Compare &get_compare() noexcept { return key_comp(); }
 
     Gen_Avl_Tree_Rk(Compare __cmp = Compare()) noexcept
       : avl_stack(Node::MaxHeight), head_ptr(&head_node),
@@ -466,6 +496,11 @@ namespace Aleph
       avl_stack.push(head_ptr);
     }
 
+    /** Swap in constant time all the items of `this` with the items of
+        `tree`.
+
+        @param[in] tree the tree to swap with this
+    */
     void swap(Gen_Avl_Tree_Rk & tree) noexcept
     {
       std::swap(root, tree.root);
@@ -475,9 +510,10 @@ namespace Aleph
     virtual ~Gen_Avl_Tree_Rk() noexcept { assert(avl_stack_empty()); }
 
     /// Return a modifiable reference to tree's root
-    Node *&getRoot() noexcept { return root; }
+    [[nodiscard]] constexpr Node *&getRoot() noexcept { return root; }
 
-    Node * getRoot() const noexcept { return root; }
+    /// Return a modifiable reference to tree's root
+    [[nodiscard]] constexpr Node * getRoot() const noexcept { return root; }
 
     /// Return the number of nodes in the tree
     [[nodiscard]] size_t size() const noexcept { return COUNT(root); }
@@ -485,8 +521,9 @@ namespace Aleph
     /// Return true if tree is empty
     [[nodiscard]] constexpr bool is_empty() const noexcept { return root == Node::NullPtr; }
 
-    /// Search a node containing key
-    Node * search(const Key & key) const noexcept
+    /// Search a node containing key; if found, then a pointer to the
+    /// node containing it is returned; otherwise `nullptr` is returned
+    [[nodiscard]] Node * search(const Key & key) const noexcept
     {
       Node *result = searchInBinTree<Node, Compare>(root, key, cmp);
       return result == Node::NullPtr ? nullptr : result;
@@ -497,7 +534,7 @@ namespace Aleph
         @param[in] p the node to be inserted
         @return p if KEY(p) is not found in the tree, nullptr otherwise.
     */
-    Node * insert(Node *p) noexcept
+    [[nodiscard]] Node * insert(Node *p) noexcept
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -527,7 +564,7 @@ namespace Aleph
         @return if p is inserted, this value is returned;
         otherwise, a pointer to the node containing KEY(p) is returned.
     */
-    Node * search_or_insert(Node *p) noexcept
+    [[nodiscard]] Node * search_or_insert(Node *p) noexcept
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -551,7 +588,7 @@ namespace Aleph
     }
 
     /// Insert the node p without testing for key duplicity
-    Node * insert_dup(Node *p) noexcept
+    [[nodiscard]] Node * insert_dup(Node *p) noexcept
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -570,7 +607,8 @@ namespace Aleph
     }
 
     /// Remove from tree the node containing key.
-    Node * remove(const Key & key) noexcept
+    /// Returns the removed node if the key is found; `nullptr` otherwise.
+    [[nodiscard]] Node * remove(const Key & key) noexcept
     {
       if (root == Node::NullPtr)
         return nullptr;
@@ -668,7 +706,7 @@ namespace Aleph
     }
 
     /// Return true if the tree is a valid AVL tree with correct counters
-    [[nodiscard]] bool verify() const
+    [[nodiscard]] bool verify() const noexcept
     {
       return is_avl_rk(root) and check_rank_tree(root);
     }
@@ -1151,7 +1189,7 @@ namespace Aleph
           LLINK(p) = RLINK(p) = Node::NullPtr;
           COUNT(p) = 1;
           DIFF(p) = 0;
-          insert(p);
+          (void)insert(p);
 
           if (right != Node::NullPtr)
             stack.push(right);
@@ -1201,9 +1239,9 @@ namespace Aleph
           DIFF(p) = 0;
 
           if (cmp(KEY(p), key))
-            t1.insert(p);
+            (void)t1.insert(p);
           else if (cmp(key, KEY(p)))
-            t2.insert(p);
+            (void)t2.insert(p);
           else
             found = p; // Found the key
         }
@@ -1249,9 +1287,9 @@ namespace Aleph
           DIFF(p) = 0;
 
           if (cmp(key, KEY(p)))
-            t2.insert(p);
+            (void)t2.insert(p);
           else
-            t1.insert_dup(p);
+            (void)t1.insert_dup(p);
         }
     }
 
@@ -1311,18 +1349,20 @@ namespace Aleph
           DIFF(curr) = 0;
 
           if (count < pos)
-            t1.insert(curr);
+            (void)t1.insert(curr);
           else
-            t2.insert(curr);
+            (void)t2.insert(curr);
 
           ++count;
           curr = right;
         }
     }
 
-    /** Iterator on nodes of the tree.
+    /** @brief Iterator over the nodes.
 
-        The visit order is inorder.
+        This class allows traversing the tree nodes in sorted order
+        according to the comparison criterion specified at tree
+        instantiation.
 
         @ingroup Trees
     */

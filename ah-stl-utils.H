@@ -103,13 +103,12 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
   tuple_for_each(tuple, func, std::make_index_sequence<sizeof...(Ts)>());
 }
 
+/// \cond
 /** @brief Convert a std::vector to a DynList.
  *
- *  Creates a new DynList containing copies of all elements from the
- *  given std::vector.
- *
  *  @note This is an alias/duplicate of the function defined in ah-convert.H.
- *        Both definitions are equivalent.
+ *        Both definitions are equivalent. See ah-convert.H::vector_to_DynList
+ *        for full documentation.
  *
  *  @tparam T The element type.
  *  @param v The source std::vector.
@@ -117,6 +116,7 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
  *
  *  @ingroup Algorithms
  */
+/// \endcond
 template <typename T>
 [[nodiscard]] inline DynList<T> vector_to_DynList(const std::vector<T> & v)
 {
@@ -465,13 +465,12 @@ template <typename T>
   return ret;
 }
 
+/// \cond
 /** @brief Convert a std::vector to a DynArray.
  *
- *  Creates a new DynArray containing copies of all elements from the
- *  given std::vector.
- *
  *  @note This is an alias/duplicate of the function defined in ah-convert.H.
- *        Both definitions are equivalent.
+ *        Both definitions are equivalent. See ah-convert.H::vector_to_DynArray
+ *        for full documentation.
  *
  *  @tparam T The element type.
  *  @param v The source std::vector.
@@ -479,6 +478,7 @@ template <typename T>
  *
  *  @ingroup Algorithms
  */
+/// \endcond
 template <typename T>
 [[nodiscard]] inline DynArray<T> vector_to_DynArray(const std::vector<T> & v)
 {

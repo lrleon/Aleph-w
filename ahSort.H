@@ -544,7 +544,12 @@ namespace Aleph
   }
 
   /** @brief Computes the rank of each element in a DynDlist.
-   *  @copydetails ranks(const DynList<T>&)
+   *
+   *  @tparam T Element type
+   *  @param l The list to compute ranks for
+   *  @return A DynArray where result[i] is the rank of the i-th element
+   *
+   *  @note The list is first copied to an array for efficient random access
    */
   template<typename T>
   [[nodiscard]] DynArray<size_t> ranks(const DynDlist<T> & l)
@@ -601,7 +606,10 @@ namespace Aleph
   }
 
   /** @brief Computes (value, rank) pairs for each element in a DynDlist.
-   *  @copydetails pair_ranks(const DynList<T>&)
+   *
+   *  @tparam T Element type
+   *  @param l The list to compute ranks for
+   *  @return A DynArray of pairs
    */
   template<typename T>
   [[nodiscard]] auto pair_ranks(const DynDlist<T> & l)

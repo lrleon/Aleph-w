@@ -1321,8 +1321,8 @@ namespace Aleph
         @tparam Container Container type (default: DynList)
         @tparam SN Node filter type (default: Dft_Show_Node<GT>)
         @param[in] g the graph
-        @param[in] transformation function `Node*` --> T`
-        @param[in] sn node filter (default: Dft_Show_Node<GT>)
+        @param[in] transformation function `Node* -> T`
+        @param[in] sn node filter functor (default: Dft_Show_Node<GT>)
         @return a `Container<T>` object with all the nodes mapped through the
         transformation
 
@@ -1350,8 +1350,8 @@ namespace Aleph
         @tparam Container Container type (default: DynList)
         @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
         @param[in] g the graph
-        @param[in] transformation function `Arc*` --> T`
-        @param[in] sa arc filter (default: Dft_Show_Arc<GT>)
+        @param[in] transformation function `Arc* -> T`
+        @param[in] sa arc filter functor (default: Dft_Show_Arc<GT>)
         @return a `Container<T>` object with all the arcs mapped through the
         transformation
         @ingroup Graphs
@@ -1383,8 +1383,8 @@ namespace Aleph
    *  @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
    *  @param[in] g the graph
    *  @param[in] p node pointer (arcs connected to this node are filtered)
-   *  @param[in] transformation function `Arc*` --> T`
-   *  @param[in] sa arc filter (default: Dft_Show_Arc<GT>)
+   *  @param[in] transformation function `Arc* -> T`
+   *  @param[in] sa arc filter functor (default: Dft_Show_Arc<GT>)
    *  @return a `Container<T>` object with all the arcs mapped through the
    *          transformation
    *  @see arcs_map(GT &, std::function<T (typename GT::Arc *)>, SA) For the

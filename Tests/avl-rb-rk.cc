@@ -265,7 +265,7 @@ TEST(StressTest, MixedOperationsAvl)
   for (size_t i = 0; i < N; ++i)
     {
       auto p = new Node(static_cast<int>(i));
-      tree.insert(p);
+      ASSERT_NE(tree.insert(p), nullptr);
     }
 
   EXPECT_TRUE(tree.verify());
@@ -310,7 +310,7 @@ TEST(StressTest, MixedOperationsRb)
   for (size_t i = 0; i < N; ++i)
     {
       auto p = new Node(static_cast<int>(i));
-      tree.insert(p);
+      ASSERT_NE(tree.insert(p), nullptr);
     }
 
   EXPECT_TRUE(tree.verify());
@@ -381,7 +381,7 @@ TEST(EdgeCases, SingleElementAvl)
   using Node = Avl_Tree_Rk<int>::Node;
 
   auto p = new Node(42);
-  tree.insert(p);
+  ASSERT_NE(tree.insert(p), nullptr);
 
   EXPECT_EQ(tree.size(), 1);
   EXPECT_TRUE(tree.verify());
@@ -403,7 +403,7 @@ TEST(EdgeCases, SingleElementRb)
   using Node = Rb_Tree_Rk<int>::Node;
 
   auto p = new Node(42);
-  tree.insert(p);
+  ASSERT_NE(tree.insert(p), nullptr);
 
   EXPECT_EQ(tree.size(), 1);
   EXPECT_TRUE(tree.verify());
@@ -469,7 +469,7 @@ TEST(InsertDup, AvlTree)
   for (int i = 0; i < 10; ++i)
     {
       auto p = new Node(42);
-      tree.insert_dup(p);
+      ASSERT_NE(tree.insert_dup(p), nullptr);
     }
 
   EXPECT_EQ(tree.size(), 10);
@@ -491,7 +491,7 @@ TEST(InsertDup, RbTree)
   for (int i = 0; i < 10; ++i)
     {
       auto p = new Node(42);
-      tree.insert_dup(p);
+      ASSERT_NE(tree.insert_dup(p), nullptr);
     }
 
   EXPECT_EQ(tree.size(), 10);
@@ -526,9 +526,9 @@ TEST(JoinSplitAvl, JoinExclusiveBasic)
 
   // Insert 0-49 in t1, 50-99 in t2
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = 50; i < 100; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   EXPECT_EQ(t1.size(), 50);
   EXPECT_EQ(t2.size(), 50);
@@ -557,7 +557,7 @@ TEST(JoinSplitAvl, JoinExclusiveEmptyLeft)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
 
@@ -574,7 +574,7 @@ TEST(JoinSplitAvl, JoinExclusiveEmptyRight)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
 
@@ -591,7 +591,7 @@ TEST(JoinSplitAvl, SplitKeyBasic)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 100; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   auto pivot = tree.split_key(50, t1, t2);
 
@@ -624,7 +624,7 @@ TEST(JoinSplitAvl, SplitKeyNotFound)
 
   // Insert even numbers only
   for (int i = 0; i < 100; i += 2)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   // Split by odd number (not in tree)
   auto pivot = tree.split_key(51, t1, t2);
@@ -649,7 +649,7 @@ TEST(JoinSplitAvl, SplitPosBasic)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 100; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(30, t1, t2);
 
@@ -678,7 +678,7 @@ TEST(JoinSplitAvl, SplitPosZero)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(0, t1, t2);
 
@@ -696,7 +696,7 @@ TEST(JoinSplitAvl, SplitPosEnd)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(50, t1, t2);
 
@@ -714,9 +714,9 @@ TEST(JoinSplitAvl, JoinThenSplit)
   using Node = Avl_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = 50; i < 100; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
   EXPECT_EQ(t1.size(), 100);
@@ -742,9 +742,9 @@ TEST(JoinSplitRb, JoinExclusiveBasic)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = 50; i < 100; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   EXPECT_EQ(t1.size(), 50);
   EXPECT_EQ(t2.size(), 50);
@@ -772,7 +772,7 @@ TEST(JoinSplitRb, JoinExclusiveEmptyLeft)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
 
@@ -789,7 +789,7 @@ TEST(JoinSplitRb, JoinExclusiveEmptyRight)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
 
@@ -806,7 +806,7 @@ TEST(JoinSplitRb, SplitKeyBasic)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 100; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   auto pivot = tree.split_key(50, t1, t2);
 
@@ -836,7 +836,7 @@ TEST(JoinSplitRb, SplitKeyNotFound)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 100; i += 2)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   auto pivot = tree.split_key(51, t1, t2);
 
@@ -858,7 +858,7 @@ TEST(JoinSplitRb, SplitPosBasic)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 100; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(30, t1, t2);
 
@@ -885,7 +885,7 @@ TEST(JoinSplitRb, SplitPosZero)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(0, t1, t2);
 
@@ -903,7 +903,7 @@ TEST(JoinSplitRb, SplitPosEnd)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    tree.insert(new Node(i));
+    ASSERT_NE(tree.insert(new Node(i)), nullptr);
 
   tree.split_pos(50, t1, t2);
 
@@ -921,9 +921,9 @@ TEST(JoinSplitRb, JoinThenSplit)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = 50; i < 100; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
   EXPECT_EQ(t1.size(), 100);
@@ -950,9 +950,9 @@ TEST(JoinSplitStress, AvlLargeJoinSplit)
   const int N = 1000;
 
   for (int i = 0; i < N / 2; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = N / 2; i < N; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
   EXPECT_EQ(t1.size(), N);
@@ -978,9 +978,9 @@ TEST(JoinSplitStress, RbLargeJoinSplit)
   const int N = 1000;
 
   for (int i = 0; i < N / 2; ++i)
-    t1.insert(new Node(i));
+    ASSERT_NE(t1.insert(new Node(i)), nullptr);
   for (int i = N / 2; i < N; ++i)
-    t2.insert(new Node(i));
+    ASSERT_NE(t2.insert(new Node(i)), nullptr);
 
   t1.join_exclusive(t2);
   EXPECT_EQ(t1.size(), N);
@@ -1008,11 +1008,11 @@ TEST(SplitDup, AvlSplitKeyDup)
 
   // Insert with duplicates: several 50s
   for (int i = 0; i < 50; ++i)
-    tree.insert_dup(new Node(i));
+    ASSERT_NE(tree.insert_dup(new Node(i)), nullptr);
   for (int i = 0; i < 10; ++i)
-    tree.insert_dup(new Node(50));
+    ASSERT_NE(tree.insert_dup(new Node(50)), nullptr);
   for (int i = 51; i < 100; ++i)
-    tree.insert_dup(new Node(i));
+    ASSERT_NE(tree.insert_dup(new Node(i)), nullptr);
 
   EXPECT_EQ(tree.size(), 109);  // 50 + 10 + 49
 
@@ -1037,11 +1037,11 @@ TEST(SplitDup, RbSplitKeyDup)
   using Node = Rb_Tree_Rk<int>::Node;
 
   for (int i = 0; i < 50; ++i)
-    tree.insert_dup(new Node(i));
+    ASSERT_NE(tree.insert_dup(new Node(i)), nullptr);
   for (int i = 0; i < 10; ++i)
-    tree.insert_dup(new Node(50));
+    ASSERT_NE(tree.insert_dup(new Node(50)), nullptr);
   for (int i = 51; i < 100; ++i)
-    tree.insert_dup(new Node(i));
+    ASSERT_NE(tree.insert_dup(new Node(i)), nullptr);
 
   EXPECT_EQ(tree.size(), 109);
 

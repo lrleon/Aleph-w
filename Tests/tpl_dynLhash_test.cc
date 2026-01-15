@@ -419,6 +419,249 @@ TEST(DynLhashTableCustomHash, WithCustomHashFunction)
 }
 
 // =============================================================================
+// Swap Tests
+// =============================================================================
+
+TEST(DynLhashTableSwap, SwapTables)
+{
+  DynLhashTable<int, std::string> table1;
+  DynLhashTable<int, std::string> table2;
+  
+  table1.insert(1, "one");
+  table1.insert(2, "two");
+  table2.insert(10, "ten");
+  
+  table1.swap(table2);
+  
+  // table1 should now have table2's contents
+  EXPECT_EQ(table1.search(1), nullptr);
+  EXPECT_EQ(table1.search(2), nullptr);
+  EXPECT_EQ(*table1.search(10), "ten");
+  
+  // table2 should now have table1's original contents
+  EXPECT_EQ(*table2.search(1), "one");
+  EXPECT_EQ(*table2.search(2), "two");
+  EXPECT_EQ(table2.search(10), nullptr);
+}
+
+TEST(DynLhashTableSwap, SwapWithEmpty)
+{
+  DynLhashTable<int, std::string> table1;
+  DynLhashTable<int, std::string> table2;
+  
+  table1.insert(1, "one");
+  
+  table1.swap(table2);
+  
+  EXPECT_EQ(table1.search(1), nullptr);
+  EXPECT_EQ(*table2.search(1), "one");
+}
+
+// =============================================================================
+// Post-Move State Tests
+// =============================================================================
+
+TEST(DynLhashTablePostMove, MoveConstructorTransfersOwnership)
+{
+  DynLhashTable<int, std::string> source;
+  source.insert(1, "one");
+  source.insert(2, "two");
+  
+  DynLhashTable<int, std::string> dest(std::move(source));
+  
+  // Destination should have all the data
+  EXPECT_EQ(*dest.search(1), "one");
+  EXPECT_EQ(*dest.search(2), "two");
+  
+  // Note: source is in moved-from state - only safe for destruction/assignment
+}
+
+TEST(DynLhashTablePostMove, MoveAssignmentTransfersOwnership)
+{
+  DynLhashTable<int, std::string> source;
+  source.insert(1, "one");
+  source.insert(2, "two");
+  
+  DynLhashTable<int, std::string> dest;
+  dest.insert(10, "ten");  // Will be replaced
+  
+  dest = std::move(source);
+  
+  // Destination should have source's data
+  EXPECT_EQ(*dest.search(1), "one");
+  EXPECT_EQ(*dest.search(2), "two");
+  EXPECT_EQ(dest.search(10), nullptr);  // Old data gone
+  
+  // Note: source is in moved-from state - only safe for destruction/assignment
+}
+
+// =============================================================================
+// Complex Types Tests
+// =============================================================================
+
+struct ComplexValue
+{
+  std::string data;
+  int counter;
+  static int copy_count;
+  static int move_count;
+  
+  ComplexValue() : data(""), counter(0) {}
+  ComplexValue(const std::string& d, int c) : data(d), counter(c) {}
+  
+  ComplexValue(const ComplexValue& other) 
+    : data(other.data), counter(other.counter) { ++copy_count; }
+  
+  ComplexValue(ComplexValue&& other) noexcept
+    : data(std::move(other.data)), counter(other.counter) { ++move_count; }
+  
+  ComplexValue& operator=(const ComplexValue& other)
+  {
+    data = other.data;
+    counter = other.counter;
+    ++copy_count;
+    return *this;
+  }
+  
+  ComplexValue& operator=(ComplexValue&& other) noexcept
+  {
+    data = std::move(other.data);
+    counter = other.counter;
+    ++move_count;
+    return *this;
+  }
+  
+  bool operator==(const ComplexValue& other) const
+  {
+    return data == other.data && counter == other.counter;
+  }
+};
+
+int ComplexValue::copy_count = 0;
+int ComplexValue::move_count = 0;
+
+TEST(DynLhashTableComplexType, MoveSemanticsPropagated)
+{
+  ComplexValue::copy_count = 0;
+  ComplexValue::move_count = 0;
+  
+  DynLhashTable<int, ComplexValue> table;
+  
+  ComplexValue val("test", 42);
+  table.insert(1, std::move(val));
+  
+  // Should have moved, not copied
+  EXPECT_GT(ComplexValue::move_count, 0);
+  
+  auto* found = table.search(1);
+  ASSERT_NE(found, nullptr);
+  EXPECT_EQ(found->data, "test");
+  EXPECT_EQ(found->counter, 42);
+}
+
+// =============================================================================
+// Duplicate Keys Behavior Tests
+// =============================================================================
+
+TEST(DynLhashTableDuplicates, InsertDuplicateKeysAllowed)
+{
+  DynLhashTable<int, std::string> table;
+  
+  auto* ptr1 = table.insert(1, "first");
+  auto* ptr2 = table.insert(1, "second");
+  
+  // Both inserts should succeed and return different pointers
+  ASSERT_NE(ptr1, nullptr);
+  ASSERT_NE(ptr2, nullptr);
+  EXPECT_NE(ptr1, ptr2);
+  
+  // Both values should be accessible via their pointers
+  EXPECT_EQ(*ptr1, "first");
+  EXPECT_EQ(*ptr2, "second");
+}
+
+TEST(DynLhashTableDuplicates, RemoveOneDuplicate)
+{
+  DynLhashTable<int, std::string> table;
+  
+  auto* ptr1 = table.insert(1, "first");
+  auto* ptr2 = table.insert(1, "second");
+  
+  // Remove the second inserted (which search() finds first due to chain order)
+  table.remove(ptr2);
+  
+  // ptr1 should still be valid and now searchable
+  EXPECT_EQ(*ptr1, "first");
+  auto* found = table.search(1);
+  ASSERT_NE(found, nullptr);
+  EXPECT_EQ(*found, "first");
+}
+
+// =============================================================================
+// Large Scale Stress Tests
+// =============================================================================
+
+TEST(DynLhashTableStress, LargeScaleWithVerification)
+{
+  DynLhashTable<int, int> table;
+  const int N = 100000;
+  
+  // Insert many elements
+  for (int i = 0; i < N; ++i)
+    table.insert(i, i * 3);
+  
+  // Verify all elements
+  for (int i = 0; i < N; ++i)
+    {
+      auto* found = table.search(i);
+      ASSERT_NE(found, nullptr) << "Key " << i << " not found";
+      EXPECT_EQ(*found, i * 3) << "Wrong value for key " << i;
+    }
+}
+
+TEST(DynLhashTableStress, InterleavedInsertRemove)
+{
+  DynLhashTable<int, int> table;
+  std::vector<int*> ptrs;
+  const int N = 10000;
+  
+  // Insert first batch
+  for (int i = 0; i < N; ++i)
+    ptrs.push_back(table.insert(i, i));
+  
+  // Remove odd indices, insert new values
+  for (int i = 1; i < N; i += 2)
+    {
+      table.remove(ptrs[i]);
+      ptrs[i] = nullptr;
+    }
+  
+  // Insert replacement values
+  for (int i = N; i < N + N/2; ++i)
+    table.insert(i, i);
+  
+  // Verify even indices remain
+  for (int i = 0; i < N; i += 2)
+    {
+      auto* found = table.search(i);
+      ASSERT_NE(found, nullptr);
+      EXPECT_EQ(*found, i);
+    }
+  
+  // Verify odd indices removed
+  for (int i = 1; i < N; i += 2)
+    EXPECT_EQ(table.search(i), nullptr);
+  
+  // Verify new values
+  for (int i = N; i < N + N/2; ++i)
+    {
+      auto* found = table.search(i);
+      ASSERT_NE(found, nullptr);
+      EXPECT_EQ(*found, i);
+    }
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 

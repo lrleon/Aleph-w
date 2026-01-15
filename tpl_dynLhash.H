@@ -25,7 +25,12 @@
 */
 
 /** @file tpl_dynLhash.H
- *  @brief Dynamic linear hash table.
+ *  @brief Dynamic hash table mapping keys to records with separate chaining.
+ *
+ *  This header provides DynLhashTable, a hash table implementation that maps
+ *  keys to records using separate chaining for collision resolution. It supports
+ *  the subscript operator `[]` for convenient access and modification.
+ *
  *  @ingroup Hash
  *  @author Leandro Rabindranath León
  */
@@ -40,29 +45,39 @@ using namespace Aleph;
 
 namespace Aleph
 {
-  /** Key dynamic mapping implemented through a hash table with
-      Collisions resolution for separate chain.
-
-      The Dynlhashable <key type, record> implements a mapping through
-      A hash table with collision resolution by chain
-      separate. The export type observers to know the radius of
-      Use and, eventually, readjust the size of the table, so
-      that it exhibits better performance.
-
-      They can be used safely to records within the
-      board.
-
-      Apart from the traditional methods of insertion and search, the
-      Operator [] FUNGES AT THE TIME AS A CONSULTATION AND INSERTION. The
-      Table assignment [key] = record corresponds to an insertion;
-      While any expression of the Table Type [Key] that
-      Involve reading corresponds to a search.
-
-      @tparam Key the type of indexing key
-      @tparam Record the type of range associated with the keys.
-      @tparam CMP Comparison class between the keys.
-
-      @ingroup Hash
+  /** @class DynLhashTable
+   *  @brief Dynamic hash table mapping keys to records with separate chaining.
+   *
+   *  DynLhashTable implements a key-value mapping using a hash table with
+   *  separate chaining for collision resolution. It provides O(1) average-case
+   *  complexity for insertions, lookups, and deletions.
+   *
+   *  The table supports both traditional methods (`insert`, `search`, `remove`)
+   *  and the subscript operator `[]` for convenient access:
+   *  - `table[key] = record` inserts or updates the entry
+   *  - `record = table[key]` retrieves the value (throws if key not found)
+   *
+   *  Pointers returned by `insert()` and `search()` remain valid until the
+   *  corresponding entry is removed, allowing direct modification of stored records.
+   *
+   *  @tparam Key Type of the indexing key (must be hashable).
+   *  @tparam Record Type of the value associated with each key.
+   *  @tparam Cmp Equality comparison functor for keys (default: Aleph::equal_to<Key>).
+   *
+   *  @par Example
+   *  @code
+   *  DynLhashTable<std::string, int> ages;
+   *  ages.insert("Alice", 30);
+   *  ages["Bob"] = 25;
+   *  
+   *  int* ptr = ages.search("Alice");
+   *  if (ptr) std::cout << *ptr;  // prints 30
+   *  
+   *  int bob_age = ages["Bob"];   // bob_age = 25
+   *  @endcode
+   *
+   *  @see LhashTableVtl for the underlying hash table implementation
+   *  @ingroup Hash
    */
   template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
   class DynLhashTable : public LhashTableVtl<Key>
@@ -154,17 +169,24 @@ namespace Aleph
     };
 
   public:
-    /// The type of hash function.
+    /// The type of hash function pointer.
     using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
 
+    /** @brief Swap contents with another table.
+     *  @param[in,out] table The table to swap with.
+     */
     void swap(DynLhashTable & table) noexcept
     {
       this->LhashTableVtl<Key>::swap(table);
     }
 
-    /// Instance a dynamic hash mapping with hash hash_fct and
-    /// Len length table. Exception Bad_alloc shoots if there is no
-    /// Memory to separate the internal table.
+    /** @brief Construct a dynamic hash table.
+     *
+     *  @param[in] len Initial size of the hash table (default: DefaultPrime).
+     *  @param[in] hash_fct Hash function to use (default: dft_hash_fct<Key>).
+     *
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
     DynLhashTable(size_t len = DefaultPrime,
                   Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
       : LhashTableVtl<Key>(len, hash_fct)
@@ -184,19 +206,32 @@ namespace Aleph
     }
 
   public:
+    /** @brief Copy constructor.
+     *  @param[in] table The table to copy from.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
     DynLhashTable(const DynLhashTable & table)
       : LhashTableVtl<Key>()
     {
       copy(table);
     }
 
-    DynLhashTable(DynLhashTable && table)
-      noexcept
+    /** @brief Move constructor.
+     *  @param[in,out] table The table to move from.
+     *  @warning After move, the source table is in a moved-from state and
+     *           must not be used except for destruction or assignment.
+     */
+    DynLhashTable(DynLhashTable && table) noexcept
       : LhashTableVtl<Key>(std::move(table))
     {
       // Base class move constructor properly transfers ownership
     }
 
+    /** @brief Copy assignment operator.
+     *  @param[in] table The table to copy from.
+     *  @return Reference to this table.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
     DynLhashTable &operator =(const DynLhashTable & table)
     {
       if (this == &table)
@@ -208,8 +243,13 @@ namespace Aleph
       return *this;
     }
 
-    DynLhashTable &operator =(DynLhashTable && table)
-      noexcept
+    /** @brief Move assignment operator.
+     *  @param[in,out] table The table to move from.
+     *  @return Reference to this table.
+     *  @warning After move, the source table is in a moved-from state and
+     *           must not be used except for destruction or assignment.
+     */
+    DynLhashTable &operator =(DynLhashTable && table) noexcept
     {
       if (this != &table)
         LhashTableVtl<Key>::operator=(std::move(table));
@@ -224,41 +264,62 @@ namespace Aleph
     }
 
   public:
-    /// Insert in the hash the pair (Key, Record) indisted by the key
-    /// Key. Returns a pointer to the registration within the table. Try the
-    /// Exception Bad_alloc if there is not enough memory.
+    /** @brief Insert a key-record pair into the table.
+     *
+     *  If the key already exists, a new entry is added (duplicates allowed).
+     *  The returned pointer remains valid until the entry is removed.
+     *
+     *  @param[in] key The key to insert.
+     *  @param[in] record The record to associate with the key.
+     *  @return Pointer to the stored record within the table.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
     Record * insert(const Key & key, const Record & record)
     {
       return __insert(new DLBucket(key, record));
     }
 
+    /// @overload
     Record * insert(const Key & key, Record && record = Record())
     {
       return __insert(new DLBucket(key, std::forward<Record>(record)));
     }
 
+    /// @overload
     Record * insert(Key && key, const Record & record)
     {
       return __insert(new DLBucket(std::forward<Key>(key), record));
     }
 
+    /// @overload
     Record * insert(Key && key, Record && record)
     {
       return __insert(new DLBucket(std::forward<Key>(key),
                                    std::forward<Record>(record)));
     }
 
-    /// Look for the key and, if you are, then a pointer returns
-    /// Within the table to the associated record. Otherwise -I don't know
-    /// Find the key-, Nullptr is returned:
+    /** @brief Search for a key in the table.
+     *
+     *  @param[in] key The key to search for.
+     *  @return Pointer to the associated record if found, nullptr otherwise.
+     *
+     *  @note The returned pointer can be used to modify the record in-place.
+     */
     Record * search(const Key & key)
     {
       auto *bucket = static_cast<DLBucket *>(LhashTableVtl<Key>::search(key));
       return bucket != nullptr ? &bucket->record : nullptr;
     }
 
-    /// Eliminate the record from the table (which must have been
-    /// obtained by insertion or search.Dyb
+    /** @brief Remove an entry from the table.
+     *
+     *  The record pointer must have been obtained from insert() or search().
+     *  After removal, the pointer becomes invalid.
+     *
+     *  @param[in] record Pointer to the record to remove (must be valid).
+     *
+     *  @warning Passing an invalid pointer results in undefined behavior.
+     */
     void remove(Record *record)
     {
       DLBucket *bucket = record_to_bucket(record);
@@ -266,11 +327,21 @@ namespace Aleph
       delete bucket;
     }
 
+    /** @brief Access or insert an entry using subscript notation.
+     *
+     *  - For assignment (`table[key] = value`): inserts or updates the entry.
+     *  - For reading (`value = table[key]`): returns the value or throws.
+     *
+     *  @param[in] key The key to access.
+     *  @return A proxy object that handles both read and write operations.
+     *  @throw std::invalid_argument If reading a non-existent key.
+     */
     DLProxy operator [](const Key & key) const
     {
       return DLProxy(const_cast<DynLhashTable &>(*this), key);
     }
 
+    /// @overload
     DLProxy operator [](const Key & key)
     {
       return DLProxy(*this, key);

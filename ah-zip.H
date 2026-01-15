@@ -89,9 +89,11 @@ namespace Aleph
  *       The base class is a different specialization: ZipIterator<TailC...>
  * @ingroup Algorithms
  * @author Leandro Rabindranath Leon
+ * @cond DOXYGEN_SHOULD_SKIP_THIS
  */
 template <class HeadC, class ... TailC>
 class ZipIterator : public ZipIterator<TailC...>
+/// @endcond
 {
   typename HeadC::Iterator it;
 
@@ -1159,9 +1161,11 @@ auto t_zip_eq(const Cs &... cs)
  *
  * @see get_enum_zip_it(), enum_zip_it(), ZipIterator
  * @ingroup Algorithms
+ * @cond DOXYGEN_SHOULD_SKIP_THIS
  */
 template <class HeadC, class ... TailC>
 class EnumZipIterator : public EnumZipIterator<TailC...>
+/// @endcond
 {
   typename HeadC::Iterator it;
 
