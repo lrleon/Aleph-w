@@ -26,52 +26,188 @@
 
 /**
  * @file kosaraju_example.cc
- * @brief Comprehensive example of Kosaraju's algorithm for SCCs.
+ * @brief Comprehensive example of Kosaraju's algorithm for SCCs
  *
  * This example demonstrates Kosaraju's algorithm for finding Strongly
- * Connected Components (SCCs) in a directed graph.
+ * Connected Components (SCCs) in a directed graph. Kosaraju's algorithm
+ * is conceptually simpler than Tarjan's, using two DFS passes instead
+ * of one, but requiring a graph transpose.
  *
  * ## What is a Strongly Connected Component?
  *
- * In a directed graph, a strongly connected component (SCC) is a maximal
- * set of vertices such that there is a path from every vertex to every
- * other vertex in the set.
+ * In a directed graph, a **strongly connected component** (SCC) is a
+ * maximal set of vertices such that there is a path from every vertex
+ * to every other vertex in the set.
  *
- * ## Algorithm Overview
+ * **Key property**: In an SCC, you can travel from any vertex to any
+ * other vertex (and back).
  *
- * Kosaraju's algorithm works in two phases:
+### Example
+ *
+ * Graph: A → B → C → A, D → E → D
+ *
+ * SCCs:
+ * - {A, B, C} - form a cycle
+ * - {D, E} - form a cycle
+ *
+## Kosaraju's Algorithm
+ *
+### Overview
+ *
+ * Kosaraju's algorithm works in **two phases**:
+ *
+### Phase 1: Compute Finish Times
  *
  * ```
- * Phase 1: Compute finish times
- *   - Run DFS on the original graph
- *   - Record nodes in order they finish (postorder)
- *
- * Phase 2: Find SCCs
- *   - Create the transposed graph (reverse all edges)
- *   - Process nodes in decreasing order of finish time
- *   - Each DFS tree in this phase is one SCC
+ * 1. Run DFS on the original graph G
+ * 2. Record nodes in order they finish (postorder)
+ * 3. Store finish times
  * ```
  *
- * ## Why Does It Work?
+ * **Key**: We record when DFS finishes exploring a vertex (post-order).
  *
- * The key insight is that if u can reach v in G, then v can reach u in G^T
- * (transposed graph). By processing nodes in decreasing finish order, we
- * ensure that when we start a new DFS tree, we only reach nodes in the
- * same SCC.
+### Phase 2: Find SCCs
  *
- * ## Applications
+ * ```
+ * 1. Create transposed graph G^T (reverse all edges)
+ * 2. Process nodes in DECREASING order of finish time
+ * 3. Run DFS on G^T starting from highest finish time
+ * 4. Each DFS tree found is one SCC
+ * ```
  *
- * - **2-SAT solver**: Can be reduced to finding SCCs
- * - **Dependency analysis**: Finding circular dependencies
- * - **Social networks**: Finding tightly-knit communities
- * - **Compiler optimization**: Data flow analysis
- * - **Web crawling**: Identifying website clusters
+ * **Key**: Process in reverse finish order, on reversed graph.
  *
- * ## Complexity
+## Why Does It Work?
  *
- * - Time: O(V + E)
- * - Space: O(V + E) for the transposed graph
+### Key Insight
  *
+ * If vertex u can reach vertex v in graph G, then v can reach u in the
+ * transposed graph G^T (where all edges are reversed).
+ *
+### Why Reverse Finish Order?
+ *
+ * By processing vertices in **decreasing finish order**:
+ * - We start with vertices that finished LAST in Phase 1
+ * - These are "sink" vertices (end of paths)
+ * - In G^T, they become "source" vertices
+ * - DFS from them only reaches vertices in the same SCC
+ *
+### Why Transpose?
+ *
+ * - In G: If u → v, then u can reach v
+ * - In G^T: If v → u (reversed), then v can reach u
+ * - Together: u and v can reach each other ⟺ same SCC
+ *
+## Algorithm Pseudocode
+ *
+ * ```
+ * Kosaraju_SCC(G):
+ *   // Phase 1: Compute finish times
+ *   stack = empty
+ *   visited = all false
+ *   For each vertex v in G:
+ *     If not visited[v]:
+ *       DFS_Phase1(v, G, visited, stack)
+ *
+ *   // Phase 2: Find SCCs on transposed graph
+ *   G_transpose = transpose(G)
+ *   visited = all false
+ *   While stack not empty:
+ *     v = stack.pop()
+ *     If not visited[v]:
+ *       SCC = DFS_Phase2(v, G_transpose, visited)
+ *       Output SCC
+ *
+ * DFS_Phase1(v, G, visited, stack):
+ *   visited[v] = true
+ *   For each neighbor w of v in G:
+ *     If not visited[w]:
+ *       DFS_Phase1(w, G, visited, stack)
+ *   stack.push(v)  // Post-order: push after exploring
+ *
+ * DFS_Phase2(v, G_T, visited):
+ *   visited[v] = true
+ *   SCC = {v}
+ *   For each neighbor w of v in G_T:
+ *     If not visited[w]:
+ *       SCC += DFS_Phase2(w, G_T, visited)
+ *   Return SCC
+ * ```
+ *
+## Complexity
+ *
+ * - **Time**: O(V + E) - two DFS passes
+ * - **Space**: O(V + E) - for transposed graph
+ *
+ * **Note**: Tarjan's algorithm is more space-efficient (no transpose needed)
+ *
+## Comparison with Tarjan's Algorithm
+ *
+ * | Aspect | Kosaraju's | Tarjan's |
+ * |--------|-----------|----------|
+ * | Passes | 2 DFS | 1 DFS |
+ * | Graph transpose | Required | Not needed |
+ * | Space | O(V+E) for transpose | O(V) |
+ * | Implementation | Simpler | More complex |
+ * | Performance | Slightly slower | Faster |
+ * | Best for | Learning, simplicity | Production, efficiency |
+ *
+## Applications
+ *
+### 2-SAT Satisfiability
+ * - **Boolean formulas**: Reduce 2-SAT to SCC finding
+ * - **Constraint satisfaction**: Solve logical constraints
+ * - **Circuit design**: Verify satisfiability
+ *
+### Dependency Analysis
+ * - **Circular dependencies**: Find cycles in dependency graphs
+ * - **Build systems**: Detect circular build dependencies
+ * - **Package managers**: Find circular package dependencies
+ *
+### Social Networks
+ * - **Communities**: Find tightly-knit groups
+ * - **Influence**: Identify influential clusters
+ * - **Recommendations**: Suggest connections in same SCC
+ *
+### Compiler Optimization
+ * - **Data flow**: Analyze variable dependencies
+ * - **Dead code**: Identify unreachable code
+ * - **Optimization**: Find optimization opportunities
+ *
+### Web Crawling
+ * - **Site clusters**: Identify website communities
+ * - **Link analysis**: Understand web structure
+ * - **SEO**: Analyze site connectivity
+ *
+## Example: Dependency Graph
+ *
+ * ```
+ * Modules: A → B → C → A  (circular!)
+ *          D → E → D      (circular!)
+ *          F → G
+ *
+ * SCCs:
+ * - {A, B, C} - circular dependency
+ * - {D, E} - circular dependency
+ * - {F} - single module
+ * - {G} - single module
+ * ```
+ *
+ * This helps identify problematic circular dependencies.
+ *
+## Usage
+ *
+ * ```bash
+ * # Run Kosaraju's algorithm demo
+ * ./kosaraju_example
+ *
+ * # Compare with Tarjan's
+ * ./kosaraju_example --compare
+ * ```
+ *
+ * @see kosaraju.H Kosaraju's algorithm implementation
+ * @see tarjan_example.C Tarjan's algorithm (more efficient)
+ * @see graph_components_example.C Connected components (undirected)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

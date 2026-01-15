@@ -31,35 +31,117 @@
  * @brief Demonstration of DynSetTree with different BST implementations
  * 
  * This example showcases one of Aleph-w's most powerful features: the ability
- * to swap underlying data structure implementations through template parameters.
- * 
- * DynSetTree<Key, Tree, Compare> is a generic dynamic set that can use:
- * 
- * - **Avl_Tree**: Self-balancing AVL tree. Guarantees O(log n) operations with
- *   strict height balance (heights differ by at most 1). Best for read-heavy
- *   workloads with occasional modifications.
- * 
- * - **Rb_Tree**: Red-Black tree. Guarantees O(log n) operations with relaxed
- *   balance (no path is more than twice as long as another). Good general-purpose
- *   choice, used in many standard libraries (std::set, std::map).
- * 
- * - **Splay_Tree**: Self-adjusting tree that moves accessed elements to root.
- *   Amortized O(log n) operations. Excellent when access patterns show locality
- *   (recently accessed elements are likely to be accessed again).
- * 
- * - **Treap**: Randomized BST using heap priorities for balancing. Expected O(log n)
- *   operations. Simple implementation with good average-case performance.
- * 
- * - **Rand_Tree**: Randomized BST with different balancing strategy. Also provides
- *   expected O(log n) operations.
- * 
- * The example demonstrates:
- * 1. How to declare DynSetTree with different tree types
- * 2. Common operations (insert, search, remove, iteration)
- * 3. Performance comparison across implementations
- * 4. Functional programming features (map, filter, fold)
- * 
- * Usage: dynset_trees [-n <count>] [-s <seed>] [-a] [-v]
+ * to swap underlying data structure implementations through template parameters
+ * without changing your code. This demonstrates the power of generic programming
+ * and the Strategy pattern at compile time.
+ *
+ * ## The DynSetTree Abstraction
+ *
+ * `DynSetTree<Key, Tree, Compare>` is a generic dynamic set wrapper that provides
+ * a uniform interface regardless of the underlying tree implementation. You can
+ * switch between different BST implementations by simply changing a template
+ * parameter, allowing you to:
+ *
+ * - **Experiment**: Try different trees to find the best fit
+ * - **Optimize**: Choose the tree that matches your access patterns
+ * - **Learn**: Compare implementations side-by-side
+ * - **Maintain**: Change implementation without rewriting code
+ *
+ * ## Available Tree Implementations
+ *
+ * ### Balanced Trees (Guaranteed O(log n))
+ *
+ * #### Avl_Tree / Avl_Tree_Rk
+ * - **Balance**: Strict height balance (heights differ by ≤ 1)
+ * - **Operations**: O(log n) guaranteed
+ * - **Best for**: Read-heavy workloads, predictable performance
+ * - **Trade-off**: More rotations than Red-Black (slightly slower inserts)
+ *
+ * #### Rb_Tree / Rb_Tree_Rk
+ * - **Balance**: Relaxed (no path > 2× shortest path)
+ * - **Operations**: O(log n) guaranteed
+ * - **Best for**: General-purpose, balanced read/write
+ * - **Trade-off**: Less strict balance than AVL (faster inserts)
+ *
+ * ### Self-Adjusting Trees (Amortized O(log n))
+ *
+ * #### Splay_Tree / Splay_Tree_Rk
+ * - **Strategy**: Moves accessed elements to root
+ * - **Operations**: O(log n) amortized
+ * - **Best for**: Temporal locality, caching patterns
+ * - **Trade-off**: No worst-case guarantee, but excellent for hot data
+ *
+ * ### Randomized Trees (Expected O(log n))
+ *
+ * #### Treap / Treap_Rk
+ * - **Strategy**: Randomized BST with heap priorities
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Simple implementation, good average case
+ * - **Trade-off**: Probabilistic, no worst-case guarantee
+ *
+ * #### Rand_Tree
+ * - **Strategy**: Different randomization approach
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Alternative randomized approach
+ *
+ * ## Rank Support
+ *
+ * Trees with `_Rk` suffix support order statistics:
+ * - **select(k)**: Find k-th smallest element in O(log n)
+ * - **rank(x)**: Find position of element x in O(log n)
+ * - **Trade-off**: Slightly slower operations, more memory
+ *
+ * ## What This Example Demonstrates
+ *
+ * 1. **Declaration**: How to create DynSetTree with different tree types
+ * 2. **Operations**: Insert, search, remove, iteration (same API for all)
+ * 3. **Performance**: Timing comparison across implementations
+ * 4. **Functional**: Using map, filter, fold operations
+ *
+ * ## Performance Comparison
+ *
+ * | Tree Type | Insert | Search | Delete | Best Use Case |
+ * |-----------|--------|--------|--------|---------------|
+ * | AVL | O(log n) | O(log n) | O(log n) | Read-heavy |
+ * | Red-Black | O(log n) | O(log n) | O(log n) | General purpose |
+ * | Splay | O(log n) am. | O(log n) am. | O(log n) am. | Temporal locality |
+ * | Treap | O(log n) exp. | O(log n) exp. | O(log n) exp. | Simple, average case |
+ *
+ * ## Usage Examples
+ *
+ * ```bash
+ * # Compare all tree types with 10000 elements
+ * dynset_trees -n 10000 -a
+ *
+ * # Compare AVL vs Red-Black with verbose output
+ * dynset_trees -n 50000 -s 42 -v
+ *
+ * # Quick test with 1000 elements
+ * dynset_trees -n 1000
+ * ```
+ *
+ * ## Code Example
+ *
+ * ```cpp
+ * // Same interface, different implementations!
+ * DynSetTree<int, Avl_Tree> avl_set;
+ * DynSetTree<int, Rb_Tree> rb_set;
+ * DynSetTree<int, Splay_Tree> splay_set;
+ *
+ * // All support the same operations
+ * avl_set.insert(42);
+ * rb_set.insert(42);
+ * splay_set.insert(42);
+ * ```
+ *
+ * @see timeAllTree.C Detailed performance benchmark
+ * @see tpl_dynSetTree.H DynSetTree template class
+ * @see tpl_avl.H AVL tree implementation
+ * @see tpl_rb_tree.H Red-Black tree implementation
+ * @see tpl_splay_tree.H Splay tree implementation
+ * @see tpl_treap.H Treap implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

@@ -1,51 +1,137 @@
 /**
  * @file zip_utils_example.C
- * @brief Example of unified zip operations for mixed STL/Aleph containers.
+ * @brief Unified zip operations for mixed STL/Aleph containers
  *
  * This program demonstrates `ah-zip-utils.H` which provides zip operations
  * that work seamlessly with **both** STL and Aleph containers, and even
- * allows **mixing** them in the same operation.
+ * allows **mixing** them in the same operation. This unified approach
+ * eliminates container-specific APIs.
  *
- * ## Key Feature: Container Interoperability
+ * ## What is Zipping?
  *
- * Unlike `ah-zip.H` which works only with Aleph containers, `ah-zip-utils.H`
- * automatically detects the container type and adapts:
- * - `std::vector`, `std::list`, `std::set` -> Uses STL iterators
- * - `DynList`, `DynArray`, `DynSetTree` -> Uses Aleph iterators
- * - **Mix both** in the same zip operation!
- *
- * ## Functions Demonstrated
- *
- * ### Basic Operations
- * - `uni_zip()` - Create list of tuples from any containers
- * - `uni_zip_it()` - Get unified iterator
- *
- * ### Predicates
- * - `uni_zip_all()`, `uni_zip_exists()`, `uni_zip_none()`
- *
- * ### Transformations
- * - `uni_zip_map()`, `uni_zip_filter()`
- * - `uni_zip_mapi()`, `uni_zip_filteri()` (with index)
- *
- * ### Utilities
- * - `uni_zip_take()`, `uni_zip_drop()`
- * - `uni_zip_min()`, `uni_zip_max()`
- * - `uni_unzip()` - Split tuples back
- *
- * ## Usage
- *
- * ```bash
- * ./zip_utils_example           # Run all demos
- * ./zip_utils_example -s mixed  # Only mixed container demo
+ * Zipping combines multiple containers element-wise:
+ * ```
+ * Container 1: [a, b, c]
+ * Container 2: [1, 2, 3]
+ * Zipped:      [(a,1), (b,2), (c,3)]
  * ```
  *
+ * **Key insight**: Process related data from multiple sources together.
+ *
+## Key Feature: Container Interoperability
+ *
+### The Problem
+ *
+ * Different zip libraries support different containers:
+ * - **`ah-zip.H`**: Aleph containers only
+ * - **STL**: No built-in zip (C++20 ranges add it)
+ * - **Different APIs**: Hard to mix containers
+ *
+### The Solution
+ *
+ * `ah-zip-utils.H` provides **unified zip** that:
+ * - Works with **any** container type (STL or Aleph)
+ * - **Automatically detects** container type
+ * - **Mixes containers** in same operation
+ * - Uses **same API** for all
+ *
+### Example: Mixing Containers
+ *
+ * ```cpp
+ * std::vector<string> names = {"Alice", "Bob", "Charlie"};
+ * DynList<int> ages;
+ * ages.append(25); ages.append(30); ages.append(35);
+ *
+ * // Mix STL and Aleph containers!
+ * auto zipped = uni_zip(names, ages);
+ * // Result: [("Alice", 25), ("Bob", 30), ("Charlie", 35)]
+ * ```
+ *
+## Functions Demonstrated
+ *
+### Basic Operations
+ * - **`uni_zip()`**: Create list of tuples from any containers
+ * - **`uni_zip_it()`**: Get unified iterator for zipped containers
+ *
+### Predicates
+ * - **`uni_zip_all()`**: All tuples satisfy predicate?
+ * - **`uni_zip_exists()`**: At least one tuple satisfies?
+ * - **`uni_zip_none()`**: No tuple satisfies?
+ *
+### Transformations
+ * - **`uni_zip_map()`**: Transform tuples (apply function to each tuple)
+ * - **`uni_zip_filter()`**: Keep tuples satisfying predicate
+ * - **`uni_zip_mapi()`**: Transform with index
+ * - **`uni_zip_filteri()`**: Filter with index
+ *
+### Utilities
+ * - **`uni_zip_take(n)`**: Take first n tuples
+ * - **`uni_zip_drop(n)`**: Skip first n tuples
+ * - **`uni_zip_min()`**: Find minimum tuple (by first element)
+ * - **`uni_zip_max()`**: Find maximum tuple
+ * - **`uni_unzip()`**: Split tuples back into separate containers
+ *
+## Use Cases
+ *
+### Data Processing
+ * ```cpp
+ * // Process names and scores together
+ * auto results = uni_zip_map(names, scores,
+ *   [](auto name, auto score) {
+ *     return name + ": " + std::to_string(score);
+ *   });
+ * ```
+ *
+### Parallel Processing
+ * ```cpp
+ * // Process multiple related datasets
+ * uni_zip_for_each(prices, quantities, costs,
+ *   [](auto price, auto qty, auto cost) {
+ *     process_order(price, qty, cost);
+ *   });
+ * ```
+ *
+### Data Validation
+ * ```cpp
+ * // Check if all pairs are valid
+ * if (uni_zip_all(names, emails, is_valid_pair)) {
+ *   process_data();
+ * }
+ * ```
+ *
+## Comparison with Alternatives
+ *
+ * | Feature | ah-zip.H | STL (C++20) | ah-zip-utils.H |
+ * |---------|----------|-------------|----------------|
+ * | STL support | ❌ No | ✅ Yes | ✅ Yes |
+ * | Aleph support | ✅ Yes | ❌ No | ✅ Yes |
+ * | Mix containers | ❌ No | ❌ No | ✅ Yes |
+ * | Unified API | ❌ No | ❌ No | ✅ Yes |
+ *
+## Performance Considerations
+ *
+ * - **Type detection**: Minimal overhead (compile-time)
+ * - **Iterator abstraction**: Small overhead for unified interface
+ * - **Efficiency**: Operations are as efficient as underlying containers
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all demonstrations
+ * ./zip_utils_example
+ *
+ * # Run specific demo
+ * ./zip_utils_example -s mixed      # Mixed container demo
+ * ./zip_utils_example -s transform  # Transformation demo
+ * ```
+ *
+ * @see ah-zip-utils.H Unified zip utilities
+ * @see zip_example.C Aleph-only zip operations (faster for Aleph containers)
+ * @see uni_functional_example.C Unified functional (related)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ah-zip-utils.H Unified zip utilities
- * @see ah-zip.H Aleph-only zip operations
  */
 
 #include <iostream>

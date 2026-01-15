@@ -26,30 +26,108 @@
 
 /**
  * @file mapping_example.C
- * @brief Comprehensive example demonstrating Aleph-w's AHMapping class.
+ * @brief Comprehensive example demonstrating Aleph-w's AHMapping class
  *
- * This example shows how to use AHMapping for bidirectional key-value
- * mappings with efficient forward and reverse lookups.
+ * This example demonstrates `AHMapping`, a bidirectional key-value mapping
+ * container that provides efficient lookups in both directions. Unlike standard
+ * maps that only support forward lookup (key → value), AHMapping enables
+ * efficient reverse lookup (value → key) as well.
  *
  * ## What is AHMapping?
  *
- * AHMapping is a container that stores key-value pairs and supports:
- * - O(log n) forward lookup (key → value)
- * - O(log n) inverse mapping creation (values become keys)
- * - Iteration over all pairs
- * - Functional operations (for_each)
+ * `AHMapping` is a specialized container for bidirectional mappings:
+ * - **Forward lookup**: O(log n) - find value given key
+ * - **Reverse lookup**: O(log n) - find key given value (via inverse mapping)
+ * - **Dual structure**: Maintains both key→value and value→key mappings
+ * - **Functional operations**: Supports `for_each` and other functional ops
+ *
+ * ## Key Features
+ *
+### Bidirectional Lookup
+ * - **Forward**: `mapping[key]` → returns value
+ * - **Reverse**: `mapping.inverse()[value]` → returns key
+ * - Both operations are O(log n) efficient
+ *
+ * ### Data Structure
+ * - Uses balanced BST internally (typically Red-Black tree)
+ * - Maintains two mappings: forward and inverse
+ * - Automatic synchronization between mappings
+ *
+### Operations
+ * - **Insert**: Add key-value pair (updates both mappings)
+ * - **Lookup**: Find value by key or key by value
+ * - **Iteration**: Iterate over all pairs
+ * - **Functional**: Apply functions to all pairs
  *
  * ## Use Cases
  *
- * - Translation tables (language codes ↔ names)
- * - ID mappings (user ID ↔ username)
- * - Configuration parameters
- * - Encoding/decoding schemes
+### Translation Tables
+ * - **Language codes ↔ names**: "en" ↔ "English", "es" ↔ "Spanish"
+ * - **Currency codes ↔ symbols**: "USD" ↔ "$", "EUR" ↔ "€"
+ * - **Country codes ↔ names**: "CO" ↔ "Colombia", "US" ↔ "United States"
  *
- * ## Colombian Theme
+### ID Mappings
+ * - **User ID ↔ username**: 12345 ↔ "john_doe"
+ * - **Product ID ↔ name**: 789 ↔ "Widget Pro"
+ * - **Session ID ↔ user**: "abc123" ↔ user_object
  *
- * Examples use Colombian data: departments, cities, and cultural elements.
+### Configuration Parameters
+ * - **Setting name ↔ value**: "theme" ↔ "dark", "language" ↔ "es"
+ * - **Environment variables**: "PATH" ↔ "/usr/bin:/usr/local/bin"
+ * - **Feature flags**: "new_ui" ↔ true, "beta_features" ↔ false
  *
+### Encoding/Decoding Schemes
+ * - **Character encoding**: ASCII codes ↔ characters
+ * - **Base conversion**: Decimal ↔ hexadecimal
+ * - **Protocol mapping**: Internal codes ↔ external codes
+ *
+### Colombian Theme
+ *
+ * Examples use Colombian data for cultural relevance:
+ * - **Departments**: "ANT" ↔ "Antioquia", "CUN" ↔ "Cundinamarca"
+ * - **Cities**: "BOG" ↔ "Bogotá", "MED" ↔ "Medellín"
+ * - **Cultural elements**: Colombian regions, landmarks, traditions
+ *
+ * ## Comparison with Standard Maps
+ *
+ * | Feature | std::map | AHMapping |
+ * |---------|----------|-----------|
+ * | Forward lookup | O(log n) | O(log n) |
+ * | Reverse lookup | O(n) | O(log n) |
+ * | Memory | O(n) | O(n) |
+ * | Bidirectional | No | Yes |
+ *
+ * **Advantage**: AHMapping provides efficient reverse lookup without
+ * maintaining a separate reverse map manually.
+ *
+ * ## Complexity
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Insert | O(log n) | Updates both mappings |
+ * | Forward lookup | O(log n) | Key → value |
+ * | Reverse lookup | O(log n) | Value → key |
+ * | Iteration | O(n) | All pairs |
+ * | Size | O(1) | Number of pairs |
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * AHMapping<string, string> translations;
+ *
+ * // Add translations
+ * translations.insert("en", "English");
+ * translations.insert("es", "Spanish");
+ * translations.insert("fr", "French");
+ *
+ * // Forward lookup
+ * string lang = translations["en"]; // "English"
+ *
+ * // Reverse lookup
+ * string code = translations.inverse()["Spanish"]; // "es"
+ * ```
+ *
+ * @see ah-mapping.H AHMapping implementation
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

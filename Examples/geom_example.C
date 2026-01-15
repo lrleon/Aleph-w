@@ -26,25 +26,99 @@
 
 /**
  * @file geom_example.C
- * @brief Comprehensive example demonstrating Aleph-w's computational geometry.
+ * @brief Comprehensive example demonstrating Aleph-w's computational geometry
  *
- * This example showcases the geometric algorithms in geom_algorithms.H:
+ * This example showcases fundamental geometric algorithms from `geom_algorithms.H`,
+ * demonstrating how to solve common problems in computational geometry. The
+ * examples use Colombian geographical locations and landmarks for real-world
+ * context.
+ *
+ * ## Computational Geometry Overview
+ *
+ * Computational geometry deals with algorithms for solving geometric problems,
+ * such as finding convex hulls, triangulating polygons, and computing distances.
+ * These algorithms are essential in computer graphics, GIS, robotics, and more.
  *
  * ## Algorithms Demonstrated
  *
- * 1. **Polygon Triangulation** (CuttingEarsTriangulation)
- *    - Decomposes a simple polygon into triangles
- *    - Uses the ear-cutting algorithm
+ * ### 1. Polygon Triangulation
  *
- * 2. **Convex Hull** (3 algorithms)
- *    - BruteForceConvexHull: O(n³), educational
- *    - GiftWrappingConvexHull: O(nh), output-sensitive
- *    - QuickHull: O(n log n) average, general purpose
+ * **Problem**: Decompose a simple polygon into triangles.
+ *
+ * **Algorithm**: Ear-Cutting (CuttingEarsTriangulation)
+ * - An "ear" is a triangle formed by three consecutive vertices
+ * - Repeatedly "cut off" ears until polygon is fully triangulated
+ * - **Time**: O(n²) worst case, O(n) for convex polygons
+ * - **Space**: O(n)
+ *
+ * **Applications**:
+ * - Computer graphics: Rendering polygons
+ * - Mesh generation: Finite element analysis
+ * - Game development: Collision detection
+ * - GIS: Polygon decomposition
+ *
+ * ### 2. Convex Hull Algorithms
+ *
+ * **Problem**: Find the smallest convex polygon containing all points.
+ *
+ * Three algorithms are demonstrated:
+ *
+ * #### BruteForceConvexHull
+ * - Check all possible edges
+ * - **Time**: O(n³)
+ * - **Use**: Educational, small datasets
+ *
+ * #### GiftWrappingConvexHull (Jarvis March)
+ * - Start with leftmost point, "wrap" around points
+ * - **Time**: O(nh) where h = number of hull points
+ * - **Use**: Output-sensitive, good when h is small
+ *
+ * #### QuickHull
+ * - Divide and conquer approach
+ * - **Time**: O(n log n) average, O(n²) worst case
+ * - **Use**: General purpose, most practical
+ *
+ * **Applications**:
+ * - Collision detection: Bounding shapes
+ * - Pattern recognition: Shape analysis
+ * - Computer vision: Object detection
+ * - Robotics: Path planning
+ *
+ * ## Complexity Comparison
+ *
+ * | Algorithm | Time Complexity | Best For |
+ * |-----------|----------------|----------|
+ * | Polygon Triangulation | O(n²) | Simple polygons |
+ * | Brute Force Hull | O(n³) | Small datasets, education |
+ * | Gift Wrapping | O(nh) | Few hull points |
+ * | QuickHull | O(n log n) avg | General purpose |
  *
  * ## Colombian Geography Theme
  *
- * Examples use Colombian geographical locations and landmarks.
+ * Examples use real Colombian locations:
+ * - Cities: Bogotá, Medellín, Cali, Barranquilla
+ * - Landmarks: Mountains, rivers, regions
+ * - Makes examples more relatable and interesting
  *
+ * ## Geometric Data Structures
+ *
+ * The example uses:
+ * - **Point**: 2D coordinates (x, y)
+ * - **Polygon**: Ordered list of points
+ * - **PointSet**: Collection of points for hull computation
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Run all geometric algorithm demos
+ * ./geom_example
+ *
+ * # Run specific algorithm
+ * ./geom_example -s triangulation
+ * ./geom_example -s convexhull
+ * ```
+ *
+ * @see geom_algorithms.H Geometric algorithm implementations
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

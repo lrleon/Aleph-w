@@ -28,29 +28,190 @@
 
 /**
  * @file write_tree.C
- * @brief Generates tree structure files for visualization
+ * @brief Generates tree structure files for visualization and analysis
  * 
- * This program creates .Tree files containing tree structures in preorder
- * traversal format, suitable for visualization tools like btreepic.
- * 
- * It supports multiple BST implementations:
- * - AVL Tree (balanced, height-based)
- * - Red-Black Tree (balanced, color-based)
- * - Splay Tree (self-adjusting)
- * - Treap (randomized heap-ordered)
- * - Rand Tree (randomized BST)
- * - Binary Tree (unbalanced BST)
- * 
- * Output files are named: <tree_type>.Tree (e.g., avl.Tree, rb.Tree)
- * 
- * Usage: write_tree [-n <count>] [-s <seed>] [-t <type>] [-o <prefix>]
- *        -t all     : Generate all tree types (default)
- *        -t avl     : AVL tree only
- *        -t rb      : Red-Black tree only
- *        -t splay   : Splay tree only
- *        -t treap   : Treap only
- *        -t rand    : Randomized tree only
- *        -t bin     : Binary tree only
+ * This utility program creates `.Tree` files containing binary search tree
+ * structures in preorder traversal format. These files are designed for
+ * visualization tools like `btreepic` or for algorithm testing and analysis.
+ * This tool is essential for understanding how different BST implementations
+ * structure the same data differently.
+ *
+ * ## Purpose
+ *
+### Use Cases
+ *
+ * This tool is useful for:
+ * - **Visualization**: Generating tree structures for LaTeX/eepic diagrams
+ * - **Algorithm testing**: Creating test cases for tree algorithms
+ * - **Comparison**: Generating the same data with different tree types
+ * - **Education**: Understanding how different BST implementations structure data
+ * - **Research**: Studying tree structure properties
+ * - **Documentation**: Creating tree diagrams for papers/presentations
+ *
+## Supported Tree Types
+ *
+### Balanced Trees
+ *
+ * #### AVL Tree
+ * - **Balance**: Strictly balanced (height difference ≤ 1)
+ * - **Structure**: Most balanced possible
+ * - **Use**: When balance is critical
+ *
+ * #### Red-Black Tree
+ * - **Balance**: Relaxed balance (no path > 2× shortest)
+ * - **Structure**: Good balance, efficient operations
+ * - **Use**: General-purpose balanced tree
+ *
+### Self-Adjusting Trees
+ *
+ * #### Splay Tree
+ * - **Strategy**: Moves accessed nodes to root
+ * - **Structure**: Adapts to access patterns
+ * - **Use**: When temporal locality matters
+ *
+### Randomized Trees
+ *
+ * #### Treap
+ * - **Strategy**: Randomized BST with heap priorities
+ * - **Structure**: Probabilistically balanced
+ * - **Use**: Simple, good average case
+ *
+ * #### Rand Tree
+ * - **Strategy**: Randomized BST variant
+ * - **Structure**: Different randomization approach
+ * - **Use**: Alternative randomized structure
+ *
+### Unbalanced Tree
+ *
+ * #### Binary Tree
+ * - **Strategy**: No balancing
+ * - **Structure**: Can degrade to linked list
+ * - **Use**: Baseline comparison, educational
+ *
+### Summary Table
+ *
+ * | Type | Description | Balance Strategy | Best For |
+ * |------|-------------|------------------|----------|
+ * | **AVL** | Strictly balanced | Height difference ≤ 1 | Read-heavy |
+ * | **Red-Black** | Relaxed balance | No path > 2× shortest | General purpose |
+ * | **Splay** | Self-adjusting | Moves accessed nodes to root | Temporal locality |
+ * | **Treap** | Randomized | Heap priorities for balance | Simple, average case |
+ * | **Rand** | Randomized BST | Random insertion order | Alternative random |
+ * | **Binary** | Unbalanced | No balancing | Baseline, educational |
+ *
+## Output Format
+ *
+### File Structure
+ *
+ * Each `.Tree` file contains:
+ * - **Preorder traversal**: Tree structure in preorder format
+ * - **Node values**: Keys stored in nodes
+ * - **Format**: Compatible with `btreepic` visualization tool
+ *
+### File Naming
+ *
+ * Files are named: `<prefix><tree_type>.Tree`
+ * - Examples: `test_avl.Tree`, `rb.Tree`, `mytree_splay.Tree`
+ *
+### Format Details
+ *
+ * The `.Tree` format includes:
+ * - Node keys in preorder
+ * - Tree structure information
+ * - Metadata for visualization
+ *
+## Comparison Capabilities
+ *
+### Same Data, Different Structures
+ *
+ * Generate same data with different tree types to compare:
+ * - **Structure differences**: See how trees differ
+ * - **Balance**: Compare balance quality
+ * - **Height**: Compare tree heights
+ * - **Visualization**: Visual comparison
+ *
+### Example
+ *
+ * ```bash
+ * # Generate same data with different trees
+ * write_tree -n 50 -s 42 -t avl -o compare
+ * write_tree -n 50 -s 42 -t rb -o compare
+ * write_tree -n 50 -s 42 -t splay -o compare
+ *
+ * # Visualize and compare
+ * btreepic compare_avl.Tree
+ * btreepic compare_rb.Tree
+ * btreepic compare_splay.Tree
+ * ```
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Generate all tree types with 100 nodes
+ * write_tree -n 100
+ *
+ * # Generate only AVL tree with specific seed
+ * write_tree -n 50 -t avl -s 12345 -o mytree
+ *
+ * # Generate Red-Black and Splay trees
+ * write_tree -n 200 -t rb -t splay
+ *
+ * # Generate multiple types for comparison
+ * write_tree -n 100 -t avl -t rb -t splay -s 42
+ * ```
+ *
+## Parameters
+ *
+ * | Parameter | Short | Description | Default |
+ * |-----------|-------|-------------|---------|
+ * | `--nodes` | `-n` | Number of nodes to insert | Varies |
+ * | `--seed` | `-s` | Random seed for reproducibility | Time-based |
+ * | `--type` | `-t` | Tree type (avl, rb, splay, treap, rand, bin, all) | all |
+ * | `--prefix` | `-o` | Output file prefix | Tree type name |
+ *
+## Integration with Visualization
+ *
+### btreepic Tool
+ *
+ * Generated `.Tree` files can be visualized:
+ * ```bash
+ * btreepic output_avl.Tree > avl.tex
+ * pdflatex avl.tex
+ * ```
+ *
+### LaTeX Output
+ *
+ * The visualization generates LaTeX files suitable for:
+ * - **Papers**: Include in academic papers
+ * - **Presentations**: Use in slides
+ * - **Documentation**: Document tree structures
+ *
+## Applications
+ *
+### Algorithm Development
+ * - **Test cases**: Generate test trees for algorithms
+ * - **Debugging**: Visualize tree structures during debugging
+ * - **Validation**: Verify algorithm correctness
+ *
+### Education
+ * - **Teaching**: Demonstrate tree structures visually
+ * - **Learning**: Understand how trees differ
+ * - **Comparison**: Compare different implementations
+ *
+### Research
+ * - **Experiments**: Generate trees for experiments
+ * - **Analysis**: Analyze tree properties
+ * - **Publications**: Create figures for papers
+ *
+ * @see btreepic.C Visualization tool for binary trees
+ * @see timeAllTree.C Performance comparison (related)
+ * @see dynset_trees.C Practical comparison
+ * @see tpl_avl.H AVL tree implementation
+ * @see tpl_rb_tree.H Red-Black tree implementation
+ * @see tpl_splay_tree.H Splay tree implementation
+ * @see tpl_treap.H Treap implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

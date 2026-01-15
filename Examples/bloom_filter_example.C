@@ -1,47 +1,154 @@
 /**
  * @file bloom_filter_example.C
- * @brief Example demonstrating Bloom filters in Aleph-w.
+ * @brief Example demonstrating Bloom filters in Aleph-w
  *
- * A Bloom filter is a space-efficient probabilistic data structure for
- * testing set membership. It may return false positives but NEVER false
- * negatives.
+ * This example demonstrates Bloom filters, one of the most elegant and
+ * practical probabilistic data structures. Invented by Burton Howard Bloom
+ * in 1970, Bloom filters provide space-efficient set membership testing
+ * with a trade-off: they may have false positives but never false negatives.
+ *
+ * ## What is a Bloom Filter?
+ *
+ * A Bloom filter is a space-efficient probabilistic data structure that
+ * answers "Is element x in the set?" with:
+ * - **Definitely NO**: If answer is "no", element is definitely not in set
+ * - **Probably YES**: If answer is "yes", element is probably in set (may be false positive)
+ *
+ * **Key insight**: Use multiple hash functions to set bits in a bit array.
+ * To check membership, verify all corresponding bits are set.
+ *
+ * ## How It Works
+ *
+### Insertion
+ * ```
+ * For element x:
+ *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
+ *   2. Set bits at positions h₁(x), h₂(x), ..., hₖ(x) to 1
+ * ```
+ *
+### Query
+ * ```
+ * For element x:
+ *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
+ *   2. Check if ALL bits at h₁(x), h₂(x), ..., hₖ(x) are 1
+ *   3. If all 1: Probably in set (may be false positive)
+ *      If any 0: Definitely not in set
+ * ```
  *
  * ## Key Properties
  *
- * - **No false negatives**: If "not found", the element is definitely absent
- * - **Possible false positives**: "Found" may be wrong (with low probability)
- * - **No deletion**: Standard Bloom filters don't support removal
- * - **Space efficient**: Uses bits instead of storing actual elements
+### No False Negatives
+ * - If element was inserted, all its bits are set
+ * - Query will always return "found"
+ * - **Guarantee**: 100% accurate for "not found" answers
  *
- * ## Parameters
+### Possible False Positives
+ * - Bits may be set by other elements (collisions)
+ * - Query may return "found" even if element wasn't inserted
+ * - **Probability**: Can be controlled by parameters
  *
- * - **m**: Size of bit array
- * - **k**: Number of hash functions
- * - **n**: Expected number of elements
+### No Deletion
+ * - Standard Bloom filters don't support removal
+ * - Clearing bits might affect other elements
+ * - **Solution**: Use Counting Bloom Filter variant
  *
- * False positive rate ≈ (1 - e^(-kn/m))^k
+### Space Efficient
+ * - Stores only bits, not actual elements
+ * - Much smaller than storing full set
+ * - **Trade-off**: Space vs false positive rate
+ *
+ * ## Parameters and Tuning
+ *
+### Parameters
+ * - **m**: Size of bit array (larger = lower false positive rate)
+ * - **k**: Number of hash functions (optimal ≈ (m/n) × ln(2))
+ * - **n**: Expected number of elements to insert
+ *
+### False Positive Rate
+ *
+ * Formula: `P(false positive) ≈ (1 - e^(-kn/m))^k`
+ *
+ * **Optimal k**: `k = (m/n) × ln(2)` ≈ `0.693 × (m/n)`
+ *
+ * **Optimal false positive rate**: `(1/2)^k` when k is optimal
+ *
+### Example Calculations
+ *
+ * For n = 1,000,000 elements, m = 10,000,000 bits (1.25 MB):
+ * - Optimal k ≈ 7 hash functions
+ * - False positive rate ≈ 0.8% (less than 1%)
+ *
+ * Compare to storing 1M strings: ~100 MB+ vs 1.25 MB!
  *
  * ## Applications
  *
- * - Cache filtering (avoid disk lookups for non-existent keys)
- * - Spell checkers
- * - Network packet filtering
- * - Database query optimization (skip unnecessary joins)
+### Cache Filtering
+ * - **Problem**: Check if data exists in slow storage (disk, network)
+ * - **Solution**: Use Bloom filter to avoid expensive lookups
+ * - **Benefit**: Skip 99%+ of unnecessary disk/network accesses
  *
- * ## Usage
+### Spell Checkers
+ * - **Problem**: Check if word is in dictionary
+ * - **Solution**: Bloom filter for common words
+ * - **Benefit**: Fast rejection of misspellings
+ *
+### Network Packet Filtering
+ * - **Problem**: Filter packets by source/destination
+ * - **Solution**: Bloom filter for allowed/blocked addresses
+ * - **Benefit**: Fast packet classification
+ *
+### Database Query Optimization
+ * - **Problem**: Avoid expensive joins for non-existent keys
+ * - **Solution**: Bloom filter on join keys
+ * - **Benefit**: Skip unnecessary join operations
+ *
+### Distributed Systems
+ * - **Cassandra**: Uses Bloom filters to avoid disk reads
+ * - **Chrome**: Uses Bloom filters for malicious URL checking
+ * - **Bitcoin**: Uses Bloom filters for wallet synchronization
+ *
+## When to Use Bloom Filters
+ *
+ * ✅ **Good for**:
+ * - Large datasets where space matters
+ * - Fast rejection of non-members
+ * - False positives acceptable
+ * - One-way operations (insert-only)
+ *
+ * ❌ **Not good for**:
+ * - When false positives are unacceptable
+ * - When deletion is needed (use Counting Bloom Filter)
+ * - When you need to retrieve the actual elements
+ * - Small datasets (overhead not worth it)
+ *
+ * ## Complexity
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Insert | O(k) | k hash computations |
+ * | Query | O(k) | k hash computations + bit checks |
+ * | Space | O(m) | m bits |
+ *
+ * Where k is number of hash functions (typically 3-10).
+ *
+ * ## Usage Examples
  *
  * ```bash
- * ./bloom_filter_example           # Run all demos
- * ./bloom_filter_example -s basic  # Only basic demo
+ * # Run all demonstrations
+ * ./bloom_filter_example
+ *
+ * # Run specific demo
+ * ./bloom_filter_example -s basic     # Basic operations
+ * ./bloom_filter_example -s tuning    # Parameter tuning
  * ```
  *
+ * @see bloom-filter.H Bloom filter implementation
+ * @see bitArray.H Underlying BitArray storage
+ * @see bitarray_example.C BitArray operations
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see bloom-filter.H Bloom filter implementation
- * @see bitArray.H Underlying bit storage
  */
 
 #include <iostream>

@@ -29,38 +29,146 @@
  * @brief QuadTree: Spatial Data Structure for 2D Points
  * 
  * This example demonstrates the QuadTree, a hierarchical spatial data
- * structure that recursively divides 2D space into four quadrants.
- * 
+ * structure that recursively divides 2D space into four quadrants. QuadTrees
+ * are essential for efficient spatial queries and are widely used in computer
+ * graphics, GIS, game development, and computational geometry.
+ *
  * ## What is a QuadTree?
- * 
- * A QuadTree is a tree where each internal node has exactly four children,
- * corresponding to the four quadrants of 2D space:
- * - NW (Northwest)
- * - NE (Northeast)
- * - SW (Southwest)
- * - SE (Southeast)
- * 
- * ## Complexity
- * 
- * | Operation | Average | Worst |
- * |-----------|---------|-------|
- * | Insert | O(log n) | O(depth) |
- * | Search | O(log n) | O(depth) |
- * | Remove | O(log n) | O(depth) |
- * | Range query | O(log n + k) | O(n) |
- * 
+ *
+ * A QuadTree is a tree data structure where:
+ * - **Root**: Represents entire 2D space (bounding box)
+ * - **Internal nodes**: Have exactly 4 children (quadrants)
+ * - **Leaf nodes**: Contain points or are empty
+ * - **Subdivision**: Space is recursively divided into 4 equal quadrants
+ *
+### Structure
+ *
+ * Each internal node divides space into four quadrants:
+ * - **NW (Northwest)**: Top-left quadrant
+ * - **NE (Northeast)**: Top-right quadrant
+ * - **SW (Southwest)**: Bottom-left quadrant
+ * - **SE (Southeast)**: Bottom-right quadrant
+ *
+ * **Example**: Dividing a 100×100 space:
+ * ```
+ * Root (0,0 to 100,100)
+ * ├── NW (0,0 to 50,50)
+ * ├── NE (50,0 to 100,50)
+ * ├── SW (0,50 to 50,100)
+ * └── SE (50,50 to 100,100)
+ * ```
+ *
+ * ## How It Works
+ *
+### Insertion
+ * 1. Start at root
+ * 2. Determine which quadrant point belongs to
+ * 3. If quadrant is empty, insert point there
+ * 4. If quadrant has points and exceeds capacity, subdivide
+ * 5. Recursively insert into appropriate sub-quadrant
+ *
+### Search
+ * 1. Start at root
+ * 2. Determine which quadrant(s) intersect query region
+ * 3. Recursively search relevant quadrants
+ * 4. Return all points in query region
+ *
+### Range Query
+ * - Query: "Find all points in rectangle [x1,y1] to [x2,y2]"
+ * - Efficiently prunes irrelevant quadrants
+ * - Only searches quadrants that intersect query region
+ *
+ * ## Complexity Analysis
+ *
+ * | Operation | Average | Worst Case | Notes |
+ * |-----------|---------|------------|-------|
+ * | Insert | O(log n) | O(depth) | Depends on distribution |
+ * | Search (point) | O(log n) | O(depth) | Point lookup |
+ * | Range query | O(log n + k) | O(n) | k = points in range |
+ * | Nearest neighbor | O(log n) | O(n) | With good distribution |
+ * | Remove | O(log n) | O(depth) | May require merging |
+ *
+ * **Note**: Worst case occurs when points are poorly distributed
+ * (e.g., all on a line), causing deep trees.
+ *
  * ## Applications
- * 
- * - **Geographic Information Systems (GIS)**: Store and query spatial data
- * - **Game development**: Collision detection, visibility culling
- * - **Computer graphics**: Image compression, ray tracing
- * - **Computational geometry**: Nearest neighbor, range searches
- * - **Simulations**: N-body simulations (Barnes-Hut algorithm)
- * 
- * @see quadtree.H
+ *
+### Geographic Information Systems (GIS)
+ * - **Spatial indexing**: Efficiently store and query geographic data
+ * - **Map rendering**: Quickly find features in viewport
+ * - **Location services**: Find nearby points of interest
+ * - **Spatial joins**: Efficiently join spatial datasets
+ *
+### Game Development
+ * - **Collision detection**: Quickly find objects in collision range
+ * - **Visibility culling**: Determine what's visible in viewport
+ * - **Spatial partitioning**: Organize game world efficiently
+ * - **AI pathfinding**: Spatial awareness for NPCs
+ *
+### Computer Graphics
+ * - **Image compression**: Quadtree-based image representation
+ * - **Ray tracing**: Accelerate ray-object intersection tests
+ * - **Level of detail (LOD)**: Adaptive detail based on distance
+ * - **Terrain rendering**: Efficient terrain data structures
+ *
+### Computational Geometry
+ * - **Nearest neighbor**: Find closest point efficiently
+ * - **Range searches**: Find points in rectangular region
+ * - **Spatial clustering**: Group nearby points
+ * - **Voronoi diagrams**: Spatial partitioning
+ *
+### Scientific Simulations
+ * - **N-body simulations**: Barnes-Hut algorithm uses quadtree
+ * - **Particle systems**: Efficient neighbor finding
+ * - **Fluid dynamics**: Spatial organization of particles
+ * - **Molecular dynamics**: Efficient force calculations
+ *
+## Advantages
+ *
+ * ✅ **Efficient queries**: O(log n) average case
+ * ✅ **Adaptive**: Automatically adjusts to data distribution
+ * ✅ **Memory efficient**: Only subdivides where needed
+ * ✅ **Simple concept**: Easy to understand and implement
+ *
+## Disadvantages
+ *
+ * ❌ **Worst case**: Can degrade to O(n) with bad distribution
+ * ❌ **2D only**: Designed for 2D space (use octree for 3D)
+ * ❌ **Rebalancing**: May need periodic rebalancing
+ *
+ * ## Comparison with Other Spatial Structures
+ *
+ * | Structure | Dimensions | Best For | Complexity |
+ * |-----------|-----------|----------|------------|
+ * | QuadTree | 2D | Uniform/adaptive | O(log n) avg |
+ * | Octree | 3D | 3D spatial data | O(log n) avg |
+ * | KD-Tree | k-D | High-dimensional | O(log n) avg |
+ * | R-Tree | k-D | Rectangles | O(log n) avg |
+ * | Grid | 2D | Uniform distribution | O(1) |
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * QuadTree<Point> qt(bounding_box);
+ *
+ * // Insert points
+ * qt.insert(Point(10, 20));
+ * qt.insert(Point(30, 40));
+ *
+ * // Range query
+ * Rectangle query(0, 0, 50, 50);
+ * auto points = qt.range_query(query);
+ *
+ * // Nearest neighbor
+ * Point target(15, 25);
+ * Point nearest = qt.nearest_neighbor(target);
+ * ```
+ *
+ * @see quadtree.H QuadTree implementation
+ * @see quadnode.H QuadTree node structure
+ * @see geom_example.C Other geometric algorithms
  * @author Leandro Rabindranath León
  * @ingroup Examples
- * @see quadnode.H
  */
 
 #include <iostream>

@@ -26,52 +26,169 @@
 
 /**
  * @file bellman_ford_example.cc
- * @brief Comprehensive example of Bellman-Ford shortest path algorithm.
+ * @brief Comprehensive example of Bellman-Ford shortest path algorithm
  *
  * This example demonstrates the Bellman-Ford algorithm for finding shortest
  * paths from a single source in graphs with potentially negative edge weights.
+ * Unlike Dijkstra's algorithm, Bellman-Ford handles negative weights correctly
+ * and can detect negative cycles.
  *
- * ## Key Features Demonstrated
+ * ## Why Bellman-Ford?
  *
- * 1. **Handling Negative Weights**: Unlike Dijkstra, Bellman-Ford works correctly
- *    with negative edge weights.
+### Problem with Dijkstra
  *
- * 2. **Negative Cycle Detection**: The algorithm can detect and report negative
- *    weight cycles, which would make shortest paths undefined.
+ * Dijkstra's algorithm fails with negative edge weights because:
+ * - It assumes once a vertex is processed, its distance is final
+ * - Negative edges can create shorter paths later
+ * - Greedy choice becomes incorrect
  *
- * 3. **SPFA Optimization**: Shows the faster queue-based variant (Shortest Path
- *    Faster Algorithm).
+### When Negative Weights Occur
  *
- * ## Algorithm Overview
+ * - **Financial**: Profits/losses, exchange rates
+ * - **Game theory**: Rewards/penalties
+ * - **Physics**: Energy gains/losses
+ * - **Optimization**: Cost reductions
+ *
+## Algorithm Overview
+ *
+### Standard Bellman-Ford
  *
  * ```
  * Bellman-Ford(G, s):
- *   1. Initialize: d[s] = 0, d[v] = ∞ for all other v
- *   2. Repeat |V| - 1 times:
- *      For each edge (u, v) with weight w:
- *        If d[u] + w < d[v]:
- *          d[v] = d[u] + w
- *          predecessor[v] = u
+ *   1. Initialize:
+ *      d[s] = 0
+ *      d[v] = ∞ for all v ≠ s
+ *   2. Relax edges |V| - 1 times:
+ *      For i = 1 to |V| - 1:
+ *        For each edge (u, v) with weight w:
+ *          If d[u] + w < d[v]:
+ *            d[v] = d[u] + w
+ *            predecessor[v] = u
  *   3. Check for negative cycles:
  *      For each edge (u, v) with weight w:
  *        If d[u] + w < d[v]:
- *          Report negative cycle
+ *          Report "Negative cycle detected"
+ *          Return false
+ *   4. Return true (no negative cycle)
  * ```
  *
- * ## Complexity
+### Why |V| - 1 Iterations?
  *
- * - Time: O(V × E) standard, O(E) average for SPFA
- * - Space: O(V)
+ * In a graph with no negative cycles, the shortest path has at most |V| - 1 edges.
+ * After |V| - 1 iterations, all shortest paths should be found.
  *
- * ## When to Use
+ * If distances still improve in iteration |V|, a negative cycle exists!
  *
- * | Scenario | Algorithm |
- * |----------|-----------|
- * | Non-negative weights only | Dijkstra (faster) |
- * | Negative weights, no negative cycles | Bellman-Ford |
- * | Need to detect negative cycles | Bellman-Ford |
- * | All-pairs with negative weights | Johnson (uses B-F) |
+### Negative Cycle Detection
  *
+ * After |V| - 1 iterations, if any edge can still be relaxed:
+ * - A negative cycle exists
+ * - Shortest paths are undefined (can loop infinitely for negative cost)
+ *
+## SPFA Optimization (Shortest Path Faster Algorithm)
+ *
+### How It Works
+ *
+ * SPFA is a queue-based optimization:
+ * - Only relax edges from vertices whose distance changed
+ * - Uses queue to track vertices that need relaxation
+ * - Average case: O(E), worst case: O(VE) (same as standard)
+ *
+### Algorithm
+ *
+ * ```
+ * SPFA(G, s):
+ *   1. Initialize: d[s] = 0, d[v] = ∞, in_queue[v] = false
+ *   2. Queue.enqueue(s), in_queue[s] = true
+ *   3. While queue not empty:
+ *      u = queue.dequeue(), in_queue[u] = false
+ *      For each neighbor v of u:
+ *        If d[u] + w(u,v) < d[v]:
+ *          d[v] = d[u] + w(u,v)
+ *          If not in_queue[v]:
+ *            queue.enqueue(v), in_queue[v] = true
+ *          count[v]++
+ *          If count[v] >= |V|:
+ *            Report negative cycle
+ * ```
+ *
+## Complexity
+ *
+ * | Variant | Time | Space | Notes |
+ * |---------|------|-------|-------|
+ * | Standard | O(V × E) | O(V) | Always |
+ * | SPFA (average) | O(E) | O(V) | Much faster in practice |
+ * | SPFA (worst) | O(V × E) | O(V) | Degrades to standard |
+ *
+## Comparison with Dijkstra
+ *
+ * | Aspect | Dijkstra | Bellman-Ford |
+ * |--------|----------|--------------|
+ * | Negative weights | ❌ Fails | ✅ Works |
+ * | Negative cycles | ❌ Fails | ✅ Detects |
+ * | Time complexity | O((V+E) log V) | O(V × E) |
+ * | Best for | Non-negative weights | Negative weights |
+ * | Data structure | Priority queue | Simple iteration |
+ *
+## When to Use
+ *
+ * | Scenario | Algorithm | Reason |
+ * |----------|-----------|-------|
+ * | Non-negative weights only | Dijkstra | Faster O((V+E) log V) |
+ * | Negative weights, no cycles | Bellman-Ford | Correct handling |
+ * | Need cycle detection | Bellman-Ford | Only algorithm that detects |
+ * | All-pairs with negatives | Johnson | Uses B-F + Dijkstra |
+ * | Sparse graph, negatives | SPFA | Faster average case |
+ *
+## Applications
+ *
+### Financial Systems
+ * - **Arbitrage detection**: Find profitable currency exchanges
+ * - **Portfolio optimization**: Maximize returns with constraints
+ * - **Risk analysis**: Model losses as negative weights
+ *
+### Network Routing
+ * - **Link-state routing**: Find paths considering link costs
+ * - **Traffic optimization**: Minimize travel time (can be negative with shortcuts)
+ *
+### Game Theory
+ * - **Minimax**: Find optimal strategies
+ * - **Resource allocation**: Maximize gains
+ *
+### System Design
+ * - **Deadlock detection**: Negative cycles indicate problems
+ * - **Scheduling**: Optimize task ordering
+ *
+## Example: Currency Arbitrage
+ *
+ * ```
+ * Exchange rates:
+ *   USD → EUR: 0.85
+ *   EUR → GBP: 0.90
+ *   GBP → USD: 1.30
+ *
+ * Convert: 1 USD → 0.85 EUR → 0.765 GBP → 0.9945 USD (loss)
+ *
+ * But if we find negative cycle:
+ *   USD → EUR → GBP → USD: -0.0055 (negative cycle = arbitrage!)
+ * ```
+ *
+## Usage
+ *
+ * ```bash
+ * # Run Bellman-Ford demo
+ * ./bellman_ford_example
+ *
+ * # Test with negative cycles
+ * ./bellman_ford_example --negative-cycles
+ *
+ * # Compare with SPFA
+ * ./bellman_ford_example --spfa
+ * ```
+ *
+ * @see Bellman_Ford.H Bellman-Ford implementation
+ * @see dijkstra_example.cc Dijkstra's algorithm (non-negative weights)
+ * @see johnson_example.cc Johnson's algorithm (all-pairs, uses B-F)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

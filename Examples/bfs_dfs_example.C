@@ -29,31 +29,179 @@
  * @brief Graph Traversal: BFS vs DFS Comparison
  * 
  * This example demonstrates the two fundamental graph traversal algorithms:
- * - **BFS (Breadth-First Search)**: Explores level by level (uses queue)
- * - **DFS (Depth-First Search)**: Explores as deep as possible first (uses stack)
- * 
- * ## Key Differences
- * 
+ * **BFS (Breadth-First Search)** and **DFS (Depth-First Search)**. These are
+ * the building blocks for many graph algorithms and understanding their
+ * differences is crucial for choosing the right approach.
+ *
+ * ## What is Graph Traversal?
+ *
+ * Graph traversal means visiting all vertices in a graph in a systematic way.
+ * Both BFS and DFS visit all reachable vertices, but in different orders:
+ *
+ * - **BFS**: Explores level by level (like ripples in water)
+ * - **DFS**: Explores as deep as possible first (like exploring a maze)
+ *
+## BFS (Breadth-First Search)
+ *
+### How It Works
+ *
+ * BFS explores the graph level by level:
+ * 1. Start at source vertex (level 0)
+ * 2. Visit all neighbors (level 1)
+ * 3. Visit all neighbors of level 1 vertices (level 2)
+ * 4. Continue until all vertices visited
+ *
+ * **Data structure**: Queue (FIFO - First In First Out)
+ *
+### Characteristics
+ *
+ * - **Order**: Level-order (all vertices at distance k before distance k+1)
+ * - **Path found**: Shortest path (in terms of number of edges)
+ * - **Memory**: O(width) - stores frontier (current level)
+ * - **Complete**: Yes (finds all reachable vertices)
+ *
+### Algorithm
+ * ```
+ * BFS(G, s):
+ *   1. Create queue Q, mark s as visited
+ *   2. Q.enqueue(s)
+ *   3. While Q not empty:
+ *      a. u = Q.dequeue()
+ *      b. For each neighbor v of u:
+ *         If v not visited:
+ *           Mark v as visited
+ *           Q.enqueue(v)
+ * ```
+ *
+## DFS (Depth-First Search)
+ *
+### How It Works
+ *
+ * DFS explores as deep as possible before backtracking:
+ * 1. Start at source vertex
+ * 2. Go to unvisited neighbor
+ * 3. Continue deeper until dead end
+ * 4. Backtrack and explore other branches
+ *
+ * **Data structure**: Stack (LIFO - Last In First Out, or recursion)
+ *
+### Characteristics
+ *
+ * - **Order**: Depth-order (explore branch completely before others)
+ * - **Path found**: Any path (not necessarily shortest)
+ * - **Memory**: O(depth) - stores path from root to current
+ * - **Complete**: Yes (for finite graphs)
+ *
+### Algorithm
+ * ```
+ * DFS(G, s):
+ *   1. Mark s as visited
+ *   2. For each neighbor v of s:
+ *      If v not visited:
+ *        DFS(G, v)  // Recursive call
+ * ```
+ *
+## Key Differences
+ *
  * | Aspect | BFS | DFS |
  * |--------|-----|-----|
- * | Data structure | Queue | Stack |
- * | Path found | Shortest | Any path |
- * | Memory | O(width) | O(depth) |
- * | Complete | Yes | Yes (finite graphs) |
- * 
- * ## Applications
- * 
- * ### BFS Applications
- * - Finding shortest path (unweighted)
- * - Level-order traversal
- * - Finding connected components
- * - Social network friends at distance k
- * 
- * ### DFS Applications
- * - Topological sorting
- * - Cycle detection
- * - Path finding (any path)
- * - Maze generation/solving
+ * | **Data structure** | Queue (FIFO) | Stack (LIFO) / Recursion |
+ * | **Exploration order** | Level by level | Deep first, then backtrack |
+ * | **Path found** | Shortest (unweighted) | Any path |
+ * | **Memory usage** | O(width) | O(depth) |
+ * | **Time complexity** | O(V + E) | O(V + E) |
+ * | **Space complexity** | O(V) worst case | O(V) worst case |
+ * | **Complete** | Yes | Yes (finite graphs) |
+ *
+## When to Use Which?
+ *
+### Use BFS When:
+ *
+ * ✅ **Shortest path needed** (unweighted graphs)
+ * ✅ **Level-order traversal** needed
+ * ✅ **Breadth matters** (e.g., social network degrees)
+ * ✅ **Graph is wide** (not deep)
+ *
+### Use DFS When:
+ *
+ * ✅ **Any path sufficient** (not necessarily shortest)
+ * ✅ **Memory is limited** (DFS uses less for deep graphs)
+ * ✅ **Backtracking needed** (e.g., puzzle solving)
+ * ✅ **Graph is deep** (not wide)
+ *
+## Applications
+ *
+### BFS Applications
+ *
+ * - **Shortest path**: Unweighted graphs (BFS finds shortest)
+ * - **Level-order traversal**: Process nodes by distance
+ * - **Connected components**: Find all reachable vertices
+ * - **Social networks**: Friends at distance k
+ * - **Web crawling**: Crawl pages level by level
+ * - **Broadcast**: Message propagation in networks
+ *
+### DFS Applications
+ *
+ * - **Topological sorting**: Order nodes by dependencies
+ * - **Cycle detection**: Find cycles in directed graphs
+ * - **Path finding**: Find any path (maze solving)
+ * - **Maze generation**: Create random mazes
+ * - **Strongly connected components**: Tarjan's algorithm uses DFS
+ * - **Backtracking**: Constraint satisfaction, puzzles
+ *
+## Complexity
+ *
+ * Both algorithms have the same complexity:
+ * - **Time**: O(V + E) - visit each vertex and edge once
+ * - **Space**: O(V) - store visited markers and data structure
+ *
+ * **Difference**: BFS space depends on graph width, DFS on depth
+ *
+## Visual Comparison
+ *
+### BFS Order (Level by Level)
+ * ```
+ * Level 0:     A
+ * Level 1:   B   C   D
+ * Level 2: E F     G H
+ * ```
+ * Visits: A → B, C, D → E, F, G, H
+ *
+### DFS Order (Deep First)
+ * ```
+ * A → B → E → F → C → G → D → H
+ * ```
+ * Explores one branch completely before others
+ *
+## Implementation Notes
+ *
+### BFS Implementation
+ * - Use explicit queue (avoid recursion)
+ * - Mark vertices when enqueued (not when dequeued)
+ * - Prevents duplicate enqueueing
+ *
+### DFS Implementation
+ * - Can use recursion (implicit stack) or explicit stack
+ * - Mark vertices when visited
+ * - Simpler code with recursion
+ *
+## Usage
+ *
+ * ```bash
+ * # Compare BFS vs DFS
+ * ./bfs_dfs_example
+ *
+ * # Run specific algorithm
+ * ./bfs_dfs_example -a bfs
+ * ./bfs_dfs_example -a dfs
+ * ```
+ *
+ * @see dijkstra_example.cc Shortest paths in weighted graphs (extends BFS)
+ * @see topological_sort_example.C Topological sort (uses DFS)
+ * @see tarjan_example.C Strongly connected components (uses DFS)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ */
  * - Finding strongly connected components
  * 
  * @see graph-traverse.H

@@ -1,62 +1,169 @@
 /**
  * @file sort_benchmark.C
- * @brief Comprehensive benchmark for Aleph-w sorting algorithms.
+ * @brief Comprehensive benchmark for Aleph-w sorting algorithms
  *
  * This program benchmarks **only Aleph-w sorting algorithms** across
- * different data distributions and Aleph-w container types.
- * No std::sort or STL containers are used.
+ * different data distributions and Aleph-w container types. This helps
+ * understand which algorithm performs best for different scenarios and
+ * data structures. No std::sort or STL containers are used.
  *
- * ## Sorting Algorithms Tested (all from Aleph-w)
+ * ## Why Benchmark Sorting Algorithms?
  *
- * ### O(n²) Algorithms (optional, for small inputs)
- * - **selection_sort()**: Simple, minimal swaps, always O(n²)
- * - **insertion_sort()**: Adaptive, excellent for nearly sorted data
- * - **bubble_sort()**: Educational, rarely used in practice
+ * Different sorting algorithms have different performance characteristics:
+ * - **Time complexity**: Varies by algorithm and data distribution
+ * - **Stability**: Some preserve relative order of equal elements
+ * - **Space complexity**: Some require extra memory
+ * - **Adaptivity**: Some perform better on nearly-sorted data
+ * - **Container compatibility**: Some work better with arrays vs lists
  *
- * ### Sub-quadratic Algorithms
- * - **shellsort()**: O(n^1.3) empirical, good for medium arrays
+## Sorting Algorithms Tested (all from Aleph-w)
  *
- * ### O(n log n) Algorithms
- * - **mergesort()**: Stable, guaranteed O(n log n), great for lists
- * - **quicksort_op()**: Fastest average case, iterative (no stack overflow)
- * - **heapsort()**: Guaranteed O(n log n), in-place, not stable
+### O(n²) Algorithms (for small inputs or special cases)
  *
- * ## Data Distributions Tested
+ * #### Selection Sort
+ * - **Complexity**: Always O(n²)
+ * - **Stability**: Not stable
+ * - **Space**: O(1) in-place
+ * - **Best for**: Small arrays, minimal swaps needed
+ * - **Trade-off**: Simple but slow
  *
- * | Distribution | Description | Best Algorithm |
- * |--------------|-------------|----------------|
- * | Random | Uniformly distributed | quicksort_op() |
- * | Sorted | Already ascending | insertion_sort() |
- * | Reverse | Descending order | mergesort()/heapsort() |
- * | Nearly Sorted | 5% elements swapped | insertion_sort() |
- * | Few Unique | Only 10 distinct values | quicksort_op() |
- * | Sawtooth | Alternating ascending runs | mergesort() |
+ * #### Insertion Sort
+ * - **Complexity**: O(n²) worst, O(n) best (nearly sorted)
+ * - **Stability**: Stable
+ * - **Space**: O(1) in-place
+ * - **Best for**: Small arrays, nearly sorted data
+ * - **Trade-off**: Adaptive, excellent for pre-sorted data
  *
- * ## Aleph-w Container Types
+ * #### Bubble Sort
+ * - **Complexity**: O(n²)
+ * - **Stability**: Stable
+ * - **Space**: O(1) in-place
+ * - **Best for**: Educational purposes only
+ * - **Trade-off**: Simple but inefficient
  *
- * - **DynArray**: Segmented blocks, O(1) access via operator()
- * - **DynList**: Singly linked, O(1) insert/delete, O(n) access
- * - **DynDlist**: Doubly linked, bidirectional iteration
+### Sub-quadratic Algorithms
  *
- * ## Usage
+ * #### Shellsort
+ * - **Complexity**: O(n^1.3) empirical, O(n²) worst case
+ * - **Stability**: Not stable
+ * - **Space**: O(1) in-place
+ * - **Best for**: Medium-sized arrays
+ * - **Trade-off**: Better than O(n²), worse than O(n log n)
+ *
+### O(n log n) Algorithms
+ *
+ * #### Mergesort
+ * - **Complexity**: O(n log n) guaranteed
+ * - **Stability**: Stable
+ * - **Space**: O(n) extra memory
+ * - **Best for**: Linked lists, stable sort needed
+ * - **Trade-off**: Guaranteed performance, requires extra memory
+ *
+ * #### Quicksort (iterative)
+ * - **Complexity**: O(n log n) average, O(n²) worst case
+ * - **Stability**: Not stable
+ * - **Space**: O(log n) stack (iterative version avoids overflow)
+ * - **Best for**: Arrays, random data, fastest average case
+ * - **Trade-off**: Fastest average, but worst case can be slow
+ *
+ * #### Heapsort
+ * - **Complexity**: O(n log n) guaranteed
+ * - **Stability**: Not stable
+ * - **Space**: O(1) in-place
+ * - **Best for**: Guaranteed O(n log n) without extra memory
+ * - **Trade-off**: Slower than quicksort average, but guaranteed
+ *
+## Data Distributions Tested
+ *
+ * | Distribution | Description | Best Algorithm | Why |
+ * |--------------|-------------|----------------|-----|
+ * | **Random** | Uniformly distributed | quicksort_op() | Fast average case |
+ * | **Sorted** | Already ascending | insertion_sort() | O(n) for sorted data |
+ * | **Reverse** | Descending order | mergesort()/heapsort() | Quicksort worst case |
+ * | **Nearly Sorted** | 5% elements swapped | insertion_sort() | Adaptive, O(n) |
+ * | **Few Unique** | Only 10 distinct values | quicksort_op() | Good partitioning |
+ * | **Sawtooth** | Alternating runs | mergesort() | Exploits runs |
+ *
+## Aleph-w Container Types
+ *
+### DynArray
+ * - **Structure**: Segmented blocks
+ * - **Access**: O(1) via operator[]
+ * - **Best algorithms**: Quicksort, heapsort (random access)
+ *
+### DynList
+ * - **Structure**: Singly linked list
+ * - **Access**: O(n) sequential
+ * - **Best algorithms**: Mergesort (works well with lists)
+ *
+### DynDlist
+ * - **Structure**: Doubly linked list
+ * - **Access**: O(n) sequential, bidirectional
+ * - **Best algorithms**: Mergesort (bidirectional helps)
+ *
+## Algorithm Selection Guide
+ *
+ * ### Choose by Data Size
+ * - **Small (< 50)**: Insertion sort
+ * - **Medium (50-1000)**: Shellsort or quicksort
+ * - **Large (> 1000)**: Mergesort, quicksort, or heapsort
+ *
+ * ### Choose by Data Distribution
+ * - **Random**: Quicksort (fastest average)
+ * - **Nearly sorted**: Insertion sort (adaptive)
+ * - **Reverse sorted**: Mergesort or heapsort (avoid quicksort worst case)
+ * - **Many duplicates**: Quicksort with 3-way partitioning
+ *
+ * ### Choose by Container
+ * - **Array**: Quicksort, heapsort (random access)
+ * - **Linked list**: Mergesort (sequential access)
+ *
+ * ### Choose by Requirements
+ * - **Stability needed**: Mergesort or insertion sort
+ * - **No extra memory**: Heapsort or quicksort
+ * - **Guaranteed O(n log n)**: Mergesort or heapsort
+ *
+## Complexity Summary
+ *
+ * | Algorithm | Best | Average | Worst | Space | Stable |
+ * |-----------|------|---------|-------|-------|--------|
+ * | Selection | O(n²) | O(n²) | O(n²) | O(1) | No |
+ * | Insertion | O(n) | O(n²) | O(n²) | O(1) | Yes |
+ * | Bubble | O(n) | O(n²) | O(n²) | O(1) | Yes |
+ * | Shellsort | O(n log n) | O(n^1.3) | O(n²) | O(1) | No |
+ * | Mergesort | O(n log n) | O(n log n) | O(n log n) | O(n) | Yes |
+ * | Quicksort | O(n log n) | O(n log n) | O(n²) | O(log n) | No |
+ * | Heapsort | O(n log n) | O(n log n) | O(n log n) | O(1) | No |
+ *
+## Usage
  *
  * ```bash
- * ./sort_benchmark                    # Default: 10000 elements
- * ./sort_benchmark -n 50000           # 50000 elements
- * ./sort_benchmark -n 1000 -a         # 1000 elements, all algorithms
- * ./sort_benchmark --list-only        # Only test linked lists
- * ./sort_benchmark --array-only       # Only test arrays
- * ./sort_benchmark -c                 # Complexity demonstration
- * ./sort_benchmark -g                 # Algorithm selection guide
+ * # Default benchmark (10000 elements)
+ * ./sort_benchmark
+ *
+ * # Custom size
+ * ./sort_benchmark -n 50000
+ *
+ * # All algorithms (including O(n²))
+ * ./sort_benchmark -n 1000 -a
+ *
+ * # Test specific container
+ * ./sort_benchmark --list-only
+ * ./sort_benchmark --array-only
+ *
+ * # Complexity demonstration
+ * ./sort_benchmark -c
+ *
+ * # Algorithm selection guide
+ * ./sort_benchmark -g
  * ```
  *
+ * @see tpl_sort_utils.H Sorting algorithm implementations
+ * @see ahSort.H High-level sorting functions
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see tpl_sort_utils.H For sorting algorithm implementations
- * @see ahSort.H For high-level sorting functions
  */
 
 #include <iostream>

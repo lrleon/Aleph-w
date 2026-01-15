@@ -30,8 +30,132 @@
  * @file hash_resize.C
  * @brief Example demonstrating hash table with automatic resizing
  * 
- * This example shows how MapOLhash handles insertions and automatic
- * resizing when the load factor increases.
+ * This example demonstrates how `MapOLhash` (Open Addressing Hash Table)
+ * automatically resizes itself to maintain good performance as elements
+ * are inserted. Automatic resizing is crucial for maintaining O(1) average
+ * performance in hash tables.
+ *
+ * ## Why Resizing Matters
+ *
+### Load Factor Impact
+ *
+ * Hash table performance degrades when the **load factor** (elements/buckets)
+ * becomes too high:
+ *
+ * - **Low load factor** (< 0.5): Many empty buckets, wasted memory
+ * - **Optimal load factor** (0.7-0.8): Good balance of speed and memory
+ * - **High load factor** (> 0.9): Many collisions, performance degrades
+ *
+### Performance Degradation
+ *
+ * Without resizing:
+ * - **Operations degrade**: From O(1) average to O(n) worst case
+ * - **Collisions increase**: More elements compete for same buckets
+ * - **Linear probing**: Longer probe sequences
+ *
+### Common Thresholds
+ *
+ * | Hash Table Type | Resize Threshold | Reason |
+ * |-----------------|------------------|--------|
+ * | Open addressing | Load factor > 0.7-0.8 | Collisions become frequent |
+ * | Separate chaining | Load factor > 1.0-2.0 | Chains become too long |
+ *
+## Automatic Resizing Strategy
+ *
+### How MapOLhash Resizes
+ *
+ * `MapOLhash` uses open addressing (linear probing or double hashing):
+ *
+ * 1. **Initial size**: Starts with a small number of buckets
+ * 2. **Load monitoring**: Tracks load factor during insertions
+ * 3. **Threshold check**: Checks if load factor exceeds threshold
+ * 4. **Automatic resize**: When threshold exceeded:
+ *    - Allocates larger bucket array (typically 2× size)
+ *    - Rehashes all existing elements (O(n) operation)
+ *    - Updates hash table structure
+ *    - Continues insertion
+ *
+### Resize Operation
+ *
+ * ```
+ * Resize(old_size, new_size):
+ *   1. Allocate new bucket array of size new_size
+ *   2. For each element in old array:
+ *      - Compute new hash (using new_size)
+ *      - Insert into new array
+ *   3. Deallocate old array
+ *   4. Update hash table size
+ * ```
+ *
+ * **Cost**: O(n) where n = number of elements
+ * **Frequency**: O(log n) times (each resize doubles size)
+ * **Amortized cost**: O(1) per insertion
+ *
+## What This Example Demonstrates
+ *
+ * 1. **Insertion**: Adding many elements to the hash table
+ * 2. **Automatic resizing**: Observing resize operations as load increases
+ * 3. **Verification**: Ensuring all elements are still accessible after resize
+ * 4. **Performance**: Demonstrating O(1) average access maintained
+ * 5. **Load factor tracking**: Monitoring load factor over time
+ *
+## Key Operations
+ *
+ * - **`insert(key, value)`**: Insert key-value pair (may trigger resize)
+ * - **`search(key)`**: Find value by key (O(1) average)
+ * - **`size()`**: Get current number of elements
+ * - **`capacity()`**: Get current number of buckets
+ * - **`load_factor()`**: Get current load factor
+ *
+## Resize Behavior
+ *
+### When Resize Occurs
+ *
+ * - **Trigger**: Load factor exceeds threshold (typically 0.75)
+ * - **Frequency**: Logarithmic (each resize doubles size)
+ * - **Cost**: O(n) per resize, but amortized O(1) per insertion
+ *
+### Resize Size
+ *
+ * Common strategies:
+ * - **Double**: new_size = 2 × old_size (most common)
+ * - **Prime**: Use next prime number (better for some hash functions)
+ * - **Power of 2**: new_size = 2^k (fast modulo)
+ *
+## Performance Characteristics
+ *
+ * | Operation | Before Resize | After Resize | Amortized |
+ * |-----------|---------------|--------------|-----------|
+ * | Insert | O(1) → O(n) | O(1) | O(1) |
+ * | Search | O(1) → O(n) | O(1) | O(1) |
+ * | Delete | O(1) → O(n) | O(1) | O(1) |
+ *
+## Usage
+ *
+ * ```bash
+ * # Insert 1000 elements and observe resizing
+ * hash_resize -n 1000
+ *
+ * # Insert 10000 elements with verbose output
+ * hash_resize -n 10000 -v
+ *
+ * # Test with different initial sizes
+ * hash_resize -n 5000 --initial-size 100
+ * ```
+ *
+## Expected Output
+ *
+ * The example shows:
+ * - Initial hash table size
+ * - Resize events (when they occur)
+ * - Load factor before and after resize
+ * - Verification that all elements are accessible
+ * - Performance metrics
+ *
+ * @see tpl_dynMapOhash.H Open addressing hash map implementation
+ * @see hash_tables_example.C Hash table implementations comparison
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <tclap/CmdLine.h>

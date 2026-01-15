@@ -28,29 +28,157 @@
  * @file linear_structures_example.C
  * @brief Linear data structures: Stack, Queue, DynArray, DynList
  *
- * This example demonstrates the fundamental linear data structures in Aleph-w:
+ * This example demonstrates the fundamental linear (one-dimensional) data
+ * structures in Aleph-w. These are the building blocks for more complex
+ * algorithms and data structures. Understanding these is essential for
+ * effective programming.
  *
- * ## Stack (LIFO - Last In First Out)
- * - `DynListStack<T>`: Dynamic stack using linked list
- * - `ArrayStack<T>`: Fixed-capacity stack using array
- * - Operations: push, pop, top, is_empty
+ * ## Linear Data Structures Overview
  *
- * ## Queue (FIFO - First In First Out)
- * - `DynListQueue<T>`: Dynamic queue using circular list
- * - `ArrayQueue<T>`: Fixed-capacity circular queue
- * - Operations: put, get, front, rear, is_empty
+ * Linear data structures organize elements in a sequence where each element
+ * (except the first and last) has exactly one predecessor and one successor.
+ * They differ in how elements are accessed and modified.
  *
- * ## Dynamic Array
- * - `DynArray<T>`: Resizable array with O(1) amortized append
- * - Random access: O(1)
- * - Supports functional operations (map, filter, fold)
+ * ## 1. Stack (LIFO - Last In First Out)
  *
- * ## Dynamic List
- * - `DynList<T>`: Singly linked list
- * - `DynDlist<T>`: Doubly linked list
- * - Efficient insertion/deletion at any position
+ * A stack is like a stack of plates: you add to the top and remove from the top.
  *
- * @see tpl_dynListStack.H tpl_dynListQueue.H tpl_dynArray.H tpl_dynList.H
+ * ### Implementations
+ *
+ * #### DynListStack<T>
+ * - **Backend**: Linked list
+ * - **Capacity**: Unlimited (grows as needed)
+ * - **Memory**: O(n) - pointer overhead per element
+ * - **Best for**: Unknown size, frequent growth
+ *
+ * #### ArrayStack<T>
+ * - **Backend**: Fixed-size array
+ * - **Capacity**: Fixed at creation
+ * - **Memory**: O(n) - no pointer overhead
+ * - **Best for**: Known size, maximum performance
+ *
+ * ### Operations
+ * - **push(x)**: Add element to top - O(1)
+ * - **pop()**: Remove top element - O(1)
+ * - **top()**: View top element - O(1)
+ * - **is_empty()**: Check if empty - O(1)
+ *
+### Applications
+ * - **Expression evaluation**: Infix to postfix conversion
+ * - **Function calls**: Call stack management
+ * - **Undo/Redo**: Operation history
+ * - **Backtracking**: DFS, maze solving
+ * - **Syntax parsing**: Matching parentheses, brackets
+ *
+ * ## 2. Queue (FIFO - First In First Out)
+ *
+ * A queue is like a line at a store: first person in is first person out.
+ *
+ * ### Implementations
+ *
+ * #### DynListQueue<T>
+ * - **Backend**: Circular linked list
+ * - **Capacity**: Unlimited
+ * - **Memory**: O(n) - pointer overhead
+ * - **Best for**: Unknown size, dynamic growth
+ *
+ * #### ArrayQueue<T>
+ * - **Backend**: Circular array
+ * - **Capacity**: Fixed size
+ * - **Memory**: O(n) - no pointer overhead
+ * - **Best for**: Known size, performance-critical
+ *
+ * ### Operations
+ * - **put(x)**: Add element to rear - O(1)
+ * - **get()**: Remove element from front - O(1)
+ * - **front()**: View front element - O(1)
+ * - **rear()**: View rear element - O(1)
+ * - **is_empty()**: Check if empty - O(1)
+ *
+### Applications
+ * - **Task scheduling**: Process queues, job queues
+ * - **BFS traversal**: Graph algorithms
+ * - **Print spooling**: Print job management
+ * - **Message queues**: Inter-process communication
+ * - **Event handling**: Event queue processing
+ *
+ * ## 3. Dynamic Array (DynArray<T>)
+ *
+ * A resizable array that grows automatically as needed.
+ *
+ * ### Characteristics
+ * - **Random access**: O(1) - access any element by index
+ * - **Append**: O(1) amortized - occasionally O(n) for resizing
+ * - **Insert/Delete middle**: O(n) - must shift elements
+ * - **Memory**: Contiguous block, cache-friendly
+ *
+### Operations
+ * - **append(x)**: Add to end - O(1) amortized
+ * - **insert(i, x)**: Insert at position i - O(n)
+ * - **remove(i)**: Remove at position i - O(n)
+ * - **operator[](i)**: Access element i - O(1)
+ * - **Functional ops**: map, filter, fold - O(n)
+ *
+### Applications
+ * - **General-purpose storage**: When random access needed
+ * - **Mathematical vectors**: Linear algebra operations
+ * - **Buffers**: Data buffering, streaming
+ * - **Lookup tables**: Index-based access
+ *
+ * ## 4. Dynamic List (DynList<T> / DynDlist<T>)
+ *
+ * Linked lists that grow dynamically with efficient insertion/deletion.
+ *
+### Implementations
+ *
+ * #### DynList<T> (Singly Linked)
+ * - **Links**: Each node points to next only
+ * - **Traversal**: Forward only
+ * - **Memory**: O(n) - one pointer per element
+ * - **Best for**: Simple forward iteration
+ *
+ * #### DynDlist<T> (Doubly Linked)
+ * - **Links**: Each node points to both next and previous
+ * - **Traversal**: Forward and backward
+ * - **Memory**: O(n) - two pointers per element
+ * - **Best for**: Bidirectional iteration, frequent deletion
+ *
+### Operations
+ * - **append(x)**: Add to end - O(1)
+ * - **insert_after(it, x)**: Insert after iterator - O(1)
+ * - **remove(it)**: Remove at iterator - O(1)
+ * - **Access by index**: O(n) - must traverse
+ * - **Iteration**: O(n) - forward (both) or backward (DynDlist only)
+ *
+### Applications
+ * - **Frequent insertion/deletion**: When order matters
+ * - **Unknown size**: Grows dynamically
+ * - **No random access needed**: Sequential access only
+ * - **Memory efficiency**: When array resizing is expensive
+ *
+ * ## Complexity Comparison
+ *
+ * | Operation | Array | List | Stack | Queue |
+ * |-----------|-------|------|-------|-------|
+ * | Access by index | O(1) | O(n) | N/A | N/A |
+ * | Insert at end | O(1)* | O(1) | O(1) | O(1) |
+ * | Insert at middle | O(n) | O(1) | N/A | N/A |
+ * | Delete at middle | O(n) | O(1) | N/A | N/A |
+ * | Memory overhead | Low | High | Medium | Medium |
+ *
+ * *Amortized for dynamic arrays
+ *
+ * ## When to Use Each
+ *
+ * - **Stack**: LIFO access needed (undo, backtracking, parsing)
+ * - **Queue**: FIFO access needed (BFS, scheduling, buffering)
+ * - **DynArray**: Random access needed, mostly append operations
+ * - **DynList**: Frequent insertion/deletion, sequential access only
+ *
+ * @see tpl_dynListStack.H Stack implementations
+ * @see tpl_dynListQueue.H Queue implementations
+ * @see tpl_dynArray.H Dynamic array implementation
+ * @see tpl_dynList.H Linked list implementations
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

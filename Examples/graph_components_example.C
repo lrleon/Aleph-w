@@ -28,23 +28,154 @@
  * @file graph_components_example.C
  * @brief Graph connectivity: components and spanning trees
  *
- * This example demonstrates algorithms for analyzing graph connectivity:
+ * This example demonstrates fundamental algorithms for analyzing graph
+ * connectivity, which is crucial for understanding graph structure and
+ * designing efficient algorithms. Connectivity analysis helps identify
+ * isolated groups, understand graph structure, and design robust systems.
  *
  * ## Connected Components (Undirected Graphs)
- * - Groups vertices that can reach each other
- * - Uses DFS or BFS traversal
- * - Time: O(V + E)
  *
- * ## Strongly Connected Components (Directed Graphs)
- * - Groups vertices with bidirectional reachability
- * - Tarjan's algorithm
- * - Time: O(V + E)
+### Definition
  *
- * ## Spanning Tree
- * - Tree that connects all vertices with minimum edges
- * - Uses DFS or BFS
+ * A **connected component** is a maximal set of vertices where every
+ * vertex can reach every other vertex through a path.
  *
- * @see tpl_components.H tpl_spanning_tree.H Tarjan.H
+ * **Key property**: In undirected graphs, connectivity is **symmetric**:
+ * if u can reach v, then v can reach u.
+ *
+### Algorithm
+ *
+ * Uses DFS or BFS traversal:
+ * ```
+ * Find_Components(G):
+ *   visited = all false
+ *   components = []
+ *   For each unvisited vertex v:
+ *     component = []
+ *     DFS(v, visited, component)
+ *     components.append(component)
+ *   Return components
+ *
+ * DFS(v, visited, component):
+ *   visited[v] = true
+ *   component.append(v)
+ *   For each neighbor w of v:
+ *     If not visited[w]:
+ *       DFS(w, visited, component)
+ * ```
+ *
+ * **Time Complexity**: O(V + E) - visits each vertex and edge once
+ *
+### Applications
+ *
+ * - **Social networks**: Finding friend groups (connected communities)
+ * - **Network analysis**: Identifying isolated subnetworks
+ * - **Image processing**: Connected pixel regions (blob detection)
+ * - **Circuit design**: Identifying disconnected circuits
+ * - **Ecology**: Habitat connectivity analysis
+ *
+## Strongly Connected Components (Directed Graphs)
+ *
+### Definition
+ *
+ * A **strongly connected component** (SCC) is a maximal set of vertices
+ * in a directed graph where every vertex can reach every other vertex
+ * through directed paths.
+ *
+ * **Key difference**: In directed graphs, connectivity is **NOT symmetric**:
+ * u → v doesn't imply v → u.
+ *
+### Algorithm: Tarjan's Algorithm
+ *
+ * Uses a single DFS pass with:
+ * - **`index[v]`**: Discovery time (order of first visit)
+ * - **`lowlink[v]`**: Lowest index reachable from v's DFS subtree
+ *
+ * **Key insight**: When `lowlink[v] == index[v]`, v is the root of an SCC.
+ *
+ * **Time Complexity**: O(V + E) - single DFS traversal
+ *
+### Applications
+ *
+ * - **Web analysis**: Finding communities of mutually linked pages
+ * - **Compiler optimization**: Detecting cyclic dependencies
+ * - **Social networks**: Finding tightly-knit groups
+ * - **Deadlock detection**: Identifying circular wait conditions
+ * - **2-SAT solving**: Reducing to SCC finding
+ *
+## Spanning Tree
+ *
+### Definition
+ *
+ * A **spanning tree** is a subgraph that:
+ * - Contains **all vertices**
+ * - Is a **tree** (connected, acyclic)
+ * - Has exactly **V-1 edges**
+ *
+### Finding a Spanning Tree
+ *
+ * **Algorithm**: Use DFS or BFS to traverse the graph, keeping track
+ * of tree edges (edges used in traversal).
+ *
+ * ```
+ * Find_Spanning_Tree(G, root):
+ *   visited = all false
+ *   tree_edges = []
+ *   DFS(root, visited, tree_edges)
+ *   Return tree_edges
+ *
+ * DFS(v, visited, tree_edges):
+ *   visited[v] = true
+ *   For each neighbor w of v:
+ *     If not visited[w]:
+ *       tree_edges.append((v, w))
+ *       DFS(w, visited, tree_edges)
+ * ```
+ *
+ * **Time Complexity**: O(V + E)
+ *
+### Applications
+ *
+ * - **Network design**: Minimum cost to connect all nodes (MST)
+ * - **Broadcast trees**: Efficient message distribution
+ * - **Graph simplification**: Reduce graph while maintaining connectivity
+ * - **Routing**: Find paths in networks
+ *
+## Comparison: Components vs SCCs
+ *
+ * | Aspect | Connected Components | Strongly Connected Components |
+ * |--------|---------------------|------------------------------|
+ * | Graph type | Undirected | Directed |
+ * | Connectivity | Symmetric | Not symmetric |
+ * | Algorithm | Simple DFS/BFS | Tarjan/Kosaraju |
+ * | Complexity | O(V + E) | O(V + E) |
+ *
+## Usage
+ *
+ * ```bash
+ * # Analyze graph connectivity
+ * ./graph_components_example
+ *
+ * # Find components
+ * ./graph_components_example --components
+ *
+ * # Find SCCs
+ * ./graph_components_example --scc
+ *
+ * # Find spanning tree
+ * ./graph_components_example --spanning-tree
+ * ```
+ *
+ * @see bfs_dfs_example.C Graph traversal (used by algorithms)
+ * @see tarjan_example.C Tarjan's SCC algorithm
+ * @see kosaraju_example.cc Kosaraju's SCC algorithm
+ * @see mst_example.C Minimum spanning tree (weighted spanning tree)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ */
+ * @see tpl_components.H Connected component algorithms
+ * @see tpl_spanning_tree.H Spanning tree generation
+ * @see Tarjan.H Strongly connected components
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

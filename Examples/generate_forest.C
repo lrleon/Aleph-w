@@ -30,9 +30,127 @@
  * @file generate_forest.C
  * @brief Example demonstrating forest generation from binary trees
  * 
- * This example generates a random binary search tree, converts it to
- * a forest representation, and outputs the forest structure to a file
- * in a format suitable for visualization.
+ * This example demonstrates converting a binary search tree into a
+ * forest (collection of trees) representation. A forest is useful for
+ * representing hierarchical structures where nodes can have multiple
+ * children (n-ary trees), which is more flexible than binary trees.
+ *
+ * ## What is a Forest?
+ *
+### Graph Theory Definition
+ *
+ * A **forest** is a collection of trees. In graph theory:
+ * - A **tree** is a connected acyclic graph
+ * - A **forest** is a disjoint union of trees (may be disconnected)
+ * - Forest = collection of trees with no cycles
+ *
+### In This Context
+ *
+ * We convert a **binary tree** (each node has at most 2 children) to a
+ * **general tree/forest** (each node can have any number of children):
+ *
+ * - **Binary tree**: Limited to 2 children per node
+ * - **General tree**: Unlimited children per node
+ * - **Forest**: Collection of general trees
+ *
+## Conversion Process
+ *
+### Algorithm Steps
+ *
+ * The example performs the following:
+ *
+ * 1. **Generate binary tree**: Creates a random binary search tree with n nodes
+ * 2. **Traverse binary tree**: Visits all nodes in the binary tree
+ * 3. **Convert structure**: Transforms binary tree to general tree:
+ *    - Binary tree nodes → General tree nodes
+ *    - Binary tree edges → General tree parent-child relationships
+ * 4. **Output forest**: Writes forest structure in suitable format
+ *
+### Conversion Details
+ *
+ * The conversion preserves the hierarchical structure:
+ * - **Root nodes**: Binary tree root becomes forest root
+ * - **Child relationships**: Binary tree children become forest children
+ * - **Node data**: Key values preserved
+ * - **Structure**: Hierarchical relationships maintained
+ *
+## Applications
+ *
+### Tree Visualization
+ * - **Format conversion**: Convert between tree representations
+ * - **Visualization tools**: Some tools work better with n-ary trees
+ * - **Display**: More flexible display options
+ *
+### Data Structure Conversion
+ * - **Adapting algorithms**: Algorithms designed for n-ary trees
+ * - **Flexibility**: General trees more flexible than binary
+ * - **Representation**: Better representation for some problems
+ *
+### Algorithm Testing
+ * - **Test cases**: Generate test cases for tree algorithms
+ * - **Format compatibility**: Test algorithms on different formats
+ * - **Validation**: Verify algorithm correctness on different structures
+ *
+### Format Conversion
+ * - **Interoperability**: Convert between different tree formats
+ * - **Data exchange**: Exchange tree data between systems
+ * - **Standardization**: Convert to standard formats
+ *
+## Forest Properties
+ *
+### Structure
+ * - **Multiple roots**: Forest can have multiple root nodes
+ * - **Disconnected**: Trees in forest are disconnected
+ * - **Hierarchical**: Each tree maintains hierarchy
+ *
+### Advantages Over Binary Trees
+ * - **Flexibility**: Unlimited children per node
+ * - **Natural representation**: Better for some problems
+ * - **Simpler algorithms**: Some algorithms simpler for n-ary trees
+ *
+## Usage
+ *
+ * ```bash
+ * # Generate forest with 50 nodes
+ * generate_forest -n 50 -o forest.txt
+ *
+ * # Use specific seed for reproducibility
+ * generate_forest -n 100 -s 12345 -o output.txt
+ *
+ * # Generate large forest
+ * generate_forest -n 1000 -o large_forest.txt
+ * ```
+ *
+## Output Format
+ *
+ * The forest is output in a format suitable for:
+ * - **Visualization**: Can be visualized with tree tools
+ * - **Processing**: Can be processed by tree algorithms
+ * - **Storage**: Can be saved and loaded later
+ *
+## Example Use Cases
+ *
+### File System Representation
+ * - **Directories**: Can have any number of subdirectories
+ * - **Natural fit**: General trees match file system structure
+ * - **Navigation**: Easier navigation than binary representation
+ *
+### Organizational Charts
+ * - **Hierarchy**: Represent organizational structures
+ * - **Flexibility**: Managers can have any number of subordinates
+ * - **Visualization**: Better visualization than binary trees
+ *
+### XML/HTML Parsing
+ * - **DOM trees**: Represent document structure
+ * - **Nested elements**: Elements can have any number of children
+ * - **Natural representation**: Matches document structure
+ *
+ * @see generate_tree.H Tree generation utilities
+ * @see tpl_tree_node.H N-ary tree node structure
+ * @see tpl_binTree.H Binary tree structures
+ * @see ntreepic.C N-ary tree visualization (related)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <cstdlib>

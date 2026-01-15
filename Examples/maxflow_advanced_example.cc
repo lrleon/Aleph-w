@@ -29,43 +29,194 @@
  * @brief Advanced Maximum Flow Algorithms Comparison
  * 
  * This example demonstrates and compares different maximum flow algorithms
- * available in Aleph-w:
- * 
- * ## Algorithms Covered
- * 
- * 1. **Edmonds-Karp** (Ford-Fulkerson with BFS): O(VE²)
- *    - Simple to understand and implement
- *    - Good for sparse graphs
- * 
- * 2. **Dinic's Algorithm**: O(V²E)
- *    - Uses level graphs and blocking flows
- *    - Better for dense graphs
- * 
- * 3. **Capacity Scaling**: O(VE log U)
- *    - Works with large capacities efficiently
- *    - U = maximum capacity
- * 
- * 4. **HLPP (Highest Label Preflow-Push)**: O(V²√E)
- *    - Push-relabel variant
- *    - Best theoretical complexity for dense graphs
- * 
- * ## Applications
- * 
- * - Network bandwidth optimization
- * - Supply chain logistics
- * - Image segmentation (via min-cut)
- * - Bipartite matching
- * - Baseball elimination
- * 
- * ## When to Use Each Algorithm
- * 
- * - **Small graphs**: Any algorithm works
- * - **Sparse graphs**: Edmonds-Karp or Dinic
- * - **Dense graphs**: HLPP or Dinic
- * - **Large capacities**: Capacity Scaling
- * 
- * @see tpl_maxflow.H for algorithm implementations
- * @see tpl_net.H for network structures
+ * available in Aleph-w. While basic Ford-Fulkerson/Edmonds-Karp works well
+ * for many cases, advanced algorithms offer better performance for specific
+ * graph types and scenarios.
+ *
+ * ## Why Multiple Algorithms?
+ *
+ * Different max-flow algorithms excel in different scenarios:
+ * - **Graph density**: Sparse vs dense graphs
+ * - **Capacity size**: Small vs large capacities
+ * - **Graph structure**: Special properties
+ * - **Performance requirements**: Speed vs simplicity
+ *
+## Algorithms Covered
+ *
+### 1. Edmonds-Karp (Ford-Fulkerson with BFS)
+ *
+ * **Strategy**: Use BFS to find shortest augmenting paths
+ *
+ * **Complexity**: O(V × E²)
+ * - Each BFS: O(E)
+ * - At most O(VE) augmentations
+ *
+ * **Pros**:
+ * - Simple to understand and implement
+ * - Predictable performance
+ * - Good for sparse graphs
+ *
+ * **Cons**:
+ * - Slower for dense graphs
+ * - May do many augmentations
+ *
+### 2. Dinic's Algorithm
+ *
+ * **Strategy**: Use level graphs and blocking flows
+ *
+ * **How it works**:
+ * 1. Build level graph (BFS layers)
+ * 2. Find blocking flow (saturate all paths in level graph)
+ * 3. Repeat until no augmenting path
+ *
+ * **Complexity**: O(V² × E)
+ * - O(V) blocking flow computations
+ * - Each blocking flow: O(VE)
+ *
+ * **Pros**:
+ * - Faster than Edmonds-Karp
+ * - Good for both sparse and dense graphs
+ * - Practical performance often better than worst case
+ *
+ * **Cons**:
+ * - More complex implementation
+ *
+### 3. Capacity Scaling
+ *
+ * **Strategy**: Process edges in rounds by capacity threshold
+ *
+ * **How it works**:
+ * 1. Start with large capacity threshold Δ
+ * 2. Only consider edges with capacity ≥ Δ
+ * 3. Find augmenting paths in this subgraph
+ * 4. Reduce Δ and repeat
+ *
+ * **Complexity**: O(V × E × log U)
+ * - U = maximum capacity
+ * - log U rounds
+ * - O(VE) work per round
+ *
+ * **Pros**:
+ * - Efficient for large capacities
+ * - Good when capacities vary widely
+ *
+ * **Cons**:
+ * - Overhead for small capacities
+ *
+### 4. HLPP (Highest Label Preflow-Push)
+ *
+ * **Strategy**: Push-relabel with highest label selection
+ *
+ * **How it works**:
+ * 1. Push flow from active vertices
+ * 2. Relabel vertices when stuck
+ * 3. Always process highest label vertex
+ *
+ * **Complexity**: O(V² × √E)
+ * - Best theoretical for dense graphs
+ *
+ * **Pros**:
+ * - Best complexity for dense graphs
+ * - Efficient in practice
+ *
+ * **Cons**:
+ * - Most complex implementation
+ * - May be slower for sparse graphs
+ *
+## Complexity Comparison
+ *
+ * | Algorithm | Time Complexity | Best For |
+ * |-----------|-----------------|----------|
+ * | Edmonds-Karp | O(V × E²) | Sparse graphs, simplicity |
+ * | Dinic | O(V² × E) | General purpose |
+ * | Capacity Scaling | O(V × E × log U) | Large capacities |
+ * | HLPP | O(V² × √E) | Dense graphs |
+ *
+ * **Note**: Actual performance depends heavily on graph structure!
+ *
+## When to Use Each Algorithm
+ *
+### Small Graphs (< 100 vertices)
+ * - **Any algorithm works**: Performance difference negligible
+ * - **Recommendation**: Edmonds-Karp (simplest)
+ *
+### Sparse Graphs (E ≈ V)
+ * - **Edmonds-Karp**: Simple, O(V³) effective
+ * - **Dinic**: Better worst-case, often faster
+ * - **Recommendation**: Dinic (best balance)
+ *
+### Dense Graphs (E ≈ V²)
+ * - **Dinic**: O(V⁴) but practical
+ * - **HLPP**: O(V² × √E) = O(V³) theoretical best
+ * - **Recommendation**: HLPP for large graphs, Dinic for medium
+ *
+### Large Capacities (U >> V)
+ * - **Capacity Scaling**: O(V × E × log U) efficient
+ * - **Others**: May be slower
+ * - **Recommendation**: Capacity Scaling
+ *
+### General Purpose
+ * - **Dinic**: Good balance of speed and simplicity
+ * - **Recommendation**: Default choice
+ *
+## Performance Characteristics
+ *
+### Sparse Graph (E = O(V))
+ *
+ * | Algorithm | Complexity | Relative Speed |
+ * |-----------|-----------|----------------|
+ * | Edmonds-Karp | O(V³) | 1× |
+ * | Dinic | O(V³) | 2-5× faster |
+ * | HLPP | O(V².5) | 3-10× faster |
+ *
+### Dense Graph (E = O(V²))
+ *
+ * | Algorithm | Complexity | Relative Speed |
+ * |-----------|-----------|----------------|
+ * | Edmonds-Karp | O(V⁵) | 1× |
+ * | Dinic | O(V⁴) | 10-100× faster |
+ * | HLPP | O(V³) | 100-1000× faster |
+ *
+## Applications
+ *
+### Network Bandwidth Optimization
+ * - **Internet routing**: Maximize data flow
+ * - **Content delivery**: Distribute content efficiently
+ *
+### Supply Chain Logistics
+ * - **Transportation**: Maximize goods flow
+ * - **Resource allocation**: Optimize resource usage
+ *
+### Image Segmentation
+ * - **Min-cut**: Find optimal segmentation
+ * - **Computer vision**: Separate foreground/background
+ *
+### Matching Problems
+ * - **Bipartite matching**: Reduce to max-flow
+ * - **Job assignment**: Match workers to tasks
+ *
+### Game Theory
+ * - **Baseball elimination**: Determine if team can win
+ * - **Tournament analysis**: Analyze possible outcomes
+ *
+## Usage
+ *
+ * ```bash
+ * # Compare all algorithms
+ * ./maxflow_advanced_example
+ *
+ * # Test specific algorithm
+ * ./maxflow_advanced_example --algorithm dinic
+ * ./maxflow_advanced_example --algorithm hlpp
+ *
+ * # Benchmark on different graph types
+ * ./maxflow_advanced_example --sparse
+ * ./maxflow_advanced_example --dense
+ * ```
+ *
+ * @see tpl_maxflow.H Advanced max-flow algorithm implementations
+ * @see network_flow_example.C Basic max-flow (Edmonds-Karp)
+ * @see tpl_net.H Network graph structures
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

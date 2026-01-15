@@ -28,37 +28,158 @@
  * @file heap_example.C
  * @brief Priority Queues: Binary Heap vs Fibonacci Heap
  * 
- * This example compares two heap implementations for priority queues:
- * - **Binary Heap**: Simple, cache-friendly, O(log n) operations
- * - **Fibonacci Heap**: O(1) amortized insert/decrease-key
- * 
- * ## When to Use Which?
- * 
- * ### Binary Heap
- * - General-purpose priority queue
- * - Simple heap sort
- * - When decrease-key is rare or not needed
- * 
- * ### Fibonacci Heap
- * - Dijkstra's algorithm (many decrease-key operations)
- * - Prim's MST algorithm
- * - When O(1) amortized decrease-key is critical
- * 
- * ## Complexity Comparison
- * 
- * | Operation     | Binary Heap | Fibonacci Heap |
- * |---------------|-------------|----------------|
- * | insert        | O(log n)    | O(1) amortized |
- * | find-min      | O(1)        | O(1)           |
- * | extract-min   | O(log n)    | O(log n) amor. |
- * | decrease-key  | O(log n)    | O(1) amortized |
- * | merge         | O(n)        | O(1)           |
- * 
- * @see tpl_binHeap.H
+ * This example compares two fundamental heap implementations for priority
+ * queues, demonstrating when to use each and their performance characteristics.
+ * Priority queues are essential for many algorithms, and choosing the right
+ * implementation can significantly impact performance.
+ *
+ * ## What is a Priority Queue?
+ *
+ * A priority queue is a data structure that supports:
+ * - **insert(x)**: Add element with priority
+ * - **extract_min()**: Remove and return element with highest priority
+ * - **decrease_key(x, k)**: Lower priority of element x to k
+ * - **find_min()**: View highest priority element without removal
+ *
+ * Elements are ordered by priority (typically: lower value = higher priority).
+ *
+ * ## Two Heap Implementations Compared
+ *
+### Binary Heap
+ *
+ * A complete binary tree stored in an array satisfying the heap property
+ * (parent ≤ children for min-heap).
+ *
+ * **Characteristics**:
+ * - **Simple**: Easy to understand and implement
+ * - **Cache-friendly**: Array-based, good memory locality
+ * - **Predictable**: O(log n) worst-case for all operations
+ * - **Space efficient**: No pointer overhead
+ *
+ * **Operations**:
+ * - **insert**: O(log n) - bubble up
+ * - **extract_min**: O(log n) - bubble down
+ * - **decrease_key**: O(log n) - bubble up
+ * - **find_min**: O(1) - root element
+ *
+### Fibonacci Heap
+ *
+ * A more sophisticated heap structure using a collection of trees with
+ * lazy consolidation, achieving better amortized complexity.
+ *
+ * **Characteristics**:
+ * - **Complex**: More sophisticated implementation
+ * - **Amortized performance**: Better average-case complexity
+ * - **Lazy consolidation**: Defers work until necessary
+ * - **Theoretical optimal**: Best known complexity for some operations
+ *
+ * **Operations**:
+ * - **insert**: O(1) amortized - just add to root list
+ * - **extract_min**: O(log n) amortized - consolidate trees
+ * - **decrease_key**: O(1) amortized - cut and promote
+ * - **find_min**: O(1) - pointer to minimum
+ * - **merge**: O(1) - concatenate root lists
+ *
+## Complexity Comparison
+ *
+ * | Operation | Binary Heap | Fibonacci Heap | Winner |
+ * |-----------|-------------|----------------|--------|
+ * | insert | O(log n) | O(1) amortized | Fibonacci |
+ * | find-min | O(1) | O(1) | Tie |
+ * | extract-min | O(log n) | O(log n) amortized | Tie |
+ * | decrease-key | O(log n) | O(1) amortized | Fibonacci |
+ * | merge | O(n) | O(1) | Fibonacci |
+ *
+ * **Note**: Amortized complexity means average over many operations.
+ * Individual operations may be slower, but overall performance is better.
+ *
+## When to Use Which?
+ *
+### Use Binary Heap When:
+ *
+ * ✅ **General-purpose priority queue**
+ *   - Most common use case
+ *   - Simple implementation preferred
+ *   - Predictable performance needed
+ *
+ * ✅ **Heap sort**
+ *   - In-place sorting algorithm
+ *   - O(n log n) time, O(1) extra space
+ *
+ * ✅ **Decrease-key is rare**
+ *   - Most operations are insert/extract
+ *   - Few or no decrease-key operations
+ *
+ * ✅ **Memory matters**
+ *   - Array-based, no pointer overhead
+ *   - Better cache performance
+ *
+### Use Fibonacci Heap When:
+ *
+ * ✅ **Many decrease-key operations**
+ *   - Algorithms like Dijkstra's (many decrease-key calls)
+ *   - Prim's MST algorithm
+ *   - When decrease-key dominates runtime
+ *
+ * ✅ **Theoretical optimality needed**
+ *   - Academic/research applications
+ *   - When best complexity matters
+ *
+ * ✅ **Merge operations needed**
+ *   - Frequently merging heaps
+ *   - O(1) merge is critical
+ *
+## Real-World Performance
+ *
+ * Despite better theoretical complexity, Fibonacci heaps often have:
+ * - **Higher constant factors**: More complex operations
+ * - **Worse cache performance**: Pointer-based structure
+ * - **More memory overhead**: Multiple pointers per node
+ *
+ * **Result**: Binary heaps are often faster in practice for typical workloads!
+ *
+ * **Rule of thumb**: Use binary heap unless you have a specific need for
+ * Fibonacci heap's advantages (many decrease-key operations).
+ *
+## Applications
+ *
+### Binary Heap Applications
+ * - **Task scheduling**: Operating system schedulers
+ * - **Event simulation**: Discrete event simulation
+ * - **Graph algorithms**: A* search, some shortest path variants
+ * - **Heap sort**: Efficient in-place sorting
+ *
+### Fibonacci Heap Applications
+ * - **Dijkstra's algorithm**: Many decrease-key operations
+ * - **Prim's MST**: Minimum spanning tree with decrease-key
+ * - **Network flow**: Some flow algorithms benefit
+ * - **Theoretical algorithms**: When optimal complexity matters
+ *
+## Example: Dijkstra's Algorithm
+ *
+ * Dijkstra's algorithm for shortest paths:
+ * - **Operations**: Many decrease-key calls (update distances)
+ * - **Binary heap**: O(E log V) total
+ * - **Fibonacci heap**: O(E + V log V) total (better!)
+ *
+ * For dense graphs (E ≈ V²), Fibonacci heap provides significant speedup.
+ *
+## Usage
+ *
+ * ```bash
+ * # Compare both heap types
+ * ./heap_example
+ *
+ * # Run specific comparison
+ * ./heap_example -s performance
+ * ```
+ *
+ * @see tpl_binHeap.H Binary heap implementation
+ * @see tpl_dynBinHeap.H Dynamic binary heap
+ * @see tpl_fibonacci_heap.H Fibonacci heap implementation
+ * @see writeHeap.C Heap visualization
  * @author Leandro Rabindranath León
  * @ingroup Examples
- * @see tpl_dynBinHeap.H
- * @see tpl_fibonacci_heap.H
  */
 
 #include <iostream>

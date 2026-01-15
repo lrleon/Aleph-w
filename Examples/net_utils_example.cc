@@ -29,25 +29,67 @@
  * @brief Network Utilities: Generation, Visualization, Serialization
  * 
  * This example demonstrates utility functions for working with
- * flow networks in Aleph-w:
- * 
- * ## Features
- * 
- * 1. **Network Generation**
- *    - Random networks with controlled density
- *    - Grid networks for benchmarking
- *    - Layered networks for DAG problems
- *    - Bipartite networks for matching
- * 
- * 2. **Visualization**
- *    - Export to DOT format (GraphViz)
- *    - Show capacities and flows
- * 
- * 3. **Serialization**
- *    - Export to JSON
- *    - DIMACS format support
- * 
- * 4. **Benchmarking**
+ * flow networks in Aleph-w. These utilities help with network
+ * generation, visualization, serialization, and benchmarking,
+ * making it easier to work with flow networks in practice.
+ *
+ * ## Why Network Utilities?
+ *
+ * Working with flow networks often requires:
+ * - **Generating test networks**: For algorithm development and testing
+ * - **Visualizing networks**: To understand structure and debug
+ * - **Saving/loading networks**: For persistence and sharing
+ * - **Benchmarking**: To compare algorithm performance
+ *
+## Features
+ *
+### 1. Network Generation
+ *
+#### Random Networks
+ * - **Controlled density**: Generate networks with specific edge density
+ * - **Random capacities**: Assign random capacities to edges
+ * - **Configurable size**: Control number of vertices and edges
+ *
+#### Grid Networks
+ * - **Regular structure**: Grid-based networks for benchmarking
+ * - **Predictable**: Known properties for testing
+ * - **Scalable**: Easy to generate large grids
+ *
+#### Layered Networks
+ * - **DAG structure**: Directed acyclic graphs
+ * - **Layered layout**: Vertices organized in layers
+ * - **Applications**: Perfect for DAG-based flow problems
+ *
+#### Bipartite Networks
+ * - **Two sets**: Vertices divided into two sets
+ * - **Matching problems**: Ideal for bipartite matching
+ * - **Applications**: Job assignment, resource allocation
+ *
+### 2. Visualization
+ *
+#### DOT Format Export
+ * - **GraphViz compatibility**: Export to DOT format
+ * - **Visualization tools**: Use GraphViz, dot, neato, etc.
+ * - **Customizable**: Show capacities, flows, labels
+ *
+#### Flow Visualization
+ * - **Show capacities**: Display edge capacities
+ * - **Show flows**: Display current flow values
+ * - **Highlight paths**: Mark augmenting paths
+ *
+### 3. Serialization
+ *
+#### JSON Export
+ * - **Human-readable**: Easy to inspect and edit
+ * - **Structured data**: Preserve network structure
+ * - **Interoperability**: Work with other tools
+ *
+#### DIMACS Format
+ * - **Standard format**: DIMACS challenge format
+ * - **Compatibility**: Work with other max-flow solvers
+ * - **Benchmarking**: Use standard test cases
+ *
+### 4. Benchmarking
  *    - Compare algorithm performance
  *    - Generate test cases
  * 

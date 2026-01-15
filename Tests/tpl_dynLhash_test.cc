@@ -331,10 +331,13 @@ TEST(DynLhashTableStress, RandomOperations)
       int key = key_dist(rng);
       int op = op_dist(rng);
       
-      if (op == 0)  // Insert
+      if (op == 0)  // Insert (only if not already present to avoid duplicates)
         {
-          auto* ptr = table.insert(key, key * 2);
-          reference[key] = ptr;
+          if (reference.count(key) == 0)
+            {
+              auto* ptr = table.insert(key, key * 2);
+              reference[key] = ptr;
+            }
         }
       else if (op == 1)  // Search
         {
@@ -362,6 +365,10 @@ TEST(DynLhashTableStress, RandomOperations)
       ASSERT_NE(found, nullptr);
       EXPECT_EQ(*found, key * 2);
     }
+  
+  // Clean up remaining elements
+  for (auto& [key, ptr] : reference)
+    table.remove(ptr);
 }
 
 // =============================================================================
@@ -388,14 +395,18 @@ TEST_F(DynLhashTableTest, NegativeKeys)
 
 TEST_F(DynLhashTableTest, SameKeyMultipleInserts)
 {
-  table.insert(1, "first");
-  table.insert(1, "second");  // Same key, different value
+  auto* ptr1 = table.insert(1, "first");
+  auto* ptr2 = table.insert(1, "second");  // Same key, different value
   
   // Behavior depends on implementation - usually both are stored
   // or second replaces first. Search returns one of them.
   auto* found = table.search(1);
   ASSERT_NE(found, nullptr);
   // At minimum, we should find SOMETHING for key 1
+  
+  // Clean up both entries to avoid leaks
+  table.remove(ptr1);
+  table.remove(ptr2);
 }
 
 // =============================================================================
@@ -578,6 +589,10 @@ TEST(DynLhashTableDuplicates, InsertDuplicateKeysAllowed)
   // Both values should be accessible via their pointers
   EXPECT_EQ(*ptr1, "first");
   EXPECT_EQ(*ptr2, "second");
+  
+  // Clean up both entries
+  table.remove(ptr1);
+  table.remove(ptr2);
 }
 
 TEST(DynLhashTableDuplicates, RemoveOneDuplicate)

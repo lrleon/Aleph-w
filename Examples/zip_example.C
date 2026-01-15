@@ -1,43 +1,129 @@
 /**
  * @file zip_example.C
- * @brief Comprehensive example of zip operations in Aleph-w.
+ * @brief Comprehensive example of zip operations in Aleph-w
  *
- * This program demonstrates zip-related features from `ah-zip.H`,
- * which provides tools for working with multiple containers simultaneously.
+ * This program demonstrates zip operations from `ah-zip.H`, which provide
+ * powerful tools for working with multiple containers simultaneously. Zip
+ * operations are inspired by Python's `zip()` function and are essential
+ * for parallel processing of related data.
  *
- * ## Features Demonstrated
+ * ## What is Zipping?
  *
- * ### Basic Zip Iteration
- * - `ZipIterator` - Iterate multiple containers in lockstep
- * - `EnumZipIterator` - Zip with enumeration index
- *
- * ### Tuple Creation
- * - `t_zip()` - Create list of tuples from containers
- * - `t_unzip()` - Split tuple list back into containers
- * - `t_enum_zip()` - Create enumerated tuples
- *
- * ### Zip Functional Operations
- * - `zip_map()` - Transform tuples
- * - `zip_filter()` - Keep tuples satisfying predicate
- * - `zip_take()`, `zip_drop()` - Take/drop first n
- * - `zip_partition()` - Split by predicate
- *
- * ### STL Compatibility
- * - `std_zip()` - Zip STL containers
- *
- * ## Usage
- *
- * ```bash
- * ./zip_example           # Run all demos
- * ./zip_example -s basic  # Only basic section
+ * Zipping combines multiple containers element-wise, creating tuples:
+ * ```
+ * Container 1: [a, b, c]
+ * Container 2: [1, 2, 3]
+ * Zipped:      [(a,1), (b,2), (c,3)]
  * ```
  *
+ * **Key insight**: Process related data from multiple sources together,
+ * maintaining correspondence between elements.
+ *
+## Features Demonstrated
+ *
+### Basic Zip Iteration
+ *
+ * Iterate multiple containers simultaneously:
+ * - **`ZipIterator`**: Iterate 2+ containers in lockstep
+ * - **`EnumZipIterator`**: Zip with enumeration index (i, elem₁, elem₂, ...)
+ *
+ * **Use case**: Process related data from multiple sources together
+ *
+### Tuple Creation
+ *
+ * Create and manipulate tuples:
+ * - **`t_zip()`**: Create list of tuples from containers
+ * - **`t_unzip()`**: Split tuple list back into separate containers
+ * - **`t_enum_zip()`**: Create tuples with index: (i, elem₁, elem₂)
+ *
+### Zip Functional Operations
+ *
+ * Apply functional operations to zipped data:
+ * - **`zip_map()`**: Transform tuples (apply function to each tuple)
+ * - **`zip_filter()`**: Keep tuples satisfying predicate
+ * - **`zip_take(n)`**: Take first n tuples
+ * - **`zip_drop(n)`**: Skip first n tuples
+ * - **`zip_partition(pred)`**: Split into two groups by predicate
+ *
+### STL Compatibility
+ *
+ * - **`std_zip()`**: Zip STL containers (std::vector, std::list, etc.)
+ * - Works seamlessly with standard library containers
+ *
+## Common Use Cases
+ *
+### Parallel Processing
+ * ```cpp
+ * // Process names and ages together
+ * auto zipped = zip(names, ages);
+ * zip_for_each(zipped, [](auto name, auto age) {
+ *   cout << name << " is " << age << " years old\n";
+ * });
+ * ```
+ *
+### Data Transformation
+ * ```cpp
+ * // Combine and transform data
+ * auto result = zip_map(prices, quantities, 
+ *   [](auto price, auto qty) { return price * qty; });
+ * ```
+ *
+### Filtering Related Data
+ * ```cpp
+ * // Keep only valid pairs
+ * auto valid = zip_filter(names, scores,
+ *   [](auto name, auto score) { return score >= 60; });
+ * ```
+ *
+### Indexed Operations
+ * ```cpp
+ * // Process with index
+ * enum_zip_for_each(data, [](size_t i, auto elem) {
+ *   cout << "Element " << i << ": " << elem << "\n";
+ * });
+ * ```
+ *
+## Advantages
+ *
+ * ✅ **Type safety**: Compile-time checking of container compatibility
+ * ✅ **Efficiency**: Single pass through containers
+ * ✅ **Readability**: Clear intent (process related data together)
+ * ✅ **Composability**: Works with other functional operations
+ *
+## Comparison with Manual Loops
+ *
+ * **Manual approach**:
+ * ```cpp
+ * for (size_t i = 0; i < min(names.size(), ages.size()); i++) {
+ *   process(names[i], ages[i]);
+ * }
+ * ```
+ *
+ * **Zip approach**:
+ * ```cpp
+ * zip_for_each(names, ages, process);
+ * ```
+ *
+ * More concise, safer (no index errors), clearer intent!
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Run all zip demonstrations
+ * ./zip_example
+ *
+ * # Run specific section
+ * ./zip_example -s basic      # Basic zip operations
+ * ./zip_example -s functional # Functional zip operations
+ * ```
+ *
+ * @see ah-zip.H Main zip operations header (Aleph containers only)
+ * @see zip_utils_example.C Unified zip (works with STL and Aleph)
+ * @see functional_example.C General functional programming
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ah-zip.H Main zip operations header
  */
 
 #include <iostream>

@@ -1,42 +1,192 @@
 /**
  * @file hamiltonian_example.C
- * @brief Example demonstrating Hamiltonian graph testing in Aleph-w.
+ * @brief Example demonstrating Hamiltonian graph testing in Aleph-w
  *
- * A Hamiltonian cycle visits every VERTEX exactly once (vs Eulerian
- * which visits every EDGE exactly once).
+ * A Hamiltonian cycle (or path) visits every **vertex** exactly once,
+ * which is fundamentally different from Eulerian paths (which visit
+ * every **edge** exactly once). Finding Hamiltonian cycles is NP-complete,
+ * so we can only test sufficient conditions, not necessary ones.
  *
- * ## Hamiltonian vs Eulerian
+ * ## What is a Hamiltonian Path/Cycle?
+ *
+### Hamiltonian Path
+ *
+ * A **Hamiltonian path** is a path that visits every vertex exactly once.
+ * The path may start and end at different vertices.
+ *
+### Hamiltonian Cycle
+ *
+ * A **Hamiltonian cycle** (or circuit) is a Hamiltonian path that starts
+ * and ends at the same vertex, forming a cycle.
+ *
+### Key Difference from Eulerian
  *
  * | Property | Hamiltonian | Eulerian |
  * |----------|-------------|----------|
- * | Visits | Every vertex once | Every edge once |
- * | Complexity | NP-complete | Polynomial O(V+E) |
- * | Test | Sufficiency only | Exact |
+ * | Visits | Every **vertex** once | Every **edge** once |
+ * | Complexity | **NP-complete** | Polynomial O(V+E) |
+ * | Test | **Sufficiency only** | Exact conditions |
+ * | Solution | No efficient algorithm | Efficient algorithm exists |
  *
- * ## Ore's Theorem (Sufficiency)
+## Why is it Hard?
  *
- * For a graph with n ≥ 3 vertices:
- * If for every pair of NON-ADJACENT vertices u, v:
+ * **NP-completeness**: Determining if a graph has a Hamiltonian cycle
+ * is NP-complete, meaning:
+ * - No known polynomial-time algorithm
+ * - Best known: Exponential time (backtracking)
+ * - If P ≠ NP, no polynomial algorithm exists
+ *
+ * **Implication**: We can only test **sufficient** conditions (if
+ * condition holds, graph is Hamiltonian), not **necessary** conditions
+ * (graph may be Hamiltonian without satisfying condition).
+ *
+## Sufficient Conditions
+ *
+### Ore's Theorem (1960)
+ *
+ * **Statement**: For a graph with n ≥ 3 vertices:
+ *
+ * If for every pair of **non-adjacent** vertices u, v:
+ * ```
  *   deg(u) + deg(v) ≥ n
+ * ```
  * Then the graph has a Hamiltonian cycle.
  *
- * **Important**: This is sufficient but NOT necessary!
- * A graph may be Hamiltonian without satisfying Ore's condition.
+ * **Intuition**: If vertices have high enough degrees, there are enough
+ * edges to form a Hamiltonian cycle.
  *
- * ## Usage
+### Dirac's Theorem (1952)
  *
- * ```bash
- * ./hamiltonian_example           # Run all demos
- * ./hamiltonian_example -s ore    # Only Ore's theorem demo
+ * **Statement**: For a graph with n ≥ 3 vertices:
+ *
+ * If every vertex has degree ≥ n/2:
+ * ```
+ *   deg(v) ≥ n/2  for all v
+ * ```
+ * Then the graph has a Hamiltonian cycle.
+ *
+ * **Note**: Dirac's is a special case of Ore's (if all degrees ≥ n/2,
+ * then sum of any two ≥ n).
+ *
+### Other Sufficient Conditions
+ *
+ * - **Pósa's condition**: More complex degree sequence condition
+ * - **Chvátal's condition**: Degree sequence-based
+ * - **Toughness**: Graph toughness conditions
+ *
+## Important Limitations
+ *
+### Sufficiency vs Necessity
+ *
+ * **Sufficient**: If condition holds → graph is Hamiltonian
+ * **Necessary**: If graph is Hamiltonian → condition holds
+ *
+ * **Ore's theorem is sufficient but NOT necessary**:
+ * - ✅ If Ore's condition holds → Hamiltonian cycle exists
+ * - ❌ If Ore's condition fails → may still be Hamiltonian!
+ *
+### Example: Hamiltonian Without Ore's
+ *
+ * ```
+ * Graph: Complete graph K_n (all vertices connected)
+ * 
+ * Ore's condition: Not needed (all vertices adjacent)
+ * Result: Hamiltonian (trivially, any permutation works)
  * ```
  *
+ * Many Hamiltonian graphs don't satisfy Ore's condition but are still Hamiltonian.
+ *
+## Applications
+ *
+### Traveling Salesman Problem (TSP)
+ * - **TSP**: Find shortest Hamiltonian cycle
+ * - **Reduction**: TSP reduces to Hamiltonian cycle
+ * - **Complexity**: Both NP-complete
+ *
+### Route Planning
+ * - **Delivery routes**: Visit all locations once
+ * - **Tour planning**: Visit all cities in a tour
+ * - **Circuit design**: Visit all components
+ *
+### Puzzles and Games
+ * - **Knight's tour**: Visit all squares on chessboard
+ * - **Icosian game**: Historical puzzle
+ * - **Sudoku**: Some variants use Hamiltonian paths
+ *
+### Network Design
+ * - **Network topology**: Design networks visiting all nodes
+ * - **Testing**: Test all network nodes
+ *
+## Finding Hamiltonian Cycles
+ *
+### Backtracking Algorithm
+ *
+ * ```
+ * Find_Hamiltonian_Cycle(G, path):
+ *   If path.length == V:
+ *     If path[0] adjacent to path[V-1]:
+ *       Return path + path[0]  // Found cycle!
+ *     Return null
+ *   
+ *   For each neighbor v of path[last]:
+ *     If v not in path:
+ *       result = Find_Hamiltonian_Cycle(G, path + v)
+ *       If result != null:
+ *         Return result
+ *   Return null
+ * ```
+ *
+ * **Time complexity**: O(V!) worst case (exponential!)
+ *
+### Heuristics
+ *
+ * - **Nearest neighbor**: Greedy approach
+ * - **2-opt**: Local optimization
+ * - **Genetic algorithms**: Evolutionary approach
+ * - **Simulated annealing**: Probabilistic optimization
+ *
+## Complexity
+ *
+ * | Problem | Complexity | Notes |
+ * |---------|-----------|-------|
+ * | Test sufficient condition | O(V²) | Check degrees |
+ * | Find Hamiltonian cycle | O(V!) | Exponential (backtracking) |
+ * | Decision problem | NP-complete | No polynomial algorithm known |
+ *
+## Example: Complete Graph
+ *
+ * ```
+ * Complete graph K_5 (5 vertices, all connected):
+ *
+ *   A---B
+ *   |\ /|
+ *   | X |
+ *   |/ \|
+ *   C---D
+ *    \ /
+ *     E
+ *
+ * Ore's condition: Not applicable (all vertices adjacent)
+ * Result: Hamiltonian (trivially, any order works)
+ * ```
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all Hamiltonian demonstrations
+ * ./hamiltonian_example
+ *
+ * # Run specific demo
+ * ./hamiltonian_example -s ore      # Ore's theorem
+ * ./hamiltonian_example -s dirac    # Dirac's theorem
+ * ```
+ *
+ * @see hamiltonian.H Hamiltonian sufficiency testing
+ * @see eulerian_example.C Eulerian paths (visits edges, polynomial)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see hamiltonian.H Hamiltonian sufficiency testing
- * @see eulerian.H Eulerian path/cycle detection
  */
 
 #include <iostream>

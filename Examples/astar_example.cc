@@ -26,16 +26,58 @@
 
 /**
  * @file astar_example.cc
- * @brief Comprehensive example demonstrating A* shortest path algorithm.
+ * @brief Comprehensive example demonstrating A* shortest path algorithm
  *
- * This example shows:
- * 1. Creating a 2D grid graph with coordinates
- * 2. Using A* with Euclidean heuristic (optimal for diagonal movement)
- * 3. Using A* with Manhattan heuristic (optimal for 4-connected grids)
- * 4. Comparing A* with Dijkstra (zero heuristic)
- * 5. Visualizing paths and exploration differences
+ * This example demonstrates the A* (A-star) algorithm, an informed search
+ * algorithm that combines Dijkstra's algorithm with a heuristic function
+ * to find optimal paths more efficiently.
  *
+ * ## What is A*?
+ *
+ * A* is a best-first search algorithm that uses:
+ * - **g(n)**: Actual cost from start to node n
+ * - **h(n)**: Heuristic estimate from node n to goal
+ * - **f(n) = g(n) + h(n)**: Total estimated cost
+ *
+ * It explores nodes with lowest f(n) first, guaranteeing optimal paths
+ * when the heuristic is **admissible** (never overestimates).
+ *
+ * ## Key Features Demonstrated
+ *
+ * 1. **2D Grid Graph**: Creates a graph with (x, y) coordinates
+ * 2. **Euclidean Heuristic**: Optimal for diagonal movement (8-connected)
+ *    - h(n) = √[(x₁-x₂)² + (y₁-y₂)²]
+ * 3. **Manhattan Heuristic**: Optimal for 4-connected grids
+ *    - h(n) = |x₁-x₂| + |y₁-y₂|
+ * 4. **Comparison with Dijkstra**: Shows A* explores fewer nodes
+ * 5. **Path Visualization**: Displays found paths and exploration patterns
+ *
+ * ## When to Use A*
+ *
+ * | Scenario | Algorithm | Reason |
+ * |----------|-----------|--------|
+ * | Grid pathfinding | A* with Manhattan | Fast, optimal for grids |
+ * | Euclidean space | A* with Euclidean | Natural distance metric |
+ * | No good heuristic | Dijkstra | A* reduces to Dijkstra |
+ * | Need optimal path | A* (admissible h) | Guarantees optimality |
+ *
+ * ## Complexity
+ *
+ * - **Time**: O(b^d) worst case (b = branching factor, d = depth)
+ * - **Space**: O(b^d) for storing explored nodes
+ * - **Practical**: Much faster than Dijkstra when heuristic is good
+ *
+ * ## Applications
+ *
+ * - **Game AI**: Pathfinding for NPCs
+ * - **Robotics**: Navigation and route planning
+ * - **GPS systems**: Finding optimal routes
+ * - **Puzzle solving**: 15-puzzle, Rubik's cube
+ *
+ * @see AStar.H A* algorithm implementation
+ * @see Dijkstra.H Dijkstra's algorithm (for comparison)
  * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 #include <iostream>

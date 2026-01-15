@@ -26,30 +26,134 @@
 
 /**
  * @file map_arena_example.C
- * @brief Example demonstrating MapArena memory-mapped file allocator.
+ * @brief Example demonstrating MapArena memory-mapped file allocator
  *
- * This example shows how to use MapArena for memory allocation backed
- * by memory-mapped files.
+ * This example demonstrates `MapArena`, a specialized memory allocator that
+ * uses memory-mapped files (`mmap`) as its backing store. This provides
+ * efficient memory management for large datasets and enables interesting
+ * persistence and sharing capabilities.
+ *
+ * ## What is an Arena Allocator?
+ *
+ * An arena allocator (also called a region allocator or bump allocator) is
+ * a memory management strategy where:
+ * - **Allocation**: Simply increment a pointer (very fast, O(1))
+ * - **Deallocation**: Not supported individually (or only en masse)
+ * - **Memory**: Allocated from a contiguous region
+ * - **Lifetime**: All allocations share the same lifetime
+ *
+ * **Advantages**:
+ * - Extremely fast allocation (just pointer increment)
+ * - No fragmentation (contiguous memory)
+ * - Simple implementation
+ * - Fast deallocation (free entire arena at once)
+ *
+ * **Disadvantages**:
+ * - No individual deallocation
+ * - Fixed lifetime (all allocations freed together)
+ *
+ * ## MapArena: Memory-Mapped Arena
+ *
+### Key Features
+ *
+ * - **Memory-mapped**: Uses `mmap()` for backing storage
+ * - **File-backed**: Can persist to disk (with limitations)
+ * - **Growable**: Automatically remaps when more space needed
+ * - **Efficient**: Fast allocation, good for large datasets
+ *
+ * ### How It Works
+ *
+ * 1. **Reserve**: Map a file region into memory
+ * 2. **Commit**: Mark region as usable
+ * 3. **Allocate**: Bump pointer forward (O(1))
+ * 4. **Grow**: If full, remap larger file region
+ * 5. **Deallocate**: Unmap entire region (or let OS handle it)
  *
  * ## Features Demonstrated
  *
- * 1. Basic arena allocation (reserve/commit)
- * 2. Arena growth (automatic remapping)
- * 3. Iterating over allocated memory
- * 4. Storing structured data
- * 5. Move semantics
+ * ### Basic Operations
+ * - **Reserve/Commit**: Set up memory-mapped region
+ * - **Allocation**: Allocate memory blocks
+ * - **Growth**: Automatic remapping when full
+ *
+ * ### Advanced Usage
+ * - **Iteration**: Iterate over allocated memory blocks
+ * - **Structured data**: Store and retrieve structured types
+ * - **Move semantics**: Efficient transfer of ownership
  *
  * ## Use Cases
  *
- * - Large data processing with mmap
- * - Bump allocator pattern
- * - Memory-efficient temporary storage
+ * ### Large Data Processing
+ * - Process datasets larger than RAM
+ * - Streaming data processing
+ * - Database temporary storage
  *
- * @note The current MapArena implementation does not persist the allocation
- *       offset (`end_`) to disk automatically. For true persistence across
- *       program runs, you would need to store metadata separately or extend
- *       the class.
+ * ### Bump Allocator Pattern
+ * - Fast temporary allocations
+ * - Scratch space for algorithms
+ * - Stack-like allocation pattern
  *
+ * ### Memory-Efficient Storage
+ * - Reduce memory fragmentation
+ * - Efficient for many small allocations
+ * - Good cache locality (contiguous memory)
+ *
+ * ### Potential Persistence
+ * - **Note**: Current implementation doesn't persist allocation offset
+ * - Could be extended for true persistence
+ * - Useful for crash recovery scenarios
+ *
+ * ## Performance Characteristics
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Allocation | O(1) | Just pointer increment |
+ * | Deallocation | O(1) | Free entire arena |
+ * | Growth | O(n) | Remap operation |
+ * | Iteration | O(n) | Linear scan |
+ *
+ * **Memory overhead**: Minimal (just pointer tracking)
+ *
+ * ## Limitations
+ *
+ * ### Current Implementation
+ * - Allocation offset (`end_`) not persisted to disk
+ * - For true persistence, store metadata separately
+ * - Or extend class to handle persistence
+ *
+### General Arena Limitations
+ * - No individual deallocation
+ * - Fixed lifetime for all allocations
+ * - Not suitable for long-lived, variable-lifetime data
+ *
+ * ## When to Use MapArena
+ *
+ * ✅ **Good for**:
+ * - Temporary allocations with same lifetime
+ * - Large datasets needing contiguous memory
+ * - Fast allocation requirements
+ * - Memory-mapped file benefits needed
+ *
+ * ❌ **Not good for**:
+ * - Individual deallocation needed
+ * - Variable lifetimes
+ * - Small, scattered allocations
+ * - Real-time systems (remapping can cause delays)
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * MapArena arena("backing_file.dat", 1024 * 1024); // 1MB initial
+ *
+ * // Allocate some data
+ * int* data = arena.allocate<int>(100); // 100 integers
+ *
+ * // Use data...
+ *
+ * // All allocations freed when arena destroyed
+ * ```
+ *
+ * @see ah-map-arena.H MapArena implementation
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

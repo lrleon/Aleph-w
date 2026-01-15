@@ -28,41 +28,162 @@
  * @file skiplist_example.C
  * @brief Skip List: A probabilistic alternative to balanced trees
  * 
- * This example demonstrates Skip Lists, a randomized data structure
- * invented by William Pugh (1990) that provides expected O(log n)
- * operations without the complexity of balanced tree rotations.
- * 
+ * This example demonstrates Skip Lists, an elegant randomized data structure
+ * invented by William Pugh in 1990. Skip Lists provide expected O(log n)
+ * performance for search, insert, and delete operations without the complexity
+ * of balanced tree rotations, making them easier to implement and understand.
+ *
+ * ## What is a Skip List?
+ *
+ * A Skip List is a probabilistic data structure that uses multiple sorted
+ * linked lists at different "levels" to enable fast search. Think of it as
+ * a subway system with express trains (higher levels) and local trains
+ * (lower levels).
+ *
  * ## How Skip Lists Work
- * 
- * A Skip List is a layered linked list where:
- * - Level 0 contains all elements in sorted order
- * - Each higher level contains a random subset (~50%) of the level below
- * - "Express lanes" at higher levels allow fast traversal
- * 
- * Example structure (4 elements: 3, 6, 7, 9):
- * 
- *     Level 2:  HEAD -----------------> 6 -----------------> NIL
- *     Level 1:  HEAD --------> 3 -----> 6 --------> 9 -----> NIL
- *     Level 0:  HEAD -> 3 -> 6 -> 7 -> 9 -> NIL
- * 
- * ## Advantages Over Balanced Trees
- * 
- * - Simpler implementation (no rotations)
- * - Lock-free concurrent versions are easier to implement
- * - Good cache locality for sequential access
- * - Same expected O(log n) performance
- * 
- * ## Applications
- * 
- * - Redis sorted sets (ZSET)
- * - LevelDB/RocksDB memtables
- * - Concurrent data structures
- * - Range queries
- * 
- * @see tpl_dynSkipList.H for the implementation
+ *
+### Structure
+ *
+ * A Skip List consists of multiple linked lists (levels):
+ * - **Level 0**: Contains ALL elements in sorted order (base level)
+ * - **Level 1**: Contains ~50% of elements (express lane)
+ * - **Level 2**: Contains ~25% of elements (super express)
+ * - **Level i**: Contains ~(1/2)^i of elements
+ *
+### Example Structure
+ *
+ * For elements {3, 6, 7, 9}:
+ * ```
+ * Level 2:  HEAD -------------------------> 6 -------------------------> NIL
+ * Level 1:  HEAD ---------> 3 ---------> 6 ---------> 9 ---------> NIL
+ * Level 0:  HEAD -> 3 -> 6 -> 7 -> 9 -> NIL
+ * ```
+ *
+### Search Algorithm
+ *
+ * 1. Start at highest level (HEAD)
+ * 2. Move right while next element < target
+ * 3. If can't go right, go down one level
+ * 4. Repeat until found or reach level 0
+ *
+ * **Key insight**: Higher levels act as "express lanes" allowing you to
+ * skip over many elements quickly.
+ *
+### Insertion Algorithm
+ *
+ * 1. Search for insertion point (as in search)
+ * 2. Insert at level 0
+ * 3. "Flip a coin" (random): With 50% probability, promote to level 1
+ * 4. If promoted, flip again for level 2, etc.
+ * 5. Stop when coin flip fails
+ *
+ * **Randomization**: Each element has 50% chance of being at level i+1
+ * if it's at level i. This creates the probabilistic structure.
+ *
+## Advantages Over Balanced Trees
+ *
+### Simplicity
+ * - **No rotations**: Unlike AVL or Red-Black trees
+ * - **No rebalancing**: Structure maintained probabilistically
+ * - **Easier to implement**: Simpler code, fewer edge cases
+ * - **Easier to debug**: Linear structure easier to visualize
+ *
+### Concurrency
+ * - **Lock-free versions**: Easier to make thread-safe
+ * - **Less contention**: Fewer shared data structures
+ * - **Better scalability**: Used in high-performance systems
+ *
+### Performance
+ * - **Cache-friendly**: Sequential memory access (linked lists)
+ * - **Expected O(log n)**: Same as balanced trees
+ * - **Good constants**: Often faster in practice
+ *
+### Flexibility
+ * - **Range queries**: Efficient iteration over ranges
+ * - **Bidirectional**: Can traverse forward and backward
+ * - **Dynamic**: Easy to add/remove levels
+ *
+## Disadvantages
+ *
+ * ❌ **Probabilistic**: No worst-case guarantee (though extremely unlikely)
+ * ❌ **Memory overhead**: Multiple pointers per element
+ * ❌ **Randomization**: Requires good random number generator
+ *
+## Complexity
+ *
+ * | Operation | Expected | Worst Case | Notes |
+ * |-----------|----------|------------|-------|
+ * | Search | O(log n) | O(n) | Extremely rare worst case |
+ * | Insert | O(log n) | O(n) | Includes search + insertion |
+ * | Delete | O(log n) | O(n) | Includes search + deletion |
+ * | Range query | O(log n + k) | O(n) | k = elements in range |
+ *
+ * **Expected height**: O(log n) with high probability
+ * **Worst case height**: O(n) but probability is negligible
+ *
+## Applications
+ *
+### Database Systems
+ * - **Redis**: Sorted sets (ZSET) use skip lists
+ * - **LevelDB/RocksDB**: Memtable implementation
+ * - **Apache Cassandra**: Index structures
+ *
+### Concurrent Data Structures
+ * - **Lock-free skip lists**: High-performance concurrent maps
+ * - **Multi-threaded applications**: Thread-safe containers
+ *
+### Range Queries
+ * - **Time-series data**: Efficient range scans
+ * - **Spatial data**: Range queries on sorted data
+ *
+### Educational
+ * - **Teaching data structures**: Simpler than balanced trees
+ * - **Algorithm courses**: Demonstrates randomization
+ *
+## Comparison with Balanced Trees
+ *
+ * | Feature | Skip List | Balanced Tree (AVL/RB) |
+ * |---------|-----------|------------------------|
+ * | Implementation | Simpler | More complex |
+ * | Rotations | None | Required |
+ * | Worst-case guarantee | Probabilistic | Guaranteed |
+ * | Concurrent version | Easier | Harder |
+ * | Cache performance | Good | Variable |
+ * | Memory overhead | Higher | Lower |
+ *
+## When to Use Skip Lists
+ *
+ * ✅ **Good for**:
+ * - When simplicity matters
+ * - Concurrent applications
+ * - Range queries needed
+ * - Educational purposes
+ *
+ * ❌ **Not good for**:
+ * - When worst-case guarantees critical
+ * - Memory-constrained environments
+ * - Deterministic performance required
+ *
+## Usage Example
+ *
+ * ```cpp
+ * DynSkipList<int> skip_list;
+ *
+ * skip_list.insert(10);
+ * skip_list.insert(5);
+ * skip_list.insert(15);
+ *
+ * if (skip_list.search(10))
+ *   cout << "Found 10!\n";
+ *
+ * skip_list.remove(5);
+ * ```
+ *
+ * @see tpl_dynSkipList.H Skip List implementation
+ * @see dynset_trees.C Balanced tree alternatives
+ * @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
  * @author Leandro Rabindranath León
  * @ingroup Examples
- * @see Pugh, W. "Skip Lists: A Probabilistic Alternative to Balanced Trees" (1990)
  */
 
 #include <iostream>

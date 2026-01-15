@@ -28,41 +28,147 @@
  * @file union_find_example.C
  * @brief Disjoint Set Union (Union-Find) data structure demonstration
  *
- * This example demonstrates the Union-Find (Disjoint Set Union) data structure,
- * a fundamental algorithm used in:
+ * This example demonstrates the Union-Find (also called Disjoint Set Union or DSU)
+ * data structure, one of the most elegant and efficient data structures in computer
+ * science. Despite its simplicity, it achieves near-constant-time operations through
+ * clever optimizations.
+ *
+ * ## What is Union-Find?
+ *
+ * Union-Find maintains a collection of disjoint (non-overlapping) sets and supports
+ * two main operations:
+ * - **Union**: Merge two sets into one
+ * - **Find**: Determine which set an element belongs to
+ *
+ * It's perfect for tracking connectivity and equivalence relationships.
+ *
+ * ## Key Operations
+ *
+### make_set(x)
+ * - Create a new set containing only element x
+ * - **Time**: O(1)
+ * - **Use**: Initialize the data structure
+ *
+### find(x)
+ * - Find the representative (root) of x's set
+ * - Uses **path compression** for efficiency
+ * - **Time**: O(α(n)) amortized (effectively O(1))
+ * - **Use**: Check which set an element belongs to
+ *
+### union(x, y)
+ * - Merge the sets containing x and y
+ * - Uses **union by rank** to keep trees shallow
+ * - **Time**: O(α(n)) amortized (effectively O(1))
+ * - **Use**: Connect two elements/sets
+ *
+### same_set(x, y)
+ * - Check if x and y are in the same set
+ * - **Time**: O(α(n)) amortized
+ * - **Use**: Test connectivity/equivalence
+ *
+ * ## Optimizations
+ *
+### Union by Rank
+ * - Always attach smaller tree under larger tree
+ * - Keeps tree height logarithmic
+ * - Prevents degenerate linear structures
+ *
+### Path Compression
+ * - During find, make all nodes point directly to root
+ * - Flattens tree structure
+ * - Future finds become faster
+ *
+### Combined Effect
+ * - Together, these optimizations achieve O(α(n)) per operation
+ * - α(n) is the inverse Ackermann function
+ * - For all practical purposes, α(n) ≤ 5 (effectively constant!)
+ *
+ * ## Implementation Variants
+ *
+### Relation (Node-Based)
+ * - Stores elements as nodes in a tree
+ * - More flexible, can store additional data per element
+ * - **Best for**: Variable number of elements, need element metadata
+ *
+### Fixed_Relation (Array-Based)
+ * - Uses array indexed by element ID
+ * - More memory-efficient, faster access
+ * - **Best for**: Fixed set of elements (0 to n-1), maximum performance
  *
  * ## Applications
  *
- * - **Kruskal's MST Algorithm**: Track connected components while adding edges
- * - **Network Connectivity**: Determine if two nodes are in the same component
- * - **Image Segmentation**: Group connected pixels
- * - **Equivalence Classes**: Determine if two elements are equivalent
- * - **Percolation Theory**: Model physical systems
+### Graph Algorithms
+ * - **Kruskal's MST**: Track connected components while adding edges
+ * - **Connected components**: Find all components in a graph
+ * - **Cycle detection**: Detect cycles in undirected graphs
  *
- * ## Key Operations (Nearly O(1) amortized)
+### Network Analysis
+ * - **Network connectivity**: Determine if nodes are connected
+ * - **Social networks**: Find friend groups, communities
+ * - **Infrastructure**: Check if cities are connected by roads
  *
- * - **make_set(x)**: Create a singleton set containing x
- * - **find(x)**: Find the representative of x's set (with path compression)
- * - **union(x, y)**: Merge the sets containing x and y (by rank)
- * - **same_set(x, y)**: Check if x and y are in the same set
+### Image Processing
+ * - **Image segmentation**: Group connected pixels
+ * - **Component labeling**: Label connected regions
+ * - **Blob detection**: Find connected blobs in images
  *
- * ## Implementation Details
+### Equivalence Relations
+ * - **Equivalence classes**: Group equivalent elements
+ * - **Partition problems**: Divide elements into groups
+ * - **Constraint satisfaction**: Track variable equivalences
  *
- * Aleph-w provides two Union-Find implementations:
+### Physical Systems
+ * - **Percolation theory**: Model phase transitions
+ * - **Particle systems**: Track particle clusters
+ * - **Crystal growth**: Model crystal formation
  *
- * 1. **Relation**: Node-based implementation for explicit element storage
- * 2. **Fixed_Relation**: Array-based implementation for fixed-size element sets
+ * ## Complexity Analysis
  *
- * Both use:
- * - **Union by rank**: Keep trees shallow by attaching smaller tree under larger
- * - **Path compression**: Flatten tree structure during find operations
+ * | Operation | Naive | Optimized |
+ * |-----------|-------|-----------|
+ * | make_set | O(1) | O(1) |
+ * | find | O(n) | O(α(n)) |
+ * | union | O(n) | O(α(n)) |
  *
- * ## Complexity
+ * **Space**: O(n) - one entry per element
  *
- * - Time: O(α(n)) per operation (α is inverse Ackermann, effectively constant)
- * - Space: O(n)
+ * **Amortized complexity**: O(α(n)) per operation, where α(n) is the inverse
+ * Ackermann function. For all practical values of n, α(n) ≤ 5, making it
+ * effectively constant time!
  *
- * @see tpl_union.H
+ * ## Example: Kruskal's Algorithm
+ *
+ * Union-Find is essential for Kruskal's MST algorithm:
+ * ```
+ * 1. Sort edges by weight
+ * 2. For each edge (u, v):
+ *    if find(u) != find(v):  // Not in same component
+ *      add edge to MST
+ *      union(u, v)            // Merge components
+ * ```
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * Relation<int> uf;
+ *
+ * // Create sets
+ * for (int i = 0; i < 10; i++)
+ *   uf.make_set(i);
+ *
+ * // Union operations
+ * uf.union_set(0, 1);
+ * uf.union_set(2, 3);
+ * uf.union_set(1, 2);
+ *
+ * // Check connectivity
+ * if (uf.same_set(0, 3))
+ *   cout << "0 and 3 are connected!\n";
+ * ```
+ *
+ * @see tpl_union.H Union-Find implementation
+ * @see percolation_example.C Application: Percolation simulation
+ * @see mst_example.C Application: Kruskal's MST algorithm
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

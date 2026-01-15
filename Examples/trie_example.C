@@ -28,33 +28,158 @@
  * @file trie_example.C
  * @brief Prefix Tree (Trie): Efficient String Storage and Search
  * 
- * This example demonstrates the Trie (prefix tree) data structure,
- * which is highly efficient for string-related operations.
- * 
+ * This example demonstrates the Trie (also called prefix tree or digital tree),
+ * a tree-like data structure optimized for string storage and retrieval. Tries
+ * excel at prefix-based operations and are fundamental to many text processing
+ * applications.
+ *
  * ## What is a Trie?
- * 
- * A trie is a tree-like data structure where:
- * - Each node represents a character
- * - Paths from root to special markers represent complete words
- * - Common prefixes share nodes (memory efficient)
- * 
- * ## Time Complexity
- * 
- * For a word of length k:
- * - Insert: O(k)
- * - Search: O(k)
- * - Prefix search: O(k)
- * - Delete: O(k)
- * 
- * ## Real-World Applications
- * 
- * - **Autocomplete**: IDE suggestions, search engines
- * - **Spell checkers**: Finding similar words
+ *
+ * A trie is a tree data structure where:
+ * - **Each node**: Represents a character (or part of a key)
+ * - **Edges**: Represent character transitions
+ * - **Paths**: From root to marked nodes represent complete words/keys
+ * - **Prefix sharing**: Common prefixes share the same path (memory efficient)
+ *
+### Structure Example
+ *
+ * Trie storing words: "cat", "car", "card", "dog"
+ * ```
+ *         Root
+ *        /    \
+ *       c      d
+ *      /        \
+ *     a          o
+ *    / \          \
+ *   t   r          g
+ *       |
+ *       d
+ * ```
+ *
+ * **Key insight**: Words sharing prefixes share nodes, making tries
+ * space-efficient for datasets with many common prefixes.
+ *
+## Time Complexity
+ *
+ * For a word/key of length k:
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Insert | O(k) | One node per character |
+ * | Search (exact) | O(k) | Traverse path |
+ * | Prefix search | O(k) | Find prefix node |
+ * | Delete | O(k) | Remove nodes if unused |
+ * | Longest prefix match | O(k) | Find longest matching prefix |
+ *
+ * **Note**: Complexity is O(k) where k is key length, NOT O(log n)!
+ * This makes tries especially efficient for short keys.
+ *
+## Space Complexity
+ *
+ * - **Worst case**: O(ALPHABET_SIZE × N × k) where N = number of keys
+ * - **Best case**: O(N × k) when many prefixes shared
+ * - **Practical**: Usually much better than worst case due to prefix sharing
+ *
+## Key Operations
+ *
+### Insertion
+ * 1. Start at root
+ * 2. For each character in word:
+ *    - If child node exists, traverse to it
+ *    - If not, create new node
+ * 3. Mark final node as "end of word"
+ *
+### Search
+ * 1. Start at root
+ * 2. For each character, traverse to child
+ * 3. If path exists and final node is marked, word found
+ *
+### Prefix Search
+ * 1. Traverse to prefix node (same as search)
+ * 2. Collect all words in subtree
+ * 3. Return all words with given prefix
+ *
+## Real-World Applications
+ *
+### Autocomplete
+ * - **IDEs**: Code completion (IntelliSense, etc.)
+ * - **Search engines**: Query suggestions
+ * - **Mobile keyboards**: Word prediction
+ * - **Command-line**: Tab completion
+ *
+### Spell Checkers
+ * - **Word lookup**: Fast dictionary lookup
+ * - **Suggestions**: Find similar words (edit distance)
+ * - **Correction**: Suggest corrections for typos
+ *
+### Network Routing
  * - **IP routing**: Longest prefix matching
+ * - **Packet forwarding**: Find best matching route
+ * - **CIDR**: Classless Inter-Domain Routing
+ *
+### Text Processing
  * - **Dictionaries**: Fast word lookup
- * - **T9 predictive text**: Phone keyboards
- * 
- * @see prefix-tree.H
+ * - **Lexical analysis**: Token recognition
+ * - **Pattern matching**: Find all occurrences of pattern
+ *
+### User Interfaces
+ * - **T9 predictive text**: Old phone keyboards
+ * - **Search bars**: Incremental search
+ * - **Command completion**: Shell autocomplete
+ *
+## Advantages
+ *
+ * ✅ **Fast lookups**: O(k) where k is key length (not dependent on dataset size!)
+ * ✅ **Prefix operations**: Excellent for prefix matching
+ * ✅ **Memory efficient**: Shared prefixes save space
+ * ✅ **Ordered**: Keys are naturally sorted (inorder traversal)
+ *
+## Disadvantages
+ *
+ * ❌ **Memory overhead**: Each node stores pointers (can be large)
+ * ❌ **Cache performance**: Pointer chasing (not cache-friendly)
+ * ❌ **Sparse**: Many nodes may be empty (wasted space)
+ *
+## Optimizations
+ *
+### Compressed Trie (Patricia Trie)
+ * - Compress single-child paths
+ * - Reduces memory usage
+ * - Maintains O(k) operations
+ *
+### Ternary Search Tree
+ * - Hybrid of trie and BST
+ * - Better memory usage
+ * - Still O(k) operations
+ *
+## Comparison with Other Structures
+ *
+ * | Structure | Lookup | Prefix Search | Memory | Best For |
+ * |-----------|--------|---------------|--------|----------|
+ * | Trie | O(k) | O(k) | High | Prefix operations |
+ * | Hash Table | O(1) | No | Medium | Exact lookup |
+ * | BST | O(log n) | O(n) | Low | General purpose |
+ *
+ * **Trie wins when**: Prefix operations are common, keys are short
+ *
+## Usage Example
+ *
+ * ```cpp
+ * Trie<string> dictionary;
+ *
+ * dictionary.insert("hello");
+ * dictionary.insert("world");
+ * dictionary.insert("help");
+ *
+ * // Search
+ * if (dictionary.search("hello"))
+ *   cout << "Found!\n";
+ *
+ * // Prefix search
+ * auto words = dictionary.prefix_search("hel"); // Returns ["hello", "help"]
+ * ```
+ *
+ * @see prefix-tree.H Trie implementation
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

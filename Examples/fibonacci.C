@@ -28,31 +28,143 @@
 
 /**
  * @file fibonacci.C
- * @brief Fibonacci number computation using three different methods
+ * @brief Fibonacci number computation: Three implementation strategies compared
  * 
- * This example demonstrates three different approaches to computing
- * Fibonacci numbers:
- * 
- * 1. **Recursive** (fib_recursive): The classic recursive definition.
- *    Simple but exponential time complexity O(2^n).
- * 
- * 2. **Iterative** (fib_iterative): Bottom-up computation using a loop.
- *    Linear time complexity O(n) and constant space O(1).
- * 
- * 3. **Stack-based with Activation Records** (fib_stack): Simulates the
- *    recursive call stack explicitly using an ArrayStack. This is the
- *    most educational approach as it shows exactly how recursion works
- *    at a low level - managing activation records, return points, and
- *    local variables manually.
- * 
- * The stack-based implementation is particularly useful for understanding:
- * - How compilers transform recursion into iteration
- * - The structure of activation records (stack frames)
- * - Return point management (continuation)
- * - How tail-call optimization could be applied
- * 
- * Usage: fibonacci -n <number> [-m <method>]
- *        Methods: all (default), recursive, iterative, stack
+ * This example demonstrates three fundamentally different approaches to computing
+ * Fibonacci numbers, each illustrating important programming concepts and trade-offs.
+ * The Fibonacci sequence is one of the most famous sequences in mathematics and
+ * computer science, making it perfect for teaching algorithm design.
+ *
+ * ## The Fibonacci Sequence
+ *
+ * Defined recursively as:
+ * - F(0) = 0
+ * - F(1) = 1
+ * - F(n) = F(n-1) + F(n-2) for n > 1
+ *
+ * Sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...
+ *
+ * ## Three Implementation Strategies
+ *
+ * ### 1. Recursive (fib_recursive)
+ *
+ * **Approach**: Direct translation of mathematical definition
+ *
+ * **Code Structure**:
+ * ```cpp
+ * if (n <= 1) return n;
+ * return fib(n-1) + fib(n-2);
+ * ```
+ *
+ * **Complexity**:
+ * - **Time**: O(2^n) - exponential! (many redundant calculations)
+ * - **Space**: O(n) - call stack depth
+ *
+ * **Pros**:
+ * - Simple, intuitive code
+ * - Matches mathematical definition
+ * - Easy to understand
+ *
+ * **Cons**:
+ * - Extremely slow for large n
+ * - Redundant calculations (F(3) computed many times)
+ * - Stack overflow risk for large n
+ *
+ * **Best for**: Educational purposes, small n, understanding recursion
+ *
+ * ### 2. Iterative (fib_iterative)
+ *
+ * **Approach**: Bottom-up computation using a loop
+ *
+ * **Code Structure**:
+ * ```cpp
+ * int a = 0, b = 1;
+ * for (int i = 2; i <= n; i++) {
+ *   int temp = a + b;
+ *   a = b;
+ *   b = temp;
+ * }
+ * return b;
+ * ```
+ *
+ * **Complexity**:
+ * - **Time**: O(n) - linear, optimal!
+ * - **Space**: O(1) - constant, only two variables
+ *
+ * **Pros**:
+ * - Fast and efficient
+ * - Minimal memory usage
+ * - No stack overflow risk
+ *
+ * **Cons**:
+ * - Less intuitive than recursive version
+ * - Doesn't match mathematical definition directly
+ *
+ * **Best for**: Production code, large n, performance-critical applications
+ *
+ * ### 3. Stack-based with Activation Records (fib_stack)
+ *
+ * **Approach**: Simulates recursive call stack explicitly using ArrayStack
+ *
+ * **Key Concept**: Shows how recursion works internally
+ *
+ * **What It Demonstrates**:
+ * - **Activation records**: Stack frames storing local variables and return addresses
+ * - **Call stack management**: How function calls are tracked
+ * - **Return point management**: Continuation-style programming
+ * - **Compiler internals**: How compilers transform recursion
+ *
+ * **Complexity**:
+ * - **Time**: O(n) - similar to iterative (no redundant work)
+ * - **Space**: O(n) - explicit stack (like recursive, but controlled)
+ *
+ * **Educational Value**:
+ * - Understand recursion at a low level
+ * - See how tail-call optimization could work
+ * - Learn about continuation-passing style
+ * - Understand compiler transformations
+ *
+ * **Best for**: Learning how recursion works, understanding call stacks
+ *
+ * ## Performance Comparison
+ *
+ * | Method | Time | Space | Redundant Work |
+ * |--------|------|-------|----------------|
+ * | Recursive | O(2^n) | O(n) | Yes (exponential) |
+ * | Iterative | O(n) | O(1) | No |
+ * | Stack-based | O(n) | O(n) | No |
+ *
+ * ## When to Use Each
+ *
+ * - **Recursive**: Never in production (too slow), only for learning
+ * - **Iterative**: Always in production (fastest, simplest)
+ * - **Stack-based**: Educational purposes, understanding recursion
+ *
+ * ## Advanced Optimizations
+ *
+ * For even better performance, consider:
+ * - **Matrix exponentiation**: O(log n) time using matrix powers
+ * - **Memoization**: Cache computed values (O(n) time, O(n) space)
+ * - **Closed-form formula**: Binet's formula (O(1) but floating-point precision issues)
+ *
+ * ## Usage Examples
+ *
+ * ```bash
+ * # Compute F(10) using all methods
+ * fibonacci -n 10
+ *
+ * # Compare performance (recursive will be slow!)
+ * fibonacci -n 30
+ *
+ * # Use specific method
+ * fibonacci -n 20 -m iterative
+ * fibonacci -n 15 -m stack
+ * ```
+ *
+ * @see fib.C Similar example with different implementation details
+ * @see tpl_arrayStack.H Stack implementation used for stack-based version
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

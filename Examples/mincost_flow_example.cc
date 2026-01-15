@@ -26,22 +26,168 @@
 
 /**
  * @file mincost_flow_example.cc
- * @brief Minimum Cost Maximum Flow Examples
+ * @brief Minimum Cost Maximum Flow: Optimization with Cost Constraints
  * 
- * This example demonstrates the minimum cost flow problem and its solutions.
- * 
+ * This example demonstrates the minimum cost flow problem, a fundamental
+ * optimization problem that combines maximum flow with cost minimization.
+ * Unlike basic max-flow (which only maximizes flow), min-cost max-flow
+ * finds the cheapest way to achieve maximum flow.
+ *
  * ## The Min-Cost Max-Flow Problem
+ *
+### Problem Statement
+ *
+ * Given a directed network where each edge has:
+ * - **Capacity**: Maximum flow allowed (c(e))
+ * - **Cost**: Cost per unit of flow (w(e))
+ *
+ * Find a flow that:
+ * 1. **Maximizes** total flow from source to sink
+ * 2. **Minimizes** total cost among all maximum flows
+ *
+### Mathematical Formulation
+ *
+ * ```
+ * Minimize: Σ (flow(e) × cost(e)) for all edges e
  * 
- * Given a network with capacities and costs per unit:
- * - Maximize total flow from source to sink
- * - Among all maximum flows, minimize total cost
- * 
- * ## Algorithms
- * 
- * 1. **Cycle Canceling**: Find max-flow, then cancel negative-cost cycles
- * 2. **Network Simplex**: Specialized simplex for network flow problems
- * 
- * @see tpl_netcost.H for min-cost flow algorithms
+ * Subject to:
+ *   - Flow conservation: Σ flow into v = Σ flow out of v (for all v ≠ s,t)
+ *   - Capacity constraints: 0 ≤ flow(e) ≤ capacity(e) for all edges e
+ *   - Flow maximization: Total flow is maximum possible
+ * ```
+ *
+## Algorithms Demonstrated
+ *
+### 1. Cycle Canceling Algorithm
+ *
+ * **Strategy**: Start with max-flow, then reduce cost by canceling negative cycles
+ *
+ * **Algorithm**:
+ * ```
+ * 1. Find any maximum flow (using Ford-Fulkerson, Dinic, etc.)
+ * 2. Build residual graph with costs:
+ *    - Forward edge: cost = original cost
+ *    - Backward edge: cost = -original cost (can "undo" flow)
+ * 3. While negative-cost cycle exists in residual graph:
+ *    a. Find negative-cost cycle (using Bellman-Ford)
+ *    b. Push flow around cycle (minimum residual capacity)
+ *    c. Cost decreases by cycle_cost × flow_pushed
+ * 4. Return min-cost max-flow
+ * ```
+ *
+ * **Key insight**: Negative cycles in residual graph indicate we can
+ * reduce cost by rerouting flow.
+ *
+ * **Complexity**: O(VE² × U) where U = maximum capacity
+ * - May need many cycle cancellations
+ *
+ * **Best for**: Understanding the concept, small networks
+ *
+### 2. Network Simplex
+ *
+ * **Strategy**: Specialized linear programming for networks
+ *
+ * **How it works**:
+ * - Maintains a spanning tree structure (basis)
+ * - Uses network structure for efficiency
+ * - Pivots between spanning trees
+ * - Much faster than general simplex
+ *
+ * **Complexity**: Often polynomial in practice, exponential worst case
+ * - Usually faster than cycle canceling
+ *
+ * **Best for**: Large networks, production use
+ *
+## Comparison with Max-Flow
+ *
+ * | Aspect | Max-Flow | Min-Cost Max-Flow |
+ * |--------|----------|-------------------|
+ * | Goal | Maximize flow | Maximize flow + minimize cost |
+ * | Edge info | Capacity only | Capacity + cost |
+ * | Complexity | O(VE²) | O(VE² × U) or higher |
+ * | Applications | Simple routing | Cost optimization |
+ *
+## Applications
+ *
+### Transportation & Logistics
+ * - **Package delivery**: Deliver maximum packages at minimum cost
+ * - **Shipping**: Route goods through cheapest paths
+ * - **Vehicle routing**: Optimize delivery routes
+ *
+### Supply Chain
+ * - **Production planning**: Optimize production and distribution
+ * - **Inventory management**: Minimize storage and transport costs
+ * - **Resource allocation**: Assign resources efficiently
+ *
+### Telecommunications
+ * - **Network routing**: Route data through cheapest paths
+ * - **Bandwidth allocation**: Maximize throughput, minimize cost
+ * - **Service provisioning**: Optimize service delivery
+ *
+### Economics & Finance
+ * - **Market clearing**: Clear markets with transaction costs
+ * - **Portfolio optimization**: Maximize returns, minimize costs
+ * - **Resource trading**: Optimize resource exchanges
+ *
+### Energy Systems
+ * - **Power distribution**: Minimize transmission costs
+ * - **Gas pipelines**: Optimize gas flow and costs
+ *
+## Example Scenario: Logistics Network
+ *
+ * ```
+ * Network:
+ *   Source → Warehouse A (capacity: 10, cost: 2/unit)
+ *   Source → Warehouse B (capacity: 8, cost: 3/unit)
+ *   Warehouse A → Warehouse B (capacity: 5, cost: 1/unit)
+ *   Warehouse A → Sink (capacity: 12, cost: 1/unit)
+ *   Warehouse B → Sink (capacity: 10, cost: 2/unit)
+ * ```
+ *
+ * **Problem**: Maximize flow while minimizing total shipping cost.
+ *
+ * **Solution**: Find optimal flow distribution:
+ * - Use cheaper paths when possible
+ * - Balance flow to minimize total cost
+ * - Still achieve maximum flow
+ *
+## Complexity Analysis
+ *
+ * | Algorithm | Time Complexity | Notes |
+ * |-----------|----------------|-------|
+ * | Cycle Canceling | O(VE² × U) | U = max capacity, many cycles |
+ * | Network Simplex | Exponential worst, polynomial average | Fast in practice |
+ * | Successive Shortest Path | O(V × E × max_flow) | Alternative approach |
+ *
+## When to Use
+ *
+ * ✅ **Use min-cost max-flow when**:
+ * - Both flow and cost matter
+ * - Need optimal cost solution
+ * - Network has cost information
+ *
+ * ❌ **Use simple max-flow when**:
+ * - Only flow matters (cost irrelevant)
+ * - Simpler problem
+ * - Faster solution needed
+ *
+## Usage
+ *
+ * ```bash
+ * # Run min-cost max-flow demo
+ * ./mincost_flow_example
+ *
+ * # Compare algorithms
+ * ./mincost_flow_example --compare
+ *
+ * # Test on specific network
+ * ./mincost_flow_example --network logistics
+ * ```
+ *
+ * @see tpl_netcost.H Network with cost structures
+ * @see tpl_mincost.H Minimum cost flow algorithms
+ * @see network_flow_example.C Basic max-flow (no cost)
+ * @see maxflow_advanced_example.cc Advanced max-flow algorithms
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

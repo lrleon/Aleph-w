@@ -26,37 +26,169 @@
 
 /**
  * @file hash_tables_example.C
- * @brief Hash table implementations in Aleph-w
+ * @brief Hash table implementations in Aleph-w: A comprehensive guide
  *
- * This example demonstrates different hash table implementations in Aleph-w
- * and their characteristics.
+ * This example demonstrates the various hash table implementations available
+ * in Aleph-w, each optimized for different use cases. Hash tables provide
+ * O(1) average-case operations for insert, search, and delete, making them
+ * essential for high-performance applications.
  *
- * ## Hash Set Types (for simple keys)
+ * ## What is a Hash Table?
  *
- * ### DynSetLhash
- * - Separate chaining with linked lists
- * - **Pros**: Graceful degradation, simple deletion
+ * A hash table is a data structure that maps keys to values using a hash
+ * function. It provides:
+ * - **Fast lookup**: O(1) average case
+ * - **Fast insertion**: O(1) average case
+ * - **Fast deletion**: O(1) average case
+ *
+ * **Trade-off**: No ordering guarantee, worst case can be O(n)
+ *
+ * ## Hash Table Implementations
+ *
+### Separate Chaining (DynSetLhash)
+ *
+ * **Strategy**: Each bucket contains a linked list of elements
+ *
+ * **How it works**:
+ * - Hash function maps key to bucket index
+ * - Collisions handled by chaining (linked list in bucket)
+ * - Elements with same hash stored in same list
+ *
+ * **Characteristics**:
+ * - **Pros**: 
+ *   - Graceful degradation (performance degrades gradually)
+ *   - Simple deletion (just remove from list)
+ *   - No clustering issues
+ * - **Cons**:
+ *   - Pointer overhead (one pointer per element)
+ *   - Cache misses (non-contiguous memory)
  * - **Best for**: General purpose, frequent insertions/deletions
  *
- * ### DynSetLinHash  
- * - Linear hashing with incremental growth
- * - **Pros**: Predictable performance, no sudden slowdowns
- * - **Best for**: Real-time systems, growing datasets
+### Linear Hashing (DynSetLinHash)
  *
- * ### ODhashTable
- * - Open addressing with double hashing
- * - **Pros**: Cache-friendly, no pointer overhead
- * - **Best for**: Fixed size, high-performance requirements
+ * **Strategy**: Incremental hash table growth with linear probing
  *
- * ## Complexity (Average Case)
+ * **How it works**:
+ * - Table grows incrementally (not all-at-once)
+ * - Uses multiple hash functions as table grows
+ * - Predictable performance characteristics
  *
- * | Operation | Average | Worst Case |
- * |-----------|---------|------------|
- * | Insert    | O(1)    | O(n)       |
- * | Search    | O(1)    | O(n)       |
- * | Delete    | O(1)    | O(n)       |
+ * **Characteristics**:
+ * - **Pros**:
+ *   - Predictable performance (no sudden slowdowns)
+ *   - Incremental growth (no large rehash operations)
+ *   - Good for real-time systems
+ * - **Cons**:
+ *   - More complex implementation
+ *   - Slightly higher overhead
+ * - **Best for**: Real-time systems, growing datasets, predictable performance
  *
- * @see tpl_dynSetHash.H tpl_odhash.H
+### Open Addressing - Double Hashing (ODhashTable)
+ *
+ * **Strategy**: Store elements directly in array, use double hashing for collision resolution
+ *
+ * **How it works**:
+ * - Elements stored directly in bucket array
+ * - On collision, use second hash function: `h2(key)`
+ * - Probe sequence: `(h1(key) + i × h2(key)) mod m`
+ *
+ * **Characteristics**:
+ * - **Pros**:
+ *   - Cache-friendly (contiguous memory)
+ *   - No pointer overhead
+ *   - Better memory efficiency
+ * - **Cons**:
+ *   - Clustering can occur
+ *   - Deletion is complex (need tombstone markers)
+ *   - Fixed size (or expensive resizing)
+ * - **Best for**: Fixed size, high-performance requirements, memory efficiency
+ *
+### Open Addressing - Linear Probing (OLhashTable)
+ *
+ * **Strategy**: Store elements in array, use linear probing for collisions
+ *
+ * **How it works**:
+ * - On collision, check next bucket: `(h(key) + i) mod m`
+ * - Simple probing sequence
+ *
+ * **Characteristics**:
+ * - **Pros**: Simple, cache-friendly
+ * - **Cons**: Primary clustering (performance degradation)
+ * - **Best for**: Simple cases, good hash functions
+ *
+## Complexity Analysis
+ *
+ * | Operation | Average Case | Worst Case | Notes |
+ * |-----------|-------------|------------|-------|
+ * | Insert | O(1) | O(n) | Depends on load factor |
+ * | Search | O(1) | O(n) | Hash collisions |
+ * | Delete | O(1) | O(n) | Varies by implementation |
+ *
+ * **Load factor** (α = n/m): Ratio of elements to buckets
+ * - **Optimal**: α ≈ 0.7-0.8
+ * - **Too high**: Performance degrades
+ * - **Too low**: Memory waste
+ *
+## Collision Resolution Strategies
+ *
+ * | Strategy | Method | Pros | Cons |
+ * |----------|--------|------|------|
+ * | Separate Chaining | Linked lists | Simple deletion | Pointer overhead |
+ * | Linear Probing | Check next slot | Cache-friendly | Clustering |
+ * | Double Hashing | Second hash function | Less clustering | More computation |
+ * | Quadratic Probing | Quadratic sequence | Moderate clustering | Complex |
+ *
+## When to Use Hash Tables
+ *
+ * ✅ **Good for**:
+ * - Fast lookups needed
+ * - Order doesn't matter
+ * - Keys have good hash functions
+ * - Large datasets
+ *
+ * ❌ **Not good for**:
+ * - Ordered iteration needed (use tree)
+ * - Range queries needed (use tree)
+ * - Worst-case guarantees needed (use tree)
+ * - Keys don't hash well
+ *
+## Comparison with Trees
+ *
+ * | Feature | Hash Table | Balanced Tree |
+ * |---------|------------|---------------|
+ * | Average lookup | O(1) | O(log n) |
+ * | Worst-case lookup | O(n) | O(log n) |
+ * | Ordered iteration | No | Yes |
+ * | Range queries | No | Yes |
+ * | Memory overhead | Lower | Higher |
+ *
+## Hash Function Quality
+ *
+ * A good hash function should:
+ * - **Distribute uniformly**: Minimize collisions
+ * - **Be fast**: Hash computation should be O(1)
+ * - **Be deterministic**: Same key → same hash
+ *
+ * **Poor hash functions** lead to:
+ * - Many collisions
+ * - Degraded performance
+ * - Worst-case O(n) behavior
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Run all hash table demonstrations
+ * ./hash_tables_example
+ *
+ * # Compare specific implementations
+ * ./hash_tables_example -s chaining
+ * ./hash_tables_example -s linear
+ * ```
+ *
+ * @see tpl_dynSetLhash.H Separate chaining hash set
+ * @see tpl_dynSetLinHash.H Linear hashing implementation
+ * @see tpl_dynMapOhash.H Open addressing hash map
+ * @see dynmap_example.C Tree-based maps (alternative)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

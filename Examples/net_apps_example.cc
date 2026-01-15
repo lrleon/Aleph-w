@@ -26,25 +26,210 @@
 
 /**
  * @file net_apps_example.cc
- * @brief Network Flow Applications Examples
+ * @brief Network Flow Applications: Real-World Problem Solving
  * 
- * This example demonstrates various real-world problems that can be
- * solved using network flow algorithms.
- * 
- * ## Applications Covered
- * 
- * 1. **Project Selection** - Choose projects to maximize profit
- * 2. **Image Segmentation** - Binary labeling via graph cuts
- * 3. **Baseball Elimination** - Who can still win the league?
- * 4. **Survey Design** - Assign respondents to questions
- * 
- * ## Key Insight
- * 
+ * This example demonstrates how network flow algorithms solve diverse
+ * real-world optimization problems. Many seemingly unrelated problems
+ * can be reduced to max-flow or min-cut, enabling efficient polynomial-time
+ * solutions. This showcases the power of algorithmic reductions.
+ *
+ * ## The Power of Reductions
+ *
+### What is a Reduction?
+ *
+ * A **reduction** transforms problem A into problem B such that:
+ * - Solution to B gives solution to A
+ * - If B is polynomial-time, then A is also polynomial-time
+ *
+### Why Network Flow?
+ *
+ * Network flow is powerful because:
+ * - **Many problems reduce to it**: Diverse applications
+ * - **Polynomial-time algorithms**: Efficient solutions exist
+ * - **Min-cut duality**: Max-flow = Min-cut (powerful tool)
+ * - **Well-studied**: Many efficient algorithms available
+ *
+### Reduction Strategy
+ *
+ * To reduce problem P to max-flow:
+ * 1. Model problem as network
+ * 2. Encode constraints as capacities
+ * 3. Encode objective as flow
+ * 4. Solve max-flow
+ * 5. Extract solution from flow
+ *
+## Applications Demonstrated
+ *
+### 1. Project Selection (Max Closure Problem)
+ *
+#### Problem Statement
+ *
+ * Choose projects to maximize profit while respecting dependencies:
+ * - If project A requires project B, both must be chosen
+ * - Some projects have profit, others have cost
+ * - Goal: Maximize net profit
+ *
+#### Reduction to Min-Cut
+ *
+ * **Network construction**:
+ * ```
+ * Source → Projects with profit (capacity = profit)
+ * Projects with cost → Sink (capacity = cost)
+ * Dependencies: A requires B → B → A (infinite capacity)
+ * ```
+ *
+ * **Key insight**: Min-cut separates profitable projects from costly ones.
+ * Projects on source side are selected.
+ *
+#### Applications
+ * - **Portfolio optimization**: Choose investments with dependencies
+ * - **Feature selection**: Choose features respecting constraints
+ * - **Resource planning**: Select projects optimally
+ *
+### 2. Image Segmentation (Graph Cuts)
+ *
+#### Problem Statement
+ *
+ * Label each pixel as foreground or background optimally:
+ * - Pixels similar to foreground should be foreground
+ * - Pixels similar to background should be background
+ * - Neighboring pixels should have same label (smoothness)
+ *
+#### Reduction to Min-Cut
+ *
+ * **Network construction**:
+ * ```
+ * Source → Pixels (capacity = foreground affinity)
+ * Pixels → Sink (capacity = background affinity)
+ * Neighboring pixels → edges (capacity = similarity penalty)
+ * ```
+ *
+ * **Key insight**: Min-cut minimizes total penalty:
+ * - Cut source-pixel edge: pixel is background
+ * - Cut pixel-sink edge: pixel is foreground
+ * - Cut pixel-pixel edge: neighbors have different labels
+ *
+#### Applications
+ * - **Computer vision**: Object segmentation
+ * - **Medical imaging**: Organ segmentation
+ * - **Photo editing**: Background removal
+ *
+### 3. Baseball Elimination
+ *
+#### Problem Statement
+ *
+ * Determine which teams can still win the league given:
+ * - Current standings (wins per team)
+ * - Remaining games (who plays whom)
+ * - Can a specific team still win?
+ *
+#### Reduction to Max-Flow
+ *
+ * **Network construction**:
+ * ```
+ * Source → Games (capacity = 1 game)
+ * Games → Teams (capacity = 1, represents game outcome)
+ * Teams → Sink (capacity = max_wins - current_wins)
+ * ```
+ *
+ * **Key insight**: If max-flow saturates all game edges, team can win
+ * by distributing wins appropriately.
+ *
+#### Applications
+ * - **Sports analytics**: Tournament analysis
+ * - **Tournament scheduling**: Determine possible outcomes
+ * - **Game theory**: Analyze competition scenarios
+ *
+### 4. Survey Design
+ *
+#### Problem Statement
+ *
+ * Assign respondents to questions ensuring:
+ * - Coverage: Each question answered by required number of people
+ * - Constraints: Each person answers exactly k questions
+ * - Feasibility: Is such assignment possible?
+ *
+#### Reduction to Max-Flow
+ *
+ * **Network construction**:
+ * ```
+ * Source → Respondents (capacity = k questions per person)
+ * Respondents → Questions (capacity = 1, person can answer question)
+ * Questions → Sink (capacity = required respondents per question)
+ * ```
+ *
+ * **Key insight**: Max-flow = total assignments. If it equals
+ * required coverage, assignment is possible.
+ *
+#### Applications
+ * - **Market research**: Design surveys efficiently
+ * - **Experimental design**: Assign treatments to subjects
+ * - **Resource allocation**: Match resources to tasks
+ *
+## General Reduction Pattern
+ *
+### Max-Flow Reductions
+ *
+ * Problems reducible to max-flow often involve:
+ * - **Matching**: Assigning items to slots
+ * - **Coverage**: Ensuring requirements met
+ * - **Flow constraints**: Capacity-like limitations
+ *
+### Min-Cut Reductions
+ *
+ * Problems reducible to min-cut often involve:
+ * - **Partitioning**: Dividing into two groups
+ * - **Selection**: Choosing subset optimally
+ * - **Labeling**: Assigning binary labels
+ *
+## Complexity
+ *
+### Polynomial-Time Solutions
+ *
+ * Since max-flow can be solved in polynomial time:
+ * - **Edmonds-Karp**: O(VE²)
+ * - **Dinic**: O(V²E)
+ * - **HLPP**: O(V²√E)
+ *
+ * Any problem reducible to max-flow is also polynomial-time!
+ *
+### Comparison with Alternatives
+ *
+ * | Problem | Direct Approach | Max-Flow Reduction |
+ * |---------|----------------|-------------------|
+ * | Project Selection | Exponential (try all) | O(VE²) |
+ * | Image Segmentation | Heuristic | O(VE²) optimal |
+ * | Baseball Elimination | Complex logic | O(VE²) |
+ * | Survey Design | Constraint solving | O(VE²) |
+ *
+## Key Insight
+ *
  * Many optimization problems can be reduced to max-flow or min-cut,
- * allowing efficient polynomial-time solutions.
- * 
- * @see net_apps.H for implementations
- * @see tpl_maxflow.H for max-flow algorithms
+ * allowing efficient polynomial-time solutions. The art is recognizing
+ * when a problem has this structure!
+ *
+ * **Look for**:
+ * - Binary choices (select/don't select)
+ * - Capacity-like constraints
+ * - Matching/assignment problems
+ * - Partitioning problems
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all application demos
+ * ./net_apps_example
+ *
+ * # Run specific application
+ * ./net_apps_example --project-selection
+ * ./net_apps_example --image-segmentation
+ * ./net_apps_example --baseball-elimination
+ * ```
+ *
+ * @see net_apps.H Application-specific reductions and utilities
+ * @see tpl_maxflow.H Maximum flow algorithm implementations
+ * @see network_flow_example.C Basic max-flow introduction
+ * @see maxflow_advanced_example.cc Advanced max-flow algorithms
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

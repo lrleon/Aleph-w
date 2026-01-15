@@ -26,25 +26,100 @@
 
 /**
  * @file btreepic.C
- * @brief Generate LaTeX/eepic pictures of binary trees.
+ * @brief Generate LaTeX/eepic pictures of binary trees
  *
- * Reads a tree specification from a file and generates LaTeX code
- * for visualizing binary trees using the eepic package.
+ * This utility program reads a binary tree specification from a file and
+ * generates high-quality LaTeX code for visualizing binary trees using the
+ * eepic package. It's designed for creating publication-quality tree diagrams
+ * for papers, presentations, and educational materials.
  *
- * ## Features
+ * ## Purpose
  *
- * - Node positioning with configurable spacing
- * - Edge drawing between parent and children
- * - Support for various node shapes and styles
- * - Thread visualization for threaded trees
- * - Multiple output formats (LaTeX, eepic)
+ * `btreepic` is essential for:
+ * - **Academic papers**: Professional tree visualizations
+ * - **Educational materials**: Clear, readable tree diagrams
+ * - **Documentation**: Illustrating tree algorithms and structures
+ * - **Presentations**: High-quality slides with tree diagrams
  *
- * ## Input Format
+ * ## Key Features
  *
- * The input file specifies tree structure using a simple DSL with
- * commands for nodes, edges, colors, and positioning.
+ * ### Tree Structure
+ * - **Binary trees**: Standard left/right child structure
+ * - **Node positioning**: Automatic layout with configurable spacing
+ * - **Edge drawing**: Lines connecting parents to children
+ * - **Thread visualization**: Support for threaded binary trees
  *
- * @see ntreepic.C For n-ary tree visualization
+ * ### Customization
+ * - **Node shapes**: Circles, ellipses, rectangles
+ * - **Colors**: Customizable node and edge colors
+ * - **Labels**: Text labels for nodes and edges
+ * - **Spacing**: Configurable horizontal and vertical spacing
+ * - **Sizing**: Adjustable node sizes and picture dimensions
+ *
+### Output Format
+ * - **LaTeX/eepic**: High-quality vector graphics
+ * - **Scalable**: Vector format, scales without quality loss
+ * - **Publication-ready**: Professional appearance
+ *
+ * ## Input Format (DSL)
+ *
+ * The input file uses a domain-specific language (DSL) with commands:
+ *
+ * ### Basic Commands
+ * - `NODE <id> <key>`: Create a node with identifier and key value
+ * - `EDGE <parent> <child>`: Connect parent to child
+ * - `LEFT <parent> <child>`: Set left child
+ * - `RIGHT <parent> <child>`: Set right child
+ *
+ * ### Styling Commands
+ * - `COLOR <id> <color>`: Set node color
+ * - `SHAPE <id> <shape>`: Set node shape (circle, ellipse, rectangle)
+ * - `HRADIO <id> <value>`: Set horizontal radius for specific node
+ * - `VRADIO <id> <value>`: Set vertical radius for specific node
+ *
+ * ### Advanced Features
+ * - `THREAD <from> <to>`: Draw thread connection (for threaded trees)
+ * - `TAG <id> <position> <text>`: Add text tag to node
+ * - `SHADOW_NODE <id>`: Draw node with shadow effect
+ * - `DASHED_ARC <from> <to>`: Draw dashed edge
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Generate LaTeX from tree specification
+ * btreepic input.tree > output.tex
+ *
+ * # Compile LaTeX to PDF
+ * pdflatex output.tex
+ * ```
+ *
+ * ## Example Input File
+ *
+ * ```
+ * NODE 1 10
+ * NODE 2 5
+ * NODE 3 15
+ * LEFT 1 2
+ * RIGHT 1 3
+ * COLOR 1 blue
+ * ```
+ *
+ * ## Output
+ *
+ * Generates LaTeX code that can be compiled to PDF. The output uses the
+ * eepic package for drawing, ensuring compatibility with standard LaTeX
+ * distributions.
+ *
+ * ## Related Tools
+ *
+ * - **write_tree.C**: Generates `.Tree` files for btreepic
+ * - **writeBalance.C**: Creates balanced tree visualizations
+ * - **writeHeap.C**: Visualizes heap structures
+ * - **ntreepic.C**: For n-ary (general) trees
+ *
+ * @see ntreepic.C N-ary tree visualization tool
+ * @see graphpic.C Graph visualization tool
+ * @see treepic_utils.H Shared utilities for tree visualization
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

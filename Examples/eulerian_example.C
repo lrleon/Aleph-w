@@ -1,40 +1,181 @@
 /**
  * @file eulerian_example.C
- * @brief Example demonstrating Eulerian path and cycle detection in Aleph-w.
+ * @brief Example demonstrating Eulerian path and cycle detection in Aleph-w
  *
- * This program demonstrates `eulerian.H` which provides:
- * - Test if a graph has an Eulerian cycle (visits every edge exactly once)
- * - Test if a graph has an Eulerian path
- * - Works for both undirected and directed graphs
+ * This program demonstrates Eulerian path and cycle detection using
+ * `eulerian.H`. An Eulerian path/cycle visits every **edge** exactly once,
+ * which is different from Hamiltonian paths (which visit every **vertex**).
  *
- * ## Eulerian Conditions
+ * ## What is an Eulerian Path/Cycle?
  *
- * ### Undirected Graphs
- * - **Eulerian cycle**: All vertices have EVEN degree
- * - **Eulerian path**: Exactly 0 or 2 vertices have ODD degree
+### Eulerian Path
  *
- * ### Directed Graphs
- * - **Eulerian cycle**: in-degree = out-degree for ALL vertices
- * - **Eulerian path**: At most one vertex with out-in=1, at most one with in-out=1
+ * An **Eulerian path** is a path that visits every edge exactly once.
+ * The path may start and end at different vertices.
  *
- * ## Classic Application: Königsberg Bridges
+### Eulerian Cycle
  *
- * The Seven Bridges of Königsberg problem was the origin of graph theory!
+ * An **Eulerian cycle** (or circuit) is an Eulerian path that starts and
+ * ends at the same vertex, forming a cycle.
  *
- * ## Usage
+### Key Difference from Hamiltonian
  *
- * ```bash
- * ./eulerian_example           # Run all demos
- * ./eulerian_example -s cycle  # Only cycle demo
+ * | Property | Eulerian | Hamiltonian |
+ * |----------|----------|------------|
+ * | Visits | Every **edge** once | Every **vertex** once |
+ * | Complexity | Polynomial O(V+E) | NP-complete |
+ * | Test | Exact conditions | Only sufficiency |
+ *
+## Eulerian Conditions
+ *
+### Undirected Graphs
+ *
+#### Eulerian Cycle
+ * **Condition**: All vertices have **EVEN** degree
+ *
+ * **Why**: To form a cycle, you must enter and leave each vertex equally.
+ * Even degree ensures this is possible.
+ *
+#### Eulerian Path
+ * **Condition**: Exactly **0 or 2** vertices have **ODD** degree
+ *
+ * **Why**: 
+ * - 0 odd vertices: Cycle exists (start = end)
+ * - 2 odd vertices: Path exists (start and end are the odd-degree vertices)
+ * - More than 2 odd vertices: Impossible (can't have more than 2 endpoints)
+ *
+### Directed Graphs
+ *
+#### Eulerian Cycle
+ * **Condition**: For **ALL** vertices: `in-degree = out-degree`
+ *
+ * **Why**: Must enter and leave each vertex equally.
+ *
+#### Eulerian Path
+ * **Condition**: 
+ * - At most **1** vertex with `out-degree - in-degree = 1` (start)
+ * - At most **1** vertex with `in-degree - out-degree = 1` (end)
+ * - All other vertices: `in-degree = out-degree`
+ *
+## Finding Eulerian Path/Cycle
+ *
+### Algorithm: Hierholzer's Algorithm
+ *
+ * ```
+ * Find_Eulerian_Path(G):
+ *   1. Check if Eulerian path/cycle exists (conditions above)
+ *   2. Choose start vertex:
+ *      - Cycle: any vertex
+ *      - Path: vertex with odd degree (or out > in for directed)
+ *   3. DFS to find a cycle starting from start
+ *   4. While unvisited edges remain:
+ *      - Find vertex in current path with unvisited edges
+ *      - Find cycle starting from that vertex
+ *      - Merge cycles
+ *   5. Return Eulerian path/cycle
  * ```
  *
+ * **Time complexity**: O(E) - visit each edge once
+ *
+## Historical Context: Königsberg Bridges
+ *
+### The Problem (1736)
+ *
+ * The city of Königsberg had 7 bridges connecting 4 land areas:
+ * ```
+ *    A
+ *   /|\
+ *  / | \
+ * B--+--C
+ *  \ | /
+ *   \|/
+ *    D
+ * ```
+ *
+ * **Question**: Can you walk through the city crossing each bridge exactly once?
+ *
+### Euler's Solution
+ *
+ * Leonhard Euler proved this is **impossible** by:
+ * 1. Modeling as a graph (land areas = vertices, bridges = edges)
+ * 2. Showing all vertices have odd degree (3, 3, 3, 3)
+ * 3. Since more than 2 vertices have odd degree, no Eulerian path exists
+ *
+ * **This was the birth of graph theory!**
+ *
+## Applications
+ *
+### Route Planning
+ * - **Postal routes**: Deliver mail efficiently (Chinese Postman Problem)
+ * - **Garbage collection**: Collect garbage from all streets
+ * - **Snow plowing**: Plow all streets efficiently
+ *
+### Network Design
+ * - **Circuit design**: Design circuits visiting all connections
+ * - **Network testing**: Test all network links
+ * - **Traffic flow**: Optimize traffic routes
+ *
+### DNA Sequencing
+ * - **Genome assembly**: Reconstruct genome from fragments
+ * - **Read alignment**: Align sequencing reads
+ *
+### Puzzle Solving
+ * - **Mazes**: Find path visiting all passages
+ * - **Puzzle games**: Solve path-finding puzzles
+ *
+## Complexity
+ *
+ * | Operation | Time | Space |
+ * |-----------|------|-------|
+ * | Test Eulerian | O(V + E) | O(V) |
+ * | Find Eulerian path | O(E) | O(E) |
+ * | Find Eulerian cycle | O(E) | O(E) |
+ *
+## Example: Undirected Graph
+ *
+ * ```
+ * Graph:
+ *   A---B
+ *   |\ /|
+ *   | X |
+ *   |/ \|
+ *   C---D
+ *
+ * Degrees: A=3, B=3, C=3, D=3 (all odd!)
+ * Result: No Eulerian path (4 odd vertices > 2)
+ * ```
+ *
+ * **Modify**: Add one edge to make two vertices even:
+ * ```
+ *   A---B---E
+ *   |\ /|
+ *   | X |
+ *   |/ \|
+ *   C---D
+ *
+ * Degrees: A=3, B=4, C=3, D=3, E=1
+ * Result: Eulerian path exists (A and E are odd)
+ * ```
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all Eulerian demonstrations
+ * ./eulerian_example
+ *
+ * # Run specific demo
+ * ./eulerian_example -s cycle    # Cycle detection
+ * ./eulerian_example -s path    # Path detection
+ * ./eulerian_example -s konigsberg  # Historical example
+ * ```
+ *
+ * @see eulerian.H Eulerian graph algorithms
+ * @see hamiltonian_example.C Hamiltonian path/cycle (visits vertices)
+ * @see bfs_dfs_example.C Graph traversal (used in algorithms)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see eulerian.H Eulerian graph algorithms
- * @see hamiltonian.H Hamiltonian path/cycle algorithms
  */
 
 #include <iostream>

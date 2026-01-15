@@ -1,34 +1,122 @@
 /**
  * @file comb_example.C
- * @brief Example demonstrating combinatorics utilities in Aleph-w.
+ * @brief Example demonstrating combinatorics utilities in Aleph-w
  *
- * This program demonstrates `ah-comb.H` which provides:
- * - Matrix transposition
- * - Permutation enumeration (Cartesian products)
- * - Combination building
- * - Fold/predicate operations over permutations
+ * This program demonstrates combinatorial operations from `ah-comb.H`, providing
+ * tools for generating and manipulating combinations, permutations (Cartesian
+ * products), and matrix operations. These utilities are essential for solving
+ * problems involving discrete mathematics, constraint satisfaction, and
+ * exhaustive search.
  *
  * ## Key Concepts
  *
- * **"Permutations" here = Cartesian Product**
- * Given lists [[a,b], [1,2]], the "permutations" are:
- * [a,1], [a,2], [b,1], [b,2]
+ * ### "Permutations" = Cartesian Product
  *
- * **Combinations** = Unique sorted selections
+ * In this context, "permutations" refers to the **Cartesian product** of lists,
+ * not traditional mathematical permutations. Given lists of choices, it generates
+ * all possible combinations by selecting one element from each list.
  *
- * ## Usage
- *
- * ```bash
- * ./comb_example           # Run all demos
- * ./comb_example -s perm   # Only permutations demo
+ * **Example**:
+ * ```
+ * Lists: [[a, b], [1, 2], [X, Y]]
+ * Result: [a,1,X], [a,1,Y], [a,2,X], [a,2,Y],
+ *         [b,1,X], [b,1,Y], [b,2,X], [b,2,Y]
  * ```
  *
+ * **Total combinations**: 2 × 2 × 2 = 8
+ *
+ * ### Combinations
+ *
+ * Traditional **combinations** are unique sorted selections of k elements from n.
+ * Unlike permutations, order doesn't matter in combinations.
+ *
+ * **Example**: Combinations of 3 from {a, b, c, d}:
+ * ```
+ * {a,b,c}, {a,b,d}, {a,c,d}, {b,c,d}
+ * ```
+ *
+ * ## Features Demonstrated
+ *
+ * ### Matrix Operations
+ * - **Transposition**: Swap rows and columns
+ * - Useful for matrix manipulation and linear algebra
+ *
+ * ### Permutation Enumeration (Cartesian Products)
+ * - Generate all combinations from multiple lists
+ * - Lazy evaluation support (generate on demand)
+ * - Useful for exhaustive search, constraint satisfaction
+ *
+ * ### Combination Building
+ * - Generate k-combinations from a set
+ * - Efficient enumeration algorithms
+ * - Useful for subset selection problems
+ *
+### Fold/Predicate Operations
+ * - Apply functions over all permutations
+ * - Filter permutations satisfying predicates
+ * - Aggregate results (sum, product, etc.)
+ *
+ * ## Applications
+ *
+ * ### Constraint Satisfaction
+ * - Generate all possible assignments
+ * - Test combinations against constraints
+ * - Find valid solutions
+ *
+ * ### Testing
+ * - Generate test cases (all combinations of parameters)
+ * - Exhaustive testing of configurations
+ * - Parameter space exploration
+ *
+ * ### Game Theory
+ * - Enumerate all possible moves
+ * - Analyze game trees
+ * - Strategy evaluation
+ *
+ * ### Optimization
+ * - Brute-force search over parameter space
+ * - Feature selection (all combinations of features)
+ * - Configuration optimization
+ *
+ * ## Complexity Considerations
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Cartesian Product | O(∏nᵢ) | Product of list sizes |
+ * | Combinations | O(C(n,k)) | Binomial coefficient |
+ * | Matrix Transpose | O(n×m) | n rows, m columns |
+ *
+ * **Warning**: Cartesian products grow exponentially! Use with caution for
+ * large input lists.
+ *
+ * ## Usage Examples
+ *
+ * ```bash
+ * # Run all demonstrations
+ * ./comb_example
+ *
+ * # Run specific section
+ * ./comb_example -s perm        # Only permutations (Cartesian products)
+ * ./comb_example -s comb       # Only combinations
+ * ./comb_example -s matrix     # Only matrix operations
+ * ```
+ *
+ * ## Example: Password Generation
+ *
+ * Generate all possible passwords from character sets:
+ * ```
+ * Letters: [a-z] (26 choices)
+ * Numbers: [0-9] (10 choices)
+ * Symbols: [!@#] (3 choices)
+ * 
+ * Total: 26 × 10 × 3 = 780 combinations
+ * ```
+ *
+ * @see ah-comb.H Combinatorics utilities header
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ah-comb.H Combinatorics utilities
  */
 
 #include <iostream>

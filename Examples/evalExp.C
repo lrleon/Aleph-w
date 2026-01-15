@@ -30,16 +30,229 @@
  * @file evalExp.C
  * @brief Arithmetic expression evaluator using operator precedence
  * 
- * This example demonstrates a classic expression evaluator using two stacks:
- * one for operands and one for operators. It implements the shunting-yard
- * algorithm for handling operator precedence.
- * 
- * Supported operators: +, -, *, /
- * Supports parentheses for grouping.
- * 
- * Usage: evalExp "expression"
- * Example: evalExp "3 + 4 * 2"
- *          evalExp "(3 + 4) * 2"
+ * This example demonstrates a classic expression evaluator that correctly
+ * handles operator precedence and associativity. It uses two stacks:
+ * one for operands (values) and one for operators, implementing a variant
+ * of the shunting-yard algorithm. This is fundamental to understanding
+ * how compilers and interpreters evaluate expressions.
+ *
+ * ## The Expression Evaluation Problem
+ *
+### Challenge
+ *
+ * Evaluate arithmetic expressions like `3 + 4 * 2` correctly:
+ * - **Wrong**: (3 + 4) * 2 = 14
+ * - **Correct**: 3 + (4 * 2) = 11
+ *
+ * **Problem**: Operators have different precedence levels
+ *
+### Solution: Two-Stack Algorithm
+ *
+ * Use two stacks to manage operator precedence:
+ * - **Operand stack**: Stores numbers
+ * - **Operator stack**: Stores operators
+ * - **Precedence rules**: Determine evaluation order
+ *
+## How It Works
+ *
+### Algorithm Overview
+ *
+ * The evaluator processes the expression left-to-right:
+ * ```
+ * evaluate(expression):
+ *   operand_stack = []
+ *   operator_stack = []
+ *   
+ *   for each token in expression:
+ *     if token is number:
+ *       operand_stack.push(token)
+ *     else if token is operator:
+ *       while operator_stack not empty and
+ *             precedence(operator_stack.top()) >= precedence(token):
+ *         evaluate_top_operator()
+ *       operator_stack.push(token)
+ *     else if token is '(':
+ *       operator_stack.push(token)
+ *     else if token is ')':
+ *       while operator_stack.top() != '(':
+ *         evaluate_top_operator()
+ *       operator_stack.pop()  // Remove '('
+ *   
+ *   while operator_stack not empty:
+ *     evaluate_top_operator()
+ *   
+ *   return operand_stack.top()
+ * ```
+ *
+### Step-by-Step Example
+ *
+ * Expression: `3 + 4 * 2`
+ *
+ * ```
+ * Token: 3
+ *   Operand stack: [3]
+ *   Operator stack: []
+ *
+ * Token: +
+ *   Operand stack: [3]
+ *   Operator stack: [+]
+ *
+ * Token: 4
+ *   Operand stack: [3, 4]
+ *   Operator stack: [+]
+ *
+ * Token: *
+ *   Precedence(*) > Precedence(+), so push
+ *   Operand stack: [3, 4]
+ *   Operator stack: [+, *]
+ *
+ * Token: 2
+ *   Operand stack: [3, 4, 2]
+ *   Operator stack: [+, *]
+ *
+ * End of expression:
+ *   Evaluate *: 4 * 2 = 8
+ *   Operand stack: [3, 8]
+ *   Operator stack: [+]
+ *
+ *   Evaluate +: 3 + 8 = 11
+ *   Operand stack: [11]
+ *   Operator stack: []
+ *
+ * Result: 11
+ * ```
+ *
+## Operator Precedence
+ *
+### Precedence Levels
+ *
+ * | Operator | Precedence | Associativity | Notes |
+ * |----------|------------|---------------|-------|
+ * | +, -     | 1          | Left-to-right | Addition, subtraction |
+ * | *, /     | 2          | Left-to-right | Multiplication, division |
+ *
+### Precedence Rules
+ *
+ * - **Higher precedence**: Evaluated first
+ * - **Same precedence**: Left-to-right (associativity)
+ * - **Parentheses**: Override precedence
+ *
+### Examples
+ *
+ * ```
+ * 3 + 4 * 2     → 3 + (4 * 2) = 11
+ * 10 - 2 - 3    → (10 - 2) - 3 = 5  (left-to-right)
+ * (3 + 4) * 2   → 7 * 2 = 14  (parentheses override)
+ * ```
+ *
+## Supported Features
+ *
+### Operators
+ * - **+**: Addition
+ * - **-**: Subtraction
+ * - **\***: Multiplication
+ * - **/**: Division (integer division)
+ *
+### Parentheses
+ * - **( )**: Grouping and precedence override
+ * - **Nested**: Supports nested parentheses
+ *
+### Data Types
+ * - **Integer arithmetic**: All operations on integers
+ * - **No floating point**: Integer-only evaluation
+ *
+### Error Handling
+ * - **Malformed expressions**: Detects syntax errors
+ * - **Mismatched parentheses**: Detects parenthesis errors
+ * - **Invalid operators**: Detects unknown operators
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Basic arithmetic
+ * evalExp "3 + 4 * 2"        # Result: 11 (multiplication first)
+ *
+ * # With parentheses
+ * evalExp "(3 + 4) * 2"      # Result: 14 (addition first)
+ *
+ * # Complex expression
+ * evalExp "10 - 2 * 3 + 4"   # Result: 8 (2*3=6, then 10-6+4=8)
+ *
+ * # Nested parentheses
+ * evalExp "((1 + 2) * 3) - 4"  # Result: 5
+ * ```
+ *
+## Algorithm Variants
+ *
+### Shunting-Yard Algorithm
+ *
+ * This implementation is similar to the shunting-yard algorithm:
+ * - **Shunting-yard**: Converts infix to postfix, then evaluates
+ * - **This variant**: Evaluates directly using two stacks
+ * - **Advantage**: More efficient (single pass)
+ *
+### Recursive Descent
+ *
+ * Alternative approach:
+ * - **Recursive**: Parse expression recursively
+ * - **Grammar-based**: Follows expression grammar
+ * - **More complex**: But more flexible
+ *
+## Educational Value
+ *
+### Concepts Demonstrated
+ *
+ * - **Stack data structures**: Using stacks for parsing
+ * - **Operator precedence**: Handling different precedence levels
+ * - **Parsing algorithms**: Expression parsing techniques
+ * - **State management**: Tracking parsing state with stacks
+ * - **Algorithm design**: Two-stack approach
+ *
+### Learning Outcomes
+ *
+ * After studying this example, you understand:
+ * - How compilers evaluate expressions
+ * - Why operator precedence matters
+ * - How to implement expression evaluators
+ * - Stack-based algorithm design
+ *
+## Complexity
+ *
+ * | Aspect | Complexity | Notes |
+ * |--------|-----------|-------|
+ * | Time | O(n) | Single pass through expression |
+ * | Space | O(n) | Stacks store tokens |
+ * | Operators | O(1) | Constant number of operators |
+ *
+## Extensions
+ *
+### Possible Enhancements
+ *
+ * - **Floating point**: Support decimal numbers
+ * - **More operators**: Exponentiation, modulo
+ * - **Functions**: sin, cos, log, etc.
+ * - **Variables**: Support variable names
+ * - **Assignment**: Support variable assignment
+ *
+## Applications
+ *
+### Compilers and Interpreters
+ * - **Expression parsing**: How languages evaluate expressions
+ * - **Syntax analysis**: Part of compiler frontend
+ * - **Code generation**: Generate code for expressions
+ *
+### Calculators
+ * - **Scientific calculators**: Evaluate complex expressions
+ * - **Programming calculators**: Support operator precedence
+ *
+### Formula Evaluators
+ * - **Spreadsheets**: Excel, Google Sheets formula evaluation
+ * - **Mathematical software**: Evaluate mathematical expressions
+ *
+ * @see tpl_arrayStack.H Stack implementation used
+ * @see linear_structures_example.C Stack basics
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <cctype>

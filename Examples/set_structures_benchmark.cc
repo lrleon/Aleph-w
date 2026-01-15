@@ -26,38 +26,135 @@
 
 /**
  * @file set_structures_benchmark.cc
- * @brief Comprehensive benchmark comparing all set data structures in Aleph-w.
+ * @brief Comprehensive benchmark comparing all set data structures in Aleph-w
  *
- * This benchmark compares performance of different set implementations:
+ * This benchmark compares performance of different set implementations
+ * available in Aleph-w. Understanding the performance characteristics
+ * of each structure helps choose the right one for your use case.
  *
- * ## Tree-Based Sets (O(log n) operations)
- * - **AVL Tree**: Strictly balanced, best for read-heavy workloads
- * - **Red-Black Tree**: Relaxed balance, good all-around choice
- * - **Splay Tree**: Self-adjusting, great for temporal locality
- * - **Treap**: Randomized BST using heap priorities
- * - **Rand Tree**: Another randomized approach
+ * ## Why Benchmark?
  *
- * ## Skip Lists (Expected O(log n) operations)
- * - **DynSkipList**: Probabilistic linked structure, simple & efficient
+ * Different set structures have different performance characteristics:
+ * - **Time complexity**: Varies by operation and structure
+ * - **Space complexity**: Memory usage differs
+ * - **Cache performance**: Some structures are more cache-friendly
+ * - **Real-world performance**: Theoretical complexity doesn't tell the whole story
  *
- * ## Hash Tables (Expected O(1) operations)
- * - **DynSetLhash**: Separate chaining (linked lists per bucket)
- * - **DynSetLinHash**: Linear probing with dynamic resizing
- * - **SetODhash**: Open addressing with double hashing
- * - **SetOLhash**: Open addressing with linear probing
+## Tree-Based Sets (O(log n) operations)
  *
- * ## When to Use What?
+### AVL Tree
+ * - **Balance**: Strictly balanced (height difference ≤ 1)
+ * - **Operations**: O(log n) worst case
+ * - **Best for**: Read-heavy workloads, predictable performance
+ * - **Trade-off**: More rotations than Red-Black
  *
- * | Structure | Best For |
- * |-----------|----------|
- * | AVL/RB Tree | Ordered traversal, range queries, predictable O(log n) |
- * | Splay Tree | Temporal locality, caching patterns |
- * | Skip List | Simplicity, concurrent extensions (not impl. here) |
- * | Hash Tables | Maximum speed when order doesn't matter |
- * | DynSetLhash | High load factors, many insertions/deletions |
- * | ODhash/OLhash | Memory efficiency, cache-friendly access |
- * | DynSetLinHash | Dynamic workloads with varying sizes |
+### Red-Black Tree
+ * - **Balance**: Relaxed balance (height ≤ 2 log(n+1))
+ * - **Operations**: O(log n) worst case
+ * - **Best for**: General-purpose, good all-around choice
+ * - **Trade-off**: Fewer rotations than AVL
  *
+### Splay Tree
+ * - **Balance**: Self-adjusting (no explicit balance)
+ * - **Operations**: O(log n) amortized
+ * - **Best for**: Temporal locality, caching patterns
+ * - **Trade-off**: Worst case O(n), but adapts to access patterns
+ *
+### Treap
+ * - **Balance**: Randomized BST using heap priorities
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Simple implementation, good average performance
+ * - **Trade-off**: Randomized, less predictable
+ *
+### Rand Tree
+ * - **Balance**: Another randomized approach
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Alternative randomized structure
+ *
+## Skip Lists (Expected O(log n) operations)
+ *
+### DynSkipList
+ * - **Structure**: Probabilistic linked structure with multiple levels
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Simplicity, concurrent extensions possible
+ * - **Trade-off**: Probabilistic, not deterministic
+ *
+## Hash Tables (Expected O(1) operations)
+ *
+### DynSetLhash (Separate Chaining)
+ * - **Collision resolution**: Linked lists per bucket
+ * - **Operations**: O(1) average, O(n) worst case
+ * - **Best for**: High load factors, many insertions/deletions
+ * - **Trade-off**: Pointer overhead, cache misses
+ *
+### DynSetLinHash (Linear Hashing)
+ * - **Collision resolution**: Linear probing with incremental growth
+ * - **Operations**: O(1) average
+ * - **Best for**: Dynamic workloads with varying sizes
+ * - **Trade-off**: More complex, predictable performance
+ *
+### SetODhash (Open Addressing - Double Hashing)
+ * - **Collision resolution**: Double hashing
+ * - **Operations**: O(1) average
+ * - **Best for**: Memory efficiency, cache-friendly access
+ * - **Trade-off**: Fixed size or expensive resizing
+ *
+### SetOLhash (Open Addressing - Linear Probing)
+ * - **Collision resolution**: Linear probing
+ * - **Operations**: O(1) average
+ * - **Best for**: Simple, cache-friendly
+ * - **Trade-off**: Clustering can degrade performance
+ *
+## Performance Comparison
+ *
+ * | Structure | Insert | Search | Delete | Ordered? | Best For |
+ * |-----------|--------|--------|--------|----------|----------|
+ * | AVL Tree | O(log n) | O(log n) | O(log n) | ✅ Yes | Read-heavy |
+ * | Red-Black | O(log n) | O(log n) | O(log n) | ✅ Yes | General |
+ * | Splay | O(log n)* | O(log n)* | O(log n)* | ✅ Yes | Temporal locality |
+ * | Treap | O(log n)** | O(log n)** | O(log n)** | ✅ Yes | Simple |
+ * | Skip List | O(log n)** | O(log n)** | O(log n)** | ✅ Yes | Simplicity |
+ * | Hash Tables | O(1)** | O(1)** | O(1)** | ❌ No | Maximum speed |
+ *
+ * * = amortized, ** = expected/average
+ *
+## When to Use What?
+ *
+ * | Structure | Best For | Avoid When |
+ * |-----------|----------|------------|
+ * | AVL/RB Tree | Ordered traversal, range queries, predictable O(log n) | Order not needed |
+ * | Splay Tree | Temporal locality, caching patterns | Worst-case matters |
+ * | Skip List | Simplicity, concurrent extensions | Deterministic needed |
+ * | Hash Tables | Maximum speed, order doesn't matter | Ordered iteration needed |
+ * | DynSetLhash | High load factors, many insertions/deletions | Memory critical |
+ * | ODhash/OLhash | Memory efficiency, cache-friendly | Dynamic resizing needed |
+ * | DynSetLinHash | Dynamic workloads, varying sizes | Fixed size preferred |
+ *
+## Benchmark Metrics
+ *
+ * This benchmark measures:
+ * - **Insertion time**: Time to insert elements
+ * - **Search time**: Time to search for elements
+ * - **Deletion time**: Time to delete elements
+ * - **Memory usage**: Space overhead
+ * - **Cache performance**: Cache misses/hits
+ *
+## Usage
+ *
+ * ```bash
+ * # Run benchmark
+ * ./set_structures_benchmark
+ *
+ * # Benchmark specific structure
+ * ./set_structures_benchmark --structure avl
+ *
+ * # Compare structures
+ * ./set_structures_benchmark --compare
+ * ```
+ *
+ * @see hash_tables_example.C Hash table implementations
+ * @see dynmap_example.C Tree-based maps (similar to sets)
+ * @see skiplist_example.C Skip list details
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

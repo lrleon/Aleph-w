@@ -30,10 +30,189 @@
  * @file deway.C
  * @brief Example demonstrating Deway numbering for tree nodes
  * 
- * This example generates a random binary tree, converts it to a forest,
- * and displays the Deway numbering of each node. Deway numbering is a 
- * hierarchical addressing scheme where each node's address encodes its
- * path from the root.
+ * This example demonstrates the Deway numbering system (also known as
+ * Dewey Decimal notation), a hierarchical addressing scheme for tree nodes
+ * where each node's address encodes its complete path from the root. This
+ * addressing scheme is fundamental to many hierarchical systems.
+ *
+ * ## What is Deway Numbering?
+ *
+### Definition
+ *
+ * Deway numbering assigns each node a unique address based on its position
+ * in the tree. The address is a sequence of integers representing the path
+ * from root to the node.
+ *
+### Visual Example
+ *
+ * ```
+ *        Root (no address or "")
+ *       /    \
+ *    Node 0    Node 1
+ *    /   \      /   \
+ * 0.0   0.1  1.0   1.1
+ * ```
+ *
+### Addressing Rules
+ *
+ * - **Root**: Has no address (empty string "") or special marker
+ * - **First child**: Address is parent address + ".0"
+ * - **i-th child**: Address is parent address + "." + i
+ * - **Uniqueness**: Each node has exactly one unique address
+ *
+## Key Properties
+ *
+### Hierarchical Structure
+ *
+ * - **Path encoding**: Address directly encodes the path from root
+ * - **Parent-child relationship**: Can derive parent from child address
+ * - **Sibling ordering**: Siblings have sequential addresses
+ *
+### Uniqueness
+ *
+ * - **One-to-one**: Each node maps to exactly one address
+ * - **Complete**: Every node has an address
+ * - **Deterministic**: Same tree structure → same addresses
+ *
+### Navigation
+ *
+ * - **Find node**: Given address, can navigate directly to node
+ * - **Find parent**: Remove last component of address
+ * - **Find children**: Append child indices to address
+ *
+## Applications
+ *
+### File Systems
+ * - **Directory paths**: `/usr/bin/gcc` is Deway-like addressing
+ * - **Hierarchical storage**: Organize files in tree structure
+ * - **Path resolution**: Resolve paths to files/directories
+ *
+### XML/HTML Processing
+ * - **XPath expressions**: `/html/body/div[0]` uses Deway-like addressing
+ * - **DOM navigation**: Navigate document tree structure
+ * - **Tree queries**: Query nodes by path
+ *
+### Database Indexing
+ * - **Hierarchical keys**: Index hierarchical data
+ * - **B-tree keys**: Some B-tree implementations use similar addressing
+ * - **Tree-structured data**: Index tree data efficiently
+ *
+### Tree Serialization
+ * - **Compact representation**: Encode tree structure compactly
+ * - **Network transmission**: Send tree structure efficiently
+ * - **Storage**: Store tree structure in database
+ *
+### Tree Navigation
+ * - **Direct addressing**: Access nodes by address
+ * - **Path queries**: Find nodes matching path pattern
+ * - **Tree algorithms**: Many algorithms use path-based addressing
+ *
+## Algorithm
+ *
+### Process
+ *
+ * This example:
+ * ```
+ * 1. Generate random binary tree with n nodes
+ * 2. Convert binary tree to general tree (forest) structure
+ * 3. Recursively compute Deway addresses:
+ *    deway(node, prefix, depth):
+ *      - Print current address (prefix)
+ *      - For each child i:
+ *        - prefix[depth] = i
+ *        - deway(child, prefix, depth+1)
+ * ```
+ *
+### Recursive Computation
+ *
+ * ```
+ * compute_deway(node, parent_address):
+ *   if node is root:
+ *     address = ""
+ *   else:
+ *     address = parent_address + "." + child_index
+ *   
+ *   print(node, address)
+ *   for each child i:
+ *     compute_deway(child[i], address)
+ * ```
+ *
+## Example Output
+ *
+### Tree Structure
+ *
+ * ```
+ *        A
+ *       / \
+ *      B   C
+ *     / \   \
+ *    D   E   F
+ * ```
+ *
+### Deway Addresses
+ *
+ * ```
+ * Root: ""
+ * Node 0: "0"      (B)
+ * Node 0.0: "0.0"  (D)
+ * Node 0.1: "0.1"  (E)
+ * Node 1: "1"      (C)
+ * Node 1.0: "1.0"  (F)
+ * ```
+ *
+## Comparison with Other Addressing
+ *
+ * | Scheme | Format | Example | Use Case |
+ * |--------|--------|---------|----------|
+ * | Deway | Sequence | "0.1.2" | Tree nodes |
+ * | File path | String | "/usr/bin" | File systems |
+ * | XPath | String | "/html/body" | XML/HTML |
+ * | Array index | Integer | [0][1][2] | Arrays |
+ *
+## Properties of Deway Addresses
+ *
+### Advantages
+ *
+ * ✅ **Hierarchical**: Reflects tree structure
+ * ✅ **Unique**: Each node has unique address
+ * ✅ **Navigable**: Can navigate using address
+ * ✅ **Compact**: Efficient representation
+ *
+### Limitations
+ *
+ * ❌ **Dynamic trees**: Addresses change when tree structure changes
+ * ❌ **Not stable**: Insertion/deletion changes addresses
+ * ❌ **Order-dependent**: Depends on insertion order
+ *
+## Usage
+ *
+ * ```bash
+ * # Generate tree and show Deway addresses
+ * deway -n 20
+ *
+ * # Use specific seed
+ * deway -n 30 -s 42
+ * ```
+ *
+## Related Concepts
+ *
+### Tree Traversal
+ *
+ * Deway numbering is related to tree traversal:
+ * - **Preorder**: Visit nodes in Deway order
+ * - **Depth-first**: Follows depth-first pattern
+ *
+### Path Representation
+ *
+ * - **String paths**: Convert to string representation
+ * - **Array paths**: Store as integer array
+ * - **Compact encoding**: Encode efficiently
+ *
+ * @see generate_tree.H Tree generation utilities
+ * @see tpl_tree_node.H N-ary tree node structure
+ * @see generate_forest.C Forest generation (related)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

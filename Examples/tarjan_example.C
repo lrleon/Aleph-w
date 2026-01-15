@@ -29,33 +29,150 @@
  * @brief Tarjan's Algorithm: Finding Strongly Connected Components
  * 
  * This example demonstrates Tarjan's algorithm for finding strongly
- * connected components (SCCs) in directed graphs.
- * 
+ * connected components (SCCs) in directed graphs. Tarjan's algorithm
+ * is one of the most efficient algorithms for this problem, using a
+ * single DFS pass.
+ *
  * ## What is a Strongly Connected Component?
- * 
- * An SCC is a maximal subset of vertices where every vertex is
- * reachable from every other vertex in the subset. In other words,
- * there's a path from any vertex to any other vertex within the SCC.
- * 
- * ## Real-World Applications
- * 
- * - **Social networks**: Finding cohesive groups where everyone knows everyone
- * - **Web analysis**: Identifying communities of mutually linked pages
- * - **Compiler optimization**: Detecting cyclic dependencies
- * - **2-SAT satisfiability**: Boolean formula solving
- * - **Deadlock detection**: Finding circular wait conditions
- * 
- * ## Algorithm
- * 
- * Tarjan's algorithm uses a single DFS pass with:
- * - **index**: Order of first visit
- * - **lowlink**: Lowest index reachable from the DFS subtree
- * 
- * When lowlink[v] == index[v], v is the root of an SCC.
- * 
- * Time complexity: O(V + E)
- * 
- * @see Tarjan.H
+ *
+ * A **strongly connected component** (SCC) is a maximal subset of
+ * vertices in a directed graph where:
+ * - Every vertex is reachable from every other vertex in the SCC
+ * - There's a path from any vertex to any other within the SCC
+ *
+ * **Key insight**: In an SCC, you can travel from any vertex to any
+ * other vertex (and back).
+ *
+### Example
+ *
+ * Graph: A → B → C → A, D → E → D
+ *
+ * SCCs:
+ * - {A, B, C} - form a cycle, all reachable from each other
+ * - {D, E} - form a cycle
+ *
+ * Note: In undirected graphs, SCCs are just connected components.
+ *
+## Tarjan's Algorithm
+ *
+### How It Works
+ *
+ * Tarjan's algorithm uses a single DFS pass with two key values:
+ *
+ * - **`index[v]`**: Order in which vertex v was first visited (discovery time)
+ * - **`lowlink[v]`**: Smallest index reachable from v (including v itself)
+ *
+### Key Insight
+ *
+ * A vertex v is the **root** of an SCC if and only if:
+ * ```
+ * lowlink[v] == index[v]
+ * ```
+ *
+ * This means v cannot reach any vertex discovered earlier, so it's
+ * the "entry point" to a new SCC.
+ *
+### Algorithm Steps
+ *
+ * ```
+ * Tarjan_SCC(G):
+ *   1. Initialize index = 0, stack = empty
+ *   2. For each unvisited vertex v:
+ *      DFS(v)
+ *
+ * DFS(v):
+ *   1. Set index[v] = lowlink[v] = current_index++
+ *   2. Push v onto stack, mark as on_stack
+ *   3. For each neighbor w of v:
+ *      If w not visited:
+ *        DFS(w)
+ *        lowlink[v] = min(lowlink[v], lowlink[w])
+ *      Else if w is on_stack:
+ *        lowlink[v] = min(lowlink[v], index[w])
+ *   4. If lowlink[v] == index[v]:
+ *      Pop stack until v, all popped vertices form one SCC
+ * ```
+ *
+### Why It Works
+ *
+ * - **`lowlink[v]`** tracks the earliest vertex reachable from v
+ * - If `lowlink[v] == index[v]`, v cannot reach earlier vertices
+ * - All vertices on stack above v are in the same SCC
+ * - Popping them gives us the complete SCC
+ *
+## Complexity
+ *
+ * - **Time**: O(V + E) - single DFS pass
+ * - **Space**: O(V) - for stack and arrays
+ *
+ * **Advantage**: More efficient than Kosaraju's (no graph transpose needed)
+ *
+## Comparison with Kosaraju's Algorithm
+ *
+ * | Aspect | Tarjan's | Kosaraju's |
+ * |--------|----------|------------|
+ * | Passes | 1 DFS | 2 DFS (original + transpose) |
+ * | Graph transpose | No | Yes (O(V+E) space) |
+ * | Implementation | More complex | Simpler |
+ * | Performance | Faster | Slightly slower |
+ * | Best for | General use | When simplicity preferred |
+ *
+## Real-World Applications
+ *
+### Social Networks
+ * - **Cohesive groups**: Find communities where everyone knows everyone
+ * - **Influence analysis**: Identify tightly-knit groups
+ * - **Recommendation**: Suggest friends in same SCC
+ *
+### Web Analysis
+ * - **Page clusters**: Identify mutually linked web pages
+ * - **SEO**: Understand website structure
+ * - **Crawling**: Identify website communities
+ *
+### Compiler Optimization
+ * - **Cyclic dependencies**: Detect circular dependencies
+ * - **Data flow**: Analyze variable dependencies
+ * - **Dead code**: Identify unreachable code
+ *
+### 2-SAT Satisfiability
+ * - **Boolean formulas**: Reduce 2-SAT to SCC finding
+ * - **Constraint satisfaction**: Solve logical constraints
+ *
+### Deadlock Detection
+ * - **Operating systems**: Find circular wait conditions
+ * - **Database systems**: Detect transaction deadlocks
+ * - **Resource allocation**: Identify circular dependencies
+ *
+### Network Analysis
+ * - **Internet routing**: Identify network clusters
+ * - **Telecommunications**: Analyze call patterns
+ *
+## Example: Web Page Links
+ *
+ * ```
+ * Pages: Home → About → Contact → Home
+ *        Blog → Archive → Blog
+ *
+ * SCCs:
+ * - {Home, About, Contact} - circular links
+ * - {Blog, Archive} - circular links
+ * ```
+ *
+ * This helps identify website structure and navigation patterns.
+ *
+## Usage
+ *
+ * ```bash
+ * # Run Tarjan's algorithm demo
+ * ./tarjan_example
+ *
+ * # Compare with Kosaraju's
+ * ./tarjan_example --compare
+ * ```
+ *
+ * @see Tarjan.H Tarjan's algorithm implementation
+ * @see kosaraju_example.cc Kosaraju's algorithm (alternative)
+ * @see graph_components_example.C Connected components (undirected)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

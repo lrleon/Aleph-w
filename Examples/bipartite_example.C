@@ -1,45 +1,189 @@
 /**
  * @file bipartite_example.C
- * @brief Example demonstrating bipartite graphs in Aleph-w.
+ * @brief Example demonstrating bipartite graphs in Aleph-w
  *
- * A bipartite graph can be divided into two disjoint sets where every
- * edge connects a vertex from one set to the other (no edges within sets).
+ * A bipartite graph is a graph whose vertices can be divided into two
+ * disjoint sets such that every edge connects a vertex from one set to
+ * a vertex in the other set. No edges exist within the same set.
  *
- * ## Key Concepts
+ * ## What is a Bipartite Graph?
  *
- * - **2-Coloring**: Bipartite ⟺ can be 2-colored
- * - **No Odd Cycles**: Bipartite ⟺ no cycles of odd length
- * - **Matching**: A set of edges with no shared vertices
- * - **Maximum Matching**: Largest possible matching
+### Definition
  *
- * ## Applications
+ * A graph G = (V, E) is **bipartite** if V can be partitioned into
+ * two sets U and W such that:
+ * - Every edge connects a vertex in U to a vertex in W
+ * - No edge connects two vertices in the same set
  *
- * - Job assignment (workers ↔ tasks)
- * - Course scheduling (students ↔ courses)
- * - Dating/matching services
- * - Resource allocation
+### Visual Example
  *
- * ## Complexity
+ * ```
+ * Set U:    A --- B
+ *           |     |
+ * Set W:    C --- D
  *
- * | Operation | Time |
- * |-----------|------|
- * | Test bipartite | O(V + E) |
- * | Find partition | O(V + E) |
- * | Maximum matching | O(V × E) |
- *
- * ## Usage
- *
- * ```bash
- * ./bipartite_example           # Run all demos
- * ./bipartite_example -s match  # Only matching demo
+ * Edges: A-C, A-D, B-C, B-D (all cross between sets)
  * ```
  *
+## Key Properties
+ *
+### 2-Coloring
+ *
+ * **Bipartite ⟺ 2-colorable**
+ *
+ * A graph is bipartite if and only if it can be colored with 2 colors
+ * such that no two adjacent vertices have the same color.
+ *
+ * **Algorithm**: Use BFS/DFS to assign colors, check for conflicts
+ *
+### No Odd Cycles
+ *
+ * **Bipartite ⟺ No cycles of odd length**
+ *
+ * A graph is bipartite if and only if it contains no cycle of odd length.
+ *
+ * **Proof idea**: In a bipartite graph, any cycle must alternate between
+ * the two sets, requiring even length.
+ *
+### Matching
+ *
+ * A **matching** is a set of edges with no shared vertices.
+ *
+ * - **Maximum matching**: Largest possible matching
+ * - **Perfect matching**: Every vertex is matched (requires |U| = |W|)
+ *
+## Testing Bipartiteness
+ *
+### Algorithm
+ *
+ * ```
+ * Test_Bipartite(G):
+ *   1. Color all vertices as uncolored
+ *   2. For each uncolored vertex v:
+ *      Color v as 0
+ *      Queue.enqueue(v)
+ *      While queue not empty:
+ *        u = queue.dequeue()
+ *        For each neighbor w of u:
+ *          If w has same color as u:
+ *            Return false  // Not bipartite!
+ *          If w uncolored:
+ *            Color w with opposite color of u
+ *            Queue.enqueue(w)
+ *   3. Return true  // Graph is bipartite
+ * ```
+ *
+ * **Time complexity**: O(V + E) - single BFS/DFS pass
+ *
+## Maximum Matching
+ *
+### Problem
+ *
+ * Find the largest set of edges such that no two edges share a vertex.
+ *
+### Algorithm: Augmenting Paths
+ *
+ * Uses the concept of **augmenting paths**:
+ * 1. Start with empty matching
+ * 2. While augmenting path exists:
+ *    - Flip edges along path (matched ↔ unmatched)
+ *    - Matching size increases by 1
+ * 3. Return maximum matching
+ *
+ * **Time complexity**: O(V × E) using BFS
+ *
+### Applications of Matching
+ *
+ * - **Job assignment**: Match workers to tasks
+ * - **Dating apps**: Match users based on preferences
+ * - **Course scheduling**: Match students to courses
+ * - **Resource allocation**: Match resources to tasks
+ *
+## Complexity
+ *
+ * | Operation | Time Complexity | Notes |
+ * |-----------|----------------|-------|
+ * | Test bipartite | O(V + E) | Single BFS/DFS |
+ * | Find partition | O(V + E) | Same as testing |
+ * | Maximum matching | O(V × E) | Augmenting paths |
+ * | Perfect matching check | O(V × E) | Same as max matching |
+ *
+## Applications
+ *
+### Job Assignment
+ * - **Workers ↔ Tasks**: Match workers to tasks they can do
+ * - **Skills matching**: Match based on required skills
+ * - **Scheduling**: Assign shifts to workers
+ *
+### Course Scheduling
+ * - **Students ↔ Courses**: Match students to courses
+ * - **Prerequisites**: Respect course prerequisites
+ * - **Capacity**: Match within course capacity limits
+ *
+### Dating/Matching Services
+ * - **Users ↔ Users**: Match compatible users
+ * - **Preferences**: Match based on preferences
+ * - **Stable matching**: Find stable matchings
+ *
+### Resource Allocation
+ * - **Resources ↔ Tasks**: Allocate resources to tasks
+ * - **Optimization**: Maximize resource utilization
+ * - **Constraints**: Respect capacity constraints
+ *
+### Network Flow
+ * - **Reduction**: Many problems reduce to max-flow
+ * - **Bipartite matching**: Special case of max-flow
+ * - **Min-cost matching**: Weighted matching problems
+ *
+## Example: Job Assignment
+ *
+ * ```
+ * Workers:  Alice, Bob, Charlie
+ * Tasks:    Task1, Task2, Task3
+ *
+ * Bipartite graph:
+ *   Alice   → Task1, Task2
+ *   Bob     → Task2, Task3
+ *   Charlie → Task1, Task3
+ *
+ * Maximum matching:
+ *   Alice → Task1
+ *   Bob → Task3
+ *   Charlie → (unmatched)
+ *
+ * Or:
+ *   Alice → Task2
+ *   Bob → Task3
+ *   Charlie → Task1
+ * ```
+ *
+## Comparison with General Graphs
+ *
+ * | Property | Bipartite | General |
+ * |-----------|-----------|---------|
+ * | Cycles | Only even length | Any length |
+ * | Coloring | 2 colors | May need more |
+ * | Matching | Polynomial | NP-hard (general) |
+ * | Structure | Two sets | Arbitrary |
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all bipartite demonstrations
+ * ./bipartite_example
+ *
+ * # Run specific demo
+ * ./bipartite_example -s match      # Matching demo
+ * ./bipartite_example -s test       # Bipartite testing
+ * ```
+ *
+ * @see tpl_bipartite.H Bipartite graph algorithms
+ * @see network_flow_example.C Maximum flow (related to matching)
+ * @see bfs_dfs_example.C Graph traversal (used for testing)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see tpl_bipartite.H Bipartite graph algorithms
  */
 
 #include <iostream>

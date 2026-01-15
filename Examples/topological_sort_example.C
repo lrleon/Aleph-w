@@ -30,29 +30,155 @@
  * 
  * This example demonstrates topological sorting of directed acyclic
  * graphs (DAGs), a fundamental algorithm for ordering tasks with
- * dependencies.
- * 
+ * dependencies. Topological sort is essential whenever you need to
+ * process items in a valid dependency order.
+ *
  * ## What is Topological Sort?
- * 
- * A topological ordering of a DAG is a linear ordering of vertices
- * such that for every directed edge (u, v), vertex u comes before v.
- * 
- * ## Real-World Applications
- * 
- * - **Build systems**: Compile files in dependency order (Make, CMake)
- * - **Package managers**: Install packages respecting dependencies
- * - **Task scheduling**: Execute tasks in valid order
- * - **Course prerequisites**: Order courses by requirements
- * - **Spreadsheets**: Evaluate cells in dependency order
- * 
- * ## Algorithms
- * 
- * 1. **DFS-based (Topological_Sort)**: Post-order traversal
- * 2. **BFS-based / Kahn's (Q_Topological_Sort)**: Remove sources iteratively
- * 
- * Both run in O(V + E) time.
- * 
- * @see topological_sort.H
+ *
+ * A **topological ordering** of a DAG is a linear ordering of vertices
+ * such that for every directed edge (u → v), vertex u comes before v
+ * in the ordering.
+ *
+ * **Key properties**:
+ * - Only works on **DAGs** (Directed Acyclic Graphs)
+ * - If graph has cycles, topological sort is **impossible**
+ * - Multiple valid orderings may exist (not unique)
+ *
+### Example
+ *
+ * Graph: A → B → D, A → C → D
+ *
+ * Valid orderings:
+ * - A, B, C, D
+ * - A, C, B, D
+ *
+ * Invalid: D, A, B, C (violates A → D dependency)
+ *
+## Algorithms
+ *
+### DFS-based (Topological_Sort)
+ *
+ * **Strategy**: Post-order DFS traversal
+ *
+ * **Algorithm**:
+ * ```
+ * Topological_Sort(G):
+ *   1. Mark all vertices as unvisited
+ *   2. Create empty result list
+ *   3. For each unvisited vertex u:
+ *      DFS(u)
+ *   4. Return reversed result
+ *
+ * DFS(u):
+ *   1. Mark u as visited
+ *   2. For each neighbor v of u:
+ *      If v not visited:
+ *        DFS(v)
+ *   3. Add u to result (post-order)
+ * ```
+ *
+ * **Key insight**: Add vertex to result AFTER processing all descendants
+ *
+ * **Time complexity**: O(V + E)
+ * **Space complexity**: O(V) for recursion stack
+ *
+### BFS-based / Kahn's Algorithm (Q_Topological_Sort)
+ *
+ * **Strategy**: Iteratively remove sources (vertices with no incoming edges)
+ *
+ * **Algorithm**:
+ * ```
+ * Kahn_Topological_Sort(G):
+ *   1. Compute in-degree for all vertices
+ *   2. Queue all vertices with in-degree = 0
+ *   3. While queue not empty:
+ *      a. Remove vertex u from queue
+ *      b. Add u to result
+ *      c. For each neighbor v of u:
+ *         Decrement in-degree[v]
+ *         If in-degree[v] == 0:
+ *           Add v to queue
+ *   4. If result.size() != V:
+ *      Graph has cycle (error)
+ * ```
+ *
+ * **Key insight**: Process vertices with no dependencies first
+ *
+ * **Time complexity**: O(V + E)
+ * **Space complexity**: O(V) for queue
+ *
+## Comparison
+ *
+ * | Aspect | DFS-based | Kahn's (BFS) |
+ * |--------|-----------|--------------|
+ * | Approach | Post-order DFS | Remove sources |
+ * | Detects cycles | No (may give partial order) | Yes (incomplete result) |
+ * | Order | Depth-first | Breadth-first |
+ * | Implementation | Recursive | Iterative |
+ * | Best for | General use | When cycle detection needed |
+ *
+## Real-World Applications
+ *
+### Build Systems
+ * - **Make, CMake**: Compile source files in dependency order
+ * - **Gradle, Maven**: Build projects respecting module dependencies
+ * - **Docker**: Build images in dependency order
+ *
+### Package Management
+ * - **apt, yum**: Install packages respecting dependencies
+ * - **npm, pip**: Install packages in correct order
+ * - **Linux kernel**: Module loading order
+ *
+### Task Scheduling
+ * - **Project management**: Schedule tasks respecting dependencies
+ * - **Workflow engines**: Execute steps in valid order
+ * - **CI/CD pipelines**: Run jobs in dependency order
+ *
+### Course Prerequisites
+ * - **University**: Order courses by prerequisites
+ * - **Online learning**: Course completion paths
+ * - **Certification**: Prerequisite ordering
+ *
+### Spreadsheets
+ * - **Excel, Google Sheets**: Evaluate cells in dependency order
+ * - **Formula evaluation**: Compute dependent cells first
+ *
+### Compilers
+ * - **Dependency analysis**: Process declarations before uses
+ * - **Module loading**: Load modules in dependency order
+ *
+## Cycle Detection
+ *
+ * **Important**: Topological sort only works on DAGs!
+ *
+ * **If graph has cycles**:
+ * - DFS-based: May produce partial ordering (not all vertices)
+ * - Kahn's: Result will have fewer than V vertices
+ *
+ * **To detect cycles**:
+ * - Use Kahn's algorithm: If result.size() < V, cycle exists
+ * - Or use DFS cycle detection before topological sort
+ *
+## Complexity
+ *
+ * | Operation | Time | Space |
+ * |-----------|------|-------|
+ * | Topological sort | O(V + E) | O(V) |
+ * | Cycle detection | O(V + E) | O(V) |
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Run topological sort demo
+ * ./topological_sort_example
+ *
+ * # Test on specific graph
+ * ./topological_sort_example -n 10 -d 0.3
+ * ```
+ *
+ * @see topological_sort.H Topological sort implementations
+ * @see bfs_dfs_example.C Graph traversal (used by algorithms)
+ * @see tarjan_example.C Cycle detection (for DAG validation)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

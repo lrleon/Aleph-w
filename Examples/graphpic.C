@@ -26,28 +26,128 @@
 
 /**
  * @file graphpic.C
- * @brief Generate LaTeX/eepic pictures of graphs.
+ * @brief Generate LaTeX/eepic pictures of graphs and digraphs
  *
- * Reads a graph specification from a file and generates LaTeX code
- * for visualizing graphs and digraphs using the eepic package.
+ * This utility program reads a graph specification from a file and generates
+ * high-quality LaTeX code for visualizing graphs (undirected) and digraphs
+ * (directed) using the eepic package. It's designed for creating publication-quality
+ * graph diagrams for academic papers, presentations, and educational materials.
  *
- * ## Features
+ * ## Purpose
  *
- * - Support for both directed (digraph) and undirected graphs
- * - Configurable node positions, shapes, and colors
- * - Edge labels and weights
- * - Arrow styles for directed edges
- * - Multiple node shapes (circle, ellipse, rectangle)
+ * `graphpic` is essential for:
+ * - **Academic papers**: Professional graph visualizations
+ * - **Algorithm illustration**: Showing graph algorithms step-by-step
+ * - **Network diagrams**: Visualizing network topologies
+ * - **Educational materials**: Clear, readable graph diagrams
+ * - **Presentations**: High-quality slides with graph diagrams
  *
- * ## Input Format
+ * ## Key Features
  *
- * The input file uses a DSL with commands:
- * - GRAPH/DIGRAPH: Specify graph type
- * - NODE: Define nodes with positions
- * - ARC/EDGE: Define connections
- * - Various style commands for colors, shapes, etc.
+ * ### Graph Types
+ * - **Undirected graphs**: Edges without direction
+ * - **Directed graphs (digraphs)**: Edges with arrows showing direction
+ * - **Network graphs**: Special support for flow networks
+ * - **Polygraphs**: Multiple edges between nodes
  *
- * @see btreepic.C, ntreepic.C For tree visualization
+ * ### Node Customization
+ * - **Positions**: Manual (x, y) coordinates or automatic layout
+ * - **Shapes**: Circles, ellipses, rectangles
+ * - **Colors**: Customizable node colors
+ * - **Labels**: Text labels for nodes
+ * - **Sizes**: Configurable node radii
+ * - **Styles**: Shadow effects, hidden nodes
+ *
+ * ### Edge Customization
+ * - **Arrows**: Direction indicators for digraphs
+ * - **Labels**: Text labels and weights on edges
+ * - **Styles**: Solid, dashed, curved, shadowed
+ * - **Colors**: Customizable edge colors
+ * - **Positioning**: Left/right text placement
+ *
+ * ### Advanced Features
+ * - **Paths**: Highlight specific paths between nodes
+ * - **Tags**: Additional text annotations
+ * - **Curved edges**: Bézier curves for better layout
+ * - **Multiple edges**: Support for parallel edges
+ *
+ * ## Input Format (DSL)
+ *
+ * The input file uses a domain-specific language (DSL) with commands:
+ *
+ * ### Graph Declaration
+ * - `GRAPH`: Declare undirected graph
+ * - `DIGRAPH`: Declare directed graph (digraph)
+ * - `NET_GRAPH`: Network graph (for flow problems)
+ * - `POLY_GRAPH`: Graph with multiple edges allowed
+ *
+ * ### Node Commands
+ * - `NODE <id> <x> <y> <label>`: Create node at position (x, y)
+ * - `SHADOW_NODE <id>`: Draw node with shadow
+ * - `WITHOUT_NODE <id>`: Hide node (show edges only)
+ * - `NODE_TEXT <id> <text>`: Set node label
+ * - `COLOR <id> <color>`: Set node color
+ *
+ * ### Edge Commands
+ * - `ARC <from> <to>`: Directed edge (for digraphs)
+ * - `EDGE <from> <to>`: Undirected edge (for graphs)
+ * - `ARC_TEXT <from> <to> <text>`: Label on edge
+ * - `DASHED_ARC <from> <to>`: Dashed edge
+ * - `CURVE_ARC <from> <to>`: Curved edge
+ * - `SHADOW_ARC <from> <to>`: Edge with shadow
+ *
+### Path Highlighting
+ * - `PATH <from> <to>`: Highlight path between nodes
+ * - `SHADOW_PATH <from> <to>`: Highlight path with shadow
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Generate LaTeX from graph specification
+ * graphpic input.graph > output.tex
+ *
+ * # Compile LaTeX to PDF
+ * pdflatex output.tex
+ * ```
+ *
+ * ## Example Input File
+ *
+ * ```
+ * DIGRAPH
+ * NODE A 0 0 "Start"
+ * NODE B 2 0 "Middle"
+ * NODE C 4 0 "End"
+ * ARC A B
+ * ARC B C
+ * ARC_TEXT A B "weight: 5"
+ * ```
+ *
+ * ## Applications
+ *
+ * - **Graph algorithms**: Visualize BFS, DFS, shortest paths
+ * - **Network topology**: Computer networks, social networks
+ * - **Flow networks**: Maximum flow, min-cost flow problems
+ * - **State machines**: Finite automata, transition diagrams
+ * - **Dependency graphs**: Software dependencies, task scheduling
+ * - **Social networks**: Friend connections, influence networks
+ *
+ * ## Output Format
+ *
+ * Generates LaTeX code using the eepic package:
+ * - **Vector graphics**: Scalable, high quality
+ * - **Publication-ready**: Professional appearance
+ * - **Compatible**: Works with standard LaTeX distributions
+ *
+ * ## Related Tools
+ *
+ * - **btreepic.C**: Binary tree visualization
+ * - **ntreepic.C**: N-ary tree visualization
+ * - **gen_rand_graph.C**: Generate random graphs for visualization
+ * - **write_tree.C**: Generate tree files for btreepic
+ *
+ * @see btreepic.C Binary tree visualization tool
+ * @see ntreepic.C N-ary tree visualization tool
+ * @see treepic_utils.H Shared utilities for visualization
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

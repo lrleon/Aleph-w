@@ -30,33 +30,156 @@
  * 
  * This example demonstrates the Union-Find (Disjoint Set Union) data
  * structure through a classic application: percolation simulation.
- * 
+ * Percolation theory studies the behavior of connected clusters in
+ * random graphs and has applications in physics, materials science,
+ * and network analysis.
+ *
  * ## The Percolation Problem
- * 
+ *
+### Problem Statement
+ *
  * Given an n×n grid of sites:
- * - Each site is either open (can flow through) or blocked
- * - System "percolates" if there's a path from top to bottom through open sites
- * 
- * This models physical phenomena like:
- * - Water flowing through porous rock
- * - Electricity conducting through composite materials
- * - Spread of forest fires
- * - Disease transmission in social networks
- * 
- * ## Union-Find Application
- * 
- * - Each open site is an element
- * - Adjacent open sites are in the same set (unioned)
- * - Virtual top/bottom nodes simplify percolation check
- * - Percolates if top and bottom are in same set
- * 
- * ## Percolation Threshold
- * 
- * Through simulation, we can estimate the critical probability p*
- * at which the system transitions from non-percolating to percolating.
- * For 2D square lattice: p* ≈ 0.593
- * 
- * @see tpl_union.H for Union-Find implementation
+ * - Each site is either **open** (can flow through) or **blocked**
+ * - Sites are opened randomly with probability p
+ * - System **percolates** if there's a path from top to bottom
+ *   through open sites
+ *
+### Visual Example
+ *
+ * ```
+ * Grid (n=5):
+ *   Top:  O O X O O  (O=open, X=blocked)
+ *         O X O O O
+ *         O O O X O
+ *         X O O O O
+ *   Bottom: O O O O X
+ *
+ * Does it percolate? Check if top row connects to bottom row.
+ * ```
+ *
+## Physical Phenomena Modeled
+ *
+### Materials Science
+ * - **Porous materials**: Water flowing through rock
+ * - **Composite materials**: Electricity conducting through materials
+ * - **Fracture mechanics**: Cracks propagating through materials
+ *
+### Network Science
+ * - **Disease spread**: Infection spreading through social networks
+ * - **Information diffusion**: News spreading through networks
+ * - **Cascade failures**: Failures propagating through systems
+ *
+### Ecology
+ * - **Forest fires**: Fire spreading through forest
+ * - **Species migration**: Species spreading through habitat
+ *
+## Union-Find Application
+ *
+### How Union-Find Helps
+ *
+ * **Problem**: Need to check if top connects to bottom efficiently
+ *
+ * **Solution with Union-Find**:
+ * 1. Each open site is an element in Union-Find
+ * 2. When site opens, union with adjacent open sites
+ * 3. Use **virtual nodes**:
+ *    - Virtual "top" node connected to all top-row sites
+ *    - Virtual "bottom" node connected to all bottom-row sites
+ * 4. System percolates if `find(top) == find(bottom)`
+ *
+### Algorithm
+ *
+ * ```
+ * Initialize:
+ *   - Create n×n grid
+ *   - Create Union-Find with n² + 2 elements (sites + top + bottom)
+ *   - Connect virtual top to top row
+ *   - Connect virtual bottom to bottom row
+ *
+ * For each site (random order):
+ *   Open site
+ *   For each adjacent open site:
+ *     Union(current, adjacent)
+ *   If find(top) == find(bottom):
+ *     System percolates!
+ * ```
+ *
+### Efficiency
+ *
+ * - **Without Union-Find**: O(n²) per check (BFS/DFS)
+ * - **With Union-Find**: O(α(n²)) ≈ O(1) per check
+ * - **Total**: O(n² × α(n²)) ≈ O(n²) for entire simulation
+ *
+## Percolation Threshold
+ *
+### Critical Probability
+ *
+ * The **percolation threshold** p* is the critical probability at
+ * which the system transitions from non-percolating to percolating.
+ *
+ * **Properties**:
+ * - For p < p*: System almost never percolates
+ * - For p > p*: System almost always percolates
+ * - At p = p*: Phase transition occurs
+ *
+### Known Thresholds
+ *
+ * | Lattice Type | Dimension | Threshold p* |
+ * |--------------|-----------|---------------|
+ * | Square | 2D | ≈ 0.593 |
+ * | Square | 3D | ≈ 0.312 |
+ * | Triangular | 2D | 0.5 (exact) |
+ * | Hexagonal | 2D | 1 - 0.5 = 0.5 (exact) |
+ *
+### Estimating Threshold
+ *
+ * Through Monte Carlo simulation:
+ * 1. Run many simulations for different p values
+ * 2. Measure fraction that percolate
+ * 3. Find p where fraction ≈ 0.5
+ * 4. This estimates p*
+ *
+## Applications
+ *
+### Materials Science
+ * - **Porous materials**: Understand flow through materials
+ * - **Composite design**: Design materials with desired properties
+ * - **Fracture analysis**: Predict material failure
+ *
+### Network Analysis
+ * - **Robustness**: Understand network resilience
+ * - **Cascade failures**: Model failure propagation
+ * - **Information spread**: Model information diffusion
+ *
+### Ecology
+ * - **Habitat connectivity**: Understand species movement
+ * - **Conservation**: Design protected areas
+ *
+## Complexity
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Open site | O(α(n²)) | Union-Find union |
+ * | Check percolation | O(α(n²)) | Union-Find find |
+ * | Full simulation | O(n² × α(n²)) | Open all sites |
+ *
+ * With path compression and union by rank: α(n²) ≈ constant!
+ *
+## Usage
+ *
+ * ```bash
+ * # Run percolation simulation
+ * ./percolation_example
+ *
+ * # Estimate threshold
+ * ./percolation_example --estimate-threshold
+ *
+ * # Visualize percolation
+ * ./percolation_example --visualize
+ * ```
+ *
+ * @see tpl_union.H Union-Find implementation
+ * @see union_find_example.C Union-Find basics
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

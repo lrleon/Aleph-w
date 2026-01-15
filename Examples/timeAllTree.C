@@ -28,36 +28,191 @@
 
 /**
  * @file timeAllTree.C
- * @brief Benchmark for all BST implementations in Aleph-w
+ * @brief Comprehensive benchmark for all BST implementations in Aleph-w
  * 
- * This program measures insertion and deletion times for various binary
- * search tree implementations at different sizes (powers of 2).
- * 
- * Supported tree types:
- * - BinTree: Pure (unbalanced) binary search tree
- * - Avl_Tree / Avl_Tree_Rk: AVL tree (with optional rank)
- * - Splay_Tree / Splay_Tree_Rk: Splay tree (with optional rank)
- * - Treap / Treap_Rk: Treap (with optional rank)
- * - Rb_Tree / Rb_Tree_Rk: Red-Black tree (with optional rank)
- * - TdRbTree / TdRbTreeRk: Top-down Red-Black tree (with optional rank)
- * - Rand_Tree: Randomized BST
- * 
- * For each power of 2, it measures:
- * - Insertion time (min, avg, median, sigma, max)
- * - Deletion time (min, avg, median, sigma, max)
- * - Tree height
- * - Internal path length (IPL)
- * 
- * Usage: timeAllTree -n <nodes> -m <seed> [tree options]
- *        -l, --all     : Benchmark all tree types
- *        -a, --avl     : AVL tree
- *        -b, --bin     : Pure binary tree
- *        -r, --redblack: Red-Black tree
- *        -s, --splay   : Splay tree
- *        -p, --treap   : Treap
- *        -d, --rand    : Randomized tree
- * 
- * @note Requires GNU Scientific Library (GSL) for random number generation.
+ * This program performs detailed performance analysis of various binary
+ * search tree implementations, measuring insertion and deletion times at
+ * different sizes (powers of 2). It provides comprehensive statistical
+ * analysis including min, max, average, median, and standard deviation,
+ * helping you choose the right tree for your application.
+ *
+ * ## Purpose
+ *
+ * This benchmark helps you:
+ * - **Choose the right tree**: Understand performance characteristics
+ * - **Compare implementations**: See which tree works best for your use case
+ * - **Validate performance**: Verify O(log n) behavior empirically
+ * - **Research**: Study tree algorithm performance
+ * - **Optimize**: Identify bottlenecks and optimization opportunities
+ *
+## Supported Tree Types
+ *
+ * ### Balanced Trees (Guaranteed O(log n))
+ *
+ * #### Avl_Tree / Avl_Tree_Rk
+ * - **Balance**: Strict height balance (heights differ by ≤ 1)
+ * - **Operations**: O(log n) guaranteed worst case
+ * - **Best for**: Read-heavy workloads, predictable performance
+ * - **Trade-off**: More rotations than Red-Black (slightly slower inserts)
+ *
+ * #### Rb_Tree / Rb_Tree_Rk
+ * - **Balance**: Relaxed (no path > 2× shortest path)
+ * - **Operations**: O(log n) guaranteed worst case
+ * - **Best for**: General-purpose, balanced read/write
+ * - **Trade-off**: Less strict balance than AVL (faster inserts)
+ *
+ * #### TdRbTree / TdRbTreeRk
+ * - **Strategy**: Top-down Red-Black tree
+ * - **Operations**: O(log n) guaranteed
+ * - **Best for**: Efficient insertion (avoids bottom-up traversal)
+ * - **Trade-off**: Different insertion strategy
+ *
+ * ### Self-Adjusting Trees (Amortized O(log n))
+ *
+ * #### Splay_Tree / Splay_Tree_Rk
+ * - **Strategy**: Moves accessed nodes to root
+ * - **Operations**: O(log n) amortized
+ * - **Best for**: Temporal locality, caching patterns
+ * - **Trade-off**: No worst-case guarantee, but excellent for hot data
+ *
+ * ### Randomized Trees (Expected O(log n))
+ *
+ * #### Treap / Treap_Rk
+ * - **Strategy**: Randomized BST with heap priorities
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Simple implementation, good average case
+ * - **Trade-off**: Probabilistic, no worst-case guarantee
+ *
+ * #### Rand_Tree
+ * - **Strategy**: Different randomization approach
+ * - **Operations**: O(log n) expected
+ * - **Best for**: Alternative randomized approach
+ *
+ * ### Unbalanced (O(n) worst case)
+ *
+ * #### BinTree
+ * - **Strategy**: Pure BST, no balancing
+ * - **Operations**: O(log n) average, O(n) worst case
+ * - **Best for**: Baseline comparison, educational purposes
+ * - **Trade-off**: Simple but can degrade badly
+ *
+## Metrics Measured
+ *
+ * For each tree size (powers of 2: 2, 4, 8, 16, ..., up to max), the benchmark measures:
+ *
+ * ### Performance Metrics
+ *
+ * #### Insertion Time
+ * - **Min**: Best case performance
+ * - **Average**: Mean execution time
+ * - **Median**: Middle value (less affected by outliers)
+ * - **Standard deviation**: Measure of variance/consistency
+ * - **Max**: Worst case performance
+ *
+ * #### Deletion Time
+ * - Same statistical measures as insertion
+ * - Helps understand deletion performance
+ *
+ * ### Structural Metrics
+ *
+ * #### Tree Height
+ * - **Maximum depth**: Longest path from root to leaf
+ * - **Expected**: O(log n) for balanced trees
+ * - **Validation**: Verify trees stay balanced
+ *
+ * #### Internal Path Length (IPL)
+ * - **Definition**: Sum of depths of all nodes
+ * - **Significance**: Lower IPL = better average access time
+ * - **Formula**: IPL = Σ depth(node) for all nodes
+ * - **Expected**: O(n log n) for balanced trees
+ *
+## Statistical Analysis
+ *
+ * The benchmark runs multiple trials (configurable) and computes:
+ *
+ * - **Average**: Mean execution time across trials
+ * - **Median**: Middle value (robust to outliers)
+ * - **Standard deviation**: Measure of variance
+ * - **Min/Max**: Best and worst case performance
+ * - **Confidence intervals**: Statistical significance
+ *
+## When to Use Each Tree
+ *
+ * | Tree Type | Best For | Worst For | Complexity |
+ * |-----------|----------|-----------|------------|
+ * | AVL | Read-heavy, predictable performance | Frequent modifications | O(log n) worst |
+ * | Red-Black | General purpose, good balance | Very read-heavy | O(log n) worst |
+ * | Splay | Temporal locality, caching | Random access patterns | O(log n) amortized |
+ * | Treap | Simple, good average case | Worst-case guarantees needed | O(log n) expected |
+ * | Binary | Educational, small datasets | Production use | O(n) worst |
+ *
+## Benchmark Methodology
+ *
+ * ### Size Progression
+ * - Tests sizes: 2, 4, 8, 16, 32, ..., up to maximum
+ * - Powers of 2: Easy to see exponential growth
+ * - Logarithmic scale: Visualize O(log n) behavior
+ *
+ * ### Multiple Trials
+ * - Runs each test multiple times (configurable)
+ * - Reduces variance from random factors
+ * - Provides statistical confidence
+ *
+ * ### Random Data
+ * - Uses random keys for insertion
+ * - Tests average-case performance
+ * - Configurable seed for reproducibility
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Benchmark all tree types with 10000 nodes
+ * timeAllTree -n 10000 -m 42 --all
+ *
+ * # Benchmark only AVL and Red-Black trees
+ * timeAllTree -n 50000 -m 123 -a -r
+ *
+ * # Compare Splay vs Treap with verbose output
+ * timeAllTree -n 20000 -m 456 -s -p -v
+ *
+ * # Quick test with small trees
+ * timeAllTree -n 1000
+ * ```
+ *
+## Output Format
+ *
+ * The benchmark outputs:
+ * - **Tree type**: Which implementation is being tested
+ * - **Size progression**: Results for each size (powers of 2)
+ * - **Statistical summary**: Min, avg, median, stddev, max for each size
+ * - **Performance comparison**: Side-by-side comparison across tree types
+ * - **Structural metrics**: Height and IPL for validation
+ *
+## Interpreting Results
+ *
+ * ### Good Performance Indicators
+ * - **Logarithmic growth**: Time grows slowly with size
+ * - **Low variance**: Consistent performance (low stddev)
+ * - **Balanced height**: Height ≈ log₂(n) for balanced trees
+ *
+ * ### Warning Signs
+ * - **Linear growth**: Time grows linearly (unbalanced tree)
+ * - **High variance**: Inconsistent performance
+ * - **Excessive height**: Height >> log₂(n) (poor balance)
+ *
+## Requirements
+ *
+ * - **GSL (GNU Scientific Library)**: Required for random number generation
+ * - **C++ compiler**: With C++11 or later support
+ * - **Sufficient memory**: For large tree sizes
+ *
+ * @see dynset_trees.C Practical comparison of tree implementations
+ * @see tpl_avl.H AVL tree implementation
+ * @see tpl_rb_tree.H Red-Black tree implementation
+ * @see tpl_splay_tree.H Splay tree implementation
+ * @see tpl_treap.H Treap implementation
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <gsl/gsl_rng.h>

@@ -26,26 +26,114 @@
 
 /**
  * @file ntreepic.C
- * @brief Generate LaTeX/eepic pictures of n-ary trees.
+ * @brief Generate LaTeX/eepic pictures of n-ary (general) trees
  *
- * Reads a tree specification from a file and generates LaTeX code
- * for visualizing general (n-ary) trees using the eepic package.
+ * This utility program reads an n-ary tree specification and generates
+ * high-quality LaTeX code for visualizing general trees (trees where nodes
+ * can have any number of children). It's designed for creating publication-quality
+ * tree diagrams for academic papers, presentations, and educational materials.
  *
- * ## Features
+ * ## What are N-ary Trees?
  *
- * - Support for trees with any number of children per node
- * - Deway notation for node identification
- * - Configurable node shapes, colors, and spacing
- * - Edge styles including dashed connections
- * - Forest visualization (multiple trees)
+ * Unlike binary trees (where each node has at most 2 children), n-ary trees
+ * allow nodes to have any number of children. Examples include:
+ * - **File systems**: Directories with multiple subdirectories
+ * - **Organizational charts**: Managers with multiple subordinates
+ * - **XML/HTML**: Elements with multiple child elements
+ * - **Syntax trees**: Programming language parse trees
  *
- * ## Input Format
+ * ## Key Features
  *
- * The input file specifies tree structure using Deway notation
- * (e.g., 1.2.3 for third child of second child of root).
+ * ### Tree Structure
+ * - **N-ary trees**: Any number of children per node
+ * - **Deway notation**: Hierarchical addressing (1.2.3 = third child of second child of root)
+ * - **Forest support**: Visualize multiple trees in one diagram
+ * - **Flexible layout**: Automatic positioning with spacing control
  *
- * @see btreepic.C For binary tree visualization
- * @see Tree_Node N-ary tree node structure
+ * ### Customization
+ * - **Node shapes**: Circles, ellipses, rectangles
+ * - **Colors**: Customizable node and edge colors
+ * - **Edge styles**: Solid, dashed, curved connections
+ * - **Spacing**: Configurable gaps between nodes and trees
+ * - **Labels**: Text labels for nodes and edges
+ *
+ * ### Output Format
+ * - **LaTeX/eepic**: High-quality vector graphics
+ * - **Scalable**: Vector format, perfect for publications
+ * - **Professional**: Publication-ready appearance
+ *
+ * ## Input Format (Deway Notation)
+ *
+ * The input file uses Deway notation to specify tree structure:
+ *
+ * ### Deway Notation
+ * - **Root**: No prefix (or "1")
+ * - **Children**: Parent address + child index
+ * - **Example**: `1.2.3` = third child (index 2) of second child (index 1) of root
+ *
+ * ### Basic Commands
+ * - `NODE <deway> <key>`: Create node at Deway address
+ * - `EDGE <parent> <child>`: Connect parent to child
+ * - `CONNEXION <parent> <child>`: Alternative edge command
+ * - `DASHED_CONNEXION <parent> <child>`: Dashed edge
+ *
+ * ### Styling Commands
+ * - `COLOR <deway> <color>`: Set node color
+ * - `SHAPE <deway> <shape>`: Set node shape
+ * - `HRADIO <deway> <value>`: Horizontal radius
+ * - `VRADIO <deway> <value>`: Vertical radius
+ *
+ * ### Forest Support
+ * - Multiple trees can be specified
+ * - Automatic horizontal spacing between trees
+ * - Useful for comparing tree structures
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Generate LaTeX from tree specification
+ * ntreepic input.tree > output.tex
+ *
+ * # Compile LaTeX to PDF
+ * pdflatex output.tex
+ * ```
+ *
+ * ## Example Input File
+ *
+ * ```
+ * NODE 1 Root
+ * NODE 1.0 Child1
+ * NODE 1.1 Child2
+ * NODE 1.2 Child3
+ * NODE 1.0.0 Grandchild1
+ * CONNEXION 1 1.0
+ * CONNEXION 1 1.1
+ * CONNEXION 1 1.2
+ * CONNEXION 1.0 1.0.0
+ * ```
+ *
+ * ## Applications
+ *
+ * - **File system visualization**: Directory structures
+ * - **Organizational charts**: Company hierarchies
+ * - **Parse trees**: Programming language syntax trees
+ * - **Decision trees**: Machine learning, game trees
+ * - **Taxonomy**: Biological classifications, categories
+ * - **XML/HTML visualization**: Document structure
+ *
+ * ## Comparison with btreepic
+ *
+ * | Feature | btreepic | ntreepic |
+ * |---------|----------|----------|
+ * | Tree type | Binary only | N-ary (any children) |
+ * | Notation | Node IDs | Deway addresses |
+ * | Complexity | Simpler | More flexible |
+ * | Use case | BSTs, heaps | General trees, forests |
+ *
+ * @see btreepic.C Binary tree visualization tool
+ * @see graphpic.C Graph visualization tool
+ * @see tpl_tree_node.H N-ary tree node structure
+ * @see deway.C Deway notation demonstration
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

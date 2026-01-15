@@ -26,44 +26,145 @@
 
 /**
  * @file network_flow_example.C
- * @brief Maximum Flow in Network Graphs (Ford-Fulkerson)
+ * @brief Maximum Flow in Network Graphs (Ford-Fulkerson/Edmonds-Karp)
  * 
- * This example demonstrates the maximum flow problem and its solution
- * using the Ford-Fulkerson algorithm with BFS (Edmonds-Karp variant).
- * 
+ * This example demonstrates the maximum flow problem, one of the most
+ * important problems in combinatorial optimization. It shows how to find
+ * the maximum amount of flow that can be sent from a source to a sink
+ * through a capacitated network.
+ *
  * ## The Maximum Flow Problem
- * 
- * Given a directed graph where each edge has a capacity:
- * - Find the maximum amount of flow from source (s) to sink (t)
- * - Flow on each edge must not exceed capacity
- * - Flow conservation: inflow = outflow at each intermediate node
- * 
- * ## Applications
- * 
- * - **Transportation**: Maximum goods through a highway network
- * - **Network bandwidth**: Maximum data through a communication network
- * - **Bipartite matching**: Job assignments, dating apps
- * - **Baseball elimination**: Which teams can still win the league
- * - **Image segmentation**: Min-cut for foreground/background
- * 
- * ## Algorithm: Ford-Fulkerson / Edmonds-Karp
- * 
+ *
+ * Given a directed graph (network) where:
+ * - Each edge has a **capacity** (maximum flow allowed)
+ * - There is a **source** node (s) that produces flow
+ * - There is a **sink** node (t) that consumes flow
+ *
+ * **Goal**: Find the maximum flow from source to sink.
+ *
+### Constraints
+ *
+ * 1. **Capacity constraint**: Flow on edge ≤ capacity
+ * 2. **Flow conservation**: For each node (except s, t):
+ *    - Inflow = Outflow
+ *    - (Flow entering = Flow leaving)
+ *
+### Example
+ *
+ * ```
+ *     [10]      [5]
+ *  s -----> A -----> t
+ *     [5]       [8]
+ *  s -----> B -----> t
+ * ```
+ *
+ * Maximum flow = 13 (10+3 from s→A→t, 5 from s→B→t)
+ *
+## Algorithm: Ford-Fulkerson / Edmonds-Karp
+ *
+### Ford-Fulkerson Method
+ *
+ * The general approach:
  * 1. Start with zero flow
- * 2. While there exists an augmenting path s -> t in residual graph:
- *    a. Find bottleneck capacity (minimum along path)
- *    b. Augment flow along path by bottleneck
- * 3. Maximum flow = sum of flows out of source
- * 
- * Time complexity: O(V * E²) for Edmonds-Karp (BFS)
- * 
- * ## Network Graph Structure in Aleph-w
- * 
- * In Aleph-w's Net_Graph:
- * - Nodes with no incoming arcs are automatically classified as sources
- * - Nodes with no outgoing arcs are automatically classified as sinks
- * - For Ford-Fulkerson, there must be exactly one source and one sink
- * 
- * @see tpl_net.H for network graph structures
+ * 2. While there exists an **augmenting path** s → t in residual graph:
+ *    a. Find augmenting path (any path with available capacity)
+ *    b. Find **bottleneck capacity** (minimum capacity along path)
+ *    c. **Augment** flow along path by bottleneck amount
+ * 3. Maximum flow = sum of flows leaving source
+ *
+### Edmonds-Karp Variant
+ *
+ * Uses **BFS** (breadth-first search) to find augmenting paths:
+ * - Always finds **shortest** augmenting path
+ * - Guarantees polynomial time: O(V × E²)
+ * - More efficient than DFS-based Ford-Fulkerson
+ *
+### Residual Graph
+ *
+ * The residual graph represents remaining capacity:
+ * - **Forward edge**: Remaining capacity = capacity - flow
+ * - **Backward edge**: Can "undo" flow = current flow
+ * - Allows algorithm to find better paths by reversing flow
+ *
+## Complexity
+ *
+ * | Algorithm | Time Complexity | Notes |
+ * |-----------|----------------|------|
+ * | Ford-Fulkerson (DFS) | O(E × max_flow) | Can be exponential! |
+ * | Edmonds-Karp (BFS) | O(V × E²) | Polynomial, this example |
+ * | Dinic's | O(V² × E) | Better for dense graphs |
+ * | Push-Relabel | O(V² × E) | Alternative approach |
+ *
+ * **Note**: Ford-Fulkerson with DFS can be exponential if capacities
+ * are large integers. Edmonds-Karp guarantees polynomial time.
+ *
+## Applications
+ *
+### Transportation Networks
+ * - **Highway systems**: Maximum vehicles through road network
+ * - **Railway networks**: Maximum trains through tracks
+ * - **Shipping routes**: Maximum cargo through shipping lanes
+ *
+### Communication Networks
+ * - **Network bandwidth**: Maximum data through network
+ * - **Internet routing**: Maximum packets through routers
+ * - **Telecommunications**: Maximum calls through switches
+ *
+### Matching Problems
+ * - **Bipartite matching**: Match workers to jobs
+ * - **Dating apps**: Match users based on preferences
+ * - **Resource allocation**: Assign resources to tasks
+ *
+### Game Theory
+ * - **Baseball elimination**: Which teams can still win?
+ * - **Tournament scheduling**: Determine possible outcomes
+ *
+### Computer Vision
+ * - **Image segmentation**: Separate foreground/background
+ * - **Min-cut**: Find minimum cut (dual of max-flow)
+ *
+## Max-Flow Min-Cut Theorem
+ *
+ * **Fundamental result**: Maximum flow = Minimum cut capacity
+ *
+ * A **cut** is a partition of nodes into two sets (S containing s, T containing t).
+ * Cut capacity = sum of capacities of edges from S to T.
+ *
+ * This theorem is the foundation of many max-flow applications.
+ *
+## Network Graph Structure in Aleph-w
+ *
+### Net_Graph Features
+ *
+ * In Aleph-w's `Net_Graph`:
+ * - **Automatic source detection**: Nodes with no incoming arcs are sources
+ * - **Automatic sink detection**: Nodes with no outgoing arcs are sinks
+ * - **Single source/sink**: Ford-Fulkerson requires exactly one of each
+ * - **Capacity storage**: Each arc stores its capacity
+ *
+### Building a Network
+ *
+ * ```cpp
+ * Net_Graph g;
+ * auto s = g.insert_node("Source");
+ * auto t = g.insert_node("Sink");
+ * auto a = g.insert_node("A");
+ *
+ * g.insert_arc(s, a, 10);  // Capacity 10
+ * g.insert_arc(a, t, 5);   // Capacity 5
+ * ```
+ *
+## Usage
+ *
+ * ```bash
+ * # Run maximum flow example
+ * ./network_flow_example
+ * ```
+ *
+ * @see tpl_net.H Network graph structures
+ * @see maxflow_advanced_example.cc Advanced max-flow algorithms (Dinic, HLPP)
+ * @see mincost_flow_example.cc Minimum cost flow (extension)
+ * @see net_apps_example.cc Real-world applications
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

@@ -1,32 +1,112 @@
-/* Aleph-w ThreadPool - Comprehensive Usage Examples
- * ==================================================
+/**
+ * @file thread_pool_example.cc
+ * @brief Comprehensive ThreadPool Usage Examples: Parallel Task Execution
  *
- * This file demonstrates how to use the ThreadPool class effectively.
- * Each example builds on the previous one, introducing new concepts.
+ * This file demonstrates how to use the ThreadPool class effectively for
+ * parallel task execution. ThreadPool provides a high-level interface for
+ * managing worker threads and executing tasks concurrently, making it easier
+ * to parallelize computations.
  *
- * TABLE OF CONTENTS
- * -----------------
- * Example 1: Basic Parallel Computation     - enqueue() with futures
- * Example 2: Batch Processing               - enqueue_bulk() for collections
- * Example 3: Fire-and-Forget Tasks          - enqueue_detached() for async work
- * Example 4: Backpressure Control           - enqueue_bounded() to limit queue
- * Example 5: Non-Blocking Submission        - try_enqueue() for load shedding
- * Example 6: Performance Comparison         - ThreadPool vs sequential execution
+ * ## What is a Thread Pool?
  *
- * QUICK START
- * -----------
- * The most common usage pattern is:
+ * A **thread pool** is a collection of worker threads that execute tasks
+ * from a queue. Instead of creating threads for each task, threads are
+ * reused, reducing overhead and improving performance.
  *
- *   ThreadPool pool(4);                          // Create pool with 4 workers
- *   auto future = pool.enqueue(my_func, arg1);   // Submit task, get future
- *   auto result = future.get();                  // Wait and get result
+ * **Benefits**:
+ * - **Reduced overhead**: Reuse threads instead of creating/destroying
+ * - **Resource control**: Limit number of concurrent threads
+ * - **Task queuing**: Handle more tasks than threads
+ * - **Load balancing**: Distribute work across threads
  *
- * COMPILATION
- * -----------
- *   g++ -std=c++20 -O2 -pthread -I.. thread_pool_example.cc -o thread_pool_example
+## Features Demonstrated
+ *
+ * ### Example 1: Basic Parallel Computation
+ * - **`enqueue()`**: Submit task and get future
+ * - **Futures**: Wait for results asynchronously
+ * - **Basic pattern**: Most common usage
+ *
+ * ### Example 2: Batch Processing
+ * - **`enqueue_bulk()`**: Process collections in parallel
+ * - **Batch operations**: Efficient parallel processing
+ * - **Collection handling**: Work with containers
+ *
+ * ### Example 3: Fire-and-Forget Tasks
+ * - **`enqueue_detached()`**: Submit without waiting
+ * - **Async operations**: Don't need results
+ * - **Background tasks**: Long-running operations
+ *
+ * ### Example 4: Backpressure Control
+ * - **`enqueue_bounded()`**: Limit queue size
+ * - **Flow control**: Prevent queue overflow
+ * - **Backpressure**: Handle overload gracefully
+ *
+ * ### Example 5: Non-Blocking Submission
+ * - **`try_enqueue()`**: Submit without blocking
+ * - **Load shedding**: Reject when overloaded
+ * - **Non-blocking**: Don't wait if queue full
+ *
+ * ### Example 6: Performance Comparison
+ * - **Benchmarking**: Compare parallel vs sequential
+ * - **Speedup**: Measure performance gains
+ * - **Scalability**: Test with different thread counts
+ *
+## Quick Start
+ *
+ * ```cpp
+ * // Create thread pool with 4 worker threads
+ * ThreadPool pool(4);
+ *
+ * // Submit a task and get a future
+ * auto future = pool.enqueue([](int x) { return x * x; }, 5);
+ *
+ * // Wait for result
+ * int result = future.get();  // result = 25
+ * ```
+ *
+## When to Use ThreadPool
+ *
+ * ✅ **Good for**:
+ * - CPU-intensive tasks
+ * - Independent computations
+ * - Batch processing
+ * - Parallel algorithms
+ *
+ * ❌ **Not good for**:
+ * - I/O-bound tasks (use async I/O)
+ * - Very short tasks (overhead too high)
+ * - Tasks with dependencies (use task graphs)
+ *
+## Complexity
+ *
+ * | Operation | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | enqueue() | O(1) amortized | Queue insertion |
+ * | Future.get() | O(1) | Wait for completion |
+ * | Thread creation | O(1) | Done at pool creation |
+ *
+## Performance Considerations
+ *
+ * - **Thread count**: Usually CPU cores - 1 or CPU cores
+ * - **Task granularity**: Tasks should be substantial (avoid tiny tasks)
+ * - **Overhead**: ThreadPool has overhead, measure before optimizing
+ * - **Cache effects**: Consider data locality
+ *
+## Compilation
+ *
+ * ```bash
+ * g++ -std=c++20 -O2 -pthread -I.. thread_pool_example.cc -o thread_pool_example
+ * ```
  *
  * Or using CMake:
- *   cmake --build . --target thread_pool_example
+ * ```bash
+ * cmake --build . --target thread_pool_example
+ * ```
+ *
+ * @see thread_pool.H ThreadPool class implementation
+ * @see ah_parallel_example.cc Parallel functional programming (uses ThreadPool)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 #include <thread_pool.H>

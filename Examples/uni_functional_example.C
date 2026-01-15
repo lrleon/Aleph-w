@@ -1,53 +1,135 @@
 /**
  * @file uni_functional_example.C
- * @brief Example of unified functional programming for mixed STL/Aleph containers.
+ * @brief Unified functional programming for mixed STL/Aleph containers
  *
  * This program demonstrates `ah-uni-functional.H` which provides functional
  * programming operations that work with **any** container type - STL or Aleph.
+ * This unified interface eliminates the need to remember different APIs for
+ * different container types.
  *
- * ## Key Feature: Same Functions for All Containers
+ * ## Key Feature: Universal Container Support
  *
- * Unlike `ahFunctional.H` (Aleph-only) or STL algorithms:
- * - `uni_map`, `uni_filter`, `uni_foldl` work on std::vector, std::list, DynList, etc.
- * - No need to remember different APIs
- * - Automatically detects container type
+### The Problem
  *
- * ## Functions Demonstrated
+ * Different container libraries have different APIs:
+ * - **STL**: `std::transform`, `std::find_if`, etc.
+ * - **Aleph-w**: `maps()`, `filter()`, etc.
+ * - **Different syntax**: Hard to remember multiple APIs
  *
- * ### Transformation
- * - `uni_map()`, `uni_mapi()` - Transform elements
- * - `uni_filter()`, `uni_filteri()` - Select elements
+### The Solution
  *
- * ### Reduction
- * - `uni_foldl()`, `uni_reduce()` - Fold/reduce
- * - `uni_sum()`, `uni_product()` - Numeric aggregation
+ * `ah-uni-functional.H` provides **unified functions** that:
+ * - Work with **any** container type (STL or Aleph)
+ * - **Automatically detect** container type
+ * - Use **same API** regardless of container
+ * - **Mix containers** in same operation
  *
- * ### Predicates
- * - `uni_all()`, `uni_exists()`, `uni_none()`
- * - `uni_mem()` - Membership test
+### Example
  *
- * ### Access
- * - `uni_first()`, `uni_last()`, `uni_nth()`
- * - `uni_find()`, `uni_find_mapi()`
+ * ```cpp
+ * // Works with STL containers
+ * std::vector<int> vec = {1, 2, 3};
+ * auto squared = uni_map(vec, [](int x) { return x * x; });
  *
- * ### Slicing
- * - `uni_take()`, `uni_drop()`
- * - `uni_take_while()`, `uni_drop_while()`
+ * // Works with Aleph containers
+ * DynList<int> list;
+ * list.append(1); list.append(2); list.append(3);
+ * auto squared2 = uni_map(list, [](int x) { return x * x; });
  *
- * ### Statistics
- * - `uni_min()`, `uni_max()`, `uni_min_max()`
- * - `uni_count()`, `uni_length()`
- *
- * ## Usage
- *
- * ```bash
- * ./uni_functional_example           # Run all demos
- * ./uni_functional_example -s map    # Only map/filter demo
+ * // Same function, different containers!
  * ```
  *
+## Functions Demonstrated
+ *
+### Transformation
+ * - **`uni_map()`**: Transform each element
+ * - **`uni_mapi()`**: Transform with index
+ * - **`uni_filter()`**: Keep elements satisfying predicate
+ * - **`uni_filteri()`**: Filter with index
+ *
+### Reduction
+ * - **`uni_foldl()`**: Left fold (reduce from left)
+ * - **`uni_reduce()`**: Alias for foldl
+ * - **`uni_sum()`**: Sum all numeric elements
+ * - **`uni_product()`**: Multiply all numeric elements
+ *
+### Predicates
+ * - **`uni_all()`**: All elements satisfy predicate?
+ * - **`uni_exists()`**: At least one satisfies?
+ * - **`uni_none()`**: None satisfy?
+ * - **`uni_mem()`**: Membership test (contains?)
+ *
+### Access
+ * - **`uni_first()`**: Get first element
+ * - **`uni_last()`**: Get last element
+ * - **`uni_nth()`**: Get n-th element
+ * - **`uni_find()`**: Find first satisfying predicate
+ * - **`uni_find_mapi()`**: Find with index
+ *
+### Slicing
+ * - **`uni_take(n)`**: Take first n elements
+ * - **`uni_drop(n)`**: Skip first n elements
+ * - **`uni_take_while()`**: Take while predicate true
+ * - **`uni_drop_while()`**: Drop while predicate true
+ *
+### Statistics
+ * - **`uni_min()`**: Find minimum element
+ * - **`uni_max()`**: Find maximum element
+ * - **`uni_min_max()`**: Find both min and max
+ * - **`uni_count()`**: Count elements
+ * - **`uni_length()`**: Get container size
+ *
+## Comparison with Alternatives
+ *
+ * | Feature | STL | Aleph-w | Unified |
+ * |---------|-----|---------|---------|
+ * | Container support | STL only | Aleph only | **Both** |
+ * | API consistency | Different | Different | **Same** |
+ * | Mix containers | No | No | **Yes** |
+ * | Type detection | Manual | Manual | **Automatic** |
+ *
+## Use Cases
+ *
+### Mixed Codebases
+ * - **Legacy code**: Existing STL containers
+ * - **New code**: Using Aleph-w containers
+ * - **Unified API**: Same functions for both
+ *
+### Library Integration
+ * - **Third-party APIs**: May return STL containers
+ * - **Your code**: Uses Aleph-w containers
+ * - **Seamless**: Convert and process easily
+ *
+### Migration
+ * - **Gradual migration**: Move from STL to Aleph-w
+ * - **No API changes**: Same functions work with both
+ * - **Low risk**: Can mix containers during migration
+ *
+## Performance Considerations
+ *
+ * - **Type detection**: Minimal overhead (compile-time)
+ * - **Container operations**: Same as underlying container
+ * - **No extra copies**: Operations are efficient
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all demonstrations
+ * ./uni_functional_example
+ *
+ * # Run specific section
+ * ./uni_functional_example -s map      # Map/filter demo
+ * ./uni_functional_example -s fold     # Fold operations
+ * ```
+ *
+ * @see ah-uni-functional.H Unified functional utilities
+ * @see functional_example.C Aleph-w only functional (faster for Aleph containers)
+ * @see stl_utils_example.C Container conversions (related)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
+ * @copyright GNU General Public License
+ */
  * @copyright GNU General Public License
  *
  * @see ah-uni-functional.H Unified functional utilities

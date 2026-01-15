@@ -1,41 +1,126 @@
 /**
  * @file matrix_example.C
- * @brief Example demonstrating sparse matrices and vectors in Aleph-w.
+ * @brief Example demonstrating sparse matrices and vectors in Aleph-w
  *
- * This program demonstrates the sparse Matrix and Vector classes
- * from al-matrix.H and al-vector.H. These are NOT dense matrices but
- * efficient sparse implementations with domain-based indexing.
+ * This program demonstrates sparse Matrix and Vector classes from
+ * `al-matrix.H` and `al-vector.H`. Unlike dense matrices (which store
+ * all elements), sparse matrices only store non-zero entries, making
+ * them memory-efficient for sparse data. Additionally, they support
+ * domain-based indexing, allowing rows and columns to be indexed by
+ * any type (not just integers).
  *
- * ## Key Features
+ * ## Sparse vs Dense Matrices
  *
- * ### Sparse Storage
- * - Only non-zero entries are stored
- * - Automatic removal of near-zero entries (epsilon tolerance)
- * - Memory efficient for sparse data
+### Dense Matrix
+ * - Stores ALL elements (even zeros)
+ * - Memory: O(rows × cols)
+ * - Access: O(1) - direct indexing
+ * - **Best for**: Dense data, small matrices
  *
- * ### Domain-Based Indexing
- * - Rows and columns can be indexed by any type (strings, integers, etc.)
- * - Useful for named rows/columns (e.g., product names, city names)
+### Sparse Matrix (This Example)
+ * - Stores ONLY non-zero entries
+ * - Memory: O(nonzero_entries)
+ * - Access: O(log n) - search in sparse structure
+ * - **Best for**: Sparse data, large matrices with few non-zeros
  *
- * ### Operations
- * - Element access and modification
- * - Vector/Matrix arithmetic
- * - Row and column extraction
- * - Scalar multiplication
+### When to Use Sparse?
  *
- * ## Usage
+ * Use sparse when:
+ * - **Sparsity > 90%**: Most entries are zero
+ * - **Large matrices**: Memory savings significant
+ * - **Domain-based indexing**: Need named rows/columns
  *
- * ```bash
- * ./matrix_example           # Run all demos
+ * **Example**: 1000×1000 matrix with only 1000 non-zeros:
+ * - Dense: 1,000,000 elements = 8 MB (for doubles)
+ * - Sparse: 1,000 elements = 8 KB (huge savings!)
+ *
+## Key Features
+ *
+### Sparse Storage
+ *
+ * - **Efficient storage**: Only non-zero entries stored
+ * - **Automatic cleanup**: Near-zero entries removed (epsilon tolerance)
+ * - **Memory efficient**: O(nonzeros) instead of O(rows×cols)
+ * - **Flexible**: Can handle very large matrices
+ *
+### Domain-Based Indexing
+ *
+ * Unlike traditional matrices (indexed 0..n-1), Aleph-w matrices support:
+ * - **String indices**: `matrix["row_name"]["col_name"]`
+ * - **Custom types**: Any comparable type as index
+ * - **Named dimensions**: Rows/columns have meaningful names
+ *
+ * **Example**:
+ * ```cpp
+ * Matrix<double> sales;
+ * sales["January"]["ProductA"] = 1000.0;
+ * sales["February"]["ProductB"] = 2000.0;
  * ```
  *
+### Operations Supported
+ *
+ * - **Element access**: Get/set individual elements
+ * - **Arithmetic**: Add, subtract, multiply matrices/vectors
+ * - **Scalar operations**: Multiply by scalar
+ * - **Row/column extraction**: Get entire row or column as vector
+ * - **Transposition**: Swap rows and columns
+ *
+## Applications
+ *
+### Scientific Computing
+ * - **Linear systems**: Sparse linear algebra
+ * - **Finite element methods**: Sparse stiffness matrices
+ * - **Graph algorithms**: Adjacency matrices (usually sparse)
+ *
+### Data Analysis
+ * - **Feature matrices**: Machine learning (many zeros)
+ * - **Transaction data**: User-item matrices (sparse)
+ * - **Time series**: Sparse temporal data
+ *
+### Business Applications
+ * - **Sales data**: Products × Time periods
+ * - **Resource allocation**: Resources × Tasks
+ * - **Financial modeling**: Instruments × Time periods
+ *
+## Complexity
+ *
+ * | Operation | Dense | Sparse | Notes |
+ * |-----------|-------|--------|-------|
+ * | Storage | O(n²) | O(nonzeros) | Sparse wins for sparse data |
+ * | Access | O(1) | O(log n) | Dense faster, but sparse uses less memory |
+ * | Addition | O(n²) | O(nonzeros) | Sparse much faster |
+ * | Multiplication | O(n³) | O(nonzeros₁ × nonzeros₂) | Depends on sparsity |
+ *
+## Domain-Based Indexing Benefits
+ *
+### Readability
+ * ```cpp
+ * // Traditional (unclear)
+ * matrix[0][5] = 100;
+ *
+ * // Domain-based (clear)
+ * matrix["January"]["Sales"] = 100;
+ * ```
+ *
+### Flexibility
+ * - Add new rows/columns dynamically
+ * - No need to pre-allocate all dimensions
+ * - Easy to work with real-world data
+ *
+## Usage
+ *
+ * ```bash
+ * # Run all matrix demonstrations
+ * ./matrix_example
+ * ```
+ *
+ * @see al-matrix.H Sparse Matrix class
+ * @see al-vector.H Sparse Vector class
+ * @see al-domain.H Domain-based indexing
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see al-matrix.H Sparse Matrix class
- * @see al-vector.H Sparse Vector class
  */
 
 #include <iostream>

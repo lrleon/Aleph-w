@@ -30,19 +30,171 @@
  * @file writeBalance.C
  * @brief Demonstrates BST balancing operation (DSW algorithm)
  * 
- * This program creates an unbalanced BST with rank information and then
- * applies the balance operation to produce a perfectly balanced tree.
- * It generates visualization files showing the tree before and after balancing.
- * 
- * The balancing algorithm (Day-Stout-Warren) works in O(n) time by first
- * converting the tree to a vine (right-skewed chain) and then performing
- * rotations to achieve perfect balance.
- * 
- * Output files:
- * - balance-before-aux.Tree: Original unbalanced tree
- * - balance-after-aux.Tree: Perfectly balanced tree
- * 
- * Usage: writeBalance [-n <count>] [-s <seed>]
+ * This program demonstrates the Day-Stout-Warren (DSW) algorithm for
+ * converting an unbalanced binary search tree into a perfectly balanced
+ * tree. It generates visualization files showing the transformation from
+ * an unbalanced tree to a perfectly balanced one.
+ *
+ * ## Why Balance Trees?
+ *
+### The Problem with Unbalanced Trees
+ *
+ * Unbalanced trees degrade to linked lists in worst case:
+ * - **Worst case**: O(n) search time instead of O(log n)
+ * - **Performance**: Degrades significantly
+ * - **Cache**: Poor cache locality
+ *
+### Benefits of Balancing
+ *
+ * Balancing ensures:
+ * - **Optimal performance**: O(log n) search, insert, delete operations
+ * - **Predictable**: Consistent performance characteristics
+ * - **Cache friendly**: Better memory access patterns
+ * - **Height**: Minimum possible height
+ *
+## DSW Algorithm Overview
+ *
+### Day-Stout-Warren Algorithm
+ *
+ * The DSW algorithm is an elegant O(n) time, O(1) space algorithm for
+ * balancing binary search trees. It works in two phases:
+ *
+### Phase 1: Create a Vine (Right-Skewed Tree)
+ *
+ * **Goal**: Convert tree to a linear chain (all nodes have only right children)
+ *
+ * **Algorithm**:
+ * ```
+ * create_vine(root):
+ *   current = root
+ *   While current has left child:
+ *     Rotate right at current
+ *     current = current.parent
+ *   current = current.right
+ * ```
+ *
+ * **Result**: All nodes form a right-skewed chain
+ * **Time**: O(n) - visit each node once
+ *
+### Phase 2: Balance the Vine
+ *
+ * **Goal**: Transform vine into perfectly balanced tree
+ *
+ * **Algorithm**:
+ * ```
+ * balance_vine(vine_root, n):
+ *   m = 2^floor(log2(n+1)) - 1  // Number of nodes in perfect tree
+ *   compress(vine_root, n - m)  // Compress excess nodes
+ *   While m > 1:
+ *     compress(vine_root, m/2)
+ *     m = m/2
+ * ```
+ *
+ * **Compress operation**: Performs left rotations in a pattern
+ * **Time**: O(n) - perform O(n) rotations
+ *
+### Total Complexity
+ *
+ * - **Time**: O(n) - linear time algorithm
+ * - **Space**: O(1) - constant extra space (in-place)
+ * - **Rotations**: O(n) rotations performed
+ *
+## Perfect Balance
+ *
+### Definition
+ *
+ * A **perfectly balanced** tree has:
+ * - **Height**: ⌊log₂(n)⌋ or ⌈log₂(n)⌉ (minimum possible)
+ * - **Structure**: All levels full except possibly the last
+ * - **Performance**: Optimal search performance
+ *
+### Example
+ *
+ * ```
+ * Unbalanced (height 4):    Balanced (height 3):
+ *       1                         4
+ *        \                       / \
+ *         2                     2   6
+ *          \                   / \ / \
+ *           3                 1 3 5 7
+ *            \
+ *             4
+ * ```
+ *
+## Comparison with Other Balancing Methods
+ *
+ * | Method | Time | Space | Result | Notes |
+ * |--------|------|-------|--------|-------|
+ * | DSW | O(n) | O(1) | Perfect | In-place, simple |
+ * | AVL | O(n log n) | O(log n) | Height-balanced | Maintains during ops |
+ * | Red-Black | O(n log n) | O(log n) | Relaxed balance | Maintains during ops |
+ * | Rebuild | O(n) | O(n) | Perfect | Requires extra memory |
+ *
+## Applications
+ *
+### Tree Optimization
+ * - **Improve performance**: Optimize existing BSTs
+ * - **One-time operation**: Balance tree before heavy queries
+ * - **Legacy code**: Improve performance without rewriting
+ *
+### Educational
+ * - **Visualize balancing**: See tree transformation
+ * - **Learn algorithms**: Understand balancing techniques
+ * - **Algorithm study**: Compare balancing methods
+ *
+### Data Structure Conversion
+ * - **Prepare trees**: Optimize trees for operations
+ * - **Format conversion**: Convert between tree formats
+ * - **Preprocessing**: Prepare data for algorithms
+ *
+### Performance Tuning
+ * - **Query optimization**: Optimize trees before queries
+ * - **Batch processing**: Balance after bulk insertions
+ * - **Maintenance**: Periodic tree optimization
+ *
+## Output Files
+ *
+ * - **`balance-before-aux.Tree`**: Original unbalanced tree (preorder)
+ *   - Shows tree before balancing
+ *   - May have high height
+ *
+ * - **`balance-after-aux.Tree`**: Perfectly balanced tree (preorder)
+ *   - Shows tree after DSW algorithm
+ *   - Minimum height achieved
+ *
+ * Both files can be visualized with `btreepic` tool to see the transformation.
+ *
+## Usage
+ *
+ * ```bash
+ * # Generate balanced tree with 50 nodes
+ * writeBalance -n 50
+ *
+ * # Use specific seed for reproducibility
+ * writeBalance -n 100 -s 12345
+ *
+ * # Generate larger tree
+ * writeBalance -n 200
+ * ```
+ *
+## Algorithm Properties
+ *
+### Advantages
+ * - **Efficient**: O(n) time complexity
+ * - **In-place**: O(1) extra space
+ * - **Simple**: Easy to understand and implement
+ * - **Perfect balance**: Achieves optimal height
+ *
+### Limitations
+ * - **One-time**: Doesn't maintain balance during operations
+ * - **Rotations**: Many rotations may be performed
+ * - **Not incremental**: Must rebuild entire tree
+ *
+ * @see tpl_balanceXt.H DSW balancing implementation
+ * @see btreepic.C Visualization tool
+ * @see timeAllTree.C Tree performance comparison (includes balanced trees)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

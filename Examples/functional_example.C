@@ -1,69 +1,159 @@
 /**
  * @file functional_example.C
- * @brief Comprehensive example of functional programming in Aleph-w.
+ * @brief Comprehensive example of functional programming in Aleph-w
  *
- * This program demonstrates all major functional programming features
- * available in Aleph-w through `ahFunctional.H` and related headers.
+ * This program demonstrates all major functional programming features available
+ * in Aleph-w through `ahFunctional.H`. Functional programming provides a
+ * declarative, composable approach to data processing that is often more
+ * readable and less error-prone than imperative loops.
  *
- * ## Features Demonstrated
+ * ## What is Functional Programming?
  *
- * ### Range Generation
- * - `range(start, end, step)` - Generate numeric ranges
- * - `nrange(start, end, n)` - Generate n evenly spaced values
- * - `contiguous_range(start, n)` - Generate n consecutive values
- * - `rep(n, value)` - Repeat a value n times
+ * Functional programming emphasizes:
+ * - **Immutability**: Operations don't modify original data
+ * - **Composability**: Small functions combine into larger operations
+ * - **Declarative**: Describe *what* you want, not *how* to do it
+ * - **Higher-order functions**: Functions that take/return functions
  *
- * ### Iteration
- * - `for_each(container, op)` - Apply operation to each element
- * - `enum_for_each(container, op)` - Apply operation with index
- * - `traverse(container, op)` - Conditional traversal
+ * **Benefits**:
+ * - More readable code
+ * - Easier to reason about
+ * - Better for parallelization
+ * - Less error-prone (no mutation bugs)
  *
- * ### Predicates
- * - `all(container, pred)` - All elements satisfy predicate
- * - `exists(container, pred)` - At least one satisfies predicate
- * - `none(container, pred)` - No element satisfies predicate
- * - `contains(container, value)` - Check if value exists
+## Features Demonstrated
  *
- * ### Transformation
- * - `maps<T>(container, op)` - Transform elements (like std::transform)
- * - `filter(container, pred)` - Keep elements satisfying predicate
- * - `flat_map(container, op)` - Map and flatten results
- * - `reverse(container)` - Reverse order
- * - `flatten(container)` - Flatten nested containers
+### Range Generation
  *
- * ### Folding/Reduction
- * - `foldl(container, init, op)` - Left fold (reduce)
- * - `foldr(container, init, op)` - Right fold
- * - `sum(container)` - Sum all elements
- * - `product(container)` - Multiply all elements
+ * Create sequences of values:
+ * - **`range(start, end, step)`**: Generate numeric ranges (like Python's range)
+ * - **`nrange(start, end, n)`**: Generate n evenly spaced values
+ * - **`contiguous_range(start, n)`**: Generate n consecutive values
+ * - **`rep(n, value)`**: Repeat a value n times
  *
- * ### Zipping
- * - `zip(c1, c2)` - Combine two containers element-wise
- * - `zipEq(c1, c2)` - Zip with length check
- * - `unzip(container)` - Separate pairs into two containers
- * - `zip_longest(c1, c2, d1, d2)` - Zip with defaults for shorter
+ * **Example**: `range(1, 10, 2)` → [1, 3, 5, 7, 9]
  *
- * ### Grouping
- * - `group_by(container, key_func)` - Group by key
- * - `partition(container, pred)` - Split by predicate
- * - `take_while(container, pred)` - Take prefix satisfying predicate
- * - `drop_while(container, pred)` - Drop prefix satisfying predicate
+### Iteration
  *
- * ## Usage
+ * Apply operations to containers:
+ * - **`for_each(container, op)`**: Apply function to each element
+ * - **`enum_for_each(container, op)`**: Apply with index (i, element)
+ * - **`traverse(container, op)`**: Conditional traversal (can stop early)
  *
- * ```bash
- * ./functional_example           # Run all demos
- * ./functional_example -s ranges # Only range generation
- * ./functional_example -s fold   # Only folding operations
+### Predicates
+ *
+ * Test conditions on containers:
+ * - **`all(container, pred)`**: All elements satisfy predicate?
+ * - **`exists(container, pred)`**: At least one satisfies?
+ * - **`none(container, pred)`**: No element satisfies?
+ * - **`contains(container, value)`**: Value exists in container?
+ *
+### Transformation
+ *
+ * Transform containers into new containers:
+ * - **`maps<T>(container, op)`**: Transform each element (like std::transform)
+ * - **`filter(container, pred)`**: Keep elements satisfying predicate
+ * - **`flat_map(container, op)`**: Map and flatten nested results
+ * - **`reverse(container)`**: Reverse order of elements
+ * - **`flatten(container)`**: Flatten nested containers
+ *
+### Folding/Reduction
+ *
+ * Combine elements into a single value:
+ * - **`foldl(container, init, op)`**: Left fold (reduce from left)
+ * - **`foldr(container, init, op)`**: Right fold (reduce from right)
+ * - **`sum(container)`**: Sum all numeric elements
+ * - **`product(container)`**: Multiply all numeric elements
+ *
+ * **Example**: `foldl([1,2,3], 0, +)` → 6 (sum)
+ *
+### Zipping
+ *
+ * Combine multiple containers element-wise:
+ * - **`zip(c1, c2)`**: Create pairs from two containers
+ * - **`zipEq(c1, c2)`**: Zip with length equality check
+ * - **`unzip(container)`**: Split pairs back into two containers
+ * - **`zip_longest(c1, c2, d1, d2)`**: Zip with defaults for shorter container
+ *
+ * **Example**: `zip([1,2,3], ['a','b','c'])` → [(1,'a'), (2,'b'), (3,'c')]
+ *
+### Grouping
+ *
+ * Organize elements by criteria:
+ * - **`group_by(container, key_func)`**: Group elements by key function
+ * - **`partition(container, pred)`**: Split into two groups (true/false)
+ * - **`take_while(container, pred)`**: Take prefix satisfying predicate
+ * - **`drop_while(container, pred)`**: Drop prefix satisfying predicate
+ *
+## Functional Style Example
+ *
+ * **Imperative style** (traditional):
+ * ```cpp
+ * vector<int> result;
+ * for (int x : data) {
+ *   if (x > 0) {
+ *     result.push_back(x * 2);
+ *   }
+ * }
  * ```
  *
+ * **Functional style** (Aleph-w):
+ * ```cpp
+ * auto result = filter(data, [](int x) { return x > 0; })
+ *               .maps<int>([](int x) { return x * 2; });
+ * ```
+ *
+ * More concise, readable, and composable!
+ *
+## Composition and Pipelining
+ *
+ * Functional operations compose naturally:
+ * ```cpp
+ * // Process data through pipeline
+ * auto result = data
+ *   | filter(is_positive)      // Keep positive numbers
+ *   | maps(square)             // Square them
+ *   | filter(is_even)          // Keep even results
+ *   | sum();                   // Sum everything
+ * ```
+ *
+## Comparison with STL
+ *
+ * | Feature | STL | Aleph-w Functional |
+ * |---------|-----|-------------------|
+ * | Transform | std::transform | maps() |
+ * | Filter | Manual loop | filter() |
+ * | Reduce | std::accumulate | foldl() |
+ * | Composition | Manual chaining | Natural composition |
+ * | Immutability | Modifies input | Returns new container |
+ *
+## Performance Considerations
+ *
+ * - **Immutability**: Creates new containers (memory overhead)
+ * - **Composition**: Can be optimized by compiler
+ * - **Lazy evaluation**: Some operations can be deferred (see ranges_example.C)
+ * - **Parallelization**: Functional code easier to parallelize
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Run all demonstrations
+ * ./functional_example
+ *
+ * # Run specific section
+ * ./functional_example -s ranges    # Range generation
+ * ./functional_example -s fold      # Folding operations
+ * ./functional_example -s zip       # Zipping operations
+ * ```
+ *
+ * @see ahFunctional.H Main functional programming header
+ * @see ranges_example.C C++20 Ranges (lazy evaluation)
+ * @see uni_functional_example.C Unified functional (works with STL too)
+ * @see ah-dry.H Container mixins for functional methods
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ahFunctional.H Main functional programming header
- * @see ah-dry.H Container mixins for functional methods
  */
 
 #include <iostream>

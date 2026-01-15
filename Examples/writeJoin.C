@@ -30,20 +30,178 @@
  * @file writeJoin.C
  * @brief Demonstrates BST join operation and generates visualization files
  * 
- * This program creates two separate BSTs with random unique values and then
- * joins them into a single BST. It generates .Tree files in preorder format
- * that can be used for visualization with tools like btreepic.
- * 
- * Output files:
- * - join-1-aux.Tree: First tree before join
- * - join-2-aux.Tree: Second tree before join
- * - join-aux.Tree: Resulting joined tree
- * 
- * The join operation combines two BSTs into one while maintaining the BST
- * property. This is useful for illustrating tree algorithms in educational
- * materials.
- * 
- * Usage: writeJoin [-n <count>] [-s <seed>]
+ * This program demonstrates the **join** operation for binary search trees,
+ * which combines two BSTs into a single BST while maintaining the BST property.
+ * Join is a fundamental operation that enables efficient tree manipulation and
+ * is the inverse of the split operation.
+ *
+ * ## What is Tree Join?
+ *
+### Definition
+ *
+ * The join operation combines two BSTs T₁ and T₂ where:
+ * - **Precondition**: All keys in T₁ < all keys in T₂ (disjoint key ranges)
+ * - **Result**: Single BST containing all keys from both trees
+ * - **Property**: BST property maintained in result
+ *
+### Visual Example
+ *
+ * ```
+ * T₁:        T₂:           Join(T₁, T₂):
+ *   3          8               3
+ *  / \        / \             / \
+ * 1   5      7   9           1   5
+ *                              \   \
+ *                               2   8
+ *                                  / \
+ *                                 7   9
+ * ```
+ *
+## Algorithm
+ *
+### Basic Join Algorithm
+ *
+ * The join operation works by:
+ * ```
+ * join(T₁, T₂):
+ *   1. Find rightmost node in T₁ (largest key)
+ *   2. Make T₂ the right subtree of that node
+ *   3. Return T₁ (now containing all nodes)
+ * ```
+ *
+### Detailed Steps
+ *
+ * 1. **Find rightmost node**: Traverse right child pointers in T₁
+ *    - This is the largest key in T₁
+ *    - Time: O(h₁) where h₁ is height of T₁
+ *
+ * 2. **Attach T₂**: Set right child of rightmost node to T₂ root
+ *    - Time: O(1)
+ *
+ * 3. **Maintain balance** (if using balanced trees):
+ *    - May need rotations to maintain balance
+ *    - Time: O(h₁ + h₂)
+ *
+### Complexity
+ *
+ * | Tree Type | Complexity | Notes |
+ * |-----------|-----------|-------|
+ * | Balanced | O(log n) | Height is O(log n) |
+ * | Unbalanced | O(n) | Worst case height is O(n) |
+ * | With rank info | O(log n) | Can use rank for efficiency |
+ *
+## Applications
+ *
+### Tree Merging
+ * - **Combine datasets**: Merge two sorted datasets efficiently
+ * - **Set operations**: Implement set union
+ * - **Database**: Merge index structures
+ *
+### Functional Programming
+ * - **Immutable operations**: Create new tree without modifying originals
+ * - **Persistent data structures**: Maintain history
+ * - **Tree manipulation**: Building block for other operations
+ *
+### Algorithm Building Blocks
+ * - **Split-join paradigm**: Used with split for tree manipulation
+ * - **Range operations**: Extract and rejoin ranges
+ * - **Tree operations**: Implement complex tree algorithms
+ *
+### Database Operations
+ * - **Index merging**: Merge database indexes
+ * - **Query optimization**: Combine query results
+ * - **Bulk operations**: Efficient bulk updates
+ *
+## Key Properties
+ *
+### BST Property Preservation
+ *
+ * - **Result is valid BST**: All left children < parent < right children
+ * - **Inorder traversal**: Gives sorted sequence of all keys
+ * - **Search property**: Binary search still works
+ *
+### Efficiency
+ *
+ * - **Fast**: O(log n) for balanced trees
+ * - **In-place**: Can modify trees in-place (or create new)
+ * - **No copying**: Doesn't copy node data
+ *
+### Building Block
+ *
+ * Join is used in:
+ * - **Split-join**: Inverse of split operation
+ * - **Merge operations**: Combining trees
+ * - **Range queries**: Extracting and rejoining ranges
+ *
+## Complementary Operations
+ *
+### Split and Join
+ *
+ * - **Split**: Divides tree into two parts (see `writeSplit.C`)
+ * - **Join**: Combines two trees into one
+ * - **Together**: Enable powerful tree manipulation
+ *
+### Example: Range Extraction
+ *
+ * ```
+ * // Extract range [a, b]
+ * (left, middle, right) = split_3_ways(tree, a, b)
+ * result = join(left, middle)
+ * final = join(result, right)
+ * ```
+ *
+## Output Files
+ *
+ * - **`join-1-aux.Tree`**: First BST before join (preorder)
+ *   - Contains smaller keys
+ *   - Left tree in join operation
+ *
+ * - **`join-2-aux.Tree`**: Second BST before join (preorder)
+ *   - Contains larger keys
+ *   - Right tree in join operation
+ *
+ * - **`join-aux.Tree`**: Resulting joined BST (preorder)
+ *   - Contains all keys from both trees
+ *   - Maintains BST property
+ *
+ * All files can be visualized with `btreepic` to see the transformation.
+ *
+## Usage
+ *
+ * ```bash
+ * # Join two trees with 10 nodes each
+ * writeJoin -n 10
+ *
+ * # Use specific seed for reproducibility
+ * writeJoin -n 20 -s 12345
+ *
+ * # Join larger trees
+ * writeJoin -n 50
+ * ```
+ *
+## Algorithm Variants
+ *
+### Simple Join
+ * - **Basic version**: Just attach T₂ to rightmost of T₁
+ * - **Fast**: O(h₁) time
+ * - **May unbalance**: Doesn't maintain balance
+ *
+### Balanced Join
+ * - **Maintains balance**: Performs rotations if needed
+ * - **Slower**: O(h₁ + h₂) time
+ * - **Better structure**: Maintains tree balance
+ *
+### Rank-Based Join
+ * - **Uses rank info**: If nodes have subtree counts
+ * - **Efficient**: Can optimize with rank information
+ * - **Complex**: More complex implementation
+ *
+ * @see tpl_binNodeUtils.H BST utility functions including join
+ * @see writeSplit.C Complementary split operation
+ * @see writeRankTree.C Rank operations (useful for join optimization)
+ * @see btreepic.C Visualization tool
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>

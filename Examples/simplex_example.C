@@ -30,33 +30,111 @@
  * 
  * This example demonstrates the Simplex algorithm for solving linear
  * programming (LP) problems - one of the most important algorithms
- * in optimization and operations research.
- * 
+ * in optimization and operations research. Despite exponential worst-case
+ * complexity, Simplex is remarkably efficient in practice.
+ *
  * ## What is Linear Programming?
- * 
- * Linear programming finds the optimal value (maximum or minimum)
- * of a linear objective function subject to linear constraints.
- * 
- * Standard form:
- *   Maximize:   Z = c₁x₁ + c₂x₂ + ... + cₙxₙ
- *   Subject to: a₁₁x₁ + a₁₂x₂ + ... ≤ b₁
- *               a₂₁x₁ + a₂₂x₂ + ... ≤ b₂
- *               xᵢ ≥ 0 (non-negativity)
- * 
+ *
+ * Linear programming finds the optimal value (maximum or minimum) of a
+ * linear objective function subject to linear constraints.
+ *
+ * ### Standard Form
+ * ```
+ * Maximize:   Z = c₁x₁ + c₂x₂ + ... + cₙxₙ
+ * Subject to: a₁₁x₁ + a₁₂x₂ + ... ≤ b₁
+ *             a₂₁x₁ + a₂₂x₂ + ... ≤ b₂
+ *             ...
+ *             xᵢ ≥ 0 (non-negativity)
+ * ```
+ *
+ * ### Key Concepts
+ * - **Decision variables**: x₁, x₂, ..., xₙ (what we're optimizing)
+ * - **Objective function**: What we want to maximize/minimize
+ * - **Constraints**: Linear inequalities that must be satisfied
+ * - **Feasible region**: Set of all points satisfying constraints
+ * - **Optimal solution**: Point in feasible region maximizing objective
+ *
+ * ## The Simplex Algorithm
+ *
+ * ### How It Works
+ *
+ * 1. **Start**: Begin at a vertex (corner) of the feasible region
+ * 2. **Pivot**: Move to an adjacent vertex with better objective value
+ * 3. **Repeat**: Continue until no better adjacent vertex exists
+ * 4. **Optimal**: Current vertex is optimal
+ *
+### Key Insight
+ * The optimal solution always occurs at a vertex (corner point) of the
+ * feasible region. Simplex efficiently explores vertices.
+ *
+ * ### Algorithm Steps
+ *
+ * 1. Convert to standard form (slack variables for ≤ constraints)
+ * 2. Find initial basic feasible solution
+ * 3. While not optimal:
+ *    a. Choose entering variable (improves objective)
+ *    b. Choose leaving variable (maintains feasibility)
+ *    c. Pivot (update tableau)
+ * 4. Extract optimal solution
+ *
+ * ## Complexity
+ *
+ * - **Worst case**: O(2^n) - exponential (rarely occurs)
+ * - **Average case**: O(n + m) iterations where m = constraints
+ * - **Practical**: Typically very fast, often faster than polynomial algorithms
+ *
+ * **Note**: Despite exponential worst case, Simplex is usually efficient
+ * in practice. Interior-point methods guarantee polynomial time but are
+ * often slower for typical problems.
+ *
  * ## Applications
- * 
+ *
+ * ### Business and Economics
  * - **Production planning**: Maximize profit given resource limits
  * - **Supply chain**: Minimize transportation costs
- * - **Finance**: Portfolio optimization
- * - **Scheduling**: Resource allocation
+ * - **Finance**: Portfolio optimization (Markowitz model)
+ * - **Marketing**: Media mix optimization
+ *
+ * ### Engineering
+ * - **Scheduling**: Resource allocation, job scheduling
  * - **Network flow**: Routing and capacity planning
- * 
- * ## Complexity
- * 
- * - Worst case: O(2^n)
- * - Average case: Polynomial (typically fast in practice)
- * 
- * @see Simplex.H
+ * - **Design**: Optimal structural design
+ *
+ * ### Operations Research
+ * - **Transportation**: Vehicle routing, logistics
+ * - **Assignment**: Job assignment, matching problems
+ * - **Cutting stock**: Material cutting optimization
+ *
+ * ## Example Problem Types
+ *
+ * ### Maximization
+ * - Maximize profit subject to resource constraints
+ * - Maximize production given material limits
+ *
+ * ### Minimization
+ * - Minimize cost subject to demand requirements
+ * - Minimize transportation costs
+ *
+ * ## Limitations
+ *
+ * - **Linearity**: Only works for linear objective and constraints
+ * - **Continuous**: Variables are continuous (not discrete)
+ * - **Deterministic**: No uncertainty in parameters
+ *
+ * For non-linear or discrete problems, use:
+ * - **Integer Programming**: For discrete variables
+ * - **Non-linear Programming**: For non-linear functions
+ * - **Stochastic Programming**: For uncertainty
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Run simplex example
+ * ./simplex_example
+ * ```
+ *
+ * @see Simplex.H Simplex algorithm implementation
+ * @see mincost_flow_example.cc Network flow (can be solved with LP)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

@@ -26,21 +26,142 @@
 
 /**
  * @file gen_rand_graph.C
- * @brief Generate random Euclidean graphs.
+ * @brief Generate random Euclidean graphs for testing and visualization
  *
- * Creates a random graph where nodes have 2D coordinates (x, y) within
- * a specified width and height. Edges connect nearby nodes.
+ * This utility program creates random graphs where nodes are placed at
+ * random 2D coordinates within a specified rectangular region. Edges are
+ * randomly generated to connect nodes, creating realistic spatial graphs
+ * useful for testing graph algorithms, visualization, and benchmarking.
  *
- * ## Output Format
+ * ## What is a Euclidean Graph?
  *
- * The graph is saved in Aleph-w text format, which can be loaded with
- * IO_Graph for visualization or further processing.
+ * A **Euclidean graph** is a graph where:
+ * - Each node has **2D coordinates** (x, y) in a plane
+ * - Nodes are **randomly distributed** within a rectangular region
+ * - Edges connect nodes (randomly or based on distance)
+ * - Useful for modeling **spatial networks**
  *
- * ## Usage
+### Applications of Euclidean Graphs
  *
- *     gen_rand_graph -n <nodes> -m <edges> -W <width> -H <height> [-s <seed>] [file]
+ * - **Road networks**: Cities connected by roads
+ * - **Wireless networks**: Devices with spatial positions
+ * - **Geographic data**: Locations on a map
+ * - **Spatial algorithms**: Algorithms that use coordinates
  *
- * @see Random_Graph, euclidian-graph-common.H
+## Key Features
+ *
+### Random Node Placement
+ * - **Uniform distribution**: Nodes distributed uniformly in W×H rectangle
+ * - **Spatial coordinates**: Each node has (x, y) position
+ * - **Configurable region**: Control width and height
+ *
+### Edge Generation
+ * - **Random edges**: Edges randomly connect nodes
+ * - **Configurable count**: Control number of edges
+ * - **Spatial awareness**: Can use distance-based connection (if implemented)
+ *
+### Reproducibility
+ * - **Random seed**: Optional seed for deterministic generation
+ * - **Consistent output**: Same seed produces same graph
+ * - **Testing**: Useful for reproducible test cases
+ *
+### Standard Format
+ * - **Aleph-w format**: Outputs in Aleph-w text format
+ * - **Compatibility**: Can be loaded with IO_Graph
+ * - **Visualization**: Compatible with visualization tools
+ *
+## Applications
+ *
+### Algorithm Testing
+ * - **Test cases**: Generate test cases for graph algorithms
+ * - **Edge cases**: Create graphs with specific properties
+ * - **Scalability**: Test algorithms on various sizes
+ *
+### Visualization
+ * - **Visual analysis**: Create graphs for visual inspection
+ * - **Demonstrations**: Generate graphs for presentations
+ * - **Debugging**: Visualize algorithm behavior
+ *
+### Benchmarking
+ * - **Performance tests**: Generate graphs of various sizes
+ * - **Scalability analysis**: Test algorithm scalability
+ * - **Comparison**: Compare algorithms on same graphs
+ *
+### Research
+ * - **Graph theory**: Create random instances for experiments
+ * - **Spatial analysis**: Study spatial graph properties
+ * - **Network modeling**: Model real-world networks
+ *
+## Output Format
+ *
+ * The graph is saved in Aleph-w text format, which includes:
+ * - **Node information**: Coordinates (x, y) for each vertex
+ * - **Edge information**: Connections between nodes
+ * - **Metadata**: Graph properties and statistics
+ *
+ * Can be loaded with `IO_Graph` for visualization or further processing.
+ *
+## Graph Properties
+ *
+ * ### Node Distribution
+ * - Nodes uniformly distributed in rectangle
+ * - No clustering (unless specified)
+ * - Random spatial positions
+ *
+### Edge Properties
+ * - Random edge connections
+ * - Configurable edge count
+ * - May create disconnected components
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Generate a small graph (50 nodes, 200 edges) in 500x500 region
+ * gen_rand_graph -n 50 -m 200 -W 500 -H 500 graph.txt
+ *
+ * # Generate with specific seed for reproducibility
+ * gen_rand_graph -n 100 -m 500 -W 1000 -H 1000 -s 12345 test.gra
+ *
+ * # Output to stdout (pipe to another program)
+ * gen_rand_graph -n 20 -m 30 -W 200 -H 200 | visualize_graph
+ *
+ * # Generate large graph for benchmarking
+ * gen_rand_graph -n 10000 -m 50000 -W 10000 -H 10000 large.gra
+ * ```
+ *
+## Parameters
+ *
+ * | Parameter | Short | Description | Default |
+ * |-----------|-------|-------------|---------|
+ * | `--nodes` | `-n` | Number of nodes | 100 |
+ * | `--edges` | `-m` | Number of edges | 1000 |
+ * | `--width` | `-W` | Width of coordinate space | 1000 |
+ * | `--height` | `-H` | Height of coordinate space | 1000 |
+ * | `--seed` | `-s` | Random seed (0 = current time) | 0 |
+ * | `[file]` | | Output file (stdout if omitted) | stdout |
+ *
+## Graph Characteristics
+ *
+ * ### Connectivity
+ * - May be **connected** or **disconnected**
+ * - Depends on number of edges relative to nodes
+ * - More edges → higher connectivity probability
+ *
+### Density
+ * - **Sparse**: Few edges (E ≈ V)
+ * - **Dense**: Many edges (E ≈ V²)
+ * - Configurable via edge count parameter
+ *
+## Integration with Other Tools
+ *
+ * - **Visualization**: Use with `graphpic.C` or GraphViz
+ * - **Algorithms**: Load with `IO_Graph` for algorithm testing
+ * - **Analysis**: Process with graph analysis tools
+ *
+ * @see Random_Graph Random graph generation functions
+ * @see euclidian-graph-common.H Euclidean graph node types
+ * @see io_graph.H Graph I/O operations
+ * @see random_graph_example.C Random graph models (Erdős–Rényi, etc.)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

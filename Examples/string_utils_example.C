@@ -1,28 +1,92 @@
 /**
  * @file string_utils_example.C
- * @brief Example demonstrating string manipulation utilities in Aleph-w.
+ * @brief Example demonstrating string manipulation utilities in Aleph-w
  *
- * This program demonstrates `ah-string-utils.H` which provides:
- * - Trimming (ltrim, rtrim, trim)
- * - Case conversion (tolower, toupper, to_name)
- * - Splitting and joining
- * - Numeric validation
- * - Text formatting (justify, align)
- * - Character filtering
+ * This program demonstrates comprehensive string manipulation utilities
+ * from `ah-string-utils.H`, providing functionality beyond standard C++
+ * string operations. These utilities are essential for text processing,
+ * data parsing, and formatting tasks.
  *
- * ## Usage
+ * ## Features Demonstrated
+ *
+ * ### Trimming Operations
+ * - **ltrim()**: Remove leading whitespace
+ * - **rtrim()**: Remove trailing whitespace
+ * - **trim()**: Remove both leading and trailing whitespace
+ * - **Custom trim**: Trim specific characters, not just whitespace
+ *
+ * ### Case Conversion
+ * - **tolower()**: Convert string to lowercase
+ * - **toupper()**: Convert string to uppercase
+ * - **to_name()**: Convert to title case (first letter uppercase)
+ *
+ * ### Splitting and Joining
+ * - **split()**: Split string by delimiter into list
+ * - **join()**: Join list of strings with delimiter
+ * - **split_lines()**: Split by newlines
+ *
+ * ### Validation
+ * - **is_numeric()**: Check if string represents a number
+ * - **is_integer()**: Check if string is an integer
+ * - **is_float()**: Check if string is a floating-point number
+ *
+ * ### Text Formatting
+ * - **justify()**: Justify text to specified width
+ * - **align_left()**: Left-align text
+ * - **align_right()**: Right-align text
+ * - **align_center()**: Center-align text
+ *
+ * ### Character Filtering
+ * - **filter()**: Remove characters matching predicate
+ * - **keep_only()**: Keep only characters matching predicate
+ * - **remove_chars()**: Remove specific characters
+ *
+ * ## Common Use Cases
+ *
+ * - **Data parsing**: Clean and validate input strings
+ * - **Text processing**: Format and transform text
+ * - **File I/O**: Process file contents line by line
+ * - **User input**: Sanitize and validate user input
+ * - **Report generation**: Format text for output
+ * - **CSV/TSV processing**: Split and join delimited data
+ *
+ * ## Performance Considerations
+ *
+ * - Most operations are O(n) where n is string length
+ * - In-place operations (like trim) modify the string directly
+ * - Split operations create new containers (memory overhead)
+ * - For large strings, consider using iterators or views
+ *
+ * ## Usage Examples
  *
  * ```bash
- * ./string_utils_example           # Run all demos
- * ./string_utils_example -s trim   # Only trim demo
+ * # Run all demonstrations
+ * ./string_utils_example
+ *
+ * # Run specific section
+ * ./string_utils_example -s trim      # Only trimming demos
+ * ./string_utils_example -s case      # Only case conversion
+ * ./string_utils_example -s split     # Only split/join
  * ```
  *
+ * ## Comparison with Standard Library
+ *
+ * | Feature | std::string | Aleph-w utils |
+ * |---------|-------------|---------------|
+ * | Trim | Manual (find_first_not_of) | trim(), ltrim(), rtrim() |
+ * | Case | std::transform + ::tolower | tolower(), toupper() |
+ * | Split | Manual loop | split() with delimiter |
+ * | Join | Manual loop | join() with delimiter |
+ * | Validation | Manual parsing | is_numeric(), is_integer() |
+ *
+ * Aleph-w utilities provide more convenient, higher-level operations.
+ *
+ * @see ah-string-utils.H String manipulation utilities header
+ * @see parse_utils.H Advanced parsing utilities
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ah-string-utils.H String manipulation utilities
  */
 
 #include <iostream>

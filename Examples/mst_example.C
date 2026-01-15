@@ -28,33 +28,159 @@
  * @file mst_example.C
  * @brief Minimum Spanning Tree algorithms: Kruskal and Prim
  * 
- * This example demonstrates two classic algorithms for finding the
- * Minimum Spanning Tree (MST) of a weighted undirected graph.
- * 
- * ## Algorithms Compared
- * 
- * ### Kruskal's Algorithm
- * - Sorts all edges by weight
- * - Greedily adds edges that don't create cycles
- * - Uses Union-Find data structure
- * - Time: O(E log E) = O(E log V)
- * - Best for: Sparse graphs
- * 
- * ### Prim's Algorithm
- * - Grows MST from a starting vertex
- * - Always adds the minimum weight edge to the tree
- * - Uses priority queue
- * - Time: O(E log V) with binary heap
- * - Best for: Dense graphs
- * 
- * ## Applications
- * 
- * - Network design (minimum cost to connect all nodes)
- * - Cluster analysis
- * - Approximation algorithms for NP-hard problems
- * - Image segmentation
- * 
- * @see Kruskal.H Prim.H
+ * This example demonstrates two classic greedy algorithms for finding the
+ * Minimum Spanning Tree (MST) of a weighted undirected graph. Both algorithms
+ * are optimal and produce the same result, but differ in their approach and
+ * performance characteristics.
+ *
+ * ## What is a Minimum Spanning Tree?
+ *
+ * Given a connected, undirected graph with weighted edges, a **spanning tree** is:
+ * - A subgraph that connects all vertices
+ * - A tree (connected, acyclic)
+ * - Has exactly V-1 edges
+ *
+ * A **minimum spanning tree** is the spanning tree with minimum total edge weight.
+ *
+ * **Key properties**:
+ * - **Uniqueness**: MST is unique if all edge weights are distinct
+ * - **Optimality**: Both algorithms produce optimal solution
+ * - **Greedy choice**: Locally optimal choices lead to globally optimal solution
+ *
+## Algorithms Compared
+ *
+### Kruskal's Algorithm (1956)
+ *
+ * **Strategy**: Greedily add edges in order of increasing weight
+ *
+ * **Algorithm**:
+ * ```
+ * 1. Sort all edges by weight (ascending)
+ * 2. Initialize empty MST
+ * 3. For each edge (in sorted order):
+ *    - If adding edge doesn't create cycle:
+ *      - Add edge to MST
+ *    - Use Union-Find to check cycles efficiently
+ * 4. Return MST
+ * ```
+ *
+ * **Key insight**: Add smallest edge that doesn't create cycle
+ *
+ * **Data structures**:
+ * - **Edge sorting**: O(E log E) for sorting
+ * - **Union-Find**: O(α(V)) per edge check (effectively O(1))
+ *
+ * **Time complexity**: O(E log E) = O(E log V)
+ * - Dominated by sorting step
+ *
+ * **Space complexity**: O(V) for Union-Find
+ *
+ * **Best for**: Sparse graphs (E ≈ V)
+ *
+### Prim's Algorithm (1957)
+ *
+ * **Strategy**: Grow MST from a starting vertex, always adding minimum edge
+ *
+ * **Algorithm**:
+ * ```
+ * 1. Start with arbitrary vertex in MST
+ * 2. While MST has < V-1 edges:
+ *    - Find minimum-weight edge connecting MST to non-MST vertex
+ *    - Add edge and vertex to MST
+ * 3. Return MST
+ * ```
+ *
+ * **Key insight**: Always add cheapest edge connecting current MST to outside
+ *
+ * **Data structures**:
+ * - **Priority queue**: Store edges from MST to outside vertices
+ * - **Binary heap**: O(log V) per operation
+ * - **Fibonacci heap**: O(1) amortized decrease-key
+ *
+ * **Time complexity**: 
+ * - O(E log V) with binary heap
+ * - O(E + V log V) with Fibonacci heap
+ *
+ * **Space complexity**: O(V) for priority queue
+ *
+ * **Best for**: Dense graphs (E ≈ V²)
+ *
+## Complexity Comparison
+ *
+ * | Algorithm | Time (Binary Heap) | Time (Fibonacci Heap) | Best For |
+ * |-----------|-------------------|----------------------|----------|
+ * | Kruskal | O(E log E) | O(E log E) | Sparse (E ≈ V) |
+ * | Prim | O(E log V) | O(E + V log V) | Dense (E ≈ V²) |
+ *
+ * **Note**: For sparse graphs, Kruskal is often faster. For dense graphs,
+ * Prim with Fibonacci heap is better.
+ *
+## When to Use Which?
+ *
+### Use Kruskal When:
+ * ✅ Graph is sparse (few edges)
+ * ✅ Edges already sorted (or sorting is cheap)
+ * ✅ Simple implementation preferred
+ * ✅ Parallel processing needed (edges independent)
+ *
+### Use Prim When:
+ * ✅ Graph is dense (many edges)
+ * ✅ Have good priority queue implementation
+ * ✅ Need to start from specific vertex
+ * ✅ Graph represented as adjacency matrix
+ *
+## Applications
+ *
+### Network Design
+ * - **Telecommunications**: Minimum cost to connect all cities
+ * - **Computer networks**: Minimum cost network topology
+ * - **Power grids**: Minimum cost electrical grid
+ * - **Transportation**: Minimum cost road/rail network
+ *
+### Cluster Analysis
+ * - **Data mining**: Group similar data points
+ * - **Image segmentation**: Group similar pixels
+ * - **Social networks**: Find communities
+ *
+### Approximation Algorithms
+ * - **TSP approximation**: Christofides algorithm uses MST
+ * - **Steiner tree**: MST provides approximation
+ * - **Facility location**: Network design problems
+ *
+### Other Applications
+ * - **Image processing**: Image segmentation
+ * - **Pattern recognition**: Feature grouping
+ * - **Circuit design**: Minimum wire routing
+ *
+## Example: Network Design
+ *
+ * **Problem**: Connect 5 cities with minimum cost
+ * ```
+ * Cities: A, B, C, D, E
+ * Possible connections with costs:
+ *   A-B: 10, A-C: 15, B-C: 8, B-D: 12,
+ *   C-D: 6, C-E: 9, D-E: 7
+ * ```
+ *
+ * **MST solution**: Connect with minimum total cost
+ * - Result: A-B (10), B-C (8), C-D (6), D-E (7)
+ * - Total cost: 31
+ *
+## Usage
+ *
+ * ```bash
+ * # Run MST comparison
+ * ./mst_example
+ *
+ * # Compare algorithms on specific graph
+ * ./mst_example -n 100 -d 0.3  # Sparse graph (Kruskal better)
+ * ./mst_example -n 100 -d 0.8  # Dense graph (Prim better)
+ * ```
+ *
+ * @see Kruskal.H Kruskal's algorithm implementation
+ * @see Prim.H Prim's algorithm implementation
+ * @see union_find_example.C Union-Find (used by Kruskal)
+ * @see heap_example.C Priority queues (used by Prim)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

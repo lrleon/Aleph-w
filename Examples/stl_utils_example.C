@@ -26,26 +26,118 @@
 
 /**
  * @file stl_utils_example.C
- * @brief Example demonstrating STL <-> Aleph-w container conversions.
+ * @brief Example demonstrating STL <-> Aleph-w container conversions
  *
- * This example shows how to use ah-stl-utils.H for seamless conversion
- * between STL containers and Aleph-w containers.
+ * This example demonstrates seamless interoperability between Standard Template
+ * Library (STL) containers and Aleph-w containers using `ah-stl-utils.H`. This
+ * is essential for integrating Aleph-w with existing STL-based codebases and
+ * third-party libraries.
+ *
+ * ## Why Container Interoperability?
+ *
+ * Many C++ projects use STL containers (`std::vector`, `std::list`, etc.), while
+ * Aleph-w provides its own container types (`DynList`, `DynArray`, etc.). This
+ * utility bridge allows you to:
+ *
+ * - **Use both**: Leverage strengths of both container families
+ * - **Integrate easily**: Convert between formats as needed
+ * - **Migrate gradually**: Move from STL to Aleph-w incrementally
+ * - **Interoperate**: Work with libraries expecting STL containers
  *
  * ## Features Demonstrated
  *
- * 1. std::vector <-> DynList / DynArray conversions
- * 2. std::list <-> DynList conversions
- * 3. Tuple conversions to containers
- * 4. Iterator range conversions
- * 5. Variadic argument packing
- * 6. Map transformations
+### Container Conversions
+ *
+ * #### STL → Aleph-w
+ * - `std::vector<T>` → `DynList<T>` / `DynArray<T>`
+ * - `std::list<T>` → `DynList<T>`
+ * - `std::set<T>` → `DynSetTree<T>`
+ * - Iterator ranges → Aleph containers
+ *
+ * #### Aleph-w → STL
+ * - `DynList<T>` → `std::vector<T>` / `std::list<T>`
+ * - `DynArray<T>` → `std::vector<T>`
+ * - Any Aleph container → STL container
+ *
+ * ### Advanced Conversions
+ *
+ * #### Tuple Conversions
+ * - Convert tuples to containers
+ * - Useful for function return values
+ * - Unpack structured data
+ *
+ * #### Iterator Ranges
+ * - Convert STL iterator ranges to Aleph containers
+ * - Convert Aleph iterator ranges to STL containers
+ * - Work with partial ranges
+ *
+ * #### Variadic Arguments
+ * - Pack variadic arguments into containers
+ * - Useful for function templates
+ * - Flexible argument handling
+ *
+ * #### Map Transformations
+ * - Convert between `std::map` and Aleph map types
+ * - Transform key-value structures
+ * - Preserve or transform data during conversion
  *
  * ## Use Cases
  *
- * - Integrating Aleph-w with STL-based APIs
- * - Data interchange between libraries
- * - Legacy code interoperability
+ * ### Library Integration
+ * - **Third-party APIs**: Many libraries expect STL containers
+ * - **Legacy code**: Existing codebases using STL
+ * - **Standard compliance**: Some interfaces require STL types
  *
+ * ### Data Processing Pipelines
+ * - **Input**: Read data into STL containers
+ * - **Process**: Use Aleph-w algorithms (may be faster/better)
+ * - **Output**: Convert back to STL for compatibility
+ *
+ * ### Migration Strategy
+ * - **Phase 1**: Use STL containers
+ * - **Phase 2**: Convert to Aleph-w where beneficial
+ * - **Phase 3**: Use conversion utilities for compatibility
+ *
+ * ### Performance Optimization
+ * - Use Aleph-w containers for performance-critical sections
+ * - Convert to STL only when necessary for compatibility
+ * - Minimize conversion overhead
+ *
+ * ## Conversion Overhead
+ *
+ * Most conversions are O(n) where n is container size:
+ * - **Copy conversion**: Creates new container (memory overhead)
+ * - **Move conversion**: More efficient (if supported)
+ * - **View conversion**: Zero-copy (if available)
+ *
+ * **Best practice**: Minimize conversions, convert once at boundaries.
+ *
+ * ## Example Workflow
+ *
+ * ```cpp
+ * // Read data into STL vector (from external API)
+ * std::vector<int> stl_data = read_from_api();
+ *
+ * // Convert to Aleph-w for processing
+ * DynList<int> aleph_data = vector_to_DynList(stl_data);
+ *
+ * // Use Aleph-w algorithms (may be faster)
+ * auto result = aleph_data.maps([](int x) { return x * 2; });
+ *
+ * // Convert back to STL for output
+ * std::vector<int> output = DynList_to_vector(result);
+ * ```
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Run all conversion examples
+ * ./stl_utils_example
+ * ```
+ *
+ * @see ah-stl-utils.H STL/Aleph-w conversion utilities
+ * @see uni_functional_example.C Unified functional operations (works with both)
+ * @see zip_utils_example.C Unified zip operations (works with both)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

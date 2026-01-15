@@ -28,31 +28,133 @@
  * @file dynmap_example.C
  * @brief DynMapTree: Key-Value Mappings with Various Tree Backends
  * 
- * This example demonstrates the DynMapTree class, which provides
- * associative key-value storage using different balanced BST implementations.
- * 
+ * This example demonstrates `DynMapTree`, a flexible associative container
+ * (map/dictionary) that can use different balanced BST implementations as its
+ * backend. This allows you to choose the tree type that best fits your
+ * performance requirements and access patterns.
+ *
+ * ## What is DynMapTree?
+ *
+ * `DynMapTree<Key, Value, Tree, Compare>` is a generic map implementation that:
+ * - Stores key-value pairs
+ * - Maintains keys in sorted order
+ * - Provides O(log n) operations (with appropriate tree backend)
+ * - Supports range queries and ordered iteration
+ *
  * ## Available Tree Backends
- * 
- * - **Avl_Tree**: Strictly balanced, deterministic O(log n)
- * - **Rb_Tree**: Red-Black tree, efficient for frequent updates
- * - **Splay_Tree**: Self-adjusting, good for access patterns with locality
- * - **Treap**: Randomized, probabilistic O(log n)
- * - **Rand_Tree**: Another randomized tree variant
- * 
+ *
+### Balanced Trees (Guaranteed O(log n))
+ *
+ * #### Avl_Tree
+ * - **Balance**: Strict height balance (heights differ by ≤ 1)
+ * - **Performance**: Deterministic O(log n), predictable
+ * - **Best for**: Read-heavy workloads, worst-case guarantees needed
+ * - **Trade-off**: More rotations than Red-Black (slightly slower inserts)
+ *
+ * #### Rb_Tree
+ * - **Balance**: Relaxed balance (no path > 2× shortest)
+ * - **Performance**: O(log n) guaranteed, efficient updates
+ * - **Best for**: General-purpose, balanced read/write
+ * - **Trade-off**: Less strict than AVL but faster inserts
+ *
+### Self-Adjusting Trees (Amortized O(log n))
+ *
+ * #### Splay_Tree
+ * - **Strategy**: Moves accessed elements to root
+ * - **Performance**: O(log n) amortized
+ * - **Best for**: Temporal locality, caching patterns
+ * - **Trade-off**: No worst-case guarantee, but excellent for hot data
+ *
+### Randomized Trees (Expected O(log n))
+ *
+ * #### Treap
+ * - **Strategy**: Randomized BST with heap priorities
+ * - **Performance**: O(log n) expected
+ * - **Best for**: Simple implementation, good average case
+ *
+ * #### Rand_Tree
+ * - **Strategy**: Different randomization approach
+ * - **Performance**: O(log n) expected
+ *
  * ## When to Use DynMapTree vs Hash Maps
- * 
- * ### Use DynMapTree when:
- * - Keys need to be ordered
- * - You need range queries (min, max, in-range iteration)
- * - Predictable worst-case performance matters
- * - Keys have good comparison operators but poor hash functions
- * 
- * ### Use Hash Maps when:
- * - Only point queries are needed
- * - Average O(1) access is acceptable
- * - Order doesn't matter
- * 
- * @see tpl_dynMapTree.H
+ *
+### Use DynMapTree When:
+ *
+ * ✅ **Ordered keys needed**
+ *   - Keys must be sorted
+ *   - Need to iterate in key order
+ *   - Range queries required
+ *
+ * ✅ **Range operations**
+ *   - Find min/max key
+ *   - Iterate over key range [a, b]
+ *   - Find nearest key
+ *
+ * ✅ **Predictable performance**
+ *   - Worst-case guarantees matter
+ *   - Real-time systems
+ *   - Consistent performance needed
+ *
+ * ✅ **Poor hash functions**
+ *   - Keys don't hash well
+ *   - Custom types without hash
+ *   - Hash collisions problematic
+ *
+### Use Hash Maps When:
+ *
+ * ✅ **Point queries only**
+ *   - Only need key → value lookup
+ *   - No range queries needed
+ *   - Order doesn't matter
+ *
+ * ✅ **Maximum speed**
+ *   - O(1) average case acceptable
+ *   - Large datasets
+ *   - High-frequency lookups
+ *
+ * ✅ **Simple keys**
+ *   - Keys have good hash functions
+ *   - Standard types (int, string)
+ *
+ * ## Operations Supported
+ *
+ * | Operation | Complexity | Description |
+ * |-----------|-----------|-------------|
+ * | insert | O(log n) | Add key-value pair |
+ * | find | O(log n) | Find value by key |
+ * | remove | O(log n) | Remove key-value pair |
+ * | min/max | O(log n) | Find smallest/largest key |
+ * | range query | O(log n + k) | Find keys in range [a, b] |
+ * | iteration | O(n) | Iterate in sorted order |
+ *
+ * ## Comparison Table
+ *
+ * | Feature | DynMapTree | Hash Map |
+ * |---------|------------|----------|
+ * | Lookup | O(log n) | O(1) avg |
+ * | Ordered iteration | Yes | No |
+ * | Range queries | Yes | No |
+ * | Worst-case guarantee | Yes | No |
+ * | Memory overhead | Lower | Higher |
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * // Create map with AVL tree backend
+ * DynMapTree<string, int, Avl_Tree> scores;
+ *
+ * scores["Alice"] = 95;
+ * scores["Bob"] = 87;
+ * scores["Charlie"] = 92;
+ *
+ * // Iterate in sorted order (by key)
+ * for (auto it = scores.get_it(); it.has_curr(); it.next())
+ *   cout << it.get_curr()->first << ": " << it.get_curr()->second << endl;
+ * ```
+ *
+ * @see tpl_dynMapTree.H DynMapTree template class
+ * @see dynset_trees.C Similar example for sets (no values)
+ * @see hash_tables_example.C Hash map alternatives
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

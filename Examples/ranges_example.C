@@ -1,39 +1,133 @@
 /**
  * @file ranges_example.C
- * @brief Example demonstrating C++20 Ranges support in Aleph-w.
+ * @brief Example demonstrating C++20 Ranges support in Aleph-w
  *
- * This program demonstrates `ah-ranges.H` which provides:
- * - Lazy range generation (no allocation until materialized)
- * - Range adaptors for Aleph containers
- * - Pipe operator (|) support
- * - Integration with std::views
+ * This program demonstrates C++20 Ranges support in Aleph-w through
+ * `ah-ranges.H`. Ranges provide a modern, composable way to work with
+ * sequences of data using lazy evaluation and the pipe operator (|).
+ * This is the C++20 standard way of doing functional programming.
  *
- * ## Key Concepts
+ * ## What are C++20 Ranges?
  *
- * - **Lazy evaluation**: Values generated on demand, not upfront
- * - **Range adaptors**: Convert ranges to Aleph containers
- * - **Views**: Non-owning, composable range transformations
- * - **Pipe syntax**: `range | filter | transform | collect`
+ * C++20 Ranges introduce:
+ * - **Range concepts**: Types that can be iterated
+ * - **Range adaptors**: Lazy transformations (views)
+ * - **Pipe operator**: Composable operations (`range | filter | transform`)
+ * - **Lazy evaluation**: Values computed on demand
  *
- * ## Requirements
+ * **Key advantage**: No intermediate allocations until you "materialize"
+ * the range into a container.
  *
- * - C++20 (-std=c++20)
- * - GCC 12+ or Clang 16+ with libc++
+## Key Concepts
  *
- * ## Usage
+### Lazy Evaluation
  *
- * ```bash
- * ./ranges_example           # Run all demos
- * ./ranges_example -s lazy   # Only lazy ranges demo
+ * **Traditional approach** (eager):
+ * ```cpp
+ * auto doubled = map(data, [](int x) { return x * 2; });  // Allocates now
+ * auto filtered = filter(doubled, is_positive);            // Allocates again
  * ```
  *
+ * **Ranges approach** (lazy):
+ * ```cpp
+ * auto result = data | views::transform(double_it) | views::filter(is_positive);
+ * // No allocation yet! Just a view.
+ * auto vec = result | ranges::to<vector>();  // Materialize when needed
+ * ```
+ *
+### Range Adaptors
+ *
+ * Transform ranges without creating new containers:
+ * - **`views::filter`**: Keep elements satisfying predicate
+ * - **`views::transform`**: Transform each element
+ * - **`views::take`**: Take first n elements
+ * - **`views::drop`**: Skip first n elements
+ * - **`views::reverse`**: Reverse order
+ *
+### Views
+ *
+ * Views are:
+ * - **Non-owning**: Don't own the underlying data
+ * - **Composable**: Can chain multiple views
+ * - **Lazy**: Computed on demand
+ * - **Zero-cost**: No allocation until materialized
+ *
+### Pipe Syntax
+ *
+ * The pipe operator (`|`) allows natural composition:
+ * ```cpp
+ * auto result = data
+ *   | views::filter(is_positive)
+ *   | views::transform(square)
+ *   | views::take(10)
+ *   | ranges::to<vector>();
+ * ```
+ *
+ * Reads like: "Take data, filter positives, square them, take 10, convert to vector"
+ *
+## Comparison with Traditional Approach
+ *
+ * | Aspect | Traditional | C++20 Ranges |
+ * |--------|-------------|--------------|
+ * | Evaluation | Eager (immediate) | Lazy (on demand) |
+ * | Memory | Multiple allocations | Single allocation (at end) |
+ * | Syntax | Nested calls | Pipe composition |
+ * | Performance | Can be slower | Often faster (fewer allocations) |
+ *
+## Requirements
+ *
+ * - **C++20**: Requires `-std=c++20` compiler flag
+ * - **Compiler**: GCC 12+ or Clang 16+ with libc++
+ * - **Standard library**: C++20 ranges support
+ *
+## Benefits
+ *
+### Performance
+ * - **Fewer allocations**: Only materialize at the end
+ * - **Better cache usage**: Composed operations can be optimized
+ * - **Compiler optimizations**: Modern compilers optimize range pipelines
+ *
+### Readability
+ * - **Natural flow**: Left-to-right reading
+ * - **Composable**: Easy to add/remove operations
+ * - **Declarative**: Describe what you want, not how
+ *
+### Memory Efficiency
+ * - **Lazy evaluation**: Don't create intermediate containers
+ * - **Views**: Non-owning, zero overhead
+ * - **Materialization**: Only when you need the result
+ *
+## Usage Examples
+ *
+ * ```bash
+ * # Run all range demonstrations
+ * ./ranges_example
+ *
+ * # Run specific demo
+ * ./ranges_example -s lazy      # Lazy evaluation demo
+ * ./ranges_example -s pipe      # Pipe operator demo
+ * ```
+ *
+## Example Pipeline
+ *
+ * ```cpp
+ * // Process large dataset efficiently
+ * auto result = large_dataset
+ *   | views::filter([](auto x) { return x > 0; })      // Lazy filter
+ *   | views::transform([](auto x) { return x * 2; })   // Lazy transform
+ *   | views::take(1000)                                // Lazy take
+ *   | ranges::to<vector>();                            // Materialize once
+ * ```
+ *
+ * Only one allocation (at the end), not three intermediate allocations!
+ *
+ * @see ah-ranges.H C++20 Ranges support for Aleph containers
+ * @see functional_example.C Traditional functional utilities (eager)
+ * @see uni_functional_example.C Unified functional (works with both)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- *
- * @see ah-ranges.H C++20 Ranges support
- * @see ahFunctional.H Traditional functional utilities
  */
 
 #include <iostream>

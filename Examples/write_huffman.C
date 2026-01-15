@@ -28,15 +28,251 @@
 
 /**
  * @file write_huffman.C
- * @brief Huffman encoding/decoding demonstration
+ * @brief Huffman encoding/decoding demonstration with tree visualization
  * 
- * This example demonstrates Huffman compression by encoding a poem
- * and showing the compression ratio achieved. It also generates
- * LaTeX output files for visualization of the Huffman tree.
- * 
- * Usage: write_huffman [input_file]
- *        Without arguments: encodes a built-in poem
- *        With argument: encodes the specified file
+ * This example demonstrates Huffman compression, one of the most important
+ * lossless data compression algorithms. It encodes text using variable-length
+ * codes based on character frequencies, achieving optimal compression for
+ * the given frequency distribution. Huffman coding is the foundation of many
+ * modern compression algorithms.
+ *
+ * ## What is Huffman Coding?
+ *
+### Problem
+ *
+ * **Goal**: Compress text by assigning shorter codes to frequent characters
+ *
+ * **Challenge**: 
+ * - Fixed-length codes (ASCII) waste space
+ * - Variable-length codes must be unambiguous
+ * - Need prefix-free property (no code is prefix of another)
+ *
+### Solution: Huffman Coding
+ *
+ * Huffman coding is a **greedy algorithm** that assigns shorter codes to more
+ * frequent characters and longer codes to less frequent ones. It builds a
+ * binary tree where:
+ * - **Leaves**: Represent characters
+ * - **Paths**: Path from root to leaf gives the character's code
+ * - **Edges**: Left edges = 0, right edges = 1
+ * - **Property**: Prefix-free (no code is prefix of another)
+ *
+### Example
+ *
+ * ```
+ * Frequencies: a=5, b=2, c=1, d=1
+ *
+ * Tree:
+ *         9
+ *        / \
+ *       5   4
+ *      a   / \
+ *         2   2
+ *        b   / \
+ *           1   1
+ *          c   d
+ *
+ * Codes:
+ *   a: 0
+ *   b: 10
+ *   c: 110
+ *   d: 111
+ * ```
+ *
+## Algorithm Steps
+ *
+### Step 1: Frequency Analysis
+ *
+ * Count character frequencies in input:
+ * ```
+ * for each character in input:
+ *   frequency[character]++
+ * ```
+ *
+ * **Time**: O(n) where n = input length
+ *
+### Step 2: Build Priority Queue
+ *
+ * Create min-heap of character nodes:
+ * ```
+ * for each character:
+ *   create node(character, frequency)
+ *   insert into min-heap
+ * ```
+ *
+ * **Time**: O(k log k) where k = number of unique characters
+ *
+### Step 3: Build Tree (Greedy Merging)
+ *
+ * Repeatedly merge two lowest-frequency nodes:
+ * ```
+ * while heap.size() > 1:
+ *   left = extract_min()   // Lowest frequency
+ *   right = extract_min()   // Second lowest
+ *   merged = new_node(left, right)
+ *   merged.frequency = left.frequency + right.frequency
+ *   insert(merged)
+ * ```
+ *
+ * **Time**: O(k log k) - k extractions from heap
+ * **Result**: Single tree with all characters as leaves
+ *
+### Step 4: Generate Codes
+ *
+ * Traverse tree to assign binary codes:
+ * ```
+ * generate_codes(node, code=""):
+ *   if node is leaf:
+ *     codes[node.char] = code
+ *   else:
+ *     generate_codes(node.left, code + "0")
+ *     generate_codes(node.right, code + "1")
+ * ```
+ *
+ * **Time**: O(k) - visit each leaf once
+ *
+### Step 5: Encode
+ *
+ * Replace characters with their codes:
+ * ```
+ * for each character in input:
+ *   output += codes[character]
+ * ```
+ *
+ * **Time**: O(n) - process each character
+ *
+### Total Complexity
+ *
+ * - **Time**: O(n + k log k) where k = unique characters
+ * - **Space**: O(k) for tree and codes
+ *
+## Compression Ratio
+ *
+### Metrics
+ *
+ * The example shows:
+ * - **Original size**: n × bits_per_char (e.g., n × 8 for ASCII)
+ * - **Encoded size**: Σ (frequency × code_length)
+ * - **Compression ratio**: encoded_size / original_size
+ * - **Average bits per character**: encoded_size / n
+ *
+### Optimality
+ *
+ * **Huffman coding is optimal** for the given frequency distribution:
+ * - No other prefix-free code can achieve better compression
+ * - Achieves entropy limit (Shannon's theorem)
+ * - Best possible for fixed frequencies
+ *
+### Example
+ *
+ * ```
+ * Text: "aabacada"
+ * Frequencies: a=5, b=1, c=1, d=1
+ *
+ * Original: 8 × 8 = 64 bits
+ * Encoded: 5×1 + 1×2 + 1×3 + 1×3 = 13 bits
+ * Compression: 13/64 = 20.3%
+ * ```
+ *
+## Output Files
+ *
+ * - **Huffman tree visualization**: LaTeX file for tree diagram
+ *   - Shows tree structure
+ *   - Displays character frequencies
+ *   - Shows code assignments
+ *
+ * - **Encoding statistics**: Compression metrics
+ *   - Original and encoded sizes
+ *   - Compression ratio
+ *   - Code table
+ *
+ * - **Encoded data**: Binary representation
+ *   - Compressed output
+ *   - Can be decoded using tree
+ *
+## Applications
+ *
+### File Compression
+ * - **ZIP**: Uses Huffman coding (DEFLATE algorithm)
+ * - **GZIP**: GNU zip compression
+ * - **PNG**: Image compression format
+ *
+### Image Compression
+ * - **JPEG**: Uses Huffman for entropy coding
+ * - **Lossless compression**: Maintains image quality
+ *
+### Network Protocols
+ * - **HTTP/2**: Header compression (HPACK)
+ * - **Data transmission**: Reduce bandwidth usage
+ *
+### Database Systems
+ * - **Column compression**: Compress database columns
+ * - **Storage optimization**: Reduce storage requirements
+ *
+### Multimedia
+ * - **Audio compression**: MP3 uses Huffman
+ * - **Video compression**: Part of video codecs
+ *
+## Example Input
+ *
+ * By default, encodes a poem by Federico García Lorca:
+ * "Muerte de Antoñito el Camborio"
+ *
+ * This demonstrates:
+ * - Spanish text with special characters
+ * - Character frequency distribution
+ * - Compression on real text
+ *
+## Usage
+ *
+ * ```bash
+ * # Encode built-in poem
+ * write_huffman
+ *
+ * # Encode custom file
+ * write_huffman input.txt
+ *
+ * # Encode with verbose output
+ * write_huffman input.txt -v
+ * ```
+ *
+## Decoding
+ *
+### Process
+ *
+ * Decoding uses the same tree:
+ * ```
+ * current = root
+ * for each bit in encoded:
+ *   if bit == 0:
+ *     current = current.left
+ *   else:
+ *     current = current.right
+ *   if current is leaf:
+ *     output += current.char
+ *     current = root
+ * ```
+ *
+ * **Time**: O(n) where n = encoded length
+ *
+## Advantages
+ *
+ * ✅ **Optimal**: Best compression for given frequencies
+ * ✅ **Fast**: O(n + k log k) encoding time
+ * ✅ **Simple**: Easy to understand and implement
+ * ✅ **Adaptive**: Can adapt to frequency changes
+ *
+## Limitations
+ *
+ * ❌ **Two passes**: Need to analyze frequencies first
+ * ❌ **Tree overhead**: Must store tree for decoding
+ * ❌ **Fixed frequencies**: Doesn't adapt during encoding
+ *
+ * @see Huffman.H Huffman encoding implementation
+ * @see huffman_btreepic.H Tree visualization utilities
+ * @see heap_example.C Priority queues (used in Huffman)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <cstring>

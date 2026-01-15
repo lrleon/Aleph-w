@@ -30,19 +30,186 @@
  * @file writeRankTree.C
  * @brief Demonstrates ranked BST with subtree counts
  * 
- * This program creates a BST where each node maintains a count of the
- * number of nodes in its subtree. This extended BST (BinNodeXt) supports
- * efficient order statistics operations:
- * - select(k): Find the k-th smallest element in O(log n)
- * - rank(x): Find the rank of element x in O(log n)
- * 
- * Output files:
- * - rank-tree-aux.Tree: Tree with subtree counts for visualization
- *   - Preorder traversal of keys
- *   - START-AUX section with subtree counts (inorder)
- *   - Position tags for btreepic
- * 
- * Usage: writeRankTree [-n <count>] [-s <seed>]
+ * This program demonstrates **order statistics** in binary search trees
+ * using extended nodes (`BinNodeXt`) that maintain subtree size information.
+ * Order statistics enable efficient answers to "what is the k-th element?"
+ * and "what is the position of element x?" queries.
+ *
+ * ## What are Order Statistics?
+ *
+### Problem Statement
+ *
+ * Order statistics operations answer questions like:
+ * - **select(k)**: "What is the k-th smallest element?" (0-indexed)
+ * - **rank(x)**: "What is the position of element x?" (how many elements < x)
+ *
+ * **Example**:
+ * ```
+ * Tree: [1, 3, 5, 7, 9]
+ * select(2) = 5  (3rd smallest element)
+ * rank(5) = 2    (5 is at position 2)
+ * ```
+ *
+### Standard BST Limitation
+ *
+ * Standard BSTs require O(n) time for these operations:
+ * - Must traverse entire tree to count elements
+ * - No efficient way to find k-th element
+ * - Rank queries require full traversal
+ *
+### Ranked BST Solution
+ *
+ * Ranked BSTs achieve O(log n) for order statistics:
+ * - Maintain subtree size at each node
+ * - Use size information to navigate efficiently
+ * - Achieve logarithmic time complexity
+ *
+## Extended Binary Node (BinNodeXt)
+ *
+### What is BinNodeXt?
+ *
+ * `BinNodeXt` extends standard binary nodes with:
+ * - **Subtree count**: Number of nodes in subtree rooted at this node
+ * - **Maintained during**: Insert, delete, rotations
+ * - **Updated in**: O(1) per operation (amortized)
+ * - **Extra memory**: One integer per node
+ *
+### Maintaining Subtree Size
+ *
+ * Subtree size is updated during:
+ * - **Insertion**: Increment sizes along path to insertion point
+ * - **Deletion**: Decrement sizes along path
+ * - **Rotations**: Recalculate sizes after rotation
+ *
+ * **Cost**: O(1) amortized per operation
+ *
+## How It Works
+ *
+### Select Operation (find k-th smallest)
+ *
+ * ```
+ * select(node, k):
+ *   left_size = size(left_child)  // O(1) lookup
+ *   if k < left_size:
+ *     return select(left_child, k)  // k-th is in left subtree
+ *   else if k == left_size:
+ *     return node.key  // Found! This is the k-th element
+ *   else:
+ *     return select(right_child, k - left_size - 1)  // k-th is in right
+ * ```
+ *
+ * **Time**: O(log n) - height of tree
+ * **Key insight**: Use subtree size to decide which subtree contains k-th element
+ *
+### Rank Operation (find position of x)
+ *
+ * ```
+ * rank(node, x):
+ *   if x < node.key:
+ *     return rank(left_child, x)  // x is in left subtree
+ *   else if x == node.key:
+ *     return size(left_child)  // Found! Position = left subtree size
+ *   else:
+ *     return size(left_child) + 1 + rank(right_child, x)  // x in right
+ * ```
+ *
+ * **Time**: O(log n) - height of tree
+ * **Key insight**: Count elements smaller than x
+ *
+## Complexity Comparison
+ *
+ * | Operation | Standard BST | Ranked BST | Improvement |
+ * |-----------|--------------|------------|-------------|
+ * | select(k) | O(n) | O(log n) | **Exponential** |
+ * | rank(x) | O(n) | O(log n) | **Exponential** |
+ * | insert | O(log n) | O(log n) | Same |
+ * | delete | O(log n) | O(log n) | Same |
+ * | search | O(log n) | O(log n) | Same |
+ *
+ * **Trade-off**: Slight overhead (one integer per node) for huge speedup
+ *
+## Applications
+ *
+### Statistics and Percentiles
+ * - **Median finding**: `select(n/2)` in O(log n)
+ * - **Percentiles**: `select(k)` for various k values
+ * - **Quartiles**: Find 25th, 50th, 75th percentiles
+ *
+### Range Queries
+ * - **Count in range**: `rank(b) - rank(a)` gives count in [a, b]
+ * - **Range extraction**: Extract elements in range efficiently
+ * - **Database queries**: Range queries on indexed data
+ *
+### Database Indexing
+ * - **Order statistics**: Efficient k-th element queries
+ * - **Rank queries**: Find position of values
+ * - **Index operations**: Support complex queries
+ *
+### Competitive Programming
+ * - **K-th element**: Common problem type
+ * - **Order statistics**: Frequently needed
+ * - **Efficient solution**: O(log n) instead of O(n)
+ *
+### Data Analysis
+ * - **Top-k queries**: Find k largest/smallest
+ * - **Ranking**: Rank elements by value
+ * - **Statistical analysis**: Percentiles, medians
+ *
+## Example Use Cases
+ *
+### Finding Median
+ * ```cpp
+ * int median = tree.select(tree.size() / 2);
+ * ```
+ *
+### Counting Elements in Range
+ * ```cpp
+ * int count = tree.rank(b) - tree.rank(a);  // Elements in [a, b)
+ * ```
+ *
+### Finding Percentile
+ * ```cpp
+ * int p90 = tree.select(tree.size() * 9 / 10);  // 90th percentile
+ * ```
+ *
+## Output Files
+ *
+ * - **`rank-tree-aux.Tree`**: Tree visualization with:
+ *   - **Preorder traversal**: Keys in preorder
+ *   - **START-AUX section**: Subtree counts (inorder)
+ *   - **Position tags**: For `btreepic` visualization
+ *
+ * The visualization shows both:
+ * - **Tree structure**: Binary search tree layout
+ * - **Rank information**: Subtree counts at each node
+ *
+## Usage
+ *
+ * ```bash
+ * # Generate ranked tree with 25 nodes
+ * writeRankTree -n 25
+ *
+ * # Use specific seed
+ * writeRankTree -n 50 -s 42
+ * ```
+ *
+ * @see tpl_binNodeXt.H Extended binary node with rank support
+ * @see tpl_binNodeUtils.H BST utility functions (uses rank)
+ * @see writeSplit.C Split operation (uses rank)
+ * @see btreepic.C Visualization tool
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ */
+ *
+ * # Use specific seed
+ * writeRankTree -n 50 -s 12345
+ * ```
+ *
+ * @see tpl_binNodeXt.H Extended binary node with rank support
+ * @see writeSplit.C Split operation using rank information
+ * @see btreepic.C Visualization tool
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
  */
 
 # include <iostream>
