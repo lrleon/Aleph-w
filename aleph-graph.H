@@ -262,19 +262,19 @@ public:
          the bit fields and the counter. The three main uses of this
          pointer are:
 
-	 1. For mapping nodes and/or arcs to other isomorphic
-	    subgraphs. By example, you could compute a spanning tree of
-	    the graph. Now, in order to know which node or arc of
-	    spanning tree corresponds to its counterpart in the original
-	    graph, you could use this `cookie` and to perform an
-	    map. This has the great advantage that the map is
-	    deterministically \f$O(1)\f$, by contrast with the
-	    probabilistic \f$O(1)\f$ of a hash table or the \f$O(\lg
-	    n)\f$ of a binary search tree. In addition, this
-	    alternative, when required, is less space expensive.
+         - For mapping nodes and/or arcs to other isomorphic
+            subgraphs. By example, you could compute a spanning tree of
+            the graph. Now, in order to know which node or arc of
+            spanning tree corresponds to its counterpart in the original
+            graph, you could use this `cookie` and to perform an
+            map. This has the great advantage that the map is
+            deterministically \f$O(1)\f$, by contrast with the
+            probabilistic \f$O(1)\f$ of a hash table or the \f$O(\lg
+            n)\f$ of a binary search tree. In addition, this
+            alternative, when required, is less space expensive.
 
-	 2. If you need to associate to the node or arc a more
-	    sophisticated state, the you could define it with a class
+         - If you need to associate to the node or arc a more
+            sophisticated state, the you could define it with a class
 	    (or tuple or whatever else you need), and then allocate it
 	    and storing via this `cookie` pointer. Of course, be careful
 	    and be sure of deallocating it when it is not longer

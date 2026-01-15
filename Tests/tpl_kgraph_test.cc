@@ -88,8 +88,8 @@ namespace
 
   template <class GT>
   void expect_cut_matches_partition(const GT &g,
-                                    const Aleph::set<typename GT::Node *> &l,
-                                    const Aleph::set<typename GT::Node *> &r,
+                                    const DynSetTree<typename GT::Node *> &l,
+                                    const DynSetTree<typename GT::Node *> &r,
                                     const DynDlist<typename GT::Arc *> &cut,
                                     size_t expected_cut_size)
   {
@@ -98,8 +98,8 @@ namespace
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       {
         auto node = it.get_curr();
-        const bool in_l = l.count(node) != 0;
-        const bool in_r = r.count(node) != 0;
+        const bool in_l = l.contains(node);
+        const bool in_r = r.contains(node);
         EXPECT_NE(in_l, in_r);
       }
 
@@ -108,8 +108,8 @@ namespace
         auto arc = it.get_curr();
         auto src = g.get_src_node(arc);
         auto tgt = g.get_tgt_node(arc);
-        const bool src_in_l = l.count(src) != 0;
-        const bool tgt_in_l = l.count(tgt) != 0;
+        const bool src_in_l = l.contains(src);
+        const bool tgt_in_l = l.contains(tgt);
         const bool crosses = (src_in_l != tgt_in_l);
         EXPECT_EQ(arc_in_cut<GT>(cut, arc), crosses);
       }
@@ -120,8 +120,8 @@ namespace
         auto arc = it.get_curr();
         auto src = g.get_src_node(arc);
         auto tgt = g.get_tgt_node(arc);
-        const bool src_in_l = l.count(src) != 0;
-        const bool tgt_in_l = l.count(tgt) != 0;
+        const bool src_in_l = l.contains(src);
+        const bool tgt_in_l = l.contains(tgt);
         EXPECT_NE(src_in_l, tgt_in_l);
       }
 
@@ -194,8 +194,8 @@ TEST(KGraphEdgeConnectivity, ParallelEdgesIncreaseConnectivity)
 TEST(KGraphMinCut, EmptyGraphProducesEmptyPartition)
 {
   Graph g;
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -207,8 +207,8 @@ TEST(KGraphMinCut, SingleNodeTrivialCut)
 {
   Graph g;
   g.insert_node(1);
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -221,8 +221,8 @@ TEST(KGraphMinCut, SingleEdgeCut)
   Graph g;
   auto nodes = make_nodes(g, 2);
   g.insert_arc(nodes[0], nodes[1]);
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -236,8 +236,8 @@ TEST(KGraphMinCut, DisconnectedGraphReturnsZero)
   auto nodes = make_nodes(g, 4);
   g.insert_arc(nodes[0], nodes[1]);
   g.insert_arc(nodes[2], nodes[3]);
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -250,8 +250,8 @@ TEST(KGraphMinCut, CycleReturnsTwo)
   Graph g;
   auto nodes = make_nodes(g, 4);
   make_cycle(g, nodes);
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -265,8 +265,8 @@ TEST(KGraphMinCut, ParallelEdgesReturnFullCut)
   auto nodes = make_nodes(g, 2);
   g.insert_arc(nodes[0], nodes[1]);
   g.insert_arc(nodes[0], nodes[1]);
-  Aleph::set<Graph::Node *> l;
-  Aleph::set<Graph::Node *> r;
+  DynSetTree<Graph::Node *> l;
+  DynSetTree<Graph::Node *> r;
   DynDlist<Graph::Arc *> cut;
 
   const long min_cut = compute_min_cut<Graph, Heap_Preflow_Maximum_Flow>(g, l, r, cut);
@@ -348,8 +348,8 @@ TEST(KGraphPreconditions, RejectsDigraphs)
   auto n2 = g.insert_node(2);
   g.insert_arc(n1, n2);
 
-  Aleph::set<TestDigraph::Node *> l;
-  Aleph::set<TestDigraph::Node *> r;
+  DynSetTree<TestDigraph::Node *> l;
+  DynSetTree<TestDigraph::Node *> r;
   DynDlist<TestDigraph::Arc *> cut;
 
   auto edge_conn_call = [&]() {

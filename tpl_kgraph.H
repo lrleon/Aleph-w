@@ -34,7 +34,7 @@
 # define TPL_KGRAPH_H
 
 # include <limits>
-# include <Set.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_net.H>
 # include <cookie_guard.H>
 
@@ -224,13 +224,13 @@ namespace Aleph
             template <class> class Max_Flow = Heap_Preflow_Maximum_Flow,
             class SA = Dft_Show_Arc<GT>>
   long compute_min_cut(GT & g,
-                       Aleph::set<typename GT::Node *> & l,
-                       Aleph::set<typename GT::Node *> & r,
+                       DynSetTree<typename GT::Node *> & l,
+                       DynSetTree<typename GT::Node *> & r,
                        DynDlist<typename GT::Arc *> & cut)
   {
     const SA sa;
-    l.clear();
-    r.clear();
+    l.empty();
+    r.empty();
     cut.empty();
 
     ah_domain_error_if(g.is_digraph())
@@ -419,8 +419,8 @@ namespace Aleph
   public:
     /** @brief Compute a minimum edge cut for `g`. */
     long operator ()(GT & g,
-                     Aleph::set<typename GT::Node *> & l,
-                     Aleph::set<typename GT::Node *> & r,
+                     DynSetTree<typename GT::Node *> & l,
+                     DynSetTree<typename GT::Node *> & r,
                      DynDlist<typename GT::Arc *> & cut)
     {
       return compute_min_cut<GT, Max_Flow, SA>(g, l, r, cut);

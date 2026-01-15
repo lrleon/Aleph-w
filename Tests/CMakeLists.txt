@@ -231,7 +231,6 @@ set(EXHAUSTIVE_TESTS
     test_al_vector
     archeap_test
     al_matrix_test
-    priority_queue_test
     cut_nodes_test
     graph_indexes_test
     graph_scenarios_test

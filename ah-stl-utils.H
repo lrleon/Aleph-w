@@ -188,7 +188,7 @@ template <typename Container>
 [[nodiscard]] inline std::vector<typename Container::Item_Type>
 to_vector(const Container & container)
 {
-  std::vector<typename C::Item_Type> ret;
+  std::vector<typename Container::Item_Type> ret;
   for (const auto & item : container)
     ret.push_back(item);
   return ret;

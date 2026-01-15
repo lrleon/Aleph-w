@@ -253,7 +253,7 @@ public:
     __insert(l);
   }
 
-  /// \overload insert_list(DynDlist & list)
+  /// \overload insert(const DynDlist & list)
   void insert(DynDlist && list) noexcept
   {
     __insert(list);
@@ -269,7 +269,7 @@ public:
     __append(l);
   }
 
-  /// \overload append_list(DynDlist & list)
+  /// \overload append(const DynDlist & list)
   void append(DynDlist && list) noexcept
   {
     __append(list);

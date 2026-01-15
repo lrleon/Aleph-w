@@ -751,7 +751,7 @@ public:
     return true;
   }
 
-  /// @overload traverse_allocated
+  /// \overload traverse_allocated(Operation && operation)
   template <class Operation>
   bool traverse_allocated(Operation && operation) const
   {

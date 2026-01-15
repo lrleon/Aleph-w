@@ -4112,7 +4112,7 @@ __GMP_DEFINE_UNARY_TYPE_FUNCTION(int, sgn, __gmp_sgn_function)
 __GMP_DEFINE_BINARY_TYPE_FUNCTION(int, cmp, __gmp_cmp_function)
 
 // member operators for mpz_class
-
+/// \cond
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4128,9 +4128,10 @@ __GMPZ_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __GMPZ_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __GMPZ_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 // member operators for mpq_class
-
+/// \cond
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4141,9 +4142,10 @@ __GMPQ_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __GMPQ_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __GMPQ_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 // member operators for mpfr_class
-
+/// \cond
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4154,6 +4156,7 @@ __MPFR_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __MPFR_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __MPFR_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 
 

@@ -36,205 +36,205 @@
 # include <tpl_graph_utils.H>
 # include <ah-errors.H>
 
-namespace Aleph {
-
-      /** Determina si un grafo es o no acíclico (no contiene ciclos).
-
-          Is_Graph_Acyclique explora en profundidad en grafo g, a 
-          partir de un nodo y verifica si el grafo es acíclico; es 
-          decir, que no contenga ningún ciclo.
-
-          La clase toma dos parámetros tipo:
-          -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-          -# SA: clase que se encarga de mostrar el arco. Internamente, la
-          función emplea el iterador filtro Node_Arc_Iterator (basado
-          en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-          el la clase que determina si el arco debe o no mostrarse al
-          recorrido. 
-
-          La clase usa el bit is_acyclique y lo reinicia al principio del 
-          algoritmo para marcar los nodos y arcos ya visitados.
-
-          @ingroup Graphs
-       */
-      template <class GT, class SA = Dft_Show_Arc<GT>> 
-class Is_Graph_Acyclique
+namespace Aleph
 {
-  SA & sa;
+  /** Determines whether a graph is acyclic (contains no cycles).
 
-  bool is_acyclique(typename GT::Node * curr)
+      Is_Graph_Acyclique performs a depth-first search on graph g,
+      starting from a node, and checks whether the graph is acyclic;
+      i.e., that it contains no cycle.
+
+      The class takes two template parameters:
+      -# GT: the graph type, which must be derived from List_Graph.
+      -# SA: a class responsible for selecting/showing arcs. Internally,
+      the function uses the filtered iterator Node_Arc_Iterator (based
+      on Filter_Iterator) to traverse each node's arcs. SA is the class
+      that decides whether an arc is included in the traversal.
+
+      The class uses the Test_Cycle bit and resets it at the beginning
+      of the algorithm to mark already visited nodes and arcs.
+
+      @ingroup Graphs
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Is_Graph_Acyclique
   {
-    if (IS_NODE_VISITED(curr, Test_Cycle)) 
-      return false;
+    SA & sa;
 
-    NODE_BITS(curr).set_bit(Test_Cycle, true); // marcar nodo
-
-    for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
-      {
-        typename GT::Arc * arc = i.get_current_arc_ne();
-        if (IS_ARC_VISITED(arc, Test_Cycle)) 
-          continue; 
-
-        ARC_BITS(arc).set_bit(Test_Cycle, true); 
-
-        if (not is_acyclique(i.get_tgt_node())) 
-          return false;
-      }
-
-    // todos los arcos recorridos sin encontrar ciclo ==>
-    // el grafo es acíclico pasando por curr_node
-    return true; 
-  }
-
-  bool is_acyclique(GT & g, size_t num_arcs)
-  {
-    ah_domain_error_if(g.is_digraph())
-      << "is_graph_acyclique() does not work for digraps";
-
-    if (num_arcs >= g.get_num_nodes()) 
-      return false; 
-
-    g.reset_bit_arcs(Test_Cycle);
-    g.reset_bit_nodes(Test_Cycle);
-
-    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne()) 
+    bool is_acyclique(typename GT::Node *curr)
     {
-      typename GT::Node * curr = it.get_current_node_ne();
-      if (IS_NODE_VISITED(curr, Test_Cycle)) 
-	continue; 
+      if (IS_NODE_VISITED(curr, Test_Cycle))
+        return false;
 
-      if (not is_acyclique(curr)) 
-	return false;
+      NODE_BITS(curr).set_bit(Test_Cycle, true); // mark node
+
+      for (Node_Arc_Iterator<GT, SA> i(curr, sa); i.has_curr(); i.next_ne())
+        {
+          typename GT::Arc *arc = i.get_current_arc_ne();
+          if (IS_ARC_VISITED(arc, Test_Cycle))
+            continue;
+
+          ARC_BITS(arc).set_bit(Test_Cycle, true);
+
+          if (not is_acyclique(i.get_tgt_node()))
+            return false;
+        }
+
+      // all arcs traversed without finding a cycle ==>
+      // the graph is acyclic through curr_node
+      return true;
     }
 
-  return true;
-}
+    bool is_acyclique(GT & g, size_t num_arcs)
+    {
+      ah_domain_error_if(g.is_digraph())
+        << "is_graph_acyclique() does not work for digraphs";
 
-public:
-  
-  Is_Graph_Acyclique(SA && __sa = SA()) : sa(__sa) { /* empty */ }
+      if (num_arcs >= g.get_num_nodes())
+        return false;
 
-  Is_Graph_Acyclique(SA & __sa) : sa(__sa) { /* empty */ }
+      g.reset_bit_arcs(Test_Cycle);
+      g.reset_bit_nodes(Test_Cycle);
 
-      /** Invoca a la prueba de aciclicidad.
+      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+        {
+          typename GT::Node *curr = it.get_current_node_ne();
+          if (IS_NODE_VISITED(curr, Test_Cycle))
+            continue;
 
-        Si g es un grafo (no un digrafo) entonces el algoritmo compara la 
-        cantidad de arcos con la de nodos. Si el grafo tiene menos arcos que 
-        nodos, entonces se concluye que el grafo es acíclico. 
-        Consecuentemente, esta técnica no opera para multigrafos.
-          
-        @param[in] g el grafo a probar.
-	@param num_arcs cantidad de arcos que tiene g. Use este valor si
-	está empleando iteradores filtros sobre arcos pintados o
-	interpretados según un criterio dado. De este modo, la rutina
-	conoce la cantidad de arcos que que cumplen el criterio.
-        @return true si el grafo no contiene ningún ciclo; false de lo 
-        contrario. 
-        @note Debido a la prueba inicial con la cantidad de arcos, esta rutina 
-        es preferible que test_for_cycle(), aún bajo el conocimiento de que el
-        grafo es conexo, pues esta última rutina siempre realiza la 
-        exploración en profundidad, mientras que is_graph_acyclique() no.
-     */
-  bool operator () (GT & g, size_t num_arcs) 
+          if (not is_acyclique(curr))
+            return false;
+        }
+
+      return true;
+    }
+
+  public:
+    Is_Graph_Acyclique(SA && __sa = SA()) : sa(__sa)
+    { /* empty */
+    }
+
+    Is_Graph_Acyclique(SA & __sa) : sa(__sa)
+    { /* empty */
+    }
+
+    /** Invokes the acyclicity test.
+
+      If g is an undirected graph (not a digraph), then the algorithm
+      compares the number of arcs with the number of nodes. If the graph
+      has as many arcs as nodes (or more), then it is concluded that the
+      graph is not acyclic. Consequently, this technique does not work
+      for multigraphs.
+
+      @param[in] g the graph to test.
+@param num_arcs number of arcs in g. Use this value if you are
+using filtered iterators over marked arcs, or arcs interpreted
+according to a given criterion. This way, the routine knows how
+many arcs satisfy the criterion.
+      @return true if the graph contains no cycle; false otherwise.
+      @note Because of the initial arc-count check, this routine can be
+      preferable to test_for_cycle(), even if you know the graph is
+      connected, since the latter routine always performs a depth-first
+      search, while is_graph_acyclique() may not.
+   */
+    bool operator ()(GT & g, size_t num_arcs)
+    {
+      return is_acyclique(g, num_arcs);
+    }
+
+    /** Invokes the acyclicity test.
+
+      If g is an undirected graph (not a digraph), then the algorithm
+      compares the number of arcs with the number of nodes. If the graph
+      has as many arcs as nodes (or more), then it is concluded that the
+      graph is not acyclic. Consequently, this technique does not work
+      for multigraphs.
+
+      @param[in] g the graph to test.
+      @return true if the graph contains no cycle; false otherwise.
+      @note Because of the initial arc-count check, this routine can be
+      preferable to test_for_cycle(), even if you know the graph is
+      connected, since the latter routine always performs a depth-first
+      search, while is_graph_acyclique() may not.
+   */
+    bool operator ()(GT & g)
+    {
+      return is_acyclique(g, g.get_num_arcs());
+    }
+  };
+
+  /** Determines whether a graph contains cycles.
+
+       Has_Cycle performs a depth-first search on graph g, starting from
+       a node, and checks whether the graph contains a cycle.
+
+       The class takes two template parameters:
+       -# GT: the graph type, which must be derived from List_Graph.
+       -# SA: a class responsible for selecting/showing arcs. Internally,
+       the function uses the filtered iterator Node_Arc_Iterator (based
+       on Filter_Iterator) to traverse each node's arcs. SA is the class
+       that decides whether an arc is included in the traversal.
+
+       The class uses the Test_Cycle bit and resets it at the beginning
+       of the algorithm to mark already visited nodes and arcs.
+
+       @ingroup Graphs
+    */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Has_Cycle
   {
-    return is_acyclique(g, num_arcs);
-  }
+    SA & sa;
 
-      /** Invoca a la prueba de aciclicidad.
+  public:
+    Has_Cycle(SA && __sa = SA()) : sa(__sa)
+    { /* empty */
+    }
 
-        Si g es un grafo (no un digrafo) entonces el algoritmo compara la 
-        cantidad de arcos con la de nodos. Si el grafo tiene menos arcos que 
-        nodos, entonces se concluye que el grafo es acíclico. 
-        Consecuentemente, esta técnica no opera para multigrafos.
-          
-        @param[in] g el grafo a probar.
-        @return true si el grafo no contiene ningún ciclo; false de lo 
-        contrario. 
-        @note Debido a la prueba inicial con la cantidad de arcos, esta rutina 
-        es preferible que test_for_cycle(), aún bajo el conocimiento de que el
-        grafo es conexo, pues esta última rutina siempre realiza la 
-        exploración en profundidad, mientras que is_graph_acyclique() no.
-     */
-  bool operator () (GT & g) 
-  {
-    return is_acyclique(g, g.get_num_arcs());
-  }
-};
+    Has_Cycle(SA & __sa) : sa(__sa)
+    { /* empty */
+    }
 
-     /** Determina si un grafo contiene o no ciclos.
+    /** Invokes the cycle-existence test.
 
-          Has_Cycle explora en profundidad en grafo g, a 
-          partir de un nodo y verifica si el grafo es acíclico; es 
-          decir, que no contenga ningún ciclo.
+        If g is an undirected graph (not a digraph), then the algorithm
+        compares the number of arcs with the number of nodes. If the graph
+        has as many arcs as nodes (or more), then it is concluded that the
+        graph contains cycles. Consequently, this technique does not work
+        for multigraphs.
 
-          La clase toma dos parámetros tipo:
-          -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-          -# SA: clase que se encarga de mostrar el arco. Internamente, la
-          función emplea el iterador filtro Node_Arc_Iterator (basado
-          en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-          el la clase que determina si el arco debe o no mostrarse al
-          recorrido. 
+        @param[in] g the graph to test.
+        @return true if the graph contains at least one cycle; false otherwise.
+        @note Because of the initial arc-count check, this routine can be
+        preferable to test_for_cycle(), even if you know the graph is
+        connected, since the latter routine always performs a depth-first
+        search, while is_graph_acyclique() may not.
+    */
+    bool operator ()(GT & g) const
+    {
+      return not Is_Graph_Acyclique<GT, SA>(sa)(g);
+    }
 
-          La clase usa el bit is_acyclique y lo reinicia al principio del 
-          algoritmo para marcar los nodos y arcos ya visitados.
+    /** Invokes the cycle-existence test.
 
-          @ingroup Graphs
-       */
-      template <class GT, class SA = Dft_Show_Arc<GT>> 
-class Has_Cycle
-{
-  SA & sa;
+        If g is an undirected graph (not a digraph), then the algorithm
+        compares the number of arcs with the number of nodes. If the graph
+        has as many arcs as nodes (or more), then it is concluded that the
+        graph contains cycles. Consequently, this technique does not work
+        for multigraphs.
 
-public:
-
-  Has_Cycle(SA && __sa = SA()) : sa(__sa) { /* empty */ }
-
-  Has_Cycle(SA & __sa) : sa(__sa) { /* empty */ }
-
-  /** Invoca la prueba de existencia de ciclos.
-
-      Si g es un grafo (no un digrafo) entonces el algoritmo compara la
-      cantidad de arcos con la de nodos. Si el grafo tiene igual o más
-      arcos que nodos, entonces se concluye que el grafo tiene ciclos.
-      Consecuentemente, esta técnica no opera para multigrafos.
-          
-      @param[in] g el grafo a probar.
-      @return true si el grafo no contiene ningún ciclo; false de lo 
-      contrario. 
-      @note Debido a la prueba inicial con la cantidad de arcos, esta rutina 
-      es preferible que test_for_cycle(), aún bajo el conocimiento de que el
-      grafo es conexo, pues esta última rutina siempre realiza la 
-      exploración en profundidad, mientras que is_graph_acyclique() no.
-  */
-  bool operator () (GT & g) const
-  {
-    return not Is_Graph_Acyclique <GT, SA> (sa) (g);
-  }
-
-  /** Invoca la prueba de existencia de ciclos.
-
-      Si g es un grafo (no un digrafo) entonces el algoritmo compara la
-      cantidad de arcos con la de nodos. Si el grafo tiene igual o más
-      arcos que nodos, entonces se concluye que el grafo tiene ciclos.
-      Consecuentemente, esta técnica no opera para multigrafos.
-          
-      @param[in] g el grafo a probar.
-      @return true si el grafo no contiene ningún ciclo; false de lo 
-      contrario. 
-      @note Debido a la prueba inicial con la cantidad de arcos, esta rutina 
-      es preferible que test_for_cycle(), aún bajo el conocimiento de que el
-      grafo es conexo, pues esta última rutina siempre realiza la 
-      exploración en profundidad, mientras que is_graph_acyclique() no.
-  */
-  bool operator () (GT & g, size_t num_arcs) const
-  {
-    return not Is_Graph_Acyclique <GT, SA> (sa) (g, num_arcs);
-  }
-};
-
-
-
-
+        @param[in] g the graph to test.
+        @param[in] num_arcs number of arcs in the graph (for optimization).
+        @return true if the graph contains at least one cycle; false otherwise.
+        @note Because of the initial arc-count check, this routine can be
+        preferable to test_for_cycle(), even if you know the graph is
+        connected, since the latter routine always performs a depth-first
+        search, while is_graph_acyclique() may not.
+    */
+    bool operator ()(GT & g, size_t num_arcs) const
+    {
+      return not Is_Graph_Acyclique<GT, SA>(sa)(g, num_arcs);
+    }
+  };
 } // end namespace Aleph
 
 # endif //  TPL_TEST_ACYCLIQUE_H

@@ -220,9 +220,8 @@ namespace Aleph
   public:
     /** Constructor.
 
-        \param[inout] __dist acceso a la distancia de cada arco
-        \param[inout] __cmp comparación entre distancias de arco
-        \param[inout] __sa filtro de iterador de arcos
+        \param[in] __dist acceso a la distancia de cada arco
+        \param[in] __sa filtro de iterador de arcos
     */
     Prim_Min_Spanning_Tree(Distance __dist = Distance(), SA __sa = SA())
       : dist(__dist), sa(__sa)

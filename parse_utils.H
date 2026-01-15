@@ -1589,7 +1589,7 @@ namespace Aleph
   /**
    * @brief Trim whitespace from both ends of a string
    *
-   * @param text The string to trim
+   * @param[in] text The string to trim
    * @return Trimmed string
    */
   inline std::string trim(const std::string & text)

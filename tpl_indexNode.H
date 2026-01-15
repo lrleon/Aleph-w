@@ -132,7 +132,7 @@ namespace Aleph
         }
     }
 
-    /// \overload insert_in_graph
+    /// \overload insert_in_graph(const GT_Node_Type & info)
     GT_Node * insert_in_graph(GT_Node_Type && info)
     {
       GT_Node * ret_val = g.insert_node(std::forward<GT_Node_Type>(info));

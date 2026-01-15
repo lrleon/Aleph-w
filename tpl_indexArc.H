@@ -226,7 +226,7 @@ namespace Aleph
       return a;
     }
 
-    /// \overload insert_in_graph
+    /// \overload insert_in_graph(GT_Node * src, GT_Node * tgt, const GT_Arc_Type & info)
     GT_Arc * insert_in_graph(GT_Node * src, GT_Node * tgt,
                              GT_Arc_Type && info = GT_Arc_Type())
     {

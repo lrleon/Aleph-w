@@ -129,12 +129,12 @@ class Test_Hamiltonian_Sufficiency
   /**
    * @brief Check if two nodes are adjacent in an undirected graph.
    *
-   * @param g The graph
-   * @param src First node
-   * @param tgt Second node
+   * @param[in] g The graph
+   * @param[in] src First node
+   * @param[in] tgt Second node
    * @return true if there is an edge between src and tgt
    */
-  bool are_adjacent(GT &, typename GT::Node * src, typename GT::Node * tgt)
+  bool are_adjacent(GT & g, typename GT::Node * src, typename GT::Node * tgt)
   {
     for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
       if (it.get_tgt_node_ne() == tgt)
