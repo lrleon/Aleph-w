@@ -98,8 +98,12 @@
  * | Add dummy node | O(V) | Connect to all vertices |
  * | Bellman-Ford | O(V × E) | From dummy node |
  * | Reweight edges | O(E) | Update all edges |
- * | V × Dijkstra | O(V × (V log V + E)) | For each source |
- * | **Total** | **O(V² log V + V×E)** | Dominated by Dijkstra calls |
+ * | V × Dijkstra | O(V × (E + V) log V) | With Aleph-w's default binary heap (ArcHeap) |
+ * | **Total** | **O((V×E + V²) log V)** | Dominated by the Dijkstra calls |
+ *
+ * Notes:
+ * - If Dijkstra is implemented with a Fibonacci heap, the per-source cost can be
+ *   O(E + V log V), yielding total O(V×E + V² log V).
  *
  * ### Space Complexity
  *
