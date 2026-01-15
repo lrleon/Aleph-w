@@ -64,11 +64,11 @@ public:
 
         /** Invoca a la prueba de conectividad.
 
-	    Esta versión se emplea cuando se requiera que el filtro de arcos
-	    mantenga un estado.
+            Esta versión se emplea cuando se requiera que el filtro de arcos
+            mantenga un estado.
 
             @param[in] g el grafo o digrafo a verificar.
-	    @param[in] sa el filtro de arcos del grafo (default: Dft_Show_Arc<GT>)
+            @param[in] sa el filtro de arcos del grafo (default: Dft_Show_Arc<GT>)
             @return true si el grafo es conexo; false de lo contrario.
             @note Debido a la prueba con el número de arcos, esta función
             es incorrecta para multigrafos.
@@ -89,16 +89,16 @@ public:
 
 /** Invoca a la prueba de conectividad.
 
-	    Esta versión se emplea cuando se requiera que el filtro de arcos
-	    mantenga un estado.
+    Esta versión se emplea cuando se requiera que el filtro de arcos
+    mantenga un estado.
 
-            @param[in] g el grafo o digrafo a verificar.
-	    @param[in] sa el filtro de arcos del grafo (por referencia)
-            @return true si el grafo es conexo; false de lo contrario.
-            @note Debido a la prueba con el número de arcos, esta función
-            es incorrecta para multigrafos.
-            @throw domain_error si la rutina es invocada sobre un digrafo.
-         */
+    @param[in] g el grafo o digrafo a verificar.
+    @param[in] sa el filtro de arcos del grafo (por referencia)
+    @return true si el grafo es conexo; false de lo contrario.
+    @note Debido a la prueba con el número de arcos, esta función
+    es incorrecta para multigrafos.
+    @throw domain_error si la rutina es invocada sobre un digrafo.
+ */
   bool operator () (GT & g, SA & sa) const
   {
     ah_domain_error_if(g.is_digraph())
