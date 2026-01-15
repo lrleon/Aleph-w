@@ -41,9 +41,9 @@
  * - **Graph structure**: Special properties
  * - **Performance requirements**: Speed vs simplicity
  *
-## Algorithms Covered
+ * ## Algorithms Covered
  *
-### 1. Edmonds-Karp (Ford-Fulkerson with BFS)
+ * ### 1. Edmonds-Karp (Ford-Fulkerson with BFS)
  *
  * **Strategy**: Use BFS to find shortest augmenting paths
  *
@@ -60,7 +60,7 @@
  * - Slower for dense graphs
  * - May do many augmentations
  *
-### 2. Dinic's Algorithm
+ * ### 2. Dinic's Algorithm
  *
  * **Strategy**: Use level graphs and blocking flows
  *
@@ -81,7 +81,7 @@
  * **Cons**:
  * - More complex implementation
  *
-### 3. Capacity Scaling
+ * ### 3. Capacity Scaling
  *
  * **Strategy**: Process edges in rounds by capacity threshold
  *
@@ -103,7 +103,7 @@
  * **Cons**:
  * - Overhead for small capacities
  *
-### 4. HLPP (Highest Label Preflow-Push)
+ * ### 4. HLPP (Highest Label Preflow-Push)
  *
  * **Strategy**: Push-relabel with highest label selection
  *
@@ -123,7 +123,7 @@
  * - Most complex implementation
  * - May be slower for sparse graphs
  *
-## Complexity Comparison
+ * ## Complexity Comparison
  *
  * | Algorithm | Time Complexity | Best For |
  * |-----------|-----------------|----------|
@@ -134,34 +134,34 @@
  *
  * **Note**: Actual performance depends heavily on graph structure!
  *
-## When to Use Each Algorithm
+ * ## When to Use Each Algorithm
  *
-### Small Graphs (< 100 vertices)
+ * ### Small Graphs (< 100 vertices)
  * - **Any algorithm works**: Performance difference negligible
  * - **Recommendation**: Edmonds-Karp (simplest)
  *
-### Sparse Graphs (E ≈ V)
+ * ### Sparse Graphs (E ≈ V)
  * - **Edmonds-Karp**: Simple, O(V³) effective
  * - **Dinic**: Better worst-case, often faster
  * - **Recommendation**: Dinic (best balance)
  *
-### Dense Graphs (E ≈ V²)
+ * ### Dense Graphs (E ≈ V²)
  * - **Dinic**: O(V⁴) but practical
  * - **HLPP**: O(V² × √E) = O(V³) theoretical best
  * - **Recommendation**: HLPP for large graphs, Dinic for medium
  *
-### Large Capacities (U >> V)
+ * ### Large Capacities (U >> V)
  * - **Capacity Scaling**: O(V × E × log U) efficient
  * - **Others**: May be slower
  * - **Recommendation**: Capacity Scaling
  *
-### General Purpose
+ * ### General Purpose
  * - **Dinic**: Good balance of speed and simplicity
  * - **Recommendation**: Default choice
  *
-## Performance Characteristics
+ * ## Performance Characteristics
  *
-### Sparse Graph (E = O(V))
+ * ### Sparse Graph (E = O(V))
  *
  * | Algorithm | Complexity | Relative Speed |
  * |-----------|-----------|----------------|
@@ -169,7 +169,7 @@
  * | Dinic | O(V³) | 2-5× faster |
  * | HLPP | O(V².5) | 3-10× faster |
  *
-### Dense Graph (E = O(V²))
+ * ### Dense Graph (E = O(V²))
  *
  * | Algorithm | Complexity | Relative Speed |
  * |-----------|-----------|----------------|
@@ -177,29 +177,29 @@
  * | Dinic | O(V⁴) | 10-100× faster |
  * | HLPP | O(V³) | 100-1000× faster |
  *
-## Applications
+ * ## Applications
  *
-### Network Bandwidth Optimization
+ * ### Network Bandwidth Optimization
  * - **Internet routing**: Maximize data flow
  * - **Content delivery**: Distribute content efficiently
  *
-### Supply Chain Logistics
+ * ### Supply Chain Logistics
  * - **Transportation**: Maximize goods flow
  * - **Resource allocation**: Optimize resource usage
  *
-### Image Segmentation
+ * ### Image Segmentation
  * - **Min-cut**: Find optimal segmentation
  * - **Computer vision**: Separate foreground/background
  *
-### Matching Problems
+ * ### Matching Problems
  * - **Bipartite matching**: Reduce to max-flow
  * - **Job assignment**: Match workers to tasks
  *
-### Game Theory
+ * ### Game Theory
  * - **Baseball elimination**: Determine if team can win
  * - **Tournament analysis**: Analyze possible outcomes
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Compare all algorithms
@@ -225,11 +225,37 @@
 #include <iomanip>
 #include <chrono>
 #include <vector>
+#include <string>
+#include <cstring>
 #include <tpl_net.H>
 #include <tpl_maxflow.H>
 
 using namespace std;
 using namespace Aleph;
+
+static void usage(const char* prog)
+{
+  cout << "Usage: " << prog
+       << " [--algorithm <edmonds-karp|dinic|capacity-scaling|hlpp>]"
+       << " [--sparse] [--dense] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+}
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
+
+static const char* get_opt_value(int argc, char* argv[], const char* opt)
+{
+  for (int i = 1; i + 1 < argc; ++i)
+    if (std::strcmp(argv[i], opt) == 0)
+      return argv[i + 1];
+  return nullptr;
+}
 
 // Type definitions
 using FlowType = double;
@@ -478,10 +504,24 @@ void demonstrate_min_cut(Net& net)
   cout << "but the min-cut consists only of saturated edges." << endl;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
   cout << "=== Advanced Maximum Flow Algorithms ===" << endl;
   cout << "Comparing Edmonds-Karp, Dinic, Capacity Scaling, and HLPP\n" << endl;
+
+  if (has_flag(argc, argv, "--help"))
+    {
+      usage(argv[0]);
+      return 0;
+    }
+
+  const char* algo = get_opt_value(argc, argv, "--algorithm");
+  const bool sparse = has_flag(argc, argv, "--sparse");
+  const bool dense = has_flag(argc, argv, "--dense");
+
+  const bool has_cli = (argc > 1);
+  const bool default_run_all = !has_cli;
+
   
   // Demo 1: Supply chain example
   cout << string(60, '=') << endl;
@@ -494,8 +534,34 @@ int main()
   cout << "  Nodes: " << supply.get_num_nodes() << endl;
   cout << "  Arcs:  " << supply.get_num_arcs() << endl;
   
-  cout << "\nComputing max-flow with Dinic's algorithm..." << endl;
-  FlowType max_flow = dinic_maximum_flow(supply);
+  FlowType max_flow = 0;
+  const char* chosen = algo ? algo : "dinic";
+  if (std::strcmp(chosen, "dinic") == 0)
+    {
+      cout << "\nComputing max-flow with Dinic's algorithm..." << endl;
+      max_flow = dinic_maximum_flow(supply);
+    }
+  else if (std::strcmp(chosen, "edmonds-karp") == 0)
+    {
+      cout << "\nComputing max-flow with Edmonds-Karp..." << endl;
+      max_flow = edmonds_karp_maximum_flow(supply);
+    }
+  else if (std::strcmp(chosen, "capacity-scaling") == 0)
+    {
+      cout << "\nComputing max-flow with Capacity Scaling..." << endl;
+      max_flow = capacity_scaling_maximum_flow(supply);
+    }
+  else if (std::strcmp(chosen, "hlpp") == 0)
+    {
+      cout << "\nComputing max-flow with HLPP..." << endl;
+      max_flow = hlpp_maximum_flow(supply);
+    }
+  else
+    {
+      cout << "Unknown --algorithm value: " << chosen << "\n";
+      usage(argv[0]);
+      return 1;
+    }
   
   cout << "\n*** Maximum Flow: " << max_flow << " units ***" << endl;
   
@@ -503,10 +569,19 @@ int main()
   demonstrate_flow_decomposition(supply);
   demonstrate_min_cut(supply);
   
-  // Demo 2: Algorithm comparison
-  compare_algorithms(5);
-  compare_algorithms(10);
-  compare_algorithms(15);
+  if (default_run_all)
+    {
+      compare_algorithms(5);
+      compare_algorithms(10);
+      compare_algorithms(15);
+    }
+  else if (sparse || dense)
+    {
+      const int grid = dense ? 20 : 8;
+      cout << "\nBenchmarking on " << grid << "x" << grid
+           << " grid network\n";
+      compare_algorithms(grid);
+    }
   
   // Demo 3: Large capacity handling
   cout << "\n" << string(60, '=') << endl;

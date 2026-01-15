@@ -127,34 +127,42 @@ private:
   static constexpr signed char CmpEqual = 0;
   static constexpr signed char CmpGreater = 1;
 
-  /// Search for key and stack ancestors
+  /// Search for key and stack ancestors (optimistic duplicate detection)
   Node * search_and_stack_rb(const Key & key,
                              signed char & cmp_result) noexcept
   {
     Node *p = root;
+    Node *candidate = nullptr;  // Tracks potential duplicate when going right
+    size_t candidate_pos = 0;   // Stack size when candidate was set
+
     rb_stack.push(head);
-    cmp_result = CmpEqual;
     do
       {
         rb_stack.push(p);
-        const Key & pk = KEY(p);
-        if (cmp(key, pk))
+        if (cmp(key, KEY(p)))  // key < KEY(p)
           {
             cmp_result = CmpLess;
             p = LLINK(p);
           }
-        else if (cmp(pk, key))
+        else  // key >= KEY(p), could be equal
           {
+            candidate = p;
+            candidate_pos = rb_stack.size();
             cmp_result = CmpGreater;
             p = RLINK(p);
           }
-        else
-          {
-            cmp_result = CmpEqual;
-            return p;
-          }
       }
     while (p != Node::NullPtr);
+
+    // Optimistic duplicate check: when going right, key >= KEY(candidate)
+    // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
+    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+      {
+        cmp_result = CmpEqual;
+        // Truncate stack: remove nodes pushed after candidate
+        rb_stack.popn(rb_stack.size() - candidate_pos);
+        return candidate;
+      }
 
     return rb_stack.top();
   }

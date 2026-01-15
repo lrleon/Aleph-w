@@ -23,7 +23,7 @@
  *
  * ## Features Demonstrated
  *
-### Basic Operations
+ * ### Basic Operations
  *
  * - **set(i)**: Set bit i to 1 - O(1)
  * - **clear(i)**: Set bit i to 0 - O(1)
@@ -31,7 +31,7 @@
  * - **flip(i)**: Toggle bit i - O(1)
  * - **fill(value)**: Set all bits to 0 or 1 - O(n)
  *
-### Bulk Operations
+ * ### Bulk Operations
  *
  * - **Bitwise AND (&)**: Intersection of two bit sets - O(n)
  * - **Bitwise OR (|)**: Union of two bit sets - O(n)
@@ -39,20 +39,20 @@
  * - **Bitwise NOT (~)**: Complement (flip all bits) - O(n)
  * - **Left/Right shift**: Shift bits left or right - O(n)
  *
-### Set Operations
+ * ### Set Operations
  *
  * - **Union (OR)**: Combine two sets - O(n)
  * - **Intersection (AND)**: Common elements - O(n)
  * - **Difference (AND NOT)**: Elements in A but not B - O(n)
  * - **Symmetric difference (XOR)**: Elements in exactly one set - O(n)
  *
-### Advanced Operations
+ * ### Advanced Operations
  *
  * - **Population count (popcount)**: Count set bits - O(n) or O(1) with hardware
  * - **Find first set**: Find first set bit - O(n)
  * - **Find next set**: Find next set bit after position - O(n)
  *
-### Practical Applications
+ * ### Practical Applications
  *
  * #### Sieve of Eratosthenes
  * - Mark composite numbers as bits
@@ -88,22 +88,22 @@
  *
  * ## Use Cases
  *
-### Memory-Constrained Applications
+ * ### Memory-Constrained Applications
  * - Embedded systems
  * - Large-scale data processing
  * - Memory-efficient algorithms
  *
-### Set Operations
+ * ### Set Operations
  * - Fast set intersection/union
  * - Subset testing
  * - Set difference
  *
-### Boolean Flags
+ * ### Boolean Flags
  * - Feature flags
  * - Permission bits
  * - Status indicators
  *
-### Algorithm Optimization
+ * ### Algorithm Optimization
  * - Sieve algorithms
  * - Graph algorithms (visited nodes)
  * - Constraint satisfaction
@@ -114,11 +114,8 @@
  * # Run all demonstrations
  * ./bitarray_example
  *
- * # Use specific size
- * ./bitarray_example -n 1000
- *
- * # Run specific demo
- * ./bitarray_example -s sieve    # Only prime sieve demo
+ * # Configure sieve size
+ * ./bitarray_example --sieve-size 1000
  * ```
  *
  * @see bitArray.H BitArray implementation

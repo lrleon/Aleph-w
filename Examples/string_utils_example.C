@@ -64,9 +64,15 @@
  * ./string_utils_example
  *
  * # Run specific section
- * ./string_utils_example -s trim      # Only trimming demos
- * ./string_utils_example -s case      # Only case conversion
- * ./string_utils_example -s split     # Only split/join
+ * ./string_utils_example -s trim       # Trimming demos
+ * ./string_utils_example -s case       # Case conversion
+ * ./string_utils_example -s split      # Splitting strings
+ * ./string_utils_example -s join       # Joining strings
+ * ./string_utils_example -s validate   # Validation helpers
+ * ./string_utils_example -s filter     # Filter/keep/remove helpers
+ * ./string_utils_example -s format     # Formatting helpers
+ * ./string_utils_example -s convert    # Type conversions
+ * ./string_utils_example -s practical  # Practical example
  * ```
  *
  * ## Comparison with Standard Library

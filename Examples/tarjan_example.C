@@ -43,7 +43,7 @@
  * **Key insight**: In an SCC, you can travel from any vertex to any
  * other vertex (and back).
  *
-### Example
+ * ### Example
  *
  * Graph: A → B → C → A, D → E → D
  *
@@ -53,16 +53,16 @@
  *
  * Note: In undirected graphs, SCCs are just connected components.
  *
-## Tarjan's Algorithm
+ * ## Tarjan's Algorithm
  *
-### How It Works
+ * ### How It Works
  *
  * Tarjan's algorithm uses a single DFS pass with two key values:
  *
  * - **`index[v]`**: Order in which vertex v was first visited (discovery time)
  * - **`lowlink[v]`**: Smallest index reachable from v (including v itself)
  *
-### Key Insight
+ * ### Key Insight
  *
  * A vertex v is the **root** of an SCC if and only if:
  * ```
@@ -72,7 +72,7 @@
  * This means v cannot reach any vertex discovered earlier, so it's
  * the "entry point" to a new SCC.
  *
-### Algorithm Steps
+ * ### Algorithm Steps
  *
  * ```
  * Tarjan_SCC(G):
@@ -93,21 +93,21 @@
  *      Pop stack until v, all popped vertices form one SCC
  * ```
  *
-### Why It Works
+ * ### Why It Works
  *
  * - **`lowlink[v]`** tracks the earliest vertex reachable from v
  * - If `lowlink[v] == index[v]`, v cannot reach earlier vertices
  * - All vertices on stack above v are in the same SCC
  * - Popping them gives us the complete SCC
  *
-## Complexity
+ * ## Complexity
  *
  * - **Time**: O(V + E) - single DFS pass
  * - **Space**: O(V) - for stack and arrays
  *
  * **Advantage**: More efficient than Kosaraju's (no graph transpose needed)
  *
-## Comparison with Kosaraju's Algorithm
+ * ## Comparison with Kosaraju's Algorithm
  *
  * | Aspect | Tarjan's | Kosaraju's |
  * |--------|----------|------------|
@@ -117,37 +117,37 @@
  * | Performance | Faster | Slightly slower |
  * | Best for | General use | When simplicity preferred |
  *
-## Real-World Applications
+ * ## Real-World Applications
  *
-### Social Networks
+ * ### Social Networks
  * - **Cohesive groups**: Find communities where everyone knows everyone
  * - **Influence analysis**: Identify tightly-knit groups
  * - **Recommendation**: Suggest friends in same SCC
  *
-### Web Analysis
+ * ### Web Analysis
  * - **Page clusters**: Identify mutually linked web pages
  * - **SEO**: Understand website structure
  * - **Crawling**: Identify website communities
  *
-### Compiler Optimization
+ * ### Compiler Optimization
  * - **Cyclic dependencies**: Detect circular dependencies
  * - **Data flow**: Analyze variable dependencies
  * - **Dead code**: Identify unreachable code
  *
-### 2-SAT Satisfiability
+ * ### 2-SAT Satisfiability
  * - **Boolean formulas**: Reduce 2-SAT to SCC finding
  * - **Constraint satisfaction**: Solve logical constraints
  *
-### Deadlock Detection
+ * ### Deadlock Detection
  * - **Operating systems**: Find circular wait conditions
  * - **Database systems**: Detect transaction deadlocks
  * - **Resource allocation**: Identify circular dependencies
  *
-### Network Analysis
+ * ### Network Analysis
  * - **Internet routing**: Identify network clusters
  * - **Telecommunications**: Analyze call patterns
  *
-## Example: Web Page Links
+ * ## Example: Web Page Links
  *
  * ```
  * Pages: Home → About → Contact → Home
@@ -160,14 +160,19 @@
  *
  * This helps identify website structure and navigation patterns.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run Tarjan's algorithm demo
  * ./tarjan_example
  *
- * # Compare with Kosaraju's
- * ./tarjan_example --compare
+ * # Run specific demos
+ * ./tarjan_example --web
+ * ./tarjan_example --modules
+ * ./tarjan_example --dag
+ *
+ * # Run all demos (default if no specific demo flags are given)
+ * ./tarjan_example --all
  * ```
  *
  * @see Tarjan.H Tarjan's algorithm implementation

@@ -35,7 +35,7 @@
  *
  * ## Definitions
  *
-### Cut Node (Articulation Point)
+ * ### Cut Node (Articulation Point)
  *
  * A **cut node** (or articulation point) is a vertex whose removal
  * disconnects the graph into two or more connected components.
@@ -48,7 +48,7 @@
  * ```
  * Vertex B is a cut node: removing it disconnects A from C and D.
  *
-### Bridge
+ * ### Bridge
  *
  * A **bridge** (or cut edge) is an edge whose removal disconnects the graph.
  *
@@ -61,16 +61,16 @@
  * **Key insight**: A bridge connects two components, so removing it
  * separates them.
  *
-## Algorithm: Tarjan's DFS-based
+ * ## Algorithm: Tarjan's DFS-based
  *
-### How It Works
+ * ### How It Works
  *
  * Uses DFS with discovery time and low-link values:
  *
  * - **`df[v]`**: Discovery time (order of first visit) of vertex v
  * - **`low[v]`**: Lowest discovery time reachable from subtree rooted at v
  *
-### Cut Node Detection
+ * ### Cut Node Detection
  *
  * A node u is a cut node if:
  *
@@ -81,13 +81,13 @@
  *    - This means v cannot reach any vertex discovered before u
  *    - Removing u disconnects v's subtree from the rest
  *
-### Bridge Detection
+ * ### Bridge Detection
  *
  * An edge (u, v) is a bridge if:
  * - `low[v] > df[u]` (v cannot reach u or earlier vertices)
  * - Or equivalently: `low[v] == df[v]` (v is start of new component)
  *
-### Algorithm Pseudocode
+ * ### Algorithm Pseudocode
  *
  * ```
  * Find_Cut_Nodes_Bridges(G):
@@ -113,40 +113,40 @@
  *     v is cut node
  * ```
  *
-## Complexity
+ * ## Complexity
  *
  * - **Time**: O(V + E) - single DFS pass
  * - **Space**: O(V) - for arrays and recursion stack
  *
-## Applications
+ * ## Applications
  *
-### Network Reliability
+ * ### Network Reliability
  * - **Single points of failure**: Identify critical nodes/edges
  * - **Redundancy planning**: Know where to add backup connections
  * - **Network design**: Ensure no single point of failure
  * - **Fault tolerance**: Understand impact of node/edge failures
  *
-### Circuit Design
+ * ### Circuit Design
  * - **Critical connections**: Find essential circuit paths
  * - **Redundancy**: Identify where redundancy is needed
  * - **Testing**: Focus testing on critical components
  *
-### Social Networks
+ * ### Social Networks
  * - **Key individuals**: Find people connecting communities
  * - **Information flow**: Identify bottlenecks in communication
  * - **Community detection**: Bridges connect communities
  *
-### Infrastructure
+ * ### Infrastructure
  * - **Critical roads**: Identify essential transportation links
  * - **Power grids**: Find critical power lines
  * - **Telecommunications**: Identify critical network links
  *
-### Graph Analysis
+ * ### Graph Analysis
  * - **Graph structure**: Understand connectivity properties
  * - **Biconnected components**: Find 2-connected subgraphs
  * - **Network resilience**: Measure network robustness
  *
-## Biconnected Components
+ * ## Biconnected Components
  *
  * A **biconnected component** is a maximal set of edges such that any
  * two edges lie on a common cycle. Removing any single vertex from
@@ -154,7 +154,7 @@
  *
  * **Key property**: Cut nodes separate biconnected components.
  *
-## Example: Network Analysis
+ * ## Example: Network Analysis
  *
  * ```
  * Network:
@@ -168,14 +168,18 @@
  * **Cut nodes**: B, E (removing either disconnects graph)
  * **Bridges**: B-E (if removed, disconnects G from rest)
  *
-## Usage
+ * ## Usage
  *
  * ```bash
- * # Find cut nodes and bridges
+ * # Run all demos (default if no demo flags are given)
  * ./cut_nodes_example
  *
- * # Analyze specific graph
- * ./cut_nodes_example -n 20 -d 0.3
+ * # Run specific demos
+ * ./cut_nodes_example --basic
+ * ./cut_nodes_example --network
+ * ./cut_nodes_example --biconnected
+ * ./cut_nodes_example --resilience
+ * ./cut_nodes_example --fix
  * ```
  *
  * @see tpl_cut_nodes.H Cut nodes and bridges algorithms

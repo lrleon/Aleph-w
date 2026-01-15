@@ -41,55 +41,55 @@
  * - **Saving/loading networks**: For persistence and sharing
  * - **Benchmarking**: To compare algorithm performance
  *
-## Features
+ * ## Features
  *
-### 1. Network Generation
+ * ### 1. Network Generation
  *
-#### Random Networks
+ * #### Random Networks
  * - **Controlled density**: Generate networks with specific edge density
  * - **Random capacities**: Assign random capacities to edges
  * - **Configurable size**: Control number of vertices and edges
  *
-#### Grid Networks
+ * #### Grid Networks
  * - **Regular structure**: Grid-based networks for benchmarking
  * - **Predictable**: Known properties for testing
  * - **Scalable**: Easy to generate large grids
  *
-#### Layered Networks
+ * #### Layered Networks
  * - **DAG structure**: Directed acyclic graphs
  * - **Layered layout**: Vertices organized in layers
  * - **Applications**: Perfect for DAG-based flow problems
  *
-#### Bipartite Networks
+ * #### Bipartite Networks
  * - **Two sets**: Vertices divided into two sets
  * - **Matching problems**: Ideal for bipartite matching
  * - **Applications**: Job assignment, resource allocation
  *
-### 2. Visualization
+ * ### 2. Visualization
  *
-#### DOT Format Export
+ * #### DOT Format Export
  * - **GraphViz compatibility**: Export to DOT format
  * - **Visualization tools**: Use GraphViz, dot, neato, etc.
  * - **Customizable**: Show capacities, flows, labels
  *
-#### Flow Visualization
+ * #### Flow Visualization
  * - **Show capacities**: Display edge capacities
  * - **Show flows**: Display current flow values
  * - **Highlight paths**: Mark augmenting paths
  *
-### 3. Serialization
+ * ### 3. Serialization
  *
-#### JSON Export
+ * #### JSON Export
  * - **Human-readable**: Easy to inspect and edit
  * - **Structured data**: Preserve network structure
  * - **Interoperability**: Work with other tools
  *
-#### DIMACS Format
+ * #### DIMACS Format
  * - **Standard format**: DIMACS challenge format
  * - **Compatibility**: Work with other max-flow solvers
  * - **Benchmarking**: Use standard test cases
  *
-### 4. Benchmarking
+ * ### 4. Benchmarking
  *    - Compare algorithm performance
  *    - Generate test cases
  * 

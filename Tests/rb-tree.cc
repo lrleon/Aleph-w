@@ -231,6 +231,73 @@ TEST(RbTree, InsertRejectsDuplicates)
   assert_valid_tree(tree);
 }
 
+// Tests for optimistic search edge cases
+// These verify that duplicates are correctly detected at various tree levels
+
+TEST(RbTree, DuplicateAtIntermediateLevel)
+{
+  // Build tree where duplicate will be at non-root level
+  //        10
+  //       /  \
+  //      5    15
+  // Try to insert 5 again - duplicate at intermediate level (left child of root)
+  Tree tree;
+  NodePool pool;
+
+  ASSERT_NE(tree.insert(pool.make(10)), nullptr);
+  ASSERT_NE(tree.insert(pool.make(5)), nullptr);
+  ASSERT_NE(tree.insert(pool.make(15)), nullptr);
+
+  // Try to insert duplicate of intermediate node
+  auto * dup = pool.make(5);
+  EXPECT_EQ(tree.insert(dup), nullptr) << "Should reject duplicate at intermediate level";
+  EXPECT_EQ(count_nodes(tree.getRoot()), 3u);
+  assert_valid_tree(tree);
+}
+
+TEST(RbTree, DuplicateAfterOnlyLeftDescents)
+{
+  // Build tree where we only go left to find duplicate
+  //        50
+  //       /
+  //      30
+  //     /
+  //    10
+  // Duplicate of 10 requires going left three times
+  Tree tree;
+  NodePool pool;
+
+  ASSERT_NE(tree.insert(pool.make(50)), nullptr);
+  ASSERT_NE(tree.insert(pool.make(30)), nullptr);
+  ASSERT_NE(tree.insert(pool.make(10)), nullptr);
+
+  auto * dup = pool.make(10);
+  EXPECT_EQ(tree.insert(dup), nullptr) << "Should reject duplicate after left descents";
+  EXPECT_EQ(count_nodes(tree.getRoot()), 3u);
+  assert_valid_tree(tree);
+}
+
+TEST(RbTree, DuplicateDeepInTree)
+{
+  // Build a larger tree and test duplicate detection deep in the structure
+  Tree tree;
+  NodePool pool;
+
+  // Insert in order that creates a balanced-ish tree
+  for (int k : {50, 25, 75, 10, 30, 60, 80, 5, 15, 27, 35})
+    ASSERT_NE(tree.insert(pool.make(k)), nullptr);
+
+  // Now try duplicates at various depths
+  EXPECT_EQ(tree.insert(pool.make(50)), nullptr) << "Duplicate at root";
+  EXPECT_EQ(tree.insert(pool.make(25)), nullptr) << "Duplicate at level 1";
+  EXPECT_EQ(tree.insert(pool.make(10)), nullptr) << "Duplicate at level 2";
+  EXPECT_EQ(tree.insert(pool.make(5)), nullptr)  << "Duplicate at deepest level";
+  EXPECT_EQ(tree.insert(pool.make(35)), nullptr) << "Duplicate after mixed descent";
+
+  EXPECT_EQ(count_nodes(tree.getRoot()), 11u);
+  assert_valid_tree(tree);
+}
+
 TEST(RbTree, InsertDupAllowsDuplicates)
 {
   Tree tree;

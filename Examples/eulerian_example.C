@@ -8,17 +8,17 @@
  *
  * ## What is an Eulerian Path/Cycle?
  *
-### Eulerian Path
+ * ### Eulerian Path
  *
  * An **Eulerian path** is a path that visits every edge exactly once.
  * The path may start and end at different vertices.
  *
-### Eulerian Cycle
+ * ### Eulerian Cycle
  *
  * An **Eulerian cycle** (or circuit) is an Eulerian path that starts and
  * ends at the same vertex, forming a cycle.
  *
-### Key Difference from Hamiltonian
+ * ### Key Difference from Hamiltonian
  *
  * | Property | Eulerian | Hamiltonian |
  * |----------|----------|------------|
@@ -26,17 +26,17 @@
  * | Complexity | Polynomial O(V+E) | NP-complete |
  * | Test | Exact conditions | Only sufficiency |
  *
-## Eulerian Conditions
+ * ## Eulerian Conditions
  *
-### Undirected Graphs
+ * ### Undirected Graphs
  *
-#### Eulerian Cycle
+ * #### Eulerian Cycle
  * **Condition**: All vertices have **EVEN** degree
  *
  * **Why**: To form a cycle, you must enter and leave each vertex equally.
  * Even degree ensures this is possible.
  *
-#### Eulerian Path
+ * #### Eulerian Path
  * **Condition**: Exactly **0 or 2** vertices have **ODD** degree
  *
  * **Why**: 
@@ -44,22 +44,22 @@
  * - 2 odd vertices: Path exists (start and end are the odd-degree vertices)
  * - More than 2 odd vertices: Impossible (can't have more than 2 endpoints)
  *
-### Directed Graphs
+ * ### Directed Graphs
  *
-#### Eulerian Cycle
+ * #### Eulerian Cycle
  * **Condition**: For **ALL** vertices: `in-degree = out-degree`
  *
  * **Why**: Must enter and leave each vertex equally.
  *
-#### Eulerian Path
+ * #### Eulerian Path
  * **Condition**: 
  * - At most **1** vertex with `out-degree - in-degree = 1` (start)
  * - At most **1** vertex with `in-degree - out-degree = 1` (end)
  * - All other vertices: `in-degree = out-degree`
  *
-## Finding Eulerian Path/Cycle
+ * ## Finding Eulerian Path/Cycle
  *
-### Algorithm: Hierholzer's Algorithm
+ * ### Algorithm: Hierholzer's Algorithm
  *
  * ```
  * Find_Eulerian_Path(G):
@@ -77,9 +77,9 @@
  *
  * **Time complexity**: O(E) - visit each edge once
  *
-## Historical Context: Königsberg Bridges
+ * ## Historical Context: Königsberg Bridges
  *
-### The Problem (1736)
+ * ### The Problem (1736)
  *
  * The city of Königsberg had 7 bridges connecting 4 land areas:
  * ```
@@ -94,7 +94,7 @@
  *
  * **Question**: Can you walk through the city crossing each bridge exactly once?
  *
-### Euler's Solution
+ * ### Euler's Solution
  *
  * Leonhard Euler proved this is **impossible** by:
  * 1. Modeling as a graph (land areas = vertices, bridges = edges)
@@ -103,27 +103,27 @@
  *
  * **This was the birth of graph theory!**
  *
-## Applications
+ * ## Applications
  *
-### Route Planning
+ * ### Route Planning
  * - **Postal routes**: Deliver mail efficiently (Chinese Postman Problem)
  * - **Garbage collection**: Collect garbage from all streets
  * - **Snow plowing**: Plow all streets efficiently
  *
-### Network Design
+ * ### Network Design
  * - **Circuit design**: Design circuits visiting all connections
  * - **Network testing**: Test all network links
  * - **Traffic flow**: Optimize traffic routes
  *
-### DNA Sequencing
+ * ### DNA Sequencing
  * - **Genome assembly**: Reconstruct genome from fragments
  * - **Read alignment**: Align sequencing reads
  *
-### Puzzle Solving
+ * ### Puzzle Solving
  * - **Mazes**: Find path visiting all passages
  * - **Puzzle games**: Solve path-finding puzzles
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Time | Space |
  * |-----------|------|-------|
@@ -131,7 +131,7 @@
  * | Find Eulerian path | O(E) | O(E) |
  * | Find Eulerian cycle | O(E) | O(E) |
  *
-## Example: Undirected Graph
+ * ## Example: Undirected Graph
  *
  * ```
  * Graph:
@@ -157,16 +157,19 @@
  * Result: Eulerian path exists (A and E are odd)
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all Eulerian demonstrations
  * ./eulerian_example
  *
  * # Run specific demo
- * ./eulerian_example -s cycle    # Cycle detection
- * ./eulerian_example -s path    # Path detection
- * ./eulerian_example -s konigsberg  # Historical example
+ * ./eulerian_example -s cycle        # Cycle detection
+ * ./eulerian_example -s konigsberg   # Historical example
+ * ./eulerian_example -s directed     # Directed graphs
+ * ./eulerian_example -s practical    # Practical application
+ * ./eulerian_example -s hierholzer   # Hierholzer's algorithm demo
+ * ./eulerian_example -s types        # Eulerian type classification
  * ```
  *
  * @see eulerian.H Eulerian graph algorithms

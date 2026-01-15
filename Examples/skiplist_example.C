@@ -42,7 +42,7 @@
  *
  * ## How Skip Lists Work
  *
-### Structure
+ * ### Structure
  *
  * A Skip List consists of multiple linked lists (levels):
  * - **Level 0**: Contains ALL elements in sorted order (base level)
@@ -50,7 +50,7 @@
  * - **Level 2**: Contains ~25% of elements (super express)
  * - **Level i**: Contains ~(1/2)^i of elements
  *
-### Example Structure
+ * ### Example Structure
  *
  * For elements {3, 6, 7, 9}:
  * ```
@@ -59,7 +59,7 @@
  * Level 0:  HEAD -> 3 -> 6 -> 7 -> 9 -> NIL
  * ```
  *
-### Search Algorithm
+ * ### Search Algorithm
  *
  * 1. Start at highest level (HEAD)
  * 2. Move right while next element < target
@@ -69,7 +69,7 @@
  * **Key insight**: Higher levels act as "express lanes" allowing you to
  * skip over many elements quickly.
  *
-### Insertion Algorithm
+ * ### Insertion Algorithm
  *
  * 1. Search for insertion point (as in search)
  * 2. Insert at level 0
@@ -80,36 +80,36 @@
  * **Randomization**: Each element has 50% chance of being at level i+1
  * if it's at level i. This creates the probabilistic structure.
  *
-## Advantages Over Balanced Trees
+ * ## Advantages Over Balanced Trees
  *
-### Simplicity
+ * ### Simplicity
  * - **No rotations**: Unlike AVL or Red-Black trees
  * - **No rebalancing**: Structure maintained probabilistically
  * - **Easier to implement**: Simpler code, fewer edge cases
  * - **Easier to debug**: Linear structure easier to visualize
  *
-### Concurrency
+ * ### Concurrency
  * - **Lock-free versions**: Easier to make thread-safe
  * - **Less contention**: Fewer shared data structures
  * - **Better scalability**: Used in high-performance systems
  *
-### Performance
+ * ### Performance
  * - **Cache-friendly**: Sequential memory access (linked lists)
  * - **Expected O(log n)**: Same as balanced trees
  * - **Good constants**: Often faster in practice
  *
-### Flexibility
+ * ### Flexibility
  * - **Range queries**: Efficient iteration over ranges
  * - **Bidirectional**: Can traverse forward and backward
  * - **Dynamic**: Easy to add/remove levels
  *
-## Disadvantages
+ * ## Disadvantages
  *
  * ❌ **Probabilistic**: No worst-case guarantee (though extremely unlikely)
  * ❌ **Memory overhead**: Multiple pointers per element
  * ❌ **Randomization**: Requires good random number generator
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Expected | Worst Case | Notes |
  * |-----------|----------|------------|-------|
@@ -121,26 +121,26 @@
  * **Expected height**: O(log n) with high probability
  * **Worst case height**: O(n) but probability is negligible
  *
-## Applications
+ * ## Applications
  *
-### Database Systems
+ * ### Database Systems
  * - **Redis**: Sorted sets (ZSET) use skip lists
  * - **LevelDB/RocksDB**: Memtable implementation
  * - **Apache Cassandra**: Index structures
  *
-### Concurrent Data Structures
+ * ### Concurrent Data Structures
  * - **Lock-free skip lists**: High-performance concurrent maps
  * - **Multi-threaded applications**: Thread-safe containers
  *
-### Range Queries
+ * ### Range Queries
  * - **Time-series data**: Efficient range scans
  * - **Spatial data**: Range queries on sorted data
  *
-### Educational
+ * ### Educational
  * - **Teaching data structures**: Simpler than balanced trees
  * - **Algorithm courses**: Demonstrates randomization
  *
-## Comparison with Balanced Trees
+ * ## Comparison with Balanced Trees
  *
  * | Feature | Skip List | Balanced Tree (AVL/RB) |
  * |---------|-----------|------------------------|
@@ -151,7 +151,7 @@
  * | Cache performance | Good | Variable |
  * | Memory overhead | Higher | Lower |
  *
-## When to Use Skip Lists
+ * ## When to Use Skip Lists
  *
  * ✅ **Good for**:
  * - When simplicity matters
@@ -164,7 +164,7 @@
  * - Memory-constrained environments
  * - Deterministic performance required
  *
-## Usage Example
+ * ## Usage Example
  *
  * ```cpp
  * DynSkipList<int> skip_list;

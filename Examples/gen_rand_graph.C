@@ -41,58 +41,58 @@
  * - Edges connect nodes (randomly or based on distance)
  * - Useful for modeling **spatial networks**
  *
-### Applications of Euclidean Graphs
+ * ### Applications of Euclidean Graphs
  *
  * - **Road networks**: Cities connected by roads
  * - **Wireless networks**: Devices with spatial positions
  * - **Geographic data**: Locations on a map
  * - **Spatial algorithms**: Algorithms that use coordinates
  *
-## Key Features
+ * ## Key Features
  *
-### Random Node Placement
+ * ### Random Node Placement
  * - **Uniform distribution**: Nodes distributed uniformly in W×H rectangle
  * - **Spatial coordinates**: Each node has (x, y) position
  * - **Configurable region**: Control width and height
  *
-### Edge Generation
+ * ### Edge Generation
  * - **Random edges**: Edges randomly connect nodes
  * - **Configurable count**: Control number of edges
  * - **Spatial awareness**: Can use distance-based connection (if implemented)
  *
-### Reproducibility
+ * ### Reproducibility
  * - **Random seed**: Optional seed for deterministic generation
  * - **Consistent output**: Same seed produces same graph
  * - **Testing**: Useful for reproducible test cases
  *
-### Standard Format
+ * ### Standard Format
  * - **Aleph-w format**: Outputs in Aleph-w text format
  * - **Compatibility**: Can be loaded with IO_Graph
  * - **Visualization**: Compatible with visualization tools
  *
-## Applications
+ * ## Applications
  *
-### Algorithm Testing
+ * ### Algorithm Testing
  * - **Test cases**: Generate test cases for graph algorithms
  * - **Edge cases**: Create graphs with specific properties
  * - **Scalability**: Test algorithms on various sizes
  *
-### Visualization
+ * ### Visualization
  * - **Visual analysis**: Create graphs for visual inspection
  * - **Demonstrations**: Generate graphs for presentations
  * - **Debugging**: Visualize algorithm behavior
  *
-### Benchmarking
+ * ### Benchmarking
  * - **Performance tests**: Generate graphs of various sizes
  * - **Scalability analysis**: Test algorithm scalability
  * - **Comparison**: Compare algorithms on same graphs
  *
-### Research
+ * ### Research
  * - **Graph theory**: Create random instances for experiments
  * - **Spatial analysis**: Study spatial graph properties
  * - **Network modeling**: Model real-world networks
  *
-## Output Format
+ * ## Output Format
  *
  * The graph is saved in Aleph-w text format, which includes:
  * - **Node information**: Coordinates (x, y) for each vertex
@@ -101,19 +101,19 @@
  *
  * Can be loaded with `IO_Graph` for visualization or further processing.
  *
-## Graph Properties
+ * ## Graph Properties
  *
  * ### Node Distribution
  * - Nodes uniformly distributed in rectangle
  * - No clustering (unless specified)
  * - Random spatial positions
  *
-### Edge Properties
+ * ### Edge Properties
  * - Random edge connections
  * - Configurable edge count
  * - May create disconnected components
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Generate a small graph (50 nodes, 200 edges) in 500x500 region
@@ -129,7 +129,7 @@
  * gen_rand_graph -n 10000 -m 50000 -W 10000 -H 10000 large.gra
  * ```
  *
-## Parameters
+ * ## Parameters
  *
  * | Parameter | Short | Description | Default |
  * |-----------|-------|-------------|---------|
@@ -140,19 +140,19 @@
  * | `--seed` | `-s` | Random seed (0 = current time) | 0 |
  * | `[file]` | | Output file (stdout if omitted) | stdout |
  *
-## Graph Characteristics
+ * ## Graph Characteristics
  *
  * ### Connectivity
  * - May be **connected** or **disconnected**
  * - Depends on number of edges relative to nodes
  * - More edges → higher connectivity probability
  *
-### Density
+ * ### Density
  * - **Sparse**: Few edges (E ≈ V)
  * - **Dense**: Many edges (E ≈ V²)
  * - Configurable via edge count parameter
  *
-## Integration with Other Tools
+ * ## Integration with Other Tools
  *
  * - **Visualization**: Use with `graphpic.C` or GraphViz
  * - **Algorithms**: Load with `IO_Graph` for algorithm testing

@@ -45,7 +45,7 @@
  *
  * ## Two Heap Implementations Compared
  *
-### Binary Heap
+ * ### Binary Heap
  *
  * A complete binary tree stored in an array satisfying the heap property
  * (parent ≤ children for min-heap).
@@ -62,7 +62,7 @@
  * - **decrease_key**: O(log n) - bubble up
  * - **find_min**: O(1) - root element
  *
-### Fibonacci Heap
+ * ### Fibonacci Heap
  *
  * A more sophisticated heap structure using a collection of trees with
  * lazy consolidation, achieving better amortized complexity.
@@ -80,7 +80,7 @@
  * - **find_min**: O(1) - pointer to minimum
  * - **merge**: O(1) - concatenate root lists
  *
-## Complexity Comparison
+ * ## Complexity Comparison
  *
  * | Operation | Binary Heap | Fibonacci Heap | Winner |
  * |-----------|-------------|----------------|--------|
@@ -93,9 +93,9 @@
  * **Note**: Amortized complexity means average over many operations.
  * Individual operations may be slower, but overall performance is better.
  *
-## When to Use Which?
+ * ## When to Use Which?
  *
-### Use Binary Heap When:
+ * ### Use Binary Heap When:
  *
  * ✅ **General-purpose priority queue**
  *   - Most common use case
@@ -114,7 +114,7 @@
  *   - Array-based, no pointer overhead
  *   - Better cache performance
  *
-### Use Fibonacci Heap When:
+ * ### Use Fibonacci Heap When:
  *
  * ✅ **Many decrease-key operations**
  *   - Algorithms like Dijkstra's (many decrease-key calls)
@@ -129,7 +129,7 @@
  *   - Frequently merging heaps
  *   - O(1) merge is critical
  *
-## Real-World Performance
+ * ## Real-World Performance
  *
  * Despite better theoretical complexity, Fibonacci heaps often have:
  * - **Higher constant factors**: More complex operations
@@ -141,21 +141,21 @@
  * **Rule of thumb**: Use binary heap unless you have a specific need for
  * Fibonacci heap's advantages (many decrease-key operations).
  *
-## Applications
+ * ## Applications
  *
-### Binary Heap Applications
+ * ### Binary Heap Applications
  * - **Task scheduling**: Operating system schedulers
  * - **Event simulation**: Discrete event simulation
  * - **Graph algorithms**: A* search, some shortest path variants
  * - **Heap sort**: Efficient in-place sorting
  *
-### Fibonacci Heap Applications
+ * ### Fibonacci Heap Applications
  * - **Dijkstra's algorithm**: Many decrease-key operations
  * - **Prim's MST**: Minimum spanning tree with decrease-key
  * - **Network flow**: Some flow algorithms benefit
  * - **Theoretical algorithms**: When optimal complexity matters
  *
-## Example: Dijkstra's Algorithm
+ * ## Example: Dijkstra's Algorithm
  *
  * Dijkstra's algorithm for shortest paths:
  * - **Operations**: Many decrease-key calls (update distances)
@@ -164,14 +164,21 @@
  *
  * For dense graphs (E ≈ V²), Fibonacci heap provides significant speedup.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
- * # Compare both heap types
+ * # Run all demos (default if no flags are given)
  * ./heap_example
  *
- * # Run specific comparison
- * ./heap_example -s performance
+ * # Run specific demos
+ * ./heap_example --basic
+ * ./heap_example --fibonacci
+ * ./heap_example --simulation
+ * ./heap_example --performance
+ * ./heap_example --max
+ *
+ * # Performance comparison size
+ * ./heap_example --performance --count 50000
  * ```
  *
  * @see tpl_binHeap.H Binary heap implementation

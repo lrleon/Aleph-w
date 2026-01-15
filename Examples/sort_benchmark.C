@@ -16,9 +16,9 @@
  * - **Adaptivity**: Some perform better on nearly-sorted data
  * - **Container compatibility**: Some work better with arrays vs lists
  *
-## Sorting Algorithms Tested (all from Aleph-w)
+ * ## Sorting Algorithms Tested (all from Aleph-w)
  *
-### O(n²) Algorithms (for small inputs or special cases)
+ * ### O(n²) Algorithms (for small inputs or special cases)
  *
  * #### Selection Sort
  * - **Complexity**: Always O(n²)
@@ -41,7 +41,7 @@
  * - **Best for**: Educational purposes only
  * - **Trade-off**: Simple but inefficient
  *
-### Sub-quadratic Algorithms
+ * ### Sub-quadratic Algorithms
  *
  * #### Shellsort
  * - **Complexity**: O(n^1.3) empirical, O(n²) worst case
@@ -50,7 +50,7 @@
  * - **Best for**: Medium-sized arrays
  * - **Trade-off**: Better than O(n²), worse than O(n log n)
  *
-### O(n log n) Algorithms
+ * ### O(n log n) Algorithms
  *
  * #### Mergesort
  * - **Complexity**: O(n log n) guaranteed
@@ -73,7 +73,7 @@
  * - **Best for**: Guaranteed O(n log n) without extra memory
  * - **Trade-off**: Slower than quicksort average, but guaranteed
  *
-## Data Distributions Tested
+ * ## Data Distributions Tested
  *
  * | Distribution | Description | Best Algorithm | Why |
  * |--------------|-------------|----------------|-----|
@@ -84,24 +84,24 @@
  * | **Few Unique** | Only 10 distinct values | quicksort_op() | Good partitioning |
  * | **Sawtooth** | Alternating runs | mergesort() | Exploits runs |
  *
-## Aleph-w Container Types
+ * ## Aleph-w Container Types
  *
-### DynArray
+ * ### DynArray
  * - **Structure**: Segmented blocks
  * - **Access**: O(1) via operator[]
  * - **Best algorithms**: Quicksort, heapsort (random access)
  *
-### DynList
+ * ### DynList
  * - **Structure**: Singly linked list
  * - **Access**: O(n) sequential
  * - **Best algorithms**: Mergesort (works well with lists)
  *
-### DynDlist
+ * ### DynDlist
  * - **Structure**: Doubly linked list
  * - **Access**: O(n) sequential, bidirectional
  * - **Best algorithms**: Mergesort (bidirectional helps)
  *
-## Algorithm Selection Guide
+ * ## Algorithm Selection Guide
  *
  * ### Choose by Data Size
  * - **Small (< 50)**: Insertion sort
@@ -123,7 +123,7 @@
  * - **No extra memory**: Heapsort or quicksort
  * - **Guaranteed O(n log n)**: Mergesort or heapsort
  *
-## Complexity Summary
+ * ## Complexity Summary
  *
  * | Algorithm | Best | Average | Worst | Space | Stable |
  * |-----------|------|---------|-------|-------|--------|
@@ -135,7 +135,7 @@
  * | Quicksort | O(n log n) | O(n log n) | O(n²) | O(log n) | No |
  * | Heapsort | O(n log n) | O(n log n) | O(n log n) | O(1) | No |
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Default benchmark (10000 elements)

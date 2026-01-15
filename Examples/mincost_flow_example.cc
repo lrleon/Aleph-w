@@ -35,7 +35,7 @@
  *
  * ## The Min-Cost Max-Flow Problem
  *
-### Problem Statement
+ * ### Problem Statement
  *
  * Given a directed network where each edge has:
  * - **Capacity**: Maximum flow allowed (c(e))
@@ -45,7 +45,7 @@
  * 1. **Maximizes** total flow from source to sink
  * 2. **Minimizes** total cost among all maximum flows
  *
-### Mathematical Formulation
+ * ### Mathematical Formulation
  *
  * ```
  * Minimize: Σ (flow(e) × cost(e)) for all edges e
@@ -56,9 +56,9 @@
  *   - Flow maximization: Total flow is maximum possible
  * ```
  *
-## Algorithms Demonstrated
+ * ## Algorithms Demonstrated
  *
-### 1. Cycle Canceling Algorithm
+ * ### 1. Cycle Canceling Algorithm
  *
  * **Strategy**: Start with max-flow, then reduce cost by canceling negative cycles
  *
@@ -83,7 +83,7 @@
  *
  * **Best for**: Understanding the concept, small networks
  *
-### 2. Network Simplex
+ * ### 2. Network Simplex
  *
  * **Strategy**: Specialized linear programming for networks
  *
@@ -98,7 +98,7 @@
  *
  * **Best for**: Large networks, production use
  *
-## Comparison with Max-Flow
+ * ## Comparison with Max-Flow
  *
  * | Aspect | Max-Flow | Min-Cost Max-Flow |
  * |--------|----------|-------------------|
@@ -107,33 +107,33 @@
  * | Complexity | O(VE²) | O(VE² × U) or higher |
  * | Applications | Simple routing | Cost optimization |
  *
-## Applications
+ * ## Applications
  *
-### Transportation & Logistics
+ * ### Transportation & Logistics
  * - **Package delivery**: Deliver maximum packages at minimum cost
  * - **Shipping**: Route goods through cheapest paths
  * - **Vehicle routing**: Optimize delivery routes
  *
-### Supply Chain
+ * ### Supply Chain
  * - **Production planning**: Optimize production and distribution
  * - **Inventory management**: Minimize storage and transport costs
  * - **Resource allocation**: Assign resources efficiently
  *
-### Telecommunications
+ * ### Telecommunications
  * - **Network routing**: Route data through cheapest paths
  * - **Bandwidth allocation**: Maximize throughput, minimize cost
  * - **Service provisioning**: Optimize service delivery
  *
-### Economics & Finance
+ * ### Economics & Finance
  * - **Market clearing**: Clear markets with transaction costs
  * - **Portfolio optimization**: Maximize returns, minimize costs
  * - **Resource trading**: Optimize resource exchanges
  *
-### Energy Systems
+ * ### Energy Systems
  * - **Power distribution**: Minimize transmission costs
  * - **Gas pipelines**: Optimize gas flow and costs
  *
-## Example Scenario: Logistics Network
+ * ## Example Scenario: Logistics Network
  *
  * ```
  * Network:
@@ -151,7 +151,7 @@
  * - Balance flow to minimize total cost
  * - Still achieve maximum flow
  *
-## Complexity Analysis
+ * ## Complexity Analysis
  *
  * | Algorithm | Time Complexity | Notes |
  * |-----------|----------------|-------|
@@ -159,7 +159,7 @@
  * | Network Simplex | Exponential worst, polynomial average | Fast in practice |
  * | Successive Shortest Path | O(V × E × max_flow) | Alternative approach |
  *
-## When to Use
+ * ## When to Use
  *
  * ✅ **Use min-cost max-flow when**:
  * - Both flow and cost matter
@@ -171,7 +171,7 @@
  * - Simpler problem
  * - Faster solution needed
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run min-cost max-flow demo
@@ -182,6 +182,12 @@
  *
  * # Test on specific network
  * ./mincost_flow_example --network logistics
+ * ./mincost_flow_example --network assignment
+ * ./mincost_flow_example --network transportation
+ * ./mincost_flow_example --network all
+ *
+ * # Show help
+ * ./mincost_flow_example --help
  * ```
  *
  * @see tpl_netcost.H Network with cost structures
@@ -195,11 +201,35 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <string>
+#include <cstring>
 #include <tpl_netcost.H>
 #include <tpl_mincost.H>
 
 using namespace std;
 using namespace Aleph;
+
+static void usage(const char* prog)
+{
+  cout << "Usage: " << prog << " [--compare] [--network <logistics|assignment|transportation|all>] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+}
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
+
+static const char* get_opt_value(int argc, char* argv[], const char* opt)
+{
+  for (int i = 1; i + 1 < argc; ++i)
+    if (std::strcmp(argv[i], opt) == 0)
+      return argv[i + 1];
+  return nullptr;
+}
 
 // Type definitions
 using Flow_Type = double;
@@ -227,6 +257,35 @@ CostNet build_simple_network()
   net.insert_arc(b, t, 10, 2.0);  // cap=10, cost=2
   
   return net;
+}
+
+static void demo_compare_algorithms_on_logistics()
+{
+  cout << "\n" << string(60, '=') << endl;
+  cout << "Comparison: Cycle Canceling vs Network Simplex (Logistics Network)" << endl;
+  cout << string(60, '=') << endl;
+
+  {
+    CostNet net = build_simple_network();
+    auto r = max_flow_min_cost_by_cycle_canceling(net);
+    auto flow = net.get_out_flow(net.get_source());
+    auto cost = net.flow_cost();
+    cout << "Cycle canceling:\n";
+    cout << "  Max flow: " << flow << "\n";
+    cout << "  Total cost: $" << fixed << setprecision(2) << cost << "\n";
+    cout << "  Cycles cancelled: " << get<0>(r) << "\n";
+  }
+
+  {
+    CostNet net = build_simple_network();
+    size_t pivots = max_flow_min_cost_by_network_simplex(net);
+    auto flow = net.get_out_flow(net.get_source());
+    auto cost = net.flow_cost();
+    cout << "Network simplex:\n";
+    cout << "  Max flow: " << flow << "\n";
+    cout << "  Total cost: $" << fixed << setprecision(2) << cost << "\n";
+    cout << "  Pivots: " << pivots << "\n";
+  }
 }
 
 /**
@@ -370,14 +429,40 @@ void demo_mincost_maxflow()
   cout << "Minimum cost: $" << fixed << setprecision(2) << get<1>(result) << endl;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
   cout << "=== Minimum Cost Maximum Flow ===" << endl;
   cout << "Optimize flow networks with costs per unit\n" << endl;
-  
-  demo_mincost_maxflow();
-  demo_assignment_problem();
-  demo_transportation_problem();
+
+  if (has_flag(argc, argv, "--help"))
+    {
+      usage(argv[0]);
+      return 0;
+    }
+
+  const bool compare = has_flag(argc, argv, "--compare");
+  const char* network = get_opt_value(argc, argv, "--network");
+  const string sel = network ? string(network) : string("all");
+
+  if (compare)
+    {
+      demo_compare_algorithms_on_logistics();
+      return 0;
+    }
+
+  if (argc == 1 || sel == "all" || sel == "logistics")
+    demo_mincost_maxflow();
+  if (argc == 1 || sel == "all" || sel == "assignment")
+    demo_assignment_problem();
+  if (argc == 1 || sel == "all" || sel == "transportation")
+    demo_transportation_problem();
+
+  if (!(argc == 1 || sel == "all" || sel == "logistics" || sel == "assignment" || sel == "transportation"))
+    {
+      cout << "Unknown --network value: " << sel << "\n";
+      usage(argv[0]);
+      return 1;
+    }
   
   cout << "\n" << string(60, '=') << endl;
   cout << "Summary" << endl;

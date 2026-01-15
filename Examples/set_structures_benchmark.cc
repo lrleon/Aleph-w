@@ -40,85 +40,83 @@
  * - **Cache performance**: Some structures are more cache-friendly
  * - **Real-world performance**: Theoretical complexity doesn't tell the whole story
  *
-## Tree-Based Sets (O(log n) operations)
+ * ## Tree-Based Sets (O(log n) operations)
  *
-### AVL Tree
+ * ### AVL Tree
  * - **Balance**: Strictly balanced (height difference ≤ 1)
  * - **Operations**: O(log n) worst case
  * - **Best for**: Read-heavy workloads, predictable performance
  * - **Trade-off**: More rotations than Red-Black
  *
-### Red-Black Tree
+ * ### Red-Black Tree
  * - **Balance**: Relaxed balance (height ≤ 2 log(n+1))
  * - **Operations**: O(log n) worst case
  * - **Best for**: General-purpose, good all-around choice
  * - **Trade-off**: Fewer rotations than AVL
  *
-### Splay Tree
+ * ### Splay Tree
  * - **Balance**: Self-adjusting (no explicit balance)
  * - **Operations**: O(log n) amortized
  * - **Best for**: Temporal locality, caching patterns
  * - **Trade-off**: Worst case O(n), but adapts to access patterns
  *
-### Treap
+ * ### Treap
  * - **Balance**: Randomized BST using heap priorities
  * - **Operations**: O(log n) expected
  * - **Best for**: Simple implementation, good average performance
  * - **Trade-off**: Randomized, less predictable
  *
-### Rand Tree
+ * ### Rand Tree
  * - **Balance**: Another randomized approach
  * - **Operations**: O(log n) expected
  * - **Best for**: Alternative randomized structure
  *
-## Skip Lists (Expected O(log n) operations)
+ * ## Skip Lists (Expected O(log n) operations)
  *
-### DynSkipList
+ * ### DynSkipList
  * - **Structure**: Probabilistic linked structure with multiple levels
  * - **Operations**: O(log n) expected
  * - **Best for**: Simplicity, concurrent extensions possible
  * - **Trade-off**: Probabilistic, not deterministic
  *
-## Hash Tables (Expected O(1) operations)
+ * ## Hash Tables (Expected O(1) operations)
  *
-### DynSetLhash (Separate Chaining)
+ * ### DynSetLhash (Separate Chaining)
  * - **Collision resolution**: Linked lists per bucket
  * - **Operations**: O(1) average, O(n) worst case
  * - **Best for**: High load factors, many insertions/deletions
  * - **Trade-off**: Pointer overhead, cache misses
  *
-### DynSetLinHash (Linear Hashing)
+ * ### DynSetLinHash (Linear Hashing)
  * - **Collision resolution**: Linear probing with incremental growth
  * - **Operations**: O(1) average
  * - **Best for**: Dynamic workloads with varying sizes
  * - **Trade-off**: More complex, predictable performance
  *
-### SetODhash (Open Addressing - Double Hashing)
+ * ### SetODhash (Open Addressing - Double Hashing)
  * - **Collision resolution**: Double hashing
  * - **Operations**: O(1) average
  * - **Best for**: Memory efficiency, cache-friendly access
  * - **Trade-off**: Fixed size or expensive resizing
  *
-### SetOLhash (Open Addressing - Linear Probing)
+ * ### SetOLhash (Open Addressing - Linear Probing)
  * - **Collision resolution**: Linear probing
  * - **Operations**: O(1) average
  * - **Best for**: Simple, cache-friendly
  * - **Trade-off**: Clustering can degrade performance
  *
-## Performance Comparison
+ * ## Performance Comparison
  *
  * | Structure | Insert | Search | Delete | Ordered? | Best For |
  * |-----------|--------|--------|--------|----------|----------|
- * | AVL Tree | O(log n) | O(log n) | O(log n) | ✅ Yes | Read-heavy |
- * | Red-Black | O(log n) | O(log n) | O(log n) | ✅ Yes | General |
- * | Splay | O(log n)* | O(log n)* | O(log n)* | ✅ Yes | Temporal locality |
- * | Treap | O(log n)** | O(log n)** | O(log n)** | ✅ Yes | Simple |
- * | Skip List | O(log n)** | O(log n)** | O(log n)** | ✅ Yes | Simplicity |
- * | Hash Tables | O(1)** | O(1)** | O(1)** | ❌ No | Maximum speed |
+ * | AVL Tree | O(log n) | O(log n) | O(log n) | Yes | Read-heavy |
+ * | Red-Black | O(log n) | O(log n) | O(log n) | Yes | General |
+ * | Splay | O(log n)* | O(log n)* | O(log n)* | Yes | Temporal locality |
+ * | Treap | O(log n)** | O(log n)** | O(log n)** | Yes | Simple |
+ * | Skip List | O(log n)** | O(log n)** | O(log n)** | Yes | Simplicity |
+ * | Hash Tables | O(1)** | O(1)** | O(1)** | No | Maximum speed |
  *
- * * = amortized, ** = expected/average
- *
-## When to Use What?
+ * ## When to Use What?
  *
  * | Structure | Best For | Avoid When |
  * |-----------|----------|------------|
@@ -130,7 +128,7 @@
  * | ODhash/OLhash | Memory efficiency, cache-friendly | Dynamic resizing needed |
  * | DynSetLinHash | Dynamic workloads, varying sizes | Fixed size preferred |
  *
-## Benchmark Metrics
+ * ## Benchmark Metrics
  *
  * This benchmark measures:
  * - **Insertion time**: Time to insert elements
@@ -139,17 +137,23 @@
  * - **Memory usage**: Space overhead
  * - **Cache performance**: Cache misses/hits
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run benchmark
  * ./set_structures_benchmark
  *
- * # Benchmark specific structure
- * ./set_structures_benchmark --structure avl
+ * # Configure benchmark size and seed
+ * ./set_structures_benchmark --count 200000 --seed 123
  *
- * # Compare structures
- * ./set_structures_benchmark --compare
+ * # Include ranked tree variants
+ * ./set_structures_benchmark --ranked
+ *
+ * # Also run sequential insertion test (limited internally)
+ * ./set_structures_benchmark --sequential
+ *
+ * # Show help
+ * ./set_structures_benchmark --help
  * ```
  *
  * @see hash_tables_example.C Hash table implementations

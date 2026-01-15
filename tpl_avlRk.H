@@ -121,23 +121,40 @@ namespace Aleph
                                 signed char & cmp_result) noexcept
     {
       assert(avl_stack_empty());
-      cmp_result = CmpEqual;
 
       Node *p = root;
+      Node *candidate = nullptr;  // Tracks potential duplicate when going right
+      size_t candidate_pos = 0;   // Stack size when candidate was set
+
       do
         {
           __builtin_prefetch(LLINK(p));
           __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
-          cmp_result = three_way_compare(key, KEY(p), cmp);
-          if (cmp_result == CmpLess) [[likely]]
-            p = LLINK(p);
-          else if (cmp_result == CmpGreater) [[likely]]
-            p = RLINK(p);
-          else [[unlikely]]
-            return p; // duplicated key
+          if (cmp(key, KEY(p)))  // key < KEY(p)
+            {
+              cmp_result = CmpLess;
+              p = LLINK(p);
+            }
+          else  // key >= KEY(p), could be equal
+            {
+              candidate = p;
+              candidate_pos = avl_stack.size();
+              cmp_result = CmpGreater;
+              p = RLINK(p);
+            }
         }
       while (p != Node::NullPtr);
+
+      // Optimistic duplicate check: when going right, key >= KEY(candidate)
+      // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
+      if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+        {
+          cmp_result = CmpEqual;
+          // Truncate stack: remove nodes pushed after candidate
+          avl_stack.popn(avl_stack.size() - candidate_pos);
+          return candidate;
+        }
 
       return avl_stack.top();
     }

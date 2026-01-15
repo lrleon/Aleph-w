@@ -35,7 +35,7 @@
  *
  * ## Connected Components (Undirected Graphs)
  *
-### Definition
+ * ### Definition
  *
  * A **connected component** is a maximal set of vertices where every
  * vertex can reach every other vertex through a path.
@@ -43,7 +43,7 @@
  * **Key property**: In undirected graphs, connectivity is **symmetric**:
  * if u can reach v, then v can reach u.
  *
-### Algorithm
+ * ### Algorithm
  *
  * Uses DFS or BFS traversal:
  * ```
@@ -66,7 +66,7 @@
  *
  * **Time Complexity**: O(V + E) - visits each vertex and edge once
  *
-### Applications
+ * ### Applications
  *
  * - **Social networks**: Finding friend groups (connected communities)
  * - **Network analysis**: Identifying isolated subnetworks
@@ -74,9 +74,9 @@
  * - **Circuit design**: Identifying disconnected circuits
  * - **Ecology**: Habitat connectivity analysis
  *
-## Strongly Connected Components (Directed Graphs)
+ * ## Strongly Connected Components (Directed Graphs)
  *
-### Definition
+ * ### Definition
  *
  * A **strongly connected component** (SCC) is a maximal set of vertices
  * in a directed graph where every vertex can reach every other vertex
@@ -85,7 +85,7 @@
  * **Key difference**: In directed graphs, connectivity is **NOT symmetric**:
  * u → v doesn't imply v → u.
  *
-### Algorithm: Tarjan's Algorithm
+ * ### Algorithm: Tarjan's Algorithm
  *
  * Uses a single DFS pass with:
  * - **`index[v]`**: Discovery time (order of first visit)
@@ -95,7 +95,7 @@
  *
  * **Time Complexity**: O(V + E) - single DFS traversal
  *
-### Applications
+ * ### Applications
  *
  * - **Web analysis**: Finding communities of mutually linked pages
  * - **Compiler optimization**: Detecting cyclic dependencies
@@ -103,16 +103,16 @@
  * - **Deadlock detection**: Identifying circular wait conditions
  * - **2-SAT solving**: Reducing to SCC finding
  *
-## Spanning Tree
+ * ## Spanning Tree
  *
-### Definition
+ * ### Definition
  *
  * A **spanning tree** is a subgraph that:
  * - Contains **all vertices**
  * - Is a **tree** (connected, acyclic)
  * - Has exactly **V-1 edges**
  *
-### Finding a Spanning Tree
+ * ### Finding a Spanning Tree
  *
  * **Algorithm**: Use DFS or BFS to traverse the graph, keeping track
  * of tree edges (edges used in traversal).
@@ -134,14 +134,14 @@
  *
  * **Time Complexity**: O(V + E)
  *
-### Applications
+ * ### Applications
  *
  * - **Network design**: Minimum cost to connect all nodes (MST)
  * - **Broadcast trees**: Efficient message distribution
  * - **Graph simplification**: Reduce graph while maintaining connectivity
  * - **Routing**: Find paths in networks
  *
-## Comparison: Components vs SCCs
+ * ## Comparison: Components vs SCCs
  *
  * | Aspect | Connected Components | Strongly Connected Components |
  * |--------|---------------------|------------------------------|
@@ -150,7 +150,7 @@
  * | Algorithm | Simple DFS/BFS | Tarjan/Kosaraju |
  * | Complexity | O(V + E) | O(V + E) |
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Analyze graph connectivity
@@ -164,6 +164,12 @@
  *
  * # Find spanning tree
  * ./graph_components_example --spanning-tree
+ *
+ * # Network analysis demo
+ * ./graph_components_example --network-analysis
+ *
+ * # Show help
+ * ./graph_components_example --help
  * ```
  *
  * @see bfs_dfs_example.C Graph traversal (used by algorithms)
@@ -173,15 +179,10 @@
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
- * @see tpl_components.H Connected component algorithms
- * @see tpl_spanning_tree.H Spanning tree generation
- * @see Tarjan.H Strongly connected components
- * @author Leandro Rabindranath León
- * @ingroup Examples
- */
 
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <tpl_graph.H>
 #include <tpl_components.H>
 #include <tpl_spanning_tree.H>
@@ -190,6 +191,21 @@
 
 using namespace std;
 using namespace Aleph;
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
+
+static void usage(const char* prog)
+{
+  cout << "Usage: " << prog
+       << " [--components] [--scc] [--spanning-tree] [--network-analysis] [--all] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+}
 
 // Graph types
 using UGraph = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
@@ -466,8 +482,20 @@ void demo_network_analysis()
 // Main
 // =============================================================================
 
-int main()
+int main(int argc, char* argv[])
 {
+  if (has_flag(argc, argv, "--help"))
+    {
+      usage(argv[0]);
+      return 0;
+    }
+
+  const bool run_all = has_flag(argc, argv, "--all") || argc == 1;
+  const bool run_components = run_all || has_flag(argc, argv, "--components");
+  const bool run_scc = run_all || has_flag(argc, argv, "--scc");
+  const bool run_spanning = run_all || has_flag(argc, argv, "--spanning-tree");
+  const bool run_network = run_all || has_flag(argc, argv, "--network-analysis");
+
   cout << "\n";
   cout << "╔══════════════════════════════════════════════════════════════════╗\n";
   cout << "║        Graph Connectivity Analysis in Aleph-w Library            ║\n";
@@ -475,10 +503,20 @@ int main()
   cout << "║     Aleph-w Library - https://github.com/lrleon/Aleph-w          ║\n";
   cout << "╚══════════════════════════════════════════════════════════════════╝\n";
 
-  demo_connected_components();
-  demo_strongly_connected();
-  demo_spanning_tree();
-  demo_network_analysis();
+  if (run_components)
+    demo_connected_components();
+  if (run_scc)
+    demo_strongly_connected();
+  if (run_spanning)
+    demo_spanning_tree();
+  if (run_network)
+    demo_network_analysis();
+
+  if (!(run_components || run_scc || run_spanning || run_network))
+    {
+      usage(argv[0]);
+      return 1;
+    }
 
   cout << "\n";
   cout << "╔══════════════════════════════════════════════════════════════════╗\n";

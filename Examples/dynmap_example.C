@@ -43,7 +43,7 @@
  *
  * ## Available Tree Backends
  *
-### Balanced Trees (Guaranteed O(log n))
+ * ### Balanced Trees (Guaranteed O(log n))
  *
  * #### Avl_Tree
  * - **Balance**: Strict height balance (heights differ by ≤ 1)
@@ -57,7 +57,7 @@
  * - **Best for**: General-purpose, balanced read/write
  * - **Trade-off**: Less strict than AVL but faster inserts
  *
-### Self-Adjusting Trees (Amortized O(log n))
+ * ### Self-Adjusting Trees (Amortized O(log n))
  *
  * #### Splay_Tree
  * - **Strategy**: Moves accessed elements to root
@@ -65,7 +65,7 @@
  * - **Best for**: Temporal locality, caching patterns
  * - **Trade-off**: No worst-case guarantee, but excellent for hot data
  *
-### Randomized Trees (Expected O(log n))
+ * ### Randomized Trees (Expected O(log n))
  *
  * #### Treap
  * - **Strategy**: Randomized BST with heap priorities
@@ -78,7 +78,7 @@
  *
  * ## When to Use DynMapTree vs Hash Maps
  *
-### Use DynMapTree When:
+ * ### Use DynMapTree When:
  *
  * ✅ **Ordered keys needed**
  *   - Keys must be sorted
@@ -100,7 +100,7 @@
  *   - Custom types without hash
  *   - Hash collisions problematic
  *
-### Use Hash Maps When:
+ * ### Use Hash Maps When:
  *
  * ✅ **Point queries only**
  *   - Only need key → value lookup

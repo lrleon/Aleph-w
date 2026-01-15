@@ -47,9 +47,9 @@
  * - **Heap property**: Parent-child relationship maintained
  * - **Array storage**: Efficient representation without pointers
  *
-## Array Representation
+ * ## Array Representation
  *
-### Indexing Scheme (1-indexed)
+ * ### Indexing Scheme (1-indexed)
  *
  * Heaps use a clever array indexing scheme:
  * - **Parent** of node i: `i/2` (integer division)
@@ -57,7 +57,7 @@
  * - **Right child** of node i: `2*i + 1`
  * - **Root**: Index 1 (index 0 unused or stores size)
  *
-### Example
+ * ### Example
  *
  * ```
  * Array: [-, 1, 3, 2, 5, 4, 6]
@@ -71,16 +71,16 @@
  *     5  4 6  (indices 4, 5, 6)
  * ```
  *
-### Advantages
+ * ### Advantages
  *
  * - **Space efficient**: No pointers needed (saves memory)
  * - **Cache friendly**: Sequential memory access (better performance)
  * - **Fast navigation**: Simple arithmetic for parent/child (O(1))
  * - **Simple implementation**: Easy to code and understand
  *
-## Heap Operations
+ * ## Heap Operations
  *
-### Insertion (Bubble Up)
+ * ### Insertion (Bubble Up)
  *
  * ```
  * insert(value):
@@ -92,7 +92,7 @@
  *
  * **Time**: O(log n) - height of tree
  *
-### Extract Minimum (Bubble Down)
+ * ### Extract Minimum (Bubble Down)
  *
  * ```
  * extract_min():
@@ -106,7 +106,7 @@
  *
  * **Time**: O(log n) - height of tree
  *
-### Build Heap (Heapify)
+ * ### Build Heap (Heapify)
  *
  * ```
  * build_heap(array):
@@ -117,7 +117,7 @@
  * **Time**: O(n) - surprisingly efficient!
  * **Why**: Most nodes are near bottom, few swaps needed
  *
-### Complexity Summary
+ * ### Complexity Summary
  *
  * | Operation | Time Complexity | Description |
  * |-----------|-----------------|-------------|
@@ -128,28 +128,28 @@
  * | decrease_key | O(log n) | Decrease element, bubble up |
  * | increase_key | O(log n) | Increase element, bubble down |
  *
-## Applications
+ * ## Applications
  *
-### Priority Queues
+ * ### Priority Queues
  * - **Task scheduling**: Execute highest priority tasks first
  * - **Event simulation**: Process events in chronological order
  * - **Operating systems**: Process scheduling
  *
-### Graph Algorithms
+ * ### Graph Algorithms
  * - **Dijkstra's algorithm**: Find shortest paths (min-heap)
  * - **Prim's MST**: Find minimum spanning tree (min-heap)
  * - **A\* search**: Pathfinding with heuristics
  *
-### Sorting
+ * ### Sorting
  * - **Heap sort**: O(n log n) in-place sorting
  * - **Partial sort**: Sort first k elements efficiently
  *
-### Statistics
+ * ### Statistics
  * - **Median finding**: Use two heaps (min + max)
  * - **Top-k queries**: Keep k largest/smallest elements
  * - **Percentiles**: Find k-th percentile efficiently
  *
-## Heap vs Other Structures
+ * ## Heap vs Other Structures
  *
  * | Structure | Insert | Extract Min | Build | Best For |
  * |-----------|--------|-------------|-------|----------|
@@ -158,7 +158,7 @@
  * | BST | O(log n) | O(log n) | O(n log n) | Dynamic, ordered |
  * | Linked List | O(1) | O(n) | O(n) | Simple cases |
  *
-## Output Files
+ * ## Output Files
  *
  * - **`heap-ejm-aux.Tree`**: Preorder and inorder traversals for `btreepic`
  *   - Shows tree structure
@@ -171,7 +171,7 @@
  * The tree visualization shows the heap structure, which is a complete
  * binary tree (all levels full except possibly the last, filled left-to-right).
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate heap with 20 elements

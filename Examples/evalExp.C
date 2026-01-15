@@ -38,7 +38,7 @@
  *
  * ## The Expression Evaluation Problem
  *
-### Challenge
+ * ### Challenge
  *
  * Evaluate arithmetic expressions like `3 + 4 * 2` correctly:
  * - **Wrong**: (3 + 4) * 2 = 14
@@ -46,16 +46,16 @@
  *
  * **Problem**: Operators have different precedence levels
  *
-### Solution: Two-Stack Algorithm
+ * ### Solution: Two-Stack Algorithm
  *
  * Use two stacks to manage operator precedence:
  * - **Operand stack**: Stores numbers
  * - **Operator stack**: Stores operators
  * - **Precedence rules**: Determine evaluation order
  *
-## How It Works
+ * ## How It Works
  *
-### Algorithm Overview
+ * ### Algorithm Overview
  *
  * The evaluator processes the expression left-to-right:
  * ```
@@ -84,7 +84,7 @@
  *   return operand_stack.top()
  * ```
  *
-### Step-by-Step Example
+ * ### Step-by-Step Example
  *
  * Expression: `3 + 4 * 2`
  *
@@ -122,22 +122,22 @@
  * Result: 11
  * ```
  *
-## Operator Precedence
+ * ## Operator Precedence
  *
-### Precedence Levels
+ * ### Precedence Levels
  *
  * | Operator | Precedence | Associativity | Notes |
  * |----------|------------|---------------|-------|
  * | +, -     | 1          | Left-to-right | Addition, subtraction |
  * | *, /     | 2          | Left-to-right | Multiplication, division |
  *
-### Precedence Rules
+ * ### Precedence Rules
  *
  * - **Higher precedence**: Evaluated first
  * - **Same precedence**: Left-to-right (associativity)
  * - **Parentheses**: Override precedence
  *
-### Examples
+ * ### Examples
  *
  * ```
  * 3 + 4 * 2     → 3 + (4 * 2) = 11
@@ -145,28 +145,28 @@
  * (3 + 4) * 2   → 7 * 2 = 14  (parentheses override)
  * ```
  *
-## Supported Features
+ * ## Supported Features
  *
-### Operators
+ * ### Operators
  * - **+**: Addition
  * - **-**: Subtraction
  * - **\***: Multiplication
- * - **/**: Division (integer division)
+ * - `/` (slash): Division (integer division)
  *
-### Parentheses
+ * ### Parentheses
  * - **( )**: Grouping and precedence override
  * - **Nested**: Supports nested parentheses
  *
-### Data Types
+ * ### Data Types
  * - **Integer arithmetic**: All operations on integers
  * - **No floating point**: Integer-only evaluation
  *
-### Error Handling
+ * ### Error Handling
  * - **Malformed expressions**: Detects syntax errors
  * - **Mismatched parentheses**: Detects parenthesis errors
  * - **Invalid operators**: Detects unknown operators
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Basic arithmetic
@@ -182,25 +182,25 @@
  * evalExp "((1 + 2) * 3) - 4"  # Result: 5
  * ```
  *
-## Algorithm Variants
+ * ## Algorithm Variants
  *
-### Shunting-Yard Algorithm
+ * ### Shunting-Yard Algorithm
  *
  * This implementation is similar to the shunting-yard algorithm:
  * - **Shunting-yard**: Converts infix to postfix, then evaluates
  * - **This variant**: Evaluates directly using two stacks
  * - **Advantage**: More efficient (single pass)
  *
-### Recursive Descent
+ * ### Recursive Descent
  *
  * Alternative approach:
  * - **Recursive**: Parse expression recursively
  * - **Grammar-based**: Follows expression grammar
  * - **More complex**: But more flexible
  *
-## Educational Value
+ * ## Educational Value
  *
-### Concepts Demonstrated
+ * ### Concepts Demonstrated
  *
  * - **Stack data structures**: Using stacks for parsing
  * - **Operator precedence**: Handling different precedence levels
@@ -208,7 +208,7 @@
  * - **State management**: Tracking parsing state with stacks
  * - **Algorithm design**: Two-stack approach
  *
-### Learning Outcomes
+ * ### Learning Outcomes
  *
  * After studying this example, you understand:
  * - How compilers evaluate expressions
@@ -216,7 +216,7 @@
  * - How to implement expression evaluators
  * - Stack-based algorithm design
  *
-## Complexity
+ * ## Complexity
  *
  * | Aspect | Complexity | Notes |
  * |--------|-----------|-------|
@@ -224,9 +224,9 @@
  * | Space | O(n) | Stacks store tokens |
  * | Operators | O(1) | Constant number of operators |
  *
-## Extensions
+ * ## Extensions
  *
-### Possible Enhancements
+ * ### Possible Enhancements
  *
  * - **Floating point**: Support decimal numbers
  * - **More operators**: Exponentiation, modulo
@@ -234,18 +234,18 @@
  * - **Variables**: Support variable names
  * - **Assignment**: Support variable assignment
  *
-## Applications
+ * ## Applications
  *
-### Compilers and Interpreters
+ * ### Compilers and Interpreters
  * - **Expression parsing**: How languages evaluate expressions
  * - **Syntax analysis**: Part of compiler frontend
  * - **Code generation**: Generate code for expressions
  *
-### Calculators
+ * ### Calculators
  * - **Scientific calculators**: Evaluate complex expressions
  * - **Programming calculators**: Support operator precedence
  *
-### Formula Evaluators
+ * ### Formula Evaluators
  * - **Spreadsheets**: Excel, Google Sheets formula evaluation
  * - **Mathematical software**: Evaluate mathematical expressions
  *

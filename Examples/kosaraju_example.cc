@@ -42,7 +42,7 @@
  * **Key property**: In an SCC, you can travel from any vertex to any
  * other vertex (and back).
  *
-### Example
+ * ### Example
  *
  * Graph: A → B → C → A, D → E → D
  *
@@ -50,13 +50,13 @@
  * - {A, B, C} - form a cycle
  * - {D, E} - form a cycle
  *
-## Kosaraju's Algorithm
+ * ## Kosaraju's Algorithm
  *
-### Overview
+ * ### Overview
  *
  * Kosaraju's algorithm works in **two phases**:
  *
-### Phase 1: Compute Finish Times
+ * ### Phase 1: Compute Finish Times
  *
  * ```
  * 1. Run DFS on the original graph G
@@ -66,7 +66,7 @@
  *
  * **Key**: We record when DFS finishes exploring a vertex (post-order).
  *
-### Phase 2: Find SCCs
+ * ### Phase 2: Find SCCs
  *
  * ```
  * 1. Create transposed graph G^T (reverse all edges)
@@ -77,14 +77,14 @@
  *
  * **Key**: Process in reverse finish order, on reversed graph.
  *
-## Why Does It Work?
+ * ## Why Does It Work?
  *
-### Key Insight
+ * ### Key Insight
  *
  * If vertex u can reach vertex v in graph G, then v can reach u in the
  * transposed graph G^T (where all edges are reversed).
  *
-### Why Reverse Finish Order?
+ * ### Why Reverse Finish Order?
  *
  * By processing vertices in **decreasing finish order**:
  * - We start with vertices that finished LAST in Phase 1
@@ -92,13 +92,13 @@
  * - In G^T, they become "source" vertices
  * - DFS from them only reaches vertices in the same SCC
  *
-### Why Transpose?
+ * ### Why Transpose?
  *
  * - In G: If u → v, then u can reach v
  * - In G^T: If v → u (reversed), then v can reach u
  * - Together: u and v can reach each other ⟺ same SCC
  *
-## Algorithm Pseudocode
+ * ## Algorithm Pseudocode
  *
  * ```
  * Kosaraju_SCC(G):
@@ -134,14 +134,14 @@
  *   Return SCC
  * ```
  *
-## Complexity
+ * ## Complexity
  *
  * - **Time**: O(V + E) - two DFS passes
  * - **Space**: O(V + E) - for transposed graph
  *
  * **Note**: Tarjan's algorithm is more space-efficient (no transpose needed)
  *
-## Comparison with Tarjan's Algorithm
+ * ## Comparison with Tarjan's Algorithm
  *
  * | Aspect | Kosaraju's | Tarjan's |
  * |--------|-----------|----------|
@@ -152,34 +152,34 @@
  * | Performance | Slightly slower | Faster |
  * | Best for | Learning, simplicity | Production, efficiency |
  *
-## Applications
+ * ## Applications
  *
-### 2-SAT Satisfiability
+ * ### 2-SAT Satisfiability
  * - **Boolean formulas**: Reduce 2-SAT to SCC finding
  * - **Constraint satisfaction**: Solve logical constraints
  * - **Circuit design**: Verify satisfiability
  *
-### Dependency Analysis
+ * ### Dependency Analysis
  * - **Circular dependencies**: Find cycles in dependency graphs
  * - **Build systems**: Detect circular build dependencies
  * - **Package managers**: Find circular package dependencies
  *
-### Social Networks
+ * ### Social Networks
  * - **Communities**: Find tightly-knit groups
  * - **Influence**: Identify influential clusters
  * - **Recommendations**: Suggest connections in same SCC
  *
-### Compiler Optimization
+ * ### Compiler Optimization
  * - **Data flow**: Analyze variable dependencies
  * - **Dead code**: Identify unreachable code
  * - **Optimization**: Find optimization opportunities
  *
-### Web Crawling
+ * ### Web Crawling
  * - **Site clusters**: Identify website communities
  * - **Link analysis**: Understand web structure
  * - **SEO**: Analyze site connectivity
  *
-## Example: Dependency Graph
+ * ## Example: Dependency Graph
  *
  * ```
  * Modules: A → B → C → A  (circular!)
@@ -195,7 +195,7 @@
  *
  * This helps identify problematic circular dependencies.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run Kosaraju's algorithm demo
@@ -216,6 +216,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include <tpl_graph.H>
 #include <kosaraju.H>
@@ -612,11 +613,40 @@ void example_applications()
 // Main
 // =============================================================================
 
-int main()
+static void usage(const char* prog)
 {
+  cout << "Usage: " << prog << " [--compare] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+}
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
+
+int main(int argc, char* argv[])
+{
+  if (has_flag(argc, argv, "--help"))
+    {
+      usage(argv[0]);
+      return 0;
+    }
+
+  const bool compare = has_flag(argc, argv, "--compare");
+
   cout << "╔══════════════════════════════════════════════════════════════════════╗\n";
   cout << "║      Kosaraju's Algorithm for Strongly Connected Components          ║\n";
   cout << "╚══════════════════════════════════════════════════════════════════════╝\n\n";
+
+  if (compare)
+    {
+      example_comparison_tarjan();
+      cout << "\nDone.\n";
+      return 0;
+    }
 
   example_basic_sccs();
   example_lightweight_version();

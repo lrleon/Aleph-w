@@ -18,9 +18,9 @@
  * **Key advantage**: No intermediate allocations until you "materialize"
  * the range into a container.
  *
-## Key Concepts
+ * ## Key Concepts
  *
-### Lazy Evaluation
+ * ### Lazy Evaluation
  *
  * **Traditional approach** (eager):
  * ```cpp
@@ -35,7 +35,7 @@
  * auto vec = result | ranges::to<vector>();  // Materialize when needed
  * ```
  *
-### Range Adaptors
+ * ### Range Adaptors
  *
  * Transform ranges without creating new containers:
  * - **`views::filter`**: Keep elements satisfying predicate
@@ -44,7 +44,7 @@
  * - **`views::drop`**: Skip first n elements
  * - **`views::reverse`**: Reverse order
  *
-### Views
+ * ### Views
  *
  * Views are:
  * - **Non-owning**: Don't own the underlying data
@@ -52,7 +52,7 @@
  * - **Lazy**: Computed on demand
  * - **Zero-cost**: No allocation until materialized
  *
-### Pipe Syntax
+ * ### Pipe Syntax
  *
  * The pipe operator (`|`) allows natural composition:
  * ```cpp
@@ -65,7 +65,7 @@
  *
  * Reads like: "Take data, filter positives, square them, take 10, convert to vector"
  *
-## Comparison with Traditional Approach
+ * ## Comparison with Traditional Approach
  *
  * | Aspect | Traditional | C++20 Ranges |
  * |--------|-------------|--------------|
@@ -74,41 +74,45 @@
  * | Syntax | Nested calls | Pipe composition |
  * | Performance | Can be slower | Often faster (fewer allocations) |
  *
-## Requirements
+ * ## Requirements
  *
  * - **C++20**: Requires `-std=c++20` compiler flag
  * - **Compiler**: GCC 12+ or Clang 16+ with libc++
  * - **Standard library**: C++20 ranges support
  *
-## Benefits
+ * ## Benefits
  *
-### Performance
+ * ### Performance
  * - **Fewer allocations**: Only materialize at the end
  * - **Better cache usage**: Composed operations can be optimized
  * - **Compiler optimizations**: Modern compilers optimize range pipelines
  *
-### Readability
+ * ### Readability
  * - **Natural flow**: Left-to-right reading
  * - **Composable**: Easy to add/remove operations
  * - **Declarative**: Describe what you want, not how
  *
-### Memory Efficiency
+ * ### Memory Efficiency
  * - **Lazy evaluation**: Don't create intermediate containers
  * - **Views**: Non-owning, zero overhead
  * - **Materialization**: Only when you need the result
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Run all range demonstrations
  * ./ranges_example
  *
  * # Run specific demo
- * ./ranges_example -s lazy      # Lazy evaluation demo
- * ./ranges_example -s pipe      # Pipe operator demo
+ * ./ranges_example -s lazy         # Lazy evaluation demo
+ * ./ranges_example -s views        # Views and adaptors demo
+ * ./ranges_example -s materialize  # Materialization demo
+ * ./ranges_example -s aleph        # Aleph containers with ranges demo
+ * ./ranges_example -s practical    # Practical examples
+ * ./ranges_example -s perf         # Performance demo
  * ```
  *
-## Example Pipeline
+ * ## Example Pipeline
  *
  * ```cpp
  * // Process large dataset efficiently

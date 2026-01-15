@@ -128,6 +128,97 @@ TEST(AvlTree, InsertRejectsDuplicatesAndSearchOrInsertReturnsExisting)
   EXPECT_TRUE(t.verify());
 }
 
+// Tests for optimistic search edge cases
+TEST(AvlTree, DuplicateAtIntermediateLevel)
+{
+  // Build tree:       50
+  //                  /  \
+  //                25    75
+  //               /  \
+  //             10    30
+  // Then try to insert duplicate of 25 (intermediate level)
+  Avl_Tree<int> t;
+  NodePool<Avl_Tree<int>> pool;
+
+  ASSERT_NE(t.insert(pool.make(50)), nullptr);
+  ASSERT_NE(t.insert(pool.make(25)), nullptr);
+  ASSERT_NE(t.insert(pool.make(75)), nullptr);
+  ASSERT_NE(t.insert(pool.make(10)), nullptr);
+  ASSERT_NE(t.insert(pool.make(30)), nullptr);
+
+  // Try duplicate at intermediate level
+  EXPECT_EQ(t.insert(pool.make(25)), nullptr);
+  EXPECT_TRUE(t.verify());
+
+  // search_or_insert should return existing node
+  auto * dup = pool.make(25);
+  auto * found = t.search_or_insert(dup);
+  EXPECT_NE(found, dup);
+  EXPECT_EQ(KEY(found), 25);
+  EXPECT_TRUE(t.verify());
+
+  // Remove the intermediate node should work
+  auto * removed = t.remove(25);
+  ASSERT_NE(removed, nullptr);
+  EXPECT_EQ(KEY(removed), 25);
+  EXPECT_TRUE(t.verify());
+}
+
+TEST(AvlTree, DuplicateAfterOnlyLeftDescents)
+{
+  // Build tree where duplicate search goes only left
+  // Tree:     100
+  //          /
+  //        50
+  //       /
+  //     25
+  // Search for 25 (only left descents, candidate should be nullptr until found)
+  Avl_Tree<int> t;
+  NodePool<Avl_Tree<int>> pool;
+
+  ASSERT_NE(t.insert(pool.make(100)), nullptr);
+  ASSERT_NE(t.insert(pool.make(50)), nullptr);
+  ASSERT_NE(t.insert(pool.make(25)), nullptr);
+
+  // Insert key smaller than all - should work (no duplicate)
+  ASSERT_NE(t.insert(pool.make(10)), nullptr);
+  EXPECT_TRUE(t.verify());
+
+  // Try duplicate of leftmost
+  EXPECT_EQ(t.insert(pool.make(25)), nullptr);
+  EXPECT_TRUE(t.verify());
+}
+
+TEST(AvlTree, DuplicateDeepInTree)
+{
+  // Build a deeper tree and test duplicate at various levels
+  Avl_Tree<int> t;
+  NodePool<Avl_Tree<int>> pool;
+
+  // Insert in order that creates a balanced tree
+  for (int k : {50, 25, 75, 12, 37, 62, 87, 6, 18, 31, 43})
+    ASSERT_NE(t.insert(pool.make(k)), nullptr);
+
+  EXPECT_TRUE(t.verify());
+
+  // Test duplicates at different levels
+  EXPECT_EQ(t.insert(pool.make(50)), nullptr);  // root
+  EXPECT_EQ(t.insert(pool.make(25)), nullptr);  // level 1
+  EXPECT_EQ(t.insert(pool.make(37)), nullptr);  // level 2
+  EXPECT_EQ(t.insert(pool.make(31)), nullptr);  // level 3
+
+  EXPECT_TRUE(t.verify());
+
+  // Remove and verify tree integrity
+  for (int k : {31, 37, 25, 50})
+    {
+      auto * rem = t.remove(k);
+      ASSERT_NE(rem, nullptr);
+      EXPECT_EQ(KEY(rem), k);
+      EXPECT_TRUE(t.verify());
+    }
+}
+
 TEST(AvlTree, InsertDupAllowsDuplicates)
 {
   Avl_Tree<int> t;

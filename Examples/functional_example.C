@@ -21,9 +21,9 @@
  * - Better for parallelization
  * - Less error-prone (no mutation bugs)
  *
-## Features Demonstrated
+ * ## Features Demonstrated
  *
-### Range Generation
+ * ### Range Generation
  *
  * Create sequences of values:
  * - **`range(start, end, step)`**: Generate numeric ranges (like Python's range)
@@ -33,14 +33,14 @@
  *
  * **Example**: `range(1, 10, 2)` → [1, 3, 5, 7, 9]
  *
-### Iteration
+ * ### Iteration
  *
  * Apply operations to containers:
  * - **`for_each(container, op)`**: Apply function to each element
  * - **`enum_for_each(container, op)`**: Apply with index (i, element)
  * - **`traverse(container, op)`**: Conditional traversal (can stop early)
  *
-### Predicates
+ * ### Predicates
  *
  * Test conditions on containers:
  * - **`all(container, pred)`**: All elements satisfy predicate?
@@ -48,7 +48,7 @@
  * - **`none(container, pred)`**: No element satisfies?
  * - **`contains(container, value)`**: Value exists in container?
  *
-### Transformation
+ * ### Transformation
  *
  * Transform containers into new containers:
  * - **`maps<T>(container, op)`**: Transform each element (like std::transform)
@@ -57,7 +57,7 @@
  * - **`reverse(container)`**: Reverse order of elements
  * - **`flatten(container)`**: Flatten nested containers
  *
-### Folding/Reduction
+ * ### Folding/Reduction
  *
  * Combine elements into a single value:
  * - **`foldl(container, init, op)`**: Left fold (reduce from left)
@@ -67,7 +67,7 @@
  *
  * **Example**: `foldl([1,2,3], 0, +)` → 6 (sum)
  *
-### Zipping
+ * ### Zipping
  *
  * Combine multiple containers element-wise:
  * - **`zip(c1, c2)`**: Create pairs from two containers
@@ -77,7 +77,7 @@
  *
  * **Example**: `zip([1,2,3], ['a','b','c'])` → [(1,'a'), (2,'b'), (3,'c')]
  *
-### Grouping
+ * ### Grouping
  *
  * Organize elements by criteria:
  * - **`group_by(container, key_func)`**: Group elements by key function
@@ -85,7 +85,7 @@
  * - **`take_while(container, pred)`**: Take prefix satisfying predicate
  * - **`drop_while(container, pred)`**: Drop prefix satisfying predicate
  *
-## Functional Style Example
+ * ## Functional Style Example
  *
  * **Imperative style** (traditional):
  * ```cpp
@@ -105,7 +105,7 @@
  *
  * More concise, readable, and composable!
  *
-## Composition and Pipelining
+ * ## Composition and Pipelining
  *
  * Functional operations compose naturally:
  * ```cpp
@@ -117,7 +117,7 @@
  *   | sum();                   // Sum everything
  * ```
  *
-## Comparison with STL
+ * ## Comparison with STL
  *
  * | Feature | STL | Aleph-w Functional |
  * |---------|-----|-------------------|
@@ -127,23 +127,29 @@
  * | Composition | Manual chaining | Natural composition |
  * | Immutability | Modifies input | Returns new container |
  *
-## Performance Considerations
+ * ## Performance Considerations
  *
  * - **Immutability**: Creates new containers (memory overhead)
  * - **Composition**: Can be optimized by compiler
  * - **Lazy evaluation**: Some operations can be deferred (see ranges_example.C)
  * - **Parallelization**: Functional code easier to parallelize
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Run all demonstrations
  * ./functional_example
  *
  * # Run specific section
- * ./functional_example -s ranges    # Range generation
- * ./functional_example -s fold      # Folding operations
- * ./functional_example -s zip       # Zipping operations
+ * ./functional_example -s ranges      # Range generation
+ * ./functional_example -s iteration   # Iteration helpers
+ * ./functional_example -s predicates  # Predicates
+ * ./functional_example -s transform   # Mapping/filtering
+ * ./functional_example -s fold        # Folding operations
+ * ./functional_example -s zip         # Zipping operations
+ * ./functional_example -s group       # Grouping/partitioning
+ * ./functional_example -s practical   # Practical examples
+ * ./functional_example -s compare     # Comparisons / equality
  * ```
  *
  * @see ahFunctional.H Main functional programming header

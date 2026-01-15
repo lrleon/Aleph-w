@@ -37,7 +37,7 @@
  *
  * ## Why Resizing Matters
  *
-### Load Factor Impact
+ * ### Load Factor Impact
  *
  * Hash table performance degrades when the **load factor** (elements/buckets)
  * becomes too high:
@@ -46,23 +46,23 @@
  * - **Optimal load factor** (0.7-0.8): Good balance of speed and memory
  * - **High load factor** (> 0.9): Many collisions, performance degrades
  *
-### Performance Degradation
+ * ### Performance Degradation
  *
  * Without resizing:
  * - **Operations degrade**: From O(1) average to O(n) worst case
  * - **Collisions increase**: More elements compete for same buckets
  * - **Linear probing**: Longer probe sequences
  *
-### Common Thresholds
+ * ### Common Thresholds
  *
  * | Hash Table Type | Resize Threshold | Reason |
  * |-----------------|------------------|--------|
  * | Open addressing | Load factor > 0.7-0.8 | Collisions become frequent |
  * | Separate chaining | Load factor > 1.0-2.0 | Chains become too long |
  *
-## Automatic Resizing Strategy
+ * ## Automatic Resizing Strategy
  *
-### How MapOLhash Resizes
+ * ### How MapOLhash Resizes
  *
  * `MapOLhash` uses open addressing (linear probing or double hashing):
  *
@@ -75,7 +75,7 @@
  *    - Updates hash table structure
  *    - Continues insertion
  *
-### Resize Operation
+ * ### Resize Operation
  *
  * ```
  * Resize(old_size, new_size):
@@ -91,7 +91,7 @@
  * **Frequency**: O(log n) times (each resize doubles size)
  * **Amortized cost**: O(1) per insertion
  *
-## What This Example Demonstrates
+ * ## What This Example Demonstrates
  *
  * 1. **Insertion**: Adding many elements to the hash table
  * 2. **Automatic resizing**: Observing resize operations as load increases
@@ -99,7 +99,7 @@
  * 4. **Performance**: Demonstrating O(1) average access maintained
  * 5. **Load factor tracking**: Monitoring load factor over time
  *
-## Key Operations
+ * ## Key Operations
  *
  * - **`insert(key, value)`**: Insert key-value pair (may trigger resize)
  * - **`search(key)`**: Find value by key (O(1) average)
@@ -107,22 +107,22 @@
  * - **`capacity()`**: Get current number of buckets
  * - **`load_factor()`**: Get current load factor
  *
-## Resize Behavior
+ * ## Resize Behavior
  *
-### When Resize Occurs
+ * ### When Resize Occurs
  *
  * - **Trigger**: Load factor exceeds threshold (typically 0.75)
  * - **Frequency**: Logarithmic (each resize doubles size)
  * - **Cost**: O(n) per resize, but amortized O(1) per insertion
  *
-### Resize Size
+ * ### Resize Size
  *
  * Common strategies:
  * - **Double**: new_size = 2 × old_size (most common)
  * - **Prime**: Use next prime number (better for some hash functions)
  * - **Power of 2**: new_size = 2^k (fast modulo)
  *
-## Performance Characteristics
+ * ## Performance Characteristics
  *
  * | Operation | Before Resize | After Resize | Amortized |
  * |-----------|---------------|--------------|-----------|
@@ -130,7 +130,7 @@
  * | Search | O(1) → O(n) | O(1) | O(1) |
  * | Delete | O(1) → O(n) | O(1) | O(1) |
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Insert 1000 elements and observe resizing
@@ -143,7 +143,7 @@
  * hash_resize -n 5000 --initial-size 100
  * ```
  *
-## Expected Output
+ * ## Expected Output
  *
  * The example shows:
  * - Initial hash table size

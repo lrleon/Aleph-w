@@ -38,7 +38,7 @@
  *
  * ## Standard vs Root Insertion
  *
-### Standard Insertion
+ * ### Standard Insertion
  *
  * - **Traversal**: From root to leaf
  * - **Insertion**: New node becomes leaf
@@ -46,7 +46,7 @@
  * - **Result**: New element at bottom of tree
  * - **Structure**: Tree grows downward
  *
-### Root Insertion
+ * ### Root Insertion
  *
  * - **Traversal**: From root to insertion point
  * - **Insertion**: New node inserted at correct position
@@ -55,9 +55,9 @@
  * - **Result**: New element always at root
  * - **Structure**: Tree adjusts upward
  *
-## Algorithm
+ * ## Algorithm
  *
-### Root Insertion Process
+ * ### Root Insertion Process
  *
  * Root insertion works by:
  * ```
@@ -70,16 +70,16 @@
  *        - If new node is right child: rotate left
  * ```
  *
-### Rotations
+ * ### Rotations
  *
  * The rotations maintain the BST property while moving the node upward:
  * - **Right rotation**: Moves left child up
  * - **Left rotation**: Moves right child up
  * - **BST property**: Maintained throughout
  *
-## Properties
+ * ## Properties
  *
-### Advantages
+ * ### Advantages
  *
  * ✅ **Temporal locality**: Recently inserted elements near root
  * ✅ **Cache friendly**: Frequently accessed elements at top
@@ -87,36 +87,36 @@
  * ✅ **Fast access**: Recent elements accessed quickly
  * ✅ **Splay-like**: Similar to splay tree behavior
  *
-### Disadvantages
+ * ### Disadvantages
  *
  * ❌ **No balance guarantee**: Tree may become unbalanced
  * ❌ **More rotations**: Extra overhead compared to standard insertion
  * ❌ **Worst case**: Still O(n) height possible
  * ❌ **Overhead**: Rotations add computational cost
  *
-## Applications
+ * ## Applications
  *
-### Caching
+ * ### Caching
  * - **LRU cache**: Keep recently used items accessible
  * - **Temporal locality**: Exploit access patterns
  * - **Performance**: Fast access to recent items
  *
-### Self-Adjusting Structures
+ * ### Self-Adjusting Structures
  * - **Adapt to patterns**: Tree adapts to insertion order
  * - **Dynamic optimization**: Optimize based on usage
  * - **Learning**: Tree "learns" from insertions
  *
-### Educational
+ * ### Educational
  * - **Tree rotations**: Demonstrate rotation operations
  * - **BST variants**: Show alternative insertion strategies
  * - **Algorithm design**: Understand self-adjusting structures
  *
-### Foundation for Splay Trees
+ * ### Foundation for Splay Trees
  * - **Similar concept**: Splay trees extend root insertion
  * - **Access patterns**: Both optimize for temporal locality
  * - **Implementation**: Root insertion is simpler version
  *
-## Comparison with Splay Trees
+ * ## Comparison with Splay Trees
  *
  * | Aspect | Root Insertion | Splay Trees |
  * |--------|----------------|-------------|
@@ -126,15 +126,15 @@
  * | Balance | No guarantee | No guarantee |
  * | Use case | Insert-heavy | Access-heavy |
  *
-### Key Difference
+ * ### Key Difference
  *
  * - **Splay trees**: Rotate accessed nodes to root (not just inserted)
  * - **Root insertion**: Only rotates newly inserted nodes
  * - **Both**: Provide temporal locality benefits
  *
-## Tree Structure Comparison
+ * ## Tree Structure Comparison
  *
-### Standard Insertion
+ * ### Standard Insertion
  * ```
  * Insert sequence: 5, 3, 7, 1, 9
  * Result:
@@ -145,7 +145,7 @@
  *   1       9
  * ```
  *
-### Root Insertion
+ * ### Root Insertion
  * ```
  * Insert sequence: 5, 3, 7, 1, 9
  * Result (after each insertion):
@@ -157,7 +157,7 @@
  * ```
  * Recent insertions cluster near root!
  *
-## Output Files
+ * ## Output Files
  *
  * - **`insert_root-aux.Tree`**: Tree structure in preorder format
  *   - Shows tree after root insertion
@@ -166,7 +166,7 @@
  * The visualization shows how recently inserted elements cluster near the root,
  * creating a different structure than standard BST insertion.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate tree with root insertion (20 nodes)
@@ -180,7 +180,7 @@
  * writeInsertRoot -n 20  # Root insertion
  * ```
  *
-## Performance Characteristics
+ * ## Performance Characteristics
  *
  * | Operation | Standard Insertion | Root Insertion |
  * |-----------|-------------------|----------------|
@@ -193,9 +193,6 @@
  * @see tpl_splay_tree.H Splay tree (related self-adjusting structure)
  * @see write_tree.C Standard insertion (for comparison)
  * @see btreepic.C Visualization tool
- * @author Leandro Rabindranath León
- * @ingroup Examples
- */
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

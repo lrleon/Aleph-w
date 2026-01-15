@@ -42,9 +42,9 @@
  * - Need efficient algorithm
  * - Handle negative cycles
  *
-## Algorithm Overview
+ * ## Algorithm Overview
  *
-### Step-by-Step
+ * ### Step-by-Step
  *
  * ```
  * Johnson(G):
@@ -62,9 +62,9 @@
  *      d(s,t) = d'(s,t) - h(s) + h(t)
  * ```
  *
-## Why Reweighting Works
+ * ## Why Reweighting Works
  *
-### Key Insight: Path Preservation
+ * ### Key Insight: Path Preservation
  *
  * For any path p from s to t:
  * ```
@@ -78,7 +78,7 @@
  * - Shortest path in reweighted graph = shortest path in original
  * - We just adjust the distance by h(s) - h(t)
  *
-### Why All Weights Become Non-Negative
+ * ### Why All Weights Become Non-Negative
  *
  * The potential h(v) represents shortest distance from dummy node q.
  * By triangle inequality:
@@ -89,9 +89,9 @@
  *
  * Therefore, all reweighted edges are non-negative, allowing Dijkstra!
  *
-## Complexity Analysis
+ * ## Complexity Analysis
  *
-### Time Complexity
+ * ### Time Complexity
  *
  * | Step | Complexity | Notes |
  * |------|-----------|-------|
@@ -101,12 +101,12 @@
  * | V × Dijkstra | O(V × (V log V + E)) | For each source |
  * | **Total** | **O(V² log V + V×E)** | Dominated by Dijkstra calls |
  *
-### Space Complexity
+ * ### Space Complexity
  *
  * - O(V²) for distance matrix
  * - O(V + E) for graph
  *
-## Comparison with Other Algorithms
+ * ## Comparison with Other Algorithms
  *
  * | Algorithm | Time | Space | Handles Negatives | Best For |
  * |-----------|------|-------|-------------------|----------|
@@ -115,7 +115,7 @@
  * | V × Dijkstra | O(V(V log V + E)) | O(V²) | ❌ No | Non-negative only |
  * | V × Bellman-Ford | O(V² × E) | O(V²) | ✅ Yes | Very sparse |
  *
-### When to Use Johnson
+ * ### When to Use Johnson
  *
  * ✅ **Best for sparse graphs** (E ≈ V):
  * - Time: O(V² log V) vs Floyd-Warshall's O(V³)
@@ -129,7 +129,7 @@
  * - When E ≈ V², Floyd-Warshall may be simpler
  * - But Johnson still works correctly
  *
-## Example: Sparse Graph
+ * ## Example: Sparse Graph
  *
  * ```
  * Graph: V = 1000, E = 5000 (sparse: E ≈ 5V)
@@ -140,39 +140,39 @@
  * Johnson is ~67× faster!
  * ```
  *
-## Applications
+ * ## Applications
  *
-### Network Analysis
+ * ### Network Analysis
  * - **Internet routing**: Find shortest paths between all routers
  * - **Social networks**: Compute distances between all users
  * - **Transportation**: All-pairs shortest routes
  *
-### Optimization
+ * ### Optimization
  * - **Facility location**: Find optimal locations considering all pairs
  * - **Resource allocation**: Optimize across all pairs
  *
-### Graph Algorithms
+ * ### Graph Algorithms
  * - **Diameter**: Longest shortest path (max over all pairs)
  * - **Centrality**: Betweenness centrality uses all-pairs paths
  * - **Clustering**: Distance-based clustering
  *
-## Negative Cycle Handling
+ * ## Negative Cycle Handling
  *
-### Detection
+ * ### Detection
  *
  * If Bellman-Ford detects negative cycle:
  * - Algorithm aborts
  * - Reports negative cycle
  * - No valid all-pairs shortest paths exist
  *
-### Why It Matters
+ * ### Why It Matters
  *
  * Negative cycles make shortest paths undefined:
  * - Can loop infinitely for negative cost
  * - Distances become -∞
  * - Need to detect and handle separately
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run Johnson's algorithm demo
@@ -183,6 +183,9 @@
  *
  * # Test on sparse graph
  * ./johnson_example -n 1000 -e 5000
+ *
+ * # Show help
+ * ./johnson_example --help
  * ```
  *
  * @see Johnson.H Johnson's algorithm implementation
@@ -199,6 +202,10 @@
 #include <vector>
 #include <limits>
 #include <chrono>
+#include <cmath>
+#include <random>
+#include <unordered_set>
+#include <cstring>
 
 #include <tpl_graph.H>
 #include <Johnson.H>
@@ -221,9 +228,120 @@ struct Distance
   using Distance_Type = double;
 
   static void set_zero(Arc* a) { a->get_info() = 0.0; }
-
   Distance_Type operator()(Arc* a) const { return a->get_info(); }
 };
+
+template <typename Func>
+double measure_ms(Func&& f);
+
+static void usage(const char* prog)
+{
+  cout << "Usage: " << prog << " [--compare] [-n <nodes>] [-e <edges>] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+  cout << "\nIf -n/-e are provided, a random non-negative weighted graph is generated.\n";
+  cout << "(If --compare is also given and the graph is small enough, Floyd-Warshall is run too.)\n";
+}
+
+static WeightedDigraph build_random_graph(int n, int e, unsigned seed)
+{
+  WeightedDigraph g;
+
+  vector<Node*> nodes;
+  nodes.reserve(static_cast<size_t>(n));
+  for (int i = 0; i < n; ++i)
+    nodes.push_back(g.insert_node("V" + to_string(i)));
+
+  std::mt19937 rng(seed);
+  std::uniform_int_distribution<int> node_dist(0, n - 1);
+  std::uniform_real_distribution<double> weight_dist(1.0, 10.0);
+
+  std::unordered_set<long long> used;
+  used.reserve(static_cast<size_t>(e) * 2);
+
+  // Ensure basic connectivity from V0 to V(n-1)
+  int edges_added = 0;
+  for (int i = 0; i + 1 < n && edges_added < e; ++i)
+    {
+      g.insert_arc(nodes[i], nodes[i + 1], weight_dist(rng));
+      used.insert(static_cast<long long>(i) * n + (i + 1));
+      ++edges_added;
+    }
+
+  while (edges_added < e)
+    {
+      const int u = node_dist(rng);
+      const int v = node_dist(rng);
+      if (u == v)
+        continue;
+      const long long key = static_cast<long long>(u) * n + v;
+      if (used.find(key) != used.end())
+        continue;
+      used.insert(key);
+      g.insert_arc(nodes[u], nodes[v], weight_dist(rng));
+      ++edges_added;
+    }
+
+  return g;
+}
+
+static void compare_with_floyd(WeightedDigraph& g)
+{
+  vector<Node*> nodes;
+  nodes.reserve(static_cast<size_t>(g.get_num_nodes()));
+  for (auto it = g.get_node_it(); it.has_curr(); it.next())
+    nodes.push_back(it.get_curr());
+
+  double johnson_ms = 0.0;
+  vector<double> jdists;
+  jdists.reserve(nodes.size() * nodes.size());
+
+  johnson_ms = measure_ms([&]() {
+    Johnson<WeightedDigraph, Distance> johnson(g);
+    for (auto* src : nodes)
+      for (auto* tgt : nodes)
+        jdists.push_back(johnson.get_distance(src, tgt));
+  });
+
+  double floyd_ms = 0.0;
+  Floyd_All_Shortest_Paths<WeightedDigraph, Distance> *floyd_ptr = nullptr;
+  floyd_ms = measure_ms([&]() {
+    floyd_ptr = new Floyd_All_Shortest_Paths<WeightedDigraph, Distance>(g);
+  });
+  auto& floyd = *floyd_ptr;
+
+  const auto& dist = floyd.get_dist_mat();
+  const double Inf = std::numeric_limits<double>::max();
+
+  size_t mismatches = 0;
+  size_t idx = 0;
+  for (auto* src : nodes)
+    {
+      const long isrc = floyd.index_node(src);
+      for (auto* tgt : nodes)
+        {
+          const long itgt = floyd.index_node(tgt);
+          const double fd = dist(isrc, itgt);
+          const double jd = jdists[idx++];
+
+          const bool f_inf = (fd == Inf);
+          const bool j_inf = (jd == std::numeric_limits<double>::infinity());
+          if (f_inf != j_inf)
+            {
+              ++mismatches;
+              continue;
+            }
+          if (!f_inf && std::abs(fd - jd) > 1e-9)
+            ++mismatches;
+        }
+    }
+
+  delete floyd_ptr;
+
+  cout << "\nComparison results:\n";
+  cout << "  Johnson (multiple Dijkstra calls): " << fixed << setprecision(3) << johnson_ms << " ms\n";
+  cout << "  Floyd-Warshall:                  " << fixed << setprecision(3) << floyd_ms << " ms\n";
+  cout << "  Distance mismatches:             " << mismatches << "\n";
+}
 
 // =============================================================================
 // Utility Functions
@@ -594,8 +712,114 @@ void example_currency_arbitrage()
 // Main
 // =============================================================================
 
-int main()
+int main(int argc, char* argv[])
 {
+  bool compare = false;
+  int n = -1;
+  int e = -1;
+
+  for (int i = 1; i < argc; ++i)
+    {
+      const string arg = argv[i];
+      if (arg == "--help" || arg == "-h")
+        {
+          usage(argv[0]);
+          return 0;
+        }
+      if (arg == "--compare")
+        {
+          compare = true;
+          continue;
+        }
+      if (arg == "-n")
+        {
+          if (i + 1 >= argc)
+            {
+              usage(argv[0]);
+              return 1;
+            }
+          n = std::stoi(argv[++i]);
+          continue;
+        }
+      if (arg == "-e")
+        {
+          if (i + 1 >= argc)
+            {
+              usage(argv[0]);
+              return 1;
+            }
+          e = std::stoi(argv[++i]);
+          continue;
+        }
+
+      cout << "Unknown argument: " << arg << "\n";
+      usage(argv[0]);
+      return 1;
+    }
+
+  if (n != -1 || e != -1)
+    {
+      if (n == -1)
+        n = 100;
+      if (e == -1)
+        e = 5 * n;
+      if (n <= 0 || e < 0)
+        {
+          usage(argv[0]);
+          return 1;
+        }
+
+      const int max_edges = n * (n - 1);
+      if (e > max_edges)
+        e = max_edges;
+
+      cout << "Random graph benchmark: n=" << n << ", e=" << e << "\n";
+      auto g = build_random_graph(n, e, 42);
+
+      // Run a single sample query to avoid O(n^2) repeated Dijkstra calls.
+      auto* src = find_node(g, "V0");
+      auto* tgt = find_node(g, "V" + to_string(n - 1));
+
+      try
+        {
+          Johnson<WeightedDigraph, Distance> johnson(g);
+          double ms = measure_ms([&]() { (void)johnson.get_distance(src, tgt); });
+          cout << "Sample query V0 -> V" << (n - 1) << " computed in " << fixed << setprecision(3)
+               << ms << " ms\n";
+        }
+      catch (const std::exception& ex)
+        {
+          cout << "ERROR: " << ex.what() << "\n";
+          return 1;
+        }
+
+      if (compare && n <= 200)
+        compare_with_floyd(g);
+      else if (compare)
+        cout << "\nSkipping Floyd-Warshall comparison for n > 200.\n";
+
+      return 0;
+    }
+
+  if (compare)
+    {
+      WeightedDigraph g;
+      auto* A = g.insert_node("A");
+      auto* B = g.insert_node("B");
+      auto* C = g.insert_node("C");
+      auto* D = g.insert_node("D");
+      auto* E = g.insert_node("E");
+      g.insert_arc(A, B, 3.0);
+      g.insert_arc(A, C, 8.0);
+      g.insert_arc(B, D, 1.0);
+      g.insert_arc(C, B, -4.0);
+      g.insert_arc(C, E, 2.0);
+      g.insert_arc(D, E, -3.0);
+      g.insert_arc(E, A, 10.0);
+      compare_with_floyd(g);
+      return 0;
+    }
+
   cout << "╔══════════════════════════════════════════════════════════════════════╗\n";
   cout << "║      Johnson's Algorithm for All-Pairs Shortest Paths                ║\n";
   cout << "╚══════════════════════════════════════════════════════════════════════╝\n\n";

@@ -9,14 +9,14 @@
  *
  * ## Key Feature: Universal Container Support
  *
-### The Problem
+ * ### The Problem
  *
  * Different container libraries have different APIs:
  * - **STL**: `std::transform`, `std::find_if`, etc.
  * - **Aleph-w**: `maps()`, `filter()`, etc.
  * - **Different syntax**: Hard to remember multiple APIs
  *
-### The Solution
+ * ### The Solution
  *
  * `ah-uni-functional.H` provides **unified functions** that:
  * - Work with **any** container type (STL or Aleph)
@@ -24,7 +24,7 @@
  * - Use **same API** regardless of container
  * - **Mix containers** in same operation
  *
-### Example
+ * ### Example
  *
  * ```cpp
  * // Works with STL containers
@@ -39,47 +39,47 @@
  * // Same function, different containers!
  * ```
  *
-## Functions Demonstrated
+ * ## Functions Demonstrated
  *
-### Transformation
+ * ### Transformation
  * - **`uni_map()`**: Transform each element
  * - **`uni_mapi()`**: Transform with index
  * - **`uni_filter()`**: Keep elements satisfying predicate
  * - **`uni_filteri()`**: Filter with index
  *
-### Reduction
+ * ### Reduction
  * - **`uni_foldl()`**: Left fold (reduce from left)
  * - **`uni_reduce()`**: Alias for foldl
  * - **`uni_sum()`**: Sum all numeric elements
  * - **`uni_product()`**: Multiply all numeric elements
  *
-### Predicates
+ * ### Predicates
  * - **`uni_all()`**: All elements satisfy predicate?
  * - **`uni_exists()`**: At least one satisfies?
  * - **`uni_none()`**: None satisfy?
  * - **`uni_mem()`**: Membership test (contains?)
  *
-### Access
+ * ### Access
  * - **`uni_first()`**: Get first element
  * - **`uni_last()`**: Get last element
  * - **`uni_nth()`**: Get n-th element
  * - **`uni_find()`**: Find first satisfying predicate
  * - **`uni_find_mapi()`**: Find with index
  *
-### Slicing
+ * ### Slicing
  * - **`uni_take(n)`**: Take first n elements
  * - **`uni_drop(n)`**: Skip first n elements
  * - **`uni_take_while()`**: Take while predicate true
  * - **`uni_drop_while()`**: Drop while predicate true
  *
-### Statistics
+ * ### Statistics
  * - **`uni_min()`**: Find minimum element
  * - **`uni_max()`**: Find maximum element
  * - **`uni_min_max()`**: Find both min and max
  * - **`uni_count()`**: Count elements
  * - **`uni_length()`**: Get container size
  *
-## Comparison with Alternatives
+ * ## Comparison with Alternatives
  *
  * | Feature | STL | Aleph-w | Unified |
  * |---------|-----|---------|---------|
@@ -88,38 +88,45 @@
  * | Mix containers | No | No | **Yes** |
  * | Type detection | Manual | Manual | **Automatic** |
  *
-## Use Cases
+ * ## Use Cases
  *
-### Mixed Codebases
+ * ### Mixed Codebases
  * - **Legacy code**: Existing STL containers
  * - **New code**: Using Aleph-w containers
  * - **Unified API**: Same functions for both
  *
-### Library Integration
+ * ### Library Integration
  * - **Third-party APIs**: May return STL containers
  * - **Your code**: Uses Aleph-w containers
  * - **Seamless**: Convert and process easily
  *
-### Migration
+ * ### Migration
  * - **Gradual migration**: Move from STL to Aleph-w
  * - **No API changes**: Same functions work with both
  * - **Low risk**: Can mix containers during migration
  *
-## Performance Considerations
+ * ## Performance Considerations
  *
  * - **Type detection**: Minimal overhead (compile-time)
  * - **Container operations**: Same as underlying container
  * - **No extra copies**: Operations are efficient
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all demonstrations
  * ./uni_functional_example
  *
  * # Run specific section
- * ./uni_functional_example -s map      # Map/filter demo
- * ./uni_functional_example -s fold     # Fold operations
+ * ./uni_functional_example -s unified     # Unified API overview
+ * ./uni_functional_example -s map         # Map/filter demo
+ * ./uni_functional_example -s fold        # Fold operations
+ * ./uni_functional_example -s predicates  # all/exists/none/mem, etc.
+ * ./uni_functional_example -s access      # first/last/nth/find
+ * ./uni_functional_example -s slicing     # take/drop/take_while/drop_while
+ * ./uni_functional_example -s statistics  # min/max/min_max
+ * ./uni_functional_example -s conversion  # STL <-> Aleph conversions
+ * ./uni_functional_example -s practical   # Practical examples
  * ```
  *
  * @see ah-uni-functional.H Unified functional utilities
@@ -129,11 +136,6 @@
  * @ingroup Examples
  * @date 2024
  * @copyright GNU General Public License
- */
- * @copyright GNU General Public License
- *
- * @see ah-uni-functional.H Unified functional utilities
- * @see ahFunctional.H Aleph-only functional utilities
  */
 
 #include <iostream>

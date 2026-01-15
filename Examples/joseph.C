@@ -26,7 +26,7 @@
 
 /**
  * @file joseph.C
- * @brief Josephus Problem: Classic elimination puzzle solved with circular lists
+ * @brief Josephus Problem: Classic elimination puzzle solved with linked lists
  *
  * The Josephus problem is a famous theoretical problem dating back to
  * ancient times. It asks: if n people stand in a circle and every k-th
@@ -35,14 +35,14 @@
  *
  * ## Historical Context
  *
-### The Legend
+ * ### The Legend
  *
  * Named after **Flavius Josephus**, a Jewish historian who, according to legend,
  * used this strategy to save himself and a friend from capture during the
  * Siege of Yodfat (67 CE). The problem has been studied for centuries and
  * appears in many mathematical contexts.
  *
-### Mathematical Significance
+ * ### Mathematical Significance
  *
  * The Josephus problem is:
  * - **Historically important**: One of the oldest algorithmic problems
@@ -50,9 +50,9 @@
  * - **Algorithmically elegant**: Demonstrates circular data structures
  * - **Recursively solvable**: Can be solved with recurrence relations
  *
-## Problem Statement
+ * ## Problem Statement
  *
-### Setup
+ * ### Setup
  *
  * Given n people numbered 1 to n arranged in a circle:
  * 1. Start counting from person 1
@@ -61,11 +61,11 @@
  * 4. Continue counting from the next person
  * 5. Repeat until only one person remains
  *
-### Question
+ * ### Question
  *
  * **What is the position of the survivor?**
  *
-### Example: n=7, k=3
+ * ### Example: n=7, k=3
  *
  * ```
  * Round 1: [1, 2, 3, 4, 5, 6, 7]
@@ -83,16 +83,17 @@
  * ... continue until one remains
  * ```
  *
-## Algorithm
+ * ## Algorithm
  *
-### Implementation Strategy
+ * ### Implementation Strategy
  *
- * This implementation uses `DynDlist` (doubly-linked circular list) to
- * efficiently simulate the elimination process:
+ * This implementation uses `DynDlist` (doubly-linked list) to simulate the
+ * elimination process, and manually wraps the iterator to the first element
+ * when it reaches the end (to model the circle):
  *
  * ```
  * josephus(n, k):
- *   1. Create circular list with persons 1 to n
+ *   1. Create list with persons 1 to n
  *   2. current = first person
  *   3. While list.size() > 1:
  *      a. Advance iterator k-1 positions (skip k-1 people)
@@ -101,16 +102,16 @@
  *   4. Return remaining person
  * ```
  *
-### Why Circular List?
+ * ### Why a List + Wrap-around Iterator?
  *
  * - **Natural fit**: Problem is inherently circular
- * - **Efficient removal**: O(1) removal from circular list
- * - **Wrap-around**: Automatically handles counting past end
+ * - **Efficient removal**: O(1) removal at the iterator position
+ * - **Wrap-around**: Implemented by resetting the iterator to the first element
  * - **Simple**: Easy to implement and understand
  *
-## Time Complexity
+ * ## Time Complexity
  *
-### Approaches
+ * ### Approaches
  *
  * | Approach | Time Complexity | Notes |
  * |-----------|----------------|-------|
@@ -119,15 +120,15 @@
  * | Recurrence relation | O(n) | Mathematical solution |
  * | Closed form | O(1) | Formula-based (complex) |
  *
-### This Implementation
+ * ### This Implementation
  *
  * - **Time**: O(n × k) - n eliminations, k steps each
  * - **Space**: O(n) - store n people
  * - **Practical**: Efficient for reasonable n and k
  *
-## Mathematical Solution
+ * ## Mathematical Solution
  *
-### Recurrence Relation
+ * ### Recurrence Relation
  *
  * The Josephus problem has a recurrence relation:
  * ```
@@ -137,7 +138,7 @@
  *
  * Where J(n, k) is the 0-indexed position of the survivor.
  *
-### Closed-Form Formula
+ * ### Closed-Form Formula
  *
  * For k=2, there's a closed-form solution:
  * ```
@@ -146,35 +147,35 @@
  *
  * For general k, the formula is more complex.
  *
-## Applications
+ * ## Applications
  *
-### Algorithm Design
+ * ### Algorithm Design
  * - **Circular data structures**: Demonstrates circular lists
  * - **Elimination algorithms**: Pattern for elimination problems
  * - **Recursive thinking**: Shows recursive problem structure
  *
-### Game Theory
+ * ### Game Theory
  * - **Elimination games**: Model elimination tournaments
  * - **Strategies**: Analyze optimal strategies
  * - **Fairness**: Study fairness of elimination processes
  *
-### Cryptography
+ * ### Cryptography
  * - **Encryption schemes**: Some schemes use similar patterns
  * - **Key generation**: Generate keys using elimination patterns
  *
-### Resource Allocation
+ * ### Resource Allocation
  * - **Round-robin elimination**: Allocate resources fairly
  * - **Process scheduling**: Schedule processes in rounds
  * - **Load balancing**: Distribute load in circular fashion
  *
-### Real-World Examples
+ * ### Real-World Examples
  * - **Musical chairs**: Children's game
  * - **Elimination tournaments**: Sports tournaments
  * - **Survivor shows**: TV show elimination format
  *
-## Example Walkthrough
+ * ## Example Walkthrough
  *
-### n=7, k=3 (Detailed)
+ * ### n=7, k=3 (Detailed)
  *
  * ```
  * Initial: [1, 2, 3, 4, 5, 6, 7]
@@ -200,7 +201,7 @@
  * Survivor: Position 4
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # 7 people, eliminate every 3rd
@@ -213,23 +214,23 @@
  * joseph -n 10 -p 5
  * ```
  *
-## Special Cases
+ * ## Special Cases
  *
-### k=1
+ * ### k=1
  * - **Trivial**: Eliminate sequentially
  * - **Survivor**: Last person (position n)
  *
-### k=2
+ * ### k=2
  * - **Special case**: Has closed-form solution
  * - **Pattern**: Survivor position follows pattern
  *
-### k ≥ n
+ * ### k ≥ n
  * - **Wrap-around**: Counting wraps around circle
  * - **Equivalent**: k mod n
  *
-## Extensions
+ * ## Extensions
  *
-### Variations
+ * ### Variations
  *
  * - **Reverse counting**: Count counter-clockwise
  * - **Skip pattern**: Variable skip count
@@ -266,18 +267,24 @@ void orden_ejecucion(unsigned num_personas, unsigned paso)
 {
   DynDlist<unsigned> list;
 
+  if (paso == 0)
+    {
+      printf("Step size must be >= 1\n");
+      return;
+    }
+
   for (unsigned i = 1; i <= num_personas; i++)
     list.append(i);
       
   DynDlist<unsigned>::Iterator itor(list);
   for (/* nothing */; num_personas > 1; num_personas--)
     {
-      avanceItor(itor, paso);
+      avanceItor(itor, paso - 1);
       printf("%u ", itor.get_curr());
       itor.del();
     }
 
-  printf("\nEl sobreviviente es %u\n", list.get_first());    
+  printf("\nSurvivor is %u\n", list.get_first());
 }
 
 int main(int argc, char** argv)

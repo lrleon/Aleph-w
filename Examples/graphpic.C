@@ -96,7 +96,7 @@
  * - `CURVE_ARC <from> <to>`: Curved edge
  * - `SHADOW_ARC <from> <to>`: Edge with shadow
  *
-### Path Highlighting
+ * ### Path Highlighting
  * - `PATH <from> <to>`: Highlight path between nodes
  * - `SHADOW_PATH <from> <to>`: Highlight path with shadow
  *

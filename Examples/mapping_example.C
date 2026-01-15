@@ -43,7 +43,7 @@
  *
  * ## Key Features
  *
-### Bidirectional Lookup
+ * ### Bidirectional Lookup
  * - **Forward**: `mapping[key]` → returns value
  * - **Reverse**: `mapping.inverse()[value]` → returns key
  * - Both operations are O(log n) efficient
@@ -53,7 +53,7 @@
  * - Maintains two mappings: forward and inverse
  * - Automatic synchronization between mappings
  *
-### Operations
+ * ### Operations
  * - **Insert**: Add key-value pair (updates both mappings)
  * - **Lookup**: Find value by key or key by value
  * - **Iteration**: Iterate over all pairs
@@ -61,27 +61,27 @@
  *
  * ## Use Cases
  *
-### Translation Tables
+ * ### Translation Tables
  * - **Language codes ↔ names**: "en" ↔ "English", "es" ↔ "Spanish"
  * - **Currency codes ↔ symbols**: "USD" ↔ "$", "EUR" ↔ "€"
  * - **Country codes ↔ names**: "CO" ↔ "Colombia", "US" ↔ "United States"
  *
-### ID Mappings
+ * ### ID Mappings
  * - **User ID ↔ username**: 12345 ↔ "john_doe"
  * - **Product ID ↔ name**: 789 ↔ "Widget Pro"
  * - **Session ID ↔ user**: "abc123" ↔ user_object
  *
-### Configuration Parameters
+ * ### Configuration Parameters
  * - **Setting name ↔ value**: "theme" ↔ "dark", "language" ↔ "es"
  * - **Environment variables**: "PATH" ↔ "/usr/bin:/usr/local/bin"
  * - **Feature flags**: "new_ui" ↔ true, "beta_features" ↔ false
  *
-### Encoding/Decoding Schemes
+ * ### Encoding/Decoding Schemes
  * - **Character encoding**: ASCII codes ↔ characters
  * - **Base conversion**: Decimal ↔ hexadecimal
  * - **Protocol mapping**: Internal codes ↔ external codes
  *
-### Colombian Theme
+ * ### Colombian Theme
  *
  * Examples use Colombian data for cultural relevance:
  * - **Departments**: "ANT" ↔ "Antioquia", "CUN" ↔ "Cundinamarca"

@@ -1,4 +1,3 @@
-
 /* Aleph-w
 
      / \  | | ___ _ __ | |__      __      __
@@ -37,28 +36,28 @@
  *
  * ## What is Floyd-Warshall?
  *
-### Problem
+ * ### Problem
  *
  * **All-pairs shortest paths**: Find shortest paths between every pair
  * of vertices in a weighted graph.
  *
-### Solution: Floyd-Warshall Algorithm
+ * ### Solution: Floyd-Warshall Algorithm
  *
  * Floyd-Warshall is a **dynamic programming** algorithm that finds shortest
  * paths between all pairs of vertices in a single run. Unlike Dijkstra
  * (single-source) or Johnson (all-pairs using Dijkstra), Floyd-Warshall
  * works directly with the adjacency matrix.
  *
-### Key Characteristics
+ * ### Key Characteristics
  *
  * - **All-pairs**: Finds all shortest paths in one algorithm run
  * - **Matrix-based**: Works with adjacency/distance matrix
  * - **Dynamic programming**: Builds solution incrementally
  * - **Negative weights**: Handles negative edges (but not negative cycles)
  *
-## Algorithm Overview
+ * ## Algorithm Overview
  *
-### Dynamic Programming Recurrence
+ * ### Dynamic Programming Recurrence
  *
  * The algorithm uses dynamic programming with the recurrence:
  * ```
@@ -70,7 +69,7 @@
  * - **D^(0)[i][j]**: Direct edge weight (or ∞ if no edge)
  * - **D^(V)[i][j]**: Final shortest path distance
  *
-### Key Insight
+ * ### Key Insight
  *
  * At iteration k, we consider whether going through vertex k gives a
  * shorter path than the current best path:
@@ -78,7 +77,7 @@
  * - **Option 2**: Path through k: D^(k-1)[i][k] + D^(k-1)[k][j]
  * - **Choose**: Minimum of the two
  *
-### Algorithm Pseudocode
+ * ### Algorithm Pseudocode
  *
  * ```
  * Floyd-Warshall(G):
@@ -94,20 +93,20 @@
  *         D[i][j] = min(D[i][j], D[i][k] + D[k][j])
  * ```
  *
-## Complexity
+ * ## Complexity
  *
-### Time Complexity
+ * ### Time Complexity
  *
  * - **O(V³)**: Three nested loops over vertices
  * - **Independent of edges**: Same for sparse and dense graphs
  * - **Cubic**: Can be slow for large graphs
  *
-### Space Complexity
+ * ### Space Complexity
  *
  * - **O(V²)**: Distance matrix
  * - **Can optimize**: Use single matrix (in-place updates)
  *
-### Comparison
+ * ### Comparison
  *
  * | Algorithm | Time | Space | Best For |
  * |-----------|------|-------|----------|
@@ -115,81 +114,81 @@
  * | Johnson | O(V² log V + VE) | O(V²) | Sparse graphs |
  * | V × Dijkstra | O(V(V log V + E)) | O(V²) | Non-negative only |
  *
-## Advantages
+ * ## Advantages
  *
- * ✅ **All-pairs**: Finds all shortest paths in one run
- * ✅ **Negative weights**: Handles negative edge weights
- * ✅ **Simple**: Easy to implement and understand
- * ✅ **Path reconstruction**: Can reconstruct actual paths
- * ✅ **Transitive closure**: Can find reachability (set weights to 1)
+ * - **All-pairs**: Finds all shortest paths in one run
+ * - **Negative weights**: Handles negative edge weights
+ * - **Simple**: Easy to implement and understand
+ * - **Path reconstruction**: Can reconstruct actual paths
+ * - **Transitive closure**: Can find reachability (set weights to 1)
  *
-## Limitations
+ * ## Limitations
  *
- * ❌ **No negative cycles**: Algorithm fails if graph has negative cycles
- * ❌ **Cubic time**: Slower than Johnson for sparse graphs
- * ❌ **Dense graphs**: Best suited for dense graphs (many edges)
- * ❌ **Memory**: O(V²) space requirement
+ * - **No negative cycles**: Algorithm fails if graph has negative cycles
+ * - **Cubic time**: Slower than Johnson for sparse graphs
+ * - **Dense graphs**: Best suited for dense graphs (many edges)
+ * - **Memory**: O(V²) space requirement
  *
-## Applications
+ * ## Applications
  *
-### Network Routing
+ * ### Network Routing
  * - **Communication networks**: Find shortest paths between routers
  * - **Internet routing**: All-pairs routing tables
  * - **Network analysis**: Understand network topology
  *
-### Graph Analysis
+ * ### Graph Analysis
  * - **Graph diameter**: Longest shortest path
  * - **Eccentricity**: Maximum distance from vertex
  * - **Centrality**: Betweenness, closeness centrality
  *
-### Transitive Closure
+ * ### Transitive Closure
  * - **Reachability**: Determine if paths exist (set weights to 1)
  * - **Connectivity**: Find strongly connected components
  * - **Dependency analysis**: Analyze dependencies
  *
-### Social Networks
+ * ### Social Networks
  * - **Shortest paths**: Find shortest connection paths
  * - **Degrees of separation**: Measure social distance
  * - **Network metrics**: Analyze network structure
  *
-### Transportation
+ * ### Transportation
  * - **All-pairs routes**: Find shortest routes between all cities
  * - **Route planning**: Plan routes efficiently
  * - **Logistics**: Optimize transportation networks
  *
-## Output Files
+ * ## Output Files
  *
-### LaTeX Matrices
+ * ### LaTeX Matrices
  *
  * Generates `mat-floyd.tex` containing:
  * - **D^(0)**: Initial distance matrix (direct edges only)
- * - **D^(k)**: Distance matrix after considering vertex k (for each k)
+ * - **D^(k)**: Distance matrices after each intermediate vertex k
  * - **Path matrix**: For reconstructing actual paths
  * - **Formatted**: All as LaTeX tables ready for compilation
  *
-### Educational Value
+ * ### Educational Value
  *
  * The LaTeX output shows:
  * - **Step-by-step**: How distances update at each iteration
  * - **Visualization**: Easy to see algorithm progression
  * - **Documentation**: Can be included in papers/presentations
  *
-## Test Graph
+ * ## Test Graph
  *
-### Graph Structure
+ * ### Graph Structure
  *
  * Uses a predefined 9-node directed graph (labeled A through I) with:
  * - **Weighted edges**: Some positive, some negative
  * - **No negative cycles**: Algorithm works correctly
  * - **Mixed weights**: Demonstrates algorithm behavior
  *
-### Graph Properties
+ * ### Graph Properties
  *
  * - **Directed**: Edges have direction
  * - **Weighted**: Edges have weights (can be negative)
  * - **No cycles**: No negative cycles (algorithm valid)
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate LaTeX output
@@ -202,9 +201,9 @@
  * evince mat-floyd.pdf  # or your PDF viewer
  * ```
  *
-## Path Reconstruction
+ * ## Path Reconstruction
  *
-### How to Reconstruct Paths
+ * ### How to Reconstruct Paths
  *
  * With path matrix P (stores intermediate vertex):
  * ```
@@ -218,9 +217,9 @@
  *
  * **Time**: O(path_length) to reconstruct one path
  *
-## Negative Cycle Detection
+ * ## Negative Cycle Detection
  *
-### How to Detect Negative Cycles
+ * ### How to Detect Negative Cycles
  *
  * After algorithm completes:
  * ```
@@ -234,15 +233,6 @@
  *
  * @see johnson_example.cc Johnson's algorithm (better for sparse graphs)
  * @see dijkstra_example.cc Dijkstra's algorithm (single-source)
- * @author Leandro Rabindranath León
- * @ingroup Examples
- */
- * The LaTeX output shows each iteration of the algorithm, making it
- * perfect for understanding how Floyd-Warshall works step-by-step.
- *
- * @see floyd_all_shortest_paths_latex LaTeX generation function
- * @see Ady_Mat Adjacency matrix representation
- * @see johnson_example.cc Alternative all-pairs algorithm (better for sparse graphs)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

@@ -19,14 +19,14 @@
  *
  * ## How It Works
  *
-### Insertion
+ * ### Insertion
  * ```
  * For element x:
  *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
  *   2. Set bits at positions h₁(x), h₂(x), ..., hₖ(x) to 1
  * ```
  *
-### Query
+ * ### Query
  * ```
  * For element x:
  *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
@@ -37,34 +37,34 @@
  *
  * ## Key Properties
  *
-### No False Negatives
+ * ### No False Negatives
  * - If element was inserted, all its bits are set
  * - Query will always return "found"
  * - **Guarantee**: 100% accurate for "not found" answers
  *
-### Possible False Positives
+ * ### Possible False Positives
  * - Bits may be set by other elements (collisions)
  * - Query may return "found" even if element wasn't inserted
  * - **Probability**: Can be controlled by parameters
  *
-### No Deletion
+ * ### No Deletion
  * - Standard Bloom filters don't support removal
  * - Clearing bits might affect other elements
  * - **Solution**: Use Counting Bloom Filter variant
  *
-### Space Efficient
+ * ### Space Efficient
  * - Stores only bits, not actual elements
  * - Much smaller than storing full set
  * - **Trade-off**: Space vs false positive rate
  *
  * ## Parameters and Tuning
  *
-### Parameters
+ * ### Parameters
  * - **m**: Size of bit array (larger = lower false positive rate)
  * - **k**: Number of hash functions (optimal ≈ (m/n) × ln(2))
  * - **n**: Expected number of elements to insert
  *
-### False Positive Rate
+ * ### False Positive Rate
  *
  * Formula: `P(false positive) ≈ (1 - e^(-kn/m))^k`
  *
@@ -72,7 +72,7 @@
  *
  * **Optimal false positive rate**: `(1/2)^k` when k is optimal
  *
-### Example Calculations
+ * ### Example Calculations
  *
  * For n = 1,000,000 elements, m = 10,000,000 bits (1.25 MB):
  * - Optimal k ≈ 7 hash functions
@@ -82,32 +82,32 @@
  *
  * ## Applications
  *
-### Cache Filtering
+ * ### Cache Filtering
  * - **Problem**: Check if data exists in slow storage (disk, network)
  * - **Solution**: Use Bloom filter to avoid expensive lookups
  * - **Benefit**: Skip 99%+ of unnecessary disk/network accesses
  *
-### Spell Checkers
+ * ### Spell Checkers
  * - **Problem**: Check if word is in dictionary
  * - **Solution**: Bloom filter for common words
  * - **Benefit**: Fast rejection of misspellings
  *
-### Network Packet Filtering
+ * ### Network Packet Filtering
  * - **Problem**: Filter packets by source/destination
  * - **Solution**: Bloom filter for allowed/blocked addresses
  * - **Benefit**: Fast packet classification
  *
-### Database Query Optimization
+ * ### Database Query Optimization
  * - **Problem**: Avoid expensive joins for non-existent keys
  * - **Solution**: Bloom filter on join keys
  * - **Benefit**: Skip unnecessary join operations
  *
-### Distributed Systems
+ * ### Distributed Systems
  * - **Cassandra**: Uses Bloom filters to avoid disk reads
  * - **Chrome**: Uses Bloom filters for malicious URL checking
  * - **Bitcoin**: Uses Bloom filters for wallet synchronization
  *
-## When to Use Bloom Filters
+ * ## When to Use Bloom Filters
  *
  * ✅ **Good for**:
  * - Large datasets where space matters
@@ -138,8 +138,12 @@
  * ./bloom_filter_example
  *
  * # Run specific demo
- * ./bloom_filter_example -s basic     # Basic operations
- * ./bloom_filter_example -s tuning    # Parameter tuning
+ * ./bloom_filter_example -s basic   # Basic operations
+ * ./bloom_filter_example -s fp      # False positives demo
+ * ./bloom_filter_example -s params  # Parameter tuning
+ * ./bloom_filter_example -s spell   # Spell-checking example
+ * ./bloom_filter_example -s cache   # Cache membership example
+ * ./bloom_filter_example -s space   # Space / memory analysis
  * ```
  *
  * @see bloom-filter.H Bloom filter implementation

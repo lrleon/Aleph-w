@@ -36,7 +36,7 @@
  *
  * ## The Percolation Problem
  *
-### Problem Statement
+ * ### Problem Statement
  *
  * Given an n×n grid of sites:
  * - Each site is either **open** (can flow through) or **blocked**
@@ -44,7 +44,7 @@
  * - System **percolates** if there's a path from top to bottom
  *   through open sites
  *
-### Visual Example
+ * ### Visual Example
  *
  * ```
  * Grid (n=5):
@@ -57,25 +57,25 @@
  * Does it percolate? Check if top row connects to bottom row.
  * ```
  *
-## Physical Phenomena Modeled
+ * ## Physical Phenomena Modeled
  *
-### Materials Science
+ * ### Materials Science
  * - **Porous materials**: Water flowing through rock
  * - **Composite materials**: Electricity conducting through materials
  * - **Fracture mechanics**: Cracks propagating through materials
  *
-### Network Science
+ * ### Network Science
  * - **Disease spread**: Infection spreading through social networks
  * - **Information diffusion**: News spreading through networks
  * - **Cascade failures**: Failures propagating through systems
  *
-### Ecology
+ * ### Ecology
  * - **Forest fires**: Fire spreading through forest
  * - **Species migration**: Species spreading through habitat
  *
-## Union-Find Application
+ * ## Union-Find Application
  *
-### How Union-Find Helps
+ * ### How Union-Find Helps
  *
  * **Problem**: Need to check if top connects to bottom efficiently
  *
@@ -83,18 +83,17 @@
  * 1. Each open site is an element in Union-Find
  * 2. When site opens, union with adjacent open sites
  * 3. Use **virtual nodes**:
- *    - Virtual "top" node connected to all top-row sites
- *    - Virtual "bottom" node connected to all bottom-row sites
+ *    - Virtual "top" node connected to all open sites in the top row
+ *    - Virtual "bottom" node connected to all open sites in the bottom row
  * 4. System percolates if `find(top) == find(bottom)`
  *
-### Algorithm
+ * ### Algorithm
  *
  * ```
  * Initialize:
  *   - Create n×n grid
  *   - Create Union-Find with n² + 2 elements (sites + top + bottom)
- *   - Connect virtual top to top row
- *   - Connect virtual bottom to bottom row
+ *   - Virtual nodes are connected when a site is opened in the top/bottom row
  *
  * For each site (random order):
  *   Open site
@@ -104,15 +103,15 @@
  *     System percolates!
  * ```
  *
-### Efficiency
+ * ### Efficiency
  *
  * - **Without Union-Find**: O(n²) per check (BFS/DFS)
  * - **With Union-Find**: O(α(n²)) ≈ O(1) per check
  * - **Total**: O(n² × α(n²)) ≈ O(n²) for entire simulation
  *
-## Percolation Threshold
+ * ## Percolation Threshold
  *
-### Critical Probability
+ * ### Critical Probability
  *
  * The **percolation threshold** p* is the critical probability at
  * which the system transitions from non-percolating to percolating.
@@ -122,7 +121,7 @@
  * - For p > p*: System almost always percolates
  * - At p = p*: Phase transition occurs
  *
-### Known Thresholds
+ * ### Known Thresholds
  *
  * | Lattice Type | Dimension | Threshold p* |
  * |--------------|-----------|---------------|
@@ -131,7 +130,7 @@
  * | Triangular | 2D | 0.5 (exact) |
  * | Hexagonal | 2D | 1 - 0.5 = 0.5 (exact) |
  *
-### Estimating Threshold
+ * ### Estimating Threshold
  *
  * Through Monte Carlo simulation:
  * 1. Run many simulations for different p values
@@ -139,23 +138,23 @@
  * 3. Find p where fraction ≈ 0.5
  * 4. This estimates p*
  *
-## Applications
+ * ## Applications
  *
-### Materials Science
+ * ### Materials Science
  * - **Porous materials**: Understand flow through materials
  * - **Composite design**: Design materials with desired properties
  * - **Fracture analysis**: Predict material failure
  *
-### Network Analysis
+ * ### Network Analysis
  * - **Robustness**: Understand network resilience
  * - **Cascade failures**: Model failure propagation
  * - **Information spread**: Model information diffusion
  *
-### Ecology
+ * ### Ecology
  * - **Habitat connectivity**: Understand species movement
  * - **Conservation**: Design protected areas
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Complexity | Notes |
  * |-----------|-----------|-------|
@@ -165,17 +164,29 @@
  *
  * With path compression and union by rank: α(n²) ≈ constant!
  *
-## Usage
+ * ## Usage
  *
  * ```bash
- * # Run percolation simulation
+ * # Run all demos (default if no specific demo flags are given)
  * ./percolation_example
  *
- * # Estimate threshold
- * ./percolation_example --estimate-threshold
+ * # Visual demonstration (small grid)
+ * ./percolation_example --visual
  *
- * # Visualize percolation
- * ./percolation_example --visualize
+ * # Monte Carlo simulation (estimate percolation threshold)
+ * ./percolation_example --monte-carlo
+ *
+ * # Explain Union-Find and percolation model
+ * ./percolation_example --explain
+ *
+ * # Run all demos (default if no specific demo flags are given)
+ * ./percolation_example --all
+ *
+ * # Configure parameters
+ * ./percolation_example --size 50 --trials 200 --seed 123
+ *
+ * # Verbose Monte Carlo output
+ * ./percolation_example --monte-carlo --verbose
  * ```
  *
  * @see tpl_union.H Union-Find implementation

@@ -42,14 +42,14 @@
  *
  * **Goal**: Find the maximum flow from source to sink.
  *
-### Constraints
+ * ### Constraints
  *
  * 1. **Capacity constraint**: Flow on edge ≤ capacity
  * 2. **Flow conservation**: For each node (except s, t):
  *    - Inflow = Outflow
  *    - (Flow entering = Flow leaving)
  *
-### Example
+ * ### Example
  *
  * ```
  *     [10]      [5]
@@ -60,9 +60,9 @@
  *
  * Maximum flow = 13 (10+3 from s→A→t, 5 from s→B→t)
  *
-## Algorithm: Ford-Fulkerson / Edmonds-Karp
+ * ## Algorithm: Ford-Fulkerson / Edmonds-Karp
  *
-### Ford-Fulkerson Method
+ * ### Ford-Fulkerson Method
  *
  * The general approach:
  * 1. Start with zero flow
@@ -72,21 +72,21 @@
  *    c. **Augment** flow along path by bottleneck amount
  * 3. Maximum flow = sum of flows leaving source
  *
-### Edmonds-Karp Variant
+ * ### Edmonds-Karp Variant
  *
  * Uses **BFS** (breadth-first search) to find augmenting paths:
  * - Always finds **shortest** augmenting path
  * - Guarantees polynomial time: O(V × E²)
  * - More efficient than DFS-based Ford-Fulkerson
  *
-### Residual Graph
+ * ### Residual Graph
  *
  * The residual graph represents remaining capacity:
  * - **Forward edge**: Remaining capacity = capacity - flow
  * - **Backward edge**: Can "undo" flow = current flow
  * - Allows algorithm to find better paths by reversing flow
  *
-## Complexity
+ * ## Complexity
  *
  * | Algorithm | Time Complexity | Notes |
  * |-----------|----------------|------|
@@ -98,32 +98,32 @@
  * **Note**: Ford-Fulkerson with DFS can be exponential if capacities
  * are large integers. Edmonds-Karp guarantees polynomial time.
  *
-## Applications
+ * ## Applications
  *
-### Transportation Networks
+ * ### Transportation Networks
  * - **Highway systems**: Maximum vehicles through road network
  * - **Railway networks**: Maximum trains through tracks
  * - **Shipping routes**: Maximum cargo through shipping lanes
  *
-### Communication Networks
+ * ### Communication Networks
  * - **Network bandwidth**: Maximum data through network
  * - **Internet routing**: Maximum packets through routers
  * - **Telecommunications**: Maximum calls through switches
  *
-### Matching Problems
+ * ### Matching Problems
  * - **Bipartite matching**: Match workers to jobs
  * - **Dating apps**: Match users based on preferences
  * - **Resource allocation**: Assign resources to tasks
  *
-### Game Theory
+ * ### Game Theory
  * - **Baseball elimination**: Which teams can still win?
  * - **Tournament scheduling**: Determine possible outcomes
  *
-### Computer Vision
+ * ### Computer Vision
  * - **Image segmentation**: Separate foreground/background
  * - **Min-cut**: Find minimum cut (dual of max-flow)
  *
-## Max-Flow Min-Cut Theorem
+ * ## Max-Flow Min-Cut Theorem
  *
  * **Fundamental result**: Maximum flow = Minimum cut capacity
  *
@@ -132,9 +132,9 @@
  *
  * This theorem is the foundation of many max-flow applications.
  *
-## Network Graph Structure in Aleph-w
+ * ## Network Graph Structure in Aleph-w
  *
-### Net_Graph Features
+ * ### Net_Graph Features
  *
  * In Aleph-w's `Net_Graph`:
  * - **Automatic source detection**: Nodes with no incoming arcs are sources
@@ -142,7 +142,7 @@
  * - **Single source/sink**: Ford-Fulkerson requires exactly one of each
  * - **Capacity storage**: Each arc stores its capacity
  *
-### Building a Network
+ * ### Building a Network
  *
  * ```cpp
  * Net_Graph g;
@@ -154,7 +154,7 @@
  * g.insert_arc(a, t, 5);   // Capacity 5
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run maximum flow example

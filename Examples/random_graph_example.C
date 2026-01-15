@@ -14,9 +14,9 @@
  * - **Research**: Study graph properties statistically
  * - **Simulation**: Model real-world networks
  *
-## Graph Models
+ * ## Graph Models
  *
-### Erdős–Rényi G(n,m)
+ * ### Erdős–Rényi G(n,m)
  *
  * **Model**: Random graph with n vertices and m randomly placed edges
  *
@@ -32,7 +32,7 @@
  * - Algorithm testing
  * - Theoretical analysis
  *
-### Connected Random Graph
+ * ### Connected Random Graph
  *
  * **Model**: Random graph guaranteed to be connected
  *
@@ -52,7 +52,7 @@
  * - Network design
  * - Ensuring graph properties
  *
-### Eulerian Random Graph
+ * ### Eulerian Random Graph
  *
  * **Model**: Random graph with Eulerian cycle
  *
@@ -73,7 +73,7 @@
  * - Route planning
  * - Network design
  *
-### Random Directed Graphs (Digraphs)
+ * ### Random Directed Graphs (Digraphs)
  *
  * **Model**: Directed version of random graphs
  *
@@ -87,7 +87,7 @@
  * - Modeling directed networks
  * - Dependency analysis
  *
-## Graph Properties by Model
+ * ## Graph Properties by Model
  *
  * | Model | Connected? | Eulerian? | Cycles? | Degree Distribution |
  * |-------|-----------|-----------|---------|-------------------|
@@ -96,29 +96,29 @@
  * | Eulerian | Usually | Always | Usually | All even |
  * | Digraph | Maybe | Maybe | Maybe | Asymmetric |
  *
-## When to Use Each Model
+ * ## When to Use Each Model
  *
-### Use Erdős–Rényi When:
+ * ### Use Erdős–Rényi When:
  * - Need simple random graph
  * - Don't care about connectivity
  * - Testing general algorithms
  *
-### Use Connected When:
+ * ### Use Connected When:
  * - Need guaranteed connectivity
  * - Testing connectivity algorithms
  * - Network design problems
  *
-### Use Eulerian When:
+ * ### Use Eulerian When:
  * - Testing Eulerian path algorithms
  * - Route planning problems
  * - Need even-degree graph
  *
-### Use Digraph When:
+ * ### Use Digraph When:
  * - Testing directed algorithms
  * - Modeling directed networks
  * - Dependency problems
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Complexity | Notes |
  * |-----------|-----------|-------|
@@ -127,33 +127,36 @@
  * | Generate Eulerian | O(m + V) | Fix odd degrees |
  * | Generate digraph | O(m) | Directed edges |
  *
-## Applications
+ * ## Applications
  *
-### Algorithm Testing
+ * ### Algorithm Testing
  * - **Diverse inputs**: Test on various graph structures
  * - **Edge cases**: Find algorithm weaknesses
  * - **Performance**: Benchmark on different sizes
  *
-### Research
+ * ### Research
  * - **Graph theory**: Study graph properties
  * - **Random processes**: Model random phenomena
  * - **Statistical analysis**: Analyze graph statistics
  *
-### Simulation
+ * ### Simulation
  * - **Network modeling**: Model real-world networks
  * - **Social networks**: Generate synthetic networks
  * - **Infrastructure**: Model transportation networks
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all random graph demos
  * ./random_graph_example
  *
  * # Generate specific model
- * ./random_graph_example -s erdos -n 100 -m 500
- * ./random_graph_example -s connected -n 100 -m 500
- * ./random_graph_example -s eulerian -n 100
+ * ./random_graph_example -s erdos
+ * ./random_graph_example -s connected
+ * ./random_graph_example -s eulerian
+ * ./random_graph_example -s digraph
+ * ./random_graph_example -s eulerian_dig
+ * ./random_graph_example -s params
  * ```
  *
  * @see random_graph.H Random graph generation functions

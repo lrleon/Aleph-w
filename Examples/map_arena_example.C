@@ -54,7 +54,7 @@
  *
  * ## MapArena: Memory-Mapped Arena
  *
-### Key Features
+ * ### Key Features
  *
  * - **Memory-mapped**: Uses `mmap()` for backing storage
  * - **File-backed**: Can persist to disk (with limitations)
@@ -121,7 +121,7 @@
  * - For true persistence, store metadata separately
  * - Or extend class to handle persistence
  *
-### General Arena Limitations
+ * ### General Arena Limitations
  * - No individual deallocation
  * - Fixed lifetime for all allocations
  * - Not suitable for long-lived, variable-lifetime data

@@ -46,7 +46,7 @@
  *
  * ## Dispatcher Types
  *
-### AHDispatcher
+ * ### AHDispatcher
  * - **Backend**: Balanced BST (typically Red-Black tree)
  * - **Lookup**: O(log n)
  * - **Best for**: Small to medium command sets, ordered iteration
@@ -76,54 +76,54 @@
  *
  * ## Examples Covered
  *
-### 1. Basic Calculator
+ * ### 1. Basic Calculator
  * - Function pointers for arithmetic operations
  * - Simple command mapping
  * - Demonstrates basic dispatcher usage
  *
-### 2. Text Processor
+ * ### 2. Text Processor
  * - Lambda functions for text transformations
  * - More complex operations
  * - Shows flexibility of dispatcher
  *
-### 3. Colombian Regions Menu
+ * ### 3. Colombian Regions Menu
  * - Menu system with regional information
  * - Demonstrates real-world application
  * - Cultural context (Colombian geography)
  *
-### 4. State Machine
+ * ### 4. State Machine
  * - Order processing workflow
  * - State transitions based on commands
  * - Demonstrates dispatcher in state management
  *
-### 5. Hash-Based Dispatcher
+ * ### 5. Hash-Based Dispatcher
  * - High-performance version using hash table
  * - Comparison with tree-based dispatcher
  * - Performance considerations
  *
  * ## Use Cases
  *
-### Command-Line Interfaces
+ * ### Command-Line Interfaces
  * - Parse user commands
  * - Execute corresponding operations
  * - Easy to extend with new commands
  *
-### Event Handling Systems
+ * ### Event Handling Systems
  * - GUI event handlers
  * - Network message handlers
  * - Game input handlers
  *
-### State Machines
+ * ### State Machines
  * - State transition handlers
  * - Action execution based on state
  * - Workflow management
  *
-### Plugin Architectures
+ * ### Plugin Architectures
  * - Dynamic command registration
  * - Plugin command dispatch
  * - Extensible systems
  *
-### Configuration Systems
+ * ### Configuration Systems
  * - Execute actions based on config keys
  * - Dynamic behavior configuration
  * - Runtime customization

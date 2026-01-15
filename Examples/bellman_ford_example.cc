@@ -35,23 +35,23 @@
  *
  * ## Why Bellman-Ford?
  *
-### Problem with Dijkstra
+ * ### Problem with Dijkstra
  *
  * Dijkstra's algorithm fails with negative edge weights because:
  * - It assumes once a vertex is processed, its distance is final
  * - Negative edges can create shorter paths later
  * - Greedy choice becomes incorrect
  *
-### When Negative Weights Occur
+ * ### When Negative Weights Occur
  *
  * - **Financial**: Profits/losses, exchange rates
  * - **Game theory**: Rewards/penalties
  * - **Physics**: Energy gains/losses
  * - **Optimization**: Cost reductions
  *
-## Algorithm Overview
+ * ## Algorithm Overview
  *
-### Standard Bellman-Ford
+ * ### Standard Bellman-Ford
  *
  * ```
  * Bellman-Ford(G, s):
@@ -72,29 +72,29 @@
  *   4. Return true (no negative cycle)
  * ```
  *
-### Why |V| - 1 Iterations?
+ * ### Why |V| - 1 Iterations?
  *
  * In a graph with no negative cycles, the shortest path has at most |V| - 1 edges.
  * After |V| - 1 iterations, all shortest paths should be found.
  *
  * If distances still improve in iteration |V|, a negative cycle exists!
  *
-### Negative Cycle Detection
+ * ### Negative Cycle Detection
  *
  * After |V| - 1 iterations, if any edge can still be relaxed:
  * - A negative cycle exists
  * - Shortest paths are undefined (can loop infinitely for negative cost)
  *
-## SPFA Optimization (Shortest Path Faster Algorithm)
+ * ## SPFA Optimization (Shortest Path Faster Algorithm)
  *
-### How It Works
+ * ### How It Works
  *
  * SPFA is a queue-based optimization:
  * - Only relax edges from vertices whose distance changed
  * - Uses queue to track vertices that need relaxation
  * - Average case: O(E), worst case: O(VE) (same as standard)
  *
-### Algorithm
+ * ### Algorithm
  *
  * ```
  * SPFA(G, s):
@@ -112,7 +112,7 @@
  *            Report negative cycle
  * ```
  *
-## Complexity
+ * ## Complexity
  *
  * | Variant | Time | Space | Notes |
  * |---------|------|-------|-------|
@@ -120,7 +120,7 @@
  * | SPFA (average) | O(E) | O(V) | Much faster in practice |
  * | SPFA (worst) | O(V × E) | O(V) | Degrades to standard |
  *
-## Comparison with Dijkstra
+ * ## Comparison with Dijkstra
  *
  * | Aspect | Dijkstra | Bellman-Ford |
  * |--------|----------|--------------|
@@ -130,36 +130,36 @@
  * | Best for | Non-negative weights | Negative weights |
  * | Data structure | Priority queue | Simple iteration |
  *
-## When to Use
+ * ## When to Use
  *
  * | Scenario | Algorithm | Reason |
  * |----------|-----------|-------|
  * | Non-negative weights only | Dijkstra | Faster O((V+E) log V) |
  * | Negative weights, no cycles | Bellman-Ford | Correct handling |
- * | Need cycle detection | Bellman-Ford | Only algorithm that detects |
+ * | Need negative cycle detection (from a single source) | Bellman-Ford | Detects cycles reachable from the source |
  * | All-pairs with negatives | Johnson | Uses B-F + Dijkstra |
  * | Sparse graph, negatives | SPFA | Faster average case |
  *
-## Applications
+ * ## Applications
  *
-### Financial Systems
+ * ### Financial Systems
  * - **Arbitrage detection**: Find profitable currency exchanges
  * - **Portfolio optimization**: Maximize returns with constraints
  * - **Risk analysis**: Model losses as negative weights
  *
-### Network Routing
+ * ### Network Routing
  * - **Link-state routing**: Find paths considering link costs
  * - **Traffic optimization**: Minimize travel time (can be negative with shortcuts)
  *
-### Game Theory
+ * ### Game Theory
  * - **Minimax**: Find optimal strategies
  * - **Resource allocation**: Maximize gains
  *
-### System Design
+ * ### System Design
  * - **Deadlock detection**: Negative cycles indicate problems
  * - **Scheduling**: Optimize task ordering
  *
-## Example: Currency Arbitrage
+ * ## Example: Currency Arbitrage
  *
  * ```
  * Exchange rates:
@@ -173,7 +173,7 @@
  *   USD → EUR → GBP → USD: -0.0055 (negative cycle = arbitrage!)
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run Bellman-Ford demo
@@ -198,6 +198,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <cstring>
 
 #include <tpl_graph.H>
 #include <Bellman_Ford.H>
@@ -541,16 +542,56 @@ void example_comparison_dijkstra()
 // Main
 // =============================================================================
 
-int main()
+static void usage(const char* prog)
+{
+  cout << "Usage: " << prog << " [--negative-cycles] [--spfa] [--help]\n";
+  cout << "\nIf no flags are given, all demos are executed.\n";
+}
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
+
+int main(int argc, char* argv[])
 {
   cout << "╔══════════════════════════════════════════════════════════════════════╗\n";
   cout << "║          Bellman-Ford Algorithm - Comprehensive Example              ║\n";
   cout << "╚══════════════════════════════════════════════════════════════════════╝\n\n";
 
-  example_basic_negative_weights();
-  example_negative_cycle();
-  example_spfa_comparison();
-  example_comparison_dijkstra();
+  if (has_flag(argc, argv, "--help"))
+    {
+      usage(argv[0]);
+      return 0;
+    }
+
+  const bool any_specific =
+    has_flag(argc, argv, "--negative-cycles") ||
+    has_flag(argc, argv, "--spfa");
+
+  const bool run_all = (argc == 1) || !any_specific;
+
+  if (run_all)
+    {
+      example_basic_negative_weights();
+      example_negative_cycle();
+      example_spfa_comparison();
+      example_comparison_dijkstra();
+    }
+  else
+    {
+      // Keep the basic example as context for specialized runs.
+      example_basic_negative_weights();
+
+      if (has_flag(argc, argv, "--negative-cycles"))
+        example_negative_cycle();
+
+      if (has_flag(argc, argv, "--spfa"))
+        example_spfa_comparison();
+    }
 
   cout << "\nDone.\n";
   return 0;

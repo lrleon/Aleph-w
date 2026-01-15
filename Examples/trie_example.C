@@ -41,7 +41,7 @@
  * - **Paths**: From root to marked nodes represent complete words/keys
  * - **Prefix sharing**: Common prefixes share the same path (memory efficient)
  *
-### Structure Example
+ * ### Structure Example
  *
  * Trie storing words: "cat", "car", "card", "dog"
  * ```
@@ -59,7 +59,7 @@
  * **Key insight**: Words sharing prefixes share nodes, making tries
  * space-efficient for datasets with many common prefixes.
  *
-## Time Complexity
+ * ## Time Complexity
  *
  * For a word/key of length k:
  *
@@ -74,85 +74,85 @@
  * **Note**: Complexity is O(k) where k is key length, NOT O(log n)!
  * This makes tries especially efficient for short keys.
  *
-## Space Complexity
+ * ## Space Complexity
  *
  * - **Worst case**: O(ALPHABET_SIZE × N × k) where N = number of keys
  * - **Best case**: O(N × k) when many prefixes shared
  * - **Practical**: Usually much better than worst case due to prefix sharing
  *
-## Key Operations
+ * ## Key Operations
  *
-### Insertion
+ * ### Insertion
  * 1. Start at root
  * 2. For each character in word:
  *    - If child node exists, traverse to it
  *    - If not, create new node
  * 3. Mark final node as "end of word"
  *
-### Search
+ * ### Search
  * 1. Start at root
  * 2. For each character, traverse to child
  * 3. If path exists and final node is marked, word found
  *
-### Prefix Search
+ * ### Prefix Search
  * 1. Traverse to prefix node (same as search)
  * 2. Collect all words in subtree
  * 3. Return all words with given prefix
  *
-## Real-World Applications
+ * ## Real-World Applications
  *
-### Autocomplete
+ * ### Autocomplete
  * - **IDEs**: Code completion (IntelliSense, etc.)
  * - **Search engines**: Query suggestions
  * - **Mobile keyboards**: Word prediction
  * - **Command-line**: Tab completion
  *
-### Spell Checkers
+ * ### Spell Checkers
  * - **Word lookup**: Fast dictionary lookup
  * - **Suggestions**: Find similar words (edit distance)
  * - **Correction**: Suggest corrections for typos
  *
-### Network Routing
+ * ### Network Routing
  * - **IP routing**: Longest prefix matching
  * - **Packet forwarding**: Find best matching route
  * - **CIDR**: Classless Inter-Domain Routing
  *
-### Text Processing
+ * ### Text Processing
  * - **Dictionaries**: Fast word lookup
  * - **Lexical analysis**: Token recognition
  * - **Pattern matching**: Find all occurrences of pattern
  *
-### User Interfaces
+ * ### User Interfaces
  * - **T9 predictive text**: Old phone keyboards
  * - **Search bars**: Incremental search
  * - **Command completion**: Shell autocomplete
  *
-## Advantages
+ * ## Advantages
  *
  * ✅ **Fast lookups**: O(k) where k is key length (not dependent on dataset size!)
  * ✅ **Prefix operations**: Excellent for prefix matching
  * ✅ **Memory efficient**: Shared prefixes save space
  * ✅ **Ordered**: Keys are naturally sorted (inorder traversal)
  *
-## Disadvantages
+ * ## Disadvantages
  *
  * ❌ **Memory overhead**: Each node stores pointers (can be large)
  * ❌ **Cache performance**: Pointer chasing (not cache-friendly)
  * ❌ **Sparse**: Many nodes may be empty (wasted space)
  *
-## Optimizations
+ * ## Optimizations
  *
-### Compressed Trie (Patricia Trie)
+ * ### Compressed Trie (Patricia Trie)
  * - Compress single-child paths
  * - Reduces memory usage
  * - Maintains O(k) operations
  *
-### Ternary Search Tree
+ * ### Ternary Search Tree
  * - Hybrid of trie and BST
  * - Better memory usage
  * - Still O(k) operations
  *
-## Comparison with Other Structures
+ * ## Comparison with Other Structures
  *
  * | Structure | Lookup | Prefix Search | Memory | Best For |
  * |-----------|--------|---------------|--------|----------|
@@ -162,7 +162,7 @@
  *
  * **Trie wins when**: Prefix operations are common, keys are short
  *
-## Usage Example
+ * ## Usage Example
  *
  * ```cpp
  * Trie<string> dictionary;

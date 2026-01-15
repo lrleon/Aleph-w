@@ -45,7 +45,7 @@
  *
  * ## Hash Table Implementations
  *
-### Separate Chaining (DynSetLhash)
+ * ### Separate Chaining (DynSetLhash)
  *
  * **Strategy**: Each bucket contains a linked list of elements
  *
@@ -64,9 +64,9 @@
  *   - Cache misses (non-contiguous memory)
  * - **Best for**: General purpose, frequent insertions/deletions
  *
-### Linear Hashing (DynSetLinHash)
+ * ### Linear Hashing (DynSetLinHash)
  *
- * **Strategy**: Incremental hash table growth with linear probing
+ * **Strategy**: Incremental hash table growth (linear hashing)
  *
  * **How it works**:
  * - Table grows incrementally (not all-at-once)
@@ -83,7 +83,7 @@
  *   - Slightly higher overhead
  * - **Best for**: Real-time systems, growing datasets, predictable performance
  *
-### Open Addressing - Double Hashing (ODhashTable)
+ * ### Open Addressing - Double Hashing (ODhashTable)
  *
  * **Strategy**: Store elements directly in array, use double hashing for collision resolution
  *
@@ -103,7 +103,7 @@
  *   - Fixed size (or expensive resizing)
  * - **Best for**: Fixed size, high-performance requirements, memory efficiency
  *
-### Open Addressing - Linear Probing (OLhashTable)
+ * ### Open Addressing - Linear Probing (OLhashTable)
  *
  * **Strategy**: Store elements in array, use linear probing for collisions
  *
@@ -116,7 +116,7 @@
  * - **Cons**: Primary clustering (performance degradation)
  * - **Best for**: Simple cases, good hash functions
  *
-## Complexity Analysis
+ * ## Complexity Analysis
  *
  * | Operation | Average Case | Worst Case | Notes |
  * |-----------|-------------|------------|-------|
@@ -129,7 +129,7 @@
  * - **Too high**: Performance degrades
  * - **Too low**: Memory waste
  *
-## Collision Resolution Strategies
+ * ## Collision Resolution Strategies
  *
  * | Strategy | Method | Pros | Cons |
  * |----------|--------|------|------|
@@ -138,7 +138,7 @@
  * | Double Hashing | Second hash function | Less clustering | More computation |
  * | Quadratic Probing | Quadratic sequence | Moderate clustering | Complex |
  *
-## When to Use Hash Tables
+ * ## When to Use Hash Tables
  *
  * ✅ **Good for**:
  * - Fast lookups needed
@@ -152,7 +152,7 @@
  * - Worst-case guarantees needed (use tree)
  * - Keys don't hash well
  *
-## Comparison with Trees
+ * ## Comparison with Trees
  *
  * | Feature | Hash Table | Balanced Tree |
  * |---------|------------|---------------|
@@ -162,7 +162,7 @@
  * | Range queries | No | Yes |
  * | Memory overhead | Lower | Higher |
  *
-## Hash Function Quality
+ * ## Hash Function Quality
  *
  * A good hash function should:
  * - **Distribute uniformly**: Minimize collisions
@@ -174,7 +174,7 @@
  * - Degraded performance
  * - Worst-case O(n) behavior
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Run all hash table demonstrations
@@ -183,6 +183,11 @@
  * # Compare specific implementations
  * ./hash_tables_example -s chaining
  * ./hash_tables_example -s linear
+ * ./hash_tables_example -s open
+ * ./hash_tables_example -s performance
+ *
+ * # Show help
+ * ./hash_tables_example --help
  * ```
  *
  * @see tpl_dynSetLhash.H Separate chaining hash set
@@ -204,6 +209,12 @@
 
 using namespace std;
 using namespace Aleph;
+
+static void print_usage(const char* prog)
+{
+  cout << "Usage: " << prog << " [-s <chaining|linear|open|performance|all>] [--help]\n";
+  cout << "\nIf no selector is given, all demos are executed.\n";
+}
 
 // =============================================================================
 // Example 1: DynSetLhash - Separate Chaining
@@ -465,8 +476,36 @@ void demo_performance()
 // Main
 // =============================================================================
 
-int main()
+int main(int argc, char* argv[])
 {
+  string selector;
+  for (int i = 1; i < argc; ++i)
+    {
+      const string arg = argv[i];
+      if (arg == "--help" || arg == "-h")
+        {
+          print_usage(argv[0]);
+          return 0;
+        }
+      if (arg == "-s")
+        {
+          if (i + 1 >= argc)
+            {
+              print_usage(argv[0]);
+              return 1;
+            }
+          selector = argv[++i];
+          continue;
+        }
+
+      cout << "Unknown argument: " << arg << "\n";
+      print_usage(argv[0]);
+      return 1;
+    }
+
+  if (selector.empty())
+    selector = "all";
+
   cout << "\n";
   cout << "╔══════════════════════════════════════════════════════════════════╗\n";
   cout << "║              Hash Tables in Aleph-w Library                      ║\n";
@@ -474,10 +513,15 @@ int main()
   cout << "║     Aleph-w Library - https://github.com/lrleon/Aleph-w          ║\n";
   cout << "╚══════════════════════════════════════════════════════════════════╝\n";
 
-  demo_dynset_lhash();
-  demo_dynset_linhash();
-  demo_odhash();
-  demo_performance();
+  const bool run_all = (selector == "all");
+  if (run_all || selector == "chaining")
+    demo_dynset_lhash();
+  if (run_all || selector == "linear")
+    demo_dynset_linhash();
+  if (run_all || selector == "open")
+    demo_odhash();
+  if (run_all || selector == "performance")
+    demo_performance();
 
   cout << "\n";
   cout << "╔══════════════════════════════════════════════════════════════════╗\n";

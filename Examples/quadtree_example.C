@@ -41,7 +41,7 @@
  * - **Leaf nodes**: Contain points or are empty
  * - **Subdivision**: Space is recursively divided into 4 equal quadrants
  *
-### Structure
+ * ### Structure
  *
  * Each internal node divides space into four quadrants:
  * - **NW (Northwest)**: Top-left quadrant
@@ -60,20 +60,20 @@
  *
  * ## How It Works
  *
-### Insertion
+ * ### Insertion
  * 1. Start at root
  * 2. Determine which quadrant point belongs to
  * 3. If quadrant is empty, insert point there
  * 4. If quadrant has points and exceeds capacity, subdivide
  * 5. Recursively insert into appropriate sub-quadrant
  *
-### Search
+ * ### Search
  * 1. Start at root
  * 2. Determine which quadrant(s) intersect query region
  * 3. Recursively search relevant quadrants
  * 4. Return all points in query region
  *
-### Range Query
+ * ### Range Query
  * - Query: "Find all points in rectangle [x1,y1] to [x2,y2]"
  * - Efficiently prunes irrelevant quadrants
  * - Only searches quadrants that intersect query region
@@ -93,44 +93,44 @@
  *
  * ## Applications
  *
-### Geographic Information Systems (GIS)
+ * ### Geographic Information Systems (GIS)
  * - **Spatial indexing**: Efficiently store and query geographic data
  * - **Map rendering**: Quickly find features in viewport
  * - **Location services**: Find nearby points of interest
  * - **Spatial joins**: Efficiently join spatial datasets
  *
-### Game Development
+ * ### Game Development
  * - **Collision detection**: Quickly find objects in collision range
  * - **Visibility culling**: Determine what's visible in viewport
  * - **Spatial partitioning**: Organize game world efficiently
  * - **AI pathfinding**: Spatial awareness for NPCs
  *
-### Computer Graphics
+ * ### Computer Graphics
  * - **Image compression**: Quadtree-based image representation
  * - **Ray tracing**: Accelerate ray-object intersection tests
  * - **Level of detail (LOD)**: Adaptive detail based on distance
  * - **Terrain rendering**: Efficient terrain data structures
  *
-### Computational Geometry
+ * ### Computational Geometry
  * - **Nearest neighbor**: Find closest point efficiently
  * - **Range searches**: Find points in rectangular region
  * - **Spatial clustering**: Group nearby points
  * - **Voronoi diagrams**: Spatial partitioning
  *
-### Scientific Simulations
+ * ### Scientific Simulations
  * - **N-body simulations**: Barnes-Hut algorithm uses quadtree
  * - **Particle systems**: Efficient neighbor finding
  * - **Fluid dynamics**: Spatial organization of particles
  * - **Molecular dynamics**: Efficient force calculations
  *
-## Advantages
+ * ## Advantages
  *
  * ✅ **Efficient queries**: O(log n) average case
  * ✅ **Adaptive**: Automatically adjusts to data distribution
  * ✅ **Memory efficient**: Only subdivides where needed
  * ✅ **Simple concept**: Easy to understand and implement
  *
-## Disadvantages
+ * ## Disadvantages
  *
  * ❌ **Worst case**: Can degrade to O(n) with bad distribution
  * ❌ **2D only**: Designed for 2D space (use octree for 3D)

@@ -46,6 +46,7 @@
 
 # include <limits>
 # include <set>
+# include <tuple>
 # include <type_traits>
 # include <utility>
 
@@ -63,6 +64,8 @@
 
 namespace Aleph
 {
+  using std::get;
+
   /** @brief Arc info extension that stores capacity and flow values.
    *
    * @tparam Arc_Info Base arc info type.

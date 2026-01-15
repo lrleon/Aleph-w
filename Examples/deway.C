@@ -37,13 +37,13 @@
  *
  * ## What is Deway Numbering?
  *
-### Definition
+ * ### Definition
  *
  * Deway numbering assigns each node a unique address based on its position
  * in the tree. The address is a sequence of integers representing the path
  * from root to the node.
  *
-### Visual Example
+ * ### Visual Example
  *
  * ```
  *        Root (no address or "")
@@ -53,63 +53,63 @@
  * 0.0   0.1  1.0   1.1
  * ```
  *
-### Addressing Rules
+ * ### Addressing Rules
  *
  * - **Root**: Has no address (empty string "") or special marker
  * - **First child**: Address is parent address + ".0"
  * - **i-th child**: Address is parent address + "." + i
  * - **Uniqueness**: Each node has exactly one unique address
  *
-## Key Properties
+ * ## Key Properties
  *
-### Hierarchical Structure
+ * ### Hierarchical Structure
  *
  * - **Path encoding**: Address directly encodes the path from root
  * - **Parent-child relationship**: Can derive parent from child address
  * - **Sibling ordering**: Siblings have sequential addresses
  *
-### Uniqueness
+ * ### Uniqueness
  *
  * - **One-to-one**: Each node maps to exactly one address
  * - **Complete**: Every node has an address
  * - **Deterministic**: Same tree structure → same addresses
  *
-### Navigation
+ * ### Navigation
  *
  * - **Find node**: Given address, can navigate directly to node
  * - **Find parent**: Remove last component of address
  * - **Find children**: Append child indices to address
  *
-## Applications
+ * ## Applications
  *
-### File Systems
+ * ### File Systems
  * - **Directory paths**: `/usr/bin/gcc` is Deway-like addressing
  * - **Hierarchical storage**: Organize files in tree structure
  * - **Path resolution**: Resolve paths to files/directories
  *
-### XML/HTML Processing
+ * ### XML/HTML Processing
  * - **XPath expressions**: `/html/body/div[0]` uses Deway-like addressing
  * - **DOM navigation**: Navigate document tree structure
  * - **Tree queries**: Query nodes by path
  *
-### Database Indexing
+ * ### Database Indexing
  * - **Hierarchical keys**: Index hierarchical data
  * - **B-tree keys**: Some B-tree implementations use similar addressing
  * - **Tree-structured data**: Index tree data efficiently
  *
-### Tree Serialization
+ * ### Tree Serialization
  * - **Compact representation**: Encode tree structure compactly
  * - **Network transmission**: Send tree structure efficiently
  * - **Storage**: Store tree structure in database
  *
-### Tree Navigation
+ * ### Tree Navigation
  * - **Direct addressing**: Access nodes by address
  * - **Path queries**: Find nodes matching path pattern
  * - **Tree algorithms**: Many algorithms use path-based addressing
  *
-## Algorithm
+ * ## Algorithm
  *
-### Process
+ * ### Process
  *
  * This example:
  * ```
@@ -123,7 +123,7 @@
  *        - deway(child, prefix, depth+1)
  * ```
  *
-### Recursive Computation
+ * ### Recursive Computation
  *
  * ```
  * compute_deway(node, parent_address):
@@ -137,9 +137,9 @@
  *     compute_deway(child[i], address)
  * ```
  *
-## Example Output
+ * ## Example Output
  *
-### Tree Structure
+ * ### Tree Structure
  *
  * ```
  *        A
@@ -149,7 +149,7 @@
  *    D   E   F
  * ```
  *
-### Deway Addresses
+ * ### Deway Addresses
  *
  * ```
  * Root: ""
@@ -160,7 +160,7 @@
  * Node 1.0: "1.0"  (F)
  * ```
  *
-## Comparison with Other Addressing
+ * ## Comparison with Other Addressing
  *
  * | Scheme | Format | Example | Use Case |
  * |--------|--------|---------|----------|
@@ -169,22 +169,22 @@
  * | XPath | String | "/html/body" | XML/HTML |
  * | Array index | Integer | [0][1][2] | Arrays |
  *
-## Properties of Deway Addresses
+ * ## Properties of Deway Addresses
  *
-### Advantages
+ * ### Advantages
  *
  * ✅ **Hierarchical**: Reflects tree structure
  * ✅ **Unique**: Each node has unique address
  * ✅ **Navigable**: Can navigate using address
  * ✅ **Compact**: Efficient representation
  *
-### Limitations
+ * ### Limitations
  *
  * ❌ **Dynamic trees**: Addresses change when tree structure changes
  * ❌ **Not stable**: Insertion/deletion changes addresses
  * ❌ **Order-dependent**: Depends on insertion order
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate tree and show Deway addresses
@@ -194,15 +194,15 @@
  * deway -n 30 -s 42
  * ```
  *
-## Related Concepts
+ * ## Related Concepts
  *
-### Tree Traversal
+ * ### Tree Traversal
  *
  * Deway numbering is related to tree traversal:
  * - **Preorder**: Visit nodes in Deway order
  * - **Depth-first**: Follows depth-first pattern
  *
-### Path Representation
+ * ### Path Representation
  *
  * - **String paths**: Convert to string representation
  * - **Array paths**: Store as integer array

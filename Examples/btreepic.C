@@ -56,7 +56,7 @@
  * - **Spacing**: Configurable horizontal and vertical spacing
  * - **Sizing**: Adjustable node sizes and picture dimensions
  *
-### Output Format
+ * ### Output Format
  * - **LaTeX/eepic**: High-quality vector graphics
  * - **Scalable**: Vector format, scales without quality loss
  * - **Publication-ready**: Professional appearance

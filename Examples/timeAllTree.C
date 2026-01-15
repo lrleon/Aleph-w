@@ -45,7 +45,7 @@
  * - **Research**: Study tree algorithm performance
  * - **Optimize**: Identify bottlenecks and optimization opportunities
  *
-## Supported Tree Types
+ * ## Supported Tree Types
  *
  * ### Balanced Trees (Guaranteed O(log n))
  *
@@ -96,7 +96,7 @@
  * - **Best for**: Baseline comparison, educational purposes
  * - **Trade-off**: Simple but can degrade badly
  *
-## Metrics Measured
+ * ## Metrics Measured
  *
  * For each tree size (powers of 2: 2, 4, 8, 16, ..., up to max), the benchmark measures:
  *
@@ -126,7 +126,7 @@
  * - **Formula**: IPL = Σ depth(node) for all nodes
  * - **Expected**: O(n log n) for balanced trees
  *
-## Statistical Analysis
+ * ## Statistical Analysis
  *
  * The benchmark runs multiple trials (configurable) and computes:
  *
@@ -136,7 +136,7 @@
  * - **Min/Max**: Best and worst case performance
  * - **Confidence intervals**: Statistical significance
  *
-## When to Use Each Tree
+ * ## When to Use Each Tree
  *
  * | Tree Type | Best For | Worst For | Complexity |
  * |-----------|----------|-----------|------------|
@@ -146,7 +146,7 @@
  * | Treap | Simple, good average case | Worst-case guarantees needed | O(log n) expected |
  * | Binary | Educational, small datasets | Production use | O(n) worst |
  *
-## Benchmark Methodology
+ * ## Benchmark Methodology
  *
  * ### Size Progression
  * - Tests sizes: 2, 4, 8, 16, 32, ..., up to maximum
@@ -163,7 +163,7 @@
  * - Tests average-case performance
  * - Configurable seed for reproducibility
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Benchmark all tree types with 10000 nodes
@@ -179,7 +179,7 @@
  * timeAllTree -n 1000
  * ```
  *
-## Output Format
+ * ## Output Format
  *
  * The benchmark outputs:
  * - **Tree type**: Which implementation is being tested
@@ -188,7 +188,7 @@
  * - **Performance comparison**: Side-by-side comparison across tree types
  * - **Structural metrics**: Height and IPL for validation
  *
-## Interpreting Results
+ * ## Interpreting Results
  *
  * ### Good Performance Indicators
  * - **Logarithmic growth**: Time grows slowly with size
@@ -200,7 +200,7 @@
  * - **High variance**: Inconsistent performance
  * - **Excessive height**: Height >> log₂(n) (poor balance)
  *
-## Requirements
+ * ## Requirements
  *
  * - **GSL (GNU Scientific Library)**: Required for random number generation
  * - **C++ compiler**: With C++11 or later support

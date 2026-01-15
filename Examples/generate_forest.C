@@ -37,14 +37,14 @@
  *
  * ## What is a Forest?
  *
-### Graph Theory Definition
+ * ### Graph Theory Definition
  *
  * A **forest** is a collection of trees. In graph theory:
  * - A **tree** is a connected acyclic graph
  * - A **forest** is a disjoint union of trees (may be disconnected)
  * - Forest = collection of trees with no cycles
  *
-### In This Context
+ * ### In This Context
  *
  * We convert a **binary tree** (each node has at most 2 children) to a
  * **general tree/forest** (each node can have any number of children):
@@ -53,9 +53,9 @@
  * - **General tree**: Unlimited children per node
  * - **Forest**: Collection of general trees
  *
-## Conversion Process
+ * ## Conversion Process
  *
-### Algorithm Steps
+ * ### Algorithm Steps
  *
  * The example performs the following:
  *
@@ -66,7 +66,7 @@
  *    - Binary tree edges → General tree parent-child relationships
  * 4. **Output forest**: Writes forest structure in suitable format
  *
-### Conversion Details
+ * ### Conversion Details
  *
  * The conversion preserves the hierarchical structure:
  * - **Root nodes**: Binary tree root becomes forest root
@@ -74,41 +74,41 @@
  * - **Node data**: Key values preserved
  * - **Structure**: Hierarchical relationships maintained
  *
-## Applications
+ * ## Applications
  *
-### Tree Visualization
+ * ### Tree Visualization
  * - **Format conversion**: Convert between tree representations
  * - **Visualization tools**: Some tools work better with n-ary trees
  * - **Display**: More flexible display options
  *
-### Data Structure Conversion
+ * ### Data Structure Conversion
  * - **Adapting algorithms**: Algorithms designed for n-ary trees
  * - **Flexibility**: General trees more flexible than binary
  * - **Representation**: Better representation for some problems
  *
-### Algorithm Testing
+ * ### Algorithm Testing
  * - **Test cases**: Generate test cases for tree algorithms
  * - **Format compatibility**: Test algorithms on different formats
  * - **Validation**: Verify algorithm correctness on different structures
  *
-### Format Conversion
+ * ### Format Conversion
  * - **Interoperability**: Convert between different tree formats
  * - **Data exchange**: Exchange tree data between systems
  * - **Standardization**: Convert to standard formats
  *
-## Forest Properties
+ * ## Forest Properties
  *
-### Structure
+ * ### Structure
  * - **Multiple roots**: Forest can have multiple root nodes
  * - **Disconnected**: Trees in forest are disconnected
  * - **Hierarchical**: Each tree maintains hierarchy
  *
-### Advantages Over Binary Trees
+ * ### Advantages Over Binary Trees
  * - **Flexibility**: Unlimited children per node
  * - **Natural representation**: Better for some problems
  * - **Simpler algorithms**: Some algorithms simpler for n-ary trees
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate forest with 50 nodes
@@ -121,26 +121,26 @@
  * generate_forest -n 1000 -o large_forest.txt
  * ```
  *
-## Output Format
+ * ## Output Format
  *
  * The forest is output in a format suitable for:
  * - **Visualization**: Can be visualized with tree tools
  * - **Processing**: Can be processed by tree algorithms
  * - **Storage**: Can be saved and loaded later
  *
-## Example Use Cases
+ * ## Example Use Cases
  *
-### File System Representation
+ * ### File System Representation
  * - **Directories**: Can have any number of subdirectories
  * - **Natural fit**: General trees match file system structure
  * - **Navigation**: Easier navigation than binary representation
  *
-### Organizational Charts
+ * ### Organizational Charts
  * - **Hierarchy**: Represent organizational structures
  * - **Flexibility**: Managers can have any number of subordinates
  * - **Visualization**: Better visualization than binary trees
  *
-### XML/HTML Parsing
+ * ### XML/HTML Parsing
  * - **DOM trees**: Represent document structure
  * - **Nested elements**: Elements can have any number of children
  * - **Natural representation**: Matches document structure

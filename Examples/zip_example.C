@@ -19,9 +19,9 @@
  * **Key insight**: Process related data from multiple sources together,
  * maintaining correspondence between elements.
  *
-## Features Demonstrated
+ * ## Features Demonstrated
  *
-### Basic Zip Iteration
+ * ### Basic Zip Iteration
  *
  * Iterate multiple containers simultaneously:
  * - **`ZipIterator`**: Iterate 2+ containers in lockstep
@@ -29,14 +29,14 @@
  *
  * **Use case**: Process related data from multiple sources together
  *
-### Tuple Creation
+ * ### Tuple Creation
  *
  * Create and manipulate tuples:
  * - **`t_zip()`**: Create list of tuples from containers
  * - **`t_unzip()`**: Split tuple list back into separate containers
  * - **`t_enum_zip()`**: Create tuples with index: (i, elem₁, elem₂)
  *
-### Zip Functional Operations
+ * ### Zip Functional Operations
  *
  * Apply functional operations to zipped data:
  * - **`zip_map()`**: Transform tuples (apply function to each tuple)
@@ -45,14 +45,14 @@
  * - **`zip_drop(n)`**: Skip first n tuples
  * - **`zip_partition(pred)`**: Split into two groups by predicate
  *
-### STL Compatibility
+ * ### STL Compatibility
  *
  * - **`std_zip()`**: Zip STL containers (std::vector, std::list, etc.)
  * - Works seamlessly with standard library containers
  *
-## Common Use Cases
+ * ## Common Use Cases
  *
-### Parallel Processing
+ * ### Parallel Processing
  * ```cpp
  * // Process names and ages together
  * auto zipped = zip(names, ages);
@@ -61,21 +61,21 @@
  * });
  * ```
  *
-### Data Transformation
+ * ### Data Transformation
  * ```cpp
  * // Combine and transform data
  * auto result = zip_map(prices, quantities, 
  *   [](auto price, auto qty) { return price * qty; });
  * ```
  *
-### Filtering Related Data
+ * ### Filtering Related Data
  * ```cpp
  * // Keep only valid pairs
  * auto valid = zip_filter(names, scores,
  *   [](auto name, auto score) { return score >= 60; });
  * ```
  *
-### Indexed Operations
+ * ### Indexed Operations
  * ```cpp
  * // Process with index
  * enum_zip_for_each(data, [](size_t i, auto elem) {
@@ -83,14 +83,14 @@
  * });
  * ```
  *
-## Advantages
+ * ## Advantages
  *
  * ✅ **Type safety**: Compile-time checking of container compatibility
  * ✅ **Efficiency**: Single pass through containers
  * ✅ **Readability**: Clear intent (process related data together)
  * ✅ **Composability**: Works with other functional operations
  *
-## Comparison with Manual Loops
+ * ## Comparison with Manual Loops
  *
  * **Manual approach**:
  * ```cpp
@@ -106,7 +106,7 @@
  *
  * More concise, safer (no index errors), clearer intent!
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Run all zip demonstrations
@@ -114,7 +114,13 @@
  *
  * # Run specific section
  * ./zip_example -s basic      # Basic zip operations
- * ./zip_example -s functional # Functional zip operations
+ * ./zip_example -s enum       # Zip with indices / enumeration
+ * ./zip_example -s tuples     # Tuple creation and manipulation
+ * ./zip_example -s transform  # Transform zipped data
+ * ./zip_example -s utilities  # Utility operations
+ * ./zip_example -s stl        # STL container compatibility
+ * ./zip_example -s length     # Length checking
+ * ./zip_example -s practical  # Practical example
  * ```
  *
  * @see ah-zip.H Main zip operations header (Aleph containers only)

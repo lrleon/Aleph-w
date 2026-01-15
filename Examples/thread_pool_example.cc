@@ -19,7 +19,7 @@
  * - **Task queuing**: Handle more tasks than threads
  * - **Load balancing**: Distribute work across threads
  *
-## Features Demonstrated
+ * ## Features Demonstrated
  *
  * ### Example 1: Basic Parallel Computation
  * - **`enqueue()`**: Submit task and get future
@@ -51,7 +51,7 @@
  * - **Speedup**: Measure performance gains
  * - **Scalability**: Test with different thread counts
  *
-## Quick Start
+ * ## Quick Start
  *
  * ```cpp
  * // Create thread pool with 4 worker threads
@@ -64,7 +64,7 @@
  * int result = future.get();  // result = 25
  * ```
  *
-## When to Use ThreadPool
+ * ## When to Use ThreadPool
  *
  * ✅ **Good for**:
  * - CPU-intensive tasks
@@ -77,7 +77,7 @@
  * - Very short tasks (overhead too high)
  * - Tasks with dependencies (use task graphs)
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Complexity | Notes |
  * |-----------|-----------|-------|
@@ -85,14 +85,14 @@
  * | Future.get() | O(1) | Wait for completion |
  * | Thread creation | O(1) | Done at pool creation |
  *
-## Performance Considerations
+ * ## Performance Considerations
  *
  * - **Thread count**: Usually CPU cores - 1 or CPU cores
  * - **Task granularity**: Tasks should be substantial (avoid tiny tasks)
  * - **Overhead**: ThreadPool has overhead, measure before optimizing
  * - **Cache effects**: Consider data locality
  *
-## Compilation
+ * ## Compilation
  *
  * ```bash
  * g++ -std=c++20 -O2 -pthread -I.. thread_pool_example.cc -o thread_pool_example

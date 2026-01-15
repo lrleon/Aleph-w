@@ -93,6 +93,7 @@
 #include <vector>
 #include <chrono>
 #include <random>
+#include <limits>
 
 #include <tpl_graph.H>
 #include <Dijkstra.H>
@@ -510,12 +511,18 @@ int main()
   // Case A: Source equals destination
   cout << "\n▶ Case A: Source = Destination (same node)\n";
   {
-    // Note: When source == dest, distance is 0 by definition
-    // The algorithm may return max value, so handle this edge case:
-    if (source == source)  // Obviously true, shown for clarity
+    Path<CityGraph> p(g);
+    double d = dijkstra.find_min_path(g, source, source, p);
+
+    if (d == std::numeric_limits<double>::max() && p.size() == 0)
       {
-        cout << "  Distance: 0 km (trivial path)\n";
-        cout << "  Path: just the source node itself\n";
+        cout << "  Aleph-w behavior: start==end returns Inf and an empty path.\n";
+        cout << "  If you want a trivial path, handle it explicitly as distance=0 and path=[start].\n";
+      }
+    else
+      {
+        cout << "  Distance: " << d << " km\n";
+        cout << "  Path length: " << p.size() << " cities\n";
       }
   }
 

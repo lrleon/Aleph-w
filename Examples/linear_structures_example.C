@@ -63,7 +63,7 @@
  * - **top()**: View top element - O(1)
  * - **is_empty()**: Check if empty - O(1)
  *
-### Applications
+ * ### Applications
  * - **Expression evaluation**: Infix to postfix conversion
  * - **Function calls**: Call stack management
  * - **Undo/Redo**: Operation history
@@ -95,7 +95,7 @@
  * - **rear()**: View rear element - O(1)
  * - **is_empty()**: Check if empty - O(1)
  *
-### Applications
+ * ### Applications
  * - **Task scheduling**: Process queues, job queues
  * - **BFS traversal**: Graph algorithms
  * - **Print spooling**: Print job management
@@ -112,14 +112,14 @@
  * - **Insert/Delete middle**: O(n) - must shift elements
  * - **Memory**: Contiguous block, cache-friendly
  *
-### Operations
+ * ### Operations
  * - **append(x)**: Add to end - O(1) amortized
  * - **insert(i, x)**: Insert at position i - O(n)
  * - **remove(i)**: Remove at position i - O(n)
  * - **operator[](i)**: Access element i - O(1)
  * - **Functional ops**: map, filter, fold - O(n)
  *
-### Applications
+ * ### Applications
  * - **General-purpose storage**: When random access needed
  * - **Mathematical vectors**: Linear algebra operations
  * - **Buffers**: Data buffering, streaming
@@ -129,7 +129,7 @@
  *
  * Linked lists that grow dynamically with efficient insertion/deletion.
  *
-### Implementations
+ * ### Implementations
  *
  * #### DynList<T> (Singly Linked)
  * - **Links**: Each node points to next only
@@ -143,14 +143,14 @@
  * - **Memory**: O(n) - two pointers per element
  * - **Best for**: Bidirectional iteration, frequent deletion
  *
-### Operations
+ * ### Operations
  * - **append(x)**: Add to end - O(1)
  * - **insert_after(it, x)**: Insert after iterator - O(1)
  * - **remove(it)**: Remove at iterator - O(1)
  * - **Access by index**: O(n) - must traverse
  * - **Iteration**: O(n) - forward (both) or backward (DynDlist only)
  *
-### Applications
+ * ### Applications
  * - **Frequent insertion/deletion**: When order matters
  * - **Unknown size**: Grows dynamically
  * - **No random access needed**: Sequential access only

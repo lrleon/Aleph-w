@@ -47,9 +47,9 @@
  * - **Optimality**: Both algorithms produce optimal solution
  * - **Greedy choice**: Locally optimal choices lead to globally optimal solution
  *
-## Algorithms Compared
+ * ## Algorithms Compared
  *
-### Kruskal's Algorithm (1956)
+ * ### Kruskal's Algorithm (1956)
  *
  * **Strategy**: Greedily add edges in order of increasing weight
  *
@@ -77,7 +77,7 @@
  *
  * **Best for**: Sparse graphs (E ≈ V)
  *
-### Prim's Algorithm (1957)
+ * ### Prim's Algorithm (1957)
  *
  * **Strategy**: Grow MST from a starting vertex, always adding minimum edge
  *
@@ -105,7 +105,7 @@
  *
  * **Best for**: Dense graphs (E ≈ V²)
  *
-## Complexity Comparison
+ * ## Complexity Comparison
  *
  * | Algorithm | Time (Binary Heap) | Time (Fibonacci Heap) | Best For |
  * |-----------|-------------------|----------------------|----------|
@@ -115,44 +115,44 @@
  * **Note**: For sparse graphs, Kruskal is often faster. For dense graphs,
  * Prim with Fibonacci heap is better.
  *
-## When to Use Which?
+ * ## When to Use Which?
  *
-### Use Kruskal When:
+ * ### Use Kruskal When:
  * ✅ Graph is sparse (few edges)
  * ✅ Edges already sorted (or sorting is cheap)
  * ✅ Simple implementation preferred
  * ✅ Parallel processing needed (edges independent)
  *
-### Use Prim When:
+ * ### Use Prim When:
  * ✅ Graph is dense (many edges)
  * ✅ Have good priority queue implementation
  * ✅ Need to start from specific vertex
  * ✅ Graph represented as adjacency matrix
  *
-## Applications
+ * ## Applications
  *
-### Network Design
+ * ### Network Design
  * - **Telecommunications**: Minimum cost to connect all cities
  * - **Computer networks**: Minimum cost network topology
  * - **Power grids**: Minimum cost electrical grid
  * - **Transportation**: Minimum cost road/rail network
  *
-### Cluster Analysis
+ * ### Cluster Analysis
  * - **Data mining**: Group similar data points
  * - **Image segmentation**: Group similar pixels
  * - **Social networks**: Find communities
  *
-### Approximation Algorithms
+ * ### Approximation Algorithms
  * - **TSP approximation**: Christofides algorithm uses MST
  * - **Steiner tree**: MST provides approximation
  * - **Facility location**: Network design problems
  *
-### Other Applications
+ * ### Other Applications
  * - **Image processing**: Image segmentation
  * - **Pattern recognition**: Feature grouping
  * - **Circuit design**: Minimum wire routing
  *
-## Example: Network Design
+ * ## Example: Network Design
  *
  * **Problem**: Connect 5 cities with minimum cost
  * ```
@@ -166,15 +166,17 @@
  * - Result: A-B (10), B-C (8), C-D (6), D-E (7)
  * - Total cost: 31
  *
-## Usage
+ * ## Usage
  *
  * ```bash
- * # Run MST comparison
+ * # Run MST comparison demo
  * ./mst_example
  *
- * # Compare algorithms on specific graph
- * ./mst_example -n 100 -d 0.3  # Sparse graph (Kruskal better)
- * ./mst_example -n 100 -d 0.8  # Dense graph (Prim better)
+ * # Run performance benchmark on a random graph
+ * ./mst_example --benchmark --nodes 1000 --edges 5000
+ *
+ * # Benchmark with custom seed and verbose output
+ * ./mst_example --benchmark --nodes 2000 --edges 8000 --seed 123 --verbose
  * ```
  *
  * @see Kruskal.H Kruskal's algorithm implementation
@@ -280,6 +282,12 @@ NetworkGraph generate_random_graph(size_t num_nodes, size_t num_edges,
                                    unsigned seed)
 {
   NetworkGraph g;
+  if (num_nodes == 0)
+    return g;
+
+  if (num_edges < num_nodes - 1)
+    num_edges = num_nodes - 1;
+
   mt19937 rng(seed);
   uniform_real_distribution<double> weight_dist(1.0, 100.0);
   
@@ -287,6 +295,9 @@ NetworkGraph generate_random_graph(size_t num_nodes, size_t num_edges,
   vector<NetworkGraph::Node*> nodes;
   for (size_t i = 0; i < num_nodes; i++)
     nodes.push_back(g.insert_node("N" + to_string(i)));
+
+  if (num_nodes == 1)
+    return g;
   
   // First, create a spanning tree to ensure connectivity
   for (size_t i = 1; i < num_nodes; i++)

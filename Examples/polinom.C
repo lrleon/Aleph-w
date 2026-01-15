@@ -37,7 +37,7 @@
  *
  * ## What is a Polynomial?
  *
-### Mathematical Definition
+ * ### Mathematical Definition
  *
  * A polynomial is an expression of the form:
  * ```
@@ -49,9 +49,9 @@
  * - **Exponents**: Powers of x (0, 1, 2, ..., n)
  * - **Degree**: Highest exponent n
  *
-### Sparse vs Dense Representation
+ * ### Sparse vs Dense Representation
  *
-#### Dense Representation
+ * #### Dense Representation
  *
  * - **Storage**: Store coefficients for ALL powers (even zeros)
  * - **Array**: `coeff[i]` = coefficient of x^i
@@ -59,7 +59,7 @@
  * - **Best for**: Dense polynomials (few zeros)
  * - **Example**: `[5, 3, 0, 7, 0, 0, 2]` represents 5 + 3x + 7x³ + 2x⁶
  *
-#### Sparse Representation (This Example)
+ * #### Sparse Representation (This Example)
  *
  * - **Storage**: Store only non-zero terms
  * - **List**: List of (coefficient, exponent) pairs
@@ -67,7 +67,7 @@
  * - **Best for**: Sparse polynomials (many zeros)
  * - **Example**: `[(5,0), (3,1), (7,3), (2,6)]` represents same polynomial
  *
-### When to Use Sparse?
+ * ### When to Use Sparse?
  *
  * Use sparse when:
  * - **Many zeros**: Most coefficients are zero
@@ -75,24 +75,24 @@
  * - **Memory**: Memory is a concern
  * - **Efficiency**: Want faster operations on sparse data
  *
-## Polynomial Structure
+ * ## Polynomial Structure
  *
-### Term Representation
+ * ### Term Representation
  *
  * Each polynomial term (`Termino`) contains:
  * - **Coefficient**: The numeric multiplier (e.g., 5 in 5x³)
  * - **Exponent**: The power of x (e.g., 3 in 5x³)
  *
-### Storage Order
+ * ### Storage Order
  *
  * Terms are stored **sorted by exponent** (ascending) for efficient operations:
  * - **Merging**: Easy to merge sorted lists
  * - **Search**: Binary search possible
  * - **Traversal**: Natural order
  *
-## Supported Operations
+ * ## Supported Operations
  *
-### Addition (p1 + p2, p1 += p2)
+ * ### Addition (p1 + p2, p1 += p2)
  *
  * **Algorithm**: Merge two sorted lists
  * ```
@@ -115,7 +115,7 @@
  * **Time**: O(n + m) where n, m are term counts
  * **Space**: O(n + m) for result
  *
-### Multiplication (p1 * p2)
+ * ### Multiplication (p1 * p2)
  *
  * **Algorithm**: Distribute and combine
  * ```
@@ -132,7 +132,7 @@
  * **Time**: O(n × m) for multiplication, O(n×m log(n×m)) with sorting
  * **Space**: O(n × m) worst case
  *
-### Subtraction (p1 - p2)
+ * ### Subtraction (p1 - p2)
  *
  * **Algorithm**: Negate and add
  * ```
@@ -143,23 +143,23 @@
  *
  * **Time**: O(n + m) - same as addition
  *
-## Example Polynomials
+ * ## Example Polynomials
  *
-### Polynomial p1
+ * ### Polynomial p1
  *
  * **Pattern**: Odd powers from 1 to 19
  * **Terms**: X^1 + X^3 + X^5 + ... + X^19
  * **Count**: 10 terms
  * **Sparsity**: Very sparse (only odd powers)
  *
-### Polynomial p2
+ * ### Polynomial p2
  *
  * **Pattern**: All powers from 0 to 39
  * **Terms**: X^0 + X^1 + X^2 + ... + X^39
  * **Count**: 40 terms
  * **Sparsity**: Dense (all powers present)
  *
-### Operations Demonstrated
+ * ### Operations Demonstrated
  *
  * - **p1 += p2**: In-place addition (combines both polynomials)
  *   - Result: All powers from 0 to 39, with doubled coefficients for odd powers
@@ -167,7 +167,7 @@
  * - **p1 * p2**: Multiplication (creates new polynomial)
  *   - Result: Product polynomial with many terms
  *
-## Complexity Analysis
+ * ## Complexity Analysis
  *
  * | Operation | Dense | Sparse (this) | Improvement |
  * |-----------|-------|---------------|-------------|
@@ -176,7 +176,7 @@
  * | Multiplication | O(degree²) | O(terms₁ × terms₂) | **Better** for sparse |
  * | Evaluation | O(degree) | O(terms) | **Better** for sparse |
  *
-### Example: High-Degree Sparse Polynomial
+ * ### Example: High-Degree Sparse Polynomial
  *
  * ```
  * Polynomial: x^1000 + x^5000 + x^10000
@@ -187,41 +187,41 @@
  * Sparse is 3333× more efficient!
  * ```
  *
-## Applications
+ * ## Applications
  *
-### Symbolic Computation
+ * ### Symbolic Computation
  * - **Computer algebra systems**: Mathematica, Maple, SymPy
  * - **Polynomial manipulation**: Factor, expand, simplify
  * - **Equation solving**: Find roots, solve systems
  *
-### Numerical Analysis
+ * ### Numerical Analysis
  * - **Polynomial interpolation**: Fit curves to data points
  * - **Approximation**: Approximate functions with polynomials
  * - **Taylor series**: Represent functions as polynomials
  *
-### Cryptography
+ * ### Cryptography
  * - **Polynomial-based encryption**: Some encryption schemes use polynomials
  * - **Error-correcting codes**: Reed-Solomon codes use polynomials
  * - **Cryptographic protocols**: Polynomial commitments
  *
-### Signal Processing
+ * ### Signal Processing
  * - **Digital filters**: FIR/IIR filters use polynomial operations
  * - **Transforms**: Polynomial-based transforms
  * - **Convolution**: Polynomial multiplication = convolution
  *
-### Graphics
+ * ### Graphics
  * - **Bézier curves**: Represented as polynomials
  * - **Splines**: Piecewise polynomial curves
  * - **Surface modeling**: Polynomial surfaces
  *
-### Scientific Computing
+ * ### Scientific Computing
  * - **Series expansions**: Represent functions as series
  * - **Taylor polynomials**: Approximate functions
  * - **Numerical methods**: Many methods use polynomials
  *
-## Memory Efficiency
+ * ## Memory Efficiency
  *
-### Example Comparison
+ * ### Example Comparison
  *
  * ```
  * Polynomial: x^100 + 5x^50 + 3x^10
@@ -237,7 +237,7 @@
  * Sparse saves 94% memory!
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run polynomial arithmetic demo
@@ -250,11 +250,6 @@
  * # - Memory efficiency
  * ```
  *
- * @see tpl_dynDlist.H Doubly linked list (used for storage)
- * @see matrix_example.C Sparse matrices (related sparse representation)
- * @author Leandro Rabindranath León
- * @ingroup Examples
- */
  * For sparse polynomials, this representation is much more efficient!
  *
  * ## Key Data Structures
@@ -263,7 +258,8 @@
  * - `Termino`: Structure with coefficient and exponent
  * - Terms maintained in sorted order (by exponent)
  *
- * @see tpl_dynDlist.H Doubly-linked list implementation
+ * @see tpl_dynDlist.H Doubly linked list (used for storage)
+ * @see matrix_example.C Sparse matrices (related sparse representation)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -436,10 +432,11 @@ int main()
       p2 += p;
     }
 
+  Polinomio p3(p1*p2);
+
   printf("\np1 =\n\t"); p1.print();
   printf("\np2 =\n\t"); p2.print();
   p1 += p2;
   printf("\np1 += p2:\n\t"); p1.print();
-  Polinomio p3(p1*p2);
   printf("\np1*p2 =\n\t"); p3.print();
 }

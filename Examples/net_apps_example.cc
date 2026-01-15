@@ -35,13 +35,13 @@
  *
  * ## The Power of Reductions
  *
-### What is a Reduction?
+ * ### What is a Reduction?
  *
  * A **reduction** transforms problem A into problem B such that:
  * - Solution to B gives solution to A
  * - If B is polynomial-time, then A is also polynomial-time
  *
-### Why Network Flow?
+ * ### Why Network Flow?
  *
  * Network flow is powerful because:
  * - **Many problems reduce to it**: Diverse applications
@@ -49,7 +49,7 @@
  * - **Min-cut duality**: Max-flow = Min-cut (powerful tool)
  * - **Well-studied**: Many efficient algorithms available
  *
-### Reduction Strategy
+ * ### Reduction Strategy
  *
  * To reduce problem P to max-flow:
  * 1. Model problem as network
@@ -58,18 +58,18 @@
  * 4. Solve max-flow
  * 5. Extract solution from flow
  *
-## Applications Demonstrated
+ * ## Applications Demonstrated
  *
-### 1. Project Selection (Max Closure Problem)
+ * ### 1. Project Selection (Max Closure Problem)
  *
-#### Problem Statement
+ * #### Problem Statement
  *
  * Choose projects to maximize profit while respecting dependencies:
  * - If project A requires project B, both must be chosen
  * - Some projects have profit, others have cost
  * - Goal: Maximize net profit
  *
-#### Reduction to Min-Cut
+ * #### Reduction to Min-Cut
  *
  * **Network construction**:
  * ```
@@ -81,21 +81,21 @@
  * **Key insight**: Min-cut separates profitable projects from costly ones.
  * Projects on source side are selected.
  *
-#### Applications
+ * #### Applications
  * - **Portfolio optimization**: Choose investments with dependencies
  * - **Feature selection**: Choose features respecting constraints
  * - **Resource planning**: Select projects optimally
  *
-### 2. Image Segmentation (Graph Cuts)
+ * ### 2. Image Segmentation (Graph Cuts)
  *
-#### Problem Statement
+ * #### Problem Statement
  *
  * Label each pixel as foreground or background optimally:
  * - Pixels similar to foreground should be foreground
  * - Pixels similar to background should be background
  * - Neighboring pixels should have same label (smoothness)
  *
-#### Reduction to Min-Cut
+ * #### Reduction to Min-Cut
  *
  * **Network construction**:
  * ```
@@ -109,21 +109,21 @@
  * - Cut pixel-sink edge: pixel is foreground
  * - Cut pixel-pixel edge: neighbors have different labels
  *
-#### Applications
+ * #### Applications
  * - **Computer vision**: Object segmentation
  * - **Medical imaging**: Organ segmentation
  * - **Photo editing**: Background removal
  *
-### 3. Baseball Elimination
+ * ### 3. Baseball Elimination
  *
-#### Problem Statement
+ * #### Problem Statement
  *
  * Determine which teams can still win the league given:
  * - Current standings (wins per team)
  * - Remaining games (who plays whom)
  * - Can a specific team still win?
  *
-#### Reduction to Max-Flow
+ * #### Reduction to Max-Flow
  *
  * **Network construction**:
  * ```
@@ -135,21 +135,21 @@
  * **Key insight**: If max-flow saturates all game edges, team can win
  * by distributing wins appropriately.
  *
-#### Applications
+ * #### Applications
  * - **Sports analytics**: Tournament analysis
  * - **Tournament scheduling**: Determine possible outcomes
  * - **Game theory**: Analyze competition scenarios
  *
-### 4. Survey Design
+ * ### 4. Survey Design
  *
-#### Problem Statement
+ * #### Problem Statement
  *
  * Assign respondents to questions ensuring:
  * - Coverage: Each question answered by required number of people
  * - Constraints: Each person answers exactly k questions
  * - Feasibility: Is such assignment possible?
  *
-#### Reduction to Max-Flow
+ * #### Reduction to Max-Flow
  *
  * **Network construction**:
  * ```
@@ -161,30 +161,30 @@
  * **Key insight**: Max-flow = total assignments. If it equals
  * required coverage, assignment is possible.
  *
-#### Applications
+ * #### Applications
  * - **Market research**: Design surveys efficiently
  * - **Experimental design**: Assign treatments to subjects
  * - **Resource allocation**: Match resources to tasks
  *
-## General Reduction Pattern
+ * ## General Reduction Pattern
  *
-### Max-Flow Reductions
+ * ### Max-Flow Reductions
  *
  * Problems reducible to max-flow often involve:
  * - **Matching**: Assigning items to slots
  * - **Coverage**: Ensuring requirements met
  * - **Flow constraints**: Capacity-like limitations
  *
-### Min-Cut Reductions
+ * ### Min-Cut Reductions
  *
  * Problems reducible to min-cut often involve:
  * - **Partitioning**: Dividing into two groups
  * - **Selection**: Choosing subset optimally
  * - **Labeling**: Assigning binary labels
  *
-## Complexity
+ * ## Complexity
  *
-### Polynomial-Time Solutions
+ * ### Polynomial-Time Solutions
  *
  * Since max-flow can be solved in polynomial time:
  * - **Edmonds-Karp**: O(VE²)
@@ -193,7 +193,7 @@
  *
  * Any problem reducible to max-flow is also polynomial-time!
  *
-### Comparison with Alternatives
+ * ### Comparison with Alternatives
  *
  * | Problem | Direct Approach | Max-Flow Reduction |
  * |---------|----------------|-------------------|
@@ -202,7 +202,7 @@
  * | Baseball Elimination | Complex logic | O(VE²) |
  * | Survey Design | Constraint solving | O(VE²) |
  *
-## Key Insight
+ * ## Key Insight
  *
  * Many optimization problems can be reduced to max-flow or min-cut,
  * allowing efficient polynomial-time solutions. The art is recognizing
@@ -214,7 +214,7 @@
  * - Matching/assignment problems
  * - Partitioning problems
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all application demos
@@ -224,6 +224,10 @@
  * ./net_apps_example --project-selection
  * ./net_apps_example --image-segmentation
  * ./net_apps_example --baseball-elimination
+ * ./net_apps_example --survey-design
+ *
+ * # Show help
+ * ./net_apps_example --help
  * ```
  *
  * @see net_apps.H Application-specific reductions and utilities
@@ -239,10 +243,19 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cstring>
 #include <net_apps.H>
 
 using namespace std;
 using namespace Aleph;
+
+static bool has_flag(int argc, char* argv[], const char* flag)
+{
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], flag) == 0)
+      return true;
+  return false;
+}
 
 /**
  * @brief Demo 1: Project Selection Problem
@@ -548,15 +561,36 @@ void demo_survey_design()
   }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
   cout << "=== Network Flow Applications ===" << endl;
   cout << "Real-world problems solved with max-flow/min-cut\n" << endl;
-  
-  demo_project_selection();
-  demo_image_segmentation();
-  demo_baseball_elimination();
-  demo_survey_design();
+
+  if (has_flag(argc, argv, "--help"))
+    {
+      cout << "Usage: " << argv[0] << " [--project-selection] [--image-segmentation] "
+              "[--baseball-elimination] [--survey-design] [--help]\n";
+      cout << "\nIf no flags are given, all demos are executed.\n";
+      return 0;
+    }
+
+  const bool any_specific =
+    has_flag(argc, argv, "--project-selection") ||
+    has_flag(argc, argv, "--image-segmentation") ||
+    has_flag(argc, argv, "--baseball-elimination") ||
+    has_flag(argc, argv, "--survey-design");
+
+  if (!any_specific || has_flag(argc, argv, "--project-selection"))
+    demo_project_selection();
+
+  if (!any_specific || has_flag(argc, argv, "--image-segmentation"))
+    demo_image_segmentation();
+
+  if (!any_specific || has_flag(argc, argv, "--baseball-elimination"))
+    demo_baseball_elimination();
+
+  if (!any_specific || has_flag(argc, argv, "--survey-design"))
+    demo_survey_design();
   
   // Summary
   cout << "\n" << string(60, '=') << endl;

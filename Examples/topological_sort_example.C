@@ -44,7 +44,7 @@
  * - If graph has cycles, topological sort is **impossible**
  * - Multiple valid orderings may exist (not unique)
  *
-### Example
+ * ### Example
  *
  * Graph: A → B → D, A → C → D
  *
@@ -54,9 +54,9 @@
  *
  * Invalid: D, A, B, C (violates A → D dependency)
  *
-## Algorithms
+ * ## Algorithms
  *
-### DFS-based (Topological_Sort)
+ * ### DFS-based (Topological_Sort)
  *
  * **Strategy**: Post-order DFS traversal
  *
@@ -82,7 +82,7 @@
  * **Time complexity**: O(V + E)
  * **Space complexity**: O(V) for recursion stack
  *
-### BFS-based / Kahn's Algorithm (Q_Topological_Sort)
+ * ### BFS-based / Kahn's Algorithm (Q_Topological_Sort)
  *
  * **Strategy**: Iteratively remove sources (vertices with no incoming edges)
  *
@@ -107,7 +107,7 @@
  * **Time complexity**: O(V + E)
  * **Space complexity**: O(V) for queue
  *
-## Comparison
+ * ## Comparison
  *
  * | Aspect | DFS-based | Kahn's (BFS) |
  * |--------|-----------|--------------|
@@ -117,37 +117,37 @@
  * | Implementation | Recursive | Iterative |
  * | Best for | General use | When cycle detection needed |
  *
-## Real-World Applications
+ * ## Real-World Applications
  *
-### Build Systems
+ * ### Build Systems
  * - **Make, CMake**: Compile source files in dependency order
  * - **Gradle, Maven**: Build projects respecting module dependencies
  * - **Docker**: Build images in dependency order
  *
-### Package Management
+ * ### Package Management
  * - **apt, yum**: Install packages respecting dependencies
  * - **npm, pip**: Install packages in correct order
  * - **Linux kernel**: Module loading order
  *
-### Task Scheduling
+ * ### Task Scheduling
  * - **Project management**: Schedule tasks respecting dependencies
  * - **Workflow engines**: Execute steps in valid order
  * - **CI/CD pipelines**: Run jobs in dependency order
  *
-### Course Prerequisites
+ * ### Course Prerequisites
  * - **University**: Order courses by prerequisites
  * - **Online learning**: Course completion paths
  * - **Certification**: Prerequisite ordering
  *
-### Spreadsheets
+ * ### Spreadsheets
  * - **Excel, Google Sheets**: Evaluate cells in dependency order
  * - **Formula evaluation**: Compute dependent cells first
  *
-### Compilers
+ * ### Compilers
  * - **Dependency analysis**: Process declarations before uses
  * - **Module loading**: Load modules in dependency order
  *
-## Cycle Detection
+ * ## Cycle Detection
  *
  * **Important**: Topological sort only works on DAGs!
  *
@@ -159,21 +159,25 @@
  * - Use Kahn's algorithm: If result.size() < V, cycle exists
  * - Or use DFS cycle detection before topological sort
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Time | Space |
  * |-----------|------|-------|
  * | Topological sort | O(V + E) | O(V) |
  * | Cycle detection | O(V + E) | O(V) |
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
- * # Run topological sort demo
+ * # Run all demos (default if no demo flags are given)
  * ./topological_sort_example
  *
- * # Test on specific graph
- * ./topological_sort_example -n 10 -d 0.3
+ * # Run specific demo
+ * ./topological_sort_example --build
+ * ./topological_sort_example --courses
+ *
+ * # Verbose output
+ * ./topological_sort_example --verbose
  * ```
  *
  * @see topological_sort.H Topological sort implementations

@@ -1,37 +1,45 @@
-/* Aleph-w Parallel Functional Programming - Usage Examples
- * =========================================================
+/**
+ * @file ah_parallel_example.cc
+ * @brief Parallel functional programming utilities (ah-parallel.H) usage examples
  *
  * This file demonstrates the parallel functional programming utilities
- * from ah-parallel.H. These functions provide ML-style operations 
+ * from ah-parallel.H. These functions provide ML-style operations
  * (map, filter, fold, etc.) that run in parallel using a ThreadPool.
  *
- * TABLE OF CONTENTS
- * -----------------
- * Example 1: Parallel Map (pmaps)      - Transform elements in parallel
- * Example 2: Parallel Filter (pfilter) - Select elements in parallel  
- * Example 3: Parallel Fold (pfoldl)    - Reduce with parallel chunks
- * Example 4: Parallel Predicates       - pall, pexists, pnone, pcount_if
- * Example 5: Parallel Find             - pfind, pfind_value
- * Example 6: Parallel Aggregations     - psum, pproduct, pmin, pmax
- * Example 7: Parallel Sort             - psort with parallel merge
- * Example 8: Parallel Zip (2 containers) - pzip_for_each, pzip_maps
- * Example 9: Variadic Zip (N containers) - pzip_maps_n, pzip_all_n
- * Example 10: Parallel Enumerate       - penumerate_for_each, penumerate_maps
- * Example 11: Performance Comparison   - Parallel vs Sequential
+ * ## Table of Contents
  *
- * KEY DIFFERENCES FROM SEQUENTIAL VERSIONS
- * ----------------------------------------
+ * - Example 1: Parallel Map (pmaps)      - Transform elements in parallel
+ * - Example 2: Parallel Filter (pfilter) - Select elements in parallel
+ * - Example 3: Parallel Fold (pfoldl)    - Reduce with parallel chunks
+ * - Example 4: Parallel Predicates       - pall, pexists, pnone, pcount_if
+ * - Example 5: Parallel Find             - pfind, pfind_value
+ * - Example 6: Parallel Aggregations     - psum, pproduct, pmin, pmax
+ * - Example 7: Parallel Sort             - psort with parallel merge
+ * - Example 8: Parallel Zip (2 containers) - pzip_for_each, pzip_maps
+ * - Example 9: Variadic Zip (N containers) - pzip_maps_n, pzip_all_n
+ * - Example 10: Parallel Enumerate       - penumerate_for_each, penumerate_maps
+ * - Example 11: Performance Comparison   - Parallel vs Sequential
+ *
+ * ## Key Differences from Sequential Versions
+ *
  * - All functions take a ThreadPool& as the first argument
  * - Operations are chunked and distributed across worker threads
- * - For fold operations, the binary operator must be ASSOCIATIVE
+ * - For fold operations, the binary operator must be associative
  * - Short-circuit predicates (pall, pexists, pfind) stop early
  *
- * COMPILATION
- * -----------
- *   g++ -std=c++20 -O2 -pthread -I.. ah_parallel_example.cc -o ah_parallel_example
+ * ## Compilation
+ *
+ * ```bash
+ * g++ -std=c++20 -O2 -pthread -I.. ah_parallel_example.cc -o ah_parallel_example
+ * ```
  *
  * Or using CMake:
- *   cmake --build . --target ah_parallel_example
+ * ```bash
+ * cmake --build . --target ah_parallel_example
+ * ```
+ *
+ * @see ah-parallel.H Parallel functional utilities
+ * @ingroup Examples
  */
 
 #include <ah-parallel.H>

@@ -8,14 +8,14 @@
  *
  * ## What is a Bipartite Graph?
  *
-### Definition
+ * ### Definition
  *
  * A graph G = (V, E) is **bipartite** if V can be partitioned into
  * two sets U and W such that:
  * - Every edge connects a vertex in U to a vertex in W
  * - No edge connects two vertices in the same set
  *
-### Visual Example
+ * ### Visual Example
  *
  * ```
  * Set U:    A --- B
@@ -25,9 +25,9 @@
  * Edges: A-C, A-D, B-C, B-D (all cross between sets)
  * ```
  *
-## Key Properties
+ * ## Key Properties
  *
-### 2-Coloring
+ * ### 2-Coloring
  *
  * **Bipartite ⟺ 2-colorable**
  *
@@ -36,7 +36,7 @@
  *
  * **Algorithm**: Use BFS/DFS to assign colors, check for conflicts
  *
-### No Odd Cycles
+ * ### No Odd Cycles
  *
  * **Bipartite ⟺ No cycles of odd length**
  *
@@ -45,16 +45,16 @@
  * **Proof idea**: In a bipartite graph, any cycle must alternate between
  * the two sets, requiring even length.
  *
-### Matching
+ * ### Matching
  *
  * A **matching** is a set of edges with no shared vertices.
  *
  * - **Maximum matching**: Largest possible matching
  * - **Perfect matching**: Every vertex is matched (requires |U| = |W|)
  *
-## Testing Bipartiteness
+ * ## Testing Bipartiteness
  *
-### Algorithm
+ * ### Algorithm
  *
  * ```
  * Test_Bipartite(G):
@@ -75,13 +75,13 @@
  *
  * **Time complexity**: O(V + E) - single BFS/DFS pass
  *
-## Maximum Matching
+ * ## Maximum Matching
  *
-### Problem
+ * ### Problem
  *
  * Find the largest set of edges such that no two edges share a vertex.
  *
-### Algorithm: Augmenting Paths
+ * ### Algorithm: Augmenting Paths
  *
  * Uses the concept of **augmenting paths**:
  * 1. Start with empty matching
@@ -92,14 +92,14 @@
  *
  * **Time complexity**: O(V × E) using BFS
  *
-### Applications of Matching
+ * ### Applications of Matching
  *
  * - **Job assignment**: Match workers to tasks
  * - **Dating apps**: Match users based on preferences
  * - **Course scheduling**: Match students to courses
  * - **Resource allocation**: Match resources to tasks
  *
-## Complexity
+ * ## Complexity
  *
  * | Operation | Time Complexity | Notes |
  * |-----------|----------------|-------|
@@ -108,34 +108,34 @@
  * | Maximum matching | O(V × E) | Augmenting paths |
  * | Perfect matching check | O(V × E) | Same as max matching |
  *
-## Applications
+ * ## Applications
  *
-### Job Assignment
+ * ### Job Assignment
  * - **Workers ↔ Tasks**: Match workers to tasks they can do
  * - **Skills matching**: Match based on required skills
  * - **Scheduling**: Assign shifts to workers
  *
-### Course Scheduling
+ * ### Course Scheduling
  * - **Students ↔ Courses**: Match students to courses
  * - **Prerequisites**: Respect course prerequisites
  * - **Capacity**: Match within course capacity limits
  *
-### Dating/Matching Services
+ * ### Dating/Matching Services
  * - **Users ↔ Users**: Match compatible users
  * - **Preferences**: Match based on preferences
  * - **Stable matching**: Find stable matchings
  *
-### Resource Allocation
+ * ### Resource Allocation
  * - **Resources ↔ Tasks**: Allocate resources to tasks
  * - **Optimization**: Maximize resource utilization
  * - **Constraints**: Respect capacity constraints
  *
-### Network Flow
+ * ### Network Flow
  * - **Reduction**: Many problems reduce to max-flow
  * - **Bipartite matching**: Special case of max-flow
  * - **Min-cost matching**: Weighted matching problems
  *
-## Example: Job Assignment
+ * ## Example: Job Assignment
  *
  * ```
  * Workers:  Alice, Bob, Charlie
@@ -157,7 +157,7 @@
  *   Charlie → Task1
  * ```
  *
-## Comparison with General Graphs
+ * ## Comparison with General Graphs
  *
  * | Property | Bipartite | General |
  * |-----------|-----------|---------|
@@ -166,15 +166,18 @@
  * | Matching | Polynomial | NP-hard (general) |
  * | Structure | Two sets | Arbitrary |
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all bipartite demonstrations
  * ./bipartite_example
  *
  * # Run specific demo
- * ./bipartite_example -s match      # Matching demo
- * ./bipartite_example -s test       # Bipartite testing
+ * ./bipartite_example -s def      # Definition and examples
+ * ./bipartite_example -s test     # Bipartite testing
+ * ./bipartite_example -s match    # Maximum matching demo
+ * ./bipartite_example -s dating   # Dating / pairing example
+ * ./bipartite_example -s hall     # Hall's theorem
  * ```
  *
  * @see tpl_bipartite.H Bipartite graph algorithms

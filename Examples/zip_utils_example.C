@@ -18,16 +18,16 @@
  *
  * **Key insight**: Process related data from multiple sources together.
  *
-## Key Feature: Container Interoperability
+ * ## Key Feature: Container Interoperability
  *
-### The Problem
+ * ### The Problem
  *
  * Different zip libraries support different containers:
  * - **`ah-zip.H`**: Aleph containers only
  * - **STL**: No built-in zip (C++20 ranges add it)
  * - **Different APIs**: Hard to mix containers
  *
-### The Solution
+ * ### The Solution
  *
  * `ah-zip-utils.H` provides **unified zip** that:
  * - Works with **any** container type (STL or Aleph)
@@ -35,7 +35,7 @@
  * - **Mixes containers** in same operation
  * - Uses **same API** for all
  *
-### Example: Mixing Containers
+ * ### Example: Mixing Containers
  *
  * ```cpp
  * std::vector<string> names = {"Alice", "Bob", "Charlie"};
@@ -47,33 +47,33 @@
  * // Result: [("Alice", 25), ("Bob", 30), ("Charlie", 35)]
  * ```
  *
-## Functions Demonstrated
+ * ## Functions Demonstrated
  *
-### Basic Operations
+ * ### Basic Operations
  * - **`uni_zip()`**: Create list of tuples from any containers
  * - **`uni_zip_it()`**: Get unified iterator for zipped containers
  *
-### Predicates
+ * ### Predicates
  * - **`uni_zip_all()`**: All tuples satisfy predicate?
  * - **`uni_zip_exists()`**: At least one tuple satisfies?
  * - **`uni_zip_none()`**: No tuple satisfies?
  *
-### Transformations
+ * ### Transformations
  * - **`uni_zip_map()`**: Transform tuples (apply function to each tuple)
  * - **`uni_zip_filter()`**: Keep tuples satisfying predicate
  * - **`uni_zip_mapi()`**: Transform with index
  * - **`uni_zip_filteri()`**: Filter with index
  *
-### Utilities
+ * ### Utilities
  * - **`uni_zip_take(n)`**: Take first n tuples
  * - **`uni_zip_drop(n)`**: Skip first n tuples
  * - **`uni_zip_min()`**: Find minimum tuple (by first element)
  * - **`uni_zip_max()`**: Find maximum tuple
  * - **`uni_unzip()`**: Split tuples back into separate containers
  *
-## Use Cases
+ * ## Use Cases
  *
-### Data Processing
+ * ### Data Processing
  * ```cpp
  * // Process names and scores together
  * auto results = uni_zip_map(names, scores,
@@ -82,7 +82,7 @@
  *   });
  * ```
  *
-### Parallel Processing
+ * ### Parallel Processing
  * ```cpp
  * // Process multiple related datasets
  * uni_zip_for_each(prices, quantities, costs,
@@ -91,7 +91,7 @@
  *   });
  * ```
  *
-### Data Validation
+ * ### Data Validation
  * ```cpp
  * // Check if all pairs are valid
  * if (uni_zip_all(names, emails, is_valid_pair)) {
@@ -99,7 +99,7 @@
  * }
  * ```
  *
-## Comparison with Alternatives
+ * ## Comparison with Alternatives
  *
  * | Feature | ah-zip.H | STL (C++20) | ah-zip-utils.H |
  * |---------|----------|-------------|----------------|
@@ -108,21 +108,26 @@
  * | Mix containers | ❌ No | ❌ No | ✅ Yes |
  * | Unified API | ❌ No | ❌ No | ✅ Yes |
  *
-## Performance Considerations
+ * ## Performance Considerations
  *
  * - **Type detection**: Minimal overhead (compile-time)
  * - **Iterator abstraction**: Small overhead for unified interface
  * - **Efficiency**: Operations are as efficient as underlying containers
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all demonstrations
  * ./zip_utils_example
  *
  * # Run specific demo
- * ./zip_utils_example -s mixed      # Mixed container demo
- * ./zip_utils_example -s transform  # Transformation demo
+ * ./zip_utils_example -s mixed       # Mixed container demo
+ * ./zip_utils_example -s predicates  # Predicates on zipped data
+ * ./zip_utils_example -s transform   # Transformation demo
+ * ./zip_utils_example -s utilities   # Utility helpers
+ * ./zip_utils_example -s advanced    # Advanced usage
+ * ./zip_utils_example -s conversion  # Conversions and interop
+ * ./zip_utils_example -s practical   # Practical examples
  * ```
  *
  * @see ah-zip-utils.H Unified zip utilities

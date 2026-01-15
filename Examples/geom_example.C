@@ -127,6 +127,7 @@
 #include <iomanip>
 #include <cmath>
 #include <chrono>
+#include <cstring>
 
 #include <geom_algorithms.H>
 #include <tpl_dynArray.H>
@@ -651,20 +652,69 @@ void demo_coverage_area()
 // Main
 // ============================================================================
 
-int main()
+static void usage(const char* prog)
 {
+  cout << "Usage: " << prog << " [-s <triangulation|convexhull|all>] [--help]\n";
+  cout << "\nIf no selector is given, all demos are executed.\n";
+}
+
+int main(int argc, char* argv[])
+{
+  string section = "all";
+  for (int i = 1; i < argc; ++i)
+    {
+      const string arg = argv[i];
+      if (arg == "--help" || arg == "-h")
+        {
+          usage(argv[0]);
+          return 0;
+        }
+      if (arg == "-s")
+        {
+          if (i + 1 >= argc)
+            {
+              usage(argv[0]);
+              return 1;
+            }
+          section = argv[++i];
+          continue;
+        }
+
+      cout << "Unknown argument: " << arg << "\n";
+      usage(argv[0]);
+      return 1;
+    }
+
   cout << "\n";
   cout << "========================================================================" << endl;
   cout << "        ALEPH-W COMPUTATIONAL GEOMETRY EXAMPLE" << endl;
   cout << "        Triangulation and Convex Hull Algorithms" << endl;
   cout << "========================================================================" << endl;
-  
-  demo_triangulation_basic();
-  demo_triangulation_complex();
-  demo_convex_hull_cities();
-  demo_convex_hull_performance();
-  demo_geometric_primitives();
-  demo_coverage_area();
+
+  if (section == "all" || section == "triangulation")
+    {
+      demo_triangulation_basic();
+      demo_triangulation_complex();
+    }
+
+  if (section == "all" || section == "convexhull")
+    {
+      demo_convex_hull_cities();
+      demo_convex_hull_performance();
+    }
+
+  if (section == "all")
+    {
+      demo_geometric_primitives();
+      demo_coverage_area();
+    }
+
+  if (!(section == "all" || section == "triangulation" || section == "convexhull"))
+    {
+      cout << "Unknown section: " << section << "\n";
+      usage(argv[0]);
+      return 1;
+    }
   
   cout << "\n";
   cout << "========================================================================" << endl;

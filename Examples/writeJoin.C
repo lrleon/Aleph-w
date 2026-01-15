@@ -37,14 +37,14 @@
  *
  * ## What is Tree Join?
  *
-### Definition
+ * ### Definition
  *
  * The join operation combines two BSTs T₁ and T₂ where:
  * - **Precondition**: All keys in T₁ < all keys in T₂ (disjoint key ranges)
  * - **Result**: Single BST containing all keys from both trees
  * - **Property**: BST property maintained in result
  *
-### Visual Example
+ * ### Visual Example
  *
  * ```
  * T₁:        T₂:           Join(T₁, T₂):
@@ -57,9 +57,9 @@
  *                                 7   9
  * ```
  *
-## Algorithm
+ * ## Algorithm
  *
-### Basic Join Algorithm
+ * ### Basic Join Algorithm
  *
  * The join operation works by:
  * ```
@@ -69,7 +69,7 @@
  *   3. Return T₁ (now containing all nodes)
  * ```
  *
-### Detailed Steps
+ * ### Detailed Steps
  *
  * 1. **Find rightmost node**: Traverse right child pointers in T₁
  *    - This is the largest key in T₁
@@ -82,7 +82,7 @@
  *    - May need rotations to maintain balance
  *    - Time: O(h₁ + h₂)
  *
-### Complexity
+ * ### Complexity
  *
  * | Tree Type | Complexity | Notes |
  * |-----------|-----------|-------|
@@ -90,58 +90,58 @@
  * | Unbalanced | O(n) | Worst case height is O(n) |
  * | With rank info | O(log n) | Can use rank for efficiency |
  *
-## Applications
+ * ## Applications
  *
-### Tree Merging
+ * ### Tree Merging
  * - **Combine datasets**: Merge two sorted datasets efficiently
  * - **Set operations**: Implement set union
  * - **Database**: Merge index structures
  *
-### Functional Programming
+ * ### Functional Programming
  * - **Immutable operations**: Create new tree without modifying originals
  * - **Persistent data structures**: Maintain history
  * - **Tree manipulation**: Building block for other operations
  *
-### Algorithm Building Blocks
+ * ### Algorithm Building Blocks
  * - **Split-join paradigm**: Used with split for tree manipulation
  * - **Range operations**: Extract and rejoin ranges
  * - **Tree operations**: Implement complex tree algorithms
  *
-### Database Operations
+ * ### Database Operations
  * - **Index merging**: Merge database indexes
  * - **Query optimization**: Combine query results
  * - **Bulk operations**: Efficient bulk updates
  *
-## Key Properties
+ * ## Key Properties
  *
-### BST Property Preservation
+ * ### BST Property Preservation
  *
  * - **Result is valid BST**: All left children < parent < right children
  * - **Inorder traversal**: Gives sorted sequence of all keys
  * - **Search property**: Binary search still works
  *
-### Efficiency
+ * ### Efficiency
  *
  * - **Fast**: O(log n) for balanced trees
  * - **In-place**: Can modify trees in-place (or create new)
  * - **No copying**: Doesn't copy node data
  *
-### Building Block
+ * ### Building Block
  *
  * Join is used in:
  * - **Split-join**: Inverse of split operation
  * - **Merge operations**: Combining trees
  * - **Range queries**: Extracting and rejoining ranges
  *
-## Complementary Operations
+ * ## Complementary Operations
  *
-### Split and Join
+ * ### Split and Join
  *
  * - **Split**: Divides tree into two parts (see `writeSplit.C`)
  * - **Join**: Combines two trees into one
  * - **Together**: Enable powerful tree manipulation
  *
-### Example: Range Extraction
+ * ### Example: Range Extraction
  *
  * ```
  * // Extract range [a, b]
@@ -150,7 +150,7 @@
  * final = join(result, right)
  * ```
  *
-## Output Files
+ * ## Output Files
  *
  * - **`join-1-aux.Tree`**: First BST before join (preorder)
  *   - Contains smaller keys
@@ -166,7 +166,7 @@
  *
  * All files can be visualized with `btreepic` to see the transformation.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Join two trees with 10 nodes each
@@ -179,19 +179,19 @@
  * writeJoin -n 50
  * ```
  *
-## Algorithm Variants
+ * ## Algorithm Variants
  *
-### Simple Join
+ * ### Simple Join
  * - **Basic version**: Just attach T₂ to rightmost of T₁
  * - **Fast**: O(h₁) time
  * - **May unbalance**: Doesn't maintain balance
  *
-### Balanced Join
+ * ### Balanced Join
  * - **Maintains balance**: Performs rotations if needed
  * - **Slower**: O(h₁ + h₂) time
  * - **Better structure**: Maintains tree balance
  *
-### Rank-Based Join
+ * ### Rank-Based Join
  * - **Uses rank info**: If nodes have subtree counts
  * - **Efficient**: Can optimize with rank information
  * - **Complex**: More complex implementation
@@ -279,12 +279,12 @@ int main(int argc, char* argv[])
           return 1;
         }
 
-      // Build first tree with n/2 elements
+      // Build first tree with n elements
       int value;
       Node* root1 = Node::NullPtr;
 
-      cout << "Building first tree with " << n/2 << " elements..." << endl;
-      for (int i = 0; i < n/2; i++)
+      cout << "Building first tree with " << n << " elements..." << endl;
+      for (int i = 0; i < n; i++)
         {
           while (true)
             {
@@ -303,11 +303,11 @@ int main(int argc, char* argv[])
       cout << "  Nodes: " << n1 
            << ", Height: " << computeHeightRec(root1) << endl;
 
-      // Build second tree with n/2 elements (non-overlapping keys)
+      // Build second tree with n elements (non-overlapping keys)
       Node* root2 = Node::NullPtr;
 
-      cout << "Building second tree with " << n/2 << " elements..." << endl;
-      for (int i = 0; i < n/2; i++)
+      cout << "Building second tree with " << n << " elements..." << endl;
+      for (int i = 0; i < n; i++)
         {
           while (true)
             {

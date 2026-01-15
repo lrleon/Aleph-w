@@ -37,7 +37,7 @@
  *
  * ## What is Tree Split?
  *
-### Definition
+ * ### Definition
  *
  * The split operation divides a BST at position k, creating:
  * - **Left tree**: Contains elements at positions 0 to k-1 (k smallest elements)
@@ -48,7 +48,7 @@
  * - All keys in left tree < all keys in right tree
  * - Original tree is divided at position k
  *
-### Visual Example
+ * ### Visual Example
  *
  * ```
  * Original tree (n=7):      Split at position 3:
@@ -60,30 +60,30 @@
  *                                          7
  * ```
  *
-## Rank Information
+ * ## Rank Information
  *
-### Why Rank Information is Needed
+ * ### Why Rank Information is Needed
  *
  * Standard BSTs don't support efficient position-based operations:
  * - **Without rank**: Finding k-th element requires O(n) time
  * - **With rank**: Finding k-th element requires O(log n) time
  *
-### BinNodeXt (Extended Binary Node)
+ * ### BinNodeXt (Extended Binary Node)
  *
  * This example uses `BinNodeXt` which maintains:
  * - **Subtree size**: Number of nodes in subtree rooted at this node
  * - **Rank operations**: O(log n) `select(k)` and `rank(x)` operations
  * - **Maintained**: Updated during insert, delete, rotations
  *
-### Rank Operations
+ * ### Rank Operations
  *
  * - **`select(k)`**: Find k-th smallest element in O(log n)
  * - **`rank(x)`**: Find position of element x in O(log n)
  * - **Enables**: Efficient position-based splitting
  *
-## Algorithm
+ * ## Algorithm
  *
-### Split by Position
+ * ### Split by Position
  *
  * Split by position works by:
  * ```
@@ -95,7 +95,7 @@
  *   5. Return (left_tree, node_at_k, right_tree)
  * ```
  *
-### Detailed Steps
+ * ### Detailed Steps
  *
  * 1. **Find split node**: Use rank information to find node at position k
  *    - Time: O(log n) with rank information
@@ -106,7 +106,7 @@
  * 3. **Rebuild subtrees**: Construct left and right trees
  *    - Time: O(log n) for balanced trees
  *
-### Complexity
+ * ### Complexity
  *
  * | Tree Type | Complexity | Notes |
  * |-----------|-----------|-------|
@@ -114,37 +114,37 @@
  * | Balanced without rank | O(n) | Must traverse to find position |
  * | Unbalanced | O(n) | Worst case |
  *
-## Applications
+ * ## Applications
  *
-### Order Statistics
+ * ### Order Statistics
  * - **K-th element**: Find k-th smallest/largest element
  * - **Median**: Find median element efficiently
  * - **Percentiles**: Find elements at specific percentiles
  *
-### Range Queries
+ * ### Range Queries
  * - **Extract range**: Split tree to get elements in range [a, b]
  * - **Range operations**: Process elements in specific range
  * - **Partitioning**: Divide data into ranges
  *
-### Tree Operations
+ * ### Tree Operations
  * - **Building block**: Used in many tree algorithms
  * - **Tree manipulation**: Enable complex tree operations
  * - **Functional programming**: Immutable tree operations
  *
-### Database Indexing
+ * ### Database Indexing
  * - **Partitioning**: Partition index structures
  * - **Range queries**: Efficient range query processing
  * - **Bulk operations**: Process subsets of data
  *
-## Complementary Operations
+ * ## Complementary Operations
  *
-### Split and Join
+ * ### Split and Join
  *
  * - **Split**: Divides tree into parts (this operation)
  * - **Join**: Combines trees (see `writeJoin.C`)
  * - **Together**: Enable powerful tree manipulation
  *
-### Example: Range Extraction
+ * ### Example: Range Extraction
  *
  * ```
  * // Extract range [a, b] from tree
@@ -154,24 +154,24 @@
  * // right: elements > b
  * ```
  *
-## Split Variants
+ * ## Split Variants
  *
-### Split by Position
+ * ### Split by Position
  * - **This example**: Split at position k
  * - **Uses rank**: Requires rank information
  * - **Efficient**: O(log n) with rank
  *
-### Split by Value
+ * ### Split by Value
  * - **Alternative**: Split at value x
  * - **No rank needed**: Can work without rank
  * - **Efficient**: O(log n) for balanced trees
  *
-### Three-Way Split
+ * ### Three-Way Split
  * - **Advanced**: Split into three parts
  * - **Range extraction**: Extract range [a, b]
  * - **Useful**: For range queries
  *
-## Output Files
+ * ## Output Files
  *
  * - **`split-before-aux.Tree`**: Original tree with SPLIT marker (preorder)
  *   - Shows tree before split
@@ -187,7 +187,7 @@
  *
  * All files can be visualized with `btreepic` to see the split operation.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Split tree with 30 nodes at position 10

@@ -37,14 +37,14 @@
  *
  * ## Why Balance Trees?
  *
-### The Problem with Unbalanced Trees
+ * ### The Problem with Unbalanced Trees
  *
  * Unbalanced trees degrade to linked lists in worst case:
  * - **Worst case**: O(n) search time instead of O(log n)
  * - **Performance**: Degrades significantly
  * - **Cache**: Poor cache locality
  *
-### Benefits of Balancing
+ * ### Benefits of Balancing
  *
  * Balancing ensures:
  * - **Optimal performance**: O(log n) search, insert, delete operations
@@ -52,14 +52,14 @@
  * - **Cache friendly**: Better memory access patterns
  * - **Height**: Minimum possible height
  *
-## DSW Algorithm Overview
+ * ## DSW Algorithm Overview
  *
-### Day-Stout-Warren Algorithm
+ * ### Day-Stout-Warren Algorithm
  *
  * The DSW algorithm is an elegant O(n) time, O(1) space algorithm for
  * balancing binary search trees. It works in two phases:
  *
-### Phase 1: Create a Vine (Right-Skewed Tree)
+ * ### Phase 1: Create a Vine (Right-Skewed Tree)
  *
  * **Goal**: Convert tree to a linear chain (all nodes have only right children)
  *
@@ -76,7 +76,7 @@
  * **Result**: All nodes form a right-skewed chain
  * **Time**: O(n) - visit each node once
  *
-### Phase 2: Balance the Vine
+ * ### Phase 2: Balance the Vine
  *
  * **Goal**: Transform vine into perfectly balanced tree
  *
@@ -93,22 +93,22 @@
  * **Compress operation**: Performs left rotations in a pattern
  * **Time**: O(n) - perform O(n) rotations
  *
-### Total Complexity
+ * ### Total Complexity
  *
  * - **Time**: O(n) - linear time algorithm
  * - **Space**: O(1) - constant extra space (in-place)
  * - **Rotations**: O(n) rotations performed
  *
-## Perfect Balance
+ * ## Perfect Balance
  *
-### Definition
+ * ### Definition
  *
  * A **perfectly balanced** tree has:
  * - **Height**: ⌊log₂(n)⌋ or ⌈log₂(n)⌉ (minimum possible)
  * - **Structure**: All levels full except possibly the last
  * - **Performance**: Optimal search performance
  *
-### Example
+ * ### Example
  *
  * ```
  * Unbalanced (height 4):    Balanced (height 3):
@@ -121,7 +121,7 @@
  *             4
  * ```
  *
-## Comparison with Other Balancing Methods
+ * ## Comparison with Other Balancing Methods
  *
  * | Method | Time | Space | Result | Notes |
  * |--------|------|-------|--------|-------|
@@ -130,29 +130,29 @@
  * | Red-Black | O(n log n) | O(log n) | Relaxed balance | Maintains during ops |
  * | Rebuild | O(n) | O(n) | Perfect | Requires extra memory |
  *
-## Applications
+ * ## Applications
  *
-### Tree Optimization
+ * ### Tree Optimization
  * - **Improve performance**: Optimize existing BSTs
  * - **One-time operation**: Balance tree before heavy queries
  * - **Legacy code**: Improve performance without rewriting
  *
-### Educational
+ * ### Educational
  * - **Visualize balancing**: See tree transformation
  * - **Learn algorithms**: Understand balancing techniques
  * - **Algorithm study**: Compare balancing methods
  *
-### Data Structure Conversion
+ * ### Data Structure Conversion
  * - **Prepare trees**: Optimize trees for operations
  * - **Format conversion**: Convert between tree formats
  * - **Preprocessing**: Prepare data for algorithms
  *
-### Performance Tuning
+ * ### Performance Tuning
  * - **Query optimization**: Optimize trees before queries
  * - **Batch processing**: Balance after bulk insertions
  * - **Maintenance**: Periodic tree optimization
  *
-## Output Files
+ * ## Output Files
  *
  * - **`balance-before-aux.Tree`**: Original unbalanced tree (preorder)
  *   - Shows tree before balancing
@@ -164,7 +164,7 @@
  *
  * Both files can be visualized with `btreepic` tool to see the transformation.
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Generate balanced tree with 50 nodes
@@ -177,15 +177,15 @@
  * writeBalance -n 200
  * ```
  *
-## Algorithm Properties
+ * ## Algorithm Properties
  *
-### Advantages
+ * ### Advantages
  * - **Efficient**: O(n) time complexity
  * - **In-place**: O(1) extra space
  * - **Simple**: Easy to understand and implement
  * - **Perfect balance**: Achieves optimal height
  *
-### Limitations
+ * ### Limitations
  * - **One-time**: Doesn't maintain balance during operations
  * - **Rotations**: Many rotations may be performed
  * - **Not incremental**: Must rebuild entire tree

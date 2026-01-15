@@ -51,7 +51,7 @@
  * - Efficient enumeration algorithms
  * - Useful for subset selection problems
  *
-### Fold/Predicate Operations
+ * ### Fold/Predicate Operations
  * - Apply functions over all permutations
  * - Filter permutations satisfying predicates
  * - Aggregate results (sum, product, etc.)
@@ -96,9 +96,13 @@
  * ./comb_example
  *
  * # Run specific section
- * ./comb_example -s perm        # Only permutations (Cartesian products)
- * ./comb_example -s comb       # Only combinations
- * ./comb_example -s matrix     # Only matrix operations
+ * ./comb_example -s transpose    # Transpose demo
+ * ./comb_example -s perm         # Permutations demo
+ * ./comb_example -s predicates   # Predicate utilities on permutations
+ * ./comb_example -s traverse     # Traversal utilities
+ * ./comb_example -s fold         # Fold/reduce utilities
+ * ./comb_example -s build        # Construction helpers
+ * ./comb_example -s practical    # Practical applications
  * ```
  *
  * ## Example: Password Generation

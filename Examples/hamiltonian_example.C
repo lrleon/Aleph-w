@@ -9,17 +9,17 @@
  *
  * ## What is a Hamiltonian Path/Cycle?
  *
-### Hamiltonian Path
+ * ### Hamiltonian Path
  *
  * A **Hamiltonian path** is a path that visits every vertex exactly once.
  * The path may start and end at different vertices.
  *
-### Hamiltonian Cycle
+ * ### Hamiltonian Cycle
  *
  * A **Hamiltonian cycle** (or circuit) is a Hamiltonian path that starts
  * and ends at the same vertex, forming a cycle.
  *
-### Key Difference from Eulerian
+ * ### Key Difference from Eulerian
  *
  * | Property | Hamiltonian | Eulerian |
  * |----------|-------------|----------|
@@ -28,7 +28,7 @@
  * | Test | **Sufficiency only** | Exact conditions |
  * | Solution | No efficient algorithm | Efficient algorithm exists |
  *
-## Why is it Hard?
+ * ## Why is it Hard?
  *
  * **NP-completeness**: Determining if a graph has a Hamiltonian cycle
  * is NP-complete, meaning:
@@ -40,9 +40,9 @@
  * condition holds, graph is Hamiltonian), not **necessary** conditions
  * (graph may be Hamiltonian without satisfying condition).
  *
-## Sufficient Conditions
+ * ## Sufficient Conditions
  *
-### Ore's Theorem (1960)
+ * ### Ore's Theorem (1960)
  *
  * **Statement**: For a graph with n ≥ 3 vertices:
  *
@@ -55,7 +55,7 @@
  * **Intuition**: If vertices have high enough degrees, there are enough
  * edges to form a Hamiltonian cycle.
  *
-### Dirac's Theorem (1952)
+ * ### Dirac's Theorem (1952)
  *
  * **Statement**: For a graph with n ≥ 3 vertices:
  *
@@ -68,15 +68,15 @@
  * **Note**: Dirac's is a special case of Ore's (if all degrees ≥ n/2,
  * then sum of any two ≥ n).
  *
-### Other Sufficient Conditions
+ * ### Other Sufficient Conditions
  *
  * - **Pósa's condition**: More complex degree sequence condition
  * - **Chvátal's condition**: Degree sequence-based
  * - **Toughness**: Graph toughness conditions
  *
-## Important Limitations
+ * ## Important Limitations
  *
-### Sufficiency vs Necessity
+ * ### Sufficiency vs Necessity
  *
  * **Sufficient**: If condition holds → graph is Hamiltonian
  * **Necessary**: If graph is Hamiltonian → condition holds
@@ -85,7 +85,7 @@
  * - ✅ If Ore's condition holds → Hamiltonian cycle exists
  * - ❌ If Ore's condition fails → may still be Hamiltonian!
  *
-### Example: Hamiltonian Without Ore's
+ * ### Example: Hamiltonian Without Ore's
  *
  * ```
  * Graph: Complete graph K_n (all vertices connected)
@@ -96,30 +96,30 @@
  *
  * Many Hamiltonian graphs don't satisfy Ore's condition but are still Hamiltonian.
  *
-## Applications
+ * ## Applications
  *
-### Traveling Salesman Problem (TSP)
+ * ### Traveling Salesman Problem (TSP)
  * - **TSP**: Find shortest Hamiltonian cycle
  * - **Reduction**: TSP reduces to Hamiltonian cycle
  * - **Complexity**: Both NP-complete
  *
-### Route Planning
+ * ### Route Planning
  * - **Delivery routes**: Visit all locations once
  * - **Tour planning**: Visit all cities in a tour
  * - **Circuit design**: Visit all components
  *
-### Puzzles and Games
+ * ### Puzzles and Games
  * - **Knight's tour**: Visit all squares on chessboard
  * - **Icosian game**: Historical puzzle
  * - **Sudoku**: Some variants use Hamiltonian paths
  *
-### Network Design
+ * ### Network Design
  * - **Network topology**: Design networks visiting all nodes
  * - **Testing**: Test all network nodes
  *
-## Finding Hamiltonian Cycles
+ * ## Finding Hamiltonian Cycles
  *
-### Backtracking Algorithm
+ * ### Backtracking Algorithm
  *
  * ```
  * Find_Hamiltonian_Cycle(G, path):
@@ -138,14 +138,14 @@
  *
  * **Time complexity**: O(V!) worst case (exponential!)
  *
-### Heuristics
+ * ### Heuristics
  *
  * - **Nearest neighbor**: Greedy approach
  * - **2-opt**: Local optimization
  * - **Genetic algorithms**: Evolutionary approach
  * - **Simulated annealing**: Probabilistic optimization
  *
-## Complexity
+ * ## Complexity
  *
  * | Problem | Complexity | Notes |
  * |---------|-----------|-------|
@@ -153,7 +153,7 @@
  * | Find Hamiltonian cycle | O(V!) | Exponential (backtracking) |
  * | Decision problem | NP-complete | No polynomial algorithm known |
  *
-## Example: Complete Graph
+ * ## Example: Complete Graph
  *
  * ```
  * Complete graph K_5 (5 vertices, all connected):
@@ -170,15 +170,18 @@
  * Result: Hamiltonian (trivially, any order works)
  * ```
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Run all Hamiltonian demonstrations
  * ./hamiltonian_example
  *
  * # Run specific demo
- * ./hamiltonian_example -s ore      # Ore's theorem
- * ./hamiltonian_example -s dirac    # Dirac's theorem
+ * ./hamiltonian_example -s compare    # Compare Ore vs Dirac conditions
+ * ./hamiltonian_example -s ore        # Ore's theorem
+ * ./hamiltonian_example -s dirac      # Dirac's theorem
+ * ./hamiltonian_example -s density    # Density experiments
+ * ./hamiltonian_example -s practical  # Practical examples
  * ```
  *
  * @see hamiltonian.H Hamiltonian sufficiency testing

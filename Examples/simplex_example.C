@@ -63,7 +63,7 @@
  * 3. **Repeat**: Continue until no better adjacent vertex exists
  * 4. **Optimal**: Current vertex is optimal
  *
-### Key Insight
+ * ### Key Insight
  * The optimal solution always occurs at a vertex (corner point) of the
  * feasible region. Simplex efficiently explores vertices.
  *

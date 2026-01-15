@@ -44,80 +44,80 @@
  *
  * ## Key Operations
  *
-### make_set(x)
+ * ### make_set(x)
  * - Create a new set containing only element x
  * - **Time**: O(1)
  * - **Use**: Initialize the data structure
  *
-### find(x)
+ * ### find(x)
  * - Find the representative (root) of x's set
  * - Uses **path compression** for efficiency
  * - **Time**: O(α(n)) amortized (effectively O(1))
  * - **Use**: Check which set an element belongs to
  *
-### union(x, y)
+ * ### union(x, y)
  * - Merge the sets containing x and y
  * - Uses **union by rank** to keep trees shallow
  * - **Time**: O(α(n)) amortized (effectively O(1))
  * - **Use**: Connect two elements/sets
  *
-### same_set(x, y)
+ * ### same_set(x, y)
  * - Check if x and y are in the same set
  * - **Time**: O(α(n)) amortized
  * - **Use**: Test connectivity/equivalence
  *
  * ## Optimizations
  *
-### Union by Rank
+ * ### Union by Rank
  * - Always attach smaller tree under larger tree
  * - Keeps tree height logarithmic
  * - Prevents degenerate linear structures
  *
-### Path Compression
+ * ### Path Compression
  * - During find, make all nodes point directly to root
  * - Flattens tree structure
  * - Future finds become faster
  *
-### Combined Effect
+ * ### Combined Effect
  * - Together, these optimizations achieve O(α(n)) per operation
  * - α(n) is the inverse Ackermann function
  * - For all practical purposes, α(n) ≤ 5 (effectively constant!)
  *
  * ## Implementation Variants
  *
-### Relation (Node-Based)
+ * ### Relation (Node-Based)
  * - Stores elements as nodes in a tree
  * - More flexible, can store additional data per element
  * - **Best for**: Variable number of elements, need element metadata
  *
-### Fixed_Relation (Array-Based)
+ * ### Fixed_Relation (Array-Based)
  * - Uses array indexed by element ID
  * - More memory-efficient, faster access
  * - **Best for**: Fixed set of elements (0 to n-1), maximum performance
  *
  * ## Applications
  *
-### Graph Algorithms
+ * ### Graph Algorithms
  * - **Kruskal's MST**: Track connected components while adding edges
  * - **Connected components**: Find all components in a graph
  * - **Cycle detection**: Detect cycles in undirected graphs
  *
-### Network Analysis
+ * ### Network Analysis
  * - **Network connectivity**: Determine if nodes are connected
  * - **Social networks**: Find friend groups, communities
  * - **Infrastructure**: Check if cities are connected by roads
  *
-### Image Processing
+ * ### Image Processing
  * - **Image segmentation**: Group connected pixels
  * - **Component labeling**: Label connected regions
  * - **Blob detection**: Find connected blobs in images
  *
-### Equivalence Relations
+ * ### Equivalence Relations
  * - **Equivalence classes**: Group equivalent elements
  * - **Partition problems**: Divide elements into groups
  * - **Constraint satisfaction**: Track variable equivalences
  *
-### Physical Systems
+ * ### Physical Systems
  * - **Percolation theory**: Model phase transitions
  * - **Particle systems**: Track particle clusters
  * - **Crystal growth**: Model crystal formation
@@ -150,19 +150,13 @@
  * ## Usage Example
  *
  * ```cpp
- * Relation<int> uf;
+ * Fixed_Relation uf(10);
  *
- * // Create sets
- * for (int i = 0; i < 10; i++)
- *   uf.make_set(i);
+ * uf.join(0, 1);
+ * uf.join(2, 3);
+ * uf.join(1, 2);
  *
- * // Union operations
- * uf.union_set(0, 1);
- * uf.union_set(2, 3);
- * uf.union_set(1, 2);
- *
- * // Check connectivity
- * if (uf.same_set(0, 3))
+ * if (uf.are_connected(0, 3))
  *   cout << "0 and 3 are connected!\n";
  * ```
  *
@@ -201,7 +195,7 @@ void demo_basic_operations()
 
   // Show initial state - demonstrate which elements are connected
   cout << "Initial state: Each element is isolated in its own set.\n";
-  cout << "Number of disjoint sets: " << uf.size() << "\n";
+  cout << "Number of disjoint sets: " << uf.get_num_blocks() << "\n";
 
   cout << "\n--- Performing unions ---\n\n";
 
@@ -248,7 +242,7 @@ void demo_basic_operations()
       cout << i << " ";
   cout << "\n";
 
-  cout << "\nNumber of disjoint sets: " << uf.size() << "\n";
+  cout << "\nNumber of disjoint sets: " << uf.get_num_blocks() << "\n";
 }
 
 // =============================================================================
@@ -417,7 +411,7 @@ void demo_path_compression()
 
   cout << "\nAfter all joins:\n";
   cout << "  All elements 0-" << (n-1) << " are now in the same set.\n";
-  cout << "  Number of sets: " << uf.size() << "\n";
+  cout << "  Number of sets: " << uf.get_num_blocks() << "\n";
 
   cout << "\nVerifying all elements are connected:\n";
   for (size_t i = 1; i < n; ++i) {

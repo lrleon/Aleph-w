@@ -38,7 +38,7 @@
  *
  * ## Purpose
  *
-### Use Cases
+ * ### Use Cases
  *
  * This tool is useful for:
  * - **Visualization**: Generating tree structures for LaTeX/eepic diagrams
@@ -48,9 +48,9 @@
  * - **Research**: Studying tree structure properties
  * - **Documentation**: Creating tree diagrams for papers/presentations
  *
-## Supported Tree Types
+ * ## Supported Tree Types
  *
-### Balanced Trees
+ * ### Balanced Trees
  *
  * #### AVL Tree
  * - **Balance**: Strictly balanced (height difference ≤ 1)
@@ -62,14 +62,14 @@
  * - **Structure**: Good balance, efficient operations
  * - **Use**: General-purpose balanced tree
  *
-### Self-Adjusting Trees
+ * ### Self-Adjusting Trees
  *
  * #### Splay Tree
  * - **Strategy**: Moves accessed nodes to root
  * - **Structure**: Adapts to access patterns
  * - **Use**: When temporal locality matters
  *
-### Randomized Trees
+ * ### Randomized Trees
  *
  * #### Treap
  * - **Strategy**: Randomized BST with heap priorities
@@ -81,14 +81,14 @@
  * - **Structure**: Different randomization approach
  * - **Use**: Alternative randomized structure
  *
-### Unbalanced Tree
+ * ### Unbalanced Tree
  *
  * #### Binary Tree
  * - **Strategy**: No balancing
  * - **Structure**: Can degrade to linked list
  * - **Use**: Baseline comparison, educational
  *
-### Summary Table
+ * ### Summary Table
  *
  * | Type | Description | Balance Strategy | Best For |
  * |------|-------------|------------------|----------|
@@ -99,30 +99,30 @@
  * | **Rand** | Randomized BST | Random insertion order | Alternative random |
  * | **Binary** | Unbalanced | No balancing | Baseline, educational |
  *
-## Output Format
+ * ## Output Format
  *
-### File Structure
+ * ### File Structure
  *
  * Each `.Tree` file contains:
  * - **Preorder traversal**: Tree structure in preorder format
  * - **Node values**: Keys stored in nodes
  * - **Format**: Compatible with `btreepic` visualization tool
  *
-### File Naming
+ * ### File Naming
  *
  * Files are named: `<prefix><tree_type>.Tree`
  * - Examples: `test_avl.Tree`, `rb.Tree`, `mytree_splay.Tree`
  *
-### Format Details
+ * ### Format Details
  *
  * The `.Tree` format includes:
  * - Node keys in preorder
  * - Tree structure information
  * - Metadata for visualization
  *
-## Comparison Capabilities
+ * ## Comparison Capabilities
  *
-### Same Data, Different Structures
+ * ### Same Data, Different Structures
  *
  * Generate same data with different tree types to compare:
  * - **Structure differences**: See how trees differ
@@ -130,7 +130,7 @@
  * - **Height**: Compare tree heights
  * - **Visualization**: Visual comparison
  *
-### Example
+ * ### Example
  *
  * ```bash
  * # Generate same data with different trees
@@ -144,7 +144,7 @@
  * btreepic compare_splay.Tree
  * ```
  *
-## Usage Examples
+ * ## Usage Examples
  *
  * ```bash
  * # Generate all tree types with 100 nodes
@@ -160,7 +160,7 @@
  * write_tree -n 100 -t avl -t rb -t splay -s 42
  * ```
  *
-## Parameters
+ * ## Parameters
  *
  * | Parameter | Short | Description | Default |
  * |-----------|-------|-------------|---------|
@@ -169,9 +169,9 @@
  * | `--type` | `-t` | Tree type (avl, rb, splay, treap, rand, bin, all) | all |
  * | `--prefix` | `-o` | Output file prefix | Tree type name |
  *
-## Integration with Visualization
+ * ## Integration with Visualization
  *
-### btreepic Tool
+ * ### btreepic Tool
  *
  * Generated `.Tree` files can be visualized:
  * ```bash
@@ -179,26 +179,26 @@
  * pdflatex avl.tex
  * ```
  *
-### LaTeX Output
+ * ### LaTeX Output
  *
  * The visualization generates LaTeX files suitable for:
  * - **Papers**: Include in academic papers
  * - **Presentations**: Use in slides
  * - **Documentation**: Document tree structures
  *
-## Applications
+ * ## Applications
  *
-### Algorithm Development
+ * ### Algorithm Development
  * - **Test cases**: Generate test trees for algorithms
  * - **Debugging**: Visualize tree structures during debugging
  * - **Validation**: Verify algorithm correctness
  *
-### Education
+ * ### Education
  * - **Teaching**: Demonstrate tree structures visually
  * - **Learning**: Understand how trees differ
  * - **Comparison**: Compare different implementations
  *
-### Research
+ * ### Research
  * - **Experiments**: Generate trees for experiments
  * - **Analysis**: Analyze tree properties
  * - **Publications**: Create figures for papers

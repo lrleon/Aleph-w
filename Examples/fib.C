@@ -35,26 +35,26 @@
  *
  * ## Fibonacci Sequence
  *
-### Mathematical Definition
+ * ### Mathematical Definition
  *
  * The Fibonacci sequence is defined recursively as:
  * - **F(0) = 1**
  * - **F(1) = 1**
  * - **F(n) = F(n-1) + F(n-2)** for n > 1
  *
-### Sequence Values
+ * ### Sequence Values
  *
  * Sequence: 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, ...
  *
-### Mathematical Properties
+ * ### Mathematical Properties
  *
  * - **Golden ratio**: Ratio F(n+1)/F(n) approaches φ ≈ 1.618
  * - **Binet's formula**: Closed-form expression exists
  * - **Many applications**: Nature, art, mathematics, computer science
  *
-## Three Implementations
+ * ## Three Implementations
  *
-### 1. Iterative (`fib_it`)
+ * ### 1. Iterative (`fib_it`)
  *
  * **Strategy**: Use loop with two variables to track previous values
  *
@@ -76,7 +76,7 @@
  * - **Efficiency**: Most efficient
  * - **Best for**: Production code, large n
  *
-### 2. Recursive (`fib_rec`)
+ * ### 2. Recursive (`fib_rec`)
  *
  * **Strategy**: Direct translation of mathematical definition
  *
@@ -105,7 +105,7 @@
  * - **Redundancy**: Calculates same values many times
  * - **Best for**: Educational purposes, small n only
  *
-### 3. Stack-based (`fib_st`)
+ * ### 3. Stack-based (`fib_st`)
  *
  * **Strategy**: Simulate recursion using explicit stack
  *
@@ -136,7 +136,7 @@
  * - **Educational**: Shows how recursion works internally
  * - **Best for**: Understanding recursion mechanics
  *
-## Complexity Comparison
+ * ## Complexity Comparison
  *
  * | Implementation | Time | Space | Redundancy | Best For |
  * |----------------|------|-------|------------|----------|
@@ -144,16 +144,16 @@
  * | Recursive | O(2^n) | O(n) | Massive | Education |
  * | Stack-based | O(n) | O(n) | None | Learning |
  *
-### Performance Example
+ * ### Performance Example
  *
  * Computing F(40):
  * - **Iterative**: ~40 operations, instant
  * - **Recursive**: ~2^40 operations, very slow!
  * - **Stack-based**: ~40 operations, fast
  *
-## Educational Value
+ * ## Educational Value
  *
-### Concepts Demonstrated
+ * ### Concepts Demonstrated
  *
  * This example teaches:
  * - **Algorithm design**: Different approaches to same problem
@@ -162,7 +162,7 @@
  * - **Stack data structures**: Using stacks to simulate recursion
  * - **Optimization**: Why naive recursion is inefficient
  *
-### Learning Outcomes
+ * ### Learning Outcomes
  *
  * After studying this example, you understand:
  * - Why naive recursion can be inefficient
@@ -170,9 +170,9 @@
  * - How recursion is implemented internally
  * - When to use iterative vs recursive approaches
  *
-## Optimizations
+ * ## Optimizations
  *
-### Memoization (Not Shown)
+ * ### Memoization (Not Shown)
  *
  * Can optimize recursive version with memoization:
  * ```
@@ -187,7 +187,7 @@
  * **Time**: O(n) - each value calculated once
  * **Space**: O(n) - memoization table
  *
-### Matrix Exponentiation (Advanced)
+ * ### Matrix Exponentiation (Advanced)
  *
  * Can compute F(n) in O(log n) time using matrix exponentiation:
  * ```
@@ -197,24 +197,24 @@
  *
  * **Time**: O(log n) - very fast!
  *
-## Applications of Fibonacci
+ * ## Applications of Fibonacci
  *
-### Nature
+ * ### Nature
  * - **Phyllotaxis**: Leaf arrangement, flower petals
  * - **Spiral patterns**: Pine cones, sunflowers
  * - **Growth patterns**: Population growth models
  *
-### Computer Science
+ * ### Computer Science
  * - **Algorithm analysis**: Example of exponential recursion
  * - **Dynamic programming**: Classic DP example
  * - **Golden ratio search**: Optimization algorithms
  *
-### Mathematics
+ * ### Mathematics
  * - **Number theory**: Many interesting properties
  * - **Combinatorics**: Counting problems
  * - **Graph theory**: Fibonacci graphs
  *
-## Usage
+ * ## Usage
  *
  * ```bash
  * # Compute F(10) using all three methods
@@ -227,7 +227,7 @@
  * ./fib 30  # Recursive takes much longer
  * ```
  *
-## Performance Warnings
+ * ## Performance Warnings
  *
  * ⚠️ **Warning**: The recursive version is extremely slow for large n!
  * - F(30): Takes seconds
