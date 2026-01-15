@@ -420,13 +420,14 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
 
     `search_or_insert_by_key_xt(r, p, cmp)` searches in the extended
     tree with root `r` the key contained in node `p`. If the key is
-    found, the function returns the containing the key; otherwise `p` is
+    found, the function returns the node containing the key; otherwise `p` is
     inserted in the tree and this pointer is returned.
 
-    @param[in] r root of tre
+    @param[in] r root of tree
     @param[in] p pointer to node to search or insert
+    @param[in] cmp comparison functor for key ordering
     @return if `p` is inserted, then this is returned; otherwise the
-    pointer to the node containing the key of is returned
+    pointer to the node containing the key is returned
 */
     template <class Node, class Compare> inline
 Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept

@@ -281,7 +281,7 @@ public:
 	    needed. Also, consider that you will need to cast the
 	    `cookie` to the type of information that you have defined.
 
-	 3. Reverse path tracing. This is a very useful and powerful
+         - Reverse path tracing. This is a very useful and powerful
 	    technique for storing partial and definitive path during
 	    graph processing. The general rule is: when in a search you
 	    visit a new node, the you saves the parent (the caller) in

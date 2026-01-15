@@ -65,27 +65,27 @@ namespace Aleph {
        @ingroup Hash
     */
   template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
-class DynLhashTable : public LhashTable<Key>
+class DynLhashTable : public LhashTableVtl<Key>
 {
 private:
 
-  struct DLBucket : public LhashTable<Key>::Bucket
+  struct DLBucket : public LhashTableVtl<Key>::Bucket
   {
     Record record;
 
     DLBucket(const Key & key, const Record & _record)
-      : LhashTable<Key>::Bucket(key), record(_record) { /* Empty */ }
+      : LhashTableVtl<Key>::Bucket(key), record(_record) { /* Empty */ }
 
     DLBucket(const Key & key, Record && _record)
-      : LhashTable<Key>::Bucket(key), record(std::forward<Record>(_record))
+      : LhashTableVtl<Key>::Bucket(key), record(std::forward<Record>(_record))
     { /* Empty */ }
 
     DLBucket(Key && key, const Record & _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)), record(_record)
+      : LhashTableVtl<Key>::Bucket(std::forward<Key>(key)), record(_record)
     { /* Empty */ }
 
     DLBucket(Key && key, Record && _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)),
+      : LhashTableVtl<Key>::Bucket(std::forward<Key>(key)),
         record(std::forward<Record>(_record)) { /* Empty */ }
   };
 
@@ -128,7 +128,7 @@ private:
         }
 
       bucket = new DLBucket (key, record);
-      table.LhashTable<Key>::insert(bucket);
+      table.LhashTableVtl<Key>::insert(bucket);
       return *this;
     }
 
@@ -144,7 +144,7 @@ private:
         }
 
       bucket = new DLBucket (key, proxy.bucket->record);
-      table.LhashTable<Key>::insert(bucket);
+      table.LhashTableVtl<Key>::insert(bucket);
       return *this;
     }
   };
@@ -156,7 +156,7 @@ public:
 
   void swap(DynLhashTable & table)
   {
-    this->LhashTable<Key>::swap(table);
+    this->LhashTableVtl<Key>::swap(table);
   }
 
     /// Instance a dynamic hash mapping with hash hash_fct and
@@ -164,7 +164,7 @@ public:
     /// Memory to separate the internal table.
   DynLhashTable(size_t len           = DefaultPrime,
                 Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
-    : LhashTable<Key>(len, hash_fct)
+    : LhashTableVtl<Key>(len, hash_fct)
   {
     // Empty
   }
@@ -173,7 +173,7 @@ private:
 
   void copy(const DynLhashTable & table)
   {
-    for (typename LhashTable<Key>::Iterator it(const_cast<DynLhashTable&>(table)); 
+    for (typename LhashTableVtl<Key>::Iterator it(const_cast<DynLhashTable&>(table)); 
          it.has_curr(); it.next_ne())
       {
         DLBucket * Bucket = (DLBucket*) it.get_curr();
@@ -184,7 +184,7 @@ private:
 public:
 
   DynLhashTable(const DynLhashTable & table)
-    : LhashTable<Key>()
+    : LhashTableVtl<Key>()
   {
     copy(table);
   }
@@ -215,7 +215,7 @@ private:
 
   Record * __insert(DLBucket * bucket)
   {
-    LhashTable<Key>::insert(bucket);
+    LhashTableVtl<Key>::insert(bucket);
     return &bucket->record;
   }
 
@@ -250,7 +250,7 @@ public:
     /// Find the key-, Nullptr is returned:
   Record * search(const Key & key)
   {
-    DLBucket * bucket = (DLBucket*) LhashTable<Key>::search(key);
+    DLBucket * bucket = (DLBucket*) LhashTableVtl<Key>::search(key);
     return bucket != nullptr ? &bucket->record : nullptr;
   }
 
@@ -259,7 +259,7 @@ public:
   void remove(Record * record)
   {
     DLBucket* bucket = record_to_bucket(record);
-    LhashTable<Key>::remove(bucket);
+    LhashTableVtl<Key>::remove(bucket);
     delete bucket;
   }
 

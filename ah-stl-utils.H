@@ -111,7 +111,9 @@ inline void tuple_for_each(const std::tuple<Ts...> & tuple, F func)
  *        Both definitions are equivalent. See ah-convert.H for full documentation.
  *
  *  @tparam T Element type.
- *  @see ah-convert.H::vector_to_DynList For the primary definition and parameter documentation.
+ *  @param[in] v The vector to convert
+ *  @return A DynList containing the elements from the vector
+ *  @see ah-convert.H For the primary definition
  *  @ingroup Algorithms
  */
 template <typename T>
@@ -470,7 +472,9 @@ template <typename T>
  *        Both definitions are equivalent. See ah-convert.H for full documentation.
  *
  *  @tparam T Element type.
- *  @see ah-convert.H::vector_to_DynArray For the primary definition and parameter documentation.
+ *  @param[in] v The vector to convert
+ *  @return A DynArray containing the elements from the vector
+ *  @see ah-convert.H For the primary definition
  *  @ingroup Algorithms
  */
 template <typename T>
