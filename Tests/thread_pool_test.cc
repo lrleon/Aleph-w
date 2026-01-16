@@ -406,6 +406,14 @@ TEST_F(ThreadPoolTest, ComputeIntensiveTasks)
   for (auto& f : futures)
     f.get();
   
+  // Wait for pool to transition to idle state (fixes race condition in CI)
+  const auto start = std::chrono::steady_clock::now();
+  while (!pool.is_idle() && 
+         std::chrono::steady_clock::now() - start < 1s)
+  {
+    std::this_thread::sleep_for(1ms);
+  }
+  
   EXPECT_TRUE(pool.is_idle());
 }
 
