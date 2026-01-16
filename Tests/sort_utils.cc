@@ -494,6 +494,101 @@ TEST(SortUtilsArraySorts, quicksort_insertion_pointer)
   EXPECT_TRUE(std::is_sorted(std::begin(b), std::end(b)));
 }
 
+// Introsort tests - hybrid algorithm with O(n log n) guaranteed
+TEST(SortUtilsArraySorts, introsort_pointer_basic)
+{
+  int a[] = {5, 4, 3, 2, 1, 0, 0, 9};
+  introsort(a, 0L, static_cast<long>((sizeof(a) / sizeof(a[0])) - 1));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_pointer_convenience)
+{
+  int a[] = {9, 1, 8, 2, 7, 3, 6, 4, 5, 0};
+  introsort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_pointer_custom_compare)
+{
+  int a[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  introsort(a, 0L, 8L, std::greater<int>());
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a), std::greater<int>()));
+}
+
+TEST(SortUtilsArraySorts, introsort_dynarray)
+{
+  auto a = make_dynarray({4, 1, 3, 2, 0, 2});
+  introsort(a);
+  for (size_t i = 1; i < a.size(); ++i)
+    ASSERT_LE(a(i - 1), a(i));
+}
+
+TEST(SortUtilsArraySorts, introsort_empty_and_single)
+{
+  // Empty array
+  int empty[] = {0};
+  introsort(empty, 0);
+  EXPECT_EQ(empty[0], 0);
+
+  // Single element
+  int single[] = {42};
+  introsort(single, 1);
+  EXPECT_EQ(single[0], 42);
+
+  // Empty DynArray
+  DynArray<int> da;
+  EXPECT_NO_THROW(introsort(da));
+}
+
+TEST(SortUtilsArraySorts, introsort_already_sorted)
+{
+  int a[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  introsort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_reverse_sorted)
+{
+  int a[] = {10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
+  introsort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_all_equal)
+{
+  int a[] = {5, 5, 5, 5, 5, 5, 5, 5, 5, 5};
+  introsort(a, sizeof(a) / sizeof(a[0]));
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_large_array_forces_heapsort)
+{
+  // Create an array large enough that might trigger heapsort fallback
+  // This tests the depth limit mechanism
+  const size_t n = 10000;
+  std::vector<int> v(n);
+  for (size_t i = 0; i < n; ++i)
+    v[i] = static_cast<int>(n - i); // Reverse sorted (worst case for quicksort)
+
+  introsort(v.data(), n);
+  EXPECT_TRUE(std::is_sorted(v.begin(), v.end()));
+}
+
+TEST(SortUtilsArraySorts, introsort_dynarray_large)
+{
+  // Test with larger DynArray
+  const size_t n = 5000;
+  DynArray<int> a;
+  a.reserve(n);
+  for (size_t i = 0; i < n; ++i)
+    a(i) = static_cast<int>(n - i); // Reverse sorted
+
+  introsort(a);
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(a(i - 1), a(i)) << "Failed at index " << i;
+}
+
 TEST(SortUtilsArraySorts, heapsort_dynarray)
 {
   auto a = make_dynarray({4, 1, 3, 2, 0, 2});

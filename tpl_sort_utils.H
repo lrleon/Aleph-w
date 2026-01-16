@@ -95,6 +95,7 @@
 #include <tpl_array.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynDlist.H>
+#include <tpl_arrayHeap.H>
 #include <htlist.H>
 #include <vector>
 #include <utility>
@@ -1664,6 +1665,150 @@ namespace Aleph
       }
   }
 
+  /** @brief Compute the depth limit for introsort.
+   *
+   *  Returns 2 * floor(log2(n)), which is the maximum recursion depth
+   *  before introsort switches to heapsort.
+   *
+   *  @param n The number of elements.
+   *  @return The depth limit.
+   */
+  inline size_t introsort_depth_limit(size_t n) noexcept
+  {
+    size_t depth = 0;
+    while (n > 1)
+      {
+        n >>= 1;
+        ++depth;
+      }
+    return depth * 2;
+  }
+
+  /** @brief Internal recursive function for introsort.
+   *
+   *  @internal
+   */
+  template <typename T, class Compare>
+  void introsort_loop(T *a, long l, long r, size_t depth_limit,
+                      const Compare & cmp)
+  {
+    while (r - l >= static_cast<long>(Quicksort_Threshold))
+      {
+        if (depth_limit == 0) [[unlikely]]
+          {
+            // Depth limit reached: switch to heapsort for guaranteed O(n log n)
+            faster_heapsort(a + l, static_cast<size_t>(r - l + 1), cmp);
+            return;
+          }
+
+        --depth_limit;
+
+        // Median-of-three pivot selection
+        const long pivot = partition<T, Compare>(a, l, r, cmp);
+
+        // Recurse on smaller partition, iterate on larger (tail call elimination)
+        if (pivot - l < r - pivot)
+          {
+            introsort_loop<T, Compare>(a, l, pivot - 1, depth_limit, cmp);
+            l = pivot + 1;
+          }
+        else
+          {
+            introsort_loop<T, Compare>(a, pivot + 1, r, depth_limit, cmp);
+            r = pivot - 1;
+          }
+      }
+  }
+
+  /** @brief Sort an array using introsort (introspective sort).
+   *
+   *  Introsort is a hybrid sorting algorithm that combines the best features
+   *  of quicksort, heapsort, and insertion sort. It is used by std::sort
+   *  in most C++ standard library implementations.
+   *
+   *  ### Algorithm
+   *  1. Start with quicksort using median-of-three pivot selection
+   *  2. Track recursion depth; if it exceeds 2*log2(n), switch to heapsort
+   *  3. For small partitions (< Quicksort_Threshold), use insertion sort
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) - guaranteed (not just expected)
+   *  - **Space complexity**: O(log n) for recursion stack
+   *  - **Stability**: Not stable
+   *  - **In-place**: Yes
+   *
+   *  ### Advantages over Pure Quicksort
+   *  - Guaranteed O(n log n) worst case (quicksort has O(n²) worst case)
+   *  - Immune to "quicksort killer" sequences
+   *  - Same excellent average-case performance as quicksort
+   *
+   *  ### When to Use
+   *  - Default choice for general-purpose sorting
+   *  - When worst-case O(n log n) guarantee is required
+   *  - Replacement for std::sort when working with raw arrays
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] l Left index (inclusive) of the range to sort.
+   *  @param[in] r Right index (inclusive) of the range to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @par Example
+   *  @code
+   *  int arr[] = {5, 2, 8, 1, 9, 3};
+   *  introsort(arr, 0, 5);  // arr is now {1, 2, 3, 5, 8, 9}
+   *
+   *  // With custom comparator (descending order)
+   *  introsort(arr, 0, 5, std::greater<int>());
+   *  @endcode
+   *
+   *  @see quicksort(), heapsort(), mergesort()
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void introsort(T *a, const long l, const long r, const Compare & cmp = Compare())
+  {
+    if (r <= l)
+      return;
+
+    const size_t n = static_cast<size_t>(r - l + 1);
+
+    if (n < Quicksort_Threshold)
+      {
+        insertion_sort(a, l, r, cmp);
+        return;
+      }
+
+    // Main introsort loop with depth limit
+    introsort_loop<T, Compare>(a, l, r, introsort_depth_limit(n), cmp);
+
+    // Final insertion sort pass for small unsorted subarrays
+    insertion_sort(a, l, r, cmp);
+  }
+
+  /** @brief Sort an array using introsort (convenience overload).
+   *
+   *  This overload sorts the entire array [0, n-1].
+   *
+   *  @param[in,out] a Pointer to the array to sort.
+   *  @param[in] n Number of elements in the array.
+   *  @param cmp Comparison functor.
+   *
+   *  @see introsort(T*, long, long, Compare)
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void introsort(T *a, const size_t n, const Compare & cmp = Compare())
+  {
+    if (n <= 1)
+      return;
+    introsort(a, 0L, static_cast<long>(n - 1), cmp);
+  }
+
   /** Sorts a linked list by the quicksort method.
 
       quicksort(list) sorts a list
@@ -2925,10 +3070,157 @@ namespace Aleph
       }
   }
 
+  /** @brief Sift down operation for heapsort on a DynArray subrange.
+   *
+   *  @internal
+   *  @param a The array.
+   *  @param start Start index within the heap (1-based).
+   *  @param n Heap size.
+   *  @param offset Offset to the start of the subrange in the array.
+   *  @param cmp Comparator.
+   */
+  template <typename T, class Compare>
+  inline
+  void sift_down_subrange(DynArray<T> & a, long start, const long n,
+                          const long offset, const Compare & cmp)
+  {
+    while (true)
+      {
+        long c = start << 1; // c = 2*start (left child)
+        if (c > n)
+          return;
+
+        // Select the child with higher priority
+        if (c + 1 <= n)
+          if (cmp(a(offset + c), a(offset + c - 1)))
+            c++;
+
+        if (cmp(a(offset + start - 1), a(offset + c - 1)))
+          return;
+
+        std::swap(a(offset + start - 1), a(offset + c - 1));
+        start = c;
+      }
+  }
+
+  /** @brief Heapsort a subrange of a DynArray.
+   *
+   *  @internal
+   */
+  template <typename T, class Compare>
+  inline
+  void heapsort_subrange(DynArray<T> & a, const long l, const long r,
+                         const Compare & cmp)
+  {
+    const long n = r - l + 1;
+    if (n <= 1)
+      return;
+
+    auto nc = Negate_Compare<T, Compare>(cmp);
+
+    // Floyd's heap construction: O(n)
+    for (long i = n / 2; i >= 1; --i)
+      sift_down_subrange<T, Negate_Compare<T, Compare>>(a, i, n, l, nc);
+
+    // Extract elements
+    for (long i = n; i >= 2; --i)
+      {
+        std::swap(a(l), a(l + i - 1));
+        sift_down_subrange<T, Negate_Compare<T, Compare>>(a, 1, i - 1, l, nc);
+      }
+  }
+
+  /** @brief Internal recursive function for introsort on DynArray.
+   *
+   *  @internal
+   */
+  template <typename T, class Compare>
+  void introsort_loop(DynArray<T> & a, long l, long r, size_t depth_limit,
+                      const Compare & cmp)
+  {
+    while (r - l >= static_cast<long>(Quicksort_Threshold))
+      {
+        if (depth_limit == 0) [[unlikely]]
+          {
+            // Depth limit reached: switch to heapsort for guaranteed O(n log n)
+            heapsort_subrange<T, Compare>(a, l, r, cmp);
+            return;
+          }
+
+        --depth_limit;
+
+        // Partition and continue
+        const long pivot = partition(a, l, r, cmp);
+
+        // Recurse on smaller partition, iterate on larger (tail call elimination)
+        if (pivot - l < r - pivot)
+          {
+            introsort_loop<T, Compare>(a, l, pivot - 1, depth_limit, cmp);
+            l = pivot + 1;
+          }
+        else
+          {
+            introsort_loop<T, Compare>(a, pivot + 1, r, depth_limit, cmp);
+            r = pivot - 1;
+          }
+      }
+  }
+
+  /** @brief Sort a dynamic array using introsort (introspective sort).
+   *
+   *  Introsort is a hybrid sorting algorithm that combines quicksort,
+   *  heapsort, and insertion sort. It provides guaranteed O(n log n)
+   *  worst-case performance while maintaining quicksort's excellent
+   *  average-case performance.
+   *
+   *  This is the recommended general-purpose sorting algorithm.
+   *
+   *  ### Characteristics
+   *  - **Time complexity**: O(n log n) - guaranteed
+   *  - **Space complexity**: O(log n) for recursion
+   *  - **Stability**: Not stable
+   *  - **In-place**: Yes
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] a The dynamic array to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @par Example
+   *  @code
+   *  DynArray<int> arr = {5, 2, 8, 1, 9};
+   *  introsort(arr);  // arr is now {1, 2, 5, 8, 9}
+   *  @endcode
+   *
+   *  @see quicksort(), heapsort(), mergesort()
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void introsort(DynArray<T> & a, const Compare & cmp = Compare())
+  {
+    const long n = a.size();
+    if (n <= 1)
+      return;
+
+    if (n < static_cast<long>(Quicksort_Threshold))
+      {
+        insertion_sort(a, 0, n - 1, cmp);
+        return;
+      }
+
+    // Main introsort loop with depth limit
+    introsort_loop<T, Compare>(a, 0, n - 1, introsort_depth_limit(n), cmp);
+
+    // Final insertion sort pass for small unsorted subarrays
+    insertion_sort(a, 0, n - 1, cmp);
+  }
+
   /** Generic search in a dynamic array of an extreme element.
 
       search_extreme(a, l, r) searches the array sequentially
-      a, between the indices l and r, the extreme, minimum or element
+      a between the indices l and r, the extreme, minimum or element
       maximum according to the comparison criterion Compare.
 
       @param[in] a the dynamic array in which to perform the search.

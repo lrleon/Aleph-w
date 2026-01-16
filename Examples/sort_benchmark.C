@@ -74,15 +74,24 @@
  * - **Best for**: Guaranteed O(n log n) without extra memory
  * - **Trade-off**: Slower than quicksort average, but guaranteed
  *
+ * #### Introsort (Introspective Sort)
+ * - **Complexity**: O(n log n) guaranteed
+ * - **Stability**: Not stable
+ * - **Space**: O(log n) stack
+ * - **Best for**: General purpose with worst-case guarantee
+ * - **Trade-off**: Same as quicksort average, but guaranteed O(n log n)
+ * - **How it works**: Starts with quicksort, falls back to heapsort when
+ *   recursion depth exceeds 2*log(n), uses insertion sort for small partitions
+ *
  * ## Data Distributions Tested
  *
  * | Distribution | Description | Best Algorithm | Why |
  * |--------------|-------------|----------------|-----|
- * | **Random** | Uniformly distributed | quicksort_op() | Fast average case |
+ * | **Random** | Uniformly distributed | introsort()/quicksort_op() | Fast average case |
  * | **Sorted** | Already ascending | insertion_sort() | O(n) for sorted data |
- * | **Reverse** | Descending order | mergesort()/heapsort() | Quicksort worst case |
+ * | **Reverse** | Descending order | introsort()/heapsort() | Guaranteed O(n log n) |
  * | **Nearly Sorted** | 5% elements swapped | insertion_sort() | Adaptive, O(n) |
- * | **Few Unique** | Only 10 distinct values | quicksort_op() | Good partitioning |
+ * | **Few Unique** | Only 10 distinct values | introsort()/quicksort_op() | Good partitioning |
  * | **Sawtooth** | Alternating runs | mergesort() | Exploits runs |
  *
  * ## Aleph-w Container Types
@@ -135,6 +144,7 @@
  * | Mergesort | O(n log n) | O(n log n) | O(n log n) | O(n) | Yes |
  * | Quicksort | O(n log n) | O(n log n) | O(n²) | O(log n) | No |
  * | Heapsort | O(n log n) | O(n log n) | O(n log n) | O(1) | No |
+ * | Introsort | O(n log n) | O(n log n) | O(n log n) | O(log n) | No |
  *
  * ## Usage
  *
@@ -352,13 +362,19 @@ void benchmark_array_algorithms(const BenchmarkConfig& config,
   
   // Note: DynArray uses segmented blocks (not contiguous memory)
   // So we must use Aleph's sorting functions, not std::sort
-  
+
+  // Introsort (hybrid: quicksort + heapsort fallback) - RECOMMENDED
+  arr = source_data;
+  timer.start();
+  introsort(arr);
+  print_result("Introsort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
+
   // Quicksort (optimized iterative version) - uses DynArray::operator()
   arr = source_data;
   timer.start();
   quicksort_op(arr);
   print_result("Quicksort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
-  
+
   // Heapsort - uses DynArray::operator()
   arr = source_data;
   timer.start();
@@ -523,42 +539,42 @@ void demonstrate_complexity(const BenchmarkConfig& base_config)
   size_t sizes[] = {1000, 2000, 4000, 8000, 16000, 32000};
   
   cout << setw(10) << "Size"
+       << setw(15) << "Introsort"
        << setw(15) << "Quicksort"
        << setw(15) << "Heapsort"
-       << setw(15) << "Shell Sort"
        << setw(15) << "Merge (list)"
        << endl;
   cout << string(70, '-') << endl;
-  
+
   for (size_t n : sizes)
   {
     gen.random(data, n);
     cout << setw(10) << n;
-    
+
+    // Introsort (DynArray) - hybrid with O(n log n) guaranteed
+    arr = data;
+    timer.start();
+    introsort(arr);
+    cout << setw(15) << fixed << setprecision(2) << timer.elapsed_ms();
+
     // Quicksort (DynArray)
     arr = data;
     timer.start();
     quicksort_op(arr);
-    cout << setw(15) << fixed << setprecision(2) << timer.elapsed_ms();
-    
+    cout << setw(15) << timer.elapsed_ms();
+
     // Heapsort (DynArray)
     arr = data;
     timer.start();
     heapsort(arr);
     cout << setw(15) << timer.elapsed_ms();
-    
-    // Shell Sort (DynArray)
-    arr = data;
-    timer.start();
-    shellsort(arr);
-    cout << setw(15) << timer.elapsed_ms();
-    
+
     // Merge Sort (DynList)
     to_dynlist(data, list);
     timer.start();
     mergesort(list);
     cout << setw(15) << timer.elapsed_ms();
-    
+
     cout << endl;
   }
   
@@ -579,21 +595,25 @@ void print_recommendations()
 +-------------------+------------------------+-------------------------+
 | Scenario          | Best Choice            | Why                     |
 +-------------------+------------------------+-------------------------+
-| General purpose   | quicksort_op()         | Fastest average case    |
+| General purpose   | introsort()            | Fast + O(n log n) guarantee |
 | Nearly sorted     | insertion_sort()       | O(n) for sorted data    |
-| Guaranteed O(nlogn)| heapsort()            | No worst case O(n^2)    |
+| Guaranteed O(nlogn)| introsort()/heapsort()| No worst case O(n^2)    |
 | Linked lists      | mergesort()            | O(1) extra space        |
 | Stability needed  | mergesort()            | Preserves equal order   |
 | Limited memory    | heapsort()             | O(1) extra space        |
 | Small arrays (<50)| insertion_sort()       | Low overhead            |
 | External sorting  | mergesort()            | Sequential access       |
 | Medium arrays     | shellsort()            | Good balance            |
+| Adversarial data  | introsort()            | Immune to quicksort killers |
 +-------------------+------------------------+-------------------------+
 
 For Aleph-w containers:
-  - DynArray: Use quicksort_op(), heapsort(), or shellsort()
+  - DynArray: Use introsort() (recommended), quicksort_op(), or heapsort()
   - DynList:  Use mergesort() (O(1) extra space for lists!)
   - DynDlist: Use mergesort() or quicksort()
+
+Note: introsort() = quicksort + heapsort fallback + insertion sort for small
+      partitions. Same speed as quicksort but with O(n log n) guarantee.
 )";
 }
 

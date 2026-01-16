@@ -67,10 +67,15 @@ namespace Aleph
   {
     for (size_t p, i = r; i > l; i = p)
       {
-        p = u_index(i);
+        p = u_index(i); // parent index (p = i / 2)
+
+        // Prefetch grandparent for next iteration
+        if (const size_t gp = u_index(p); gp >= l)
+          __builtin_prefetch(&a.access(gp), 0, 1);
+
         T & ap = a.access(p);
         T & ai = a.access(i);
-        if (cmp(ap, ai)) // heap property holds
+        if (cmp(ap, ai)) [[likely]] // heap property holds
           return i;
 
         std::swap(ap, ai); // swap and continue at parent
@@ -91,9 +96,13 @@ namespace Aleph
     size_t i = l;
     while (true)
       {
-        size_t c = l_index(i); // left child index
-        if (c > r) // no left child
+        size_t c = l_index(i); // left child index (c = 2 * i)
+        if (c > r) [[unlikely]] // no left child
           return;
+
+        // Prefetch grandchildren for next iteration
+        if (const size_t gc = l_index(c); gc <= r)
+          __builtin_prefetch(&a.access(gc), 0, 1);
 
         T *ac = &a.access(c);
         if (c + 1 <= r) // right child exists
@@ -107,7 +116,7 @@ namespace Aleph
           }
 
         T & ai = a.access(i);
-        if (cmp(ai, *ac)) // heap property holds
+        if (cmp(ai, *ac)) [[likely]] // heap property holds
           return;
 
         std::swap(*ac, ai);

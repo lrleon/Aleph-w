@@ -68,8 +68,13 @@ namespace Aleph
     size_t i = r;
     for (size_t p; i > l; i = p)
       {
-        p = u_index(i); // parent index (c = i / 2)
-        if (cmp(ptr[p], ptr[i])) // does the heap property hold?
+        p = u_index(i); // parent index (p = i / 2)
+
+        // Prefetch grandparent for next iteration
+        if (const size_t gp = u_index(p); gp >= l)
+          __builtin_prefetch(&ptr[gp], 0, 1);
+
+        if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
           return ptr[i]; // yes, the entire range is already a heap
 
         std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
@@ -85,15 +90,19 @@ namespace Aleph
     size_t i = l;
     while (true)
       {
-        size_t c = l_index(i); // left child index (c = i / 2)
-        if (c > r) // does it have a left child?
+        size_t c = l_index(i); // left child index (c = 2 * i)
+        if (c > r) [[unlikely]] // does it have a left child?
           return; // no ==> stop
+
+        // Prefetch grandchildren for next iteration
+        if (const size_t gc = l_index(c); gc <= r)
+          __builtin_prefetch(&ptr[gc], 0, 1);
 
         if (c + 1 <= r) // does it have a right child?
           if (cmp(ptr[c + 1], ptr[c])) // yes ==> pick the smaller child
             c++;
 
-        if (cmp(ptr[i], ptr[c])) // does the heap property hold?
+        if (cmp(ptr[i], ptr[c])) [[likely]] // does the heap property hold?
           return; // yes ==> stop
 
         std::swap(ptr[c], ptr[i]);
