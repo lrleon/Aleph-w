@@ -51,7 +51,7 @@
  *
  * ## Usage / CLI
  *
- * This program uses `argp`.
+ * This program uses `tclap`.
  *
  * Minimal usage (input is required):
  *
@@ -115,45 +115,45 @@
 # include <tpl_dynArray.H>
 # include <tpl_sort_utils.H>
 
-# include <argp.h>
+# include <tclap/CmdLine.h>
 
 # include "parse_utils.H"
 # include "treepic_utils.H"
 
 using namespace std;
 
-/* TODO:: opcion THREAD para dibujar una arco threads parábola entre 2
-   nodos (esta cas lista)
+/* TODO: THREAD option to draw a parabolic thread arc between 2
+   nodes (almost ready)
 
-   TODO: opcion AUX-KEY 20 "cadena" para "cadena" en nodo 20
+   TODO: AUX-KEY 20 "string" option for "string" in node 20
 
-   TODO: opcion ARROW para dibujar flechas -interfza aun no definida
+   TODO: ARROW option to draw arrows - interface not yet defined
 
-   TODO: opcion dick y luka para arboles de lukasiewicks y dick, sus
-   codigos y dibujado de caminos de catalan
+   TODO: dick and luka option for Lukasiewicz and Dick trees, their
+   codes and drawing of Catalan paths
 
-   TODO: opcion para proyeccion infija
+   TODO: option for infix projection
 
-   TODO: opcion para tipos de letra
+   TODO: option for font types
 
-   TODO: opcion que reenicie archivo .btreepic
+   TODO: option to reset .btreepic file
 */
 
 /*These are the distance values */
-long double hr = 10; // radio horizontal de la elipse
-long double vr = 10; // radio vertical de la elipse
-long double hd = 2 * hr; // diametro horizontal de la elipse
-long double vd = 2 * vr; // diametro vertical de la elipse
-long double w = 20; // separacion horizontal entre centros
-long double h = 35; // separacion vertical entre centros
-long double h_size = 110; /* longitud horizontal de picture */
-double v_size = 190; /* longitud vertical de picture */
-long double x_offset = 0; // offset horizontal para etiqueta principal
-long double y_offset = 0; // offset vertical etiqueta principal
-long double x_aux_offset = 0; // offset horizontal para etiqueta auxiliar
-long double y_aux_offset = 0; // offset vertical para etiqueta auxiliar
-long double x_picture_offset = 0; // offset horizontal para dibujo
-long double y_picture_offset = 0; // offset vertical para dibujo
+long double hr = 10; // horizontal radius of the ellipse
+long double vr = 10; // vertical radius of the ellipse
+long double hd = 2 * hr; // horizontal diameter of the ellipse
+long double vd = 2 * vr; // vertical diameter of the ellipse
+long double w = 20; // horizontal separation between centers
+long double h = 35; // vertical separation between centers
+long double h_size = 110; /* horizontal length of picture */
+double v_size = 190; /* vertical length of picture */
+long double x_offset = 0; // horizontal offset for main label
+long double y_offset = 0; // vertical offset for main label
+long double x_aux_offset = 0; // horizontal offset for auxiliary label
+long double y_aux_offset = 0; // vertical offset for auxiliary label
+long double x_picture_offset = 0; // horizontal offset for drawing
+long double y_picture_offset = 0; // vertical offset for drawing
 
 
 enum Token_Type
@@ -179,18 +179,16 @@ enum Token_Type
 typedef Token_Type Tag_Option;
 
 
-/* Una tag es una etiqueta que se puede colocar externamente a un
-   nodo. Esta struct describe tal etiqueta */
+/* A tag is a label that can be placed externally to a
+   node. This struct describes such a label */
 struct Tag_Data
 {
-  string tag; // el string a escribir
-  Tag_Option tag_option; // orientacion de tag en sentido horario
+  string tag; // the string to write
+  Tag_Option tag_option; // tag orientation in clockwise direction
   long double x_offset;
   long double y_offset;
 
-  Tag_Data()
-  { /* empty */
-  }
+  Tag_Data() = default;
 
   Tag_Data(const string & str, Tag_Option option)
     : tag(str), tag_option(option)
@@ -201,50 +199,42 @@ struct Tag_Data
 
 
 template <class Key>
-class EepicNode; /* Necesaria por punteros extras
-					 dentro EepicNode_Data */
+class EepicNode; /* Necessary for extra pointers
+					 inside EepicNode_Data */
 
 struct Arc_Desc
 {
-  EepicNode<long> *target_node;
-  bool is_dashed;
+  EepicNode<long> *target_node = nullptr;
+  bool is_dashed = false;
 
-  Arc_Desc() : target_node(nullptr), is_dashed(false)
-  { /* empty */
-  }
+  Arc_Desc() = default;
 };
 
 
 struct Arc_Data
 {
   long target_node;
-  bool is_dashed;
+  bool is_dashed = false;
 
-  Arc_Data() : is_dashed(false)
-  { /* empty */
-  }
+  Arc_Data() = default;
 };
 
 
 struct Thread_Desc
 {
-  EepicNode<long> *target_node;
-  bool is_dashed;
+  EepicNode<long> *target_node = nullptr;
+  bool is_dashed = false;
 
-  Thread_Desc() : target_node(nullptr), is_dashed(false)
-  { /* empty */
-  }
+  Thread_Desc() = default;
 };
 
 
 struct Thread_Data
 {
   long target_node;
-  bool is_dashed;
+  bool is_dashed = false;
 
-  Thread_Data() : is_dashed(false)
-  { /* empty */
-  }
+  Thread_Data() = default;
 };
 
 
@@ -268,11 +258,10 @@ struct Line_Distance_Data
 
 class EepicNode_Data
 {
-private:
   int count;
   int level;
 
-  /* coordenadas x,y en pixels */
+  /* x,y coordinates in pixels */
   long double x;
   long double y;
 
@@ -387,7 +376,7 @@ public:
 # define ISTRIANGLE(p)  ((p)->is_triangle())
 # define DSTRING(p)     ((p)->get_distance_string())
 # define LDISTANCE(p)   ((p)->get_line_distance_data())
-# define ISDISTANCE(p)  ((p)->get_line_distance_data().str.size() != 0)
+# define ISDISTANCE(p)  ((p)->get_line_distance_data().str.empty())
 # define ISRECTANGLE(p) ((p)->is_rectangle())
 # define STRING(p)      ((p)->get_key_string())
 # define AUX(p)         ((p)->get_aux_string())
@@ -411,23 +400,23 @@ string command_line;
 string input_file_name;
 string output_file_name;
 
-/* Estados globales */
+/* Global states */
 int num_nodes = 0;
 
-/* opciones logicas y estados de lectura del archivo de entrada */
-bool verbose_mode = true; // Imprimir acciones reconocidas
-bool silent_mode = true; // No imprimir tokens vistos de archivo entrada
-bool latex_header = false; // envolver salida con un latex header
-bool landscape = false; // latex header en landscape
-bool fit_mode = false; // modo calculo automatico de tama~os */
-bool draw_node_mode = true; // dibujar elipses
-bool printing_key_mode = false; // imprimir valor de clave dentro de elipse
-bool with_string_key = false; // Hay un string en archivo como clave
-bool with_string_aux = false; // Hay un string auxiliar aparte clave
-bool threaded_trees = false; // Dibujar arbol hilado
-bool dash_threaded_trees = false; // Dibujar arbol hilado
-bool with_external_nodes = false; // Dibujar nodos externos
-bool draw_nodes = true; // Dibujar elipses de nodos
+/* logical options and input file reading states */
+bool verbose_mode = true; // Print recognized actions
+bool silent_mode = true; // Do not print tokens seen from input file
+bool latex_header = false; // wrap output with a latex header
+bool landscape = false; // latex header in landscape mode
+bool fit_mode = false; // automatic size calculation mode */
+bool draw_node_mode = true; // draw ellipses
+bool printing_key_mode = false; // print key value inside ellipse
+bool with_string_key = false; // There is a string in file as key
+bool with_string_aux = false; // There is an auxiliary string besides key
+bool threaded_trees = false; // Draw threaded tree
+bool dash_threaded_trees = false; // Draw threaded tree
+bool with_external_nodes = false; // Draw external nodes
+bool draw_nodes = true; // Draw node ellipses
 
 const char *parameters_file_name = "./.btreepic";
 
@@ -456,58 +445,58 @@ void read_parameters()
 }
 
 
-DynArray<long> prefix_dynarray; // recorrido prefijo
-DynArray<long> infix_dynarray; // recorrido infijo
-DynArray<string> key_print_dynarray; // claves en string en orden infijo
-DynArray<string> aux_print_dynarray; // strings auxiliares en orden infijo
-DynArray<long> shadow_dynarray; /* lista secuencial de posiciones infijas
-					a ensombrecer */
-DynArray<long> without_node_dynarray; /* lista secuencial de nodos
-					   que no se dibujan */
-DynArray<Tag_Data> tag_data_dynarray; /* Se colocan tags */
-DynArray<long> tag_pos_dynarray; /* posiciones infijas de tags */
-DynArray<long> source_arc_dynarray; /* posiciones infijas de origen
-					 de arcos adicionales */
-DynArray<Arc_Data> target_arc_dynarray; /* posiciones infijas de destino
-					   de arcos adicionales */
-DynArray<long> source_thread_dynarray; /* posiciones infijas de origen
-					  de threads adicionales */
-DynArray<Thread_Data> target_thread_dynarray; /* posiciones infijas de destino
-						 de threads adicionales */
-DynArray<long> scratch_dynarray; /* posiciones infijas de nodos a
-				      tachar */
-DynArray<long> split_dynarray; /* posiciones infijas de lineas de
-				    particion */
-DynArray<Split_Data> split_string_dynarray; /* etiquetas de lines de
-					       particion */
-DynArray<long> key_pos_dynarray; /* posiciones infijas de claves */
-DynArray<string> key_string_dynarray; /* claves */
+DynArray<long> prefix_dynarray; // preorder traversal
+DynArray<long> infix_dynarray; // inorder traversal
+DynArray<string> key_print_dynarray; // keys as strings in inorder
+DynArray<string> aux_print_dynarray; // auxiliary strings in inorder
+DynArray<long> shadow_dynarray; /* sequential list of inorder positions
+					to shadow */
+DynArray<long> without_node_dynarray; /* sequential list of nodes
+					   that are not drawn */
+DynArray<Tag_Data> tag_data_dynarray; /* Tags are placed */
+DynArray<long> tag_pos_dynarray; /* inorder positions of tags */
+DynArray<long> source_arc_dynarray; /* inorder positions of source
+					 of additional arcs */
+DynArray<Arc_Data> target_arc_dynarray; /* inorder positions of target
+					   of additional arcs */
+DynArray<long> source_thread_dynarray; /* inorder positions of source
+					  of additional threads */
+DynArray<Thread_Data> target_thread_dynarray; /* inorder positions of target
+						 of additional threads */
+DynArray<long> scratch_dynarray; /* inorder positions of nodes to
+				      scratch */
+DynArray<long> split_dynarray; /* inorder positions of partition
+				    lines */
+DynArray<Split_Data> split_string_dynarray; /* labels of partition
+					       lines */
+DynArray<long> key_pos_dynarray; /* inorder positions of keys */
+DynArray<string> key_string_dynarray; /* keys */
 
-/* offsets horizontales particulares */
-DynArray<long> pos_xoffset_dynarray; /* posicion infija */
-DynArray<long double> xoffset_dynarray; /* valor del offset */
+/* particular horizontal offsets */
+DynArray<long> pos_xoffset_dynarray; /* inorder position */
+DynArray<long double> xoffset_dynarray; /* offset value */
 
-/* offsets horizontales particulares */
-DynArray<long> pos_yoffset_dynarray; /* posicion infija */
-DynArray<long double> yoffset_dynarray; /* valor del offset */
+/* particular vertical offsets */
+DynArray<long> pos_yoffset_dynarray; /* inorder position */
+DynArray<long double> yoffset_dynarray; /* offset value */
 
-/* triangulos */
-DynArray<long> pos_triangle_dynarray; /* posicion infija */
-DynArray<long double> height_triangle_dynarray; /* altura del triangulo */
+/* triangles */
+DynArray<long> pos_triangle_dynarray; /* inorder position */
+DynArray<long double> height_triangle_dynarray; /* triangle height */
 
-/* rectangulos */
-DynArray<long double> height_rectangle_dynarray; /* posicion infija */
-DynArray<long> pos_rectangle_dynarray; /* altura del triangulo */
+/* rectangles */
+DynArray<long double> height_rectangle_dynarray; /* inorder position */
+DynArray<long> pos_rectangle_dynarray; /* triangle height */
 
-/* rectangulos con tachaduras al final */
-DynArray<long double> height_parrectangle_dynarray; /* posicion infija */
-DynArray<long> pos_parrectangle_dynarray; /* altura del triangulo */
+/* rectangles with scratches at the end */
+DynArray<long double> height_parrectangle_dynarray; /* inorder position */
+DynArray<long> pos_parrectangle_dynarray; /* triangle height */
 
-/* lineas de distancia */
-DynArray<long> pos_distance_dynarray; /* altura del triangulo */
-DynArray<Line_Distance_Data> distance_dynarray; /* posicion infija */
+/* distance lines */
+DynArray<long> pos_distance_dynarray; /* triangle height */
+DynArray<Line_Distance_Data> distance_dynarray; /* inorder position */
 
-DynArray<long> without_arc_dynarray; // lista de nodos sin arco
+DynArray<long> without_arc_dynarray; // list of nodes without arc
 
 # define TERMINATE(n) (save_parameters(), exit(n))
 
@@ -522,9 +511,9 @@ void load_tag_option(ifstream & input_stream)
   DYNARRAY_APPEND(tag_pos_dynarray, load_number(input_stream));
 
   Tag_Data tag_data;
-  tag_data.tag = load_string(input_stream); // string de tag
+  tag_data.tag = load_string(input_stream); // tag string
 
-  Token_Type token_type = get_token(input_stream);
+  const Token_Type token_type = get_token(input_stream);
 
   if (token_type < NORTH or token_type > SOUTH_WEST)
     print_parse_error_and_exit("Invalid tag option found");
@@ -601,22 +590,22 @@ void load_triangle_option(ifstream & input_stream)
   DYNARRAY_APPEND(height_triangle_dynarray, h);
 }
 
-/* esta variable memoriza la maxima altura en nodos de un
-   rectangulo. El proposito es reajustar la longitud vertical del
-   ambiente picture */
+/* this variable memorizes the maximum height in nodes of a
+   rectangle. The purpose is to readjust the vertical length of the
+   picture environment */
 int max_num_nodes_rectangle = 0;
 
 void load_rectangle_option(ifstream & input_stream)
 {
   DYNARRAY_APPEND(pos_rectangle_dynarray, load_number(input_stream));
 
-  long height = load_number(input_stream);
+  const long height = load_number(input_stream);
 
   if (height > max_num_nodes_rectangle)
     max_num_nodes_rectangle = height;
 
   if (height == 0)
-    PRINT_ERROR("Heigth in nodes cannot be zero");
+    PRINT_ERROR("Height in nodes cannot be zero");
 
   DYNARRAY_APPEND(height_rectangle_dynarray, height*vd);
 }
@@ -626,13 +615,13 @@ void load_parrectangle_option(ifstream & input_stream)
 {
   DYNARRAY_APPEND(pos_parrectangle_dynarray, load_number(input_stream));
 
-  long height = load_number(input_stream);
+  const long height = load_number(input_stream);
 
   if (height > max_num_nodes_rectangle)
     max_num_nodes_rectangle = height;
 
   if (height == 0)
-    PRINT_ERROR("Heigth in nodes cannot be zero");
+    PRINT_ERROR("Height in nodes cannot be zero");
 
   DYNARRAY_APPEND(height_parrectangle_dynarray, height*vd);
 }
@@ -645,7 +634,7 @@ void load_distance_option(ifstream & input_stream)
 
   line_distance_data.str = load_string(input_stream);
 
-  Token_Type token_type = get_token(input_stream);
+  const Token_Type token_type = get_token(input_stream);
 
   if (token_type != LEFT and token_type != RIGHT)
     PRINT_ERROR("Invalid orientation in DISTANCE option");
@@ -697,7 +686,7 @@ Token_Type get_token(ifstream & input_stream)
       return NUMBER;
     }
 
-  if (current_char == '\"') /* string delimitado entre comillas */
+  if (current_char == '\"') /* string delimited by quotes */
     while (true)
       {
         current_char = read_char_from_stream(input_stream);
@@ -713,13 +702,13 @@ Token_Type get_token(ifstream & input_stream)
       }
 
   if (current_char == '%')
-    { /* comentario */
+    { /* comment */
       while (read_char_from_stream(input_stream) != '\n') { /* nothing */ }
 
       return COMMENT;
     }
 
-  do /* delimita cadena caracteres separada por blancos */
+  do /* delimits string separated by whitespaces */
     {
       put_char_in_buffer(start_address, end_address, current_char);
       current_char = read_char_from_stream(input_stream);
@@ -834,25 +823,25 @@ Token_Type get_token(ifstream & input_stream)
 
 enum Parsing_State
 {
-  PREFIX, /* Fase obligatoria */
-  INFIX, /* El resto de las fases son opcionales */
-  KEYS, /* Lectura de valores de claves principales */
-  AUX, /* Lectura de valores de claves auxiliares */
-  SHADOW, /* Ensombrecer nodo */
-  WITHOUT /* No dibujar elipse */
+  PREFIX, /* Mandatory phase */
+  INFIX, /* The rest of the phases are optional */
+  KEYS, /* Reading of main key values */
+  AUX, /* Reading of auxiliary key values */
+  SHADOW, /* Shadow node */
+  WITHOUT /* Do not draw ellipse */
 };
 
-void assign_key(EepicNode<long> *p, int, int position)
+void assign_key(EepicNode<long> *p, int, const int position)
 {
   STRING(p) = key_print_dynarray[position];
 }
 
-void assign_aux(EepicNode<long> *p, int, int position)
+void assign_aux(EepicNode<long> *p, int, const int position)
 {
   AUX(p) = aux_print_dynarray[position];
 }
 
-void assign_shadow(EepicNode<long> *p, int, int position)
+void assign_shadow(EepicNode<long> *p, int, const int position)
 {
   if (sequential_search<long>(shadow_dynarray, position,
                               0, shadow_dynarray.size() - 1) >= 0)
@@ -862,7 +851,7 @@ void assign_shadow(EepicNode<long> *p, int, int position)
     }
 }
 
-void reassign_key(EepicNode<long> *p, int, int position)
+void reassign_key(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(key_pos_dynarray, position,
@@ -871,19 +860,19 @@ void reassign_key(EepicNode<long> *p, int, int position)
     STRING(p) = key_string_dynarray[found_index];
 }
 
-void assign_without_node(EepicNode<long> *p, int, int position)
+void assign_without_node(EepicNode<long> *p, int, const int position)
 {
   if (sequential_search<long>(without_node_dynarray, position,
                               0, without_node_dynarray.size() - 1) >= 0)
     WITHOUT(p) = true;
 }
 
-void assign_tag(EepicNode<long> *p, int, int position)
+void assign_tag(EepicNode<long> *p, int, const int position)
 {
   int low_index = 0;
   int found_index;
 
-  do /* busca todas las ocurrencias del valor node_index en
+  do /* searches all occurrences of node_index value in
 	tag_pos_dynarray */
     {
       found_index =
@@ -898,9 +887,9 @@ void assign_tag(EepicNode<long> *p, int, int position)
 }
 
 /*
-   busca el i-esimo nodo infijo asumiendo que cada nodo posee un campo
-   INFIX_POS que almacena su posicion infija. Asume que el arbol vacio
-   es nullptr -no hay nulo centinela-
+   searches the i-th infix node assuming that each node has an
+   INFIX_POS field that stores its infix position. Assumes that the
+   empty tree is nullptr -no sentinel null-
 */
 template <class Node>
 inline
@@ -919,8 +908,8 @@ Node * select(Node *root, const int & i)
   return nullptr;
 }
 
-/* recorre el arbol en prefijo y asigna los arcos almacenados en los
-   arreglos source_arc_dynarray y target_arc_dynarray */
+/* traverses the tree in preorder and assigns the arcs stored in the
+   arrays source_arc_dynarray and target_arc_dynarray */
 inline
 void assign_arcs(EepicNode<long> *root, EepicNode<long> *p)
 {
@@ -930,7 +919,7 @@ void assign_arcs(EepicNode<long> *root, EepicNode<long> *p)
   int low_index = 0;
   int found_index;
 
-  do /* busca todas las ocurrencias del valor node_index en
+  do /* searches all occurrences of node_index value in
 	source_arc_dynarray */
     {
       found_index =
@@ -949,7 +938,7 @@ void assign_arcs(EepicNode<long> *root, EepicNode<long> *p)
     }
   while (found_index >= 0);
 
-  do /* busca todas las ocurrencias del valor node_index en
+  do /* searches all occurrences of node_index value in
 	source_thread_dynarray */
     {
       found_index =
@@ -957,7 +946,7 @@ void assign_arcs(EepicNode<long> *root, EepicNode<long> *p)
                                   low_index, source_thread_dynarray.size() - 1);
       if (found_index >= 0)
         {
-          Thread_Data thread_data = target_thread_dynarray[found_index];
+          const Thread_Data thread_data = target_thread_dynarray[found_index];
           Thread_Desc thread_desc;
           thread_desc.is_dashed = thread_data.is_dashed;
           thread_desc.target_node = select(root, thread_data.target_node);
@@ -973,37 +962,32 @@ void assign_arcs(EepicNode<long> *root, EepicNode<long> *p)
 }
 
 void assign_external_nodes(EepicNode<long> *p)
-{ {
-    EepicNode<long> *& l = LLINK(p);
+{
+  if (EepicNode<long> *& l = LLINK(p); l == nullptr)
+    {
+      l = new EepicNode<long>;
+      EXTERNAL(l) = true;
+    }
+  else
+    assign_external_nodes(l);
 
-    if (l == nullptr)
-      {
-        l = new EepicNode<long>;
-        EXTERNAL(l) = true;
-      }
-    else
-      assign_external_nodes(l);
-  } {
-    EepicNode<long> *& r = RLINK(p);
-
-    if (r == nullptr)
-      {
-        r = new EepicNode<long>;
-        EXTERNAL(r) = true;
-      }
-    else
-      assign_external_nodes(r);
-  }
+  if (EepicNode<long> *& r = RLINK(p); r == nullptr)
+    {
+      r = new EepicNode<long>;
+      EXTERNAL(r) = true;
+    }
+  else
+    assign_external_nodes(r);
 }
 
-void assign_scratch(EepicNode<long> *p, int, int position)
+void assign_scratch(EepicNode<long> *p, int, const int position)
 {
   if (sequential_search<long>(scratch_dynarray, position,
                               0, scratch_dynarray.size() - 1) >= 0)
     SCRATCH(p) = true;
 }
 
-void assign_xoffset(EepicNode<long> *p, int, int position)
+void assign_xoffset(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_xoffset_dynarray, position,
@@ -1012,7 +996,7 @@ void assign_xoffset(EepicNode<long> *p, int, int position)
     XOFFSET(p) = xoffset_dynarray[found_index];
 }
 
-void assign_yoffset(EepicNode<long> *p, int, int position)
+void assign_yoffset(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_yoffset_dynarray, position,
@@ -1021,7 +1005,7 @@ void assign_yoffset(EepicNode<long> *p, int, int position)
     YOFFSET(p) = yoffset_dynarray[found_index];
 }
 
-void assign_triangle(EepicNode<long> *p, int, int position)
+void assign_triangle(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_triangle_dynarray, position,
@@ -1035,7 +1019,7 @@ void assign_triangle(EepicNode<long> *p, int, int position)
     }
 }
 
-void assign_rectangle(EepicNode<long> *p, int, int position)
+void assign_rectangle(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_rectangle_dynarray, position,
@@ -1049,7 +1033,7 @@ void assign_rectangle(EepicNode<long> *p, int, int position)
     }
 }
 
-void assign_parrectangle(EepicNode<long> *p, int, int position)
+void assign_parrectangle(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_parrectangle_dynarray, position,
@@ -1064,7 +1048,7 @@ void assign_parrectangle(EepicNode<long> *p, int, int position)
     }
 }
 
-void assign_distance(EepicNode<long> *p, int, int position)
+void assign_distance(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(pos_distance_dynarray, position,
@@ -1083,7 +1067,7 @@ void assign_distance(EepicNode<long> *p, int, int position)
     }
 }
 
-void assign_without_arc(EepicNode<long> *p, int, int position)
+void assign_without_arc(EepicNode<long> *p, int, const int position)
 {
   const int found_index =
       sequential_search<long>(without_arc_dynarray, position,
@@ -1093,11 +1077,11 @@ void assign_without_arc(EepicNode<long> *p, int, int position)
 }
 
 /*
-  Asigna posicion infija a cada nodo. Se usa con con rutina inOrderRec
-  y debe asegurarse que node_index este iniciado en cero antes de
-  llamar a inOrderRec
+  Assigns infix position to each node. It is used with inOrderRec
+  routine, and it must be ensured that node_index is initialized to zero
+  before calling inOrderRec
 */
-void assign_pos_and_level(EepicNode<long> *p, int level, int position)
+void assign_pos_and_level(EepicNode<long> *p, const int level, const int position)
 {
   INFIXPOS(p) = position;
   X(p) = hr + position * w;
@@ -1107,31 +1091,26 @@ void assign_pos_and_level(EepicNode<long> *p, int level, int position)
 
 inline
 void thread_tree(EepicNode<long> *p)
-{ {
-    EepicNode<long> *prev = LLINK(p);
+{
+  if (EepicNode<long> *prev = LLINK(p); prev != nullptr)
+    {
+      while (RLINK(prev) != nullptr)
+        prev = RLINK(prev);
 
-    if (prev != nullptr)
-      {
-        while (RLINK(prev) != nullptr)
-          prev = RLINK(prev);
+      SUCC(prev) = p;
 
-        SUCC(prev) = p;
+      thread_tree(LLINK(p));
+    }
 
-        thread_tree(LLINK(p));
-      }
-  } {
-    EepicNode<long> *succ = RLINK(p);
+  if (EepicNode<long> *succ = RLINK(p); succ != nullptr)
+    {
+      while (LLINK(succ) != nullptr)
+        succ = LLINK(succ);
 
-    if (succ != nullptr)
-      {
-        while (LLINK(succ) != nullptr)
-          succ = LLINK(succ);
+      PREV(succ) = p;
 
-        PREV(succ) = p;
-
-        thread_tree(RLINK(p));
-      }
-  }
+      thread_tree(RLINK(p));
+    }
 }
 
 void file_to_dynarrays(const char *file_name)
@@ -1313,11 +1292,10 @@ inline bool north_offset(EepicNode<long> *p)
   for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p));
        tag_itor.has_curr(); tag_itor.next())
     {
-      Tag_Data & tag_data = tag_itor.get_curr();
-
-      if (tag_data.tag_option == NORTH or
-          tag_data.tag_option == NORTH_EAST or
-          tag_data.tag_option == NORTH_WEST)
+      if (const Tag_Data & tag_data = tag_itor.get_curr();
+        tag_data.tag_option == NORTH or
+        tag_data.tag_option == NORTH_EAST or
+        tag_data.tag_option == NORTH_WEST)
         return true;
     }
 
@@ -1381,11 +1359,9 @@ inline bool south_offset(EepicNode<long> *root,
       for (DynDlist<Tag_Data>::Iterator tag_itor(TAGLIST(p));
            tag_itor.has_curr(); tag_itor.next())
         {
-          Tag_Data & tag_data = tag_itor.get_curr();
-
-          if (tag_data.tag_option == SOUTH or
-              tag_data.tag_option == SOUTH_EAST or
-              tag_data.tag_option == SOUTH_WEST)
+          if (Tag_Data & tag_data = tag_itor.get_curr(); tag_data.tag_option == SOUTH or
+                                                         tag_data.tag_option == SOUTH_EAST or
+                                                         tag_data.tag_option == SOUTH_WEST)
             return true;
         }
     }
@@ -1395,7 +1371,7 @@ inline bool south_offset(EepicNode<long> *root,
 
 void adjust_size_by_tags(EepicNode<long> *root, const size_t & height)
 {
-  long double r = std::max(hr, vr) + 2.0 / resolution; // 2mm
+  const long double r = std::max(hr, vr) + 2.0 / resolution; // 2mm
 
   if (north_offset(root))
     v_size += r;
@@ -1423,7 +1399,7 @@ void set_picture_size(EepicNode<long> *p)
 
   if (height_triangle_dynarray.size() > 0)
     {
-      float max_triangle_height =
+      const float max_triangle_height =
           height_triangle_dynarray[search_max(height_triangle_dynarray, 0,
                                               height_triangle_dynarray.size())];
       v_size += max_triangle_height;
@@ -1458,12 +1434,12 @@ EepicNode<long> * build_tree()
 
       EepicNode<long> *root = nullptr;
 
-      /* construccion inicial del arbol segun recorridos de entrada */
+      /* initial construction of the tree according to input traversals */
       if (infix_dynarray.size() == 0)
         root = preorder_to_bst<EepicNode<long>>
-            (prefix_dynarray, 0, num_nodes - 1); /* solo recorrido prefijo */
+            (prefix_dynarray, 0, num_nodes - 1); /* only preorder traversal */
       else
-        { /* entrada con dos recorridos */
+        { /* input with two traversals */
           if (infix_dynarray.size() != num_nodes)
             AH_ERROR("Sizes of traversals differ");
 
@@ -1494,7 +1470,7 @@ EepicNode<long> * build_tree()
       if (with_external_nodes)
         assign_external_nodes(root);
 
-      /* asignar posiciones infija a cada nodo */
+      /* assign infix positions to each node */
       inOrderRec(root, assign_pos_and_level);
 
       if (with_external_nodes)
@@ -1504,7 +1480,7 @@ EepicNode<long> * build_tree()
 
           set_picture_size(root);
 
-          return root; /* con nodos externos solo se dibuja forma */
+          return root; /* with external nodes only shape is drawn */
         }
 
       key_print_dynarray.cut();
@@ -1659,6 +1635,7 @@ void generate_prologue(ofstream & output)
         << (dash_threaded_trees ? "\\usepackage{curves}" : "") << endl
         << "\\usepackage{epic}" << endl
         << "\\usepackage{eepic}" << endl
+        << "\\usepackage{amssymb}" << endl
         << endl
         << "\\begin{document}" << endl
         << "\\begin{center}" << endl;
@@ -1694,26 +1671,26 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
   long double x = X(p);
   long double y = Y(p);
 
-  /* Imprimir comentario cabecera de nodo */
+  /* Print node header comment */
   output << endl
       << endl
       << "% Node at infix position " << INFIXPOS(p)
       << " with key " << STRING(p);
 
-  /* dibujar nodo */
-  if (ISEXTERNAL(p)) /* recta correspondiente a nodo externo */
+  /* draw node */
+  if (ISEXTERNAL(p)) /* line corresponding to external node */
     output << endl
         << "%   External node" << endl
         << "\\path(" << x - hr << "," << YPIC(y) << ")("
         << x + hr << "," << YPIC(y) << ")" << endl;
-  else if (ISTRIANGLE(p)) /* dibujar triangulo */
+  else if (ISTRIANGLE(p)) /* draw triangle */
     output << endl
         << "%   Triangle" << endl
         << "\\path(" << x << "," << YPIC(y) << ")("
         << x - hd << "," << YPIC(y + TRIANGLEH(p)) << ")("
         << x + hd << "," << YPIC(y + TRIANGLEH(p)) << ")("
         << x << "," << YPIC(y) << ")";
-  else if (ISRECTANGLE(p)) /* dibujar rectangulo */
+  else if (ISRECTANGLE(p)) /* draw rectangle */
     {
       long double x1 = X(p) - hr;
       long double x2 = X(p) + hr;
@@ -1760,7 +1737,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
               << x1 << "," << YPIC(y1) << ")";
         }
     }
-  else if (draw_nodes and not WITHOUT(p)) /* elipse de nodo interno */
+  else if (draw_nodes and not WITHOUT(p)) /* internal node ellipse */
     output << endl
         << "%   Elippse" << endl
         << "\\put(" << x << "," << YPIC(y) << ")"
@@ -1772,14 +1749,14 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
         << "\\put(" << x << "," << YPIC(y) << "){\\ellipse*{" << hd
         << "}{" << vd << "}}";
 
-  /* imprimir linea de distancia si es el caso */
+  /* print distance line if applicable */
   if (ISDISTANCE(p))
     {
       output << endl
           << "%   Distance line";
-      long double xof = 2.0 / resolution; /* 2 mm de separacion de nodo */
-      long double yplus = 1.0 / resolution; /* sobrelargo de linea */
-      long double yof = 3.5 / resolution; /* 3.0 mm de espacio para letras */
+      long double xof = 2.0 / resolution; /* 2 mm separation from node */
+      long double yplus = 1.0 / resolution; /* line extra length */
+      long double yof = 3.5 / resolution; /* 3.0 mm space for letters */
       long double line_len = 0;
       Line_Distance_Data ldd = LDISTANCE(p);
       long double xd = 0;
@@ -1827,7 +1804,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
                  "String of line distance", ldd.str);
     }
 
-  /* imprimir el contenido del nodo */
+  /* print node content */
   if (printing_key_mode and not EXTERNAL(p))
     {
       long double dx = center_string(STRING(p), hd);
@@ -1839,31 +1816,31 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
         dy_rectangle =
             (SCRATCH(p) ? (RECTANGLEH(p) - vd) : RECTANGLEH(p)) / 2 + vr;
 
-      if (not with_string_aux) /* imprimir solo la clave */
+      if (not with_string_aux) /* print only key */
         put_string(output, x + x_offset + XOFFSET(p) - dx,
                    y + dy + y_offset + YOFFSET(p) +
                    RECTANGLEH(p) - dy_rectangle + TRIANGLEH(p) - dy_triangle,
                    "Key text= " + STRING(p), STRING(p));
       else
-        { /* nodos contienen dos campos: clave y cadena auxiliar */
+        { /* nodes contain two fields: key and auxiliary string */
           long double dxa = center_string(AUX(p), hd);
           long double dyk = 1.2 / resolution; // 1.2 mm above line
           long double dya = 2 / resolution; // 3 mm below line
 
-          /* colocar clave */
+          /* place key */
           put_string(output, x + x_offset + XOFFSET(p) - dx,
                      y + dy + y_offset + YOFFSET(p) + TRIANGLEH(p) -
                      dy_triangle +
                      RECTANGLEH(p) - dy_rectangle - dyk,
                      "Key text= " + STRING(p), STRING(p));
 
-          /* linea divisoria de nodo entre cadena principal y auxiliar */
+          /* dividing line of node between main and auxiliary string */
           if (not (ISTRIANGLE(p) or ISRECTANGLE(p)))
             output << endl
                 << "\\path(" << x - hr << "," << YPIC(y) << ")("
                 << x + hr << "," << YPIC(y) << ")";
 
-          /* colocar clave auxiliar */
+          /* place auxiliary key */
           put_string(output, x + x_aux_offset - dxa,
                      y + dy + y_aux_offset + dya + TRIANGLEH(p) - dy_triangle +
                      RECTANGLEH(p) - dy_rectangle,
@@ -1871,10 +1848,10 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
         }
     }
 
-  /* imprimir las etiquetas -TAGs-del nodo */
+  /* print node tags */
   if (not TAGLIST(p).is_empty())
     {
-      long double tx, ty; /* coordenadas de la tag */
+      long double tx, ty; /* tag coordinates */
       Tag_Data tag_data;
       long double r = std::max(hr, vr) + 2.0 / resolution; // 2mm
       long double dr = sin_45 * r; /* radius r at 45 degrees */
@@ -1955,20 +1932,20 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
   EepicNode<long> *l = LLINK(p);
   EepicNode<long> *r = RLINK(p);
 
-  /* dibujar arcos adicionales del nodo */
+  /* draw additional node arcs */
   for (DynDlist<Arc_Desc>::Iterator itor(ARCLIST(p)); itor.has_curr();
        itor.next())
     {
       Arc_Desc arc_desc = itor.get_curr();
 
       if (arc_desc.target_node == l)
-        { /* el arco sera dibujado cuando se procese lazo izq */
+        { /* the arc will be drawn when processing left link */
           DASHLLINK(p) = arc_desc.is_dashed ? true : false;
           continue;
         }
 
       if (arc_desc.target_node == r)
-        { /* el arco sera dibujado cuando se procese lazo der */
+        { /* the arc will be drawn when processing right link */
           DASHRLINK(p) = arc_desc.is_dashed ? true : false;
           continue;
         }
@@ -1979,7 +1956,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
       intersection_ellipse_line(x, y, tx, ty, hr, vr, dx, dy);
       long double src_x, src_y, tgt_x, tgt_y;
 
-      /* determina ptos x arco segun posiciones de nodos */
+      /* determine arc x points according to node positions */
       if (x > tx)
         {
           src_x = x - dx;
@@ -1991,7 +1968,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
           tgt_x = tx - dx;
         }
 
-      /* determina ptos y arco segun posiciones de nodos */
+      /* determine arc y points according to node positions */
       if (y > ty)
         {
           src_y = y - dy;
@@ -2005,7 +1982,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
 
       if (ISTRIANGLE(arc_desc.target_node) or
           ISRECTANGLE(arc_desc.target_node))
-        { // si hay triangulo o rectangulo arc va hasta la punta de triangulo
+        { // if triangle or rectangle, arc goes to triangle tip
           tgt_x = tx;
           tgt_y = ty;
         }
@@ -2020,9 +1997,9 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
                arc_desc.is_dashed, with_arrow);
     }
 
-  /* procesado de arco o hilo del hijo izquierdo */
+  /* processing of left child arc or thread */
   if (l != nullptr and WITHARC(l))
-    { /* dibujar arco hacia hijo izquierdo */
+    { /* draw arc to left child */
       long double lx = X(l);
       long double ly = Y(l);
       long double dx, dy;
@@ -2038,7 +2015,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
                  DASHLLINK(p), with_arrow);
     }
   else if (PREV(p) != nullptr and not ISTRIANGLE(p) and not ISRECTANGLE(p))
-    { /* dibujar hilo hacia predecesor */
+    { /* draw thread to predecessor */
       EepicNode<long> *prev = PREV(p);
       long double px = X(prev);
       long double py = Y(prev);
@@ -2057,9 +2034,9 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
             << px + dx << "," << YPIC(py + dy) << ")";
     }
 
-  /* procesacimiento de arco o hilo del hijo derecho */
+  /* processing of right child arc or thread */
   if (r != nullptr and WITHARC(r))
-    { /* dibujar arco hacia hijo derecho */
+    { /* draw arc to right child */
       long double rx = X(r);
       long double ry = Y(r);
       long double dx, dy;
@@ -2075,7 +2052,7 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
                  DASHRLINK(p), with_arrow);
     }
   else if (SUCC(p) != nullptr and not ISTRIANGLE(p) and not ISRECTANGLE(p))
-    { /* dibujar hilo hacia sucesor */
+    { /* draw thread to successor */
       EepicNode<long> *succ = SUCC(p);
       long double px = X(succ);
       long double py = Y(succ);
@@ -2094,8 +2071,8 @@ void generate_tree(ofstream & output, EepicNode<long> *p)
             << px - dx << "," << YPIC(py + dy) << ")";
     }
 
-  generate_tree(output, l); /* procesar rama arbol izquierdo */
-  generate_tree(output, r); /* procesar rama arbol derecho */
+  generate_tree(output, l); /* process left tree branch */
+  generate_tree(output, r); /* process right tree branch */
 }
 
 inline
@@ -2129,7 +2106,7 @@ void generate_split_lines(ofstream & output, EepicNode<long> *root)
       if (const int upper_len = split_data.upper_string.size(); upper_len > 0)
         {
           const long double upper_size =
-              upper_len * (2.0 / resolution); // 2.0mm por letra
+              upper_len * (2.0 / resolution); // 2.0mm per letter
           const long double dx = upper_size / 2.0;
           output << endl
               << "\\put(" << x - dx << "," << YPIC(line_space) << ")"
@@ -2140,7 +2117,7 @@ void generate_split_lines(ofstream & output, EepicNode<long> *root)
       if (const int lower_len = split_data.lower_string.size(); lower_len > 0)
         {
           const long double lower_size =
-              lower_len * (2.0 / resolution); // 2.0mm por letra
+              lower_len * (2.0 / resolution); // 2.0mm per letter
           const long double dx = lower_size / 2.0;
           const long double font_height = 3.0 / resolution;
           output << endl
@@ -2152,7 +2129,7 @@ void generate_split_lines(ofstream & output, EepicNode<long> *root)
     }
 }
 
-const char* argp_program_version =
+const char *argp_program_version =
     "btreepic 1.9.6\n"
     "ALEPH drawer for binary trees\n"
     "Copyright (C) 2007 UNIVERSITY of LOS ANDES (ULA)\n"
@@ -2162,12 +2139,6 @@ const char* argp_program_version =
     "This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
     "or FITNESS FOR A PARTICULAR PURPOSE\n"
     "\n";
-
-const char * argp_program_bug_address = "lrleon@ula.ve";
-
-static char doc[] = "btreepic -- Aleph drawer for binary trees";
-
-static char argDoc[] = "-f input-file [-o output-file]\n";
 
 static auto hello =
     "\n"
@@ -2217,96 +2188,6 @@ static constexpr char license_text[] =
     "  (CDCHT)\n";
 
 
-static struct argp_option options[] = {
-      {
-        "radius", 'r', "radius", OPTION_ARG_OPTIONAL,
-        "fit radius for circles", 0
-      },
-      {"width", 'w', "width", OPTION_ARG_OPTIONAL, "horizontal separation", 0},
-      {"height", 'h', "height", OPTION_ARG_OPTIONAL, "vertical separation", 0},
-      {
-        "h-radius", 'x', "horizontal-radius", OPTION_ARG_OPTIONAL,
-        "horizontal radius (ellipse)", 0
-      },
-      {
-        "v-radius", 'y', "vertical-radius", OPTION_ARG_OPTIONAL,
-        "vertical  radius (ellipse)", 0
-      },
-      {"resol", 'l', "resolution", OPTION_ARG_OPTIONAL, "resolution in mm", 0},
-      {"latex", 'a', 0, OPTION_ARG_OPTIONAL, "add latex header", 0},
-      {"landscape", 'p', 0, OPTION_ARG_OPTIONAL, "latex landscape mode", 0},
-      {"with-key", 'k', 0, OPTION_ARG_OPTIONAL, "printing keys", 0},
-      {"tiny-keys", 'K', 0, OPTION_ARG_OPTIONAL, "printing keys with tiny font", 0},
-      {"fit", 't', 0, OPTION_ARG_OPTIONAL, "fit in rectangle", 0},
-      {
-        "horizontal", 'z', "horizontal-size", OPTION_ARG_OPTIONAL,
-        "specify horizontal width for fitting", 0
-      },
-      {
-        "vertical", 'u', "vertical-size", OPTION_ARG_OPTIONAL,
-        "specify vertical height for fitting", 0
-      },
-      {"min-radius", 'n', 0, OPTION_ARG_OPTIONAL, "radious is minimum", 0},
-      {"without-node", 'N', 0, OPTION_ARG_OPTIONAL, "no draw node; only arcs", 0},
-      {
-        "key-x-offset", 'X', "offset", OPTION_ARG_OPTIONAL,
-        "horizontal offset for keys", 0
-      },
-      {
-        "key-y-offset", 'Y', "offset", OPTION_ARG_OPTIONAL,
-        "vertical offset for keys", 0
-      },
-      {
-        "aux-y-offset", 'H', "offset", OPTION_ARG_OPTIONAL,
-        "vertical offset for auxiliary string", 0
-      },
-      {
-        "aux-x-offset", 'W', "offset", OPTION_ARG_OPTIONAL,
-        "horizontal offset for auxiliary string", 0
-      },
-      {"input-file", 'i', "input-file", 0, "input file", 0},
-      {"input-file", 'f', "input-file", OPTION_ALIAS, 0, 0},
-      {"output", 'o', "output-file", 0, "output file", 0},
-      {"license", 'C', 0, OPTION_ARG_OPTIONAL, "print license", 0},
-      {
-        "x-picture-offset", 'O', "horizontal-picture-offset",
-        OPTION_ARG_OPTIONAL, "horizontal global picture offset", 0
-      },
-      {
-        "y-picture-offset", 'P', "vertical-picture-offset",
-        OPTION_ARG_OPTIONAL, "vertical global picture offset", 0
-      },
-      {"print", 'R', 0, OPTION_ARG_OPTIONAL, "print current parameters", 0},
-      {"verbose", 'v', 0, OPTION_ARG_OPTIONAL, "verbose mode", 0},
-      {"unsilent", 's', 0, OPTION_ARG_OPTIONAL, "unsilent mode - print tokens", 0},
-      {
-        "version", 'V', 0, OPTION_ARG_OPTIONAL,
-        "Print version information and then exit", 0
-      },
-      {"black-fill", 'B', 0, OPTION_ARG_OPTIONAL, "Fill black ellipses", 0},
-      {"shade-fill", 'S', 0, OPTION_ARG_OPTIONAL, "Fill shade ellipses", 0},
-      {
-        "threaded", 'D', 0, OPTION_ARG_OPTIONAL,
-        "draw dotted threads instead nullptr pointers", 0
-      },
-      {
-        "threaded-no-dash", 'T', 0, OPTION_ARG_OPTIONAL,
-        "draw contiguous threads instead nullptr pointers", 0
-      },
-      {"external-nodes", 'e', 0, OPTION_ARG_OPTIONAL, "draw external nodes", 0},
-      {
-        "arrow-len", 'L', "arrow lenght in points", OPTION_ARG_OPTIONAL,
-        "arrow lenght", 0
-      },
-      {
-        "arrow-width", 'I', "arrow width in points", OPTION_ARG_OPTIONAL,
-        "arrow width", 0
-      },
-      {"arrows", 'A', 0, OPTION_ARG_OPTIONAL, "draw arcs with arrows", 0},
-      {"vertical-flip", 'F', 0, OPTION_ARG_OPTIONAL, "Flip tree respect y axe", 0},
-      {0, 0, 0, 0, 0, 0}
-    };
-
 inline
 void print_parameters()
 {
@@ -2328,186 +2209,212 @@ void print_parameters()
       << "Vertical offset for picture   -P   = " << y_picture_offset << endl;
 }
 
-static error_t parser_opt(int key, char *arg, struct argp_state *)
-{
-  switch (key)
-    {
-    case 'r': /* Especificacion de radio */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for radius in command line");
-      hr = vr = atof(arg);
-      hd = vd = 2 * hr;
-      break;
-    case 'w': /* Separacion horizontal entre nodos */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for width in command line");
-      w = atof(arg);
-      break;
-    case 'h': /* Separacion vertical entre nodos */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for height in command line");
-      h = atof(arg);
-      break;
-    case 'x': /* radio horizontal de elipse */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for horizontal radius in command line");
-      hr = atof(arg);
-      hd = 2 * hr;
-      break;
-    case 'y': /* radio vertical de elipse */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for vertical radius in command line");
-      vr = atof(arg);
-      vd = 2 * vr;
-      break;
-    case 'l': /* resolucion en milimetros */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for resolution in command line");
-      resolution = atof(arg);
-      if (resolution > 10)
-        cout << "Warning: resolution too big" << endl;
-      break;
-    case 'a': /* colocar un encabezado latex */
-      latex_header = true;
-      break;
-    case 'p': // encabezado latex en modo landsacpe
-      latex_header = true;
-      landscape = true;
-      break;
-    case 'k': /* imprimir claves */
-      printing_key_mode = true;
-      break;
-    case 'K': /* tiny keys */
-      tiny_keys = true;
-      break;
-    case 't': /* coloca modo automatico de calculo de parametros */
-      fit_mode = true;
-      break;
-    case 'z':
-      if (arg == nullptr)
-        AH_ERROR("Waiting for horizontal size in command line");
-      h_size = atof(arg);
-      break;
-    case 'u':
-      if (arg == nullptr)
-        AH_ERROR("Waiting for vertical size in command line");
-      v_size = atof(arg);
-      break;
-    case 'n': /* coloca el radio minimo */
-      hr = vr = resolution / 2;
-      hd = vd = resolution;
-      break;
-    case 'N': /* no dibuja nodos, solo arcos */
-      draw_nodes = false;
-      break;
-    case 'X': /* offset horizontal para letras */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for horizontal offset in command line");
-      x_offset = atof(arg);
-      break;
-    case 'Y': /* offset vertical para letras */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for vertical offset in command line");
-      y_offset = atof(arg);
-      break;
-    case 'O': /* offset horizontal para dibujo */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for horizontal offset in command line");
-      x_picture_offset = atof(arg);
-      break;
-    case 'P': /* offset horizontal para dibujo */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for vertical offset in command line");
-      y_picture_offset = atof(arg);
-      break;
-    case 'W': /* offset horizontal para claves auxiliares */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for horizontal offset in command line");
-      x_aux_offset = atof(arg);
-      break;
-    case 'H': /* offset vertical para letras */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for vertical offset in command line");
-      y_aux_offset = atof(arg);
-      break;
-    case 'v': /* verbose mode (no implementado) */
-      break;
-    case 'i': /* archivo de entrada */
-    case 'f':
-      {
-        if (arg == nullptr)
-          AH_ERROR("Waiting for input file name");
-        input_file_name = arg;
-        break;
-      }
-    case 'o': /* archivo de salida */
-      if (arg == nullptr)
-        AH_ERROR("Waiting for output file name");
-      output_file_name = arg;
-      break;
-    case 'C': /* imprime licencia */
-      cout << license_text;
-      TERMINATE(0);
-      break;
-    case 'R': /* imprime parametros */
-      print_parameters();
-      save_parameters();
-      TERMINATE(0);
-      break;
-    case 's': /* elimina modo silencioso */
-      silent_mode = false;
-      break;
-    case 'V': /* imprimir version */
-      cout << argp_program_version;
-      TERMINATE(0);
-      break;
-    case 'B': /* filltype == black */
-      fill_type = "black";
-      break;
-    case 'S': /* filltype == shade */
-      fill_type = "shade";
-      break;
-    case 'T': /* draw dotted threads */
-      threaded_trees = true;
-      break;
-    case 'D':
-      dash_threaded_trees = true;
-      break;
-    case 'e':
-      with_external_nodes = true;
-      break;
-    case 'A':
-      with_arrow = true;
-      break;
-    case 'L':
-      with_arrow = true;
-      if (arg == nullptr)
-        AH_ERROR("Waiting for arrow lenght in command line");
-      arrow_lenght = atof(arg);
-      break;
-    case 'I':
-      with_arrow = true;
-      if (arg == nullptr)
-        AH_ERROR("Waiting for arrow width in command line");
-      arrow_width = atof(arg);
-      break;
-    case 'F':
-      flip_y = true;
-      break;
-    default: return ARGP_ERR_UNKNOWN;
-    }
-  return 0;
-}
-
-static struct argp argDefs = {options, parser_opt, argDoc, doc, 0, 0, 0};
-
 int main(int argc, char *argv[])
 {
   command_line = command_line_to_string(argc, argv);
 
   read_parameters();
 
-  argp_parse(&argDefs, argc, argv, ARGP_IN_ORDER, 0, nullptr);
+  try
+    {
+      TCLAP::CmdLine cmd(argp_program_version, ' ', "1.9.6", false);
+
+      TCLAP::ValueArg<double> radiusArg("r", "radius", "fit radius for circles", false, 0.0, "double");
+      TCLAP::ValueArg<double> widthArg("w", "width", "horizontal separation", false, w, "double");
+      TCLAP::ValueArg<double> heightArg("h", "height", "vertical separation", false, h, "double");
+      TCLAP::ValueArg<double> hRadiusArg("x", "h-radius", "horizontal radius (ellipse)", false, hr, "double");
+      TCLAP::ValueArg<double> vRadiusArg("y", "v-radius", "vertical radius (ellipse)", false, vr, "double");
+      TCLAP::ValueArg<double> resolArg("l", "resol", "resolution in mm", false, resolution, "double");
+      TCLAP::SwitchArg latexArg("a", "latex", "add latex header", false);
+      TCLAP::SwitchArg landscapeArg("p", "landscape", "latex landscape mode", false);
+      TCLAP::SwitchArg withKeyArg("k", "with-key", "printing keys", false);
+      TCLAP::SwitchArg tinyKeysArg("K", "tiny-keys", "printing keys with tiny font", false);
+      TCLAP::SwitchArg fitArg("t", "fit", "fit in rectangle", false);
+      TCLAP::ValueArg<double> horizontalArg("z", "horizontal", "specify horizontal width for fitting", false, h_size,
+                                            "double");
+      TCLAP::ValueArg<double> verticalArg("u", "vertical", "specify vertical height for fitting", false, v_size,
+                                          "double");
+      TCLAP::SwitchArg minRadiusArg("n", "min-radius", "radious is minimum", false);
+      TCLAP::SwitchArg withoutNodeArg("N", "without-node", "no draw node; only arcs", false);
+      TCLAP::ValueArg<double> keyXOffsetArg("X", "key-x-offset", "horizontal offset for keys", false, x_offset,
+                                            "double");
+      TCLAP::ValueArg<double> keyYOffsetArg("Y", "key-y-offset", "vertical offset for keys", false, y_offset, "double");
+      TCLAP::ValueArg<double> auxYOffsetArg("H", "aux-y-offset", "vertical offset for auxiliary string", false,
+                                            y_aux_offset, "double");
+      TCLAP::ValueArg<double> auxXOffsetArg("W", "aux-x-offset", "horizontal offset for auxiliary string", false,
+                                            x_aux_offset, "double");
+      TCLAP::ValueArg<string> inputFileArg("i", "input-file", "input file", false, "", "string");
+      TCLAP::ValueArg<string> inputFileAliasArg("f", "file", "input file (alias)", false, "", "string");
+      TCLAP::ValueArg<string> outputFileArg("o", "output", "output file", false, "", "string");
+      TCLAP::SwitchArg licenseArg("C", "license", "print license", false);
+      TCLAP::ValueArg<double> xPictureOffsetArg("O", "x-picture-offset", "horizontal global picture offset", false,
+                                                x_picture_offset, "double");
+      TCLAP::ValueArg<double> yPictureOffsetArg("P", "y-picture-offset", "vertical global picture offset", false,
+                                                y_picture_offset, "double");
+      TCLAP::SwitchArg printArg("R", "print", "print current parameters", false);
+      TCLAP::SwitchArg verboseArg("v", "verbose", "verbose mode", false);
+      TCLAP::SwitchArg unsilentArg("s", "unsilent", "unsilent mode - print tokens", false);
+      TCLAP::SwitchArg versionArg("V", "version", "Print version information and then exit", false);
+      TCLAP::SwitchArg blackFillArg("B", "black-fill", "Fill black ellipses", false);
+      TCLAP::SwitchArg shadeFillArg("S", "shade-fill", "Fill shade ellipses", false);
+      TCLAP::SwitchArg threadedArg("D", "threaded", "draw dotted threads instead nullptr pointers", false);
+      TCLAP::SwitchArg threadedNoDashArg("T", "threaded-no-dash", "draw contiguous threads instead nullptr pointers",
+                                         false);
+      TCLAP::SwitchArg externalNodesArg("e", "external-nodes", "draw external nodes", false);
+      TCLAP::ValueArg<double> arrowLenArg("L", "arrow-len", "arrow lenght", false, arrow_lenght, "double");
+      TCLAP::ValueArg<double> arrowWidthArg("I", "arrow-width", "arrow width", false, arrow_width, "double");
+      TCLAP::SwitchArg arrowsArg("A", "arrows", "draw arcs with arrows", false);
+      TCLAP::SwitchArg verticalFlipArg("F", "vertical-flip", "Flip tree respect y axe", false);
+      TCLAP::SwitchArg helpArg("", "help", "Print this help message", false);
+
+      cmd.add(radiusArg);
+      cmd.add(widthArg);
+      cmd.add(heightArg);
+      cmd.add(hRadiusArg);
+      cmd.add(vRadiusArg);
+      cmd.add(resolArg);
+      cmd.add(latexArg);
+      cmd.add(landscapeArg);
+      cmd.add(withKeyArg);
+      cmd.add(tinyKeysArg);
+      cmd.add(fitArg);
+      cmd.add(horizontalArg);
+      cmd.add(verticalArg);
+      cmd.add(minRadiusArg);
+      cmd.add(withoutNodeArg);
+      cmd.add(keyXOffsetArg);
+      cmd.add(keyYOffsetArg);
+      cmd.add(auxYOffsetArg);
+      cmd.add(auxXOffsetArg);
+      cmd.add(inputFileArg);
+      cmd.add(inputFileAliasArg);
+      cmd.add(outputFileArg);
+      cmd.add(licenseArg);
+      cmd.add(xPictureOffsetArg);
+      cmd.add(yPictureOffsetArg);
+      cmd.add(printArg);
+      cmd.add(verboseArg);
+      cmd.add(unsilentArg);
+      cmd.add(versionArg);
+      cmd.add(blackFillArg);
+      cmd.add(shadeFillArg);
+      cmd.add(threadedArg);
+      cmd.add(threadedNoDashArg);
+      cmd.add(externalNodesArg);
+      cmd.add(arrowLenArg);
+      cmd.add(arrowWidthArg);
+      cmd.add(arrowsArg);
+      cmd.add(verticalFlipArg);
+      cmd.add(helpArg);
+
+      cmd.parse(argc, argv);
+
+      if (helpArg.getValue())
+        {
+          cmd.getOutput()->usage(cmd);
+          TERMINATE(0);
+        }
+
+      if (versionArg.getValue())
+        {
+          cout << argp_program_version;
+          TERMINATE(0);
+        }
+
+      if (licenseArg.getValue())
+        {
+          cout << license_text;
+          TERMINATE(0);
+        }
+
+      if (radiusArg.isSet())
+        {
+          hr = vr = radiusArg.getValue();
+          hd = vd = 2 * hr;
+        }
+      if (widthArg.isSet()) w = widthArg.getValue();
+      if (heightArg.isSet()) h = heightArg.getValue();
+      if (hRadiusArg.isSet())
+        {
+          hr = hRadiusArg.getValue();
+          hd = 2 * hr;
+        }
+      if (vRadiusArg.isSet())
+        {
+          vr = vRadiusArg.getValue();
+          vd = 2 * vr;
+        }
+      if (resolArg.isSet())
+        {
+          resolution = resolArg.getValue();
+          if (resolution > 10) cout << "Warning: resolution too big" << endl;
+        }
+      if (latexArg.getValue()) latex_header = true;
+      if (landscapeArg.getValue())
+        {
+          latex_header = true;
+          landscape = true;
+        }
+      if (withKeyArg.getValue()) printing_key_mode = true;
+      if (tinyKeysArg.getValue()) tiny_keys = true;
+      if (fitArg.getValue()) fit_mode = true;
+      if (horizontalArg.isSet()) h_size = horizontalArg.getValue();
+      if (verticalArg.isSet()) v_size = verticalArg.getValue();
+      if (minRadiusArg.getValue())
+        {
+          hr = vr = resolution / 2;
+          hd = vd = resolution;
+        }
+      if (withoutNodeArg.getValue()) draw_nodes = false;
+      if (keyXOffsetArg.isSet()) x_offset = keyXOffsetArg.getValue();
+      if (keyYOffsetArg.isSet()) y_offset = keyYOffsetArg.getValue();
+      if (auxYOffsetArg.isSet()) y_aux_offset = auxYOffsetArg.getValue();
+      if (auxXOffsetArg.isSet()) x_aux_offset = auxXOffsetArg.getValue();
+
+      if (inputFileArg.isSet()) input_file_name = inputFileArg.getValue();
+      else if (inputFileAliasArg.isSet()) input_file_name = inputFileAliasArg.getValue();
+
+      if (outputFileArg.isSet()) output_file_name = outputFileArg.getValue();
+
+      if (xPictureOffsetArg.isSet()) x_picture_offset = xPictureOffsetArg.getValue();
+      if (yPictureOffsetArg.isSet()) y_picture_offset = yPictureOffsetArg.getValue();
+
+      if (printArg.getValue())
+        {
+          print_parameters();
+          save_parameters();
+          TERMINATE(0);
+        }
+
+      if (unsilentArg.getValue()) silent_mode = false;
+
+      if (blackFillArg.getValue()) fill_type = "black";
+      if (shadeFillArg.getValue()) fill_type = "shade";
+
+      if (threadedArg.getValue()) dash_threaded_trees = true;
+      if (threadedNoDashArg.getValue()) threaded_trees = true;
+
+      if (externalNodesArg.getValue()) with_external_nodes = true;
+
+      if (arrowLenArg.isSet())
+        {
+          with_arrow = true;
+          arrow_lenght = arrowLenArg.getValue();
+        }
+      if (arrowWidthArg.isSet())
+        {
+          with_arrow = true;
+          arrow_width = arrowWidthArg.getValue();
+        }
+      if (arrowsArg.getValue()) with_arrow = true;
+
+      if (verticalFlipArg.getValue()) flip_y = true;
+    }
+  catch (TCLAP::ArgException & e)
+    {
+      cerr << "error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
 
   if (input_file_name.empty())
     AH_ERROR("Input file not given");
