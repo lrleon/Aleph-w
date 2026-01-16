@@ -111,7 +111,7 @@ namespace Aleph
       Key key;
       Type data = Type();
 
-      void fillForwardNULL()
+      void fillForwardnullptr()
       {
         for (int i = 0; i < level; i++)
           forward[i] = const_cast<Node *>(&nodeSentinel);
@@ -343,7 +343,7 @@ namespace Aleph
 
       assert(p->getLevel() > 0 and p->getLevel() <= maxLevel);
 
-      p->fillForwardNULL();
+      p->fillForwardnullptr();
 
       for (i = level - 1; i >= 0; i--)
         {

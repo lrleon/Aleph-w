@@ -73,6 +73,9 @@
  * ./string_utils_example -s format     # Formatting helpers
  * ./string_utils_example -s convert    # Type conversions
  * ./string_utils_example -s practical  # Practical example
+ *
+ * # Show help
+ * ./string_utils_example --help
  * ```
  *
  * ## Comparison with Standard Library

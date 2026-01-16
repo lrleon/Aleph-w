@@ -111,7 +111,7 @@
  * ### File Naming
  *
  * Files are named: `<prefix><tree_type>.Tree`
- * - Examples: `test_avl.Tree`, `rb.Tree`, `mytree_splay.Tree`
+ * - Examples: `test_avl.Tree` (use `-o test_`), `rb.Tree` (default prefix), `mytree_splay.Tree` (use `-o mytree_`)
  *
  * ### Format Details
  *
@@ -134,9 +134,9 @@
  *
  * ```bash
  * # Generate same data with different trees
- * write_tree -n 50 -s 42 -t avl -o compare
- * write_tree -n 50 -s 42 -t rb -o compare
- * write_tree -n 50 -s 42 -t splay -o compare
+ * write_tree -n 50 -s 42 -t avl   -o compare_
+ * write_tree -n 50 -s 42 -t rb    -o compare_
+ * write_tree -n 50 -s 42 -t splay -o compare_
  *
  * # Visualize and compare
  * btreepic compare_avl.Tree
@@ -151,23 +151,26 @@
  * write_tree -n 100
  *
  * # Generate only AVL tree with specific seed
- * write_tree -n 50 -t avl -s 12345 -o mytree
+ * write_tree -n 50 -t avl -s 12345 -o mytree_
  *
  * # Generate Red-Black and Splay trees
- * write_tree -n 200 -t rb -t splay
+ * write_tree -n 200 -t rb
+ * write_tree -n 200 -t splay
  *
  * # Generate multiple types for comparison
- * write_tree -n 100 -t avl -t rb -t splay -s 42
+ * write_tree -n 100 -t avl -s 42 -o compare_
+ * write_tree -n 100 -t rb  -s 42 -o compare_
+ * write_tree -n 100 -t splay -s 42 -o compare_
  * ```
  *
  * ## Parameters
  *
  * | Parameter | Short | Description | Default |
  * |-----------|-------|-------------|---------|
- * | `--nodes` | `-n` | Number of nodes to insert | Varies |
+ * | `--count` | `-n` | Number of nodes to insert | 30 |
  * | `--seed` | `-s` | Random seed for reproducibility | Time-based |
  * | `--type` | `-t` | Tree type (avl, rb, splay, treap, rand, bin, all) | all |
- * | `--prefix` | `-o` | Output file prefix | Tree type name |
+ * | `--output` | `-o` | Output file prefix (concatenated literally; use a trailing `_` if you want a separator) | empty |
  *
  * ## Integration with Visualization
  *

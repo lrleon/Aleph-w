@@ -182,6 +182,9 @@
  * ./hamiltonian_example -s dirac      # Dirac's theorem
  * ./hamiltonian_example -s density    # Density experiments
  * ./hamiltonian_example -s practical  # Practical examples
+ *
+ * # Show help
+ * ./hamiltonian_example --help
  * ```
  *
  * @see hamiltonian.H Hamiltonian sufficiency testing

@@ -26,190 +26,79 @@
 
 /**
  * @file bfs_dfs_example.C
- * @brief Graph Traversal: BFS vs DFS Comparison
- * 
- * This example demonstrates the two fundamental graph traversal algorithms:
- * **BFS (Breadth-First Search)** and **DFS (Depth-First Search)**. These are
- * the building blocks for many graph algorithms and understanding their
- * differences is crucial for choosing the right approach.
+ * @brief Graph traversal in Aleph-w: BFS vs DFS demos (comparison, paths, degrees, early stop, components).
  *
- * ## What is Graph Traversal?
+ * ## Overview
  *
- * Graph traversal means visiting all vertices in a graph in a systematic way.
- * Both BFS and DFS visit all reachable vertices, but in different orders:
+ * This example contrasts the two fundamental graph traversal strategies:
  *
- * - **BFS**: Explores level by level (like ripples in water)
- * - **DFS**: Explores as deep as possible first (like exploring a maze)
+ * - **BFS** (breadth-first search): explores *level by level* using a queue.
+ * - **DFS** (depth-first search): explores *deep-first* using a stack/recursion.
  *
- * ## BFS (Breadth-First Search)
+ * The file includes several small demos that show typical use cases:
  *
- * ### How It Works
+ * - comparing visitation order and properties
+ * - degrees-of-separation (BFS)
+ * - finding any path (DFS)
+ * - early termination patterns
+ * - connected components
  *
- * BFS explores the graph level by level:
- * 1. Start at source vertex (level 0)
- * 2. Visit all neighbors (level 1)
- * 3. Visit all neighbors of level 1 vertices (level 2)
- * 4. Continue until all vertices visited
+ * ## Data model used by this example
  *
- * **Data structure**: Queue (FIFO - First In First Out)
+ * This program builds small graphs with Aleph-w containers (nodes/arcs stored in
+ * `tpl_graph.H` graph types) and traverses them with BFS/DFS style routines.
  *
- * ### Characteristics
+ * ## Usage / CLI
  *
- * - **Order**: Level-order (all vertices at distance k before distance k+1)
- * - **Path found**: Shortest path (in terms of number of edges)
- * - **Memory**: O(width) - stores frontier (current level)
- * - **Complete**: Yes (finds all reachable vertices)
+ * This example uses TCLAP. Options:
  *
- * ### Algorithm
- * ```
- * BFS(G, s):
- *   1. Create queue Q, mark s as visited
- *   2. Q.enqueue(s)
- *   3. While Q not empty:
- *      a. u = Q.dequeue()
- *      b. For each neighbor v of u:
- *         If v not visited:
- *           Mark v as visited
- *           Q.enqueue(v)
- * ```
+ * - `--compare` / `-c`: compare BFS and DFS on the same graph.
+ * - `--degrees` / `-d`: degrees-of-separation demo (BFS).
+ * - `--path` / `-p`: find any path demo (DFS).
+ * - `--early` / `-e`: early termination demo.
+ * - `--components` / `-o`: connected components demo.
+ * - `--all` / `-a`: run all demos.
+ * - `--help`: show help.
  *
- * ## DFS (Depth-First Search)
+ * Behavior:
+ * - If no demo-selection flags are provided, the program defaults to running **all** demos.
  *
- * ### How It Works
- *
- * DFS explores as deep as possible before backtracking:
- * 1. Start at source vertex
- * 2. Go to unvisited neighbor
- * 3. Continue deeper until dead end
- * 4. Backtrack and explore other branches
- *
- * **Data structure**: Stack (LIFO - Last In First Out, or recursion)
- *
- * ### Characteristics
- *
- * - **Order**: Depth-order (explore branch completely before others)
- * - **Path found**: Any path (not necessarily shortest)
- * - **Memory**: O(depth) - stores path from root to current
- * - **Complete**: Yes (for finite graphs)
- *
- * ### Algorithm
- * ```
- * DFS(G, s):
- *   1. Mark s as visited
- *   2. For each neighbor v of s:
- *      If v not visited:
- *        DFS(G, v)  // Recursive call
+ * ```bash
+ * ./bfs_dfs_example
+ * ./bfs_dfs_example --compare
+ * ./bfs_dfs_example --degrees
+ * ./bfs_dfs_example --path
+ * ./bfs_dfs_example --early
+ * ./bfs_dfs_example --components
+ * ./bfs_dfs_example --help
  * ```
  *
- * ## Key Differences
+ * ## Algorithms
  *
- * | Aspect | BFS | DFS |
- * |--------|-----|-----|
- * | **Data structure** | Queue (FIFO) | Stack (LIFO) / Recursion |
- * | **Exploration order** | Level by level | Deep first, then backtrack |
- * | **Path found** | Shortest (unweighted) | Any path |
- * | **Memory usage** | O(width) | O(depth) |
- * | **Time complexity** | O(V + E) | O(V + E) |
- * | **Space complexity** | O(V) worst case | O(V) worst case |
- * | **Complete** | Yes | Yes (finite graphs) |
- *
- * ## When to Use Which?
- *
- * ### Use BFS When:
- *
- * ✅ **Shortest path needed** (unweighted graphs)
- * ✅ **Level-order traversal** needed
- * ✅ **Breadth matters** (e.g., social network degrees)
- * ✅ **Graph is wide** (not deep)
- *
- * ### Use DFS When:
- *
- * ✅ **Any path sufficient** (not necessarily shortest)
- * ✅ **Memory is limited** (DFS uses less for deep graphs)
- * ✅ **Backtracking needed** (e.g., puzzle solving)
- * ✅ **Graph is deep** (not wide)
- *
- * ## Applications
- *
- * ### BFS Applications
- *
- * - **Shortest path**: Unweighted graphs (BFS finds shortest)
- * - **Level-order traversal**: Process nodes by distance
- * - **Connected components**: Find all reachable vertices
- * - **Social networks**: Friends at distance k
- * - **Web crawling**: Crawl pages level by level
- * - **Broadcast**: Message propagation in networks
- *
- * ### DFS Applications
- *
- * - **Topological sorting**: Order nodes by dependencies
- * - **Cycle detection**: Find cycles in directed graphs
- * - **Path finding**: Find any path (maze solving)
- * - **Maze generation**: Create random mazes
- * - **Strongly connected components**: Tarjan's algorithm uses DFS
- * - **Backtracking**: Constraint satisfaction, puzzles
+ * - **BFS** discovers nodes in nondecreasing distance (in number of edges) from
+ *   the source. On unweighted graphs, BFS yields shortest paths in edge count.
+ * - **DFS** explores as far as possible before backtracking; it is the basis for
+ *   many algorithms (topological sorting, SCCs, articulation points, etc.).
  *
  * ## Complexity
  *
- * Both algorithms have the same complexity:
- * - **Time**: O(V + E) - visit each vertex and edge once
- * - **Space**: O(V) - store visited markers and data structure
+ * Let **V** be the number of vertices and **E** the number of edges.
  *
- * **Difference**: BFS space depends on graph width, DFS on depth
+ * - Time: `O(V + E)`
+ * - Extra space: `O(V)` (visited set + queue/stack)
  *
- * ## Visual Comparison
+ * ## Pitfalls and edge cases
  *
- * ### BFS Order (Level by Level)
- * ```
- * Level 0:     A
- * Level 1:   B   C   D
- * Level 2: E F     G H
- * ```
- * Visits: A → B, C, D → E, F, G, H
+ * - **BFS memory** can grow with the frontier (graph "width").
+ * - **DFS recursion** can overflow for very deep graphs; an explicit stack avoids that.
+ * - Traversal order depends on adjacency iteration order.
  *
- * ### DFS Order (Deep First)
- * ```
- * A → B → E → F → C → G → D → H
- * ```
- * Explores one branch completely before others
+ * ## References / see also
  *
- * ## Implementation Notes
+ * - `dijkstra_example.cc` (weighted shortest paths; BFS is the unweighted special case)
+ * - `topological_sort_example.C` (DFS-based)
+ * - `tarjan_example.C` (DFS-based SCC)
  *
- * ### BFS Implementation
- * - Use explicit queue (avoid recursion)
- * - Mark vertices when enqueued (not when dequeued)
- * - Prevents duplicate enqueueing
- *
- * ### DFS Implementation
- * - Can use recursion (implicit stack) or explicit stack
- * - Mark vertices when visited
- * - Simpler code with recursion
- *
- * ## Usage
- *
- * ```bash
- * # Run all demos (default if no flags are provided)
- * ./bfs_dfs_example
- *
- * # Compare BFS and DFS on the same graph
- * ./bfs_dfs_example --compare
- *
- * # Degrees of separation (BFS)
- * ./bfs_dfs_example --degrees
- *
- * # Find any path (DFS)
- * ./bfs_dfs_example --path
- *
- * # Early termination demo
- * ./bfs_dfs_example --early
- *
- * # Connected components demo
- * ./bfs_dfs_example --components
- * ```
- *
- * @see dijkstra_example.cc Shortest paths in weighted graphs (extends BFS)
- * @see topological_sort_example.C Topological sort (uses DFS)
- * @see tarjan_example.C Strongly connected components (uses DFS)
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -220,6 +109,7 @@
 #include <vector>
 #include <tpl_graph.H>
 #include <graph-traverse.H>
+#include <tpl_components.H>
 #include <tpl_find_path.H>
 #include <tclap/CmdLine.h>
 
@@ -579,36 +469,29 @@ void demo_connected_components()
   
   print_graph(g, "Graph with Multiple Components");
   
-  cout << "\nFinding connected components using BFS..." << endl;
-  
-  // Mark all nodes as unvisited
-  g.reset_nodes();
-  
+  cout << "\nFinding connected components using Unconnected_Components..." << endl;
+
+  DynList<Graph> components;
+  Unconnected_Components<Graph> cc;
+  cc(g, components);
+
   int component_num = 0;
-  for (auto nit = g.get_node_it(); nit.has_curr(); nit.next())
-  {
-    auto* node = nit.get_curr();
-    if (NODE_BITS(node).get_bit(Aleph::Depth_First))
-      continue;  // Already visited
-    
-    ++component_num;
-    cout << "\nComponent " << component_num << ": ";
-    
-    bool first = true;
-    auto visitor = [&first](Graph::Node* n) {
-      if (not first) cout << ", ";
-      cout << n->get_info();
-      NODE_BITS(n).set_bit(Aleph::Depth_First, true);
-      first = false;
-      return true;
-    };
-    
-    Graph_Traverse<Graph, Node_Arc_Iterator<Graph>, DynListQueue> bfs(g);
-    bfs(node, visitor);
-    cout << endl;
-  }
-  
-  cout << "\nTotal components: " << component_num << endl;
+  for (auto & comp : components)
+    {
+      ++component_num;
+      cout << "\nComponent " << component_num << ": ";
+
+      bool first = true;
+      for (auto nit = comp.get_node_it(); nit.has_curr(); nit.next_ne())
+        {
+          if (not first) cout << ", ";
+          cout << nit.get_curr()->get_info();
+          first = false;
+        }
+      cout << endl;
+    }
+
+  cout << "\nTotal components: " << components.size() << endl;
 }
 
 int main(int argc, char* argv[])

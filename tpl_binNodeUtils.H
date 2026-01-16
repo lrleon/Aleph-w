@@ -1173,7 +1173,7 @@ namespace Aleph
       tree previously saved with `save_tree()`.
 
       @param[in] input stream
-      @return the root of loaded and builded binary tree
+      @return the root of loaded and built binary tree
       \throw bad_alloc if there is no enough memory
       @see save_tree()
       @ingroup Trees
@@ -1197,9 +1197,7 @@ namespace Aleph
     if (root == Node::NullPtr)
       return;
 
-    const std::string str = Get_Key()(root);
-
-    if (str == "\t")
+    if (const std::string str = Get_Key()(root); str == "\t")
       out << "\"\t\"";
     else if (str == "\n")
       out << "\"\\n\"";
@@ -1415,21 +1413,38 @@ namespace Aleph
       if this was found; `Node::NullPtr` otherwise
       @ingroup Trees
    */
+  /** Search a key in a binary search tree using optimistic search.
+   *
+   *  Uses single comparison per level with deferred duplicate detection,
+   *  reducing comparisons from ~1.5h to h+1 for tree height h.
+   */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * searchInBinTree(Node *root, const typename Node::key_type & key,
                          const Compare & cmp = Compare()) noexcept
   {
-    while (root != Node::NullPtr)
-      if (const auto c = three_way_compare(key, KEY(root), cmp); c == CmpLess) [[likely]]
-        root = LLINK(root);
-      else if (c == CmpGreater) [[likely]]
-        root = RLINK(root);
-      else [[unlikely]]
-        break;
+    Node *candidate = nullptr;  // Tracks potential match when going right
 
-    return root;
+    while (root != Node::NullPtr)
+      {
+        __builtin_prefetch(LLINK(root));
+        __builtin_prefetch(RLINK(root));
+
+        if (cmp(key, KEY(root)))  // key < root: go left
+          root = LLINK(root);
+        else  // key >= root: go right, mark as candidate
+          {
+            candidate = root;
+            root = RLINK(root);
+          }
+      }
+
+    // Optimistic check: if candidate exists and key == candidate, return it
+    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+      return candidate;
+
+    return Node::NullPtr;
   }
 
   /** Return the minimum key contained in a binary search tree
@@ -2568,7 +2583,7 @@ namespace Aleph
       `const`.
 
       \param root
-      \param[in] `op` operation to be done on each element.
+      \param op operation to be performed on each item
       \throw anything that can throw `operation`
    */
   template <class Node, class Op>

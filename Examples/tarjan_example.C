@@ -173,6 +173,9 @@
  *
  * # Run all demos (default if no specific demo flags are given)
  * ./tarjan_example --all
+ *
+ * # Show help
+ * ./tarjan_example --help
  * ```
  *
  * @see Tarjan.H Tarjan's algorithm implementation

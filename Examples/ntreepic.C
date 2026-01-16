@@ -67,21 +67,27 @@
  * The input file uses Deway notation to specify tree structure:
  *
  * ### Deway Notation
- * - **Root**: No prefix (or "1")
- * - **Children**: Parent address + child index
- * - **Example**: `1.2.3` = third child (index 2) of second child (index 1) of root
+ * - **Indexing**: This tool uses **0-based indices**.
+ * - **Tree roots in a forest**: The first tree root is addressed as `0`, the
+ *   second as `1`, and so on.
+ * - **Children**: Append the child index to the parent address.
+ * - **Example**: `0.1.2` = third child (index 2) of second child (index 1) of
+ *   the root of the first tree (`0`).
  *
  * ### Basic Commands
- * - `NODE <deway> <key>`: Create node at Deway address
- * - `EDGE <parent> <child>`: Connect parent to child
- * - `CONNEXION <parent> <child>`: Alternative edge command
- * - `DASHED_CONNEXION <parent> <child>`: Dashed edge
+ * - `ROOT <key>`: Start a new tree (a forest can contain multiple ROOT entries)
+ * - `NODE <deway> <key>`: Create a node as the rightmost child of the parent identified by `<deway>`
+ * - `ARC <src> <tgt>` / `DASHED-ARC <src> <tgt>`: Extra arcs between arbitrary nodes
+ * - `DASHED-CONNEXION <src> <tgt> <L|R>`: Curved/dashed connexion used in some representations
  *
  * ### Styling Commands
- * - `COLOR <deway> <color>`: Set node color
- * - `SHAPE <deway> <shape>`: Set node shape
- * - `HRADIO <deway> <value>`: Horizontal radius
- * - `VRADIO <deway> <value>`: Vertical radius
+ * - `HRADIO <deway> <percent>`: Multiply the node horizontal radius by the given percentage
+ * - `VRADIO <deway> <percent>`: Multiply the node vertical radius by the given percentage
+ * - `XOFFSET <deway> <offset>` / `YOFFSET <deway> <offset>`: Per-node label offsets
+ * - `WITHOUT-NODE <deway>`: Do not draw the node shape
+ * - `WITHOUT-ARC <parent> <child>`: Disable the natural parent->child arc
+ * - `SHADOW <deway>`: Draw node with shadow
+ * - `TAG <deway> "<text>" <N|S|E|W|NE|NW|SE|SW> <xoffset> <yoffset>`
  *
  * ### Forest Support
  * - Multiple trees can be specified
@@ -91,25 +97,24 @@
  * ## Usage
  *
  * ```bash
- * # Generate LaTeX from tree specification
- * ntreepic input.tree > output.tex
+ * # Generate LaTeX/eepic from an input file
+ * ntreepic -f input.tree
  *
- * # Compile LaTeX to PDF
- * pdflatex output.tex
+ * # Write to a specific output file
+ * ntreepic -f input.tree -o output.eepic
  * ```
+ *
+ * If `-o` is not provided, the output defaults to the input base name with
+ * `.eepic` extension.
  *
  * ## Example Input File
  *
  * ```
- * NODE 1 Root
- * NODE 1.0 Child1
- * NODE 1.1 Child2
- * NODE 1.2 Child3
- * NODE 1.0.0 Grandchild1
- * CONNEXION 1 1.0
- * CONNEXION 1 1.1
- * CONNEXION 1 1.2
- * CONNEXION 1.0 1.0.0
+ * ROOT Root
+ * NODE 0 Child1
+ * NODE 0 Child2
+ * NODE 0 Child3
+ * NODE 0.0 Grandchild1
  * ```
  *
  * ## Applications
@@ -144,6 +149,7 @@
 # include <tpl_dynArray.H>
 # include <tpl_dynDlist.H>
 # include <tpl_tree_node.H>
+#include <utility>
 
 # include <argp.h>
 
@@ -172,20 +178,19 @@
 
 # define BLANK " "
 
-extern bool tiny_keys;
 
-    /* valores de distancias por omision */
-long double hr = 70;  // radio horizontal de la elipse
-long double vr = 70;  // radio vertical de la elipse
-long double hd = 2*hr;  // diametro horizontal de la elipse
-long double vd = 2*vr;  // diametro vertical de la elipse
-long double xgap = 70;  // separacion horizontal entre nodos
+/* valores de distancias por omision */
+long double hr = 70; // radio horizontal de la elipse
+long double vr = 70; // radio vertical de la elipse
+long double hd = 2 * hr; // diametro horizontal de la elipse
+long double vd = 2 * vr; // diametro vertical de la elipse
+long double xgap = 70; // separacion horizontal entre nodos
 long double ygap = 100; // separacion vertical entre nodos
 long double tree_gap = 90; // separacion horizontal entre arboles
 long double h_size = 0; /* longitud horizontal de picture */
 double v_size = 0; /* longitud vertical de picture */
 long double x_offset = 0; /* offset horizontal etiqueta */
-long double y_offset = font_height()/2.0; /* offset vertical etiqueta */
+long double y_offset = font_height() / 2.0; /* offset vertical etiqueta */
 long double x_picture_offset = 0; // offset horizontal para dibujo
 long double y_picture_offset = 0; // offset vertical para dibujo
 
@@ -195,8 +200,8 @@ std::string output_file_name;
 
 
 bool latex_header = false; // envolver salida con un latex header
-bool ellipses = true; // por omisión dibujar elipses 
-bool rectangles = false; 
+bool ellipses = true; // por omisión dibujar elipses
+bool rectangles = false;
 bool draw_list_representation = false;
 bool generate_binary_tree = false;
 bool not_nodes = false;
@@ -204,23 +209,23 @@ bool not_nodes = false;
 
 using namespace std;
 
-enum Token_Type 
-  { 
-    ROOT, NODE, STRING, WITHOUT_NODE, WITHOUT_ARC, XOFFSET, YOFFSET, 
-    HRADIO, VRADIO, SHADOW, TAG, ARC, DASHED_ARC, DASHED_CONNEXION, ELLIPSE, 
-    RECTANGLE, COMMENT, END_FILE, 
-    NORTH,      // N
-    SOUTH,      // S
-    EAST,       // E
-    WEST,       // W
-    NORTH_EAST, // NE
-    NORTH_WEST, // NW
-    SOUTH_EAST, // SE
-    SOUTH_WEST,  // SW
-    LEFT,        // L
-    RIGHT,       // R
-    INVALID
-  };
+enum Token_Type
+{
+  ROOT, NODE, STRING, WITHOUT_NODE, WITHOUT_ARC, XOFFSET, YOFFSET,
+  HRADIO, VRADIO, SHADOW, TAG, ARC, DASHED_ARC, DASHED_CONNEXION, ELLIPSE,
+  RECTANGLE, COMMENT, END_FILE,
+  NORTH, // N
+  SOUTH, // S
+  EAST, // E
+  WEST, // W
+  NORTH_EAST, // NE
+  NORTH_WEST, // NW
+  SOUTH_EAST, // SE
+  SOUTH_WEST, // SW
+  LEFT, // L
+  RIGHT, // R
+  INVALID
+};
 
 
 typedef Token_Type Tag_Option;
@@ -231,15 +236,15 @@ typedef Tree_Node<Tree_Data> EepicNode;
 
 struct Tag_Data
 {
-  string      tag; // el string a escribir
-  Tag_Option  tag_option; // orientacion de tag en sentido horario
+  string tag; // el string a escribir
+  Tag_Option tag_option; // orientacion de tag en sentido horario
   long double x_offset;
   long double y_offset;
 
-  Tag_Data() { /* empty */ }
+  Tag_Data() = default;
 
-  Tag_Data(const string & str, Tag_Option option) 
-    : tag(str), tag_option(option)
+  Tag_Data(string str, const Tag_Option option)
+    : tag(std::move(str)), tag_option(option)
   {
     // empty
   }
@@ -248,20 +253,24 @@ struct Tag_Data
 
 struct Arc_Data
 {
-  EepicNode * target_node;
-  bool       is_dashed;
+  EepicNode *target_node;
+  bool is_dashed;
 
-  Arc_Data() : target_node(NULL), is_dashed(false) { /* empty */ }
+  Arc_Data() : target_node(nullptr), is_dashed(false)
+  { /* empty */
+  }
 };
 
 
 struct Connexion_Data
 {
-  EepicNode * target_node;
-  bool        is_dashed;
-  bool        is_left;
+  EepicNode *target_node;
+  bool is_dashed;
+  bool is_left;
 
-  Connexion_Data() : target_node(NULL), is_dashed(false) { /* empty */ }
+  Connexion_Data() : target_node(nullptr), is_dashed(false)
+  { /* empty */
+  }
 };
 
 
@@ -298,7 +307,7 @@ struct Tree_Data
 
   bool shadow;
   bool without_node;
-  bool with_arc;   /* indica si hay arco desde el nodo padre */
+  bool with_arc; /* indica si hay arco desde el nodo padre */
   bool dashed_arc; /* indica si el arco es punteado */
 
   int position; /* posicion infija del nodo como si fuera un arbol binario */
@@ -306,15 +315,15 @@ struct Tree_Data
   DynDlist<Tag_Data> tag_list;
 
   DynDlist<Arc_Data> arc_list;
-  
+
   DynDlist<Connexion_Data> connexion_list;
 
-  int level; 
+  int level;
   int child_number; /* de izquierda a derecha */
 
-  Tree_Data ()
+  Tree_Data()
     : x(0), y(0), pre(0), mod(0), sum_mod(0),
-      xr(hr), yr(vr), xd(2*xr), yd(2*yr), max_child_yr(0),
+      xr(hr), yr(vr), xd(2 * xr), yd(2 * yr), max_child_yr(0),
       xoffset(0), yoffset(0),
       ellipse(ellipses), rectangle(rectangles),
       shadow(false), without_node(false), with_arc(true), dashed_arc(false)
@@ -322,7 +331,6 @@ struct Tree_Data
     assert(ellipse != rectangle);
   }
 };
-
 
 
 # define X(p)           ((p)->get_key().x)
@@ -355,46 +363,45 @@ struct Tree_Data
 # define TAGS(p)        ((p)->get_key().tag_list)
 
 
-    inline
-void load_deway_number(ifstream& input_stream, 
-		       int deway_array[], size_t deway_array_size)
+inline
+void load_deway_number(ifstream & input_stream,
+                       int deway_array[], size_t deway_array_size)
 {
   init_token_scanning();
   skip_white_spaces(input_stream);
 
-  int c;
   int deway_index = 0;
   char deway_string[Buffer_Size];
-  char * start_addr = &deway_string[0];
-  char * end_addr   = &deway_string[Buffer_Size];
+  char *start_addr = &deway_string[0];
+  char *end_addr = &deway_string[Buffer_Size];
   while (true)
     {
-      c = read_char_from_stream(input_stream);
+      const int c = read_char_from_stream(input_stream);
 
       if (isdigit(c))
-	{
-	  put_char_in_buffer(start_addr, end_addr, c);
-	  continue;
-	}
+        {
+          put_char_in_buffer(start_addr, end_addr, c);
+          continue;
+        }
 
       if (c == '.' or isspace(c))
-	{
-	  put_char_in_buffer(start_addr, end_addr, '\0');
+        {
+          put_char_in_buffer(start_addr, end_addr, '\0');
 
-	  if (deway_index >= deway_array_size)
-	    ah_overflow_error_if(true) << "Deway number is too long";
+          if (deway_index >= deway_array_size)
+            ah_overflow_error_if(true) << "Deway number is too long";
 
-	  deway_array[deway_index++] = atoi(deway_string);
-	  start_addr = &deway_string[0];
+          deway_array[deway_index++] = atoi(deway_string);
+          start_addr = &deway_string[0];
 
-	  if (isspace(c))
-	    break;
-	  else
-	    continue;
-	}
+          if (isspace(c))
+            break;
+          else
+            continue;
+        }
 
       input_stream.unget();
-	  ah_invalid_argument_if(true) << "Unexpected character in deway number";
+      ah_invalid_argument_if(true) << "Unexpected character in deway number";
     }
 
   if (deway_index >= deway_array_size)
@@ -413,16 +420,16 @@ Token_Type get_token(ifstream& input_stream)
 
   init_token_scanning();
 
-  try 
+  try
     {
       skip_white_spaces(input_stream);
-      c = read_char_from_stream(input_stream); 
+      c = read_char_from_stream(input_stream);
     }
-  catch (const std::out_of_range&) 
+  catch (const std::out_of_range &)
     {
-      return END_FILE; 
+      return END_FILE;
     }
-  
+
   if (c == EOF)
     return END_FILE;
 
@@ -431,8 +438,8 @@ Token_Type get_token(ifstream& input_stream)
 
   if (c == '%')
     { /* comentario */
-      do 
-	c = read_char_from_stream(input_stream); 
+      do
+        c = read_char_from_stream(input_stream);
       while (c != '\n' and c != EOF);
       return COMMENT;
     }
@@ -447,8 +454,8 @@ Token_Type get_token(ifstream& input_stream)
   close_token_scanning(buffer, start_addr, end_addr);
 
   if (c == '%') /* Se encontró comentario */
-        /* retroceda, así proxima llamada detectara comentario */
-    input_stream.unget(); 
+    /* retroceda, así proxima llamada detectara comentario */
+    input_stream.unget();
 
   if (strcasecmp(buffer, "ROOT") == 0)
     return ROOT;
@@ -470,6 +477,9 @@ Token_Type get_token(ifstream& input_stream)
 
   if (strcasecmp(buffer, "ARC") == 0)
     return ARC;
+
+  if (strcasecmp(buffer, "DASHED-ARC") == 0)
+    return DASHED_ARC;
 
   if (strcasecmp(buffer, "HRADIO") == 0)
     return HRADIO;
@@ -533,64 +543,64 @@ Token_Type get_token(ifstream& input_stream)
 */
 EepicNode * allocate_node(const string & str)
 {
-  EepicNode * node = new EepicNode;
-  STRING(node)     = str;
+  auto *node = new EepicNode;
+  STRING(node) = str;
   return node;
 }
 
 
 /*
   Lee un numero de deway y retorna el correspondiente nodo dentro del
-  árbol root. Retorna NULL si el nodo no existe
+  árbol root. Retorna nullptr si el nodo no existe
 */
-EepicNode * parse_deway_number(ifstream& input_stream, EepicNode * root)
+EepicNode * parse_deway_number(ifstream & input_stream, EepicNode *root)
 {
   int deway_array[Buffer_Size];
 
   load_deway_number(input_stream, deway_array, Buffer_Size);
-  
-  EepicNode * parent_node = deway_search(root, deway_array, Buffer_Size);
 
-  if (parent_node == NULL)
+  EepicNode *parent_node = deway_search(root, deway_array, Buffer_Size);
+
+  if (parent_node == nullptr)
     print_parse_error_and_exit("Deway number doesn't match an existing node");
 
   return parent_node;
 }
 
 
-EepicNode * parse_key_node_and_allocate(ifstream& input_stream)
+EepicNode * parse_key_node_and_allocate(ifstream & input_stream)
 {
-  string str = load_string(input_stream);
+  const string str = load_string(input_stream);
 
   return allocate_node(str);
 }
 
- 
-EepicNode * parse_first_root_definition(ifstream& input_stream)
+
+EepicNode * parse_first_root_definition(ifstream & input_stream)
 {
   if (get_token(input_stream) != ROOT)
     print_parse_error_and_exit("Input file doesn't start with ROOT "
-			       "definition");
+                               "definition");
 
   return parse_key_node_and_allocate(input_stream);
 }
 
 
-void parse_root_definition(ifstream& input_stream, EepicNode * root)
+void parse_root_definition(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * new_tree = parse_key_node_and_allocate(input_stream);
+  EepicNode *new_tree = parse_key_node_and_allocate(input_stream);
 
-  EepicNode * last_root = root->get_last_tree();
- 
+  EepicNode *last_root = root->get_last_tree();
+
   last_root->insert_tree_to_right(new_tree);
 }
 
 
-void parse_node_definition(ifstream& input_stream, EepicNode * root)
+void parse_node_definition(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * parent_node = parse_deway_number(input_stream, root);
+  EepicNode *parent_node = parse_deway_number(input_stream, root);
 
-  EepicNode * new_node = parse_key_node_and_allocate(input_stream);
+  EepicNode *new_node = parse_key_node_and_allocate(input_stream);
 
   parent_node->insert_rightmost_child(new_node);
 }
@@ -601,12 +611,12 @@ void parse_node_definition(ifstream& input_stream, EepicNode * root)
   El radio horizontal actual de la elipse se multiplica por
   horizontal-radius-factor en porcentaje
 */
-void parse_hradio(ifstream& input_stream, EepicNode * root)
+void parse_hradio(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
-  XR(p) *= load_number(input_stream)/100.0;
-  XD(p) = 2*XR(p);
+  XR(p) *= load_number(input_stream) / 100.0;
+  XD(p) = 2 * XR(p);
 }
 
 
@@ -616,12 +626,12 @@ void parse_hradio(ifstream& input_stream, EepicNode * root)
   El radio vertical actual de la elipse se multiplica por
   vertical-radius-factor en porcentaje
 */
-void parse_vradio(ifstream& input_stream, EepicNode * root)
+void parse_vradio(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
-  YR(p) *= load_number(input_stream)/100.0;
-  YD(p) = 2*YR(p);
+  YR(p) *= load_number(input_stream) / 100.0;
+  YD(p) = 2 * YR(p);
 }
 
 
@@ -631,9 +641,9 @@ void parse_vradio(ifstream& input_stream, EepicNode * root)
   El radio vertical actual de la elipse se multiplica por
   vertical-radius-factor en porcentaje
 */
-void parse_without_node(ifstream& input_stream, EepicNode * root)
+void parse_without_node(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
   WITHOUTNODE(p) = true;
 }
@@ -645,15 +655,15 @@ void parse_without_node(ifstream& input_stream, EepicNode * root)
   El radio vertical actual de la elipse se multiplica por
   vertical-radius-factor en porcentaje
 */
-void parse_without_arc(ifstream& input_stream, EepicNode * root)
+void parse_without_arc(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * src = parse_deway_number(input_stream, root);
+  const EepicNode *src = parse_deway_number(input_stream, root);
 
-  EepicNode * tgt = parse_deway_number(input_stream, root);
+  EepicNode *tgt = parse_deway_number(input_stream, root);
 
   if (tgt->get_parent() != src)
     print_parse_error_and_exit("target node does not match with parent in"
-			       " WITHOUT-ARC"); 
+                               " WITHOUT-ARC");
   WITHARC(tgt) = false;
 }
 
@@ -661,9 +671,9 @@ void parse_without_arc(ifstream& input_stream, EepicNode * root)
 /*
   opcion XOFFSET deway-number offset
 */
-void parse_xoffset(ifstream& input_stream, EepicNode * root)
+void parse_xoffset(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
   XOFFSET(p) = load_number(input_stream);
 }
@@ -672,19 +682,19 @@ void parse_xoffset(ifstream& input_stream, EepicNode * root)
 /*
   opcion YOFFSET deway-number offset
 */
-void parse_yoffset(ifstream& input_stream, EepicNode * root)
+void parse_yoffset(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
   YOFFSET(p) = load_number(input_stream);
 }
 
 /*
-  opcion SHADOW deway-number 
+  opcion SHADOW deway-number
 */
-void parse_shadow(ifstream& input_stream, EepicNode * root)
+void parse_shadow(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
   SHADOW(p) = true;
 }
@@ -692,9 +702,9 @@ void parse_shadow(ifstream& input_stream, EepicNode * root)
 /*
   TAG deway-number string orientation xoffset yoffset
 */
-void parse_tag(ifstream& input_stream, EepicNode * root) 
+void parse_tag(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
   Tag_Data tag_data;
 
@@ -712,10 +722,10 @@ void parse_tag(ifstream& input_stream, EepicNode * root)
 }
 
 
-void parse_arc(ifstream& input_stream, EepicNode * root)
+void parse_arc(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * src = parse_deway_number(input_stream, root);
-  EepicNode * tgt = parse_deway_number(input_stream, root);
+  EepicNode *src = parse_deway_number(input_stream, root);
+  EepicNode *tgt = parse_deway_number(input_stream, root);
 
   if (tgt == src) /* arco hacia si mismo */
     print_parse_error_and_exit("an arc to itself");
@@ -723,7 +733,7 @@ void parse_arc(ifstream& input_stream, EepicNode * root)
   if (tgt->get_parent() == src)
     { /* arco natural (padre a hijo). Imprimimos warning y nos vamos */
       print_parse_warning("declared an arc from parent to child");
-      return; 
+      return;
     }
 
   Arc_Data arc_data;
@@ -735,10 +745,10 @@ void parse_arc(ifstream& input_stream, EepicNode * root)
 }
 
 
-void parse_dashed_arc(ifstream& input_stream, EepicNode * root)
+void parse_dashed_arc(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * src = parse_deway_number(input_stream, root);
-  EepicNode * tgt = parse_deway_number(input_stream, root);
+  EepicNode *src = parse_deway_number(input_stream, root);
+  EepicNode *tgt = parse_deway_number(input_stream, root);
 
   if (tgt == src) /* arco hacia si mismo */
     print_parse_error_and_exit("an dashed arc to itself");
@@ -752,12 +762,12 @@ void parse_dashed_arc(ifstream& input_stream, EepicNode * root)
 }
 
 
-void parse_connexion(ifstream& input_stream, EepicNode * root)
+void parse_connexion(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * src = parse_deway_number(input_stream, root);
-  EepicNode * tgt = parse_deway_number(input_stream, root);
+  EepicNode *src = parse_deway_number(input_stream, root);
+  EepicNode *tgt = parse_deway_number(input_stream, root);
 
-  Token_Type token = get_token(input_stream);
+  const Token_Type token = get_token(input_stream);
 
   if (token != LEFT and token != RIGHT)
     print_parse_error_and_exit("Expected L or R");
@@ -765,118 +775,118 @@ void parse_connexion(ifstream& input_stream, EepicNode * root)
   Connexion_Data connexion_data;
 
   connexion_data.target_node = tgt;
-  connexion_data.is_dashed   = true;
-  connexion_data.is_left     = token == LEFT;
+  connexion_data.is_dashed = true;
+  connexion_data.is_left = token == LEFT;
 
   CONNEXIONS(src).append(connexion_data);
 }
 
 
-void parse_ellipse(ifstream& input_stream, EepicNode * root)
+void parse_ellipse(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
-  ISELLIPSE(p)   = true; 
+  ISELLIPSE(p) = true;
   ISRECTANGLE(p) = false;
 }
 
 
-void parse_rectangle(ifstream& input_stream, EepicNode * root)
+void parse_rectangle(ifstream & input_stream, EepicNode *root)
 {
-  EepicNode * p = parse_deway_number(input_stream, root);
+  EepicNode *p = parse_deway_number(input_stream, root);
 
-  ISELLIPSE(p)   = false; 
+  ISELLIPSE(p) = false;
   ISRECTANGLE(p) = true;
 }
 
 
-EepicNode * read_input_and_build_tree(ifstream& input_stream)
+EepicNode * read_input_and_build_tree(ifstream & input_stream)
 {
-  EepicNode * root = parse_first_root_definition(input_stream);
+  EepicNode *root = parse_first_root_definition(input_stream);
 
   try
     {
       while (true)
-	switch (get_token(input_stream))
-	  {
-	  case ROOT: 
-	    parse_root_definition(input_stream, root);
-	    break;
+        switch (get_token(input_stream))
+          {
+          case ROOT:
+            parse_root_definition(input_stream, root);
+            break;
 
-	  case NODE: 
-	    parse_node_definition(input_stream, root);
-	    break;
+          case NODE:
+            parse_node_definition(input_stream, root);
+            break;
 
-	  case END_FILE:
-	    return root; 
+          case END_FILE:
+            return root;
 
-	  case INVALID:
-	    print_parse_error_and_exit("Unrecognized token");
+          case INVALID:
+            print_parse_error_and_exit("Unrecognized token");
 
-	  case COMMENT: break;
+          case COMMENT: break;
 
-	  case HRADIO: 
-	    parse_hradio(input_stream, root);
-	    break;
+          case HRADIO:
+            parse_hradio(input_stream, root);
+            break;
 
-	  case VRADIO: 
-	    parse_vradio(input_stream, root);
-	    break;
+          case VRADIO:
+            parse_vradio(input_stream, root);
+            break;
 
-	  case WITHOUT_NODE: 
-	    parse_without_node(input_stream, root);
-	    break;
+          case WITHOUT_NODE:
+            parse_without_node(input_stream, root);
+            break;
 
-	  case WITHOUT_ARC: 
-	    parse_without_arc(input_stream, root);
-	    break;
-	
-	  case XOFFSET: 
-	    parse_xoffset(input_stream, root);
-	    break;
-	
-	  case YOFFSET: 
-	    parse_yoffset(input_stream, root);
-	    break;
-	
-	  case SHADOW: 
-	    parse_shadow(input_stream, root);
-	    break;
-	
-	  case TAG: 
-	    parse_tag(input_stream, root);
-	    break;
-	
-	  case ARC: 
-	    parse_arc(input_stream, root);
-	    break;
-	
-	  case DASHED_ARC: 
-	    parse_dashed_arc(input_stream, root);
-	    break;
+          case WITHOUT_ARC:
+            parse_without_arc(input_stream, root);
+            break;
 
-	  case DASHED_CONNEXION: 
-	    parse_connexion(input_stream, root);
-	    break;
+          case XOFFSET:
+            parse_xoffset(input_stream, root);
+            break;
 
-	  case ELLIPSE: 
-	    parse_ellipse(input_stream, root);
-	    break;
-	
-	  case RECTANGLE: 
-	    parse_rectangle(input_stream, root);
-	    break;
-	
-	  default:
-	    print_parse_error_and_exit("Unknown token type");
-	  }
+          case YOFFSET:
+            parse_yoffset(input_stream, root);
+            break;
+
+          case SHADOW:
+            parse_shadow(input_stream, root);
+            break;
+
+          case TAG:
+            parse_tag(input_stream, root);
+            break;
+
+          case ARC:
+            parse_arc(input_stream, root);
+            break;
+
+          case DASHED_ARC:
+            parse_dashed_arc(input_stream, root);
+            break;
+
+          case DASHED_CONNEXION:
+            parse_connexion(input_stream, root);
+            break;
+
+          case ELLIPSE:
+            parse_ellipse(input_stream, root);
+            break;
+
+          case RECTANGLE:
+            parse_rectangle(input_stream, root);
+            break;
+
+          default:
+            print_parse_error_and_exit("Unknown token type");
+          }
     }
   catch (exception & e)
     {
       destroy_tree(root);
       print_parse_error_and_exit(e.what());
     }
-  return NULL; // nunca se alcanza
+  return nullptr; // nunca se alcanza
 }
 
 /* ***************************************************************
@@ -884,41 +894,41 @@ EepicNode * read_input_and_build_tree(ifstream& input_stream)
    Las siguientes rutinas implantan la versión mejorada de Kozo
    Sugiyama del algoritmo de Walker
 
-*/ 
+*/
 
 /*
   Busca por profundidad en nodo más a la derecha en el nivel level a
   partir del árbol con raíz root. Retorna en sum el acumulado de MOD
   desde root hasta el padre del nodo encontrado.
 
-  Retorna el nodo más a la derecha o NULL si no existe
+  Retorna el nodo más a la derecha o nullptr si no existe
 */
-EepicNode * __advance_to_rightmost_in_level(EepicNode * root, int level,
-					  long double & sum)
+EepicNode * __advance_to_rightmost_in_level(EepicNode *root, const int level,
+                                            long double & sum)
 {
   sum += MOD(root);
-  for (EepicNode * p = root->get_right_child(); p != NULL; 
+  for (EepicNode *p = root->get_right_child(); p != nullptr;
        p = p->get_left_sibling())
     {
       if (LEVEL(p) == level)
-	return p;
+        return p;
 
-      EepicNode * q = __advance_to_rightmost_in_level(p, level, sum);
+      EepicNode *q = __advance_to_rightmost_in_level(p, level, sum);
 
-      if (q != NULL)
-	return q;
+      if (q != nullptr)
+        return q;
     }
-  
+
   sum -= MOD(root);
 
-  return NULL;
+  return nullptr;
 }
 
 /*
-  wrapper de iniciación para llamada recursiva 
+  wrapper de iniciación para llamada recursiva
 */
-EepicNode * advance_to_rightmost_in_level(EepicNode * root, int level,
-					  long double & sum)
+EepicNode * advance_to_rightmost_in_level(EepicNode *root, const int level,
+                                          long double & sum)
 {
   sum = 0;
   if (LEVEL(root) == level)
@@ -928,35 +938,35 @@ EepicNode * advance_to_rightmost_in_level(EepicNode * root, int level,
 }
 
 
-/* 
-   idem al anterior pero para el nodo más a la izquierda 
+/*
+   idem al anterior pero para el nodo más a la izquierda
 */
-EepicNode * __advance_to_leftmost_in_level(EepicNode * root, int level,
-					 long double & sum)
+EepicNode * __advance_to_leftmost_in_level(EepicNode *root, const int level,
+                                           long double & sum)
 {
   sum += MOD(root);
-  for (EepicNode * p = root->get_left_child(); p != NULL; 
+  for (EepicNode *p = root->get_left_child(); p != nullptr;
        p = p->get_right_sibling())
     {
       if (LEVEL(p) == level)
-	return p;
+        return p;
 
-      EepicNode * q = __advance_to_leftmost_in_level(p, level, sum);
+      EepicNode *q = __advance_to_leftmost_in_level(p, level, sum);
 
-      if (q != NULL)
-	return q;
+      if (q != nullptr)
+        return q;
     }
 
   sum -= MOD(root);
 
-  return NULL;
+  return nullptr;
 }
 
 /*
-  wrapper de iniciación para llamada recursiva 
+  wrapper de iniciación para llamada recursiva
 */
-EepicNode * advance_to_leftmost_in_level(EepicNode * root, int level,
-					 long double & sum)
+EepicNode * advance_to_leftmost_in_level(EepicNode *root, const int level,
+                                         long double & sum)
 {
   sum = 0;
   if (LEVEL(root) == level)
@@ -965,7 +975,7 @@ EepicNode * advance_to_leftmost_in_level(EepicNode * root, int level,
   return __advance_to_leftmost_in_level(root, level, sum);
 }
 
-  
+
 /*
   Esta rutina revisa los subarboles izquierdo de p y verifica que las
   separaciones de los hermanos izquierdos sean correctas. Por cada nivel,
@@ -981,19 +991,19 @@ EepicNode * advance_to_leftmost_in_level(EepicNode * root, int level,
   de p ya fueron procesados. Esto es plausible porque los valores de
   PRE(p) y MOD(p) son calculados en sufijo.
 */
-void adjust_minimal_separation_with_letf_sibling(EepicNode * p)
+void adjust_minimal_separation_with_letf_sibling(EepicNode *p)
 {
-  assert(p->get_left_sibling() != NULL);
+  assert(p->get_left_sibling() != nullptr);
   assert(not p->is_leftmost());
 
   /* Procesar cada hermano izquierdo de p */
-  for (EepicNode * left_sibling = p->get_left_sibling();
-       left_sibling != NULL; 
+  for (EepicNode *left_sibling = p->get_left_sibling();
+       left_sibling != nullptr;
        left_sibling = left_sibling->get_left_sibling())
     {
       assert(p->get_parent() == left_sibling->get_parent());
       assert(LEVEL(left_sibling) == LEVEL(p));
-      /* 
+      /*
 	 Tenemos 2 subarboles en los cuales debemos verificar que su
 	 separacion no se sobrelape. El subarbol izquierdo es left_sibling
 	 y el subarbol derecho es p. Inspeccionaremos el extremo derecho de
@@ -1004,16 +1014,16 @@ void adjust_minimal_separation_with_letf_sibling(EepicNode * p)
 	 corresponderan con el mismo nivel. La revision y eventual ajuste
 	 se realiza por cada nivel hasta que se alcance una hoja en
 	 cualquiera de los dos subarboles
-      */ 
-          /* valores acumulados parciales de MOD por cada extremo */
+      */
+      /* valores acumulados parciales de MOD por cada extremo */
       int level = LEVEL(p) + 1;
       long double r_sum_mod; /* acumulado de mod del extremo derecho */
       long double l_sum_mod; /* acumulado de mod del extremo izquierdo */
 
-      /* 
+      /*
 	 Note que en posición r debe estar antes que l. Así que no
 	 confundir el sentido
- 
+
                                     root
                                   /      \
                                  /        \
@@ -1021,50 +1031,47 @@ void adjust_minimal_separation_with_letf_sibling(EepicNode * p)
                                \           /
                                 \         /
                                  r       l
-      */ 
-  
-      EepicNode * r = advance_to_rightmost_in_level(left_sibling, level, 
-						    r_sum_mod);
-      EepicNode * l = advance_to_leftmost_in_level(p, level, l_sum_mod);
+      */
 
-      long double lx; /* coordenada x del extremo izquierdo  */
-      long double rx; /* coordenada x del extremo derecho  */
-      long double min_separation; /* distancia minima de separacion entre l
-				     y r */ 
-      long double current_separation;
+      EepicNode *r = advance_to_rightmost_in_level(left_sibling, level,
+                                                   r_sum_mod);
+      EepicNode *l = advance_to_leftmost_in_level(p, level, l_sum_mod);
 
-      while (l != NULL and r != NULL)
-      {
-	    // calcula futuras coordenadas de los extremos
-	rx = PRE(r) + r_sum_mod; // coordenada x de r
-	lx = PRE(l) + l_sum_mod; // coordenada x de l
+      /* coordenada x del extremo izquierdo  */
+      /* coordenada x del extremo derecho  */
+      /* distancia minima de separacion entre l
+				     y r */
 
-	current_separation = lx - rx;
-	min_separation = tree_gap + XR(r) + XR(l);
+      while (l != nullptr and r != nullptr)
+        {
+          // calcula futuras coordenadas de los extremos
+          const long double rx = PRE(r) + r_sum_mod; // coordenada x de r
+          const long double lx = PRE(l) + l_sum_mod; // coordenada x de l
 
-	if (current_separation < min_separation)
-	  { /* l y r se están superponiendo */
-	    long double compensation = min_separation - current_separation;
-	    PRE(p) += compensation;
-	    MOD(p) += compensation;
-	  }
+          const long double current_separation = lx - rx;
 
-	    /* avanza al siguiente nivel */	
-	level++; /* proximo nivel a comparar */
-	r = advance_to_rightmost_in_level(left_sibling, level, r_sum_mod);
-	l = advance_to_leftmost_in_level(p, level, l_sum_mod);
-      }
+          if (const long double min_separation = tree_gap + XR(r) + XR(l); current_separation < min_separation)
+            { /* l y r se están superponiendo */
+              const long double compensation = min_separation - current_separation;
+              PRE(p) += compensation;
+              MOD(p) += compensation;
+            }
+
+          /* avanza al siguiente nivel */
+          level++; /* proximo nivel a comparar */
+          r = advance_to_rightmost_in_level(left_sibling, level, r_sum_mod);
+          l = advance_to_leftmost_in_level(p, level, l_sum_mod);
+        }
     }
 
   // TODO: Ajuste sugerido por Sigiyama causa colisiones entre nodos. Revisar
-  return;
-  /* 
-     si p fue desplazado en el paso anterior, entonces es posible que se
-     forme una brecha desprorporcionada entre p y sus hermanos
-     izquierdos. Esta fase se encarga de dispersar la brecha de la forma
-     más uniforme posible entre los hermanos izquierdos de p sin
-     incluir el más a la izquierda.
-  */
+  /*
+    si p fue desplazado en el paso anterior, entonces es posible que se
+    forme una brecha desprorporcionada entre p y sus hermanos
+    izquierdos. Esta fase se encarga de dispersar la brecha de la forma
+    más uniforme posible entre los hermanos izquierdos de p sin
+    incluir el más a la izquierda.
+ */
 }
 
 
@@ -1073,61 +1080,61 @@ void adjust_minimal_separation_with_letf_sibling(EepicNode * p)
   un nodo. El rol de la funcion es calcular los valores pre y mod
   segun el algoritmo de Walker variante de Sugiyama
 */
-void precompute_x_for_node(EepicNode * p, int level, int child)
+void precompute_x_for_node(EepicNode *p, const int level, const int child)
 {
-  if (p->is_leaf() and p->is_leftmost()) // hoja mas a la izquierda 
+  if (p->is_leaf() and p->is_leftmost()) // hoja mas a la izquierda
     PRE(p) = MOD(p) = 0;
   else if (p->is_leaf() and p->is_root()) // p es un árbol de un solo nodo
     {
-      PRE(p) = xgap + WIDTH(p)/2.0;
+      PRE(p) = xgap + WIDTH(p) / 2.0;
       MOD(p) = 0;
-    } 
-  else 
+    }
+  else
     {
-      EepicNode * left_sibling = p->get_left_sibling();
-    
-      if (p->is_leaf()) // p es hoja y no es el mas izquierdo 
-	{
-	  PRE(p) = 
-	    PRE(left_sibling) + xgap + (WIDTH(left_sibling) + WIDTH(p))/2.0;
-	  MOD(p) = 0;
-	}
-      else // p no es hoja 
-	{
-	  EepicNode * left_child  = p->get_left_child();
-	  EepicNode * right_child = p->get_right_child();
-  
-	  if (p->is_leftmost() or p->is_root())
-	    {
-	      PRE(p) = (PRE(left_child) + PRE(right_child))/2.0;
-	      MOD(p) = 0;
-	    }
-	  else
-	    {
-	      PRE(p) = PRE(left_sibling) + xgap + 
-		(WIDTH(left_sibling) + WIDTH(p))/2.0;
-	      MOD(p) = PRE(p) - (PRE(left_child) + PRE(right_child))/2.0;
-	    }
-	} // fin p no es una hoja
+      EepicNode *left_sibling = p->get_left_sibling();
+
+      if (p->is_leaf()) // p es hoja y no es el mas izquierdo
+        {
+          PRE(p) =
+              PRE(left_sibling) + xgap + (WIDTH(left_sibling) + WIDTH(p)) / 2.0;
+          MOD(p) = 0;
+        }
+      else // p no es hoja
+        {
+          EepicNode *left_child = p->get_left_child();
+          EepicNode *right_child = p->get_right_child();
+
+          if (p->is_leftmost() or p->is_root())
+            {
+              PRE(p) = (PRE(left_child) + PRE(right_child)) / 2.0;
+              MOD(p) = 0;
+            }
+          else
+            {
+              PRE(p) = PRE(left_sibling) + xgap +
+                       (WIDTH(left_sibling) + WIDTH(p)) / 2.0;
+              MOD(p) = PRE(p) - (PRE(left_child) + PRE(right_child)) / 2.0;
+            }
+        } // fin p no es una hoja
     } // fin p es hoja y no es el mas izquierdo */
 
-      // colocar numero de nivel e hijo 
+  // colocar numero de nivel e hijo
   LEVEL(p) = level;
   CHILDNUMBER(p) = child;
 
   if (not p->is_root())
-    { // guardar el mayor radio de elipse vertical 
-      EepicNode * pp = p->get_parent();
+    { // guardar el mayor radio de elipse vertical
+      EepicNode *pp = p->get_parent();
       MAXCHILDYR(pp) = std::max(MAXCHILDYR(pp), YR(p));
     }
-  
-  if (not p->is_leftmost() and not p->is_root()) 
-    adjust_minimal_separation_with_letf_sibling(p); 
+
+  if (not p->is_leftmost() and not p->is_root())
+    adjust_minimal_separation_with_letf_sibling(p);
 }
 
-/* 
+/*
    Estos valores son calculados para luego determinar el tama~o del
-   dibujo -del ambiente picture 
+   dibujo -del ambiente picture
 */
 long double x_max = 0; /* maximo centro x visto */
 long double y_max = 0; /* maximo centro y visto */
@@ -1141,14 +1148,14 @@ long double y_max = 0; /* maximo centro y visto */
 
   Y(p) = Y(pp) + YR(pp) + ygap + YR(p) excepto en raíz que es YR(root)
 */
-    void 
-compute_definitive_coordinates_for_node(EepicNode * p, int, int)
+void
+compute_definitive_coordinates_for_node(EepicNode *p, int, int)
 {
-  EepicNode * pp = p->get_parent();
-  
+  EepicNode *pp = p->get_parent();
+
   long double parent_sum_mod; /* almacena sum MOD(ascendientes) */
-  
-  if (pp == NULL) /* p es la raiz */ 
+
+  if (pp == nullptr) /* p es la raiz */
     {
       parent_sum_mod = 0;
       YRGAP(p) = YR(p);
@@ -1164,29 +1171,29 @@ compute_definitive_coordinates_for_node(EepicNode * p, int, int)
     }
 
   X(p) = PRE(p) + parent_sum_mod; /* posicion definitiva x */
-  
-      /* verificacion de maxima coordenada x */
+
+  /* verificacion de maxima coordenada x */
   if (X(p) + XR(p) > x_max)
     x_max = X(p) + XR(p);
 
-      /* verificacion de maxima coordenada y */
+  /* verificacion de maxima coordenada y */
   if (Y(p) + YR(p) > y_max)
     y_max = Y(p) + YR(p);
 }
 
 
-    inline
-void precompute_x_coordinates_for_tree(EepicNode * root)
+inline
+void precompute_x_coordinates_for_tree(EepicNode *root)
 {
   tree_postorder_traversal(root, &precompute_x_for_node);
 }
 
 
-void compute_coordinates_for_tree(EepicNode * root)
+void compute_coordinates_for_tree(EepicNode *root)
 {
   x_max = 0;
   precompute_x_coordinates_for_tree(root);
-  tree_preorder_traversal(root, &compute_definitive_coordinates_for_node); 
+  tree_preorder_traversal(root, &compute_definitive_coordinates_for_node);
 }
 
 
@@ -1196,48 +1203,48 @@ void compute_coordinates_for_tree(EepicNode * root)
 */
 long double shift_size = 0;
 
-void shift_tree_to_right(EepicNode * p, int, int)
+void shift_tree_to_right(EepicNode *p, int, int)
 {
-  X(p) += shift_size; 
+  X(p) += shift_size;
 }
 
 
-void compute_coordinates_for_forest_and_set_picture_size(EepicNode * root)
+void compute_coordinates_for_forest_and_set_picture_size(EepicNode *root)
 {
-      /* calcula coordenadas del primer árbol */
+  /* calcula coordenadas del primer árbol */
   compute_coordinates_for_tree(root);
   h_size = x_max;
 
-      /* recorre el resto de arboles pertenecientes a la arborescencia */
-  for (root = root->get_right_tree(); root != NULL; 
+  /* recorre el resto de arboles pertenecientes a la arborescencia */
+  for (root = root->get_right_tree(); root != nullptr;
        root = root->get_right_tree())
     {
       /* Desplazamiento del siguiente arbol es respecto al ancho del
-	 arbol anterior */ 
-      long double increment = 
-	XR(root->get_left_tree()) + x_max + tree_gap + XR(root);
-      
-          /* Desplazamiento es lo anterior mas incremento calculado */
-      shift_size += increment; 
+	        arbol anterior */
+      const long double increment =
+          XR(root->get_left_tree()) + x_max + tree_gap + XR(root);
+
+      /* Desplazamiento es lo anterior mas incremento calculado */
+      shift_size += increment;
 
       // shift_size += XR(root->get_left_tree()) + x_max + tree_gap + XR(root);
-      
+
       compute_coordinates_for_tree(root);
 
-          /* desplaza todos los nodos del arbol en shift_size */
+      /* desplaza todos los nodos del arbol en shift_size */
       tree_preorder_traversal(root, &shift_tree_to_right);
 
-      h_size += increment; 
+      h_size += increment;
     }
-  v_size = y_max; /* el mayor entre todos los árboles */ 
+  v_size = y_max; /* el mayor entre todos los árboles */
 }
 
 
-void infix_tree(EepicNode * root)
+void infix_tree(EepicNode *root)
 {
   static int counter = 0;
 
-  if (root == NULL)
+  if (root == nullptr)
     return;
 
   infix_tree(root->get_left_child());
@@ -1246,9 +1253,9 @@ void infix_tree(EepicNode * root)
 }
 
 
-void generate_prefix_traversal(ofstream& output, EepicNode * root)
+void generate_prefix_traversal(ofstream & output, EepicNode *root)
 {
-  if (root == NULL)
+  if (root == nullptr)
     return;
 
   output << POS(root) << " ";
@@ -1258,9 +1265,9 @@ void generate_prefix_traversal(ofstream& output, EepicNode * root)
 }
 
 
-void generate_infix_traversal(ofstream& output, EepicNode * root)
+void generate_infix_traversal(ofstream & output, EepicNode *root)
 {
-  if (root == NULL)
+  if (root == nullptr)
     return;
 
   generate_infix_traversal(output, root->get_left_child());
@@ -1271,7 +1278,7 @@ void generate_infix_traversal(ofstream& output, EepicNode * root)
 }
 
 
-void generate_bin_tree(ofstream& output, EepicNode * root)
+void generate_bin_tree(ofstream & output, EepicNode *root)
 {
   infix_tree(root);
 
@@ -1280,86 +1287,86 @@ void generate_bin_tree(ofstream& output, EepicNode * root)
   generate_prefix_traversal(output, root);
 
   output << endl
-	 << endl
-	 << "start-key ";
+      << endl
+      << "start-key ";
 
   generate_infix_traversal(output, root);
 
   output << endl;
 }
 
-void generate_prologue(ofstream& output)
+void generate_prologue(ofstream & output)
 {
   time_t t;
   time(&t);
   output << endl
-	 << "%      This LaTeX picture is a tree automatically" << endl
-	 << "%      generated by ntreepic program" << endl
-	 << endl
-	 << "% Copyright (C) 2002, 2003, 2004, 2007" << endl
-	 << "% UNIVERSITY of LOS ANDES (ULA)" << endl
-	 << "% Merida - REPUBLICA BOLIVARIANA DE VENEZUELA" << endl
-	 << "% Center of Studies in Microelectronics & Distributed Systems"
-	 << " (CEMISID)" << endl
-	 << "% ULA Computer Science Department" << endl
-	 << endl
-	 << "% Created by Leandro Leon - lrleon@ula.ve" << endl
-	 << endl
-	 << "% This program uses the Sugiyama variation of Walker" << endl
-	 << "% algorithm for general trees drawing" << endl
-	 << endl
-	 << "% You must use epic and eepic latex packages" << endl
-	 << "% in your LaTeX application" << endl
-	 << endl
-	 << "% epic Copyright by Sunil Podar" << endl
-	 << "% eepic Copyright by Conrad Kwok" << endl
-	 << "% LaTeX is a collection of TeX macros created by Leslie Lamport" 
-	 << endl
-	 << "% TeX was created by Donald Knuth" << endl
-	 << endl
-	 << "% command line: " << endl
-	 << "% " << command_line << endl 
-	 << endl
-	 << "% input file: " << input_file_name << endl 
-	 << "% output file: " << output_file_name << endl 
-	 << endl
-	 << "% Creation date: " << ctime(&t) << endl 
-	 << endl;
+      << "%      This LaTeX picture is a tree automatically" << endl
+      << "%      generated by ntreepic program" << endl
+      << endl
+      << "% Copyright (C) 2002, 2003, 2004, 2007" << endl
+      << "% UNIVERSITY of LOS ANDES (ULA)" << endl
+      << "% Merida - REPUBLICA BOLIVARIANA DE VENEZUELA" << endl
+      << "% Center of Studies in Microelectronics & Distributed Systems"
+      << " (CEMISID)" << endl
+      << "% ULA Computer Science Department" << endl
+      << endl
+      << "% Created by Leandro Leon - lrleon@ula.ve" << endl
+      << endl
+      << "% This program uses the Sugiyama variation of Walker" << endl
+      << "% algorithm for general trees drawing" << endl
+      << endl
+      << "% You must use epic and eepic latex packages" << endl
+      << "% in your LaTeX application" << endl
+      << endl
+      << "% epic Copyright by Sunil Podar" << endl
+      << "% eepic Copyright by Conrad Kwok" << endl
+      << "% LaTeX is a collection of TeX macros created by Leslie Lamport"
+      << endl
+      << "% TeX was created by Donald Knuth" << endl
+      << endl
+      << "% command line: " << endl
+      << "% " << command_line << endl
+      << endl
+      << "% input file: " << input_file_name << endl
+      << "% output file: " << output_file_name << endl
+      << endl
+      << "% Creation date: " << ctime(&t) << endl
+      << endl;
 
   if (latex_header)
     output << "\\documentclass[11pt]{article}" << endl
-	   << endl
-	   << "\\usepackage{epic}" << endl
-	   << "\\usepackage{eepic}" << endl
-	   << endl
-	   << "\\begin{document}" << endl
-	   << "\\begin{center}" << endl;
+        << endl
+        << "\\usepackage{epic}" << endl
+        << "\\usepackage{eepic}" << endl
+        << endl
+        << "\\begin{document}" << endl
+        << "\\begin{center}" << endl;
 
   output << endl
-	 << "\\setlength{\\unitlength}{" << resolution << "mm}" << endl
-	 << "\\filltype{" << fill_type << "}" << endl
-	 << endl
-	 << "\\begin{picture}(" << h_size << "," << v_size << ")" 
-	 << "(" << x_picture_offset << "," << y_picture_offset << ")" << endl;
+      << "\\setlength{\\unitlength}{" << resolution << "mm}" << endl
+      << "\\filltype{" << fill_type << "}" << endl
+      << endl
+      << "\\begin{picture}(" << h_size << "," << v_size << ")"
+      << "(" << x_picture_offset << "," << y_picture_offset << ")" << endl;
 }
 
 
 void generate_epilogue(ofstream & output)
 {
-  output << endl 
-	 << endl
-	 << "\\end{picture}" << endl;
+  output << endl
+      << endl
+      << "\\end{picture}" << endl;
 
   if (latex_header)
     output << endl
-	   << "\\end{center}" << endl
-	   << "\\end{document}" << endl;
+        << "\\end{center}" << endl
+        << "\\end{document}" << endl;
 }
 
 int tree_number = 0;
 
 
-/* 
+/*
    Hay cuatro casos
 
               x
@@ -1374,7 +1381,7 @@ int tree_number = 0;
    src
 
    (3)
-      src 
+      src
          \
           \ x
            \
@@ -1388,16 +1395,16 @@ int tree_number = 0;
 
   La rutina genera una curva src--x--tgt. El punto x se determina según
   que el parámetro left sea true o false. En los casos pictorizados
-  left==true 
+  left==true
 
   La primera parte de la rutina determina src y tgt
-     
+
 */
-void generate_curve(ofstream &  output, 
-		    EepicNode * p, 
-		    EepicNode * q, 
-		    const bool  left = false,
-		    const bool  is_dashed = true)
+void generate_curve(ofstream & output,
+                    EepicNode *p,
+                    EepicNode *q,
+                    const bool left = false,
+                    const bool is_dashed = true)
 {
   const long double & px = X(p); // coordenadas de p
   const long double & py = Y(p);
@@ -1406,92 +1413,98 @@ void generate_curve(ofstream &  output,
   const long double & qy = Y(q);
 
   long double srcx, srcy, // punto origen
-              mx, my,     // punto intermedio
-              tgtx, tgty; // punto destino
+      mx, my, // punto intermedio
+      tgtx, tgty; // punto destino
 
-  EepicNode * src, * tgt; // puntos origen y destino
+  EepicNode *src, *tgt; // puntos origen y destino
 
-      // determinación de puntos inicial y final
+  // determinación de puntos inicial y final
   if (px < qx)
     {
-      src = p; tgt = q;
-      srcx = px; srcy = py;
-      tgtx = qx; tgty = qy; 
+      src = p;
+      tgt = q;
+      srcx = px;
+      srcy = py;
+      tgtx = qx;
+      tgty = qy;
     }
   else
     {
-      src = q; tgt = p;
-      srcx = qx; srcy = qy;
-      tgtx = px; tgty = py;
+      src = q;
+      tgt = p;
+      srcx = qx;
+      srcy = qy;
+      tgtx = px;
+      tgty = py;
     }
 
-      // determinación de punto medio
+  // determinación de punto medio
   if (fabsl(srcx - tgtx) < hr) // caso (4) ?
     {
-      my = (srcy + tgty)/2.0;
+      my = (srcy + tgty) / 2.0;
 
       if (left)
-	{
-	  srcx -= XR(src); 
-	  tgtx -= XR(tgt);
-	  mx    = srcx - xgap/2.5;
-	}
+        {
+          srcx -= XR(src);
+          tgtx -= XR(tgt);
+          mx = srcx - xgap / 2.5;
+        }
       else
-	{
-	  srcx += XR(src); 
-	  tgtx += XR(tgt);
-	  mx    = srcx + xgap/2.5;
-	}
+        {
+          srcx += XR(src);
+          tgtx += XR(tgt);
+          mx = srcx + xgap / 2.5;
+        }
     }
   else if (fabsl(srcy - tgty) < vr) // caso (1)
     {
-      mx    = (srcx + tgtx)/2.0;
+      mx = (srcx + tgtx) / 2.0;
       srcx += XR(src);
       tgtx -= XR(tgt);
-      my    = srcy + (left ? -ygap : ygap)/2.0;
+      my = srcy + (left ? -ygap : ygap) / 2.0;
     }
-  else 
-    {    
+  else
+    {
       srcx += XR(src);
       tgtx -= XR(tgt);
-      
-      const long double xfourth = (tgtx - srcx)/4.0;
+
+      const long double xfourth = (tgtx - srcx) / 4.0;
 
       if (tgty < srcy) // caso (2)
-	{
-	  const long double yfourth = (srcy - tgty)/4.0;
+        {
+          const long double yfourth = (srcy - tgty) / 4.0;
 
-	  if (left)
-	    {
-	      mx = srcx + xfourth;
-	      my = tgty + 3.0*yfourth;
-	    }
-	  else
-	    {
-	      mx = srcx + 3.0*xfourth;
-	      my = tgty + yfourth;
-	    }
+          if (left)
+            {
+              mx = srcx + xfourth;
+              my = tgty + 3.0 * yfourth;
+            }
+          else
+            {
+              mx = srcx + 3.0 * xfourth;
+              my = tgty + yfourth;
+            }
 
-	  assert(my <= srcy and my >= tgty);
-	}
+          assert(my <= srcy and my >= tgty);
+        }
       else // caso (3)
-	{
-	  const long double yfourth = (tgty - srcy)/4.0;
+        {
+          const long double yfourth = (tgty - srcy) / 4.0;
 
-	  if (left)
-	    {
-	      mx = srcx + 3.0*xfourth;
-	      my = srcy + 3.0*yfourth;
-	    }
-	  else
-	    {
-	      mx = srcx + xfourth;
-	      my = srcy + yfourth;
-	    }
+          if (left)
+            {
+              mx = srcx + 3.0 * xfourth;
+              my = srcy + 3.0 * yfourth;
+            }
+          else
+            {
+              mx = srcx + xfourth;
+              my = srcy + yfourth;
+            }
 
-	  assert(my >= srcy and my <= tgty);
-	}
-      
+          assert(my >= srcy and my <= tgty);
+        }
+
       assert(mx >= srcx and mx <= tgtx);
     }
 
@@ -1500,298 +1513,294 @@ void generate_curve(ofstream &  output,
   if (is_dashed)
     output << "\\curvedashes[1mm]{1,1}" << endl;
 
-  output << "\\curve(" << srcx  << "," << YPIC(srcy) << ","
-	 << mx << "," << YPIC(my) << ","
-	 << tgtx << "," << YPIC(tgty) << ")";
-    
+  output << "\\curve(" << srcx << "," << YPIC(srcy) << ","
+      << mx << "," << YPIC(my) << ","
+      << tgtx << "," << YPIC(tgty) << ")";
 }
 
-void generate_tree(ofstream& output, EepicNode * p, int level, int child_index)
+void generate_tree(ofstream & output, EepicNode *p, int level, int child_index)
 {
-  if (p == NULL)
+  if (p == nullptr)
     return;
 
   if (p->is_root())
     output << endl
-	   << "%   This the tree number " << tree_number++
-	   << " inside a forest ";
+        << "%   This the tree number " << tree_number++
+        << " inside a forest ";
 
   assert(LEVEL(p) == level and CHILDNUMBER(p) == child_index);
 
   long double x = X(p);
   long double y = Y(p);
 
-      /* Imprimir comentario cabecera de nodo */
-  output << endl 
-	 << endl
-	 << "%   Node at level " << level << ". It's the " 
-	 << child_index << " child with key = " << STRING(p);
+  /* Imprimir comentario cabecera de nodo */
+  output << endl
+      << endl
+      << "%   Node at level " << level << ". It's the "
+      << child_index << " child with key = " << STRING(p);
 
-      /* dibujar nodo */
-  if (not not_nodes and not WITHOUTNODE(p)) 
+  /* dibujar nodo */
+  if (not not_nodes and not WITHOUTNODE(p))
     {
       output << endl;
       if (ISELLIPSE(p))
-	output << "%   Ellipse" << endl 
-	       << "\\put(" << x << "," << YPIC(y) << ")"
-	       << (SHADOW(p) ? "{\\ellipse*{" : "{\\ellipse{") << WIDTH(p) 
-	       << "}{" << HEIGHT(p) << "}}";
+        output << "%   Ellipse" << endl
+            << "\\put(" << x << "," << YPIC(y) << ")"
+            << (SHADOW(p) ? "{\\ellipse*{" : "{\\ellipse{") << WIDTH(p)
+            << "}{" << HEIGHT(p) << "}}";
       else
-	output << "%   Rectangle" << endl
-	       << "\\path(" << x - XR(p) << "," << YPIC(y - YR(p)) << ")"
-	       << "(" << x + XR(p) << "," << YPIC(y - YR(p)) << ")"
-	       << "(" << x + XR(p) << "," << YPIC(y + YR(p)) << ")"
-	       << "(" << x - XR(p) << "," << YPIC(y + YR(p)) << ")"
-	       << "(" << x - XR(p) << "," << YPIC(y - YR(p)) << ")";
-    }
-
-  { /* imprimir el contenido del nodo */
+        output << "%   Rectangle" << endl
+            << "\\path(" << x - XR(p) << "," << YPIC(y - YR(p)) << ")"
+            << "(" << x + XR(p) << "," << YPIC(y - YR(p)) << ")"
+            << "(" << x + XR(p) << "," << YPIC(y + YR(p)) << ")"
+            << "(" << x - XR(p) << "," << YPIC(y + YR(p)) << ")"
+            << "(" << x - XR(p) << "," << YPIC(y - YR(p)) << ")";
+    } { /* imprimir el contenido del nodo */
     long double dx = center_string(STRING(p), WIDTH(p));
-    put_string(output, x - dx + XOFFSET(p), y + y_offset + YOFFSET(p), 
-	       "Key text= " + STRING(p), STRING(p));
+    put_string(output, x - dx + XOFFSET(p), y + y_offset + YOFFSET(p),
+               "Key text= " + STRING(p), STRING(p));
   }
 
-      /* imprimir las etiquetas -TAGs- del nodo */
+  /* imprimir las etiquetas -TAGs- del nodo */
   if (not TAGS(p).is_empty())
     {
       long double tx, ty; /* coordenadas de la tag */
       Tag_Data tag_data;
-      long double r = std::max(XR(p), YR(p)) + 2.0/resolution; // 2mm
-      long double dr = sin_45*r; /* radius r at 45 degrees */
+      long double r = std::max(XR(p), YR(p)) + 2.0 / resolution; // 2mm
+      long double dr = sin_45 * r; /* radius r at 45 degrees */
       long double dy = font_height();
       string comment;
 
-      for (DynDlist<Tag_Data>::Iterator itor(TAGS(p)); 
-	   itor.has_curr(); itor.next())
-	{
-	  tag_data = itor.get_curr();
+      for (DynDlist<Tag_Data>::Iterator itor(TAGS(p));
+           itor.has_curr(); itor.next())
+        {
+          tag_data = itor.get_curr();
 
-	  switch (tag_data.tag_option)
-	    {
-	    case NORTH: 
-	      comment = "North tag: ";
-	      tx = x + tag_data.x_offset; 
-	      ty = y - r + tag_data.y_offset; 
-	      break;
-	    case SOUTH: 
-	      comment = "South tag: ";
-	      tx = x + tag_data.x_offset; 
-	      ty = y + r + tag_data.y_offset + dy; 
-	      break;
-	    case EAST: 
-	      comment = "East tag: ";
-	      tx = x + r + tag_data.x_offset; 
-	      ty = y + tag_data.y_offset; 
-	      break;
-	    case WEST: 
-	      comment = "West tag: ";
-	      tx = x - r + tag_data.x_offset - string_width(tag_data.tag); 
-	      ty = y + tag_data.y_offset; 
-	      break;
-	    case NORTH_EAST: 
-	      comment = "Northeast tag: ";
-	      tx = x + dr + tag_data.x_offset; 
-	      ty = y - dr + tag_data.y_offset; 
-	      break;
-	    case NORTH_WEST: 
-	      comment = "Northwest tag: ";
-	      tx = x - dr + tag_data.x_offset - string_width(tag_data.tag); 
-	      ty = y - dr + tag_data.y_offset; 
-	      break; 
-	    case SOUTH_EAST:
-	      comment = "Southeast tag: ";
-	      tx = x + dr + tag_data.x_offset; 
-	      ty = y + dr + tag_data.y_offset; 
-	      break;
-	    case SOUTH_WEST: 
-	      comment = "Southwest tag: ";
-	      tx = x - dr + tag_data.x_offset - string_width(tag_data.tag); 
-	      ty = y + dr + tag_data.y_offset; 
-	      break;
-	    default:
-	      print_parse_error_and_exit("Fatal: unexpected tag option");
-	    }
-	  put_string(output, tx, ty, comment + tag_data.tag, tag_data.tag);
-	}
+          switch (tag_data.tag_option)
+            {
+            case NORTH:
+              comment = "North tag: ";
+              tx = x + tag_data.x_offset;
+              ty = y - r + tag_data.y_offset;
+              break;
+            case SOUTH:
+              comment = "South tag: ";
+              tx = x + tag_data.x_offset;
+              ty = y + r + tag_data.y_offset + dy;
+              break;
+            case EAST:
+              comment = "East tag: ";
+              tx = x + r + tag_data.x_offset;
+              ty = y + tag_data.y_offset;
+              break;
+            case WEST:
+              comment = "West tag: ";
+              tx = x - r + tag_data.x_offset - string_width(tag_data.tag);
+              ty = y + tag_data.y_offset;
+              break;
+            case NORTH_EAST:
+              comment = "Northeast tag: ";
+              tx = x + dr + tag_data.x_offset;
+              ty = y - dr + tag_data.y_offset;
+              break;
+            case NORTH_WEST:
+              comment = "Northwest tag: ";
+              tx = x - dr + tag_data.x_offset - string_width(tag_data.tag);
+              ty = y - dr + tag_data.y_offset;
+              break;
+            case SOUTH_EAST:
+              comment = "Southeast tag: ";
+              tx = x + dr + tag_data.x_offset;
+              ty = y + dr + tag_data.y_offset;
+              break;
+            case SOUTH_WEST:
+              comment = "Southwest tag: ";
+              tx = x - dr + tag_data.x_offset - string_width(tag_data.tag);
+              ty = y + dr + tag_data.y_offset;
+              break;
+            default:
+              print_parse_error_and_exit("Fatal: unexpected tag option");
+            }
+          put_string(output, tx, ty, comment + tag_data.tag, tag_data.tag);
+        }
     }
 
-      /* Dibujar arcos adicionales declarados con opción ARC o DASHED-ARC */
-  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_curr(); 
+  /* Dibujar arcos adicionales declarados con opción ARC o DASHED-ARC */
+  for (DynDlist<Arc_Data>::Iterator itor(ARCS(p)); itor.has_curr();
        itor.next())
     {
       Arc_Data arc_data = itor.get_curr();
-      
+
       long double lx = X(arc_data.target_node);
       long double ly = Y(arc_data.target_node);
       long double src_dx, src_dy; // diferencias con nodo origen
       if (ISELLIPSE(p))
-	intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p), 
-				  src_dx, src_dy);
+        intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p),
+                                  src_dx, src_dy);
       else
-	intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p), 
-				    src_dx, src_dy);
+        intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p),
+                                    src_dx, src_dy);
       long double tgt_dx, tgt_dy; // diferencias con nodo destino
       if (ISELLIPSE(arc_data.target_node))
-	intersection_ellipse_line(lx, ly, x, y, XR(arc_data.target_node),
-				  YR(arc_data.target_node), tgt_dx, tgt_dy);
+        intersection_ellipse_line(lx, ly, x, y, XR(arc_data.target_node),
+                                  YR(arc_data.target_node), tgt_dx, tgt_dy);
       else
-	intersection_rectangle_line(lx, ly, x, y, XR(arc_data.target_node),
-				    YR(arc_data.target_node), tgt_dx, tgt_dy);
+        intersection_rectangle_line(lx, ly, x, y, XR(arc_data.target_node),
+                                    YR(arc_data.target_node), tgt_dx, tgt_dy);
       if (lx < x)
-	src_dx = -src_dx;
+        src_dx = -src_dx;
       else
-	tgt_dx = -tgt_dx;
+        tgt_dx = -tgt_dx;
 
-          /* dibujar arco adicional */
+      /* dibujar arco adicional */
       output << endl
-	     << "%   Additional arc to child with key " << 
-	STRING(arc_data.target_node) << endl;
-      draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy, 
-	       arc_data.is_dashed, with_arrow);
+          << "%   Additional arc to child with key " <<
+          STRING(arc_data.target_node) << endl;
+      draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy,
+               arc_data.is_dashed, with_arrow);
     }
 
   /// TODO: falta conexiones spline y dashes. esta parte tiene solo
   /// dashed por prueba
 
-      // dibujar conexiones
-  for (DynDlist<Connexion_Data>::Iterator itor(CONNEXIONS(p)); 
+  // dibujar conexiones
+  for (DynDlist<Connexion_Data>::Iterator itor(CONNEXIONS(p));
        itor.has_curr(); itor.next())
     {
       Connexion_Data connexion_data = itor.get_curr();
 
-      generate_curve(output, p, connexion_data.target_node, 
-		     connexion_data.is_left);
+      generate_curve(output, p, connexion_data.target_node,
+                     connexion_data.is_left);
 
 # ifdef tmp
 
       if (dash_threaded_trees)
-	output << "\\curve(" << x - dx << "," << YPIC(y + dy) << "," 
-	       << px + dx << "," << YPIC(y + h) << ","
-	       << px + dx << "," << YPIC(py + dy) << ")";
+        output << "\\curve(" << x - dx << "," << YPIC(y + dy) << ","
+            << px + dx << "," << YPIC(y + h) << ","
+            << px + dx << "," << YPIC(py + dy) << ")";
 
 # endif
     }
 
 
   if (not draw_list_representation)
-    /* dibujar arcos correspondientes a hijos y visitarlos */
-    for (EepicNode * c = p->get_left_child(); c != NULL;
-	 c = c->get_right_sibling())
+  /* dibujar arcos correspondientes a hijos y visitarlos */
+    for (EepicNode *c = p->get_left_child(); c != nullptr;
+         c = c->get_right_sibling())
       {
-	if (WITHARC(c))
-	  { /* dibujar arco */
-	    long double lx = X(c);
-	    long double ly = Y(c);
-	    long double src_dx, src_dy; // diferencias con nodo origen
-	    if (ISELLIPSE(p))
-	      intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p), 
-					src_dx, src_dy);
-	    else
-	      intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p), 
-					  src_dx, src_dy); 
-	    long double tgt_dx, tgt_dy; // diferencias con nodo destino
-	    if (ISELLIPSE(c))
-	      intersection_ellipse_line(lx, ly, x, y, XR(c), YR(c), 
-					tgt_dx, tgt_dy);
-	    else
-	      intersection_rectangle_line(lx, ly, x, y, XR(c), YR(c), 
-					  tgt_dx, tgt_dy); 
-	    if (lx < x)
-	      src_dx = -src_dx;
-	    else
-	      tgt_dx = -tgt_dx;
+        if (WITHARC(c))
+          { /* dibujar arco */
+            long double lx = X(c);
+            long double ly = Y(c);
+            long double src_dx, src_dy; // diferencias con nodo origen
+            if (ISELLIPSE(p))
+              intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p),
+                                        src_dx, src_dy);
+            else
+              intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p),
+                                          src_dx, src_dy);
+            long double tgt_dx, tgt_dy; // diferencias con nodo destino
+            if (ISELLIPSE(c))
+              intersection_ellipse_line(lx, ly, x, y, XR(c), YR(c),
+                                        tgt_dx, tgt_dy);
+            else
+              intersection_rectangle_line(lx, ly, x, y, XR(c), YR(c),
+                                          tgt_dx, tgt_dy);
+            if (lx < x)
+              src_dx = -src_dx;
+            else
+              tgt_dx = -tgt_dx;
 
-	    output << endl
-		   << "%   Arc to child " << CHILDNUMBER(c) 
-		   << " with key " << STRING(c) << endl;
-	    
-	    draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy,
-		     DASHEDARC(c), with_arrow);
-	  }
+            output << endl
+                << "%   Arc to child " << CHILDNUMBER(c)
+                << " with key " << STRING(c) << endl;
 
-	    /* ahora dibuje recursivamente el proximo nodo */
-	generate_tree(output, c, level + 1, CHILDNUMBER(c));
+            draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy,
+                     DASHEDARC(c), with_arrow);
+          }
+
+        /* ahora dibuje recursivamente el proximo nodo */
+        generate_tree(output, c, level + 1, CHILDNUMBER(c));
       }
   else
     {
-      EepicNode * c = p->get_left_child();
-      if (c != NULL)
-	{
-	  long double lx = X(c);
-	  long double ly = Y(c);
-	  long double src_dx, src_dy; // diferencias con nodo origen
-	  if (ISELLIPSE(p))
-	    intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p), 
-				      src_dx, src_dy);
-	  else
-	    intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p), 
-					src_dx, src_dy); 
-	  long double tgt_dx, tgt_dy; // diferencias con nodo destino
-	  if (ISELLIPSE(c))
-	    intersection_ellipse_line(lx, ly, x, y, XR(c), YR(c), 
-				      tgt_dx, tgt_dy);
-	  else
-	    intersection_rectangle_line(lx, ly, x, y, XR(c), YR(c), 
-					tgt_dx, tgt_dy); 
-	  if (lx < x)
-	    src_dx = -src_dx;
-	  else
-	    tgt_dx = -tgt_dx;
+      EepicNode *c = p->get_left_child();
+      if (c != nullptr)
+        {
+          long double lx = X(c);
+          long double ly = Y(c);
+          long double src_dx, src_dy; // diferencias con nodo origen
+          if (ISELLIPSE(p))
+            intersection_ellipse_line(x, y, lx, ly, XR(p), YR(p),
+                                      src_dx, src_dy);
+          else
+            intersection_rectangle_line(x, y, lx, ly, XR(p), YR(p),
+                                        src_dx, src_dy);
+          long double tgt_dx, tgt_dy; // diferencias con nodo destino
+          if (ISELLIPSE(c))
+            intersection_ellipse_line(lx, ly, x, y, XR(c), YR(c),
+                                      tgt_dx, tgt_dy);
+          else
+            intersection_rectangle_line(lx, ly, x, y, XR(c), YR(c),
+                                        tgt_dx, tgt_dy);
+          if (lx < x)
+            src_dx = -src_dx;
+          else
+            tgt_dx = -tgt_dx;
 
-	  output << endl
-		 << "%   link to leftmost child " << CHILDNUMBER(c) 
-		 << " with key " << STRING(c) << endl;
+          output << endl
+              << "%   link to leftmost child " << CHILDNUMBER(c)
+              << " with key " << STRING(c) << endl;
 
-	  draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy,
-		   DASHEDARC(c), with_arrow);
+          draw_arc(output, x + src_dx, y + src_dy, lx + tgt_dx, ly - tgt_dy,
+                   DASHEDARC(c), with_arrow);
 
-	      /* ahora dibuje recursivamente el proximo nodo */
-	  generate_tree(output, c, level + 1, CHILDNUMBER(c));
-	}
+          /* ahora dibuje recursivamente el proximo nodo */
+          generate_tree(output, c, level + 1, CHILDNUMBER(c));
+        }
 
-      EepicNode * rs = p->get_right_sibling();
-      if (rs != NULL)
-	{
-	  long double rx = X(rs);
-	  long double ry = Y(rs);
-	  long double src_dx, src_dy; // diferencias con nodo origen
-	  if (ISELLIPSE(p))
-	    intersection_ellipse_line(x, y, rx, ry, XR(p), YR(p), 
-				      src_dx, src_dy);
-	  else
-	    intersection_rectangle_line(x, y, rx, ry, XR(p), YR(p), 
-					src_dx, src_dy); 
-	  long double tgt_dx, tgt_dy; // diferencias con nodo destino
-	  if (ISELLIPSE(rs))
-	    intersection_ellipse_line(rx, ry, x, y, XR(rs), YR(rs), 
-				      tgt_dx, tgt_dy);
-	  else
-	    intersection_rectangle_line(rx, ry, x, y, XR(rs), YR(rs), 
-					tgt_dx, tgt_dy); 
-	  if (rx < x)
-	    src_dx = -src_dx;
-	  else
-	    tgt_dx = -tgt_dx;
+      if (EepicNode *rs = p->get_right_sibling(); rs != nullptr)
+        {
+          long double rx = X(rs);
+          long double ry = Y(rs);
+          long double src_dx, src_dy; // diferencias con nodo origen
+          if (ISELLIPSE(p))
+            intersection_ellipse_line(x, y, rx, ry, XR(p), YR(p),
+                                      src_dx, src_dy);
+          else
+            intersection_rectangle_line(x, y, rx, ry, XR(p), YR(p),
+                                        src_dx, src_dy);
+          long double tgt_dx, tgt_dy; // diferencias con nodo destino
+          if (ISELLIPSE(rs))
+            intersection_ellipse_line(rx, ry, x, y, XR(rs), YR(rs),
+                                      tgt_dx, tgt_dy);
+          else
+            intersection_rectangle_line(rx, ry, x, y, XR(rs), YR(rs),
+                                        tgt_dx, tgt_dy);
+          if (rx < x)
+            src_dx = -src_dx;
+          else
+            tgt_dx = -tgt_dx;
 
-	  output << endl
-		 << "%   link to right sibling " << child_index + 1
-		 << " with key " << STRING(rs) << endl;
+          output << endl
+              << "%   link to right sibling " << child_index + 1
+              << " with key " << STRING(rs) << endl;
 
-	  draw_arc(output, x + src_dx, y + src_dy, rx + tgt_dx, ry - tgt_dy,
-		   DASHEDARC(rs), with_arrow);
+          draw_arc(output, x + src_dx, y + src_dy, rx + tgt_dx, ry - tgt_dy,
+                   DASHEDARC(rs), with_arrow);
 
-	      /* ahora dibuje recursivamente el proximo nodo */
-	  generate_tree(output, rs, level, CHILDNUMBER(rs));
-	}
+          /* ahora dibuje recursivamente el proximo nodo */
+          generate_tree(output, rs, level, CHILDNUMBER(rs));
+        }
     }
 
-  if (p->is_root()) 
+  if (p->is_root())
     /* avance al proximo arbol dentro de la arborescencia */
     generate_tree(output, p->get_right_tree(), 0, 0);
 }
 
 
-void generate_forest(ofstream& output, EepicNode * root)
+void generate_forest(ofstream & output, EepicNode *root)
 {
   generate_prologue(output);
   generate_tree(output, root, 0, 0);
@@ -1799,15 +1808,15 @@ void generate_forest(ofstream& output, EepicNode * root)
 }
 
 
-const char *argp_program_version = 
-"ntreepic 1.7 - ALEPH drawer for general rooted trees\n"
-"Copyright (C) 2004, 2007 UNIVERSITY of LOS ANDES (ULA)\n"
-"Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n";
+const char *argp_program_version =
+    "ntreepic 1.7 - ALEPH drawer for general rooted trees\n"
+    "Copyright (C) 2004, 2007 UNIVERSITY of LOS ANDES (ULA)\n"
+    "Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
+    "Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
+    "ULA Computer Science Department\n"
+    "This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
+    "or FITNESS FOR A PARTICULAR PURPOSE\n"
+    "\n";
 
 
 const char *argp_program_bug_address = "lrleon@ula.ve";
@@ -1816,151 +1825,173 @@ const char *argp_program_bug_address = "lrleon@ula.ve";
 static char doc[] = "ntreepic -- Aleph drawer for general rooted trees";
 
 
-static char arg_doc[] = "-f input-file\n";
+static char arg_doc[] = "-f input-file [-o output-file]\n";
 
 
-static char * hello = 
-"ALEPH drawer for general rooted trees\n"
-"Copyright (C) 2004, 2007 University of Los Andes (ULA)\n"
-"Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n";
+static const char *hello =
+    "ALEPH drawer for general rooted trees\n"
+    "Copyright (C) 2004, 2007 University of Los Andes (ULA)\n"
+    "Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
+    "Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
+    "ULA Computer Science Department\n"
+    "This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
+    "or FITNESS FOR A PARTICULAR PURPOSE\n"
+    "\n";
 
 
-static const char license_text [] = 
-"ALEPH drawer for general rooted trees. License & Copyright Note\n"
-"Copyright (C) 2004, 2007\n"
-"UNIVERSITY of LOS ANDES (ULA)\n"
-"Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n"
-"  PERMISSION TO USE, COPY, MODIFY AND DISTRIBUTE THIS SOFTWARE AND ITS \n"
-"  DOCUMENTATION IS HEREBY GRANTED, PROVIDED THAT BOTH THE COPYRIGHT \n"
-"  NOTICE AND THIS PERMISSION NOTICE APPEAR IN ALL COPIES OF THE \n"
-"  SOFTWARE, DERIVATIVE WORKS OR MODIFIED VERSIONS, AND ANY PORTIONS \n"
-"  THEREOF, AND THAT BOTH NOTICES APPEAR IN SUPPORTING DOCUMENTATION. \n"
-"\n"
-"  This program is distributed in the hope that it will be useful,\n"
-"  but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \n"
-"\n"
-"  ULA requests users of this software to return to \n"
-"      Proyecto Aleph - CEMISID Software\n"
-"      Nucleo Universitario La Hechicera. Ed Ingenieria\n"
-"      3er piso, ala Este \n"
-"      Universidad de Los Andes \n"
-"      Merida 5101 - REPUBLICA BOLIVARIANA DE VENEZUELA \n"
-"\n"
-"  or to 	lrleon@ula.ve \n"
-"\n"
-"  any improvements or extensions that they make and grant Universidad \n"
-"  de Los Andes (ULA) the full rights to redistribute these changes. \n"
-"\n"
-" This program was granted by: \n"
-" - Consejo de Desarrollo Cientifico, Humanistico, Tecnico de la ULA\n"
-"  (CDCHT)\n";
+static const char license_text[] =
+    "ALEPH drawer for general rooted trees. License & Copyright Note\n"
+    "Copyright (C) 2004, 2007\n"
+    "UNIVERSITY of LOS ANDES (ULA)\n"
+    "Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
+    "Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
+    "ULA Computer Science Department\n"
+    "This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
+    "or FITNESS FOR A PARTICULAR PURPOSE\n"
+    "\n"
+    "  PERMISSION TO USE, COPY, MODIFY AND DISTRIBUTE THIS SOFTWARE AND ITS \n"
+    "  DOCUMENTATION IS HEREBY GRANTED, PROVIDED THAT BOTH THE COPYRIGHT \n"
+    "  NOTICE AND THIS PERMISSION NOTICE APPEAR IN ALL COPIES OF THE \n"
+    "  SOFTWARE, DERIVATIVE WORKS OR MODIFIED VERSIONS, AND ANY PORTIONS \n"
+    "  THEREOF, AND THAT BOTH NOTICES APPEAR IN SUPPORTING DOCUMENTATION. \n"
+    "\n"
+    "  This program is distributed in the hope that it will be useful,\n"
+    "  but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+    "  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \n"
+    "\n"
+    "  ULA requests users of this software to return to \n"
+    "      Proyecto Aleph - CEMISID Software\n"
+    "      Nucleo Universitario La Hechicera. Ed Ingenieria\n"
+    "      3er piso, ala Este \n"
+    "      Universidad de Los Andes \n"
+    "      Merida 5101 - REPUBLICA BOLIVARIANA DE VENEZUELA \n"
+    "\n"
+    "  or to 	lrleon@ula.ve \n"
+    "\n"
+    "  any improvements or extensions that they make and grant Universidad \n"
+    "  de Los Andes (ULA) the full rights to redistribute these changes. \n"
+    "\n"
+    " This program was granted by: \n"
+    " - Consejo de Desarrollo Cientifico, Humanistico, Tecnico de la ULA\n"
+    "  (CDCHT)\n";
 
 
-
-static struct argp_option options [] = {
-  {"radius", 'r', "radius", OPTION_ARG_OPTIONAL, "fit radius for circles" , 0},
-  {"x-gap", 'w', "sibling gap", OPTION_ARG_OPTIONAL, "sibling separation" , 0},
-  {"y-gap", 'h', "children gap", OPTION_ARG_OPTIONAL, "child separation" , 0},
-  {"t-gap", 't', "tree gap", OPTION_ARG_OPTIONAL, "subtree separation" , 0},
-  {"bin-tree", 'b', "binary tree", OPTION_ARG_OPTIONAL, 
-   "generate binary tree" , 0},
-  {"h-radius", 'x', "horizontal-radius", OPTION_ARG_OPTIONAL, 
-   "horizontal radius" , 0},
-  {"v-radius", 'y', "vertical-radius", OPTION_ARG_OPTIONAL, 
-   "vertical radius" , 0},
-  {"resol", 'l', "resolution", OPTION_ARG_OPTIONAL, "resolution in mm" , 0},
-  {"latex", 'a', 0, OPTION_ARG_OPTIONAL, "add latex header" , 0},
-  {"no-node", 'n', 0, OPTION_ARG_OPTIONAL, "no draw nodes; only arcs", 0},
-  {"key-x-offset", 'X', "offset", OPTION_ARG_OPTIONAL, 
-   "horizontal offset for keys", 0},
-  {"key-y-offset", 'Y', "offset", OPTION_ARG_OPTIONAL, 
-   "vertical offset for keys", 0},
-  {"input-file", 'i', "input-file", 0, "input file", 0},
-  {"input-file", 'f', "input-file", OPTION_ALIAS, 0, 0},
-  {"output", 'o', "output-file", 0, "output file", 0},
-  {"license", 'C', 0, OPTION_ARG_OPTIONAL, "print license", 0},
-  {"x-picture-offset", 'O', "horizontal-picture-offset", 
-   OPTION_ARG_OPTIONAL, "horizontal global picture offset", 0},
-  {"y-picture-offset", 'P', "vertical-picture-offset", 
-   OPTION_ARG_OPTIONAL, "vertical global picture offset", 0},
-  {"print", 'R', 0, OPTION_ARG_OPTIONAL, "print current parameters", 0},
-  {"verbose", 'v', 0, OPTION_ARG_OPTIONAL, "verbose mode", 0},
-  {"version", 'V', 0, OPTION_ARG_OPTIONAL, 
-   "Print version information and then exit", 0},
-  {"black-fill", 'B', 0, OPTION_ARG_OPTIONAL, "Fill black ellipses", 0},
-  {"shade-fill", 'S', 0, OPTION_ARG_OPTIONAL, "Fill shade ellipses", 0},
-  {"ellipses", 'e', 0, OPTION_ARG_OPTIONAL, "draw ellipses as nodes", 0},
-  {"rectangles", 'q', 0, OPTION_ARG_OPTIONAL, "draw rectangles as nodes", 0},
-  {"draw-list", 'L', 0, OPTION_ARG_OPTIONAL, 
-   "draw linked list representation", 0},
-  {"draw-tree", 'T', 0, OPTION_ARG_OPTIONAL, 
-   "draw normal tree representation (or turn off linked list form)", 0},
-  {"arrow-len", 'K', "arrow lenght in points", OPTION_ARG_OPTIONAL, 
-   "arrow lenght", 0},
-  {"arrow-len", 'I', "arrow width in points", OPTION_ARG_OPTIONAL, 
-   "arrow width", 0},
-  {"arrows", 'A', 0, OPTION_ARG_OPTIONAL, "draw arcs with arrows", 0},
-  {"vertical-flip", 'F', 0, OPTION_ARG_OPTIONAL, "Flip tree respect y axe", 0},
-  { 0, 0, 0, 0, 0, 0 } 
-}; 
+static struct argp_option options[] = {
+      {"radius", 'r', "radius", OPTION_ARG_OPTIONAL, "fit radius for circles", 0},
+      {"x-gap", 'w', "sibling gap", OPTION_ARG_OPTIONAL, "sibling separation", 0},
+      {"y-gap", 'h', "children gap", OPTION_ARG_OPTIONAL, "child separation", 0},
+      {"t-gap", 't', "tree gap", OPTION_ARG_OPTIONAL, "subtree separation", 0},
+      {
+        "bin-tree", 'b', "binary tree", OPTION_ARG_OPTIONAL,
+        "generate binary tree", 0
+      },
+      {
+        "h-radius", 'x', "horizontal-radius", OPTION_ARG_OPTIONAL,
+        "horizontal radius", 0
+      },
+      {
+        "v-radius", 'y', "vertical-radius", OPTION_ARG_OPTIONAL,
+        "vertical radius", 0
+      },
+      {"resol", 'l', "resolution", OPTION_ARG_OPTIONAL, "resolution in mm", 0},
+      {"latex", 'a', 0, OPTION_ARG_OPTIONAL, "add latex header", 0},
+      {"no-node", 'n', 0, OPTION_ARG_OPTIONAL, "no draw nodes; only arcs", 0},
+      {
+        "key-x-offset", 'X', "offset", OPTION_ARG_OPTIONAL,
+        "horizontal offset for keys", 0
+      },
+      {
+        "key-y-offset", 'Y', "offset", OPTION_ARG_OPTIONAL,
+        "vertical offset for keys", 0
+      },
+      {"input-file", 'i', "input-file", 0, "input file", 0},
+      {"input-file", 'f', "input-file", OPTION_ALIAS, 0, 0},
+      {"output", 'o', "output-file", 0, "output file", 0},
+      {"license", 'C', 0, OPTION_ARG_OPTIONAL, "print license", 0},
+      {
+        "x-picture-offset", 'O', "horizontal-picture-offset",
+        OPTION_ARG_OPTIONAL, "horizontal global picture offset", 0
+      },
+      {
+        "y-picture-offset", 'P', "vertical-picture-offset",
+        OPTION_ARG_OPTIONAL, "vertical global picture offset", 0
+      },
+      {"print", 'R', 0, OPTION_ARG_OPTIONAL, "print current parameters", 0},
+      {"verbose", 'v', 0, OPTION_ARG_OPTIONAL, "verbose mode", 0},
+      {
+        "version", 'V', 0, OPTION_ARG_OPTIONAL,
+        "Print version information and then exit", 0
+      },
+      {"black-fill", 'B', 0, OPTION_ARG_OPTIONAL, "Fill black ellipses", 0},
+      {"shade-fill", 'S', 0, OPTION_ARG_OPTIONAL, "Fill shade ellipses", 0},
+      {"ellipses", 'e', 0, OPTION_ARG_OPTIONAL, "draw ellipses as nodes", 0},
+      {"rectangles", 'q', 0, OPTION_ARG_OPTIONAL, "draw rectangles as nodes", 0},
+      {
+        "draw-list", 'L', 0, OPTION_ARG_OPTIONAL,
+        "draw linked list representation", 0
+      },
+      {
+        "draw-tree", 'T', 0, OPTION_ARG_OPTIONAL,
+        "draw normal tree representation (or turn off linked list form)", 0
+      },
+      {
+        "arrow-len", 'K', "arrow lenght in points", OPTION_ARG_OPTIONAL,
+        "arrow lenght", 0
+      },
+      {
+        "arrow-width", 'I', "arrow width in points", OPTION_ARG_OPTIONAL,
+        "arrow width", 0
+      },
+      {"arrows", 'A', 0, OPTION_ARG_OPTIONAL, "draw arcs with arrows", 0},
+      {"vertical-flip", 'F', 0, OPTION_ARG_OPTIONAL, "Flip tree respect y axe", 0},
+      {0, 0, 0, 0, 0, 0}
+    };
 
 
 # define TERMINATE(n) (save_parameters(), exit(n))
 
 
+const char *parameters_file_name = "./.ntreepic";
 
-const char * parameters_file_name = "./.ntreepic";
 
-
-    inline
+inline
 void save_parameters()
 {
   ofstream output(parameters_file_name, ios::trunc);
 
-  output << hr << BLANK << vr << BLANK << hd << BLANK << vd << BLANK 
-	 << xgap << BLANK << ygap << BLANK << tree_gap << BLANK 
-	 << resolution << BLANK << x_offset << BLANK << y_offset << BLANK 
-	 << x_picture_offset << BLANK << y_picture_offset; 
+  output << hr << BLANK << vr << BLANK << hd << BLANK << vd << BLANK
+      << xgap << BLANK << ygap << BLANK << tree_gap << BLANK
+      << resolution << BLANK << x_offset << BLANK << y_offset << BLANK
+      << x_picture_offset << BLANK << y_picture_offset;
 }
 
 
-    inline
+inline
 void read_parameters()
 {
   ifstream input(parameters_file_name, ios::in);
 
   input >> hr >> vr >> hd >> vd >> xgap >> ygap >> tree_gap >> resolution
-	>> x_offset >> y_offset >> x_picture_offset >> y_picture_offset;
+      >> x_offset >> y_offset >> x_picture_offset >> y_picture_offset;
 }
 
 
-    inline
+inline
 void print_parameters()
 {
   cout
-    << "Global horizontal node radius    -x = " << hr << endl
-    << "Global vertical node radius      -y = " << vr << endl
-    << "Global horizontal node diameter     = " << hd << endl
-    << "Global Vertical node diameter       = " << vd << endl
-    << "Horizontal sibling separation    -w = " << xgap << endl
-    << "Vertical children separation     -h = " << ygap << endl
-    << "Subtree separation               -t = " << tree_gap << endl
-    << "Resolution in mm                 -l = " << resolution << endl
-    << "Horizontal global offset for key -X = " << x_offset << endl
-    << "Vertical global offset for key   -Y = " << y_offset << endl
-    << "Horizontal offset for picture    -O = " << x_picture_offset << endl
-    << "Vertical offset for picture      -P = " << y_picture_offset << endl;
+      << "Global horizontal node radius    -x = " << hr << endl
+      << "Global vertical node radius      -y = " << vr << endl
+      << "Global horizontal node diameter     = " << hd << endl
+      << "Global Vertical node diameter       = " << vd << endl
+      << "Horizontal sibling separation    -w = " << xgap << endl
+      << "Vertical children separation     -h = " << ygap << endl
+      << "Subtree separation               -t = " << tree_gap << endl
+      << "Resolution in mm                 -l = " << resolution << endl
+      << "Horizontal global offset for key -X = " << x_offset << endl
+      << "Vertical global offset for key   -Y = " << y_offset << endl
+      << "Horizontal offset for picture    -O = " << x_picture_offset << endl
+      << "Vertical offset for picture      -P = " << y_picture_offset << endl;
 }
 
 
@@ -1969,97 +2000,101 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
   switch (key)
     {
     case 'r': /* Especificacion de radio */
-      if (arg == NULL)
-	AH_ERROR("Waiting for radius in command line");
-      hr = vr = atof(arg); hd = vd = 2*hr;
+      if (arg == nullptr)
+        AH_ERROR("Waiting for radius in command line");
+      hr = vr = atof(arg);
+      hd = vd = 2 * hr;
       break;
     case 'w': /* brecha entre hermanos */
-      if (arg == NULL)
-	AH_ERROR("Waiting for sibling gap in command line");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for sibling gap in command line");
       xgap = atof(arg);
       break;
     case 'h': /* brecha entre hermanos */
-      if (arg == NULL)
-	AH_ERROR("Waiting for sibling gap in command line");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for sibling gap in command line");
       ygap = atof(arg);
       break;
     case 't': /* brecha entre subárboles */
-      if (arg == NULL)
-	AH_ERROR("Waiting for tree gap in command line");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for tree gap in command line");
       tree_gap = atof(arg);
       break;
     case 'x': /* radio horizontal de elipse */
-      if (arg == NULL)
-	AH_ERROR("Waiting for horizontal radius in command line");
-      hr = atof(arg); hd = 2*hr;
+      if (arg == nullptr)
+        AH_ERROR("Waiting for horizontal radius in command line");
+      hr = atof(arg);
+      hd = 2 * hr;
       break;
     case 'y': /* radio vertical de elipse */
-      if (arg == NULL)
-	AH_ERROR("Waiting for vertical radius in command line");
-      vr = atof(arg); vd = 2*vr;
+      if (arg == nullptr)
+        AH_ERROR("Waiting for vertical radius in command line");
+      vr = atof(arg);
+      vd = 2 * vr;
       break;
     case 'l': /* resolucion en milimetros */
-      if (arg == NULL)
-	AH_ERROR("Waiting for resolution in command line");
-      resolution =  atof(arg);
+      if (arg == nullptr)
+        AH_ERROR("Waiting for resolution in command line");
+      resolution = atof(arg);
       if (resolution > 10)
-	cout << "Warning: resolution too big" << endl;
+        cout << "Warning: resolution too big" << endl;
       break;
     case 'a': /* colocar un encabezado latex */
       latex_header = true;
       break;
-    case 'n': /* no dibuja nodos, solo arcos */ 
-      hr = vr = resolution/2; hd = vd = resolution;  
+    case 'n': /* no dibuja nodos, solo arcos */
+      hr = vr = resolution / 2;
+      hd = vd = resolution;
       not_nodes = true;
       break;
-    case 'X': /* offset horizontal para letras */ 
-      if (arg == NULL)
-	AH_ERROR("Waiting for horizontal offset in command line");
+    case 'X': /* offset horizontal para letras */
+      if (arg == nullptr)
+        AH_ERROR("Waiting for horizontal offset in command line");
       x_offset = atof(arg);
       break;
-    case 'Y': /* offset vertical para letras */ 
-      if (arg == NULL)
-	AH_ERROR("Waiting for vertical offset in command line");
+    case 'Y': /* offset vertical para letras */
+      if (arg == nullptr)
+        AH_ERROR("Waiting for vertical offset in command line");
       y_offset = atof(arg);
       break;
-    case 'O': /* offset horizontal para dibujo */ 
-      if (arg == NULL)
-	AH_ERROR("Waiting for horizontal offset in command line");
+    case 'O': /* offset horizontal para dibujo */
+      if (arg == nullptr)
+        AH_ERROR("Waiting for horizontal offset in command line");
       x_picture_offset = atof(arg);
       break;
-    case 'P': /* offset vertical para dibujo */ 
-      if (arg == NULL)
-	AH_ERROR("Waiting for vertical offset in command line");
+    case 'P': /* offset vertical para dibujo */
+      if (arg == nullptr)
+        AH_ERROR("Waiting for vertical offset in command line");
       y_picture_offset = atof(arg);
       break;
-    case 'v': /* verbose mode (no implementado) */ 
+    case 'v': /* verbose mode (no implementado) */
       break;
     case 'i': /* archivo de entrada */
     case 'f':
       {
-	if (arg == NULL)
-	  AH_ERROR("Waiting for input file name");
-	input_file_name  = arg;
-	break;
+        if (arg == nullptr)
+          AH_ERROR("Waiting for input file name");
+        input_file_name = arg;
+        break;
       }
     case 'o': /* archivo de salida */
-      if (arg == NULL)
-	AH_ERROR("Waiting for output file name");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for output file name");
       output_file_name = arg;
       break;
     case 'b': /* generar árbol binario */
       generate_binary_tree = true;
       break;
-    case 'C': /* imprime licencia */ 
+    case 'C': /* imprime licencia */
       cout << license_text;
       TERMINATE(0);
       break;
-    case 'R': /* imprime parametros */ 
+    case 'R': /* imprime parametros */
       print_parameters();
       save_parameters();
       TERMINATE(0);
       break;
-    case 'V': /* imprimir version */ 
+    case 'V': /* imprimir version */
       cout << argp_program_version;
       TERMINATE(0);
       break;
@@ -2089,14 +2124,14 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
     case 'K':
       with_arrow = true;
-      if (arg == NULL)
-	AH_ERROR("Waiting for arrow lenght in command line");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for arrow lenght in command line");
       arrow_lenght = atof(arg);
       break;
     case 'I':
       with_arrow = true;
-      if (arg == NULL)
-	AH_ERROR("Waiting for arrow width in command line");
+      if (arg == nullptr)
+        AH_ERROR("Waiting for arrow width in command line");
       arrow_width = atof(arg);
       break;
     case 'F':
@@ -2108,15 +2143,15 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
 }
 
 
-static struct argp arg_defs = { options, parser_opt, arg_doc, doc, 0, 0, 0 }; 
+static struct argp arg_defs = {options, parser_opt, arg_doc, doc, 0, 0, 0};
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
   command_line = command_line_to_string(argc, argv);
 
   read_parameters();
 
-  argp_parse(&arg_defs, argc, argv, ARGP_IN_ORDER, 0, NULL);
+  argp_parse(&arg_defs, argc, argv, ARGP_IN_ORDER, 0, nullptr);
 
   if (input_file_name.size() == 0)
     AH_ERROR("Input file not given");
@@ -2135,9 +2170,9 @@ int main(int argc, char *argv[])
       output_file_name = input_file_name;
       const int pos = input_file_name.rfind(".");
       if (pos != string::npos)
-	output_file_name = 
-	  string(input_file_name).replace(pos, input_file_name.size() - pos, 
-					  string(""));
+        output_file_name =
+            string(input_file_name).replace(pos, input_file_name.size() - pos,
+                                            string(""));
       output_file_name = output_file_name + (tiny_keys ? ".eepicaux" : ".eepic");
     }
 
@@ -2145,7 +2180,7 @@ int main(int argc, char *argv[])
 
   cout << "output sent to " << output_file_name << " file " << endl << endl;
 
-  EepicNode * root = read_input_and_build_tree(input_stream);
+  EepicNode *root = read_input_and_build_tree(input_stream);
 
   if (generate_binary_tree)
     generate_bin_tree(output_stream, root);

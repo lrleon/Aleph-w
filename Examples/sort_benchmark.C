@@ -5,7 +5,8 @@
  * This program benchmarks **only Aleph-w sorting algorithms** across
  * different data distributions and Aleph-w container types. This helps
  * understand which algorithm performs best for different scenarios and
- * data structures. No std::sort or STL containers are used.
+ * data structures. No `std::sort` is used; benchmarked data uses Aleph-w
+ * containers.
  *
  * ## Why Benchmark Sorting Algorithms?
  *

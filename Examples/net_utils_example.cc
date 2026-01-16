@@ -46,7 +46,7 @@
  * ### 1. Network Generation
  *
  * #### Random Networks
- * - **Controlled density**: Generate networks with specific edge density
+ * - **Approximate density**: Choose an edge count from a target density
  * - **Random capacities**: Assign random capacities to edges
  * - **Configurable size**: Control number of vertices and edges
  *
@@ -72,11 +72,6 @@
  * - **Visualization tools**: Use GraphViz, dot, neato, etc.
  * - **Customizable**: Show capacities, flows, labels
  *
- * #### Flow Visualization
- * - **Show capacities**: Display edge capacities
- * - **Show flows**: Display current flow values
- * - **Highlight paths**: Mark augmenting paths
- *
  * ### 3. Serialization
  *
  * #### JSON Export
@@ -99,9 +94,13 @@
  */
 
 #include <iostream>
+#include <string>
+#include <vector>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <chrono>
+#include <limits>
 #include <tpl_net.H>
 #include <tpl_maxflow.H>
 #include <net_utils.H>
@@ -113,6 +112,41 @@ using namespace Aleph;
 using FlowType = double;
 using Net = Net_Graph<Net_Node<string>, Net_Arc<Empty_Class, FlowType>>;
 using Node = Net::Node;
+
+static size_t density_to_num_arcs(size_t n, double density)
+{
+  if (n < 2)
+    return 0;
+
+  const double max_arcs = static_cast<double>(n) * (n - 1);
+  size_t m = static_cast<size_t>(density * max_arcs);
+  if (m < n - 1)
+    m = n - 1;
+  return m;
+}
+
+static void add_super_source_and_sink(Net& net)
+{
+  vector<Node*> nodes;
+  for (auto it = net.get_node_it(); it.has_curr(); it.next())
+    nodes.push_back(it.get_curr());
+
+  FlowType total_cap = 0;
+  for (auto it = net.get_arc_it(); it.has_curr(); it.next())
+    total_cap += it.get_curr()->cap;
+  if (total_cap <= FlowType{0})
+    total_cap = FlowType{1};
+
+  const FlowType cap = total_cap;
+  auto s = net.insert_node("SuperSource");
+  auto t = net.insert_node("SuperSink");
+
+  for (Node* v : nodes)
+    {
+      net.insert_arc(s, v, cap);
+      net.insert_arc(v, t, cap);
+    }
+}
 
 /**
  * @brief Print network statistics
@@ -152,27 +186,30 @@ void demo_random_networks()
   
   // Small sparse network
   {
-    Net net = generate_random_network<Net>(10, 0.2, 1.0, 10.0);
+    Net net = generate_random_network<Net>(10, density_to_num_arcs(10, 0.2), 1.0, 10.0);
     print_network_stats(net, "Small Sparse (n=10, density=20%)");
-    
+
+    add_super_source_and_sink(net);
     FlowType flow = dinic_maximum_flow(net);
     cout << "Max flow: " << flow << endl;
   }
   
   // Medium network
   {
-    Net net = generate_random_network<Net>(20, 0.3, 5.0, 50.0);
+    Net net = generate_random_network<Net>(20, density_to_num_arcs(20, 0.3), 5.0, 50.0);
     print_network_stats(net, "Medium (n=20, density=30%)");
-    
+
+    add_super_source_and_sink(net);
     FlowType flow = dinic_maximum_flow(net);
     cout << "Max flow: " << flow << endl;
   }
   
   // Dense network
   {
-    Net net = generate_random_network<Net>(15, 0.6, 1.0, 100.0);
+    Net net = generate_random_network<Net>(15, density_to_num_arcs(15, 0.6), 1.0, 100.0);
     print_network_stats(net, "Dense (n=15, density=60%)");
-    
+
+    add_super_source_and_sink(net);
     FlowType flow = dinic_maximum_flow(net);
     cout << "Max flow: " << flow << endl;
   }
@@ -193,7 +230,7 @@ void demo_grid_networks()
   // Different grid sizes
   for (int size : {3, 5, 8})
   {
-    Net net = generate_grid_network<Net>(size, size, 1.0, 10.0);
+    Net net = generate_grid_network<Net>(size, size, 10.0, false);
     
     stringstream title;
     title << size << "x" << size << " Grid";
@@ -223,7 +260,7 @@ void demo_layered_networks()
   
   vector<size_t> layers = {1, 3, 4, 3, 1};  // Source, 3, 4, 3, Sink
   
-  Net net = generate_layered_network<Net>(layers, 0.7, 5.0, 20.0);
+  Net net = generate_layered_network<Net>(layers, 20.0, 0.7);
   
   cout << "Layer structure: ";
   for (size_t l : layers)
@@ -306,7 +343,8 @@ void demo_json_export()
   cout << "\nExporting network to JSON format..." << endl;
   
   // Create a small network
-  Net net = generate_random_network<Net>(5, 0.4, 1.0, 10.0);
+  Net net = generate_random_network<Net>(5, density_to_num_arcs(5, 0.4), 1.0, 10.0);
+  add_super_source_and_sink(net);
   dinic_maximum_flow(net);
   
   string json = network_to_json_string(net);
@@ -336,7 +374,7 @@ void demo_benchmarking()
   cout << setw(20) << left << "Network Type"
        << setw(10) << "Nodes"
        << setw(10) << "Arcs"
-       << setw(12) << "E-K (ms)"
+       << setw(16) << "F-F (DFS) (ms)"
        << setw(12) << "Dinic (ms)"
        << setw(10) << "Flow" << endl;
   cout << string(74, '-') << endl;
@@ -345,8 +383,9 @@ void demo_benchmarking()
     size_t n = net.get_num_nodes();
     size_t m = net.get_num_arcs();
     
-    // Edmonds-Karp
+    // Ford-Fulkerson (DFS augmenting paths)
     Net net1 = net;  // Copy
+    add_super_source_and_sink(net1);
     auto t1 = chrono::high_resolution_clock::now();
     FlowType f1 = ford_fulkerson_maximum_flow(net1);
     auto t2 = chrono::high_resolution_clock::now();
@@ -354,6 +393,7 @@ void demo_benchmarking()
     
     // Dinic
     Net net2 = net;
+    add_super_source_and_sink(net2);
     t1 = chrono::high_resolution_clock::now();
     dinic_maximum_flow(net2);
     t2 = chrono::high_resolution_clock::now();
@@ -362,33 +402,33 @@ void demo_benchmarking()
     cout << setw(20) << left << name
          << setw(10) << n
          << setw(10) << m
-         << setw(12) << fixed << setprecision(3) << ek_ms
+         << setw(16) << fixed << setprecision(3) << ek_ms
          << setw(12) << dinic_ms
          << setw(10) << setprecision(0) << f1 << endl;
   };
   
   // Random sparse
   {
-    Net net = generate_random_network<Net>(30, 0.15, 1.0, 100.0);
+    Net net = generate_random_network<Net>(30, density_to_num_arcs(30, 0.15), 1.0, 100.0);
     benchmark(net, "Random Sparse");
   }
   
   // Random dense
   {
-    Net net = generate_random_network<Net>(20, 0.5, 1.0, 100.0);
+    Net net = generate_random_network<Net>(20, density_to_num_arcs(20, 0.5), 1.0, 100.0);
     benchmark(net, "Random Dense");
   }
   
   // Grid
   {
-    Net net = generate_grid_network<Net>(8, 8, 1.0, 50.0);
+    Net net = generate_grid_network<Net>(8, 8, 50.0, false);
     benchmark(net, "Grid 8x8");
   }
   
   // Layered
   {
     vector<size_t> layers = {1, 5, 8, 8, 5, 1};
-    Net net = generate_layered_network<Net>(layers, 0.6, 1.0, 50.0);
+    Net net = generate_layered_network<Net>(layers, 50.0, 0.6);
     benchmark(net, "Layered (6 layers)");
   }
   
@@ -417,20 +457,20 @@ int main()
 Network Utilities in Aleph-w:
 
 Generation Functions:
-  - generate_random_network(n, density, min_cap, max_cap)
-  - generate_grid_network(rows, cols, min_cap, max_cap)
-  - generate_layered_network(layers, density, min_cap, max_cap)
-  - generate_bipartite_network(left, right, density, cap)
+  - generate_random_network(n, m, min_cap, max_cap)
+  - generate_grid_network(rows, cols, capacity, bidirectional)
+  - generate_layered_network(layers, capacity, edge_prob)
+  - generate_bipartite_network(left, right, edge_prob)
 
 Visualization (DOT/GraphViz):
-  - export_to_dot(net, filename, name, show_cap, show_flow)
-  - network_to_dot_string(net, name, show_cap, show_flow)
+  - export_network_to_dot(net, filename, options)
+  - network_to_dot_string(net, options)
   
   Visualize with: dot -Tpng network.dot -o network.png
 
 Serialization:
   - network_to_json_string(net)
-  - export_to_dimacs(net, filename)
+  - export_network_to_dimacs(net, filename)
   - import_network_from_dimacs<Net>(filename)
 
 Use Cases:

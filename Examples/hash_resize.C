@@ -134,23 +134,17 @@
  *
  * ```bash
  * # Insert 1000 elements and observe resizing
- * hash_resize -n 1000
+ * ./hash_resize -n 1000
  *
- * # Insert 10000 elements with verbose output
- * hash_resize -n 10000 -v
- *
- * # Test with different initial sizes
- * hash_resize -n 5000 --initial-size 100
+ * # Insert 10000 elements
+ * ./hash_resize -n 10000
  * ```
  *
  * ## Expected Output
  *
- * The example shows:
- * - Initial hash table size
- * - Resize events (when they occur)
- * - Load factor before and after resize
- * - Verification that all elements are accessible
- * - Performance metrics
+ * The program prints progress during insertion and then verifies that every
+ * inserted element is still accessible after all insertions (resizes, if any,
+ * are handled internally by `MapOLhash`).
  *
  * @see tpl_dynMapOhash.H Open addressing hash map implementation
  * @see hash_tables_example.C Hash table implementations comparison

@@ -135,6 +135,8 @@
  * ./stl_utils_example
  * ```
  *
+ * This example has no command-line options; it runs all demos.
+ *
  * @see ah-stl-utils.H STL/Aleph-w conversion utilities
  * @see uni_functional_example.C Unified functional operations (works with both)
  * @see zip_utils_example.C Unified zip operations (works with both)

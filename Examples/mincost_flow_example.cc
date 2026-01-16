@@ -78,7 +78,7 @@
  * **Key insight**: Negative cycles in residual graph indicate we can
  * reduce cost by rerouting flow.
  *
- * **Complexity**: O(VE² × U) where U = maximum capacity
+ * **Complexity**: O(V × E² × C × U) where C = max absolute cost and U = max capacity
  * - May need many cycle cancellations
  *
  * **Best for**: Understanding the concept, small networks
@@ -189,6 +189,11 @@
  * # Show help
  * ./mincost_flow_example --help
  * ```
+ *
+ * @note In Aleph-w, `max_flow_min_cost_by_cycle_canceling()` returns
+ *       `(cycles_cancelled, it_factor)`; the maximum flow and the resulting
+ *       minimum cost are read from the modified network (e.g.
+ *       `net.get_out_flow(net.get_source())` and `net.flow_cost()`).
  *
  * @see tpl_netcost.H Network with cost structures
  * @see tpl_mincost.H Minimum cost flow algorithms
@@ -421,12 +426,15 @@ void demo_mincost_maxflow()
   
   // Using cycle canceling
   auto result = max_flow_min_cost_by_cycle_canceling(net);
+  auto flow = net.get_out_flow(net.get_source());
+  auto cost = net.flow_cost();
   
   print_cost_network(net, "After Optimization");
   
   cout << "\n*** Results ***" << endl;
-  cout << "Maximum flow: " << get<0>(result) << endl;
-  cout << "Minimum cost: $" << fixed << setprecision(2) << get<1>(result) << endl;
+  cout << "Maximum flow: " << flow << endl;
+  cout << "Minimum cost: $" << fixed << setprecision(2) << cost << endl;
+  cout << "Cycles cancelled: " << get<0>(result) << endl;
 }
 
 int main(int argc, char* argv[])

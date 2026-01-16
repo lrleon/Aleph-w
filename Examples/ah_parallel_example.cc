@@ -1,44 +1,78 @@
 /**
  * @file ah_parallel_example.cc
- * @brief Parallel functional programming utilities (ah-parallel.H) usage examples
+ * @brief Parallel functional programming utilities (ah-parallel.H): map/filter/fold/predicates/zip/sort.
  *
- * This file demonstrates the parallel functional programming utilities
- * from ah-parallel.H. These functions provide ML-style operations
- * (map, filter, fold, etc.) that run in parallel using a ThreadPool.
+ * ## Overview
  *
- * ## Table of Contents
+ * This example demonstrates Aleph-w's **parallel functional programming** helpers
+ * from `ah-parallel.H`. The API provides ML-style operations (map, filter, fold,
+ * predicates, etc.) that execute in parallel using an `Aleph::ThreadPool`.
  *
- * - Example 1: Parallel Map (pmaps)      - Transform elements in parallel
- * - Example 2: Parallel Filter (pfilter) - Select elements in parallel
- * - Example 3: Parallel Fold (pfoldl)    - Reduce with parallel chunks
- * - Example 4: Parallel Predicates       - pall, pexists, pnone, pcount_if
- * - Example 5: Parallel Find             - pfind, pfind_value
- * - Example 6: Parallel Aggregations     - psum, pproduct, pmin, pmax
- * - Example 7: Parallel Sort             - psort with parallel merge
- * - Example 8: Parallel Zip (2 containers) - pzip_for_each, pzip_maps
- * - Example 9: Variadic Zip (N containers) - pzip_maps_n, pzip_all_n
- * - Example 10: Parallel Enumerate       - penumerate_for_each, penumerate_maps
- * - Example 11: Performance Comparison   - Parallel vs Sequential
+ * The file is structured as a series of demos covering:
  *
- * ## Key Differences from Sequential Versions
+ * - parallel map/filter/fold
+ * - parallel predicates and find
+ * - aggregations (sum/product/min/max)
+ * - parallel sort
+ * - parallel zip / enumerate
+ * - a simple parallel vs sequential performance comparison
  *
- * - All functions take a ThreadPool& as the first argument
- * - Operations are chunked and distributed across worker threads
- * - For fold operations, the binary operator must be associative
- * - Short-circuit predicates (pall, pexists, pfind) stop early
+ * ## Data model used by this example
  *
- * ## Compilation
+ * - Primary containers: `std::vector<int>`, `std::vector<double>`, `std::vector<std::string>`
+ * - Execution engine: `ThreadPool pool(std::thread::hardware_concurrency())`
+ *
+ * ## Usage
  *
  * ```bash
- * g++ -std=c++20 -O2 -pthread -I.. ah_parallel_example.cc -o ah_parallel_example
+ * ./ah_parallel_example
  * ```
  *
- * Or using CMake:
- * ```bash
- * cmake --build . --target ah_parallel_example
- * ```
+ * This example has no command-line options; it runs all demos.
  *
- * @see ah-parallel.H Parallel functional utilities
+ * ## Algorithms and Aleph-w API
+ *
+ * Common signature pattern:
+ *
+ * - the first parameter is always a `ThreadPool&`
+ * - the remaining parameters are similar to the sequential counterparts
+ *
+ * Core operations demonstrated:
+ *
+ * - `pmaps(pool, container, f)`
+ * - `pfilter(pool, container, pred)`
+ * - `pfoldl(pool, container, init, op)`
+ * - `pall` / `pexists` / `pnone` / `pcount_if`
+ * - `pfind` / `pfind_value`
+ * - `psum` / `pproduct` / `pmin` / `pmax`
+ * - `psort`
+ * - `pzip_*`, `penumerate_*`
+ *
+ * ## Complexity
+ *
+ * Asymptotically, most operations have the same work complexity as the sequential
+ * version (e.g. `O(n)` for map/filter), but with wall-clock time reduced by
+ * parallelization.
+ *
+ * Actual speedups depend on:
+ *
+ * - task granularity and chunking
+ * - CPU core count
+ * - memory bandwidth
+ * - overhead of scheduling
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - For `pfoldl`, the binary operator should be **associative** to ensure that
+ *   parallel reduction is well-defined.
+ * - Short-circuit operations (`pall`, `pexists`, `pfind`) may stop early.
+ * - Parallel overhead can dominate for small inputs; measure before assuming gains.
+ *
+ * ## References / see also
+ *
+ * - `ah-parallel.H`
+ * - `thread_pool_example.cc` (ThreadPool usage)
+ *
  * @ingroup Examples
  */
 

@@ -203,6 +203,9 @@
  *
  * # Compare with Tarjan's
  * ./kosaraju_example --compare
+ *
+ * # Show help
+ * ./kosaraju_example --help
  * ```
  *
  * @see kosaraju.H Kosaraju's algorithm implementation

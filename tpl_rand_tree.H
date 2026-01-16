@@ -154,27 +154,31 @@ namespace Aleph
 
     Node * random_insert(Node *root, Node *p) noexcept
     {
+      // Prefetch children to reduce memory latency
+      __builtin_prefetch(LLINK(root));
+      __builtin_prefetch(RLINK(root));
+
       const long & n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) // p wins the raffle?
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
 
       Node *result;
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
-      if (cmp(pk, rk)) // KEY(p) < KEY(root) ?
+      if (cmp(pk, rk))  // KEY(p) < KEY(root)
         {
           result = random_insert(LLINK(root), p);
-          if (result != Node::NullPtr) // p was inserted?
+          if (result != Node::NullPtr)  // p was inserted
             {
               LLINK(root) = result;
               ++COUNT(root);
               return root;
             }
         }
-      else if (cmp(rk, pk)) // KEY(p) > KEY(root) ?
+      else if (cmp(rk, pk))  // KEY(p) > KEY(root)
         {
           result = random_insert(RLINK(root), p);
-          if (result != Node::NullPtr) // p was inserted?
+          if (result != Node::NullPtr)  // p was inserted
             {
               RLINK(root) = result;
               ++COUNT(root);
@@ -182,18 +186,22 @@ namespace Aleph
             }
         }
 
-      return Node::NullPtr; // duplicated key ==> no insertion
+      return Node::NullPtr;  // duplicated key ==> no insertion
     }
 
     Node * random_insert_dup(Node *root, Node *p) noexcept
     {
+      // Prefetch children to reduce memory latency
+      __builtin_prefetch(LLINK(root));
+      __builtin_prefetch(RLINK(root));
+
       const long & n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) // p wins the raffle?
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
         return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
-      if (cmp(pk, rk)) // KEY(p) < KEY(root) ?
+      if (cmp(pk, rk))  // KEY(p) < KEY(root)
         LLINK(root) = random_insert_dup(LLINK(root), p);
       else
         RLINK(root) = random_insert_dup(RLINK(root), p);
@@ -208,8 +216,12 @@ namespace Aleph
       if (root == Node::NullPtr)
         return root = p;
 
+      // Prefetch children to reduce memory latency
+      __builtin_prefetch(LLINK(root));
+      __builtin_prefetch(RLINK(root));
+
       const long & n = COUNT(root);
-      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n)
+      if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
         {
           if (BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p) != Node::NullPtr)
             return p;
@@ -236,7 +248,7 @@ namespace Aleph
           return ret;
         }
 
-      return root;
+      return root;  // key == root: found existing
     }
 
     Gen_Rand_Tree(const Gen_Rand_Tree &) = delete;

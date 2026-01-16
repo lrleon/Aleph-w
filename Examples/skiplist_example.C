@@ -89,18 +89,15 @@
  * - **Easier to debug**: Linear structure easier to visualize
  *
  * ### Concurrency
- * - **Lock-free versions**: Easier to make thread-safe
- * - **Less contention**: Fewer shared data structures
- * - **Better scalability**: Used in high-performance systems
+ * - Skip lists are often used as a basis for concurrent sets/maps
+ * - This example demonstrates a single-threaded container API
  *
  * ### Performance
- * - **Cache-friendly**: Sequential memory access (linked lists)
  * - **Expected O(log n)**: Same as balanced trees
  * - **Good constants**: Often faster in practice
  *
  * ### Flexibility
- * - **Range queries**: Efficient iteration over ranges
- * - **Bidirectional**: Can traverse forward and backward
+ * - **Ordered iteration**: Efficient in-order traversal via iterators
  * - **Dynamic**: Easy to add/remove levels
  *
  * ## Disadvantages
@@ -116,7 +113,7 @@
  * | Search | O(log n) | O(n) | Extremely rare worst case |
  * | Insert | O(log n) | O(n) | Includes search + insertion |
  * | Delete | O(log n) | O(n) | Includes search + deletion |
- * | Range query | O(log n + k) | O(n) | k = elements in range |
+ * | Range scan (by iteration) | O(n) | O(n) | Iterate and filter as needed |
  *
  * **Expected height**: O(log n) with high probability
  * **Worst case height**: O(n) but probability is negligible
@@ -409,7 +406,7 @@ void benchmark_comparison(size_t n, unsigned seed, bool verbose)
   cout << "\nNote: Skip Lists trade some raw performance for:" << endl;
   cout << "  - Simpler implementation (no rotations)" << endl;
   cout << "  - Easier concurrent access" << endl;
-  cout << "  - Good cache locality for range queries" << endl;
+  cout << "  - Ordered iteration for range scans" << endl;
 }
 
 /**

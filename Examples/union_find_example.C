@@ -160,6 +160,14 @@
  *   cout << "0 and 3 are connected!\n";
  * ```
  *
+ * ## Usage
+ *
+ * ```bash
+ * ./union_find_example
+ * ```
+ *
+ * This example has no command-line options; it runs all demos.
+ *
  * @see tpl_union.H Union-Find implementation
  * @see percolation_example.C Application: Percolation simulation
  * @see mst_example.C Application: Kruskal's MST algorithm

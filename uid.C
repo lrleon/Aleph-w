@@ -107,7 +107,7 @@ bool Uid::operator == (const Uid& uid) const
 char * Uid::getStringUid(char * str, const size_t & str_size) const
 {
   if (str_size < stringSize)
-    return NULL;
+    return nullptr;
 
   return stringficate(str, str_size);
 }

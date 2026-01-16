@@ -148,17 +148,21 @@ private:
 
     while (true)
       {
+        // Prefetch both children to reduce memory latency
+        __builtin_prefetch(LLINK(t));
+        __builtin_prefetch(RLINK(t));
+
         const Key & tk = KEY(t);
-        if (cmp(key, tk))
+        if (cmp(key, tk))  // key < tk: go left
           {
             cmp_result = CmpLess;
-            if (LLINK(t) == Node::NullPtr)
+            if (LLINK(t) == Node::NullPtr) [[unlikely]]
               break;
 
-            if (cmp(key, KEY(LLINK(t))))
+            if (cmp(key, KEY(LLINK(t))))  // zig-zig case
               {
                 t = rotate_to_right(t);
-                if (LLINK(t) == Node::NullPtr)
+                if (LLINK(t) == Node::NullPtr) [[unlikely]]
                   break;
               }
 
@@ -166,16 +170,16 @@ private:
             r = t;
             t = LLINK(t);
           }
-        else if (cmp(tk, key))
+        else if (cmp(tk, key))  // tk < key: go right
           {
             cmp_result = CmpGreater;
-            if (RLINK(t) == Node::NullPtr)
+            if (RLINK(t) == Node::NullPtr) [[unlikely]]
               break;
 
-            if (cmp(KEY(RLINK(t)), key))
+            if (cmp(KEY(RLINK(t)), key))  // zig-zig case
               {
                 t = rotate_to_left(t);
-                if (RLINK(t) == Node::NullPtr)
+                if (RLINK(t) == Node::NullPtr) [[unlikely]]
                   break;
               }
 
@@ -183,14 +187,14 @@ private:
             l = t;
             t = RLINK(t);
           }
-        else
+        else [[unlikely]]  // key == tk: found
           {
             cmp_result = CmpEqual;
             break;
           }
       }
 
-    /* reassembling of sub trees in one with current as root */
+    /* reassembling of subtrees in one with current as root */
     RLINK(l) = LLINK(t);
     LLINK(r) = RLINK(t);
     LLINK(t) = headNode.getR();
@@ -232,9 +236,7 @@ public:
   }
 
   /// Destructor
-  virtual ~GenTdSplayTree()
-  { /* empty */
-  }
+  virtual ~GenTdSplayTree() = default;
 
 private:
   Node * __insert(Node *p) noexcept
@@ -367,7 +369,7 @@ public:
     return root;
   }
 
-  bool verify() const { return check_bst(root, cmp); }
+  [[nodiscard]] bool verify() const { return check_bst(root, cmp); }
 
   /** Iterator over the nodes.
 

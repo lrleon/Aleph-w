@@ -26,135 +26,78 @@
 
 /**
  * @file dynmap_example.C
- * @brief DynMapTree: Key-Value Mappings with Various Tree Backends
- * 
- * This example demonstrates `DynMapTree`, a flexible associative container
- * (map/dictionary) that can use different balanced BST implementations as its
- * backend. This allows you to choose the tree type that best fits your
- * performance requirements and access patterns.
+ * @brief DynMapTree (ordered map) with multiple tree backends + demo suite and benchmark.
  *
- * ## What is DynMapTree?
+ * ## Overview
  *
- * `DynMapTree<Key, Value, Tree, Compare>` is a generic map implementation that:
- * - Stores key-value pairs
- * - Maintains keys in sorted order
- * - Provides O(log n) operations (with appropriate tree backend)
- * - Supports range queries and ordered iteration
+ * This example demonstrates Aleph-w's `DynMapTree`, an ordered key→value map
+ * implemented on top of a configurable tree backend.
  *
- * ## Available Tree Backends
+ * The program is organized as a set of small demos:
  *
- * ### Balanced Trees (Guaranteed O(log n))
+ * - basic map operations (`insert`, `operator[]`, `search`, `remove`, iteration)
+ * - comparing several tree backends
+ * - word-frequency map example
+ * - config-store example
+ * - functional-style helpers
+ * - a performance comparison (controlled by `--count`)
  *
- * #### Avl_Tree
- * - **Balance**: Strict height balance (heights differ by ≤ 1)
- * - **Performance**: Deterministic O(log n), predictable
- * - **Best for**: Read-heavy workloads, worst-case guarantees needed
- * - **Trade-off**: More rotations than Red-Black (slightly slower inserts)
+ * ## Data model used by this example
  *
- * #### Rb_Tree
- * - **Balance**: Relaxed balance (no path > 2× shortest)
- * - **Performance**: O(log n) guaranteed, efficient updates
- * - **Best for**: General-purpose, balanced read/write
- * - **Trade-off**: Less strict than AVL but faster inserts
+ * - Typical demo types: `DynMapTree<string, int>` and `DynMapTree<int, int, Backend>`
+ * - Keys are ordered by `Aleph::less<Key>` by default.
  *
- * ### Self-Adjusting Trees (Amortized O(log n))
+ * ## Usage / CLI
  *
- * #### Splay_Tree
- * - **Strategy**: Moves accessed elements to root
- * - **Performance**: O(log n) amortized
- * - **Best for**: Temporal locality, caching patterns
- * - **Trade-off**: No worst-case guarantee, but excellent for hot data
+ * This example uses TCLAP. Options:
  *
- * ### Randomized Trees (Expected O(log n))
+ * - `--count` / `-n <int>`: number of elements used by the performance demo
+ *   (default: 10000).
+ * - `--basic` / `-b`: run only the basic-operations demo.
+ * - `--trees` / `-t`: run only the tree-backends demo.
+ * - `--words` / `-w`: run only the word-frequency demo.
+ * - `--config` / `-c`: run only the configuration-store demo.
+ * - `--functional` / `-f`: run only the functional-programming demo.
+ * - `--performance` / `-p`: run only the performance demo.
+ * - `--all` / `-a`: run all demos.
+ * - `--help`: show help.
  *
- * #### Treap
- * - **Strategy**: Randomized BST with heap priorities
- * - **Performance**: O(log n) expected
- * - **Best for**: Simple implementation, good average case
+ * Behavior:
+ * - If you pass **no demo-selection flags**, the program defaults to running **all** demos.
  *
- * #### Rand_Tree
- * - **Strategy**: Different randomization approach
- * - **Performance**: O(log n) expected
+ * ```bash
+ * # Run all demos (default)
+ * ./dynmap_example
  *
- * ## When to Use DynMapTree vs Hash Maps
+ * # Run a subset
+ * ./dynmap_example --basic --trees
  *
- * ### Use DynMapTree When:
+ * # Performance demo with custom size
+ * ./dynmap_example --performance --count 200000
  *
- * ✅ **Ordered keys needed**
- *   - Keys must be sorted
- *   - Need to iterate in key order
- *   - Range queries required
- *
- * ✅ **Range operations**
- *   - Find min/max key
- *   - Iterate over key range [a, b]
- *   - Find nearest key
- *
- * ✅ **Predictable performance**
- *   - Worst-case guarantees matter
- *   - Real-time systems
- *   - Consistent performance needed
- *
- * ✅ **Poor hash functions**
- *   - Keys don't hash well
- *   - Custom types without hash
- *   - Hash collisions problematic
- *
- * ### Use Hash Maps When:
- *
- * ✅ **Point queries only**
- *   - Only need key → value lookup
- *   - No range queries needed
- *   - Order doesn't matter
- *
- * ✅ **Maximum speed**
- *   - O(1) average case acceptable
- *   - Large datasets
- *   - High-frequency lookups
- *
- * ✅ **Simple keys**
- *   - Keys have good hash functions
- *   - Standard types (int, string)
- *
- * ## Operations Supported
- *
- * | Operation | Complexity | Description |
- * |-----------|-----------|-------------|
- * | insert | O(log n) | Add key-value pair |
- * | find | O(log n) | Find value by key |
- * | remove | O(log n) | Remove key-value pair |
- * | min/max | O(log n) | Find smallest/largest key |
- * | range query | O(log n + k) | Find keys in range [a, b] |
- * | iteration | O(n) | Iterate in sorted order |
- *
- * ## Comparison Table
- *
- * | Feature | DynMapTree | Hash Map |
- * |---------|------------|----------|
- * | Lookup | O(log n) | O(1) avg |
- * | Ordered iteration | Yes | No |
- * | Range queries | Yes | No |
- * | Worst-case guarantee | Yes | No |
- * | Memory overhead | Lower | Higher |
- *
- * ## Usage Example
- *
- * ```cpp
- * // Create map with AVL tree backend
- * DynMapTree<string, int, Avl_Tree> scores;
- *
- * scores["Alice"] = 95;
- * scores["Bob"] = 87;
- * scores["Charlie"] = 92;
- *
- * // Iterate in sorted order (by key)
- * for (auto it = scores.get_it(); it.has_curr(); it.next())
- *   cout << it.get_curr()->first << ": " << it.get_curr()->second << endl;
+ * # Show help
+ * ./dynmap_example --help
  * ```
  *
- * @see tpl_dynMapTree.H DynMapTree template class
- * @see dynset_trees.C Similar example for sets (no values)
- * @see hash_tables_example.C Hash map alternatives
+ * ## Complexity
+ *
+ * Let **n** be the number of stored keys.
+ *
+ * - insert/search/remove: `O(log n)` expected/typical for balanced backends.
+ * - ordered iteration: `O(n)`.
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - `operator[]` inserts a default value if the key does not exist.
+ * - Backend choice matters for workloads with strong locality (splay) vs
+ *   predictable worst-case bounds (AVL/RB).
+ *
+ * ## References / see also
+ *
+ * - `tpl_dynMapTree.H` (DynMapTree)
+ * - `dynset_trees.C` (set counterpart)
+ * - `hash_tables_example.C` (unordered alternatives)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -197,7 +140,7 @@ void demo_basic_operations()
   
   cout << "\n--- Access ---" << endl;
   
-  // Direct access (throws if not found)
+  // Direct access (inserts default value if not found)
   cout << "Alice's age: " << ages["Alice"] << endl;
   cout << "Bob's age: " << ages.find("Bob") << endl;
   

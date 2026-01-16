@@ -85,7 +85,7 @@
  * | Insert | O(log n) | O(depth) | Depends on distribution |
  * | Search (point) | O(log n) | O(depth) | Point lookup |
  * | Range query | O(log n + k) | O(n) | k = points in range |
- * | Nearest neighbor | O(log n) | O(n) | With good distribution |
+ * | Leaf neighbors (QuadNode) | O(log n) | O(depth) | Neighbor navigation between leaf regions |
  * | Remove | O(log n) | O(depth) | May require merging |
  *
  * **Note**: Worst case occurs when points are poorly distributed
@@ -149,19 +149,21 @@
  * ## Usage Example
  *
  * ```cpp
- * QuadTree<Point> qt(bounding_box);
+ * QuadTree qt(0, 100, 0, 100, 4);
  *
- * // Insert points
  * qt.insert(Point(10, 20));
  * qt.insert(Point(30, 40));
  *
- * // Range query
- * Rectangle query(0, 0, 50, 50);
- * auto points = qt.range_query(query);
+ * if (Point *p = qt.search(Point(10, 20)))
+ *   std::cout << "Found: " << *p << "\n";
  *
- * // Nearest neighbor
- * Point target(15, 25);
- * Point nearest = qt.nearest_neighbor(target);
+ * qt.remove(Point(10, 20));
+ *
+ * // Traverse all nodes (inspect leaf nodes and their stored points)
+ * qt.for_each([](QuadNode *node) {
+ *   if (node->is_leaf())
+ *     std::cout << "Leaf with " << node->get_points_set().size() << " points\n";
+ * });
  * ```
  *
  * @see quadtree.H QuadTree implementation

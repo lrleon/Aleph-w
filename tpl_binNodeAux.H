@@ -34,7 +34,7 @@
  *
  *  The macros generate consistent binary node structures:
  *  - `DECLARE_BINNODE(name, height, Control_Data)`: Creates node class
- *  - `SET_BINNODE_NULL_POINTER(ptr, name)`: Initializes sentinel pointer
+ *  - `SET_BINNODE_nullptr_POINTER(ptr, name)`: Initializes sentinel pointer
  *
  *  ## Generated Class Members
  *
@@ -58,7 +58,7 @@
  *
  *  // Declare node type with control data
  *  DECLARE_BINNODE(MyNode, 64, MyNodeData);
- *  SET_BINNODE_NULL_POINTER(nullptr, MyNode);
+ *  SET_BINNODE_nullptr_POINTER(nullptr, MyNode);
  *
  *  // Use the node
  *  MyNode<int>* node = new MyNode<int>(42);
@@ -169,7 +169,7 @@ virtual ~name##Vtl() { /* empty */ }                 \
  * @param ptr Pointer value for sentinel (usually nullptr)
  * @param name Node class name
  */
-# define SET_BINNODE_NULL_POINTER(ptr, name)                        \
+# define SET_BINNODE_nullptr_POINTER(ptr, name)                        \
 template <class Key> name<Key> * name<Key>::NullPtr = ptr;          \
 template <class Key> name##Vtl<Key> * name##Vtl<Key>::NullPtr = ptr
 
@@ -178,7 +178,7 @@ template <class Key> name##Vtl<Key> * name##Vtl<Key>::NullPtr = ptr
 DECLARE_BINNODE(BinNode, 255, Aleph::Empty_Class);
 
 /// Initialize BinNode sentinel to nullptr
-SET_BINNODE_NULL_POINTER(nullptr, BinNode);
+SET_BINNODE_nullptr_POINTER(nullptr, BinNode);
 
 
 # endif

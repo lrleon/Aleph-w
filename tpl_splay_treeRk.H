@@ -125,17 +125,20 @@ private:
 
     while (true)
       {
-        const Key & tk = KEY(t);
-        if (cmp(key, tk))
+        // Prefetch both children to reduce memory latency
+        __builtin_prefetch(LLINK(t));
+        __builtin_prefetch(RLINK(t));
+
+        if (const Key & tk = KEY(t); cmp(key, tk))  // key < tk: go left
           {
             cmp_result = CmpLess;
-            if (LLINK(t) == Node::NullPtr)
+            if (LLINK(t) == Node::NullPtr) [[unlikely]]
               break;
 
-            if (cmp(key, KEY(LLINK(t))))
+            if (cmp(key, KEY(LLINK(t))))  // zig-zig case
               {
                 t = rotate_to_right_xt(t);
-                if (LLINK(t) == Node::NullPtr)
+                if (LLINK(t) == Node::NullPtr) [[unlikely]]
                   break;
               }
 
@@ -144,16 +147,16 @@ private:
             t = LLINK(t);
             r_size += 1 + COUNT(RLINK(r));
           }
-        else if (cmp(tk, key))
+        else if (cmp(tk, key))  // tk < key: go right
           {
             cmp_result = CmpGreater;
-            if (RLINK(t) == Node::NullPtr)
+            if (RLINK(t) == Node::NullPtr) [[unlikely]]
               break;
 
-            if (cmp(KEY(RLINK(t)), key))
+            if (cmp(KEY(RLINK(t)), key))  // zig-zig case
               {
                 t = rotate_to_left_xt(t);
-                if (RLINK(t) == Node::NullPtr)
+                if (RLINK(t) == Node::NullPtr) [[unlikely]]
                   break;
               }
 
@@ -162,7 +165,7 @@ private:
             t = RLINK(t);
             l_size += 1 + COUNT(LLINK(l));
           }
-        else
+        else [[unlikely]]  // key == tk: found
           {
             cmp_result = CmpEqual;
             break;
@@ -173,7 +176,7 @@ private:
     r_size += COUNT(RLINK(t));
     COUNT(t) = l_size + r_size + 1;
 
-    /* reassembling of sub trees in one with t as root */
+    /* reassembling of subtrees in one with t as root */
     RLINK(l) = LLINK(t);
     LLINK(r) = RLINK(t);
 

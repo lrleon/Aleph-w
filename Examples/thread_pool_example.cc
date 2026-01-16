@@ -92,6 +92,14 @@
  * - **Overhead**: ThreadPool has overhead, measure before optimizing
  * - **Cache effects**: Consider data locality
  *
+ * ## Usage
+ *
+ * ```bash
+ * ./thread_pool_example
+ * ```
+ *
+ * This example has no command-line options; it runs all examples.
+ *
  * ## Compilation
  *
  * ```bash

@@ -179,6 +179,26 @@
  * auto words = dictionary.prefix_search("hel"); // Returns ["hello", "help"]
  * ```
  *
+ * ## Command-line Usage
+ *
+ * ```bash
+ * # Run all demos (default)
+ * ./trie_example
+ *
+ * # Run specific demos
+ * ./trie_example --basic
+ * ./trie_example --prefix
+ * ./trie_example --spell
+ * ./trie_example --commands
+ * ./trie_example --structure
+ *
+ * # Performance demo (use --count to control dataset size)
+ * ./trie_example --performance --count 5000
+ *
+ * # Show help
+ * ./trie_example --help
+ * ```
+ *
  * @see prefix-tree.H Trie implementation
  * @author Leandro Rabindranath León
  * @ingroup Examples

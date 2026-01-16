@@ -1,87 +1,88 @@
 /**
  * @file eulerian_example.C
- * @brief Example demonstrating Eulerian path and cycle detection in Aleph-w
+ * @brief Eulerian paths/cycles in Aleph-w (`eulerian.H`) with classic demos and rich visual explanations.
  *
- * This program demonstrates Eulerian path and cycle detection using
- * `eulerian.H`. An Eulerian path/cycle visits every **edge** exactly once,
- * which is different from Hamiltonian paths (which visit every **vertex**).
+ * ## Overview
  *
- * ## What is an Eulerian Path/Cycle?
+ * This program demonstrates Eulerian **paths** and **cycles**.
  *
- * ### Eulerian Path
+ * - **Eulerian**: visits every **edge** exactly once.
+ * - (Contrast: Hamiltonian visits every **vertex** exactly once.)
  *
- * An **Eulerian path** is a path that visits every edge exactly once.
- * The path may start and end at different vertices.
+ * It contains multiple demo sections (undirected, directed, historical example,
+ * algorithm walkthrough), selectable via the command line.
  *
- * ### Eulerian Cycle
+ * ## Data model used by this example
  *
- * An **Eulerian cycle** (or circuit) is an Eulerian path that starts and
- * ends at the same vertex, forming a cycle.
+ * - Undirected graph type:
+ *   - `UGraph = List_Graph<Graph_Node<string>, Graph_Arc<int>>`
+ * - Directed graph type:
+ *   - `DGraph = List_Digraph<Graph_Node<string>, Graph_Arc<int>>`
+ * - Node info: label (`string`)
+ * - Arc info: integer value (`int`) used by the demo
  *
- * ### Key Difference from Hamiltonian
+ * ## Usage / CLI
  *
- * | Property | Eulerian | Hamiltonian |
- * |----------|----------|------------|
- * | Visits | Every **edge** once | Every **vertex** once |
- * | Complexity | Polynomial O(V+E) | NP-complete |
- * | Test | Exact conditions | Only sufficiency |
+ * This example uses TCLAP and a section selector:
  *
- * ## Eulerian Conditions
+ * - `--section` / `-s <section>`: one of
+ *   `cycle`, `konigsberg`, `directed`, `practical`, `hierholzer`, `types`, `all` (default).
+ * - `--help`: show help.
  *
- * ### Undirected Graphs
+ * ```bash
+ * # Run all demonstrations
+ * ./eulerian_example
  *
- * #### Eulerian Cycle
- * **Condition**: All vertices have **EVEN** degree
+ * # Run one section
+ * ./eulerian_example --section konigsberg
+ * ./eulerian_example -s directed
  *
- * **Why**: To form a cycle, you must enter and leave each vertex equally.
- * Even degree ensures this is possible.
- *
- * #### Eulerian Path
- * **Condition**: Exactly **0 or 2** vertices have **ODD** degree
- *
- * **Why**: 
- * - 0 odd vertices: Cycle exists (start = end)
- * - 2 odd vertices: Path exists (start and end are the odd-degree vertices)
- * - More than 2 odd vertices: Impossible (can't have more than 2 endpoints)
- *
- * ### Directed Graphs
- *
- * #### Eulerian Cycle
- * **Condition**: For **ALL** vertices: `in-degree = out-degree`
- *
- * **Why**: Must enter and leave each vertex equally.
- *
- * #### Eulerian Path
- * **Condition**: 
- * - At most **1** vertex with `out-degree - in-degree = 1` (start)
- * - At most **1** vertex with `in-degree - out-degree = 1` (end)
- * - All other vertices: `in-degree = out-degree`
- *
- * ## Finding Eulerian Path/Cycle
- *
- * ### Algorithm: Hierholzer's Algorithm
- *
- * ```
- * Find_Eulerian_Path(G):
- *   1. Check if Eulerian path/cycle exists (conditions above)
- *   2. Choose start vertex:
- *      - Cycle: any vertex
- *      - Path: vertex with odd degree (or out > in for directed)
- *   3. DFS to find a cycle starting from start
- *   4. While unvisited edges remain:
- *      - Find vertex in current path with unvisited edges
- *      - Find cycle starting from that vertex
- *      - Merge cycles
- *   5. Return Eulerian path/cycle
+ * # Show help
+ * ./eulerian_example --help
  * ```
  *
- * **Time complexity**: O(E) - visit each edge once
+ * ## Algorithms
  *
- * ## Historical Context: Königsberg Bridges
+ * ### Eulerian conditions (undirected)
  *
- * ### The Problem (1736)
+ * - **Eulerian cycle**: all vertices have **even** degree.
+ * - **Eulerian path**: exactly **0 or 2** vertices have **odd** degree.
+ *
+ * Why: to traverse every edge exactly once, every time you enter a vertex you must
+ * also leave it, except possibly at the start/end.
+ *
+ * ### Eulerian conditions (directed)
+ *
+ * - **Eulerian cycle**:
+ *   - for all vertices: `in-degree == out-degree`, and
+ *   - the vertices incident to at least one edge must belong to a single strongly
+ *     connected region.
+ * - **Eulerian path**:
+ *   - at most 1 vertex with `(out-degree - in-degree) == 1` (start)
+ *   - at most 1 vertex with `(in-degree - out-degree) == 1` (end)
+ *   - all other vertices: `in-degree == out-degree`
+ *
+ * @note Aleph-w's `Test_Eulerian` performs a practical reachability check for
+ *       Eulerian cycles in digraphs (among non-isolated vertices). For Eulerian
+ *       paths in digraphs, the classification in this demo is based on in/out
+ *       degree balance.
+ *
+ * ### Constructing an Eulerian trail: Hierholzer
+ *
+ * ```
+ * Find_Eulerian(G):
+ *   1. Check Eulerian conditions
+ *   2. Choose start vertex
+ *   3. Follow unused edges to form a cycle/trail
+ *   4. While edges remain unused, splice additional cycles
+ * ```
+ *
+ * Running time is linear in the number of edges.
+ *
+ * ## Historical context: Königsberg bridges (1736)
  *
  * The city of Königsberg had 7 bridges connecting 4 land areas:
+ *
  * ```
  *    A
  *   /|\
@@ -92,46 +93,10 @@
  *    D
  * ```
  *
- * **Question**: Can you walk through the city crossing each bridge exactly once?
+ * Euler proved the requested walk is **impossible** because all 4 vertices have
+ * odd degree (more than two odd-degree vertices => no Eulerian path).
  *
- * ### Euler's Solution
- *
- * Leonhard Euler proved this is **impossible** by:
- * 1. Modeling as a graph (land areas = vertices, bridges = edges)
- * 2. Showing all vertices have odd degree (3, 3, 3, 3)
- * 3. Since more than 2 vertices have odd degree, no Eulerian path exists
- *
- * **This was the birth of graph theory!**
- *
- * ## Applications
- *
- * ### Route Planning
- * - **Postal routes**: Deliver mail efficiently (Chinese Postman Problem)
- * - **Garbage collection**: Collect garbage from all streets
- * - **Snow plowing**: Plow all streets efficiently
- *
- * ### Network Design
- * - **Circuit design**: Design circuits visiting all connections
- * - **Network testing**: Test all network links
- * - **Traffic flow**: Optimize traffic routes
- *
- * ### DNA Sequencing
- * - **Genome assembly**: Reconstruct genome from fragments
- * - **Read alignment**: Align sequencing reads
- *
- * ### Puzzle Solving
- * - **Mazes**: Find path visiting all passages
- * - **Puzzle games**: Solve path-finding puzzles
- *
- * ## Complexity
- *
- * | Operation | Time | Space |
- * |-----------|------|-------|
- * | Test Eulerian | O(V + E) | O(V) |
- * | Find Eulerian path | O(E) | O(E) |
- * | Find Eulerian cycle | O(E) | O(E) |
- *
- * ## Example: Undirected Graph
+ * ## Visual example (undirected)
  *
  * ```
  * Graph:
@@ -145,7 +110,8 @@
  * Result: No Eulerian path (4 odd vertices > 2)
  * ```
  *
- * **Modify**: Add one edge to make two vertices even:
+ * Modify (add one edge) to make exactly two vertices odd:
+ *
  * ```
  *   A---B---E
  *   |\ /|
@@ -153,28 +119,29 @@
  *   |/ \|
  *   C---D
  *
- * Degrees: A=3, B=4, C=3, D=3, E=1
  * Result: Eulerian path exists (A and E are odd)
  * ```
  *
- * ## Usage
+ * ## Complexity
  *
- * ```bash
- * # Run all Eulerian demonstrations
- * ./eulerian_example
+ * Let **V** be the number of vertices and **E** the number of edges.
  *
- * # Run specific demo
- * ./eulerian_example -s cycle        # Cycle detection
- * ./eulerian_example -s konigsberg   # Historical example
- * ./eulerian_example -s directed     # Directed graphs
- * ./eulerian_example -s practical    # Practical application
- * ./eulerian_example -s hierholzer   # Hierholzer's algorithm demo
- * ./eulerian_example -s types        # Eulerian type classification
- * ```
+ * - Eulerian tests: `O(V + E)`
+ * - Hierholzer construction: `O(E)`
  *
- * @see eulerian.H Eulerian graph algorithms
- * @see hamiltonian_example.C Hamiltonian path/cycle (visits vertices)
- * @see bfs_dfs_example.C Graph traversal (used in algorithms)
+ * ## Pitfalls and edge cases
+ *
+ * - In directed graphs, degree balance alone is not sufficient; connectivity among
+ *   non-isolated vertices matters.
+ * - Multiple Eulerian trails may exist; adjacency iteration order can change the
+ *   produced trail.
+ *
+ * ## References / see also
+ *
+ * - `eulerian.H`
+ * - `hamiltonian_example.C`
+ * - `bfs_dfs_example.C`
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024
@@ -384,8 +351,9 @@ void demo_directed()
 {
   print_section("DIRECTED GRAPH EULERIAN");
   
-  cout << "For directed graphs, the condition is different:\n";
-  cout << "  in-degree = out-degree for EVERY vertex\n\n";
+  cout << "For directed graphs, degree balance alone is not enough for an Eulerian cycle.\n";
+  cout << "Aleph-w checks in-degree/out-degree balance and also performs a reachability\n";
+  cout << "check among non-isolated vertices for cycle classification.\n\n";
   
   // Eulerian directed graph
   print_subsection("Example 1: Directed cycle (Eulerian)");

@@ -186,7 +186,7 @@
  *
  * - **Directed**: Edges have direction
  * - **Weighted**: Edges have weights (can be negative)
- * - **No cycles**: No negative cycles (algorithm valid)
+ * - **No negative cycles**: Assumed (otherwise shortest paths are undefined)
  *
  * ## Usage
  *
@@ -205,14 +205,20 @@
  *
  * ### How to Reconstruct Paths
  *
- * With path matrix P (stores intermediate vertex):
+ * The algorithm maintains a **next-hop** matrix `P`:
+ * - `P[i][j]` stores the next vertex index to move to when going from `i` to `j`
+ *   along a shortest path.
+ *
+ * A simple reconstruction procedure is:
  * ```
  * reconstruct_path(i, j):
- *   if P[i][j] == null:
- *     return [i, j]  // Direct edge
- *   else:
- *     k = P[i][j]
- *     return reconstruct_path(i, k) + reconstruct_path(k, j)
+ *   if D[i][j] == ∞:
+ *     return []
+ *   path = [i]
+ *   while i != j:
+ *     i = P[i][j]
+ *     path.append(i)
+ *   return path
  * ```
  *
  * **Time**: O(path_length) to reconstruct one path
@@ -221,15 +227,11 @@
  *
  * ### How to Detect Negative Cycles
  *
- * After algorithm completes:
- * ```
- * for each vertex i:
- *   if D[i][i] < 0:
- *     Report negative cycle
- * ```
+ * In general, a negative cycle implies that at least one diagonal entry becomes
+ * negative (some `D[i][i] < 0`) after relaxation.
  *
- * **Diagonal elements**: Should be 0 (distance to self)
- * **Negative diagonal**: Indicates negative cycle
+ * Note: this example generates the LaTeX trace but does **not** perform an
+ * explicit negative-cycle check.
  *
  * @see johnson_example.cc Johnson's algorithm (better for sparse graphs)
  * @see dijkstra_example.cc Dijkstra's algorithm (single-source)
@@ -299,7 +301,7 @@ struct Nodo
 
   Nodo(const string & str) : nombre(str) { /* empty */ }
 
-  Nodo(char * str) : nombre(str) { /* empty */ }
+  Nodo(const char * str) : nombre(str) { /* empty */ }
 
   bool operator == (const Nodo & der) const 
   {
@@ -351,12 +353,12 @@ void insertar_arco(Grafo &       grafo,
 {
   Grafo::Node * n1 = grafo.find_node(Nodo(src_name));
 
-  if (n1 == NULL)
+  if (n1 == nullptr)
     n1 = grafo.insert_node(src_name);
 
   Grafo::Node * n2 = grafo.find_node(Nodo(tgt_name));
 
-  if (n2 == NULL)
+  if (n2 == nullptr)
     n2 = grafo.insert_node(tgt_name);
 
   grafo.insert_arc(n1, n2, Arco(distancia));

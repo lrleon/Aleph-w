@@ -47,10 +47,10 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 
   init_mutex(mutex);
 
-  pthread_cond_init(&cond, NULL);
+  pthread_cond_init(&cond, nullptr);
 
   const int status =
-    pthread_create(&threadId, NULL , triggerEventThread, this);
+    pthread_create(&threadId, nullptr , triggerEventThread, this);
 
   if (status != 0)
     EXIT("Cannot create triggerEventThread (error code = %d)", status);
@@ -71,7 +71,7 @@ TimeoutQueue::~TimeoutQueue()
 void TimeoutQueue::schedule_event(const Time &          trigger_time,
                                   TimeoutQueue::Event * event)
 {
-  assert(event != NULL);
+  assert(event != nullptr);
 
   event->set_trigger_time(trigger_time);
   schedule_event(event);
@@ -80,7 +80,7 @@ void TimeoutQueue::schedule_event(const Time &          trigger_time,
 
 void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
 {
-  assert(event != NULL);
+  assert(event != nullptr);
   assert(EVENT_NSEC(event) >= 0 and EVENT_NSEC(event) < NSEC);
 
   CRITICAL_SECTION(mutex);
@@ -118,7 +118,7 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event* event)
 
 void TimeoutQueue::cancel_delete_event(Event *& event)
 {
-  if (event == NULL)
+  if (event == nullptr)
     return;
 
   CRITICAL_SECTION(mutex);
@@ -134,7 +134,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
       delete event;
     }
 
-  event = NULL;
+  event = nullptr;
   pthread_cond_signal(&cond);
 }
 
@@ -142,7 +142,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
 void TimeoutQueue::reschedule_event(const Time &          trigger_time,
                                     TimeoutQueue::Event * event)
 {
-  assert(event != NULL);
+  assert(event != nullptr);
 
   CRITICAL_SECTION(mutex);
 
@@ -231,7 +231,7 @@ void * TimeoutQueue::triggerEvent()
         set_execution_status(Event::Canceled);
   } /* end of critical section */
 
-  pthread_exit(NULL);
+  pthread_exit(nullptr);
 }
 
 

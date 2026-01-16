@@ -37,8 +37,8 @@
  * **Model**: Random graph guaranteed to be connected
  *
  * **Algorithm**:
- * 1. Build a spanning tree (ensures connectivity)
- * 2. Add random edges until desired edge count
+ * 1. Generate a random graph
+ * 2. If it is disconnected, add extra edges between components until it becomes connected
  *
  * **Properties**:
  * - Always connected
@@ -64,7 +64,7 @@
  * **Algorithm**:
  * 1. Generate random graph
  * 2. Identify vertices with odd degree
- *3. Pair them and add edges (makes all degrees even)
+ * 3. Pair them and add edges (makes all degrees even)
  *
  * **Complexity**: O(m + V) to generate
  *
@@ -253,7 +253,7 @@ void demo_erdos_renyi()
   
   // Generate graph
   print_subsection("Generated graph");
-  UGraph g = gen(n, m);
+  UGraph g = gen(n, m, false);
   
   print_graph_stats("G(" + to_string(n) + "," + to_string(m) + ")", g);
   
@@ -289,22 +289,23 @@ void demo_erdos_renyi()
 
 void demo_connected()
 {
-  print_section("DENSE RANDOM GRAPH (likely connected)");
+  print_section("CONNECTED RANDOM GRAPH");
   
-  cout << "Generate a dense random graph (high edge probability).\n";
-  cout << "Dense graphs are typically connected.\n\n";
+  cout << "Generate a random graph and then force connectivity (if needed).\n";
+  cout << "This demo requests a connected graph from the generator.\n\n";
   
   size_t n = 20;
   size_t m = n * 3;  // Dense: 3 edges per vertex on average
   
   cout << "Parameters: n=" << n << " vertices, m=" << m << " edges\n";
-  cout << "(Threshold for connectivity: ~n*ln(n)/2 = " << (size_t)(n * log(n) / 2) << ")\n";
+  cout << "(Reference threshold for connectivity in G(n,m): ~n*ln(n)/2 = "
+       << (size_t)(n * log(n) / 2) << ")\n";
   
   Random_Graph<UGraph> gen(time(nullptr));
   
   // Generate dense graph
   print_subsection("Generated dense graph");
-  UGraph g = gen(n, m);
+  UGraph g = gen(n, m, true);
   
   print_graph_stats("Dense G", g);
   
@@ -385,7 +386,7 @@ void demo_digraph()
   
   // Generate random digraph
   print_subsection("Generated digraph");
-  DGraph g = gen(n, m);
+  DGraph g = gen(n, m, false);
   
   cout << "Digraph statistics:" << endl;
   cout << "  Vertices: " << g.get_num_nodes() << endl;
@@ -484,7 +485,7 @@ void demo_parameters()
     
     for (size_t t = 0; t < trials; t++)
     {
-      UGraph g = gen(n, m);
+      UGraph g = gen(n, m, false);
       
       Unconnected_Components<UGraph> ic;
       DynList<UGraph> comps;

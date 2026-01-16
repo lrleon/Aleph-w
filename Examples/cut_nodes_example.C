@@ -26,165 +26,83 @@
 
 /**
  * @file cut_nodes_example.C
- * @brief Cut Nodes (Articulation Points) and Bridges
- * 
- * This example demonstrates finding articulation points (cut vertices)
- * and bridges in undirected graphs. These are critical structural elements
- * whose removal disconnects the graph, making them important for network
- * reliability analysis.
+ * @brief Cut nodes (articulation points) and biconnected components in Aleph-w.
  *
- * ## Definitions
+ * ## Overview
  *
- * ### Cut Node (Articulation Point)
+ * This example demonstrates algorithms for analyzing connectivity in undirected
+ * graphs:
  *
- * A **cut node** (or articulation point) is a vertex whose removal
- * disconnects the graph into two or more connected components.
+ * - **cut nodes** (articulation points): vertices whose removal disconnects the graph
+ * - **biconnected components**: maximal edge blocks not separable by removing one vertex
  *
- * **Example**:
- * ```
- *   A --- B --- C
- *         |
- *         D
- * ```
- * Vertex B is a cut node: removing it disconnects A from C and D.
+ * The implementation uses a DFS-based approach with discovery/low-link values
+ * (Tarjan-style).
  *
- * ### Bridge
+ * ## Data model used by this example
  *
- * A **bridge** (or cut edge) is an edge whose removal disconnects the graph.
+ * - **Graph type**: `Graph = List_Graph<Graph_Node<string>, Graph_Arc<int>>`
+ * - **Node info**: label (`string`)
+ * - **Arc info**: integer value (`int`) used by the demo
  *
- * **Example**:
- * ```
- *   A --- B --- C
- * ```
- * Edge A-B is a bridge: removing it disconnects A from the rest.
+ * ## Usage / CLI
  *
- * **Key insight**: A bridge connects two components, so removing it
- * separates them.
+ * This example uses TCLAP. Options:
  *
- * ## Algorithm: Tarjan's DFS-based
+ * - `--basic` / `-b`: basic cut nodes demo.
+ * - `--network` / `-n`: network vulnerability analysis.
+ * - `--biconnected` / `-c`: biconnected components demo.
+ * - `--resilience` / `-r`: resilience comparison demo.
+ * - `--fix` / `-f`: show how adding edges can remove articulation points.
+ * - `--all` / `-a`: run all demos.
+ * - `--help`: show help.
  *
- * ### How It Works
- *
- * Uses DFS with discovery time and low-link values:
- *
- * - **`df[v]`**: Discovery time (order of first visit) of vertex v
- * - **`low[v]`**: Lowest discovery time reachable from subtree rooted at v
- *
- * ### Cut Node Detection
- *
- * A node u is a cut node if:
- *
- * 1. **Root case**: u is root of DFS tree AND has 2+ children
- *    - Removing root disconnects its subtrees
- *
- * 2. **Non-root case**: u is not root AND has a child v where `low[v] >= df[u]`
- *    - This means v cannot reach any vertex discovered before u
- *    - Removing u disconnects v's subtree from the rest
- *
- * ### Bridge Detection
- *
- * An edge (u, v) is a bridge if:
- * - `low[v] > df[u]` (v cannot reach u or earlier vertices)
- * - Or equivalently: `low[v] == df[v]` (v is start of new component)
- *
- * ### Algorithm Pseudocode
- *
- * ```
- * Find_Cut_Nodes_Bridges(G):
- *   Initialize: df = 0, time = 0, parent = null
- *   For each unvisited vertex v:
- *     DFS(v, null)
- *
- * DFS(v, parent):
- *   df[v] = low[v] = time++
- *   children = 0
- *   For each neighbor w of v:
- *     If w not visited:
- *       children++
- *       DFS(w, v)
- *       low[v] = min(low[v], low[w])
- *       If low[w] >= df[v] and v != root:
- *         v is cut node
- *       If low[w] > df[v]:
- *         (v, w) is bridge
- *     Else if w != parent:
- *       low[v] = min(low[v], df[w])  // Back edge
- *   If v is root and children >= 2:
- *     v is cut node
- * ```
- *
- * ## Complexity
- *
- * - **Time**: O(V + E) - single DFS pass
- * - **Space**: O(V) - for arrays and recursion stack
- *
- * ## Applications
- *
- * ### Network Reliability
- * - **Single points of failure**: Identify critical nodes/edges
- * - **Redundancy planning**: Know where to add backup connections
- * - **Network design**: Ensure no single point of failure
- * - **Fault tolerance**: Understand impact of node/edge failures
- *
- * ### Circuit Design
- * - **Critical connections**: Find essential circuit paths
- * - **Redundancy**: Identify where redundancy is needed
- * - **Testing**: Focus testing on critical components
- *
- * ### Social Networks
- * - **Key individuals**: Find people connecting communities
- * - **Information flow**: Identify bottlenecks in communication
- * - **Community detection**: Bridges connect communities
- *
- * ### Infrastructure
- * - **Critical roads**: Identify essential transportation links
- * - **Power grids**: Find critical power lines
- * - **Telecommunications**: Identify critical network links
- *
- * ### Graph Analysis
- * - **Graph structure**: Understand connectivity properties
- * - **Biconnected components**: Find 2-connected subgraphs
- * - **Network resilience**: Measure network robustness
- *
- * ## Biconnected Components
- *
- * A **biconnected component** is a maximal set of edges such that any
- * two edges lie on a common cycle. Removing any single vertex from
- * a biconnected component doesn't disconnect it.
- *
- * **Key property**: Cut nodes separate biconnected components.
- *
- * ## Example: Network Analysis
- *
- * ```
- * Network:
- *   A --- B --- C
- *   |     |     |
- *   D --- E --- F
- *         |
- *         G
- * ```
- *
- * **Cut nodes**: B, E (removing either disconnects graph)
- * **Bridges**: B-E (if removed, disconnects G from rest)
- *
- * ## Usage
+ * Behavior:
+ * - If no demo-selection flags are provided, the program defaults to running **all** demos.
  *
  * ```bash
- * # Run all demos (default if no demo flags are given)
  * ./cut_nodes_example
- *
- * # Run specific demos
  * ./cut_nodes_example --basic
  * ./cut_nodes_example --network
  * ./cut_nodes_example --biconnected
  * ./cut_nodes_example --resilience
  * ./cut_nodes_example --fix
+ * ./cut_nodes_example --help
  * ```
  *
- * @see tpl_cut_nodes.H Cut nodes and bridges algorithms
- * @see graph_components_example.C Connected components (related)
- * @see tarjan_example.C Tarjan's algorithm (similar DFS technique)
+ * ## Algorithms
+ *
+ * The core idea is DFS with:
+ *
+ * - `df[v]`: discovery time
+ * - `low[v]`: smallest discovery time reachable from v via tree edges + at most one back edge
+ *
+ * A vertex `u` is an articulation point if:
+ *
+ * - root case: `u` is DFS root and has ≥ 2 children
+ * - non-root case: there exists a child `v` with `low[v] >= df[u]`
+ *
+ * This example focuses on cut nodes and biconnected blocks (bridges are discussed
+ * conceptually but not printed as a primary output).
+ *
+ * ## Complexity
+ *
+ * Let **V** be the number of vertices and **E** the number of edges.
+ *
+ * - Time: `O(V + E)`
+ * - Extra space: `O(V)`
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - Disconnected graphs require running DFS from each unvisited node.
+ * - DFS recursion depth may be large on deep graphs.
+ *
+ * ## References / see also
+ *
+ * - `tpl_cut_nodes.H`
+ * - `graph_components_example.C` (components)
+ * - `tarjan_example.C` (DFS-based decomposition)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -643,7 +561,7 @@ int main(int argc, char* argv[])
         not runCompare and not runFix)
       runAll = true;
     
-    cout << "=== Cut Nodes (Articulation Points) and Bridges ===" << endl;
+    cout << "=== Cut Nodes (Articulation Points) and Biconnected Components ===" << endl;
     cout << "A cut node's removal disconnects the graph." << endl;
     
     if (runAll or runBasic)

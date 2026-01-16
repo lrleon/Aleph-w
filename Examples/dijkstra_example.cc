@@ -26,63 +26,78 @@
 
 /**
  * @file dijkstra_example.cc
- * @brief Comprehensive demonstration of Dijkstra's shortest path algorithm.
+ * @brief Dijkstra shortest paths in Aleph-w (single path, shortest-path tree, and heap trade-offs).
  *
- * This example provides a thorough demonstration of Dijkstra's algorithm
- * for finding shortest paths in weighted graphs.
+ * ## Overview
  *
- * ## What This Example Covers
+ * This example demonstrates how to compute shortest paths with Aleph-w's
+ * `Dijkstra_Min_Paths` on a weighted graph with **non-negative** arc weights.
+ * It focuses on two common usage modes:
  *
- * ### Part 1: Basic Usage
- * - Building a weighted graph (city road network)
- * - Finding shortest path between two nodes
- * - Retrieving path details and distances
+ * - **Single-destination query**: compute one shortest path from a source to a destination.
+ * - **Many queries from one source**: compute a shortest-paths tree once and then query
+ *   multiple destinations efficiently.
  *
- * ### Part 2: Advanced Operations
- * - Computing the complete shortest paths tree
- * - Querying multiple destinations efficiently
- * - Using paint_min_paths_tree() vs compute_min_paths_tree()
+ * It also compares two priority-queue backends used internally by Dijkstra:
+ * `ArcHeap` (binary heap) vs `ArcFibonacciHeap`.
  *
- * ### Part 3: Performance Comparison
- * - Binary Heap (ArcHeap) - default, good for most cases
- * - Fibonacci Heap (ArcFibonacciHeap) - better for dense graphs
+ * ## Data model used by this example
  *
- * ### Part 4: Special Cases
- * - Disconnected graphs
- * - Single-node paths
- * - Sparse vs dense graphs
+ * - **Graph type**: `CityGraph = List_Digraph<Graph_Node<string>, Graph_Arc<double>>`
+ * - **Node info**: city name (`string`)
+ * - **Arc info**: distance in km (`double`)
  *
- * ## Algorithm Overview
+ * Note: The demo builds *bidirectional roads* by inserting arcs in both directions,
+ * even though the container type is a directed graph.
  *
- * Dijkstra's algorithm finds the shortest path from a source vertex to all
- * other vertices in a weighted graph with non-negative edge weights.
+ * ## Usage
  *
- * **Key Idea**: Greedily expand the frontier by always selecting the node
- * with the smallest tentative distance.
+ * ```bash
+ * ./dijkstra_example
+ * ```
  *
- * **Steps**:
- * 1. Initialize distances: source = 0, all others = ∞
- * 2. Add source to priority queue
- * 3. While queue not empty:
- *    a. Extract node u with minimum distance
- *    b. For each neighbor v of u:
- *       - If dist[u] + weight(u,v) < dist[v]:
- *         - Update dist[v]
- *         - Update parent[v] = u
- *         - Add/update v in queue
+ * This example has no command-line options; all parameters (graph sizes, densities)
+ * are hard-coded.
  *
- * **Complexity**:
- * - With Binary Heap: O((V + E) log V)
- * - With Fibonacci Heap: O(E + V log V) - better for dense graphs
+ * ## Algorithms and Aleph-w API
  *
- * ## Requirements
+ * - **Single shortest path**:
+ *   - `find_min_path(g, src, dst, path)` computes a shortest path and writes it into `path`.
+ * - **Shortest-paths tree (many queries)**:
+ *   - `compute_min_paths_tree(g, src, tree)` builds an explicit shortest-path tree graph.
+ *   - `paint_min_paths_tree(g, src)` marks the original graph so you can query later.
+ *   - `get_min_path(tree, dst, path)` extracts the path to `dst` from a previously built tree.
+ *   - `get_min_path(dst, path)` extracts the path to `dst` after `paint_min_paths_tree()`.
  *
- * - Edge weights must be non-negative
- * - For negative weights, use Bellman-Ford algorithm
+ * ## Complexity
  *
- * @see Dijkstra.H for the implementation
- * @see Bellman_Ford.H for negative weight handling
- * @see AStar.H for heuristic-guided search
+ * Let **V** be the number of nodes and **E** the number of arcs.
+ *
+ * - **Binary heap (`ArcHeap`)**: `O((V + E) log V)`
+ * - **Fibonacci heap (`ArcFibonacciHeap`)**: `O(E + V log V)` (amortized)
+ *
+ * Notes:
+ * - Fibonacci heaps can win on *dense* graphs due to cheaper decrease-key operations,
+ *   but have higher constant factors.
+ * - In practice, binary heaps are often the default choice.
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - **Negative weights**: Dijkstra is invalid if any arc weight is negative.
+ * - **Disconnected graphs**: unreachable nodes will not appear in the computed tree.
+ * - **Source == destination**: this example documents Aleph-w's observed behavior where
+ *   `find_min_path(g, s, s, path)` may return `Inf` and an empty path; handle the trivial
+ *   case explicitly if you need distance 0 and path `[s]`.
+ * - **Directed vs undirected modeling**: for undirected graphs you must insert both
+ *   directions, or use an undirected graph container.
+ *
+ * ## References / see also
+ *
+ * - `Dijkstra.H` (implementation)
+ * - `bellman_ford_example.cc` / `Bellman_Ford.H` (negative weights)
+ * - `johnson_example.cc` (all-pairs shortest paths with negative weights but no negative cycles)
+ * - `astar_example.cc` / `AStar.H` (heuristic-guided shortest path)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

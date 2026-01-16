@@ -82,12 +82,12 @@ ostream & operator<<(ostream &os, mpfr_srcptr a)
 	return os;
     }
 
-    s = mpfr_get_str (NULL, &e,
+    s = mpfr_get_str (nullptr, &e,
 		      mpfr_class::get_base(),
 		      0, a,
 		      mpfr_class::get_rnd());
 
-    t = mpfr_get_str (NULL, &e,
+    t = mpfr_get_str (nullptr, &e,
 		      mpfr_class::get_base(),
 		      os.precision(), a,
 		      mpfr_class::get_rnd());
@@ -139,7 +139,7 @@ void mpz_set_mpfr(mpz_ptr w, mpfr_srcptr u)
 
     // note: this is done in hex to represent u exactly
     // example: for u=3.1416 we have s = "31416" and e = 1
-    s = mpfr_get_str (NULL, &e, 16, 0, u, GMP_RNDN);
+    s = mpfr_get_str (nullptr, &e, 16, 0, u, GMP_RNDN);
     sz = strlen(s);
 
     if (*s == '-')
@@ -179,7 +179,7 @@ void mpq_set_mpfr(mpq_ptr w, mpfr_srcptr u)
 
     // note: this is done in binary to represent u exactly
     // example:   u=10.1001  -->  s = "101001", e = 2
-    s = mpfr_get_str (NULL, &e, 2, 0, u, GMP_RNDN);
+    s = mpfr_get_str (nullptr, &e, 2, 0, u, GMP_RNDN);
     sz = strlen(s);
 
     t = s+sz;

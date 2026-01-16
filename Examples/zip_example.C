@@ -121,6 +121,9 @@
  * ./zip_example -s stl        # STL container compatibility
  * ./zip_example -s length     # Length checking
  * ./zip_example -s practical  # Practical example
+ *
+ * # Show help
+ * ./zip_example --help
  * ```
  *
  * @see ah-zip.H Main zip operations header (Aleph containers only)

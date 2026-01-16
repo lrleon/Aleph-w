@@ -727,7 +727,7 @@ int main(int argc, char* argv[])
           cout << "Set Data Structures Benchmark\n\n"
                << "Usage: " << argv[0] << " [options]\n\n"
                << "Options:\n"
-               << "  -n, --count N      Number of elements (default: 100000)\n"
+               << "  -n, --count N      Number of elements (default: 1000000)\n"
                << "  -s, --seed S       Random seed (default: 42)\n"
                << "  -r, --ranked       Include ranked tree variants\n"
                << "  -q, --sequential   Also run sequential insertion test\n"

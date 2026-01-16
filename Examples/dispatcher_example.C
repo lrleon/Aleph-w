@@ -26,135 +26,59 @@
 
 /**
  * @file dispatcher_example.C
- * @brief Comprehensive example demonstrating Aleph-w's dispatcher classes
+ * @brief Dispatcher pattern in Aleph-w (`ah-dispatcher.H`) with tree and hash backends.
  *
- * This example demonstrates the **Dispatcher Pattern** implementation in Aleph-w,
- * which provides a flexible way to map keys (strings, enums, etc.) to operations
- * (functions, lambdas, functors) for dynamic command execution. This pattern
- * eliminates the need for large if-else chains or switch statements.
+ * ## Overview
  *
- * ## What is a Dispatcher?
+ * This example demonstrates Aleph-w's dispatcher containers: maps from keys
+ * (typically `std::string`) to callables (functions, lambdas, functors) enabling
+ * command-style dispatch **without** long `if/else` chains.
  *
- * A dispatcher is a container that maps keys to callable operations. At runtime,
- * you provide a key and the dispatcher executes the corresponding operation.
- * This provides:
+ * It includes multiple demos (calculator, text transforms, menu, state machine)
+ * and compares tree-backed vs hash-backed dispatch.
  *
- * - **Flexibility**: Easy to add/remove commands
- * - **Maintainability**: No large switch statements
- * - **Extensibility**: Register new commands dynamically
- * - **Type safety**: Compile-time checking of operation signatures
+ * ## Data model used by this example
  *
- * ## Dispatcher Types
+ * - Keys: `std::string`
+ * - Values: callables such as `std::function<...>` or function pointers
  *
- * ### AHDispatcher
- * - **Backend**: Balanced BST (typically Red-Black tree)
- * - **Lookup**: O(log n)
- * - **Best for**: Small to medium command sets, ordered iteration
- * - **Features**: Maintains key order, supports range queries
+ * ## Algorithms and Aleph-w API
  *
- * ### AhHashDispatcher
- * - **Backend**: Hash table
- * - **Lookup**: O(1) average case
- * - **Best for**: Large command sets, high-frequency lookups
- * - **Features**: Fastest lookup, no ordering guarantee
+ * Containers shown:
  *
- * ## The Dispatcher Pattern
+ * - `AHDispatcher<Signature>`: ordered/tree-based dispatcher
+ * - `AhHashDispatcher<Signature>`: hash-based dispatcher
  *
- * Instead of:
- * ```cpp
- * if (cmd == "add") add();
- * else if (cmd == "subtract") subtract();
- * else if (cmd == "multiply") multiply();
- * // ... many more if-else statements
+ * Typical operations:
+ *
+ * - registration: `disp[key] = callable;`
+ * - lookup/execute: `if (disp.has(key)) disp[key](...);`
+ *
+ * ## Complexity
+ *
+ * Let **n** be the number of registered commands.
+ *
+ * - Tree-backed dispatcher: lookup/insert `O(log n)`
+ * - Hash-backed dispatcher: lookup/insert `O(1)` average
+ *
+ * ## Usage
+ *
+ * ```bash
+ * ./dispatcher_example
  * ```
  *
- * Use:
- * ```cpp
- * dispatcher["add"]();      // Execute add operation
- * dispatcher["subtract"](); // Execute subtract operation
- * ```
+ * This example has no command-line options; it runs all demos.
  *
- * ## Examples Covered
+ * ## Pitfalls and edge cases
  *
- * ### 1. Basic Calculator
- * - Function pointers for arithmetic operations
- * - Simple command mapping
- * - Demonstrates basic dispatcher usage
+ * - If you use `operator[]` to execute, ensure the key exists or use `has()` first.
+ * - Hash dispatch has no ordering; tree dispatch preserves key order.
  *
- * ### 2. Text Processor
- * - Lambda functions for text transformations
- * - More complex operations
- * - Shows flexibility of dispatcher
+ * ## References / see also
  *
- * ### 3. Colombian Regions Menu
- * - Menu system with regional information
- * - Demonstrates real-world application
- * - Cultural context (Colombian geography)
+ * - `ah-dispatcher.H`
+ * - `dynmap_example.C` / `dynset_trees.C` (ordered containers and backends)
  *
- * ### 4. State Machine
- * - Order processing workflow
- * - State transitions based on commands
- * - Demonstrates dispatcher in state management
- *
- * ### 5. Hash-Based Dispatcher
- * - High-performance version using hash table
- * - Comparison with tree-based dispatcher
- * - Performance considerations
- *
- * ## Use Cases
- *
- * ### Command-Line Interfaces
- * - Parse user commands
- * - Execute corresponding operations
- * - Easy to extend with new commands
- *
- * ### Event Handling Systems
- * - GUI event handlers
- * - Network message handlers
- * - Game input handlers
- *
- * ### State Machines
- * - State transition handlers
- * - Action execution based on state
- * - Workflow management
- *
- * ### Plugin Architectures
- * - Dynamic command registration
- * - Plugin command dispatch
- * - Extensible systems
- *
- * ### Configuration Systems
- * - Execute actions based on config keys
- * - Dynamic behavior configuration
- * - Runtime customization
- *
- * ## Performance Comparison
- *
- * | Dispatcher Type | Lookup | Insert | Best For |
- * |----------------|--------|--------|----------|
- * | AHDispatcher | O(log n) | O(log n) | Small sets, ordered |
- * | AhHashDispatcher | O(1) avg | O(1) avg | Large sets, speed |
- *
- * **Choose AHDispatcher when**: Small command set, need ordering
- * **Choose AhHashDispatcher when**: Large command set, need speed
- *
- * ## Usage Pattern
- *
- * ```cpp
- * // Create dispatcher
- * AHDispatcher<void()> calc;
- *
- * // Register operations
- * calc["add"] = []() { cout << "Adding...\n"; };
- * calc["subtract"] = []() { cout << "Subtracting...\n"; };
- *
- * // Execute
- * string cmd = "add";
- * if (calc.has(cmd))
- *   calc[cmd]();
- * ```
- *
- * @see ah-dispatcher.H Dispatcher implementation
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

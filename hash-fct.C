@@ -43,7 +43,7 @@ static bool init = false;
 void init_jsw() noexcept
 {
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, time(NULL) % gsl_rng_max(r));
+  gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
 
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);

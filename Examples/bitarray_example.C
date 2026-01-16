@@ -1,114 +1,33 @@
 /**
  * @file bitarray_example.C
- * @brief Example demonstrating BitArray operations in Aleph-w
+ * @brief BitArray in Aleph-w (bit operations, set algebra, sieve demo, and memory/performance notes).
  *
- * This program demonstrates the `BitArray` class, which provides compact
- * storage and efficient operations for bit sets. BitArrays are essential
- * for memory-efficient representation of boolean data and set operations
- * on large domains.
+ * ## Overview
  *
- * ## What is a BitArray?
+ * This example demonstrates Aleph-w's `BitArray`: a compact bitset structure
+ * supporting fast bitwise operations and typical set algebra (union/intersection,
+ * etc.).
  *
- * A BitArray (also called a bit set or bit vector) stores a sequence of
- * bits (0s and 1s) in a compact format:
- * - **Memory efficient**: 1 bit per element (vs 8+ bytes for bool)
- * - **Fast operations**: Bitwise operations are CPU-efficient
- * - **Set representation**: Each bit represents set membership
+ * The program runs a suite of demos covering:
  *
- * **Example**: BitArray of size 8 storing {0, 2, 5}:
- * ```
- * Index:  0  1  2  3  4  5  6  7
- * Bits:   1  0  1  0  0  1  0  0
- * ```
+ * - basic bit manipulation
+ * - bitwise operators and set-style operations
+ * - a Sieve of Eratosthenes prime demo (parameterized by CLI)
+ * - simple Bloom-filter-like usage
+ * - a small memory savings comparison
  *
- * ## Features Demonstrated
+ * ## Data model used by this example
  *
- * ### Basic Operations
+ * - **Container**: `BitArray` from `bitArray.H`
+ * - **Index domain**: `[0, n)` where `n` is the bitarray size
  *
- * - **set(i)**: Set bit i to 1 - O(1)
- * - **clear(i)**: Set bit i to 0 - O(1)
- * - **get(i)**: Read bit i - O(1)
- * - **flip(i)**: Toggle bit i - O(1)
- * - **fill(value)**: Set all bits to 0 or 1 - O(n)
+ * ## Usage / CLI
  *
- * ### Bulk Operations
+ * This example uses TCLAP. Options:
  *
- * - **Bitwise AND (&)**: Intersection of two bit sets - O(n)
- * - **Bitwise OR (|)**: Union of two bit sets - O(n)
- * - **Bitwise XOR (^)**: Symmetric difference - O(n)
- * - **Bitwise NOT (~)**: Complement (flip all bits) - O(n)
- * - **Left/Right shift**: Shift bits left or right - O(n)
- *
- * ### Set Operations
- *
- * - **Union (OR)**: Combine two sets - O(n)
- * - **Intersection (AND)**: Common elements - O(n)
- * - **Difference (AND NOT)**: Elements in A but not B - O(n)
- * - **Symmetric difference (XOR)**: Elements in exactly one set - O(n)
- *
- * ### Advanced Operations
- *
- * - **Population count (popcount)**: Count set bits - O(n) or O(1) with hardware
- * - **Find first set**: Find first set bit - O(n)
- * - **Find next set**: Find next set bit after position - O(n)
- *
- * ### Practical Applications
- *
- * #### Sieve of Eratosthenes
- * - Mark composite numbers as bits
- * - Extremely memory-efficient for large ranges
- * - Can find primes up to billions with minimal memory
- *
- * #### Bloom Filter Approximation
- * - Use BitArray as underlying storage
- * - Multiple hash functions set multiple bits
- * - Space-efficient probabilistic membership testing
- *
- * #### Subset Representation
- * - Each bit represents element membership
- * - Efficient subset operations (union, intersection)
- * - Power set enumeration
- *
- * ## Memory Efficiency
- *
- * | Storage Method | Memory per Element | For 1M elements |
- * |----------------|-------------------|-----------------|
- * | `bool` array | 1 byte (8 bits) | 1 MB |
- * | `BitArray` | 1 bit | 125 KB |
- * | **Savings** | **8×** | **87.5% less** |
- *
- * ## Performance Characteristics
- *
- * | Operation | Complexity | Notes |
- * |-----------|-----------|-------|
- * | Individual bit ops | O(1) | Very fast |
- * | Bulk operations | O(n) | But very fast (CPU-optimized) |
- * | Population count | O(n) or O(1) | Hardware-accelerated on modern CPUs |
- * | Set operations | O(n) | But parallelizable |
- *
- * ## Use Cases
- *
- * ### Memory-Constrained Applications
- * - Embedded systems
- * - Large-scale data processing
- * - Memory-efficient algorithms
- *
- * ### Set Operations
- * - Fast set intersection/union
- * - Subset testing
- * - Set difference
- *
- * ### Boolean Flags
- * - Feature flags
- * - Permission bits
- * - Status indicators
- *
- * ### Algorithm Optimization
- * - Sieve algorithms
- * - Graph algorithms (visited nodes)
- * - Constraint satisfaction
- *
- * ## Usage Examples
+ * - `--sieve-size` / `-n <size_t>`: size used for the Sieve of Eratosthenes demo
+ *   (default: 100).
+ * - `--help`: show help.
  *
  * ```bash
  * # Run all demonstrations
@@ -116,10 +35,33 @@
  *
  * # Configure sieve size
  * ./bitarray_example --sieve-size 1000
+ * ./bitarray_example -n 1000
+ *
+ * # Show help
+ * ./bitarray_example --help
  * ```
  *
- * @see bitArray.H BitArray implementation
- * @see bloom_filter_example.C Bloom filter using BitArray
+ * ## Complexity
+ *
+ * Let **N** be the number of bits.
+ *
+ * - single-bit read/write: `O(1)`
+ * - bitwise operations (AND/OR/XOR/NOT, shifts): `O(N)`
+ *
+ * (In practice, bulk operations run on machine words, so the constant factors are
+ * low.)
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - Bulk operations scale linearly with the number of words; large bitarrays are
+ *   fast but not constant time.
+ * - The sieve size affects runtime and output volume.
+ *
+ * ## References / see also
+ *
+ * - `bitArray.H` (BitArray implementation)
+ * - `bloom_filter_example.C` (Bloom filter using BitArray)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024

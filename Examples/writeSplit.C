@@ -72,13 +72,14 @@
  *
  * This example uses `BinNodeXt` which maintains:
  * - **Subtree size**: Number of nodes in subtree rooted at this node
- * - **Rank operations**: O(log n) `select(k)` and `rank(x)` operations
+ * - **Order-statistics helpers**: `select(root, k)` and `inorder_position(...)`/`find_position(...)`
  * - **Maintained**: Updated during insert, delete, rotations
  *
  * ### Rank Operations
  *
- * - **`select(k)`**: Find k-th smallest element in O(log n)
- * - **`rank(x)`**: Find position of element x in O(log n)
+ * - **`select(root, k)`**: Find k-th smallest element in O(h)
+ * - **`inorder_position(root, key, ...)`**: Find inorder position of a key in O(h)
+ * - **`find_position(root, key, ...)`**: Find exact/insertion position of a key in O(h)
  * - **Enables**: Efficient position-based splitting
  *
  * ## Algorithm
@@ -88,7 +89,7 @@
  * Split by position works by:
  * ```
  * split_by_position(tree, k):
- *   1. Find node at position k using select(k)  // O(log n)
+ *   1. Find node at position k using select(root, k)  // O(h)
  *   2. Disconnect tree at that node
  *   3. Rebuild left subtree (positions 0 to k-1)
  *   4. Rebuild right subtree (positions k+1 to n-1)
@@ -98,21 +99,21 @@
  * ### Detailed Steps
  *
  * 1. **Find split node**: Use rank information to find node at position k
- *    - Time: O(log n) with rank information
+ *    - Time: O(h) where h is the tree height
  *
  * 2. **Disconnect**: Remove node from tree structure
- *    - Time: O(log n) for balanced trees
+ *    - Time: O(h) for this ranked BST representation
  *
  * 3. **Rebuild subtrees**: Construct left and right trees
- *    - Time: O(log n) for balanced trees
+ *    - Time: O(h)
  *
  * ### Complexity
  *
  * | Tree Type | Complexity | Notes |
  * |-----------|-----------|-------|
- * | Balanced with rank | O(log n) | Efficient with rank info |
+ * | Balanced with rank | O(log n) | Height is O(log n) |
  * | Balanced without rank | O(n) | Must traverse to find position |
- * | Unbalanced | O(n) | Worst case |
+ * | Unbalanced | O(n) | Worst case (height can be linear) |
  *
  * ## Applications
  *
@@ -271,6 +272,12 @@ int main(int argc, char* argv[])
       int n = nArg.getValue();
       unsigned int t = seedArg.getValue();
       int split_pos = posArg.getValue();
+
+      if (n <= 0)
+        {
+          cerr << "Error: number of elements must be positive\n";
+          return 1;
+        }
 
       if (t == 0)
         t = time(nullptr);

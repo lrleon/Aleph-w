@@ -451,7 +451,7 @@ void demo_performance()
     auto start = chrono::high_resolution_clock::now();
     
     for (int v : values)
-      table.insert(v);
+      (void) table.insert(v);
     
     auto mid = chrono::high_resolution_clock::now();
     

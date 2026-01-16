@@ -1,154 +1,77 @@
 /**
  * @file bloom_filter_example.C
- * @brief Example demonstrating Bloom filters in Aleph-w
+ * @brief Bloom filter in Aleph-w (probabilistic set membership, false positives, and tuning).
  *
- * This example demonstrates Bloom filters, one of the most elegant and
- * practical probabilistic data structures. Invented by Burton Howard Bloom
- * in 1970, Bloom filters provide space-efficient set membership testing
- * with a trade-off: they may have false positives but never false negatives.
+ * ## Overview
  *
- * ## What is a Bloom Filter?
+ * This example demonstrates Aleph-w's `Bloom_Filter<T>`: a probabilistic data
+ * structure for set membership queries.
  *
- * A Bloom filter is a space-efficient probabilistic data structure that
- * answers "Is element x in the set?" with:
- * - **Definitely NO**: If answer is "no", element is definitely not in set
- * - **Probably YES**: If answer is "yes", element is probably in set (may be false positive)
+ * - If it says **"not present"**: the element is definitely not in the set.
+ * - If it says **"present"**: the element is probably in the set (false positives
+ *   are possible).
  *
- * **Key insight**: Use multiple hash functions to set bits in a bit array.
- * To check membership, verify all corresponding bits are set.
+ * The program is structured as a set of independent demos:
  *
- * ## How It Works
+ * - basic insert/query usage
+ * - observed false positives
+ * - parameter tuning and sizing intuition
+ * - spell-check / cache-filter style examples
+ * - space comparison vs storing elements
  *
- * ### Insertion
+ * ## Data model used by this example
+ *
+ * - Bloom filter type: `Bloom_Filter<string>`
+ * - Parameters:
+ *   - `m`: bit array size
+ *   - `k`: number of hash functions
+ *
+ * ## Usage / CLI
+ *
+ * This example uses TCLAP and a selector:
+ *
+ * - `--section` / `-s <section>`: run only one section.
+ *   Valid values: `basic`, `fp`, `params`, `spell`, `cache`, `space`, `all` (default).
+ * - `--help`: show help.
+ *
+ * ```bash
+ * # Run all demos
+ * ./bloom_filter_example
+ *
+ * # Run a specific section
+ * ./bloom_filter_example --section basic
+ * ./bloom_filter_example --section fp
+ * ./bloom_filter_example --section params
+ * ./bloom_filter_example --section spell
+ * ./bloom_filter_example --section cache
+ * ./bloom_filter_example --section space
+ *
+ * # Short form
+ * ./bloom_filter_example -s space
+ *
+ * # Show help
+ * ./bloom_filter_example --help
  * ```
- * For element x:
- *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
- *   2. Set bits at positions h₁(x), h₂(x), ..., hₖ(x) to 1
- * ```
- *
- * ### Query
- * ```
- * For element x:
- *   1. Compute k hash functions: h₁(x), h₂(x), ..., hₖ(x)
- *   2. Check if ALL bits at h₁(x), h₂(x), ..., hₖ(x) are 1
- *   3. If all 1: Probably in set (may be false positive)
- *      If any 0: Definitely not in set
- * ```
- *
- * ## Key Properties
- *
- * ### No False Negatives
- * - If element was inserted, all its bits are set
- * - Query will always return "found"
- * - **Guarantee**: 100% accurate for "not found" answers
- *
- * ### Possible False Positives
- * - Bits may be set by other elements (collisions)
- * - Query may return "found" even if element wasn't inserted
- * - **Probability**: Can be controlled by parameters
- *
- * ### No Deletion
- * - Standard Bloom filters don't support removal
- * - Clearing bits might affect other elements
- * - **Solution**: Use Counting Bloom Filter variant
- *
- * ### Space Efficient
- * - Stores only bits, not actual elements
- * - Much smaller than storing full set
- * - **Trade-off**: Space vs false positive rate
- *
- * ## Parameters and Tuning
- *
- * ### Parameters
- * - **m**: Size of bit array (larger = lower false positive rate)
- * - **k**: Number of hash functions (optimal ≈ (m/n) × ln(2))
- * - **n**: Expected number of elements to insert
- *
- * ### False Positive Rate
- *
- * Formula: `P(false positive) ≈ (1 - e^(-kn/m))^k`
- *
- * **Optimal k**: `k = (m/n) × ln(2)` ≈ `0.693 × (m/n)`
- *
- * **Optimal false positive rate**: `(1/2)^k` when k is optimal
- *
- * ### Example Calculations
- *
- * For n = 1,000,000 elements, m = 10,000,000 bits (1.25 MB):
- * - Optimal k ≈ 7 hash functions
- * - False positive rate ≈ 0.8% (less than 1%)
- *
- * Compare to storing 1M strings: ~100 MB+ vs 1.25 MB!
- *
- * ## Applications
- *
- * ### Cache Filtering
- * - **Problem**: Check if data exists in slow storage (disk, network)
- * - **Solution**: Use Bloom filter to avoid expensive lookups
- * - **Benefit**: Skip 99%+ of unnecessary disk/network accesses
- *
- * ### Spell Checkers
- * - **Problem**: Check if word is in dictionary
- * - **Solution**: Bloom filter for common words
- * - **Benefit**: Fast rejection of misspellings
- *
- * ### Network Packet Filtering
- * - **Problem**: Filter packets by source/destination
- * - **Solution**: Bloom filter for allowed/blocked addresses
- * - **Benefit**: Fast packet classification
- *
- * ### Database Query Optimization
- * - **Problem**: Avoid expensive joins for non-existent keys
- * - **Solution**: Bloom filter on join keys
- * - **Benefit**: Skip unnecessary join operations
- *
- * ### Distributed Systems
- * - **Cassandra**: Uses Bloom filters to avoid disk reads
- * - **Chrome**: Uses Bloom filters for malicious URL checking
- * - **Bitcoin**: Uses Bloom filters for wallet synchronization
- *
- * ## When to Use Bloom Filters
- *
- * ✅ **Good for**:
- * - Large datasets where space matters
- * - Fast rejection of non-members
- * - False positives acceptable
- * - One-way operations (insert-only)
- *
- * ❌ **Not good for**:
- * - When false positives are unacceptable
- * - When deletion is needed (use Counting Bloom Filter)
- * - When you need to retrieve the actual elements
- * - Small datasets (overhead not worth it)
  *
  * ## Complexity
  *
- * | Operation | Complexity | Notes |
- * |-----------|-----------|-------|
- * | Insert | O(k) | k hash computations |
- * | Query | O(k) | k hash computations + bit checks |
- * | Space | O(m) | m bits |
+ * Let **k** be the number of hash functions.
  *
- * Where k is number of hash functions (typically 3-10).
+ * - insert: `O(k)`
+ * - query: `O(k)`
+ * - space: `O(m)` bits
  *
- * ## Usage Examples
+ * ## Pitfalls and edge cases
  *
- * ```bash
- * # Run all demonstrations
- * ./bloom_filter_example
+ * - Standard Bloom filters do not support deletion (use a counting variant).
+ * - Poor parameter choices (too small `m`, too large/small `k`) increase the false
+ *   positive rate.
  *
- * # Run specific demo
- * ./bloom_filter_example -s basic   # Basic operations
- * ./bloom_filter_example -s fp      # False positives demo
- * ./bloom_filter_example -s params  # Parameter tuning
- * ./bloom_filter_example -s spell   # Spell-checking example
- * ./bloom_filter_example -s cache   # Cache membership example
- * ./bloom_filter_example -s space   # Space / memory analysis
- * ```
+ * ## References / see also
  *
- * @see bloom-filter.H Bloom filter implementation
- * @see bitArray.H Underlying BitArray storage
- * @see bitarray_example.C BitArray operations
+ * - `bloom-filter.H` (implementation)
+ * - `bitArray.H` / `bitarray_example.C` (bitset storage)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  * @date 2024

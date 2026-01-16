@@ -26,176 +26,95 @@
 
 /**
  * @file johnson_example.cc
- * @brief Comprehensive example of Johnson's all-pairs shortest paths algorithm
+ * @brief Johnson all-pairs shortest paths in Aleph-w (negative weights, Floyd comparison, benchmark flags).
  *
- * This example demonstrates Johnson's algorithm for finding shortest paths
- * between all pairs of vertices in a weighted directed graph. Johnson's
- * algorithm cleverly combines Bellman-Ford and Dijkstra to handle negative
- * edge weights efficiently, making it ideal for sparse graphs.
+ * ## Overview
  *
- * ## The All-Pairs Shortest Paths Problem
+ * This example demonstrates **Johnson's algorithm** for all-pairs shortest paths
+ * (APSP) on a weighted directed graph.
  *
- * **Goal**: Find shortest paths between **every pair** of vertices.
+ * Johnson is especially useful when:
  *
- * **Challenges**:
- * - Negative edge weights (Dijkstra fails)
- * - Need efficient algorithm
- * - Handle negative cycles
+ * - the graph can contain **negative edge weights**, but
+ * - there are **no negative cycles**, and
+ * - the graph is **sparse** (E is closer to V than to V²).
  *
- * ## Algorithm Overview
+ * Johnson combines Bellman-Ford (for reweighting) and Dijkstra (for efficient
+ * shortest paths once all weights are non-negative).
  *
- * ### Step-by-Step
+ * ## Data model used by this example
  *
- * ```
- * Johnson(G):
- *   1. Add dummy node q with 0-weight edges to all nodes
- *   2. Run Bellman-Ford from q:
- *      - Compute node potentials h(v) = distance from q to v
- *      - If negative cycle detected → abort (no solution)
- *   3. Reweight all edges:
- *      w'(u,v) = w(u,v) + h(u) - h(v)
- *      - All new weights are non-negative!
- *   4. For each source s:
- *      - Run Dijkstra from s on reweighted graph
- *      - Get distances d'(s,t) in reweighted graph
- *   5. Adjust distances back:
- *      d(s,t) = d'(s,t) - h(s) + h(t)
- * ```
+ * - **Graph type**: `WeightedDigraph = List_Digraph<Graph_Node<string>, Graph_Arc<double>>`
+ * - **Node info**: label/name (`string`)
+ * - **Arc info**: weight/cost (`double`)
  *
- * ## Why Reweighting Works
- *
- * ### Key Insight: Path Preservation
- *
- * For any path p from s to t:
- * ```
- * w'(p) = Σ w'(u,v) for edges in p
- *        = Σ [w(u,v) + h(u) - h(v)]
- *        = Σ w(u,v) + h(s) - h(t)
- *        = w(p) + h(s) - h(t)
- * ```
- *
- * Since h(s) and h(t) are **constants** for fixed s and t:
- * - Shortest path in reweighted graph = shortest path in original
- * - We just adjust the distance by h(s) - h(t)
- *
- * ### Why All Weights Become Non-Negative
- *
- * The potential h(v) represents shortest distance from dummy node q.
- * By triangle inequality:
- * ```
- * h(v) ≤ h(u) + w(u,v)
- * w(u,v) + h(u) - h(v) ≥ 0
- * ```
- *
- * Therefore, all reweighted edges are non-negative, allowing Dijkstra!
- *
- * ## Complexity Analysis
- *
- * ### Time Complexity
- *
- * | Step | Complexity | Notes |
- * |------|-----------|-------|
- * | Add dummy node | O(V) | Connect to all vertices |
- * | Bellman-Ford | O(V × E) | From dummy node |
- * | Reweight edges | O(E) | Update all edges |
- * | V × Dijkstra | O(V × (E + V) log V) | With Aleph-w's default binary heap (ArcHeap) |
- * | **Total** | **O((V×E + V²) log V)** | Dominated by the Dijkstra calls |
- *
- * Notes:
- * - If Dijkstra is implemented with a Fibonacci heap, the per-source cost can be
- *   O(E + V log V), yielding total O(V×E + V² log V).
- *
- * ### Space Complexity
- *
- * - O(V²) for distance matrix
- * - O(V + E) for graph
- *
- * ## Comparison with Other Algorithms
- *
- * | Algorithm | Time | Space | Handles Negatives | Best For |
- * |-----------|------|-------|-------------------|----------|
- * | **Johnson** | O(V² log V + VE) | O(V²) | ✅ Yes | **Sparse graphs** |
- * | Floyd-Warshall | O(V³) | O(V²) | ✅ Yes | Dense graphs |
- * | V × Dijkstra | O(V(V log V + E)) | O(V²) | ❌ No | Non-negative only |
- * | V × Bellman-Ford | O(V² × E) | O(V²) | ✅ Yes | Very sparse |
- *
- * ### When to Use Johnson
- *
- * ✅ **Best for sparse graphs** (E ≈ V):
- * - Time: O(V² log V) vs Floyd-Warshall's O(V³)
- * - Significant improvement!
- *
- * ✅ **When negative weights exist**:
- * - Only option besides Floyd-Warshall
- * - More efficient than Floyd-Warshall for sparse graphs
- *
- * ❌ **Not best for dense graphs**:
- * - When E ≈ V², Floyd-Warshall may be simpler
- * - But Johnson still works correctly
- *
- * ## Example: Sparse Graph
- *
- * ```
- * Graph: V = 1000, E = 5000 (sparse: E ≈ 5V)
- *
- * Floyd-Warshall: O(V³) = O(10⁹)
- * Johnson: O(V² log V + VE) = O(10⁶ × 10 + 5×10⁶) = O(15×10⁶)
- *
- * Johnson is ~67× faster!
- * ```
- *
- * ## Applications
- *
- * ### Network Analysis
- * - **Internet routing**: Find shortest paths between all routers
- * - **Social networks**: Compute distances between all users
- * - **Transportation**: All-pairs shortest routes
- *
- * ### Optimization
- * - **Facility location**: Find optimal locations considering all pairs
- * - **Resource allocation**: Optimize across all pairs
- *
- * ### Graph Algorithms
- * - **Diameter**: Longest shortest path (max over all pairs)
- * - **Centrality**: Betweenness centrality uses all-pairs paths
- * - **Clustering**: Distance-based clustering
- *
- * ## Negative Cycle Handling
- *
- * ### Detection
- *
- * If Bellman-Ford detects negative cycle:
- * - Algorithm aborts
- * - Reports negative cycle
- * - No valid all-pairs shortest paths exist
- *
- * ### Why It Matters
- *
- * Negative cycles make shortest paths undefined:
- * - Can loop infinitely for negative cost
- * - Distances become -∞
- * - Need to detect and handle separately
- *
- * ## Usage
+ * ## Usage / CLI
  *
  * ```bash
- * # Run Johnson's algorithm demo
+ * # Run built-in demos
  * ./johnson_example
  *
- * # Compare with Floyd-Warshall
+ * # Compare Johnson vs Floyd-Warshall on a small demo graph
  * ./johnson_example --compare
  *
- * # Test on sparse graph
+ * # Random graph benchmark (non-negative weights)
  * ./johnson_example -n 1000 -e 5000
+ *
+ * # Benchmark + compare (Floyd only runs automatically for n <= 200)
+ * ./johnson_example --compare -n 150 -e 1000
  *
  * # Show help
  * ./johnson_example --help
+ * ./johnson_example -h
  * ```
  *
- * @see Johnson.H Johnson's algorithm implementation
- * @see Bellman_Ford.H Bellman-Ford (used in step 2)
- * @see dijkstra_example.cc Dijkstra (used in step 4)
- * @see write_floyd.C Floyd-Warshall (alternative for dense graphs)
+ * Notes:
+ * - If you pass `-n` without `-e`, the program uses `e = 5*n`.
+ * - The generated benchmark graph uses **positive weights** in `[1, 10]`.
+ *
+ * ## Algorithm (Johnson)
+ *
+ * 1. Add a dummy source `q` and connect `q -> v` with weight 0 for all vertices `v`.
+ * 2. Run Bellman-Ford from `q` to compute potentials `h(v)`.
+ *    - If a negative cycle is detected, APSP is undefined.
+ * 3. Reweight edges:
+ *    - `w'(u,v) = w(u,v) + h(u) - h(v)`
+ *    - All `w'` become non-negative.
+ * 4. Run Dijkstra as needed on the reweighted graph.
+ * 5. Convert distances back:
+ *    - `d(u,v) = d'(u,v) - h(u) + h(v)`
+ *
+ * In Aleph-w, constructing `Johnson<...>` performs the Bellman-Ford step and
+ * reweighting internally.
+ *
+ * ## Complexity
+ *
+ * Let **V** be the number of nodes and **E** the number of arcs.
+ *
+ * - **Classic Johnson** (one Dijkstra per source):
+ *   - `O(V*E + V*(E+V) log V)` with a binary heap.
+ * - **This example's Floyd comparison** computes a full distance table by repeatedly
+ *   calling `johnson.get_distance(src,tgt)` for every pair, which is significantly
+ *   more expensive if each `get_distance()` triggers a Dijkstra run.
+ * - **Benchmark mode (`-n/-e`)** intentionally performs only a single sample query
+ *   to avoid an `O(V^2)` all-pairs loop.
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - **Negative cycles**: if a negative cycle exists, shortest paths are undefined.
+ *   In this example, `Johnson<...>` construction throws `std::domain_error`.
+ * - **Dense graphs**: for E ≈ V², Floyd-Warshall (`O(V^3)`) can be competitive or
+ *   simpler to reason about.
+ * - **Benchmarking**: avoid computing a full V×V matrix by naïvely calling
+ *   `get_distance(src,tgt)` for all pairs on large graphs.
+ *
+ * ## References / see also
+ *
+ * - `Johnson.H` (implementation)
+ * - `Bellman_Ford.H` (used internally by Johnson)
+ * - `Dijkstra.H` / `dijkstra_example.cc` (used after reweighting)
+ * - `Floyd_Warshall.H` / `write_floyd.C` (APSP alternative)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */

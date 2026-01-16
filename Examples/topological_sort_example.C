@@ -112,10 +112,10 @@
  * | Aspect | DFS-based | Kahn's (BFS) |
  * |--------|-----------|--------------|
  * | Approach | Post-order DFS | Remove sources |
- * | Detects cycles | No (may give partial order) | Yes (incomplete result) |
+ * | Cycles | Does not detect cycles; result is undefined | Does not detect cycles automatically; if cycles exist, the output may be incomplete (result size < V) |
  * | Order | Depth-first | Breadth-first |
  * | Implementation | Recursive | Iterative |
- * | Best for | General use | When cycle detection needed |
+ * | Best for | General use | When cycle indication needed |
  *
  * ## Real-World Applications
  *
@@ -152,19 +152,19 @@
  * **Important**: Topological sort only works on DAGs!
  *
  * **If graph has cycles**:
- * - DFS-based: May produce partial ordering (not all vertices)
- * - Kahn's: Result will have fewer than V vertices
+ * - DFS-based: Output is not guaranteed to be a valid topological order
+ * - Kahn's: Result will typically have fewer than V vertices
  *
  * **To detect cycles**:
- * - Use Kahn's algorithm: If result.size() < V, cycle exists
- * - Or use DFS cycle detection before topological sort
+ * - Use Kahn's algorithm: If the produced ordering has fewer than V vertices, a cycle exists
+ * - Or run a dedicated cycle/SCC algorithm before topological sort
  *
  * ## Complexity
  *
  * | Operation | Time | Space |
  * |-----------|------|-------|
  * | Topological sort | O(V + E) | O(V) |
- * | Cycle detection | O(V + E) | O(V) |
+ * | Cycle/SCC detection (separate) | O(V + E) | O(V) |
  *
  * ## Usage Examples
  *

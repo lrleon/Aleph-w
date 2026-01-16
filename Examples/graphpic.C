@@ -47,79 +47,92 @@
  * ### Graph Types
  * - **Undirected graphs**: Edges without direction
  * - **Directed graphs (digraphs)**: Edges with arrows showing direction
- * - **Network graphs**: Special support for flow networks
- * - **Polygraphs**: Multiple edges between nodes
+ * - **Network layouts**: Layered network layouts (`NET-*`, `CROSS-NET-*`)
+ * - **Polygon layouts**: Regular polygon layouts (`POLY-*`)
  *
  * ### Node Customization
- * - **Positions**: Manual (x, y) coordinates or automatic layout
- * - **Shapes**: Circles, ellipses, rectangles
- * - **Colors**: Customizable node colors
+ * - **Positions**: Explicit (x, y) coordinates, or a few built-in layouts
+ *   (polygraph, layered networks)
+ * - **Shapes**: Ellipses (optionally with shadow)
  * - **Labels**: Text labels for nodes
  * - **Sizes**: Configurable node radii
- * - **Styles**: Shadow effects, hidden nodes
+ * - **Styles**: Shadow effects, hidden node ellipses
  *
  * ### Edge Customization
  * - **Arrows**: Direction indicators for digraphs
  * - **Labels**: Text labels and weights on edges
  * - **Styles**: Solid, dashed, curved, shadowed
- * - **Colors**: Customizable edge colors
  * - **Positioning**: Left/right text placement
  *
  * ### Advanced Features
- * - **Paths**: Highlight specific paths between nodes
  * - **Tags**: Additional text annotations
  * - **Curved edges**: Bézier curves for better layout
- * - **Multiple edges**: Support for parallel edges
  *
  * ## Input Format (DSL)
  *
- * The input file uses a domain-specific language (DSL) with commands:
+ * The input file uses a small domain-specific language (DSL). Graphs are
+ * declared with a type and a node count; nodes are identified by number
+ * (0..N-1) and are created implicitly by the declaration.
  *
  * ### Graph Declaration
- * - `GRAPH`: Declare undirected graph
- * - `DIGRAPH`: Declare directed graph (digraph)
- * - `NET_GRAPH`: Network graph (for flow problems)
- * - `POLY_GRAPH`: Graph with multiple edges allowed
+ * - `GRAPH <num-nodes>`: Undirected graph
+ * - `DIGRAPH <num-nodes>`: Directed graph
+ * - `POLY-GRAPH <num-nodes> <side-size> <rotation>`: Regular polygon layout
+ * - `POLY-DIGRAPH <num-nodes> <side-size> <rotation>`: Regular polygon layout (directed)
+ * - `NET-GRAPH <num-nodes> <num-levels> <x-dist> <y-dist>`: Layered network layout
+ * - `NET-DIGRAPH <num-nodes> <num-levels> <x-dist> <y-dist>`: Layered network layout (directed)
+ * - `CROSS-NET-GRAPH <num-nodes> <nodes-by-level> <x-dist> <y-dist>`: Layered cross layout
+ * - `CROSS-NET-DIGRAPH <num-nodes> <nodes-by-level> <x-dist> <y-dist>`: Layered cross layout (directed)
  *
  * ### Node Commands
- * - `NODE <id> <x> <y> <label>`: Create node at position (x, y)
- * - `SHADOW_NODE <id>`: Draw node with shadow
- * - `WITHOUT_NODE <id>`: Hide node (show edges only)
- * - `NODE_TEXT <id> <text>`: Set node label
- * - `COLOR <id> <color>`: Set node color
+ * - `NODE <node-num> <name> <x> <y>`: Define node name and position
+ * - `SHADOW-NODE <node-num>`: Draw node with shadow
+ * - `WITHOUT-NODE <node-num>`: Do not draw the node ellipse
+ * - `NODE-TEXT <node-num> <text> <xoffset> <yoffset>`: Node label and label offset
+ * - `TAG <node-num> <text> <sense> <xoffset> <yoffset>`: Add an annotation tag
+ *   where `<sense>` is one of `N`, `S`, `E`, `W`, `NE`, `NW`, `SE`, `SW`.
+ * - `HRADIO <node-num> <radius>`: Horizontal radius of the node ellipse
+ * - `VRADIO <node-num> <radius>`: Vertical radius of the node ellipse
  *
  * ### Edge Commands
- * - `ARC <from> <to>`: Directed edge (for digraphs)
- * - `EDGE <from> <to>`: Undirected edge (for graphs)
- * - `ARC_TEXT <from> <to> <text>`: Label on edge
- * - `DASHED_ARC <from> <to>`: Dashed edge
- * - `CURVE_ARC <from> <to>`: Curved edge
- * - `SHADOW_ARC <from> <to>`: Edge with shadow
- *
- * ### Path Highlighting
- * - `PATH <from> <to>`: Highlight path between nodes
- * - `SHADOW_PATH <from> <to>`: Highlight path with shadow
+ * - `ARC <src-num> <tgt-num>`: Insert an arc (or an undirected edge in `GRAPH`)
+ * - `ARC-TEXT <src-num> <tgt-num> <text> <xoffset> <yoffset>`: Label on an arc
+ * - `DASHED-ARC <src-num> <tgt-num>`: Dashed arc
+ * - `CURVE-ARC <src-num> <tgt-num> <mid-point> <L|R>`: Curved arc
+ * - `SHADOW-ARC <src-num> <tgt-num>`: Arc with shadow
+ * - `SHADOW-CURVE-ARC <src-num> <tgt-num> <mid-point> <L|R>`: Curved arc with shadow
+ * - `DASHED-CURVE-ARC <src-num> <tgt-num> <mid-point> <L|R>`: Curved dashed arc
  *
  * ## Usage
  *
  * ```bash
- * # Generate LaTeX from graph specification
- * graphpic input.graph > output.tex
+ * # Generate eepic/LaTeX picture from a DSL specification
+ * graphpic -f input.graph
  *
- * # Compile LaTeX to PDF
- * pdflatex output.tex
+ * # Choose output file name explicitly
+ * graphpic -f input.graph -o output.eepic
+ *
+ * # (Optional) emit a minimal LaTeX wrapper/header
+ * graphpic -a -f input.graph
+ *
+ * # Common tuning options
+ * graphpic -f input.graph -r 8 -W 3000 -H 3000 -Z 1.0
+ * graphpic -f input.graph -N          # do not draw node ellipses
  * ```
+ *
+ * If `-o` is not given, the output defaults to the input name with extension
+ * `.eepic`.
  *
  * ## Example Input File
  *
  * ```
- * DIGRAPH
- * NODE A 0 0 "Start"
- * NODE B 2 0 "Middle"
- * NODE C 4 0 "End"
- * ARC A B
- * ARC B C
- * ARC_TEXT A B "weight: 5"
+ * DIGRAPH 3
+ * NODE 0 Start  0 0
+ * NODE 1 Middle 2 0
+ * NODE 2 End    4 0
+ * ARC 0 1
+ * ARC 1 2
+ * ARC-TEXT 0 1 w=5 0 0
  * ```
  *
  * ## Applications
@@ -272,7 +285,8 @@ void save_parameters()
 
   output << hr << " " << vr << " " << hd << " " << vd << " " << resolution 
 	 << " " << h_size << " " << v_size << " " << x_offset
-	 << " " << y_offset << " " << endl;
+	 << " " << y_offset << " " << x_picture_offset << " " << y_picture_offset
+	 << " " << endl;
 }
 
 
@@ -318,6 +332,8 @@ struct Node_Data
 
   Node_Data() :  hr(::hr), vr(::vr), shadow(false), without(false)
   {
+    xoffset = 0;
+    yoffset = 0;
     // empty
   }
 };
@@ -812,14 +828,14 @@ void load_nodes(ifstream & input_stream,
 */
 Graph::Arc * parse_arc_definition(ifstream & input_stream, Graph * g)
 {
-  Graph::Node * src_node = NULL;
-  Graph::Node * tgt_node = NULL;
+  Graph::Node * src_node = nullptr;
+  Graph::Node * tgt_node = nullptr;
 
   load_nodes(input_stream, src_node, tgt_node);
 
   Graph::Arc * arc = search_arc(*g, src_node, tgt_node);
 
-  if (arc == NULL)
+  if (arc == nullptr)
     {
       Graph::Arc * arc = g->insert_arc(src_node, tgt_node, Arc_Data());
 
@@ -852,14 +868,14 @@ Graph::Node * parse_node_text_definition(ifstream & input_stream)
 */
 Graph::Arc * parse_arc_text_definition(ifstream & input_stream, Graph * g)
 {
-  Graph::Node * src_node = NULL;
-  Graph::Node * tgt_node = NULL;
+  Graph::Node * src_node = nullptr;
+  Graph::Node * tgt_node = nullptr;
 
   load_nodes(input_stream, src_node, tgt_node);
 
   Graph::Arc * a = search_arc(*g, src_node, tgt_node);
 
-  if (a == NULL)
+  if (a == nullptr)
     AH_ERROR("Arc not found");
 
   STRING_ARC(a)  = load_string(input_stream);
@@ -1037,7 +1053,7 @@ Graph * read_input_and_build_graph(ifstream & input_stream)
       print_parse_error_and_exit(e.what());
     }
   
-  return NULL; // nunca se alcanza
+  return nullptr; // nunca se alcanza
 }
 
 
@@ -1281,7 +1297,8 @@ void process_node(Eepic_Plane & plane, Graph::Node * p)
 	put_in_plane(plane, Ellipse(Point(X(p), Y(p)), HR(p), VR(p)));
     }
 
-  put_in_plane(plane, Center_Text(Point(X(p), Y(p)), STRING(p)));
+  put_in_plane(plane, Center_Text(Point(X(p), Y(p)) + Point(XOFFSET(p), YOFFSET(p)),
+                                  STRING(p)));
 
   process_tag_node(plane, p);
 }
@@ -1517,7 +1534,7 @@ const char *argp_program_bug_address = "lrleon@ula.ve";
 
 static char doc[] = "graphpic -- Aleph drawer for graphs";
 
-static char argDoc[] = "-f input-file\n";
+static char argDoc[] = "-f input-file [-o output-file]\n";
 
 static const char license_text [] = 
 "Aleph drawer for graphs. License & Copyright Note\n"
@@ -1597,7 +1614,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
   switch (key)
     {
     case 'r': /* Especificacion de radio */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for radius in command line");
 
       hr = vr = atof(arg); hd = vd = 2*hr;
@@ -1605,7 +1622,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'x': /* radio horizontal de elipse */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for horizontal radius in command line");
       
       hr = atof(arg); hd = 2*hr;
@@ -1613,7 +1630,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'y': /* radio vertical de elipse */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for vertical radius in command line");
 
       vr = atof(arg); vd = 2*vr;
@@ -1621,7 +1638,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'Z': /* radio horizontal de elipse */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for picture width in command line");
       
       zoom_factor = atof(arg);
@@ -1629,7 +1646,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'W': /* radio horizontal de elipse */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for picture width in command line");
       
       h_size = atof(arg);
@@ -1637,7 +1654,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'H': /* radio horizontal de elipse */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for picture height in command line");
 
       v_size = atof(arg);
@@ -1645,7 +1662,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'l': /* resolucion en milimetros */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for resolution in command line");
 
       resolution =  atof(arg);
@@ -1660,12 +1677,16 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
 
       break;
 
+    case 'N':
+      draw_node_mode = false;
+      break;
+
     case 'S':
       squarize = false;
       break;
 
     case 'u':
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for vertical size in command line");
 
       v_size = atof(arg);
@@ -1678,7 +1699,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'X': /* offset horizontal para letras */ 
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for horizontal offset in command line");
 
       x_offset = atof(arg);
@@ -1686,14 +1707,14 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'Y': /* offset vertical para letras */ 
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for vertical offset in command line");
 
       y_offset = atof(arg);
       
       break;
     case 'O': /* offset horizontal para dibujo */ 
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for horizontal offset in command line");
 
       x_picture_offset = atof(arg);
@@ -1701,7 +1722,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
       break;
 
     case 'P': /* offset horizontal para dibujo */ 
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for vertical offset in command line");
 
       y_picture_offset = atof(arg);
@@ -1714,7 +1735,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
     case 'i': /* archivo de entrada */
     case 'f':
       {
-	if (arg == NULL)
+	if (arg == nullptr)
 	  AH_ERROR("Waiting for input file name");
 
 	input_file_name  = arg;
@@ -1730,7 +1751,7 @@ static error_t parser_opt(int key, char *arg, struct argp_state *)
 	break;
       }
     case 'o': /* archivo de salida */
-      if (arg == NULL)
+      if (arg == nullptr)
 	AH_ERROR("Waiting for output file name");
 
       output_file_name = arg;
@@ -1776,7 +1797,7 @@ int main(int argc, char *argv[])
 
   read_parameters();
 
-  argp_parse(&arg_defs, argc, argv, ARGP_IN_ORDER, 0, NULL);
+  argp_parse(&arg_defs, argc, argv, ARGP_IN_ORDER, 0, nullptr);
 
   if (input_file_name.size() == 0)
     AH_ERROR("Input file not given");

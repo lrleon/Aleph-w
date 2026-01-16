@@ -32,7 +32,7 @@ using namespace std;
 
 void init_mutex(pthread_mutex_t * m)
 {
-  const int status = pthread_mutex_init(m, NULL);
+  const int status = pthread_mutex_init(m, nullptr);
 
   ah_domain_error_if(status != 0)
     << "cannot init mutex; error code " << to_string(status);

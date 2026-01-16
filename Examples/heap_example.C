@@ -170,12 +170,18 @@
  * # Run all demos (default if no flags are given)
  * ./heap_example
  *
+ * # Explicitly run all demos
+ * ./heap_example --all
+ *
  * # Run specific demos
  * ./heap_example --basic
  * ./heap_example --fibonacci
  * ./heap_example --simulation
  * ./heap_example --performance
  * ./heap_example --max
+ *
+ * # Show help
+ * ./heap_example --help
  *
  * # Performance comparison size
  * ./heap_example --performance --count 50000
@@ -328,7 +334,7 @@ void demo_fibonacci_heap()
   for (int v : {10, 30, 50})
   {
     cout << v << " ";
-    heap1.insert(v);
+    (void) heap1.insert(v);
   }
   cout << endl;
   
@@ -336,7 +342,7 @@ void demo_fibonacci_heap()
   for (int v : {20, 40, 60})
   {
     cout << v << " ";
-    heap2.insert(v);
+    (void) heap2.insert(v);
   }
   cout << endl;
   
@@ -443,7 +449,7 @@ void demo_performance_comparison(int n)
     auto start = chrono::high_resolution_clock::now();
     
     for (int v : values)
-      heap.insert(v);
+      (void) heap.insert(v);
     
     auto mid = chrono::high_resolution_clock::now();
     
@@ -532,7 +538,7 @@ void demo_max_heap()
   for (int v : {15, 13, 18, 11, 19, 12, 17})
   {
     cout << v << " ";
-    fib_max.insert(v);
+    (void) fib_max.insert(v);
   }
   cout << endl;
   

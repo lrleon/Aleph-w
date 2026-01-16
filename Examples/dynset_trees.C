@@ -28,118 +28,90 @@
 
 /**
  * @file dynset_trees.C
- * @brief Demonstration of DynSetTree with different BST implementations
- * 
- * This example showcases one of Aleph-w's most powerful features: the ability
- * to swap underlying data structure implementations through template parameters
- * without changing your code. This demonstrates the power of generic programming
- * and the Strategy pattern at compile time.
+ * @brief DynSetTree (dynamic set) with multiple BST backends in Aleph-w.
  *
- * ## The DynSetTree Abstraction
+ * ## Overview
  *
- * `DynSetTree<Key, Tree, Compare>` is a generic dynamic set wrapper that provides
- * a uniform interface regardless of the underlying tree implementation. You can
- * switch between different BST implementations by simply changing a template
- * parameter, allowing you to:
+ * This example demonstrates `DynSetTree`, a *uniform set interface* whose
+ * underlying ordered structure is selected via template parameter.
  *
- * - **Experiment**: Try different trees to find the best fit
- * - **Optimize**: Choose the tree that matches your access patterns
- * - **Learn**: Compare implementations side-by-side
- * - **Maintain**: Change implementation without rewriting code
+ * It highlights:
  *
- * ## Available Tree Implementations
+ * - Basic set operations (insert/search/remove/iteration).
+ * - Comparing multiple tree backends under the same API.
+ * - Optional rank-capable backends (order statistics).
+ * - A simple performance benchmark (insert/search/remove timings + structural stats).
  *
- * ### Balanced Trees (Guaranteed O(log n))
+ * ## Data model used by this example
  *
- * #### Avl_Tree / Avl_Tree_Rk
- * - **Balance**: Strict height balance (heights differ by ≤ 1)
- * - **Operations**: O(log n) guaranteed
- * - **Best for**: Read-heavy workloads, predictable performance
- * - **Trade-off**: More rotations than Red-Black (slightly slower inserts)
+ * - **Key type**: `int`
+ * - **Container abstraction**: `DynSetTree<int, TreeBackend>`
+ * - **Comparator**: default `Aleph::less<int>`
  *
- * #### Rb_Tree / Rb_Tree_Rk
- * - **Balance**: Relaxed (no path > 2× shortest path)
- * - **Operations**: O(log n) guaranteed
- * - **Best for**: General-purpose, balanced read/write
- * - **Trade-off**: Less strict balance than AVL (faster inserts)
+ * ## Tree backends shown here
  *
- * ### Self-Adjusting Trees (Amortized O(log n))
+ * Standard (non-ranked) backends:
  *
- * #### Splay_Tree / Splay_Tree_Rk
- * - **Strategy**: Moves accessed elements to root
- * - **Operations**: O(log n) amortized
- * - **Best for**: Temporal locality, caching patterns
- * - **Trade-off**: No worst-case guarantee, but excellent for hot data
+ * - `Avl_Tree`, `Rb_Tree`, `Splay_Tree`, `Treap`, `Rand_Tree`
  *
- * ### Randomized Trees (Expected O(log n))
+ * Ranked backends used by this file:
  *
- * #### Treap / Treap_Rk
- * - **Strategy**: Randomized BST with heap priorities
- * - **Operations**: O(log n) expected
- * - **Best for**: Simple implementation, good average case
- * - **Trade-off**: Probabilistic, no worst-case guarantee
+ * - `Avl_Tree_Rk`, `Treap_Rk`
  *
- * #### Rand_Tree
- * - **Strategy**: Different randomization approach
- * - **Operations**: O(log n) expected
- * - **Best for**: Alternative randomized approach
+ * Note: Aleph-w also provides other ranked variants (e.g. `Rb_Tree_Rk`,
+ * `Splay_Tree_Rk`), but this example does not instantiate them.
  *
- * ## Rank Support
+ * ## Usage / CLI
  *
- * Trees with `_Rk` suffix support order statistics:
- * - **select(k)**: Find k-th smallest element in O(log n)
- * - **rank(x)**: Find position of element x in O(log n)
- * - **Trade-off**: Slightly slower operations, more memory
+ * This example uses TCLAP. Options:
  *
- * ## What This Example Demonstrates
- *
- * 1. **Declaration**: How to create DynSetTree with different tree types
- * 2. **Operations**: Insert, search, remove, iteration (same API for all)
- * 3. **Performance**: Timing comparison across implementations
- * 4. **Functional**: Using map, filter, fold operations
- *
- * ## Performance Comparison
- *
- * | Tree Type | Insert | Search | Delete | Best Use Case |
- * |-----------|--------|--------|--------|---------------|
- * | AVL | O(log n) | O(log n) | O(log n) | Read-heavy |
- * | Red-Black | O(log n) | O(log n) | O(log n) | General purpose |
- * | Splay | O(log n) am. | O(log n) am. | O(log n) am. | Temporal locality |
- * | Treap | O(log n) exp. | O(log n) exp. | O(log n) exp. | Simple, average case |
- *
- * ## Usage Examples
+ * - `--count` / `-n <size_t>`: number of elements used for the performance test
+ *   (default: `100000`).
+ * - `--seed` / `-s <unsigned>`: RNG seed (`0` means use `time()`; default: `0`).
+ * - `--all` / `-a`: run all demonstrations (not only the performance benchmark).
+ * - `--verbose` / `-v`: print extra per-tree statistics.
+ * - `--help`: show help.
  *
  * ```bash
- * # Compare all tree types with 10000 elements
- * dynset_trees -n 10000 -a
+ * # Performance benchmark only (default behavior)
+ * ./dynset_trees
  *
- * # Compare AVL vs Red-Black with verbose output
- * dynset_trees -n 50000 -s 42 -v
+ * # Control dataset size and seed
+ * ./dynset_trees --count 10000 --seed 42
  *
- * # Quick test with 1000 elements
- * dynset_trees -n 1000
+ * # Run all demos + benchmark
+ * ./dynset_trees --all --count 10000
+ *
+ * # Verbose per-tree statistics
+ * ./dynset_trees --count 50000 --seed 42 --verbose
+ *
+ * # Show help
+ * ./dynset_trees --help
  * ```
  *
- * ## Code Example
+ * ## Complexity
  *
- * ```cpp
- * // Same interface, different implementations!
- * DynSetTree<int, Avl_Tree> avl_set;
- * DynSetTree<int, Rb_Tree> rb_set;
- * DynSetTree<int, Splay_Tree> splay_set;
+ * Expected/typical per-operation complexities by backend:
  *
- * // All support the same operations
- * avl_set.insert(42);
- * rb_set.insert(42);
- * splay_set.insert(42);
- * ```
+ * - AVL / RB: `O(log n)` worst-case
+ * - Splay: `O(log n)` amortized
+ * - Treap / Rand tree: `O(log n)` expected
  *
- * @see timeAllTree.C Detailed performance benchmark
- * @see tpl_dynSetTree.H DynSetTree template class
- * @see tpl_avl.H AVL tree implementation
- * @see tpl_rb_tree.H Red-Black tree implementation
- * @see tpl_splay_tree.H Splay tree implementation
- * @see tpl_treap.H Treap implementation
+ * The benchmark section measures these costs empirically for one workload
+ * (random keys).
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - Random-key benchmarks may not match real workloads (ordered inserts,
+ *   locality, skewed distributions).
+ * - Timing results depend on build flags and CPU frequency scaling.
+ *
+ * ## References / see also
+ *
+ * - `tpl_dynSetTree.H` (DynSetTree)
+ * - `timeAllTree.C` (deeper tree micro-benchmark)
+ * - `tpl_avl.H`, `tpl_rb_tree.H`, `tpl_splay_tree.H`, `tpl_treap.H`
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -453,6 +425,12 @@ void run_performance_comparison(size_t n, unsigned int seed, bool verbose)
 {
   cout << "=== Performance Comparison ===" << endl;
   cout << "Testing with " << n << " elements (seed: " << seed << ")" << endl << endl;
+
+  if (n == 0)
+    {
+      cout << "Nothing to benchmark: n=0\n\n";
+      return;
+    }
   
   // Generate random data
   srand(seed);
@@ -464,10 +442,16 @@ void run_performance_comparison(size_t n, unsigned int seed, bool verbose)
   // Remove duplicates (sets don't allow them)
   sort(data.begin(), data.end());
   data.erase(unique(data.begin(), data.end()), data.end());
+
+  if (data.empty())
+    {
+      cout << "Nothing to benchmark: all generated keys collapsed to an empty set\n\n";
+      return;
+    }
   
   // Shuffle for random insertion order
-  for (size_t i = data.size() - 1; i > 0; --i)
-    swap(data[i], data[rand() % (i + 1)]);
+  for (size_t i = data.size(); i > 1; --i)
+    swap(data[i - 1], data[rand() % i]);
   
   cout << "Actual unique elements: " << data.size() << endl << endl;
   

@@ -26,56 +26,71 @@
 
 /**
  * @file astar_example.cc
- * @brief Comprehensive example demonstrating A* shortest path algorithm
+ * @brief A* shortest path in Aleph-w (grid graph, heuristics, and comparison with Dijkstra).
  *
- * This example demonstrates the A* (A-star) algorithm, an informed search
- * algorithm that combines Dijkstra's algorithm with a heuristic function
- * to find optimal paths more efficiently.
+ * ## Overview
  *
- * ## What is A*?
+ * This example demonstrates Aleph-w's A* implementation (`AStar.H`) on a 2D grid.
+ * A* is a best-first shortest-path algorithm that uses a heuristic `h(n)` to guide
+ * the search, typically expanding far fewer nodes than Dijkstra when the heuristic
+ * is informative.
  *
- * A* is a best-first search algorithm that uses:
- * - **g(n)**: Actual cost from start to node n
- * - **h(n)**: Heuristic estimate from node n to goal
- * - **f(n) = g(n) + h(n)**: Total estimated cost
+ * It also compares A* with Dijkstra on the same grid setup.
  *
- * It explores nodes with lowest f(n) first, guaranteeing optimal paths
- * when the heuristic is **admissible** (never overestimates).
+ * ## Data model used by this example
  *
- * ## Key Features Demonstrated
+ * - **Graph type**: `GridGraph = List_Graph<Graph_Node<GridCell>, Graph_Arc<double>>`
+ * - **Node info**: `GridCell { x, y, blocked }`
+ * - **Arc info**: edge cost (`double`)
  *
- * 1. **2D Grid Graph**: Creates a graph with (x, y) coordinates
- * 2. **Euclidean Heuristic**: Optimal for diagonal movement (8-connected)
- *    - h(n) = √[(x₁-x₂)² + (y₁-y₂)²]
- * 3. **Manhattan Heuristic**: Optimal for 4-connected grids
- *    - h(n) = |x₁-x₂| + |y₁-y₂|
- * 4. **Comparison with Dijkstra**: Shows A* explores fewer nodes
- * 5. **Path Visualization**: Displays found paths and exploration patterns
+ * The helper `create_grid_graph(width, height, diagonal, nodes)` builds a regular
+ * grid and optionally adds diagonal connections (8-connected vs 4-connected).
  *
- * ## When to Use A*
+ * ## Usage
  *
- * | Scenario | Algorithm | Reason |
- * |----------|-----------|--------|
- * | Grid pathfinding | A* with Manhattan | Fast, optimal for grids |
- * | Euclidean space | A* with Euclidean | Natural distance metric |
- * | No good heuristic | Dijkstra | A* reduces to Dijkstra |
- * | Need optimal path | A* (admissible h) | Guarantees optimality |
+ * ```bash
+ * ./astar_example
+ * ```
+ *
+ * This example has no command-line options; the demo scenarios are hard-coded.
+ *
+ * ## Algorithms
+ *
+ * A* uses:
+ *
+ * - `g(n)`: cost from start to `n`
+ * - `h(n)`: heuristic estimate from `n` to goal
+ * - `f(n) = g(n) + h(n)` to prioritize expansions
+ *
+ * Two heuristics are shown:
+ *
+ * - **Euclidean** (`sqrt(dx^2 + dy^2)`): admissible when diagonal moves are allowed.
+ * - **Manhattan** (`|dx| + |dy|`): admissible for 4-connected grids.
+ *
+ * A* is guaranteed to find an optimal path when `h` is **admissible** (never
+ * overestimates) and typically behaves best when it is also **consistent**.
  *
  * ## Complexity
  *
- * - **Time**: O(b^d) worst case (b = branching factor, d = depth)
- * - **Space**: O(b^d) for storing explored nodes
- * - **Practical**: Much faster than Dijkstra when heuristic is good
+ * Let **V** be the number of nodes and **E** the number of edges.
  *
- * ## Applications
+ * - Worst-case time is similar to Dijkstra: `O((V + E) log V)` (priority queue).
+ * - Auxiliary space is `O(V)`.
  *
- * - **Game AI**: Pathfinding for NPCs
- * - **Robotics**: Navigation and route planning
- * - **GPS systems**: Finding optimal routes
- * - **Puzzle solving**: 15-puzzle, Rubik's cube
+ * In practice, a good heuristic can reduce the number of expanded nodes.
  *
- * @see AStar.H A* algorithm implementation
- * @see Dijkstra.H Dijkstra's algorithm (for comparison)
+ * ## Pitfalls and edge cases
+ *
+ * - **Heuristic quality**: a weak heuristic makes A* behave like Dijkstra.
+ * - **Heuristic admissibility**: if `h` overestimates, A* may return suboptimal paths.
+ * - **Movement model mismatch**: use Manhattan for 4-neighbor movement and Euclidean
+ *   (or octile) when diagonals are allowed.
+ *
+ * ## References / see also
+ *
+ * - `AStar.H` (implementation)
+ * - `Dijkstra.H` / `dijkstra_example.cc` (uninformed shortest paths)
+ *
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
@@ -85,6 +100,7 @@
 #include <vector>
 #include <cmath>
 #include <chrono>
+#include <limits>
 
 #include <tpl_graph.H>
 #include <AStar.H>
@@ -357,17 +373,27 @@ int main()
     AStar_Min_Path<GridGraph, GridDistance, ManhattanHeuristic> astar;
     Path<GridGraph> path(g4);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(g4, start4, end4, path);
+      cost = astar.find_path(g4, start4, end4, path);
     });
 
-    double cost = astar.get_distance(end4);
-    cout << "  Path cost: " << cost << "\n";
-    cout << "  Path length: " << path.size() << " nodes\n";
+    if (cost == std::numeric_limits<double>::max())
+      {
+        cout << "  No path found.\n";
+      }
+    else
+      {
+        cout << "  Path cost: " << cost << "\n";
+        cout << "  Path length: " << path.size() << " nodes\n";
+      }
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n\n";
 
-    print_grid_with_path(WIDTH, HEIGHT, nodes4, start4, end4, path);
-    cout << "\n";
+    if (cost != std::numeric_limits<double>::max())
+      {
+        print_grid_with_path(WIDTH, HEIGHT, nodes4, start4, end4, path);
+        cout << "\n";
+      }
   }
 
   // A* with Euclidean heuristic
@@ -376,13 +402,20 @@ int main()
     AStar_Min_Path<GridGraph, GridDistance, EuclideanHeuristic> astar;
     Path<GridGraph> path(g4);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(g4, start4, end4, path);
+      cost = astar.find_path(g4, start4, end4, path);
     });
 
-    double cost = astar.get_distance(end4);
-    cout << "  Path cost: " << cost << "\n";
-    cout << "  Path length: " << path.size() << " nodes\n";
+    if (cost == std::numeric_limits<double>::max())
+      {
+        cout << "  No path found.\n";
+      }
+    else
+      {
+        cout << "  Path cost: " << cost << "\n";
+        cout << "  Path length: " << path.size() << " nodes\n";
+      }
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n";
     cout << "  Note: Euclidean underestimates in 4-connected grid,\n";
     cout << "        but still finds optimal path (admissible).\n\n";
@@ -394,13 +427,20 @@ int main()
     AStar_Min_Path<GridGraph, GridDistance> astar;  // Default: Zero_Heuristic
     Path<GridGraph> path(g4);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_min_path(g4, start4, end4, path);
+      cost = astar.find_min_path(g4, start4, end4, path);
     });
 
-    double cost = astar.get_distance(end4);
-    cout << "  Path cost: " << cost << "\n";
-    cout << "  Path length: " << path.size() << " nodes\n";
+    if (cost == std::numeric_limits<double>::max())
+      {
+        cout << "  No path found.\n";
+      }
+    else
+      {
+        cout << "  Path cost: " << cost << "\n";
+        cout << "  Path length: " << path.size() << " nodes\n";
+      }
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n";
     cout << "  Note: Explores more nodes than A* with good heuristic.\n\n";
   }
@@ -429,17 +469,27 @@ int main()
     AStar_Min_Path<GridGraph, GridDistance, EuclideanHeuristic> astar;
     Path<GridGraph> path(g8);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(g8, start8, end8, path);
+      cost = astar.find_path(g8, start8, end8, path);
     });
 
-    double cost = astar.get_distance(end8);
-    cout << "  Path cost: " << fixed << setprecision(3) << cost << "\n";
-    cout << "  Path length: " << path.size() << " nodes\n";
+    if (cost == std::numeric_limits<double>::max())
+      {
+        cout << "  No path found.\n";
+      }
+    else
+      {
+        cout << "  Path cost: " << fixed << setprecision(3) << cost << "\n";
+        cout << "  Path length: " << path.size() << " nodes\n";
+      }
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n\n";
 
-    print_grid_with_path(WIDTH, HEIGHT, nodes8, start8, end8, path);
-    cout << "\n";
+    if (cost != std::numeric_limits<double>::max())
+      {
+        print_grid_with_path(WIDTH, HEIGHT, nodes8, start8, end8, path);
+        cout << "\n";
+      }
   }
 
   // A* with Manhattan heuristic
@@ -448,13 +498,20 @@ int main()
     AStar_Min_Path<GridGraph, GridDistance, ManhattanHeuristic> astar;
     Path<GridGraph> path(g8);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(g8, start8, end8, path);
+      cost = astar.find_path(g8, start8, end8, path);
     });
 
-    double cost = astar.get_distance(end8);
-    cout << "  Path cost: " << fixed << setprecision(3) << cost << "\n";
-    cout << "  Path length: " << path.size() << " nodes\n";
+    if (cost == std::numeric_limits<double>::max())
+      {
+        cout << "  No path found.\n";
+      }
+    else
+      {
+        cout << "  Path cost: " << fixed << setprecision(3) << cost << "\n";
+        cout << "  Path length: " << path.size() << " nodes\n";
+      }
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n";
     cout << "  Note: Manhattan overestimates for 8-connected (not admissible),\n";
     cout << "        may not find optimal path!\n\n";
@@ -528,12 +585,13 @@ int main()
     AStar_BinHeap astar;
     Path<GridGraph> path(big_g);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(big_g, big_start, big_end, path);
+      cost = astar.find_path(big_g, big_start, big_end, path);
     });
 
     cout << "▶ A* with Binary Heap:\n";
-    cout << "  Path cost: " << astar.get_distance(big_end) << "\n";
+    cout << "  Path cost: " << cost << "\n";
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n\n";
   }
 
@@ -545,12 +603,13 @@ int main()
     AStar_FibHeap astar;
     Path<GridGraph> path(big_g);
 
+    double cost = std::numeric_limits<double>::max();
     double time = measure_time_ms([&]() {
-      astar.find_path(big_g, big_start, big_end, path);
+      cost = astar.find_path(big_g, big_start, big_end, path);
     });
 
     cout << "▶ A* with Fibonacci Heap:\n";
-    cout << "  Path cost: " << astar.get_distance(big_end) << "\n";
+    cout << "  Path cost: " << cost << "\n";
     cout << "  Time: " << fixed << setprecision(3) << time << " ms\n\n";
   }
 

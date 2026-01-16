@@ -28,12 +28,15 @@
 
 /**
  * @file writeBalance.C
- * @brief Demonstrates BST balancing operation (DSW algorithm)
+ * @brief Demonstrates BST balancing operation (recursive median selection with rotations)
  * 
- * This program demonstrates the Day-Stout-Warren (DSW) algorithm for
- * converting an unbalanced binary search tree into a perfectly balanced
- * tree. It generates visualization files showing the transformation from
- * an unbalanced tree to a perfectly balanced one.
+ * This program demonstrates `balance_tree()` from `tpl_balanceXt.H`, which
+ * rebalances a BST by repeatedly selecting the median (by inorder position)
+ * and rotating it up to become the root, then recursing on the left and right
+ * subtrees.
+ *
+ * It generates visualization files showing the transformation from an
+ * unbalanced BST to a size-balanced tree.
  *
  * ## Why Balance Trees?
  *
@@ -52,61 +55,31 @@
  * - **Cache friendly**: Better memory access patterns
  * - **Height**: Minimum possible height
  *
- * ## DSW Algorithm Overview
+ * ## Algorithm Overview
  *
- * ### Day-Stout-Warren Algorithm
+ * The algorithm used in this example is:
  *
- * The DSW algorithm is an elegant O(n) time, O(1) space algorithm for
- * balancing binary search trees. It works in two phases:
+ * 1. Select the node at inorder position `n/2`.
+ * 2. Rotate it up until it becomes the root.
+ * 3. Recurse on left and right subtrees.
  *
- * ### Phase 1: Create a Vine (Right-Skewed Tree)
- *
- * **Goal**: Convert tree to a linear chain (all nodes have only right children)
- *
- * **Algorithm**:
- * ```
- * create_vine(root):
- *   current = root
- *   While current has left child:
- *     Rotate right at current
- *     current = current.parent
- *   current = current.right
- * ```
- *
- * **Result**: All nodes form a right-skewed chain
- * **Time**: O(n) - visit each node once
- *
- * ### Phase 2: Balance the Vine
- *
- * **Goal**: Transform vine into perfectly balanced tree
- *
- * **Algorithm**:
- * ```
- * balance_vine(vine_root, n):
- *   m = 2^floor(log2(n+1)) - 1  // Number of nodes in perfect tree
- *   compress(vine_root, n - m)  // Compress excess nodes
- *   While m > 1:
- *     compress(vine_root, m/2)
- *     m = m/2
- * ```
- *
- * **Compress operation**: Performs left rotations in a pattern
- * **Time**: O(n) - perform O(n) rotations
+ * In Aleph-w this is implemented by `select_gotoup_root()` + `balance_tree()`.
  *
  * ### Total Complexity
  *
- * - **Time**: O(n) - linear time algorithm
+ * - **Time**: O(n log n)
  * - **Space**: O(1) - constant extra space (in-place)
- * - **Rotations**: O(n) rotations performed
+ * - **Rotations**: O(n log n) in the worst case
  *
  * ## Perfect Balance
  *
  * ### Definition
  *
- * A **perfectly balanced** tree has:
- * - **Height**: ⌊log₂(n)⌋ or ⌈log₂(n)⌉ (minimum possible)
- * - **Structure**: All levels full except possibly the last
- * - **Performance**: Optimal search performance
+ * The routine used here produces a **size-balanced** tree:
+ * - For each node, the difference between the cardinalities of its left and
+ *   right subtrees is at most 1.
+ * - This yields a height that is O(log n) (so searches become logarithmic),
+ *   but it does not require building a complete/perfect tree level-by-level.
  *
  * ### Example
  *
@@ -125,7 +98,7 @@
  *
  * | Method | Time | Space | Result | Notes |
  * |--------|------|-------|--------|-------|
- * | DSW | O(n) | O(1) | Perfect | In-place, simple |
+ * | Median-rotations (`balance_tree`) | O(n log n) | O(1) | Size-balanced | Implemented by `tpl_balanceXt.H` |
  * | AVL | O(n log n) | O(log n) | Height-balanced | Maintains during ops |
  * | Red-Black | O(n log n) | O(log n) | Relaxed balance | Maintains during ops |
  * | Rebuild | O(n) | O(n) | Perfect | Requires extra memory |
@@ -247,12 +220,18 @@ int main(int argc, char* argv[])
       int n = nArg.getValue();
       unsigned int t = seedArg.getValue();
 
+      if (n <= 0)
+        {
+          cerr << "Error: number of elements must be positive\n";
+          return 1;
+        }
+
       if (t == 0)
         t = time(nullptr);
 
       srand(t);
 
-      cout << "=== BST Balancing Demo (DSW Algorithm) ===" << endl;
+      cout << "=== BST Balancing Demo (median rotations) ===" << endl;
       cout << "Elements: " << n << ", Seed: " << t << endl << endl;
 
       // Open output files
@@ -288,14 +267,14 @@ int main(int argc, char* argv[])
       int node_count = root->getCount();
       cout << "Before balancing:" << endl;
       cout << "  Nodes: " << node_count << ", Height: " << height_before << endl;
-      cout << "  Optimal height would be: " << static_cast<int>(log2(n)) << endl;
+      cout << "  Approx. optimal height would be: " << (static_cast<int>(log2(node_count)) + 1) << endl;
 
       // Write tree before balancing
       preOrderRec(root, &print_keyb);
       outputb << endl;
 
       // Balance the tree
-      cout << endl << "Applying DSW balancing algorithm..." << endl;
+      cout << endl << "Balancing tree by median selection + rotations..." << endl;
       root = balance_tree(root);
 
       assert(check_rank_tree(root));

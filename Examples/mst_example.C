@@ -30,8 +30,9 @@
  * 
  * This example demonstrates two classic greedy algorithms for finding the
  * Minimum Spanning Tree (MST) of a weighted undirected graph. Both algorithms
- * are optimal and produce the same result, but differ in their approach and
- * performance characteristics.
+ * are optimal and produce an MST with the same minimum total weight; when
+ * multiple optimal MSTs exist, the chosen edge set can differ. The algorithms
+ * differ in their approach and performance characteristics.
  *
  * ## What is a Minimum Spanning Tree?
  *

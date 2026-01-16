@@ -270,7 +270,7 @@ void level_order(int v[], int n)
  */
 bool exists_in_heap(ArrayHeap<int>& heap, int x)
 {
-  for (int i = 1; i < heap.size(); ++i)
+  for (int i = 1; i <= heap.size(); ++i)
     if (heap[i] == x)
       return true;
   return false;

@@ -202,20 +202,20 @@
  * ## Usage
  *
  * ```bash
- * # Compare all algorithms
+ * # Run all demos (supply chain + algorithm comparisons + large capacity demo)
  * ./maxflow_advanced_example
  *
- * # Test specific algorithm
+ * # Choose the algorithm used for the supply chain demo
  * ./maxflow_advanced_example --algorithm dinic
  * ./maxflow_advanced_example --algorithm hlpp
  *
- * # Benchmark on different graph types
+ * # Run the benchmark comparison on a grid network
  * ./maxflow_advanced_example --sparse
  * ./maxflow_advanced_example --dense
  * ```
  *
  * @see tpl_maxflow.H Advanced max-flow algorithm implementations
- * @see network_flow_example.C Basic max-flow (Edmonds-Karp)
+ * @see network_flow_example.C Basic max-flow example (Ford-Fulkerson)
  * @see tpl_net.H Network graph structures
  * @author Leandro Rabindranath León
  * @ingroup Examples
@@ -239,6 +239,9 @@ static void usage(const char* prog)
        << " [--algorithm <edmonds-karp|dinic|capacity-scaling|hlpp>]"
        << " [--sparse] [--dense] [--help]\n";
   cout << "\nIf no flags are given, all demos are executed.\n";
+  cout << "If any flags are given, the program always runs the supply chain demo\n";
+  cout << "(using --algorithm if provided) and the large capacities demo.\n";
+  cout << "The grid benchmark comparison is run when --sparse or --dense is set.\n";
 }
 
 static bool has_flag(int argc, char* argv[], const char* flag)
@@ -310,8 +313,9 @@ Net build_supply_chain()
 /**
  * @brief Build a grid network for stress testing
  * 
- * Creates a rows x cols grid with diagonal connections.
- * Source is top-left corner, sink is bottom-right.
+ * Creates a rows x cols grid with right and down connections.
+ * Source is automatically detected as the top-left corner, and sink as the
+ * bottom-right corner.
  */
 Net build_grid_network(int rows, int cols, FlowType base_cap = 10.0)
 {
@@ -368,24 +372,25 @@ void print_flow_stats(Net& net, const string& title)
 {
   cout << "\n=== " << title << " ===" << endl;
   
-  FlowType total_cap = 0, total_flow = 0;
+  FlowType total_cap = 0;
   int saturated = 0, zero_flow = 0;
   
   for (auto it = net.get_arc_it(); it.has_curr(); it.next())
   {
     auto* arc = it.get_curr();
     total_cap += arc->cap;
-    total_flow += arc->flow;
     if (arc->flow == arc->cap && arc->cap > 0) saturated++;
     if (arc->flow == 0) zero_flow++;
   }
+
+  const FlowType max_flow = net.flow_value();
   
   cout << "Total capacity:    " << total_cap << endl;
-  cout << "Total flow:        " << total_flow << endl;
+  cout << "Max flow value:    " << max_flow << endl;
   cout << "Saturated arcs:    " << saturated << endl;
   cout << "Zero-flow arcs:    " << zero_flow << endl;
-  cout << "Utilization:       " << fixed << setprecision(1) 
-       << (100.0 * total_flow / total_cap) << "%" << endl;
+  cout << "Utilization:       " << fixed << setprecision(1)
+       << ((total_cap > 0) ? (100.0 * max_flow / total_cap) : 0.0) << "%" << endl;
 }
 
 /**
@@ -440,11 +445,19 @@ void compare_algorithms(int grid_size)
        << setw(12) << right << "Flow"
        << setw(15) << "Time (ms)" << endl;
   cout << string(47, '-') << endl;
+
+  // Edmonds-Karp (Ford-Fulkerson with BFS)
+  {
+    auto [flow, time] = time_algorithm<Edmonds_Karp_Maximum_Flow<Net>>(net);
+    cout << setw(20) << left << "Edmonds-Karp"
+         << setw(12) << right << flow
+         << setw(15) << fixed << setprecision(3) << time << endl;
+  }
   
-  // Edmonds-Karp
+  // Ford-Fulkerson (augmenting paths with DFS)
   {
     auto [flow, time] = time_algorithm<Ford_Fulkerson_Maximum_Flow<Net>>(net);
-    cout << setw(20) << left << "Edmonds-Karp"
+    cout << setw(20) << left << "Ford-Fulkerson"
          << setw(12) << right << flow
          << setw(15) << fixed << setprecision(3) << time << endl;
   }
@@ -507,7 +520,7 @@ void demonstrate_min_cut(Net& net)
 int main(int argc, char* argv[])
 {
   cout << "=== Advanced Maximum Flow Algorithms ===" << endl;
-  cout << "Comparing Edmonds-Karp, Dinic, Capacity Scaling, and HLPP\n" << endl;
+  cout << "Comparing Edmonds-Karp, Ford-Fulkerson, Dinic, Capacity Scaling, and HLPP\n" << endl;
 
   if (has_flag(argc, argv, "--help"))
     {
@@ -599,7 +612,7 @@ int main(int argc, char* argv[])
   
   {
     auto [flow, time] = time_algorithm<Ford_Fulkerson_Maximum_Flow<Net>>(large_cap);
-    cout << setw(20) << left << "Edmonds-Karp"
+    cout << setw(20) << left << "Ford-Fulkerson"
          << setw(15) << right << fixed << setprecision(0) << flow
          << setw(15) << setprecision(3) << time << endl;
   }

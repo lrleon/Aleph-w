@@ -128,6 +128,9 @@
  * ./zip_utils_example -s advanced    # Advanced usage
  * ./zip_utils_example -s conversion  # Conversions and interop
  * ./zip_utils_example -s practical   # Practical examples
+ *
+ * # Show help
+ * ./zip_utils_example --help
  * ```
  *
  * @see ah-zip-utils.H Unified zip utilities

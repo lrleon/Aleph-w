@@ -110,6 +110,9 @@
  * ./ranges_example -s aleph        # Aleph containers with ranges demo
  * ./ranges_example -s practical    # Practical examples
  * ./ranges_example -s perf         # Performance demo
+ *
+ * # Show help
+ * ./ranges_example --help
  * ```
  *
  * ## Example Pipeline
