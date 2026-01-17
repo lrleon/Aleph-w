@@ -8,12 +8,57 @@ require 'open3'
 ROOT_DIR = File.expand_path('..', __dir__)
 DEFAULT_BUILD_DIR = File.join(ROOT_DIR, 'build')
 
-def run_command(cmd, chdir: nil)
-  puts "\n>> #{cmd}"
+def ts
+  Time.now.strftime('%Y-%m-%d %H:%M:%S')
+end
+
+def log(msg, verbose:)
+  return unless verbose
+  puts "[#{ts}] #{msg}"
+end
+
+def run_command(cmd, chdir: nil, verbose: false, label: nil)
   capture_opts = {}
   capture_opts[:chdir] = chdir if chdir
-  stdout, stderr, status = Open3.capture3(cmd, **capture_opts)
-  [stdout, stderr, status]
+
+  header = label ? "#{label}: #{cmd}" : cmd
+  puts "\n>> #{header}"
+  started_at = Time.now
+
+  unless verbose
+    stdout, stderr, status = Open3.capture3(cmd, **capture_opts)
+    return [stdout, stderr, status]
+  end
+
+  stdout_buf = +''
+  stderr_buf = +''
+  status = nil
+
+  Open3.popen3(cmd, **capture_opts) do |stdin, stdout, stderr, wait_thr|
+    stdin.close
+
+    out_thread = Thread.new do
+      stdout.each_line do |line|
+        stdout_buf << line
+        print line
+      end
+    end
+
+    err_thread = Thread.new do
+      stderr.each_line do |line|
+        stderr_buf << line
+        warn line
+      end
+    end
+
+    out_thread.join
+    err_thread.join
+    status = wait_thr.value
+  end
+
+  elapsed = Time.now - started_at
+  log("Completed#{label ? " #{label}" : ''} in #{format('%.2f', elapsed)}s (exit=#{status.exitstatus})", verbose: verbose)
+  [stdout_buf, stderr_buf, status]
 end
 
 options = {
@@ -26,7 +71,8 @@ options = {
     '-DBUILD_TESTS=ON'
   ],
   compiler: 'g++',
-  with_sanitizers: false
+  with_sanitizers: false,
+  verbose: false
 }
 
 OptionParser.new do |opts|
@@ -71,11 +117,16 @@ OptionParser.new do |opts|
   opts.on('--with-sanitizers', 'Enable AddressSanitizer and UndefinedBehaviorSanitizer') do
     options[:with_sanitizers] = true
   end
+
+  opts.on('--verbose', 'Print timestamps and stream command output in real time') do
+    options[:verbose] = true
+  end
 end.parse!
 
 build_dir = options[:build_dir]
 ctest_args = options[:ctest_args]
 cmake_args = options[:cmake_args]
+verbose = options[:verbose]
 unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
   cmake_args << "-DCMAKE_CXX_COMPILER=#{options[:compiler]}"
 end
@@ -97,7 +148,8 @@ unless options[:skip_configure]
   unless File.exist?(cmake_cache)
     FileUtils.mkdir_p(build_dir)
     configure_cmd = ['cmake', "-S #{ROOT_DIR}", "-B #{build_dir}", *cmake_args].join(' ')
-    stdout, stderr, status = run_command(configure_cmd)
+    log('Configuring (first time)...', verbose: verbose)
+    stdout, stderr, status = run_command(configure_cmd, verbose: verbose, label: 'configure')
     unless status.success?
       warn stdout
       warn stderr
@@ -106,7 +158,8 @@ unless options[:skip_configure]
   else
     # Refresh cache to ensure flags like BUILD_EXAMPLES stay in sync.
     configure_cmd = ['cmake', "-S #{ROOT_DIR}", "-B #{build_dir}", *cmake_args].join(' ')
-    stdout, stderr, status = run_command(configure_cmd)
+    log('Re-configuring...', verbose: verbose)
+    stdout, stderr, status = run_command(configure_cmd, verbose: verbose, label: 'reconfigure')
     unless status.success?
       warn stdout
       warn stderr
@@ -116,7 +169,8 @@ unless options[:skip_configure]
 end
 
 unless options[:skip_build]
-  stdout, stderr, status = run_command('cmake --build .', chdir: build_dir)
+  log('Building...', verbose: verbose)
+  stdout, stderr, status = run_command('cmake --build .', chdir: build_dir, verbose: verbose, label: 'build')
   unless status.success?
     warn stdout
     warn stderr
@@ -124,10 +178,13 @@ unless options[:skip_build]
   end
 end
 
-ctest_cmd = ['ctest', '--output-on-failure'] + ctest_args
-stdout, stderr, status = run_command(ctest_cmd.join(' '), chdir: build_dir)
-puts stdout
-warn stderr if stderr && !stderr.empty?
+ctest_cmd = ['ctest', '--output-on-failure']
+ctest_cmd << '--progress' if verbose
+ctest_cmd += ctest_args
+log('Running ctest...', verbose: verbose)
+stdout, stderr, status = run_command(ctest_cmd.join(' '), chdir: build_dir, verbose: verbose, label: 'ctest')
+puts stdout unless verbose
+warn stderr if !verbose && stderr && !stderr.empty?
 abort 'Some tests failed' unless status.success?
 
 puts '\nAll tests completed successfully.'

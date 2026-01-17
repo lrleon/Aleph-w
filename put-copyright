@@ -14,7 +14,7 @@ note = %Q<
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ note = %Q<
 */
 >
 
-pat = /\/\* Aleph-w.*\*\//m
+pat = /\/\* Aleph-w.*?\*\//m
 
 def process_file(file_name, pat, note)
   file = File.new(file_name).read
@@ -51,7 +51,7 @@ def collect_files(paths)
 end
 
 if ARGV.empty?
-  files = collect_files(['Tests', 'Examples'])
+  files = collect_files(['.', 'Tests', 'Examples'])
   files.each do |file_name|
     puts "Processing: #{file_name}"
     result = process_file(file_name, pat, note)
