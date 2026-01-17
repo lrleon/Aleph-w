@@ -527,8 +527,9 @@ public:
   /// @note No validation is performed to check if @p v belongs to this polygon.
   [[nodiscard]] const Vertex &get_next_vertex(const Vertex & v) const
   {
+    // If v is the last vertex (next points to sentinel), wrap to first vertex
     return (v.get_next() == &vertex_list) ?
-             Vertex::dlink_to_vertex(&vertex_list)->next_vertex() :
+             *Vertex::dlink_to_vertex(vertex_list.get_next()) :
              v.next_vertex();
   }
 
@@ -538,8 +539,9 @@ public:
   /// @note No validation is performed to check if @p v belongs to this polygon.
   [[nodiscard]] const Vertex &get_prev_vertex(const Vertex & v) const
   {
+    // If v is the first vertex (prev points to sentinel), wrap to last vertex
     return (v.get_prev() == &vertex_list) ?
-             Vertex::dlink_to_vertex(&vertex_list)->prev_vertex() :
+             *Vertex::dlink_to_vertex(vertex_list.get_prev()) :
              v.prev_vertex();
   }
 
