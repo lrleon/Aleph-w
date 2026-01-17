@@ -46,19 +46,38 @@
  *  - Key type may differ from the graph's node type
  *  - Requires a Convert class to map graph nodes to tree keys
  *
- *  ## Usage
- *
- *  ```cpp
- *  // Define a converter from graph node to tree key
- *  struct MyConvert {
- *    void operator()(Graph::Node* gnode, Tree_Node<int>* tnode) {
- *      tnode->get_key() = gnode->get_info().value;
+ *  @par Example: Converting graph to DFS tree
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT g;
+ *  
+ *  auto a = g.insert_node("A");
+ *  auto b = g.insert_node("B");
+ *  auto c = g.insert_node("C");
+ *  g.insert_arc(a, b);
+ *  g.insert_arc(a, c);
+ *  
+ *  // Define converter from graph node to tree node
+ *  struct CopyInfo {
+ *    void operator()(GT::Node* gnode, Tree_Node<string>* tnode) {
+ *      tnode->get_key() = gnode->get_info();
  *    }
  *  };
+ *  
+ *  Tree_Node<string> tree_root;
+ *  DynMapTree<GT::Node*, Tree_Node<string>*> node_map;
+ *  
+ *  build_tree_dfs<GT, Tree_Node<string>, CopyInfo>(g, a, tree_root, node_map);
+ *  // tree_root now contains the DFS spanning tree
+ *  @endcode
  *
- *  // Convert spanning tree to Tree_Node
- *  Tree_Node<int>* root = Graph_To_Tree_Node<Graph, int, MyConvert>()(g, groot);
- *  ```
+ *  @par Example: BFS tree with node mapping
+ *  @code
+ *  build_tree_bfs<GT, Tree_Node<string>, CopyInfo>(g, a, tree_root, node_map);
+ *  
+ *  // Use mapping to find tree node from graph node
+ *  auto tree_node = node_map[b];  // Get tree node for graph node b
+ *  @endcode
  *
  *  @see Tree_Node For the target tree structure
  *  @see generate_tree.H For tree visualization

@@ -35,6 +35,41 @@
     separated pairs of node IDs). Also provides DOT format export with
     optional styling based on node attributes.
 
+    @par Example: Loading graph from files
+    @code
+    #include <load_digraph.H>
+    #include <fstream>
+    
+    // Create node file (pipe-separated: id|name|value)
+    // nodes.txt:
+    // 1|Node_A|100
+    // 2|Node_B|200
+    // 3|Node_C|300
+    
+    // Create arc file (space-separated: src dst)
+    // arcs.txt:
+    // 1 2
+    // 2 3
+    // 1 3
+    
+    ifstream nodes_file("nodes.txt");
+    ifstream arcs_file("arcs.txt");
+    
+    Digrafo g;
+    load_digraph(g, nodes_file, arcs_file);
+    
+    // Graph now loaded with 3 nodes and 3 arcs
+    cout << "Nodes: " << g.get_num_nodes() << endl;
+    cout << "Arcs: " << g.get_num_arcs() << endl;
+    @endcode
+
+    @par Example: Exporting to DOT format
+    @code
+    ofstream dot_file("graph.dot");
+    save_in_dot(g, dot_file);
+    // Creates DOT file for visualization with Graphviz
+    @endcode
+
     @ingroup Graphs
  *  @author Leandro Rabindranath León
 */

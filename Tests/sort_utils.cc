@@ -33,6 +33,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include <tpl_sort_utils.H>
 #include <tpl_dynArray.H>
+#include <tpl_array.H>
 #include <tpl_dynList.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dnode.H>
@@ -587,6 +588,99 @@ TEST(SortUtilsArraySorts, introsort_dynarray_large)
   introsort(a);
   for (size_t i = 1; i < n; ++i)
     ASSERT_LE(a(i - 1), a(i)) << "Failed at index " << i;
+}
+
+// Introsort with STL-style pointer interface (begin, end)
+TEST(SortUtilsArraySorts, introsort_pointer_begin_end)
+{
+  int a[] = {9, 1, 8, 2, 7, 3, 6, 4, 5, 0};
+  introsort(a, a + 10);  // STL-style: introsort(begin, end)
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a)));
+}
+
+TEST(SortUtilsArraySorts, introsort_pointer_begin_end_partial)
+{
+  int a[] = {9, 1, 8, 2, 7, 3, 6, 4, 5, 0};
+  // Sort only middle portion [2, 7)
+  introsort(a + 2, a + 7);
+  // Elements 0,1 unchanged, 2-6 sorted, 7-9 unchanged
+  EXPECT_EQ(a[0], 9);
+  EXPECT_EQ(a[1], 1);
+  EXPECT_TRUE(std::is_sorted(a + 2, a + 7));
+  EXPECT_EQ(a[7], 4);
+}
+
+TEST(SortUtilsArraySorts, introsort_pointer_begin_end_custom_compare)
+{
+  int a[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  introsort(a, a + 9, std::greater<int>());
+  EXPECT_TRUE(std::is_sorted(std::begin(a), std::end(a), std::greater<int>()));
+}
+
+TEST(SortUtilsArraySorts, introsort_pointer_begin_end_empty)
+{
+  int a[] = {42};
+  // Empty range - should not crash
+  introsort(a, a);
+  EXPECT_EQ(a[0], 42);  // Unchanged
+}
+
+// Introsort for Array<T> container
+TEST(SortUtilsArraySorts, introsort_array_container)
+{
+  Array<int> arr;
+  arr.append(5);
+  arr.append(2);
+  arr.append(8);
+  arr.append(1);
+  arr.append(9);
+  arr.append(3);
+
+  introsort(arr);
+
+  for (size_t i = 1; i < arr.size(); ++i)
+    ASSERT_LE(arr(i - 1), arr(i));
+}
+
+TEST(SortUtilsArraySorts, introsort_array_container_custom_compare)
+{
+  Array<int> arr;
+  for (int i = 1; i <= 10; ++i)
+    arr.append(i);
+
+  introsort(arr, std::greater<int>());
+
+  for (size_t i = 1; i < arr.size(); ++i)
+    ASSERT_GE(arr(i - 1), arr(i));  // Descending order
+}
+
+TEST(SortUtilsArraySorts, introsort_array_container_empty)
+{
+  Array<int> arr;
+  EXPECT_NO_THROW(introsort(arr));
+  EXPECT_TRUE(arr.is_empty());
+}
+
+TEST(SortUtilsArraySorts, introsort_array_container_single)
+{
+  Array<int> arr;
+  arr.append(42);
+  introsort(arr);
+  EXPECT_EQ(arr.size(), 1u);
+  EXPECT_EQ(arr(0), 42);
+}
+
+TEST(SortUtilsArraySorts, introsort_array_container_large)
+{
+  const size_t n = 5000;
+  Array<int> arr(n);
+  for (size_t i = 0; i < n; ++i)
+    arr.append(static_cast<int>(n - i));  // Reverse sorted
+
+  introsort(arr);
+
+  for (size_t i = 1; i < n; ++i)
+    ASSERT_LE(arr(i - 1), arr(i)) << "Failed at index " << i;
 }
 
 TEST(SortUtilsArraySorts, heapsort_dynarray)

@@ -309,3 +309,5 @@ cmake-build-*/
 Tests/build-*/
 Testing/
 CMakePresets.json
+*.Tree
+/Examples/.btreepic

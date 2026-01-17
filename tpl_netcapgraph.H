@@ -26,6 +26,38 @@
 
 /** @file tpl_netcapgraph.H
  *  @brief Network flow graph with capacities.
+ *
+ *  @par Example: Maximum flow problem
+ *  @code
+ *  using Net = Net_Graph<Net_Node<string>, Net_Arc<Empty_Class>>;
+ *  Net network;
+ *  
+ *  auto source = network.insert_node("Source");
+ *  auto a = network.insert_node("A");
+ *  auto b = network.insert_node("B");
+ *  auto sink = network.insert_node("Sink");
+ *  
+ *  // Insert arcs with capacities
+ *  network.insert_arc(source, a, 10);  // capacity 10
+ *  network.insert_arc(source, b, 8);
+ *  network.insert_arc(a, sink, 12);
+ *  network.insert_arc(b, sink, 9);
+ *  network.insert_arc(a, b, 5);
+ *  
+ *  // Compute max flow
+ *  Ford_Fulkerson_Maximum_Flow<Net> ff;
+ *  auto max_flow = ff(network, source, sink);
+ *  cout << "Maximum flow: " << max_flow << endl;
+ *  @endcode
+ *
+ *  @par Example: Minimum cut
+ *  @code
+ *  // After computing max flow, partition is determined
+ *  // By max-flow min-cut theorem: max_flow = min_cut capacity
+ *  DynList<Net::Node*> source_side, sink_side;
+ *  // Nodes reachable from source in residual graph = source_side
+ *  @endcode
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */

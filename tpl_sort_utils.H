@@ -1704,10 +1704,8 @@ namespace Aleph
         --depth_limit;
 
         // Median-of-three pivot selection
-        const long pivot = partition<T, Compare>(a, l, r, cmp);
-
         // Recurse on smaller partition, iterate on larger (tail call elimination)
-        if (pivot - l < r - pivot)
+        if (const long pivot = partition<T, Compare>(a, l, r, cmp); pivot - l < r - pivot)
           {
             introsort_loop<T, Compare>(a, l, pivot - 1, depth_limit, cmp);
             l = pivot + 1;
@@ -1774,7 +1772,7 @@ namespace Aleph
     if (r <= l)
       return;
 
-    const size_t n = static_cast<size_t>(r - l + 1);
+    const auto n = static_cast<size_t>(r - l + 1);
 
     if (n < Quicksort_Threshold)
       {
@@ -1807,6 +1805,78 @@ namespace Aleph
     if (n <= 1)
       return;
     introsort(a, 0L, static_cast<long>(n - 1), cmp);
+  }
+
+  /** @brief Sort a range using introsort (STL-style iterator interface).
+   *
+   *  This overload provides an STL-compatible interface using begin/end
+   *  pointers, similar to std::sort(begin, end).
+   *
+   *  @tparam T Element type (must be swappable and comparable).
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in] begin Pointer to the first element.
+   *  @param[in] end Pointer to one past the last element.
+   *  @param cmp Comparison functor.
+   *
+   *  @par Example
+   *  @code
+   *  int arr[] = {5, 2, 8, 1, 9, 3};
+   *  introsort(arr, arr + 6);  // Sort entire array
+   *
+   *  // Sort only elements [1, 4)
+   *  introsort(arr + 1, arr + 4);
+   *
+   *  // With custom comparator
+   *  introsort(arr, arr + 6, std::greater<int>());
+   *  @endcode
+   *
+   *  @see introsort(T*, long, long, Compare)
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void introsort(T *begin, T *end, const Compare & cmp = Compare())
+  {
+    if (begin >= end)
+      return;
+    const auto n = static_cast<size_t>(end - begin);
+    introsort(begin, n, cmp);
+  }
+
+  /** @brief Sort an Array container using introsort.
+   *
+   *  This overload provides direct support for the Aleph Array<T> container.
+   *  Since Array uses contiguous memory (MemArray), introsort can work
+   *  directly on the underlying buffer.
+   *
+   *  @tparam T Element type.
+   *  @tparam Compare Comparison functor type (default: `Aleph::less<T>`).
+   *
+   *  @param[in,out] arr The Array to sort.
+   *  @param cmp Comparison functor.
+   *
+   *  @par Example
+   *  @code
+   *  Array<int> arr = {5, 2, 8, 1, 9};
+   *  introsort(arr);  // arr is now {1, 2, 5, 8, 9}
+   *
+   *  // Descending order
+   *  introsort(arr, std::greater<int>());
+   *  @endcode
+   *
+   *  @see Array
+   *  @ingroup Algorithms
+   */
+  template <typename T, class Compare = Aleph::less<T>>
+  inline
+  void introsort(Array<T> & arr, const Compare & cmp = Compare())
+  {
+    const size_t n = arr.size();
+    if (n <= 1)
+      return;
+    // Array uses contiguous memory via MemArray, so we can use pointer arithmetic
+    introsort(&arr(0), n, cmp);
   }
 
   /** Sorts a linked list by the quicksort method.
@@ -2770,12 +2840,12 @@ namespace Aleph
 
     // Ciura's gap sequence - empirically optimal for most data distributions
     // Extended with ~2.25x multiplier for larger arrays
-    static const long ciura_gaps[] =
+    static constexpr long ciura_gaps[] =
         {
           1, 4, 10, 23, 57, 132, 301, 701, 1750, 4024, 9233,
           21223, 48805, 112217, 258100, 593630, 1365513, 3140680
         };
-    static const int num_gaps = sizeof(ciura_gaps) / sizeof(ciura_gaps[0]);
+    static constexpr int num_gaps = sizeof(ciura_gaps) / sizeof(ciura_gaps[0]);
 
     // Find first gap smaller than array size
     int gap_idx = num_gaps - 1;

@@ -81,6 +81,24 @@ set(EXAMPLE_PROGRAMS
     hash_tables_example
     linear_structures_example
     graph_components_example
+    array_utils_example
+    tpl_indexGraph_example
+    parse_csv_example
+    tpl_indexNode_example
+    tpl_indexArc_example
+    mat_path_example
+    tpl_dynMat_example
+    tpl_net_sup_dem_example
+    tpl_netcapgraph_example
+    tpl_multicommodity_example
+    tpl_kgraph_example
+    graph_to_tree_example
+    karger_example
+    load_digraph_example
+    tpl_euclidian_graph_example
+    tpl_2dtree_example
+    min_cut_test
+    min_cut_example
 )
 
 # Function to get source file from program name

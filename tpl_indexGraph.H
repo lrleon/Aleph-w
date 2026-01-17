@@ -25,7 +25,35 @@
 */
 
 /** @file tpl_indexGraph.H
- *  @brief Graph indexing utilities.
+ *  @brief Graph indexing utilities for O(log n) node/arc lookup.
+ *
+ *  @par Example: Fast node lookup by value
+ *  @code
+ *  using GT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+ *  GT g;
+ *  Index_Graph<GT> idx(g);
+ *  
+ *  // Insert nodes
+ *  auto n1 = idx.insert_node(100);
+ *  auto n2 = idx.insert_node(200);
+ *  auto n3 = idx.insert_node(300);
+ *  
+ *  // O(log n) search by value
+ *  auto found = idx.search_node(200);
+ *  if (found)
+ *    cout << "Found node: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: Fast arc lookup
+ *  @code
+ *  idx.insert_arc(n1, n2, 12);
+ *  
+ *  // O(log n) arc search
+ *  auto arc = idx.search_arc(n1, n2);
+ *  if (arc)
+ *    cout << "Arc weight: " << arc->get_info() << endl;
+ *  @endcode
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */

@@ -183,7 +183,7 @@ void demo_false_positives()
   cout << "  Hash functions (k):    " << k << endl;
   
   // Theoretical false positive rate
-  double theoretical_fp = pow(1.0 - exp(-static_cast<double>(k * n) / m), k);
+  const double theoretical_fp = pow(1.0 - exp(-static_cast<double>(k * n) / m), k);
   cout << "\nTheoretical FP rate: " << fixed << setprecision(4) 
        << (theoretical_fp * 100) << "%" << endl;
   

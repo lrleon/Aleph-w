@@ -25,7 +25,36 @@
 */
 
 /** @file tpl_indexArc.H
- *  @brief Arc indexing for fast lookup.
+ *  @brief Arc indexing for fast lookup by endpoint nodes.
+ *
+ *  @par Example: Fast arc search between nodes
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT g;
+ *  IndexArc<GT> arc_index(g);
+ *  
+ *  auto a = g.insert_node("A");
+ *  auto b = g.insert_node("B");
+ *  auto c = g.insert_node("C");
+ *  
+ *  // Insert and index arcs
+ *  auto ab = arc_index.insert_in_graph(a, b, 10);
+ *  auto bc = arc_index.insert_in_graph(b, c, 20);
+ *  
+ *  // O(log n) search for arc between two nodes
+ *  auto found = arc_index.search(a, b);
+ *  if (found)
+ *    cout << "Arc weight: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: Road network queries
+ *  @code
+ *  // Quickly find road between two cities
+ *  auto road = arc_index.search(city1, city2);
+ *  if (road)
+ *    cout << "Distance: " << road->get_info() << " km" << endl;
+ *  @endcode
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */

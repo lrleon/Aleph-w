@@ -164,7 +164,7 @@
  * @author Leandro Rabindranath León
  * @ingroup Examples
  */
- 
+
 # include <iostream>
 # include <fstream>
 # include <string>
@@ -176,66 +176,67 @@
 # include <parse_utils.H>
 # include <eepicgeom.H>
 
-# include <argp.h>
+# include <tclap/CmdLine.h>
 
 using namespace std;
 
 # define TERMINATE(n) (save_parameters(), exit(n))
 
 // TODO: corregir tag con los angulos de 45 al punto de intersección con
-// la elipse  
+// la elipse
 
-enum Token_Type { 
+enum Token_Type
+{
   COMMENT,
-  DIGRAPH, GRAPH,   // Indica si es grafo o digrafo
+  DIGRAPH, GRAPH, // Indica si es grafo o digrafo
   POLY_DIGRAPH, POLY_GRAPH,
   NET_GRAPH, NET_DIGRAPH,
   CROSS_NET_GRAPH, CROSS_NET_DIGRAPH,
-  NODE,             // Nodo
-  ARC,              // Arco
-  SHADOW_NODE,      // Nodo sombreado
-  SHADOW_ARC,       // Arco sombreado
-  DASHED_ARC,       // Arco punteado
+  NODE, // Nodo
+  ARC, // Arco
+  SHADOW_NODE, // Nodo sombreado
+  SHADOW_ARC, // Arco sombreado
+  DASHED_ARC, // Arco punteado
   DASHED_CURVE_ARC, // Arco curvo punteado
-  CURVE_ARC,        // Arco curvo
+  CURVE_ARC, // Arco curvo
   SHADOW_CURVE_ARC, // Arco curvo sombreado
-  NODE_TEXT,        // Etiqueta de nodo
-  ARC_TEXT,         // Etiqueta de arco
-  TAG,              // Etiqueta
-  WITHOUT_NODE,     // No dibujar nodo
-  SHADOW_PATH,      // Camino sombreado a destacar entre dos nodos
-  PATH,             // Camino a destacar entre dos nodos
-  LEFT, RIGHT,      // Cadena a escribir en un arco (a su izquierda o derecha)
-  HRADIO,           // radio horizontal de un nodo particular
-  VRADIO,           // radio vertical  de un nodo particular
-  STRING,           // Cadena a escribir en un nodo
-                    // TAG options
-  NORTH,      // N
-  SOUTH,      // S
-  EAST,       // E
-  WEST,       // W
+  NODE_TEXT, // Etiqueta de nodo
+  ARC_TEXT, // Etiqueta de arco
+  TAG, // Etiqueta
+  WITHOUT_NODE, // No dibujar nodo
+  SHADOW_PATH, // Camino sombreado a destacar entre dos nodos
+  PATH, // Camino a destacar entre dos nodos
+  LEFT, RIGHT, // Cadena a escribir en un arco (a su izquierda o derecha)
+  HRADIO, // radio horizontal de un nodo particular
+  VRADIO, // radio vertical  de un nodo particular
+  STRING, // Cadena a escribir en un nodo
+  // TAG options
+  NORTH, // N
+  SOUTH, // S
+  EAST, // E
+  WEST, // W
   NORTH_EAST, // NE
   NORTH_WEST, // NW
   SOUTH_EAST, // SE
   SOUTH_WEST, // SW
-  END_FILE, 
-  INVALID 
+  END_FILE,
+  INVALID
 };
 
 
 extern bool tiny_keys;
 
 /* valores de distancias por omision */
-double hr = 8;  // radio horizontal de la elipse
-double vr = 8;  // radio vertical de la elipse
+double hr = 8; // radio horizontal de la elipse
+double vr = 8; // radio vertical de la elipse
 
 double h_size = 3000; /* longitud horizontal de picture */
 double v_size = 3000; /* longitud vertical de picture */
 
 double zoom_factor = 1;
 
-double hd = 2*hr;  // diametro horizontal de la elipse
-double vd = 2*vr;  // diametro vertical de la elipse
+double hd = 2 * hr; // diametro horizontal de la elipse
+double vd = 2 * vr; // diametro vertical de la elipse
 double x_offset = 0; /* offset horizontal etiqueta */
 double y_offset = 0;
 double x_picture_offset = 0; // offset horizontal para dibujo
@@ -247,57 +248,57 @@ string command_line;
 string input_file_name;
 string output_file_name;
 
-bool draw_node_mode = true;  // dibujar elipses
+bool draw_node_mode = true; // dibujar elipses
 
 bool squarize = true; // ajuste automático de la escala del dibujo
 
 bool latex_header = false; // envolver salida con un latex header
-bool ellipses     = true; // por omisión dibujar elipses 
-bool rectangles   = false; 
-bool not_nodes    = false;
+bool ellipses = true; // por omisión dibujar elipses
+bool rectangles = false;
+bool not_nodes = false;
 
 
-const char * parameters_file_name = "./.graphpic";
+const char *parameters_file_name = "./.graphpic";
 
 
-    inline
+inline
 void print_parameters()
 {
   cout
-    << "Horizontal radius             -x   = " << hr << endl
-    << "Vertical radius               -y   = " << vr << endl
-    << "Horizontal diameter                = " << hd << endl
-    << "Vertical diameter                  = " << vd << endl
-    << "Resolution in mm              -l   = " << resolution << endl
-    << "Horizontal size               -z   = " << h_size << endl
-    << "Vertical size                 -u   = " << v_size << endl
-    << "Horizontal offset for key     -X   = " << x_offset << endl
-    << "Vertical offset for key       -Y   = " << y_offset << endl
-    << "Horizontal offset for picture -O   = " << x_picture_offset << endl
-    << "Vertical offset for picture   -P   = " << y_picture_offset << endl;
+      << "Horizontal radius             -x   = " << hr << endl
+      << "Vertical radius               -y   = " << vr << endl
+      << "Horizontal diameter                = " << hd << endl
+      << "Vertical diameter                  = " << vd << endl
+      << "Resolution in mm              -l   = " << resolution << endl
+      << "Horizontal size               -z   = " << h_size << endl
+      << "Vertical size                 -u   = " << v_size << endl
+      << "Horizontal offset for key     -X   = " << x_offset << endl
+      << "Vertical offset for key       -Y   = " << y_offset << endl
+      << "Horizontal offset for picture -O   = " << x_picture_offset << endl
+      << "Vertical offset for picture   -P   = " << y_picture_offset << endl;
 }
 
 
-    inline
+inline
 void save_parameters()
 {
   ofstream output(parameters_file_name, ios::trunc);
 
-  output << hr << " " << vr << " " << hd << " " << vd << " " << resolution 
-	 << " " << h_size << " " << v_size << " " << x_offset
-	 << " " << y_offset << " " << x_picture_offset << " " << y_picture_offset
-	 << " " << endl;
+  output << hr << " " << vr << " " << hd << " " << vd << " " << resolution
+      << " " << h_size << " " << v_size << " " << x_offset
+      << " " << y_offset << " " << x_picture_offset << " " << y_picture_offset
+      << " " << endl;
 }
 
 
-    inline
+inline
 void read_parameters()
 {
   ifstream input(parameters_file_name, ios::in);
 
-  input >> hr >> vr >> hd >> vd >> resolution >> h_size 
-	>> v_size >> x_offset >> y_offset >> x_picture_offset 
-	>> y_picture_offset;
+  input >> hr >> vr >> hd >> vd >> resolution >> h_size
+      >> v_size >> x_offset >> y_offset >> x_picture_offset
+      >> y_picture_offset;
 }
 
 
@@ -311,7 +312,7 @@ typedef double Coord;
 struct Tag_Data
 {
   string tag;
-  
+
   Token_Type sense;
   double xoffset;
   double yoffset;
@@ -320,8 +321,8 @@ struct Tag_Data
 struct Node_Data
 {
   int number;
-  string name; 
-  double x, y; 
+  string name;
+  double x, y;
   double hr, vr;
   bool shadow;
   bool without;
@@ -330,7 +331,7 @@ struct Node_Data
 
   DynDlist<Tag_Data> tag_list;
 
-  Node_Data() :  hr(::hr), vr(::vr), shadow(false), without(false)
+  Node_Data() : hr(::hr), vr(::vr), shadow(false), without(false)
   {
     xoffset = 0;
     yoffset = 0;
@@ -363,10 +364,10 @@ struct Arc_Data
   bool dashed;
   bool curve;
   bool left;
-  int  curve_mid;
+  int curve_mid;
 
-  Arc_Data() 
-    : xoffset(0), yoffset(0), 
+  Arc_Data()
+    : xoffset(0), yoffset(0),
       shadow(false), dashed(false), curve(false), left(false)
   {
     // empty
@@ -392,33 +393,33 @@ typedef List_Graph<Node, Arc> Graph;
 
 typedef List_Digraph<Node, Arc> Digraph;
 
-DynTreapTree<string, Graph::Node*> node_table;
+DynTreapTree<string, Graph::Node *> node_table;
 
 size_t num_nodes = 0;
 
-DynArray<Graph::Node*> nodes;
+DynArray<Graph::Node *> nodes;
 
-DynArray<Graph::Arc*> arcs;
+DynArray<Graph::Arc *> arcs;
 
 
 Token_Type get_token(ifstream & input_stream)
 {
   char buffer[Buffer_Size];
-  char * start_addr = buffer;
-  char * end_addr   = buffer + Buffer_Size;
+  char *start_addr = buffer;
+  char *end_addr = buffer + Buffer_Size;
 
   int c;
 
   init_token_scanning();
 
-  try 
+  try
     {
       skip_white_spaces(input_stream);
-      c = read_char_from_stream(input_stream); 
+      c = read_char_from_stream(input_stream);
     }
-  catch (const std::out_of_range&) 
+  catch (const std::out_of_range &)
     {
-      return END_FILE; 
+      return END_FILE;
     }
 
   if (c == EOF)
@@ -429,8 +430,8 @@ Token_Type get_token(ifstream & input_stream)
 
   if (c == '%')
     { /* comentario */
-      do 
-	c = read_char_from_stream(input_stream); 
+      do
+        c = read_char_from_stream(input_stream);
       while (c != '\n' and c != EOF);
       return COMMENT;
     }
@@ -445,8 +446,8 @@ Token_Type get_token(ifstream & input_stream)
   close_token_scanning(buffer, start_addr, end_addr);
 
   if (c == '%') /* Se encontró comentario */
-        /* retroceda, así proxima llamada detectara comentario */
-    input_stream.unget(); 
+    /* retroceda, así proxima llamada detectara comentario */
+    input_stream.unget();
 
   if (strcasecmp(buffer, "NODE") == 0)
     return NODE;
@@ -483,7 +484,7 @@ Token_Type get_token(ifstream & input_stream)
 
   if (strcasecmp(buffer, "ARC-TEXT") == 0)
     return ARC_TEXT;
-  
+
   if (strcasecmp(buffer, "SHADOW-CURVE-ARC") == 0)
     return SHADOW_CURVE_ARC;
 
@@ -554,7 +555,7 @@ Token_Type get_token(ifstream & input_stream)
 }
 
 
-Graph * build_poly_graph(ifstream & input_stream, Graph * g)
+Graph * build_poly_graph(ifstream & input_stream, Graph *g)
 {
   try
     {
@@ -562,21 +563,21 @@ Graph * build_poly_graph(ifstream & input_stream, Graph * g)
 
       const double arc = load_number(input_stream);
 
-      const Regular_Polygon 
-	poly(Point(side_size, side_size), side_size, num_nodes, arc);
+      const Regular_Polygon
+          poly(Point(side_size, side_size), side_size, num_nodes, arc);
 
       for (int i = 0; i < num_nodes; ++i)
-	{
-	  Graph::Node * p = nodes[i];
+        {
+          Graph::Node *p = nodes[i];
 
-	  const Point pt = poly.get_vertex(i);
+          const Point pt = poly.get_vertex(i);
 
-	  X(p) = pt.get_x().get_d();
-	  Y(p) = pt.get_y().get_d();
-	}
+          X(p) = pt.get_x().get_d();
+          Y(p) = pt.get_y().get_d();
+        }
     }
 
-  catch (const std::domain_error&)
+  catch (const std::domain_error &)
     {
       AH_ERROR("Expecting for side-size or an arc");
     }
@@ -585,9 +586,8 @@ Graph * build_poly_graph(ifstream & input_stream, Graph * g)
 }
 
 
-
-    // NET-GRAPH num-nodes num-levels x-dist y-dist 
-Graph * build_net_graph(ifstream & input_stream, Graph * g)
+// NET-GRAPH num-nodes num-levels x-dist y-dist
+Graph * build_net_graph(ifstream & input_stream, Graph *g)
 {
   try
     {
@@ -599,39 +599,38 @@ Graph * build_net_graph(ifstream & input_stream, Graph * g)
 
       const size_t & num_nodes = g->get_num_nodes();
 
-      const int nodes_by_level = num_nodes/num_levels;
-      
+      const int nodes_by_level = num_nodes / num_levels;
+
       double y = 0;
       for (int level = 0, i = 0; level < num_levels and i < num_nodes; ++level)
-	{
-	  double x = 0;
+        {
+          double x = 0;
 
-	  for (int j = 0; j < nodes_by_level and i < num_nodes; ++j, ++i)
-	    {
-	      Graph::Node * p = nodes[i];
+          for (int j = 0; j < nodes_by_level and i < num_nodes; ++j, ++i)
+            {
+              Graph::Node *p = nodes[i];
 
-	      X(p) = x;
-	      Y(p) = y;
+              X(p) = x;
+              Y(p) = y;
 
-	      x += xdist;
-	    }
+              x += xdist;
+            }
 
-	  y += ydist;
-	}
+          y += ydist;
+        }
     }
-  
-  catch (const std::domain_error&)
+
+  catch (const std::domain_error &)
     {
       AH_ERROR("Expecting for num-of-levels or a distance");
     }
-  
+
   return g;
 }
 
 
-
-    // CROSS-NET-GRAPH num-nodes nodes-by-level x-dist y-dist 
-Graph * build_cross_net_graph(ifstream & input_stream, Graph * g)
+// CROSS-NET-GRAPH num-nodes nodes-by-level x-dist y-dist
+Graph * build_cross_net_graph(ifstream & input_stream, Graph *g)
 {
   try
     {
@@ -645,41 +644,41 @@ Graph * build_cross_net_graph(ifstream & input_stream, Graph * g)
 
       double y = 0;
       for (int i = 0; i < num_nodes; /* nothing */)
-	{
-	  double x = xdist/2;
+        {
+          double x = xdist / 2;
 
-	  for (int j = 0; j < nodes_by_level - 1 and i < num_nodes; ++j, ++i)
-	    {
-	      Graph::Node * p = nodes[i];
+          for (int j = 0; j < nodes_by_level - 1 and i < num_nodes; ++j, ++i)
+            {
+              Graph::Node *p = nodes[i];
 
-	      X(p) = x;
-	      Y(p) = y;
+              X(p) = x;
+              Y(p) = y;
 
-	      x += xdist;
-	    }
+              x += xdist;
+            }
 
-	  x = 0;
-	  y += ydist;
+          x = 0;
+          y += ydist;
 
-	  for (int j = 0; j < nodes_by_level and i < num_nodes; ++j, ++i)
-	    {
-	      Graph::Node * p = nodes[i];
+          for (int j = 0; j < nodes_by_level and i < num_nodes; ++j, ++i)
+            {
+              Graph::Node *p = nodes[i];
 
-	      X(p) = x;
-	      Y(p) = y;
+              X(p) = x;
+              Y(p) = y;
 
-	      x += xdist;
-	    }
+              x += xdist;
+            }
 
-	  y += ydist;
-	}
+          y += ydist;
+        }
     }
-  
-  catch (const std::domain_error&)
+
+  catch (const std::domain_error &)
     {
       AH_ERROR("Expecting for num-of-levels or a distance");
     }
-  
+
   return g;
 }
 
@@ -689,27 +688,28 @@ Graph * build_cross_net_graph(ifstream & input_stream, Graph * g)
 
   POLY-GRAPH num_nodes side-size rotation
 
-  NET-GRAPH num-nodes num-levels x-dist y-dist 
+  NET-GRAPH num-nodes num-levels x-dist y-dist
 
-  CROSS-NET-GRAPH num-nodes num-levels x-dist y-dist 
+  CROSS-NET-GRAPH num-nodes num-levels x-dist y-dist
 */
 Graph * parse_graph_definition(ifstream & input_stream)
 {
   const Token_Type token = get_token(input_stream);
 
   if (token != GRAPH and token != DIGRAPH and
-      token !=	POLY_DIGRAPH and token != POLY_GRAPH and 
+      token != POLY_DIGRAPH and token != POLY_GRAPH and
       token != NET_GRAPH and token != NET_DIGRAPH and
       token != CROSS_NET_GRAPH and token != CROSS_NET_DIGRAPH)
     print_parse_error_and_exit("Input does not start with GRAPH definition");
 
-  Graph * g = (token == GRAPH or token == POLY_GRAPH or 
-	       token == NET_GRAPH or token == CROSS_NET_GRAPH) 
-    ? new Graph : new ::Digraph;  
+  Graph *g = (token == GRAPH or token == POLY_GRAPH or
+              token == NET_GRAPH or token == CROSS_NET_GRAPH) ?
+               new Graph :
+               new ::Digraph;
 
   try
     {
-      num_nodes = load_number(input_stream); 
+      num_nodes = load_number(input_stream);
     }
   catch (...)
     {
@@ -718,7 +718,7 @@ Graph * parse_graph_definition(ifstream & input_stream)
 
   for (int i = 0; i < num_nodes; i++)
     {
-      Graph::Node * p = new Graph::Node;
+      Graph::Node *p = new Graph::Node;
       nodes[i] = g->insert_node(p);
       string n = to_string(i);
       p->get_info().name = n;
@@ -745,7 +745,7 @@ Graph::Node * load_node(ifstream & input_stream)
   if (node_number >= num_nodes)
     AH_ERROR("Node number out of range (%d)", num_nodes);
 
-  Graph::Node * p = nodes[node_number];
+  Graph::Node *p = nodes[node_number];
 
   return p;
 }
@@ -756,7 +756,7 @@ Graph::Node * load_node(ifstream & input_stream)
 */
 void parse_node_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   Node_Data & node_data = p->get_info();
 
@@ -769,10 +769,10 @@ void parse_node_definition(ifstream & input_stream)
   node_data.y = load_number(input_stream);
 }
 
-    // TAG node-number string sentido xoffset yoffset
+// TAG node-number string sentido xoffset yoffset
 void parse_tag_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   Tag_Data tag_data;
 
@@ -790,7 +790,7 @@ void parse_tag_definition(ifstream & input_stream)
 
 void parse_without_node_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   WITHOUT(p) = true;
 }
@@ -798,15 +798,15 @@ void parse_without_node_definition(ifstream & input_stream)
 
 void parse_shadow_node_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   SHADOW(p) = true;
 }
 
 
-void load_nodes(ifstream & input_stream, 
-		Graph::Node *& src_node, 
-		Graph::Node *& tgt_node)
+void load_nodes(ifstream & input_stream,
+                Graph::Node *& src_node,
+                Graph::Node *& tgt_node)
 {
   int num_src = load_number(input_stream);
 
@@ -824,20 +824,20 @@ void load_nodes(ifstream & input_stream,
 
 
 /*
-  ARC number-node number-tgt-node 
+  ARC number-node number-tgt-node
 */
-Graph::Arc * parse_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc * parse_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Node * src_node = nullptr;
-  Graph::Node * tgt_node = nullptr;
+  Graph::Node *src_node = nullptr;
+  Graph::Node *tgt_node = nullptr;
 
   load_nodes(input_stream, src_node, tgt_node);
 
-  Graph::Arc * arc = search_arc(*g, src_node, tgt_node);
+  Graph::Arc *arc = search_arc(*g, src_node, tgt_node);
 
   if (arc == nullptr)
     {
-      Graph::Arc * arc = g->insert_arc(src_node, tgt_node, Arc_Data());
+      Graph::Arc *arc = g->insert_arc(src_node, tgt_node, Arc_Data());
 
       DYNARRAY_APPEND(::arcs, arc);
 
@@ -853,9 +853,9 @@ Graph::Arc * parse_arc_definition(ifstream & input_stream, Graph * g)
 */
 Graph::Node * parse_node_text_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
-  STRING(p)  = load_string(input_stream);
+  STRING(p) = load_string(input_stream);
   XOFFSET(p) = load_number(input_stream);
   YOFFSET(p) = load_number(input_stream);
 
@@ -866,19 +866,19 @@ Graph::Node * parse_node_text_definition(ifstream & input_stream)
 /*
   ARC-TEXT number-node number-tgt-node Text xoffset yoffset
 */
-Graph::Arc * parse_arc_text_definition(ifstream & input_stream, Graph * g)
+Graph::Arc * parse_arc_text_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Node * src_node = nullptr;
-  Graph::Node * tgt_node = nullptr;
+  Graph::Node *src_node = nullptr;
+  Graph::Node *tgt_node = nullptr;
 
   load_nodes(input_stream, src_node, tgt_node);
 
-  Graph::Arc * a = search_arc(*g, src_node, tgt_node);
+  Graph::Arc *a = search_arc(*g, src_node, tgt_node);
 
   if (a == nullptr)
     AH_ERROR("Arc not found");
 
-  STRING_ARC(a)  = load_string(input_stream);
+  STRING_ARC(a) = load_string(input_stream);
   XOFFSET_ARC(a) = load_number(input_stream);
   YOFFSET_ARC(a) = load_number(input_stream);
 
@@ -887,9 +887,9 @@ Graph::Arc * parse_arc_text_definition(ifstream & input_stream, Graph * g)
 
 
 /*  CURVED-ARC src tgt mid-point sentido */
-Graph::Arc * parse_curve_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc * parse_curve_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Arc * arc = parse_arc_definition(input_stream, g);
+  Graph::Arc *arc = parse_arc_definition(input_stream, g);
 
   CURVE_ARC(arc) = true;
 
@@ -908,9 +908,9 @@ Graph::Arc * parse_curve_arc_definition(ifstream & input_stream, Graph * g)
 }
 
 
-Graph::Arc * parse_shadow_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc * parse_shadow_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Arc * arc = parse_arc_definition(input_stream, g);
+  Graph::Arc *arc = parse_arc_definition(input_stream, g);
 
   SHADOW_ARC(arc) = true;
 
@@ -918,9 +918,9 @@ Graph::Arc * parse_shadow_arc_definition(ifstream & input_stream, Graph * g)
 }
 
 
-Graph::Arc * parse_dashed_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc * parse_dashed_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Arc * arc = parse_arc_definition(input_stream, g);
+  Graph::Arc *arc = parse_arc_definition(input_stream, g);
 
   DASHED_ARC(arc) = true;
 
@@ -929,10 +929,10 @@ Graph::Arc * parse_dashed_arc_definition(ifstream & input_stream, Graph * g)
 
 
 /*  SHADOW-CURVED-ARC src tgt mid-point sentido */
-    Graph::Arc * 
-parse_shadow_curve_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc *
+parse_shadow_curve_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Arc * arc = parse_curve_arc_definition(input_stream, g);
+  Graph::Arc *arc = parse_curve_arc_definition(input_stream, g);
 
   SHADOW_ARC(arc) = true;
 
@@ -941,10 +941,10 @@ parse_shadow_curve_arc_definition(ifstream & input_stream, Graph * g)
 
 
 /*  DASHED-CURVED-ARC src tgt mid-point sentido */
-    Graph::Arc * 
-parse_dashed_curve_arc_definition(ifstream & input_stream, Graph * g)
+Graph::Arc *
+parse_dashed_curve_arc_definition(ifstream & input_stream, Graph *g)
 {
-  Graph::Arc * arc = parse_curve_arc_definition(input_stream, g);
+  Graph::Arc *arc = parse_curve_arc_definition(input_stream, g);
 
   DASHED_ARC(arc) = true;
 
@@ -952,19 +952,19 @@ parse_dashed_curve_arc_definition(ifstream & input_stream, Graph * g)
 }
 
 
-    // HRADIO node-number radio
+// HRADIO node-number radio
 void parse_hradio_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   HR(p) = load_number(input_stream);
 }
 
 
-    // VRADIO node-number radio
+// VRADIO node-number radio
 void parse_vradio_definition(ifstream & input_stream)
 {
-  Graph::Node * p = load_node(input_stream);
+  Graph::Node *p = load_node(input_stream);
 
   VR(p) = load_number(input_stream);
 }
@@ -972,87 +972,87 @@ void parse_vradio_definition(ifstream & input_stream)
 
 Graph * read_input_and_build_graph(ifstream & input_stream)
 {
-  Graph * g = parse_graph_definition(input_stream);
+  Graph *g = parse_graph_definition(input_stream);
 
   try
     {
       while (true)
-	switch (get_token(input_stream))
-	  {
-	  case END_FILE:
-	    return g; 
+        switch (get_token(input_stream))
+          {
+          case END_FILE:
+            return g;
 
-	  case INVALID:
-	    print_parse_error_and_exit("Unrecognized token");
+          case INVALID:
+            print_parse_error_and_exit("Unrecognized token");
 
-	  case COMMENT: break;
+          case COMMENT: break;
 
-	  case NODE:
-	    parse_node_definition(input_stream);
-	    break;
+          case NODE:
+            parse_node_definition(input_stream);
+            break;
 
-	  case TAG:
-	    parse_tag_definition(input_stream);
-	    break;
+          case TAG:
+            parse_tag_definition(input_stream);
+            break;
 
-	  case WITHOUT_NODE:
-	    parse_without_node_definition(input_stream);
-	    break;
+          case WITHOUT_NODE:
+            parse_without_node_definition(input_stream);
+            break;
 
-	  case SHADOW_NODE:
-	    parse_shadow_node_definition(input_stream);
-	    break;
+          case SHADOW_NODE:
+            parse_shadow_node_definition(input_stream);
+            break;
 
-	  case ARC:
-	    parse_arc_definition(input_stream, g);
-	    break;
-	
-	  case SHADOW_ARC:
-	    parse_shadow_arc_definition(input_stream, g);
-	    break;
+          case ARC:
+            parse_arc_definition(input_stream, g);
+            break;
 
-	  case DASHED_ARC:
-	    parse_dashed_arc_definition(input_stream, g);
-	    break;
+          case SHADOW_ARC:
+            parse_shadow_arc_definition(input_stream, g);
+            break;
 
-	  case NODE_TEXT:
-	    parse_node_text_definition(input_stream);
-	    break;
+          case DASHED_ARC:
+            parse_dashed_arc_definition(input_stream, g);
+            break;
 
-	  case ARC_TEXT:
-	    parse_arc_text_definition(input_stream, g);
-	    break;
+          case NODE_TEXT:
+            parse_node_text_definition(input_stream);
+            break;
 
-	  case CURVE_ARC:
-	    parse_curve_arc_definition(input_stream, g);
-	    break;
-	
-	  case SHADOW_CURVE_ARC:
-	    parse_shadow_curve_arc_definition(input_stream, g);
-	    break;
-	
-	  case DASHED_CURVE_ARC:
-	    parse_dashed_curve_arc_definition(input_stream, g);
-	    break;
-	
-	  case HRADIO:
-	    parse_hradio_definition(input_stream);
-	    break;
-	
-	  case VRADIO:
-	    parse_vradio_definition(input_stream);
-	    break;
-	
-	  default:
-	    print_parse_error_and_exit("Unknown token type");
-	  }
+          case ARC_TEXT:
+            parse_arc_text_definition(input_stream, g);
+            break;
+
+          case CURVE_ARC:
+            parse_curve_arc_definition(input_stream, g);
+            break;
+
+          case SHADOW_CURVE_ARC:
+            parse_shadow_curve_arc_definition(input_stream, g);
+            break;
+
+          case DASHED_CURVE_ARC:
+            parse_dashed_curve_arc_definition(input_stream, g);
+            break;
+
+          case HRADIO:
+            parse_hradio_definition(input_stream);
+            break;
+
+          case VRADIO:
+            parse_vradio_definition(input_stream);
+            break;
+
+          default:
+            print_parse_error_and_exit("Unknown token type");
+          }
     }
   catch (exception & e)
     {
       delete g;
       print_parse_error_and_exit(e.what());
     }
-  
+
   return nullptr; // nunca se alcanza
 }
 
@@ -1062,125 +1062,125 @@ void generate_prologue(ofstream & output)
   time_t t;
   time(&t);
   output << endl
-	 << "%      This LaTeX picture is a graph automatically" << endl
-	 << "%      generated by graphpic program" << endl
-	 << endl
-	 << "% Copyright (C) 2007" << endl
-	 << "% UNIVERSITY of LOS ANDES (ULA)" << endl
-	 << "% Merida - REPUBLICA BOLIVARIANA DE VENEZUELA" << endl
-	 << "% Center of Studies in Microelectronics & Distributed Systems"
-	 << " (CEMISID)" << endl
-	 << "% ULA Computer Science Department" << endl
-	 << endl
-	 << "% Leandro Leon - lrleon@ula.ve" << endl
-	 << endl
-	 << "% You must use curves, epic and eepic latex packages" << endl
-	 << "% in your LaTeX application" << endl
-	 << endl
-	 << "% curves Copyright by I.L. Maclaine-cross" << endl
-	 << "% epic Copyright by Sunil Podar" << endl
-	 << "% eepic Copyright by Conrad Kwok" << endl
-	 << "% LaTeX is a collection of TeX macros created by Leslie Lamport" 
-	 << endl
-	 << "% TeX was created by Donald Knuth" << endl
-	 << endl
-	 << "% command line: " << endl
-	 << "% " << command_line << endl 
-	 << endl
-	 << "% input file: " << input_file_name << endl 
-	 << "% output file: " << output_file_name << endl 
-	 << endl
-	 << "% Creation date: " << ctime(&t) << endl 
-	 << endl;
+      << "%      This LaTeX picture is a graph automatically" << endl
+      << "%      generated by graphpic program" << endl
+      << endl
+      << "% Copyright (C) 2007" << endl
+      << "% UNIVERSITY of LOS ANDES (ULA)" << endl
+      << "% Merida - REPUBLICA BOLIVARIANA DE VENEZUELA" << endl
+      << "% Center of Studies in Microelectronics & Distributed Systems"
+      << " (CEMISID)" << endl
+      << "% ULA Computer Science Department" << endl
+      << endl
+      << "% Leandro Leon - lrleon@ula.ve" << endl
+      << endl
+      << "% You must use curves, epic and eepic latex packages" << endl
+      << "% in your LaTeX application" << endl
+      << endl
+      << "% curves Copyright by I.L. Maclaine-cross" << endl
+      << "% epic Copyright by Sunil Podar" << endl
+      << "% eepic Copyright by Conrad Kwok" << endl
+      << "% LaTeX is a collection of TeX macros created by Leslie Lamport"
+      << endl
+      << "% TeX was created by Donald Knuth" << endl
+      << endl
+      << "% command line: " << endl
+      << "% " << command_line << endl
+      << endl
+      << "% input file: " << input_file_name << endl
+      << "% output file: " << output_file_name << endl
+      << endl
+      << "% Creation date: " << ctime(&t) << endl
+      << endl;
 
   if (latex_header)
     output << "%%%%%%%%%%%%%%%% LATEX Header generated with -a option" << endl
-	   << "\\documentclass[11pt]{article}" << endl
-	   << endl
-	   << "\\usepackage{curves}"<< endl
-	   << "\\usepackage{epic}" << endl
-	   << "\\usepackage{eepic}" << endl
-	   << endl
-	   << "\\begin{document}" << endl
-	   << "\\begin{center}" << endl;
+        << "\\documentclass[11pt]{article}" << endl
+        << endl
+        << "\\usepackage{curves}" << endl
+        << "\\usepackage{epic}" << endl
+        << "\\usepackage{eepic}" << endl
+        << endl
+        << "\\begin{document}" << endl
+        << "\\begin{center}" << endl;
 }
 
 
-    // retorna un segmento desde el nodo src hasta el nodo tgt. Los extremos
-    // corresponden con la intersección de la linea con los bordes de la
-    // elipse 
-Segment arc_segment(Graph::Node * src, Graph::Node * tgt)
+// retorna un segmento desde el nodo src hasta el nodo tgt. Los extremos
+// corresponden con la intersección de la linea con los bordes de la
+// elipse
+Segment arc_segment(Graph::Node *src, Graph::Node *tgt)
 {
-      // centros de las elipses de los nodos
+  // centros de las elipses de los nodos
   const Point src_center(X(src), Y(src));
   const Point tgt_center(X(tgt), Y(tgt));
 
   const Segment l(src_center, tgt_center); // segmento entre los centros
 
-      // ellipses de nodos
+  // ellipses de nodos
   const Ellipse src_el(src_center, HR(src), VR(src));
   const Ellipse tgt_el(tgt_center, HR(tgt), VR(tgt));
 
-      // calcula las intersecciones de la recta que pasa por los puntos
-      // centrales de las elipses
+  // calcula las intersecciones de la recta que pasa por los puntos
+  // centrales de las elipses
   const Segment src_sg = src_el.intersection_with(l);
   const Segment tgt_sg = tgt_el.intersection_with(l);
 
-      // selecciona como punto de intersección el que esté más cercano
-      // al centro de la elipse opuesta
+  // selecciona como punto de intersección el que esté más cercano
+  // al centro de la elipse opuesta
   const Point & src_point = src_sg.nearest_point(tgt_center);
 
-      // selecciona el punto de intersección que sea parte del segmento l
-      // entre los centros de la elipse
+  // selecciona el punto de intersección que sea parte del segmento l
+  // entre los centros de la elipse
   const Point & tgt_point = tgt_sg.nearest_point(src_center);
 
   return Segment(src_point, tgt_point);
 }
 
 
-Polygon arc_trigon(Graph::Node *  src, 
-		   Graph::Node *  tgt, 
-		   const double & dist,
-		   const bool &   left)
+Polygon arc_trigon(Graph::Node *src,
+                   Graph::Node *tgt,
+                   const double & dist,
+                   const bool & left)
 {
-        // centros de las elipses de los nodos
+  // centros de las elipses de los nodos
   const Point src_center(X(src), Y(src));
   const Point tgt_center(X(tgt), Y(tgt));
 
   const Segment l(src_center, tgt_center); // segmento entre los centros
 
   const Segment perp = l.mid_perpendicular(dist); // perpendicular que
-						  // pasa por el centro
+  // pasa por el centro
 
-      // selecciona según bandera left el punto medio de la curva
+  // selecciona según bandera left el punto medio de la curva
   const Point & mid = left ? perp.get_tgt_point() : perp.get_src_point();
 
 
-		      // cálculo del punto origen -------
+  // cálculo del punto origen -------
 
   const Ellipse src_el(src_center, HR(src), VR(src)); // elipse origen
   const Segment src_to_mid(src_center, mid); // segmento centro elipse--mid
 
-      // calcular puntos de intersección entre elipse origen y segmento
-      // hacia punto medio
-  const Segment src_inter = src_el.intersection_with(src_to_mid); // intersecta 
+  // calcular puntos de intersección entre elipse origen y segmento
+  // hacia punto medio
+  const Segment src_inter = src_el.intersection_with(src_to_mid); // intersecta
 
   const Point & src_pt = src_inter.nearest_point(mid);
 
 
-		      // cálculo del punto destino -------
+  // cálculo del punto destino -------
 
   const Ellipse tgt_el(tgt_center, hr, vr); // elipse destino
   const Segment mid_to_tgt(mid, tgt_center); // segmento centro mid--elipse
 
-      // calcular puntos de intersección entre segmento desde el punto
-      // medio y la elipse origen 
-  const Segment tgt_inter = tgt_el.intersection_with(mid_to_tgt); // intersecta 
+  // calcular puntos de intersección entre segmento desde el punto
+  // medio y la elipse origen
+  const Segment tgt_inter = tgt_el.intersection_with(mid_to_tgt); // intersecta
 
   const Point & tgt_pt = tgt_inter.nearest_point(mid);
-  
-      // calculados los tres puntos, nos resta por construir el polígono
-      // abierto 
+
+  // calculados los tres puntos, nos resta por construir el polígono
+  // abierto
   Polygon result;
 
   result.add_vertex(src_pt);
@@ -1191,7 +1191,7 @@ Polygon arc_trigon(Graph::Node *  src,
 }
 
 
-void process_tag_node(Eepic_Plane & plane, Graph::Node * p)
+void process_tag_node(Eepic_Plane & plane, Graph::Node *p)
 {
   const double & xp = X(p);
   const double & yp = Y(p);
@@ -1203,98 +1203,97 @@ void process_tag_node(Eepic_Plane & plane, Graph::Node * p)
 
       Point tag_point(xp, yp);
 
-      tag_point +=  Point(tag_data.xoffset, tag_data.yoffset);
+      tag_point += Point(tag_data.xoffset, tag_data.yoffset);
 
       switch (tag_data.sense)
-	{
-	case NORTH:
-	  {
-	    tag_point += Polar_Point(VR(p), PI_2);
+        {
+        case NORTH:
+          {
+            tag_point += Polar_Point(VR(p), PI_2);
 
-	    put_in_plane(plane, Center_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Center_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case SOUTH:
-	  {
-	    tag_point += Polar_Point(VR(p), -PI_2);
+        case SOUTH:
+          {
+            tag_point += Polar_Point(VR(p), -PI_2);
 
-	    put_in_plane(plane, Center_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Center_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case EAST: 
-	  {
-	    tag_point += Polar_Point(HR(p), 0);
+        case EAST:
+          {
+            tag_point += Polar_Point(HR(p), 0);
 
-	    put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case WEST: 
-	  {
-	    tag_point += Polar_Point(HR(p), PI);
+        case WEST:
+          {
+            tag_point += Polar_Point(HR(p), PI);
 
-	    put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case NORTH_EAST:
-	  {
-	    tag_point += Polar_Point(pitag(HR(p), VR(p)), PI_4);
+        case NORTH_EAST:
+          {
+            tag_point += Polar_Point(pitag(HR(p), VR(p)), PI_4);
 
-	    put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case NORTH_WEST:
-	  {
-	    tag_point += Polar_Point(- pitag(HR(p), VR(p)), -PI_4);
+        case NORTH_WEST:
+          {
+            tag_point += Polar_Point(-pitag(HR(p), VR(p)), -PI_4);
 
-	    put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case SOUTH_EAST:
-	  {
-	    tag_point += Polar_Point(pitag(HR(p), VR(p)), -PI_4);
+        case SOUTH_EAST:
+          {
+            tag_point += Polar_Point(pitag(HR(p), VR(p)), -PI_4);
 
-	    put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Left_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	case SOUTH_WEST:
-	  {
-	    tag_point += Polar_Point(- pitag(HR(p), VR(p)), PI_4);
+        case SOUTH_WEST:
+          {
+            tag_point += Polar_Point(-pitag(HR(p), VR(p)), PI_4);
 
-	    put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
+            put_in_plane(plane, Right_Text(tag_point, tag_data.tag));
 
-	    break;
-	  }
+            break;
+          }
 
-	default:
-	  AH_ERROR("(internal) invalid tag sense option %ld", tag_data.sense);
-	}
+        default:
+          AH_ERROR("(internal) invalid tag sense option %ld", tag_data.sense);
+        }
     }
-
 }
 
 
-void process_node(Eepic_Plane & plane, Graph::Node * p)
+void process_node(Eepic_Plane & plane, Graph::Node *p)
 {
   if (draw_node_mode and not WITHOUT(p))
     {
       if (SHADOW(p))
-	put_in_plane(plane, Thick_Ellipse(Point(X(p), Y(p)), HR(p), VR(p)));
-      else 
-	put_in_plane(plane, Ellipse(Point(X(p), Y(p)), HR(p), VR(p)));
+        put_in_plane(plane, Thick_Ellipse(Point(X(p), Y(p)), HR(p), VR(p)));
+      else
+        put_in_plane(plane, Ellipse(Point(X(p), Y(p)), HR(p), VR(p)));
     }
 
   put_in_plane(plane, Center_Text(Point(X(p), Y(p)) + Point(XOFFSET(p), YOFFSET(p)),
@@ -1304,8 +1303,8 @@ void process_node(Eepic_Plane & plane, Graph::Node * p)
 }
 
 
-    void 
-process_text_arc(Eepic_Plane & plane, Graph::Arc * a, const Segment & arc_sg)
+void
+process_text_arc(Eepic_Plane & plane, Graph::Arc *a, const Segment & arc_sg)
 {
   const string & text = STRING_ARC(a);
 
@@ -1320,24 +1319,24 @@ process_text_arc(Eepic_Plane & plane, Graph::Arc * a, const Segment & arc_sg)
     {
     case Segment::E:
       {
-	const double ydiff = vr/2; 
+        const double ydiff = vr / 2;
 
-	const Point pos = Point(0, ydiff);
+        const Point pos = Point(0, ydiff);
 
-	put_in_plane(plane, Center_Text(mid_point + pos, text));
+        put_in_plane(plane, Center_Text(mid_point + pos, text));
 
-	break;
+        break;
       }
 
     case Segment::W:
       {
-	const double ydiff = 0.6*vr; 
+        const double ydiff = 0.6 * vr;
 
-	const Point pos = Point(0, -ydiff);
+        const Point pos = Point(0, -ydiff);
 
-	put_in_plane(plane, Center_Text(mid_point + pos, text));
+        put_in_plane(plane, Center_Text(mid_point + pos, text));
 
-	break;
+        break;
       }
 
     case Segment::N:
@@ -1355,13 +1354,13 @@ process_text_arc(Eepic_Plane & plane, Graph::Arc * a, const Segment & arc_sg)
     case Segment::NW:
     case Segment::SW:
       {
-	const double xdiff = vr/2; 
+        const double xdiff = vr / 2;
 
-	const Point pos = Point(xdiff, 0);
+        const Point pos = Point(xdiff, 0);
 
-	put_in_plane(plane, Left_Text(mid_point + pos, text));
+        put_in_plane(plane, Left_Text(mid_point + pos, text));
 
-	break;
+        break;
       }
 
     default: AH_ERROR("(Internal) invalid sense option");
@@ -1369,20 +1368,20 @@ process_text_arc(Eepic_Plane & plane, Graph::Arc * a, const Segment & arc_sg)
 }
 
 
-void process_text_arc(Eepic_Plane & plane, Graph::Arc * a, Polygon & trigon)
+void process_text_arc(Eepic_Plane & plane, Graph::Arc *a, Polygon & trigon)
 {
   if (STRING_ARC(a) == "")
     return;
 
-      // la idea es calcular un segmento paralelo al que conectaría los
-      // nodos y luego invocar a la rutina anterior sobre ese segmento
-      // paralelo 
+  // la idea es calcular un segmento paralelo al que conectaría los
+  // nodos y luego invocar a la rutina anterior sobre ese segmento
+  // paralelo
   const Vertex & first_vt = trigon.get_first_vertex();
 
-      // segmento que conectaría a los nodos si no hubiese un arco
+  // segmento que conectaría a los nodos si no hubiese un arco
   const Segment arc_sg(first_vt, trigon.get_last_vertex());
 
-      // punto por donde debe pasar el segmento paralelo
+  // punto por donde debe pasar el segmento paralelo
   const Point & second_pt = first_vt.next_vertex();
 
   const Geom_Number dist = second_pt.distance_with(arc_sg.mid_point());
@@ -1393,100 +1392,100 @@ void process_text_arc(Eepic_Plane & plane, Graph::Arc * a, Polygon & trigon)
 }
 
 
-void process_arc(Eepic_Plane & plane, Graph * g, Graph::Arc * a)
+void process_arc(Eepic_Plane & plane, Graph *g, Graph::Arc *a)
 {
-  Graph::Node * src_node = g->get_src_node(a);
-  Graph::Node * tgt_node = g->get_tgt_node(a);
+  Graph::Node *src_node = g->get_src_node(a);
+  Graph::Node *tgt_node = g->get_tgt_node(a);
 
   if (CURVE_ARC(a)) // ¿es el arco una curva?
     {
       Polygon poly = // determine el trio de puntos que la definen
-	arc_trigon(src_node, tgt_node, CURVE_MID(a), CURVE_LEFT(a));
+          arc_trigon(src_node, tgt_node, CURVE_MID(a), CURVE_LEFT(a));
 
       process_text_arc(plane, a, poly);
 
       if (g->is_digraph())
-	{
-	  if (SHADOW_ARC(a))
-	    {
-	      if (DASHED_ARC(a))
-		put_in_plane(plane, Thick_Dash_Polygon_With_Arrow(poly));
-	      else
-		put_in_plane(plane, Thick_Spline_Arrow(poly));
-	    }
-	  else
-	    {
-	      if (DASHED_ARC(a))
-		put_in_plane(plane, Dash_Polygon_With_Arrow(poly));
-	      else
-		put_in_plane(plane, Spline_Arrow(poly));
-	    }
-	}
+        {
+          if (SHADOW_ARC(a))
+            {
+              if (DASHED_ARC(a))
+                put_in_plane(plane, Thick_Dash_Polygon_With_Arrow(poly));
+              else
+                put_in_plane(plane, Thick_Spline_Arrow(poly));
+            }
+          else
+            {
+              if (DASHED_ARC(a))
+                put_in_plane(plane, Dash_Polygon_With_Arrow(poly));
+              else
+                put_in_plane(plane, Spline_Arrow(poly));
+            }
+        }
       else
-	{
-	  if (SHADOW_ARC(a))
-	    {
-	      if (DASHED_ARC(a))
-		put_in_plane(plane, Thick_Dash_Polygon(poly));
-	      else
-		put_in_plane(plane, Thick_Spline(poly));
-	    }
-	  else
-	    {
-	      if (DASHED_ARC(a))
-		put_in_plane(plane, Dash_Polygon(poly));
-	      else
-		put_in_plane(plane, Spline(poly));
-	    }
-	}
+        {
+          if (SHADOW_ARC(a))
+            {
+              if (DASHED_ARC(a))
+                put_in_plane(plane, Thick_Dash_Polygon(poly));
+              else
+                put_in_plane(plane, Thick_Spline(poly));
+            }
+          else
+            {
+              if (DASHED_ARC(a))
+                put_in_plane(plane, Dash_Polygon(poly));
+              else
+                put_in_plane(plane, Spline(poly));
+            }
+        }
 
       return;
     }
-      
+
   const Segment sg = arc_segment(src_node, tgt_node);
 
   process_text_arc(plane, a, sg);
-      
+
   if (g->is_digraph())
     {
       if (SHADOW_ARC(a))
-	{
-	  if (DASHED_ARC(a))
-	    put_in_plane(plane, Thick_Dash_Arrow(sg));
-	  else
-	    put_in_plane(plane, Thick_Arrow(sg));
-	}
+        {
+          if (DASHED_ARC(a))
+            put_in_plane(plane, Thick_Dash_Arrow(sg));
+          else
+            put_in_plane(plane, Thick_Arrow(sg));
+        }
       else
-	{
-	  if (DASHED_ARC(a))
-	    put_in_plane(plane, Dash_Arrow(sg));
-	  else
-	    put_in_plane(plane, Arrow(sg));
-	}
+        {
+          if (DASHED_ARC(a))
+            put_in_plane(plane, Dash_Arrow(sg));
+          else
+            put_in_plane(plane, Arrow(sg));
+        }
     }
   else
     {
       if (SHADOW_ARC(a))
-	{
-	  if (DASHED_ARC(a))
-	    put_in_plane(plane, Thick_Dash_Segment(sg));
-	  else
-	    put_in_plane(plane, Thick_Segment(sg));
-	}
+        {
+          if (DASHED_ARC(a))
+            put_in_plane(plane, Thick_Dash_Segment(sg));
+          else
+            put_in_plane(plane, Thick_Segment(sg));
+        }
       else
-	{
-	  if (DASHED_ARC(a))
-	    put_in_plane(plane, Dash_Segment(sg));
-	  else
-	    put_in_plane(plane, sg);
-	}
+        {
+          if (DASHED_ARC(a))
+            put_in_plane(plane, Dash_Segment(sg));
+          else
+            put_in_plane(plane, sg);
+        }
     }
 }
 
 
-void generate_picture(ofstream & output, Graph * g)
+void generate_picture(ofstream & output, Graph *g)
 {
-  Eepic_Plane plane(h_size, v_size, x_picture_offset, y_picture_offset); 
+  Eepic_Plane plane(h_size, v_size, x_picture_offset, y_picture_offset);
 
   for (Graph::Node_Iterator it(*g); it.has_curr(); it.next())
     process_node(plane, it.get_current_node());
@@ -1500,16 +1499,16 @@ void generate_picture(ofstream & output, Graph * g)
 }
 
 
-void generate_epilogue(ofstream & output)  
+void generate_epilogue(ofstream & output)
 {
   if (latex_header)
     output << endl
-	   << "\\end{center}" << endl
-	   << "\\end{document}" << endl;
+        << "\\end{center}" << endl
+        << "\\end{document}" << endl;
 }
 
 
-void generate_graph(Graph * g, ofstream & output)
+void generate_graph(Graph *g, ofstream & output)
 {
   generate_prologue(output);
 
@@ -1519,308 +1518,189 @@ void generate_graph(Graph * g, ofstream & output)
 }
 
 
-const char *argp_program_version = 
-"graphpic 1.0b\n"
-"ALEPH drawer for graphs\n"
-"Copyright (C) 2007 UNIVERSITY of LOS ANDES (ULA)\n"
-"Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n";
-
-const char *argp_program_bug_address = "lrleon@ula.ve";
-
-static char doc[] = "graphpic -- Aleph drawer for graphs";
-
-static char argDoc[] = "-f input-file [-o output-file]\n";
-
-static const char license_text [] = 
-"Aleph drawer for graphs. License & Copyright Note\n"
-"Copyright (C) 2007\n"
-"UNIVERSITY of LOS ANDES (ULA)\n"
-"Merida - VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n"
-"  PERMISSION TO USE, COPY, MODIFY AND DISTRIBUTE THIS SOFTWARE AND ITS \n"
-"  DOCUMENTATION IS HEREBY GRANTED, PROVIDED THAT BOTH THE COPYRIGHT \n"
-"  NOTICE AND THIS PERMISSION NOTICE APPEAR IN ALL COPIES OF THE \n"
-"  SOFTWARE, DERIVATIVE WORKS OR MODIFIED VERSIONS, AND ANY PORTIONS \n"
-"  THEREOF, AND THAT BOTH NOTICES APPEAR IN SUPPORTING DOCUMENTATION. \n"
-"\n"
-"  This program is distributed in the hope that it will be useful,\n"
-"  but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
-"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. \n"
-"\n"
-"  ULA requests users of this software to return to \n"
-"      Proyecto Aleph - CEMISID Software\n"
-"      Nucleo Universitario La Hechicera. Ed Ingenieria\n"
-"      3er piso, ala Este \n"
-"      Universidad de Los Andes \n"
-"      Merida 5101 - REPUBLICA BOLIVARIANA DE VENEZUELA \n"
-"\n"
-"  or to 	lrleon@ula.ve \n"
-"\n"
-"  any improvements or extensions that they make and grant Universidad \n"
-"  de Los Andes (ULA) the full rights to redistribute these changes. \n"
-"\n"
-" This program was granted by: \n"
-" - Consejo de Desarrollo Cientifico, Humanistico, Tecnico de la ULA\n"
-"  (CDCHT)\n";
-
-
-static struct argp_option options [] = {
-  {"radius", 'r', "radius", OPTION_ARG_OPTIONAL, "fit radius for circles", 0},
-  {"h-rad", 'x', "hor-radius", OPTION_ARG_OPTIONAL, "horizontal radius", 0},
-  {"width", 'W', "picture-width", OPTION_ARG_OPTIONAL, "picture width", 0},
-  {"height", 'H', "picture-height", OPTION_ARG_OPTIONAL, "picture height", 0},
-  {"v-radius", 'y', "vert-radius", OPTION_ARG_OPTIONAL, "vertical  radius", 0},
-  {"resol", 'l', "resolution", OPTION_ARG_OPTIONAL, "resolution in mm", 0},
-  {"latex", 'a', 0, OPTION_ARG_OPTIONAL, "add latex header", 0},
-  {"without-node", 'N', 0, OPTION_ARG_OPTIONAL, "no draw nodes", 0},
-  {"key-x-offset",'X',"offset", OPTION_ARG_OPTIONAL,"horizontal key offset", 0},
-  {"key-y-offset",'Y', "offset", OPTION_ARG_OPTIONAL, "vertical key offset", 0},
-  {"input-file", 'i', "input-file", 0, "input file", 0},
-  {"input-file", 'f', "input-file", OPTION_ALIAS, 0, 0},
-  {"output", 'o', "output-file", 0, "output file", 0},
-  {"license", 'C', 0, OPTION_ARG_OPTIONAL, "print license", 0},
-  {"x-pic-offset",'O',"x-pic-offset",OPTION_ARG_OPTIONAL,"x picture offset",0},
-  {"y-pic-offset",'P',"y-pic-offset",OPTION_ARG_OPTIONAL,"y picture offset", 0},
-  {"print", 'R', 0, OPTION_ARG_OPTIONAL, "print current parameters", 0},
-  {"tiny-keys", 't', 0, OPTION_ARG_OPTIONAL, "with tiny keys", 0},
-  {"version", 'V', 0, OPTION_ARG_OPTIONAL, "Print version information", 0},
-  {"squarize", 'S', 0, OPTION_ARG_OPTIONAL, "fits picture without scalate", 0},
-  {"zoom", 'Z', "zoom-factor", OPTION_ARG_OPTIONAL, "zoom picture", 0},
-  { 0, 0, 0, 0, 0, 0 } 
-}; 
-
-static const char * hello = 
-"ALEPH drawer of graphs\n"
-"Copyright (C) 2007 University of Los Andes (ULA)\n"
-"Merida - REPUBLICA BOLIVARIANA DE VENEZUELA\n"
-"Center of Studies in Microelectronics & Distributed Systems (CEMISID)\n"
-"ULA Computer Science Department\n"
-"This is free software; There is NO warranty; not even for MERCHANTABILITY\n"
-"or FITNESS FOR A PARTICULAR PURPOSE\n"
-"\n";
-
-
-static error_t parser_opt(int key, char *arg, struct argp_state *)
+int main(int argc, char *argv[])
 {
-  switch (key)
+  try
+  {
+    TCLAP::CmdLine cmd(
+      "graphpic - Aleph-w graph visualization tool.\n"
+      "Generates LaTeX/eepic pictures from graph DSL specifications.\n"
+      "Copyright (C) 2007-2024 University of Los Andes (ULA)",
+      ' ', "1.1"
+    );
+
+    // Input/output files
+    TCLAP::ValueArg<string> inputArg(
+      "f", "file", "Input graph specification file (required unless -R)", false, "", "file", cmd
+    );
+    TCLAP::ValueArg<string> outputArg(
+      "o", "output", "Output eepic file (default: input.eepic)", false, "", "file", cmd
+    );
+
+    // Node geometry
+    TCLAP::ValueArg<double> radiusArg(
+      "r", "radius", "Fit radius for circles (sets both hr and vr)", false, 8, "radius", cmd
+    );
+    TCLAP::ValueArg<double> hRadiusArg(
+      "x", "h-radius", "Horizontal radius of node ellipse", false, 8, "radius", cmd
+    );
+    TCLAP::ValueArg<double> vRadiusArg(
+      "y", "v-radius", "Vertical radius of node ellipse", false, 8, "radius", cmd
+    );
+
+    // Picture dimensions
+    TCLAP::ValueArg<double> widthArg(
+      "W", "width", "Picture width", false, 3000, "size", cmd
+    );
+    TCLAP::ValueArg<double> heightArg(
+      "H", "height", "Picture height", false, 3000, "size", cmd
+    );
+    TCLAP::ValueArg<double> zoomArg(
+      "Z", "zoom", "Zoom factor", false, 1.0, "factor", cmd
+    );
+    TCLAP::ValueArg<double> resolArg(
+      "l", "resolution", "Resolution in mm", false, resolution, "mm", cmd
+    );
+
+    // Offsets
+    TCLAP::ValueArg<double> xOffsetArg(
+      "X", "key-x-offset", "Horizontal key offset", false, 0, "offset", cmd
+    );
+    TCLAP::ValueArg<double> yOffsetArg(
+      "Y", "key-y-offset", "Vertical key offset", false, 0, "offset", cmd
+    );
+    TCLAP::ValueArg<double> xPicOffsetArg(
+      "O", "x-pic-offset", "X picture offset", false, 0, "offset", cmd
+    );
+    TCLAP::ValueArg<double> yPicOffsetArg(
+      "P", "y-pic-offset", "Y picture offset", false, 0, "offset", cmd
+    );
+
+    // Switches
+    TCLAP::SwitchArg latexArg(
+      "a", "latex", "Add LaTeX document header", cmd, false
+    );
+    TCLAP::SwitchArg noNodesArg(
+      "N", "no-nodes", "Do not draw node ellipses", cmd, false
+    );
+    TCLAP::SwitchArg noSquareArg(
+      "S", "no-squarize", "Do not auto-fit picture scale", cmd, false
+    );
+    TCLAP::SwitchArg tinyKeysArg(
+      "t", "tiny-keys", "Use tiny keys", cmd, false
+    );
+    TCLAP::SwitchArg printParamsArg(
+      "R", "print-params", "Print current parameters and exit", cmd, false
+    );
+
+    cmd.parse(argc, argv);
+
+    // Store command line for prologue
+    command_line = command_line_to_string(argc, argv);
+
+    // Read saved parameters
+    read_parameters();
+
+    // Print parameters and exit if requested
+    if (printParamsArg.getValue())
     {
-    case 'r': /* Especificacion de radio */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for radius in command line");
-
-      hr = vr = atof(arg); hd = vd = 2*hr;
-
-      break;
-
-    case 'x': /* radio horizontal de elipse */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for horizontal radius in command line");
-      
-      hr = atof(arg); hd = 2*hr;
-
-      break;
-
-    case 'y': /* radio vertical de elipse */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for vertical radius in command line");
-
-      vr = atof(arg); vd = 2*vr;
-
-      break;
-
-    case 'Z': /* radio horizontal de elipse */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for picture width in command line");
-      
-      zoom_factor = atof(arg);
-
-      break;
-
-    case 'W': /* radio horizontal de elipse */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for picture width in command line");
-      
-      h_size = atof(arg);
-
-      break;
-
-    case 'H': /* radio horizontal de elipse */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for picture height in command line");
-
-      v_size = atof(arg);
-
-      break;
-
-    case 'l': /* resolucion en milimetros */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for resolution in command line");
-
-      resolution =  atof(arg);
-
-      if (resolution > 10)
-	cout << "Warning: resolution too big" << endl;
-
-      break;
-
-    case 'a': /* colocar un encabezado latex */
-      latex_header = true;
-
-      break;
-
-    case 'N':
-      draw_node_mode = false;
-      break;
-
-    case 'S':
-      squarize = false;
-      break;
-
-    case 'u':
-      if (arg == nullptr)
-	AH_ERROR("Waiting for vertical size in command line");
-
-      v_size = atof(arg);
-
-      break;
-
-    case 'n': /* coloca el radio minimo */
-      hr = vr = resolution/2; hd = vd = resolution;  
-
-      break;
-
-    case 'X': /* offset horizontal para letras */ 
-      if (arg == nullptr)
-	AH_ERROR("Waiting for horizontal offset in command line");
-
-      x_offset = atof(arg);
-
-      break;
-
-    case 'Y': /* offset vertical para letras */ 
-      if (arg == nullptr)
-	AH_ERROR("Waiting for vertical offset in command line");
-
-      y_offset = atof(arg);
-      
-      break;
-    case 'O': /* offset horizontal para dibujo */ 
-      if (arg == nullptr)
-	AH_ERROR("Waiting for horizontal offset in command line");
-
-      x_picture_offset = atof(arg);
-
-      break;
-
-    case 'P': /* offset horizontal para dibujo */ 
-      if (arg == nullptr)
-	AH_ERROR("Waiting for vertical offset in command line");
-
-      y_picture_offset = atof(arg);
-
-      break;
-
-    case 'v': /* verbose mode (no implementado) */ 
-      break;
-
-    case 'i': /* archivo de entrada */
-    case 'f':
-      {
-	if (arg == nullptr)
-	  AH_ERROR("Waiting for input file name");
-
-	input_file_name  = arg;
-	int pos = input_file_name.rfind(".");
-
-	if (pos == string::npos)
-	  output_file_name = input_file_name + ".eepic";
-	else
-	  output_file_name = 
-	    string(input_file_name).replace(pos, input_file_name.size() - pos, 
-					    string(".eepic"));
-
-	break;
-      }
-    case 'o': /* archivo de salida */
-      if (arg == nullptr)
-	AH_ERROR("Waiting for output file name");
-
-      output_file_name = arg;
-
-      break;
-
-    case 'C': /* imprime licencia */ 
-      cout << license_text;
-      TERMINATE(0);
-
-      break;
-
-    case 't': 
-      tiny_keys = true;
-      break;
-
-    case 'R': /* imprime parametros */ 
       print_parameters();
       save_parameters();
-      TERMINATE(0);
-
-      break;
-
-    case 'V': /* imprimir version */ 
-      cout << argp_program_version;
-      TERMINATE(0);
-
-      break;
-      
-    default: return ARGP_ERR_UNKNOWN;
+      return 0;
     }
 
-  return 0;
-}
+    // Validate input file is provided when not just printing params
+    if (not inputArg.isSet())
+      AH_ERROR("Input file (-f) is required");
 
+    // Apply command line values (override saved parameters)
+    if (radiusArg.isSet())
+    {
+      hr = vr = radiusArg.getValue();
+      hd = vd = 2 * hr;
+    }
+    if (hRadiusArg.isSet())
+    {
+      hr = hRadiusArg.getValue();
+      hd = 2 * hr;
+    }
+    if (vRadiusArg.isSet())
+    {
+      vr = vRadiusArg.getValue();
+      vd = 2 * vr;
+    }
+    if (widthArg.isSet())
+      h_size = widthArg.getValue();
+    if (heightArg.isSet())
+      v_size = heightArg.getValue();
+    if (zoomArg.isSet())
+      zoom_factor = zoomArg.getValue();
+    if (resolArg.isSet())
+    {
+      resolution = resolArg.getValue();
+      if (resolution > 10)
+        cout << "Warning: resolution too big" << endl;
+    }
+    if (xOffsetArg.isSet())
+      x_offset = xOffsetArg.getValue();
+    if (yOffsetArg.isSet())
+      y_offset = yOffsetArg.getValue();
+    if (xPicOffsetArg.isSet())
+      x_picture_offset = xPicOffsetArg.getValue();
+    if (yPicOffsetArg.isSet())
+      y_picture_offset = yPicOffsetArg.getValue();
 
-static struct argp arg_defs = { options, parser_opt, argDoc, doc, 0, 0, 0 }; 
+    latex_header = latexArg.getValue();
+    draw_node_mode = not noNodesArg.getValue();
+    squarize = not noSquareArg.getValue();
+    tiny_keys = tinyKeysArg.getValue();
 
+    // Process input/output files
+    input_file_name = inputArg.getValue();
 
-int main(int argc, char *argv[]) 
-{
-  command_line = command_line_to_string(argc, argv);
+    if (outputArg.isSet())
+      output_file_name = outputArg.getValue();
+    else
+    {
+      size_t pos = input_file_name.rfind(".");
+      if (pos == string::npos)
+        output_file_name = input_file_name + ".eepic";
+      else
+        output_file_name = input_file_name.substr(0, pos) + ".eepic";
+    }
 
-  read_parameters();
+    // Open input file
+    ifstream input_stream(input_file_name.c_str());
+    if (not input_stream)
+      AH_ERROR("%s file does not exist", input_file_name.c_str());
 
-  argp_parse(&arg_defs, argc, argv, ARGP_IN_ORDER, 0, nullptr);
+    cout << "graphpic - Aleph-w graph visualization tool\n";
+    cout << "Input:  " << input_file_name << endl;
+    cout << "Output: " << output_file_name << endl << endl;
 
-  if (input_file_name.size() == 0)
-    AH_ERROR("Input file not given");
+    // Open output file
+    ofstream output_stream(output_file_name.c_str(), ios::out);
+    if (not output_stream)
+      AH_ERROR("Cannot create output file %s", output_file_name.c_str());
 
-  ifstream input_stream(input_file_name.c_str());
+    // Process graph
+    Graph *g = read_input_and_build_graph(input_stream);
+    generate_graph(g, output_stream);
 
-  if (not input_stream)
-    AH_ERROR("%s file does not exist", input_file_name.c_str());
+    save_parameters();
 
-  cout << hello;
+    delete g;
 
-  cout << "input from " << input_file_name << " file " << endl;
-
-  if (output_file_name.size() == 0)
-    AH_ERROR("Output file not given");
-
-  ofstream output_stream(output_file_name.c_str(), ios::out);
-
-  cout << "output sent to " << output_file_name << " file " << endl << endl;
-
-  Graph * g = read_input_and_build_graph(input_stream);
-
-  generate_graph(g, output_stream);
-  
-  save_parameters();
+    return 0;
+  }
+  catch (TCLAP::ArgException & e)
+  {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+  catch (exception & e)
+  {
+    cerr << "Error: " << e.what() << endl;
+    return 1;
+  }
 }

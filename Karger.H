@@ -82,6 +82,71 @@ namespace Aleph
       @note For disconnected graphs, the minimum cut is 0 (trivially).
       @note The graph must have at least 2 nodes and 1 arc.
 
+      @par Example: Finding minimum cut
+      @code
+      using GT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+      GT g;
+      
+      // Create a simple graph with known min-cut
+      auto a = g.insert_node(1);
+      auto b = g.insert_node(2);
+      auto c = g.insert_node(3);
+      auto d = g.insert_node(4);
+      
+      // Dense left cluster
+      g.insert_arc(a, b);
+      g.insert_arc(b, a);
+      
+      // Dense right cluster  
+      g.insert_arc(c, d);
+      g.insert_arc(d, c);
+      
+      // Bridge (min-cut)
+      g.insert_arc(b, c);
+      
+      // Find minimum cut
+      Karger_Min_Cut<GT> karger;
+      DynList<GT::Node*> S, T;
+      DynList<GT::Arc*> cut_arcs;
+      
+      size_t min_cut_size = karger(g, S, T, cut_arcs);
+      // min_cut_size will be 1 (the bridge)
+      // S contains {a, b}, T contains {c, d}
+      @endcode
+
+      @par Example: Multiple iterations for better probability
+      @code
+      Karger_Min_Cut<GT> karger(12345); // Seed for reproducibility
+      
+      size_t best_cut = numeric_limits<size_t>::max();
+      DynList<GT::Node*> best_S, best_T;
+      
+      // Run multiple iterations
+      for (int i = 0; i < 10; ++i)
+      {
+        DynList<GT::Node*> S, T;
+        DynList<GT::Arc*> cut_arcs;
+        size_t cut_size = karger(g, S, T, cut_arcs);
+        
+        if (cut_size < best_cut)
+        {
+          best_cut = cut_size;
+          best_S = S;
+          best_T = T;
+        }
+      }
+      @endcode
+
+      @par Example: Using fast Karger-Stein algorithm
+      @code
+      Karger_Min_Cut<GT> karger;
+      DynList<GT::Node*> S, T;
+      DynList<GT::Arc*> cut_arcs;
+      
+      // Fast version: O(n^2 log^3 n)
+      size_t cut_size = karger.fast(g, S, T, cut_arcs);
+      @endcode
+
       @see https://en.wikipedia.org/wiki/Karger%27s_algorithm
       @ingroup Graphs
    */

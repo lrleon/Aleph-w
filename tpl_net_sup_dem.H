@@ -38,17 +38,16 @@
  *  - **Demand node**: A node with negative supply_flow that consumes flow
  *  - **Feasibility**: Whether all demands can be satisfied from supplies
  *
- *  ## Usage Example
- *
- *  ```cpp
- *  using NetSD = Net_Sup_Dem_Graph<Net_Sup_Dem_Node<std::string, int>,
+ *  @par Example: Basic supply-demand network
+ *  @code
+ *  using NetSD = Net_Sup_Dem_Graph<Net_Sup_Dem_Node<string, int>,
  *                                   Net_Arc<Empty_Class, int>>;
  *  NetSD net;
  *
  *  // Create nodes with supply/demand values
- *  auto* supplier = net.insert_node("Factory", 100);   // supplies 100 units
- *  auto* consumer = net.insert_node("Customer", -50);  // demands 50 units
- *  auto* transit  = net.insert_node("Warehouse", 0);   // transit node
+ *  auto supplier = net.insert_node("Factory", 100);   // supplies 100 units
+ *  auto consumer = net.insert_node("Customer", -50);  // demands 50 units
+ *  auto transit  = net.insert_node("Warehouse", 0);   // transit node
  *
  *  // Connect nodes with arcs (capacity)
  *  net.insert_arc(supplier, transit, 80);
@@ -56,10 +55,31 @@
  *
  *  // Compute auxiliary network and check feasibility
  *  net.compute_aux_net();
- *  // ... run max-flow algorithm ...
  *  if (net.is_feasible())
- *    std::cout << "All demands can be satisfied!\n";
- *  ```
+ *    cout << "All demands can be satisfied!\n";
+ *  @endcode
+ *
+ *  @par Example: Multi-source multi-sink network
+ *  @code
+ *  NetSD distribution_net;
+ *  
+ *  // Multiple suppliers
+ *  auto warehouse1 = distribution_net.insert_node("WH1", 200);
+ *  auto warehouse2 = distribution_net.insert_node("WH2", 150);
+ *  
+ *  // Multiple consumers
+ *  auto store1 = distribution_net.insert_node("Store1", -120);
+ *  auto store2 = distribution_net.insert_node("Store2", -180);
+ *  
+ *  // Distribution hub
+ *  auto hub = distribution_net.insert_node("Hub", 0);
+ *  
+ *  // Connect with capacities
+ *  distribution_net.insert_arc(warehouse1, hub, 150);
+ *  distribution_net.insert_arc(warehouse2, hub, 120);
+ *  distribution_net.insert_arc(hub, store1, 120);
+ *  distribution_net.insert_arc(hub, store2, 180);
+ *  @endcode
  *
  *  @see tpl_net.H Base network flow classes
  *  @see tpl_netcapgraph.H Capacity graph algorithms

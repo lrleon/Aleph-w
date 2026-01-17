@@ -91,15 +91,15 @@
  */
 struct LFit
 {
-  mutable double c = 0;       ///< Y-intercept of fitted line
-  mutable double m = 1;       ///< Slope of fitted line
-  mutable double cov00 = 0;   ///< Covariance matrix element (0,0)
-  mutable double cov01 = 0;   ///< Covariance matrix element (0,1)
-  mutable double cov11 = 0;   ///< Covariance matrix element (1,1)
-  mutable double sumsq = 0;   ///< Sum of squared residuals
-  mutable double r2 = 0;      ///< Coefficient of determination
-  mutable double sigma = 0;   ///< Standard deviation of errors
-  mutable double mse = 0;     ///< Mean squared error
+  mutable double c = 0; ///< Y-intercept of fitted line
+  mutable double m = 1; ///< Slope of fitted line
+  mutable double cov00 = 0; ///< Covariance matrix element (0,0)
+  mutable double cov01 = 0; ///< Covariance matrix element (0,1)
+  mutable double cov11 = 0; ///< Covariance matrix element (1,1)
+  mutable double sumsq = 0; ///< Sum of squared residuals
+  mutable double r2 = 0; ///< Coefficient of determination
+  mutable double sigma = 0; ///< Standard deviation of errors
+  mutable double mse = 0; ///< Mean squared error
 
   /**
    * @brief Output stream operator for fit results.
@@ -108,14 +108,14 @@ struct LFit
    * @param f LFit object to output
    * @return Reference to output stream
    */
-  friend ostream & operator << (ostream & out, const LFit & f)
+  friend std::ostream &operator <<(std::ostream & out, const LFit & f)
   {
     return out << "r2 = " << f.r2 << std::endl
-	       << "sumsq = " << f.sumsq << std::endl
-	       << "sigma = " << f.sigma << std::endl
-	       << "mse   = " << f.mse << std::endl
-	       << "c     = " << f.c << std::endl
-	       << "m     = " << f.m << std::endl;
+           << "sumsq = " << f.sumsq << std::endl
+           << "sigma = " << f.sigma << std::endl
+           << "mse   = " << f.mse << std::endl
+           << "c     = " << f.c << std::endl
+           << "m     = " << f.m << std::endl;
   }
 
   /// Default constructor creates an identity fit (y = x)
@@ -150,9 +150,9 @@ struct LFit
       ALEPHTHROW(SizeMismatch, "arrays have length = 1");
 
     gsl_fit_linear(&x.base(), 1, &y.base(), 1, y.size(), &c, &m,
-		   &cov00, &cov01, &cov11, &sumsq);
+                   &cov00, &cov01, &cov11, &sumsq);
 
-    auto pearson_corr = gsl_stats_correlation(&x.base(), 1, &y.base(), 1, n);
+    const auto pearson_corr = gsl_stats_correlation(&x.base(), 1, &y.base(), 1, n);
     r2 = pow2(pearson_corr);
     if (not is_normal_number(r2))
       r2 = 1;
@@ -161,20 +161,20 @@ struct LFit
     Array<double> error;
     for (auto it = zip_it(x, y); it.has_curr(); it.next_ne())
       {
-	auto t = it.get_curr();
-	auto diff = get<0>(t) - get<1>(t);
-	auto e = fabs(diff);
-	error.append(e);
-	sum_sigma += e;
-	sum_mse += pow2(diff);
+        auto t = it.get_curr();
+        const auto diff = get<0>(t) - get<1>(t);
+        auto e = fabs(diff);
+        error.append(e);
+        sum_sigma += e;
+        sum_mse += pow2(diff);
       }
 
-    sigma = sqrt(error.foldl<double>(0.0, [ym = sum_sigma/n] (auto acu, auto y)
-      {
-	return acu + pow2(y - ym);
-      }) / n);
+    sigma = sqrt(error.foldl<double>(0.0, [ym = sum_sigma / n](auto acu, auto y)
+                                       {
+                                         return acu + pow2(y - ym);
+                                       }) / n);
 
-    mse = sqrt(sum_mse/n);
+    mse = sqrt(sum_mse / n);
   }
 
   /**
@@ -193,14 +193,13 @@ struct LFit
    * // y ± err is the predicted range
    * @endcode
    */
-  pair<double, double> predict(double x) const noexcept
+  std::pair<double, double> predict(double x) const noexcept
   {
     double y = 0, y_err = 0;
     gsl_fit_linear_est(x, c, m, cov00, cov01, cov11, &y, &y_err);
     return std::make_pair(y, y_err);
   }
 };
-
 
 
 # endif

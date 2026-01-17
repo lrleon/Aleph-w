@@ -25,7 +25,38 @@
 */
 
 /** @file tpl_kgraph.H
- *  @brief K-connected graph structures.
+ *  @brief K-connected graph structures and connectivity algorithms.
+ *
+ *  @par Example: Computing edge connectivity
+ *  @code
+ *  using GT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+ *  GT network;
+ *  
+ *  // Create nodes
+ *  auto a = network.insert_node(1);
+ *  auto b = network.insert_node(2);
+ *  auto c = network.insert_node(3);
+ *  auto d = network.insert_node(4);
+ *  
+ *  // 2-connected: requires removing 2 edges to disconnect
+ *  network.insert_arc(a, b);
+ *  network.insert_arc(b, c);
+ *  network.insert_arc(c, d);
+ *  network.insert_arc(d, a);
+ *  network.insert_arc(a, c); // diagonal
+ *  
+ *  long k = edge_connectivity(network);
+ *  cout << "Edge connectivity: " << k << endl; // k = 2
+ *  @endcode
+ *
+ *  @par Example: Network reliability
+ *  @code
+ *  // Higher k = more fault-tolerant network
+ *  // k=1: single point of failure (bridge exists)
+ *  // k=2: can survive one edge failure
+ *  // k=3: can survive two edge failures
+ *  @endcode
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */

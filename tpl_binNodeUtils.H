@@ -606,8 +606,8 @@ namespace Aleph
     if (t1 == Node::NullPtr or t2 == Node::NullPtr)
       return false;
 
-    return (areSimilar(LLINK(t1), LLINK(t2)) and
-            areSimilar(RLINK(t1), RLINK(t2)));
+    return areSimilar(LLINK(t1), LLINK(t2)) and
+           areSimilar(RLINK(t1), RLINK(t2));
   }
 
   /** Return `true` if trees are equivalents
@@ -634,8 +634,8 @@ namespace Aleph
     if (not op(KEY(t1), KEY(t2)))
       return false;
 
-    return (areEquivalents(LLINK(t1), LLINK(t2), op) and
-            areEquivalents(RLINK(t1), RLINK(t2), op));
+    return areEquivalents(LLINK(t1), LLINK(t2), op) and
+           areEquivalents(RLINK(t1), RLINK(t2), op);
   }
 
   /// \overload areEquivalents(Node * t1, Node * t2, Equal & op)

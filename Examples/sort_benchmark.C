@@ -187,6 +187,7 @@
 #include <tclap/CmdLine.h>
 
 #include <tpl_dynArray.H>
+#include <tpl_array.H>
 #include <tpl_dynDlist.H>
 #include <htlist.H>
 #include <tpl_sort_utils.H>
@@ -317,6 +318,14 @@ void to_dyndlist(const DynArray<T>& arr, DynDlist<T>& list)
     list.append(arr(i));
 }
 
+template <typename T>
+void to_array(const DynArray<T>& src, Array<T>& dst)
+{
+  dst.empty();
+  for (size_t i = 0; i < src.size(); ++i)
+    dst.append(src(i));
+}
+
 // =============================================================================
 // Output formatting
 // =============================================================================
@@ -408,6 +417,40 @@ void benchmark_array_algorithms(const BenchmarkConfig& config,
       print_result("Bubble Sort", dist_name, "DynArray", timer.elapsed_ms(), is_sorted(arr));
     }
   }
+}
+
+// =============================================================================
+// Contiguous Array benchmarks (Array<T>)
+// =============================================================================
+
+void benchmark_contiguous_array(const BenchmarkConfig& config,
+                                 const string& dist_name,
+                                 const DynArray<int>& source_data)
+{
+  (void)config;  // Currently unused
+  Timer timer;
+  Array<int> arr;
+
+  // Array<T> uses contiguous memory - faster than DynArray's segmented blocks
+  // Introsort with STL-style pointer interface achieves best cache locality
+
+  // Introsort on Array<T> - using container interface
+  to_array(source_data, arr);
+  timer.start();
+  introsort(arr);
+  print_result("Introsort", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
+
+  // Introsort with STL-style pointer interface (begin/end)
+  to_array(source_data, arr);
+  timer.start();
+  introsort(&arr(0), &arr(0) + arr.size());
+  print_result("Intro(ptr)", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
+
+  // Heapsort on Array<T> - contiguous memory allows optimal heap operations
+  to_array(source_data, arr);
+  timer.start();
+  faster_heapsort(&arr(0), arr.size());
+  print_result("Heapsort", dist_name, "Array", timer.elapsed_ms(), is_sorted(arr));
 }
 
 // =============================================================================
@@ -503,13 +546,16 @@ void run_benchmarks(const BenchmarkConfig& config)
   {
     // Generate data for this distribution
     (gen.*(dist.generator))(data, config.num_elements);
-    
+
     if (config.test_arrays)
+    {
       benchmark_array_algorithms(config, dist.name, data);
-    
+      benchmark_contiguous_array(config, dist.name, data);
+    }
+
     if (config.test_lists)
       benchmark_list_algorithms(config, dist.name, data);
-    
+
     print_separator();
   }
   
@@ -533,15 +579,16 @@ void demonstrate_complexity(const BenchmarkConfig& base_config)
   DataGenerator gen(base_config.seed);
   DynArray<int> data;
   DynArray<int> arr;
+  Array<int> carr;   // Contiguous array
   DynList<int> list;
   Timer timer;
-  
+
   size_t sizes[] = {1000, 2000, 4000, 8000, 16000, 32000};
-  
+
   cout << setw(10) << "Size"
        << setw(15) << "Introsort"
+       << setw(15) << "Intro(Array)"
        << setw(15) << "Quicksort"
-       << setw(15) << "Heapsort"
        << setw(15) << "Merge (list)"
        << endl;
   cout << string(70, '-') << endl;
@@ -557,16 +604,16 @@ void demonstrate_complexity(const BenchmarkConfig& base_config)
     introsort(arr);
     cout << setw(15) << fixed << setprecision(2) << timer.elapsed_ms();
 
+    // Introsort (Array<T> - contiguous memory)
+    to_array(data, carr);
+    timer.start();
+    introsort(carr);
+    cout << setw(15) << timer.elapsed_ms();
+
     // Quicksort (DynArray)
     arr = data;
     timer.start();
     quicksort_op(arr);
-    cout << setw(15) << timer.elapsed_ms();
-
-    // Heapsort (DynArray)
-    arr = data;
-    timer.start();
-    heapsort(arr);
     cout << setw(15) << timer.elapsed_ms();
 
     // Merge Sort (DynList)
@@ -577,8 +624,9 @@ void demonstrate_complexity(const BenchmarkConfig& base_config)
 
     cout << endl;
   }
-  
-  cout << "\nAll algorithms use Aleph-w containers and sorting functions.\n";
+
+  cout << "\nIntrosort = quicksort + heapsort fallback + insertion sort for small.\n";
+  cout << "Array uses contiguous memory, DynArray uses segmented blocks.\n";
 }
 
 // =============================================================================

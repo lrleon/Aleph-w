@@ -62,6 +62,36 @@
  *  The LP formulation has O(K*E) variables and O(K*V + E) constraints.
  *  Solution time depends on the LP solver used.
  *
+ *  @par Example: Two-commodity flow network
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT network;
+ *  
+ *  auto s1 = network.insert_node("Source1");
+ *  auto s2 = network.insert_node("Source2");
+ *  auto t1 = network.insert_node("Sink1");
+ *  auto t2 = network.insert_node("Sink2");
+ *  auto hub = network.insert_node("Hub");
+ *  
+ *  // Shared infrastructure with capacity constraints
+ *  network.insert_arc(s1, hub, 100);  // capacity 100
+ *  network.insert_arc(s2, hub, 80);
+ *  network.insert_arc(hub, t1, 90);
+ *  network.insert_arc(hub, t2, 70);
+ *  
+ *  // Commodity 1: s1 -> t1, demand 60
+ *  // Commodity 2: s2 -> t2, demand 50
+ *  // Both share hub's capacity
+ *  @endcode
+ *
+ *  @par Example: Telecommunications network
+ *  @code
+ *  // Multiple data streams sharing network links
+ *  // Each commodity = different data stream with source/dest
+ *  // Arcs = network links with bandwidth capacity
+ *  // Goal: maximize total throughput while respecting capacities
+ *  @endcode
+ *
  *  @ingroup Networks
  *  @author Leandro Rabindranath León
  */

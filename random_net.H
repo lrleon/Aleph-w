@@ -59,10 +59,10 @@ class Random_Network_Flow
 
   DynArray<DynArray<Node *>> rank;
   gsl_rng *r;
-  unique_ptr<Net> net;
+  std::unique_ptr<Net> net;
 
 public:
-  Random_Network_Flow(unsigned int seed = time(nullptr))
+  Random_Network_Flow(const unsigned int seed = time(nullptr))
     : r(gsl_rng_alloc(gsl_rng_mt19937)), net(new Net)
   {
     gsl_rng_set(r, seed % gsl_rng_max(r));
@@ -80,7 +80,7 @@ private:
                      const double & cap_sigma,
                      const double & density)
   {
-    IndexArc<Net> arcs(*net.get());
+    IndexArc<Net> arcs(*this->net.get());
     DynArray<Node *> src_rank = rank.access(src_idx_rank);
     DynArray<Node *> tgt_rank = rank.access(tgt_idx_rank);
     const size_t & num_nodes_src_rank = src_rank.size();
@@ -95,12 +95,12 @@ private:
           {
           repeat:
             auto tgt_idx = gsl_rng_uniform_int(r, num_nodes_tgt_rank);
-            auto tgt = src_rank.access(tgt_idx);
+            auto tgt = tgt_rank.access(tgt_idx);
             if (arcs.search(src, tgt) != nullptr)
               goto repeat;
 
             const double cap = gsl_ran_gaussian(r, cap_sigma) + cap_mean;
-            net->insert_arc(src, tgt, cap);
+            this->net->insert_arc(src, tgt, cap);
           }
       }
   }
@@ -115,7 +115,7 @@ private:
                   cap_mean, cap_sigma, forward_density);
   }
 
-  void create_backward_arcs_in_rank(size_t curr_rank_idx,
+  void create_backward_arcs_in_rank(const size_t curr_rank_idx,
                                     const double & cap_mean,
                                     const double & cap_sigma,
                                     const double & backward_density)
@@ -127,14 +127,14 @@ private:
 
   // create num_ranks each one with num_nodes_by_rank according to the
   // mean of a normal with rank_sigma as deviation
-  void create_ranks(size_t num_ranks,
-                    size_t num_nodes_by_rank,
+  void create_ranks(const size_t num_ranks,
+                    const size_t num_nodes_by_rank,
                     const double & rank_sigma)
   {
     ah_domain_error_if(rank_sigma < 0)
-      << "Rank sigma " + to_string(rank_sigma) + " less than 0";
+      << "Rank sigma " + std::to_string(rank_sigma) + " less than 0";
     ah_domain_error_if(rank_sigma > 1)
-      << "Rank sigma " + to_string(rank_sigma) + " greater than 1";
+      << "Rank sigma " + std::to_string(rank_sigma) + " greater than 1";
     for (int i = 0; i < num_ranks; ++i)
       {
         const double mu = gsl_ran_gaussian(r, rank_sigma * num_nodes_by_rank);
@@ -142,12 +142,12 @@ private:
         rank.touch(i).reserve(num_nodes);
         DynArray<Node *> & curr_rank = rank.access(i);
         for (int k = 0; k < num_nodes; ++k)
-          curr_rank.access(k) = net->insert_node();
+          curr_rank.access(k) = this->net->insert_node();
       }
   }
 
   /// After created ranks and their nodes, this routine creates the
-  /// arcs. Forward arcs betwen an rank and another are randomly
+  /// arcs. Forward arcs between a rank and another are randomly
   /// generated according an exponential with parameter
   /// forward_density*total_nodes. The arc capacity is generated
   /// according to a normal with mean cap_mean and deviation cap_sigma
@@ -164,6 +164,11 @@ private:
       << "backward density out of range";
 
     const size_t & N = rank.size();
+    
+    // Need at least 2 ranks to create inter-rank arcs
+    if (N < 2)
+      return;
+      
     create_forward_arcs_in_rank(0, cap_mean, cap_sigma, forward_density);
     for (int i = 1; i < N - 1; ++i)
       {
@@ -176,41 +181,45 @@ private:
 public:
   /**
 
-     La cantidad de nodos por rango es determinada por una distribución
-     normal con media num_nodes_by_rank y desviación sigma. La
-     desviación sigma debe ser un valor entre 0 y 1. El valor de sigma
-     que se una para la distribución normal será
+    The number of nodes per rank is determined by a distribution
+     normal with half num_nodes_by_rank and sigma deviation. The
+     sigma deviation should be a value between 0 and 1. The value of sigma
+     that joins for normal distribution will be
      rank_sigma*num_nodes_by_rank.
 
-     Las capacidades de los arcos son seleccionadas según una
-     distribución normal con media cap_mean y desviación cap_sigma.
+    The capacities of the arches are selected according to a
+     Normal distribution with mean cap_mean and deviation cap_sigma.
 
-     Los arcos de adelanto entre un rango y otro se corresponden con una
-     distribución exponencial con parámetro
+     The arcs of advancement between one rank and another correspond to a
+     Exponential distribution with parameter
      forward_density*num_nodes_by_rank.
 
 
-     @param[in] num_ranks número de rangos en la red
-     @param[in] num_nodes_by_rank número promedio de nodos por rango
-     @param[in] rank_sigma desviación estándar del número de nodos por rango (0-1)
+     @param[in] num_ranks Number of ranks in the network
+     @param[in] num_nodes_by_rank Average number of nodes per rank
+     @param[in] rank_sigma Standard deviation of the number of nodes per rank (0-1)
      @param[in] cap_mean media de la capacidad por arco
      @param[in] cap_sigma desviación estándar de la capacidad de arcos
      @param[in] forward_density densidad de arcos hacia adelante (0-1)
      @param[in] backward_density densidad de arcos hacia atrás (0-1)
-     @return puntero a la red generada
+     @return Pointer to the generated network
    */
-  Net * operator ()(size_t num_ranks,
-                    size_t num_nodes_by_rank,
+  Net * operator ()(const size_t num_ranks,
+                    const size_t num_nodes_by_rank,
                     const double & rank_sigma = 0.2,
                     const double & cap_mean = 100,
                     const double & cap_sigma = 0.9,
                     const double & forward_density = 0.3,
                     const double & backward_density = 0.01)
   {
+    // Create fresh network for this generation
+    this->net.reset(new Net);
+    rank.empty();
+    
     create_ranks(num_ranks, num_nodes_by_rank, rank_sigma);
     create_arcs(cap_mean, cap_sigma, forward_density, backward_density);
 
-    return net.release();
+    return this->net.release();
   }
 };
 

@@ -83,8 +83,8 @@ set(HLIST
     tpl_dynSetTree.H tpl_arrayHeap.H tpl_binHeap.H tpl_netcost.H
     tpl_dynBinHeap.H generate_tree.H generate_graph.H tpl_tree_node.H
     point.H tpl_treapRk.H Set.H Map.H array_it.H al-domain.H
-    Multiset.H Multimap.H List.H Vector.H ahAlgo.H Stack.H
-    Queue.H tpl_odhash.H tpl_nodePool.H random_graph.H
+    Multiset.H Multimap.H Vector.H ahAlgo.H
+        tpl_odhash.H tpl_nodePool.H random_graph.H
         tpl_olhash.H tpl_dynSetHash.H ahSort.H ahSearch.H
     tpl_random_queue.H tpl_net_sup_dem.H tpl_bipartite.H graph-traverse.H
     tpl_dynarray_set.H tpl_kgraph.H tpl_dynMat.H

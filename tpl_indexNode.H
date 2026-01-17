@@ -25,7 +25,41 @@
 */
 
 /** @file tpl_indexNode.H
- *  @brief Node indexing for fast lookup.
+ *  @brief Node indexing for fast O(log n) lookup by key.
+ *
+ *  @par Example: Fast node search by value
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT g;
+ *  IndexNode<GT> node_index(g);
+ *  
+ *  // Insert and index nodes
+ *  auto alice = node_index.insert_in_graph("Alice");
+ *  auto bob = node_index.insert_in_graph("Bob");
+ *  auto charlie = node_index.insert_in_graph("Charlie");
+ *  
+ *  // O(log n) search by value
+ *  auto found = node_index.search("Bob");
+ *  if (found)
+ *    cout << "Found: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: User database with unique IDs
+ *  @code
+ *  struct User { int id; string name; };
+ *  using UserGraph = List_Graph<Graph_Node<User>, Graph_Arc<Empty_Class>>;
+ *  
+ *  // Custom comparator by ID
+ *  struct UserCmp {
+ *    bool operator()(UserGraph::Node* a, UserGraph::Node* b) const {
+ *      return a->get_info().id < b->get_info().id;
+ *    }
+ *  };
+ *  
+ *  IndexNode<UserGraph, UserCmp> users(graph);
+ *  // Fast lookup by user ID
+ *  @endcode
+ *
  *  @ingroup Graphs
  *  @author Leandro Rabindranath León
  */
