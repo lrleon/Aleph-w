@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - '.github/workflows/coverity.yml'
-  # Weekly automatic scan on default branch (Sunday at midnight UTC)
+  # Weekly automatic scan on default branch only (Sunday at midnight UTC)
   schedule:
     - cron: '0 0 * * 0'
   # Manual trigger - can select any branch from GitHub Actions UI
@@ -73,7 +73,7 @@ jobs:
           echo "Submitting to Coverity Scan..."
           
           # Get version info
-          VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
+          VERSION="${{ github.ref_name }}@${{ github.sha }}"
           DESCRIPTION="GitHub Actions build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
           
           curl -fsS \
