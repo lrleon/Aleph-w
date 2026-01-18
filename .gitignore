@@ -311,3 +311,4 @@ Testing/
 CMakePresets.json
 *.Tree
 /Examples/.btreepic
+/.cache/*

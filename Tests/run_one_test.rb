@@ -163,6 +163,24 @@ OptionParser.new do |opts|
 end.parse!
 
 test_pattern = ARGV.shift
+
+# Convenience: allow passing a test source filename directly as TEST.
+# CTest filters (-R) match registered test names, not source file names.
+if !test_pattern.nil? && !options[:from_file]
+  # Search in multiple locations: cwd, Tests/, and ROOT_DIR
+  search_paths = [
+    File.expand_path(test_pattern),
+    File.join(ROOT_DIR, 'Tests', test_pattern),
+    File.join(ROOT_DIR, test_pattern)
+  ]
+  found_file = search_paths.find { |p| File.exist?(p) && File.file?(p) }
+  if found_file && found_file.match?(/\.(c|cc|cpp|cxx)\z/i)
+    # Store absolute path so downstream code doesn't re-expand incorrectly
+    options[:from_file] = File.expand_path(found_file)
+    test_pattern = nil
+  end
+end
+
 if options[:from_file] && test_pattern
   abort 'Use either TEST or --from-file FILE, not both'
 end
