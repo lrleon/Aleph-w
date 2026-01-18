@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -145,6 +144,16 @@ namespace Aleph
       dealloc<Node>(arena, p);
     }
 
+    [[nodiscard]] size_t allocated_size() const noexcept
+    {
+      return arena.allocated_size();
+    }
+
+    [[nodiscard]] size_t available_size() const noexcept
+    {
+      return arena.available_size();
+    }
+
     ~ArenaTreeAllocator() = default;
   };
 
@@ -154,10 +163,10 @@ namespace Aleph
     bool operator ()(const Container & c1, const Container & c2) const
     {
       return std::lexicographical_compare(c1.begin(), c1.end(), c2.begin(), c2.end(),
-                                     [](const T & item1, const T & item2)
-                                       {
-                                         return item1 < item2;
-                                       });
+                                          [](const T & item1, const T & item2)
+                                            {
+                                              return item1 < item2;
+                                            });
     }
   };
 
@@ -338,18 +347,18 @@ namespace Aleph
       static std::false_type test_find_position_nonconst(...);
 
       static constexpr bool has_select =
-          std::is_same<decltype(test_select_const<T>(0)), std::true_type>::value ||
-          std::is_same<decltype(test_select_nonconst<T>(0)), std::true_type>::value;
+          std::is_same_v<decltype(test_select_const<T>(0)), std::true_type> or
+          std::is_same_v<decltype(test_select_nonconst<T>(0)), std::true_type>;
       static constexpr bool has_remove_pos =
-          std::is_same<decltype(test_remove_pos<T>(0)), std::true_type>::value;
+          std::is_same_v<decltype(test_remove_pos<T>(0)), std::true_type>;
       static constexpr bool has_split_pos =
-          std::is_same<decltype(test_split_pos<T>(0)), std::true_type>::value;
+          std::is_same_v<decltype(test_split_pos<T>(0)), std::true_type>;
       static constexpr bool has_position =
-          std::is_same<decltype(test_position_const<T>(0)), std::true_type>::value ||
-          std::is_same<decltype(test_position_nonconst<T>(0)), std::true_type>::value;
+          std::is_same_v<decltype(test_position_const<T>(0)), std::true_type> or
+          std::is_same_v<decltype(test_position_nonconst<T>(0)), std::true_type>;
       static constexpr bool has_find_position =
-          std::is_same<decltype(test_find_position_const<T>(0)), std::true_type>::value ||
-          std::is_same<decltype(test_find_position_nonconst<T>(0)), std::true_type>::value;
+          std::is_same_v<decltype(test_find_position_const<T>(0)), std::true_type> or
+          std::is_same_v<decltype(test_find_position_nonconst<T>(0)), std::true_type>;
     };
 
     // call_select for const trees (RB, AVL, etc.)
@@ -441,6 +450,29 @@ namespace Aleph
 
     mutable Tree<Key, Compare> tree;
     size_t num_nodes;
+    std::unique_ptr<ArenaTreeAllocator<Node>> arena_allocator;
+
+    Node * alloc_node(const Key & key)
+    {
+      if (arena_allocator)
+        return arena_allocator->alloc_lval(key);
+      return new Node(key);
+    }
+
+    Node * alloc_node(Key && key)
+    {
+      if (arena_allocator)
+        return arena_allocator->alloc_rval(std::forward<Key>(key));
+      return new Node(std::forward<Key>(key));
+    }
+
+    void free_node(Node *p)
+    {
+      if (arena_allocator)
+        arena_allocator->unalloc(p);
+      else
+        delete p;
+    }
 
   public:
     typedef DynSetTree Set_Type;
@@ -468,9 +500,20 @@ namespace Aleph
       // empty
     }
 
+    /// Instantiate a dynamic set using an arena allocator with external buffer
     DynSetTree(const char *base_addr, const size_t & sz,
                const Compare & cmp = Compare())
-      : tree(cmp), num_nodes(0)
+      : tree(cmp), num_nodes(0),
+        arena_allocator(std::make_unique<ArenaTreeAllocator<Node>>(base_addr, sz))
+    {
+      // empty
+    }
+
+    /// Instantiate a dynamic set using an arena allocator with dynamic buffer
+    explicit DynSetTree(const size_t & arena_sz,
+                        const Compare & cmp = Compare())
+      : tree(cmp), num_nodes(0),
+        arena_allocator(std::make_unique<ArenaTreeAllocator<Node>>(arena_sz))
     {
       // empty
     }
@@ -502,7 +545,14 @@ namespace Aleph
     /// remove all elements from the set
     void empty()
     {
-      destroyRec(tree.getRoot());
+      if (arena_allocator)
+        {
+          // For arena allocation, just call destructors on keys
+          // (arena handles memory deallocation)
+          callKeyDestructorsRec(tree.getRoot());
+        }
+      else
+        destroyRec(tree.getRoot());
       num_nodes = 0;
     }
 
@@ -529,6 +579,7 @@ namespace Aleph
 
     /// Assigns the dynamic set srcTree to this.
     DynSetTree &operator =(DynSetTree && srcTree)
+      noexcept
     {
       if (this == &srcTree)
         return *this;
@@ -554,7 +605,7 @@ namespace Aleph
         }
       catch (...)
         {
-          delete p;
+          free_node(p);
           throw;
         }
 
@@ -569,7 +620,7 @@ namespace Aleph
   public:
     /** Inserts a key into the dynamic set.
 
-        Inserts the key key into the dynamic set.
+        Inserts the key into the dynamic set.
 
         @param[in] key key to insert.
         @return pointer to the inserted key if it is not inside
@@ -577,11 +628,11 @@ namespace Aleph
     */
     Key * insert(const Key & key)
     {
-      Node *p = new Node(key);
+      Node *p = alloc_node(key);
       Key *key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         { // No (KEY(p) is already in the tree) ==> free p and return nullptr
-          delete p;
+          free_node(p);
           return nullptr;
         }
 
@@ -590,11 +641,11 @@ namespace Aleph
 
     Key * insert(Key && key)
     {
-      Node *p = new Node(std::forward<Key>(key));
+      Node *p = alloc_node(std::forward<Key>(key));
       Key *key_p = __insert(p);
       if (key_p == nullptr) // was there insertion?
         {
-          delete p;
+          free_node(p);
           return nullptr;
         }
 
@@ -621,11 +672,11 @@ namespace Aleph
         }
       catch (...)
         {
-          delete p;
+          free_node(p);
           throw;
         }
       if (q != p) // was there an insertion?
-        delete p; // No (KEY(p) is already in the tree) ==> free
+        free_node(p); // No (KEY(p) is already in the tree) ==> free
         // allocated node
       else
         ++num_nodes;
@@ -642,12 +693,12 @@ namespace Aleph
         }
       catch (...)
         {
-          delete p;
+          free_node(p);
           throw;
         }
       if (q != p)
         { // KEY(p) is already inside the tree
-          delete p;
+          free_node(p);
           return std::pair<Node *, bool>(q, true);
         }
       ++num_nodes;
@@ -655,7 +706,7 @@ namespace Aleph
     }
 
   public:
-    /** Look for the key <code>key</code> in the binary search tree or
+    /** Look for the key in the binary search tree or
         inserts it if it is not found.
 
         <code>search_or_insert(key)</code> searches the binary tree for a
@@ -669,13 +720,13 @@ namespace Aleph
     */
     Key * search_or_insert(const Key & key)
     {
-      return __search_or_insert(new Node(key));
+      return __search_or_insert(alloc_node(key));
     }
 
     Key * search_or_insert(Key && key)
     {
       return
-          __search_or_insert(new Node(std::forward<Key>(key)));
+          __search_or_insert(alloc_node(std::forward<Key>(key)));
     }
 
     /* Look for the key <code>key</code> in the binary search tree and
@@ -685,7 +736,7 @@ namespace Aleph
        <code>key</code>. If the key is already found, then it is returned
        true. Otherwise, the key is inserted and false is returned.
 
-       @param[in] key key to find or insert
+       @param[in] key to find or insert
        @return a std::pair whose first field is a pointer to the found or
        inserted key, and the second field is a boolean whose value is
        `false` if the key was inserted; `true` otherwise, that is if the
@@ -693,13 +744,13 @@ namespace Aleph
     */
     std::pair<Key *, bool> contains_or_insert(const Key & key)
     {
-      auto p = __contains_or_insert(new Node(key));
+      auto p = __contains_or_insert(alloc_node(key));
       return std::pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
     std::pair<Key *, bool> contains_or_insert(Key && key)
     {
-      auto p = __contains_or_insert(new Node(std::forward<Key>(key)));
+      auto p = __contains_or_insert(alloc_node(std::forward<Key>(key)));
       return std::pair<Key *, bool>(&p.first->get_key(), p.second);
     }
 
@@ -714,7 +765,7 @@ namespace Aleph
         }
       catch (...)
         {
-          delete q;
+          free_node(q);
           throw;
         }
     }
@@ -722,12 +773,12 @@ namespace Aleph
   public:
     Key * insert_dup(const Key & key)
     {
-      return __insert_dup(new Node(key));
+      return __insert_dup(alloc_node(key));
     }
 
     Key * insert_dup(Key && key)
     {
-      return __insert_dup(new Node(std::forward<Key>(key)));
+      return __insert_dup(alloc_node(std::forward<Key>(key)));
     }
 
     Key * put(const Key & key)
@@ -742,7 +793,7 @@ namespace Aleph
 
     /** Removes a key from the dynamic set.
 
-        remove(key) finds the key key in the set and removes it.
+        remove(key) finds the key in the set and removes it.
 
         @param[in] key key to delete
         @return number of elements that the set has.
@@ -754,7 +805,7 @@ namespace Aleph
       if (p == nullptr)
         return num_nodes;
 
-      delete p;
+      free_node(p);
 
       return --num_nodes;
     }
@@ -778,7 +829,7 @@ namespace Aleph
 
       auto ret_val = p->get_key();
 
-      delete p;
+      free_node(p);
 
       --num_nodes;
 
@@ -802,7 +853,7 @@ namespace Aleph
         << "remove_pos returned nullptr";
       const Key ret_val = KEY(p);
 
-      delete p;
+      free_node(p);
 
       --num_nodes;
 
@@ -937,6 +988,28 @@ namespace Aleph
 
     /// returns true if the set is empty
     bool is_empty() const { return num_nodes == 0; }
+
+    /// Returns true if the set is using an arena allocator
+    [[nodiscard]] bool uses_arena() const noexcept
+    {
+      return arena_allocator != nullptr;
+    }
+
+    /// Returns the allocated size from the arena (0 if not using arena)
+    [[nodiscard]] size_t arena_allocated_size() const noexcept
+    {
+      if (arena_allocator)
+        return arena_allocator->allocated_size();
+      return 0;
+    }
+
+    /// Returns the available size in the arena (0 if not using arena)
+    [[nodiscard]] size_t arena_available_size() const noexcept
+    {
+      if (arena_allocator)
+        return arena_allocator->available_size();
+      return 0;
+    }
 
     /// Calculates and returns the length of the internal path of the tree
     /// search binary.

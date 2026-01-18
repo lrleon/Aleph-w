@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -74,47 +73,47 @@ namespace Aleph
     template <typename T>
     [[nodiscard]] inline
     DynList<DynList<T>> transpose_impl(DynList<DynList<T>> & l)
-  {
-    if (l.is_empty())
-      return {};
+    {
+      if (l.is_empty())
+        return {};
 
-    Array<Array<Snodenc<T> *>> mat;
+      Array<Array<Snodenc<T> *>> mat;
 
-    size_t ncol = 0; {
-      const HTList & lrow = l.get_first();
-      Array<Snodenc<T> *> row;
-      for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++ncol)
-        row.append(static_cast<Snodenc<T> *>(it.get_curr()));
-      mat.append(std::move(row));
-    }
-
-    size_t nrow = 1;
-    for (auto row_it = l.get_it(1); row_it.has_curr(); row_it.next_ne(), ++nrow)
-      {
-        const HTList & lrow = row_it.get_curr();
+      size_t ncol = 0; {
+        const HTList & lrow = l.get_first();
         Array<Snodenc<T> *> row;
-        row.reserve(ncol);
-        size_t col = 0;
-        for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++col)
+        for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++ncol)
           row.append(static_cast<Snodenc<T> *>(it.get_curr()));
-
-        assert(col == ncol);
-
         mat.append(std::move(row));
       }
 
-    DynList<DynList<T>> ret;
-    for (size_t j = 0; j < ncol; ++j)
-      {
-        DynList<T> row;
-        for (size_t i = 0; i < nrow; ++i)
-          row.append(mat(i)(j)->get_data());
+      size_t nrow = 1;
+      for (auto row_it = l.get_it(1); row_it.has_curr(); row_it.next_ne(), ++nrow)
+        {
+          const HTList & lrow = row_it.get_curr();
+          Array<Snodenc<T> *> row;
+          row.reserve(ncol);
+          size_t col = 0;
+          for (HTList::Iterator it(lrow); it.has_curr(); it.next_ne(), ++col)
+            row.append(static_cast<Snodenc<T> *>(it.get_curr()));
 
-        ret.append(std::move(row));
-      }
+          assert(col == ncol);
 
-    return ret;
-  }
+          mat.append(std::move(row));
+        }
+
+      DynList<DynList<T>> ret;
+      for (size_t j = 0; j < ncol; ++j)
+        {
+          DynList<T> row;
+          for (size_t i = 0; i < nrow; ++i)
+            row.append(mat(i)(j)->get_data());
+
+          ret.append(std::move(row));
+        }
+
+      return ret;
+    }
   } // namespace comb_detail
   /// @endcond
 
@@ -297,17 +296,18 @@ namespace Aleph
         auto item = it.get_curr();
         sample.insert(item);
         if (not traverse_perm_impl(sample, its, op))
-        {
-          sample.remove_first();
-          its.insert(itor);
-          return false;
-        }
+          {
+            sample.remove_first();
+            its.insert(itor);
+            return false;
+          }
         sample.remove_first();
       }
     its.insert(itor);
 
     return true;
   }
+
   /// @endcond
 
   /** Traverse all the possible permutations that can be done of a list
@@ -350,7 +350,9 @@ namespace Aleph
   bool traverse_perm(const DynList<DynList<T>> & l, Op & op)
   {
     using IT = typename DynList<T>::Iterator;
-    DynList<IT> its; { // This block allows getting a constant copy of l and then reverse
+    DynList<IT> its;
+
+    { // This block allows getting a constant copy of l and then reverse
       // it. At the end of block lcpy memory is freed
       const DynList<IT> lcpy =
           l.template maps<IT>([](const auto & l) { return l.get_it(); });

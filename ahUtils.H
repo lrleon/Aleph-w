@@ -96,7 +96,7 @@ namespace Aleph
    */
   inline bool is_even(const long n)
   {
-    return (n % 2) == 0;
+    return n % 2 == 0;
   }
 
   /** Return `true` if `n` is odd.
@@ -463,15 +463,15 @@ namespace Aleph
 
   inline bool is_normal_number(const double n)
   {
-    if (std::numeric_limits<double>::is_iec559 &&
-        sizeof(double) == sizeof(std::uint64_t))
+    if constexpr (std::numeric_limits<double>::is_iec559 &&
+                  sizeof(double) == sizeof(std::uint64_t))
       {
         // IEEE-754 bit inspection avoids fast-math assuming finiteness.
         std::uint64_t bits = 0;
         std::memcpy(&bits, &n, sizeof(bits));
 
-        const std::uint64_t exp_mask = 0x7ff0000000000000ULL;
-        const std::uint64_t frac_mask = 0x000fffffffffffffULL;
+        constexpr std::uint64_t exp_mask = 0x7ff0000000000000ULL;
+        constexpr std::uint64_t frac_mask = 0x000fffffffffffffULL;
 
         const std::uint64_t exp = bits & exp_mask;
         const std::uint64_t frac = bits & frac_mask;

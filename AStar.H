@@ -76,7 +76,7 @@ struct Zero_Heuristic
   }
 };
 
-/** @brief A* algorithm for finding shortest path between two nodes.
+/** @brief A* algorithm for finding the shortest path between two nodes.
  *
  *  @details This class implements the A* algorithm to find the shortest
  *  path from a source node `start` to a destination node `end` in a

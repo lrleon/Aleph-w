@@ -139,19 +139,17 @@ public:
    * @note The buffer must remain valid for the lifetime of the arena.
    * @note Passing a const buffer is allowed but the arena will write to it.
    */
-  AhArenaAllocator(void* buffer, size_t size) noexcept
+  AhArenaAllocator(void* buffer, const size_t size) noexcept
     : base_addr_(static_cast<char*>(buffer)),
       curr_addr_(base_addr_),
-      end_addr_(base_addr_ + size),
-      owns_memory_(false)
+      end_addr_(base_addr_ + size)
   {}
 
   /// @brief Overload for const buffer (uses const_cast internally).
-  AhArenaAllocator(const char* buffer, size_t size) noexcept
+  AhArenaAllocator(const char* buffer, const size_t size) noexcept
     : base_addr_(const_cast<char*>(buffer)),
       curr_addr_(base_addr_),
-      end_addr_(base_addr_ + size),
-      owns_memory_(false)
+      end_addr_(base_addr_ + size)
   {}
 
   /**
@@ -163,7 +161,7 @@ public:
    * @param[in] size Size of arena in bytes (default 1MB).
    * @throw std::runtime_error If memory allocation fails.
    */
-  explicit AhArenaAllocator(size_t size = DEFAULT_SIZE)
+  explicit AhArenaAllocator(const size_t size = DEFAULT_SIZE)
   {
     base_addr_ = static_cast<char*>(std::malloc(size));
     ah_runtime_error_if(base_addr_ == nullptr)
@@ -265,12 +263,12 @@ public:
    * @note Alignment is not guaranteed beyond natural alignment of char.
    *       Use alloc_aligned() for specific alignment requirements.
    */
-  [[nodiscard]] void* alloc(size_t size) noexcept
+  [[nodiscard]] void* alloc(const size_t size) noexcept
   {
     if (size == 0)
       return nullptr;
 
-    if (curr_addr_ + size > end_addr_)
+    if (const auto avail = static_cast<size_t>(end_addr_ - curr_addr_); size > avail)
       return nullptr;
 
     char* result = curr_addr_;
@@ -288,17 +286,20 @@ public:
    * @param[in] alignment Required alignment (must be power of 2).
    * @return Pointer to aligned memory, or nullptr if insufficient space.
    */
-  [[nodiscard]] void* alloc_aligned(size_t size, size_t alignment) noexcept
+  [[nodiscard]] void* alloc_aligned(const size_t size, const size_t alignment) noexcept
   {
     if (size == 0 or alignment == 0)
       return nullptr;
 
     // Calculate aligned address
-    uintptr_t current = reinterpret_cast<uintptr_t>(curr_addr_);
-    uintptr_t aligned = (current + alignment - 1) & ~(alignment - 1);
-    size_t padding = aligned - current;
+    const auto current = reinterpret_cast<uintptr_t>(curr_addr_);
+    const uintptr_t aligned = (current + alignment - 1) & ~(alignment - 1);
 
-    if (curr_addr_ + padding + size > end_addr_)
+    const auto padding = aligned - current;
+    const auto avail = static_cast<size_t>(end_addr_ - curr_addr_);
+    if (padding > avail)
+      return nullptr;
+    if (size > (avail - padding))
       return nullptr;
 
     curr_addr_ = reinterpret_cast<char*>(aligned) + size;
@@ -317,7 +318,7 @@ public:
    * @note This enables stack-like (LIFO) allocation patterns where
    *       the last allocation can be "undone".
    */
-  void dealloc(const void* addr, size_t size) noexcept
+  void dealloc(const void* addr, const size_t size) noexcept
   {
     if (size == 0 or addr == nullptr)
       return;

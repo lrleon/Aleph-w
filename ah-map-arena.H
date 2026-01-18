@@ -140,7 +140,7 @@ private:
    *  @param[in] sz Required additional size in bytes.
    *  @return true if remap succeeded, false otherwise.
    */
-  bool remap(size_t sz)
+  bool remap(const size_t sz)
   {
     assert(sz > avail());
 
@@ -153,7 +153,7 @@ private:
     if (ptr == MAP_FAILED)
       return false;
 
-    auto status = ftruncate(fd, static_cast<off_t>(new_size));
+    const auto status = ftruncate(fd, static_cast<off_t>(new_size));
     ah_runtime_error_unless(status == 0)
         << "cannot truncate the file to " << new_size << " error = " << errno;
 
@@ -193,12 +193,12 @@ public:
         ah_runtime_error_unless(fd >= 0) << "cannot open " << file_path_name;
 
         // Read end_ value stored at the beginning of file
-        auto status = ::read(fd, &end_, sizeof(end_));
+        const auto status = ::read(fd, &end_, sizeof(end_));
         ah_runtime_error_unless(status != -1)
           << "Cannot read file length of " << file_path_name;
 
         // Determine file size
-        auto file_size = lseek(fd, 0, SEEK_END);
+        const auto file_size = lseek(fd, 0, SEEK_END);
         ah_runtime_error_unless(file_size != static_cast<off_t>(-1))
           << "Cannot determine file length of " << file_path_name;
         rgn_size = static_cast<size_t>(file_size);
@@ -207,7 +207,7 @@ public:
       {
         fd = open(file_path_name.c_str(), O_RDWR | O_CREAT, static_cast<mode_t>(0600));
         ah_runtime_error_unless(fd >= 0) << "cannot open " << file_path_name;
-        auto status = ftruncate(fd, static_cast<off_t>(rgn_size));
+        const auto status = ftruncate(fd, static_cast<off_t>(rgn_size));
         ah_runtime_error_unless(status == 0)
           << "cannot truncate the file to " << rgn_size << " error = " << errno;
       }
@@ -375,7 +375,7 @@ public:
    *  @note The reserved memory is guaranteed to be readable/writable up to
    *        sz bytes from the returned pointer.
    */
-  [[nodiscard]] char * reserve(size_type sz)
+  [[nodiscard]] char * reserve(const size_type sz)
   {
     if (sz > avail() && !remap(sz))
       return nullptr;
@@ -395,7 +395,7 @@ public:
    *  @warning Calling commit() without a matching reserve(), or with sz
    *           greater than what was reserved, leads to undefined behavior.
    */
-  void commit(size_type sz) noexcept
+  void commit(const size_type sz) noexcept
   {
     end_ += sz;
   }

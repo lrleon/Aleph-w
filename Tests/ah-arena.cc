@@ -56,7 +56,8 @@ struct StaticArenaFixture : public Test
 
 TEST_F(StaticArenaFixture, simple_fail)
 {
-  void * ptr = arena.alloc(sz);
+  // Allocating more than available should fail
+  void * ptr = arena.alloc(sz + 1);
   ASSERT_EQ(ptr, nullptr);
 }
 
@@ -71,11 +72,14 @@ TEST_F(StaticArenaFixture, free_under_lifo_order)
 
 TEST_F(StaticArenaFixture, one_alloc_next_fail)
 {
-  void * ptr = arena.alloc(sz - 1);
+  // Allocate all available space
+  void * ptr = arena.alloc(sz);
   ASSERT_NE(ptr, nullptr);
   ASSERT_EQ(ptr, arena.base_addr());
   ASSERT_EQ((void*) ((char*) ptr + sz), arena.end_addr());
+  ASSERT_EQ(arena.available_size(), 0);
 
+  // Now any allocation should fail
   void * ptr1 = arena.alloc(1);
   ASSERT_EQ(ptr1, nullptr);
 }
@@ -95,7 +99,7 @@ TEST_F(StaticArenaFixture, random_allocs)
   while (true)
     {
       size = 1 + gsl_rng_uniform_int(r, sz - 2);
-      const char * addr = (const char*) arena.alloc(size);
+      const char * addr = static_cast<const char *>(arena.alloc(size));
       if (addr == nullptr)
         break;
     }

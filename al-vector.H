@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -74,7 +73,7 @@ namespace Aleph
      @author Leandro Rabindranath Leon
   */
   template <typename T = int, typename NumType = double>
-  class Vector;  // Forward declaration for CRTP
+  class Vector; // Forward declaration for CRTP
 
   template <typename T, typename NumType>
   class Vector : public TraverseMixin<Vector<T, NumType>, std::pair<T, NumType>>,
@@ -85,7 +84,7 @@ namespace Aleph
     using Domain = AlDomain<T>;
     using DomainPtr = std::shared_ptr<Domain>;
     using Map = Aleph::HashMap<T, NumType, MapODhash>;
-    using Item_Type = std::pair<T, NumType>;  // Required by mixins
+    using Item_Type = std::pair<T, NumType>; // Required by mixins
 
   private:
     static const NumType default_epsilon;
@@ -153,7 +152,7 @@ namespace Aleph
        @note Creates a non-owning shared_ptr; caller must ensure domain outlives vector
     */
     Vector(const Domain & d, const NumType & zero = default_epsilon)
-      : domain_ptr(DomainPtr(&const_cast<Domain &>(d), [](Domain*){})), epsilon(zero)
+      : domain_ptr(DomainPtr(&const_cast<Domain &>(d), [](Domain *) {})), epsilon(zero)
     {
       //Empty
     }
@@ -210,9 +209,8 @@ namespace Aleph
     */
     Vector(const Domain & d, const DynList<NumType> & l,
            const NumType & zero = default_epsilon)
-      : Vector(DomainPtr(&const_cast<Domain &>(d), [](Domain*){}), l, zero)
-    {
-    }
+      : Vector(DomainPtr(&const_cast<Domain &>(d), [](Domain *) {}), l, zero)
+    {}
 
     /**
        @brief Copy assignment operator
@@ -550,10 +548,10 @@ namespace Aleph
       std::cout << '\n';
     }
 
-    std::string to_str() const
+    [[nodiscard]] std::string to_str() const
     {
       // Convert domain elements to strings
-      DynList<std::string> keys_str =
+      const DynList<std::string> keys_str =
           domain_ptr->keys().template maps<std::string>([](const T & k)
                                                           {
                                                             std::ostringstream s;
@@ -611,6 +609,9 @@ namespace Aleph
 
       Proxy &operator =(const Proxy & proxy)
       {
+        if (this == &proxy)
+          return *this; // self-assignment
+
         if (proxy.entry_ptr == nullptr)
           return *this; // zero assigment
 

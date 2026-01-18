@@ -73,6 +73,7 @@ set(EXAMPLE_PROGRAMS
     mapping_example
     stl_utils_example
     map_arena_example
+    map_arena_persistence_example
     maxflow_advanced_example
     mincost_flow_example
     net_apps_example

@@ -61,6 +61,24 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
   [stdout_buf, stderr_buf, status]
 end
 
+def extract_failed_tests_from_ctest_log(log_text)
+  failed = []
+  log_text.each_line do |line|
+    # Typical CTest format: "2019:SmallDomain.validations" (may vary by CMake version)
+    if (m = line.match(/^\s*\d+\s*:(.+?)\s*$/))
+      name = m[1].strip
+      failed << name unless name.empty?
+      next
+    end
+    # Fallback: match summary-style lines if they appear in the log
+    if (m = line.match(/^\s*\d+\s*-\s*(.+?)\s*$/))
+      name = m[1].strip
+      failed << name unless name.empty?
+    end
+  end
+  failed.uniq
+end
+
 options = {
   build_dir: DEFAULT_BUILD_DIR,
   skip_configure: false,
@@ -185,6 +203,26 @@ log('Running ctest...', verbose: verbose)
 stdout, stderr, status = run_command(ctest_cmd.join(' '), chdir: build_dir, verbose: verbose, label: 'ctest')
 puts stdout unless verbose
 warn stderr if !verbose && stderr && !stderr.empty?
-abort 'Some tests failed' unless status.success?
+
+unless status.success?
+  last_failed_path = File.join(build_dir, 'Testing', 'Temporary', 'LastTestsFailed.log')
+  if File.exist?(last_failed_path)
+    last_failed = File.read(last_failed_path)
+    puts "\n>> Failed tests (from #{last_failed_path}):\n#{last_failed}"
+
+    failed_tests = extract_failed_tests_from_ctest_log(last_failed)
+    if failed_tests.any?
+      puts "\n>> Re-running failed tests with extra verbosity (ctest -VV --output-on-failure)..."
+      failed_tests.each do |t|
+        # Anchor the regex to match the test name exactly.
+        pattern = "^#{Regexp.escape(t)}$"
+        rerun_cmd = "ctest -VV --output-on-failure -R '#{pattern}'"
+        run_command(rerun_cmd, chdir: build_dir, verbose: true, label: "rerun-failed")
+      end
+    end
+  end
+
+  abort 'Some tests failed'
+end
 
 puts '\nAll tests completed successfully.'

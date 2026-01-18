@@ -1,6 +1,6 @@
 /**
  * @file matrix_example.C
- * @brief Example demonstrating sparse matrices and vectors in Aleph-w
+ * @brief Comprehensive example demonstrating sparse matrices and vectors in Aleph-w
  *
  * This program demonstrates sparse Matrix and Vector classes from
  * `al-matrix.H` and `al-vector.H`. Unlike dense matrices (which store
@@ -34,7 +34,7 @@
  * - Dense: 1,000,000 elements = 8 MB (for doubles)
  * - Sparse: 1,000 elements = 8 KB (huge savings!)
  *
- * ## Key Features
+ * ## Key Features Demonstrated
  *
  * ### Sparse Storage
  *
@@ -52,25 +52,35 @@
  *
  * **Example**:
  * ```cpp
- * Matrix<double> sales;
- * sales["January"]["ProductA"] = 1000.0;
- * sales["February"]["ProductB"] = 2000.0;
+ * Matrix<string, string, double> sales(products, stores);
+ * sales.set_entry("Laptop", "BOG", 150);
+ * sales.set_entry("Phone", "MED", 450);
  * ```
  *
- * ### Operations Supported
+ * ### Operations Demonstrated
  *
- * - **Element access**: Get/set individual elements
- * - **Arithmetic**: Add, subtract, multiply matrices/vectors
- * - **Scalar operations**: Multiply by scalar
- * - **Row/column extraction**: Get entire row or column as vector
- * - **Transposition**: Swap rows and columns
+ * - **Element access**: `get_entry()`, `set_entry()`
+ * - **Arithmetic**: `+`, `-`, `+=`, `-=` for matrices/vectors
+ * - **Scalar operations**: `mult_by_scalar()`, `scalar * matrix`
+ * - **Row/column extraction**: `get_row_vector()`, `get_col_vector()`
+ * - **Row/column setting**: `set_vector_as_row()`, `set_vector_as_col()`
+ * - **Transposition**: `transpose()`
+ * - **Identity matrix**: `identity()` (for square matrices)
+ * - **Matrix multiplication**: `vector_matrix_mult()`, `matrix_vector_mult()`
+ * - **Matrix-vector multiplication**: `operator*`, `mult_matrix_vector_sparse()`,
+ *   `mult_matrix_vector_dot_product()`, `mult_matrix_vector_linear_comb()`
+ * - **Vector-matrix multiplication**: `operator*`, `mult_vector_matrix_linear_comb()`
+ * - **Outer product**: `outer_product(v1, v2)`
+ * - **Comparison**: `==`, `!=`, `equal_to()` (with epsilon tolerance)
+ * - **Initializer list construction**: Direct matrix initialization
+ * - **Conversion**: `to_rowlist()`, `to_collist()`, `to_str()`
  *
  * ## Applications
  *
  * ### Scientific Computing
- * - **Linear systems**: Sparse linear algebra
+ * - **Linear systems**: Sparse linear algebra (demonstrated in demo_linear_system)
  * - **Finite element methods**: Sparse stiffness matrices
- * - **Graph algorithms**: Adjacency matrices (usually sparse)
+ * - **Graph algorithms**: Adjacency matrices (demonstrated in demo_adjacency_matrix)
  *
  * ### Data Analysis
  * - **Feature matrices**: Machine learning (many zeros)
@@ -78,7 +88,7 @@
  * - **Time series**: Sparse temporal data
  *
  * ### Business Applications
- * - **Sales data**: Products × Time periods
+ * - **Sales data**: Products × Stores (demonstrated in demo_named_matrix)
  * - **Resource allocation**: Resources × Tasks
  * - **Financial modeling**: Instruments × Time periods
  *
@@ -86,26 +96,31 @@
  *
  * | Operation | Dense | Sparse | Notes |
  * |-----------|-------|--------|-------|
- * | Storage | O(n²) | O(nonzeros) | Sparse wins for sparse data |
- * | Access | O(1) | O(log n) | Dense faster, but sparse uses less memory |
- * | Addition | O(n²) | O(nonzeros) | Sparse much faster |
- * | Multiplication | O(n³) | O(nonzeros₁ × nonzeros₂) | Depends on sparsity |
+ * | Storage | O(n²) | O(nnz) | Sparse wins for sparse data |
+ * | Access | O(1) | O(1) avg | Hash-based storage |
+ * | Addition | O(n²) | O(nnz) | Sparse much faster |
+ * | M×v mult | O(n²) | O(nnz) | Sparse iteration available |
+ * | M×M mult | O(n³) | O(nnz₁×nnz₂) | Depends on sparsity |
  *
- * ## Domain-Based Indexing Benefits
+ * ## Demos Included
  *
- * ### Readability
- * ```cpp
- * // Traditional (unclear)
- * matrix[0][5] = 100;
- *
- * // Domain-based (clear)
- * matrix["January"]["Sales"] = 100;
- * ```
- *
- * ### Flexibility
- * - Add new rows/columns dynamically
- * - No need to pre-allocate all dimensions
- * - Easy to work with real-world data
+ * 1. **Sparse Vector Basics** - Vector creation and element access
+ * 2. **String-Indexed Vectors** - Domain-based indexing with strings
+ * 3. **Sparse Matrix Basics** - Matrix creation and storage
+ * 4. **Named Row/Column Matrix** - Real-world sales data example
+ * 5. **Vector Arithmetic** - Addition, subtraction, scalar ops
+ * 6. **Graph Adjacency Matrix** - Practical graph representation
+ * 7. **Epsilon Tolerance** - Near-zero handling
+ * 8. **Initializer List Construction** - Direct matrix initialization
+ * 9. **Matrix Transpose** - Row/column swapping
+ * 10. **Identity Matrix** - Creating identity for square matrices
+ * 11. **Matrix-Vector Multiplication** - Multiple methods compared
+ * 12. **Matrix-Matrix Multiplication** - Two approaches demonstrated
+ * 13. **Outer Product** - Vector outer product
+ * 14. **Matrix Comparison** - Equality with epsilon tolerance
+ * 15. **Matrix Arithmetic** - Full arithmetic operations
+ * 16. **Row/Column Operations** - Extract/set rows and columns
+ * 17. **Linear System Example** - Practical Ax=b verification
  *
  * ## Usage
  *
@@ -539,6 +554,522 @@ void demo_epsilon()
 }
 
 // =============================================================================
+// 8. Initializer List Construction
+// =============================================================================
+
+void demo_initializer_list()
+{
+  print_section("INITIALIZER LIST CONSTRUCTION");
+  
+  cout << "Matrices can be constructed directly from initializer lists" << endl;
+  cout << "(similar to how you'd write a matrix on paper)" << endl;
+  
+  // Create domains for a 3x3 matrix
+  auto rows = make_shared<AlDomain<int>>();
+  auto cols = make_shared<AlDomain<int>>();
+  for (int i = 0; i < 3; i++)
+  {
+    (void)rows->insert(i);
+    (void)cols->insert(i);
+  }
+  
+  // Create matrix with initializer list
+  Matrix<int, int, double> A(rows, cols, {
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9}
+  });
+  
+  cout << "\nMatrix A (from initializer list):" << endl;
+  cout << A.to_str() << endl;
+  
+  // Sparse matrix - zeros are not stored
+  print_subsection("Sparse Initializer List");
+  Matrix<int, int, double> B(rows, cols, {
+    {1, 0, 0},
+    {0, 2, 0},
+    {0, 0, 3}
+  });
+  
+  cout << "\nDiagonal matrix B (zeros not stored internally):" << endl;
+  cout << B.to_str() << endl;
+  cout << "\nNote: only 3 entries are stored (the diagonal)" << endl;
+}
+
+// =============================================================================
+// 9. Matrix Transpose
+// =============================================================================
+
+void demo_transpose()
+{
+  print_section("MATRIX TRANSPOSE");
+  
+  cout << "The transpose() method swaps rows and columns" << endl;
+  
+  // Create a 2x3 matrix
+  auto rows = make_shared<AlDomain<string>>();
+  auto cols = make_shared<AlDomain<string>>();
+  (void)rows->insert("r0");
+  (void)rows->insert("r1");
+  (void)cols->insert("c0");
+  (void)cols->insert("c1");
+  (void)cols->insert("c2");
+  
+  Matrix<string, string, double> M(rows, cols);
+  M.set_entry("r0", "c0", 1); M.set_entry("r0", "c1", 2); M.set_entry("r0", "c2", 3);
+  M.set_entry("r1", "c0", 4); M.set_entry("r1", "c1", 5); M.set_entry("r1", "c2", 6);
+  
+  cout << "\nOriginal matrix M (2x3):" << endl;
+  cout << M.to_str() << endl;
+  
+  auto Mt = M.transpose();
+  cout << "\nTranspose M^T (3x2):" << endl;
+  cout << Mt.to_str() << endl;
+  
+  cout << "\nProperty: M[r][c] = M^T[c][r]" << endl;
+  cout << "  M[r0][c2] = " << M.get_entry("r0", "c2") << endl;
+  cout << "  M^T[c2][r0] = " << Mt.get_entry("c2", "r0") << endl;
+}
+
+// =============================================================================
+// 10. Identity Matrix
+// =============================================================================
+
+void demo_identity()
+{
+  print_section("IDENTITY MATRIX");
+  
+  cout << "The identity() method creates I (only for square matrices)" << endl;
+  cout << "Property: A * I = I * A = A" << endl;
+  
+  auto domain = make_shared<AlDomain<int>>();
+  for (int i = 0; i < 4; i++)
+    (void)domain->insert(i);
+  
+  Matrix<int, int, double> A(domain, domain, {
+    {2, 3, 0, 0},
+    {0, 1, 4, 0},
+    {0, 0, 5, 6},
+    {7, 0, 0, 8}
+  });
+  
+  cout << "\nMatrix A:" << endl;
+  cout << A.to_str() << endl;
+  
+  auto I = A.identity();
+  cout << "\nIdentity matrix I:" << endl;
+  cout << I.to_str() << endl;
+  
+  cout << "\nIdentity is sparse: only diagonal entries stored" << endl;
+}
+
+// =============================================================================
+// 11. Matrix-Vector Multiplication Methods
+// =============================================================================
+
+void demo_matrix_vector_mult()
+{
+  print_section("MATRIX-VECTOR MULTIPLICATION");
+  
+  cout << "Multiple methods available for M * v:" << endl;
+  cout << "  - Linear combination (default)" << endl;
+  cout << "  - Dot product" << endl;
+  cout << "  - Sparse iteration" << endl;
+  
+  auto rows = make_shared<AlDomain<int>>();
+  auto cols = make_shared<AlDomain<int>>();
+  for (int i = 0; i < 3; i++)
+  {
+    (void)rows->insert(i);
+    (void)cols->insert(i);
+  }
+  
+  Matrix<int, int, double> M(rows, cols, {
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9}
+  });
+  
+  Vector<int, double> v(cols);
+  v.set_entry(0, 1);
+  v.set_entry(1, 0);  // Sparse: only 2 non-zero entries
+  v.set_entry(2, 2);
+  
+  cout << "\nMatrix M:" << endl;
+  cout << M.to_str() << endl;
+  
+  cout << "\nVector v: (0:1, 2:2) -- note v[1]=0 not stored" << endl;
+  
+  // Method 1: Linear combination (operator*)
+  auto r1 = M * v;  // Uses mult_matrix_vector_linear_comb
+  cout << "\nM * v (linear combination):" << endl;
+  for (auto it = r1.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+  
+  // Method 2: Dot product
+  auto r2 = M.mult_matrix_vector_dot_product(v);
+  cout << "\nM * v (dot product):" << endl;
+  for (auto it = r2.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+  
+  // Method 3: Sparse iteration
+  auto r3 = M.mult_matrix_vector_sparse(v);
+  cout << "\nM * v (sparse):" << endl;
+  for (auto it = r3.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+  
+  cout << "\nAll methods produce same result (choose based on sparsity)" << endl;
+  
+  // Vector * Matrix
+  print_subsection("Vector-Matrix Multiplication (v * M)");
+  Vector<int, double> u(rows);
+  u.set_entry(0, 1.5);
+  u.set_entry(2, 3);
+  
+  cout << "\nVector u: (0:1.5, 2:3)" << endl;
+  auto r4 = u * M;  // Uses mult_vector_matrix_linear_comb
+  cout << "\nu * M:" << endl;
+  for (auto it = r4.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+}
+
+// =============================================================================
+// 12. Matrix-Matrix Multiplication
+// =============================================================================
+
+void demo_matrix_mult()
+{
+  print_section("MATRIX-MATRIX MULTIPLICATION");
+  
+  cout << "Two methods for A * B:" << endl;
+  cout << "  - vector_matrix_mult: row_i * B for each row" << endl;
+  cout << "  - matrix_vector_mult: A * col_j for each column" << endl;
+  
+  // IMPORTANT: For multiplication A*B, column domain of A must be
+  // identical (same shared_ptr) to row domain of B
+  auto rowsA = make_shared<AlDomain<int>>();
+  auto shared_domain = make_shared<AlDomain<int>>();  // shared between A cols and B rows
+  auto colsB = make_shared<AlDomain<int>>();
+  
+  for (int i = 0; i < 2; i++)
+    (void)rowsA->insert(i);
+  for (int i = 0; i < 3; i++)
+    (void)shared_domain->insert(i);
+  for (int i = 0; i < 2; i++)
+    (void)colsB->insert(i);
+  
+  // A is 2x3
+  Matrix<int, int, double> A(rowsA, shared_domain, {
+    {1, 2, 3},
+    {4, 5, 6}
+  });
+  
+  // B is 3x2 (rows domain = A's column domain)
+  Matrix<int, int, double> B(shared_domain, colsB, {
+    {7, 8},
+    {9, 10},
+    {11, 12}
+  });
+  
+  cout << "\nMatrix A (2x3):" << endl;
+  cout << A.to_str() << endl;
+  
+  cout << "\nMatrix B (3x2):" << endl;
+  cout << B.to_str() << endl;
+  
+  // Method 1: vector_matrix_mult
+  auto C1 = A.vector_matrix_mult(B);
+  cout << "\nA * B (vector_matrix_mult):" << endl;
+  cout << C1.to_str() << endl;
+  
+  // Method 2: matrix_vector_mult
+  auto C2 = A.matrix_vector_mult(B);
+  cout << "\nA * B (matrix_vector_mult):" << endl;
+  cout << C2.to_str() << endl;
+  
+  cout << "\nBoth methods yield the same result" << endl;
+  cout << "Verified: C1 == C2 ? " << (C1 == C2 ? "YES" : "NO") << endl;
+}
+
+// =============================================================================
+// 13. Outer Product
+// =============================================================================
+
+void demo_outer_product()
+{
+  print_section("OUTER PRODUCT");
+  
+  cout << "The outer product of vectors u and v produces a matrix M" << endl;
+  cout << "where M[i][j] = u[i] * v[j]" << endl;
+  
+  auto dom_u = make_shared<AlDomain<string>>();
+  (void)dom_u->insert("x");
+  (void)dom_u->insert("y");
+  (void)dom_u->insert("z");
+  
+  auto dom_v = make_shared<AlDomain<string>>();
+  (void)dom_v->insert("a");
+  (void)dom_v->insert("b");
+  
+  Vector<string, double> u(dom_u);
+  u.set_entry("x", 1);
+  u.set_entry("y", 2);
+  u.set_entry("z", 3);
+  
+  Vector<string, double> v(dom_v);
+  v.set_entry("a", 4);
+  v.set_entry("b", 5);
+  
+  cout << "\nVector u: x=1, y=2, z=3" << endl;
+  cout << "Vector v: a=4, b=5" << endl;
+  
+  auto M = outer_product(u, v);
+  cout << "\nOuter product u ⊗ v:" << endl;
+  cout << M.to_str() << endl;
+  
+  cout << "\nVerification:" << endl;
+  cout << "  M[y][a] = u[y] * v[a] = 2 * 4 = " << M.get_entry("y", "a") << endl;
+  cout << "  M[z][b] = u[z] * v[b] = 3 * 5 = " << M.get_entry("z", "b") << endl;
+}
+
+// =============================================================================
+// 14. Matrix Comparison
+// =============================================================================
+
+void demo_comparison()
+{
+  print_section("MATRIX COMPARISON");
+  
+  cout << "Matrices can be compared with == and != operators" << endl;
+  cout << "Comparison uses epsilon tolerance for floating-point values" << endl;
+  
+  auto domain = make_shared<AlDomain<int>>();
+  for (int i = 0; i < 2; i++)
+    (void)domain->insert(i);
+  
+  Matrix<int, int, double> A(domain, domain, {
+    {1.0, 2.0},
+    {3.0, 4.0}
+  });
+  
+  Matrix<int, int, double> B(domain, domain, {
+    {1.0, 2.0},
+    {3.0, 4.0}
+  });
+  
+  Matrix<int, int, double> C(domain, domain, {
+    {1.0, 2.0},
+    {3.0, 4.001}  // Slightly different
+  });
+  
+  cout << "\nMatrix A:" << endl;
+  cout << A.to_str() << endl;
+  
+  cout << "\nMatrix B (same as A):" << endl;
+  cout << B.to_str() << endl;
+  
+  cout << "\nMatrix C (A[1][1] is 4.001):" << endl;
+  cout << C.to_str() << endl;
+  
+  cout << "\nComparisons:" << endl;
+  cout << "  A == B ? " << (A == B ? "YES" : "NO") << endl;
+  cout << "  A == C ? " << (A == C ? "YES" : "NO") << endl;
+  cout << "  A != C ? " << (A != C ? "YES" : "NO") << endl;
+  
+  // Epsilon-sensitive comparison
+  print_subsection("Epsilon-Sensitive Comparison");
+  Matrix<int, int, double> D(domain, domain, {
+    {1.0, 2.0},
+    {3.0, 4.0 + 1e-8}  // Within default epsilon (1e-7)
+  });
+  
+  cout << "\nMatrix D has A[1][1] = 4.0 + 1e-8 (within epsilon=1e-7)" << endl;
+  cout << "  A == D ? " << (A == D ? "YES" : "NO") << " (within epsilon tolerance)" << endl;
+}
+
+// =============================================================================
+// 15. Matrix Arithmetic Operations
+// =============================================================================
+
+void demo_matrix_arithmetic()
+{
+  print_section("MATRIX ARITHMETIC OPERATIONS");
+  
+  cout << "Supported: addition (+, +=), subtraction (-, -=), scalar mult (*)" << endl;
+  
+  auto domain = make_shared<AlDomain<int>>();
+  for (int i = 0; i < 2; i++)
+    (void)domain->insert(i);
+  
+  Matrix<int, int, double> A(domain, domain, {
+    {1, 2},
+    {3, 4}
+  });
+  
+  Matrix<int, int, double> B(domain, domain, {
+    {5, 6},
+    {7, 8}
+  });
+  
+  cout << "\nMatrix A:" << endl;
+  cout << A.to_str() << endl;
+  
+  cout << "\nMatrix B:" << endl;
+  cout << B.to_str() << endl;
+  
+  // Addition
+  auto sum = A + B;
+  cout << "\nA + B:" << endl;
+  cout << sum.to_str() << endl;
+  
+  // Subtraction
+  auto diff = A - B;
+  cout << "\nA - B:" << endl;
+  cout << diff.to_str() << endl;
+  
+  // Scalar multiplication
+  auto scaled = 2.5 * A;
+  cout << "\n2.5 * A:" << endl;
+  cout << scaled.to_str() << endl;
+  
+  // In-place modification
+  print_subsection("In-Place Operations");
+  Matrix<int, int, double> C = A;
+  C += B;
+  cout << "\nC = A; C += B:" << endl;
+  cout << C.to_str() << endl;
+  
+  C.mult_by_scalar(0.5);
+  cout << "\nC.mult_by_scalar(0.5):" << endl;
+  cout << C.to_str() << endl;
+}
+
+// =============================================================================
+// 16. Row and Column Operations
+// =============================================================================
+
+void demo_row_col_operations()
+{
+  print_section("ROW AND COLUMN OPERATIONS");
+  
+  cout << "Methods for working with rows and columns:" << endl;
+  cout << "  - get_row_vector(), get_col_vector()" << endl;
+  cout << "  - set_vector_as_row(), set_vector_as_col()" << endl;
+  cout << "  - to_rowlist(), to_collist()" << endl;
+  cout << "  - get_row_as_list(), get_col_as_list()" << endl;
+  
+  auto rows = make_shared<AlDomain<string>>();
+  auto cols = make_shared<AlDomain<string>>();
+  (void)rows->insert("A");
+  (void)rows->insert("B");
+  (void)cols->insert("X");
+  (void)cols->insert("Y");
+  (void)cols->insert("Z");
+  
+  Matrix<string, string, double> M(rows, cols);
+  M.set_entry("A", "X", 1); M.set_entry("A", "Y", 2); M.set_entry("A", "Z", 3);
+  M.set_entry("B", "X", 4); M.set_entry("B", "Y", 5); M.set_entry("B", "Z", 6);
+  
+  cout << "\nMatrix M:" << endl;
+  cout << M.to_str() << endl;
+  
+  // Get row as vector
+  print_subsection("Get Row as Vector");
+  auto row_A = M.get_row_vector("A");
+  cout << "Row 'A' as vector:" << endl;
+  for (auto it = row_A.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+  
+  // Get column as vector
+  print_subsection("Get Column as Vector");
+  auto col_Y = M.get_col_vector("Y");
+  cout << "Column 'Y' as vector:" << endl;
+  for (auto it = col_Y.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  [" << e.first << "] = " << e.second << endl;
+  }
+  
+  // Set a row from vector
+  print_subsection("Set Row from Vector");
+  Vector<string, double> new_row(cols);
+  new_row.set_entry("X", 10);
+  new_row.set_entry("Y", 20);
+  new_row.set_entry("Z", 30);
+  
+  M.set_vector_as_row("B", new_row);
+  cout << "After setting row 'B' to (10, 20, 30):" << endl;
+  cout << M.to_str() << endl;
+  
+  // Convert to list of row vectors
+  print_subsection("Convert to List of Rows");
+  auto row_list = M.to_rowlist();
+  cout << "Matrix as list of " << row_list.size() << " row vectors" << endl;
+}
+
+// =============================================================================
+// 17. Practical: Linear System Example
+// =============================================================================
+
+void demo_linear_system()
+{
+  print_section("PRACTICAL: LINEAR EQUATIONS");
+  
+  cout << "Using sparse matrices to represent linear systems" << endl;
+  cout << "\nSystem:  2x + 3y = 13" << endl;
+  cout << "         4x -  y = 5" << endl;
+  cout << "Solution: x=2, y=3" << endl;
+  
+  auto vars = make_shared<AlDomain<string>>();
+  (void)vars->insert("x");
+  (void)vars->insert("y");
+  
+  auto eqs = make_shared<AlDomain<string>>();
+  (void)eqs->insert("eq1");
+  (void)eqs->insert("eq2");
+  
+  // Coefficient matrix A
+  Matrix<string, string, double> A(eqs, vars);
+  A.set_entry("eq1", "x", 2);  A.set_entry("eq1", "y", 3);
+  A.set_entry("eq2", "x", 4);  A.set_entry("eq2", "y", -1);
+  
+  cout << "\nCoefficient matrix A:" << endl;
+  cout << A.to_str() << endl;
+  
+  // Solution vector
+  Vector<string, double> solution(vars);
+  solution.set_entry("x", 2);
+  solution.set_entry("y", 3);
+  
+  cout << "\nSolution vector: x=2, y=3" << endl;
+  
+  // Verify: A * solution = b
+  auto b = A * solution;
+  cout << "\nVerification A * solution:" << endl;
+  for (auto it = b.get_it(); it.has_curr(); it.next())
+  {
+    auto e = it.get_curr();
+    cout << "  " << e.first << " = " << e.second << endl;
+  }
+  cout << "\nExpected: eq1=13, eq2=5 ✓" << endl;
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -566,6 +1097,16 @@ int main(int argc, char* argv[])
     demo_vector_arithmetic();
     demo_adjacency_matrix();
     demo_epsilon();
+    demo_initializer_list();
+    demo_transpose();
+    demo_identity();
+    demo_matrix_vector_mult();
+    demo_matrix_mult();
+    demo_outer_product();
+    demo_comparison();
+    demo_matrix_arithmetic();
+    demo_row_col_operations();
+    demo_linear_system();
     
     cout << "\n" << string(60, '=') << "\n";
     cout << "Sparse Matrix and Vector demo completed!\n";

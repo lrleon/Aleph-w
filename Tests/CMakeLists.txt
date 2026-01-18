@@ -35,6 +35,12 @@ endif()
 # Link directory for Aleph library
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+# Enable CTest - must be called before any add_test()
+enable_testing()
+
+# Include GoogleTest module for gtest_discover_tests()
+include(GoogleTest)
+
 # When this directory is configured standalone (without the root
 # CMakeLists setting ALEPH_SYSTEM_LIBS), define the same defaults here so
 # that tests depending on Aleph's transitive libraries link correctly.
@@ -161,7 +167,7 @@ set(TEST_PROGRAMS
     al-domain
     al-vector
     al-matrix
-    # ah-arena  # TODO: DynSetTree missing arena_allocated_size/arena_available_size
+    ah-arena
     ah-string-utils
     ah-stl-utils
     ahAlgo
@@ -208,10 +214,6 @@ set(TEST_PROGRAMS
     topological_sort_test
     huffman
     test_tpl_hash_macros
-)
-
-# Exhaustive tests (files ending in _test.cc)
-set(EXHAUSTIVE_TESTS
     bipartite_test
     dlink_test
     htlist_test
@@ -338,8 +340,8 @@ foreach(test_program ${TEST_PROGRAMS})
             ${ALEPH_SYSTEM_LIBS}
         )
 
-        # Add test to CTest
-        add_test(NAME ${test_exe} COMMAND ${test_exe})
+        # Add test to CTest (gtest_discover_tests for IDE integration)
+        gtest_discover_tests(${test_exe})
 
         # Optional: Install test executable
         # install(TARGETS ${test_program} DESTINATION bin/tests)
@@ -364,7 +366,7 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
                 GTest::gtest
                 ${ALEPH_SYSTEM_LIBS}
             )
-        elseif(test_program STREQUAL "bipartite_test" OR test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "priority_queue_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "graph_scenarios_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "net_sup_dem_test" OR test_program STREQUAL "tpl_netcost_test" OR test_program STREQUAL "tpl_multicommodity_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "prim_test" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-mapping_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test" OR test_program STREQUAL "quadtree_test" OR test_program STREQUAL "k2tree_test" OR test_program STREQUAL "container_edge_cases_test" OR test_program STREQUAL "netcapgraph_test" OR test_program STREQUAL "tdrbtree_test" OR test_program STREQUAL "tdrbtreerk_test" OR test_program STREQUAL "htdrbtreerk_test" OR test_program STREQUAL "hash_fct_test" OR test_program STREQUAL "point_test" OR test_program STREQUAL "segment_test" OR test_program STREQUAL "hash_cache_test" OR test_program STREQUAL "cache_test" OR test_program STREQUAL "ranges_iterator_test" OR test_program STREQUAL "ah_ranges_test" OR test_program STREQUAL "eepicgeom_test" OR test_program STREQUAL "pointer_table_test" OR test_program STREQUAL "graph_functional_test" OR test_program STREQUAL "cookie_guard_test" OR test_program STREQUAL "graph_stress_test" OR test_program STREQUAL "fibonacci_heap_test" OR test_program STREQUAL "ahSingleton_test" OR test_program STREQUAL "johnson_test" OR test_program STREQUAL "graph_copy_test" OR test_program STREQUAL "graph_traverse_test" OR test_program STREQUAL "test_ah_errors" OR test_program STREQUAL "dynliststack_test" OR test_program STREQUAL "tpl_dynListQueue" OR test_program STREQUAL "tpl_dynListStack" OR test_program STREQUAL "ahSort_test" OR test_program STREQUAL "astar_test" OR test_program STREQUAL "tpl_maxflow_test" OR test_program STREQUAL "net_utils_test" OR test_program STREQUAL "tpl_mincost_test" OR test_program STREQUAL "net_apps_test" OR test_program STREQUAL "random_network_generator_test" OR test_program STREQUAL "eulerian_test" OR test_program STREQUAL "hamiltonian_test" OR test_program STREQUAL "tpl_dynLhash_test" OR test_program STREQUAL "tpl_random_queue_test" OR test_program STREQUAL "rb_tree_test" OR test_program STREQUAL "treap_test" OR test_program STREQUAL "random_tree_test" OR test_program STREQUAL "random_net_test" OR test_program STREQUAL "euclidian_graph_test" OR test_program STREQUAL "find_path_test" OR test_program STREQUAL "index_graph_test" OR test_program STREQUAL "test_acyclique_test" OR test_program STREQUAL "test_connectivity_test" OR test_program STREQUAL "test_path_test" OR test_program STREQUAL "lfit_test" OR test_program STREQUAL "ah_mapping_test" OR test_program STREQUAL "dyn_treap_test" OR test_program STREQUAL "geom_algorithms_test" OR test_program STREQUAL "generate_df_tree_test" OR test_program STREQUAL "index_graph_intensive_test")
+        elseif(test_program STREQUAL "bipartite_test" OR test_program STREQUAL "tpl_graph_utils_test" OR test_program STREQUAL "tpl_test_cycle" OR test_program STREQUAL "tpl_spanning_tree_test" OR test_program STREQUAL "tpl_components_test" OR test_program STREQUAL "ah-zip-utils_test" OR test_program STREQUAL "ah-uni-functional_test" OR test_program STREQUAL "ah_date_test" OR test_program STREQUAL "ah_mem_test" OR test_program STREQUAL "ah_msg_test" OR test_program STREQUAL "test_al_vector" OR test_program STREQUAL "archeap_test" OR test_program STREQUAL "al_matrix_test" OR test_program STREQUAL "cut_nodes_test" OR test_program STREQUAL "graph_indexes_test" OR test_program STREQUAL "graph_scenarios_test" OR test_program STREQUAL "tpl_net_test" OR test_program STREQUAL "net_sup_dem_test" OR test_program STREQUAL "tpl_netcost_test" OR test_program STREQUAL "tpl_multicommodity_test" OR test_program STREQUAL "tpl_kgraph_test" OR test_program STREQUAL "tpl_agraph_test" OR test_program STREQUAL "test_kruskal" OR test_program STREQUAL "prim_test" OR test_program STREQUAL "tpl_sgraph_test" OR test_program STREQUAL "tpl_graph_test" OR test_program STREQUAL "load_digraph_test" OR test_program STREQUAL "Simplex_test" OR test_program STREQUAL "prefix_tree_test" OR test_program STREQUAL "skiplist_test" OR test_program STREQUAL "dynskiplist_test" OR test_program STREQUAL "dynmat_test" OR test_program STREQUAL "dynmapohash_test" OR test_program STREQUAL "ah-mapping_test" OR test_program STREQUAL "tpl_dynMapTree_test" OR test_program STREQUAL "euclidian_graph_common_test" OR test_program STREQUAL "future_utils_test" OR test_program STREQUAL "quadtree_test" OR test_program STREQUAL "k2tree_test" OR test_program STREQUAL "container_edge_cases_test" OR test_program STREQUAL "netcapgraph_test" OR test_program STREQUAL "tdrbtree_test" OR test_program STREQUAL "tdrbtreerk_test" OR test_program STREQUAL "htdrbtreerk_test" OR test_program STREQUAL "hash_fct_test" OR test_program STREQUAL "point_test" OR test_program STREQUAL "segment_test" OR test_program STREQUAL "hash_cache_test" OR test_program STREQUAL "cache_test" OR test_program STREQUAL "ranges_iterator_test" OR test_program STREQUAL "ah_ranges_test" OR test_program STREQUAL "eepicgeom_test" OR test_program STREQUAL "pointer_table_test" OR test_program STREQUAL "graph_functional_test" OR test_program STREQUAL "cookie_guard_test" OR test_program STREQUAL "graph_stress_test" OR test_program STREQUAL "fibonacci_heap_test" OR test_program STREQUAL "ahSingleton_test" OR test_program STREQUAL "johnson_test" OR test_program STREQUAL "graph_copy_test" OR test_program STREQUAL "graph_traverse_test" OR test_program STREQUAL "test_ah_errors" OR test_program STREQUAL "dynliststack_test" OR test_program STREQUAL "tpl_dynListQueue" OR test_program STREQUAL "tpl_dynListStack" OR test_program STREQUAL "ahSort_test" OR test_program STREQUAL "astar_test" OR test_program STREQUAL "tpl_maxflow_test" OR test_program STREQUAL "net_utils_test" OR test_program STREQUAL "tpl_mincost_test" OR test_program STREQUAL "net_apps_test" OR test_program STREQUAL "random_network_generator_test" OR test_program STREQUAL "eulerian_test" OR test_program STREQUAL "hamiltonian_test" OR test_program STREQUAL "tpl_dynLhash_test" OR test_program STREQUAL "tpl_random_queue_test" OR test_program STREQUAL "rb_tree_test" OR test_program STREQUAL "treap_test" OR test_program STREQUAL "random_tree_test" OR test_program STREQUAL "random_net_test" OR test_program STREQUAL "euclidian_graph_test" OR test_program STREQUAL "find_path_test" OR test_program STREQUAL "index_graph_test" OR test_program STREQUAL "test_acyclique_test" OR test_program STREQUAL "test_connectivity_test" OR test_program STREQUAL "test_path_test" OR test_program STREQUAL "lfit_test" OR test_program STREQUAL "ah_mapping_test" OR test_program STREQUAL "dyn_treap_test" OR test_program STREQUAL "geom_algorithms_test" OR test_program STREQUAL "generate_df_tree_test" OR test_program STREQUAL "index_graph_intensive_test")
             target_link_libraries(${test_program} PRIVATE
                 Aleph
                 GTest::gtest_main
@@ -381,14 +383,57 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
             )
         endif()
 
-        add_test(NAME ${test_program} COMMAND ${test_program})
+        gtest_discover_tests(${test_program})
     else()
         message(WARNING "Source file not found for exhaustive test: ${test_program}.cc")
     endif()
 endforeach()
 
-# Enable CTest
-enable_testing()
+# -----------------------------------------------------------------------------
+# Auto-register any remaining test sources in this directory.
+#
+# Goal: if a new *.cc file is added under Tests/, it should automatically become
+# a runnable target (and a CTest entry) so IDEs can discover it without having
+# to update the lists above.
+#
+# We keep the explicit lists above as authoritative (they allow custom linking
+# decisions). This block only creates targets for sources that were not already
+# handled.
+# -----------------------------------------------------------------------------
+
+set(_ALEPH_KNOWN_TEST_TARGETS "${TEST_PROGRAMS};${EXHAUSTIVE_TESTS}")
+
+file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.cc")
+foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
+    get_filename_component(_name "${_src}" NAME_WE)
+
+    # Skip files already registered by the lists above.
+    list(FIND _ALEPH_KNOWN_TEST_TARGETS "${_name}" _known_idx)
+    if(NOT _known_idx EQUAL -1)
+        continue()
+    endif()
+
+    # Avoid collisions with targets created elsewhere in the project.
+    set(_auto_target "${_name}")
+    if(TARGET ${_auto_target})
+        set(_auto_target "tests_${_auto_target}")
+    endif()
+
+    if(NOT TARGET ${_auto_target})
+        add_executable(${_auto_target} "${_src}")
+
+        # Default linking: prefer the full Aleph link set so most tests "just work".
+        # This is intentionally conservative (more deps) to maximize executability.
+        target_link_libraries(${_auto_target} PRIVATE
+            Aleph
+            GTest::gtest_main
+            GTest::gtest
+            ${ALEPH_SYSTEM_LIBS}
+        )
+
+        gtest_discover_tests(${_auto_target})
+    endif()
+endforeach()
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")
