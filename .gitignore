@@ -312,3 +312,7 @@ CMakePresets.json
 *.Tree
 /Examples/.btreepic
 /.cache/*
+*.aux
+*.dvi
+*.eepic
+*
