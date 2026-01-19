@@ -532,18 +532,62 @@ TEST(DisconnectedGraphTest, FloydOnDisconnectedGraph)
   Ady_Mat<Graph, long> path(g);
   
   floyd_all_shortest_paths(g, dist, path);
+
+  // Map node info -> matrix index (Ady_Mat sorts nodes by pointer value)
+  vector<long> idx(4, -1);
+  for (long i = 0; i < 4; ++i)
+    idx[dist(i)->get_info()] = i;
   
   // Within component 1
-  EXPECT_EQ(dist(0L, 1L), 1);
-  EXPECT_EQ(dist(1L, 0L), 1);
+  EXPECT_EQ(dist(idx[0], idx[1]), 1);
+  EXPECT_EQ(dist(idx[1], idx[0]), 1);
   
   // Within component 2
-  EXPECT_EQ(dist(2L, 3L), 2);
-  EXPECT_EQ(dist(3L, 2L), 2);
+  EXPECT_EQ(dist(idx[2], idx[3]), 2);
+  EXPECT_EQ(dist(idx[3], idx[2]), 2);
   
   // Between components (unreachable)
-  EXPECT_EQ(dist(0L, 2L), IntDistanceArc::Max_Distance);
-  EXPECT_EQ(dist(1L, 3L), IntDistanceArc::Max_Distance);
+  EXPECT_EQ(dist(idx[0], idx[2]), IntDistanceArc::Max_Distance);
+  EXPECT_EQ(dist(idx[1], idx[3]), IntDistanceArc::Max_Distance);
+}
+
+TEST(DisconnectedGraphTest, UnreachableStaysInfinityWithNegativeEdges)
+{
+  using Graph = List_Digraph<Graph_Node<int>, Graph_Arc<IntDistanceArc>>;
+
+  Graph g;
+  auto* n0 = g.insert_node(0);
+  auto* n1 = g.insert_node(1);
+  auto* n2 = g.insert_node(2);
+  auto* n3 = g.insert_node(3);
+
+  // Component 1: negative edge but no negative cycle
+  g.insert_arc(n0, n1, IntDistanceArc(-5));
+  g.insert_arc(n1, n0, IntDistanceArc(6));
+
+  // Component 2: separate disconnected component
+  g.insert_arc(n2, n3, IntDistanceArc(2));
+  g.insert_arc(n3, n2, IntDistanceArc(2));
+
+  Ady_Mat<Graph, int> dist(g);
+  Ady_Mat<Graph, long> path(g);
+
+  floyd_all_shortest_paths(g, dist, path);
+
+  // Map node info -> matrix index
+  vector<long> idx(4, -1);
+  for (long i = 0; i < 4; ++i)
+    idx[dist(i)->get_info()] = i;
+
+  // Within component 1
+  EXPECT_EQ(dist(idx[0], idx[1]), -5);
+  EXPECT_EQ(dist(idx[1], idx[0]), 6);
+
+  // Between components (unreachable) must remain infinity sentinel even with negative weights
+  EXPECT_EQ(dist(idx[0], idx[2]), IntDistanceArc::Max_Distance);
+  EXPECT_EQ(dist(idx[1], idx[3]), IntDistanceArc::Max_Distance);
+  EXPECT_EQ(dist(idx[2], idx[0]), IntDistanceArc::Max_Distance);
+  EXPECT_EQ(dist(idx[3], idx[1]), IntDistanceArc::Max_Distance);
 }
 
 TEST(CompleteGraphTest, FloydOnCompleteGraph)

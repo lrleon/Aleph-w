@@ -184,6 +184,9 @@ void floyd_all_shortest_paths(
       if (dist(s, i) < max)
 	for (int t = 0; t < n; ++t)
 	  {
+            if (!(dist(i, t) < max))
+              continue;
+
 	    Dist_Type new_dist = Plus () (dist(s, i), dist(i, t));
 
 	    if (Compare () (new_dist, dist(s, t)))
@@ -334,6 +337,9 @@ void floyd_all_shortest_paths_latex(
 	if (dist(s, i) < max)
 	  for (int t = 0; t < n; ++t)
 	    {
+              if (!(dist(i, t) < max))
+                continue;
+
 	      Dist_Type new_dist = Plus() (dist(s, i), dist(i, t));
 
 	      if (Compare () (new_dist, dist(s, t)))
