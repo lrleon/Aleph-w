@@ -30,10 +30,8 @@
  * @file ah-arena.cc
  * @brief Tests for Ah Arena
  */
+# include <cstdlib>
 # include <gsl/gsl_rng.h>
-
-# include <tclap/CmdLine.h>
-
 # include <gtest/gtest.h>
 
 # include <ah-arena.H>
@@ -42,7 +40,6 @@
 using namespace std;
 using namespace Aleph;
 using namespace testing;
-using namespace TCLAP;
 
 struct StaticArenaFixture : public Test
 {
@@ -84,17 +81,18 @@ TEST_F(StaticArenaFixture, one_alloc_next_fail)
   ASSERT_EQ(ptr1, nullptr);
 }
 
-CmdLine cmd = { "ah_arena", ' ', "0" };
-
-ValueArg<unsigned long> seed =
-  { "s", "seed", "seed for random generator", false, 0,
-    "seed for random generator", cmd };
+// Default seed for random tests (can be overridden via environment)
+static unsigned long get_seed()
+{
+  const char* env_seed = std::getenv("ALEPH_TEST_SEED");
+  return env_seed ? std::stoul(env_seed) : 0;
+}
 
 TEST_F(StaticArenaFixture, random_allocs)
 {
   DynList<pair<const char*, size_t>> blocks;
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
+  gsl_rng_set(r, get_seed());
   size_t size = 0;
   while (true)
     {
@@ -166,7 +164,7 @@ TEST_F(StaticArenaFixture, object_alloc)
 TEST(Tree, tree)
 {
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
+  gsl_rng_set(r, get_seed());
 
   size_t n = 1024;
   char buf[1024];
@@ -199,8 +197,5 @@ TEST(Tree, tree)
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-
-  cmd.parse(argc, argv);
-
   return RUN_ALL_TESTS();
 }
