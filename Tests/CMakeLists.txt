@@ -407,6 +407,11 @@ file(GLOB _ALEPH_ALL_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}
 foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
     get_filename_component(_name "${_src}" NAME_WE)
 
+    # Skip k2tree_test with clang (GMP/libc++ incompatibility)
+    if(_name STREQUAL "k2tree_test" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        continue()
+    endif()
+
     # Skip files already registered by the lists above.
     list(FIND _ALEPH_KNOWN_TEST_TARGETS "${_name}" _known_idx)
     if(NOT _known_idx EQUAL -1)

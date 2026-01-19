@@ -315,4 +315,6 @@ CMakePresets.json
 *.aux
 *.dvi
 *.eepic
-*
+*.log
+*.txt
+*.copy
