@@ -318,3 +318,5 @@ CMakePresets.json
 *.log
 *.txt
 *.copy
+PR_DESCRIPTION.md
+CHANGELOG_v3.md
