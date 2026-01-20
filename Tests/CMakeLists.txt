@@ -213,13 +213,12 @@ set(TEST_PROGRAMS
     ah_parallel_test
     topological_sort_test
     huffman
-    test_tpl_hash_macros
-    bipartite_test
-    dlink_test
-    htlist_test
-    ah_iterator_test
-    tpl_graph_utils_test
-    tpl_test_cycle
+	    test_tpl_hash_macros
+	    bipartite_test
+	    dlink_test
+	    ah_iterator_test
+	    tpl_graph_utils_test
+	    tpl_test_cycle
     tpl_spanning_tree_test
     tpl_components_test
     ah-stl-zip_test
@@ -340,6 +339,13 @@ foreach(test_program ${TEST_PROGRAMS})
             ${ALEPH_SYSTEM_LIBS}
         )
 
+        # Tests intentionally discard some [[nodiscard]] results (e.g., when only
+        # verifying side-effects or exception behavior). Keep this warning for
+        # library/users, but silence it for test targets.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(${test_exe} PRIVATE -Wno-unused-result)
+        endif()
+
         # Add test to CTest (gtest_discover_tests for IDE integration)
         gtest_discover_tests(${test_exe})
 
@@ -381,6 +387,10 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
                 GTest::gtest
                 Threads::Threads
             )
+        endif()
+
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(${test_program} PRIVATE -Wno-unused-result)
         endif()
 
         gtest_discover_tests(${test_program})
@@ -435,6 +445,10 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
             GTest::gtest
             ${ALEPH_SYSTEM_LIBS}
         )
+
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(${_auto_target} PRIVATE -Wno-unused-result)
+        endif()
 
         gtest_discover_tests(${_auto_target})
     endif()

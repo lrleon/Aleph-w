@@ -674,14 +674,22 @@ public:
    */
   void remove_vertex(const Vertex & v)
   {
-    ah_domain_error_if(not vertex_belong_polygon(v))
+    Vertex *victim = nullptr;
+    for (Vertex_Iterator it(*this); it.has_curr(); it.next_ne())
+      if (&it.get_current_vertex() == &v)
+        {
+          victim = &const_cast<Vertex &>(it.get_current_vertex());
+          break;
+        }
+
+    ah_domain_error_if(victim == nullptr)
       << "Vertex does not belong to polygon";
 
     // TODO: Handle colinearity cases
 
-    const_cast<Vertex &>(v).del();
+    victim->del();
     --num_vertex;
-    delete &v;
+    delete victim;
   }
 
   /** @brief Close the polygon.

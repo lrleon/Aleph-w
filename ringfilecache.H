@@ -904,12 +904,12 @@ public:
   // Iterator for read-only traversal (oldest to youngest).
   // Not reentrant: do not execute other operations on the cache object
   // while iterating.
-  class Iterator
-  {
-    RingFileCache<T> *cache_ptr = nullptr;
-    T curr;
-    size_t pos;
-    size_t curr_pos;
+	  class Iterator
+	  {
+	    RingFileCache<T> *cache_ptr = nullptr;
+	    T curr{};
+	    size_t pos = 0;
+	    size_t curr_pos = 0;
 
     void set_curr_pointer()
     {

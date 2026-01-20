@@ -101,10 +101,12 @@ TEST_F(EulerianUndirectedTest, SingleNode)
 
 TEST_F(EulerianUndirectedTest, Triangle)
 {
-  // Triangle: all vertices have degree 2 (even)
-  //     1
-  //    / \
-  //   2---3
+  /*
+   * Triangle: all vertices have degree 2 (even)
+   *     1
+   *    / \
+   *   2---3
+   */
   auto n1 = add_node(1);
   auto n2 = add_node(2);
   auto n3 = add_node(3);
@@ -288,12 +290,14 @@ TEST_F(EulerianUndirectedTest, CompleteGraphK5)
 
 TEST_F(EulerianUndirectedTest, DoubleTriangle)
 {
-  // Two triangles sharing an edge (bowtie)
-  //   1
-  //  /|\
-  // 2-+-3
-  //  \|/
-  //   4
+  /*
+   * Two triangles sharing an edge (bowtie)
+   *   1
+   *  /|\
+   * 2-+-3
+   *  \|/
+   *   4
+   */
   auto n1 = add_node(1);
   auto n2 = add_node(2);
   auto n3 = add_node(3);
@@ -636,16 +640,24 @@ TEST_F(EulerianUndirectedTest, HierholzerPath)
 
 TEST_F(EulerianUndirectedTest, HierholzerCompleteK4)
 {
-  // Complete graph K4: all degrees = 3 (odd) - NOT Eulerian
-  // Instead, test K4 minus one edge (makes 2 vertices odd)
   auto n1 = add_node(1);
   auto n2 = add_node(2);
   auto n3 = add_node(3);
   auto n4 = add_node(4);
   
-  // K4 has all vertices with degree 3 (odd) - no Eulerian path
-  // Instead use double-edge figure-8: two triangles sharing a vertex
-  // This gives the center vertex degree 4 (even), others degree 2 (even)
+  // Complete graph K4: all degrees = 3 (odd) -> NOT Eulerian
+  add_edge(n1, n2);
+  add_edge(n1, n3);
+  add_edge(n1, n4);
+  add_edge(n2, n3);
+  add_edge(n2, n4);
+  add_edge(n3, n4);
+
+  Find_Eulerian_Path<Graph> finder;
+  auto result = finder(g);
+
+  EXPECT_EQ(result.type, Eulerian_Type::None);
+  EXPECT_TRUE(result.path.is_empty());
 }
 
 TEST_F(EulerianUndirectedTest, HierholzerBowTie)

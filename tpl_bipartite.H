@@ -46,6 +46,7 @@
 # define TPL_BIPARTITE_H
 
 # include <tpl_dynDlist.H>
+# include <tpl_dynMapTree.H>
 # include <tpl_net.H>
 # include <ah-errors.H>
 # include <cookie_guard.H>
@@ -212,6 +213,9 @@ The routine handles two type parameters:
     // (prevents dangling pointers to destroyed 'net' nodes)
     Cookie_Guard<GT> cookie_guard(g, true, true);
 
+    // Use a map to store arc mapping since Max_Flow algorithms reset cookies
+    DynMapTree<typename AN::Arc *, typename GT::Arc *> arc_map;
+
     // traverse nodes of g and insert their image in net
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       {
@@ -235,8 +239,8 @@ The routine handles two type parameters:
             typename GT::Arc *arc = j.get_current_arc_ne();
             typename AN::Node *tgt = mapped_node<GT, AN>(g.get_tgt_node(arc));
             typename AN::Arc *a = net.insert_arc(src, tgt, 1);
-            ARC_COOKIE(arc) = a;
-            ARC_COOKIE(a) = arc;
+            // Store mapping in map (not cookies, which are cleared by Max_Flow)
+            arc_map.insert(a, arc);
           }
       }
 
@@ -258,11 +262,12 @@ The routine handles two type parameters:
         if (a->flow == 0)
           continue;
 
-        typename GT::Arc *arc = mapped_arc<AN, GT>(a);
-        if (arc == nullptr)
+        // Look up the original arc in our map
+        auto * pair_ptr = arc_map.search(a);
+        if (pair_ptr == nullptr)
           continue;
 
-        matching.append(arc);
+        matching.append(pair_ptr->second);
       }
   }
 

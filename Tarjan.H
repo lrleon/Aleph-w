@@ -171,16 +171,9 @@ namespace Aleph
     DynListStack<typename GT::Node *> stack;
 
     long df_count = 0;
-    mutable size_t n = 0; // number of nodes in the graph
+	    mutable size_t n = 0; // number of nodes in the graph
 
-    // list of lists; each list stores nodes of a component
-    DynList<DynList<typename GT::Node *>> *list_list_ptr = nullptr;
-
-    DynList<GT> *block_list_ptr = nullptr; // list of strongly connected component blocks
-
-    DynList<size_t> *list_len_ptr = nullptr; // list of component sizes
-
-    Path<GT> *path_ptr = nullptr;
+	    Path<GT> *path_ptr = nullptr;
 
   public:
     /// Tarjan instances should not be copied (they hold internal traversal state)
@@ -263,25 +256,25 @@ namespace Aleph
      *
      *  @param v The current node being visited.
      */
-    void scc_by_blocks(typename GT::Node *v)
-    {
-      init_node_and_push_in_stack(v);
+	    void scc_by_blocks(typename GT::Node *v, DynList<GT> & blk_list)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // depth-first traverse all nodes connected to v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            scc_by_blocks(w);
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before w
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
+	      // depth-first traverse all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_blocks(w, blk_list);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
-      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
-        { // yes ==> pop block nodes from stack
-          const auto & blk_idx = block_list_ptr->size();
-          GT & blk = block_list_ptr->append(GT());
+	      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+	        { // yes ==> pop block nodes from stack
+	          const auto & blk_idx = blk_list.size();
+	          GT & blk = blk_list.append(GT());
 
           while (true) // remove block from stack until v is removed
             {
@@ -304,28 +297,29 @@ namespace Aleph
      *
      *  @param v The current node being visited.
      */
-    void scc_by_lists(typename GT::Node *v)
-    {
-      init_node_and_push_in_stack(v);
+	    void scc_by_lists(typename GT::Node *v,
+	                      DynList<DynList<typename GT::Node *>> & blks)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // depth traversal all nodes connected to v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            scc_by_lists(w);
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before w
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
+	      // depth traversal all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_lists(w, blks);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
-      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
-        { // yes pop out block nodes that are on stack
-          auto & l = list_list_ptr->append(DynList<typename GT::Node *>());
-          while (true) // remove block from stack until reaching v
-            {
-              auto p = pop_from_stack();
-              l.append(p);
+	      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+	        { // yes pop out block nodes that are on stack
+	          auto & l = blks.append(DynList<typename GT::Node *>());
+	          while (true) // remove block from stack until reaching v
+	            {
+	              auto p = pop_from_stack();
+	              l.append(p);
               if (p == v)
                 break;
             }
@@ -339,20 +333,20 @@ namespace Aleph
      *
      *  @param v The current node being visited.
      */
-    void scc_by_len(typename GT::Node *v)
-    {
-      init_node_and_push_in_stack(v);
+	    void scc_by_len(typename GT::Node *v, DynList<size_t> & sizes)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // depth traverse all nodes connected to v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
-          {
-            scc_by_len(w);
-            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
-          }
-        else if (is_node_in_stack(w))
-          // if on stack ==> v was visited before w
-          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
+	      // depth traverse all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_len(w, sizes);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
       if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
         { // yes, pop out block nodes that are on stack
@@ -362,12 +356,12 @@ namespace Aleph
               auto p = pop_from_stack();
               ++count;
 
-              if (p == v)
-                break;
-            }
-          list_len_ptr->append(count);
-        }
-    }
+	              if (p == v)
+	                break;
+	            }
+	          sizes.append(count);
+	        }
+	    }
 
     /** @brief Initialize internal state for a Tarjan traversal.
      *
@@ -621,16 +615,14 @@ namespace Aleph
         insert into the list.
         @see copy_graph()
     */
-    void connected_components(const GT & g, DynList<GT> & blk_list,
-                              DynList<typename GT::Arc *> & arc_list)
-    {
-      init_tarjan(g);
+	    void connected_components(const GT & g, DynList<GT> & blk_list,
+	                              DynList<typename GT::Arc *> & arc_list)
+	    {
+	      init_tarjan(g);
 
-      block_list_ptr = &blk_list;
-
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
-          scc_by_blocks(v);
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_blocks(v, blk_list);
 
       assert(stack.is_empty());
 
@@ -695,15 +687,14 @@ namespace Aleph
 
         @see copy_graph()
     */
-    void connected_components(const GT & g,
-                              DynList<DynList<typename GT::Node *>> & blks)
-    {
-      init_tarjan(g);
-      list_list_ptr = &blks;
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
-          scc_by_lists(v);
-    }
+	    void connected_components(const GT & g,
+	                              DynList<DynList<typename GT::Node *>> & blks)
+	    {
+	      init_tarjan(g);
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_lists(v, blks);
+	    }
 
     [[nodiscard]] DynList<DynList<typename GT::Node *>> connected_components(const GT & g)
     {
@@ -749,14 +740,13 @@ namespace Aleph
 
         @see copy_graph()
     */
-    void connected_components(const GT & g, DynList<size_t> & blks)
-    {
-      init_tarjan(g);
-      list_len_ptr = &blks;
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
-          scc_by_len(v);
-    }
+	    void connected_components(const GT & g, DynList<size_t> & blks)
+	    {
+	      init_tarjan(g);
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_len(v, blks);
+	    }
 
     /** \overload
      *

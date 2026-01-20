@@ -217,6 +217,8 @@ TEST(SSPTest, CompareWithCycleCanceling)
 
   auto [flow_ssp, cost_ssp] = successive_shortest_paths(net_ssp);
   auto [cycles, factor] = max_flow_min_cost_by_cycle_canceling(net_cc);
+  (void)cycles;
+  (void)factor;
   
   double flow_cc = get_max_flow(net_cc);
   double cost_cc = net_cc.flow_cost();

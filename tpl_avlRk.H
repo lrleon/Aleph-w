@@ -129,13 +129,14 @@ namespace Aleph
 
       do
         {
-          __builtin_prefetch(LLINK(p));
-          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p)))  // key < KEY(p)
             {
               cmp_result = CmpLess;
               p = LLINK(p);
+              // Prefetch only the child we'll visit next iteration
+              if (p != Node::NullPtr) [[likely]]
+                __builtin_prefetch(p);
             }
           else  // key >= KEY(p), could be equal
             {
@@ -143,6 +144,9 @@ namespace Aleph
               candidate_pos = avl_stack.size();
               cmp_result = CmpGreater;
               p = RLINK(p);
+              // Prefetch only the child we'll visit next iteration
+              if (p != Node::NullPtr) [[likely]]
+                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);
@@ -169,18 +173,22 @@ namespace Aleph
       Node *p = root;
       do
         {
-          __builtin_prefetch(LLINK(p));
-          __builtin_prefetch(RLINK(p));
           avl_stack.push(p);
           if (cmp(key, KEY(p))) // key < KEY(p)?
             {
               cmp_result = CmpLess;
               p = LLINK(p);
+              // Prefetch only the child we'll visit next iteration
+              if (p != Node::NullPtr) [[likely]]
+                __builtin_prefetch(p);
             }
           else // key >= KEY(p)
             {
               cmp_result = CmpGreater;
               p = RLINK(p);
+              // Prefetch only the child we'll visit next iteration
+              if (p != Node::NullPtr) [[likely]]
+                __builtin_prefetch(p);
             }
         }
       while (p != Node::NullPtr);
@@ -507,9 +515,9 @@ namespace Aleph
     /// \overload key_comp()
     [[nodiscard]] constexpr Compare &get_compare() noexcept { return key_comp(); }
 
-    Gen_Avl_Tree_Rk(Compare __cmp = Compare()) noexcept
+    Gen_Avl_Tree_Rk(Compare cmf_fct = Compare()) noexcept
       : avl_stack(Node::MaxHeight), head_ptr(&head_node),
-        root(RLINK(head_ptr)), cmp(__cmp)
+        root(RLINK(head_ptr)), cmp(cmf_fct)
     {
       avl_stack.push(head_ptr);
     }

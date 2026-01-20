@@ -53,6 +53,10 @@ int main()
     auto bob = node_idx.insert_in_graph("Bob");
     auto charlie = node_idx.insert_in_graph("Charlie");
     auto diana = node_idx.insert_in_graph("Diana");
+    (void)alice;
+    (void)bob;
+    (void)charlie;
+    (void)diana;
     
     cout << "Added users: Alice, Bob, Charlie, Diana\n\n";
     
@@ -110,6 +114,9 @@ int main()
     auto u1 = user_idx.insert_in_graph({1001, "Alice", 30});
     auto u2 = user_idx.insert_in_graph({1003, "Bob", 25});
     auto u3 = user_idx.insert_in_graph({1002, "Charlie", 35});
+    (void)u1;
+    (void)u2;
+    (void)u3;
     
     cout << "  Added: Alice(1001), Bob(1003), Charlie(1002)\n";
     cout << "  Index maintains sorted order by ID\n\n";
@@ -138,6 +145,7 @@ int main()
     
     cout << "Inserting node with ID 100...\n";
     auto n1 = node_idx.insert_in_graph(100);
+    (void)n1;
     cout << "  Success! Node count: " << g.get_num_nodes() << "\n\n";
     
     cout << "Attempting to insert duplicate ID 100...\n";

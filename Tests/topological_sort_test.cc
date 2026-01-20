@@ -128,11 +128,13 @@ TEST(TopologicalSortDFS, LinearChain)
 
 TEST(TopologicalSortDFS, DiamondDAG)
 {
-  //     A
-  //    / \
-  //   B   C
-  //    \ /
-  //     D
+  /*
+   *     A
+   *    / \
+   *   B   C
+   *    \ /
+   *     D
+   */
   TestDigraph g;
   auto a = g.insert_node("A");
   auto b = g.insert_node("B");
@@ -335,9 +337,11 @@ TEST(QTopologicalSortRanks, LinearChain)
 
 TEST(QTopologicalSortRanks, ParallelNodes)
 {
-  //   A
-  //  /|\
-  // B C D
+  /*
+   *   A
+   *  /|\
+   * B C D
+   */
   TestDigraph g;
   auto a = g.insert_node("A");
   auto b = g.insert_node("B");
@@ -363,11 +367,13 @@ TEST(QTopologicalSortRanks, ParallelNodes)
 
 TEST(QTopologicalSortRanks, DiamondRanks)
 {
-  //     A       <- rank 0
-  //    / \
-  //   B   C     <- rank 1
-  //    \ /
-  //     D       <- rank 2
+  /*
+   *     A       <- rank 0
+   *    / \
+   *   B   C     <- rank 1
+   *    \ /
+   *     D       <- rank 2
+   */
   TestDigraph g;
   auto a = g.insert_node("A");
   auto b = g.insert_node("B");
@@ -555,4 +561,3 @@ TEST(TopologicalSortComparison, BothAlgorithmsProduceValidOrder)
   EXPECT_TRUE(is_valid_topological_order(g, dfs_result));
   EXPECT_TRUE(is_valid_topological_order(g, bfs_result));
 }
-

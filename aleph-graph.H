@@ -150,7 +150,7 @@ public:
       /// All the bits are set to zero
   Bit_Fields() noexcept
   {
-    memset(this, 0, sizeof *this);
+    reset();
   }
 
       /** Get a control bit.
@@ -243,7 +243,18 @@ public:
       /// Reset all bits and state to zero
   void reset() noexcept
   {
-    memset(this, 0, sizeof *this);
+    depth_first = 0;
+    breadth_first = 0;
+    test_cycle = 0;
+    find_path = 0;
+    euler = 0;
+    maximum_flow = 0;
+    spanning_tree = 0;
+    build_subtree = 0;
+    convert_tree = 0;
+    cut = 0;
+    min = 0;
+    state = 0;
   }
 };
 

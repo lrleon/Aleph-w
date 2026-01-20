@@ -139,7 +139,7 @@ TEST_F(TestConnectivityTest, IsolatedNode)
 {
   auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
-  auto n3 = g.insert_node(3);
+  g.insert_node(3);
   
   g.insert_arc(n1, n2);
   // n3 is isolated

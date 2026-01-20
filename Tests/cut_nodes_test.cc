@@ -254,11 +254,13 @@ TEST(CutNodes, TreeAllInternalNodesAreCutNodes)
 {
   Graph g;
   auto nodes = make_nodes(g, 7);
-  //       0
-  //      / \
-  //     1   2
-  //    /|   |\
-  //   3 4   5 6
+  /*
+   *       0
+   *      / \
+   *     1   2
+   *    /|   |\
+   *   3 4   5 6
+   */
   g.insert_arc(nodes[0], nodes[1], 1);
   g.insert_arc(nodes[0], nodes[2], 1);
   g.insert_arc(nodes[1], nodes[3], 1);
@@ -456,6 +458,7 @@ TEST(CutNodes, PaintAssignsCorrectColors)
   alg(nodes[0], cuts);
 
   long num_colors = alg.paint_subgraphs();
+  EXPECT_GT(num_colors, 0);
 
   // Center (cut node) should have color 0
   EXPECT_EQ(get_color<Graph>(nodes[0]), 0L);

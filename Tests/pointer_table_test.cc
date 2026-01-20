@@ -185,6 +185,8 @@ TEST_F(PointerTableRemoveTest, RemoveFromMiddle)
   long idx1 = table.insert_pointer(&dummy1);
   long idx2 = table.insert_pointer(&dummy2);
   long idx3 = table.insert_pointer(&dummy3);
+  (void)idx1;
+  (void)idx3;
 
   table.remove_pointer(idx2);
 
@@ -198,6 +200,8 @@ TEST_F(PointerTableRemoveTest, RemoveFromEnd)
   long idx1 = table.insert_pointer(&dummy1);
   long idx2 = table.insert_pointer(&dummy2);
   long idx3 = table.insert_pointer(&dummy3);
+  (void)idx1;
+  (void)idx2;
 
   table.remove_pointer(idx3);
 
@@ -211,6 +215,8 @@ TEST_F(PointerTableRemoveTest, RemoveFromBeginning)
   long idx1 = table.insert_pointer(&dummy1);
   long idx2 = table.insert_pointer(&dummy2);
   long idx3 = table.insert_pointer(&dummy3);
+  (void)idx2;
+  (void)idx3;
 
   table.remove_pointer(idx1);
 
@@ -268,6 +274,7 @@ TEST_F(PointerTableRecyclingTest, RecyclesSingleIndex)
 {
   long idx1 = table.insert_pointer(&dummy1);
   long idx2 = table.insert_pointer(&dummy2);
+  (void)idx2;
 
   table.remove_pointer(idx1);
   long idx3 = table.insert_pointer(&dummy3);
@@ -282,6 +289,7 @@ TEST_F(PointerTableRecyclingTest, RecyclesMultipleIndices)
   long idx1 = table.insert_pointer(&dummy1);
   long idx2 = table.insert_pointer(&dummy2);
   long idx3 = table.insert_pointer(&dummy3);
+  (void)idx3;
 
   table.remove_pointer(idx1);
   table.remove_pointer(idx2);
@@ -341,6 +349,8 @@ TEST_F(PointerTableHeapContractionTest, BasicHeapContraction)
   long idx1 = table.insert_pointer(&d1);
   long idx2 = table.insert_pointer(&d2);
   long idx3 = table.insert_pointer(&d3);
+  (void)idx1;
+  (void)idx2;
 
   // Remove from top - heap should contract
   table.remove_pointer(idx3);
@@ -360,6 +370,8 @@ TEST_F(PointerTableHeapContractionTest, HeapContractionWithFreeTableCleanup)
   long idx3 = table.insert_pointer(&d3);
   long idx4 = table.insert_pointer(&d4);
   long idx5 = table.insert_pointer(&d5);
+  (void)idx1;
+  (void)idx3;
 
   // State: [d1, d2, d3, d4, d5], heap_index=5, free_table=[]
 
@@ -394,6 +406,7 @@ TEST_F(PointerTableHeapContractionTest, MultipleContractionLevels)
   long idx3 = table.insert_pointer(&d3);
   long idx4 = table.insert_pointer(&d4);
   long idx5 = table.insert_pointer(&d5);
+  (void)idx1;
 
   // Remove all but the first
   table.remove_pointer(idx2);  // free_table = [1]
@@ -417,6 +430,7 @@ TEST_F(PointerTableHeapContractionTest, ContractionAfterRemovingConsecutive)
   long idx2 = table.insert_pointer(&d2);
   long idx3 = table.insert_pointer(&d3);
   long idx4 = table.insert_pointer(&d4);
+  (void)idx1;
 
   // Remove idx2 (goes to free_table)
   table.remove_pointer(idx2);
@@ -653,7 +667,7 @@ TEST_F(PointerTableEdgeCasesTest, RemoveOnlyElement)
 
 TEST_F(PointerTableEdgeCasesTest, AlternatingInsertRemove)
 {
-  int d1 = 1, d2 = 2;
+  int d1 = 1;
 
   for (int i = 0; i < 100; ++i)
     {
@@ -1039,6 +1053,8 @@ TEST_F(PointerTableRegressionTest, BugFix_FreeTableNotCleanedOnContraction)
   long i3 = table.insert_pointer(&d3);
   long i4 = table.insert_pointer(&d4);
   long i5 = table.insert_pointer(&d5);
+  (void)i1;
+  (void)i3;
 
   // Remove i2 and i4 - they go to free_table
   table.remove_pointer(i2);  // free_table = [1]

@@ -128,6 +128,7 @@ template <class Net>
 typename Net::Flow_Type reduced_cost(const Net& net, typename Net::Arc* arc,
                                       typename Net::Node* from, bool forward)
 {
+  (void)from;
   using Flow_Type = typename Net::Flow_Type;
 
   auto src = net.get_src_node(arc);
@@ -270,7 +271,6 @@ successive_shortest_paths(Net& net);
 template <class Net>
 bool ssp_init_potentials(Net& net, typename Net::Node* source)
 {
-  using Node = typename Net::Node;
   using Flow_Type = typename Net::Flow_Type;
   
   const Flow_Type INF = std::numeric_limits<Flow_Type>::max();

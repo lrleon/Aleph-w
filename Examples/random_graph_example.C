@@ -441,18 +441,6 @@ void demo_eulerian_digraph()
   // Verify Eulerian property
   print_subsection("Verification (in-degree = out-degree)");
   
-  bool is_eulerian = true;
-  for (auto it = g.get_node_it(); it.has_curr(); it.next())
-  {
-    auto node = it.get_curr();
-    size_t out_deg = 0;
-    for (Node_Arc_Iterator<DGraph> ait(node); ait.has_curr(); ait.next())
-      out_deg++;
-    
-    // In a digraph, we need to count in-degree separately
-    // For simplicity, we trust the generator
-  }
-  
   Test_Eulerian<DGraph> test;
   cout << "Is Eulerian (Test_Eulerian)? " << (test(g) ? "YES" : "NO") << endl;
 }
@@ -574,4 +562,3 @@ int main(int argc, char* argv[])
     return 1;
   }
 }
-

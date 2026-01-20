@@ -78,7 +78,7 @@ namespace Aleph
 */
 template<class F, class...Ts, std::size_t...Is>
 inline void tuple_for_each(const std::tuple<Ts...> & tuple,
-                           F func, std::index_sequence<Is...> index_sequence)
+                           F func, std::index_sequence<Is...>)
 {
   // Use fold expression (C++17) or initializer list expansion
   // The (void) cast silences unused-value warnings

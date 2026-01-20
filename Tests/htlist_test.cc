@@ -65,21 +65,26 @@ TEST_F(SlinkcTest, DefaultConstructor)
 
 TEST_F(SlinkcTest, CopyConstructorResetsLink)
 {
-  Slinknc other;
-  link.insert(&other);
+  auto other = std::make_unique<Slinknc>();
+  link.insert(other.get());
   EXPECT_FALSE(link.is_empty());
 
   Slinknc copy(link);
   EXPECT_TRUE(copy.is_empty());
+
+  link.reset();
 }
 
 TEST_F(SlinkcTest, AssignmentResetsLink)
 {
-  Slinknc other, another;
-  link.insert(&other);
+  auto other = std::make_unique<Slinknc>();
+  Slinknc another;
+  link.insert(other.get());
 
   another = link;
   EXPECT_TRUE(another.is_empty());
+
+  link.reset();
 }
 
 TEST_F(SlinkcTest, InsertAndRemove)
@@ -98,6 +103,8 @@ TEST_F(SlinkcTest, InsertAndRemove)
   EXPECT_EQ(removed, &n2);
   EXPECT_TRUE(n2.is_empty());
   EXPECT_EQ(link.get_next(), &n1);
+
+  link.reset();
 }
 
 TEST_F(SlinkcTest, Reset)
@@ -1214,4 +1221,3 @@ TEST(SlinkncIterator, TraversalAndOverflow)
   EXPECT_FALSE(it.has_curr());
   EXPECT_THROW(it.get_curr(), std::overflow_error);
 }
-

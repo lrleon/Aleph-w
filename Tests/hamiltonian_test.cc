@@ -228,7 +228,7 @@ TEST_F(HamiltonianUndirectedTest, PetersenGraphLike)
   auto n2 = add_node(2);
   auto n3 = add_node(3);
   auto n4 = add_node(4);
-  auto n5 = add_node(5);
+  add_node(5);
   
   // Pentagon with some missing edges
   add_edge(n1, n2);
@@ -371,8 +371,8 @@ TEST_F(HamiltonianUndirectedTest, TwoNodes)
 TEST_F(HamiltonianUndirectedTest, TwoNodesDisconnected)
 {
   // n=2, disconnected: fails Ore (no edges)
-  auto n1 = add_node(1);
-  auto n2 = add_node(2);
+  add_node(1);
+  add_node(2);
   
   Test_Hamiltonian_Sufficiency<Graph> test;
   // deg(n1)=deg(n2)=0, 0+0=0 < 2

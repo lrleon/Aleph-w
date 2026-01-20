@@ -108,15 +108,26 @@ namespace Aleph
       */
       static Node *NullPtr;
 
-    private:
-      Key key;
-      Type data = Type();
+	    private:
+	      Key key;
+	      Type data = Type();
 
-      void fillForwardnullptr()
-      {
-        for (int i = 0; i < level; i++)
-          forward[i] = const_cast<Node *>(&nodeSentinel);
-      }
+	      Node ** forward_ptr() noexcept
+	      {
+	        return reinterpret_cast<Node **>(reinterpret_cast<char *>(this) + sizeof(*this));
+	      }
+
+	      Node * const * forward_ptr() const noexcept
+	      {
+	        return reinterpret_cast<Node * const *>(
+	            reinterpret_cast<const char *>(this) + sizeof(*this));
+	      }
+
+	      void fillForwardnullptr()
+	      {
+	        for (int i = 0; i < level; i++)
+	          forward_ptr()[i] = const_cast<Node *>(&nodeSentinel);
+	      }
 
     public:
       friend class SkipList<Key, Type>;
@@ -151,21 +162,22 @@ namespace Aleph
 
       ~Node() = default;
 
-      [[nodiscard]] Node * get_next() const noexcept
-      {
-        return (forward[0] == NullPtr) ? nullptr : forward[0];
-      }
+	      [[nodiscard]] Node * get_next() const noexcept
+	      {
+	        auto *next = forward_ptr()[0];
+	        return (next == NullPtr) ? nullptr : next;
+	      }
 
-      Node *&getForward(int i)
-      {
-        assert(i < level);
-        return forward[i];
-      }
+	      Node *&getForward(int i)
+	      {
+	        assert(i < level);
+	        return forward_ptr()[i];
+	      }
 
-      Node ** getForward()
-      {
-        return forward;
-      }
+	      Node ** getForward()
+	      {
+	        return forward_ptr();
+	      }
 
       [[nodiscard]] const Key &get_key() const noexcept { return key; }
 
@@ -181,9 +193,9 @@ namespace Aleph
       /// @note Must be specialized for each Key type.
       static Key computeMaxKey() noexcept;
 
-    protected:
-      Node *forward[0];
-    };
+	    protected:
+	      Node *forward[0];
+	    };
 
   private:
     /*
@@ -472,16 +484,18 @@ namespace Aleph
       const SkipList *list_ptr = nullptr;
       Node *curr = nullptr;
 
-    public:
-      using Set_Type = SkipList;
+	    public:
+	      using Set_Type = SkipList;
 
-      /// @brief Default constructor (invalid iterator).
-      Iterator() noexcept = default;
+	      /// @brief Default constructor (invalid iterator).
+	      Iterator() noexcept = default;
 
-      /// @brief Construct iterator positioned at first element.
-      /// @param[in] list SkipList to iterate over.
-      Iterator(const SkipList & list) noexcept
-        : list_ptr(&list), curr(list.headerPtr->HeaderNode::forward[0])
+	      Iterator(const Iterator &) noexcept = default;
+
+	      /// @brief Construct iterator positioned at first element.
+	      /// @param[in] list SkipList to iterate over.
+	      Iterator(const SkipList & list) noexcept
+	        : list_ptr(&list), curr(list.headerPtr->HeaderNode::forward[0])
       {
         // Skip sentinel if we landed on it
         if (curr == Node::NullPtr)

@@ -1066,6 +1066,7 @@ TEST_F(SimplexTest, DualSimplexReoptimize)
     {
       simplex.load_solution();
       // New objective should be different (likely higher with more room)
+      EXPECT_GE(simplex.objetive_value(), original_obj);
       EXPECT_TRUE(simplex.verify_solution());
     }
 }

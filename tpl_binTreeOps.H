@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -133,16 +132,20 @@ namespace Aleph
       if (root == Node::NullPtr)
         return root = p;
 
-      // Prefetch children to reduce memory latency
-      __builtin_prefetch(LLINK(root));
-      __builtin_prefetch(RLINK(root));
+      if (cmp(KEY(p), KEY(root))) // p < root
+        {
+          if (LLINK(root) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(LLINK(root));
+          return insert(LLINK(root), p);
+        }
+      if (cmp(KEY(root), KEY(p))) // p > root
+        {
+          if (RLINK(root) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(RLINK(root));
+          return insert(RLINK(root), p);
+        }
 
-      if (cmp(KEY(p), KEY(root)))  // p < root
-        return insert(LLINK(root), p);
-      if (cmp(KEY(root), KEY(p)))  // p > root
-        return insert(RLINK(root), p);
-
-      return Node::NullPtr;  // Repeated key ==> no insertion
+      return Node::NullPtr; // Repeated key ==> no insertion
     }
 
     /** Insert a node `p` in a binary search tree
@@ -160,13 +163,15 @@ namespace Aleph
       if (root == Node::NullPtr)
         return root = p;
 
-      // Prefetch children to reduce memory latency
-      __builtin_prefetch(LLINK(root));
-      __builtin_prefetch(RLINK(root));
+      if (cmp(KEY(p), KEY(root))) // p < root
+        {
+          if (LLINK(root) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(LLINK(root));
+          return insert_dup(LLINK(root), p);
+        }
 
-      if (cmp(KEY(p), KEY(root)))  // p < root
-        return insert_dup(LLINK(root), p);
-
+      if (RLINK(root) != Node::NullPtr) [[likely]]
+        __builtin_prefetch(RLINK(root));
       return insert_dup(RLINK(root), p);
     }
 
@@ -174,7 +179,7 @@ namespace Aleph
 
         `search_or_insert(root, p)` searches in `root` a node
         containing `p->get_key()`. If found, then this node is
-        returned. Otherwise `p` is inserted and returned.
+        returned. Otherwise, `p` is inserted and returned.
 
         @param[in,out] r roor of tree
         @param[in] p node to search or insert
@@ -186,16 +191,20 @@ namespace Aleph
       if (r == Node::NullPtr)
         return r = p;
 
-      // Prefetch children to reduce memory latency
-      __builtin_prefetch(LLINK(r));
-      __builtin_prefetch(RLINK(r));
+      if (cmp(KEY(p), KEY(r))) // p < root
+        {
+          if (LLINK(r) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(LLINK(r));
+          return search_or_insert(LLINK(r), p);
+        }
+      if (cmp(KEY(r), KEY(p))) // p > root
+        {
+          if (RLINK(r) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(RLINK(r));
+          return search_or_insert(RLINK(r), p);
+        }
 
-      if (cmp(KEY(p), KEY(r)))  // p < root
-        return search_or_insert(LLINK(r), p);
-      if (cmp(KEY(r), KEY(p)))  // p > root
-        return search_or_insert(RLINK(r), p);
-
-      return r;  // key found
+      return r; // key found
     }
 
   private:
@@ -606,14 +615,16 @@ namespace Aleph
       if (r == Node::NullPtr)
         return -1;
 
-      // Prefetch children to reduce memory latency
-      __builtin_prefetch(LLINK(r));
-      __builtin_prefetch(RLINK(r));
-
       if (this->cmp(key, KEY(r)))
-        return inorder_position(LLINK(r), key, p);
+        {
+          if (LLINK(r) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(LLINK(r));
+          return inorder_position(LLINK(r), key, p);
+        }
       if (this->cmp(KEY(r), key))
         {
+          if (RLINK(r) != Node::NullPtr) [[likely]]
+            __builtin_prefetch(RLINK(r));
           long ret = inorder_position(RLINK(r), key, p);
           if (ret != -1)
             return ret + COUNT(LLINK(r)) + 1;
@@ -639,7 +650,7 @@ namespace Aleph
         maximum key in the tree.
         -# For any other case, the returned value is the position that
         would have `key` if this was in the tree and `p` is the node
-        whose key is inmediataly greater than `key`.
+        whose key is immediately greater than `key`.
 
         @param[in] r root of tree
         @param[in] key to be searched
@@ -654,39 +665,41 @@ namespace Aleph
       long pos = COUNT(LLINK(r));
 
       while (r != Node::NullPtr)
-        {
-          // Prefetch children to reduce memory latency
-          __builtin_prefetch(LLINK(r));
-          __builtin_prefetch(RLINK(r));
+        if (const auto & kr = KEY(r); this->cmp(key, kr)) // key < KEY(r): go left
+          {
+            Node *next = LLINK(r);
+            __builtin_prefetch(next, 0, 3);
 
-          if (this->cmp(key, KEY(r)))
-            {
-              parent = r;
-              r = LLINK(r);
-              pos -= (COUNT(RLINK(r)) + 1);
-            }
-          else if (this->cmp(KEY(r), key))
-            {
-              parent = r;
-              r = RLINK(r);
-              pos += COUNT(LLINK(r)) + 1;
-            }
-          else
-            {
-              p = r;
-              return pos;
-            }
-        }
+            parent = r;
+            r = next;
+
+            pos -= (COUNT(RLINK(r)) + 1);
+          }
+        else if (this->cmp(kr, key)) // KEY(r) < key: go right
+          {
+            Node *next = RLINK(r);
+            __builtin_prefetch(next, 0, 3);
+
+            parent = r;
+            r = next;
+
+            pos += (COUNT(LLINK(r)) + 1);
+          }
+        else
+          {
+            p = r;
+            return pos;
+          }
 
       p = parent;
-
       return pos;
     }
 
-    /** Split an extended binary search tree accoding to a key
+
+    /** Split an extended binary search tree according to a key
 
         `split_key_rec(root, key, l, r)` splits a tree according a
-        non existing key
+        non-existing key
 
         @param[in,out] root pointer to tree root
         @param[in] key for splitting
@@ -726,7 +739,7 @@ namespace Aleph
       return true;
     }
 
-    /** Split an extended binary search tree accoding to a key which can be
+    /** Split an extended binary search tree according to a key which can be
         in the tree.
 
         `split_key__dup_rec(root, key, l, r)` splits a tree according a

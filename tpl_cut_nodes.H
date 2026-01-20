@@ -275,15 +275,16 @@ components as well as the cross arcs.
         }
     }
 
-    typename GT::Node * create_and_map_node(typename GT::Node *gp,
-                                            const long & color,
-                                            GT & sg)
-    {
-      assert(get_color<GT>(gp) == color);
-      assert(not IS_NODE_VISITED(gp, Build_Subtree));
+	    typename GT::Node * create_and_map_node(typename GT::Node *gp,
+	                                            const long & color,
+	                                            GT & sg)
+	    {
+	      (void)color;
+	      assert(get_color<GT>(gp) == color);
+	      assert(not IS_NODE_VISITED(gp, Build_Subtree));
 
-      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-      sg.insert_node(tp_auto.get());
+	      std::unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
+	      sg.insert_node(tp_auto.get());
       GT::map_nodes(gp, tp_auto.get());
       NODE_BITS(gp).set_bit(Build_Subtree, true);
 

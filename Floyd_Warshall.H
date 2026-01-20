@@ -252,6 +252,10 @@ namespace Aleph
         IndexArc<GT, Rand_Tree, SA> arcs(g, true, sa);
 
         for (long i = 0; i < n; ++i)
+          for (long j = 0; j < n; ++j)
+            path_mat(i, j) = -1;
+
+        for (long i = 0; i < n; ++i)
           {
             Node *src = nodes(i);
             for (long j = 0; j < n; ++j)
@@ -259,6 +263,7 @@ namespace Aleph
                 if (i == j)
                   {
                     dist(i, j) = 0;
+                    path_mat(i, j) = j;
                     continue;
                   }
 
@@ -398,6 +403,9 @@ namespace Aleph
         << "Source index out of range";
       ah_out_of_range_error_if(tgt_idx < 0 or tgt_idx >= n)
         << "Target index out of range";
+
+      if (dist(src_idx, tgt_idx) == Inf)
+        return Path<GT>(g);
 
       auto src = nodes(src_idx);
       Path<GT> path(g, src);

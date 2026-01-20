@@ -104,7 +104,7 @@ namespace
     return nodes[0][0];
   }
 
-  void reset_flow(TestNet& net)
+  [[maybe_unused]] void reset_flow(TestNet& net)
   {
     for (Arc_Iterator<TestNet> it(net); it.has_curr(); it.next_ne())
       it.get_curr()->flow = 0;
@@ -121,7 +121,7 @@ TEST(DinicTest, LinearNetwork)
   TestNet net;
   build_linear_network(net);
 
-  auto flow = dinic_maximum_flow(net);
+  const auto flow = dinic_maximum_flow(net);
 
   EXPECT_DOUBLE_EQ(flow, 5.0);  // Bottleneck is middle arc
   EXPECT_TRUE(net.check_network());
@@ -132,7 +132,8 @@ TEST(DinicTest, DiamondNetwork)
   TestNet net;
   build_diamond_network(net);
 
-  auto flow = dinic_maximum_flow(net);
+  const auto flow = dinic_maximum_flow(net);
+  (void)flow;
 
   EXPECT_DOUBLE_EQ(flow, 20.0);  // Both paths can carry 10
   EXPECT_TRUE(net.check_network());
@@ -369,7 +370,7 @@ double compute_min_cut_capacity(Net& net)
   using Arc = typename Net::Arc;
   
   auto source = net.get_source();
-  auto sink = net.get_sink();
+  (void)net.get_sink();
   
   // Find reachable nodes from source via residual network
   std::set<Node*> reachable;
@@ -562,7 +563,8 @@ TEST(MinCutTest, VerifyCutPartition)
   TestNet net;
   build_diamond_network(net);
   
-  auto flow = dinic_maximum_flow(net);
+  const auto flow = dinic_maximum_flow(net);
+  (void)flow;
   
   auto source = net.get_source();
   auto sink = net.get_sink();

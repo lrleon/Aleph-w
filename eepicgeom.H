@@ -156,6 +156,9 @@ public:
    */
   virtual void draw(Eepic_Plane *plane, std::ostream & output) const
   {
+    (void)plane;
+    (void)output;
+
     ah_domain_error_if(geom_object_ptr == nullptr)
       << "Eepic_Geom_Object is null";
 

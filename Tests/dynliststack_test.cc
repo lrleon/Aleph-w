@@ -377,17 +377,18 @@ TEST_F(SimpleStack, move_assignment_transfers_ownership)
   EXPECT_EQ(dest.size(), original_size);
   // After move, s is in a valid but unspecified state (may or may not be empty)
   // The C++ standard does not require moved-from objects to be empty
-  EXPECT_TRUE(s.size() >= 0);  // Just verify it's in a valid state
+  EXPECT_NO_THROW(s.push(123)); // verify moved-from can be used
+  EXPECT_FALSE(s.is_empty());
 }
 
-TEST_F(SimpleStack, move_assignment_self_assignment_is_safe)
+TEST_F(SimpleStack, move_assignment_roundtrip_is_safe)
 {
   size_t original_size = s.size();
-  s = std::move(s);
+  DynListStack<int> tmp;
+  tmp = std::move(s);
+  s = std::move(tmp);
 
-  // Self-move should leave object in valid state
-  // (actual behavior may vary, but should not crash)
-  EXPECT_TRUE(s.size() == original_size || s.is_empty());
+  EXPECT_EQ(s.size(), original_size);
 }
 
 // =============================================================================

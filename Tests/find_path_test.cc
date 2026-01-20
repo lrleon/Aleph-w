@@ -201,12 +201,14 @@ TEST_F(FindPathTest, BFS_NoPath)
 
 TEST_F(FindPathTest, BFS_ShortestPath)
 {
-  // Create diamond graph:
-  //     n1
-  //    /  \
-  //   n2  n3
-  //    \  /
-  //     n4
+  /*
+   * Create diamond graph:
+   *     n1
+   *    /  \
+   *   n2  n3
+   *    \  /
+   *     n4
+   */
   auto n1 = g.insert_node(1);
   auto n2 = g.insert_node(2);
   auto n3 = g.insert_node(3);

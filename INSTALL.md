@@ -1,5 +1,7 @@
 # Aleph-w Installation Guide
 
+Language: English | [Español](INSTALL.es.md)
+
 This guide covers the installation of Aleph-w from source using CMake.
 
 ---
@@ -39,7 +41,7 @@ Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 
 
 ### Build Tools
 
-- **CMake** 3.18 or later
+- **CMake** 3.18 or later (3.21+ if using `CMakePresets.json`)
 - **Make** or **Ninja** (Ninja recommended for faster builds)
 
 ### Required Libraries
@@ -53,13 +55,16 @@ The following libraries are **required** to build Aleph-w:
 | **MPFR** | `libmpfr-dev` | Multiple precision floating-point |
 | **GSL** | `libgsl-dev` | GNU Scientific Library (random numbers, statistics) |
 | **X11** | `libx11-dev` | X Window System (for visualization) |
-| **Pthreads** | `libpthread-stubs0-dev` | POSIX threads (usually included with libc) |
+
+Threads (pthreads) are required and typically provided by the OS C library (no separate package needed on most Linux distros).
 
 ### Optional Libraries
 
 | Library | Package Name | Purpose |
 |---------|--------------|---------|
 | **GoogleTest** | `libgtest-dev` | Unit testing (auto-fetched if not found) |
+
+Auto-fetching GoogleTest requires network access; set `ALEPH_FETCH_GTEST=OFF` to disable it (and/or set `BUILD_TESTS=OFF`).
 
 **Note:** The following libraries are **NO LONGER REQUIRED**:
 - ~~`autosprintf` / `gettext`~~ (removed)
@@ -89,8 +94,7 @@ sudo apt-get install -y \
     libgmp-dev \
     libmpfr-dev \
     libgsl-dev \
-    libx11-dev \
-    libpthread-stubs0-dev
+    libx11-dev
 
 # Optional: Install GoogleTest (otherwise auto-fetched)
 sudo apt-get install -y libgtest-dev
@@ -162,6 +166,16 @@ ctest --test-dir build --output-on-failure
 sudo cmake --install build
 ```
 
+### Using CMake Presets (Optional)
+
+If you have CMake 3.21+, you can use the provided `CMakePresets.json`:
+
+```bash
+cmake --preset default
+cmake --build --preset default
+ctest --preset default
+```
+
 **Alternative using Make:**
 
 If you prefer Make over Ninja:
@@ -181,7 +195,7 @@ Aleph-w provides several CMake options to customize the build:
 | `ALEPH_CXX_STANDARD` | `20` | C++ standard: `17`, `20`, or `23` |
 | `BUILD_EXAMPLES` | `ON` | Build example programs |
 | `BUILD_TESTS` | `ON` | Build test suite |
-| `BUILD_OPTIMIZED` | `OFF` | Enable aggressive optimizations |
+| `BUILD_OPTIMIZED` | `OFF` | Convenience switch: if `CMAKE_BUILD_TYPE` is unset, default to `Release` |
 
 **Example with custom options:**
 
@@ -231,19 +245,16 @@ cmake -S . -B build-relwithdebinfo -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build-relwithdebinfo
 ```
 
-#### Highly Optimized Build
+#### “Optimized” Convenience Build
 
-For maximum performance (use with caution):
+`BUILD_OPTIMIZED` is mainly a convenience switch used by some presets: if you do not set `CMAKE_BUILD_TYPE`, it makes the default build type `Release`.
 
 ```bash
-cmake -S . -B build-optimized \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_OPTIMIZED=ON
-
+cmake -S . -B build-optimized -DBUILD_OPTIMIZED=ON
 cmake --build build-optimized
 ```
 
-This applies `-Ofast` optimizations which may violate strict standards compliance.
+If you want `-Ofast`, pass it explicitly via `CMAKE_CXX_FLAGS_RELEASE` (use with caution).
 
 ---
 
@@ -304,7 +315,7 @@ cmake --build build
 
 ### Out-of-Source Build
 
-CMake requires out-of-source builds. Never run `cmake` directly in the source directory:
+Out-of-source builds are strongly recommended. Avoid running `cmake` directly in the source directory:
 
 ```bash
 # ✅ Correct
@@ -329,12 +340,15 @@ ctest --test-dir build --output-on-failure
 ctest --test-dir build -V
 
 # Run specific test
-./build/Tests/dynlist_test
-./build/Tests/dijkstra_test
+./build/Tests/dynlist
+./build/Tests/test_dijkstra
+./build/Tests/latex_floyd_test
 
 # Run tests in parallel
 ctest --test-dir build -j$(nproc)
 ```
+
+Note: some long-running/performance/stress tests are intentionally marked Disabled/Skipped; `ctest` will list them at the end of the run.
 
 ### Testing with Sanitizers
 
@@ -368,7 +382,7 @@ cat > test.cpp << 'EOF'
 #include <iostream>
 
 int main() {
-    DynList<int> list = {1, 2, 3, 4, 5};
+    Aleph::DynList<int> list = {1, 2, 3, 4, 5};
     list.for_each([](int x) {
         std::cout << x << " ";
     });
@@ -508,7 +522,7 @@ Ensure Release builds include `-fno-strict-aliasing`. This is required due to ty
 ```bash
 # Check if flag is present
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-grep "fno-strict-aliasing" build/CMakeCache.txt
+grep -R "fno-strict-aliasing" build/CMakeFiles/*/flags.make
 ```
 
 If missing, the CMakeLists.txt needs to be updated (it should already include this flag).
@@ -524,8 +538,8 @@ cmake --build build
 
 # Run an example
 ./build/Examples/dijkstra_example
-./build/Examples/spanning_tree
-./build/Examples/max_flow
+./build/Examples/mst_example
+./build/Examples/network_flow_example
 ```
 
 ---
@@ -540,10 +554,18 @@ sudo cmake --install build
 
 # In your CMakeLists.txt
 find_library(ALEPH_LIB Aleph)
-find_path(ALEPH_INCLUDE aleph PATHS /usr/local/include)
+find_path(ALEPH_INCLUDE_DIR tpl_dynList.H PATHS /usr/local/include/aleph)
 
-target_include_directories(your_target PRIVATE ${ALEPH_INCLUDE})
-target_link_libraries(your_target ${ALEPH_LIB} gmp mpfr gsl gslcblas pthread X11 m)
+find_package(Threads REQUIRED)
+find_package(X11 REQUIRED)
+
+target_include_directories(your_target PRIVATE ${ALEPH_INCLUDE_DIR})
+target_link_libraries(your_target PRIVATE
+  ${ALEPH_LIB}
+  gmpxx gmp mpfr gsl gslcblas m
+  Threads::Threads
+  ${X11_LIBRARIES}
+)
 ```
 
 ### Method 2: CMake FetchContent
@@ -574,7 +596,7 @@ g++ -std=c++20 \
     -I/path/to/Aleph-w \
     your_code.cpp \
     /path/to/Aleph-w/build/libAleph.a \
-    -lgmp -lmpfr -lgsl -lgslcblas -lpthread -lX11 -lm \
+    -lgmpxx -lgmp -lmpfr -lgsl -lgslcblas -lpthread -lX11 -lm \
     -o your_program
 ```
 

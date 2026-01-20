@@ -68,6 +68,7 @@ int main()
     auto n2 = idx.insert_node(200);
     auto n3 = idx.insert_node(150);
     auto n4 = idx.insert_node(50);
+    (void)n4;
     
     cout << "Inserted nodes: 100, 200, 150, 50\n";
     cout << "Index maintains sorted order for O(log n) search\n\n";
@@ -121,6 +122,9 @@ int main()
     auto alice = idx.insert_node("Alice");
     auto bob = idx.insert_node("Bob");
     auto charlie = idx.insert_node("Charlie");
+    (void)alice;
+    (void)bob;
+    (void)charlie;
     
     cout << "  Inserted: Alice, Bob, Charlie\n";
     cout << "  Graph size: " << g.get_num_nodes() << " nodes\n\n";

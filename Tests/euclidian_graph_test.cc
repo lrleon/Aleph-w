@@ -357,8 +357,8 @@ TEST_F(EuclidianGraphTest, DigraphConstruction)
 TEST_F(EuclidianGraphTest, DigraphInsertNodes)
 {
   EDigraph dg;
-  auto n1 = dg.insert_node(Point(0.0, 0.0));
-  auto n2 = dg.insert_node(Point(10.0, 10.0));
+  dg.insert_node(Point(0.0, 0.0));
+  dg.insert_node(Point(10.0, 10.0));
   
   EXPECT_EQ(dg.get_num_nodes(), 2u);
   EXPECT_TRUE(dg.is_digraph());

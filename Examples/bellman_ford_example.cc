@@ -179,6 +179,7 @@ void print_graph(WeightedDigraph& g)
 
 void print_path(Path<WeightedDigraph>& path, WeightedDigraph& g)
 {
+  (void)g;
   if (path.size() == 0)
     {
       cout << "(no path)\n";

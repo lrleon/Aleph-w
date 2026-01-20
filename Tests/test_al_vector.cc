@@ -602,7 +602,7 @@ TEST_F(VectorTest, IteratorBasic) {
 
     int count = 0;
     while (it.has_curr()) {
-        auto pair = it.get_curr();
+        (void)it.get_curr();
         count++;
         it.next();
     }

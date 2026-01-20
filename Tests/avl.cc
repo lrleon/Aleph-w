@@ -132,11 +132,13 @@ TEST(AvlTree, InsertRejectsDuplicatesAndSearchOrInsertReturnsExisting)
 // Tests for optimistic search edge cases
 TEST(AvlTree, DuplicateAtIntermediateLevel)
 {
-  // Build tree:       50
-  //                  /  \
-  //                25    75
-  //               /  \
-  //             10    30
+  /*
+   * Build tree:       50
+   *                  /  \
+   *                25    75
+   *               /  \
+   *             10    30
+   */
   // Then try to insert duplicate of 25 (intermediate level)
   Avl_Tree<int> t;
   NodePool<Avl_Tree<int>> pool;

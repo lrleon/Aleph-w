@@ -280,6 +280,11 @@ public:
   /// Type of information stored in arcs.
   using Arc_Type = typename Arc::Arc_Type;
 
+  Node * insert_node(Node *p) override
+  {
+    return Net_Class::insert_node(p);
+  }
+
   /** @brief Insert a new capacitated node into the network.
    *
    * Creates a new node with the given information and capacity,

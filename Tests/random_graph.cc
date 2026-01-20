@@ -226,6 +226,7 @@ void test_random_graph_invalid_probability()
     caught_p_zero = true;
   }
   assert(caught_p_zero);
+  (void)caught_p_zero;
   
   bool caught_p_negative = false;
   try {
@@ -234,6 +235,7 @@ void test_random_graph_invalid_probability()
     caught_p_negative = true;
   }
   assert(caught_p_negative);
+  (void)caught_p_negative;
   
   bool caught_p_over_one = false;
   try {
@@ -242,6 +244,7 @@ void test_random_graph_invalid_probability()
     caught_p_over_one = true;
   }
   assert(caught_p_over_one);
+  (void)caught_p_over_one;
   
   cout << "PASSED" << endl;
 }
@@ -365,6 +368,7 @@ void test_zero_nodes_rejected()
     caught = true;
   }
   assert(caught);
+  (void)caught;
   
   cout << "PASSED" << endl;
 }
@@ -436,10 +440,11 @@ void test_custom_initializers()
   // Verify nodes were initialized with sequential values
   bool nodes_initialized = true;
   for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
-      if (auto node = it.get_curr_ne(); node->get_info() < 0 || node->get_info() >= 5)
+    if (auto node = it.get_curr_ne(); node->get_info() < 0 || node->get_info() >= 5)
         nodes_initialized = false;
 
   assert(nodes_initialized);
+  (void)nodes_initialized;
   
   // Verify arcs were initialized with sequential weights
   bool arcs_initialized = true;
@@ -449,6 +454,7 @@ void test_custom_initializers()
         arcs_initialized = false;
     }
   assert(arcs_initialized);
+  (void)arcs_initialized;
   
   cout << "PASSED" << endl;
 }

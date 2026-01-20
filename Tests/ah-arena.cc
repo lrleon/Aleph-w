@@ -166,9 +166,9 @@ TEST(Tree, tree)
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set(r, get_seed());
 
-  size_t n = 1024;
-  char buf[1024];
-  DynSetTree<int> tree(buf, 1024);
+  constexpr size_t n = 1024;
+  char buf[n];
+  DynSetTree<int> tree(buf, n);
   
   for (int i = 0; true; ++i)
     {

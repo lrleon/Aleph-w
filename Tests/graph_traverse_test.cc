@@ -97,12 +97,14 @@ protected:
 
   void SetUp() override
   {
-    // Create a tree:
-    //        0
-    //       /|\
-    //      1 2 3
-    //     /|   |
-    //    4 5   6
+    /*
+     * Create a tree:
+     *        0
+     *       /|\
+     *      1 2 3
+     *     /|   |
+     *    4 5   6
+     */
     for (int i = 0; i < 7; ++i)
       nodes.push_back(g.insert_node(i));
 

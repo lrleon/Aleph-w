@@ -158,7 +158,7 @@ TEST_F(ParallelTest, PfilterAll)
 
 TEST_F(ParallelTest, PfilterEmpty)
 {
-  auto result = pfilter(pool, empty_vec, [](int x) { return true; });
+  auto result = pfilter(pool, empty_vec, [](int) { return true; });
   EXPECT_TRUE(result.empty());
 }
 

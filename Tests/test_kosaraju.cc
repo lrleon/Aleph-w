@@ -475,11 +475,13 @@ TEST(KosarajuTest, ArcMappingCorrectness) {
 
 // ========== TEST 23: Diamond Graph ==========
 TEST(KosarajuTest, DiamondGraph) {
-  //     0
-  //    / \
-  //   1   2
-  //    \ /
-  //     3
+  /*
+   *     0
+   *    / \
+   *   1   2
+   *    \ /
+   *     3
+   */
   GT g;
 
   Node* n0 = g.insert_node(0);
@@ -539,11 +541,13 @@ TEST(KosarajuTest, MultipleSelfLoops) {
 
 // ========== TEST 26: Tree Structure ==========
 TEST(KosarajuTest, TreeStructure) {
-  //      0
-  //     / \
-  //    1   2
-  //   / \
-  //  3   4
+  /*
+   *      0
+   *     / \
+   *    1   2
+   *   / \
+   *  3   4
+   */
   GT g;
 
   Node* n0 = g.insert_node(0);
@@ -654,4 +658,3 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

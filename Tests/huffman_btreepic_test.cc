@@ -565,10 +565,12 @@ TEST_F(HuffmanBtreepicTest, MinimalGapModification)
 
 TEST_F(HuffmanBtreepicTest, ThreeNodeTree)
 {
-  // Create a simple 3-node tree:
-  //       root (3)
-  //      /    \
-  //    left(1) right(2)
+  /*
+   * Create a simple 3-node tree:
+   *       root (3)
+   *      /    \
+   *    left(1) right(2)
+   */
   Freq_Node root, left, right;
 
   root.get_key().first = "";

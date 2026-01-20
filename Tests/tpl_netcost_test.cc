@@ -838,18 +838,19 @@ TEST_F(MaxFlowMinCostIntegrationTest, TextbookNetwork)
 
 TEST_F(MaxFlowMinCostIntegrationTest, LargerNetwork)
 {
-  // Build a larger network with 6 nodes
-  //
-  //        a ----> c
-  //       /|\      |\
-  //      / | \     | \
-  //     /  |  \    |  \
-  //    s   |   \   |   t
-  //     \  |    \  |  /
-  //      \ |     \ | /
-  //       \v      vv
-  //        b ----> d
-  //
+  /*
+   * Build a larger network with 6 nodes
+   *
+   *        a ----> c
+   *       /|\      |\
+   *      / | \     | \
+   *     /  |  \    |  \
+   *    s   |   \   |   t
+   *     \  |    \  |  /
+   *      \ |     \ | /
+   *       \v      vv
+   *        b ----> d
+   */
   Net net;
   auto s = net.insert_node();
   auto a = net.insert_node();
@@ -1716,7 +1717,6 @@ TEST_F(LargeNetworkValidationTest, PhaseIDiagnostic)
 
   // Check reduced costs of non-tree arcs
   std::cout << "\nNon-tree arc analysis:\n";
-  int violations = 0;
   for (auto a : net.arcs())
     {
       // We need access to internal state - skip for now
@@ -1870,16 +1870,17 @@ protected:
   //
   // This doesn't help! The cross edge doesn't save cost.
   //
-  // FINAL DESIGN: Force choice between parallel paths with SAME entry
-  //
-  //             a (cap=5, cost=10)
-  //           /                   \
-  //          /                     \
-  //   s ----+                       +----> t
-  //          \                     /
-  //           \                   /
-  //             b (cap=5, cost=1)
-  //
+  /*
+   * FINAL DESIGN: Force choice between parallel paths with SAME entry
+   *
+   *             a (cap=5, cost=10)
+   *           /                   \
+   *          /                     \
+   *   s ----+                       +----> t
+   *          \                     /
+   *           \                   /
+   *             b (cap=5, cost=1)
+   */
   // Max flow = 10 (through a and b combined)
   // If Ford-Fulkerson picks a first: flow_a=5, flow_b=5, cost = 5*10 + 5*1 = 55
   // Optimal if we could choose: all 10 via b, but cap is only 5.

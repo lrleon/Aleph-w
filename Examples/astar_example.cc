@@ -290,6 +290,8 @@ void print_grid_with_path(int width, int height,
                           GridGraph::Node* end,
                           const Path<GridGraph>& path)
 {
+  (void)nodes;
+
   // Create grid representation
   vector<vector<char>> grid(height, vector<char>(width, '.'));
 

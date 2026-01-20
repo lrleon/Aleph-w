@@ -470,6 +470,7 @@ vector<int> generate_sequential_data(size_t n)
 
 void print_results_table(const vector<BenchmarkResult>& results, size_t n)
 {
+  (void)n;
   cout << "\n";
   cout << "┌────────────────────┬─────────────┬────────────┬────────────┬────────────┬────────────┐\n";
   cout << "│ Structure          │ Category    │ Insert(ms) │ Search(ms) │ Remove(ms) │  Total(ms) │\n";

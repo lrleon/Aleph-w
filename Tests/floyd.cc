@@ -120,6 +120,10 @@ TEST(FloydBasicGraph, handles_unreachable_nodes)
   // Distances to unreachable nodes should be infinity
   EXPECT_EQ(dist(i0, i1), Inf);
   EXPECT_EQ(dist(i1, i0), Inf);
+
+  // Unreachable paths should be reported as empty paths
+  EXPECT_TRUE(floyd.get_min_path(i0, i1).is_empty());
+  EXPECT_TRUE(floyd.get_min_path(i1, i0).is_empty());
 }
 
 // Test negative weights without negative cycles
@@ -289,6 +293,8 @@ TEST(FloydMatrices, path_matrix_has_correct_structure)
   Floyd_All_Shortest_Paths<Grafo> floyd(g);
   
   const auto& path_mat = floyd.get_path_mat();
+  const auto& dist = floyd.get_dist_mat();
+  const int Inf = numeric_limits<int>::max();
   const long n = g.get_num_nodes();
   
   EXPECT_EQ(path_mat.rows(), n);
@@ -297,11 +303,15 @@ TEST(FloydMatrices, path_matrix_has_correct_structure)
   // Path matrix entries should be valid node indices
   for (long i = 0; i < n; ++i) {
     for (long j = 0; j < n; ++j) {
-      if (i != j) {
-        long k = path_mat(i, j);
-        EXPECT_GE(k, 0);
-        EXPECT_LT(k, n);
+      if (dist(i, j) == Inf) {
+        EXPECT_EQ(path_mat(i, j), -1);
+        continue;
       }
+
+      // Reachable (including i == j): must be a valid index
+      long k = path_mat(i, j);
+      EXPECT_GE(k, 0);
+      EXPECT_LT(k, n);
     }
   }
 }

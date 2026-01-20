@@ -797,15 +797,16 @@ namespace Aleph
    * @note The open parameter is for documentation; this function assumes
    *       the opening sequence has already been consumed.
    */
-  inline void skip_block_comment(std::ifstream & input_stream,
-                                 const std::string & open = "/" "*",
-                                 const std::string & close = "*" "/")
-  {
-    size_t match_pos = 0;
+	  inline void skip_block_comment(std::ifstream & input_stream,
+	                                 const std::string & open = "/" "*",
+	                                 const std::string & close = "*" "/")
+	  {
+	    (void)open; // Documented for clarity; opening sequence already consumed.
+	    size_t match_pos = 0;
 
-    while (not input_stream.eof())
-      {
-        if (const int c = input_stream.get(); c == '\n')
+	    while (not input_stream.eof())
+	      {
+	        if (const int c = input_stream.get(); c == '\n')
           {
             current_line_number++;
             current_col_number = 0;

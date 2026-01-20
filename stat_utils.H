@@ -875,7 +875,7 @@ void compute_stats(T * data, int l, int r,
     }
 
   // Sort the array for quantiles
-  quicksort(data, l, r);
+  std::sort(data + l, data + r + 1);
 
   _min = data[l];
   _max = data[r];
@@ -917,26 +917,51 @@ void compute_stats(T * data, int l, int r,
  * @param _min Output: minimum value
  * @param _max Output: maximum value
  */
-template <typename Container>
-void compute_stats(const Container & data,
-                   std::decay_t<decltype(*std::begin(data))> & avg,
-                   std::decay_t<decltype(*std::begin(data))> & var,
-                   std::decay_t<decltype(*std::begin(data))> & med,
-                   std::decay_t<decltype(*std::begin(data))> & _min,
-                   std::decay_t<decltype(*std::begin(data))> & _max)
-{
-  using T = std::decay_t<decltype(*std::begin(data))>;
+	template <typename Container>
+	void compute_stats(const Container & data,
+	                   std::decay_t<decltype(*std::begin(data))> & avg,
+	                   std::decay_t<decltype(*std::begin(data))> & var,
+	                   std::decay_t<decltype(*std::begin(data))> & med,
+	                   std::decay_t<decltype(*std::begin(data))> & _min,
+	                   std::decay_t<decltype(*std::begin(data))> & _max)
+	{
+	  using T = std::decay_t<decltype(*std::begin(data))>;
 
-  std::vector<T> sorted(std::begin(data), std::end(data));
-  if (sorted.empty())
-    {
-      avg = var = med = _min = _max = T();
-      return;
-    }
+	  std::vector<T> sorted(std::begin(data), std::end(data));
+	  if (sorted.empty())
+	    {
+	      avg = var = med = _min = _max = T();
+	      return;
+	    }
 
-  compute_stats(sorted.data(), 0, static_cast<int>(sorted.size()) - 1,
-                avg, var, med, _min, _max);
-}
+	  std::sort(sorted.begin(), sorted.end());
+
+	  _min = sorted.front();
+	  _max = sorted.back();
+
+	  const size_t n = sorted.size();
+	  const size_t mid = n / 2;
+	  if (n % 2 == 0)
+	    med = (sorted[mid - 1] + sorted[mid]) / 2;
+	  else
+	    med = sorted[mid];
+
+	  // Welford's algorithm for mean and variance
+	  T m = T();
+	  T m2 = T();
+	  size_t k = 0;
+	  for (const auto & x : sorted)
+	    {
+	      ++k;
+	      T delta = x - m;
+	      m += delta / static_cast<T>(k);
+	      T delta2 = x - m;
+	      m2 += delta * delta2;
+	    }
+
+	  avg = m;
+	  var = (n > 1) ? m2 / static_cast<T>(n - 1) : T();
+	}
 
 } // namespace Aleph
 

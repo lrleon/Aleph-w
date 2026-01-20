@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -1378,9 +1377,9 @@ namespace Aleph
   /// Constants for three-way comparison results
   enum ThreeWayCmp : int
   {
-    CmpLess = -1,    ///< First argument is less than second
-    CmpEqual = 0,    ///< Arguments are equal
-    CmpGreater = 1   ///< First argument is greater than second
+    CmpLess = -1, ///< First argument is less than second
+    CmpEqual = 0, ///< Arguments are equal
+    CmpGreater = 1 ///< First argument is greater than second
   };
 
   /** Three-way comparison using a binary comparator.
@@ -1425,25 +1424,26 @@ namespace Aleph
   Node * searchInBinTree(Node *root, const typename Node::key_type & key,
                          const Compare & cmp = Compare()) noexcept
   {
-    Node *candidate = nullptr;  // Tracks potential match when going right
+    Node *candidate = nullptr; // Tracks potential match when going right
 
     while (root != Node::NullPtr)
       {
-        __builtin_prefetch(LLINK(root));
-        __builtin_prefetch(RLINK(root));
+        const bool go_left = cmp(key, KEY(root)); // key < root ?
 
-        if (cmp(key, KEY(root)))  // key < root: go left
-          root = LLINK(root);
-        else  // key >= root: go right, mark as candidate
-          {
-            candidate = root;
-            root = RLINK(root);
-          }
+        Node *next = go_left ? LLINK(root) : RLINK(root);
+
+        // Prefetch only the branch that follows (best for caching)
+        if (next != Node::NullPtr)
+          __builtin_prefetch(next, 0, 3);
+
+        if (not go_left)
+          candidate = root;
+        root = next;
       }
 
     // Optimistic check: if candidate exists and key == candidate, return it
     if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
-      return candidate;
+        return candidate;
 
     return Node::NullPtr;
   }
@@ -1578,7 +1578,7 @@ namespace Aleph
             root = RLINK(root);
           }
         else [[unlikely]]
-          return root;
+            return root;
       }
   }
 

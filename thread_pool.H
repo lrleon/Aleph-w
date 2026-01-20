@@ -793,8 +793,6 @@ public:
   [[nodiscard]] auto try_enqueue(F&& f, Args&&... args)
     -> std::optional<std::future<std::invoke_result_t<F, Args...>>>
   {
-    using return_type = std::invoke_result_t<F, Args...>;
-
     {
       std::unique_lock<std::mutex> lock(queue_mutex);
       
@@ -1196,8 +1194,6 @@ template <typename Iterator, typename F>
 void parallel_for(ThreadPool& pool, Iterator begin, Iterator end, F&& f, 
                   size_t chunk_size = 0)
 {
-  using value_type = typename std::iterator_traits<Iterator>::value_type;
-  
   const size_t total = std::distance(begin, end);
   if (total == 0)
     return;

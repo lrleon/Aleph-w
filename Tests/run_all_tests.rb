@@ -83,6 +83,7 @@ options = {
   build_dir: DEFAULT_BUILD_DIR,
   skip_configure: false,
   skip_build: false,
+  jobs: nil,
   ctest_args: [],
   cmake_args: [
     '-DBUILD_EXAMPLES=OFF',
@@ -104,6 +105,7 @@ OptionParser.new do |opts|
       -B, --build-dir DIR      Use DIR as the CMake build directory.
       --skip-configure         Assume DIR already contains a CMake cache.
       --skip-build             Run ctest without rebuilding first.
+      -j, --jobs N             Parallel build jobs (passed to cmake --build --parallel).
       --ctest-arg ARG          Forward ARG to every ctest invocation (repeatable).
       --cmake-arg ARG          Forward ARG to the cmake configure step (repeatable).
       --compiler BIN           Use BIN as the C++ compiler (default: g++).
@@ -118,6 +120,9 @@ OptionParser.new do |opts|
   end
   opts.on('--skip-build', 'Skip rebuilding tests before running them') do
     options[:skip_build] = true
+  end
+  opts.on('-j N', '--jobs N', Integer, 'Parallel build jobs (passed to cmake --build --parallel)') do |n|
+    options[:jobs] = n
   end
   opts.on('--ctest-arg ARG', 'Forward an extra argument to ctest (repeatable)') do |arg|
     options[:ctest_args] << arg
@@ -144,6 +149,7 @@ end.parse!
 build_dir = options[:build_dir]
 ctest_args = options[:ctest_args]
 cmake_args = options[:cmake_args]
+jobs = options[:jobs]
 verbose = options[:verbose]
 unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
   cmake_args << "-DCMAKE_CXX_COMPILER=#{options[:compiler]}"
@@ -188,7 +194,9 @@ end
 
 unless options[:skip_build]
   log('Building...', verbose: verbose)
-  stdout, stderr, status = run_command('cmake --build .', chdir: build_dir, verbose: verbose, label: 'build')
+  build_cmd = 'cmake --build .'
+  build_cmd += " --parallel #{jobs}" if jobs
+  stdout, stderr, status = run_command(build_cmd, chdir: build_dir, verbose: verbose, label: 'build')
   unless status.success?
     warn stdout
     warn stderr

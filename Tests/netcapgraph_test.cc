@@ -347,11 +347,13 @@ TEST_F(NetCapGraphStructure, StarNetwork_FiveSpokes)
 
 TEST_F(NetCapGraphStructure, DiamondNetwork)
 {
-  //       B
-  //      / \
-  //     A   D
-  //      \ /
-  //       C
+  /*
+   *       B
+   *      / \
+   *     A   D
+   *      \ /
+   *       C
+   */
   
   auto a = net.insert_node(100.0);
   auto b = net.insert_node(30.0);
@@ -863,7 +865,7 @@ TEST_F(NetCapGraphCookies, NodeToCookieMapping)
 {
   auto n1 = net.insert_node(10.0);
   auto n2 = net.insert_node(20.0);
-  auto arc = net.insert_arc(n1, n2, 15.0, 0.0);
+  net.insert_arc(n1, n2, 15.0, 0.0);
   
   net.compute_aux_net();
   
@@ -1005,7 +1007,7 @@ TEST_F(NetCapGraphFuzz, ExtremeCapacityValues)
     net.insert_arc(nodes[i], nodes[i+1], extreme_caps[i], 0.0);
   
   EXPECT_NO_THROW({
-    auto aux = net.compute_aux_net();
+    net.compute_aux_net();
     net.update();
     net.free_aux_net();
   });
@@ -1020,4 +1022,3 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

@@ -237,10 +237,12 @@ TEST(RbTree, InsertRejectsDuplicates)
 
 TEST(RbTree, DuplicateAtIntermediateLevel)
 {
-  // Build tree where duplicate will be at non-root level
-  //        10
-  //       /  \
-  //      5    15
+  /*
+   * Build tree where duplicate will be at non-root level
+   *        10
+   *       /  \
+   *      5    15
+   */
   // Try to insert 5 again - duplicate at intermediate level (left child of root)
   Tree tree;
   NodePool pool;

@@ -2,6 +2,8 @@
 
 <div align="center">
 
+Language: English | [Español](README.es.md)
+
 ```
      / \  | | ___ _ __ | |__      __      __
     / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / /
@@ -173,10 +175,10 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                         DATA STRUCTURES OVERVIEW                            │
+│                         DATA STRUCTURES OVERVIEW                           │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  TREES                    HASH TABLES              HEAPS                    │
+│                                                                            │
+│  TREES                    HASH TABLES              HEAPS                   │
 │  ├─ AVL Tree             ├─ Separate Chaining     ├─ Binary Heap           │
 │  ├─ Red-Black Tree       ├─ Open Addressing       ├─ Fibonacci Heap        │
 │  ├─ Splay Tree           ├─ Linear Probing        └─ Array Heap            │
@@ -185,18 +187,18 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  └─ All with Rank (Rk)                                                     │
 │     variants for order                                                     │
 │     statistics                                                             │
-│                                                                             │
-│  LISTS                    ARRAYS                   GRAPHS                   │
+│                                                                            │
+│  LISTS                    ARRAYS                   GRAPHS                  │
 │  ├─ Singly-linked        ├─ Dynamic Array         ├─ Adjacency List        │
 │  ├─ Doubly-linked        ├─ Fixed Array           ├─ Adjacency Matrix      │
 │  ├─ Circular             └─ 2D Matrix             ├─ Network (flows)       │
 │  └─ Skip List                                     └─ Euclidean             │
-│                                                                             │
+│                                                                            │
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
 │  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
 │  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -204,32 +206,32 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                           ALGORITHMS OVERVIEW                               │
+│                           ALGORITHMS OVERVIEW                              │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  SHORTEST PATHS           SPANNING TREES           CONNECTIVITY             │
+│                                                                            │
+│  SHORTEST PATHS           SPANNING TREES           CONNECTIVITY            │
 │  ├─ Dijkstra             ├─ Kruskal               ├─ DFS / BFS             │
 │  ├─ Bellman-Ford         └─ Prim                  ├─ Connected Components  │
 │  ├─ Floyd-Warshall                                ├─ Tarjan (SCC)          │
 │  ├─ Johnson                                       ├─ Kosaraju (SCC)        │
 │  └─ A* Search                                     ├─ Cut Nodes/Bridges     │
 │                                                   └─ Biconnected           │
-│                                                                             │
-│  NETWORK FLOWS            MINIMUM CUT              SPECIAL                  │
+│                                                                            │
+│  NETWORK FLOWS            MINIMUM CUT              SPECIAL                 │
 │  ├─ Ford-Fulkerson       ├─ Karger                ├─ Topological Sort      │
 │  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Eulerian Path         │
 │  ├─ Push-Relabel         └─ Stoer-Wagner          ├─ Hamiltonian Path      │
 │  ├─ Dinic                                         └─ Cycle Detection       │
 │  ├─ Min-Cost Max-Flow                                                      │
 │  └─ Multicommodity                                                         │
-│                                                                             │
-│  SORTING                  SEARCHING                OTHER                    │
+│                                                                            │
+│  SORTING                  SEARCHING                OTHER                   │
 │  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
 │  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
 │  ├─ Introsort                                     └─ Geometric             │
 │  └─ Shell Sort                                                             │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -247,17 +249,20 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ### Dependencies
 
-| Library | Package (Ubuntu) | Purpose | Required |
-|---------|------------------|---------|----------|
-| GMP | `libgmp-dev` | Arbitrary precision arithmetic | Optional |
-| MPFR | `libmpfr-dev` | Multi-precision floating point | Optional |
-| GSL | `libgsl-dev` | Scientific computing, RNG | Optional |
-| X11 | `libx11-dev` | Visualization | Optional |
-| GoogleTest | `libgtest-dev` | Testing | Auto-fetched |
+This branch builds a static library (`libAleph.a`) plus headers.
+
+| Library | Package (Ubuntu/Debian) | Purpose | Required |
+|---------|--------------------------|---------|----------|
+| GMP + gmpxx | `libgmp-dev` | Multi-precision integers/rationals (and C++ bindings) | Yes |
+| MPFR | `libmpfr-dev` | Multi-precision floating point | Yes |
+| GSL (+ gslcblas) | `libgsl-dev` | RNG/statistics used by randomized structures/algorithms | Yes |
+| X11 | `libx11-dev` | Link dependency | Yes |
+| GoogleTest | `libgtest-dev` | Unit tests | Only for `BUILD_TESTS` (auto-fetch supported) |
 
 ### Build Tools
 
 - **CMake** 3.18+
+- **CMake presets**: `CMakePresets.json` requires CMake 3.21+ (optional)
 - **Ninja** (recommended) or **Make**
 
 ### Quick Install (Ubuntu/Debian)
@@ -270,13 +275,18 @@ sudo apt-get install -y build-essential cmake ninja-build
 # Compilers
 sudo apt-get install -y g++ clang
 
-# Optional dependencies
+# Required libraries (this branch)
 sudo apt-get install -y libgmp-dev libmpfr-dev libgsl-dev libx11-dev
+
+# Optional (only needed if you want to build tests without auto-fetch)
+sudo apt-get install -y libgtest-dev
 ```
 
 ---
 
 ## Installation
+
+For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
 
 ### Method 1: CMake Build (Recommended)
 
@@ -285,11 +295,14 @@ sudo apt-get install -y libgmp-dev libmpfr-dev libgsl-dev libx11-dev
 git clone https://github.com/lrleon/Aleph-w.git
 cd Aleph-w
 
-# Configure (Release build)
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+# Configure (Release build, library + tests; disable examples for faster builds)
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_EXAMPLES=OFF \
+  -DBUILD_TESTS=ON
 
 # Build
-cmake --build build -j$(nproc)
+cmake --build build --parallel
 
 # Run tests
 ctest --test-dir build --output-on-failure
@@ -298,16 +311,21 @@ ctest --test-dir build --output-on-failure
 sudo cmake --install build
 ```
 
-### Method 2: Header-Only Usage
+Note: if GoogleTest is not installed and you are offline, configure with `-DALEPH_FETCH_GTEST=OFF` (or disable tests with `-DBUILD_TESTS=OFF`) and/or install `libgtest-dev` from your distro.
 
-For simple projects, just add Aleph-w to your include path:
+### Method 2: Direct Compilation (No Install)
+
+If you prefer not to install, you can build Aleph once and then link directly:
 
 ```bash
-# Compile directly
-g++ -std=c++20 -I/path/to/Aleph-w your_code.cpp -o your_program
+# Build the library
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+cmake --build build --parallel
 
-# With optional dependencies
-g++ -std=c++20 -I/path/to/Aleph-w your_code.cpp -lgsl -lgmp -lpthread -o your_program
+# Compile and link against the static library
+g++ -std=c++20 -I/path/to/Aleph-w your_code.cpp /path/to/Aleph-w/build/libAleph.a \
+  -lgmpxx -lgmp -lmpfr -lgsl -lgslcblas -lpthread -lX11 -lm \
+  -o your_program
 ```
 
 ### Method 3: CMake FetchContent
@@ -321,17 +339,29 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(aleph-w)
 
-target_link_libraries(your_target PRIVATE Aleph::Aleph)
+target_link_libraries(your_target PRIVATE Aleph)
 ```
 
 ### CMake Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `BUILD_TESTS` | ON | Build test suite |
-| `BUILD_EXAMPLES` | OFF | Build example programs |
-| `USE_SANITIZERS` | OFF | Enable AddressSanitizer and UBSan |
-| `CMAKE_BUILD_TYPE` | Release | Build type (Debug/Release) |
+| `ALEPH_CXX_STANDARD` | 20 | C++ standard for the core library (`17`, `20`, `23`) |
+| `BUILD_TESTS` | ON | Build the test suite (`Tests/`) |
+| `BUILD_EXAMPLES` | ON | Build the example programs (`Examples/`) |
+| `BUILD_OPTIMIZED` | OFF | If ON and `CMAKE_BUILD_TYPE` is unset, default to `Release` |
+| `ALEPH_FETCH_GTEST` | ON | (Tests) Auto-fetch GoogleTest if missing |
+| `USE_SANITIZERS` | OFF | (Tests) Enable ASan/UBSan for test binaries |
+
+### CMake Presets (Optional)
+
+If you have CMake 3.21+, you can use the provided presets:
+
+```bash
+cmake --preset default
+cmake --build --preset default
+ctest --preset default
+```
 
 ---
 
@@ -456,8 +486,8 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 #### Tree Comparison
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      BALANCED TREE COMPARISON                                │
+┌────────────────────────────────────────────────────────────────────────────┐
+│                      BALANCED TREE COMPARISON                              │
 ├──────────────┬──────────────┬──────────────┬──────────────┬────────────────┤
 │   Operation  │   AVL Tree   │  Red-Black   │  Splay Tree  │     Treap      │
 ├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
@@ -567,16 +597,16 @@ Aleph-w provides multiple hash table implementations optimized for different sce
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        HASH TABLE IMPLEMENTATIONS                            │
+│                        HASH TABLE IMPLEMENTATIONS                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  SEPARATE CHAINING              OPEN ADDRESSING           LINEAR HASHING     │
-│  (tpl_hash.H)                   (tpl_odhash.H)            (tpl_lhash.H)      │
-│                                                                              │
+│                                                                             │
+│  SEPARATE CHAINING              OPEN ADDRESSING           LINEAR HASHING    │
+│  (tpl_hash.H)                   (tpl_odhash.H)            (tpl_lhash.H)     │
+│                                                                             │
 │  ┌───┬───┬───┬───┐             ┌───┬───┬───┬───┐        Grows incrementally │
 │  │ 0 │ 1 │ 2 │ 3 │             │ A │ B │   │ C │        one slot at a time  │
 │  └─┬─┴─┬─┴───┴─┬─┘             └───┴───┴───┴───┘                            │
-│    │   │       │                                                             │
+│    │   │       │                                                            │
 │    ▼   ▼       ▼               On collision:                                │
 │  ┌───┐┌───┐  ┌───┐             probe next slot           Best for:          │
 │  │ A ││ B │  │ E │                                       • Gradual growth   │
@@ -586,12 +616,12 @@ Aleph-w provides multiple hash table implementations optimized for different sce
 │  ┌───┐┌───┐                    • Read-heavy                                 │
 │  │ C ││ D │                                                                 │
 │  └───┘└───┘                                                                 │
-│                                                                              │
-│  Best for:                                                                   │
-│  • Variable-size elements                                                    │
-│  • High load factors                                                         │
-│  • Easy deletion                                                             │
-│                                                                              │
+│                                                                             │
+│  Best for:                                                                  │
+│  • Variable-size elements                                                   │
+│  • High load factors                                                        │
+│  • Easy deletion                                                            │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -656,21 +686,21 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         HEAP IMPLEMENTATIONS                                 │
+│                         HEAP IMPLEMENTATIONS                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  BINARY HEAP                         FIBONACCI HEAP                          │
-│  (tpl_binHeap.H)                     (tpl_fibonacci_heap.H)                  │
-│                                                                              │
-│        [10]                          Collection of heap-ordered trees        │
-│       /    \                                                                 │
-│    [15]    [20]                      ○───○───○                               │
-│    /  \    /  \                      │   │                                   │
-│  [25][30][35][40]                    ○   ○───○                               │
-│                                          │                                   │
-│  Array representation:                   ○                                   │
-│  [10|15|20|25|30|35|40]                                                      │
-│                                                                              │
+│                                                                             │
+│  BINARY HEAP                         FIBONACCI HEAP                         │
+│  (tpl_binHeap.H)                     (tpl_fibonacci_heap.H)                 │
+│                                                                             │
+│        [10]                          Collection of heap-ordered trees       │
+│       /    \                                                                │
+│    [15]    [20]                      ○───○───○                              │
+│    /  \    /  \                      │   │                                  │
+│  [25][30][35][40]                    ○   ○───○                              │
+│                                          │                                  │
+│  Array representation:                   ○                                  │
+│  [10|15|20|25|30|35|40]                                                     │
+│                                                                             │
 ├───────────────────────────────────────┬─────────────────────────────────────┤
 │  Operation     │ Binary   │ Fibonacci │  Notes                              │
 ├───────────────────────────────────────┼─────────────────────────────────────┤
@@ -712,33 +742,33 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       LINEAR DATA STRUCTURES                                 │
+│                       LINEAR DATA STRUCTURES                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  SINGLY-LINKED LIST (DynList)        DOUBLY-LINKED LIST (DynDlist)          │
-│                                                                              │
-│  ┌───┐   ┌───┐   ┌───┐   ┌───┐      ┌───┐   ┌───┐   ┌───┐   ┌───┐         │
-│  │ A │──▶│ B │──▶│ C │──▶│ D │      │ A │◀─▶│ B │◀─▶│ C │◀─▶│ D │         │
-│  └───┘   └───┘   └───┘   └───┘      └───┘   └───┘   └───┘   └───┘         │
-│                                                                              │
-│  Insert front: O(1)                  Insert anywhere: O(1)                   │
-│  Insert back:  O(n)                  Insert back: O(1)                       │
-│  Remove front: O(1)                  Remove anywhere: O(1)                   │
-│  Search:       O(n)                  Search: O(n)                            │
-│                                                                              │
+│                                                                             │
+│  ┌───┐   ┌───┐   ┌───┐   ┌───┐      ┌───┐   ┌───┐   ┌───┐   ┌───┐           │
+│  │ A │──▶│ B │──▶│ C │──▶│ D │      │ A │◀─▶│ B │◀─▶│ C │◀─▶│ D │           │
+│  └───┘   └───┘   └───┘   └───┘      └───┘   └───┘   └───┘   └───┘           │
+│                                                                             │
+│  Insert front: O(1)                  Insert anywhere: O(1)                  │
+│  Insert back:  O(n)                  Insert back: O(1)                      │
+│  Remove front: O(1)                  Remove anywhere: O(1)                  │
+│  Search:       O(n)                  Search: O(n)                           │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  DYNAMIC ARRAY (DynArray)            QUEUE (ArrayQueue)                      │
-│                                                                              │
-│  ┌───┬───┬───┬───┬───┬─────────┐    ┌───┬───┬───┬───┬───┐                  │
-│  │ A │ B │ C │ D │ E │ (space) │    │ A │ B │ C │ D │ E │                  │
-│  └───┴───┴───┴───┴───┴─────────┘    └───┴───┴───┴───┴───┘                  │
-│    0   1   2   3   4                  ▲               ▲                      │
-│                                      front           back                    │
-│  Access:  O(1)                                                               │
-│  Append:  O(1) amortized             Enqueue: O(1)                           │
-│  Insert:  O(n)                       Dequeue: O(1)                           │
-│                                                                              │
+│                                                                             │
+│  DYNAMIC ARRAY (DynArray)            QUEUE (ArrayQueue)                     │
+│                                                                             │
+│  ┌───┬───┬───┬───┬───┬─────────┐    ┌───┬───┬───┬───┬───┐                   │
+│  │ A │ B │ C │ D │ E │ (space) │    │ A │ B │ C │ D │ E │                   │
+│  └───┴───┴───┴───┴───┴─────────┘    └───┴───┴───┴───┴───┘                   │
+│    0   1   2   3   4                  ▲               ▲                     │
+│                                      front           back                   │
+│  Access:  O(1)                                                              │
+│  Append:  O(1) amortized             Enqueue: O(1)                          │
+│  Insert:  O(n)                       Dequeue: O(1)                          │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -776,37 +806,37 @@ Aleph-w provides multiple graph representations optimized for different use case
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        GRAPH REPRESENTATIONS                                 │
+│                        GRAPH REPRESENTATIONS                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  ADJACENCY LIST (List_Graph)         ADJACENCY MATRIX (Array_Graph)         │
-│                                                                              │
-│  A: [B, C, D]                        │ A │ B │ C │ D │                       │
-│  B: [A, D]                         ──┼───┼───┼───┼───│                       │
-│  C: [A, D]                         A │ 0 │ 1 │ 1 │ 1 │                       │
-│  D: [A, B, C]                      B │ 1 │ 0 │ 0 │ 1 │                       │
-│                                    C │ 1 │ 0 │ 0 │ 1 │                       │
-│  Space: O(V + E)                   D │ 1 │ 1 │ 1 │ 0 │                       │
-│  Add edge: O(1)                                                              │
-│  Check edge: O(degree)              Space: O(V²)                             │
-│  Best for: Sparse graphs            Add edge: O(1)                           │
-│                                     Check edge: O(1)                         │
-│                                     Best for: Dense graphs                   │
-│                                                                              │
+│                                                                             │
+│  A: [B, C, D]                        │ A │ B │ C │ D │                      │
+│  B: [A, D]                         ──┼───┼───┼───┼───│                      │
+│  C: [A, D]                         A │ 0 │ 1 │ 1 │ 1 │                      │
+│  D: [A, B, C]                      B │ 1 │ 0 │ 0 │ 1 │                      │
+│                                    C │ 1 │ 0 │ 0 │ 1 │                      │
+│  Space: O(V + E)                   D │ 1 │ 1 │ 1 │ 0 │                      │
+│  Add edge: O(1)                                                             │
+│  Check edge: O(degree)              Space: O(V²)                            │
+│  Best for: Sparse graphs            Add edge: O(1)                          │
+│                                     Check edge: O(1)                        │
+│                                     Best for: Dense graphs                  │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  NETWORK GRAPH (Net_Graph)           DIGRAPH (List_Digraph)                  │
-│                                                                              │
-│       10                             A ──▶ B ──▶ C                           │
-│    A ────▶ B                         │           │                           │
-│    │  5    │ 15                      │           ▼                           │
-│    ▼       ▼                         └─────────▶ D                           │
-│    C ────▶ D                                                                 │
-│       20                             Directed edges                          │
-│                                      In-degree / Out-degree                  │
-│  Capacities on edges                                                         │
-│  For max-flow algorithms                                                     │
-│                                                                              │
+│                                                                             │
+│  NETWORK GRAPH (Net_Graph)           DIGRAPH (List_Digraph)                 │
+│                                                                             │
+│       10                             A ──▶ B ──▶ C                          │
+│    A ────▶ B                         │           │                          │
+│    │  5    │ 15                      │           ▼                          │
+│    ▼       ▼                         └─────────▶ D                          │
+│    C ────▶ D                                                                │
+│       20                             Directed edges                         │
+│                                      In-degree / Out-degree                 │
+│  Capacities on edges                                                        │
+│  For max-flow algorithms                                                    │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -890,17 +920,17 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      SHORTEST PATH ALGORITHMS                                │
-├────────────────┬────────────┬────────────┬───────────────────────────────────┤
-│   Algorithm    │ Complexity │  Negative  │  Best For                         │
-│                │            │   Edges    │                                   │
-├────────────────┼────────────┼────────────┼───────────────────────────────────┤
-│ Dijkstra       │O((V+E)logV)│     No     │ Single source, non-negative       │
-│ Bellman-Ford   │   O(VE)    │    Yes     │ Negative weights, cycle detection │
-│ Floyd-Warshall │   O(V³)    │    Yes     │ All pairs, dense graphs           │
-│ Johnson        │O(V²logV+VE)│    Yes     │ All pairs, sparse graphs          │
-│ A*             │ O(E) best  │     No     │ Pathfinding with heuristic        │
-└────────────────┴────────────┴────────────┴───────────────────────────────────┘
+│                      SHORTEST PATH ALGORITHMS                               │
+├────────────────┬────────────┬────────────┬──────────────────────────────────┤
+│   Algorithm    │ Complexity │  Negative  │  Best For                        │
+│                │            │   Edges    │                                  │
+├────────────────┼────────────┼────────────┼──────────────────────────────────┤
+│ Dijkstra       │O((V+E)logV)│     No     │ Single source, non-negative      │
+│ Bellman-Ford   │   O(VE)    │    Yes     │ Negative weights, cycle detection│
+│ Floyd-Warshall │   O(V³)    │    Yes     │ All pairs, dense graphs          │
+│ Johnson        │O(V²logV+VE)│    Yes     │ All pairs, sparse graphs         │
+│ A*             │ O(E) best  │     No     │ Pathfinding with heuristic       │
+└────────────────┴────────────┴────────────┴──────────────────────────────────┘
 ```
 
 #### Dijkstra's Algorithm
@@ -993,32 +1023,32 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    MINIMUM SPANNING TREE ALGORITHMS                          │
+│                    MINIMUM SPANNING TREE ALGORITHMS                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  KRUSKAL'S ALGORITHM                 PRIM'S ALGORITHM                        │
-│  (Edge-based)                        (Vertex-based)                          │
-│                                                                              │
+│                                                                             │
+│  KRUSKAL'S ALGORITHM                 PRIM'S ALGORITHM                       │
+│  (Edge-based)                        (Vertex-based)                         │
+│                                                                             │
 │  1. Sort all edges by weight         1. Start from any vertex               │
 │  2. For each edge (u,v):             2. Add cheapest edge to tree           │
 │     If u,v in different sets:        3. Repeat until all vertices           │
-│        Add edge to MST                  are in tree                          │
-│        Union the sets                                                        │
-│                                                                              │
-│  Uses: Union-Find                    Uses: Priority Queue                    │
-│  Complexity: O(E log E)              Complexity: O(E log V)                  │
-│  Best for: Sparse graphs             Best for: Dense graphs                  │
-│                                                                              │
+│        Add edge to MST                  are in tree                         │
+│        Union the sets                                                       │
+│                                                                             │
+│  Uses: Union-Find                    Uses: Priority Queue                   │
+│  Complexity: O(E log E)              Complexity: O(E log V)                 │
+│  Best for: Sparse graphs             Best for: Dense graphs                 │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Example MST:                                                                │
-│                                                                              │
-│      [A]───2───[B]                   MST edges: A-B (2)                      │
-│       │ \     / │                               A-C (3)                      │
-│       3   4  5  6                               B-D (4)                      │
-│       │     X   │                                                            │
-│      [C]───7───[D]                   Total weight: 9                         │
-│                                                                              │
+│                                                                             │
+│  Example MST:                                                               │
+│                                                                             │
+│      [A]───2───[B]                   MST edges: A-B (2)                     │
+│       │ \     / │                               A-C (3)                     │
+│       3   4  5  6                               B-D (4)                     │
+│       │     X   │                                                           │
+│      [C]───7───[D]                   Total weight: 9                        │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1055,19 +1085,19 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       NETWORK FLOW ALGORITHMS                                │
+│                       NETWORK FLOW ALGORITHMS                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  MAXIMUM FLOW PROBLEM                                                        │
-│                                                                              │
+│                                                                             │
+│  MAXIMUM FLOW PROBLEM                                                       │
+│                                                                             │
 │              ┌─────10────▶[B]─────8─────┐                                   │
-│              │             │            │                                    │
-│           [Source]        2│         [Sink]                                  │
-│              │             ▼            │                                    │
+│              │             │            │                                   │
+│           [Source]        2│         [Sink]                                 │
+│              │             ▼            │                                   │
 │              └─────5─────▶[C]─────7─────┘                                   │
-│                                                                              │
+│                                                                             │
 │  Maximum flow = 15  (10 through B, 5 through C)                             │
-│                                                                              │
+│                                                                             │
 ├──────────────────────┬────────────────┬─────────────────────────────────────┤
 │  Algorithm           │  Complexity    │  Description                        │
 ├──────────────────────┼────────────────┼─────────────────────────────────────┤
@@ -1076,14 +1106,13 @@ int main() {
 │  Push-Relabel        │  O(V²E)        │  Local push operations              │
 │  Dinic               │  O(V²E)        │  Blocking flows + level graph       │
 ├──────────────────────┴────────────────┴─────────────────────────────────────┤
-│                                                                              │
-│  MIN-COST MAX-FLOW                                                           │
-│                                                                              │
+│                                                                             │
+│  MIN-COST MAX-FLOW                                                          │
+│                                                                             │
 │  Each edge has: capacity AND cost                                           │
 │  Goal: Find max flow with minimum total cost                                │
-│                                                                              │
-│  Algorithms: Successive Shortest Path, Network Simplex                      │
-│                                                                              │
+│                                                                             │
+│  Algorithms: Successive Shortest Path, Network Simplex                      │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1149,36 +1178,36 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     CONNECTIVITY ALGORITHMS                                  │
+│                     CONNECTIVITY ALGORITHMS                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  CONNECTED COMPONENTS              STRONGLY CONNECTED COMPONENTS (SCC)       │
-│  (Undirected graphs)               (Directed graphs)                         │
-│                                                                              │
+│                                                                             │
+│  CONNECTED COMPONENTS              STRONGLY CONNECTED COMPONENTS (SCC)      │
+│  (Undirected graphs)               (Directed graphs)                        │
+│                                                                             │
 │  ┌───┐   ┌───┐                     A ──▶ B ──▶ C                            │
 │  │ A │───│ B │                     ▲         │                              │
 │  └───┘   └───┘                     │    ┌────┘                              │
-│                                    │    ▼                                    │
+│                                    │    ▼                                   │
 │  ┌───┐   ┌───┐                     └─── D ◀── E                             │
-│  │ C │───│ D │                                                               │
-│  └───┘   └───┘                     SCCs: {A,B,C,D}, {E}                      │
-│                                                                              │
-│  2 components                      Tarjan's O(V+E)                           │
-│  DFS/BFS O(V+E)                    Kosaraju's O(V+E)                         │
-│                                                                              │
+│  │ C │───│ D │                                                              │
+│  └───┘   └───┘                     SCCs: {A,B,C,D}, {E}                     │
+│                                                                             │
+│  2 components                      Tarjan's O(V+E)                          │
+│  DFS/BFS O(V+E)                    Kosaraju's O(V+E)                        │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ARTICULATION POINTS               BRIDGES                                   │
-│  (Cut vertices)                    (Cut edges)                               │
-│                                                                              │
+│                                                                             │
+│  ARTICULATION POINTS               BRIDGES                                  │
+│  (Cut vertices)                    (Cut edges)                              │
+│                                                                             │
 │  A ─── B ─── C                     A ─── B ═══ C                            │
-│        │                                 ║                                   │
-│        │                           Bridge: edge whose removal                │
-│        D                           disconnects the graph                     │
-│                                                                              │
-│  B is articulation point:                                                    │
-│  removing B disconnects graph                                                │
-│                                                                              │
+│        │                                 ║                                  │
+│        │                           Bridge: edge whose removal               │
+│        D                           disconnects the graph                    │
+│                                                                             │
+│  B is articulation point:                                                   │
+│  removing B disconnects graph                                               │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1219,7 +1248,7 @@ int main() {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SORTING ALGORITHMS                                    │
+│                        SORTING ALGORITHMS                                   │
 ├─────────────────┬──────────────┬──────────────┬──────────────┬──────────────┤
 │   Algorithm     │    Best      │   Average    │    Worst     │   Stable?    │
 ├─────────────────┼──────────────┼──────────────┼──────────────┼──────────────┤
@@ -1269,30 +1298,30 @@ Arena allocation provides **ultra-fast memory management** for temporary data st
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         ARENA MEMORY LAYOUT                                  │
+│                         ARENA MEMORY LAYOUT                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Traditional Allocation (malloc):                                            │
-│                                                                              │
-│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐                                    │
-│  │ A  │  │free│  │ B  │  │free│  │ C  │   Fragmented, scattered            │
-│  └────┘  └────┘  └────┘  └────┘  └────┘                                    │
-│                                                                              │
-│  Arena Allocation:                                                           │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  A   │  B   │  C   │  D   │  E   │         available space          │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  Traditional Allocation (malloc):                                           │
+│                                                                             │
+│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐                                     │
+│  │ A  │  │free│  │ B  │  │free│  │ C  │   Fragmented, scattered             │
+│  └────┘  └────┘  └────┘  └────┘  └────┘                                     │
+│                                                                             │
+│  Arena Allocation:                                                          │
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────────┤
+│  │  A   │  B   │  C   │  D   │  E   │         available space               │
+│  └──────────────────────────────────────────────────────────────────────────┤
 │  ▲                              ▲                                      ▲    │
 │  base                        current                                 end    │
-│                                                                              │
+│                                                                             │
 │  Allocation:   Just increment `current` pointer ────── O(1)                 │
 │  Deallocation: Reset `current` to `base` ────────────  O(1) bulk            │
-│                                                                              │
+│                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  COMPARISON                                                                  │
-│                                                                              │
+│                                                                             │
+│  COMPARISON                                                                 │
+│                                                                             │
 │  ┌────────────────┬─────────────────┬──────────────────┐                    │
 │  │   Operation    │     malloc      │      Arena       │                    │
 │  ├────────────────┼─────────────────┼──────────────────┤                    │
@@ -1303,7 +1332,7 @@ Arena allocation provides **ultra-fast memory management** for temporary data st
 │  │   Overhead     │   16+ bytes     │    0 bytes       │                    │
 │  └────────────────┴─────────────────┴──────────────────┘                    │
 │  * Depending on allocator implementation                                    │
-│                                                                              │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1769,25 +1798,25 @@ int main() {
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                    INSERT PERFORMANCE (ns/operation)                        │
+│                    INSERT PERFORMANCE (ns/operation)                       │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  AVL Tree       ████████████████████████ 156 ns                            │
 │  Red-Black      ██████████████████████████ 178 ns                          │
 │  std::set       ██████████████████████████ 183 ns                          │
 │  Treap          ██████████████████████████████ 212 ns                      │
 │  Splay Tree     ████████████████████████████████ 234 ns                    │
-│                                                                             │
+│                                                                            │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                    SEARCH PERFORMANCE (ns/operation)                        │
+│                    SEARCH PERFORMANCE (ns/operation)                       │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  Splay (warm)   ████████████████ 67 ns   (after repeated access)           │
 │  AVL Tree       ████████████████████ 89 ns                                 │
 │  std::set       ██████████████████████ 95 ns                               │
 │  Red-Black      ██████████████████████ 98 ns                               │
 │  Treap          ██████████████████████████ 112 ns                          │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1795,24 +1824,24 @@ int main() {
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                 ALLOCATION PERFORMANCE (1M allocations)                     │
+│                 ALLOCATION PERFORMANCE (1M allocations)                    │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  Arena          ██ 12 ns/alloc                                             │
 │  malloc         ██████████████████████████████████████ 156 ns/alloc        │
 │  new            ████████████████████████████████████████ 168 ns/alloc      │
-│                                                                             │
+│                                                                            │
 │  Speedup: ~13x faster than malloc                                          │
-│                                                                             │
+│                                                                            │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                 TREE WITH ARENA (10K insertions)                            │
+│                 TREE WITH ARENA (10K insertions)                           │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  With Arena     ████████████████ 1.2 ms                                    │
 │  Without Arena  ████████████████████████████████████████ 3.8 ms            │
-│                                                                             │
+│                                                                            │
 │  Speedup: 3.2x faster                                                      │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1820,15 +1849,15 @@ int main() {
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│              DIJKSTRA PERFORMANCE vs GRAPH SIZE                             │
+│              DIJKSTRA PERFORMANCE vs GRAPH SIZE                            │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  V=1K, E=10K    ████ 2.3 ms                                                │
 │  V=10K, E=100K  ████████████████████ 28 ms                                 │
 │  V=100K, E=1M   ████████████████████████████████████████ 380 ms            │
-│                                                                             │
+│                                                                            │
 │  Confirmed: O((V+E) log V) scaling                                         │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1836,16 +1865,16 @@ int main() {
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│            MAX FLOW PERFORMANCE (V=1000, E=5000)                            │
+│            MAX FLOW PERFORMANCE (V=1000, E=5000)                           │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  Ford-Fulkerson ████████████████████████████████████████ 180 ms            │
 │  Edmonds-Karp   ██████████████████████████ 89 ms                           │
 │  Push-Relabel   ██████████████████ 45 ms                                   │
 │  Dinic          ████████████████ 38 ms                                     │
-│                                                                             │
+│                                                                            │
 │  Recommendation: Use Dinic for large graphs                                │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1853,16 +1882,16 @@ int main() {
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│              pmap() SPEEDUP (8-core system)                                 │
+│              pmap() SPEEDUP (8-core system)                                │
 ├────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
+│                                                                            │
 │  1 thread       ████████████████████████████████████████ 100% (baseline)   │
 │  2 threads      ████████████████████ 52% (1.9x speedup)                    │
 │  4 threads      ██████████████ 28% (3.6x speedup)                          │
 │  8 threads      ████████ 15% (6.7x speedup)                                │
-│                                                                             │
+│                                                                            │
 │  Parallel efficiency: 84%                                                  │
-│                                                                             │
+│                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1926,8 +1955,9 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 
 # Run specific test
-./build/Tests/dynlist_test
-./build/Tests/dijkstra_test
+./build/Tests/dynlist
+./build/Tests/test_dijkstra
+./build/Tests/latex_floyd_test
 
 # Verbose output
 ctest --test-dir build -V
@@ -1938,11 +1968,12 @@ ctest --test-dir build -V
 ```bash
 # AddressSanitizer + UndefinedBehaviorSanitizer
 cmake -S . -B build-asan \
+    -DBUILD_TESTS=ON \
     -DUSE_SANITIZERS=ON \
     -DCMAKE_BUILD_TYPE=Debug
 
 cmake --build build-asan
-ctest --test-dir build-asan
+ctest --test-dir build-asan --output-on-failure
 ```
 
 ### Test Coverage
@@ -1952,6 +1983,7 @@ ctest --test-dir build-asan
 - Tests for all data structures and algorithms
 - Edge case coverage
 - Performance regression tests
+- Some long-running/performance tests are intentionally marked Disabled/Skipped and will be reported by `ctest`.
 
 ---
 
@@ -1967,6 +1999,7 @@ cd Aleph-w
 
 # Build with debug symbols
 cmake -S . -B build-debug \
+    -DBUILD_TESTS=ON \
     -DCMAKE_BUILD_TYPE=Debug \
     -DUSE_SANITIZERS=ON
 

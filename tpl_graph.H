@@ -42,6 +42,9 @@
 
 # include <memory>
 # include <cassert>
+# include <tuple>
+# include <utility>
+# include <functional>
 # include <bitArray.H>
 # include <tpl_dynArray.H>
 # include <tpl_sort_utils.H>
@@ -1242,15 +1245,16 @@ namespace Aleph
 
         @ingroup Graphs
     */
-  template <class GT, class SA = Dft_Show_Arc<GT>>
-  void for_each_arc(const GT & g,
-                    typename GT::Node *p,
-                    std::function<void (typename GT::Arc *)> operation,
-                    SA sa = SA())
-  {
-    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-      operation(it.get_curr());
-  }
+	  template <class GT, class SA = Dft_Show_Arc<GT>>
+	  void for_each_arc(const GT & g,
+	                    typename GT::Node *p,
+	                    std::function<void (typename GT::Arc *)> operation,
+	                    SA sa = SA())
+	  {
+	    (void) g;
+	    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+	      operation(it.get_curr());
+	  }
 
   /** Return `true` if condition `cond` is met on every filtered node of
         the graph.
@@ -2415,16 +2419,17 @@ namespace Aleph
         @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-  typename GT::Arc *
-  search_directed_arc(const GT & g,
-                      typename GT::Node *src, typename GT::Node *tgt,
-                      SA sa = SA()) noexcept
-  {
-    assert(src != nullptr and tgt != nullptr);
+	  typename GT::Arc *
+	  search_directed_arc(const GT & g,
+	                      typename GT::Node *src, typename GT::Node *tgt,
+	                      SA sa = SA()) noexcept
+	  {
+	    (void) g;
+	    assert(src != nullptr and tgt != nullptr);
 
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-      if (typename GT::Arc *a = it.get_curr(); a->src_node == src and a->tgt_node == tgt)
-        return a;
+	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
+	      if (typename GT::Arc *a = it.get_curr(); a->src_node == src and a->tgt_node == tgt)
+	        return a;
 
     return nullptr;
   }

@@ -72,6 +72,7 @@ options = {
   build_dir: DEFAULT_BUILD_DIR,
   skip_configure: false,
   skip_build: false,
+  jobs: nil,
   ctest_args: [],
   gtest_args: [],
   cmake_args: [
@@ -114,6 +115,7 @@ OptionParser.new do |opts|
       --list-tests             List tests in the build dir (ctest -N) and exit.
       --from-file FILE         Run all tests from a given test source file.
       --exact                  Anchor TEST regex to match exactly.
+      -j, --jobs N             Parallel build jobs (passed to cmake --build --parallel).
       --verbose                Stream command output in real time.
   USAGE
 
@@ -125,6 +127,9 @@ OptionParser.new do |opts|
   end
   opts.on('--skip-build', 'Skip rebuilding tests before running them') do
     options[:skip_build] = true
+  end
+  opts.on('-j N', '--jobs N', Integer, 'Parallel build jobs (passed to cmake --build --parallel)') do |n|
+    options[:jobs] = n
   end
   opts.on('--ctest-arg ARG', 'Forward an extra argument to ctest (repeatable)') do |arg|
     options[:ctest_args] << arg
@@ -193,6 +198,7 @@ build_dir = options[:build_dir]
 ctest_args = options[:ctest_args]
 gtest_args = options[:gtest_args]
 cmake_args = options[:cmake_args]
+jobs = options[:jobs]
 verbose = options[:verbose]
 
 unless cmake_args.any? { |arg| arg.start_with?('-DCMAKE_CXX_COMPILER=') }
@@ -254,7 +260,9 @@ end
 
 unless options[:skip_build]
   log('Building...', verbose: verbose)
-  stdout, stderr, status = run_command('cmake --build .', chdir: build_dir, verbose: verbose, label: 'build')
+  build_cmd = ['cmake', '--build', '.']
+  build_cmd += ['--parallel', jobs.to_s] if jobs
+  stdout, stderr, status = run_command(build_cmd, chdir: build_dir, verbose: verbose, label: 'build')
   unless status.success?
     warn stdout
     warn stderr
@@ -269,7 +277,9 @@ if options[:from_file]
   built_target = nil
   from_file_targets.each do |t|
     log("Building target #{t}...", verbose: verbose)
-    stdout, stderr, status = run_command(['cmake', '--build', '.', '--target', t], chdir: build_dir, verbose: verbose, label: 'build-target')
+    target_cmd = ['cmake', '--build', '.', '--target', t]
+    target_cmd += ['--parallel', jobs.to_s] if jobs
+    stdout, stderr, status = run_command(target_cmd, chdir: build_dir, verbose: verbose, label: 'build-target')
     if status.success?
       built = true
       built_target = t

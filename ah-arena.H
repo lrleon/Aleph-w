@@ -343,9 +343,9 @@ public:
    * @return Pointer to constructed object, or nullptr if allocation fails.
    *
    * @note If allocation fails, no object is constructed and nullptr is returned.
-   */
+  */
   template <typename T, typename... Args>
-  [[nodiscard]] T* alloc(TemplateType tag, Args&&... args)
+  [[nodiscard]] T* alloc([[maybe_unused]] TemplateType tag, Args&&... args)
   {
     void* ptr = alloc_aligned(sizeof(T), alignof(T));
     if (ptr == nullptr)
@@ -364,7 +364,7 @@ public:
    * @param[in] ptr Pointer to object.
    */
   template <typename T>
-  void dealloc(TemplateType tag, void* ptr) noexcept
+  void dealloc([[maybe_unused]] TemplateType tag, void* ptr) noexcept
   {
     if (ptr == nullptr)
       return;

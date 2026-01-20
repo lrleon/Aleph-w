@@ -83,11 +83,11 @@ int main()
     EG city_map;
     
     // Add cities
-    auto nyc = city_map.insert_node("NYC", Point(40.7, -74.0));
-    auto boston = city_map.insert_node("Boston", Point(42.4, -71.1));
-    auto philly = city_map.insert_node("Philadelphia", Point(40.0, -75.2));
-    auto baltimore = city_map.insert_node("Baltimore", Point(39.3, -76.6));
-    auto dc = city_map.insert_node("Washington DC", Point(38.9, -77.0));
+    city_map.insert_node("NYC", Point(40.7, -74.0));
+    city_map.insert_node("Boston", Point(42.4, -71.1));
+    city_map.insert_node("Philadelphia", Point(40.0, -75.2));
+    city_map.insert_node("Baltimore", Point(39.3, -76.6));
+    city_map.insert_node("Washington DC", Point(38.9, -77.0));
     
     cout << "Cities in network: NYC, Boston, Philadelphia, Baltimore, DC\n\n";
     

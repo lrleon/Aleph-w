@@ -225,7 +225,7 @@ TEST_F(IndexGraphTest, RemoveNode)
   Index_Graph<GT> idx(g);
   
   auto n1 = idx.insert_node(10);
-  auto n2 = idx.insert_node(20);
+  idx.insert_node(20);
   
   idx.remove_node(n1);
   
@@ -259,7 +259,7 @@ TEST_F(IndexGraphTest, RemoveMultipleNodes)
   
   auto n1 = idx.insert_node(1);
   auto n2 = idx.insert_node(2);
-  auto n3 = idx.insert_node(3);
+  idx.insert_node(3);
   
   idx.remove_node(n1);
   idx.remove_node(n2);
@@ -388,7 +388,7 @@ TEST_F(IndexGraphTest, InsertSearchRemove)
   Index_Graph<GT> idx(g);
   
   auto n1 = idx.insert_node(100);
-  auto n2 = idx.insert_node(200);
+  idx.insert_node(200);
   
   auto found = idx.search_node(100);
   EXPECT_EQ(found, n1);
@@ -516,8 +516,8 @@ TEST_F(IndexGraphTest, EqualityDifferentArcs)
   auto n2_g1 = g1.insert_node(2);
   g1.insert_arc(n1_g1, n2_g1);
   
-  auto n1_g2 = g2.insert_node(1);
-  auto n2_g2 = g2.insert_node(2);
+  g2.insert_node(1);
+  g2.insert_node(2);
   // No arc in g2
   
   EXPECT_FALSE(are_equal(g1, g2));

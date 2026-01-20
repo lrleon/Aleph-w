@@ -307,6 +307,7 @@ int main()
       {0, INF},
       {INF, 0}
     };
+    (void)dist;
     
     cout << "Distance matrix:\n";
     cout << "     A    B\n";

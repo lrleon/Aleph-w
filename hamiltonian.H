@@ -135,13 +135,15 @@ class Test_Hamiltonian_Sufficiency
    * @param[in] tgt Second node
    * @return true if there is an edge between src and tgt
    */
-  bool are_adjacent(GT & g, typename GT::Node * src, typename GT::Node * tgt)
-  {
-    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-      if (it.get_tgt_node_ne() == tgt)
-        return true;
-    return false;
-  }
+	  bool are_adjacent(GT & g, typename GT::Node * src, typename GT::Node * tgt)
+	  {
+	    (void) g;
+
+	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
+	      if (it.get_tgt_node_ne() == tgt)
+	        return true;
+	    return false;
+	  }
 
   /**
    * @brief Test Ore's condition for undirected graphs.

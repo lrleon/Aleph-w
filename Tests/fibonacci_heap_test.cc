@@ -125,16 +125,18 @@ TEST(FibonacciHeapConstruction, MoveAssignment)
   EXPECT_EQ(h2.get_min(), 3);
 }
 
-TEST(FibonacciHeapConstruction, SelfMoveAssignment)
+TEST(FibonacciHeapConstruction, MoveAssignmentRoundtrip)
 {
   Fibonacci_Heap<int> h;
   h.insert(5);
   h.insert(3);
 
-  h = std::move(h);  // Should be safe
+  const auto original_size = h.size();
+  Fibonacci_Heap<int> tmp(std::move(h));
+  h = std::move(tmp);
 
-  // Behavior is implementation defined, but should not crash
-  // After self-move, heap should still be in valid state
+  EXPECT_EQ(h.size(), original_size);
+  EXPECT_EQ(h.get_min(), 3);
 }
 
 // =============================================================================

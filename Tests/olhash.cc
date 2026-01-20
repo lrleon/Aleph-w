@@ -1007,6 +1007,7 @@ TEST(OLhashTable, ManualRehash)
     }
   
   auto before = count_bucket_states(tbl);
+  (void)before;
   // Some DELETED may exist (those in middle of chains)
   
   // Manual rehash should eliminate all DELETED
@@ -1257,4 +1258,3 @@ TEST(OLhashTable, Filter)
   
   EXPECT_EQ(evens.size(), 5);
 }
-

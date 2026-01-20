@@ -96,6 +96,8 @@ TEST_F(StlZipViewTest, DifferentLengths_StopsAtShortest)
   int count = 0;
   for (auto [i, s] : stl_zip(short_vec, vs))
     {
+      (void)i;
+      (void)s;
       ++count;
     }
   EXPECT_EQ(count, 2);  // Stops at shorter container
@@ -108,6 +110,8 @@ TEST_F(StlZipViewTest, EmptyContainer)
   int count = 0;
   for (auto [i, s] : stl_zip(empty_vec, vs))
     {
+      (void)i;
+      (void)s;
       ++count;
     }
   EXPECT_EQ(count, 0);
@@ -185,6 +189,8 @@ TEST(StlZipContainerTypes, VectorAndDeque)
   int count = 0;
   for (auto [num, str] : stl_zip(v, d))
     {
+      (void)num;
+      (void)str;
       ++count;
     }
   EXPECT_EQ(count, 3);
@@ -787,7 +793,11 @@ TEST(StlEnumerate, Empty)
   
   int count = 0;
   for (auto [idx, val] : stl_enumerate(empty))
-    ++count;
+    {
+      (void)idx;
+      (void)val;
+      ++count;
+    }
   
   EXPECT_EQ(count, 0);
 }

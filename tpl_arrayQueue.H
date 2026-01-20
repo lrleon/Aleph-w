@@ -435,15 +435,15 @@ public:
 
           @param[in] d minimum capacity
        */
-  FixedQueue(size_t d = 1024)
-    // Don't change the default value because you would risk of
-    // breaking the tests
-    : array(nullptr), front_index(0), rear_index(0), num_items(0)
-  {
-    size_t k = log2(d);
-    dim = is_power_of_2(d) ? d : 1 << ++k;
-    mask = dim - 1;
-    array = new T [dim];
+	  FixedQueue(size_t d = 1024)
+	    // Don't change the default value because you would risk of
+	    // breaking the tests
+	    : dim(0), array(nullptr), front_index(0), rear_index(0), mask(0), num_items(0)
+	  {
+	    size_t k = log2(d);
+	    dim = is_power_of_2(d) ? d : 1 << ++k;
+	    mask = dim - 1;
+	    array = new T [dim];
   }
 
   ~FixedQueue()
@@ -469,18 +469,16 @@ public:
 
   Special_Ctors(FixedQueue, T);
 
-  /// Copy assign
-  FixedQueue & operator = (const FixedQueue & q)
-  {
-    if (this == &q)
-      return *this;
+	  /// Copy assign
+	  FixedQueue & operator = (const FixedQueue & q)
+	  {
+	    if (this == &q)
+	      return *this;
 
-    if (array != nullptr)
-      delete [] array;
-
-    new (this) FixedQueue(q);
-    return *this;
-  }
+	    FixedQueue tmp(q);
+	    swap(tmp);
+	    return *this;
+	  }
 
   /// Move assign
   FixedQueue & operator = (FixedQueue && q) noexcept
@@ -658,8 +656,6 @@ public:
 } // end namespace Aleph
 
 # endif /* TPL_ARRAYQUEUE_H */
-
-
 
 
 

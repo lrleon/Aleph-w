@@ -184,6 +184,7 @@ void fill(size_t n)
       Foo foo(i);
       auto ptr = tbl.insert(i, foo);  // Insert copy
       assert(ptr != nullptr);
+      (void)ptr;
       backup.append(foo);  // Append another copy
       
       if (i % 100 == 0)
@@ -203,6 +204,7 @@ void verify()
       assert(ptr != nullptr);
       assert(ptr->first == foo.i);
       assert(ptr->second == foo);
+      (void)ptr;
       ++count;
     }
   cout << "Verification complete. " << count << " elements verified." << endl;

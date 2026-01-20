@@ -152,6 +152,7 @@ struct Dft_Store_Node
    */
   void operator()(std::ofstream & output, GT & g, typename GT::Node * p)
   {
+    (void)g;
     output.write(reinterpret_cast<const char*>(&p->get_info()), 
                  sizeof(typename GT::Node_Type));
   }
@@ -163,6 +164,7 @@ struct Dft_Store_Node
    */
   void operator()(std::ostream & output, GT & g, typename GT::Node * p)
   {
+    (void)g;
     output << p->get_info() << std::endl;
   }
 };
@@ -185,6 +187,7 @@ struct Dft_Store_Arc
    */
   void operator()(std::ofstream & output, GT & g, typename GT::Arc * a)
   {
+    (void)g;
     output.write(reinterpret_cast<const char*>(&a->get_info()), 
                  sizeof(typename GT::Arc_Type));
   }
@@ -196,6 +199,7 @@ struct Dft_Store_Arc
    */
   void operator()(std::ostream & output, GT & g, typename GT::Arc * a)
   {
+    (void)g;
     output << a->get_info() << std::endl;
   }
 };
@@ -218,6 +222,7 @@ struct Dft_Load_Node
    */
   void operator()(std::ifstream & input, GT & g, typename GT::Node * p)
   {
+    (void)g;
     input.read(reinterpret_cast<char*>(&p->get_info()), 
                sizeof(typename GT::Node_Type));
   }
@@ -229,6 +234,7 @@ struct Dft_Load_Node
    */
   void operator()(std::istream & input, GT & g, typename GT::Node * p)
   {
+    (void)g;
     input >> p->get_info();
   }
 };
@@ -251,6 +257,7 @@ struct Dft_Load_Arc
    */
   void operator()(std::ifstream & input, GT & g, typename GT::Arc * a)
   {
+    (void)g;
     input.read(reinterpret_cast<char*>(&a->get_info()), 
                sizeof(typename GT::Arc_Type));
   }
@@ -262,6 +269,7 @@ struct Dft_Load_Arc
    */
   void operator()(std::istream & input, GT & g, typename GT::Arc * a)
   {
+    (void)g;
     input >> a->get_info();
   }
 };

@@ -162,15 +162,17 @@ TEST_F(MapArenaTest, MoveAssignment)
   EXPECT_FALSE(original.is_initialized());
 }
 
-TEST_F(MapArenaTest, SelfMoveAssignment)
+TEST_F(MapArenaTest, MoveAssignmentRoundtrip)
 {
   MapArena arena(test_file);
   arena.reserve(10);
   arena.commit(10);
 
-  arena = std::move(arena);
+  MapArena tmp;
+  tmp = std::move(arena);
+  arena = std::move(tmp);
 
-  // Should still be valid after self-move
+  // Should still be valid after roundtrip move
   EXPECT_TRUE(arena.is_initialized());
   EXPECT_EQ(arena.size(), 10u);
 }

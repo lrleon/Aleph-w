@@ -225,7 +225,7 @@ TEST_F(GraphCopyTest, HasCopy)
 
 TEST_F(GraphCopyTest, InsertUnmappedNode)
 {
-  auto* n1 = g.insert_node(1);
+  g.insert_node(1);
   GraphCopyWithMapping<TestGraph> copy(g);
   
   EXPECT_EQ(copy.num_nodes(), 1);
@@ -381,9 +381,9 @@ TEST_F(GraphCopyTest, ParallelArcs)
 
 TEST_F(GraphCopyTest, ForEachMapping)
 {
-  auto* n1 = g.insert_node(1);
-  auto* n2 = g.insert_node(2);
-  auto* n3 = g.insert_node(3);
+  g.insert_node(1);
+  g.insert_node(2);
+  g.insert_node(3);
   
   GraphCopyWithMapping<TestGraph> copy(g);
   
@@ -500,4 +500,3 @@ int main(int argc, char **argv)
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

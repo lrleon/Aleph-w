@@ -537,35 +537,19 @@ TEST(ComputeBipartiteClass, ThrowsOnNonBipartite)
 // ============================================================================
 // KNOWN BUG: The maximum matching algorithm is not returning correct results.
 // The flow network-based algorithm returns 0 matches for all cases.
-// TODO: Investigate and fix the compute_maximum_cardinality_bipartite_matching function.
-
-// This test documents the current buggy behavior
-TEST(MaximumMatching, DISABLED_EmptyGraph)
-{
-  Graph g;
-
-  DynDlist<Graph::Arc *> matching;
-
-  // Empty graph should have empty matching
-  // BUG: Currently throws range_error like compute_bipartite
-  EXPECT_NO_THROW(
-    compute_maximum_cardinality_bipartite_matching<Graph>(g, matching));
-  EXPECT_TRUE(matching.is_empty());
-}
-
+// Empty graph throws range_error (consistent with compute_bipartite behavior)
 TEST(MaximumMatching, EmptyGraphThrowsRangeError)
 {
   Graph g;
 
   DynDlist<Graph::Arc *> matching;
 
-  // BUG: Empty graph throws range_error
   EXPECT_THROW(
     compute_maximum_cardinality_bipartite_matching<Graph>(g, matching),
     std::range_error);
 }
 
-TEST(MaximumMatching, DISABLED_SingleEdge)
+TEST(MaximumMatching, SingleEdge)
 {
   Graph g;
   auto * a = g.insert_node(1);
@@ -580,8 +564,7 @@ TEST(MaximumMatching, DISABLED_SingleEdge)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-// BUG: All maximum matching tests are disabled due to algorithm returning 0 matches
-TEST(MaximumMatching, DISABLED_PathGraph4)
+TEST(MaximumMatching, PathGraph4)
 {
   auto g = create_path_graph(4);  // 0--1--2--3
 
@@ -594,7 +577,7 @@ TEST(MaximumMatching, DISABLED_PathGraph4)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_PathGraph5)
+TEST(MaximumMatching, PathGraph5)
 {
   auto g = create_path_graph(5);  // 0--1--2--3--4
 
@@ -607,7 +590,7 @@ TEST(MaximumMatching, DISABLED_PathGraph5)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_CompleteBipartiteK22)
+TEST(MaximumMatching, CompleteBipartiteK22)
 {
   auto g = create_complete_bipartite(2, 2);
 
@@ -620,7 +603,7 @@ TEST(MaximumMatching, DISABLED_CompleteBipartiteK22)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_CompleteBipartiteK33)
+TEST(MaximumMatching, CompleteBipartiteK33)
 {
   auto g = create_complete_bipartite(3, 3);
 
@@ -633,7 +616,7 @@ TEST(MaximumMatching, DISABLED_CompleteBipartiteK33)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_CompleteBipartiteK55)
+TEST(MaximumMatching, CompleteBipartiteK55)
 {
   auto g = create_complete_bipartite(5, 5);
 
@@ -646,7 +629,7 @@ TEST(MaximumMatching, DISABLED_CompleteBipartiteK55)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_UnbalancedK25)
+TEST(MaximumMatching, UnbalancedK25)
 {
   auto g = create_complete_bipartite(2, 5);
 
@@ -659,7 +642,7 @@ TEST(MaximumMatching, DISABLED_UnbalancedK25)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_UnbalancedK52)
+TEST(MaximumMatching, UnbalancedK52)
 {
   auto g = create_complete_bipartite(5, 2);
 
@@ -672,7 +655,7 @@ TEST(MaximumMatching, DISABLED_UnbalancedK52)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_StarGraph)
+TEST(MaximumMatching, StarGraph)
 {
   auto g = create_star_graph(5);
 
@@ -685,7 +668,7 @@ TEST(MaximumMatching, DISABLED_StarGraph)
   EXPECT_TRUE(verify_matching(g, matching));
 }
 
-TEST(MaximumMatching, DISABLED_EvenCycle)
+TEST(MaximumMatching, EvenCycle)
 {
   auto g = create_cycle_graph(6);
 
@@ -713,8 +696,7 @@ TEST(MaximumMatching, ThrowsOnNonBipartite)
 // Matching Class Wrapper Tests
 // ============================================================================
 
-// BUG: Disabled due to maximum matching returning 0 matches
-TEST(MaximumMatchingClass, DISABLED_BasicUsage)
+TEST(MaximumMatchingClass, BasicUsage)
 {
   auto g = create_complete_bipartite(4, 4);
 
@@ -766,8 +748,7 @@ TEST(BipartiteStress, LargePathGraph)
   EXPECT_TRUE(verify_bipartition(g, l, r));
 }
 
-// BUG: Disabled due to maximum matching returning 0 matches
-TEST(MaximumMatchingStress, DISABLED_LargeMatching)
+TEST(MaximumMatchingStress, LargeMatching)
 {
   auto g = create_complete_bipartite(20, 20);
 

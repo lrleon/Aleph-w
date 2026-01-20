@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -44,13 +43,14 @@
 # ifndef TPL_RAND_TREE_H
 # define TPL_RAND_TREE_H
 
+# include <ctime>
 # include <climits>
 # include <gsl/gsl_rng.h>
 # include <ahUtils.H>
 # include <ahFunction.H>
 # include <tpl_randNode.H>
 # include <tpl_binTreeOps.H>
- # include <ah-errors.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -155,31 +155,34 @@ namespace Aleph
 
     Node * random_insert(Node *root, Node *p) noexcept
     {
+      if (root == Node::NullPtr)
+        return p;
+
       // Prefetch children to reduce memory latency
       __builtin_prefetch(LLINK(root));
       __builtin_prefetch(RLINK(root));
 
-      const long & n = COUNT(root);
+      const long n = COUNT(root);
       if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
-        return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
+          return BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p);
 
       Node *result;
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
-      if (cmp(pk, rk))  // KEY(p) < KEY(root)
+      if (cmp(pk, rk)) // KEY(p) < KEY(root)
         {
           result = random_insert(LLINK(root), p);
-          if (result != Node::NullPtr)  // p was inserted
+          if (result != Node::NullPtr) // p was inserted
             {
               LLINK(root) = result;
               ++COUNT(root);
               return root;
             }
         }
-      else if (cmp(rk, pk))  // KEY(p) > KEY(root)
+      else if (cmp(rk, pk)) // KEY(p) > KEY(root)
         {
           result = random_insert(RLINK(root), p);
-          if (result != Node::NullPtr)  // p was inserted
+          if (result != Node::NullPtr) // p was inserted
             {
               RLINK(root) = result;
               ++COUNT(root);
@@ -187,22 +190,25 @@ namespace Aleph
             }
         }
 
-      return Node::NullPtr;  // duplicated key ==> no insertion
+      return Node::NullPtr; // duplicated key ==> no insertion
     }
 
     Node * random_insert_dup(Node *root, Node *p) noexcept
     {
+      if (root == Node::NullPtr)
+        return p;
+
       // Prefetch children to reduce memory latency
       __builtin_prefetch(LLINK(root));
       __builtin_prefetch(RLINK(root));
 
-      const long & n = COUNT(root);
+      const long n = COUNT(root);
       if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
-        return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
+          return BinTreeXt_Operation<Node, Compare>(cmp).insert_dup_root(root, p);
 
       const Key & pk = KEY(p);
       const Key & rk = KEY(root);
-      if (cmp(pk, rk))  // KEY(p) < KEY(root)
+      if (cmp(pk, rk)) // KEY(p) < KEY(root)
         LLINK(root) = random_insert_dup(LLINK(root), p);
       else
         RLINK(root) = random_insert_dup(RLINK(root), p);
@@ -212,16 +218,18 @@ namespace Aleph
       return root;
     }
 
-    Node * random_search_or_insert(Node *& root, Node * p) noexcept
+    Node * random_search_or_insert(Node *& root, Node *p) noexcept
     {
       if (root == Node::NullPtr)
         return root = p;
 
       // Prefetch children to reduce memory latency
-      __builtin_prefetch(LLINK(root));
-      __builtin_prefetch(RLINK(root));
+      if (LLINK(root) != Node::NullPtr)
+        __builtin_prefetch(LLINK(root));
+      if (RLINK(root) != Node::NullPtr)
+        __builtin_prefetch(RLINK(root));
 
-      const long & n = COUNT(root);
+      const long n = COUNT(root);
       if (const size_t rn = gsl_rng_uniform_int(r, n + 1); rn == n) [[unlikely]]
         {
           if (BinTreeXt_Operation<Node, Compare>(cmp).insert_root(root, p) != Node::NullPtr)
@@ -234,7 +242,7 @@ namespace Aleph
       const Key & rk = KEY(root);
       if (cmp(pk, rk))
         {
-          Node * ret = random_search_or_insert(LLINK(root), p);
+          Node *ret = random_search_or_insert(LLINK(root), p);
           if (ret == p)
             ++COUNT(root);
 
@@ -242,19 +250,22 @@ namespace Aleph
         }
       if (cmp(rk, pk))
         {
-          Node * ret = random_search_or_insert(RLINK(root), p);
+          Node *ret = random_search_or_insert(RLINK(root), p);
           if (ret == p)
             ++COUNT(root);
 
           return ret;
         }
 
-      return root;  // key == root: found existing
+      return root; // key == root: found existing
     }
 
+  public:
     Gen_Rand_Tree(const Gen_Rand_Tree &) = delete;
+
     Gen_Rand_Tree &operator =(const Gen_Rand_Tree &) = delete;
 
+  private:
     void init(const unsigned long seed)
     {
       r = gsl_rng_alloc(gsl_rng_mt19937);
@@ -281,11 +292,14 @@ namespace Aleph
     gsl_rng * gsl_rng_object() noexcept { return r; }
 
     /// Set the random number generator seed
-    void set_seed(const unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+    void set_seed(const unsigned long seed) noexcept
+    {
+      gsl_rng_set(r, seed % gsl_rng_max(r));
+    }
 
     /// Initialize a random tree with random `seed` and comparison criteria
     /// `__cmp`
-    Gen_Rand_Tree(const unsigned int seed, const Compare & __cmp = Compare()) noexcept
+    Gen_Rand_Tree(const unsigned int seed, const Compare & __cmp = Compare())
       : tree_root(Node::NullPtr), r(nullptr), cmp(__cmp)
     {
       init(seed);
@@ -340,6 +354,8 @@ namespace Aleph
     {
       if (r != nullptr)
         gsl_rng_free(r);
+      // Note: nodes are NOT freed here. DynSetTree::empty() handles node deletion.
+      // The underlying tree only manages the tree structure, not node memory.
     }
 
     /** Insert a node in the tree
@@ -585,8 +601,7 @@ namespace Aleph
     */
     Node * remove_pos(const size_t i)
     {
-      ah_out_of_range_error_if(i >= COUNT(tree_root))
-        << "infix position out of range";
+      ah_out_of_range_error_if(i >= COUNT(tree_root)) << "infix position out of range";
 
       return remove_pos(tree_root, i);
     }
@@ -647,8 +662,8 @@ namespace Aleph
         return t1;
 
       Node *ret = Node::NullPtr;
-      const size_t & m = COUNT(t1);
-      const size_t & n = COUNT(t2);
+      const size_t m = COUNT(t1);
+      const size_t n = COUNT(t2);
       if (const size_t rn = 1 + gsl_rng_uniform_int(r, m + n); rn <= m)
         { // root of t1 wins
           Node *l = LLINK(t1), *r = RLINK(t1);

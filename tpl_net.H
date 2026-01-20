@@ -259,6 +259,7 @@ namespace Aleph
     using Base = Array_Graph<NodeT, ArcT>;
 
     using Base::Base;
+    using Base::insert_node;
 
     using Graph = Base;
 
@@ -813,17 +814,18 @@ namespace Aleph
     }
 
     /** @brief Return the total flow value of the network. */
-    Flow_Type flow_value() const
-    {
-      ah_domain_error_if(src_nodes.is_empty() or sink_nodes.is_empty())
-        << "network has no source or sink nodes";
+	    Flow_Type flow_value() const
+	    {
+	      ah_domain_error_if(src_nodes.is_empty() or sink_nodes.is_empty())
+	        << "network has no source or sink nodes";
 
-      const auto total_out = total_source_out_flow();
-      const auto total_in = total_sink_in_flow();
+	      const auto total_out = total_source_out_flow();
+	      const auto total_in = total_sink_in_flow();
 
-      assert(total_out == total_in);
-      return total_out;
-    }
+	      (void)total_in; // May be unused when NDEBUG disables assert().
+	      assert(total_out == total_in);
+	      return total_out;
+	    }
 
     /// True if the network has a super-source.
     bool with_super_source;
@@ -952,16 +954,18 @@ namespace Aleph
    *
    * @ingroup Networks
    */
-  template <class Net>
-  void increase_flow(Net & net,
-                     const DynList<Parc<Net>> & semi_path,
-                     const typename Net::Flow_Type slack)
-  {
-    // Increase flow along the semi-path.
-    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
-         it.next_ne())
-      {
-        auto p = it.get_curr();
+	  template <class Net>
+	  void increase_flow(Net & net,
+	                     const DynList<Parc<Net>> & semi_path,
+	                     const typename Net::Flow_Type slack)
+	  {
+	    (void)net; // May be unused when NDEBUG disables assert().
+
+	    // Increase flow along the semi-path.
+	    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
+	         it.next_ne())
+	      {
+	        auto p = it.get_curr();
         auto arc = get<0>(p);
         if (get<1>(p)) // forward arc
           arc->flow += slack;
@@ -984,15 +988,17 @@ namespace Aleph
    *
    * @ingroup Networks
    */
-  template <class Net>
-  void decrease_flow(Net & net, const DynList<Parc<Net>> & semi_path,
-                     const typename Net::Flow_Type slack)
-  {
-    // Decrease flow: reverse the direction logic from increase_flow
-    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
-         it.next_ne())
-      {
-        auto p = it.get_curr();
+	  template <class Net>
+	  void decrease_flow(Net & net, const DynList<Parc<Net>> & semi_path,
+	                     const typename Net::Flow_Type slack)
+	  {
+	    (void)net;
+
+	    // Decrease flow: reverse the direction logic from increase_flow
+	    for (typename DynList<Parc<Net>>::Iterator it(semi_path); it.has_curr();
+	         it.next_ne())
+	      {
+	        auto p = it.get_curr();
         auto arc = get<0>(p);
         if (get<1>(p)) // forward arc: decrease instead of increase
           arc->flow -= slack;

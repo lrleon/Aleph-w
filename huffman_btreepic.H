@@ -236,6 +236,7 @@ inline void save_infix_pos(Freq_Node * p, int level, int pos)
  */
 inline void save_level_pos_1(Freq_Node * p, int pos, bool is_left)
 {
+  (void)pos;
   level_table.insert(p, Level_Desc(is_left));
 }
 
@@ -251,6 +252,8 @@ inline void save_level_pos_1(Freq_Node * p, int pos, bool is_left)
  */
 inline void save_level_pos_2(Freq_Node * p, int pos, bool is_left)
 {
+  (void)is_left;
+
   if (pos == 0)
     {
       assert(pred == nullptr);
@@ -277,6 +280,9 @@ inline void save_level_pos_2(Freq_Node * p, int pos, bool is_left)
  */
 inline void write_prefix(Freq_Node * p, int level, int prefix_pos)
 {
+  (void)level;
+  (void)prefix_pos;
+
   const Infix_Desc & infix_desc = infix_table[p];
   *output_ptr << static_cast<int>(infix_desc.pos) << " ";
 }
@@ -293,6 +299,9 @@ inline void write_prefix(Freq_Node * p, int level, int prefix_pos)
  */
 inline void write_freq(Freq_Node * p, int level, int pos)
 {
+  (void)level;
+  (void)pos;
+
   const size_t & freq = p->get_key().second;
   *output_ptr << "\"" << freq << "\" ";
 }
@@ -310,6 +319,8 @@ inline void write_freq(Freq_Node * p, int level, int pos)
  */
 inline void write_leaves(Freq_Node * p, int level, int pos)
 {
+  (void)level;
+
   // Only process leaf nodes
   if (not (LLINK(p) == nullptr and RLINK(p) == nullptr))
     return;

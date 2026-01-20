@@ -40,9 +40,12 @@
 # ifndef TPL_DYNSETTREE_H
 # define TPL_DYNSETTREE_H
 
+# include <cassert>
 # include <typeinfo>
 # include <type_traits>
 # include <utility>
+# include <algorithm>
+# include <memory>
 # include <stdexcept>
 # include <ah-errors.H>
 # include <ah-args-ctor.H>
@@ -486,11 +489,14 @@ namespace Aleph
 
         @param[in] dset the set to exchange with this
     */
-    void swap(DynSetTree & dset) noexcept(noexcept(tree.swap(dset.tree)) &&
-                                          noexcept(std::swap(num_nodes, dset.num_nodes)))
+    void swap(DynSetTree & dset)
+      noexcept(noexcept(tree.swap(dset.tree)) and
+               noexcept(std::swap(num_nodes, dset.num_nodes)) and
+               noexcept(std::swap(arena_allocator, dset.arena_allocator)))
     {
       tree.swap(dset.tree);
       std::swap(num_nodes, dset.num_nodes);
+      std::swap(arena_allocator, dset.arena_allocator);
     }
 
     /// Instantiate a dynamic set
@@ -550,9 +556,15 @@ namespace Aleph
           // For arena allocation, just call destructors on keys
           // (arena handles memory deallocation)
           callKeyDestructorsRec(tree.getRoot());
+
+          // Reset tree
+          tree.getRoot() = Node::NullPtr;
+          num_nodes = 0;
+          return;
         }
-      else
-        destroyRec(tree.getRoot());
+
+      destroyRec(tree.getRoot());
+      tree.getRoot() = Node::NullPtr;
       num_nodes = 0;
     }
 

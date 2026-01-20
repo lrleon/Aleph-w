@@ -274,8 +274,8 @@ public:
    */
   void clear()
   {
-    Aleph::clear_graph(copied_graph);
     node_map.empty();
+    Aleph::clear_graph(copied_graph);
   }
 };
 
