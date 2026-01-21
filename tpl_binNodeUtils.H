@@ -47,8 +47,6 @@
 # include <tpl_binNode.H>
 # include <ah-errors.H>
 
-using namespace Aleph;
-
 namespace Aleph
 {
   template <class Node>
@@ -209,36 +207,36 @@ namespace Aleph
   class For_Each_In_Order
   {
     template <class Op>
-    static void for_each_inorder(Node *root, Op & op)
+    static void for_each_inorder(Node *root, Op && op)
     {
       if (root == Node::NullPtr)
         return;
 
-      for_each_inorder(LLINK(root), op);
+      for_each_inorder(LLINK(root), std::forward<Op>(op));
       op(root);
-      for_each_inorder(RLINK(root), op);
+      for_each_inorder(RLINK(root), std::forward<Op>(op));
     }
 
   public:
     /// Invoke to traversal from root node
     template <class Op>
-    void traverse(Node *root, Op & op) const
+    void traverse(Node *root, Op && op) const
     {
-      for_each_inorder<Op>(root, op);
+      for_each_inorder(root, std::forward<Op>(op));
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op & op) const
     {
-      for_each_inorder<Op>(root, op);
+      for_each_inorder(root, op);
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op && op) const
     {
-      for_each_inorder<Op>(root, op);
+      for_each_inorder(root, std::forward<Op>(op));
     }
   };
 
@@ -252,7 +250,7 @@ namespace Aleph
   inline
   void for_each_in_order(Node *root, Op && op)
   {
-    return For_Each_In_Order<Node>().template traverse<Op>(root, op);
+    return For_Each_In_Order<Node>().traverse(root, std::forward<Op>(op));
   }
 
   /** Generic preorder traversal of a binary tree
@@ -275,36 +273,36 @@ namespace Aleph
   class For_Each_Preorder
   {
     template <class Op>
-    static void preorder(Node *root, Op & op)
+    static void preorder(Node *root, Op && op)
     {
       if (root == Node::NullPtr)
         return;
 
       op(root);
-      preorder(LLINK(root), op);
-      preorder(RLINK(root), op);
+      preorder(LLINK(root), std::forward<Op>(op));
+      preorder(RLINK(root), std::forward<Op>(op));
     }
 
   public:
     /// Invoke the traversal
     template <class Op>
-    void traverse(Node *root, Op & op) const
+    void traverse(Node *root, Op && op) const
     {
-      return preorder(root, op);
+      return preorder(root, std::forward<Op>(op));
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op & op) const
     {
-      preorder<Op>(root, op);
+      preorder(root, op);
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op && op = Op()) const
     {
-      preorder<Op>(root, op);
+      preorder(root, std::forward<Op>(op));
     }
   };
 
@@ -317,7 +315,7 @@ namespace Aleph
   template <class Node, class Op>
   void for_each_preorder(Node *root, Op && op)
   {
-    For_Each_Preorder<Node>().template traverse<Op>(root, op);
+    For_Each_Preorder<Node>().traverse(root, std::forward<Op>(op));
   }
 
 
@@ -340,36 +338,36 @@ namespace Aleph
   class For_Each_Postorder
   {
     template <class Op>
-    static void postorder(Node *root, Op & op)
+    static void postorder(Node *root, Op && op)
     {
       if (root == Node::NullPtr)
         return;
 
-      postorder(LLINK(root), op);
-      postorder(RLINK(root), op);
+      postorder(LLINK(root), std::forward<Op>(op));
+      postorder(RLINK(root), std::forward<Op>(op));
       op(root);
     }
 
   public:
     /// Invoke the traversal
     template <class Op>
-    void traverse(Node *root, Op & op) const
+    void traverse(Node *root, Op && op) const
     {
-      return postorder(root, op);
+      return postorder(root, std::forward<Op>(op));
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op & op) const
     {
-      postorder<Op>(root, op);
+      postorder(root, op);
     }
 
     /// \overload traverse(Node * root, Op & op)
     template <class Op>
     void operator ()(Node *root, Op && op = Op()) const
     {
-      postorder<Op>(root, op);
+      postorder(root, std::forward<Op>(op));
     }
   };
 
@@ -382,7 +380,7 @@ namespace Aleph
   template <class Node, class Op>
   void for_each_postorder(Node *root, Op && op)
   {
-    For_Each_Postorder<Node>().template traverse<Op>(root, op);
+    For_Each_Postorder<Node>().traverse(root, std::forward<Op>(op));
   }
 
 
@@ -533,6 +531,13 @@ namespace Aleph
 
           @param[in] root of tree to free
           @ingroup Trees
+
+          @Warning This function does not free the memory occupied
+          by the nodes. It only calls the key destructors. Be careful
+          about double frees if Node calls key destructor in its own
+          destructor. The function is useful when nodes are allocated
+          in a memory pool, and you want to free only the keys or an arena
+          allocator is used for nodes.
        */
   template <class Node>
   inline
@@ -1542,7 +1547,7 @@ namespace Aleph
       @param[in] root of tree
       @param[in] key to search
       @param[out] parent pointer to parent node if key was
-      found. Otherwise value is undetermined
+      found. Otherwise, value is undetermined
       @param[in] cmp comparison criteria
       @return a valid pointer to a node containing `key` if this is
       found; otherwise, it returns a pointer to the last visited node

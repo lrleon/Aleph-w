@@ -901,9 +901,11 @@ public:
    */
   void shutdown()
   {
-    if (stop.exchange(true))
-      return;  // Already stopped
-
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      if (stop.exchange(true))
+        return;  // Already stopped
+    }
     condition.notify_all();
 
     for (auto& worker : workers)

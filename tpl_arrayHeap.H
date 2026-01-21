@@ -61,6 +61,20 @@
 
 namespace Aleph
 {
+  /** Restore the heap property by moving the element at position `r` upwards.
+
+      This operation assumes the range `[l, r-1]` already satisfies the heap
+      property and then restores it for the whole range `[l, r]`.
+
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in,out] ptr 1-based array backing the heap
+      @param[in] l left boundary (inclusive)
+      @param[in] r right boundary (inclusive)
+      @param[in] cmp comparison criteria
+      @return a mutable reference to the element after it has been placed
+      @ingroup Algorithms
+  */
   template <typename T, class Compare>
   inline
   T &sift_up(T *ptr, const size_t l, const size_t r, Compare & cmp)
@@ -83,6 +97,19 @@ namespace Aleph
     return ptr[i];
   }
 
+  /** Restore the heap property by moving the element at position `l` downwards.
+
+      This operation assumes the subtrees below `l` satisfy the heap property
+      and then restores it for the whole range `[l, r]`.
+
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in,out] ptr 1-based array backing the heap
+      @param[in] l left boundary (inclusive) / starting index
+      @param[in] r right boundary (inclusive)
+      @param[in] cmp comparison criteria
+      @ingroup Algorithms
+  */
   template <typename T, class Compare>
   inline
   void sift_down(T *ptr, const size_t l, const size_t r, Compare & cmp)
@@ -110,6 +137,19 @@ namespace Aleph
       }
   }
 
+  /** Restore the heap property by sifting down and then sifting up.
+
+      Used when the element at `i` might need to move in either direction.
+
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in,out] ptr 1-based array backing the heap
+      @param[in] l left boundary (inclusive)
+      @param[in] i position to update
+      @param[in] r right boundary (inclusive)
+      @param[in] cmp comparison criteria
+      @ingroup Algorithms
+  */
   template <typename T, class Compare>
   inline
   void sift_down_up(T *ptr, const size_t l, const size_t i, const size_t r,
@@ -146,7 +186,7 @@ namespace Aleph
     for (size_t i = n; i > 1; --i)
       {
         std::swap(array[1], array[i]); // place the i-th item at the root
-        sift_down<T, Aleph::Inversed_Compare<T, Compare>>(array, 1, i - 1, inv_cmp);
+        sift_down<T, Inversed_Compare<T, Compare>>(array, 1, i - 1, inv_cmp);
       }
   }
 
@@ -181,8 +221,17 @@ namespace Aleph
       }
   }
 
-  /// Returns true if the array between l and r is a heap under comparator
-  /// Compare()()
+  /** Check whether a range satisfies the heap property.
+
+      @tparam T element type
+      @tparam Compare comparator defining the heap order
+      @param[in] array 1-based array backing the heap
+      @param[in] l left boundary (inclusive)
+      @param[in] r right boundary (inclusive)
+      @param[in] cmp comparison criteria
+      @return true if `[l, r]` satisfies the heap property under `cmp`
+      @ingroup Algorithms
+  */
   template <typename T, class Compare = Aleph::less<T>>
   bool valid_heap(T *array, const size_t l, const size_t r,
                   const Compare & cmp = Compare())
@@ -227,6 +276,11 @@ namespace Aleph
     }
 
   public:
+    /** Allocate internal storage and reset the heap.
+
+        @param[in] new_dim new capacity (number of usable heap slots)
+        @throw invalid_argument if `new_dim == 0`
+    */
     void allocate_storage(const size_t new_dim)
     {
       ah_invalid_argument_if(new_dim == 0) << "Heap capacity must be positive";
@@ -241,6 +295,10 @@ namespace Aleph
       array_allocated = true;
     }
 
+    /** Swap all state with another heap.
+
+        @param[in,out] h other heap
+    */
     void swap(ArrayHeap & h) noexcept
     {
       std::swap(array, h.array);
@@ -256,16 +314,29 @@ namespace Aleph
 
     Special_Ctors(ArrayHeap, T);
 
-    /// Constructor with default capacity.
-    ArrayHeap(const size_t d = 1024, Compare && cmp_fct = Compare())
-      : array(nullptr), num_items(0), cmp(cmp_fct)
+    /** Construct an empty heap with internal storage.
+
+        @param[in] d capacity (number of usable heap slots)
+        @param[in] cmp_fct comparator
+        @throw invalid_argument if `d == 0`
+    */
+    ArrayHeap(const size_t d = 1024, Compare cmp_fct = Compare())
+      : array(nullptr), cmp(cmp_fct)
     {
       allocate_storage(d);
     }
 
-    /// Constructor with external buffer and explicit capacity.
-    ArrayHeap(T *ptr, const size_t & d, Compare && cmp_fct = Compare())
-      : array(ptr), dim(d), array_allocated(false), cmp(cmp_fct)
+    /** Construct an empty heap using an external buffer.
+
+        The heap will not manage the lifetime of `ptr`.
+
+        @param[in] ptr external buffer (must have at least `d + 1` elements)
+        @param[in] d capacity (number of usable heap slots)
+        @param[in] cmp_fct comparator
+        @throw invalid_argument if `ptr == nullptr` or `d == 0`
+    */
+    ArrayHeap(T *ptr, const size_t & d, Compare cmp_fct = Compare())
+      : array(ptr), dim(d), cmp(cmp_fct)
     {
       ah_invalid_argument_if(ptr == nullptr or d == 0) << "ArrayHeap requires non-null buffer";
     }
@@ -308,14 +379,17 @@ namespace Aleph
       return *this;
     }
 
-    /// Destructor.
+    /** Destructor. */
     virtual ~ArrayHeap()
     {
       if (array_allocated and array != nullptr)
         delete [] array;
     }
 
-    /// Return the smallest element in the heap.
+    /** Return a mutable reference to the minimum element.
+
+        @throw underflow_error if the heap is empty
+    */
     T &top()
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
@@ -323,7 +397,10 @@ namespace Aleph
       return array[1];
     }
 
-    /// Return the smallest element in the heap (const overload).
+    /** Return a const reference to the minimum element.
+
+        @throw underflow_error if the heap is empty
+    */
     const T &top() const
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
@@ -331,12 +408,26 @@ namespace Aleph
       return array[1];
     }
 
+    /** Insert an element without checking capacity.
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @warning This method does not check for overflow.
+        @see insert()
+    */
     T &insert_ne(const T & key)
     {
       array[++num_items] = key; // place the new element
       return sift_up(array, 1, num_items, cmp);
     }
 
+    /** Insert an element without checking capacity (move overload).
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @warning This method does not check for overflow.
+        @see insert()
+    */
     T &insert_ne(T && key)
     {
       array[++num_items] = std::move(key); // place the new element
@@ -357,18 +448,49 @@ namespace Aleph
       return insert_ne(key);
     }
 
+    /** Insert an element into the heap (move overload).
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @throw overflow_error if the internal array is full
+        @see insert(const T &)
+    */
     T &insert(T && key)
     {
       ah_overflow_error_if(num_items >= dim) << "Heap out of capacity";
       return insert_ne(std::move(key));
     }
 
+    /** Synonym for insert().
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @see insert()
+    */
     T &put(const T & key) { return insert(key); }
 
+    /** Synonym for insert().
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @see insert()
+    */
     T &append(const T & key) { return insert(key); }
 
+    /** Synonym for insert() (move overload).
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @see insert(T &&)
+    */
     T &put(T && key) { return insert(std::move(key)); }
 
+    /** Synonym for insert() (move overload).
+
+        @param[in] key value to insert
+        @return a mutable reference to the inserted element
+        @see insert(T &&)
+    */
     T &append(T && key) { return insert(std::move(key)); }
 
     /** Remove the smallest element in the heap and return a copy of its value.
@@ -390,25 +512,28 @@ namespace Aleph
       return ret_val;
     }
 
-    /// \overload getMin()
+    /** \overload getMin() */
     T get()
     {
       return getMin();
     }
 
-    /// \overload getMin() to use when the priority order is inverted
+    /** \overload getMin() */
     T getMax()
     {
       return getMin();
     }
 
-    /// Return the number of elements
+    /** Return the number of elements currently stored. */
     [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
-    /// Return true if the heap is empty
+    /** Return true if the heap is empty. */
     [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
-    /// Return the total capacity of the heap (excluding sentinel slot).
+    /** Return the maximum number of elements that can be stored.
+
+        This excludes the sentinel slot at index 0.
+    */
     [[nodiscard]] constexpr size_t capacity() const noexcept { return dim; }
 
     /** Update the priority of an element stored in the heap.
@@ -434,6 +559,14 @@ namespace Aleph
       sift_down_up(array, 1, i, num_items, cmp);
     }
 
+    /** Remove an element from the heap given a reference to it.
+
+        The reference must refer to an element stored in this heap.
+
+        @param[in,out] item reference to the element to remove
+        @throw underflow_error if the heap is empty
+        @note It is essential that `item` is a valid reference into this heap.
+    */
     void remove(T & item)
     {
       ah_underflow_error_if(num_items == 0) << "Heap is empty";
@@ -451,13 +584,23 @@ namespace Aleph
       sift_down_up(array, 1, idx, num_items, cmp);
     }
 
-    /// Return the i-th entry in the heap.
+    /** Return a mutable reference to the i-th entry (1-based).
+
+        No bounds checking is performed.
+
+        @param[in] i index
+        @return mutable reference to entry `i`
+    */
     T &operator [](const size_t i)
     {
       return array[i];
     }
 
-    /// Const overload of operator[]
+    /** Const overload of operator[] (1-based).
+
+        @param[in] i index
+        @return const reference to entry `i`
+    */
     const T &operator [](const size_t i) const
     {
       return array[i];
@@ -484,28 +627,55 @@ namespace Aleph
     }
 
   public:
+    /** Traverse all elements (const overload).
+
+        Iterates over indices `[1, size()]` and applies `operation` to each
+        element until it returns false.
+
+        @tparam Operation callable type
+        @param[in,out] operation functor to apply
+        @return false if traversal was stopped early, true otherwise
+    */
     template <class Operation>
     bool traverse(Operation & operation) const
     {
-      return const_cast<ArrayHeap &>(*this).__traverse(operation);
+      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
     }
 
+    /** Traverse all elements.
+
+        @tparam Operation callable type
+        @param[in,out] operation functor to apply
+        @return false if traversal was stopped early, true otherwise
+    */
     template <class Operation>
     bool traverse(Operation & operation)
     {
-      return __traverse(operation);
+      return traverse_impl(operation);
     }
 
+    /** Traverse all elements (const forwarding overload).
+
+        @tparam Operation callable type
+        @param[in] operation functor to apply
+        @return false if traversal was stopped early, true otherwise
+    */
     template <class Operation>
     bool traverse(Operation && operation = Operation()) const
     {
-      return const_cast<ArrayHeap &>(*this).__traverse(operation);
+      return const_cast<ArrayHeap &>(*this).traverse_impl(operation);
     }
 
+    /** Traverse all elements (forwarding overload).
+
+        @tparam Operation callable type
+        @param[in] operation functor to apply
+        @return false if traversal was stopped early, true otherwise
+    */
     template <class Operation>
     bool traverse(Operation && operation = Operation())
     {
-      return traverse(operation);
+      return traverse_impl(operation);
     }
   };
 } // end namespace Aleph
