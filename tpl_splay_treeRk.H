@@ -126,12 +126,6 @@ private:
 
     while (true)
       {
-        // Prefetch both children to reduce memory latency
-        if (LLINK(t) != Node::NullPtr)
-          __builtin_prefetch(LLINK(t));
-        if (RLINK(t) != Node::NullPtr)
-          __builtin_prefetch(RLINK(t));
-
         if (const Key & tk = KEY(t); cmp(key, tk))  // key < tk: go left
           {
             cmp_result = CmpLess;

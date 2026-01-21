@@ -15,6 +15,12 @@
 #include <tpl_maxflow.H>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#if defined(_WIN32)
+#  include <process.h>
+#else
+#  include <unistd.h>
+#endif
 
 using namespace Aleph;
 
@@ -25,13 +31,42 @@ using TestNet = Net_Graph<Net_Node<Empty_Class>,
 class NetUtilsTest : public ::testing::Test
 {
 protected:
+  std::filesystem::path dot_file;
+  std::filesystem::path json_file;
+  std::filesystem::path dimacs_file;
+
+  static long long process_id() noexcept
+  {
+#if defined(_WIN32)
+    return static_cast<long long>(_getpid());
+#else
+    return static_cast<long long>(getpid());
+#endif
+  }
+
+  void SetUp() override
+  {
+    const auto *test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string base = std::string("alephw_") + test_info->test_suite_name() + "_" +
+                       test_info->name() + "_" + std::to_string(process_id());
+
+    for (auto &ch : base)
+      if (ch == '/' || ch == '\\' || ch == ' ')
+        ch = '_';
+
+    auto dir = std::filesystem::temp_directory_path();
+    dot_file = dir / (base + ".dot");
+    json_file = dir / (base + ".json");
+    dimacs_file = dir / (base + ".dimacs");
+  }
 
   // Cleanup temp files
   void TearDown() override
   {
-    std::filesystem::remove("test_network.dot");
-    std::filesystem::remove("test_network.json");
-    std::filesystem::remove("test_network.dimacs");
+    std::error_code ec;
+    std::filesystem::remove(dot_file, ec);
+    std::filesystem::remove(json_file, ec);
+    std::filesystem::remove(dimacs_file, ec);
   }
 };
 
@@ -184,9 +219,9 @@ TEST_F(NetUtilsTest, ExportToDotBasic)
   auto net = generate_grid_network<TestNet>(3, 3, 10.0, false);  // unidirectional
   dinic_maximum_flow(net);
 
-  export_network_to_dot(net, "test_network.dot");
+  export_network_to_dot(net, dot_file.string());
 
-  std::ifstream file("test_network.dot");
+  std::ifstream file(dot_file);
   EXPECT_TRUE(file.good());
 
   std::string content((std::istreambuf_iterator<char>(file)),
@@ -206,9 +241,9 @@ TEST_F(NetUtilsTest, ExportToDotWithOptions)
   options.show_capacity = true;
   options.highlight_saturated = true;
 
-  export_network_to_dot(net, "test_network.dot", options);
+  export_network_to_dot(net, dot_file.string(), options);
 
-  std::ifstream file("test_network.dot");
+  std::ifstream file(dot_file);
   EXPECT_TRUE(file.good());
 }
 
@@ -231,9 +266,9 @@ TEST_F(NetUtilsTest, ExportToJsonBasic)
 {
   auto net = generate_grid_network<TestNet>(2, 2, 10.0);
 
-  export_network_to_json(net, "test_network.json");
+  export_network_to_json(net, json_file.string());
 
-  std::ifstream file("test_network.json");
+  std::ifstream file(json_file);
   EXPECT_TRUE(file.good());
 
   std::string content((std::istreambuf_iterator<char>(file)),
@@ -264,9 +299,9 @@ TEST_F(NetUtilsTest, ExportToDimacsBasic)
 {
   auto net = generate_grid_network<TestNet>(3, 3, 10.0, false);
 
-  export_network_to_dimacs(net, "test_network.dimacs");
+  export_network_to_dimacs(net, dimacs_file.string());
 
-  std::ifstream file("test_network.dimacs");
+  std::ifstream file(dimacs_file);
   EXPECT_TRUE(file.good());
 
   std::string content((std::istreambuf_iterator<char>(file)),
@@ -281,10 +316,10 @@ TEST_F(NetUtilsTest, DimacsRoundTrip)
 {
   // Create and export
   auto net1 = generate_grid_network<TestNet>(3, 3, 10.0, false);
-  export_network_to_dimacs(net1, "test_network.dimacs");
+  export_network_to_dimacs(net1, dimacs_file.string());
 
   // Import
-  auto net2 = import_network_from_dimacs<TestNet>("test_network.dimacs");
+  auto net2 = import_network_from_dimacs<TestNet>(dimacs_file.string());
 
   EXPECT_EQ(net2.vsize(), net1.vsize());
   EXPECT_EQ(net2.esize(), net1.esize());
@@ -298,10 +333,10 @@ TEST_F(NetUtilsTest, DimacsFlowEquivalence)
   auto net1 = generate_grid_network<TestNet>(4, 4, 10.0, false);
   auto flow1 = dinic_maximum_flow(net1);
 
-  export_network_to_dimacs(net1, "test_network.dimacs");
+  export_network_to_dimacs(net1, dimacs_file.string());
 
   // Import and compute flow
-  auto net2 = import_network_from_dimacs<TestNet>("test_network.dimacs");
+  auto net2 = import_network_from_dimacs<TestNet>(dimacs_file.string());
   auto flow2 = dinic_maximum_flow(net2);
 
   // Flows should be equal

@@ -116,7 +116,7 @@
 #include <set>
 #include <map>
 #include <utility>
-#include <tpl_agraph.H>
+#include <tpl_array.H>
 #include <tpl_dynArray.H>
 #include <tpl_dynDlist.H>
 #include <tpl_dynSetTree.H>
@@ -265,6 +265,7 @@ template <class T>
 [[nodiscard]] Array<T> vector_to_Array(const std::vector<T> & v)
 {
   Array<T> ret;
+  ret.reserve(v.size());
   for (const auto & item : v)
     ret.append(item);
   return ret;
@@ -408,6 +409,7 @@ template <class T>
 [[nodiscard]] Array<T> deque_to_Array(const std::deque<T> & d)
 {
   Array<T> ret;
+  ret.reserve(d.size());
   for (const auto & item : d)
     ret.append(item);
   return ret;
@@ -659,6 +661,7 @@ template <class T, class Compare, class Alloc>
 [[nodiscard]] Array<T> set_to_Array(const std::set<T, Compare, Alloc> & s)
 {
   Array<T> ret;
+  ret.reserve(s.size());
   for (const auto & item : s)
     ret.append(item);
   return ret;
@@ -751,6 +754,7 @@ template <class K, class V, class Compare, class Alloc>
 map_to_Array(const std::map<K, V, Compare, Alloc> & m)
 {
   Array<std::pair<K, V>> ret;
+  ret.reserve(m.size());
   for (const auto & [key, value] : m)
     ret.append(std::make_pair(key, value));
   return ret;
@@ -944,6 +948,7 @@ template <typename Key, template <typename, class> class Tree, class Compare>
 [[nodiscard]] Array<Key> settree_to_Array(const DynSetTree<Key, Tree, Compare> & s)
 {
   Array<Key> ret;
+  ret.reserve(s.size());
   s.for_each([&ret](const Key & item) { ret.append(item); });
   return ret;
 }
@@ -1077,6 +1082,7 @@ template <typename Key, template <typename, class> class HashTable, class Cmp>
 [[nodiscard]] Array<Key> sethash_to_Array(const DynHashTable<Key, HashTable, Cmp> & s)
 {
   Array<Key> ret;
+  ret.reserve(s.size());
   s.for_each([&ret](const Key & item) { ret.append(item); });
   return ret;
 }
@@ -1161,6 +1167,7 @@ template <typename Key, typename Data,
 maptree_to_Array(const DynMapTree<Key, Data, Tree, Compare> & m)
 {
   Array<std::pair<Key, Data>> ret;
+  ret.reserve(m.size());
   m.for_each([&ret](const std::pair<Key, Data> & p) { ret.append(p); });
   return ret;
 }
@@ -1291,6 +1298,7 @@ template <typename Key, typename Data, class Cmp,
 maphash_to_Array(const MapOpenHash<Key, Data, Cmp, HashTable> & m)
 {
   Array<std::pair<Key, Data>> ret;
+  ret.reserve(m.size());
   m.for_each([&ret](const std::pair<Key, Data> & p) { ret.append(p); });
   return ret;
 }

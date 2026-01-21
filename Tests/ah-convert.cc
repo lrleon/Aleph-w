@@ -1418,3 +1418,186 @@ TEST(MapHashConversions, MapHashValuesToDynList)
   EXPECT_TRUE(check.contains(10));
   EXPECT_TRUE(check.contains(20));
 }
+
+// ==================== vector_to_DynSetTree Tests ====================
+
+TEST(VectorToDynSetTree, FromEmptyVector)
+{
+  std::vector<int> vec;
+  auto s = vector_to_DynSetTree(vec);
+  EXPECT_TRUE(s.is_empty());
+}
+
+TEST(VectorToDynSetTree, FromSingleElementVector)
+{
+  std::vector<int> vec = {42};
+  auto s = vector_to_DynSetTree(vec);
+
+  ASSERT_EQ(s.size(), 1);
+  EXPECT_TRUE(s.contains(42));
+}
+
+TEST(VectorToDynSetTree, FromMultipleElementVector)
+{
+  std::vector<int> vec = {5, 2, 8, 2, 1, 8, 3};
+  auto s = vector_to_DynSetTree(vec);
+
+  ASSERT_EQ(s.size(), 5); // unique: 1, 2, 3, 5, 8
+  EXPECT_TRUE(s.contains(1));
+  EXPECT_TRUE(s.contains(2));
+  EXPECT_TRUE(s.contains(3));
+  EXPECT_TRUE(s.contains(5));
+  EXPECT_TRUE(s.contains(8));
+}
+
+TEST(VectorToDynSetTree, WithStrings)
+{
+  std::vector<std::string> vec = {"cat", "dog", "cat", "bird", "dog"};
+  auto s = vector_to_DynSetTree(vec);
+
+  ASSERT_EQ(s.size(), 3); // unique: bird, cat, dog
+  EXPECT_TRUE(s.contains("bird"));
+  EXPECT_TRUE(s.contains("cat"));
+  EXPECT_TRUE(s.contains("dog"));
+  EXPECT_FALSE(s.contains("fish"));
+}
+
+TEST(VectorToDynSetTree, RoundTrip)
+{
+  std::vector<int> original = {7, 3, 9, 3, 1};
+  auto s = vector_to_DynSetTree(original);
+  auto result = settree_to_vector(s);
+
+  ASSERT_EQ(s.size(), 4U); // unique: 1, 3, 7, 9
+  // Vector from tree is sorted
+  EXPECT_EQ(result[0], 1);
+  EXPECT_EQ(result[1], 3);
+  EXPECT_EQ(result[2], 7);
+  EXPECT_EQ(result[3], 9);
+}
+
+// ==================== Generic to_Array() Tests ====================
+
+TEST(GenericToArray, FromDynList)
+{
+  DynList<int> list;
+  list.append(10);
+  list.append(20);
+  list.append(30);
+
+  auto arr = to_Array(list);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_EQ(arr(0), 10);
+  EXPECT_EQ(arr(1), 20);
+  EXPECT_EQ(arr(2), 30);
+}
+
+TEST(GenericToArray, FromDynArray)
+{
+  DynArray<double> darray;
+  darray.append(1.5);
+  darray.append(2.5);
+  darray.append(3.5);
+
+  auto arr = to_Array(darray);
+
+  ASSERT_EQ(arr.size(), 3);
+  EXPECT_DOUBLE_EQ(arr(0), 1.5);
+  EXPECT_DOUBLE_EQ(arr(1), 2.5);
+  EXPECT_DOUBLE_EQ(arr(2), 3.5);
+}
+
+TEST(GenericToArray, FromDynSetTree)
+{
+  DynSetTree<std::string> stree;
+  stree.insert("zebra");
+  stree.insert("apple");
+  stree.insert("mango");
+
+  auto arr = to_Array(stree);
+
+  ASSERT_EQ(arr.size(), 3);
+  // SetTree elements are sorted
+  EXPECT_EQ(arr(0), "apple");
+  EXPECT_EQ(arr(1), "mango");
+  EXPECT_EQ(arr(2), "zebra");
+}
+
+TEST(GenericToArray, FromEmptyContainer)
+{
+  DynList<int> list;
+  auto arr = to_Array(list);
+  EXPECT_EQ(arr.size(), 0);
+}
+
+// ==================== Generic to_DynArray() Tests ====================
+
+TEST(GenericToDynArray, FromDynList)
+{
+  DynList<int> list;
+  list.append(5);
+  list.append(10);
+
+  auto darr = to_DynArray(list);
+
+  ASSERT_EQ(darr.size(), 2);
+  EXPECT_EQ(darr(0), 5);
+  EXPECT_EQ(darr(1), 10);
+}
+
+TEST(GenericToDynArray, FromDynSetTree)
+{
+  DynSetTree<int> stree;
+  stree.insert(50);
+  stree.insert(10);
+  stree.insert(30);
+
+  auto darr = to_DynArray(stree);
+
+  ASSERT_EQ(darr.size(), 3);
+  EXPECT_EQ(darr(0), 10);
+  EXPECT_EQ(darr(1), 30);
+  EXPECT_EQ(darr(2), 50);
+}
+
+TEST(GenericToDynArray, FromDynDlist)
+{
+  DynDlist<std::string> dlist;
+  dlist.append("foo");
+  dlist.append("bar");
+  dlist.append("baz");
+
+  auto darr = to_DynArray(dlist);
+
+  ASSERT_EQ(darr.size(), 3);
+  EXPECT_EQ(darr(0), "foo");
+  EXPECT_EQ(darr(1), "bar");
+  EXPECT_EQ(darr(2), "baz");
+}
+
+TEST(GenericToDynArray, FromEmptyContainer)
+{
+  DynList<int> list;
+  auto darr = to_DynArray(list);
+  EXPECT_EQ(darr.size(), 0);
+}
+
+TEST(GenericToDynArray, RoundTripWithDynList)
+{
+  DynList<int> original;
+  original.append(100);
+  original.append(200);
+  original.append(300);
+
+  auto darr = to_DynArray(original);
+  auto list = dynarray_to_DynList(darr);
+
+  ASSERT_EQ(list.size(), 3);
+  auto it = list.get_it();
+  EXPECT_EQ(it.get_curr(), 100);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 200);
+  it.next_ne();
+  EXPECT_EQ(it.get_curr(), 300);
+}

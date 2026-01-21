@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -64,7 +63,7 @@ namespace Aleph
    */
   template <typename T, class Compare>
   inline
-  size_t sift_up(DynArray<T> & a, size_t l, size_t r, Compare & cmp) noexcept
+  size_t sift_up(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp) noexcept
   {
     for (size_t p, i = r; i > l; i = p)
       {
@@ -77,7 +76,7 @@ namespace Aleph
         T & ap = a.access(p);
         T & ai = a.access(i);
         if (cmp(ap, ai)) [[likely]] // heap property holds
-          return i;
+            return i;
 
         std::swap(ap, ai); // swap and continue at parent
       }
@@ -92,14 +91,14 @@ namespace Aleph
    */
   template <typename T, class Compare>
   inline
-  void sift_down(DynArray<T> & a, size_t l, size_t r, Compare & cmp) noexcept
+  void sift_down(DynArray<T> & a, const size_t l, const size_t r, Compare & cmp) noexcept
   {
     size_t i = l;
     while (true)
       {
         size_t c = l_index(i); // left child index (c = 2 * i)
         if (c > r) [[unlikely]] // no left child
-          return;
+            return;
 
         // Prefetch grandchildren for next iteration
         if (const size_t gc = l_index(c); gc <= r)
@@ -118,7 +117,7 @@ namespace Aleph
 
         T & ai = a.access(i);
         if (cmp(ai, *ac)) [[likely]] // heap property holds
-          return;
+            return;
 
         std::swap(*ac, ai);
         i = c;
@@ -155,7 +154,7 @@ namespace Aleph
     using Item_Type = T;
 
     /// Default constructor.
-    DynArrayHeap(Compare __cmp = Compare()) : num_items(0), cmp(__cmp)
+    DynArrayHeap(Compare cmp_fct = Compare()) : cmp(cmp_fct)
     {
       // empty
     }
@@ -219,8 +218,7 @@ namespace Aleph
      */
     void reserve(size_t n)
     {
-      ah_out_of_range_error_if(num_items > n)
-        << "DynArrayHeap::reserve: n smaller than size";
+      ah_out_of_range_error_if(num_items > n) << "DynArrayHeap::reserve: n smaller than size";
       array.reserve(n);
     }
 
@@ -275,7 +273,7 @@ namespace Aleph
           sift_down(array, 1, num_items, cmp);
         }
       else
-          --num_items;
+        --num_items;
 
       array.cut(num_items + 1);
 
@@ -310,16 +308,14 @@ namespace Aleph
           this->next_ne();
       }
 
-      Iterator() noexcept
-      { /* empty */
-      }
+      Iterator() = default;
 
-      bool has_curr() const noexcept
+      [[nodiscard]] bool has_curr() const noexcept
       {
         return this->curr_idx != 0 and this->curr_idx != this->array_ptr->size();
       }
 
-      long get_pos() const noexcept { return this->Base::get_pos() - 1; }
+      [[nodiscard]] long get_pos() const noexcept { return this->Base::get_pos() - 1; }
     };
 
     /** Traverse all elements in the heap.

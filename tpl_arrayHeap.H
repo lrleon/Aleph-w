@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -76,7 +75,7 @@ namespace Aleph
           __builtin_prefetch(&ptr[gp], 0, 1);
 
         if (cmp(ptr[p], ptr[i])) [[likely]] // does the heap property hold?
-          return ptr[i]; // yes, the entire range is already a heap
+            return ptr[i]; // yes, the entire range is already a heap
 
         std::swap(ptr[p], ptr[i]); // swap nodes and restore level p
       }
@@ -93,7 +92,7 @@ namespace Aleph
       {
         size_t c = l_index(i); // left child index (c = 2 * i)
         if (c > r) [[unlikely]] // does it have a left child?
-          return; // no ==> stop
+            return; // no ==> stop
 
         // Prefetch grandchildren for next iteration
         if (const size_t gc = l_index(c); gc <= r)
@@ -104,7 +103,7 @@ namespace Aleph
             c++;
 
         if (cmp(ptr[i], ptr[c])) [[likely]] // does the heap property hold?
-          return; // yes ==> stop
+            return; // yes ==> stop
 
         std::swap(ptr[c], ptr[i]);
         i = c;
@@ -139,11 +138,11 @@ namespace Aleph
   inline
   void heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
-    Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
+    Inversed_Compare<T, Compare> inv_cmp(cmp);
 
     --array; // shift backwards so array[1] is the first element
     for (size_t i = 2; i <= n; ++i)
-      sift_up<T, Aleph::Inversed_Compare<T, Compare>>(array, 1, i, inv_cmp);
+      sift_up<T, Inversed_Compare<T, Compare>>(array, 1, i, inv_cmp);
     for (size_t i = n; i > 1; --i)
       {
         std::swap(array[1], array[i]); // place the i-th item at the root
@@ -170,7 +169,7 @@ namespace Aleph
   inline
   void faster_heapsort(T *array, const size_t n, const Compare & cmp = Compare())
   {
-    Aleph::Inversed_Compare<T, Compare> inv_cmp(cmp);
+    Inversed_Compare<T, Compare> inv_cmp(cmp);
 
     --array; // shift backwards so array[1] is the first element
     for (size_t i = n / 2; i >= 1; --i)
@@ -214,7 +213,7 @@ namespace Aleph
                     public EqualToMethod<ArrayHeap<T, Compare>>,
                     public StlAlephIterator<ArrayHeap<T, Compare>>
   {
-    T * array = nullptr;
+    T *array = nullptr;
     mutable size_t dim = 0;
     size_t num_items = 0;
 
@@ -230,10 +229,9 @@ namespace Aleph
   public:
     void allocate_storage(const size_t new_dim)
     {
-      ah_invalid_argument_if(new_dim == 0)
-        << "Heap capacity must be positive";
+      ah_invalid_argument_if(new_dim == 0) << "Heap capacity must be positive";
 
-      T * ptr = new T[new_dim + 1];
+      T *ptr = new T[new_dim + 1];
       if (array_allocated)
         delete [] array;
 
@@ -259,22 +257,21 @@ namespace Aleph
     Special_Ctors(ArrayHeap, T);
 
     /// Constructor with default capacity.
-    ArrayHeap(const size_t d = 1024, Compare && __cmp = Compare())
-      : array(nullptr), dim(0), num_items(0), array_allocated(false), cmp(__cmp)
+    ArrayHeap(const size_t d = 1024, Compare && cmp_fct = Compare())
+      : array(nullptr), num_items(0), cmp(cmp_fct)
     {
       allocate_storage(d);
     }
 
     /// Constructor with external buffer and explicit capacity.
-    ArrayHeap(T *ptr, const size_t & d, Compare && __cmp = Compare())
-      : array(ptr), dim(d), num_items(0), array_allocated(false), cmp(__cmp)
+    ArrayHeap(T *ptr, const size_t & d, Compare && cmp_fct = Compare())
+      : array(ptr), dim(d), array_allocated(false), cmp(cmp_fct)
     {
-      ah_invalid_argument_if(ptr == nullptr || d == 0)
-        << "ArrayHeap requires non-null buffer";
+      ah_invalid_argument_if(ptr == nullptr or d == 0) << "ArrayHeap requires non-null buffer";
     }
 
     ArrayHeap(const ArrayHeap & h)
-      : array(nullptr), dim(0), num_items(0), array_allocated(false), cmp(h.cmp)
+      : array(nullptr), cmp(h.cmp)
     {
       allocate_storage(h.dim);
       num_items = h.num_items;
@@ -283,7 +280,7 @@ namespace Aleph
     }
 
     ArrayHeap(ArrayHeap && h) noexcept
-      : array_allocated(false), cmp(h.cmp)
+      : cmp(h.cmp)
     {
       swap(h);
     }
@@ -319,30 +316,28 @@ namespace Aleph
     }
 
     /// Return the smallest element in the heap.
-    T & top()
+    T &top()
     {
-      ah_underflow_error_if(num_items == 0)
-        << "Heap is empty";
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       return array[1];
     }
 
     /// Return the smallest element in the heap (const overload).
-    const T & top() const
+    const T &top() const
     {
-      ah_underflow_error_if(num_items == 0)
-        << "Heap is empty";
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       return array[1];
     }
 
-    T & insert_ne(const T & key)
+    T &insert_ne(const T & key)
     {
       array[++num_items] = key; // place the new element
       return sift_up(array, 1, num_items, cmp);
     }
 
-    T & insert_ne(T && key)
+    T &insert_ne(T && key)
     {
       array[++num_items] = std::move(key); // place the new element
       return sift_up(array, 1, num_items, cmp);
@@ -356,17 +351,15 @@ namespace Aleph
         @return a mutable reference to the inserted element.
         @throw overflow_error if the internal array is full.
     */
-    T & insert(const T & key)
+    T &insert(const T & key)
     {
-      ah_overflow_error_if(num_items >= dim)
-        << "Heap out of capacity";
+      ah_overflow_error_if(num_items >= dim) << "Heap out of capacity";
       return insert_ne(key);
     }
 
-    T & insert(T && key)
+    T &insert(T && key)
     {
-      ah_overflow_error_if(num_items >= dim)
-        << "Heap out of capacity";
+      ah_overflow_error_if(num_items >= dim) << "Heap out of capacity";
       return insert_ne(std::move(key));
     }
 
@@ -388,8 +381,7 @@ namespace Aleph
     */
     T getMin()
     {
-      ah_underflow_error_if(num_items == 0)
-        << "Heap is empty";
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       T ret_val = array[1];
       array[1] = array[num_items--];
@@ -434,8 +426,7 @@ namespace Aleph
     */
     void update(T & data)
     {
-      ah_underflow_error_if(num_items == 0)
-        << "Heap is empty";
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       assert(&data >= array + 1 and &data <= array + num_items);
 
@@ -445,8 +436,7 @@ namespace Aleph
 
     void remove(T & item)
     {
-      ah_underflow_error_if(num_items == 0)
-        << "Heap is empty";
+      ah_underflow_error_if(num_items == 0) << "Heap is empty";
 
       assert(&item >= array + 1 and &item <= array + num_items);
 
@@ -462,13 +452,13 @@ namespace Aleph
     }
 
     /// Return the i-th entry in the heap.
-    T & operator [](const size_t i)
+    T &operator [](const size_t i)
     {
       return array[i];
     }
 
     /// Const overload of operator[]
-    const T & operator [](const size_t i) const
+    const T &operator [](const size_t i) const
     {
       return array[i];
     }
@@ -484,7 +474,7 @@ namespace Aleph
   private:
     // superfast array traversal
     template <class Operation>
-    bool __traverse(Operation & operation)
+    bool traverse_impl(Operation & operation)
     {
       for (size_t i = 1; i <= num_items; ++i)
         if (not operation(array[i]))
