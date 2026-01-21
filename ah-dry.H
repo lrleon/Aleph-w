@@ -1575,7 +1575,7 @@ public:
     return equal_to(r);
   }
 
-  /// Negation of are_equal()
+  /** Negation of equal_to() */
   bool operator != (const Container & r) const	noexcept
   {
     return not equal_to(r);
@@ -1708,7 +1708,7 @@ public:
     return ret_val;
   }
 
-  /**  Return the image or element mapped to `key`.
+  /** Return the image or element mapped to `key`.
 
        \return a modifiable reference to value associated to the key.
        \throw domain_error if key is not present in the mapping
@@ -1718,7 +1718,7 @@ public:
     return this->find(key);
   }
 
-  /**  Return the image or element mapped to `key`.
+  /** Return the image or element mapped to `key`.
 
        \return a constant reference to value associated to the key.
        \throw domain_error if key is not present in the mapping.

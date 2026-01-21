@@ -912,8 +912,580 @@ TEST(StlReject, Basic)
 {
   std::vector<int> v = {1, 2, 3, 4, 5, 6};
   auto result = stl_reject([](int x) { return x % 2 == 0; }, v);
-  
+
   EXPECT_EQ(result, (std::vector<int>{1, 3, 5}));
+}
+
+//==============================================================================
+// Performance Tests - Large Containers (Hash Path)
+//==============================================================================
+
+TEST(StlDistinctPerformance, LargeContainerUsesHashPath)
+{
+  // Create container with 1000 elements, 100 distinct values
+  std::vector<int> large;
+  large.reserve(1000);
+  for (int i = 0; i < 1000; ++i)
+    large.push_back(i % 100);
+
+  auto result = stl_distinct(large);
+
+  EXPECT_EQ(result.size(), 100);
+  // Verify order preserved (first occurrence)
+  EXPECT_EQ(result[0], 0);
+  EXPECT_EQ(result[1], 1);
+  EXPECT_EQ(result[99], 99);
+}
+
+TEST(StlDistinctPerformance, VeryLargeContainer)
+{
+  // 10000 elements, 500 distinct
+  std::vector<int> very_large;
+  very_large.reserve(10000);
+  for (int i = 0; i < 10000; ++i)
+    very_large.push_back(i % 500);
+
+  auto result = stl_distinct(very_large);
+
+  EXPECT_EQ(result.size(), 500);
+}
+
+TEST(StlTallyPerformance, LargeContainerUsesHashPath)
+{
+  std::vector<int> large;
+  large.reserve(1000);
+  for (int i = 0; i < 1000; ++i)
+    large.push_back(i % 100);
+
+  auto result = stl_tally(large);
+
+  EXPECT_EQ(result.size(), 100);
+  // Each value appears 10 times
+  for (const auto & [val, count] : result)
+    EXPECT_EQ(count, 10);
+}
+
+TEST(StlGroupByPerformance, LargeContainerUsesHashPath)
+{
+  std::vector<int> large;
+  large.reserve(1000);
+  for (int i = 0; i < 1000; ++i)
+    large.push_back(i);
+
+  // Group by last digit
+  auto result = stl_group_by([](int x) { return x % 10; }, large);
+
+  EXPECT_EQ(result.size(), 10);
+  for (const auto & [key, group] : result)
+    EXPECT_EQ(group.size(), 100);
+}
+
+//==============================================================================
+// Edge Cases
+//==============================================================================
+
+TEST(StlDistinctEdgeCases, EmptyContainer)
+{
+  std::vector<int> empty;
+  auto result = stl_distinct(empty);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(StlDistinctEdgeCases, SingleElement)
+{
+  std::vector<int> single = {42};
+  auto result = stl_distinct(single);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], 42);
+}
+
+TEST(StlDistinctEdgeCases, AllSame)
+{
+  std::vector<int> all_same(100, 42);
+  auto result = stl_distinct(all_same);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], 42);
+}
+
+TEST(StlDistinctEdgeCases, AllUnique)
+{
+  auto input = stl_range(0, 99);
+  auto result = stl_distinct(input);
+  EXPECT_EQ(result.size(), 100);
+}
+
+TEST(StlTallyEdgeCases, EmptyContainer)
+{
+  std::vector<int> empty;
+  auto result = stl_tally(empty);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(StlTallyEdgeCases, SingleElement)
+{
+  std::vector<int> single = {42};
+  auto result = stl_tally(single);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0].first, 42);
+  EXPECT_EQ(result[0].second, 1);
+}
+
+TEST(StlGroupByEdgeCases, EmptyContainer)
+{
+  std::vector<int> empty;
+  auto result = stl_group_by([](int x) { return x; }, empty);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(StlGroupByEdgeCases, SingleElement)
+{
+  std::vector<int> single = {42};
+  auto result = stl_group_by([](int x) { return x % 10; }, single);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0].first, 2);
+  EXPECT_EQ(result[0].second.size(), 1);
+}
+
+TEST(StlGroupByEdgeCases, AllSameKey)
+{
+  std::vector<int> v = {10, 20, 30, 40, 50};
+  auto result = stl_group_by([](int x) { return x % 10; }, v);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0].first, 0);
+  EXPECT_EQ(result[0].second.size(), 5);
+}
+
+//==============================================================================
+// Small Container Tests (Linear Path - threshold <= 64)
+//==============================================================================
+
+TEST(StlDistinctSmall, UsesLinearPath)
+{
+  // Exactly at threshold
+  std::vector<int> at_threshold;
+  for (int i = 0; i < 64; ++i)
+    at_threshold.push_back(i % 32);
+
+  auto result = stl_distinct(at_threshold);
+  EXPECT_EQ(result.size(), 32);
+}
+
+TEST(StlTallySmall, UsesLinearPath)
+{
+  std::vector<int> small = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4};
+  auto result = stl_tally(small);
+
+  EXPECT_EQ(result.size(), 4);
+  EXPECT_EQ(result[0].second, 1);  // 1 appears once
+  EXPECT_EQ(result[1].second, 2);  // 2 appears twice
+  EXPECT_EQ(result[2].second, 3);  // 3 appears three times
+  EXPECT_EQ(result[3].second, 4);  // 4 appears four times
+}
+
+//==============================================================================
+// Custom Types Tests
+//==============================================================================
+
+namespace {
+
+struct Point
+{
+  int x, y;
+
+  bool operator==(const Point & other) const
+  {
+    return x == other.x && y == other.y;
+  }
+};
+
+struct PointHash
+{
+  size_t operator()(const Point & p) const
+  {
+    return std::hash<int>{}(p.x) ^ (std::hash<int>{}(p.y) << 1);
+  }
+};
+
+// Make Point hashable for std::unordered_set/map
+} // anonymous namespace
+
+namespace std {
+template<>
+struct hash<Point>
+{
+  size_t operator()(const Point & p) const
+  {
+    return hash<int>{}(p.x) ^ (hash<int>{}(p.y) << 1);
+  }
+};
+} // namespace std
+
+TEST(StlDistinctCustomType, PointsSmall)
+{
+  std::vector<Point> points = {{1, 2}, {3, 4}, {1, 2}, {5, 6}, {3, 4}};
+  auto result = stl_distinct(points);
+
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0].x, 1);
+  EXPECT_EQ(result[0].y, 2);
+}
+
+TEST(StlDistinctCustomType, PointsLarge)
+{
+  std::vector<Point> points;
+  points.reserve(200);
+  for (int i = 0; i < 200; ++i)
+    points.push_back({i % 50, i % 25});
+
+  auto result = stl_distinct(points);
+  // 50 * 25 = 1250 possible, but we only have 200 elements with some repeats
+  EXPECT_LE(result.size(), 200);
+  EXPECT_GT(result.size(), 0);
+}
+
+TEST(StlTallyCustomType, Points)
+{
+  std::vector<Point> points = {{1, 2}, {3, 4}, {1, 2}, {5, 6}, {1, 2}};
+  auto result = stl_tally(points);
+
+  EXPECT_EQ(result.size(), 3);
+  // Find the count for {1,2}
+  auto it = std::find_if(result.begin(), result.end(),
+                         [](const auto & p) { return p.first.x == 1 && p.first.y == 2; });
+  ASSERT_NE(it, result.end());
+  EXPECT_EQ(it->second, 3);
+}
+
+TEST(StlGroupByCustomType, PointsByQuadrant)
+{
+  std::vector<Point> points = {
+    {1, 1}, {-1, 1}, {-1, -1}, {1, -1},
+    {2, 3}, {-2, 3}, {-2, -3}, {2, -3}
+  };
+
+  auto quadrant = [](const Point & p) {
+    if (p.x >= 0 && p.y >= 0) return 1;
+    if (p.x < 0 && p.y >= 0) return 2;
+    if (p.x < 0 && p.y < 0) return 3;
+    return 4;
+  };
+
+  auto result = stl_group_by(quadrant, points);
+
+  EXPECT_EQ(result.size(), 4);
+  for (const auto & [quad, pts] : result)
+    EXPECT_EQ(pts.size(), 2);
+}
+
+//==============================================================================
+// Move Semantics and Forwarding Tests
+//==============================================================================
+
+namespace {
+
+struct MoveTracker
+{
+  int value;
+  static int move_count;
+  static int copy_count;
+
+  MoveTracker(int v = 0) : value(v) {}
+
+  MoveTracker(const MoveTracker & other) : value(other.value)
+  {
+    ++copy_count;
+  }
+
+  MoveTracker(MoveTracker && other) noexcept : value(other.value)
+  {
+    other.value = -1;
+    ++move_count;
+  }
+
+  MoveTracker & operator=(const MoveTracker & other)
+  {
+    value = other.value;
+    ++copy_count;
+    return *this;
+  }
+
+  MoveTracker & operator=(MoveTracker && other) noexcept
+  {
+    value = other.value;
+    other.value = -1;
+    ++move_count;
+    return *this;
+  }
+
+  bool operator==(const MoveTracker & other) const
+  {
+    return value == other.value;
+  }
+
+  static void reset()
+  {
+    move_count = 0;
+    copy_count = 0;
+  }
+};
+
+int MoveTracker::move_count = 0;
+int MoveTracker::copy_count = 0;
+
+} // anonymous namespace
+
+namespace std {
+template<>
+struct hash<MoveTracker>
+{
+  size_t operator()(const MoveTracker & m) const
+  {
+    return hash<int>{}(m.value);
+  }
+};
+} // namespace std
+
+TEST(StlMapForwarding, LambdaWithCapture)
+{
+  std::vector<int> v = {1, 2, 3};
+  std::string prefix = "num_";
+
+  auto result = stl_map([&prefix](int x) {
+    return prefix + std::to_string(x);
+  }, v);
+
+  EXPECT_EQ(result[0], "num_1");
+  EXPECT_EQ(result[1], "num_2");
+  EXPECT_EQ(result[2], "num_3");
+}
+
+TEST(StlFilterForwarding, MutableLambda)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  int threshold = 3;
+
+  // Mutable lambda that modifies captured state
+  int call_count = 0;
+  auto result = stl_filter([&call_count, threshold](int x) mutable {
+    ++call_count;
+    return x > threshold;
+  }, v);
+
+  EXPECT_EQ(result.size(), 2);
+  EXPECT_EQ(call_count, 5);
+}
+
+TEST(StlFoldlForwarding, AccumulatorByValue)
+{
+  std::vector<std::string> words = {"hello", " ", "world"};
+
+  auto result = stl_foldl(std::string{}, [](std::string acc, const std::string & w) {
+    return acc + w;
+  }, words);
+
+  EXPECT_EQ(result, "hello world");
+}
+
+//==============================================================================
+// Different Container Types
+//==============================================================================
+
+TEST(StlDistinctContainerTypes, List)
+{
+  std::list<int> l = {1, 2, 1, 3, 2, 4};
+  auto result = stl_distinct(l);
+  EXPECT_EQ(result.size(), 4);
+}
+
+TEST(StlDistinctContainerTypes, Deque)
+{
+  std::deque<int> d = {1, 2, 1, 3, 2, 4};
+  auto result = stl_distinct(d);
+  EXPECT_EQ(result.size(), 4);
+}
+
+TEST(StlTallyContainerTypes, List)
+{
+  std::list<int> l = {1, 2, 2, 3, 3, 3};
+  auto result = stl_tally(l);
+  EXPECT_EQ(result.size(), 3);
+}
+
+TEST(StlGroupByContainerTypes, List)
+{
+  std::list<std::string> l = {"a", "bb", "ccc", "dd", "e"};
+  auto result = stl_group_by([](const std::string & s) { return s.length(); }, l);
+  EXPECT_EQ(result.size(), 3);
+}
+
+//==============================================================================
+// Order Preservation Tests
+//==============================================================================
+
+TEST(StlDistinctOrder, PreservesFirstOccurrence)
+{
+  std::vector<int> v = {5, 3, 5, 1, 3, 7, 1, 5};
+  auto result = stl_distinct(v);
+
+  ASSERT_EQ(result.size(), 4);
+  EXPECT_EQ(result[0], 5);  // First occurrence
+  EXPECT_EQ(result[1], 3);
+  EXPECT_EQ(result[2], 1);
+  EXPECT_EQ(result[3], 7);
+}
+
+TEST(StlDistinctOrder, PreservesFirstOccurrenceLarge)
+{
+  // Test with hash path
+  std::vector<int> v;
+  v.reserve(200);
+  for (int i = 199; i >= 0; --i)
+    v.push_back(i % 100);
+
+  auto result = stl_distinct(v);
+
+  ASSERT_EQ(result.size(), 100);
+  // First occurrence of 99 is at index 0 (199 % 100 = 99)
+  EXPECT_EQ(result[0], 99);
+  // First occurrence of 98 is at index 1 (198 % 100 = 98)
+  EXPECT_EQ(result[1], 98);
+}
+
+TEST(StlTallyOrder, PreservesFirstOccurrence)
+{
+  std::vector<int> v = {5, 3, 5, 1, 3, 7, 1, 5};
+  auto result = stl_tally(v);
+
+  ASSERT_EQ(result.size(), 4);
+  EXPECT_EQ(result[0].first, 5);
+  EXPECT_EQ(result[0].second, 3);
+  EXPECT_EQ(result[1].first, 3);
+  EXPECT_EQ(result[1].second, 2);
+  EXPECT_EQ(result[2].first, 1);
+  EXPECT_EQ(result[2].second, 2);
+  EXPECT_EQ(result[3].first, 7);
+  EXPECT_EQ(result[3].second, 1);
+}
+
+TEST(StlGroupByOrder, PreservesFirstOccurrence)
+{
+  std::vector<int> v = {15, 23, 31, 42, 54};
+  auto result = stl_group_by([](int x) { return x % 10; }, v);
+
+  ASSERT_EQ(result.size(), 5);
+  // First key seen is 5 (from 15)
+  EXPECT_EQ(result[0].first, 5);
+  // Second key seen is 3 (from 23)
+  EXPECT_EQ(result[1].first, 3);
+}
+
+//==============================================================================
+// String Tests
+//==============================================================================
+
+TEST(StlDistinctStrings, Basic)
+{
+  std::vector<std::string> v = {"apple", "banana", "apple", "cherry", "banana"};
+  auto result = stl_distinct(v);
+
+  ASSERT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0], "apple");
+  EXPECT_EQ(result[1], "banana");
+  EXPECT_EQ(result[2], "cherry");
+}
+
+TEST(StlDistinctStrings, Large)
+{
+  std::vector<std::string> v;
+  v.reserve(200);
+  for (int i = 0; i < 200; ++i)
+    v.push_back("str_" + std::to_string(i % 50));
+
+  auto result = stl_distinct(v);
+  EXPECT_EQ(result.size(), 50);
+}
+
+TEST(StlGroupByStrings, ByLength)
+{
+  std::vector<std::string> v = {"a", "bb", "ccc", "dd", "eee", "f"};
+  auto result = stl_group_by([](const std::string & s) { return s.length(); }, v);
+
+  EXPECT_EQ(result.size(), 3);
+}
+
+TEST(StlGroupByStrings, ByFirstChar)
+{
+  std::vector<std::string> v = {"apple", "apricot", "banana", "blueberry", "cherry"};
+  auto result = stl_group_by([](const std::string & s) { return s[0]; }, v);
+
+  EXPECT_EQ(result.size(), 3);  // a, b, c
+}
+
+//==============================================================================
+// Boundary Tests (around threshold = 64)
+//==============================================================================
+
+TEST(StlDistinctBoundary, JustBelowThreshold)
+{
+  std::vector<int> v;
+  for (int i = 0; i < 63; ++i)
+    v.push_back(i % 30);
+
+  auto result = stl_distinct(v);
+  EXPECT_EQ(result.size(), 30);
+}
+
+TEST(StlDistinctBoundary, ExactlyAtThreshold)
+{
+  std::vector<int> v;
+  for (int i = 0; i < 64; ++i)
+    v.push_back(i % 30);
+
+  auto result = stl_distinct(v);
+  EXPECT_EQ(result.size(), 30);
+}
+
+TEST(StlDistinctBoundary, JustAboveThreshold)
+{
+  std::vector<int> v;
+  for (int i = 0; i < 65; ++i)
+    v.push_back(i % 30);
+
+  auto result = stl_distinct(v);
+  EXPECT_EQ(result.size(), 30);
+}
+
+//==============================================================================
+// Composition Tests
+//==============================================================================
+
+TEST(StlComposition, DistinctThenMap)
+{
+  std::vector<int> v = {1, 2, 1, 3, 2, 4};
+  auto distinct = stl_distinct(v);
+  auto squared = stl_map([](int x) { return x * x; }, distinct);
+
+  EXPECT_EQ(squared, (std::vector<int>{1, 4, 9, 16}));
+}
+
+TEST(StlComposition, FilterThenDistinct)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5, 6, 1, 2, 3};
+  auto evens = stl_filter([](int x) { return x % 2 == 0; }, v);
+  auto unique_evens = stl_distinct(evens);
+
+  EXPECT_EQ(unique_evens, (std::vector<int>{2, 4, 6}));
+}
+
+TEST(StlComposition, GroupByThenMap)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5, 6};
+  auto groups = stl_group_by([](int x) { return x % 2; }, v);
+  auto sums = stl_map([](const auto & p) {
+    return std::make_pair(p.first, stl_foldl(0, std::plus<int>{}, p.second));
+  }, groups);
+
+  EXPECT_EQ(sums.size(), 2);
 }
 
 // Main

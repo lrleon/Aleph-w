@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -66,7 +65,6 @@
 
 namespace Aleph
 {
-
   /** Convert a `std::vector<T>` to a comma-separated std::string.
 
       \tparam T Element type streamable to `std::ostream`.
@@ -492,9 +490,9 @@ namespace Aleph
     char *endptr = nullptr;
     const auto val = std::strtol(s.c_str(), &endptr, 10);
     const bool invalid =
-        (errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
-        (errno != 0 && val == 0) ||
-        (endptr == s.c_str());
+        (errno == ERANGE and (val == LONG_MAX or val == LONG_MIN)) or
+        (errno != 0 and val == 0) or
+        endptr == s.c_str();
 
     ah_runtime_error_if(invalid) << "invalid std::string for long: " << s;
     return val;
@@ -651,7 +649,7 @@ namespace Aleph
       \return Reference to `elems`.
   */
   inline std::vector<std::string> &
-  split(const std::string & s, char delim, std::vector<std::string> & elems)
+  split(const std::string & s, const char delim, std::vector<std::string> & elems)
   {
     std::stringstream ss(s);
     std::string item;
@@ -667,7 +665,7 @@ namespace Aleph
       \param[in] delim Delimiter character.
       \return Vector of tokens (including empty tokens, as `getline` produces).
   */
-  inline std::vector<std::string> split(const std::string & s, char delim)
+  inline std::vector<std::string> split(const std::string & s, const char delim)
   {
     std::vector<std::string> elems;
     split(s, delim, elems);
@@ -742,9 +740,9 @@ namespace Aleph
                               });
 
     return tokens.foldl<std::string>("", [](const std::string & acu, const std::string & token)
-                                  {
-                                    return acu + token;
-                                  });
+                                       {
+                                         return acu + token;
+                                       });
   }
 
   /** Split a std::string into an `Aleph::Array<std::string>`.
@@ -766,15 +764,12 @@ namespace Aleph
       \return Pair `{left, right}` where `left.size() == pos`.
       \throw std::range_error If `pos > str.size()`.
   */
-  inline std::pair<std::string, std::string> split_pos(const std::string & str, size_t pos)
+  inline std::pair<std::string, std::string> split_pos(const std::string & str, const size_t pos)
   {
-    if (pos > str.size())
-      {
-        std::ostringstream s;
-        s << "split_pos(" << str << ", " << pos << "): position " << pos
-            << " is larger than std::string size " << str.size();
-        ah_range_error_if(pos > str.size()) << s.str();
-      }
+    ah_range_error_if(pos > str.size())
+      << "split_pos(" << str << ", " << pos << "): position " << pos
+      << " is larger than std::string size " << str.size();
+
 
     const char *ptr = str.data();
     const char *end1 = ptr + pos;
@@ -800,18 +795,13 @@ namespace Aleph
       \return List with exactly `n` elements.
       \throw std::range_error If `n == 0` or `n > str.size()`.
   */
-  inline DynList<std::string> split_n(const std::string & str, size_t n)
+  inline DynList<std::string> split_n(const std::string & str, const size_t n)
   {
-    if (n == 0)
-      ah_range_error_if(n == 0) << "split_n(): number of parts cannot be 0";
+    ah_range_error_if(n == 0) << "split_n(): number of parts cannot be 0";
 
-    if (n > str.size())
-      {
-        std::ostringstream s;
-        s << "split_n(" << str << ", " << n << "): number of parts " << n
-            << " is larger than std::string size " << str.size();
-        ah_range_error_if(n > str.size()) << s.str();
-      }
+    ah_range_error_if(n > str.size())
+      << "split_n(" << str << ", " << n << "): number of parts " << n
+      << " is larger than std::string size " << str.size();
 
     const size_t sz = str.size() / n;
 
@@ -823,15 +813,12 @@ namespace Aleph
       {
         std::string s;
         if (i + 1 == n)
-          {
-            while (*ptr)
-              s.push_back(*ptr++);
-          }
+          while (*ptr)
+            s.push_back(*ptr++);
         else
-          {
-            for (size_t k = 0; k < sz and *ptr; ++k)
-              s.push_back(*ptr++);
-          }
+          for (size_t k = 0; k < sz and *ptr; ++k)
+            s.push_back(*ptr++);
+
         ret.append(s);
       }
 
@@ -884,15 +871,15 @@ namespace Aleph
                 const DynList<DynList<std::string>> & mat)
   {
     return mat.maps<DynList<std::string>>([&lens](const DynList<std::string> & l)
-                                       {
-                                         return zip(lens, l).template maps<std::string>([](const auto & p)
-                                              {
-                                                const std::string blanks(p.first > p.second.size() ?
-                                                                      p.first - p.second.size() :
-                                                                      0, ' ');
-                                                return blanks + p.second + " ";
-                                              });
-                                       });
+                                            {
+                                              return zip(lens, l).template maps<std::string>([](const auto & p)
+                                                   {
+                                                     const std::string blanks(p.first > p.second.size() ?
+                                                                                p.first - p.second.size() :
+                                                                                0, ' ');
+                                                     return blanks + p.second + " ";
+                                                   });
+                                            });
   }
 
   /** Write a formatted matrix to a stream.
@@ -903,19 +890,19 @@ namespace Aleph
       \return Reference to `out`.
   */
   inline std::ostream &format_string(std::ostream & out, const DynList<size_t> & lens,
-                                const DynList<DynList<std::string>> & mat)
+                                     const DynList<DynList<std::string>> & mat)
   {
     for (auto it = mat.get_it(); it.has_curr(); it.next_ne())
       {
         const auto & row = it.get_curr();
         auto line = zip(lens, row).
             template maps<std::string>([](const auto & p)
-                                    {
-                                      const std::string blanks(p.first > p.second.size() ?
-                                                            p.first - p.second.size() :
-                                                            0, ' ');
-                                      return blanks + p.second + " ";
-                                    });
+                                         {
+                                           const std::string blanks(p.first > p.second.size() ?
+                                                                      p.first - p.second.size() :
+                                                                      0, ' ');
+                                           return blanks + p.second + " ";
+                                         });
         line.for_each([&out](const auto & s)
                         {
                           out << s;
@@ -1052,20 +1039,18 @@ namespace Aleph
   */
   inline std::string justify_line(std::string line, const size_t page_width)
   {
-    size_t pos = line.find_first_of(' ');
-    if (pos != std::string::npos)
-      {
-        while (line.size() < page_width)
-          {
-            pos = line.find_first_not_of(' ', pos);
-            if (pos == std::string::npos)
-              break;
-            line.insert(pos, " ");
-            pos = line.find_first_of(' ', pos + 1);
-            if (pos == std::string::npos)
-              pos = line.find_first_of(' ');
-          }
-      }
+    if (size_t pos = line.find_first_of(' '); pos != std::string::npos)
+      while (line.size() < page_width)
+        {
+          pos = line.find_first_not_of(' ', pos);
+          if (pos == std::string::npos)
+            break;
+          line.insert(pos, " ");
+          pos = line.find_first_of(' ', pos + 1);
+          if (pos == std::string::npos)
+            pos = line.find_first_of(' ');
+        }
+
     return line;
   }
 
@@ -1077,8 +1062,8 @@ namespace Aleph
       \return Justified text with newlines.
   */
   inline std::string justify_text(const std::string & text,
-                             const size_t width,
-                             const size_t left_margin = 0)
+                                  const size_t width,
+                                  const size_t left_margin = 0)
   {
     auto words = split_text_into_words(text);
 
@@ -1115,8 +1100,8 @@ namespace Aleph
       \return Formatted text.
   */
   inline std::string justify_line_except_first(const std::string & text,
-                                          const size_t width,
-                                          const size_t left_margin = 0)
+                                               const size_t width,
+                                               const size_t left_margin = 0)
   {
     const auto formatted = justify_text(text, width);
     auto lines = split_text_into_lines(formatted);
@@ -1134,8 +1119,8 @@ namespace Aleph
       \return Wrapped text.
   */
   inline std::string align_text_to_left(const std::string & text,
-                                   const size_t page_width,
-                                   const size_t left_margin = 0)
+                                        const size_t page_width,
+                                        const size_t left_margin = 0)
   {
     auto words = split_text_into_words(text);
 
@@ -1173,8 +1158,8 @@ namespace Aleph
       \return Wrapped text.
   */
   inline std::string align_text_to_left_except_first(const std::string & text,
-                                                const size_t width,
-                                                const size_t left_margin = 0)
+                                                     const size_t width,
+                                                     const size_t left_margin = 0)
   {
     const auto formatted = align_text_to_left(text, width);
     auto lines = split_text_into_lines(formatted);
