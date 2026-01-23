@@ -76,6 +76,9 @@ jobs:
           VERSION="${{ github.ref_name }}@${{ github.sha }}"
           DESCRIPTION="GitHub Actions build from branch ${{ github.ref_name }} (commit ${{ github.sha }})"
           
+          # Derive URL slug from COVERITY_PROJECT (replace / with - and lowercase)
+          PROJECT_SLUG=$(echo "${{ env.COVERITY_PROJECT }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          
           curl -fsS \
             --form token=${{ secrets.COVERITY_SCAN_TOKEN }} \
             --form email=${{ secrets.COVERITY_SCAN_EMAIL }} \
@@ -86,7 +89,7 @@ jobs:
           
           echo ""
           echo "✅ Build submitted successfully!"
-          echo "📊 View results at: https://scan.coverity.com/projects?project=${{ env.COVERITY_PROJECT }}"
+          echo "📊 View results at: https://scan.coverity.com/projects/${PROJECT_SLUG}"
 
       - name: Upload build log on failure
         if: failure()
