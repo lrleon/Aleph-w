@@ -62,7 +62,10 @@
 #include <Dijkstra.H>
 #include <Bellman_Ford.H>
 #include <tpl_graph_copy.H>
+#include <tpl_dynList.H>
 #include <ah-errors.H>
+#include <limits>
+#include <type_traits>
 
 namespace Aleph
 {
@@ -134,11 +137,35 @@ private:
   {
     using Distance_Type = typename Johnson::Distance_Type;
 
+    static_assert(std::is_convertible_v<typename GT::Arc_Type, Distance_Type>,
+                  "Reweighted_Dist requires arc info convertible to Distance_Type");
+
     Distance_Type operator()(Arc* arc) const
     {
       return static_cast<Distance_Type>(arc->get_info());
     }
   };
+
+  static Distance_Type checked_add(const Distance_Type& a, const Distance_Type& b)
+  {
+    return shortest_path_detail::checked_add(a, b);
+  }
+
+  static Distance_Type checked_sub(const Distance_Type& a, const Distance_Type& b)
+  {
+    if constexpr (std::is_integral_v<Distance_Type>)
+      {
+        ah_overflow_error_if(b > 0 and
+                             a < std::numeric_limits<Distance_Type>::min() + b)
+          << "Integer underflow in distance subtraction: " << a << " - " << b;
+
+        ah_overflow_error_if(b < 0 and
+                             a > std::numeric_limits<Distance_Type>::max() + b)
+          << "Integer overflow in distance subtraction: " << a << " - " << b;
+      }
+
+    return a - b;
+  }
 
   /** Reweight all arcs using node potentials.
    *  
@@ -161,7 +188,7 @@ private:
 
         Distance_Type hu = h.find(u);
         Distance_Type hv = h.find(v);
-        Distance_Type w_prime = w + hu - hv;
+        Distance_Type w_prime = checked_sub(checked_add(w, hu), hv);
         
         // Store reweighted value in the arc
         arc->get_info() = w_prime;
@@ -177,14 +204,35 @@ private:
       copy_to_orig_node.insert(copy_node, orig_node);
     });
 
-    typename GT::Arc_Iterator orig_it(orig);
-    typename GT::Arc_Iterator copy_it(graph_copy.get_graph());
+    DynMapTree<std::pair<Node*, Node*>, DynList<Arc*>> buckets;
+    GT& copy_g = graph_copy.get_graph();
 
-    for (; orig_it.has_curr() and copy_it.has_curr();
-         orig_it.next_ne(), copy_it.next_ne())
-      copy_to_orig_arc.insert(copy_it.get_curr(), orig_it.get_curr());
+    for (typename GT::Arc_Iterator it(copy_g); it.has_curr(); it.next_ne())
+      {
+        Arc* copy_arc = it.get_curr();
+        Node* csrc = copy_g.get_src_node(copy_arc);
+        Node* ctgt = copy_g.get_tgt_node(copy_arc);
+        buckets[std::make_pair(csrc, ctgt)].append(copy_arc);
+      }
 
-    ah_domain_error_if(orig_it.has_curr() or copy_it.has_curr())
+    for (typename GT::Arc_Iterator it(orig); it.has_curr(); it.next_ne())
+      {
+        Arc* orig_arc = it.get_curr();
+        Node* osrc = const_cast<GT&>(orig).get_src_node(orig_arc);
+        Node* otgt = const_cast<GT&>(orig).get_tgt_node(orig_arc);
+
+        Node* csrc = graph_copy.get_copy(osrc);
+        Node* ctgt = graph_copy.get_copy(otgt);
+
+        auto* bucket = buckets.search(std::make_pair(csrc, ctgt));
+        ah_domain_error_if(bucket == nullptr or bucket->second.is_empty())
+          << "Arc mapping mismatch between original and copied graph";
+
+        Arc* copy_arc = bucket->second.remove_first();
+        copy_to_orig_arc.insert(copy_arc, orig_arc);
+      }
+
+    ah_domain_error_if(copy_to_orig_arc.size() != copy_g.get_num_arcs())
       << "Arc mapping mismatch between original and copied graph";
   }
 
@@ -301,7 +349,7 @@ public:
 
       @param[in] src Source node (from original graph).
       @param[in] tgt Target node (from original graph).
-      @return Path in the original graph from src to tgt.
+      @return Path in the original graph from src to tgt, or an empty path if unreachable.
       @throw std::domain_error if not initialized or nodes not found.
    */
   Path<GT> find_path(Node* src, Node* tgt)
@@ -318,6 +366,9 @@ public:
     // Run Dijkstra from csrc on reweighted graph
     Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
     dijkstra.paint_min_paths_tree(gc, csrc);
+
+    if (not IS_NODE_VISITED(ctgt, Aleph::Spanning_Tree))
+      return Path<GT>(*orig_graph);
     
     // Get path in copy graph
     Path<GT> copy_path(gc);
@@ -326,7 +377,7 @@ public:
     return map_copy_path_to_original(copy_path);
   }
 
-  /** Compute shortest distance for all pairs.
+  /** Compute the shortest distance for all pairs.
 
       @return A map where key is (src, tgt) pair and value is shortest distance.
       @throw std::domain_error if not initialized.
@@ -372,7 +423,7 @@ public:
       The potential h(v) represents the shortest distance from the dummy
       source to v, computed by Bellman-Ford.
 
-      @param[in] node Node from original graph.
+      @param[in] node Node from the original graph.
       @return The potential h(node).
       @throw std::domain_error if not initialized or node not found.
    */

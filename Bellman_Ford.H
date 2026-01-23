@@ -105,7 +105,7 @@ namespace Aleph
       Two versions are provided:
       - **Standard version**: O(V*E) time complexity
       - **Faster version**: Uses a queue-based optimization (SPFA variant)
-        which is often faster in practice
+        which is often faster in practice.
 
       Template parameters:
       - `GT`: Graph type (typically `List_Digraph`).
