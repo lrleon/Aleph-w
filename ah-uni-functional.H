@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -132,7 +131,7 @@ namespace Aleph
 
     template <typename T>
     struct container_value_type<T, std::enable_if_t<
-                                  has_aleph_iterator<T>::value && ! has_stl_iterator<T>::value>>
+                                  has_aleph_iterator<T>::value and not has_stl_iterator<T>::value>>
     {
       using type = std::decay_t<typename T::Item_Type>;
     };
@@ -148,7 +147,7 @@ namespace Aleph
     template <typename T>
     constexpr bool is_aleph_only_v =
         has_aleph_iterator<std::decay_t<T>>::value &&
-        ! has_stl_iterator<std::decay_t<T>>::value;
+        not has_stl_iterator<std::decay_t<T>>::value;
   } // namespace uni_functional_detail
 
   // ============================================================================
@@ -168,12 +167,13 @@ namespace Aleph
   template <typename Op, typename Container>
   void uni_for_each(Op && op, const Container & c)
   {
+    auto & op_ref = op;
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       for (const auto & item: c)
-        std::forward<Op>(op)(item);
+        op_ref(item);
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-        std::forward<Op>(op)(it.get_curr());
+        op_ref(it.get_curr());
   }
 
   /**
@@ -187,13 +187,14 @@ namespace Aleph
   template <typename Op, typename Container>
   void uni_for_each_indexed(Op && op, const Container & c)
   {
+    auto & op_ref = op;
     size_t i = 0;
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       for (const auto & item: c)
-        std::forward<Op>(op)(i++, item);
+        op_ref(i++, item);
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
-        std::forward<Op>(op)(i, it.get_curr());
+        op_ref(i, it.get_curr());
   }
 
   /**
@@ -212,16 +213,17 @@ namespace Aleph
     using R = std::decay_t<decltype(std::forward<Op>(op)(std::declval<T>()))>;
 
     std::vector<R> result;
+    auto & op_ref = op;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         result.reserve(c.size());
         for (const auto & item: c)
-          result.push_back(std::forward<Op>(op)(item));
+          result.push_back(op_ref(item));
       }
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-        result.push_back(std::forward<Op>(op)(it.get_curr()));
+        result.push_back(op_ref(it.get_curr()));
 
     return result;
   }
@@ -242,17 +244,18 @@ namespace Aleph
     using R = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<T>()))>;
 
     std::vector<R> result;
+    auto & op_ref = op;
     size_t i = 0;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         result.reserve(c.size());
         for (const auto & item: c)
-          result.push_back(std::forward<Op>(op)(i++, item));
+          result.push_back(op_ref(i++, item));
       }
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
-        result.push_back(std::forward<Op>(op)(i, it.get_curr()));
+        result.push_back(op_ref(i, it.get_curr()));
 
     return result;
   }
@@ -272,17 +275,18 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
 
     std::vector<T> result;
+    auto & pred_ref = pred;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (std::forward<Pred>(pred)(item))
+          if (pred_ref(item))
             result.push_back(item);
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-          if (const auto & item = it.get_curr(); std::forward<Pred>(pred)(item))
+          if (const auto & item = it.get_curr(); pred_ref(item))
             result.push_back(item);
       }
     return result;
@@ -303,18 +307,19 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
 
     std::vector<T> result;
+    auto & pred_ref = pred;
     size_t i = 0;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       for (const auto & item: c)
         {
-          if (std::forward<Pred>(pred)(i, item))
+          if (pred_ref(i, item))
             result.push_back(item);
           ++i;
         }
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
-        if (const auto & item = it.get_curr(); std::forward<Pred>(pred)(i, item))
+        if (const auto & item = it.get_curr(); pred_ref(i, item))
           result.push_back(item);
 
     return result;
@@ -334,13 +339,14 @@ namespace Aleph
   [[nodiscard]] T uni_foldl(T init, Op && op, const Container & c)
   {
     T acc = std::move(init);
+    auto & op_ref = op;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       for (const auto & item: c)
-        acc = std::forward<Op>(op)(std::move(acc), item);
+        acc = op_ref(std::move(acc), item);
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-        acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+        acc = op_ref(std::move(acc), it.get_curr());
     return acc;
   }
 
@@ -368,17 +374,18 @@ namespace Aleph
     result.push_back(init);
 
     T acc = std::move(init);
+    auto & op_ref = op;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       for (const auto & item: c)
         {
-          acc = std::forward<Op>(op)(std::move(acc), item);
+          acc = op_ref(std::move(acc), item);
           result.push_back(acc);
         }
     else
       for (auto it = c.get_it(); it.has_curr(); it.next_ne())
         {
-          acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+          acc = op_ref(std::move(acc), it.get_curr());
           result.push_back(acc);
         }
     return result;
@@ -400,16 +407,17 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_all(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (not std::forward<Pred>(pred)(item))
+          if (not pred_ref(item))
             return false;
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-          if (not std::forward<Pred>(pred)(it.get_curr()))
+          if (not pred_ref(it.get_curr()))
             return false;
       }
     return true;
@@ -427,16 +435,17 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_exists(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (std::forward<Pred>(pred)(item))
+          if (pred_ref(item))
             return true;
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-          if (std::forward<Pred>(pred)(it.get_curr()))
+          if (pred_ref(it.get_curr()))
             return true;
       }
     return false;
@@ -457,7 +466,7 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] bool uni_none(Pred && pred, const Container & c)
   {
-    return ! uni_exists(std::forward<Pred>(pred), c);
+    return not uni_exists(std::forward<Pred>(pred), c);
   }
 
   // ============================================================================
@@ -478,20 +487,18 @@ namespace Aleph
   {
     using T = uni_functional_detail::value_t<Container>;
 
+    auto & pred_ref = pred;
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (std::forward<Pred>(pred)(item))
+          if (pred_ref(item))
             return std::optional<T>(item);
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-          {
-            const auto & item = it.get_curr();
-            if (std::forward<Pred>(pred)(item))
-              return std::optional<T>(item);
-          }
+          if (const auto & item = it.get_curr(); pred_ref(item))
+            return std::optional<T>(item);
       }
     return std::optional<T>{};
   }
@@ -508,13 +515,14 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] std::optional<size_t> uni_find_index(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;
     size_t i = 0;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
           {
-            if (std::forward<Pred>(pred)(item))
+            if (pred_ref(item))
               return i;
             ++i;
           }
@@ -522,7 +530,7 @@ namespace Aleph
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
-          if (std::forward<Pred>(pred)(it.get_curr()))
+          if (pred_ref(it.get_curr()))
             return i;
       }
     return std::nullopt;
@@ -543,18 +551,19 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
     using OptType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<T>()))>;
 
+    auto & op_ref = op;
     size_t i = 0;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (auto result = std::forward<Op>(op)(i++, item))
+          if (auto result = op_ref(i++, item))
             return result;
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne(), ++i)
-          if (auto result = std::forward<Op>(op)(i, it.get_curr()))
+          if (auto result = op_ref(i, it.get_curr()))
             return result;
       }
     return OptType{};
@@ -603,18 +612,19 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] size_t uni_count(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;
     size_t count = 0;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
-          if (std::forward<Pred>(pred)(item))
+          if (pred_ref(item))
             ++count;
       }
     else
       {
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
-          if (std::forward<Pred>(pred)(it.get_curr()))
+          if (pred_ref(it.get_curr()))
             ++count;
       }
     return count;
@@ -677,7 +687,7 @@ namespace Aleph
       }
     else
       {
-        for (auto it = c.get_it(); it.has_curr() && count < n; it.next_ne(), ++count)
+        for (auto it = c.get_it(); it.has_curr() and count < n; it.next_ne(), ++count)
           result.push_back(it.get_curr());
       }
     return result;
@@ -733,12 +743,13 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
 
     std::vector<T> result;
+    auto & pred_ref = pred;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
           {
-            if (! std::forward<Pred>(pred)(item))
+            if (not pred_ref(item))
               break;
             result.push_back(item);
           }
@@ -748,7 +759,7 @@ namespace Aleph
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
-            if (! std::forward<Pred>(pred)(item))
+            if (not pred_ref(item))
               break;
             result.push_back(item);
           }
@@ -771,13 +782,14 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
 
     std::vector<T> result;
+    auto & pred_ref = pred;
     bool dropping = true;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
           {
-            if (dropping && std::forward<Pred>(pred)(item))
+            if (dropping and pred_ref(item))
               continue;
             dropping = false;
             result.push_back(item);
@@ -788,7 +800,7 @@ namespace Aleph
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
-            if (dropping && std::forward<Pred>(pred)(item))
+            if (dropping and pred_ref(item))
               continue;
             dropping = false;
             result.push_back(item);
@@ -824,7 +836,7 @@ namespace Aleph
     else
       {
         auto it = c.get_it();
-        if (! it.has_curr())
+        if (not it.has_curr())
           return std::optional<T>{};
         return std::optional<T>(it.get_curr());
       }
@@ -927,7 +939,7 @@ namespace Aleph
     else
       {
         auto it = c.get_it();
-        if (! it.has_curr())
+        if (not it.has_curr())
           return result;
 
         T min_val = it.get_curr();
@@ -973,7 +985,7 @@ namespace Aleph
     else
       {
         auto it = c.get_it();
-        if (! it.has_curr())
+        if (not it.has_curr())
           return result;
 
         T max_val = it.get_curr();
@@ -1022,7 +1034,7 @@ namespace Aleph
     else
       {
         auto it = c.get_it();
-        if (! it.has_curr())
+        if (not it.has_curr())
           return ResultType{};
 
         T min_val = it.get_curr();
@@ -1097,7 +1109,7 @@ namespace Aleph
     else
       {
         auto it = c.get_it();
-        if (! it.has_curr()) return T{};
+        if (not it.has_curr()) return T{};
 
         T prod = it.get_curr();
         it.next_ne();
@@ -1126,12 +1138,13 @@ namespace Aleph
     using T = uni_functional_detail::value_t<Container>;
 
     std::vector<T> matching, non_matching;
+    auto & pred_ref = pred;
 
     if constexpr (uni_functional_detail::is_stl_container_v<Container>)
       {
         for (const auto & item: c)
           {
-            if (std::forward<Pred>(pred)(item))
+            if (pred_ref(item))
               matching.push_back(item);
             else
               non_matching.push_back(item);
@@ -1142,13 +1155,275 @@ namespace Aleph
         for (auto it = c.get_it(); it.has_curr(); it.next_ne())
           {
             const auto & item = it.get_curr();
-            if (std::forward<Pred>(pred)(item))
+            if (pred_ref(item))
               matching.push_back(item);
             else
               non_matching.push_back(item);
           }
       }
     return std::make_pair(std::move(matching), std::move(non_matching));
+  }
+
+  // ============================================================================
+  // Concatenation and Flattening
+  // ============================================================================
+
+  /**
+   * @brief Concatenate two containers.
+   *
+   * @param c1 First container.
+   * @param c2 Second container.
+   * @return std::vector with all elements from c1 followed by c2.
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Container1, typename Container2>
+  [[nodiscard]] auto uni_concat(const Container1 & c1, const Container2 & c2)
+  {
+    using T = uni_functional_detail::value_t<Container1>;
+
+    std::vector<T> result;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container1>)
+      for (const auto & item: c1)
+        result.push_back(item);
+    else
+      for (auto it = c1.get_it(); it.has_curr(); it.next_ne())
+        result.push_back(it.get_curr());
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container2>)
+      for (const auto & item: c2)
+        result.push_back(item);
+    else
+      for (auto it = c2.get_it(); it.has_curr(); it.next_ne())
+        result.push_back(it.get_curr());
+
+    return result;
+  }
+
+  /**
+   * @brief Flatten a container of containers.
+   *
+   * @param c Container of containers.
+   * @return std::vector with all nested elements.
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Container>
+  [[nodiscard]] auto uni_flatten(const Container & c)
+  {
+    using InnerContainer = uni_functional_detail::value_t<Container>;
+    using T = uni_functional_detail::value_t<InnerContainer>;
+
+    std::vector<T> result;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container>)
+      {
+        for (const auto & inner: c)
+          {
+            if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
+              for (const auto & item: inner)
+                result.push_back(item);
+            else
+              for (auto it = inner.get_it(); it.has_curr(); it.next_ne())
+                result.push_back(it.get_curr());
+          }
+      }
+    else
+      {
+        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+          {
+            const auto & inner = it.get_curr();
+            if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
+              for (const auto & item: inner)
+                result.push_back(item);
+            else
+              for (auto it2 = inner.get_it(); it2.has_curr(); it2.next_ne())
+                result.push_back(it2.get_curr());
+          }
+      }
+
+    return result;
+  }
+
+  /**
+   * @brief Flat map - map then flatten.
+   *
+   * @param op Operation `(element) -> Container<R>`.
+   * @param c Container.
+   * @return std::vector with flattened mapped results.
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Op, typename Container>
+  [[nodiscard]] auto uni_flat_map(Op && op, const Container & c)
+  {
+    using T = uni_functional_detail::value_t<Container>;
+    using InnerContainer = std::decay_t<decltype(std::forward<Op>(op)(std::declval<T>()))>;
+    using R = uni_functional_detail::value_t<InnerContainer>;
+
+    std::vector<R> result;
+    auto & op_ref = op;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container>)
+      {
+        for (const auto & item: c)
+          {
+            auto inner = op_ref(item);
+            if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
+              for (const auto & inner_item: inner)
+                result.push_back(inner_item);
+            else
+              for (auto it = inner.get_it(); it.has_curr(); it.next_ne())
+                result.push_back(it.get_curr());
+          }
+      }
+    else
+      {
+        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+          {
+            auto inner = op_ref(it.get_curr());
+            if constexpr (uni_functional_detail::is_stl_container_v<InnerContainer>)
+              for (const auto & inner_item: inner)
+                result.push_back(inner_item);
+            else
+              for (auto it2 = inner.get_it(); it2.has_curr(); it2.next_ne())
+                result.push_back(it2.get_curr());
+          }
+      }
+
+    return result;
+  }
+
+  // ============================================================================
+  // Uniqueness and Grouping
+  // ============================================================================
+
+  /**
+   * @brief Remove all duplicates (keeps first occurrence).
+   *
+   * Uses linear search for all containers since we cannot assume hashability
+   * or consistent ordering across STL and Aleph containers.
+   *
+   * @param c Container.
+   * @return std::vector with all duplicates removed.
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Container>
+  [[nodiscard]] auto uni_distinct(const Container & c)
+  {
+    using T = uni_functional_detail::value_t<Container>;
+
+    std::vector<T> result;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container>)
+      {
+        for (const auto & item: c)
+          if (std::find(result.begin(), result.end(), item) == result.end())
+            result.push_back(item);
+      }
+    else
+      {
+        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+          if (const auto & item = it.get_curr(); std::find(result.begin(), result.end(), item) == result.end())
+            result.push_back(item);
+      }
+
+    return result;
+  }
+
+  /**
+   * @brief Group elements by key function.
+   *
+   * @param key Key extractor `(element) -> K`.
+   * @param c Container.
+   * @return std::vector of pairs (key, vector of elements with that key).
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Key, typename Container>
+  [[nodiscard]] auto uni_group_by(Key && key, const Container & c)
+  {
+    using T = uni_functional_detail::value_t<Container>;
+    using K = std::decay_t<decltype(std::forward<Key>(key)(std::declval<T>()))>;
+
+    std::vector<std::pair<K, std::vector<T>>> result;
+    auto & key_ref = key;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container>)
+      {
+        for (const auto & item: c)
+          {
+            auto k = key_ref(item);
+            auto it = std::find_if(result.begin(), result.end(),
+                                   [&k](const auto & p) { return p.first == k; });
+            if (it != result.end())
+              it->second.push_back(item);
+            else
+              result.emplace_back(std::move(k), std::vector<T>{item});
+          }
+      }
+    else
+      {
+        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+          {
+            const auto & item = it.get_curr();
+            auto k = key_ref(item);
+            auto res_it = std::find_if(result.begin(), result.end(),
+                                       [&k](const auto & p) { return p.first == k; });
+            if (res_it != result.end())
+              res_it->second.push_back(item);
+            else
+              result.emplace_back(std::move(k), std::vector<T>{item});
+          }
+      }
+
+    return result;
+  }
+
+  /**
+   * @brief Count occurrences of each element (frequency count).
+   *
+   * @param c Container.
+   * @return std::vector of pairs (element, count), ordered by first occurrence.
+   *
+   * @ingroup Algorithms
+   */
+  template <typename Container>
+  [[nodiscard]] auto uni_tally(const Container & c)
+  {
+    using T = uni_functional_detail::value_t<Container>;
+
+    std::vector<std::pair<T, size_t>> result;
+
+    if constexpr (uni_functional_detail::is_stl_container_v<Container>)
+      {
+        for (const auto & item: c)
+          {
+            auto it = std::find_if(result.begin(), result.end(),
+                                   [&item](const auto & p) { return p.first == item; });
+            if (it != result.end())
+              ++it->second;
+            else
+              result.emplace_back(item, 1);
+          }
+      }
+    else
+      {
+        for (auto it = c.get_it(); it.has_curr(); it.next_ne())
+          {
+            const auto & item = it.get_curr();
+            auto res_it = std::find_if(result.begin(), result.end(),
+                                       [&item](const auto & p) { return p.first == item; });
+            if (res_it != result.end())
+              ++res_it->second;
+            else
+              result.emplace_back(item, 1);
+          }
+      }
+
+    return result;
   }
 
   // ============================================================================
@@ -1191,6 +1466,9 @@ namespace Aleph
   /**
    * @brief Check equality of two containers.
    *
+   * Efficiently compares containers element-by-element without materializing
+   * intermediate vectors. Handles all combinations of STL and Aleph containers.
+   *
    * @param c1 First container.
    * @param c2 Second container.
    * @return `true` if containers have same elements in same order.
@@ -1200,21 +1478,56 @@ namespace Aleph
   template <typename Container1, typename Container2>
   [[nodiscard]] bool uni_equal(const Container1 & c1, const Container2 & c2)
   {
-    auto v1 = uni_to_vector(c1);
-    auto v2 = uni_to_vector(c2);
+    constexpr bool c1_is_stl = uni_functional_detail::is_stl_container_v<Container1>;
+    constexpr bool c2_is_stl = uni_functional_detail::is_stl_container_v<Container2>;
 
-    if (v1.size() != v2.size())
-      return false;
-
-    for (size_t i = 0; i < v1.size(); ++i)
-      if (! (v1[i] == v2[i]))
-        return false;
-
-    return true;
+    if constexpr (c1_is_stl and c2_is_stl)
+      {
+        // Both STL: use standard iterators
+        auto it1 = c1.begin();
+        auto it2 = c2.begin();
+        for (; it1 != c1.end() and it2 != c2.end(); ++it1, ++it2)
+          if (not (*it1 == *it2))
+            return false;
+        return it1 == c1.end() and it2 == c2.end();
+      }
+    else if constexpr (c1_is_stl and not c2_is_stl)
+      {
+        // c1 STL, c2 Aleph
+        auto it1 = c1.begin();
+        auto it2 = c2.get_it();
+        for (; it1 != c1.end() and it2.has_curr(); ++it1, it2.next_ne())
+          if (not (*it1 == it2.get_curr()))
+            return false;
+        return it1 == c1.end() and not it2.has_curr();
+      }
+    else if constexpr (not c1_is_stl and c2_is_stl)
+      {
+        // c1 Aleph, c2 STL
+        auto it1 = c1.get_it();
+        auto it2 = c2.begin();
+        for (; it1.has_curr() and it2 != c2.end(); it1.next_ne(), ++it2)
+          if (not (it1.get_curr() == *it2))
+            return false;
+        return not it1.has_curr() and it2 == c2.end();
+      }
+    else
+      {
+        // Both Aleph
+        auto it1 = c1.get_it();
+        auto it2 = c2.get_it();
+        for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+          if (not (it1.get_curr() == it2.get_curr()))
+            return false;
+        return not it1.has_curr() and not it2.has_curr();
+      }
   }
 
   /**
    * @brief Compare two containers lexicographically.
+   *
+   * Efficiently compares containers element-by-element without materializing
+   * intermediate vectors. Handles all combinations of STL and Aleph containers.
    *
    * @param c1 First container.
    * @param c2 Second container.
@@ -1225,20 +1538,61 @@ namespace Aleph
   template <typename Container1, typename Container2>
   [[nodiscard]] int uni_compare(const Container1 & c1, const Container2 & c2)
   {
-    auto v1 = uni_to_vector(c1);
-    auto v2 = uni_to_vector(c2);
+    constexpr bool c1_is_stl = uni_functional_detail::is_stl_container_v<Container1>;
+    constexpr bool c2_is_stl = uni_functional_detail::is_stl_container_v<Container2>;
 
-    const size_t min_size = std::min(v1.size(), v2.size());
-
-    for (size_t i = 0; i < min_size; ++i)
+    if constexpr (c1_is_stl and c2_is_stl)
       {
-        if (v1[i] < v2[i]) return -1;
-        if (v2[i] < v1[i]) return 1;
+        // Both STL: use standard iterators
+        auto it1 = c1.begin();
+        auto it2 = c2.begin();
+        for (; it1 != c1.end() and it2 != c2.end(); ++it1, ++it2)
+          {
+            if (*it1 < *it2) return -1;
+            if (*it2 < *it1) return 1;
+          }
+        if (it1 == c1.end() and it2 == c2.end()) return 0;
+        return (it1 == c1.end()) ? -1 : 1;
       }
-
-    if (v1.size() < v2.size()) return -1;
-    if (v1.size() > v2.size()) return 1;
-    return 0;
+    else if constexpr (c1_is_stl and not c2_is_stl)
+      {
+        // c1 STL, c2 Aleph
+        auto it1 = c1.begin();
+        auto it2 = c2.get_it();
+        for (; it1 != c1.end() and it2.has_curr(); ++it1, it2.next_ne())
+          {
+            if (*it1 < it2.get_curr()) return -1;
+            if (it2.get_curr() < *it1) return 1;
+          }
+        if (it1 == c1.end() and not it2.has_curr()) return 0;
+        return (it1 == c1.end()) ? -1 : 1;
+      }
+    else if constexpr (not c1_is_stl and c2_is_stl)
+      {
+        // c1 Aleph, c2 STL
+        auto it1 = c1.get_it();
+        auto it2 = c2.begin();
+        for (; it1.has_curr() and it2 != c2.end(); it1.next_ne(), ++it2)
+          {
+            if (it1.get_curr() < *it2) return -1;
+            if (*it2 < it1.get_curr()) return 1;
+          }
+        if (not it1.has_curr() and it2 == c2.end()) return 0;
+        return (not it1.has_curr()) ? -1 : 1;
+      }
+    else
+      {
+        // Both Aleph
+        auto it1 = c1.get_it();
+        auto it2 = c2.get_it();
+        for (; it1.has_curr() and it2.has_curr(); it1.next_ne(), it2.next_ne())
+          {
+            if (it1.get_curr() < it2.get_curr()) return -1;
+            if (it2.get_curr() < it1.get_curr()) return 1;
+          }
+        if (not it1.has_curr() and not it2.has_curr()) return 0;
+        return (not it1.has_curr()) ? -1 : 1;
+      }
   }
 } // end namespace Aleph
 

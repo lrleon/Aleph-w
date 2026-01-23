@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -107,31 +106,29 @@
 
 namespace Aleph
 {
-
   class Byte
   {
     std::uint8_t value = 0;
 
-   public:
-
-    unsigned int read_bit(const unsigned int i) const noexcept
+  public:
+    [[nodiscard]] unsigned int read_bit(const unsigned int i) const noexcept
     {
       assert(i < 8);
       return (value >> i) & 0x1;
     }
 
-    void write_bit(const unsigned int i, const unsigned int value) noexcept
+    void write_bit(const unsigned int i, const unsigned int val) noexcept
     {
       assert(i < 8);
-      assert(value <= 1);
-      const std::uint8_t mask = std::uint8_t(1) << i;
-      const std::uint8_t bit = static_cast<std::uint8_t>(value & 0x1u);
+      assert(val <= 1);
+      const std::uint8_t mask = static_cast<std::uint8_t>(1) << i;
+      const auto bit = static_cast<std::uint8_t>(val & 0x1u);
       this->value = (this->value & ~mask) | (bit << i);
     }
 
     Byte() noexcept = default;
 
-    int get_int() const noexcept
+    [[nodiscard]] int get_int() const noexcept
     {
       return static_cast<int>(value);
     }
@@ -141,24 +138,24 @@ namespace Aleph
       value = static_cast<std::uint8_t>(i);
     }
 
-    Byte &operator|=(const Byte &rhs) noexcept
+    Byte &operator|=(const Byte & rhs) noexcept
     {
       value |= rhs.value;
       return *this;
     }
 
-    Byte &operator&=(const Byte &rhs) noexcept
+    Byte &operator&=(const Byte & rhs) noexcept
     {
       value &= rhs.value;
       return *this;
     }
 
-    int count_ones() const noexcept
+    [[nodiscard]] int count_ones() const noexcept
     {
       return std::popcount(value);
     }
 
-    int count_zeros() const noexcept
+    [[nodiscard]] int count_zeros() const noexcept
     {
       return 8 - count_ones();
     }
@@ -233,9 +230,8 @@ namespace Aleph
       BitArray *array;
       Byte *byte_ptr;
 
-     public:
-
-      BitProxy(BitArray &a, const size_t i) noexcept
+    public:
+      BitProxy(BitArray & a, const size_t i) noexcept
         : index(i), bit_index(i % 8), byte_index(i / 8), array(&a)
       {
         if (array->array_of_bytes.exist(byte_index))
@@ -246,8 +242,7 @@ namespace Aleph
 
       operator int() const
       {
-        ah_out_of_range_error_if(index >= array->current_size)
-          << "Index out of range";
+        ah_out_of_range_error_if(index >= array->current_size) << "Index out of range";
 
         return byte_ptr != nullptr ? byte_ptr->read_bit(bit_index) : 0;
       }
@@ -259,37 +254,44 @@ namespace Aleph
         if (byte_ptr == nullptr)
           byte_ptr = &array->array_of_bytes.touch(byte_index);
 
-        if (index >= array->current_size)
+        const bool grew = index >= array->current_size;
+        if (grew)
           array->current_size = index + 1;
 
         byte_ptr->write_bit(bit_index, value);
 
+        if (grew)
+          array->clear_unused_bits_in_last_byte();
+
         return *this;
       }
 
-      BitProxy &operator=(const BitProxy &proxy)
+      BitProxy &operator=(const BitProxy & proxy)
       {
         if (byte_ptr == nullptr)
           byte_ptr = &array->array_of_bytes.touch(byte_index);
 
-        if (index >= array->current_size)
+        const bool grew = index >= array->current_size;
+        if (grew)
           array->current_size = index + 1;
 
-        const int rhs_value = static_cast<int>(proxy);
+        const int rhs_value = proxy;
         byte_ptr->write_bit(bit_index, rhs_value);
+
+        if (grew)
+          array->clear_unused_bits_in_last_byte();
 
         return *this;
       }
     };
 
-   public:
-
+  public:
     /// Type returned by Iterator::get_curr() - individual bits as unsigned int
     using Item_Type = unsigned int;
 
     /** Bit array constructor.
 
-        @param[in] dim number of bits. By default it is 256.
+        @param[in] dim number of bits. By default, it is 256.
         @throw bad_alloc if there is not enough memory for a block
         continuous dim/8 bytes.
      */
@@ -318,7 +320,7 @@ namespace Aleph
 
         @throw bad_alloc if not enough memory
      */
-    void reserve(size_t dim)
+    void reserve(const size_t dim)
     {
       set_size(dim);
     }
@@ -336,15 +338,12 @@ namespace Aleph
       current_size = sz;
 
       if (sz > old_size && old_size != 0)
-        {
-          const size_t rem = old_size % 8;
-          if (rem != 0)
-            {
-              const size_t clear_end = std::min(sz, old_size + (8 - rem));
-              for (size_t i = old_size; i < clear_end; ++i)
-                write_bit(i, 0);
-            }
-        }
+        if (const size_t rem = old_size % 8; rem != 0)
+          {
+            const size_t clear_end = std::min(sz, old_size + (8 - rem));
+            for (size_t i = old_size; i < clear_end; ++i)
+              write_bit(i, 0);
+          }
 
       clear_unused_bits_in_last_byte();
     }
@@ -355,14 +354,13 @@ namespace Aleph
 
     int read_bit_ne(const size_t i) const noexcept
     {
-      const int bit_index = i % 8;
+      const unsigned int bit_index = static_cast<unsigned int>(i % 8);
       if (const auto ptr = array_of_bytes.test(i / 8))
         {
-          const Byte &byte = *ptr;
+          const Byte & byte = *ptr;
           return byte.read_bit(bit_index);
         }
-      else
-        return 0;
+      return 0;
     }
 
     /** Read bit i.
@@ -373,25 +371,28 @@ namespace Aleph
       */
     int read_bit(const size_t i) const
     {
-      ah_out_of_range_error_if(i >= current_size)
-        << "index out of range";
+      ah_out_of_range_error_if(i >= current_size) << "index out of range";
       return read_bit_ne(i);
     }
 
     int operator()(const size_t i) const { return read_bit(i); }
 
-    /** Write bit i with the value value
+    /** Write bit i with the value
 
         @param[in] i index of the bit to be written.
         @param[in] value value to be written at position i.
-        @note It doesn't check out of range and it doesn't check that value
+        @note It doesn't check out of range, and it doesn't check that value
         have a binary value.
      */
     void write_bit(const size_t i, const unsigned int value)
     {
+      ah_out_of_range_error_if(value > 1) << "BitArray::write_bit: value must be 0 or 1";
       array_of_bytes.touch(i / 8).write_bit(i % 8, value);
       if (i >= current_size)
-        current_size = i + 1;
+        {
+          current_size = i + 1;
+          clear_unused_bits_in_last_byte();
+        }
     }
 
     /** Quick read of bit i.
@@ -404,25 +405,29 @@ namespace Aleph
     */
     int read(const size_t i) const
     {
-      ah_out_of_range_error_if(i >= current_size)
-        << "index out of range";
+      ah_out_of_range_error_if(i >= current_size) << "index out of range";
 
       const int bit_index = i % 8;
       return array_of_bytes.access(i / 8).read_bit(bit_index);
     }
 
-    /** Writes bit i with value value without memory check.
+    /** Writes bit i with value without memory check.
 
         @param[in] i index of the bit to be written.
         @param[in] value value to be written at position i.
-        @note It doesn't check out of range and it doesn't check that value
+        @note It doesn't check out of range, and it doesn't check that value
         have a binary value.
     */
     void write(const size_t i, const unsigned int value)
     {
+      ah_out_of_range_error_if(value > 1) << "BitArray::write: value must be 0 or 1";
+
       array_of_bytes.access(i / 8).write_bit(i % 8, value);
       if (i >= current_size)
-        current_size = i + 1;
+        {
+          current_size = i + 1;
+          clear_unused_bits_in_last_byte();
+        }
     }
 
     int fast_read(const size_t i) const noexcept
@@ -432,10 +437,11 @@ namespace Aleph
 
     void fast_write(const size_t i, const unsigned int value)
     {
+      ah_out_of_range_error_if(value > 1) << "BitArray::fast_write: value must be 0 or 1";
       array_of_bytes.access(i / 8).write_bit(i % 8, value);
     }
 
-    /// Inserts the value value at the end of the array.
+    /// Inserts the value at the end of the array.
     void push(const unsigned int value)
     {
       write_bit(current_size, value);
@@ -444,8 +450,7 @@ namespace Aleph
     /// Removes the last bit of the array.
     void pop()
     {
-      ah_underflow_error_if(current_size == 0)
-        << "BitArray::pop on empty array";
+      ah_underflow_error_if(current_size == 0) << "BitArray::pop on empty array";
       current_size--;
       array_of_bytes.cut(get_num_bytes());
       clear_unused_bits_in_last_byte();
@@ -466,25 +471,25 @@ namespace Aleph
         @throw bad_alloc if there is not enough memory for a block
         continuous dim/8 bytes.
     */
-    BitArray(const BitArray &array)
+    BitArray(const BitArray & array)
       : current_size(array.current_size), array_of_bytes(array.array_of_bytes)
     {
       // empty
     }
 
-    void swap(BitArray &array) noexcept
+    void swap(BitArray & array) noexcept
     {
       std::swap(current_size, array.current_size);
       array_of_bytes.swap(array.array_of_bytes);
     }
 
-    BitArray(BitArray &&array) noexcept
+    BitArray(BitArray && array) noexcept
       : BitArray()
     {
       swap(array);
     }
 
-    BitArray &operator=(BitArray &&array) noexcept
+    BitArray &operator=(BitArray && array) noexcept
     {
       current_size = 0;
       array_of_bytes.cut();
@@ -497,7 +502,7 @@ namespace Aleph
     {
       DynList<char> ret_val;
       for (size_t i = 0; i < current_size; ++i)
-        ret_val.append((char) read_bit(i));
+        ret_val.append(static_cast<char>(read_bit(i)));
       return ret_val;
     }
 
@@ -512,7 +517,7 @@ namespace Aleph
          @note If this exception occurs, the state of this remains the
          same prior to assignment.
       */
-    BitArray &operator=(const BitArray &array)
+    BitArray &operator=(const BitArray & array)
     {
       if (this == &array)
         return *this;
@@ -535,22 +540,36 @@ namespace Aleph
         @param[in] output open output stream where the
         arrangement.
     */
-    void save(std::ostream &output) const
+    void save(std::ostream & output) const
     {
       const size_t num_bytes = get_num_bytes();
 
+      // Header
       output << num_bytes << " " << current_size << '\n';
+      ah_runtime_error_if(not output) << "BitArray::save: write failed (header)";
 
-      for (size_t i = 0; i < num_bytes; i++)
-        if (array_of_bytes.exist(i))
-          {
-            int byte = array_of_bytes.access(i).get_int();
-            output << byte << " ";
-          }
-        else
-          output << "0 ";
+      // Payload
+      for (size_t i = 0; i < num_bytes; ++i)
+        {
+          int byte = 0;
+          if (const Byte *p = array_of_bytes.test(i); p != nullptr)
+            byte = p->get_int();
+
+          // defend export invariant last masked byte
+          if (num_bytes != 0 && i + 1 == num_bytes)
+            if (const size_t used = current_size % 8; used != 0)
+              {
+                const int mask = (1u << used) - 1u;
+                byte &= mask;
+              }
+
+          output << byte << " ";
+          ah_runtime_error_if(not output)
+            << "BitArray::save: write payload failed (byte " << i << ")";
+        }
 
       output << '\n';
+      ah_runtime_error_if(not output) << "BitArray::save: write failed (newline)";
     }
 
     /** Loads an array of bits from a file.
@@ -563,26 +582,40 @@ namespace Aleph
         arrangement and that must have been previously saved with
         save().
      */
-    void load(std::istream &input)
+    void load(std::istream & input)
     {
-      array_of_bytes.cut();
-
-      // TODO: bound num_bytes to a maximum according to available ram
+      // Read header first (without touching the current state until validated)
       size_t num_bytes = 0;
-      input >> num_bytes >> current_size;
-      for (size_t i = 0; i < num_bytes; i++)
+      size_t num_bits = 0;
+
+      ah_runtime_error_if(not (input >> num_bytes >> num_bits)) << "BitArray::load: read failed (header)";
+
+      const size_t expected = (num_bits + 7) / 8;
+      ah_runtime_error_if(num_bytes != expected)
+        << "BitArray::load: inconsistent header (num_bytes vs num_bits)";
+
+      // Heavy Load: build temporary and then swap
+      BitArray tmp;
+      tmp.current_size = num_bits;
+      tmp.array_of_bytes.cut();
+      tmp.ensure_num_bytes(num_bytes);
+
+      for (size_t i = 0; i < num_bytes; ++i)
         {
-          int c;
-          input >> c;
-          array_of_bytes.touch(i).set_int(c);;
+          long v = 0;
+          ah_runtime_error_if(not (input >> v)) << "BitArray::load: read failed (payload)";
+          ah_runtime_error_if(v < 0 or v > 255) << "BitArray::load: byte value out of range";
+
+          tmp.array_of_bytes.touch(i).set_int(static_cast<int>(v));
         }
 
-      clear_unused_bits_in_last_byte();
+      tmp.clear_unused_bits_in_last_byte();
+      swap(tmp);
     }
 
     /// Build a new array of bits from a file
     /// constructed using the save() method.
-    BitArray(std::ifstream &input)
+    BitArray(std::ifstream & input)
     {
       load(input);
     }
@@ -602,22 +635,28 @@ namespace Aleph
         @param[in] output output stream where you want to save the
         statement.
      */
-    void save_in_array_of_chars(const std::string &name, std::ostream &output) const
+    void save_in_array_of_chars(const std::string & name, std::ostream & output) const
     {
       const size_t num_bytes = get_num_bytes();
 
       output << "// " << current_size << " bits declaration" << '\n'
-             << "const unsigned char " << name << " [" << num_bytes << "] = {"
-             << '\n' << "  ";
+          << "const unsigned char " << name << " [" << num_bytes << "] = {"
+          << '\n' << "  ";
+
       for (size_t i = 0; i < num_bytes; i++)
         {
-          if (array_of_bytes.exist(i))
-            {
-              int byte = array_of_bytes.access(i).get_int();
-              output << byte;
-            }
-          else
-            output << "0";
+          int byte = 0;
+          if (const Byte *p = array_of_bytes.test(i); p != nullptr)
+            byte = p->get_int();
+
+          if (num_bytes != 0 && i + 1 == num_bytes)
+            if (const size_t used = current_size % 8; used != 0)
+              {
+                const int mask = (1u << used) - 1u;
+                byte &= mask;
+              }
+
+          output << byte;
 
           if (i != num_bytes - 1)
             output << ", ";
@@ -625,6 +664,7 @@ namespace Aleph
           if ((i + 1) % 15 == 0)
             output << '\n' << "  ";
         }
+
       output << '\n' << "};" << '\n' << '\n';
     }
 
@@ -744,6 +784,7 @@ namespace Aleph
     {
       if (current_size < 2)
         return;
+
       const size_t real_n = n % current_size;
 
       if (real_n == 0)
@@ -772,6 +813,7 @@ namespace Aleph
     {
       if (current_size < 2)
         return;
+
       const size_t real_n = n % current_size;
 
       if (real_n == 0)
@@ -782,7 +824,7 @@ namespace Aleph
       for (size_t i = current_size - real_n; i < current_size; ++i)
         array.write_bit(i - (current_size - real_n), read_bit(i));
 
-      for (size_t i = current_size - 1; i >= real_n; --i)
+      for (size_t i = current_size; i-- > real_n;)
         write_bit(i, read_bit(i - real_n));
 
       for (size_t i = 0; i < real_n; ++i)
@@ -804,22 +846,22 @@ namespace Aleph
         }
     }
 
-    void set_num(const char &c)
+    void set_num(const char & c)
     {
       set_num<char>(c);
     }
 
-    void set_num(const short &c)
+    void set_num(const short & c)
     {
       set_num<short>(c);
     }
 
-    void set_num(const int &c)
+    void set_num(const int & c)
     {
       set_num<int>(c);
     }
 
-    void set_num(const long &c)
+    void set_num(const long & c)
     {
       set_num<long>(c);
     }
@@ -832,7 +874,7 @@ namespace Aleph
 
       UL ret_val = 0;
       for (size_t i = 0; i < n; ++i)
-        ret_val |= UL(read_bit_ne(current_size - i - 1)) << i;
+        ret_val |= static_cast<UL>(read_bit_ne(current_size - i - 1)) << i;
       return ret_val;
     }
 
@@ -841,10 +883,10 @@ namespace Aleph
       return static_cast<long>(get_unum());
     }
 
-    void set_bit_str(const std::string &str)
+    void set_bit_str(const std::string & str)
     {
       empty();
-      const size_t &str_size = str.size();
+      const size_t & str_size = str.size();
 
       reserve(str_size);
 
@@ -870,7 +912,7 @@ namespace Aleph
       return get_bit_str();
     }
 
-    friend std::ostream &operator<<(std::ostream &out, const BitArray &array)
+    friend std::ostream &operator<<(std::ostream & out, const BitArray & array)
     {
       for (size_t i = 0; i < array.current_size; ++i)
         out << array.read_bit(i);
@@ -884,7 +926,7 @@ namespace Aleph
       load_from_array_of_chars(str, num_bits);
     }
 
-    BitArray &operator|=(const BitArray &rhs)
+    BitArray &operator|=(const BitArray & rhs)
     {
       if (rhs.size() > current_size)
         {
@@ -917,10 +959,9 @@ namespace Aleph
       return *this;
     }
 
-    BitArray &operator&=(const BitArray &rhs)
+    BitArray &operator&=(const BitArray & rhs)
     {
-      const size_t new_size = std::min(size(), rhs.size());
-      if (new_size != current_size)
+      if (const size_t new_size = std::min(size(), rhs.size()); new_size != current_size)
         {
           current_size = new_size;
           array_of_bytes.cut(get_num_bytes());
@@ -933,8 +974,7 @@ namespace Aleph
           if (lhs_byte == nullptr)
             continue;
 
-          const Byte *rhs_byte = rhs.array_of_bytes.test(i);
-          if (rhs_byte == nullptr)
+          if (const Byte *rhs_byte = rhs.array_of_bytes.test(i); rhs_byte == nullptr)
             lhs_byte->set_int(0);
           else
             *lhs_byte &= *rhs_byte;
@@ -944,21 +984,21 @@ namespace Aleph
       return *this;
     }
 
-    friend BitArray operator|(const BitArray &op1, const BitArray &op2)
+    friend BitArray operator|(const BitArray & op1, const BitArray & op2)
     {
       BitArray ret = op1;
       ret |= op2;
       return ret;
     }
 
-    friend BitArray operator&(const BitArray &op1, const BitArray &op2)
+    friend BitArray operator&(const BitArray & op1, const BitArray & op2)
     {
       BitArray ret = op1;
       ret &= op2;
       return ret;
     }
 
-    bool operator==(const BitArray &rhs) const
+    bool operator==(const BitArray & rhs) const
     {
       if (size() != rhs.size())
         return false;
@@ -970,10 +1010,9 @@ namespace Aleph
       return true;
     }
 
-   private:
-
+  private:
     template <class Operation>
-    bool __traverse(Operation &operation)
+    bool __traverse(Operation & operation)
     {
       for (size_t i = 0; i < current_size; ++i)
         if (not operation(read_bit(i)))
@@ -981,61 +1020,57 @@ namespace Aleph
       return true;
     }
 
-   public:
-
+  public:
     class Iterator
     {
       BitArray *array_ptr = nullptr;
       long curr_idx = 0;
 
-     public:
+    public:
+      Iterator() = default;
 
-      Iterator() noexcept { /* empty */ }
-
-      Iterator(const BitArray &array) noexcept
+      Iterator(const BitArray & array) noexcept
         : array_ptr(const_cast<BitArray *>(&array)), curr_idx(0)
       {
         // empty
       }
 
-      bool has_curr() const noexcept
+      [[nodiscard]] bool has_curr() const noexcept
       {
         return array_ptr != nullptr and curr_idx >= 0 and
                static_cast<size_t>(curr_idx) < array_ptr->size();
       }
 
-      unsigned int get_curr_ne() const noexcept
+      [[nodiscard]] unsigned int get_curr_ne() const noexcept
       {
         return has_curr() ? array_ptr->read_bit_ne(static_cast<size_t>(curr_idx)) : 0;
       }
 
-      unsigned int get_curr() const
+      [[nodiscard]] unsigned int get_curr() const
       {
         ah_overflow_error_if(not has_curr())
           << "Iterator is at the end of the list";
         return array_ptr->read_bit(static_cast<size_t>(curr_idx));
       }
 
-      long get_pos() const noexcept { return curr_idx; }
+      [[nodiscard]] long get_pos() const noexcept { return curr_idx; }
 
       void next_ne() noexcept { ++curr_idx; }
 
       void next()
       {
-        ah_overflow_error_if(array_ptr == nullptr)
-          << "Iterator is not bound to any BitArray";
-        ah_overflow_error_if(curr_idx == array_ptr->size())
+        ah_overflow_error_if(array_ptr == nullptr) << "Iterator is not bound to any BitArray";
+        ah_overflow_error_if(curr_idx == static_cast<long>(array_ptr->size()))
           << "not current item in iterator";
         next_ne();
       }
 
       void prev_ne() noexcept { --curr_idx; }
+
       void prev()
       {
-        ah_underflow_error_if(array_ptr == nullptr)
-          << "Iterator is not bound to any BitArray";
-        ah_underflow_error_if(curr_idx == -1)
-          << "not current item in iterator";
+        ah_underflow_error_if(array_ptr == nullptr) << "Iterator is not bound to any BitArray";
+        ah_underflow_error_if(curr_idx == -1) << "not current item in iterator";
         prev_ne();
       }
 
@@ -1065,31 +1100,31 @@ namespace Aleph
     auto get_it() const noexcept { return Iterator(*this); }
 
     template <class Operation>
-    bool traverse(Operation &operation) const
+    bool traverse(Operation & operation) const
     {
       return const_cast<BitArray &>(*this).__traverse(operation);
     }
 
     template <class Operation>
-    bool traverse(Operation &operation)
+    bool traverse(Operation & operation)
     {
       return __traverse(operation);
     }
 
     template <class Operation>
-    bool traverse(Operation &&operation = Operation()) const
+    bool traverse(Operation && operation = Operation()) const
     {
       return traverse<Operation>(operation);
     }
 
     template <class Operation>
-    bool traverse(Operation &&operation = Operation())
+    bool traverse(Operation && operation = Operation())
     {
       return traverse<Operation>(operation);
     }
 
     // Functional methods provided by FunctionalMixin<BitArray, unsigned int>
-    
+
     Generic_Items(unsigned int);
 
     STL_ALEPH_ITERATOR(BitArray);
@@ -1104,6 +1139,5 @@ namespace Aleph
       return foldl<int>(0, [](int acc, int x) { return acc + (x == 0); });
     }
   };
-
 } // end namespace Aleph
 # endif /* BITARRAY_H */

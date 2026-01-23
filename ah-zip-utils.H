@@ -94,7 +94,8 @@ struct has_stl_iterator<T, std::void_t<
   typename T::value_type
 >> : std::true_type {};
 
-// Detect if type has Aleph-style Iterator with has_curr()/get_curr()/next()
+// Detect if type has Aleph-style Iterator with has_curr()/get_curr()/next_ne()
+// Note: We check for next_ne() which is the non-exception-throwing variant used in Aleph
 template <typename T, typename = void>
 struct has_aleph_iterator : std::false_type {};
 
@@ -104,7 +105,7 @@ struct has_aleph_iterator<T, std::void_t<
   typename T::Item_Type,
   decltype(std::declval<typename T::Iterator>().has_curr()),
   decltype(std::declval<typename T::Iterator>().get_curr()),
-  decltype(std::declval<typename T::Iterator>().next())
+  decltype(std::declval<typename T::Iterator>().next_ne())
 >> : std::true_type {};
 
 // Get value type from container
@@ -199,7 +200,25 @@ struct IteratorWrapperSelector<Container,
 template <typename Container>
 using iterator_wrapper_t = typename IteratorWrapperSelector<Container>::type;
 
+// Static assertion helper for unsupported container types
+template <typename T>
+inline constexpr bool is_supported_container_v =
+  has_stl_iterator<std::decay_t<T>>::value ||
+  has_aleph_iterator<std::decay_t<T>>::value;
+
 } // namespace uni_zip_detail
+
+// ============================================================================
+// Sentinel type for O(1) end()
+// ============================================================================
+
+/**
+ * @brief Sentinel type for UniZipIterator end comparison.
+ *
+ * Using a sentinel avoids the O(n) cost of creating an exhausted iterator
+ * for end() comparison in range-based for loops.
+ */
+struct UniZipSentinel {};
 
 // ============================================================================
 // Unified Zip Iterator
@@ -221,6 +240,9 @@ using iterator_wrapper_t = typename IteratorWrapperSelector<Container>::type;
 template <typename... Containers>
 class UniZipIterator
 {
+  static_assert((uni_zip_detail::is_supported_container_v<Containers> && ...),
+    "All containers must have either STL (begin/end) or Aleph (Iterator) interface");
+
 public:
   using value_type = std::tuple<uni_zip_detail::container_value_t<Containers>...>;
 
@@ -234,7 +256,13 @@ private:
   }
 
   template <size_t... Is>
-  [[nodiscard]] bool completed_impl(std::index_sequence<Is...>) const noexcept
+  [[nodiscard]] bool any_has_curr_impl(std::index_sequence<Is...>) const noexcept
+  {
+    return (... || std::get<Is>(iters_).has_curr());
+  }
+
+  template <size_t... Is>
+  [[nodiscard]] bool all_completed_impl(std::index_sequence<Is...>) const noexcept
   {
     return (... && std::get<Is>(iters_).completed());
   }
@@ -257,14 +285,28 @@ public:
   explicit UniZipIterator(const Containers&... cs)
     : iters_(uni_zip_detail::iterator_wrapper_t<Containers>(cs)...) {}
 
+  /// Returns true if ALL containers have current element (zip continues)
   [[nodiscard]] bool has_curr() const noexcept
   {
     return has_curr_impl(std::make_index_sequence<num_containers>{});
   }
 
+  /// Returns true if ANY container still has elements (for length checking)
+  [[nodiscard]] bool any_has_curr() const noexcept
+  {
+    return any_has_curr_impl(std::make_index_sequence<num_containers>{});
+  }
+
+  /// Returns true if ALL containers are exhausted (equal length check)
+  [[nodiscard]] bool all_completed() const noexcept
+  {
+    return all_completed_impl(std::make_index_sequence<num_containers>{});
+  }
+
+  /// @deprecated Use all_completed() for clarity. Kept for backward compatibility.
   [[nodiscard]] bool completed() const noexcept
   {
-    return completed_impl(std::make_index_sequence<num_containers>{});
+    return all_completed();
   }
 
   [[nodiscard]] auto get_curr() const
@@ -286,8 +328,21 @@ public:
     return *this;
   }
 
+  /// Comparison with sentinel - iterator is "at end" when any container exhausted
+  [[nodiscard]] bool operator==(UniZipSentinel) const noexcept
+  {
+    return !has_curr();
+  }
+
+  [[nodiscard]] bool operator!=(UniZipSentinel s) const noexcept
+  {
+    return !(*this == s);
+  }
+
+  /// Comparison with another iterator (for algorithms that need it)
   [[nodiscard]] bool operator==(const UniZipIterator& other) const noexcept
   {
+    // Both at end (any container exhausted)
     return !has_curr() && !other.has_curr();
   }
 
@@ -312,6 +367,7 @@ class UniZipView
 
 public:
   using iterator = UniZipIterator<std::decay_t<Containers>...>;
+  using sentinel = UniZipSentinel;
   using value_type = typename iterator::value_type;
 
   explicit UniZipView(const Containers&... cs)
@@ -324,15 +380,10 @@ public:
     }, containers_);
   }
 
-  [[nodiscard]] iterator end() const
+  /// O(1) end() using sentinel
+  [[nodiscard]] sentinel end() const noexcept
   {
-    // Create an "exhausted" iterator for comparison
-    return std::apply([](const auto&... cs) {
-      auto it = iterator(cs...);
-      while (it.has_curr())
-        it.next();
-      return it;
-    }, containers_);
+    return sentinel{};
   }
 
   [[nodiscard]] bool empty() const
@@ -340,10 +391,11 @@ public:
     return !begin().has_curr();
   }
 
+  /// Note: O(n) - iterates through all elements to count
   [[nodiscard]] size_t size() const
   {
     size_t count = 0;
-    for (auto it = begin(); it.has_curr(); it.next())
+    for (auto it = begin(); it != end(); ++it)
       ++count;
     return count;
   }
@@ -412,8 +464,9 @@ template <typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_all(Pred&& pred, const Containers&... cs)
 {
+  auto& pred_ref = pred;  // Preserve as lvalue to avoid invalidating in loop
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (!pred_ref(it.get_curr()))
       return false;
   return true;
 }
@@ -427,11 +480,12 @@ template <typename Pred, typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_all_eq(Pred&& pred, const Containers&... cs)
 {
+  auto& pred_ref = pred;
   auto it = uni_zip_it(cs...);
   for (; it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (!pred_ref(it.get_curr()))
       return false;
-  return it.completed();
+  return it.all_completed();  // All containers exhausted = equal length
 }
 
 /**
@@ -447,8 +501,9 @@ template <typename Pred, typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_exists(Pred&& pred, const Containers&... cs)
 {
+  auto& pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    if (std::forward<Pred>(pred)(it.get_curr()))
+    if (pred_ref(it.get_curr()))
       return true;
   return false;
 }
@@ -484,8 +539,9 @@ template <typename Pred, typename... Containers>
 template <typename Op, typename... Containers>
 void uni_zip_for_each(Op&& op, const Containers&... cs)
 {
+  auto& op_ref = op;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    std::forward<Op>(op)(it.get_curr());
+    op_ref(it.get_curr());
 }
 
 /**
@@ -500,9 +556,10 @@ void uni_zip_for_each(Op&& op, const Containers&... cs)
 template <typename Op, typename... Containers>
 void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
 {
+  auto& op_ref = op;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-    std::forward<Op>(op)(idx, it.get_curr());
+    op_ref(idx, it.get_curr());
 }
 
 /**
@@ -519,9 +576,10 @@ void uni_zip_for_each_indexed(Op&& op, const Containers&... cs)
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] T uni_zip_foldl(T init, Op&& op, const Containers&... cs)
 {
+  auto& op_ref = op;
   T acc = std::move(init);
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+    acc = op_ref(std::move(acc), it.get_curr());
   return acc;
 }
 
@@ -546,11 +604,12 @@ template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_map(Op&& op, const Containers&... cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
-  using ResultType = std::decay_t<decltype(std::forward<Op>(op)(std::declval<TupleType>()))>;
+  using ResultType = std::decay_t<decltype(op(std::declval<TupleType>()))>;
 
+  auto& op_ref = op;
   std::vector<ResultType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    result.push_back(std::forward<Op>(op)(it.get_curr()));
+    result.push_back(op_ref(it.get_curr()));
   return result;
 }
 
@@ -569,11 +628,12 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   std::vector<TupleType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (std::forward<Pred>(pred)(t))
+      if (pred_ref(t))
         result.push_back(t);
     }
   return result;
@@ -594,10 +654,11 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (std::forward<Pred>(pred)(t))
+      if (pred_ref(t))
         return std::optional<TupleType>(t);
     }
   return std::optional<TupleType>{};
@@ -612,9 +673,10 @@ template <typename Pred, typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] size_t uni_zip_count(Pred&& pred, const Containers&... cs)
 {
+  auto& pred_ref = pred;
   size_t count = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    if (std::forward<Pred>(pred)(it.get_curr()))
+    if (pred_ref(it.get_curr()))
       ++count;
   return count;
 }
@@ -646,7 +708,7 @@ template <typename... Containers>
   auto it = uni_zip_it(cs...);
   while (it.has_curr())
     it.next();
-  return it.completed();
+  return it.all_completed();  // All exhausted = equal length
 }
 
 /**
@@ -719,11 +781,12 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   std::vector<TupleType> result;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (!std::forward<Pred>(pred)(t))
+      if (!pred_ref(t))
         break;
       result.push_back(t);
     }
@@ -741,10 +804,11 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   std::vector<TupleType> result;
   auto it = uni_zip_it(cs...);
 
-  for (; it.has_curr() && std::forward<Pred>(pred)(it.get_curr()); it.next())
+  for (; it.has_curr() && pred_ref(it.get_curr()); it.next())
     /* skip */;
 
   for (; it.has_curr(); it.next())
@@ -792,11 +856,12 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   std::vector<TupleType> matching, non_matching;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
       auto t = it.get_curr();
-      if (std::forward<Pred>(pred)(t))
+      if (pred_ref(t))
         matching.push_back(t);
       else
         non_matching.push_back(t);
@@ -830,8 +895,9 @@ template <typename... Containers>
 template <typename Pred, typename... Containers>
 [[nodiscard]] bool uni_zip_traverse(Pred&& pred, const Containers&... cs)
 {
+  auto& pred_ref = pred;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
-    if (!std::forward<Pred>(pred)(it.get_curr()))
+    if (!pred_ref(it.get_curr()))
       return false;
   return true;
 }
@@ -854,12 +920,13 @@ template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_mapi(Op&& op, const Containers&... cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
-  using ResultType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<TupleType>()))>;
+  using ResultType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
+  auto& op_ref = op;
   std::vector<ResultType> result;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
-    result.push_back(std::forward<Op>(op)(idx, it.get_curr()));
+    result.push_back(op_ref(idx, it.get_curr()));
   return result;
 }
 
@@ -878,12 +945,13 @@ template <typename Pred, typename... Containers>
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
 
+  auto& pred_ref = pred;
   std::vector<TupleType> result;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
     {
       auto t = it.get_curr();
-      if (std::forward<Pred>(pred)(idx, t))
+      if (pred_ref(idx, t))
         result.push_back(t);
     }
   return result;
@@ -903,13 +971,14 @@ template <typename Pred, typename... Containers>
 template <typename T, typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_scan_left(T init, Op&& op, const Containers&... cs)
 {
+  auto& op_ref = op;
   std::vector<T> result;
   result.push_back(init);
 
   T acc = std::move(init);
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next())
     {
-      acc = std::forward<Op>(op)(std::move(acc), it.get_curr());
+      acc = op_ref(std::move(acc), it.get_curr());
       result.push_back(acc);
     }
   return result;
@@ -929,12 +998,13 @@ template <typename Op, typename... Containers>
 [[nodiscard]] auto uni_zip_find_mapi(Op&& op, const Containers&... cs)
 {
   using TupleType = typename UniZipIterator<std::decay_t<Containers>...>::value_type;
-  using OptType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<TupleType>()))>;
+  using OptType = std::decay_t<decltype(op(size_t{}, std::declval<TupleType>()))>;
 
+  auto& op_ref = op;
   size_t idx = 0;
   for (auto it = uni_zip_it(cs...); it.has_curr(); it.next(), ++idx)
     {
-      auto result = std::forward<Op>(op)(idx, it.get_curr());
+      auto result = op_ref(idx, it.get_curr());
       if (result)
         return result;
     }
@@ -954,11 +1024,12 @@ template <typename Op, typename... Containers>
 template <typename Eq, typename... Containers>
 [[nodiscard]] bool uni_zip_equal_by(Eq&& eq, const Containers&... cs)
 {
+  auto& eq_ref = eq;
   auto it = uni_zip_it(cs...);
   for (; it.has_curr(); it.next())
-    if (!std::forward<Eq>(eq)(it.get_curr()))
+    if (!eq_ref(it.get_curr()))
       return false;
-  return it.completed();
+  return it.all_completed();  // All exhausted = equal length
 }
 
 /**

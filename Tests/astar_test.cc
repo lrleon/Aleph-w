@@ -783,6 +783,196 @@ TYPED_TEST(AStarHeapTest, MatchesDijkstra)
   EXPECT_EQ(astar_path.size(), dijkstra_path.size());
 }
 
+// ==================== Additional Edge Case Tests ====================
+
+// Test with self-loop (arc from node to itself)
+TEST(AStarEdgeCaseTest, SelfLoop)
+{
+  SimpleGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+
+  g.insert_arc(n1, n2, 5.0);
+  g.insert_arc(n2, n2, 1.0);  // Self-loop
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;
+  Path<SimpleGraph> path(g);
+
+  auto cost = astar.find_min_path(g, n1, n2, path);
+
+  EXPECT_DOUBLE_EQ(cost, 5.0);
+  EXPECT_EQ(path.size(), 2u);
+}
+
+// Test with multiple arcs between same nodes
+TEST(AStarEdgeCaseTest, MultipleArcsBetweenNodes)
+{
+  SimpleGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+
+  g.insert_arc(n1, n2, 10.0);
+  g.insert_arc(n1, n2, 5.0);   // Better path
+  g.insert_arc(n1, n2, 15.0);
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;
+  Path<SimpleGraph> path(g);
+
+  auto cost = astar.find_min_path(g, n1, n2, path);
+
+  EXPECT_DOUBLE_EQ(cost, 5.0);  // Should find shortest
+}
+
+// Test with all arcs having same weight
+TEST(AStarEdgeCaseTest, UniformWeights)
+{
+  SimpleGraph g;
+  std::vector<SimpleGraph::Node*> nodes;
+
+  for (int i = 0; i < 4; ++i)
+    nodes.push_back(g.insert_node(i));
+
+  // Create square graph with all edges weight 1.0
+  g.insert_arc(nodes[0], nodes[1], 1.0);
+  g.insert_arc(nodes[1], nodes[2], 1.0);
+  g.insert_arc(nodes[2], nodes[3], 1.0);
+  g.insert_arc(nodes[0], nodes[3], 1.0);
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;
+  Path<SimpleGraph> path(g);
+
+  auto cost = astar.find_min_path(g, nodes[0], nodes[3], path);
+
+  EXPECT_DOUBLE_EQ(cost, 1.0);  // Direct path
+  EXPECT_EQ(path.size(), 2u);
+}
+
+// Test with very large weights (close to overflow)
+TEST(AStarEdgeCaseTest, LargeWeights)
+{
+  SimpleGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto n3 = g.insert_node(3);
+
+  double large = 1e100;
+  g.insert_arc(n1, n2, large);
+  g.insert_arc(n2, n3, large);
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;
+  Path<SimpleGraph> path(g);
+
+  auto cost = astar.find_min_path(g, n1, n3, path);
+
+  EXPECT_GT(cost, large);  // Should handle large values
+  EXPECT_FALSE(path.is_empty());
+}
+
+// Test reusability: multiple searches on same object
+TEST(AStarEdgeCaseTest, Reusability)
+{
+  SimpleGraph g;
+  std::vector<SimpleGraph::Node*> nodes;
+
+  for (int i = 0; i < 5; ++i)
+    nodes.push_back(g.insert_node(i));
+
+  g.insert_arc(nodes[0], nodes[1], 1.0);
+  g.insert_arc(nodes[1], nodes[2], 2.0);
+  g.insert_arc(nodes[2], nodes[3], 3.0);
+  g.insert_arc(nodes[3], nodes[4], 4.0);
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;  // Single instance
+
+  // First search
+  {
+    Path<SimpleGraph> path1(g);
+    auto cost1 = astar.find_min_path(g, nodes[0], nodes[2], path1);
+    EXPECT_DOUBLE_EQ(cost1, 3.0);
+  }
+
+  // Second search (should reset state correctly)
+  {
+    Path<SimpleGraph> path2(g);
+    auto cost2 = astar.find_min_path(g, nodes[1], nodes[4], path2);
+    EXPECT_DOUBLE_EQ(cost2, 9.0);
+  }
+
+  // Third search with different graph structure
+  {
+    Path<SimpleGraph> path3(g);
+    auto cost3 = astar.find_min_path(g, nodes[0], nodes[4], path3);
+    EXPECT_DOUBLE_EQ(cost3, 10.0);
+  }
+}
+
+// Test with zero-weight arcs
+TEST(AStarEdgeCaseTest, ZeroWeightArcs)
+{
+  SimpleGraph g;
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto n3 = g.insert_node(3);
+
+  g.insert_arc(n1, n2, 0.0);  // Zero weight
+  g.insert_arc(n2, n3, 5.0);
+
+  using AStar = AStar_Min_Path<SimpleGraph, DoubleDistance>;
+  AStar astar;
+  Path<SimpleGraph> path(g);
+
+  auto cost = astar.find_min_path(g, n1, n3, path);
+
+  EXPECT_DOUBLE_EQ(cost, 5.0);
+  EXPECT_EQ(path.size(), 3u);
+}
+
+// Test with inadmissible heuristic (should still find a path, but may be suboptimal)
+TEST(AStarEdgeCaseTest, InadmissibleHeuristic)
+{
+  GridGraph g;
+  auto n1 = g.insert_node(1);
+  n1->x = 0; n1->y = 0;
+
+  auto n2 = g.insert_node(2);
+  n2->x = 1; n2->y = 0;
+
+  auto n3 = g.insert_node(3);
+  n3->x = 2; n3->y = 0;
+
+  g.insert_arc(n1, n2, 1.0);
+  g.insert_arc(n2, n3, 1.0);
+  g.insert_arc(n1, n3, 10.0);  // Suboptimal direct path
+
+  // Inadmissible heuristic that overestimates
+  struct BadHeuristic
+  {
+    using Distance_Type = double;
+    Distance_Type operator()(GridGraph::Node* from, GridGraph::Node* to) const
+    {
+      double dx = from->x - to->x;
+      double dy = from->y - to->y;
+      return 100.0 * std::sqrt(dx*dx + dy*dy);  // Massively overestimate
+    }
+  };
+
+  using AStar = AStar_Min_Path<GridGraph, DoubleDistance, BadHeuristic>;
+  AStar astar;
+  Path<GridGraph> path(g);
+
+  auto cost = astar.find_path(g, n1, n3, path);
+
+  // With inadmissible heuristic, may get suboptimal result
+  // But should still find SOME path
+  EXPECT_GT(cost, 0.0);
+  EXPECT_FALSE(path.is_empty());
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

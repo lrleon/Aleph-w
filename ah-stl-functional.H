@@ -82,6 +82,78 @@
 namespace Aleph
 {
   // ============================================================================
+  // Type Traits and Concepts
+  // ============================================================================
+
+  namespace stl_detail
+  {
+    /// Threshold for switching from linear to hash-based algorithms
+    inline constexpr size_t ADAPTIVE_THRESHOLD = 64;
+
+    /// Detect if a type has a size() method
+    template <typename T, typename = void>
+    struct has_size : std::false_type {};
+
+    template <typename T>
+    struct has_size<T, std::void_t<decltype(std::declval<T>().size())>>
+      : std::true_type {};
+
+    template <typename T>
+    inline constexpr bool has_size_v = has_size<T>::value;
+
+    /// Detect if a type is hashable via std::hash
+    template <typename T, typename = void>
+    struct is_std_hashable : std::false_type {};
+
+    template <typename T>
+    struct is_std_hashable<T,
+      std::void_t<decltype(std::hash<T>{}(std::declval<T>()))>>
+      : std::true_type {};
+
+    template <typename T>
+    inline constexpr bool is_std_hashable_v = is_std_hashable<T>::value;
+
+    /// Detect if a container has reverse iterators
+    template <typename T, typename = void>
+    struct has_reverse_iterators : std::false_type {};
+
+    template <typename T>
+    struct has_reverse_iterators<T,
+      std::void_t<decltype(std::declval<T>().rbegin()),
+                  decltype(std::declval<T>().rend())>>
+      : std::true_type {};
+
+    template <typename T>
+    inline constexpr bool has_reverse_iterators_v = has_reverse_iterators<T>::value;
+
+    /// Helper to get container size safely (returns 0 for containers without size())
+    template <typename Container>
+    [[nodiscard]] size_t safe_size(const Container & c)
+    {
+      if constexpr (has_size_v<Container>)
+        return c.size();
+      else
+        return 0;  // Cannot determine size efficiently
+    }
+
+    /// Helper to reserve if possible
+    template <typename Result, typename Container>
+    void try_reserve(Result & result, const Container & c)
+    {
+      if constexpr (has_size_v<Container>)
+        result.reserve(c.size());
+    }
+
+    /// Helper to reserve with a specific size if the result supports it
+    template <typename Result>
+    void try_reserve_n(Result & result, size_t n)
+    {
+      if constexpr (requires { result.reserve(n); })
+        result.reserve(n);
+    }
+  } // namespace stl_detail
+
+  // ============================================================================
   // Range Generation
   // ============================================================================
 
@@ -203,8 +275,9 @@ namespace Aleph
     using T = std::decay_t<decltype(gen(size_t{}))>;
     std::vector<T> result;
     result.reserve(n);
+    auto & gen_ref = gen;  // Preserve as lvalue to avoid moving in loop
     for (size_t i = 0; i < n; ++i)
-      result.push_back(std::forward<Gen>(gen)(i));
+      result.push_back(gen_ref(i));
     return result;
   }
 
@@ -224,8 +297,9 @@ namespace Aleph
   template <typename Op, typename Container>
   void stl_for_each(Op && op, const Container & c)
   {
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      std::forward<Op>(op)(item);
+      op_ref(item);
   }
 
   /**
@@ -240,9 +314,10 @@ namespace Aleph
   template <typename Op, typename Container>
   void stl_for_each_indexed(Op && op, const Container & c)
   {
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     size_t i = 0;
     for (const auto & item: c)
-      std::forward<Op>(op)(i++, item);
+      op_ref(i++, item);
   }
 
   /**
@@ -264,12 +339,13 @@ namespace Aleph
   [[nodiscard]] auto stl_map(Op && op, const Container & c)
   {
     using T = typename Container::value_type;
-    using R = std::decay_t<decltype(std::forward<Op>(op)(std::declval<T>()))>;
+    using R = std::decay_t<decltype(op(std::declval<T>()))>;
 
     std::vector<R> result;
-    result.reserve(c.size());
+    stl_detail::try_reserve(result, c);
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      result.push_back(std::forward<Op>(op)(item));
+      result.push_back(op_ref(item));
     return result;
   }
 
@@ -287,13 +363,14 @@ namespace Aleph
   [[nodiscard]] auto stl_mapi(Op && op, const Container & c)
   {
     using T = typename Container::value_type;
-    using R = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<T>()))>;
+    using R = std::decay_t<decltype(op(size_t{}, std::declval<T>()))>;
 
     std::vector<R> result;
-    result.reserve(c.size());
+    stl_detail::try_reserve(result, c);
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     size_t i = 0;
     for (const auto & item: c)
-      result.push_back(std::forward<Op>(op)(i++, item));
+      result.push_back(op_ref(i++, item));
     return result;
   }
 
@@ -313,8 +390,9 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      if (std::forward<Pred>(pred)(item))
+      if (pred_ref(item))
         result.push_back(item);
     return result;
   }
@@ -335,10 +413,11 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     size_t i = 0;
     for (const auto & item: c)
       {
-        if (std::forward<Pred>(pred)(i, item))
+        if (pred_ref(i, item))
           result.push_back(item);
         ++i;
       }
@@ -373,8 +452,9 @@ namespace Aleph
 #endif
       {
         T acc = std::move(init);
+        auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
         for (const auto & item: c)
-          acc = std::forward<Op>(op)(std::move(acc), item);
+          acc = op_ref(std::move(acc), item);
         return acc;
       }
   }
@@ -403,9 +483,12 @@ namespace Aleph
   template <typename T, typename Op, typename Container>
   [[nodiscard]] T stl_foldr(T init, Op && op, const Container & c)
   {
+    static_assert(stl_detail::has_reverse_iterators_v<Container>,
+      "stl_foldr requires a container with reverse iterators (rbegin/rend)");
     T acc = std::move(init);
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (auto it = c.rbegin(); it != c.rend(); ++it)
-      acc = std::forward<Op>(op)(*it, std::move(acc));
+      acc = op_ref(*it, std::move(acc));
     return acc;
   }
 
@@ -430,13 +513,15 @@ namespace Aleph
   [[nodiscard]] std::vector<T> stl_scan_left(T init, Op && op, const Container & c)
   {
     std::vector<T> result;
-    result.reserve(c.size() + 1);
+    if constexpr (stl_detail::has_size_v<Container>)
+      result.reserve(c.size() + 1);
     result.push_back(init);
 
     T acc = std::move(init);
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
       {
-        acc = std::forward<Op>(op)(std::move(acc), item);
+        acc = op_ref(std::move(acc), item);
         result.push_back(acc);
       }
     return result;
@@ -456,15 +541,19 @@ namespace Aleph
   template <typename T, typename Op, typename Container>
   [[nodiscard]] std::vector<T> stl_scan_right(T init, Op && op, const Container & c)
   {
+    static_assert(stl_detail::has_reverse_iterators_v<Container>,
+      "stl_scan_right requires a container with reverse iterators (rbegin/rend)");
     std::vector<T> result;
-    result.reserve(c.size() + 1);
+    if constexpr (stl_detail::has_size_v<Container>)
+      result.reserve(c.size() + 1);
 
     T acc = std::move(init);
     result.push_back(acc);
 
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (auto it = c.rbegin(); it != c.rend(); ++it)
       {
-        acc = std::forward<Op>(op)(*it, std::move(acc));
+        acc = op_ref(*it, std::move(acc));
         result.push_back(acc);
       }
 
@@ -502,8 +591,9 @@ namespace Aleph
     else
 #endif
       {
+        auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
         for (const auto & item: c)
-          if (not std::forward<Pred>(pred)(item))
+          if (not pred_ref(item))
             return false;
         return true;
       }
@@ -528,8 +618,9 @@ namespace Aleph
     else
 #endif
       {
+        auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
         for (const auto & item: c)
-          if (std::forward<Pred>(pred)(item))
+          if (pred_ref(item))
             return true;
         return false;
       }
@@ -573,8 +664,9 @@ namespace Aleph
   {
     using T = typename Container::value_type;
 
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      if (std::forward<Pred>(pred)(item))
+      if (pred_ref(item))
         return std::optional<T>(item);
     return std::optional<T>{};
   }
@@ -595,8 +687,9 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::optional<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      if (std::forward<Pred>(pred)(item))
+      if (pred_ref(item))
         result = item;
     return result;
   }
@@ -614,10 +707,11 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] std::optional<size_t> stl_find_index(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     size_t i = 0;
     for (const auto & item: c)
       {
-        if (std::forward<Pred>(pred)(item))
+        if (pred_ref(item))
           return i;
         ++i;
       }
@@ -638,11 +732,14 @@ namespace Aleph
   [[nodiscard]] auto stl_find_mapi(Op && op, const Container & c)
   {
     using T = typename Container::value_type;
-    using OptType = std::decay_t<decltype(std::forward<Op>(op)(size_t{}, std::declval<T>()))>;
+    using OptType = std::decay_t<decltype(op(size_t{}, std::declval<T>()))>;
+    static_assert(std::is_default_constructible_v<OptType>,
+      "stl_find_mapi requires the return type to be default-constructible (like std::optional)");
 
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     size_t i = 0;
     for (const auto & item: c)
-        if (auto result = std::forward<Op>(op)(i++, item))
+        if (auto result = op_ref(i++, item))
           return result;
     return OptType{};
   }
@@ -683,9 +780,10 @@ namespace Aleph
   template <typename Pred, typename Container>
   [[nodiscard]] size_t stl_count(Pred && pred, const Container & c)
   {
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     size_t count = 0;
     for (const auto & item: c)
-      if (std::forward<Pred>(pred)(item))
+      if (pred_ref(item))
         ++count;
     return count;
   }
@@ -757,8 +855,11 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
-    if (const size_t size = c.size(); size > n)
-      result.reserve(size - n);
+    if constexpr (stl_detail::has_size_v<Container>)
+      {
+        if (const size_t size = c.size(); size > n)
+          result.reserve(size - n);
+      }
     size_t count = 0;
     for (const auto & item: c)
       {
@@ -785,19 +886,35 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
-    const size_t size = c.size();
-    size_t actual_n = size > n ? n : size;
-    result.reserve(actual_n);
-    const size_t skip = size > n ? (size - n) : 0;
+    size_t size = stl_detail::safe_size(c);
 
-    size_t count = 0;
-    for (const auto & item: c)
+    // If container doesn't have size(), we need to iterate twice or use a different approach
+    if constexpr (!stl_detail::has_size_v<Container>)
       {
-        if (count >= skip)
-          result.push_back(item);
-        ++count;
+        // For containers without size(), collect all then take last n
+        std::vector<T> all(c.begin(), c.end());
+        size = all.size();
+        const size_t skip = size > n ? (size - n) : 0;
+        result.reserve(size > n ? n : size);
+        for (size_t i = skip; i < size; ++i)
+          result.push_back(std::move(all[i]));
+        return result;
       }
-    return result;
+    else
+      {
+        size_t actual_n = size > n ? n : size;
+        result.reserve(actual_n);
+        const size_t skip = size > n ? (size - n) : 0;
+
+        size_t count = 0;
+        for (const auto & item: c)
+          {
+            if (count >= skip)
+              result.push_back(item);
+            ++count;
+          }
+        return result;
+      }
   }
 
   /**
@@ -816,9 +933,10 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
       {
-        if (not std::forward<Pred>(pred)(item))
+        if (not pred_ref(item))
           break;
         result.push_back(item);
       }
@@ -841,10 +959,11 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     bool dropping = true;
     for (const auto & item: c)
       {
-        if (dropping and std::forward<Pred>(pred)(item))
+        if (dropping and pred_ref(item))
           continue;
         dropping = false;
         result.push_back(item);
@@ -890,12 +1009,24 @@ namespace Aleph
   {
     using T = typename Container::value_type;
 
-    if (c.empty())
+    auto it = c.begin();
+    if (it == c.end())
       return std::optional<T>{};
 
-    auto it = c.end();
-    --it;
-    return std::optional<T>(*it);
+    // Use reverse iterators if available (more efficient)
+    if constexpr (stl_detail::has_reverse_iterators_v<Container>)
+      {
+        return std::optional<T>(*c.rbegin());
+      }
+    else
+      {
+        // Fallback: iterate through entire container (for forward_list, etc.)
+        T last = *it;
+        ++it;
+        for (; it != c.end(); ++it)
+          last = *it;
+        return std::optional<T>(last);
+      }
   }
 
   /**
@@ -1029,13 +1160,14 @@ namespace Aleph
     if (it == c.end())
       return std::optional<T>{};
 
+    auto & key_ref = key;  // Preserve as lvalue to avoid moving in loop
     T min_elem = *it;
-    auto min_key = std::forward<Key>(key)(min_elem);
+    auto min_key = key_ref(min_elem);
     ++it;
 
     for (; it != c.end(); ++it)
       {
-        auto k = std::forward<Key>(key)(*it);
+        auto k = key_ref(*it);
         if (k < min_key)
           {
             min_key = k;
@@ -1064,13 +1196,14 @@ namespace Aleph
     if (it == c.end())
       return std::optional<T>{};
 
+    auto & key_ref = key;  // Preserve as lvalue to avoid moving in loop
     T max_elem = *it;
-    auto max_key = std::forward<Key>(key)(max_elem);
+    auto max_key = key_ref(max_elem);
     ++it;
 
     for (; it != c.end(); ++it)
       {
-        auto k = std::forward<Key>(key)(*it);
+        auto k = key_ref(*it);
         if (k > max_key)
           {
             max_key = k;
@@ -1146,8 +1279,9 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> matching, non_matching;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      if (std::forward<Pred>(pred)(item))
+      if (pred_ref(item))
         matching.push_back(item);
       else
         non_matching.push_back(item);
@@ -1175,7 +1309,8 @@ namespace Aleph
     using T2 = typename Container2::value_type;
 
     std::vector<std::pair<T1, T2>> result;
-    result.reserve(std::min(c1.size(), c2.size()));
+    if constexpr (stl_detail::has_size_v<Container1> && stl_detail::has_size_v<Container2>)
+      result.reserve(std::min(c1.size(), c2.size()));
     auto it1 = c1.begin();
     auto it2 = c2.begin();
     for (; it1 != c1.end() and it2 != c2.end(); ++it1, ++it2)
@@ -1201,8 +1336,8 @@ namespace Aleph
 
     std::vector<T1> v1;
     std::vector<T2> v2;
-    v1.reserve(c.size());
-    v2.reserve(c.size());
+    stl_detail::try_reserve(v1, c);
+    stl_detail::try_reserve(v2, c);
 
     for (const auto & p: c)
       {
@@ -1227,7 +1362,7 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<std::pair<size_t, T>> result;
-    result.reserve(c.size());
+    stl_detail::try_reserve(result, c);
     size_t i = 0;
     for (const auto & item: c)
       result.emplace_back(i++, item);
@@ -1343,6 +1478,8 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result(c.begin(), c.end());
+    // std::sort only calls comparator, doesn't need forwarding protection
+    // as it makes copies/moves internally, but for consistency:
     std::sort(result.begin(), result.end(), std::forward<Cmp>(cmp));
     return result;
   }
@@ -1402,11 +1539,19 @@ namespace Aleph
   [[nodiscard]] auto stl_distinct(const Container & c)
   {
     using T = typename Container::value_type;
-    constexpr size_t HASH_THRESHOLD = 64;
 
     std::vector<T> result;
+    const size_t size = stl_detail::safe_size(c);
 
-    if (c.size() <= HASH_THRESHOLD)
+    // Use linear search for small containers or if type is not hashable
+    if constexpr (!stl_detail::is_std_hashable_v<T>)
+      {
+        // Linear search only (type not hashable)
+        for (const auto & item : c)
+          if (std::find(result.begin(), result.end(), item) == result.end())
+            result.push_back(item);
+      }
+    else if (size <= stl_detail::ADAPTIVE_THRESHOLD)
       {
         // Linear search for small containers (better cache, no hash overhead)
         for (const auto & item : c)
@@ -1417,7 +1562,7 @@ namespace Aleph
       {
         // Hash-based for large containers
         std::unordered_set<T> seen;
-        seen.reserve(c.size());
+        seen.reserve(size);
         for (const auto & item : c)
           if (seen.insert(item).second)
             result.push_back(item);
@@ -1446,7 +1591,8 @@ namespace Aleph
     using T = typename Container1::value_type;
 
     std::vector<T> result;
-    result.reserve(c1.size() + c2.size());
+    if constexpr (stl_detail::has_size_v<Container1> && stl_detail::has_size_v<Container2>)
+      result.reserve(c1.size() + c2.size());
     for (const auto & item: c1)
       result.push_back(item);
     for (const auto & item: c2)
@@ -1490,12 +1636,13 @@ namespace Aleph
   [[nodiscard]] auto stl_flat_map(Op && op, const Container & c)
   {
     using T = typename Container::value_type;
-    using InnerContainer = std::decay_t<decltype(std::forward<Op>(op)(std::declval<T>()))>;
+    using InnerContainer = std::decay_t<decltype(op(std::declval<T>()))>;
     using R = typename InnerContainer::value_type;
 
     std::vector<R> result;
+    auto & op_ref = op;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      for (const auto & inner_item: std::forward<Op>(op)(item))
+      for (const auto & inner_item: op_ref(item))
         result.push_back(inner_item);
     return result;
   }
@@ -1572,17 +1719,33 @@ namespace Aleph
   [[nodiscard]] auto stl_group_by(Key && key, const Container & c)
   {
     using T = typename Container::value_type;
-    using K = std::decay_t<decltype(std::forward<Key>(key)(std::declval<T>()))>;
-    constexpr size_t HASH_THRESHOLD = 64;
+    using K = std::decay_t<decltype(key(std::declval<T>()))>;
 
     std::vector<std::pair<K, std::vector<T>>> result;
+    auto & key_ref = key;  // Preserve as lvalue to avoid moving in loop
+    const size_t size = stl_detail::safe_size(c);
 
-    if (c.size() <= HASH_THRESHOLD)
+    // Use linear search for small containers or if key type is not hashable
+    if constexpr (!stl_detail::is_std_hashable_v<K>)
+      {
+        // Linear search only (key type not hashable)
+        for (const auto & item : c)
+          {
+            auto k = key_ref(item);
+            auto it = std::find_if(result.begin(), result.end(),
+                                   [&k](const auto & p) { return p.first == k; });
+            if (it != result.end())
+              it->second.push_back(item);
+            else
+              result.emplace_back(std::move(k), std::vector<T>{item});
+          }
+      }
+    else if (size <= stl_detail::ADAPTIVE_THRESHOLD)
       {
         // Linear search for small containers
         for (const auto & item : c)
           {
-            auto k = key(item);
+            auto k = key_ref(item);
             auto it = std::find_if(result.begin(), result.end(),
                                    [&k](const auto & p) { return p.first == k; });
             if (it != result.end())
@@ -1595,11 +1758,11 @@ namespace Aleph
       {
         // Hash-based for large containers
         std::unordered_map<K, size_t> key_to_index;
-        key_to_index.reserve(c.size());
+        key_to_index.reserve(size);
 
         for (const auto & item : c)
           {
-            auto k = key(item);
+            auto k = key_ref(item);
             auto [it, inserted] = key_to_index.try_emplace(k, result.size());
             if (inserted)
               result.emplace_back(std::move(k), std::vector<T>{item});
@@ -1618,15 +1781,15 @@ namespace Aleph
   namespace stl_comb_detail
   {
     template <typename T, typename Op>
-    bool permutations_impl(std::vector<T> & arr, size_t start, Op && op)
+    bool permutations_impl(std::vector<T> & arr, size_t start, Op & op_ref)
     {
       if (start >= arr.size())
-        return std::forward<Op>(op)(arr);
+        return op_ref(arr);
 
       for (size_t i = start; i < arr.size(); ++i)
         {
           std::swap(arr[start], arr[i]);
-          if (not permutations_impl(arr, start + 1, std::forward<Op>(op)))
+          if (not permutations_impl(arr, start + 1, op_ref))
             {
               std::swap(arr[start], arr[i]);
               return false;
@@ -1638,15 +1801,15 @@ namespace Aleph
 
     template <typename T, typename Op>
     bool combinations_impl(const std::vector<T> & arr, size_t k, size_t start,
-                           std::vector<T> & current, Op && op)
+                           std::vector<T> & current, Op & op_ref)
     {
       if (current.size() == k)
-        return std::forward<Op>(op)(current);
+        return op_ref(current);
 
       for (size_t i = start; i <= arr.size() - (k - current.size()); ++i)
         {
           current.push_back(arr[i]);
-          if (not combinations_impl(arr, k, i + 1, current, std::forward<Op>(op)))
+          if (not combinations_impl(arr, k, i + 1, current, op_ref))
             {
               current.pop_back();
               return false;
@@ -1658,17 +1821,17 @@ namespace Aleph
 
     template <typename T, typename Op>
     bool arrangements_impl(const std::vector<T> & arr, size_t k,
-                           std::vector<T> & current, std::vector<bool> & used, Op && op)
+                           std::vector<T> & current, std::vector<bool> & used, Op & op_ref)
     {
       if (current.size() == k)
-        return std::forward<Op>(op)(current);
+        return op_ref(current);
 
       for (size_t i = 0; i < arr.size(); ++i)
         {
           if (used[i]) continue;
           used[i] = true;
           current.push_back(arr[i]);
-          if (not arrangements_impl(arr, k, current, used, std::forward<Op>(op)))
+          if (not arrangements_impl(arr, k, current, used, op_ref))
             {
               current.pop_back();
               used[i] = false;
@@ -1709,7 +1872,8 @@ namespace Aleph
   {
     using T = typename Container::value_type;
     std::vector<T> arr(c.begin(), c.end());
-    return stl_comb_detail::permutations_impl(arr, 0, std::forward<Op>(op));
+    auto & op_ref = op;  // Preserve as lvalue for recursive calls
+    return stl_comb_detail::permutations_impl(arr, 0, op_ref);
   }
 
   /**
@@ -1773,7 +1937,8 @@ namespace Aleph
 
     std::vector<T> current;
     current.reserve(k);
-    return stl_comb_detail::combinations_impl(arr, k, 0, current, std::forward<Op>(op));
+    auto & op_ref = op;  // Preserve as lvalue for recursive calls
+    return stl_comb_detail::combinations_impl(arr, k, 0, current, op_ref);
   }
 
   /**
@@ -1837,7 +2002,8 @@ namespace Aleph
     std::vector<T> current;
     current.reserve(k);
     std::vector<bool> used(arr.size(), false);
-    return stl_comb_detail::arrangements_impl(arr, k, current, used, std::forward<Op>(op));
+    auto & op_ref = op;  // Preserve as lvalue for recursive calls
+    return stl_comb_detail::arrangements_impl(arr, k, current, used, op_ref);
   }
 
   /**
@@ -1927,7 +2093,13 @@ namespace Aleph
     std::vector<std::vector<T>> result;
 
     const size_t n = arr.size();
+
+    // Protect against overflow: 2^n overflows for n >= 64
+    if (n >= 63)
+      throw std::overflow_error("stl_power_set: container too large (n >= 63 would overflow)");
+
     const size_t total = 1ULL << n; // 2^n
+    result.reserve(total);
 
     for (size_t mask = 0; mask < total; ++mask)
       {
@@ -2093,10 +2265,11 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> first, second;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     bool taking = true;
 
     for (const auto & item: c)
-      if (taking and std::forward<Pred>(pred)(item))
+      if (taking and pred_ref(item))
         first.push_back(item);
       else
         {
@@ -2183,11 +2356,25 @@ namespace Aleph
   [[nodiscard]] auto stl_tally(const Container & c)
   {
     using T = typename Container::value_type;
-    constexpr size_t HASH_THRESHOLD = 64;
 
     std::vector<std::pair<T, size_t>> result;
+    const size_t size = stl_detail::safe_size(c);
 
-    if (c.size() <= HASH_THRESHOLD)
+    // Use linear search for small containers or if type is not hashable
+    if constexpr (!stl_detail::is_std_hashable_v<T>)
+      {
+        // Linear search only (type not hashable)
+        for (const auto & item : c)
+          {
+            auto it = std::find_if(result.begin(), result.end(),
+                                   [&item](const auto & p) { return p.first == item; });
+            if (it != result.end())
+              ++it->second;
+            else
+              result.emplace_back(item, 1);
+          }
+      }
+    else if (size <= stl_detail::ADAPTIVE_THRESHOLD)
       {
         // Linear search for small containers
         for (const auto & item : c)
@@ -2204,9 +2391,9 @@ namespace Aleph
       {
         // Hash-based for large containers
         std::unordered_map<T, size_t> counts;
-        counts.reserve(c.size());
+        counts.reserve(size);
         std::vector<T> order;  // Track insertion order
-        order.reserve(c.size());
+        order.reserve(size);
 
         for (const auto & item : c)
           {
@@ -2240,8 +2427,9 @@ namespace Aleph
     using T = typename Container::value_type;
 
     std::vector<T> result;
+    auto & pred_ref = pred;  // Preserve as lvalue to avoid moving in loop
     for (const auto & item: c)
-      if (not std::forward<Pred>(pred)(item))
+      if (not pred_ref(item))
         result.push_back(item);
     return result;
   }

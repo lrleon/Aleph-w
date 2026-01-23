@@ -1107,14 +1107,277 @@ TEST(UniZipToDynlist, Basic)
 {
   std::vector<int> stl = {1, 2, 3};
   DynList<std::string> aleph = {"a", "b", "c"};
-  
+
   auto result = uni_zip_to_dynlist(stl, aleph);
-  
+
   EXPECT_EQ(result.size(), 3);
-  
+
   auto it = result.get_it();
   EXPECT_EQ(std::get<0>(it.get_curr()), 1);
   EXPECT_EQ(std::get<1>(it.get_curr()), "a");
+}
+
+//==============================================================================
+// Bug Fix Tests - Stateful Callables
+//==============================================================================
+
+// Test that stateful callables work correctly (std::forward bug fix)
+struct StatefulCounter
+{
+  mutable int count = 0;
+  bool operator()(auto) const { ++count; return true; }
+};
+
+struct StatefulAccumulator
+{
+  mutable int sum = 0;
+  void operator()(auto t) const { sum += std::get<0>(t); }
+};
+
+TEST(UniZipStatefulCallable, ForEachPreservesState)
+{
+  std::vector<int> v1 = {1, 2, 3, 4, 5};
+  std::vector<int> v2 = {10, 20, 30, 40, 50};
+
+  StatefulAccumulator acc;
+  uni_zip_for_each(std::ref(acc), v1, v2);
+
+  EXPECT_EQ(acc.sum, 15);  // 1+2+3+4+5
+}
+
+TEST(UniZipStatefulCallable, AllPreservesState)
+{
+  std::vector<int> v1 = {1, 2, 3, 4, 5};
+  std::vector<int> v2 = {10, 20, 30, 40, 50};
+
+  StatefulCounter counter;
+  uni_zip_all(std::ref(counter), v1, v2);
+
+  EXPECT_EQ(counter.count, 5);  // Called 5 times
+}
+
+TEST(UniZipStatefulCallable, MapPreservesState)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+
+  int call_count = 0;
+  auto result = uni_zip_map([&call_count](auto t) {
+    ++call_count;
+    return std::get<0>(t) + std::get<1>(t);
+  }, v1, v2);
+
+  EXPECT_EQ(call_count, 3);
+  EXPECT_EQ(result.size(), 3);
+}
+
+TEST(UniZipStatefulCallable, FilterPreservesState)
+{
+  std::vector<int> v1 = {1, 2, 3, 4, 5};
+  std::vector<int> v2 = {10, 20, 30, 40, 50};
+
+  int call_count = 0;
+  auto result = uni_zip_filter([&call_count](auto t) {
+    ++call_count;
+    return std::get<0>(t) % 2 == 0;
+  }, v1, v2);
+
+  EXPECT_EQ(call_count, 5);  // Predicate called for all elements
+  EXPECT_EQ(result.size(), 2);  // Only evens pass
+}
+
+TEST(UniZipStatefulCallable, FoldlPreservesState)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+
+  int call_count = 0;
+  auto result = uni_zip_foldl(0, [&call_count](int acc, auto t) {
+    ++call_count;
+    return acc + std::get<0>(t);
+  }, v1, v2);
+
+  EXPECT_EQ(call_count, 3);
+  EXPECT_EQ(result, 6);  // 1+2+3
+}
+
+//==============================================================================
+// Bug Fix Tests - Equal Length Semantics
+//==============================================================================
+
+TEST(UniZipEqualLength, AllCompletedCheck)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+  std::vector<int> v3 = {100, 200};  // Shorter
+
+  // Same length containers
+  EXPECT_TRUE(uni_zip_equal_length(v1, v2));
+
+  // Different length containers
+  EXPECT_FALSE(uni_zip_equal_length(v1, v3));
+  EXPECT_FALSE(uni_zip_equal_length(v2, v3));
+}
+
+TEST(UniZipEqualLength, AllEqSemanticsCorrect)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+  std::vector<int> v3 = {100, 200};  // Shorter
+
+  // All true + equal length = true
+  EXPECT_TRUE(uni_zip_all_eq([](auto) { return true; }, v1, v2));
+
+  // All true but different length = false
+  EXPECT_FALSE(uni_zip_all_eq([](auto) { return true; }, v1, v3));
+
+  // One false + equal length = false
+  EXPECT_FALSE(uni_zip_all_eq([](auto t) {
+    return std::get<0>(t) != 2;
+  }, v1, v2));
+}
+
+TEST(UniZipEqualLength, EqualByWithLengthCheck)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+  std::vector<int> v3 = {10, 20};  // Shorter
+
+  // Condition passes, equal length
+  EXPECT_TRUE(uni_zip_equal_by([](auto t) {
+    return std::get<0>(t) < std::get<1>(t);
+  }, v1, v2));
+
+  // Condition passes but different length
+  EXPECT_FALSE(uni_zip_equal_by([](auto t) {
+    return std::get<0>(t) < std::get<1>(t);
+  }, v1, v3));
+}
+
+//==============================================================================
+// Bug Fix Tests - Sentinel End() O(1)
+//==============================================================================
+
+TEST(UniZipSentinel, EndIsO1)
+{
+  std::vector<int> v1 = {1, 2, 3, 4, 5};
+  std::vector<int> v2 = {10, 20, 30, 40, 50};
+
+  auto view = uni_zip(v1, v2);
+
+  // end() should return sentinel immediately (O(1))
+  auto sentinel = view.end();
+  (void)sentinel;  // Just verify it compiles and returns
+
+  // Iteration should work
+  int count = 0;
+  for (auto [a, b] : view)
+    {
+      (void)a; (void)b;
+      ++count;
+    }
+  EXPECT_EQ(count, 5);
+}
+
+TEST(UniZipSentinel, IteratorSentinelComparison)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+
+  auto view = uni_zip(v1, v2);
+  auto it = view.begin();
+  auto end = view.end();
+
+  // Iterator not at end initially
+  EXPECT_NE(it, end);
+  EXPECT_TRUE(it.has_curr());
+
+  // Advance to end
+  ++it; ++it; ++it;
+
+  // Now at end
+  EXPECT_EQ(it, end);
+  EXPECT_FALSE(it.has_curr());
+}
+
+//==============================================================================
+// New API Tests - any_has_curr and all_completed
+//==============================================================================
+
+TEST(UniZipIteratorAPI, AnyHasCurrVsHasCurr)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20};  // Shorter
+
+  auto it = uni_zip_it(v1, v2);
+
+  // Both have elements initially
+  EXPECT_TRUE(it.has_curr());
+  EXPECT_TRUE(it.any_has_curr());
+
+  it.next();
+  it.next();
+
+  // v2 exhausted, v1 still has one more
+  EXPECT_FALSE(it.has_curr());      // Not ALL have elements
+  EXPECT_TRUE(it.any_has_curr());   // But SOME still have
+
+  // all_completed is false because v1 still has elements
+  EXPECT_FALSE(it.all_completed());
+}
+
+TEST(UniZipIteratorAPI, AllCompletedVsCompleted)
+{
+  std::vector<int> v1 = {1, 2, 3};
+  std::vector<int> v2 = {10, 20, 30};
+
+  auto it = uni_zip_it(v1, v2);
+
+  // Exhaust iterator
+  while (it.has_curr())
+    it.next();
+
+  // Both containers exhausted at same time
+  EXPECT_TRUE(it.all_completed());
+  EXPECT_TRUE(it.completed());  // Backward compatible
+}
+
+//==============================================================================
+// Edge Cases for Fixes
+//==============================================================================
+
+TEST(UniZipEdgeCases, EmptyContainersWithCallables)
+{
+  std::vector<int> empty1;
+  std::vector<int> empty2;
+
+  // Should handle empty gracefully with stateful callables
+  int call_count = 0;
+  uni_zip_for_each([&call_count](auto) { ++call_count; }, empty1, empty2);
+  EXPECT_EQ(call_count, 0);
+
+  auto result = uni_zip_map([&call_count](auto t) {
+    ++call_count;
+    return std::get<0>(t);
+  }, empty1, empty2);
+  EXPECT_EQ(call_count, 0);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(UniZipEdgeCases, SingleElementWithStatefulCallable)
+{
+  std::vector<int> v1 = {42};
+  std::vector<std::string> v2 = {"answer"};
+
+  int call_count = 0;
+  auto result = uni_zip_map([&call_count](auto t) {
+    ++call_count;
+    return std::to_string(std::get<0>(t)) + ":" + std::get<1>(t);
+  }, v1, v2);
+
+  EXPECT_EQ(call_count, 1);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], "42:answer");
 }
 
 // Main

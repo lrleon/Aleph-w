@@ -617,6 +617,119 @@ int main()
   }
 
   // =========================================================================
+  // Part 5: Demonstrating Inadmissible Heuristic (Educational)
+  // =========================================================================
+
+  cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  cout << "Part 5: Inadmissible Heuristic Demonstration (Educational)\n";
+  cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  cout << "WARNING: This example demonstrates what happens when you use an\n";
+  cout << "inadmissible heuristic (one that overestimates). This is for\n";
+  cout << "educational purposes only. In production, always use admissible\n";
+  cout << "heuristics to guarantee optimal paths!\n\n";
+
+  // Create a simple 3-node graph with two paths
+  vector<GridGraph::Node*> demo_nodes;
+  GridGraph demo_g;
+
+  demo_nodes.push_back(demo_g.insert_node(GridCell(0, 0)));  // Start
+  demo_nodes.push_back(demo_g.insert_node(GridCell(5, 0)));  // Middle
+  demo_nodes.push_back(demo_g.insert_node(GridCell(10, 0))); // End
+
+  // Two paths:
+  // 1. Direct: 0 -> 2 (cost 15.0) - suboptimal
+  // 2. Via middle: 0 -> 1 -> 2 (cost 8.0) - optimal
+  demo_g.insert_arc(demo_nodes[0], demo_nodes[2], 15.0);  // Direct
+  demo_g.insert_arc(demo_nodes[0], demo_nodes[1], 3.0);   // Via middle (better)
+  demo_g.insert_arc(demo_nodes[1], demo_nodes[2], 5.0);
+
+  cout << "Graph structure:\n";
+  cout << "  Node 0 (0,0) -> Node 2 (10,0): cost 15.0\n";
+  cout << "  Node 0 (0,0) -> Node 1 (5,0):  cost  3.0\n";
+  cout << "  Node 1 (5,0) -> Node 2 (10,0): cost  5.0\n";
+  cout << "  Optimal path: 0 -> 1 -> 2 (total: 8.0)\n\n";
+
+  // Inadmissible heuristic that massively overestimates
+  struct BadHeuristic
+  {
+    using Distance_Type = double;
+    Distance_Type operator()(GridGraph::Node* from, GridGraph::Node* to) const
+    {
+      const auto& f = from->get_info();
+      const auto& t = to->get_info();
+      double dx = f.x - t.x;
+      double dy = f.y - t.y;
+      // Overestimate by 10x
+      return 10.0 * sqrt(dx * dx + dy * dy);
+    }
+  };
+
+  // Test with admissible heuristic first (Euclidean)
+  cout << "▶ With Euclidean heuristic (admissible):\n";
+  {
+    AStar_Min_Path<GridGraph, GridDistance, EuclideanHeuristic> astar;
+    Path<GridGraph> path(demo_g);
+
+    double cost = astar.find_path(demo_g, demo_nodes[0], demo_nodes[2], path);
+
+    cout << "  Path cost: " << cost << "\n";
+    cout << "  Path length: " << path.size() << " nodes\n";
+    cout << "  Result: ";
+    if (cost == 8.0)
+      cout << "✓ Found optimal path (0 -> 1 -> 2)\n\n";
+    else
+      cout << "✗ Found suboptimal path\n\n";
+  }
+
+  // Test with inadmissible heuristic
+  cout << "▶ With inadmissible heuristic (10x overestimate):\n";
+  {
+    AStar_Min_Path<GridGraph, GridDistance, BadHeuristic> astar;
+    Path<GridGraph> path(demo_g);
+
+    double cost = astar.find_path(demo_g, demo_nodes[0], demo_nodes[2], path);
+
+    cout << "  Path cost: " << cost << "\n";
+    cout << "  Path length: " << path.size() << " nodes\n";
+    cout << "  Result: ";
+    if (cost == 8.0)
+      cout << "Found optimal path (by chance)\n";
+    else if (cost == 15.0)
+      cout << "✗ Found suboptimal direct path (0 -> 2)\n";
+    else
+      cout << "Found path with cost " << cost << "\n";
+
+    cout << "\n  Explanation: The inadmissible heuristic made node 1 look\n";
+    cout << "  too expensive (h(1) >> actual cost), so A* chose the direct\n";
+    cout << "  path instead of exploring through node 1.\n\n";
+  }
+
+  // Compare with Dijkstra (always optimal)
+  cout << "▶ With Dijkstra (zero heuristic, always optimal):\n";
+  {
+    AStar_Min_Path<GridGraph, GridDistance> astar;
+    Path<GridGraph> path(demo_g);
+
+    double cost = astar.find_min_path(demo_g, demo_nodes[0], demo_nodes[2], path);
+
+    cout << "  Path cost: " << cost << "\n";
+    cout << "  Path length: " << path.size() << " nodes\n";
+    cout << "  Result: ✓ Always finds optimal path\n\n";
+  }
+
+  cout << "┌─────────────────────────────────────────────────────────────────┐\n";
+  cout << "│ Key Takeaway:                                                   │\n";
+  cout << "│                                                                 │\n";
+  cout << "│ An inadmissible heuristic CAN make A* return suboptimal paths! │\n";
+  cout << "│                                                                 │\n";
+  cout << "│ Always verify your heuristic never overestimates:              │\n";
+  cout << "│   h(n) ≤ actual_cost(n, goal)  for all nodes n                 │\n";
+  cout << "│                                                                 │\n";
+  cout << "│ When in doubt, use zero heuristic (Dijkstra) for correctness.  │\n";
+  cout << "└─────────────────────────────────────────────────────────────────┘\n\n";
+
+  // =========================================================================
   // Summary
   // =========================================================================
 

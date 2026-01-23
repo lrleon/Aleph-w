@@ -45,6 +45,7 @@
 #ifndef ASTAR_H
 #define ASTAR_H
 
+#include <iostream>
 #include <ahFunction.H>
 #include <ah-errors.H>
 #include <archeap.H>
@@ -94,6 +95,23 @@ struct Zero_Heuristic
  *  paint_min_paths_tree) that use zero heuristic for computing all shortest
  *  paths from a source.
  *
+ *  ## Method Categories
+ *
+ *  **A* Methods (with heuristic, for single-target search):**
+ *  - `find_path()` - Find shortest path start->end (recommended)
+ *  - `compute_partial_path()` - Same but builds tree structure
+ *  - `paint_partial_path()` - Same but marks on original graph
+ *
+ *  **Dijkstra Methods (no heuristic, for multi-target search):**
+ *  - `find_min_path()` - Find path without heuristic
+ *  - `compute_min_paths_tree()` - Build complete shortest paths tree
+ *  - `paint_min_paths_tree()` - Mark complete tree on graph
+ *  - `compute_partial_min_paths_tree()` - Build partial tree until target found
+ *  - `paint_partial_min_paths_tree()` - Mark partial tree on graph
+ *
+ *  The "partial" methods stop as soon as the target node is reached,
+ *  while "complete" methods explore all reachable nodes.
+ *
  *  The class receives the following template parameters:
  *  -# `GT`: graph type.
  *  -# `Distance<GT>`: class reading the weight.
@@ -104,10 +122,21 @@ struct Zero_Heuristic
  *
  *  @note To use a Fibonacci heap, pass ArcFibonacciHeap as HeapT.
  *
+ *  @note **Reusability**: This class can be reused for multiple searches.
+ *        Each call to find_path(), compute_*(), or paint_*() clears state.
+ *
  *  @warning This class is **not thread-safe**. Concurrent calls require
  *           external synchronization.
  *
- *  @see Dijkstra_Min_Paths Floyd_All_Shortest_Paths
+ *  @warning **Negative weights**: This algorithm does NOT support graphs
+ *           with negative edge weights. Use Bellman-Ford for such graphs.
+ *           Behavior with negative weights is undefined.
+ *
+ *  @warning **Inadmissible heuristics**: If the heuristic overestimates
+ *           (violates admissibility), A* may return suboptimal paths.
+ *           In debug mode, validation checks are performed when possible.
+ *
+ *  @see Dijkstra_Min_Paths Floyd_All_Shortest_Paths Bellman_Ford_Min_Paths
  *
  *  @ingroup Graphs
  */
@@ -156,6 +185,29 @@ class AStar_Min_Path
 
   // A* specific: heuristic functor
   Heuristic heuristic;
+
+#ifndef NDEBUG
+  // Debug mode: track heuristic validation
+  bool validate_heuristic = true;
+
+  void check_heuristic_admissibility(typename GT::Node* node,
+                                     typename GT::Node* goal,
+                                     const typename Distance::Distance_Type& actual_cost)
+  {
+    if (!validate_heuristic)
+      return;
+
+    auto h_estimate = heuristic(node, goal);
+    if (h_estimate > actual_cost)
+      {
+        std::cerr << "WARNING: Inadmissible heuristic detected!\n";
+        std::cerr << "  Heuristic estimate h(" << node << ") = " << h_estimate << "\n";
+        std::cerr << "  Actual remaining cost = " << actual_cost << "\n";
+        std::cerr << "  Heuristic overestimates by " << (h_estimate - actual_cost) << "\n";
+        std::cerr << "  A* may return suboptimal paths.\n";
+      }
+  }
+#endif
 
 public:
   /** Constructor.
@@ -211,6 +263,18 @@ public:
 
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
     clear_graph(tree);
+
+    // Handle trivial case: start == end
+    if (start == end)
+      {
+        NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+        AACC(start) = 0;
+        auto tree_node = tree.insert_node(start->get_info());
+        ATREENODE(start) = tree_node;
+        NODE_COOKIE(tree_node) = start;
+        this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
+        return tree_node;
+      }
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     AACC(start) = 0;
@@ -308,15 +372,17 @@ public:
     ah_domain_error_if(end == nullptr) << "end node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
+    this->template init<Initialize_Node, Initialize_Arc>(g, start);
+
+    // Handle trivial case: start == end
     if (start == end)
       {
-        ptr_g = &const_cast<GT&>(g);
-        s = start;
+        NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+        AACC(start) = 0;
+        this->template uninit<Destroy_Node, Destroy_Arc>();
         painted = true;
         return true;
       }
-
-    this->template init<Initialize_Node, Initialize_Arc>(g, start);
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     AACC(start) = 0;
@@ -546,6 +612,18 @@ public:
     this->template init<Initialize_Tree_Node, Initialize_Tree_Arc>(g, start);
     clear_graph(tree);
 
+    // Handle trivial case: start == end
+    if (start == end)
+      {
+        NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+        AACC(start) = 0;
+        auto tree_node = tree.insert_node(start->get_info());
+        ATREENODE(start) = tree_node;
+        NODE_COOKIE(tree_node) = start;
+        this->template uninit<Destroy_Tree_Node, Destroy_Tree_Arc>();
+        return;
+      }
+
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     AACC(start) = 0;
     ATREENODE(start) = tree.insert_node(start->get_info());
@@ -578,17 +656,18 @@ public:
         if (IS_NODE_VISITED(gtgt, Aleph::Spanning_Tree))
           std::swap(gsrc, gtgt);
 
+        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
+
         auto ttgt = tree.insert_node(gtgt->get_info());
         ATREENODE(gtgt) = ttgt;
-        NODE_BITS(gtgt).set_bit(Aleph::Spanning_Tree, true);
 
         auto tarc = tree.insert_arc(ATREENODE(gsrc), ATREENODE(gtgt), garc->get_info());
         ATREEARC(garc) = tarc;
 
+        AACC(gtgt) = this->checked_add(AACC(gsrc), AARC_DIST(garc));
+
         if (gtgt == end)
           break;
-
-        AACC(gtgt) = this->checked_add(AACC(gsrc), AARC_DIST(garc));
         const auto& acc = AACC(gtgt);
 
         for (Itor<GT, SA> it(gtgt, sa); it.has_curr(); it.next_ne())
@@ -628,8 +707,19 @@ public:
     ah_domain_error_if(end == nullptr) << "end node cannot be null";
     ah_domain_error_if(g.get_num_nodes() == 0) << "graph is empty";
 
-    bool ret_val = false;
     this->template init<Initialize_Node, Initialize_Arc>(g, start);
+
+    // Handle trivial case: start == end
+    if (start == end)
+      {
+        NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
+        AACC(start) = 0;
+        this->template uninit<Destroy_Node, Destroy_Arc>();
+        painted = true;
+        return true;
+      }
+
+    bool ret_val = false;
 
     NODE_BITS(start).set_bit(Aleph::Spanning_Tree, true);
     AACC(start) = 0;

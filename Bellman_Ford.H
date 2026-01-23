@@ -82,6 +82,10 @@
 # ifndef BELLMAN_FORD_H
 # define BELLMAN_FORD_H
 
+# include <type_traits>
+# include <limits>
+# include <vector>
+
 # include <tpl_dynListQueue.H>
 # include <tpl_dynSetTree.H>
 # include <tpl_graph_utils.H>
@@ -89,8 +93,6 @@
 # include <ah-errors.H>
 # include <ah_init_guard.H>
 # include <cookie_guard.H>
-
-# include <vector>
 
 namespace Aleph
 {
@@ -119,8 +121,40 @@ namespace Aleph
       - Computes shortest-path tree (painted or separate)
       - Used by Johnson's algorithm for node weight computation
 
+      ## State Management
+
+      This class maintains internal state between operations:
+      - `painted`: Whether a spanning tree is currently painted on the graph
+      - `s`: The start node of the last computation
+      - `arcs`: Predecessor array for path reconstruction
+
+      **Important usage notes:**
+
+      1. **Graph modification**: The graph is temporarily modified during each
+         operation (node/arc bits and cookies). These modifications are cleaned
+         up when the operation completes. Do not modify the graph structure
+         during an operation.
+
+      2. **Sequential calls**: Calling paint_spanning_tree() twice without
+         calling clear() will overwrite the previous painted state. If you need
+         to preserve the previous state, call clear() first or use a new
+         Bellman_Ford instance.
+
+      3. **Reusability**: The same Bellman_Ford object can be reused for
+         multiple computations on the same graph. Each operation automatically
+         resets the internal state.
+
+      4. **Exception safety**: All operations are exception-safe. If an
+         exception is thrown, the graph is restored to a consistent state
+         (RAII guards ensure cleanup).
+
       @warning This class is **not thread-safe**. Each instance maintains internal
       state that would be corrupted by concurrent access.
+
+      @warning The constructor takes a non-const graph reference because the
+      algorithm temporarily modifies node/arc bits and cookies. For methods that
+      detect global negative cycles (no start node), a dummy node is temporarily
+      added to the graph and removed when the operation completes.
 
       @note For graphs without negative weights, Dijkstra's algorithm is more
       efficient (O((V+E) log V) vs O(V*E)).
@@ -178,7 +212,7 @@ namespace Aleph
     }
 
     DynArray<typename GT::Arc *> arcs;
-    const GT & g;
+    GT & g;  // Non-const: algorithm modifies node/arc bits and cookies
     const Distance_Type Inf;
     bool painted = false;
     Node *s = nullptr;
@@ -216,16 +250,20 @@ namespace Aleph
                            arcs.cut();
                          });
 
-      arcs.reserve(g.get_num_nodes());
+      const size_t n = g.get_num_nodes();
+      arcs.cut(); // Clear any previous data
+      arcs.reserve(n);
+
       typename GT::Node_Iterator it(g);
-      for (int i = 0; it.has_curr(); ++i, it.next())
+      for (size_t i = 0; it.has_curr(); ++i, it.next())
         {
-          arcs(i) = nullptr;
+          // Use touch() to ensure memory is allocated for index i
+          arcs.touch(i) = nullptr;
           auto p = it.get_curr();
           g.reset_bit(p, Aleph::Spanning_Tree); // set bit to zero
           auto ptr = new Ni;
           ptr->accum = Inf;
-          ptr->idx = i;
+          ptr->idx = static_cast<int>(i);
           NODE_BITS(p).set_bit(Spanning_Tree, false);
           NODE_BITS(p).set_bit(Depth_First, false); // indicates if it is in queue
           NODE_COOKIE(p) = ptr;
@@ -251,38 +289,117 @@ namespace Aleph
         }
     }
 
-    /// Check that painted arcs form a valid spanning tree.
-    /// For disconnected graphs, the number of painted arcs may be less than n-1.
+    /** Check that painted arcs form a valid spanning tree structure.
+
+        Verifies the following invariants:
+        1. Number of painted arcs == number of painted nodes - 1 (tree property)
+        2. Each painted node (except root) has exactly one incoming painted arc
+        3. Root node (s) has no incoming painted arcs
+
+        For disconnected graphs, only the component reachable from s is verified.
+
+        @return true if the painted structure is valid, false otherwise.
+     */
     bool check_painted_arcs() noexcept
     {
-      size_t num_arcs = 0;
+      if (s == nullptr)
+        return false;
+
+      size_t num_painted_arcs = 0;
       size_t num_painted_nodes = 0;
+
+      // Count painted arcs
       for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
         if (IS_ARC_VISITED(it.get_curr(), Aleph::Spanning_Tree))
-          ++num_arcs;
+          ++num_painted_arcs;
 
+      // Count painted nodes and verify each has exactly one incoming painted arc
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
-        if (IS_NODE_VISITED(it.get_curr(), Aleph::Spanning_Tree))
+        {
+          auto node = it.get_curr();
+          if (not IS_NODE_VISITED(node, Aleph::Spanning_Tree))
+            continue;
+
           ++num_painted_nodes;
 
-      // In a tree with k nodes, there are k-1 arcs (or k arcs in digraphs
-      // where cycles may exist). For disconnected graphs, some nodes may
-      // not be painted.
-      return num_arcs <= num_painted_nodes;
+          // Skip root node - it should have no incoming painted arcs
+          if (node == s)
+            continue;
+
+          // Count incoming painted arcs to this node
+          size_t incoming_count = 0;
+          for (Ait<GT, SA> ait(g, sa); ait.has_curr(); ait.next_ne())
+            {
+              auto arc = ait.get_curr();
+              if (IS_ARC_VISITED(arc, Aleph::Spanning_Tree) and
+                  g.get_tgt_node(arc) == node)
+                ++incoming_count;
+            }
+
+          // Each non-root painted node must have exactly 1 incoming painted arc
+          if (incoming_count != 1)
+            return false;
+        }
+
+      // Tree property: #arcs == #nodes - 1
+      // (or num_painted_arcs < num_painted_nodes for disconnected graphs)
+      return num_painted_arcs < num_painted_nodes or
+             num_painted_arcs == num_painted_nodes - 1;
     }
 
   public:
     /** Construct a Bellman-Ford executor.
 
-        @param[in] __g The graph to operate on.
+        @param[in] __g The graph to operate on. Note: the graph will be
+                       temporarily modified (node/arc bits and cookies) during
+                       algorithm execution. The modifications are cleaned up
+                       after each operation completes.
         @param[in] d Arc-weight accessor.
         @param[in] __sa Arc filter for internal iterators.
+
+        @warning The graph reference is stored internally. Do not modify
+                 the graph structure while a Bellman_Ford operation is in
+                 progress.
      */
-    Bellman_Ford(const GT & __g, Distance d = Distance(), SA __sa = SA())
-      : g(const_cast<GT &>(__g)), Inf(std::numeric_limits<Distance_Type>::max()),
+    Bellman_Ford(GT & __g, Distance d = Distance(), SA __sa = SA())
+      : g(__g), Inf(std::numeric_limits<Distance_Type>::max()),
         painted(false), sa(__sa), dist(d)
     {
       // empty
+    }
+
+    /** Clear the painted state and reset internal data structures.
+
+        This method should be called if you want to reuse the same Bellman_Ford
+        object for a different computation, or if you want to clear the
+        Spanning_Tree bits that were painted on the graph.
+
+        After calling clear():
+        - has_computation() returns false
+        - is_painted() returns false
+        - All Spanning_Tree bits on nodes/arcs are cleared
+        - The predecessor array is cleared
+        - NODE_COOKIE pointers are NOT touched (they were already cleaned
+          by previous operations)
+
+        @note This is automatically called at the start of each paint/compute
+              operation, so explicit calls are usually not needed.
+     */
+    void clear() noexcept
+    {
+      if (painted)
+        {
+          // Clear Spanning_Tree bits from all nodes and arcs
+          for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+            NODE_BITS(it.get_curr()).set_bit(Aleph::Spanning_Tree, false);
+
+          for (Ait<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
+            ARC_BITS(it.get_curr()).set_bit(Aleph::Spanning_Tree, false);
+        }
+
+      arcs.cut();
+      painted = false;
+      s = nullptr;
     }
 
     /// Check if a shortest-path tree has been computed or painted.
@@ -582,15 +699,15 @@ namespace Aleph
         Dummy_Guard & operator=(const Dummy_Guard &) = delete;
       };
 
-      s = const_cast<GT &>(g).insert_node(typename GT::Node_Type());
-      Dummy_Guard guard(const_cast<GT &>(g), s);
+      s = g.insert_node(typename GT::Node_Type());
+      Dummy_Guard guard(g, s);
 
       for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
         {
           auto p = it.get_curr();
           if (p == s)
             continue;
-          auto a = const_cast<GT &>(g).insert_arc(s, p);
+          auto a = g.insert_arc(s, p);
           guard.add_arc(a);
           Distance::set_zero(a);
         }
@@ -604,7 +721,7 @@ namespace Aleph
     void remove_dummy_node(Node *p)
     {
       delete static_cast<Info_Type *>(NODE_COOKIE(p));
-      const_cast<GT &>(g).remove_node(p);
+      g.remove_node(p);
     }
 
   public:
@@ -635,12 +752,40 @@ namespace Aleph
         zero-weight edges, then runs negative cycle detection from it.
 
         @return true if any negative cycle exists in the graph, false otherwise.
+
+        @note This method temporarily modifies the graph by adding a dummy node.
+              The modification is rolled back even if an exception is thrown.
      */
     bool has_negative_cycle()
     {
-      create_dummy_node();
-      auto ret = has_negative_cycle(s);
-      remove_dummy_node<Ni>(s);
+      Node *dummy = create_dummy_node();
+
+      // RAII guard ensures dummy node removal even on exception
+      struct Global_Cycle_Guard
+      {
+        Bellman_Ford &bf;
+        Node *dummy_node;
+        bool released = false;
+
+        Global_Cycle_Guard(Bellman_Ford &b, Node *d) : bf(b), dummy_node(d) {}
+
+        ~Global_Cycle_Guard()
+        {
+          if (not released and dummy_node != nullptr)
+            {
+              // Clean up: remove dummy node and its arcs
+              bf.remove_dummy_node<Ni>(dummy_node);
+            }
+        }
+
+        void release() { released = true; }
+      };
+
+      Global_Cycle_Guard guard(*this, dummy);
+
+      auto ret = has_negative_cycle(dummy);
+      guard.release();
+      remove_dummy_node<Ni>(dummy);
 
       return ret;
     }
@@ -724,7 +869,15 @@ namespace Aleph
     Path<GT> test_negative_cycle()
     {
       auto start = create_dummy_node();
+
+      // RAII guard ensures dummy node removal even on exception
+      Init_Guard guard([this, start]()
+                         {
+                           remove_dummy_node<Ni>(start);
+                         });
+
       auto ret_val = test_negative_cycle(start);
+      guard.release();
       remove_dummy_node<Ni>(start);
       return ret_val;
     }
@@ -896,7 +1049,15 @@ namespace Aleph
                                                        const size_t step)
     {
       auto start = create_dummy_node();
+
+      // RAII guard ensures dummy node removal even on exception
+      Init_Guard guard([this, start]()
+                         {
+                           remove_dummy_node<Ni>(start);
+                         });
+
       auto ret_val = search_negative_cycle(start, it_factor, step);
+      guard.release();
       remove_dummy_node<Ni>(start);
       return ret_val;
     }
@@ -907,7 +1068,15 @@ namespace Aleph
     Path<GT> search_negative_cycle()
     {
       auto start = create_dummy_node();
+
+      // RAII guard ensures dummy node removal even on exception
+      Init_Guard guard([this, start]()
+                         {
+                           remove_dummy_node<Ni>(start);
+                         });
+
       auto ret_val = search_negative_cycle(start);
+      guard.release();
       remove_dummy_node<Ni>(start);
       return ret_val;
     }
@@ -1173,7 +1342,7 @@ namespace Aleph
   {
     /** Invokes the detection and calculation of a negative cycle.
 
-        @param[in] g the graph.
+        @param[in,out] g the graph (temporarily modified during computation).
         @param[out] path the path where the cycle is stored in case
         a negative cycle is detected.
         @param[in,out] d distance map (modified during computation).
@@ -1181,14 +1350,14 @@ namespace Aleph
         @return true if a negative cycle exists; false otherwise.
         @throw bad_alloc if there is not enough memory.
      */
-    bool operator ()(const GT & g, Path<GT> & path,
+    bool operator ()(GT & g, Path<GT> & path,
                      Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
           test_negative_cycle(path);
     }
 
-    bool operator ()(const GT & g, Path<GT> & path,
+    bool operator ()(GT & g, Path<GT> & path,
                      Distance && d = Distance(), SA && sa = SA()) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
@@ -1197,7 +1366,7 @@ namespace Aleph
 
     /** Invokes the detection and calculation of a negative cycle.
 
-        @param[in] g the graph.
+        @param[in,out] g the graph (temporarily modified during computation).
         @param[in] s the starting node.
         @param[out] path the path where the cycle is stored in case
         a negative cycle is detected.
@@ -1206,14 +1375,14 @@ namespace Aleph
         @return true if a negative cycle exists; false otherwise.
         @throw bad_alloc if there is not enough memory.
      */
-    bool operator ()(const GT & g, typename GT::Node *s,
+    bool operator ()(GT & g, typename GT::Node *s,
                      Path<GT> & path, Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
           test_negative_cycle(s, path);
     }
 
-    bool operator ()(const GT & g, typename GT::Node *s,
+    bool operator ()(GT & g, typename GT::Node *s,
                      Path<GT> & path, Distance && d = Distance(),
                      SA && sa = SA()) const
     {
@@ -1223,13 +1392,13 @@ namespace Aleph
 
     /** Search for a negative cycle starting from a specific node.
 
-        @param[in] g The graph.
+        @param[in,out] g The graph (temporarily modified during computation).
         @param[in] s The starting node.
         @param[in] d Distance accessor.
         @param[in] sa Arc filter.
         @return Path containing the negative cycle if found, empty path otherwise.
      */
-    Path<GT> operator ()(const GT & g, typename GT::Node *s,
+    Path<GT> operator ()(GT & g, typename GT::Node *s,
                          Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
@@ -1237,7 +1406,7 @@ namespace Aleph
     }
 
     /// \overload
-    Path<GT> operator ()(const GT & g, typename GT::Node *s,
+    Path<GT> operator ()(GT & g, typename GT::Node *s,
                          Distance && d = Distance(), SA && sa = SA()) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
@@ -1246,12 +1415,12 @@ namespace Aleph
 
     /** Search for a negative cycle in the entire graph.
 
-        @param[in] g The graph.
+        @param[in,out] g The graph (temporarily modified during computation).
         @param[in] d Distance accessor.
         @param[in] sa Arc filter.
         @return Path containing the negative cycle if found, empty path otherwise.
      */
-    Path<GT> operator ()(const GT & g, Distance & d, SA & sa) const
+    Path<GT> operator ()(GT & g, Distance & d, SA & sa) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
           search_negative_cycle();
@@ -1259,7 +1428,7 @@ namespace Aleph
 
     /// \overload
     Path<GT>
-    operator ()(const GT & g, Distance && d = Distance(), SA && sa = SA()) const
+    operator ()(GT & g, Distance && d = Distance(), SA && sa = SA()) const
     {
       return Bellman_Ford<GT, Distance, Ait, NAit, SA>(g, d, sa).
           search_negative_cycle();

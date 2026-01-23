@@ -1488,6 +1488,366 @@ TEST(StlComposition, GroupByThenMap)
   EXPECT_EQ(sums.size(), 2);
 }
 
+//==============================================================================
+// forward_list Compatibility Tests (containers without size())
+//==============================================================================
+
+#include <forward_list>
+
+TEST(StlForwardListCompat, Map)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5};
+  auto result = stl_map([](int x) { return x * 2; }, fl);
+
+  EXPECT_EQ(result.size(), 5);
+  EXPECT_EQ(result[0], 2);
+  EXPECT_EQ(result[4], 10);
+}
+
+TEST(StlForwardListCompat, Filter)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5, 6};
+  auto result = stl_filter([](int x) { return x % 2 == 0; }, fl);
+
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0], 2);
+}
+
+TEST(StlForwardListCompat, Foldl)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5};
+  int sum = stl_foldl(0, [](int acc, int x) { return acc + x; }, fl);
+
+  EXPECT_EQ(sum, 15);
+}
+
+TEST(StlForwardListCompat, Distinct)
+{
+  std::forward_list<int> fl = {1, 2, 1, 3, 2, 4};
+  auto result = stl_distinct(fl);
+
+  EXPECT_EQ(result.size(), 4);
+}
+
+TEST(StlForwardListCompat, Tally)
+{
+  std::forward_list<int> fl = {1, 2, 2, 3, 3, 3};
+  auto result = stl_tally(fl);
+
+  EXPECT_EQ(result.size(), 3);
+}
+
+TEST(StlForwardListCompat, GroupBy)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5, 6};
+  auto result = stl_group_by([](int x) { return x % 2; }, fl);
+
+  EXPECT_EQ(result.size(), 2);
+}
+
+TEST(StlForwardListCompat, Last)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5};
+  auto result = stl_last(fl);
+
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 5);
+}
+
+TEST(StlForwardListCompat, TakeLast)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5};
+  auto result = stl_take_last(3, fl);
+
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0], 3);
+  EXPECT_EQ(result[2], 5);
+}
+
+TEST(StlForwardListCompat, Drop)
+{
+  std::forward_list<int> fl = {1, 2, 3, 4, 5};
+  auto result = stl_drop(2, fl);
+
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0], 3);
+}
+
+//==============================================================================
+// Non-Hashable Type Tests (uses linear path only)
+//==============================================================================
+
+namespace {
+
+// A type that is NOT hashable (no std::hash specialization)
+struct NonHashable
+{
+  int x, y;
+
+  bool operator==(const NonHashable & other) const
+  {
+    return x == other.x && y == other.y;
+  }
+};
+
+} // anonymous namespace
+
+TEST(StlNonHashable, DistinctSmall)
+{
+  std::vector<NonHashable> v = {{1, 2}, {3, 4}, {1, 2}, {5, 6}};
+  auto result = stl_distinct(v);
+
+  EXPECT_EQ(result.size(), 3);
+}
+
+TEST(StlNonHashable, DistinctLarge)
+{
+  // Even with large container, non-hashable types use linear path
+  std::vector<NonHashable> v;
+  v.reserve(200);
+  for (int i = 0; i < 200; ++i)
+    v.push_back({i % 50, i % 25});
+
+  auto result = stl_distinct(v);
+
+  EXPECT_GT(result.size(), 0);
+  EXPECT_LE(result.size(), 200);
+}
+
+TEST(StlNonHashable, TallySmall)
+{
+  std::vector<NonHashable> v = {{1, 2}, {3, 4}, {1, 2}, {1, 2}};
+  auto result = stl_tally(v);
+
+  EXPECT_EQ(result.size(), 2);
+  // Find the count for {1,2}
+  auto it = std::find_if(result.begin(), result.end(),
+                         [](const auto & p) { return p.first.x == 1 && p.first.y == 2; });
+  ASSERT_NE(it, result.end());
+  EXPECT_EQ(it->second, 3);
+}
+
+TEST(StlNonHashable, GroupByWithNonHashableKey)
+{
+  // Group by a non-hashable key type
+  std::vector<int> v = {1, 2, 3, 4, 5, 6, 7, 8};
+
+  // Key function returns NonHashable
+  auto result = stl_group_by([](int x) {
+    return NonHashable{x % 2, x % 3};
+  }, v);
+
+  // With modulo (2,3), we can have up to 6 different keys
+  EXPECT_GT(result.size(), 0);
+  EXPECT_LE(result.size(), 6);
+}
+
+//==============================================================================
+// Stateful Callable Tests (verifies fix for std::forward in loops)
+//==============================================================================
+
+namespace {
+
+struct StatefulCallable
+{
+  int call_count = 0;
+  int threshold;
+
+  explicit StatefulCallable(int t) : threshold(t) {}
+
+  bool operator()(int x)
+  {
+    ++call_count;
+    return x > threshold;
+  }
+};
+
+struct StatefulMapper
+{
+  int multiplier;
+  int call_count = 0;
+
+  explicit StatefulMapper(int m) : multiplier(m) {}
+
+  int operator()(int x)
+  {
+    ++call_count;
+    return x * multiplier;
+  }
+};
+
+} // anonymous namespace
+
+TEST(StlStatefulCallable, FilterPreservesState)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5};
+
+  // Use a stateful callable
+  StatefulCallable pred(3);
+  auto result = stl_filter(pred, v);
+
+  EXPECT_EQ(result.size(), 2);
+  EXPECT_EQ(result[0], 4);
+  EXPECT_EQ(result[1], 5);
+}
+
+TEST(StlStatefulCallable, MapPreservesState)
+{
+  std::vector<int> v = {1, 2, 3};
+
+  StatefulMapper mapper(10);
+  auto result = stl_map(mapper, v);
+
+  EXPECT_EQ(result.size(), 3);
+  EXPECT_EQ(result[0], 10);
+  EXPECT_EQ(result[1], 20);
+  EXPECT_EQ(result[2], 30);
+}
+
+TEST(StlStatefulCallable, ForEachPreservesState)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5};
+
+  int sum = 0;
+  int call_count = 0;
+
+  // Lambda that modifies external state
+  stl_for_each([&sum, &call_count](int x) {
+    sum += x;
+    ++call_count;
+  }, v);
+
+  EXPECT_EQ(sum, 15);
+  EXPECT_EQ(call_count, 5);
+}
+
+TEST(StlStatefulCallable, AllPreservesState)
+{
+  std::vector<int> v = {2, 4, 6, 8, 10};
+
+  int call_count = 0;
+  bool result = stl_all([&call_count](int x) {
+    ++call_count;
+    return x % 2 == 0;
+  }, v);
+
+  EXPECT_TRUE(result);
+  EXPECT_EQ(call_count, 5);
+}
+
+TEST(StlStatefulCallable, ExistsStopsEarly)
+{
+  std::vector<int> v = {1, 2, 3, 4, 5};
+
+  int call_count = 0;
+  bool result = stl_exists([&call_count](int x) {
+    ++call_count;
+    return x == 2;  // Found at second element
+  }, v);
+
+  EXPECT_TRUE(result);
+  EXPECT_EQ(call_count, 2);  // Should stop after finding element
+}
+
+//==============================================================================
+// Edge Cases for Empty Containers
+//==============================================================================
+
+TEST(StlEmptyContainer, LastReturnsNullopt)
+{
+  std::vector<int> empty;
+  auto result = stl_last(empty);
+  EXPECT_FALSE(result.has_value());
+}
+
+TEST(StlEmptyContainer, MinReturnsNullopt)
+{
+  std::vector<int> empty;
+  auto result = stl_min(empty);
+  EXPECT_FALSE(result.has_value());
+}
+
+TEST(StlEmptyContainer, MaxReturnsNullopt)
+{
+  std::vector<int> empty;
+  auto result = stl_max(empty);
+  EXPECT_FALSE(result.has_value());
+}
+
+TEST(StlEmptyContainer, ProductReturnsZero)
+{
+  std::vector<int> empty;
+  auto result = stl_product(empty);
+  EXPECT_EQ(result, 0);
+}
+
+TEST(StlEmptyContainer, SumReturnsZero)
+{
+  std::vector<int> empty;
+  auto result = stl_sum(empty);
+  EXPECT_EQ(result, 0);
+}
+
+TEST(StlEmptyContainer, ScanLeftReturnsInit)
+{
+  std::vector<int> empty;
+  auto result = stl_scan_left(42, [](int a, int b) { return a + b; }, empty);
+
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], 42);
+}
+
+TEST(StlEmptyContainer, ScanRightReturnsInit)
+{
+  std::vector<int> empty;
+  auto result = stl_scan_right(42, [](int a, int b) { return a + b; }, empty);
+
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result[0], 42);
+}
+
+TEST(StlEmptyContainer, InterspersReturnsEmpty)
+{
+  std::vector<int> empty;
+  auto result = stl_intersperse(0, empty);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(StlEmptyContainer, SlidingWindowReturnsEmpty)
+{
+  std::vector<int> empty;
+  auto result = stl_sliding_window(3, empty);
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(StlEmptyContainer, ChunksReturnsEmpty)
+{
+  std::vector<int> empty;
+  auto result = stl_chunks(3, empty);
+  EXPECT_TRUE(result.empty());
+}
+
+//==============================================================================
+// Power Set Overflow Protection Test
+//==============================================================================
+
+TEST(StlPowerSetOverflow, ThrowsForLargeContainer)
+{
+  // Create a container with 64 elements (would overflow 2^64)
+  std::vector<int> large(64);
+  std::iota(large.begin(), large.end(), 0);
+
+  EXPECT_THROW(stl_power_set(large), std::overflow_error);
+}
+
+TEST(StlPowerSetOverflow, WorksForSmallContainer)
+{
+  std::vector<int> small = {1, 2, 3, 4, 5};
+  auto result = stl_power_set(small);
+
+  EXPECT_EQ(result.size(), 32);  // 2^5 = 32
+}
+
 // Main
 int main(int argc, char **argv)
 {

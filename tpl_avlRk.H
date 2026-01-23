@@ -963,10 +963,12 @@ namespace Aleph
                          static_cast<signed char>(new_left_h);
 
           if (DIFF(parent) == 2)
-            if (Node *q = RLINK(parent); DIFF(q) >= 0)
-              *parent_ptr = rotateLeft(parent);
-            else
-              *parent_ptr = doubleRotateLeft(parent);
+            {
+              if (Node *q = RLINK(parent); DIFF(q) >= 0)
+                *parent_ptr = rotateLeft(parent);
+              else
+                *parent_ptr = doubleRotateLeft(parent);
+            }
         }
 
       return t1;

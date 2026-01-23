@@ -567,11 +567,11 @@ Graph * build_poly_graph(ifstream & input_stream, Graph *g)
       const Regular_Polygon
           poly(Point(side_size, side_size), side_size, num_nodes, arc);
 
-      for (int i = 0; i < num_nodes; ++i)
+      for (size_t i = 0; i < num_nodes; ++i)
         {
           Graph::Node *p = nodes[i];
 
-          const Point pt = poly.get_vertex(i);
+          const Point pt = poly.get_vertex(static_cast<int>(i));
 
           X(p) = pt.get_x().get_d();
           Y(p) = pt.get_y().get_d();
@@ -600,14 +600,14 @@ Graph * build_net_graph(ifstream & input_stream, Graph *g)
 
       const size_t & num_nodes = g->get_num_nodes();
 
-      const int nodes_by_level = num_nodes / num_levels;
+      const size_t nodes_by_level = num_nodes / static_cast<size_t>(num_levels);
 
       double y = 0;
-      for (int level = 0, i = 0; level < num_levels and i < num_nodes; ++level)
+      for (int level = 0, i = 0; level < num_levels and static_cast<size_t>(i) < num_nodes; ++level)
         {
           double x = 0;
 
-          for (int j = 0; j < nodes_by_level and i < num_nodes; ++j, ++i)
+          for (size_t j = 0; j < nodes_by_level and static_cast<size_t>(i) < num_nodes; ++j, ++i)
             {
               Graph::Node *p = nodes[i];
 
@@ -644,7 +644,7 @@ Graph * build_cross_net_graph(ifstream & input_stream, Graph *g)
       const size_t & num_nodes = g->get_num_nodes();
 
       double y = 0;
-      for (int i = 0; i < num_nodes; /* nothing */)
+      for (size_t i = 0; i < num_nodes; /* nothing */)
         {
           double x = xdist / 2;
 
@@ -717,13 +717,13 @@ Graph * parse_graph_definition(ifstream & input_stream)
       AH_ERROR("Expecting for number of nodes");
     }
 
-  for (int i = 0; i < num_nodes; i++)
+  for (size_t i = 0; i < num_nodes; i++)
     {
       Graph::Node *p = new Graph::Node;
       nodes[i] = g->insert_node(p);
       string n = to_string(i);
       p->get_info().name = n;
-      NUMBER(p) = i;
+      NUMBER(p) = static_cast<int>(i);
     }
 
   if (token == GRAPH or token == DIGRAPH)
@@ -743,8 +743,8 @@ Graph::Node * load_node(ifstream & input_stream)
 {
   int node_number = load_number(input_stream);
 
-  if (node_number >= num_nodes)
-    AH_ERROR("Node number out of range (%d)", num_nodes);
+  if (node_number < 0 or static_cast<size_t>(node_number) >= num_nodes)
+    AH_ERROR("Node number out of range (%zu)", num_nodes);
 
   Graph::Node *p = nodes[node_number];
 
@@ -811,13 +811,13 @@ void load_nodes(ifstream & input_stream,
 {
   int num_src = load_number(input_stream);
 
-  if (num_src >= num_nodes)
-    AH_ERROR("source node %d out of range (%d)", num_src, num_nodes);
+  if (num_src < 0 or static_cast<size_t>(num_src) >= num_nodes)
+    AH_ERROR("source node %d out of range (%zu)", num_src, num_nodes);
 
   int num_tgt = load_number(input_stream);
 
-  if (num_tgt >= num_nodes)
-    AH_ERROR("Target node %d out of range (%d)", num_tgt, num_nodes);
+  if (num_tgt < 0 or static_cast<size_t>(num_tgt) >= num_nodes)
+    AH_ERROR("Target node %d out of range (%zu)", num_tgt, num_nodes);
 
   src_node = nodes[num_src];
   tgt_node = nodes[num_tgt];
@@ -1491,7 +1491,7 @@ void generate_picture(ofstream & output, Graph *g)
   for (Graph::Node_Iterator it(*g); it.has_curr(); it.next())
     process_node(plane, it.get_current_node());
 
-  for (int i = 0; i < ::arcs.size(); ++i)
+  for (size_t i = 0; i < ::arcs.size(); ++i)
     process_arc(plane, g, ::arcs[i]);
 
   plane.zoom(zoom_factor);
