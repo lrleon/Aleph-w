@@ -121,11 +121,24 @@ public:
   using Distance_Type = typename Distance::Distance_Type;
 
 private:
+  const GT* orig_graph = nullptr;
   GraphCopyWithMapping<GT> graph_copy;  ///< Copy of graph with node mapping
+  DynMapTree<Node*, Node*> copy_to_orig_node;
+  DynMapTree<Arc*, Arc*> copy_to_orig_arc;
   DynMapTree<Node*, Distance_Type> h;   ///< Node potentials from Bellman-Ford
   Distance dist;
   SA sa;
   bool initialized = false;
+
+  struct Reweighted_Dist
+  {
+    using Distance_Type = typename Johnson::Distance_Type;
+
+    Distance_Type operator()(Arc* arc) const
+    {
+      return static_cast<Distance_Type>(arc->get_info());
+    }
+  };
 
   /** Reweight all arcs using node potentials.
    *  
@@ -143,6 +156,9 @@ private:
         auto v = g.get_tgt_node(arc);
         
         Distance_Type w = dist(arc);
+        if (auto* orig = copy_to_orig_arc.search(arc))
+          w = dist(orig->second);
+
         Distance_Type hu = h.find(u);
         Distance_Type hv = h.find(v);
         Distance_Type w_prime = w + hu - hv;
@@ -150,6 +166,55 @@ private:
         // Store reweighted value in the arc
         arc->get_info() = w_prime;
       }
+  }
+
+  void build_reverse_mappings(const GT& orig)
+  {
+    copy_to_orig_node.empty();
+    copy_to_orig_arc.empty();
+
+    graph_copy.for_each_mapping([this](Node* orig_node, Node* copy_node) {
+      copy_to_orig_node.insert(copy_node, orig_node);
+    });
+
+    typename GT::Arc_Iterator orig_it(orig);
+    typename GT::Arc_Iterator copy_it(graph_copy.get_graph());
+
+    for (; orig_it.has_curr() and copy_it.has_curr();
+         orig_it.next_ne(), copy_it.next_ne())
+      copy_to_orig_arc.insert(copy_it.get_curr(), orig_it.get_curr());
+
+    ah_domain_error_if(orig_it.has_curr() or copy_it.has_curr())
+      << "Arc mapping mismatch between original and copied graph";
+  }
+
+  Path<GT> map_copy_path_to_original(const Path<GT>& copy_path) const
+  {
+    ah_domain_error_if(orig_graph == nullptr)
+      << "Original graph not available";
+
+    Path<GT> orig_path(*orig_graph);
+
+    if (copy_path.is_empty())
+      return orig_path;
+
+    auto it = copy_path.get_it();
+    auto* node_pair = copy_to_orig_node.search(it.get_current_node());
+    ah_domain_error_if(node_pair == nullptr)
+      << "Node not found in mapping";
+
+    orig_path.init(node_pair->second);
+
+    for (; it.has_curr() and it.has_current_arc(); it.next())
+      {
+        auto* arc_pair = copy_to_orig_arc.search(it.get_current_arc());
+        ah_domain_error_if(arc_pair == nullptr)
+          << "Arc not found in mapping";
+
+        orig_path.append(arc_pair->second);
+      }
+
+    return orig_path;
   }
 
 public:
@@ -167,9 +232,11 @@ public:
       @throw std::domain_error if a negative cycle is detected.
    */
   explicit Johnson(const GT& g, Distance d = Distance(), SA __sa = SA())
-    : graph_copy(g), dist(d), sa(__sa)
+    : orig_graph(&g), graph_copy(g), dist(d), sa(__sa)
   {
     GT& gc = graph_copy.get_graph();
+
+    build_reverse_mappings(g);
     
     // Compute node potentials using Bellman-Ford
     // This will throw domain_error if negative cycle exists
@@ -213,26 +280,21 @@ public:
     GT& gc = graph_copy.get_graph();
     
     // Run Dijkstra from csrc on reweighted graph
-    Dijkstra_Min_Paths<GT, Distance, NAit, SA> dijkstra(dist, sa);
+    Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
     dijkstra.paint_min_paths_tree(gc, csrc);
     
+    if (not IS_NODE_VISITED(ctgt, Aleph::Spanning_Tree))
+      return std::numeric_limits<Distance_Type>::infinity();
+
     // Get reweighted distance (may throw if unreachable)
     Path<GT> path(gc);
-    try
-      {
-        Distance_Type d_prime = dijkstra.get_min_path(ctgt, path);
-        
-        // Adjust back: d(s,t) = d'(s,t) - h(s) + h(t)
-        Distance_Type hs = h.find(csrc);
-        Distance_Type ht = h.find(ctgt);
-        
-        return d_prime - hs + ht;
-      }
-    catch (...)
-      {
-        // Node is unreachable
-        return std::numeric_limits<Distance_Type>::infinity();
-      }
+    Distance_Type d_prime = dijkstra.get_min_path(ctgt, path);
+    
+    // Adjust back: d(s,t) = d'(s,t) - h(s) + h(t)
+    Distance_Type hs = h.find(csrc);
+    Distance_Type ht = h.find(ctgt);
+    
+    return d_prime - hs + ht;
   }
 
   /** Find the shortest path from source to target.
@@ -254,18 +316,14 @@ public:
     GT& gc = graph_copy.get_graph();
     
     // Run Dijkstra from csrc on reweighted graph
-    Dijkstra_Min_Paths<GT, Distance, NAit, SA> dijkstra(dist, sa);
+    Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
     dijkstra.paint_min_paths_tree(gc, csrc);
     
     // Get path in copy graph
     Path<GT> copy_path(gc);
     dijkstra.get_min_path(ctgt, copy_path);
-    
-    // Build path in original graph
-    // Note: The path structure uses the same node info, so we need to
-    // reconstruct it using the original graph
-    // For now, return the copy path (caller can interpret node info)
-    return copy_path;
+
+    return map_copy_path_to_original(copy_path);
   }
 
   /** Compute shortest distance for all pairs.
@@ -284,23 +342,25 @@ public:
     // For each node as source
     graph_copy.for_each_mapping([&](Node* orig_src, Node* copy_src) {
       // Run Dijkstra from copy_src
-      Dijkstra_Min_Paths<GT, Distance, NAit, SA> dijkstra(dist, sa);
+      Dijkstra_Min_Paths<GT, Reweighted_Dist, NAit, SA> dijkstra(Reweighted_Dist(), sa);
       dijkstra.paint_min_paths_tree(gc, copy_src);
       
       Distance_Type hs = h.find(copy_src);
       
       // Get distance to all targets
       graph_copy.for_each_mapping([&](Node* orig_tgt, Node* copy_tgt) {
+        if (not IS_NODE_VISITED(copy_tgt, Aleph::Spanning_Tree))
+          {
+            result.insert(std::make_pair(orig_src, orig_tgt),
+                          std::numeric_limits<Distance_Type>::infinity());
+            return;
+          }
+
         Path<GT> path(gc);
-        try {
-          Distance_Type d_prime = dijkstra.get_min_path(copy_tgt, path);
-          Distance_Type ht = h.find(copy_tgt);
-          Distance_Type d = d_prime - hs + ht;
-          result.insert(std::make_pair(orig_src, orig_tgt), d);
-        }
-        catch (...) {
-          // Target not reachable from source, skip
-        }
+        Distance_Type d_prime = dijkstra.get_min_path(copy_tgt, path);
+        Distance_Type ht = h.find(copy_tgt);
+        Distance_Type d = d_prime - hs + ht;
+        result.insert(std::make_pair(orig_src, orig_tgt), d);
       });
     });
     

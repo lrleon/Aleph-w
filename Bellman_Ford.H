@@ -28,7 +28,7 @@
 /** @file Bellman_Ford.H
  *  @brief Bellman-Ford algorithm for single-source shortest paths.
  *
- *  This file implements the Bellman-Ford algorithm, which computes shortest
+ *  This file implements the Bellman-Ford algorithm, which computes the shortest
  *  paths from a single source vertex to all other vertices in a weighted
  *  directed graph. Unlike Dijkstra's algorithm, Bellman-Ford can handle
  *  graphs with negative edge weights and can detect negative-weight cycles.
@@ -118,7 +118,7 @@ namespace Aleph
       Features:
       - Detects negative cycles
       - Can return the negative cycle as a path
-      - Computes shortest-path tree (painted or separate)
+      - Computes a shortest-path tree (painted or separate)
       - Used by Johnson's algorithm for node weight computation
 
       ## State Management
