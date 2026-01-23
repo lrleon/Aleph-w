@@ -86,7 +86,7 @@ jobs:
           
           echo ""
           echo "✅ Build submitted successfully!"
-          echo "📊 View results at: https://scan.coverity.com/projects/lrleon-aleph-w"
+          echo "📊 View results at: https://scan.coverity.com/projects?project=${{ env.COVERITY_PROJECT }}"
 
       - name: Upload build log on failure
         if: failure()
