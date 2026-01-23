@@ -86,7 +86,10 @@ jobs:
           
           echo ""
           echo "✅ Build submitted successfully!"
-          echo "📊 View results at: https://scan.coverity.com/projects/lrleon-aleph-w"
+          # Convert project name to Coverity URL format (replace / with -)
+          COVERITY_URL_SLUG="${{ env.COVERITY_PROJECT }}"
+          COVERITY_URL_SLUG="${COVERITY_URL_SLUG//\//-}"
+          echo "📊 View results at: https://scan.coverity.com/projects/${COVERITY_URL_SLUG}"
 
       - name: Upload build log on failure
         if: failure()
