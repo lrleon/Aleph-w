@@ -45,7 +45,7 @@ jobs:
           
           mkdir -p cov-analysis
           tar xzf cov-analysis.tar.gz --strip-components=1 -C cov-analysis
-          echo "${{ github.workspace }}/cov-analysis/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/cov-analysis/bin" >> "$GITHUB_PATH"
 
       - name: Configure project
         run: |
@@ -86,7 +86,7 @@ jobs:
           
           echo ""
           echo "✅ Build submitted successfully!"
-          echo "📊 View results at: https://scan.coverity.com/projects?project=${{ env.COVERITY_PROJECT }}"
+          echo "📊 View results at: https://scan.coverity.com/projects/lrleon-aleph-w"
 
       - name: Upload build log on failure
         if: failure()
