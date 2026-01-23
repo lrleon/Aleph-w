@@ -603,7 +603,12 @@ namespace Aleph
 
       relax_arcs();
       const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
-      paint_tree();
+
+      // Only paint the tree if there's no negative cycle
+      // A negative cycle makes the shortest path tree meaningless
+      if (not negative_cycle)
+        paint_tree();
+
       link_cookies_and_free(s);
 
       return negative_cycle;
@@ -653,7 +658,12 @@ namespace Aleph
         }
 
       const bool negative_cycle = last_relax_and_prepare_check_negative_cycle();
-      paint_tree();
+
+      // Only paint the tree if there's no negative cycle
+      // A negative cycle makes the shortest path tree meaningless
+      if (not negative_cycle)
+        paint_tree();
+
       link_cookies_and_free(s);
 
       return negative_cycle;
