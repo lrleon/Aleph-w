@@ -49,11 +49,13 @@
 
 namespace Aleph {
 
-/** @brief Depth-first search that computes finish times in postorder.
+/** @brief Depth-first search that computes finish times in postorder (Phase 1).
  *
  *  Performs a DFS traversal starting from node p, marking visited nodes
  *  and arcs with the Depth_First bit. Nodes are appended to the df array
  *  in postorder (after all descendants have been visited).
+ *
+ *  This is the first phase of Kosaraju's algorithm.
  *
  *  @tparam GT Graph type.
  *  @param[in] g The directed graph.
@@ -61,9 +63,9 @@ namespace Aleph {
  *  @param[out] df Array where nodes are stored in postorder (finish time order).
  */
 template <class GT>
-inline static void __dfp(const GT & g,
-                         typename GT::Node * p,
-                         DynArray<typename GT::Node*> & df)
+inline static void __dfp_phase1(const GT & g,
+                                 typename GT::Node * p,
+                                 DynArray<typename GT::Node*> & df)
 {
   if (IS_NODE_VISITED(p, Depth_First))
     return;
@@ -79,18 +81,20 @@ inline static void __dfp(const GT & g,
 
       ARC_BITS(a).set_bit(Depth_First, true);
 
-      __dfp(g, it.get_tgt_node(), df);
+      __dfp_phase1(g, it.get_tgt_node(), df);
     }
 
   df.append(p); // Append node in postorder (finish time)
   NODE_COUNTER(p) = df.size();
 }
 
-/** @brief DFS on transposed graph that builds an SCC subgraph.
+/** @brief DFS on transposed graph that builds an SCC subgraph (Phase 2).
  *
  *  Traverses the transposed graph starting from node p, inserting all
  *  reachable nodes into the block subgraph. Each node in the block is
  *  assigned the same color (component ID) and mapped to the original graph.
+ *
+ *  This is the second phase of Kosaraju's algorithm (subgraph version).
  *
  *  @tparam GT Graph type.
  *  @param[in] g The transposed directed graph.
@@ -99,10 +103,10 @@ inline static void __dfp(const GT & g,
  *  @param[in] color Component ID assigned to all nodes in this SCC.
  */
 template <class GT>
-inline static void __dfp(const GT & g,
-                         typename GT::Node * p,
-                         GT & blk,
-                         const int & color)
+inline static void __dfp_phase2_subgraph(const GT & g,
+                                          typename GT::Node * p,
+                                          GT & blk,
+                                          const int & color)
 {
   if (IS_NODE_VISITED(p, Depth_First))
     return;
@@ -120,14 +124,16 @@ inline static void __dfp(const GT & g,
         continue;
       ARC_BITS(a).set_bit(Depth_First, true);
 
-      __dfp(g, it.get_tgt_node(), blk, color);
+      __dfp_phase2_subgraph(g, it.get_tgt_node(), blk, color);
     }
 }
 
-/** @brief DFS on transposed graph that builds an SCC node list.
+/** @brief DFS on transposed graph that builds an SCC node list (Phase 2).
  *
  *  Traverses the transposed graph starting from node p, appending all
  *  reachable nodes (mapped back to original graph) to the list.
+ *
+ *  This is the second phase of Kosaraju's algorithm (lightweight version).
  *
  *  @tparam GT Graph type.
  *  @param[in] g The transposed directed graph.
@@ -135,9 +141,9 @@ inline static void __dfp(const GT & g,
  *  @param[out] list List where nodes of this SCC are appended.
  */
 template <class GT>
-inline static void __dfp(const GT & g,
-                         typename GT::Node * p,
-                         DynList<typename GT::Node *> & list)
+inline static void __dfp_phase2_list(const GT & g,
+                                      typename GT::Node * p,
+                                      DynList<typename GT::Node *> & list)
 {
   if (IS_NODE_VISITED(p, Depth_First))
     return;
@@ -153,7 +159,7 @@ inline static void __dfp(const GT & g,
         continue;
       ARC_BITS(a).set_bit(Depth_First, true);
 
-      __dfp(g, it.get_tgt_node(), list);
+      __dfp_phase2_list(g, it.get_tgt_node(), list);
     }
 }
 
@@ -206,9 +212,8 @@ inline void kosaraju_connected_components(const GT & g,
   DynArray<typename GT::Node*> df; // Array for postorder (finish times)
 
   // First DFS: compute finish times in postorder
-  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
-       it.next_ne())
-    __dfp(g, it.get_curr(), df);
+  for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+    __dfp_phase1(g, it.get_curr(), df);
 
   GT gi = invert_digraph(g); // Transposed graph
 
@@ -225,7 +230,7 @@ inline void kosaraju_connected_components(const GT & g,
       GT & blk = blk_list.append(GT());
       array[color] = &blk;
 
-      __dfp(gi, bp, blk, color++); // DFS on transposed graph
+      __dfp_phase2_subgraph(gi, bp, blk, color++); // DFS on transposed graph
 
       assert(NODE_COLOR(mapped_node<GT>(bp)) == color - 1);
     }
@@ -237,6 +242,9 @@ inline void kosaraju_connected_components(const GT & g,
       auto gs = g.get_src_node(a);
       auto gt = g.get_tgt_node(a);
 
+      // Double mapping: original graph → transposed graph → SCC subgraph
+      // First mapped_node: original node → transposed graph node
+      // Second mapped_node: transposed graph node → SCC subgraph node
       auto bs = mapped_node<GT>(mapped_node<GT>(gs));
       auto bt = mapped_node<GT>(mapped_node<GT>(gt));
 
@@ -293,9 +301,8 @@ kosaraju_connected_components(const GT & g)
   DynArray<typename GT::Node*> df; // Array for postorder (finish times)
 
   // First DFS: compute finish times in postorder
-  for (auto it = g.get_node_it(); it.has_curr() and df.size() < g.vsize();
-       it.next_ne())
-    __dfp(g, it.get_curr(), df);
+  for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+    __dfp_phase1(g, it.get_curr(), df);
 
   GT gi = invert_digraph(g); // Transposed graph
 
@@ -309,7 +316,7 @@ kosaraju_connected_components(const GT & g)
 
       auto & blk = list.append(DynList<typename GT::Node*>());
 
-      __dfp(gi, bp, blk);
+      __dfp_phase2_list(gi, bp, blk);
     }
 
   return list;

@@ -652,6 +652,99 @@ TEST(KosarajuTest, ParallelArcs) {
   ASSERT_EQ(sccs.get_first().size(), 2u);
 }
 
+// ========== TEST 31: Dense Graph Performance ==========
+TEST(KosarajuTest, DenseGraphPerformance) {
+  GT g;
+  const size_t N = 100;
+  std::vector<Node*> nodes;
+
+  for (size_t i = 0; i < N; ++i)
+    nodes.push_back(g.insert_node(static_cast<int>(i)));
+
+  // Create complete digraph (every node connects to every other node)
+  for (size_t i = 0; i < N; ++i)
+    for (size_t j = 0; j < N; ++j)
+      if (i != j)
+        g.insert_arc(nodes[i], nodes[j], static_cast<int>(i * N + j));
+
+  auto sccs = kosaraju_connected_components(g);
+
+  // Complete digraph is strongly connected (one SCC)
+  ASSERT_EQ(sccs.size(), 1u);
+  ASSERT_EQ(sccs.get_first().size(), N);
+}
+
+// ========== TEST 32: Multiple Self-Loops on Same Node ==========
+TEST(KosarajuTest, MultipleLoopsOnSameNode) {
+  GT g;
+  Node* n = g.insert_node(0);
+
+  // Add multiple self-loops on the same node
+  g.insert_arc(n, n, 0);
+  g.insert_arc(n, n, 1);
+  g.insert_arc(n, n, 2);
+
+  auto sccs = kosaraju_connected_components(g);
+
+  ASSERT_EQ(sccs.size(), 1u);
+  ASSERT_EQ(sccs.get_first().size(), 1u);
+}
+
+// ========== TEST 33: Nodes Without Any Arcs ==========
+TEST(KosarajuTest, NodesWithoutArcs) {
+  GT g;
+  const size_t N = 10;
+
+  // Insert nodes without any arcs
+  for (size_t i = 0; i < N; ++i)
+    g.insert_node(static_cast<int>(i));
+
+  auto sccs = kosaraju_connected_components(g);
+
+  // Each node is its own SCC
+  ASSERT_EQ(sccs.size(), N);
+  for (auto& scc : sccs)
+    ASSERT_EQ(scc.size(), 1u);
+}
+
+// ========== TEST 34: Fully Bidirectional Graph ==========
+TEST(KosarajuTest, FullyBidirectionalGraph) {
+  GT g;
+
+  std::vector<Node*> nodes;
+  for (int i = 0; i < 5; ++i)
+    nodes.push_back(g.insert_node(i));
+
+  // Create a path with bidirectional edges (every edge has its reverse)
+  for (size_t i = 0; i < 4; ++i) {
+    g.insert_arc(nodes[i], nodes[i+1], static_cast<int>(i));
+    g.insert_arc(nodes[i+1], nodes[i], static_cast<int>(i+10));
+  }
+
+  auto sccs = kosaraju_connected_components(g);
+
+  // All nodes should be in one SCC (can reach each other)
+  ASSERT_EQ(sccs.size(), 1u);
+  ASSERT_EQ(sccs.get_first().size(), 5u);
+}
+
+// ========== TEST 35: Transposed Cycle Correctness ==========
+TEST(KosarajuTest, TransposedCycleCorrectness) {
+  // Verify that transposition doesn't create spurious cycles
+  // Graph: 0 → 1 → 2 → 3 (no cycles in original)
+  // Transposed: 0 ← 1 ← 2 ← 3 (still no cycles)
+  GT g = create_chain(4);
+
+  auto sccs = kosaraju_connected_components(g);
+
+  // Should still be 4 SCCs (each node is its own SCC)
+  ASSERT_EQ(sccs.size(), 4u);
+
+  // Verify each SCC has exactly one node
+  for (auto& scc : sccs)
+    ASSERT_EQ(scc.size(), 1u);
+}
+
 // ========== GoogleTest main ==========
 int main(int argc, char **argv)
 {
