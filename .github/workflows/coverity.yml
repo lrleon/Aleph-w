@@ -59,8 +59,8 @@ jobs:
           echo "Running Coverity build analysis..."
           cov-build --dir cov-int cmake --build build --parallel
           
-          # Show capture summary
-          cat cov-int/build-log.txt | tail -20
+          # Show capture summary (do not fail if log file is missing)
+          tail -20 cov-int/build-log.txt || true
 
       - name: Package results
         run: |
