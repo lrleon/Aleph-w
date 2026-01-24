@@ -1068,8 +1068,23 @@ namespace Aleph
       return Node::NullPtr;
 
     Node *p = new Node;
-    LLINK(p) = __bits_to_tree<Node>(array, i);
-    RLINK(p) = __bits_to_tree<Node>(array, i);
+    Node *left = Node::NullPtr;
+    Node *right = Node::NullPtr;
+    try
+      {
+        left = __bits_to_tree<Node>(array, i);
+        right = __bits_to_tree<Node>(array, i);
+      }
+    catch (...)
+      {
+        destroyRec(left);
+        destroyRec(right);
+        delete p;
+        throw;
+      }
+
+    LLINK(p) = left;
+    RLINK(p) = right;
 
     return p;
   }
@@ -1131,6 +1146,7 @@ namespace Aleph
 
       @param[in] root of tree
       @param[in] input stream where are the keys in preorder
+      \throw runtime_error if the input stream fails
       @ingroup Trees
    */
   template <class Node>
@@ -1141,6 +1157,7 @@ namespace Aleph
       return;
 
     input >> root->get_key();
+    ah_runtime_error_if(not input) << "load_tree_keys_in_prefix: input stream error";
 
     load_tree_keys_in_prefix(LLINK(root), input);
     load_tree_keys_in_prefix(RLINK(root), input);
@@ -1202,13 +1219,20 @@ namespace Aleph
     if (root == Node::NullPtr)
       return;
 
-    if (const std::string str = Get_Key()(root); str == "\t")
-      out << "\"\t\"";
-    else if (str == "\n")
-      out << "\"\\n\"";
-    else
-      out << "\"" << str << "\"";
-    out << ", ";
+    const std::string str = Get_Key()(root);
+    out << "\"";
+    for (const char ch : str)
+      {
+        switch (ch)
+          {
+          case '\n': out << "\\n"; break;
+          case '\t': out << "\\t"; break;
+          case '\\': out << "\\\\"; break;
+          case '"': out << "\\\""; break;
+          default: out << ch; break;
+          }
+      }
+    out << "\", ";
 
     put_tree_keys_in_array<Node, Get_Key>(LLINK(root), out);
     put_tree_keys_in_array<Node, Get_Key>(RLINK(root), out);
@@ -1316,6 +1340,26 @@ namespace Aleph
   }
 
 
+  template <class Node, class Compare>
+  static inline
+  bool check_bst_range(Node *p,
+                       const typename Node::key_type *min_key,
+                       const typename Node::key_type *max_key,
+                       const Compare & cmp)
+  {
+    if (p == Node::NullPtr)
+      return true;
+
+    const auto & key = KEY(p);
+    if (min_key != nullptr and not less_or_equal_than(*min_key, key, cmp))
+      return false;
+    if (max_key != nullptr and not less_or_equal_than(key, *max_key, cmp))
+      return false;
+
+    return check_bst_range<Node, Compare>(LLINK(p), min_key, &key, cmp) and
+           check_bst_range<Node, Compare>(RLINK(p), &key, max_key, cmp);
+  }
+
   /** Return `true` if `p` is a binary search tree
 
       @param[in] p root of the tree
@@ -1330,20 +1374,7 @@ namespace Aleph
   inline
   bool check_bst(Node *p, const Compare & cmp = Compare())
   {
-    if (p == Node::NullPtr)
-      return true;
-
-    if (LLINK(p) != Node::NullPtr and
-        (not less_or_equal_than(KEY(LLINK(p)), KEY(p), cmp) or
-         not check_bst(LLINK(p), cmp)))
-      return false;
-
-    if (RLINK(p) != Node::NullPtr and
-        (not less_or_equal_than(KEY(p), KEY(RLINK(p)), cmp) or
-         not check_bst(RLINK(p), cmp)))
-      return false;
-
-    return true;
+    return check_bst_range<Node, Compare>(p, nullptr, nullptr, cmp);
   }
 
 
@@ -1357,9 +1388,11 @@ namespace Aleph
       \throw bad_alloc if there is no enough memory
       @ingroup Trees
    */
-  template <class Node>
+  template <class Node,
+            class Compare = Aleph::less<typename Node::key_type>>
   inline Node *
-  preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r)
+  preorder_to_bst(DynArray<typename Node::key_type> & preorder, int l, int r,
+                  const Compare & cmp = Compare())
   {
     if (l > r)
       return Node::NullPtr;
@@ -1370,11 +1403,13 @@ namespace Aleph
       return root;
 
     int first_greater = l + 1;
-    while ((first_greater <= r) and (preorder[first_greater] < preorder[l]))
+    while ((first_greater <= r) and cmp(preorder[first_greater], preorder[l]))
       ++first_greater;
 
-    LLINK(root) = preorder_to_bst<Node>(preorder, l + 1, first_greater - 1);
-    RLINK(root) = preorder_to_bst<Node>(preorder, first_greater, r);
+    LLINK(root) = preorder_to_bst<Node, Compare>(preorder, l + 1,
+                                                 first_greater - 1, cmp);
+    RLINK(root) = preorder_to_bst<Node, Compare>(preorder, first_greater, r,
+                                                 cmp);
 
     return root;
   }
@@ -1982,6 +2017,8 @@ namespace Aleph
     Node *l = LLINK(t2);
     Node *r = RLINK(t2);
 
+    t2->reset();
+
     if (insert_in_bst(t1, t2, cmp) == Node::NullPtr)
       insert_in_bst(dup, t2, cmp); // insertion has failed
 
@@ -2025,8 +2062,6 @@ namespace Aleph
     while (t1 != Node::NullPtr and insert_root(t2, t1, cmp) == Node::NullPtr)
       {
         Node *p = remove_from_bst(t1, KEY(t1), cmp);
-        l = LLINK(t1);
-        r = RLINK(t1);
 
         assert(p != Node::NullPtr);
 
@@ -2309,7 +2344,7 @@ namespace Aleph
 
   /** Insert a node as root in a binary search tree.
 
-      This version first insert `p` as a leaf of tree. Then `p` is rotated
+      This version first inserts `p` as a leaf of a tree. Then `p` is rotated
       until the root.
 
       @param[in] root of tree
@@ -2320,17 +2355,17 @@ namespace Aleph
       @see insert_root()
       @ingroup Trees
   */
-  template <class Node, class Key,
+  template <class Node, class Key = typename Node::key_type,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * insert_root_rec(Node *root, Node *p,
                          const Compare & cmp = Compare()) noexcept
   {
     if (root == Node::NullPtr)
-      return p; /* insertion in empty tree */
+      return p; /* insertion in an empty tree */
 
     if (cmp(KEY(p), KEY(root)))
-      { /* insert in left subtree */
+      { /* insert in the left subtree */
         Node *left_branch = insert_root_rec(LLINK(root), p, cmp);
         if (left_branch == Node::NullPtr)
           return Node::NullPtr;
@@ -2339,7 +2374,7 @@ namespace Aleph
         root = rotate_to_right(root);
       }
     else if (cmp(KEY(root), KEY(p)))
-      { /* insert in right subtree */
+      { /* insert in the right subtree */
         Node *right_branch = insert_root_rec(RLINK(root), p, cmp);
         if (right_branch == Node::NullPtr)
           return Node::NullPtr;
@@ -2347,8 +2382,10 @@ namespace Aleph
         RLINK(root) = right_branch;
         root = rotate_to_left(root);
       }
+    else
+      return Node::NullPtr; /* duplicated key */
 
-    return Node::NullPtr; /* duplicated key */
+    return root;
   }
 
   /** Search and eventually insert `p` as root in a binary search tree
@@ -2361,7 +2398,7 @@ namespace Aleph
 
       @ingroup Trees
   */
-  template <class Node, class Key,
+  template <class Node, class Key = typename Node::key_type,
             class Compare = Aleph::less<typename Node::key_type>>
   inline
   Node * search_or_insert_root_rec(Node *root, Node *p,
@@ -2467,8 +2504,14 @@ namespace Aleph
     /// Reset the iterator to the last node in preorder
     void reset_last() noexcept
     {
-      curr = last(root);
       s.empty();
+      if (root == Node::NullPtr)
+        {
+          curr = Node::NullPtr;
+          return;
+        }
+
+      curr = last(root);
     }
 
     /// Put the iterator in end state
@@ -2688,15 +2731,22 @@ namespace Aleph
     void reset_last() noexcept
     {
       s.empty();
+      if (root == Node::NullPtr)
+        {
+          curr = Node::NullPtr;
+          pos = 0;
+          return;
+        }
+
       curr = advance_to_max(root);
-      pos = -2;
+      pos = static_cast<long>(size(root)) - 1;
     }
 
     void end() noexcept
     {
       s.empty();
       curr = Node::NullPtr;
-      pos = -1;
+      pos = 0;
     }
 
     BinNodeInfixIterator &operator =(const BinNodeInfixIterator & it)

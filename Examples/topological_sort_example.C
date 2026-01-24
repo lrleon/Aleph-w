@@ -113,7 +113,7 @@
  * | Aspect | DFS-based | Kahn's (BFS) |
  * |--------|-----------|--------------|
  * | Approach | Post-order DFS | Remove sources |
- * | Cycles | Does not detect cycles; result is undefined | Does not detect cycles automatically; if cycles exist, the output may be incomplete (result size < V) |
+ * | Cycles | Does not detect cycles; output may violate constraints | Can indicate cycles: if output size < V, graph is not a DAG |
  * | Order | Depth-first | Breadth-first |
  * | Implementation | Recursive | Iterative |
  * | Best for | General use | When cycle indication needed |
@@ -192,6 +192,8 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 #include <tpl_graph.H>
 #include <topological_sort.H>
 #include <tclap/CmdLine.h>
@@ -203,6 +205,66 @@ using namespace Aleph;
 using TaskNode = Graph_Node<string>;
 using DependencyArc = Graph_Arc<int>;  // Weight could be time/cost
 using TaskGraph = List_Digraph<TaskNode, DependencyArc>;
+
+namespace
+{
+bool verify_topological_order(const TaskGraph & g,
+                              const DynDlist<TaskGraph::Node*> & order,
+                              std::vector<TaskGraph::Node*> * missing_nodes = nullptr)
+{
+  std::unordered_map<TaskGraph::Node*, size_t> pos;
+  pos.reserve(order.size());
+
+  size_t i = 0;
+  for (auto it = order.get_it(); it.has_curr(); it.next(), ++i)
+    pos.emplace(it.get_curr(), i);
+
+  if (missing_nodes != nullptr)
+    {
+      missing_nodes->clear();
+      missing_nodes->reserve(g.get_num_nodes());
+      for (auto nit = g.get_node_it(); nit.has_curr(); nit.next_ne())
+        {
+          auto * n = nit.get_curr();
+          if (pos.find(n) == pos.end())
+            missing_nodes->push_back(n);
+        }
+    }
+
+  for (auto ait = g.get_arc_it(); ait.has_curr(); ait.next_ne())
+    {
+      auto * a = ait.get_curr();
+      auto * u = g.get_src_node(a);
+      auto * v = g.get_tgt_node(a);
+
+      const auto it_u = pos.find(u);
+      const auto it_v = pos.find(v);
+      if (it_u == pos.end() || it_v == pos.end())
+        return false; // ordering incomplete
+
+      if (it_u->second >= it_v->second)
+        return false; // violates u -> v
+    }
+
+  return true;
+}
+
+void print_missing_nodes(const std::vector<TaskGraph::Node*> & missing)
+{
+  if (missing.empty())
+    return;
+
+  cout << "Missing nodes (not produced by the algorithm): ";
+  bool first = true;
+  for (auto * n : missing)
+    {
+      if (!first) cout << ", ";
+      cout << n->get_info();
+      first = false;
+    }
+  cout << endl;
+}
+} // namespace
 
 /**
  * @brief Build a sample build system dependency graph
@@ -364,9 +426,19 @@ void demo_dfs_topological_sort(TaskGraph& g, bool verbose)
     cout << "  " << setw(2) << step << ". " << node->get_info() << endl;
   }
   
+  std::vector<TaskGraph::Node*> missing;
+  const bool ok = verify_topological_order(g, sorted, &missing);
+  if (!ok)
+    {
+      cout << "\n[Warning] The produced order is not a valid topological ordering.\n";
+      cout << "This usually means the input graph is not a DAG (has a cycle) or the order is incomplete.\n";
+      print_missing_nodes(missing);
+    }
+
   if (verbose)
   {
-    cout << "\nVerification: Each task appears after all its dependencies." << endl;
+    if (ok)
+      cout << "\nVerification: Each task appears after all its dependencies." << endl;
   }
 }
 
@@ -391,12 +463,40 @@ void demo_bfs_topological_sort(TaskGraph& g, bool verbose)
     cout << "  " << setw(2) << step << ". " << node->get_info() << endl;
   }
   
+  std::vector<TaskGraph::Node*> missing;
+  const bool ok = verify_topological_order(g, sorted, &missing);
+  if (!ok)
+    {
+      cout << "\n[Warning] Kahn's algorithm did not produce a complete valid ordering.\n";
+      cout << "If output size < V, the graph contains a cycle (not a DAG).\n";
+      print_missing_nodes(missing);
+    }
+
   if (verbose)
   {
     // Show ranks (parallel execution levels)
     cout << "\nParallel execution ranks:" << endl;
     Q_Topological_Sort<TaskGraph> rank_sorter;
     auto ranks = rank_sorter.ranks(g);
+
+    // Validate rank output by flattening ranks into a single ordering
+    DynDlist<TaskGraph::Node*> flat;
+    std::unordered_set<TaskGraph::Node*> seen;
+    seen.reserve(g.get_num_nodes());
+    for (auto rit = ranks.get_it(); rit.has_curr(); rit.next_ne())
+      for (auto nit = rit.get_curr().get_it(); nit.has_curr(); nit.next_ne())
+        {
+          auto * n = nit.get_curr();
+          if (seen.insert(n).second)
+            flat.append(n);
+        }
+    std::vector<TaskGraph::Node*> missing_ranks;
+    const bool ok_ranks = verify_topological_order(g, flat, &missing_ranks);
+    if (!ok_ranks)
+      {
+        cout << "\n[Warning] Rank-based output is incomplete/invalid (cycle or missing nodes).\n";
+        print_missing_nodes(missing_ranks);
+      }
     
     int rank_num = 0;
     for (auto rit = ranks.get_it(); rit.has_curr(); rit.next(), ++rank_num)

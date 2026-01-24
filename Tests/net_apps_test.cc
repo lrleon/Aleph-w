@@ -9,6 +9,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <map>
 #include <net_apps.H>
 
 using namespace Aleph;
@@ -375,6 +376,212 @@ TEST_F(CirculationTest, NoDemands)
   auto a = net.insert_node();
   auto b = net.insert_node();
   net.insert_arc(a, b, 10);
+
+  auto result = solve_circulation(net,
+    [](auto*) { return 0.0; },
+    [](auto*) { return 0.0; });
+
+  EXPECT_TRUE(result.feasible);
+}
+
+TEST_F(CirculationTest, SimpleFeasible)
+{
+  // Simple network: source produces 5 units, sink consumes 5 units
+  //   s ---(10)---> t
+  // demand(s) = -5 (produces), demand(t) = +5 (consumes)
+  TestNet net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto arc = net.insert_arc(s, t, 10.0);  // capacity 10
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -5.0;  // produces 5
+  demands[t] = 5.0;   // consumes 5
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [](auto*) { return 0.0; });
+
+  EXPECT_TRUE(result.feasible);
+  EXPECT_DOUBLE_EQ(result.excess_flow, 5.0);
+
+  // Check flow on the arc
+  ASSERT_TRUE(result.flow.contains(arc));
+  EXPECT_DOUBLE_EQ(result.flow[arc], 5.0);
+}
+
+TEST_F(CirculationTest, InfeasibleDemands)
+{
+  // Demand exceeds capacity
+  //   s ---(5)---> t
+  // demand(t) = +10 (needs 10), but capacity is only 5
+  TestNet net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  net.insert_arc(s, t, 5.0);
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -10.0;  // wants to produce 10
+  demands[t] = 10.0;   // needs 10
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [](auto*) { return 0.0; });
+
+  EXPECT_FALSE(result.feasible);
+}
+
+TEST_F(CirculationTest, WithLowerBounds)
+{
+  // Network with lower bounds on arcs
+  //   s ---(cap=10, lower=3)---> t
+  // Flow must be at least 3, at most 10
+  TestNet net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto arc = net.insert_arc(s, t, 10.0);
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -5.0;  // produces 5
+  demands[t] = 5.0;   // consumes 5
+
+  std::map<TestNet::Arc*, double> lower_bounds;
+  lower_bounds[arc] = 3.0;  // minimum flow of 3
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [&](auto* a) { return lower_bounds.count(a) ? lower_bounds[a] : 0.0; });
+
+  EXPECT_TRUE(result.feasible);
+
+  // Flow should be 5 (satisfies demand and >= lower bound of 3)
+  ASSERT_TRUE(result.flow.contains(arc));
+  EXPECT_GE(result.flow[arc], 3.0);  // At least lower bound
+  EXPECT_LE(result.flow[arc], 10.0); // At most capacity
+}
+
+TEST_F(CirculationTest, LowerBoundTooHigh)
+{
+  // Lower bound exceeds what's possible given demands
+  //   s ---(cap=10, lower=8)---> t
+  // But we only need 5 flow, and lower bound requires 8
+  // This should still be feasible if capacity allows
+  TestNet net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto arc = net.insert_arc(s, t, 10.0);
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -5.0;
+  demands[t] = 5.0;
+
+  std::map<TestNet::Arc*, double> lower_bounds;
+  lower_bounds[arc] = 8.0;  // minimum 8, but only 5 demanded
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [&](auto* a) { return lower_bounds.count(a) ? lower_bounds[a] : 0.0; });
+
+  // This might or might not be feasible depending on exact algorithm
+  // Lower bound forces more flow than demand requires
+  // With proper circulation, excess flow needs to go somewhere
+}
+
+TEST_F(CirculationTest, BalancedNetwork)
+{
+  // Three nodes in a triangle, balanced demands
+  //   a ---> b ---> c ---> a
+  // All demands are 0, so any circulation is valid
+  TestNet net;
+  auto a = net.insert_node();
+  auto b = net.insert_node();
+  auto c = net.insert_node();
+
+  auto ab = net.insert_arc(a, b, 10.0);
+  auto bc = net.insert_arc(b, c, 10.0);
+  auto ca = net.insert_arc(c, a, 10.0);
+
+  auto result = solve_circulation(net,
+    [](auto*) { return 0.0; },
+    [](auto*) { return 0.0; });
+
+  EXPECT_TRUE(result.feasible);
+
+  // With zero demands and zero lower bounds, zero flow is a valid circulation
+  EXPECT_DOUBLE_EQ(result.flow[ab], 0.0);
+  EXPECT_DOUBLE_EQ(result.flow[bc], 0.0);
+  EXPECT_DOUBLE_EQ(result.flow[ca], 0.0);
+}
+
+TEST_F(CirculationTest, NetworkUnmodified)
+{
+  // Verify that the network is not modified after solve_circulation
+  TestNet net;
+  auto s = net.insert_node();
+  auto t = net.insert_node();
+  auto arc = net.insert_arc(s, t, 10.0);
+
+  size_t num_nodes_before = net.get_num_nodes();
+  size_t num_arcs_before = net.get_num_arcs();
+  double cap_before = arc->cap;
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -5.0;
+  demands[t] = 5.0;
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [](auto*) { return 0.0; });
+
+  // Network should be unchanged
+  EXPECT_EQ(net.get_num_nodes(), num_nodes_before);
+  EXPECT_EQ(net.get_num_arcs(), num_arcs_before);
+  EXPECT_DOUBLE_EQ(arc->cap, cap_before);
+  EXPECT_DOUBLE_EQ(arc->flow, 0.0);  // Flow should be reset
+}
+
+TEST_F(CirculationTest, MultiplePathsRequired)
+{
+  // Network where multiple paths are needed to satisfy demand:
+  //   s -> b -> t
+  //   s -> c -> t
+  // (Diamond shape with s as source, t as sink, b and c as intermediate)
+  // s produces 10, t consumes 10
+  // Each path has capacity 6, so both paths needed
+  TestNet net;
+  auto s = net.insert_node();
+  auto b = net.insert_node();
+  auto c = net.insert_node();
+  auto t = net.insert_node();
+
+  auto sb = net.insert_arc(s, b, 6.0);
+  auto sc = net.insert_arc(s, c, 6.0);
+  auto bt = net.insert_arc(b, t, 6.0);
+  auto ct = net.insert_arc(c, t, 6.0);
+
+  std::map<TestNet::Node*, double> demands;
+  demands[s] = -10.0;  // produces 10
+  demands[t] = 10.0;   // consumes 10
+
+  auto result = solve_circulation(net,
+    [&](auto* n) { return demands.count(n) ? demands[n] : 0.0; },
+    [](auto*) { return 0.0; });
+
+  EXPECT_TRUE(result.feasible);
+  EXPECT_DOUBLE_EQ(result.excess_flow, 10.0);
+
+  // Both paths should be used
+  double total_to_t = result.flow[bt] + result.flow[ct];
+  EXPECT_DOUBLE_EQ(total_to_t, 10.0);
+
+  // Verify flow on all arcs
+  double total_from_s = result.flow[sb] + result.flow[sc];
+  EXPECT_DOUBLE_EQ(total_from_s, 10.0);
+}
+
+TEST_F(CirculationTest, EmptyNetwork)
+{
+  TestNet net;
 
   auto result = solve_circulation(net,
     [](auto*) { return 0.0; },

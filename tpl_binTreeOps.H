@@ -498,7 +498,7 @@ namespace Aleph
 
     /** Insert a node as root in a binary search tree.
 
-        This version first insert `p` as a leaf of tree. Then `p` is rotated
+        This version first inserts `p` as a leaf of a tree. Then `p` is rotated
         until the root.
 
         @param[in] root of tree
@@ -509,10 +509,10 @@ namespace Aleph
     Node * insert_root_rec(Node *root, Node *p) noexcept
     {
       if (root == Node::NullPtr)
-        return p; /* insertion in empty tree */
+        return p; /* insertion in an empty tree */
 
       if (cmp(KEY(p), KEY(root)))
-        { /* insert in left subtree */
+        { /* insert in the left subtree */
           Node *left_branch = insert_root_rec(LLINK(root), p);
           if (left_branch == Node::NullPtr)
             return Node::NullPtr;
@@ -521,7 +521,7 @@ namespace Aleph
           root = rotate_to_right(root);
         }
       else if (cmp(KEY(root), KEY(p)))
-        { /* insert in right subtree */
+        { /* insert in the right subtree */
           Node *right_branch = insert_root_rec(RLINK(root), p);
           if (right_branch == Node::NullPtr)
             return Node::NullPtr;
@@ -545,10 +545,10 @@ namespace Aleph
     Node * search_or_insert_root_rec(Node *root, Node *p) noexcept
     {
       if (root == Node::NullPtr)
-        return p; // insertion in empty tree
+        return p; // insertion in an empty tree
 
       if (cmp(KEY(p), KEY(root)))
-        { // insert in left subtree
+        { // insert in the left subtree
           Node *left_branch = search_or_insert_root_rec(LLINK(root), p);
           if (left_branch == p) // Was there insertion?
             {
@@ -561,7 +561,7 @@ namespace Aleph
           return left_branch; // no la hubo
         }
       if (cmp(KEY(root), KEY(p)))
-        { // insert in right subtree
+        { // insert in the right subtree
           Node *right_branch = search_or_insert_root_rec(RLINK(root), p);
           if (right_branch == p) //Was there insertion?
             {
@@ -652,7 +652,7 @@ namespace Aleph
         would have `key` if this was in the tree and `p` is the node
         whose key is immediately greater than `key`.
 
-        @param[in] r root of tree
+        @param[in] r root of the tree
         @param[in] key to be searched
         @param[out] p reference to pointer to node
         @return the positions of `key` in the tree

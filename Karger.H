@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -80,7 +79,7 @@ namespace Aleph
       - Reproducible results with seed control
 
       @note This algorithm is designed for undirected graphs.
-      @note For disconnected graphs, the minimum cut is 0 (trivially).
+      @note The graph must be connected (considering the arc filter) and contain no self-loops.
       @note The graph must have at least 2 nodes and 1 arc.
 
       @par Example: Finding minimum cut
@@ -94,13 +93,11 @@ namespace Aleph
       auto c = g.insert_node(3);
       auto d = g.insert_node(4);
       
-      // Dense left cluster
+      // Left side
       g.insert_arc(a, b);
-      g.insert_arc(b, a);
       
-      // Dense right cluster  
+      // Right side
       g.insert_arc(c, d);
-      g.insert_arc(d, c);
       
       // Bridge (min-cut)
       g.insert_arc(b, c);
@@ -112,7 +109,7 @@ namespace Aleph
       
       size_t min_cut_size = karger(g, S, T, cut_arcs);
       // min_cut_size will be 1 (the bridge)
-      // S contains {a, b}, T contains {c, d}
+      // One valid partition is S={a, b}, T={c, d} (order may vary)
       @endcode
 
       @par Example: Multiple iterations for better probability
@@ -167,28 +164,28 @@ namespace Aleph
     /// This ensures reproducible results with the same random seed.
     class ArcIndex
     {
-      std::vector<Karc*> arcs;
+      std::vector<Karc *> arcs;
 
     public:
-      void insert(Karc* a)
+      void insert(Karc *a)
       {
         ARC_COUNTER(a) = static_cast<long>(arcs.size());
         arcs.push_back(a);
       }
 
-      Karc* select(size_t i) const
+      Karc * select(size_t i) const
       {
         assert(i < arcs.size());
         return arcs[i];
       }
 
-      void remove(Karc* a)
+      void remove(Karc *a)
       {
-        long raw_idx = ARC_COUNTER(a);
-        if (raw_idx < 0)  // Already removed (parallel arc processed twice)
+        const long raw_idx = ARC_COUNTER(a);
+        if (raw_idx < 0) // Already removed (parallel arc processed twice)
           return;
 
-        size_t idx = static_cast<size_t>(raw_idx);
+        auto idx = static_cast<size_t>(raw_idx);
         assert(idx < arcs.size());
         assert(arcs[idx] == a);
         if (idx < arcs.size() - 1)
@@ -197,15 +194,41 @@ namespace Aleph
             ARC_COUNTER(arcs[idx]) = static_cast<long>(idx);
           }
         arcs.pop_back();
-        ARC_COUNTER(a) = -1;  // Mark as removed
+        ARC_COUNTER(a) = -1; // Mark as removed
       }
 
       void empty() { arcs.clear(); }
 
-      size_t size() const { return arcs.size(); }
+      [[nodiscard]] size_t size() const { return arcs.size(); }
 
-      void swap(ArcIndex& other) { arcs.swap(other.arcs); }
+      void swap(ArcIndex & other) noexcept { arcs.swap(other.arcs); }
     };
+
+
+    bool has_self_loop(const GT & g) const
+    {
+      for (typename GT::Arc_Iterator it(g); it.has_curr(); it.next_ne())
+        if (auto a = it.get_curr(); g.get_src_node(a) == g.get_tgt_node(a))
+          return true;
+      return false;
+    }
+
+    bool is_connected_filtered(const GT & g) const
+    {
+      if (g.get_num_nodes() == 0)
+        return false;
+
+      Depth_First_Traversal<GT, Default_Visit_Op<GT>, SA> dft(sa);
+      return dft(g) == g.get_num_nodes();
+    }
+
+    void validate_graph(GT & g) const
+    {
+      ah_domain_error_if(g.get_num_nodes() < 2) << "Graph must have at least 2 nodes";
+      ah_domain_error_if(g.get_num_arcs() == 0) << "Graph has no arcs";
+      ah_domain_error_if(has_self_loop(g)) << "Graph contains self-loop";
+      ah_domain_error_if(not is_connected_filtered(g)) << "Graph is disconnected";
+    }
 
     unsigned long seed;
     gsl_rng *r;
@@ -326,10 +349,7 @@ namespace Aleph
                           DynList<typename GT::Arc *> & cut,
                           const size_t num_iter)
     {
-      ah_domain_error_if(g.get_num_nodes() < 2)
-        << "Graph must have at least 2 nodes";
-      ah_domain_error_if(g.get_num_arcs() == 0)
-        << "Graph has no arcs";
+      validate_graph(g);
 
       auto min_cut = std::numeric_limits<size_t>::max();
 
@@ -403,7 +423,7 @@ namespace Aleph
         }
 
       // Contract to t = ceil(1 + n/sqrt(2)) nodes
-      const size_t t = static_cast<size_t>(std::ceil(1.0 + n / std::sqrt(2.0)));
+      const auto t = static_cast<size_t>(std::ceil(1.0 + n / std::sqrt(2.0)));
 
       // Branch 1: copy graph and rebuild arc index for the copy
       Kgraph h1(kg);
@@ -458,7 +478,7 @@ namespace Aleph
     Karger_Min_Cut(const Karger_Min_Cut &) = delete;
 
     /// Disable copy assignment (class owns gsl_rng pointer)
-    Karger_Min_Cut & operator=(const Karger_Min_Cut &) = delete;
+    Karger_Min_Cut &operator=(const Karger_Min_Cut &) = delete;
 
     /// Move constructor. Transfers ownership of the random number generator.
     Karger_Min_Cut(Karger_Min_Cut && other) noexcept
@@ -468,7 +488,7 @@ namespace Aleph
     }
 
     /// Move assignment operator. Transfers ownership of the random number generator.
-    Karger_Min_Cut & operator=(Karger_Min_Cut && other) noexcept
+    Karger_Min_Cut &operator=(Karger_Min_Cut && other) noexcept
     {
       if (this != &other)
         {
@@ -483,11 +503,11 @@ namespace Aleph
     }
 
     /// Get the random seed used by this solver (useful for reproducibility).
-    unsigned long get_seed() const noexcept { return seed; }
+    [[nodiscard]] unsigned long get_seed() const noexcept { return seed; }
 
     /// Change the random seed. Useful for running multiple independent trials.
     /// @param[in] new_seed The new seed value.
-    void reseed(unsigned long new_seed) noexcept
+    void reseed(const unsigned long new_seed) noexcept
     {
       seed = new_seed;
       if (r)
@@ -502,15 +522,12 @@ namespace Aleph
         @param[in] g The undirected graph.
         @param[in] num_iter Number of iterations to run.
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+        @throw std::domain_error if graph is disconnected, contains self-loops, has fewer than 2 nodes, or has no arcs.
      */
     size_t compute_min_cut_size(GT & g, size_t num_iter = 0)
     {
       assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
-      ah_domain_error_if(g.get_num_nodes() < 2)
-        << "Graph must have at least 2 nodes";
-      ah_domain_error_if(g.get_num_arcs() == 0)
-        << "Graph has no arcs";
+      validate_graph(g);
 
       if (num_iter == 0)
         {
@@ -539,7 +556,7 @@ namespace Aleph
       return min_cut;
     }
 
-    /** Compute minimum cut with a specified number of iterations.
+    /** Compute a minimum cut with a specified number of iterations.
 
         @param[in] g The undirected graph.
         @param[out] vs Nodes in the first partition (S).
@@ -547,7 +564,7 @@ namespace Aleph
         @param[out] cut Arcs crossing the minimum cut.
         @param[in] num_iter Number of iterations to run.
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+        @throw std::domain_error if the graph is disconnected, contains self-loops, has fewer than 2 nodes, or has no arcs.
      */
     size_t operator ()(GT & g,
                        DynList<typename GT::Node *> & vs,
@@ -569,7 +586,7 @@ namespace Aleph
         @param[out] vt Nodes in the second partition (T).
         @param[out] cut Arcs crossing the minimum cut.
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+        @throw std::domain_error if graph is disconnected, contains self-loops, has fewer than 2 nodes, or has no arcs.
      */
     size_t operator ()(GT & g,
                        DynList<typename GT::Node *> & vs,
@@ -579,7 +596,7 @@ namespace Aleph
       assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
       const size_t n = g.get_num_nodes();
       // 1.05 * n^2 iterations gives high probability of finding min cut
-      const size_t num_iter = static_cast<size_t>(1.05 * n * n);
+      const auto num_iter = static_cast<size_t>(1.05 * n * n);
       return karger_min_cut(g, vs, vt, cut, num_iter);
     }
 
@@ -597,7 +614,7 @@ namespace Aleph
         @param[out] cut Arcs crossing the minimum cut.
         @param[in] num_iter Number of iterations (default: ceil(log^2 n)).
         @return The size of the minimum cut found.
-        @throw std::domain_error if graph has fewer than 2 nodes or no arcs.
+        @throw std::domain_error if graph is disconnected, contains self-loops, has fewer than 2 nodes, or has no arcs.
      */
     size_t fast(GT & g,
                 DynList<typename GT::Node *> & vs,
@@ -606,10 +623,7 @@ namespace Aleph
                 size_t num_iter = 0)
     {
       assert(r != nullptr && "Cannot use moved-from Karger_Min_Cut object");
-      ah_domain_error_if(g.get_num_nodes() < 2)
-        << "Graph must have at least 2 nodes";
-      ah_domain_error_if(g.get_num_arcs() == 0)
-        << "Graph has no arcs";
+      validate_graph(g);
 
       // Default iterations: ceil(log^2 n) for high probability
       if (num_iter == 0)

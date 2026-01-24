@@ -35,6 +35,7 @@
 #include <random>
 #include <sstream>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -74,10 +75,11 @@ namespace
     }
   };
 
-  std::vector<int> inorder(BinNode<int> * root)
+  template <class Node>
+  std::vector<typename Node::key_type> inorder(Node * root)
   {
-    std::vector<int> keys;
-    Aleph::infix_for_each<BinNode<int>>(root, [&] (BinNode<int> * p) { keys.push_back(KEY(p)); });
+    std::vector<typename Node::key_type> keys;
+    Aleph::infix_for_each<Node>(root, [&] (Node * p) { keys.push_back(KEY(p)); });
     return keys;
   }
 
@@ -88,9 +90,10 @@ namespace
     ASSERT_TRUE(std::is_sorted(keys.begin(), keys.end()));
   }
 
-  void delete_tree(BinNode<int> * root) noexcept
+  template <class Node>
+  void delete_tree(Node * root) noexcept
   {
-    if (root == BinNode<int>::NullPtr)
+    if (root == Node::NullPtr)
       return;
     delete_tree(LLINK(root));
     delete_tree(RLINK(root));
@@ -167,8 +170,70 @@ namespace
         bytes.push_back(static_cast<unsigned char>(val));
         while (ss && (ss.peek() == ',' || std::isspace(ss.peek())))
           ss.get();
-      }
+    }
     return bytes;
+  }
+
+  std::vector<std::string> parse_key_array(const std::string & s, const std::string & var_name)
+  {
+    const std::string needle = "const char * " + var_name + "[]";
+    auto pos = s.find(needle);
+    if (pos == std::string::npos)
+      return {};
+
+    pos = s.find('{', pos);
+    if (pos == std::string::npos)
+      return {};
+
+    auto end = s.find("};", pos);
+    if (end == std::string::npos)
+      return {};
+
+    std::string inside = s.substr(pos + 1, end - pos - 1);
+
+    std::vector<std::string> storage;
+    size_t i = 0;
+    while (i < inside.size())
+      {
+        while (i < inside.size() &&
+               (std::isspace(static_cast<unsigned char>(inside[i])) || inside[i] == ','))
+          ++i;
+        if (i >= inside.size())
+          break;
+
+        if (inside.compare(i, 7, "nullptr") == 0)
+          {
+            i += 7;
+            break;
+          }
+
+        if (inside[i] != '"')
+          break;
+        ++i;
+
+        std::string token;
+        while (i < inside.size() && inside[i] != '"')
+          {
+            if (inside[i] == '\\' && i + 1 < inside.size())
+              {
+                char esc = inside[i + 1];
+                if (esc == 'n')
+                  token.push_back('\n');
+                else if (esc == 't')
+                  token.push_back('\t');
+                else
+                  token.push_back(esc);
+                i += 2;
+                continue;
+              }
+            token.push_back(inside[i++]);
+          }
+        if (i >= inside.size())
+          break;
+        ++i;
+        storage.push_back(token);
+      }
+    return storage;
   }
 }
 
@@ -277,6 +342,19 @@ TEST(BinNodeUtils, SaveTreeLoadTreeRoundtrip)
   delete_tree(loaded);
 }
 
+TEST(BinNodeUtils, LoadTreeKeysInPrefixThrowsOnShortInput)
+{
+  auto * root = new BinNode<int>(0);
+  LLINK(root) = new BinNode<int>(0);
+
+  std::stringstream ss;
+  ss << 1;
+
+  EXPECT_THROW(load_tree_keys_in_prefix(root, ss), std::runtime_error);
+
+  delete_tree(root);
+}
+
 TEST(BinNodeUtils, SaveTreeInArrayOfCharsLoadTreeFromArrayRoundtrip)
 {
   NodePool pool;
@@ -293,59 +371,11 @@ TEST(BinNodeUtils, SaveTreeInArrayOfCharsLoadTreeFromArrayRoundtrip)
   auto bytes = parse_uc_array(gen, name + "_cdp");
   ASSERT_FALSE(bytes.empty());
 
-  // parse quoted keys from: const char * t_k[] = { "..", ..., nullptr };
   const std::string key_var = name + "_k";
-  const std::string needle = "const char * " + key_var + "[]";
-  auto pos = gen.find(needle);
-  ASSERT_NE(pos, std::string::npos);
-  pos = gen.find('{', pos);
-  ASSERT_NE(pos, std::string::npos);
-  auto end = gen.find("};", pos);
-  ASSERT_NE(end, std::string::npos);
-  std::string inside = gen.substr(pos + 1, end - pos - 1);
+  auto storage = parse_key_array(gen, key_var);
+  ASSERT_FALSE(storage.empty());
 
-  std::vector<std::string> storage;
   std::vector<const char *> keys;
-
-  size_t i = 0;
-  while (i < inside.size())
-    {
-      while (i < inside.size() && (std::isspace(static_cast<unsigned char>(inside[i])) || inside[i] == ','))
-        ++i;
-      if (i >= inside.size())
-        break;
-
-      if (inside.compare(i, 7, "nullptr") == 0)
-        {
-          i += 7;
-          break;
-        }
-
-      ASSERT_EQ(inside[i], '"');
-      ++i;
-      std::string token;
-      while (i < inside.size() && inside[i] != '"')
-        {
-          if (inside[i] == '\\' && i + 1 < inside.size())
-            {
-              char esc = inside[i + 1];
-              if (esc == 'n')
-                token.push_back('\n');
-              else if (esc == 't')
-                token.push_back('\t');
-              else
-                token.push_back(esc);
-              i += 2;
-              continue;
-            }
-          token.push_back(inside[i++]);
-        }
-      ASSERT_LT(i, inside.size());
-      ASSERT_EQ(inside[i], '"');
-      ++i;
-      storage.push_back(token);
-    }
-
   for (auto & s : storage)
     keys.push_back(s.c_str());
   keys.push_back(nullptr);
@@ -353,6 +383,54 @@ TEST(BinNodeUtils, SaveTreeInArrayOfCharsLoadTreeFromArrayRoundtrip)
   auto * rebuilt = load_tree_from_array<BinNode<int>, LoadIntKey>(bytes.data(), tree_to_bits(root).size(), keys.data());
   EXPECT_EQ(inorder(rebuilt), (std::vector<int>{1, 2, 3}));
   EXPECT_TRUE(check_bst<BinNode<int>>(rebuilt));
+  delete_tree(rebuilt);
+}
+
+TEST(BinNodeUtils, SaveTreeInArrayEscapesKeys)
+{
+  auto * root = new BinNode<std::string>("root");
+  LLINK(root) = new BinNode<std::string>("a\"b");
+  RLINK(root) = new BinNode<std::string>("c\\d");
+
+  struct GetKey
+  {
+    std::string operator()(BinNode<std::string> * p) const { return KEY(p); }
+  };
+
+  struct LoadKey
+  {
+    bool operator()(BinNode<std::string> * p, const char * str) const
+    {
+      if (str == nullptr)
+        return false;
+      p->get_key() = str;
+      return true;
+    }
+  };
+
+  std::ostringstream out;
+  const std::string name = "s";
+  save_tree_in_array_of_chars<BinNode<std::string>, GetKey>(root, name, out);
+
+  const std::string gen = out.str();
+  auto bytes = parse_uc_array(gen, name + "_cdp");
+  ASSERT_FALSE(bytes.empty());
+
+  auto storage = parse_key_array(gen, name + "_k");
+  ASSERT_FALSE(storage.empty());
+
+  std::vector<const char *> keys;
+  for (auto & s : storage)
+    keys.push_back(s.c_str());
+  keys.push_back(nullptr);
+
+  auto * rebuilt = load_tree_from_array<BinNode<std::string>, LoadKey>(
+      bytes.data(), tree_to_bits(root).size(), keys.data());
+
+  EXPECT_EQ(inorder(rebuilt),
+            (std::vector<std::string>{"a\"b", "root", "c\\d"}));
+
+  delete_tree(root);
   delete_tree(rebuilt);
 }
 
@@ -415,6 +493,17 @@ TEST(BinNodeUtils, InsertDupInBstAllowsDuplicates)
   EXPECT_EQ(inorder(root), (std::vector<int>{2, 2, 2}));
 }
 
+TEST(BinNodeUtils, CheckBstRejectsGlobalViolation)
+{
+  NodePool pool;
+  auto * root = pool.make(10);
+  LLINK(root) = pool.make(5);
+  RLINK(root) = pool.make(15);
+  RLINK(LLINK(root)) = pool.make(12);
+
+  EXPECT_FALSE(check_bst<BinNode<int>>(root));
+}
+
 TEST(BinNodeUtils, SearchOrInsertInBst)
 {
   NodePool pool;
@@ -470,6 +559,46 @@ TEST(BinNodeUtils, JoinExclusiveEmptiesInputs)
   EXPECT_EQ(inorder(out), (std::vector<int>{1, 2, 3, 4, 5, 6}));
 }
 
+TEST(BinNodeUtils, JoinPreorderStoresDuplicates)
+{
+  NodePool pool;
+  BinNode<int> * t1 = BinNode<int>::NullPtr;
+  BinNode<int> * t2 = BinNode<int>::NullPtr;
+
+  for (int k : {1, 2})
+    ASSERT_NE(insert_in_bst(t1, pool.make(k)), BinNode<int>::NullPtr);
+  for (int k : {2, 3})
+    ASSERT_NE(insert_in_bst(t2, pool.make(k)), BinNode<int>::NullPtr);
+
+  BinNode<int> * dup = BinNode<int>::NullPtr;
+  auto * out = join_preorder(t1, t2, dup);
+
+  assert_bst_and_inorder_sorted(out);
+  EXPECT_EQ(inorder(out), (std::vector<int>{1, 2, 3}));
+  ASSERT_NE(dup, BinNode<int>::NullPtr);
+  EXPECT_EQ(inorder(dup), (std::vector<int>{2}));
+}
+
+TEST(BinNodeUtils, JoinStoresDuplicates)
+{
+  NodePool pool;
+  BinNode<int> * t1 = BinNode<int>::NullPtr;
+  BinNode<int> * t2 = BinNode<int>::NullPtr;
+
+  for (int k : {2, 1})
+    ASSERT_NE(insert_in_bst(t1, pool.make(k)), BinNode<int>::NullPtr);
+  for (int k : {2, 3})
+    ASSERT_NE(insert_in_bst(t2, pool.make(k)), BinNode<int>::NullPtr);
+
+  BinNode<int> * dup = BinNode<int>::NullPtr;
+  auto * out = join(t1, t2, dup);
+
+  assert_bst_and_inorder_sorted(out);
+  EXPECT_EQ(inorder(out), (std::vector<int>{1, 2, 3}));
+  ASSERT_NE(dup, BinNode<int>::NullPtr);
+  EXPECT_EQ(inorder(dup), (std::vector<int>{2}));
+}
+
 TEST(BinNodeUtils, SplitKeyRecOnlySplitsWhenKeyAbsent)
 {
   NodePool pool;
@@ -507,6 +636,26 @@ TEST(BinNodeUtils, SplitKeyDupRecSplitsAndEmptiesRoot)
 
   EXPECT_EQ(inorder(l), (std::vector<int>{1, 2}));
   EXPECT_EQ(inorder(r), (std::vector<int>{3, 4, 5}));
+}
+
+TEST(BinNodeUtils, SplitKeyIterativeSplits)
+{
+  NodePool pool;
+  BinNode<int> * root = BinNode<int>::NullPtr;
+  for (int k : {1, 2, 3, 5, 6})
+    ASSERT_NE(insert_in_bst(root, pool.make(k)), BinNode<int>::NullPtr);
+
+  BinNode<int> * l = BinNode<int>::NullPtr;
+  BinNode<int> * r = BinNode<int>::NullPtr;
+
+  split_key(root, 4, l, r);
+  EXPECT_EQ(root, BinNode<int>::NullPtr);
+
+  assert_bst_and_inorder_sorted(l);
+  assert_bst_and_inorder_sorted(r);
+
+  EXPECT_EQ(inorder(l), (std::vector<int>{1, 2, 3}));
+  EXPECT_EQ(inorder(r), (std::vector<int>{5, 6}));
 }
 
 TEST(BinNodeUtils, InfixIteratorTraversesInSortedOrder)
@@ -614,6 +763,35 @@ TEST(BinNodeUtils, SearchRankParent)
   EXPECT_EQ(KEY(p2), 2);
 }
 
+TEST(BinNodeUtils, InsertRootRecInsertsAndRotatesToRoot)
+{
+  NodePool pool;
+  BinNode<int> * root = BinNode<int>::NullPtr;
+  for (int k : {2, 1, 3})
+    ASSERT_NE(insert_in_bst(root, pool.make(k)), BinNode<int>::NullPtr);
+
+  auto * p = pool.make(4);
+  auto * new_root = insert_root_rec(root, p);
+  ASSERT_NE(new_root, BinNode<int>::NullPtr);
+  root = new_root;
+
+  EXPECT_EQ(KEY(root), 4);
+  assert_bst_and_inorder_sorted(root);
+}
+
+TEST(BinNodeUtils, InsertRootRecRejectsDuplicate)
+{
+  NodePool pool;
+  BinNode<int> * root = BinNode<int>::NullPtr;
+  for (int k : {2, 1, 3})
+    ASSERT_NE(insert_in_bst(root, pool.make(k)), BinNode<int>::NullPtr);
+
+  const auto before = inorder(root);
+  auto * dup = pool.make(2);
+  EXPECT_EQ(insert_root_rec(root, dup), BinNode<int>::NullPtr);
+  EXPECT_EQ(inorder(root), before);
+}
+
 TEST(BinNodeUtils, InsertRootRequiresKeyAbsent)
 {
   NodePool pool;
@@ -690,6 +868,14 @@ TEST(BinNodeUtils, TreeToBitsAndBitsToTreeRoundtripShapeAndKeys)
   EXPECT_EQ(tree_to_bits(rebuilt).size(), bits.size());
 
   delete_tree(rebuilt);
+}
+
+TEST(BinNodeUtils, BitsToTreeThrowsOnInvalidBits)
+{
+  BitArray bits;
+  bits.push(0);
+
+  EXPECT_THROW((bits_to_tree<BinNode<int>>(bits)), std::out_of_range);
 }
 
 TEST(BinNodeUtils, PreorderToBstBuildsValidTree)

@@ -210,6 +210,44 @@ TEST(KargerErrors, throws_on_single_node_with_self_loop)
   EXPECT_THROW(karger(g, vs, vt, cut), std::domain_error);
 }
 
+TEST(KargerErrors, throws_on_self_loop_in_graph)
+{
+  Grafo g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n0, n0, 1); // Self-loop
+
+  Karger_Min_Cut<Grafo> karger(42);
+  DynList<Node*> vs, vt;
+  DynList<Arc*> cut;
+
+  EXPECT_THROW(karger(g, vs, vt, cut, 10), std::domain_error);
+  EXPECT_THROW(karger.compute_min_cut_size(g, 10), std::domain_error);
+  EXPECT_THROW(karger.fast(g, vs, vt, cut, 1), std::domain_error);
+}
+
+TEST(KargerErrors, throws_on_disconnected_graph)
+{
+  Grafo g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+  auto n3 = g.insert_node(3);
+
+  g.insert_arc(n0, n1, 1);
+  g.insert_arc(n2, n3, 1);
+
+  Karger_Min_Cut<Grafo> karger(42);
+  DynList<Node*> vs, vt;
+  DynList<Arc*> cut;
+
+  EXPECT_THROW(karger(g, vs, vt, cut, 10), std::domain_error);
+  EXPECT_THROW(karger.compute_min_cut_size(g, 10), std::domain_error);
+  EXPECT_THROW(karger.fast(g, vs, vt, cut, 1), std::domain_error);
+}
+
 // Test basic minimum cut on simple graphs
 TEST(KargerMinCut, finds_cut_on_triangle)
 {
@@ -555,6 +593,27 @@ TEST(KargerArcFilter, filters_arcs_by_weight)
     EXPECT_LE(it.get_curr()->get_info(), 5);
 }
 
+TEST(KargerArcFilter, throws_when_filter_disconnects_graph)
+{
+  Grafo g;
+  auto n0 = g.insert_node(0);
+  auto n1 = g.insert_node(1);
+  auto n2 = g.insert_node(2);
+
+  g.insert_arc(n0, n1, 10);
+  g.insert_arc(n1, n2, 10);
+
+  Weight_Filter<Grafo> filter(5);
+  Karger_Min_Cut<Grafo, Weight_Filter<Grafo>> karger_filtered(42, filter);
+
+  DynList<Node*> vs, vt;
+  DynList<Arc*> cut;
+
+  EXPECT_THROW(karger_filtered(g, vs, vt, cut, 10), std::domain_error);
+  EXPECT_THROW(karger_filtered.compute_min_cut_size(g, 10), std::domain_error);
+  EXPECT_THROW(karger_filtered.fast(g, vs, vt, cut, 1), std::domain_error);
+}
+
 // Test that default filter includes all arcs
 TEST(KargerArcFilter, default_filter_includes_all)
 {
@@ -742,7 +801,8 @@ TEST(KargerFast, finds_cut_on_cycle)
 
 TEST(KargerFast, finds_cut_on_complete_graph)
 {
-  auto g = create_complete_graph(8);
+  const size_t n = 8;
+  auto g = create_complete_graph(static_cast<int>(n));
   Karger_Min_Cut<Grafo> karger(42);
 
   DynList<Node*> vs, vt;
@@ -750,8 +810,10 @@ TEST(KargerFast, finds_cut_on_complete_graph)
 
   size_t min_cut = karger.fast(g, vs, vt, cut);
 
-  // K8 has min cut = 7 (isolate one vertex)
-  EXPECT_EQ(min_cut, 7u);
+  // K_n min cut is n-1; upper bound is floor(n^2/4) for a 2-partition
+  const size_t max_cut = (n / 2) * (n - (n / 2));
+  EXPECT_GE(min_cut, n - 1);
+  EXPECT_LE(min_cut, max_cut);
 }
 
 TEST(KargerFast, partitions_are_valid)

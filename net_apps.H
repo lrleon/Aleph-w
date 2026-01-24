@@ -65,6 +65,7 @@
 #include <tpl_maxflow.H>
 #include <tpl_netcost.H>
 #include <tpl_dynSetTree.H>
+#include <tpl_dynListQueue.H>
 
 namespace Aleph
 {
@@ -73,7 +74,7 @@ namespace Aleph
 // CIRCULATION WITH DEMANDS
 //==============================================================================
 
-/** @brief Result of circulation problem.
+/** @brief Result of a circulation problem.
  *  @ingroup Networks
  */
 template <typename Flow_Type>
@@ -84,7 +85,7 @@ struct CirculationResult
   DynMapTree<void*, Flow_Type> flow; ///< Flow on each edge (arc pointer -> flow)
 };
 
-/** @brief Solve circulation problem with demands.
+/** @brief Solve a circulation problem with demands.
  *
  *  Given a network where:
  *  - Each node has a demand d(v): positive = needs flow, negative = produces flow
@@ -108,7 +109,7 @@ struct CirculationResult
  *  @tparam Maxflow Max-flow algorithm to use.
  *  @param net Network (modified during computation).
  *  @param get_demand Returns demand for each node.
- *  @param get_lower Returns lower bound for each arc.
+ *  @param get_lower Returns the lower bound for each arc.
  *  @return CirculationResult with feasibility and flow values.
  *
  *  @par Example
@@ -137,36 +138,39 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
 
   CirculationResult<Flow_Type> result;
 
-  // Calculate total positive and negative demands
-  Flow_Type total_demand{0};  // sum of positive demands
-
+  // Collect original nodes (before adding super nodes)
+  DynList<Node*> original_nodes;
   for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    original_nodes.append(it.get_curr());
+
+  // Store original capacities to restore later
+  DynMapTree<Arc*, Flow_Type> original_caps;
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
-      Flow_Type d = get_demand(it.get_curr());
-      if (d > 0)
-        total_demand += d;
+      Arc* arc = it.get_curr();
+      original_caps[arc] = arc->cap;
     }
 
-  if (total_demand == Flow_Type{0})
-    {
-      result.feasible = true;
-      return result;
-    }
-
-  // Create super-source and super-sink
+  // Create super-source and super-sink for the transformed network
   Node* super_source = net.insert_node();
   Node* super_sink = net.insert_node();
 
-  // Add edges from super-source/to super-sink based on demands
-  Flow_Type total_lower{0};
+  // Track arcs we add so we can remove them later
+  DynList<Arc*> added_arcs;
 
-  for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+  // Calculate total positive ADJUSTED demand
+  // (This must be computed from adjusted demands, not original demands)
+  Flow_Type total_demand{0};
+
+  // Add edges from super-source/to super-sink based on adjusted demands
+  for (auto* v : original_nodes)
     {
-      Node* v = it.get_curr();
-      if (v == super_source or v == super_sink)
-        continue;
-
-      // Adjust for lower bounds: sum of lower bounds on incoming/outgoing edges
+      // Calculate adjusted demand: d'(v) = d(v) + l_out(v) - l_in(v)
+      // This comes from the circulation reduction with lower bounds:
+      // - For each arc (u,v) with lower bound l: the mandatory l units
+      //   count as outflow from u and inflow to v.
+      // - d'(u) = d(u) + l (gains "debt" from mandatory outflow)
+      // - d'(v) = d(v) - l (satisfied by mandatory inflow)
       Flow_Type lower_in{0}, lower_out{0};
       for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
         {
@@ -178,54 +182,200 @@ solve_circulation(Net& net, GetDemand get_demand, GetLower get_lower)
             lower_out += lb;
         }
 
-      Flow_Type d = get_demand(v) + lower_in - lower_out;
+      Flow_Type adjusted_demand = get_demand(v) + lower_out - lower_in;
 
-      if (d > 0)
-        net.insert_arc(super_source, v, d);
-      else if (d < 0)
-        net.insert_arc(v, super_sink, -d);
-
-      total_lower += lower_out;  // Each lower bound counted once
+      if (adjusted_demand > 0)
+        {
+          total_demand += adjusted_demand;
+          added_arcs.append(net.insert_arc(super_source, v, adjusted_demand));
+        }
+      else if (adjusted_demand < 0)
+        added_arcs.append(net.insert_arc(v, super_sink, -adjusted_demand));
     }
 
-  // Adjust arc capacities for lower bounds
+  // Trivial case: no adjusted demands means circulation with lower bounds is feasible
+  if (total_demand == Flow_Type{0})
+    {
+      result.feasible = true;
+      // Set all flows to their lower bounds
+      for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+        {
+          Arc* arc = it.get_curr();
+          if (original_caps.contains(arc))
+            result.flow[arc] = get_lower(arc);
+        }
+      // Cleanup: remove added arcs and nodes
+      for (Arc* arc : added_arcs)
+        net.remove_arc(arc);
+      net.remove_node(super_source);
+      net.remove_node(super_sink);
+      return result;
+    }
+
+  // Adjust arc capacities: cap' = cap - lower_bound
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
       Arc* arc = it.get_curr();
       Node* src = net.get_src_node(arc);
       Node* tgt = net.get_tgt_node(arc);
 
-      // Skip super-source/sink arcs
+      // Skip super-source/sink arcs (they don't have lower bounds)
       if (src == super_source or tgt == super_sink)
         continue;
 
       Flow_Type lb = get_lower(arc);
-      arc->cap -= lb;  // Reduce capacity by lower bound
+      arc->cap -= lb;
     }
 
-  // Ensure network has single source and sink for max-flow
-  net.make_super_source();
-  net.make_super_sink();
+  // Ensure super_source is the ONLY source and super_sink is the ONLY sink.
+  // For the max-flow to correctly compute feasibility, we need paths from s* to t*.
+  //
+  // For original sinks (nodes with no outgoing arcs), flow arriving at them has
+  // nowhere to go. We add arcs to super_sink. The capacity should be the incoming
+  // capacity from ORIGINAL arcs only (not demand arcs), since we're measuring
+  // how much flow can reach this sink through the original network.
+  //
+  // For original sources (nodes with no incoming arcs), we add zero-capacity
+  // arcs just to make them non-sources in the network topology.
+  for (auto* v : original_nodes)
+    {
+      // Check if v is still a source (no incoming arcs)
+      if (net.get_in_degree(v) == 0)
+        added_arcs.append(net.insert_arc(super_source, v, Flow_Type{0}));
 
-  // Solve max-flow
+      // Check if v is still a sink (no outgoing arcs): add arc to super_sink
+      // Compute incoming capacity from ORIGINAL arcs only
+      if (net.get_out_degree(v) == 0)
+        {
+          Flow_Type in_cap_orig{0};
+          for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
+            {
+              Arc* arc = ait.get_curr();
+              if (net.get_tgt_node(arc) == v and original_caps.contains(arc))
+                in_cap_orig += arc->cap;  // Use modified cap (original - lower)
+            }
+          added_arcs.append(net.insert_arc(v, super_sink, in_cap_orig));
+        }
+    }
+
+  // Solve max-flow on the transformed network
   Flow_Type max_flow = Maxflow<Net>()(net);
 
   result.feasible = (max_flow == total_demand);
   result.excess_flow = max_flow;
 
-  // Extract flow values (add back lower bounds)
+  // Compute actual circulation flow on original arcs.
+  // The max-flow determines feasibility but may route through auxiliary arcs.
+  // We need to compute flows on original arcs using flow conservation equations.
+  //
+  // For each original arc, start with lower bound and adjust based on demands.
+  // First, initialize flows to lower bounds.
   for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
     {
       Arc* arc = it.get_curr();
-      Node* src = net.get_src_node(arc);
-      Node* tgt = net.get_tgt_node(arc);
-
-      if (src == super_source or tgt == super_sink)
-        continue;
-
-      Flow_Type lb = get_lower(arc);
-      result.flow[arc] = arc->flow + lb;
+      if (original_caps.contains(arc))
+        result.flow[arc] = get_lower(arc);
     }
+
+  // If feasible, compute the actual circulation flows.
+  // For each node, we need: inflow - outflow = demand
+  // Use an iterative approach: repeatedly process nodes until all balances are satisfied.
+  if (result.feasible)
+    {
+      // Iterate until all nodes have correct flow balance
+      bool changed = true;
+      int max_iterations = original_nodes.size() * 2;  // Safety limit
+      while (changed and max_iterations-- > 0)
+        {
+          changed = false;
+          for (auto* v : original_nodes)
+            {
+              // Compute current balance at v
+              Flow_Type current_in{0}, current_out{0};
+              for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
+                {
+                  Arc* arc = ait.get_curr();
+                  if (not original_caps.contains(arc))
+                    continue;
+                  if (net.get_tgt_node(arc) == v)
+                    current_in += result.flow[arc];
+                  if (net.get_src_node(arc) == v)
+                    current_out += result.flow[arc];
+                }
+
+              // imbalance = (current_in - current_out) - demand
+              Flow_Type imbalance = (current_in - current_out) - get_demand(v);
+
+              if (imbalance < Flow_Type{0})
+                {
+                  // Node needs more inflow - increase flow on incoming arcs
+                  Flow_Type deficit = -imbalance;
+                  for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
+                    {
+                      Arc* arc = ait.get_curr();
+                      if (not original_caps.contains(arc))
+                        continue;
+                      if (net.get_tgt_node(arc) != v)
+                        continue;
+
+                      Flow_Type slack = original_caps[arc] - result.flow[arc];
+                      Flow_Type increase = (slack < deficit) ? slack : deficit;
+                      if (increase > Flow_Type{0})
+                        {
+                          result.flow[arc] += increase;
+                          deficit -= increase;
+                          changed = true;
+                        }
+                      if (deficit <= Flow_Type{0})
+                        break;
+                    }
+                }
+              else if (imbalance > Flow_Type{0})
+                {
+                  // Node has excess inflow - increase flow on outgoing arcs
+                  Flow_Type excess = imbalance;
+                  for (typename Net::Node_Arc_Iterator ait(v); ait.has_curr(); ait.next_ne())
+                    {
+                      Arc* arc = ait.get_curr();
+                      if (not original_caps.contains(arc))
+                        continue;
+                      if (net.get_src_node(arc) != v)
+                        continue;
+
+                      Flow_Type slack = original_caps[arc] - result.flow[arc];
+                      Flow_Type increase = (slack < excess) ? slack : excess;
+                      if (increase > Flow_Type{0})
+                        {
+                          result.flow[arc] += increase;
+                          excess -= increase;
+                          changed = true;
+                        }
+                      if (excess <= Flow_Type{0})
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+  // Cleanup: restore original capacities and reset flows
+  for (Arc_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+    {
+      Arc* arc = it.get_curr();
+      if (original_caps.contains(arc))
+        {
+          arc->cap = original_caps[arc];
+          arc->flow = Flow_Type{0};  // Reset flow
+        }
+    }
+
+  // Cleanup: remove added arcs (must be done before removing nodes)
+  for (Arc* arc : added_arcs)
+    net.remove_arc(arc);
+
+  // Cleanup: remove super nodes we created
+  net.remove_node(super_source);
+  net.remove_node(super_sink);
 
   return result;
 }
@@ -358,14 +508,14 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
   DynSetTree<Node*> reachable;
 
   // BFS from source in residual graph
-  std::queue<Node*> queue;
-  queue.push(source);
+  DynListQueue<Node*> queue;
+  queue.put(source);
   reachable.insert(source);
 
-  while (not queue.empty())
+  while (not queue.is_empty())
     {
       Node* u = queue.front();
-      queue.pop();
+      queue.get();
 
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
         {
@@ -385,7 +535,7 @@ solve_project_selection(const std::vector<Project<Value_Type>>& projects)
           if (residual > Value_Type{0})
             {
               reachable.insert(v);
-              queue.push(v);
+              queue.put(v);
             }
         }
     }
@@ -553,14 +703,14 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
     {
       // BFS from source in residual graph
       DynSetTree<Node*> reachable;
-      std::queue<Node*> queue;
-      queue.push(source);
+      DynListQueue<Node*> queue;
+      queue.put(source);
       reachable.insert(source);
 
-      while (not queue.empty())
+      while (not queue.is_empty())
         {
           Node* u = queue.front();
-          queue.pop();
+          queue.get();
 
           for (Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
             {
@@ -576,7 +726,7 @@ check_baseball_elimination(const std::vector<Team>& teams, size_t team_idx)
               if (residual > 0)
                 {
                   reachable.insert(v);
-                  queue.push(v);
+                  queue.put(v);
                 }
             }
         }
@@ -713,14 +863,14 @@ SegmentationResult segment_image(
   // Extract labels (BFS from source in residual graph)
   DynSetTree<Node*> foreground;  // Reachable = foreground (label 1)
 
-  std::queue<Node*> queue;
-  queue.push(source);
+  DynListQueue<Node*> queue;
+  queue.put(source);
   foreground.insert(source);
 
-  while (not queue.empty())
+  while (not queue.is_empty())
     {
       Node* u = queue.front();
-      queue.pop();
+      queue.get();
 
       for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
         {
@@ -736,7 +886,7 @@ SegmentationResult segment_image(
           if (residual > Value_Type{0})
             {
               foreground.insert(v);
-              queue.push(v);
+              queue.put(v);
             }
         }
     }

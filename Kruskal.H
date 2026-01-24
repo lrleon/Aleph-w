@@ -127,7 +127,7 @@ namespace Aleph
     }
 
     /// @brief Returns true if the spanning tree has been painted on the graph.
-    bool is_painted() const noexcept { return painted; }
+    [[nodiscard]] bool is_painted() const noexcept { return painted; }
 
     /// @brief Filter for arcs painted by Kruskal's algorithm.
     template <class G, class GT_SA>
