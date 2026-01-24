@@ -324,7 +324,7 @@ namespace Aleph
       return ret_val;
     }
 
-    /** Insert the node `p` as root of a binary search tree
+    /** Insert the node `p` as the root of a binary search tree
 
         `insert_root(root, p)` inserts in the tree `root` the node
         `p`. After insertion, `p` becomes the new root of tree.
