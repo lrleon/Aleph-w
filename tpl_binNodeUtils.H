@@ -9,18 +9,23 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
 
@@ -51,18 +56,18 @@ namespace Aleph
 {
   template <class Node>
   inline static
-  void __inorder_rec(Node *node, const int & level, int & position,
+  void inorder_rec_helper(Node *node, const int & level, int & position,
                      void (*visitFct)(Node *, int, int))
   {
     if (node == Node::NullPtr)
       return;
 
-    __inorder_rec(LLINK(node), level + 1, position, visitFct);
+    inorder_rec_helper(LLINK(node), level + 1, position, visitFct);
 
     (*visitFct)(node, level, position);
     ++position;
 
-    __inorder_rec(RLINK(node), level + 1, position, visitFct);
+    inorder_rec_helper(RLINK(node), level + 1, position, visitFct);
   }
 
   /** Traverse recursively inorder a binary tree.
@@ -92,13 +97,13 @@ namespace Aleph
   int inOrderRec(Node *root, void (*visitFct)(Node *, int, int))
   {
     int position = 0;
-    __inorder_rec(root, 0, position, visitFct);
+    inorder_rec_helper(root, 0, position, visitFct);
     return position;
   }
 
   template <class Node>
   inline static
-  void __preorder_rec(Node *p, const int & level, int & position,
+  void preorder_rec_helper(Node *p, const int & level, int & position,
                       void (*visitFct)(Node *, int, int))
   {
     if (p == Node::NullPtr)
@@ -107,13 +112,13 @@ namespace Aleph
     (*visitFct)(p, level, position);
     ++position;
 
-    __preorder_rec(LLINK(p), level + 1, position, visitFct);
-    __preorder_rec(RLINK(p), level + 1, position, visitFct);
+    preorder_rec_helper(LLINK(p), level + 1, position, visitFct);
+    preorder_rec_helper(RLINK(p), level + 1, position, visitFct);
   }
 
   /** Traverse recursively in preorder a binary tree.
 
-      `preOrderRec(root,visit)` performs an inorder traversal of tree
+      `preOrderRec(root,visit)` performs a preorder traversal of tree
       rooted by `root` and on each node executes a visit function with
       the following signature:
 
@@ -138,20 +143,20 @@ namespace Aleph
   int preOrderRec(Node *root, void (*visitFct)(Node *, int, int))
   {
     int position = 0;
-    __preorder_rec(root, 0, position, visitFct);
+    preorder_rec_helper(root, 0, position, visitFct);
     return position;
   }
 
   template <class Node>
   inline static
-  void __postorder_rec(Node *node, const int & level, int & position,
+  void postorder_rec_helper(Node *node, const int & level, int & position,
                        void (*visitFct)(Node *, int, int))
   {
     if (node == Node::NullPtr)
       return;
 
-    __postorder_rec(LLINK(node), level + 1, position, visitFct);
-    __postorder_rec(RLINK(node), level + 1, position, visitFct);
+    postorder_rec_helper(LLINK(node), level + 1, position, visitFct);
+    postorder_rec_helper(RLINK(node), level + 1, position, visitFct);
 
     (*visitFct)(node, level, position);
     ++position;
@@ -184,7 +189,7 @@ namespace Aleph
   int postOrderRec(Node *root, void (*visitFct)(Node *, int, int))
   {
     int position = 0;
-    __postorder_rec(root, 0, position, visitFct);
+    postorder_rec_helper(root, 0, position, visitFct);
     return position;
   }
 
@@ -562,7 +567,7 @@ namespace Aleph
       @ingroup Trees
    */
   template <class Node>
-  inline
+  [[nodiscard]] inline
   Node * copyRec(Node *root)
   {
     if (root == Node::NullPtr)
@@ -772,7 +777,8 @@ namespace Aleph
 
     assert(l_i <= r_i);
 
-    int i = 0;
+    // Find root key position in inorder array
+    int i = -1;
     for (int j = l_i; j <= r_i; ++j)
       if (inorder[j] == preorder[l_p])
         {
@@ -780,7 +786,11 @@ namespace Aleph
           break;
         }
 
-    assert(i <= r_i);
+    // Validate that root key was found in inorder array
+    ah_domain_error_if(i < 0)
+      << "build_tree: root key not found in inorder array (corrupted input)";
+
+    assert(i <= r_i - l_i);
 
     LLINK(root) = build_tree<Node, Key>(preorder, l_p + 1, l_p + i,
                                         inorder, l_i, l_i + (i - 1));
@@ -800,10 +810,15 @@ namespace Aleph
 
     auto *root = new Node<Key>(post[rp]);
 
+    // Search in inorder array the index of root
     int i = li;
-    for (; i <= ri; ++i) // search in inorder array the index of root
+    for (; i <= ri; ++i)
       if (in[i] == post[rp])
         break;
+
+    // Validate that root key was found in inorder array
+    ah_domain_error_if(i > ri)
+      << "build_postorder: root key not found in inorder array (corrupted input)";
 
     assert(i <= ri);
 
@@ -816,7 +831,7 @@ namespace Aleph
 
   template <class Node>
   inline static void
-  __compute_nodes_in_level(Node *root, long level, const long current_level,
+  compute_nodes_in_level_helper(Node *root, long level, const long current_level,
                            DynDlist<Node *> & level_list)
   {
     if (root == Node::NullPtr)
@@ -828,8 +843,8 @@ namespace Aleph
         return; // it is not worth descending further
       }
 
-    __compute_nodes_in_level(LLINK(root), level, current_level + 1, level_list);
-    __compute_nodes_in_level(RLINK(root), level, current_level + 1, level_list);
+    compute_nodes_in_level_helper(LLINK(root), level, current_level + 1, level_list);
+    compute_nodes_in_level_helper(RLINK(root), level, current_level + 1, level_list);
   }
 
   /** Count the number of nodes in a specific tree level
@@ -845,7 +860,7 @@ namespace Aleph
   DynDlist<Node *> compute_nodes_in_level(Node *root, const int & level)
   {
     DynDlist<Node *> list;
-    __compute_nodes_in_level(root, level, 0, list);
+    compute_nodes_in_level_helper(root, level, 0, list);
     return list;
   }
 
@@ -967,13 +982,13 @@ namespace Aleph
 
   template <class Node>
   inline static
-  size_t __internal_path_length(Node *p, const size_t & level) noexcept
+  size_t internal_path_length_helper(Node *p, const size_t & level) noexcept
   {
     if (p == Node::NullPtr)
       return 0;
 
-    return level + __internal_path_length(LLINK(p), level + 1) +
-           __internal_path_length(RLINK(p), level + 1);
+    return level + internal_path_length_helper(LLINK(p), level + 1) +
+           internal_path_length_helper(RLINK(p), level + 1);
   }
 
   /** Compute the internal path length
@@ -987,7 +1002,7 @@ namespace Aleph
   inline
   size_t internal_path_length(Node *p) noexcept
   {
-    return __internal_path_length(p, 0);
+    return internal_path_length_helper(p, 0);
   }
 
   /** Compute a bit code for the binary tree
@@ -1062,8 +1077,12 @@ namespace Aleph
 
   template <class Node>
   static inline
-  Node * __bits_to_tree(const BitArray & array, int & i)
+  Node * bits_to_tree_helper(const BitArray & array, int & i)
   {
+    // Bounds check: ensure we don't read past the end of the bit array
+    ah_domain_error_if(i >= static_cast<int>(array.size()))
+      << "bits_to_tree_helper: bit array index out of bounds (malformed input)";
+
     if (const int bit = array.read_bit(i++); bit == 1)
       return Node::NullPtr;
 
@@ -1072,8 +1091,8 @@ namespace Aleph
     Node *right = Node::NullPtr;
     try
       {
-        left = __bits_to_tree<Node>(array, i);
-        right = __bits_to_tree<Node>(array, i);
+        left = bits_to_tree_helper<Node>(array, i);
+        right = bits_to_tree_helper<Node>(array, i);
       }
     catch (...)
       {
@@ -1106,7 +1125,7 @@ namespace Aleph
   inline
   Node * bits_to_tree(const BitArray & array, int idx = 0)
   {
-    return __bits_to_tree<Node>(array, idx);
+    return bits_to_tree_helper<Node>(array, idx);
   }
 
   /** Store in output stream the tree keys in preorder
@@ -1207,7 +1226,15 @@ namespace Aleph
     BitArray prefix;
     prefix.load(input);
     Node *root = bits_to_tree<Node>(prefix);
-    load_tree_keys_in_prefix(root, input);
+    try
+      {
+        load_tree_keys_in_prefix(root, input);
+      }
+    catch (...)
+      {
+        destroyRec(root);  // Cleanup partially loaded tree on exception
+        throw;
+      }
     return root;
   }
 
@@ -1460,7 +1487,7 @@ namespace Aleph
    */
   template <class Node,
             class Compare = Aleph::less<typename Node::key_type>>
-  inline
+  [[nodiscard]] inline
   Node * searchInBinTree(Node *root, const typename Node::key_type & key,
                          const Compare & cmp = Compare()) noexcept
   {
@@ -1497,9 +1524,10 @@ namespace Aleph
       @see find_max()
    */
   template <class Node>
-  inline
+  [[nodiscard]] inline
   Node * find_min(Node *root) noexcept
   {
+    assert(root != Node::NullPtr && "find_min called on empty tree");
     while (LLINK(root) != Node::NullPtr)
       root = LLINK(root);
 
@@ -1515,9 +1543,10 @@ namespace Aleph
       @see find_max()
    */
   template <class Node>
-  inline
+  [[nodiscard]] inline
   Node * find_max(Node *root) noexcept
   {
+    assert(root != Node::NullPtr && "find_max called on empty tree");
     while (RLINK(root) != Node::NullPtr)
       root = RLINK(root);
 
@@ -1765,7 +1794,7 @@ namespace Aleph
 
   template <class Node, class Compare>
   static inline
-  bool __split_key_rec(Node *root, const typename Node::key_type & key,
+  bool split_key_rec_helper(Node *root, const typename Node::key_type & key,
                        Node *& ts, Node *& tg, Compare & cmp) noexcept
   {
     if (root == Node::NullPtr)
@@ -1776,7 +1805,7 @@ namespace Aleph
 
     if (cmp(key, KEY(root)))
       {
-        if (__split_key_rec(LLINK(root), key, ts, LLINK(root), cmp))
+        if (split_key_rec_helper(LLINK(root), key, ts, LLINK(root), cmp))
           {
             tg = root;
             return true;
@@ -1785,7 +1814,7 @@ namespace Aleph
       }
 
     if (cmp(KEY(root), key))
-      if (__split_key_rec(RLINK(root), key, RLINK(root), tg, cmp))
+      if (split_key_rec_helper(RLINK(root), key, RLINK(root), tg, cmp))
         {
           ts = root;
           return true;
@@ -1820,7 +1849,7 @@ namespace Aleph
   bool split_key_rec(Node *& root, const typename Node::key_type & key,
                      Node *& ts, Node *& tg, const Compare & cmp = Compare()) noexcept
   {
-    const bool ret = __split_key_rec(root, key, ts, tg, cmp);
+    const bool ret = split_key_rec_helper(root, key, ts, tg, cmp);
     if (ret)
       root = Node::NullPtr;
     return ret;
@@ -1829,7 +1858,7 @@ namespace Aleph
 
   template <class Node, class Compare>
   static inline
-  void __split_key_dup_rec(Node *root, const typename Node::key_type & key,
+  void split_key_dup_rec_helper(Node *root, const typename Node::key_type & key,
                            Node *& ts, Node *& tg, Compare & cmp) noexcept
   {
     if (root == Node::NullPtr)
@@ -1840,12 +1869,12 @@ namespace Aleph
 
     if (cmp(KEY(root), key))
       {
-        __split_key_dup_rec(RLINK(root), key, RLINK(root), tg, cmp);
+        split_key_dup_rec_helper(RLINK(root), key, RLINK(root), tg, cmp);
         ts = root;
       }
     else
       {
-        __split_key_dup_rec(LLINK(root), key, ts, LLINK(root), cmp);
+        split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root), cmp);
         tg = root;
       }
   }
@@ -1871,7 +1900,7 @@ namespace Aleph
   void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
                          Node *& ts, Node *& tg, const Compare & cmp = Compare()) noexcept
   {
-    __split_key_dup_rec(root, key, ts, tg, cmp);
+    split_key_dup_rec_helper(root, key, ts, tg, cmp);
     root = Node::NullPtr;
   }
 
@@ -2193,7 +2222,7 @@ namespace Aleph
 
     Node **current_parent = nullptr;
     Node **pending_child = nullptr;
-    char current_is_right = true;
+    bool current_is_right = true;
     if (cmp(key, KEY(root)))
       {
         r = root;
@@ -2462,9 +2491,9 @@ namespace Aleph
     BinNodePrefixIterator() = default;
 
     /// Initialize an iterator on the first node in preorder for the tree
-    /// with root `__root`
-    BinNodePrefixIterator(Node *__root) noexcept
-      : root(__root), curr(root), s(Node::MaxHeight)
+    /// with root `r`
+    BinNodePrefixIterator(Node *r) noexcept
+      : root(r), curr(root), s(Node::MaxHeight)
     {
       // empty
     }
@@ -2706,8 +2735,8 @@ namespace Aleph
     BinNodeInfixIterator() = default;
 
     /// Initialize an iterator on the first node inorder
-    BinNodeInfixIterator(Node *__root) noexcept
-      : root(__root), s(Node::MaxHeight)
+    BinNodeInfixIterator(Node *r) noexcept
+      : root(r), s(Node::MaxHeight)
     {
       init();
     }
@@ -2809,10 +2838,10 @@ namespace Aleph
     }
   };
 
-  /** Traverse a tree in preorder via its iterator and performs a conditioned
+  /** Traverse a tree in inorder via its iterator and performs a conditioned
       operation on each item.
 
-       `prefix_traverse(root, operation)` instantiates the internal
+       `infix_traverse(root, operation)` instantiates the internal
        iterator of the class and traverses each item performing
        `operation(p)`, where `p` is a node pointer.
 

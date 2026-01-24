@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -10,51 +9,47 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
 
-# include <pthread.h>
-# include <assert.h>
-# include <stdio.h>
-# include <unistd.h>
-# include <errno.h>
-# include <string.h>
+# include <cassert>
+# include <cstdio>
 # include <typeinfo>
 # include <timeoutQueue.H>
 # include <ah-errors.H>
 
+using namespace std::chrono;
 
-int TimeoutQueue::instanceCounter = 0;
+// Initialize static event ID counter
+std::atomic<TimeoutQueue::Event::EventId> TimeoutQueue::Event::nextId{0};
+
+// Convert POSIX timespec to std::chrono::time_point
+static auto timespec_to_timepoint(const Time& t)
+{
+  return system_clock::time_point(seconds(t.tv_sec) + nanoseconds(t.tv_nsec));
+}
 
 
 TimeoutQueue::TimeoutQueue() : isShutdown(false)
 {
-  if (instanceCounter >= 1)
-    EXIT("Double instantiation (%d) of TimeoutQueue", instanceCounter);
-
-  ++instanceCounter;
-
-  init_mutex(mutex);
-
-  pthread_cond_init(&cond, nullptr);
-
-  const int status =
-    pthread_create(&threadId, nullptr , triggerEventThread, this);
-
-  if (status != 0)
-    EXIT("Cannot create triggerEventThread (error code = %d)", status);
+  workerThread = std::thread(&TimeoutQueue::triggerEvent, this);
 }
 
 
@@ -63,14 +58,13 @@ TimeoutQueue::~TimeoutQueue()
   if (not isShutdown)
     EXIT("TimeoutQueue is not shut down");
 
-  destroy_mutex(mutex);
-
-  pthread_cond_destroy(&cond);
+  if (workerThread.joinable())
+    workerThread.join();
 }
 
 
-void TimeoutQueue::schedule_event(const Time &          trigger_time,
-                                  TimeoutQueue::Event * event)
+void TimeoutQueue::schedule_event(const Time & trigger_time,
+                                  TimeoutQueue::Event *event)
 {
   assert(event != nullptr);
 
@@ -79,15 +73,15 @@ void TimeoutQueue::schedule_event(const Time &          trigger_time,
 }
 
 
-void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
+void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 {
   assert(event != nullptr);
   assert(EVENT_NSEC(event) >= 0 and EVENT_NSEC(event) < NSEC);
 
-  CRITICAL_SECTION(mutex);
+  std::lock_guard<std::mutex> lock(mtx);
 
   ah_invalid_argument_if(event->get_execution_status() == Event::In_Queue)
-      << "Event has already inserted in timemeQueue";
+      << "Event has already been inserted in timeoutQueue";
 
   if (isShutdown)
     return;
@@ -95,14 +89,15 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event * event)
   event->set_execution_status(Event::In_Queue);
 
   prioQueue.insert(event);
+  eventMap[event->get_id()] = event;
 
-  pthread_cond_signal(&cond);
+  cond.notify_one();
 }
 
 
-bool TimeoutQueue::cancel_event(TimeoutQueue::Event* event)
+bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
 {
-  CRITICAL_SECTION(mutex);
+  std::lock_guard<std::mutex> lock(mtx);
 
   if (event->get_execution_status() != Event::In_Queue)
     return false;
@@ -110,8 +105,11 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event* event)
   event->set_execution_status(Event::Canceled);
 
   prioQueue.remove(event);
+  eventMap.erase(event->get_id());
 
-  pthread_cond_signal(&cond);
+  ++canceledCount;
+
+  cond.notify_one();
 
   return true;
 }
@@ -122,10 +120,14 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   if (event == nullptr)
     return;
 
-  CRITICAL_SECTION(mutex);
+  std::lock_guard<std::mutex> lock(mtx);
 
   if (event->get_execution_status() == Event::In_Queue)
-    prioQueue.remove(event);
+    {
+      prioQueue.remove(event);
+      eventMap.erase(event->get_id());
+      ++canceledCount;
+    }
 
   if (event->get_execution_status() == Event::Executing)
     event->set_execution_status(Event::To_Delete);
@@ -136,119 +138,284 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
     }
 
   event = nullptr;
-  pthread_cond_signal(&cond);
+  cond.notify_one();
 }
 
 
-void TimeoutQueue::reschedule_event(const Time &          trigger_time,
-                                    TimeoutQueue::Event * event)
+void TimeoutQueue::reschedule_event(const Time & trigger_time,
+                                    TimeoutQueue::Event *event)
 {
   assert(event != nullptr);
 
-  CRITICAL_SECTION(mutex);
+  std::lock_guard<std::mutex> lock(mtx);
 
   if (event->get_execution_status() == Event::In_Queue)
-    prioQueue.remove(event);
+    prioQueue.remove(event);  // eventMap entry stays, ID doesn't change
 
   event->set_trigger_time(trigger_time);
 
   event->set_execution_status(Event::In_Queue);
 
   prioQueue.insert(event);
+  eventMap[event->get_id()] = event;  // Re-add in case it wasn't there
 
-  pthread_cond_signal(&cond);
+  cond.notify_one();
 }
 
 
-void * TimeoutQueue::triggerEvent()
+void TimeoutQueue::triggerEvent()
 {
-  Event *event_to_schedule;
-  Event *event_to_execute;
-  int status = 0;
+  std::unique_lock<std::mutex> lock(mtx);
 
-  {
-    CRITICAL_SECTION(mutex);
+  while (true)
+    {
+      // Sleep if there are no events or if paused
+      while ((prioQueue.size() == 0 or isPaused) and not isShutdown)
+        cond.wait(lock);
 
-    while (true)
-      {
-        /* sleep if there is no events */
-        while ((prioQueue.size() == 0) and (not isShutdown))
-          pthread_cond_wait(&cond, &mutex);
+      if (isShutdown)
+        break;
 
-        if (isShutdown)
-          goto end; /* if shutdown is activated, get out */
+      // Read the soonest event
+      auto* event_to_schedule = static_cast<Event*>(prioQueue.top());
 
-        /* read the soonest event */
-        event_to_schedule = static_cast<Event*>(prioQueue.top());
+      // Compute time when the event must be triggered
+      const Time& t = EVENT_TIME(event_to_schedule);
+      auto trigger_point = timespec_to_timepoint(t);
 
-        /* compute time when the event must triggered */
-        const Time & t = EVENT_TIME(event_to_schedule);
+      // Wait until trigger time or notification
+      const auto wait_result = cond.wait_until(lock, trigger_point);
 
-        do
-          { /* sleep during t units of time, but be immune to signals
-               interruptions (status will be EINTR in the case where the
-               thread was signalized) */
-            status = pthread_cond_timedwait(&cond, &mutex, &t);
+      if (isShutdown)
+        break;
 
-            if (isShutdown)
-              goto end;/* thread was signaled because shutdown was requested */
+      // If paused, go back to waiting
+      if (isPaused)
+        continue;
 
-          } while (status == EINTR);
+      if (wait_result == std::cv_status::timeout)
+        {
+          // Check if the event is still the soonest (could have been canceled)
+          auto* event_to_execute = static_cast<Event*>(prioQueue.getMin());
 
-        if (status == ETIMEDOUT) /* soonest event could be executed */
-          {     /* event to execute could be changed if it was canceled */
-            event_to_execute = static_cast<Event*>(prioQueue.getMin());
+          if (event_to_execute != event_to_schedule and
+              EVENT_TIME(event_to_execute) > EVENT_TIME(event_to_schedule))
+            continue; // Go to schedule another event
 
-            if (event_to_execute != event_to_schedule and
-                EVENT_TIME(event_to_execute) > EVENT_TIME(event_to_schedule))
-              continue; /* go to schedule another event */
+          event_to_execute->set_execution_status(Event::Executing);
 
-            event_to_execute->set_execution_status(Event::Executing);
+          lock.unlock();
 
-            critical_section.leave();
+          try { event_to_execute->EventFct(); }
+          catch (...) { /* Exceptions are only caught */ }
 
-            try { event_to_execute->EventFct(); } /* execute event */
-            catch (...) { /* Exceptions are only cauthg */ }
+          lock.lock();
 
-            critical_section.enter();
+          ++executedCount;
+          eventMap.erase(event_to_execute->get_id());
 
-            if (event_to_execute->get_execution_status() == Event::To_Delete)
-              {
-                event_to_execute->set_execution_status(Event::Deleted);
+          if (event_to_execute->get_execution_status() == Event::To_Delete)
+            {
+              event_to_execute->set_execution_status(Event::Deleted);
+              event_to_execute->invoke_completion_callback();
+              delete event_to_execute;
+            }
+          else
+            {
+              event_to_execute->set_execution_status(Event::Executed);
+              event_to_execute->invoke_completion_callback();
+            }
 
-                delete event_to_execute;
-              }
+          // Notify if queue became empty
+          if (prioQueue.size() == 0)
+            emptyCondition.notify_all();
+        }
+    }
 
-            /* from this point, event cannot be longer acceded because
-               it may delete itself */
-          } /* end if (status == ETIMEDOUT) */
-      } /* end while (1) */
+  // Shutdown requested - cancel all pending events
+  while (prioQueue.size() > 0)
+    {
+      auto* event = static_cast<Event*>(prioQueue.getMin());
+      event->set_execution_status(Event::Canceled);
+      eventMap.erase(event->get_id());
+      event->invoke_completion_callback();
+      ++canceledCount;
+    }
 
-  end: /* shutdown has been requested */
-
-    /* extract all events from priority queue */
-    while (prioQueue.size() > 0)
-      static_cast<Event*>(prioQueue.getMin())->
-        set_execution_status(Event::Canceled);
-  } /* end of critical section */
-
-  pthread_exit(nullptr);
+  emptyCondition.notify_all();
 }
 
 
 void TimeoutQueue::shutdown()
 {
-  CRITICAL_SECTION(mutex);
+  std::lock_guard<std::mutex> lock(mtx);
 
   isShutdown = true;
 
-  pthread_cond_signal(&cond);
+  cond.notify_one();
 }
 
 
-void* TimeoutQueue::triggerEventThread(void *obj)
+size_t TimeoutQueue::size() const
 {
-  TimeoutQueue *timeoutQueue = static_cast<TimeoutQueue*>(obj);
+  std::lock_guard<std::mutex> lock(mtx);
+  return prioQueue.size();
+}
 
-  return timeoutQueue->triggerEvent();
+
+bool TimeoutQueue::is_empty() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  return prioQueue.size() == 0;
+}
+
+
+bool TimeoutQueue::is_running() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  return not isShutdown;
+}
+
+
+void TimeoutQueue::schedule_after_ms(int ms_from_now, Event* event)
+{
+  Time trigger_time = time_plus_msec(read_current_time(), ms_from_now);
+  schedule_event(trigger_time, event);
+}
+
+
+Time TimeoutQueue::next_event_time() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  if (prioQueue.size() == 0)
+    return {0, 0};
+  return EVENT_TIME(static_cast<Event*>(prioQueue.top()));
+}
+
+
+size_t TimeoutQueue::clear_all()
+{
+  std::lock_guard<std::mutex> lock(mtx);
+
+  size_t count = 0;
+  while (prioQueue.size() > 0)
+    {
+      auto* event = static_cast<Event*>(prioQueue.getMin());
+      event->set_execution_status(Event::Canceled);
+      eventMap.erase(event->get_id());
+      event->invoke_completion_callback();
+      ++count;
+      ++canceledCount;
+    }
+
+  cond.notify_one();
+  emptyCondition.notify_all();
+
+  return count;
+}
+
+
+size_t TimeoutQueue::executed_count() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  return executedCount;
+}
+
+
+size_t TimeoutQueue::canceled_count() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  return canceledCount;
+}
+
+
+void TimeoutQueue::reset_stats()
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  executedCount = 0;
+  canceledCount = 0;
+}
+
+
+void TimeoutQueue::pause()
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  isPaused = true;
+}
+
+
+void TimeoutQueue::resume()
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  isPaused = false;
+  cond.notify_one();
+}
+
+
+bool TimeoutQueue::is_paused() const
+{
+  std::lock_guard<std::mutex> lock(mtx);
+  return isPaused;
+}
+
+
+bool TimeoutQueue::wait_until_empty(int timeout_ms)
+{
+  std::unique_lock<std::mutex> lock(mtx);
+
+  if (prioQueue.size() == 0)
+    return true;
+
+  if (timeout_ms <= 0)
+    {
+      emptyCondition.wait(lock, [this]() { return prioQueue.size() == 0 or isShutdown; });
+      return prioQueue.size() == 0;
+    }
+
+  return emptyCondition.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+                                  [this]() { return prioQueue.size() == 0 or isShutdown; });
+}
+
+
+TimeoutQueue::Event* TimeoutQueue::find_by_id(Event::EventId id) const
+{
+  if (id == Event::InvalidId)
+    return nullptr;
+
+  std::lock_guard<std::mutex> lock(mtx);
+
+  auto it = eventMap.find(id);
+  if (it != eventMap.end() and it->second->get_execution_status() == Event::In_Queue)
+    return it->second;
+
+  return nullptr;
+}
+
+
+bool TimeoutQueue::cancel_by_id(Event::EventId id)
+{
+  if (id == Event::InvalidId)
+    return false;
+
+  std::lock_guard<std::mutex> lock(mtx);
+
+  auto it = eventMap.find(id);
+  if (it == eventMap.end())
+    return false;
+
+  Event* event = it->second;
+  if (event->get_execution_status() != Event::In_Queue)
+    return false;
+
+  event->set_execution_status(Event::Canceled);
+  prioQueue.remove(event);
+  eventMap.erase(it);
+  event->invoke_completion_callback();
+  ++canceledCount;
+  cond.notify_one();
+
+  if (prioQueue.size() == 0)
+    emptyCondition.notify_all();
+
+  return true;
 }

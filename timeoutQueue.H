@@ -10,18 +10,23 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
 
@@ -88,7 +93,8 @@
  * 
  * @see tpl_binHeap.H For the underlying priority queue
  * @see ah-time.H For time utilities
- * @see useMutex.H For threading utilities
+ * 
+ * @note Uses C++11 threading primitives (std::mutex, std::condition_variable, std::thread)
  * 
  * @author Leandro Rabindranath León *
  *  @ingroup Utilities
@@ -99,9 +105,16 @@
 # define TIMEOUTQUEUE_H
 
 # include <unistd.h>
-# include <pthread.h>
+# include <mutex>
+# include <condition_variable>
+# include <thread>
+# include <chrono>
+# include <functional>
+# include <string>
+# include <atomic>
+# include <cstdint>
+# include <unordered_map>
 # include <tpl_binHeap.H>
-# include <useMutex.H>
 # include <ah-time.H>
 
 /**
@@ -154,11 +167,25 @@ public:
         Deleted      ///< Memory freed
       };
 
+    /// Optional callback type for post-execution notification
+    using CompletionCallback = std::function<void(Event*, Execution_Status)>;
+
+    /// Type for unique event identifiers
+    using EventId = uint64_t;
+
+    /// Invalid/null event ID
+    static constexpr EventId InvalidId = 0;
+
   private:
 
-    Execution_Status execution_status;
+    static std::atomic<EventId> nextId;
 
-    void set_trigger_time(Time _t)
+    EventId event_id;
+    Execution_Status execution_status;
+    std::string event_name;
+    CompletionCallback on_completed;
+
+    void set_trigger_time(const Time _t)
     {
       assert(_t.tv_nsec >= 0 and _t.tv_nsec < NSEC);
       EVENT_TIME(this) = _t;
@@ -169,15 +196,23 @@ public:
       execution_status = status;
     }
 
+    void invoke_completion_callback()
+    {
+      if (on_completed)
+        on_completed(this, execution_status);
+    }
+
   protected:
 
-    Event(const Time& t) :
-      BinHeapVtl<Time>::Node(t), execution_status(Out_Queue)
+    Event(const Time& t, const std::string& name = "") :
+      BinHeapVtl<Time>::Node(t), event_id(++nextId), 
+      execution_status(Out_Queue), event_name(name)
     {
       assert(EVENT_NSEC(this) >= 0 and EVENT_NSEC(this) < NSEC);
     }
 
-    Event(long sec, long nsec) : execution_status(Out_Queue)
+    Event(const long sec, const long nsec, const std::string& name = "") 
+      : event_id(++nextId), execution_status(Out_Queue), event_name(name)
     {
       assert(nsec >= 0 and nsec < NSEC);
 
@@ -187,17 +222,29 @@ public:
 
   public:
 
-    virtual ~Event()
+    ~Event() override
     {
-      if (execution_status == In_Queue)
-        AH_ERROR("Attempting to delete an event in queue (0x%x)", this);
+      ah_runtime_error_if(execution_status == In_Queue)
+        << "Attempting to delete an event in queue (" << this << ")";
     }
 
-    Execution_Status get_execution_status() const { return execution_status; }
+    [[nodiscard]] Execution_Status get_execution_status() const { return execution_status; }
 
-    Time getAbsoluteTime() { return EVENT_TIME(this); }
+    [[nodiscard]] Time getAbsoluteTime() const { return EVENT_TIME(this); }
 
     void set_for_deletion() { execution_status = To_Delete; }
+
+    /// Get the unique event ID (auto-generated on construction)
+    [[nodiscard]] EventId get_id() const { return event_id; }
+
+    /// Get the event name (for debugging)
+    [[nodiscard]] const std::string& get_name() const { return event_name; }
+
+    /// Set the event name
+    void set_name(const std::string& name) { event_name = name; }
+
+    /// Set completion callback (called after EventFct completes or event is canceled)
+    void set_completion_callback(CompletionCallback cb) { on_completed = std::move(cb); }
 
     /**
      * @brief Event handler function to be overridden
@@ -214,18 +261,21 @@ public:
 private:
 
   BinHeapVtl<Time> prioQueue;
+  std::unordered_map<Event::EventId, Event*> eventMap;  // For O(1) lookup by ID
 
-  pthread_mutex_t  mutex;
-  pthread_cond_t   cond;
-  pthread_t        threadId;
+  mutable std::mutex       mtx;
+  std::condition_variable  cond;
+  std::thread              workerThread;
 
-  bool             isShutdown;
+  bool                     isShutdown;
+  bool                     isPaused = false;
 
-  static int       instanceCounter;
+  size_t                   executedCount = 0;
+  size_t                   canceledCount = 0;
 
-  void *triggerEvent();
+  std::condition_variable  emptyCondition;
 
-  static void* triggerEventThread(void*);
+  void triggerEvent();
 
 public:
 
@@ -282,7 +332,74 @@ public:
   void shutdown();
 
   /// Get the background thread ID
-  const pthread_t & getThreadId() const { return threadId; }
+  [[nodiscard]] std::thread::id getThreadId() const { return workerThread.get_id(); }
+
+  /// Get the number of pending events in the queue
+  [[nodiscard]] size_t size() const;
+
+  /// Check if the queue has no pending events
+  [[nodiscard]] bool is_empty() const;
+
+  /// Check if queue is running (not shut down)
+  [[nodiscard]] bool is_running() const;
+
+  /**
+   * @brief Schedule an event relative to current time
+   * @param ms_from_now Milliseconds from now to trigger
+   * @param event Event to schedule
+   */
+  void schedule_after_ms(int ms_from_now, Event* event);
+
+  /**
+   * @brief Get the trigger time of the next (soonest) event
+   * @return Time of next event, or {0,0} if queue is empty
+   */
+  [[nodiscard]] Time next_event_time() const;
+
+  /**
+   * @brief Cancel all pending events in the queue
+   * @return Number of events that were canceled
+   */
+  size_t clear_all();
+
+  /// Get count of events that have been executed
+  [[nodiscard]] size_t executed_count() const;
+
+  /// Get count of events that have been canceled
+  [[nodiscard]] size_t canceled_count() const;
+
+  /// Reset statistics counters to zero
+  void reset_stats();
+
+  /// Pause event execution (events remain scheduled but won't execute)
+  void pause();
+
+  /// Resume event execution after pause
+  void resume();
+
+  /// Check if queue is paused
+  [[nodiscard]] bool is_paused() const;
+
+  /**
+   * @brief Block until all pending events have been executed or canceled
+   * @param timeout_ms Maximum time to wait in milliseconds (0 = wait forever)
+   * @return true if queue became empty, false if timeout
+   */
+  bool wait_until_empty(int timeout_ms = 0);
+
+  /**
+   * @brief Find a scheduled event by its ID
+   * @param id The event ID to search for
+   * @return Pointer to the event if found and still in queue, nullptr otherwise
+   */
+  [[nodiscard]] Event* find_by_id(Event::EventId id) const;
+
+  /**
+   * @brief Cancel a scheduled event by its ID
+   * @param id The event ID to cancel
+   * @return true if event was found and canceled, false if not found or not in queue
+   */
+  bool cancel_by_id(Event::EventId id);
 };
 
 

@@ -100,6 +100,7 @@ set(EXAMPLE_PROGRAMS
     tpl_2dtree_example
     min_cut_test
     min_cut_example
+    timeoutQueue_example
     ah_stl_functional_example
 )
 

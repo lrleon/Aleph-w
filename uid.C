@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -10,23 +9,28 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
-
+# include <random>
 # include <uid.H>
- # include <ah-errors.H>
+# include <ah-errors.H>
 
 
 typedef unsigned char Byte;
@@ -52,60 +56,62 @@ static char unhexadecimalize(char *& str)
 }
 
 
-char * Uid::stringficate(char *         buffer,
-			 const size_t & buf_size) const
+char * Uid::stringficate(char *buffer,
+                         const size_t & buf_size) const
 {
   ah_range_error_if(buf_size < 2*sizeof(Uid) + 1)
     << "Buffer size is not enough";
 
-  char * this_str = (char*) this;
-  char * ret_val = buffer;
+  char *this_str = (char *) this;
+  char *ret_val = buffer;
 
-      // copiar nibbles convertidas a ascii a buffer
+  // copiar nibbles convertidas a ascii a buffer
   for (int i = 0; i < sizeof(Uid); ++i)
     hexadecimalize(*this_str++, buffer);
 
   assert(this_str - (char*) this == sizeof(Uid));
-  
+
   *buffer = '\0';
 
   return ret_val;
 }
 
-void Uid::destringficate(char * str)
+void Uid::destringficate(char *str)
 {
-  char * this_str = (char*) this;
+  char *this_str = (char *) this;
 
-      // convertir el string en ascii a la representación en nibbles
+  // convertir el string en ascii a la representación en nibbles
   for (int i = 0; i < sizeof(Uid); ++i)
     *this_str++ = unhexadecimalize(str);
 }
 
 
-Uid::Uid(const IPv4_Address & _ipAddr, 
-	 const unsigned int & _counter, 
-	 const unsigned int & _port_number)
+Uid::Uid(const IPv4_Address & _ipAddr,
+         const unsigned int & _counter,
+         const unsigned int & _port_number)
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
-  random_number = rand();
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<unsigned int> dis;
+  random_number = dis(gen);
 }
 
 
-Uid::Uid(char* str)
+Uid::Uid(char *str)
 {
   destringficate(str);
-  
 }
 
-bool Uid::operator == (const Uid& uid) const
+bool Uid::operator ==(const Uid & uid) const
 {
-  return (ipAddr == uid.ipAddr and 
-	  port_number == uid.port_number and
-	  counter == uid.counter and
-	  random_number == uid.random_number);
+  return (ipAddr == uid.ipAddr and
+          port_number == uid.port_number and
+          counter == uid.counter and
+          random_number == uid.random_number);
 }
 
-char * Uid::getStringUid(char * str, const size_t & str_size) const
+char * Uid::getStringUid(char *str, const size_t & str_size) const
 {
   if (str_size < stringSize)
     return nullptr;
