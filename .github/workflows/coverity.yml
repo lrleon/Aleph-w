@@ -43,8 +43,16 @@ jobs:
             --form project=${{ env.COVERITY_PROJECT }} \
             https://scan.coverity.com/download/cxx/linux64
           
+          # Validate that the downloaded file is a readable gzip tar archive
+          tar tzf cov-analysis.tar.gz > /dev/null
+          
           mkdir -p cov-analysis
-          tar xzf cov-analysis.tar.gz --strip-components=1 -C cov-analysis
+          tar --extract --gzip \
+              --file=cov-analysis.tar.gz \
+              --directory=cov-analysis \
+              --strip-components=1 \
+              --no-same-owner \
+              --no-same-permissions
           echo "${{ github.workspace }}/cov-analysis/bin" >> $GITHUB_PATH
 
       - name: Configure project
