@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,250 +24,330 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/** @file tpl_dynLhash.H
+ *  @brief Dynamic hash table mapping keys to records with separate chaining.
+ *
+ *  This header provides DynLhashTable, a hash table implementation that maps
+ *  keys to records using separate chaining for collision resolution. It supports
+ *  the subscript operator `[]` for convenient access and modification.
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNLHASH_H
 # define TPL_DYNLHASH_H
 
 # include <tpl_lhash.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
-namespace Aleph {
-
-   /** Mapeo dinámico clave-rango instrumentado mediante una tabla hash con
-       resolución de colisiones por encadenamiento separado.
-
-       El tipo DynLhashTable<Key,Record> instrumenta un mapeo mediante
-       una tabla hash con resolución de colisiones por encadenamiento
-       separado. El tipo exporta observadores para conocer el radio de
-       uso y, eventualmente, reajustar el tamaño de la tabla, de modo
-       que ésta exhiba un mejor desempeño.
-
-       Pueden usarse de manera segura punteros a registros dentro de la
-       tabla.
-
-       Aparte los métodos tradicionales de inserción y búsqueda, el
-       operador [] funge a la vez como consulta e inserción. La
-       asignación tabla[key]=record se corresponde con una inserción;
-       mientras que cualquier expresión del tipo table[key] que
-       involucre lectura se corresponde con una búsqueda.
-
-       @param Key el tipo de clave de indización
-       @param Record el tipo de rango asociado a las claves.
-       @param Cmp clase de comparación entre las claves.
-
-       @ingroup Hash
-    */
-  template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
-class DynLhashTable : public LhashTable<Key>
+namespace Aleph
 {
-private:
-
-  struct DLBucket : public LhashTable<Key>::Bucket
+  /** @class DynLhashTable
+   *  @brief Dynamic hash table mapping keys to records with separate chaining.
+   *
+   *  DynLhashTable implements a key-value mapping using a hash table with
+   *  separate chaining for collision resolution. It provides O(1) average-case
+   *  complexity for insertions, lookups, and deletions.
+   *
+   *  The table supports both traditional methods (`insert`, `search`, `remove`)
+   *  and the subscript operator `[]` for convenient access:
+   *  - `table[key] = record` inserts or updates the entry
+   *  - `record = table[key]` retrieves the value (throws if key not found)
+   *
+   *  Pointers returned by `insert()` and `search()` remain valid until the
+   *  corresponding entry is removed, allowing direct modification of stored records.
+   *
+   *  @tparam Key Type of the indexing key (must be hashable).
+   *  @tparam Record Type of the value associated with each key.
+   *  @tparam Cmp Equality comparison functor for keys (default: Aleph::equal_to<Key>).
+   *
+   *  @par Example
+   *  @code
+   *  DynLhashTable<std::string, int> ages;
+   *  ages.insert("Alice", 30);
+   *  ages["Bob"] = 25;
+   *  
+   *  int* ptr = ages.search("Alice");
+   *  if (ptr) std::cout << *ptr;  // prints 30
+   *  
+   *  int bob_age = ages["Bob"];   // bob_age = 25
+   *  @endcode
+   *
+   *  @see LhashTableVtl for the underlying hash table implementation
+   *  @ingroup Hash
+   */
+  template <typename Key, typename Record, class Cmp = Aleph::equal_to<Key>>
+  class DynLhashTable : public LhashTableVtl<Key>
   {
-    Record record;
+  private:
+    struct DLBucket : public LhashTableVtl<Key>::Bucket
+    {
+      Record record;
 
-    DLBucket(const Key & key, const Record & _record)
-      : LhashTable<Key>::Bucket(key), record(_record) { /* Empty */ }
+      DLBucket(const Key & key, const Record & _record)
+        : LhashTableVtl<Key>::Bucket(key), record(_record)
+      { /* Empty */
+      }
 
-    DLBucket(const Key & key, Record && _record)
-      : LhashTable<Key>::Bucket(key), record(std::forward<Record>(_record))
-    { /* Empty */ }
+      DLBucket(const Key & key, Record && _record)
+        : LhashTableVtl<Key>::Bucket(key), record(std::forward<Record>(_record))
+      { /* Empty */
+      }
 
-    DLBucket(Key && key, const Record & _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)), record(_record)
-    { /* Empty */ }
+      DLBucket(Key && key, const Record & _record)
+        : LhashTableVtl<Key>::Bucket(std::forward<Key>(key)), record(_record)
+      { /* Empty */
+      }
 
-    DLBucket(Key && key, Record && _record)
-      : LhashTable<Key>::Bucket(std::forward<Key>(key)),
-        record(std::forward<Record>(_record)) { /* Empty */ }
-  };
+      DLBucket(Key && key, Record && _record)
+        : LhashTableVtl<Key>::Bucket(std::forward<Key>(key)),
+          record(std::forward<Record>(_record))
+      { /* Empty */
+      }
+    };
 
-  static DLBucket * record_to_bucket(Record * rec)
-  {
-    DLBucket * ret_val = 0;
-    size_t offset = (size_t) &ret_val->record;
-    return (DLBucket*) (((size_t) rec) - offset);
-  }
+    static DLBucket * record_to_bucket(Record *rec)
+    {
+      DLBucket *ret_val = 0;
+      size_t offset = (size_t) &ret_val->record;
+      return (DLBucket *) (((size_t) rec) - offset);
+    }
 
-  class DLProxy
-  {
-    DynLhashTable & table;
-    const Key &     key;
-    DLBucket *      bucket;
+    class DLProxy
+    {
+      DynLhashTable & table;
+      const Key & key;
+      DLBucket *bucket;
+
+    public:
+      DLProxy(DynLhashTable & _table, const Key & _key)
+        : table(_table), key(_key)
+      {
+        Record *record = table.search(key);
+        bucket = record not_eq nullptr ? record_to_bucket(record) : nullptr;
+      }
+
+      operator const Record &() const
+      {
+        ah_invalid_argument_if(bucket == nullptr)
+        << "access to unexisting entry";
+
+        return bucket->record;
+      }
+
+      DLProxy &operator =(const Record & record)
+      {
+        if (bucket != nullptr)
+          {
+            bucket->record = record;
+            return *this;
+          }
+
+        bucket = new DLBucket(key, record);
+        table.LhashTableVtl<Key>::insert(bucket);
+        return *this;
+      }
+
+      DLProxy &operator =(const DLProxy & proxy)
+      {
+        ah_invalid_argument_if(proxy.bucket == nullptr)
+        << "access to unexisting entry";
+
+        if (bucket != nullptr)
+          {
+            bucket->record = proxy.bucket->record;
+            return *this;
+          }
+
+        bucket = new DLBucket(key, proxy.bucket->record);
+        table.LhashTableVtl<Key>::insert(bucket);
+        return *this;
+      }
+    };
 
   public:
+    /// The type of hash function pointer.
+    using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
 
-    DLProxy(DynLhashTable & _table, const Key& _key)
-      : table(_table), key(_key)
+    /** @brief Swap contents with another table.
+     *  @param[in,out] table The table to swap with.
+     */
+    void swap(DynLhashTable & table) noexcept
     {
-      Record * record = table.search(key);
-      bucket = record not_eq nullptr ? record_to_bucket(record) : nullptr;
+      this->LhashTableVtl<Key>::swap(table);
     }
 
-    operator const Record & () const
+    /** @brief Construct a dynamic hash table.
+     *
+     *  @param[in] len Initial size of the hash table (default: DefaultPrime).
+     *  @param[in] hash_fct Hash function to use (default: dft_hash_fct<Key>).
+     *
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
+    DynLhashTable(size_t len = DefaultPrime,
+                  Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
+      : LhashTableVtl<Key>(len, hash_fct)
     {
-      if (bucket == nullptr)
-        throw std::invalid_argument("access to unexisting entry");
-
-      return bucket->record;
+      // Empty
     }
 
-    DLProxy& operator = (const Record& record)
+  private:
+    void copy(const DynLhashTable & table)
     {
-      if (bucket != nullptr)
+      for (typename LhashTableVtl<Key>::Iterator it(const_cast<DynLhashTable &>(table));
+           it.has_curr(); it.next_ne())
         {
-          bucket->record = record;
-          return *this;
+          auto *Bucket = static_cast<DLBucket *>(it.get_curr());
+          insert(Bucket->get_key(), Bucket->record);
         }
+    }
 
-      bucket = new DLBucket (key, record);
-      table.LhashTable<Key>::insert(bucket);
+  public:
+    /** @brief Copy constructor.
+     *  @param[in] table The table to copy from.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
+    DynLhashTable(const DynLhashTable & table)
+      : LhashTableVtl<Key>()
+    {
+      copy(table);
+    }
+
+    /** @brief Move constructor.
+     *  @param[in,out] table The table to move from.
+     *  @warning After move, the source table is in a moved-from state and
+     *           must not be used except for destruction or assignment.
+     */
+    DynLhashTable(DynLhashTable && table) noexcept
+      : LhashTableVtl<Key>(std::move(table))
+    {
+      // Base class move constructor properly transfers ownership
+    }
+
+    /** @brief Copy assignment operator.
+     *  @param[in] table The table to copy from.
+     *  @return Reference to this table.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
+    DynLhashTable &operator =(const DynLhashTable & table)
+    {
+      if (this == &table)
+        return *this;
+
+      this->empty();
+      copy(table);
+
       return *this;
     }
 
-    DLProxy& operator = (const DLProxy& proxy)
+    /** @brief Move assignment operator.
+     *  @param[in,out] table The table to move from.
+     *  @return Reference to this table.
+     *  @warning After move, the source table is in a moved-from state and
+     *           must not be used except for destruction or assignment.
+     */
+    DynLhashTable &operator =(DynLhashTable && table) noexcept
     {
-      if (proxy.bucket == nullptr)
-        throw std::invalid_argument("access to unexisting entry");
-
-      if (bucket != nullptr)
-        {
-          bucket->record = proxy.bucket->record;
-          return *this;
-        }
-
-      bucket = new DLBucket (key, proxy.bucket->record);
-      table.LhashTable<Key>::insert(bucket);
+      if (this != &table)
+        LhashTableVtl<Key>::operator=(std::move(table));
       return *this;
+    }
+
+  private:
+    Record * __insert(DLBucket *bucket)
+    {
+      LhashTableVtl<Key>::insert(bucket);
+      return &bucket->record;
+    }
+
+  public:
+    /** @brief Insert a key-record pair into the table.
+     *
+     *  If the key already exists, a new entry is added (duplicates allowed).
+     *  The returned pointer remains valid until the entry is removed.
+     *
+     *  @param[in] key The key to insert.
+     *  @param[in] record The record to associate with the key.
+     *  @return Pointer to the stored record within the table.
+     *  @throw std::bad_alloc If memory allocation fails.
+     */
+    Record * insert(const Key & key, const Record & record)
+    {
+      return __insert(new DLBucket(key, record));
+    }
+
+    /// @overload
+    Record * insert(const Key & key, Record && record = Record())
+    {
+      return __insert(new DLBucket(key, std::forward<Record>(record)));
+    }
+
+    /// @overload
+    Record * insert(Key && key, const Record & record)
+    {
+      return __insert(new DLBucket(std::forward<Key>(key), record));
+    }
+
+    /// @overload
+    Record * insert(Key && key, Record && record)
+    {
+      return __insert(new DLBucket(std::forward<Key>(key),
+                                   std::forward<Record>(record)));
+    }
+
+    /** @brief Search for a key in the table.
+     *
+     *  @param[in] key The key to search for.
+     *  @return Pointer to the associated record if found, nullptr otherwise.
+     *
+     *  @note The returned pointer can be used to modify the record in-place.
+     */
+    Record * search(const Key & key)
+    {
+      auto *bucket = static_cast<DLBucket *>(LhashTableVtl<Key>::search(key));
+      return bucket != nullptr ? &bucket->record : nullptr;
+    }
+
+    /** @brief Remove an entry from the table.
+     *
+     *  The record pointer must have been obtained from insert() or search().
+     *  After removal, the pointer becomes invalid.
+     *
+     *  @param[in] record Pointer to the record to remove (must be valid).
+     *
+     *  @warning Passing an invalid pointer results in undefined behavior.
+     */
+    void remove(Record *record)
+    {
+      DLBucket *bucket = record_to_bucket(record);
+      LhashTableVtl<Key>::remove(bucket);
+      delete bucket;
+    }
+
+    /** @brief Access or insert an entry using subscript notation.
+     *
+     *  - For assignment (`table[key] = value`): inserts or updates the entry.
+     *  - For reading (`value = table[key]`): returns the value or throws.
+     *
+     *  @param[in] key The key to access.
+     *  @return A proxy object that handles both read and write operations.
+     *  @throw std::invalid_argument If reading a non-existent key.
+     */
+    DLProxy operator [](const Key & key) const
+    {
+      return DLProxy(const_cast<DynLhashTable &>(*this), key);
+    }
+
+    /// @overload
+    DLProxy operator [](const Key & key)
+    {
+      return DLProxy(*this, key);
     }
   };
-
-public:
-
-    /// El tipo de función hash.
-  using Hash_Fct_Ptr = typename DynLhashTable<Key, Record>::Hash_Fct_Ptr;
-
-  void swap(DynLhashTable & table)
-  {
-    this->LhashTable<Key>::swap(table);
-  }
-
-    /// Instancia un mapeo hash dinámico con función hash hash_fct y
-    /// tabla de longitud len. Dispara excepción bad_alloc si no hay
-    /// memoria para apartar la tabla interna.
-  DynLhashTable(size_t len           = DefaultPrime,
-                Hash_Fct_Ptr hash_fct = dft_hash_fct<Key>)
-    : LhashTable<Key>(len, hash_fct)
-  {
-    // Empty
-  }
-
-private:
-
-  void copy(DynLhashTable & table)
-  {
-    for (typename LhashTable<Key>::Iterator it(table); it.has_curr();
-         it.next_ne())
-      {
-        DLBucket * Bucket = (DLBucket*) it.get_curr();
-        insert(Bucket->get_key(), Bucket->record);
-      }
-  }
-
-public:
-
-  DynLhashTable(const DynLhashTable & table)
-    : LhashTable<Key>(table.hash_fct, table.len)
-  {
-    copy(table);
-  }
-
-  DynLhashTable(DynLhashTable && table)
-  {
-    swap(table);
-  }
-
-  DynLhashTable & operator = (const DynLhashTable & table)
-  {
-    if (this == &table)
-      return *this;
-
-    this->empty();
-    copy(table);
-
-    return *this;
-  }
-
-  DynLhashTable & operator = (DynLhashTable && table)
-  {
-    swap(table);
-    return *this;
-  }
-
-private:
-
-  Record * __insert(DLBucket * bucket)
-  {
-    LhashTable<Key>::insert(bucket);
-    return &bucket->record;
-  }
-
-public:
-
-    /// Inserta en el mapeo hash el par (key,record) indizado por la clave
-    /// key. Retorna un puntero al registro dentro de la tabla. Dispara la
-    /// excepción bad_alloc si no hay suficiente memoria.
-  Record * insert(const Key & key, const Record & record)
-  {
-    return __insert(new DLBucket (key, record));
-  }
-
-  Record * insert(const Key & key, Record && record = Record())
-  {
-    return __insert(new DLBucket(key, std::forward<Record>(record)));
-  }
-
-  Record * insert(Key && key, const Record & record)
-  {
-    return __insert(new DLBucket (std::forward<Key>(key), record));
-  }
-
-  Record * insert(Key && key, Record && record)
-  {
-    return __insert(new DLBucket(std::forward<Key>(key),
-                                 std::forward<Record>(record)));
-  }
-
-    /// Busca la clave key y, si se encuentra, entonces retorna un puntero
-    /// dentro de la tabla al registro asociado. De lo contrario -no se
-    /// encuentra la clave-, se retorna nullptr:
-  Record * search(const Key & key)
-  {
-    DLBucket * bucket = (DLBucket*) LhashTable<Key>::search(key);
-    return bucket != nullptr ? &bucket->record : nullptr;
-  }
-
-    /// Elimina de la tabla el registro record (que debe haber sido
-    /// obtenido mediante la inserción o búsqueda.
-  void remove(Record * record)
-  {
-    DLBucket* bucket = record_to_bucket(record);
-    LhashTable<Key>::remove(bucket);
-    delete bucket;
-  }
-
-  DLProxy operator [] (const Key& key) const
-  {
-    return DLProxy ( const_cast<DynLhashTable&>(*this), key);
-  }
-
-  DLProxy operator [] (const Key& key)
-  {
-    return DLProxy (*this, key);
-  }
-};
-
 } // end namespace Aleph
 
 # endif // TPL_DYNLHASH_H
-

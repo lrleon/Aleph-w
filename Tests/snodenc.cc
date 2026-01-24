@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,11 +24,18 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+
+
+/**
+ * @file snodenc.cc
+ * @brief Tests for Snodenc
+ */
+# include <gtest/gtest.h>
 
 # include <htlist.H>
 
 using namespace testing;
+using namespace Aleph;
 
 struct List_of_5_nodes : public Test
 {
@@ -57,21 +63,21 @@ TEST(Snodenc, conversion_from_slinknc)
   {
     Snodenc<int> node = 10;
     Slinknc * ptr = &node;
-    EXPECT_THAT(ptr->to_snodenc<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    ASSERT_EQ(ptr->to_snodenc<int>(), &node);
+    ASSERT_EQ(ptr->to_data<int>(), 10);
   }
 
   {
     const Snodenc<int> node = 10;
     const Slinknc * ptr = &node;
-    EXPECT_THAT(ptr->to_snodenc<int>(), &node);
-    EXPECT_THAT(ptr->to_data<int>(), 10);
+    ASSERT_EQ(ptr->to_snodenc<int>(), &node);
+    ASSERT_EQ(ptr->to_data<int>(), 10);
   }
 }
 
 TEST_F(List_of_5_nodes, Basic_operations)
 {
-  EXPECT_THAT(list.get_next()->get_data(), 1);
+  ASSERT_EQ(list.get_next()->get_data(), 1);
 
   int i = 1;
   for (Snodenc<int>::Iterator it = list; it.has_curr(); it.next())

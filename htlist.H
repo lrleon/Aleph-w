@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,20 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file htlist.H
+ *  @brief Singly linked list implementations with head-tail access.
+ *
+ *  This file provides efficient singly linked list data structures including
+ *  `Slinknc` (non-circular link), `Snodenc` (node with data), `HTList`
+ *  (head-tail list), and `DynList` (dynamic list with functional operations).
+ *  These are fundamental building blocks used throughout Aleph-w.
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HTLIST_H
 # define HTLIST_H
 
@@ -35,10 +48,10 @@
 # include <ahFunctional.H>
 # include <ah-args-ctor.H>
 # include <ah-iterator.H>
+# include <ah-errors.H>
+# include <ah-dry.H>
 
 # define NEXT(p) (p->get_next())
-
-using namespace Aleph;
 
 namespace Aleph {
 
@@ -47,14 +60,36 @@ template <typename T> class Snodenc; // forward declaration
   /**
 
   \~English
-    Link of a single linked list non circular and without header node.
+    Link of a single linked list non-circular and without header node.
 
-     @ingroup Sequencies
+     @ingroup Sequences
+     
+     @note STRICT ALIASING DESIGN NOTE:
+     
+     This class stores `next` as `Slinknc*`. Derived classes like `Snodenc<T>`
+     need to return `Snodenc<T>*&` from `get_next()`, which requires a
+     `reinterpret_cast`. This violates C++ strict aliasing rules and requires
+     the compiler flag `-fno-strict-aliasing` for correct behavior.
+     
+     A cleaner design would use CRTP (Curiously Recurring Template Pattern):
+     @code
+     template <typename Derived>
+     class Slinknc_Base {
+       Derived* next = nullptr;  // Type is already correct
+     public:
+       Derived*& get_next() { return next; }  // No cast needed
+     };
+     
+     template <typename T>
+     class Snodenc : public Slinknc_Base<Snodenc<T>> { ... };
+     @endcode
+     
+     This refactoring is left for future work to avoid breaking changes.
 
   \~Spanish
     Enlace a una lista simple no circular y sin nodo cabecera
 
-    @ingroup Secuencias
+    @ingroup Sequences
    */
 class Slinknc
 {
@@ -62,8 +97,10 @@ class Slinknc
 
 public:
 
+  virtual ~Slinknc() = default;
+
   /// Return `true` if `this` is empty
-  bool is_empty() const noexcept { return next == nullptr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return next == nullptr; }
 
   /**  \~English Init to nullptr
        \~Spanish Inicializa en nullptr
@@ -140,9 +177,9 @@ public:
     return ret_val;
   }
 
-  /** Convert `this` to a `Snodenc<T>.
+  /** Convert `this` to a `Snodenc<T>`.
 
-      @note Undefined and probably buggy behavior if `this` is not a
+      @note Invalid and probably buggy behavior if `this` is not a
       valid pointer
   */
   template <typename T> inline
@@ -159,19 +196,19 @@ public:
      \~English
      Iterator on single links
 
-     \ingroup Sequencies
+     \ingroup Sequences
 
      \~Spanish
      Iterador sobre enlaces simples
 
-     \ingroup Secuencias
+     \ingroup Sequences
    */
   class Iterator
   {
     Slinknc * head;
     Slinknc * curr;
 
-    void init()
+    void init() noexcept
     {
       curr = head->is_empty() ? nullptr : head->next;
     }
@@ -230,8 +267,8 @@ public:
     */
     Slinknc * get_curr() const
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator is at the end of the list");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator is at the end of the list";
       return curr;
     }
 
@@ -253,8 +290,8 @@ public:
     */
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator is at the end of the list");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator is at the end of the list";
       curr = curr->next;
     }
 
@@ -274,12 +311,12 @@ public:
      Node belonging to a single non-circular linked list without header
      node.
 
-     \ingroup Sequencies
+     \ingroup Sequences
 
      \~Spanish
      Nodo perteneciente a una lista simple no circular sin nodo cabecera.
 
-     \ingroup Secuencias
+     \ingroup Sequences
   */
     template <typename T>
 class Snodenc : public Slinknc
@@ -313,8 +350,8 @@ public:
                   "No copy constructor for T");
   }
 
-  /** \~English Costruct by moving `item`
-      \~Spanish Construye moviendo `ìtem`
+  /** \~English Construct by moving `item`
+      \~Spanish Construye moviendo `item`
   */
   Snodenc(T && item)
     : data(std::forward<T>(item))
@@ -342,13 +379,28 @@ public:
       */
   Snodenc * remove_next() noexcept
   {
-    return (Snodenc*) Slinknc::remove_next();
+    return static_cast<Snodenc *>(Slinknc::remove_next());
   }
 
   /** \~English Return the node following to `this`
       \~Spanish Retorna el nodo siguiente a `this`
+      
+      @warning This function uses reinterpret_cast to return a reference to
+      the base class pointer as a derived class pointer reference. This is
+      technically a strict aliasing violation in C++. The code REQUIRES the
+      compiler flag -fno-strict-aliasing to work correctly with optimizations.
+      
+      A future refactoring using CRTP (Curiously Recurring Template Pattern)
+      could eliminate this requirement by making the base class templated on
+      the derived type, so that `next` is stored as `Derived*` instead of
+      `Slinknc*`. See Slinknc class documentation for details.
   */
-  Snodenc *& get_next() noexcept { return (Snodenc*&) Slinknc::get_next(); }
+  Snodenc *& get_next() noexcept
+  {
+    // STRICT ALIASING WARNING: This reinterpret_cast violates C++ strict
+    // aliasing rules. Requires -fno-strict-aliasing compiler flag.
+    return reinterpret_cast<Snodenc *&>(Slinknc::get_next());
+  }
 
   /// \overload remove_next()
   Snodenc * remove_first() noexcept{ return Snodenc::remove_next(); }
@@ -419,7 +471,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
        @see Slinknc Snodenc DynList
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
 
        \~Spanish
 
@@ -444,7 +496,7 @@ template <typename T> const T & Slinknc::to_data() const noexcept
        @see Slinknc Snodenc DynList
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
     */
 class HTList
 {
@@ -456,14 +508,14 @@ public:
       //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
   HTList() noexcept : head(nullptr), tail(nullptr) { /* empty */ }
 
-  void reset()
+  void reset() noexcept
   {
     head = tail = nullptr;
   }
 
       //!\~English Return true if list is empty \~Spanish Retorna true
       //!si la lista está vacía.
-  bool is_empty() const noexcept { return head == nullptr; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return head == nullptr; }
 
        //!\~English Return true if the list contains exactly just one
        //!element \~Spanish Retorna true si la lista contiene
@@ -481,7 +533,7 @@ public:
   //!cabeza de la lista (el primer elemento)
   Slinknc * get_head() const noexcept { return head; }
 
- //!\~English Return list tail (first element) \~Spanish Retorna la
+ //!\~English Return list tail (last element) \~Spanish Retorna la
  //!cola de la lista (el último elemento)
   Slinknc * get_tail() const noexcept { return tail; }
 
@@ -611,12 +663,17 @@ public:
 
   /**
      \~English
-     \param [in] link Element where 'list' will start
-     \param [in] list List that will be inserted after link
+     Insert list `l` starting from `this`. After insertion, `l` becomes empty.
+
+     \param [in,out] l List that will be inserted starting from `this`.
+                        After the call, `l` is empty.
 
      \~Spanish
-     \param [in] link Elemento donde 'list' comenzará
-     \param [in] list Lista que será insertada luego de link
+     Inserta la lista `l` a partir de `this`. Después de la inserción,
+     `l` deviene vacía.
+
+     \param [in,out] l Lista que será insertada a partir de `this`.
+                        Después de la llamada, `l` está vacía.
   */
   void insert(HTList & l) noexcept
   {
@@ -679,8 +736,16 @@ public:
    */
   void insert(Slinknc * link, HTList & list) noexcept
   {
-    NEXT(link) = list.head;
-    tail = list.tail;
+    if (list.is_empty())
+      return;
+
+    Slinknc * link_next = NEXT(link); // save what was after link
+    NEXT(link) = list.head;           // link now points to list's head
+    NEXT(list.tail) = link_next;      // list's tail points to what was after link
+
+    if (link == tail)                 // if link was the tail, update tail
+      tail = list.tail;
+
     list.head = list.tail = nullptr;
   }
 
@@ -706,8 +771,8 @@ public:
 
   Slinknc * remove_head()
   {
-    if (is_empty())
-      throw std::underflow_error("HTList is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList is empty";
     return remove_head_ne();
   }
 
@@ -761,12 +826,14 @@ public:
   */
   bool remove(Slinknc * link)
   {
-    if (is_empty())
-      throw std::underflow_error("Removing from a empty list");
+    ah_underflow_error_if(is_empty())
+      << "Removing from a empty list";
 
     if (link == head)
       {
         head = NEXT(head);
+        if (head == nullptr)
+          tail = nullptr;
         link->reset();
         return true;
       }
@@ -813,15 +880,15 @@ public:
   */
   Slinknc * pop()
   {
-    if (is_empty())
-      throw std::underflow_error("HTList as stack is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList as stack is empty";
     return remove_head();
   }
 
-  Slinknc * top()
+  Slinknc * top() const
   {
-    if (is_empty())
-      throw std::underflow_error("HTList as stack is empty");
+    ah_underflow_error_if(is_empty())
+      << "HTList as stack is empty";
     return get_first();
   }
 
@@ -881,11 +948,15 @@ public:
         q = NEXT(q); ++count;
       }
 
+    Slinknc * r_head = NEXT(p);
+
     l.head = head;
     l.tail = p;
 
-    r.head = NEXT(p);
-    r.tail = tail;
+    r.head = r_head;
+    r.tail = r_head == nullptr ? nullptr : tail;
+
+    NEXT(l.tail) = nullptr;
 
     head = tail = nullptr;
 
@@ -897,7 +968,7 @@ public:
     return split_list(l, r);
   }
 
-      /// \overload split_listHTList & l, HTList & r)
+      /// \overload split_list(HTList & l, HTList & r)
   size_t split(HTList & l, HTList & r) noexcept
   {
     return split_list(l, r);
@@ -951,7 +1022,7 @@ public:
     assert(list.is_empty());
 
     list.head = NEXT(link);
-    list.tail = tail;
+    list.tail = list.head == nullptr ? nullptr : tail;
 
     tail = link;
     NEXT(link) = nullptr;
@@ -996,12 +1067,12 @@ public:
     \~English
       Iterator on HTList.
 
-      \ingroup Sequencies
+      \ingroup Sequences
 
     \~Spanish
       Iterador sobre HTList
 
-      \ingroup Secuencias
+      \ingroup Sequences
    */
   class Iterator
   {
@@ -1013,15 +1084,17 @@ public:
 
   public:
 
+    Iterator() noexcept = default;
+
     //!\~English Initialize iterator on at the first item of `list`
     //!\~Spanish Inicializa un iterador sobre el primer elemento de
     //!`list`
     Iterator(const HTList & list) noexcept
-      : lptr(& (HTList&) list), curr(lptr->head), prev(curr)
+      : lptr(& const_cast<HTList &>(list)), curr(lptr->head), prev(curr)
     { /* empty */ }
 
-    //!\~English Reset the iterator at the first item \~Reestablece el
-    //!iterador al primer elemento
+    //!\~English Reset the iterator at the first item
+    //!\~Spanish Reestablece el iterador al primer elemento
     void reset() noexcept
     {
       prev = curr = lptr->head;
@@ -1063,6 +1136,7 @@ public:
         lptr = it.lptr;
         curr = it.curr;
         prev = it.prev;
+        pos  = it.pos;
         return *this;
       }
 
@@ -1097,8 +1171,8 @@ public:
      */
     Slinknc * get_curr() const
     {
-      if (curr == nullptr)
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(curr == nullptr)
+        << "Iterator overflow";
 
       return curr;
     }
@@ -1142,8 +1216,8 @@ public:
 
     void next()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator overflow";
       next_ne();
     }
 
@@ -1196,8 +1270,8 @@ public:
      */
     Slinknc * del()
     {
-      if (not has_curr())
-        throw std::overflow_error("Iterator overflow");
+      ah_overflow_error_if(not has_curr())
+        << "Iterator overflow";
 
       return del_ne();
     }
@@ -1283,8 +1357,8 @@ public:
       {
         if (n == 0)
           return;
-        else
-          throw std::domain_error("List is empty");
+        ah_domain_error() << "List is empty";
+        return; // unreachable, silences -Wreturn-type
       }
 
     for (size_t i = 0; i < n; ++i)
@@ -1292,28 +1366,46 @@ public:
   }
 };
 
-# include <ah-dry.H>
+    /** @brief Dynamic singly linked list with functional programming support.
 
-    /**
-       \~English
-       Sequence of items implemented with a single linked list.
+       DynList<T> is a versatile singly linked list that combines efficient
+       list operations with a rich set of functional programming methods
+       inherited from the FunctionalMethods mixin.
 
-       `DynList<T>` models list of items of generic type T.
+       This is one of the most commonly used containers in Aleph-w, providing:
+       - O(1) insertion at head and tail
+       - O(1) removal at head
+       - O(n) traversal with iterators
+       - Comprehensive functional operations (map, filter, fold, etc.)
 
-       @see Slinknc Snodenc DynDList
+       @tparam T The type of elements stored in the list (default: int).
+
+       @par Complexity:
+       - insert() / append(): O(1)
+       - remove_first(): O(1)
+       - size(): O(n) - computed by traversal
+       - Access by index: O(n)
+
+       @par Example:
+       @code
+       DynList<int> list = {1, 2, 3, 4, 5};
+
+       // Functional operations
+       auto doubled = list.maps<int>([](int x) { return x * 2; });
+       auto evens = list.filter([](int x) { return x % 2 == 0; });
+       int sum = list.foldl(0, [](int acc, int x) { return acc + x; });
+
+       // Iteration
+       for (const auto& item : list)
+         std::cout << item << " ";
+       @endcode
+
+       @see HTList Base class providing head-tail structure.
+       @see DynDlist Doubly linked list alternative.
+       @see FunctionalMethods Inherited functional operations.
        @author Alejandro Mujica
        @author Leandro Rabindranath León
-       @ingroup Sequencies
-
-       \~Spanish
-       Secuencia de elementos implementada con una lista simple.
-
-       `DynList<T>` modela una lista de elementos del tipo genérico T.
-
-       @see Slinknc Snodenc DynDList
-       @author Alejandro Mujica
-       @author Leandro Rabindranath León
-       @ingroup Secuencias
+       @ingroup Sequences
     */
     template <typename T = int>
 class DynList : public HTList,
@@ -1336,6 +1428,9 @@ class DynList : public HTList,
   //!\~English The type of item \~Spanish el tipo de elemento
   using Key_Type = T;
 
+  Slinknc * get_head() const noexcept = delete;
+  Slinknc * get_tail() const noexcept = delete;
+
   /**
      \~English
      Swap this with l. All items of each list are swapped in constant
@@ -1347,7 +1442,7 @@ class DynList : public HTList,
    */
   DynList & swap(DynList & l) noexcept
   {
-    return (DynList&) HTList::swap(l);
+    return static_cast<DynList &>(HTList::swap(l));
   }
 
   //!\~English Initialize an empty list \~Spanish Inicializa una lista vacía
@@ -1362,8 +1457,8 @@ private:
 
   T & __insert(Snodenc<T> * p) noexcept
   {
-    static_assert(std::is_copy_constructible<T>::value or
-                  std::is_move_constructible<T>::value,
+    static_assert(std::is_copy_constructible_v<T> or
+                  std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::insert(p);
     return p->get_data();
@@ -1371,8 +1466,8 @@ private:
 
   T & __append(Snodenc<T> * p) noexcept
   {
-    static_assert(std::is_copy_constructible<T>::value or
-                  std::is_move_constructible<T>::value,
+    static_assert(std::is_copy_constructible_v<T> or
+                  std::is_move_constructible_v<T>,
                   "No copy assign for T");
     HTList::append(p);
     return p->get_data();
@@ -1405,7 +1500,6 @@ public:
   }
 
   /**
-      \~English
       Insert a new item by movement.
 
       Allocate memory for a new item, move the item and insert into the
@@ -1414,16 +1508,6 @@ public:
 
       \return a modifiable reference to the item in the list
       \throw  `bad_alloc` if there is no enough memory
-
-      \~Spanish
-      Inserta un nuevo elemento por movimiento.
-
-      Asigna memoria para un nuevo elemento, mueve el elemento y lo inserta
-      en la lista como el primer elemento. Esta operación puede ser más
-      rápida que la equivalente con copia.
-
-      \return una referencia modificable al objeto en la lista
-      \throw `bad_alloc` si no hay suficiente memoria
    */
   T & insert(T && item)
   {
@@ -1507,7 +1591,7 @@ public:
   T remove_ne() noexcept
   {
     Slinknc * l = this->HTList::remove_head_ne();
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (l);
+    auto * p = static_cast<Snodenc<T>*> (l);
     T ret_val = std::move(p->get_data());
     delete p;
 
@@ -1522,7 +1606,7 @@ public:
   T remove()
   {
     Slinknc * l = this->HTList::remove_head();
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (l);
+    auto * p = static_cast<Snodenc<T>*> (l);
     T ret_val = std::move(p->get_data());
     delete p;
 
@@ -1553,7 +1637,7 @@ public:
   */
   T & get_last_ne() const noexcept
   {
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    auto * p = static_cast<Snodenc<T>*> (this->HTList::get_last());
     return p->get_data();
   }
 
@@ -1573,8 +1657,8 @@ public:
   */
   T & get_last() const
   {
-    if (is_empty())
-      throw std::underflow_error("List is empty");
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
     return get_last_ne();
   }
 
@@ -1585,8 +1669,8 @@ public:
   */
   T & get_first() const
   {
-    if (is_empty())
-      throw std::underflow_error("List is empty");
+    ah_underflow_error_if(is_empty())
+      << "List is empty";
     return get_first_ne();
   }
 
@@ -1603,8 +1687,8 @@ public:
       return;
 
         // a very fast deletion
-    Snodenc<T> * last = static_cast<Snodenc<T>*> (this->HTList::get_last());
-    Snodenc<T> * p = static_cast<Snodenc<T>*> (this->HTList::get_first());
+    auto * last = static_cast<Snodenc<T>*> (this->HTList::get_last());
+    auto * p = static_cast<Snodenc<T>*> (this->HTList::get_first());
     while (p != last)
       {
         Snodenc<T> * q = p;
@@ -1619,7 +1703,7 @@ public:
 
   /** Iterator on the items of list
 
-      \ingroup Secuencias
+      \ingroup Sequences
    */
   class Iterator : public HTList::Iterator
   {
@@ -1631,7 +1715,7 @@ public:
 
     using Set_Type = DynList; /// The type of container
 
-    Iterator() noexcept { /* empty */ }
+    Iterator() noexcept = default;
 
     /// Initiliaze an iterator on the first item of `list`
     Iterator(const DynList & list) noexcept
@@ -1640,7 +1724,7 @@ public:
         /// Return the current link guaranteeing no exception. Be careful.
     T & get_curr_ne() const noexcept
     {
-      return ((Snodenc<T>*) (HTList::Iterator::get_curr_ne()))->get_data();
+      return static_cast<Snodenc<T> *>(HTList::Iterator::get_curr_ne())->get_data();
     }
 
     /** Return the current item
@@ -1650,7 +1734,7 @@ public:
     */
     T & get_curr() const
     {
-      return ((Snodenc<T>*) (HTList::Iterator::get_curr()))->get_data();
+      return static_cast<Snodenc<T> *>(HTList::Iterator::get_curr())->get_data();
     }
 
     /** Remove the current item of the iterator.
@@ -1664,7 +1748,7 @@ public:
     */
     T del()
     {
-      Snodenc<T> * p = (Snodenc<T> *) this->HTList::Iterator::del();
+      auto * p = static_cast<Snodenc<T> *>(this->HTList::Iterator::del());
       T ret_val = std::move(p->get_data());
       delete p;
       return ret_val;
@@ -1695,22 +1779,24 @@ public:
   template <class Equal = std::equal_to<T>>
   T remove_ne(Equal eq) noexcept
   {
-    for (Iterator it(*this); true; it.next_ne())
+    for (Iterator it(*this); it.has_curr(); it.next_ne())
       {
-        const T & item = it.get_curr();
+        const T & item = it.get_curr_ne();
         if (not eq(item))
           continue;
         T ret = item; // performs a copy
-        it.del_ne();
+        auto * removed = static_cast<Snodenc<T> *>(it.del_ne());
+        delete removed;
         return ret;
       }
+    return T(); // not found, return default constructed T
   }
 
   /** Remove the first element matching an equality criteria.
 
       `remove(eq)` sequentially traverses the list and on each current
       element `curr` it calls to `eq(curr)`. If the test is `true`,
-      then `curr` is removed from the list and a copy of `ciirr` is
+      then `curr` is removed from the list and a copy of `curr` is
       returned. Otherwise, if no element matches with `eq()` test,
       then exception `domain_error` is thrown.
 
@@ -1732,17 +1818,16 @@ public:
   template <class Equal = std::equal_to<T>> T remove(Equal eq)
     {
       for (Iterator it(*this); it.has_curr(); it.next_ne())
-        {
-          const T & item = it.get_curr();
-          if (eq(item))
+          if (const T & item = it.get_curr(); eq(item))
             {
               T ret = item; // performs a copy
-              it.del();
+              auto * removed = static_cast<Snodenc<T> *>(it.HTList::Iterator::del());
+              delete removed;
               return ret;
             }
-        }
 
-      throw std::domain_error("DynList::remove(Equal &): item not found");
+      ah_domain_error() << "DynList::remove(Equal &): item not found";
+      return T(); // unreachable, silences -Wreturn-type
     }
 
   /** Initialize the list with all the items of `l` moved to `this`.
@@ -1753,7 +1838,7 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you are
       interested in to avoid the copy. So, if you have a lvalue
-      referencde to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
@@ -1794,7 +1879,7 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      referencde to a list, use `std::move()`, upon your responsability,
+      referenced to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
@@ -1803,7 +1888,7 @@ public:
    */
   DynList & operator = (DynList && l) noexcept
   {
-    return (DynList&) this->swap(l);
+    return static_cast<DynList &>(this->swap(l));
   }
 
   /** Append `list `at the end of `this` by movement.
@@ -1814,11 +1899,11 @@ public:
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      reference to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
-      \param[in] l a rvalue reference to the list to be appended
+      \param[in] list a rvalue reference to the list to be appended
   */
   DynList & append(DynList && list) noexcept
   {
@@ -1829,16 +1914,16 @@ public:
   /** Insert `list `at the beginning of `this` by movement.
 
       `insert(l)` (in this rvalue version), puts in constant time the
-      items of `l` at the beggining of `this`. After calling `l` becomes
+      items of `l` at the beginning of `this`. After calling `l` becomes
       empty.
 
       \note Since `l` is a rvalue reference, take care of that if you
       are interested in to avoid the copy. So, if you have a lvalue
-      reference to a list, use `std::move()`, upon your responsability,
+      reference to a list, use `std::move()`, upon your responsibility,
       if and only if you are absolutely sure that the list will not be
       needed after.
 
-      \param[in] l a rvalue reference to the list to be inserted
+      \param[in] list a rvalue reference to the list to be inserted
   */
   DynList & insert(DynList && list) noexcept
   {
@@ -1851,7 +1936,7 @@ public:
       This version of `append(l)` traverses the items of `l` and appends
       them (copies) into `this`.
 
-      \param[in] l list to be copied at the end
+      \param[in] list list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
   DynList & append(const DynList & list)
@@ -1866,7 +1951,7 @@ public:
       This version of `insert(l)` traverses the items of `l` and insert
        a copy into `this`.
 
-      \param[in] l list to be copied at the end
+      \param[in] list list to be copied at the end
       \throw bad_alloc if there is no enough memory
    */
   DynList & insert(const DynList & list)
@@ -1878,7 +1963,7 @@ public:
 
   /// Obtains a modifiable reference to the i-th item of `this`. Throws
   /// `overflow_error` if `i` is greater or equal to number of elements
-  T & get(const size_t & i)
+  T & get(const size_t i)
   {
     Iterator it(*this);
 
@@ -1887,7 +1972,7 @@ public:
     return it.get_curr();
   }
 
-  /// \overload get(const size_t & i)
+  /// Array-style access to the i-th item. Equivalent to `get(i)`.
   T & operator [] (const size_t & i)
   {
     return get(i);

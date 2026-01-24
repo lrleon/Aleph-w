@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,222 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/**
+ * @file write_floyd.C
+ * @brief Floyd-Warshall algorithm with LaTeX output generation
+ * 
+ * This example demonstrates the Floyd-Warshall algorithm for finding
+ * shortest paths between all pairs of vertices in a weighted graph.
+ * It generates step-by-step LaTeX matrices showing the algorithm's
+ * progression, making it ideal for educational purposes and algorithm
+ * visualization.
+ *
+ * ## What is Floyd-Warshall?
+ *
+ * ### Problem
+ *
+ * **All-pairs shortest paths**: Find shortest paths between every pair
+ * of vertices in a weighted graph.
+ *
+ * ### Solution: Floyd-Warshall Algorithm
+ *
+ * Floyd-Warshall is a **dynamic programming** algorithm that finds shortest
+ * paths between all pairs of vertices in a single run. Unlike Dijkstra
+ * (single-source) or Johnson (all-pairs using Dijkstra), Floyd-Warshall
+ * works directly with the adjacency matrix.
+ *
+ * ### Key Characteristics
+ *
+ * - **All-pairs**: Finds all shortest paths in one algorithm run
+ * - **Matrix-based**: Works with adjacency/distance matrix
+ * - **Dynamic programming**: Builds solution incrementally
+ * - **Negative weights**: Handles negative edges (but not negative cycles)
+ *
+ * ## Algorithm Overview
+ *
+ * ### Dynamic Programming Recurrence
+ *
+ * The algorithm uses dynamic programming with the recurrence:
+ * ```
+ * D^(k)[i][j] = min(D^(k-1)[i][j], D^(k-1)[i][k] + D^(k-1)[k][j])
+ * ```
+ *
+ * Where:
+ * - **D^(k)[i][j]**: Shortest path from i to j using only vertices {1..k}
+ * - **D^(0)[i][j]**: Direct edge weight (or ∞ if no edge)
+ * - **D^(V)[i][j]**: Final shortest path distance
+ *
+ * ### Key Insight
+ *
+ * At iteration k, we consider whether going through vertex k gives a
+ * shorter path than the current best path:
+ * - **Option 1**: Current best path D^(k-1)[i][j]
+ * - **Option 2**: Path through k: D^(k-1)[i][k] + D^(k-1)[k][j]
+ * - **Choose**: Minimum of the two
+ *
+ * ### Algorithm Pseudocode
+ *
+ * ```
+ * Floyd-Warshall(G):
+ *   // Initialize distance matrix
+ *   for each vertex i:
+ *     for each vertex j:
+ *       D[i][j] = weight(i,j) if edge exists, else ∞
+ *   
+ *   // Main algorithm
+ *   for k = 1 to V:
+ *     for i = 1 to V:
+ *       for j = 1 to V:
+ *         D[i][j] = min(D[i][j], D[i][k] + D[k][j])
+ * ```
+ *
+ * ## Complexity
+ *
+ * ### Time Complexity
+ *
+ * - **O(V³)**: Three nested loops over vertices
+ * - **Independent of edges**: Same for sparse and dense graphs
+ * - **Cubic**: Can be slow for large graphs
+ *
+ * ### Space Complexity
+ *
+ * - **O(V²)**: Distance matrix
+ * - **Can optimize**: Use single matrix (in-place updates)
+ *
+ * ### Comparison
+ *
+ * | Algorithm | Time | Space | Best For |
+ * |-----------|------|-------|----------|
+ * | Floyd-Warshall | O(V³) | O(V²) | Dense graphs |
+ * | Johnson | O(V² log V + VE) | O(V²) | Sparse graphs |
+ * | V × Dijkstra | O(V(V log V + E)) | O(V²) | Non-negative only |
+ *
+ * ## Advantages
+ *
+ * - **All-pairs**: Finds all shortest paths in one run
+ * - **Negative weights**: Handles negative edge weights
+ * - **Simple**: Easy to implement and understand
+ * - **Path reconstruction**: Can reconstruct actual paths
+ * - **Transitive closure**: Can find reachability (set weights to 1)
+ *
+ * ## Limitations
+ *
+ * - **No negative cycles**: Algorithm fails if graph has negative cycles
+ * - **Cubic time**: Slower than Johnson for sparse graphs
+ * - **Dense graphs**: Best suited for dense graphs (many edges)
+ * - **Memory**: O(V²) space requirement
+ *
+ * ## Applications
+ *
+ * ### Network Routing
+ * - **Communication networks**: Find shortest paths between routers
+ * - **Internet routing**: All-pairs routing tables
+ * - **Network analysis**: Understand network topology
+ *
+ * ### Graph Analysis
+ * - **Graph diameter**: Longest shortest path
+ * - **Eccentricity**: Maximum distance from vertex
+ * - **Centrality**: Betweenness, closeness centrality
+ *
+ * ### Transitive Closure
+ * - **Reachability**: Determine if paths exist (set weights to 1)
+ * - **Connectivity**: Find strongly connected components
+ * - **Dependency analysis**: Analyze dependencies
+ *
+ * ### Social Networks
+ * - **Shortest paths**: Find shortest connection paths
+ * - **Degrees of separation**: Measure social distance
+ * - **Network metrics**: Analyze network structure
+ *
+ * ### Transportation
+ * - **All-pairs routes**: Find shortest routes between all cities
+ * - **Route planning**: Plan routes efficiently
+ * - **Logistics**: Optimize transportation networks
+ *
+ * ## Output Files
+ *
+ * ### LaTeX Matrices
+ *
+ * Generates `mat-floyd.tex` containing:
+ * - **D^(0)**: Initial distance matrix (direct edges only)
+ * - **D^(k)**: Distance matrices after each intermediate vertex k
+ * - **Path matrix**: For reconstructing actual paths
+ * - **Formatted**: All as LaTeX tables ready for compilation
+ *
+ * ### Educational Value
+ *
+ * The LaTeX output shows:
+ * - **Step-by-step**: How distances update at each iteration
+ * - **Visualization**: Easy to see algorithm progression
+ * - **Documentation**: Can be included in papers/presentations
+ *
+ * ## Test Graph
+ *
+ * ### Graph Structure
+ *
+ * Uses a predefined 9-node directed graph (labeled A through I) with:
+ * - **Weighted edges**: Some positive, some negative
+ * - **No negative cycles**: Algorithm works correctly
+ * - **Mixed weights**: Demonstrates algorithm behavior
+ *
+ * ### Graph Properties
+ *
+ * - **Directed**: Edges have direction
+ * - **Weighted**: Edges have weights (can be negative)
+ * - **No negative cycles**: Assumed (otherwise shortest paths are undefined)
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Generate LaTeX output
+ * ./write_floyd
+ *
+ * # Compile LaTeX to PDF
+ * pdflatex mat-floyd.tex
+ *
+ * # View results
+ * evince mat-floyd.pdf  # or your PDF viewer
+ * ```
+ *
+ * ## Path Reconstruction
+ *
+ * ### How to Reconstruct Paths
+ *
+ * The algorithm maintains a **next-hop** matrix `P`:
+ * - `P[i][j]` stores the next vertex index to move to when going from `i` to `j`
+ *   along a shortest path.
+ *
+ * A simple reconstruction procedure is:
+ * ```
+ * reconstruct_path(i, j):
+ *   if D[i][j] == ∞:
+ *     return []
+ *   path = [i]
+ *   while i != j:
+ *     i = P[i][j]
+ *     path.append(i)
+ *   return path
+ * ```
+ *
+ * **Time**: O(path_length) to reconstruct one path
+ *
+ * ## Negative Cycle Detection
+ *
+ * ### How to Detect Negative Cycles
+ *
+ * In general, a negative cycle implies that at least one diagonal entry becomes
+ * negative (some `D[i][i] < 0`) after relaxation.
+ *
+ * Note: this example generates the LaTeX trace but does **not** perform an
+ * explicit negative-cycle check.
+ *
+ * @see johnson_example.cc Johnson's algorithm (better for sparse graphs)
+ * @see dijkstra_example.cc Dijkstra's algorithm (single-source)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ */
 
 # include <limits>
 # include <iostream>
@@ -87,7 +302,7 @@ struct Nodo
 
   Nodo(const string & str) : nombre(str) { /* empty */ }
 
-  Nodo(char * str) : nombre(str) { /* empty */ }
+  Nodo(const char * str) : nombre(str) { /* empty */ }
 
   bool operator == (const Nodo & der) const 
   {
@@ -139,12 +354,12 @@ void insertar_arco(Grafo &       grafo,
 {
   Grafo::Node * n1 = grafo.find_node(Nodo(src_name));
 
-  if (n1 == NULL)
+  if (n1 == nullptr)
     n1 = grafo.insert_node(src_name);
 
   Grafo::Node * n2 = grafo.find_node(Nodo(tgt_name));
 
-  if (n2 == NULL)
+  if (n2 == nullptr)
     n2 = grafo.insert_node(tgt_name);
 
   grafo.insert_arc(n1, n2, Arco(distancia));

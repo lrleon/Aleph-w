@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,19 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file ahNow.H
+ *  @brief High-resolution timer and benchmarking utilities.
+ *
+ *  Provides Now class for precise time measurements using
+ *  std::chrono::high_resolution_clock. Useful for benchmarking
+ *  and performance profiling with nanosecond resolution.
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHNOW_H
 # define AHNOW_H
 
@@ -31,10 +43,6 @@
 # include <chrono>
 
 # include <aleph.H>
-
-using namespace std;
-using namespace chrono;
-using namespace Aleph;
 
 namespace Aleph
 {
@@ -49,17 +57,17 @@ namespace Aleph
    *  Now now;
    *  now.start();
    *  // Any block of code
-   *  cout << "Time elapsed: " << now.elapsed() << "ms\n";
+   *  std::cout << "Time elapsed: " << now.elapsed() << "ms\n";
    *  \endcode
    *  
    *  Furthermore you may use the static methods just like that:
    *  \code{.cpp}
    *  auto t = Now::current_time_point();
    *  // Any block of code
-   *  cout << "Time elapsed: " << Now::elapsed(t) << "ms\n";
+   *  std::cout << "Time elapsed: " << Now::elapsed(t) << "ms\n";
    *  \endcode
    *
-   *  @ingroup utils
+   *  @ingroup Utilities
    *  @author Alejandro J. Mujica
    */
   class Now
@@ -81,7 +89,7 @@ namespace Aleph
       return static_cast<int>(p);
     }
     
-    using ClockType = high_resolution_clock;
+    using ClockType = std::chrono::high_resolution_clock;
     using TimePointType = ClockType::time_point;
     using DurationType = ClockType::duration;
 
@@ -111,7 +119,7 @@ namespace Aleph
                                     const TimePointType & ltp,
                                     const Precision & precision)
     {
-      DurationType et = std::chrono::duration_cast<nanoseconds>(rtp - ltp);
+      DurationType et = std::chrono::duration_cast<std::chrono::nanoseconds>(rtp - ltp);
       return et.count() * precision_values[to_int(precision)];
     }
 

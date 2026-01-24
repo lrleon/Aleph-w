@@ -1,0 +1,223 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        compiler: [gcc, clang]
+        build_type: [Debug, Release]
+
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install base system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Install GCC toolchain
+        if: matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get install -y g++
+
+      - name: Install Clang toolchain and libc++
+        if: matrix.compiler == 'clang'
+        run: |
+          sudo apt-get install -y clang libc++-dev libc++abi-dev
+      - name: Configure compiler
+        run: |
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+            # Use libc++ with Clang for better C++20 std::ranges support
+            # Note: -stdlib=libc++ only applies to C++, not C
+            echo "CXXFLAGS=-stdlib=libc++" >> "$GITHUB_ENV"
+            # Don't set LDFLAGS globally as it affects C compiler tests
+            # CMake will add -lc++abi when needed via CMAKE_EXE_LINKER_FLAGS
+          else
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-ccache-
+            ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-ccache-
+            ${{ runner.os }}-${{ matrix.os }}-ccache-
+
+      - name: Build and install GoogleTest
+        run: |
+          set -euo pipefail
+
+          # For Clang with libc++, we MUST build GoogleTest from source
+          # because the system GoogleTest is built with libstdc++ (ABI mismatch)
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "Building GoogleTest from source for Clang + libc++"
+            GTEST_SRC=""
+            if [ -d /usr/src/googletest ]; then
+              GTEST_SRC=/usr/src/googletest
+            elif [ -d /usr/src/gtest ]; then
+              GTEST_SRC=/usr/src/gtest
+            else
+              echo "No googletest sources found"
+              exit 1
+            fi
+            
+            sudo rm -rf "$GTEST_SRC/build" 2>/dev/null || true
+            # Use clang for both C and C++ to avoid mixing compilers
+            # Pass libc++ flags only to C++ compiler, not C
+            sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
+              -DCMAKE_C_COMPILER=clang \
+              -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+              -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
+            sudo cmake --build "$GTEST_SRC/build"
+            sudo cmake --install "$GTEST_SRC/build"
+            exit 0
+          fi
+
+          # For GCC, use system GoogleTest if available
+          if pkg-config --exists gtest; then
+            echo "gtest found via pkg-config"
+            exit 0
+          fi
+
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
+          exit 1
+
+      - name: Configure
+        run: |
+          rm -rf build
+          # For Clang, add libc++abi to linker flags
+          EXTRA_LINKER_FLAGS=""
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            EXTRA_LINKER_FLAGS="-lc++abi"
+          fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_EXE_LINKER_FLAGS="$EXTRA_LINKER_FLAGS" \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure --parallel 2 --timeout 600
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/CMakeCache.txt
+
+  sanitizers:
+    name: sanitizers (ubuntu-24.04, gcc, Debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-sanitizers-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sanitizers-ccache-
+
+      - name: Configure
+        run: |
+          rm -rf build-asan
+          cmake -S . -B build-asan -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DUSE_SANITIZERS=ON
+
+      - name: Build
+        run: |
+          cmake --build build-asan --parallel
+
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ctest --test-dir build-asan --output-on-failure --parallel 2 --timeout 600
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-sanitizers
+          path: |
+            build-asan/Testing/Temporary/LastTest.log
+            build-asan/CMakeCache.txt

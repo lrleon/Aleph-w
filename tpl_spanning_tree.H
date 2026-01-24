@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,60 +23,121 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_spanning_tree.H
+ *  @brief Spanning tree generation algorithms.
+ *
+ *  Constructs spanning trees using DFS or BFS traversal.
+ *  For minimum spanning trees, see Prim.H and Kruskal.H.
+ *
+ *  ## Features
+ *  - DFS spanning tree
+ *  - BFS spanning tree (shortest paths in unweighted graphs)
+ *  - Random spanning tree
+ *
+ *  ## Complexity: O(V + E)
+ *
+ *  @see Prim.H Minimum spanning tree
+ *  @see Kruskal.H Minimum spanning tree
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_SPANNING_TREE_H
 # define TPL_SPANNING_TREE_H
 
 # include <tpl_graph.H>
+# include <tpl_graph_utils.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
-
-    /** Calcula un árbol abarcador en profundidad de un grafo.
-
-          Esta clase toma un grafo g, efectúa un recorrido en profundidad
-          a partir de un nodo seleccionado y construye el árbol abarcador
-          según el orden de visita dado por el recorrido.  
-
-          La clase toma dos parámetros tipo:
-          -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-          -# SA: clase que se encarga de mostrar el arco. Internamente, la
-          función emplea el iterador filtro Node_Arc_Iterator (basado
-          en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-          el la clase que determina si el arco debe o no mostrarse al
-          recorrido. 
-
-          @ingroup Grafos
-          @see find_breadth_first_spanning_tree() Tree_Node
-          @see graph_to_tree_node() 
-        */
-    template <class GT, class SA = Dft_Show_Arc<GT> > 
+/** @brief Compute a depth-first spanning tree of a graph.
+ *
+ * This class performs a depth-first traversal starting from a specified
+ * node and constructs the spanning tree according to the DFS visit order.
+ *
+ * A spanning tree is a subgraph that includes all vertices of the original
+ * graph connected by the minimum number of edges (V-1 edges for V vertices)
+ * without forming any cycles.
+ *
+ * ## Algorithm:
+ *
+ * 1. Start from a source node and mark it as visited
+ * 2. For each unvisited adjacent node, recursively build the tree
+ * 3. Copy visited nodes and traversed arcs to the output tree
+ * 4. Maintain node/arc mappings between original graph and tree
+ *
+ * ## Complexity:
+ *
+ * - **Time:** O(V + E) where V is vertices and E is edges
+ * - **Space:** O(V) for recursion stack + O(V + E) for output tree
+ *
+ * ## Usage example:
+ *
+ * @code
+ * List_Graph<Graph_Node<int>, Graph_Arc<int>> g;
+ * // ... populate graph ...
+ * 
+ * List_Graph<Graph_Node<int>, Graph_Arc<int>> tree;
+ * Find_Depth_First_Spanning_Tree<decltype(g)> dfs_tree;
+ * auto root = dfs_tree(g, tree);
+ * 
+ * if (root != nullptr)
+ *   std::cout << "Spanning tree has " << tree.get_num_nodes() << " nodes\n";
+ * @endcode
+ *
+ * @note The algorithm uses the `Spanning_Tree` control bit on nodes and arcs.
+ *       These bits are reset at the beginning of the algorithm.
+ *
+ * @note After execution, nodes and arcs in `tree` are mapped to their
+ *       corresponding elements in `g` via cookies.
+ *
+ * @tparam GT Graph type (must satisfy Aleph graph concept).
+ * @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
+ *
+ * @see Find_Breadth_First_Spanning_Tree For BFS-based spanning tree
+ * @see graph_to_tree_node() To convert to Tree_Node representation
+ *
+ * @ingroup Graphs
+ */
+template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Find_Depth_First_Spanning_Tree
 {
-  SA   sa;
+  SA sa;
   GT * gptr = nullptr;
   GT * tptr = nullptr;
 
+  // Recursive DFS helper to build the spanning tree
   bool build_tree(typename GT::Node * gnode, typename GT::Arc * garc, 
-		  typename GT::Node * tnode)
+                  typename GT::Node * tnode)
   {
-    NODE_BITS(gnode).set_bit(Spanning_Tree, true); // marcar nodo 
-    ARC_BITS(garc).set_bit(Spanning_Tree, true);   // marcar arco
+    // Mark node and arc as part of spanning tree
+    NODE_BITS(gnode).set_bit(Spanning_Tree, true);
+    ARC_BITS(garc).set_bit(Spanning_Tree, true);
 
+    // Create corresponding node in tree and establish mapping
     auto tree_tgt_node = tptr->insert_node(gnode->get_info());
     GT::map_nodes(gnode, tree_tgt_node);
 
+    // Create corresponding arc in tree and establish mapping
     auto tarc = tptr->insert_arc(tnode, tree_tgt_node, garc->get_info()); 
     GT::map_arcs(garc, tarc);
 
     tnode = tree_tgt_node; 
-    if (tptr->get_num_nodes() == gptr->get_num_nodes()) // ¿grafo abarcado?
-      return true; // tree ya contiene el árbol abarcador
+    
+    // Check if spanning tree is complete (all nodes covered)
+    if (tptr->get_num_nodes() == gptr->get_num_nodes())
+      return true;
 
-    assert(tptr->get_num_nodes() > tptr->get_num_arcs()); // debe ser acíclico
+    // Invariant: tree must be acyclic (nodes > arcs)
+    assert(tptr->get_num_nodes() > tptr->get_num_arcs());
 
+    // Explore adjacent nodes via DFS
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
-	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes();
-	 i.next_ne())
+         i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes();
+         i.next_ne())
       {
         auto arc = i.get_current_arc_ne();
         if (IS_ARC_VISITED(arc, Spanning_Tree)) 
@@ -85,44 +145,50 @@ class Find_Depth_First_Spanning_Tree
 
         auto arc_tgt_node = i.get_tgt_node();
         if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-          continue; // destino ya visitado desde otro arco
+          continue;  // Target already visited via another arc
 
         if (build_tree(arc_tgt_node, arc, tnode))
-	  return false;
+          return true;
       }
 
     return false;
   }
 
+  // Main algorithm entry point
   bool build_tree(GT & g, typename GT::Node * gnode, GT & tree)
   {
     gptr = &g;
     tptr = &tree;
 
+    // Reset all control bits for fresh traversal
     gptr->reset_nodes();
     gptr->reset_arcs(); 
 
-    clear_graph(*tptr); // asegurar que árbol destino esté vacío
+    // Ensure output tree is empty
+    clear_graph(*tptr);
   
-    NODE_BITS(gnode).set_bit(Spanning_Tree, true); // marcar gnode
+    // Mark starting node as visited
+    NODE_BITS(gnode).set_bit(Spanning_Tree, true);
   
+    // Create root node in tree and establish mapping
     auto tnode = tree.insert_node(gnode->get_info()); 
     GT::map_nodes(gnode, tnode);
   
+    // Explore all adjacent arcs via DFS
     for (Node_Arc_Iterator<GT, SA> i(gnode, sa); 
-	 i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes(); 
-	 i.next_ne())
+         i.has_curr() and tptr->get_num_nodes() < gptr->get_num_nodes(); 
+         i.next_ne())
       {
-	auto arc = i.get_current_arc_ne();
-	if (IS_ARC_VISITED(arc, Spanning_Tree)) 
-	  continue;
+        auto arc = i.get_current_arc_ne();
+        if (IS_ARC_VISITED(arc, Spanning_Tree)) 
+          continue;
 
-	auto arc_tgt_node = i.get_tgt_node();
-	if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
-	  continue; // destino ya visitado desde otro arco
+        auto arc_tgt_node = i.get_tgt_node();
+        if (IS_NODE_VISITED(arc_tgt_node, Spanning_Tree))
+          continue;  // Target already visited via another arc
 
-	if (build_tree(arc_tgt_node, arc, tnode))
-	  return false;
+        if (build_tree(arc_tgt_node, arc, tnode))
+          return true;
       }
 
     return true;
@@ -130,30 +196,36 @@ class Find_Depth_First_Spanning_Tree
 
 public:
 
-  Find_Depth_First_Spanning_Tree(SA __sa = SA()) : sa(__sa) { /* empty */ }
+  /** @brief Construct a DFS spanning tree builder with optional arc filter.
+   *
+   * @param arc_filter Arc filter to control which arcs are traversed
+   *        (default: show all arcs).
+   */
+  Find_Depth_First_Spanning_Tree(SA arc_filter = SA()) : sa(arc_filter) { /* empty */ }
 
-  /** Invoca a la construcción de árbol abarcador en profundidad.
-
-      Luego de la operación el parámetro tree contiene el árbol
-      abarcador en cuestión con sus arcos y nodos mapeados al grafo g.
-
-      Durante la ejecución, el algoritmo marca los nodos y
-      arcos visitados con el bit el spanning_tree.
-
-      El orden de visita del grafo no necesariamente es el mismo que el
-      de la primitiva depth_first_traversal().
-
-      @param[in] g el grafo sobre el cual se desea construir el árbol
-      abarcador en profundidad.
-      @param[out] tree grafo donde se colocará el árbol abarcador de
-      profundidad. 
-      @return si el grafo es conexo y existe un árbol abarcador, se
-      retorna un puntero al nodo desde donde se inicia la búsqueda en
-      profundidad; de lo contrario se retorna nullptr.
-      @throw bad_alloc si no hay memoria para construir el árbol abarcador.
-  */
+  /** @brief Build a depth-first spanning tree starting from the first node.
+   *
+   * Constructs a spanning tree of the graph using depth-first traversal.
+   * After execution, `tree` contains the spanning tree with nodes and arcs
+   * mapped to their corresponding elements in `g`.
+   *
+   * @param[in] g Source graph to compute spanning tree from.
+   * @param[out] tree Output graph that will contain the spanning tree.
+   *             Will be cleared before construction.
+   *
+   * @return Pointer to the root node (first node of g) if the graph is
+   *         connected and a spanning tree exists; `nullptr` otherwise.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   * @throw std::domain_error If the graph is empty.
+   *
+   * @note Uses the `Spanning_Tree` control bit on nodes and arcs.
+   */
   typename GT::Node * operator () (GT & g, GT & tree)
   {
+    ah_domain_error_if(g.get_num_nodes() == 0)
+      << "Find_Depth_First_Spanning_Tree: graph is empty";
+
     auto start = g.get_first_node();
     if (not build_tree(g, start, tree)) 
       return nullptr;
@@ -161,192 +233,265 @@ public:
     return start;
   }
 
-    /** Invoca a la construcción de árbol abarcador en profundidad a
-	partir de un nodo dado.
-
-	Luego de la operación el parámetro tree contiene el árbol
-	abarcador en cuestión con sus arcos y nodos mapeados al grafo
-	g. 
-
-	Durante la ejecución, el algoritmo marca los nodos y
-	arcos visitados con el bit el spanning_tree.
-	
-	El orden de visita del grafo no necesariamente es el mismo que
-	el de la primitiva depth_first_traversal(). 
-
-	@param[in] g el grafo sobre el cual se desea construir el árbol
-	abarcador en profundidad.
-	@param[in] gnode nodo desde el cual se deseaq iniciar la
-	búsqueda en profundidad.
-	@param[out] tree grafo donde se colocará el árbol abarcador de
-	profundidad. 
-	@return puntero al nodo desde donde se inicia la búsqueda en
-	profundidad; de lo contrario se retorna nullptr.
-	@throw bad_alloc si no hay memoria para construir el árbol
-	abarcador. 
-    */
+  /** @brief Build a depth-first spanning tree starting from a specific node.
+   *
+   * Constructs a spanning tree of the graph using depth-first traversal
+   * starting from the specified source node.
+   *
+   * @param[in] g Source graph to compute spanning tree from.
+   * @param[in] gnode Starting node for the DFS traversal.
+   * @param[out] tree Output graph that will contain the spanning tree.
+   *             Will be cleared before construction.
+   *
+   * @return Pointer to the tree node corresponding to `gnode`.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   * @throw std::invalid_argument If `gnode` is `nullptr`.
+   *
+   * @note Uses the `Spanning_Tree` control bit on nodes and arcs.
+   */
   typename GT::Node * operator () (GT & g, typename GT::Node * gnode, GT & tree)
   {
+    ah_invalid_argument_if(gnode == nullptr)
+      << "Find_Depth_First_Spanning_Tree: source node cannot be null";
+
     this->build_tree(g, gnode, tree);
-    return (typename GT::Node *) NODE_COOKIE(gnode);
+    return static_cast<typename GT::Node *>(NODE_COOKIE(gnode));
   }
 };
 
 
-
-/** Calcula un árbol abarcador en amplitud de un grafo a partir 
-           de un nodo.
-
-           Esta clase toma un grafo g, efectúa un recorrido en
-           amplitud a partir de un nodo dado y construye el árbol
-           abarcador según el orden de visita dado por el recorrido.
-
-           La clase toma dos parámetros tipo:
-           -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-           -# SA: clase que se encarga de mostrar el arco. Internamente, la
-           clase emplea el iterador filtro Node_Arc_Iterator (basado
-           en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-           el la clase que determina si el arco debe o no mostrarse al
-           recorrido. 
-
-
-           @throw bad_alloc si no hay memoria para construir el árbol abarcador
-           o para la cola interna que se utiliza para el recorrido en amplitud.
-           @ingroup Grafos
-           @see find_depth_first_spanning_tree() Tree_Node
-           @see graph_to_tree_node() 
-        */
-      template <class GT, class SA = Dft_Show_Arc<GT> > 
+/** @brief Compute a breadth-first spanning tree of a graph.
+ *
+ * This class performs a breadth-first traversal starting from a specified
+ * node and constructs the spanning tree according to the BFS visit order.
+ *
+ * Unlike DFS spanning trees, BFS spanning trees have the property that the
+ * path from the root to any node in the tree is the shortest path (in terms
+ * of number of edges) in the original graph.
+ *
+ * ## Algorithm:
+ *
+ * 1. Start from a source node and add its adjacent arcs to a queue
+ * 2. Process arcs from the queue, adding unvisited nodes to the tree
+ * 3. For each newly added node, enqueue its adjacent arcs
+ * 4. Continue until all reachable nodes are visited
+ *
+ * ## Complexity:
+ *
+ * - **Time:** O(V + E) where V is vertices and E is edges
+ * - **Space:** O(V) for the queue + O(V + E) for output tree
+ *
+ * ## Usage example:
+ *
+ * @code
+ * List_Graph<Graph_Node<int>, Graph_Arc<int>> g;
+ * // ... populate graph ...
+ * 
+ * List_Graph<Graph_Node<int>, Graph_Arc<int>> tree;
+ * Find_Breadth_First_Spanning_Tree<decltype(g)> bfs_tree;
+ * auto start = g.get_first_node();
+ * bfs_tree(g, start, tree);
+ * @endcode
+ *
+ * @note The algorithm uses the `Spanning_Tree` control bit on nodes and arcs.
+ *
+ * @tparam GT Graph type (must satisfy Aleph graph concept).
+ * @tparam SA Arc filter type (default: `Dft_Show_Arc<GT>`).
+ *
+ * @throw std::bad_alloc If memory allocation fails for tree or internal queue.
+ *
+ * @see Find_Depth_First_Spanning_Tree For DFS-based spanning tree
+ *
+ * @ingroup Graphs
+ */
+template <class GT, class SA = Dft_Show_Arc<GT>> 
 class Find_Breadth_First_Spanning_Tree
 {
-  SA & sa;
+  SA sa;
 
+  // Main BFS algorithm to build spanning tree
   void build_tree(GT & g, typename GT::Node * gp, GT & tree)
   {
+    // Reset control bits for fresh traversal
     g.reset_bit_nodes(Spanning_Tree);
     g.reset_bit_arcs(Spanning_Tree);
 
+    // Ensure output tree is empty
     clear_graph(tree); 
 
-    unique_ptr<typename GT::Node> tp_auto(new typename GT::Node(gp));
-    tree.insert_node(tp_auto.get());
-    GT::map_nodes(gp, tp_auto.release());
+    // Create root node in tree and establish mapping
+    auto tp = tree.insert_node(gp->get_info());
+    GT::map_nodes(gp, tp);
 
-    DynListQueue<typename GT::Arc*> q; // insertar en cola arcos gp
+    // Initialize queue with arcs adjacent to starting node
+    DynListQueue<typename GT::Arc*> q;
     for (Node_Arc_Iterator<GT, SA> i(gp, sa); i.has_curr(); i.next_ne())
       q.put(i.get_current_arc_ne());
 
+    // Mark starting node as visited
     NODE_BITS(gp).set_bit(Spanning_Tree, true); 
 
+    // BFS loop
     while (not q.is_empty()) 
       {
-	auto garc = q.get(); 
-	ARC_BITS(garc).set_bit(Spanning_Tree, true); 
-	auto gsrc = g.get_src_node(garc);  
-	auto gtgt = g.get_tgt_node(garc);
+        auto garc = q.get(); 
+        ARC_BITS(garc).set_bit(Spanning_Tree, true); 
+        auto gsrc = g.get_src_node(garc);  
+        auto gtgt = g.get_tgt_node(garc);
 
-	if (IS_NODE_VISITED(gsrc, Spanning_Tree) and 
-	    IS_NODE_VISITED(gtgt, Spanning_Tree))
-	  continue; // los dos nodos de garc ya fueron visitados
+        // Skip if both endpoints already visited
+        if (IS_NODE_VISITED(gsrc, Spanning_Tree) and 
+            IS_NODE_VISITED(gtgt, Spanning_Tree))
+          continue;
 
-	if (IS_NODE_VISITED(gtgt, Spanning_Tree)) // ¿gtgt visitado?
-	  std::swap(gsrc, gtgt); // sí, intercámbielo con gsrc
+        // Ensure gsrc is the visited node and gtgt is the new one
+        if (IS_NODE_VISITED(gtgt, Spanning_Tree))
+          std::swap(gsrc, gtgt);
 
-	auto tsrc = mapped_node<GT>(gsrc);
-	NODE_BITS(gtgt).set_bit(Spanning_Tree, true); // gtgt visitado
+        auto tsrc = mapped_node<GT>(gsrc);
+        NODE_BITS(gtgt).set_bit(Spanning_Tree, true);
 
-            // crear copia de gtgt, insertarlo en tree y mapearlo
-	unique_ptr<typename GT::Node> ttgt_auto(new typename GT::Node(gtgt));
-	tree.insert_node(ttgt_auto.get());
-	auto ttgt = ttgt_auto.release();
-	GT::map_nodes(gtgt, ttgt);
+        // Create new node in tree and establish mapping
+        auto ttgt = tree.insert_node(gtgt->get_info());
+        GT::map_nodes(gtgt, ttgt);
 
-            // insertar nuevo arco en tree y mapearlo
-	auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
-	GT::map_arcs(garc, tarc);
-	if (tree.get_num_nodes() == g.get_num_nodes()) // ¿abarca a g?
-	  break; 
+        // Create new arc in tree and establish mapping
+        auto tarc = tree.insert_arc(tsrc, ttgt, garc->get_info());
+        GT::map_arcs(garc, tarc);
+        
+        // Check if spanning tree is complete
+        if (tree.get_num_nodes() == g.get_num_nodes())
+          break; 
 
-            // insertar en cola arcos de gtgt
-	for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next_ne())
-	  {
-	    auto current_arc = i.get_current_arc_ne();
-	    if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
-	      continue;
+        // Enqueue arcs adjacent to newly added node
+        for (Node_Arc_Iterator<GT, SA> i(gtgt, sa); i.has_curr(); i.next_ne())
+          {
+            auto current_arc = i.get_current_arc_ne();
+            if (IS_ARC_VISITED(current_arc, Spanning_Tree)) 
+              continue;
 
-                // revise nodos de arcos para ver si han sido visitados
-	    if (IS_NODE_VISITED(g.get_src_node(current_arc), Spanning_Tree) and 
-		IS_NODE_VISITED(g.get_tgt_node(current_arc), Spanning_Tree))
-	      continue; // nodos ya visitados ==> no meter arco
-	    q.put(current_arc);
-	  }
+            // Skip arcs where both endpoints are already visited
+            if (IS_NODE_VISITED(g.get_src_node(current_arc), Spanning_Tree) and 
+                IS_NODE_VISITED(g.get_tgt_node(current_arc), Spanning_Tree))
+              continue;
+            q.put(current_arc);
+          }
       }
   }
 
 public:
 
-  Find_Breadth_First_Spanning_Tree(SA && __sa = SA()) : sa(__sa) { /* empty */ }
+  /** @brief Construct a BFS spanning tree builder with optional arc filter.
+   *
+   * @param arc_filter Arc filter to control which arcs are traversed
+   *        (default: show all arcs).
+   */
+  Find_Breadth_First_Spanning_Tree(SA arc_filter = SA()) : sa(arc_filter) { /* empty */ }
 
-  Find_Breadth_First_Spanning_Tree(SA & __sa) : sa(__sa) { /* empty */ }
+  /** @brief Build a breadth-first spanning tree starting from a specific node.
+   *
+   * Constructs a spanning tree of the graph using breadth-first traversal
+   * starting from the specified source node.
+   *
+   * @param[in] g Source graph to compute spanning tree from.
+   * @param[in] gnode Starting node for the BFS traversal.
+   * @param[out] tree Output graph that will contain the spanning tree.
+   *             Will be cleared before construction.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   * @throw std::invalid_argument If `gnode` is `nullptr`.
+   *
+   * @note Uses the `Spanning_Tree` control bit on nodes and arcs.
+   * @note After execution, nodes and arcs in `tree` are mapped to their
+   *       corresponding elements in `g` via cookies.
+   */
+  void operator () (GT & g, typename GT::Node * gnode, GT & tree) 
+  {
+    ah_invalid_argument_if(gnode == nullptr)
+      << "Find_Breadth_First_Spanning_Tree: source node cannot be null";
 
-    /** Invoca a la construcción de un árbol abarcador el amplitud.
+    this->build_tree(g, gnode, tree);
+  }
 
-        Luego de la operación el parámetro tree contiene el árbol
-        abarcador en cuestión con sus arcos y nodos mapeados al grafo
-        g. 
+  /** @brief Build a breadth-first spanning tree starting from the first node.
+   *
+   * Constructs a spanning tree using the first node of the graph as root.
+   *
+   * @param[in] g Source graph to compute spanning tree from.
+   * @param[out] tree Output graph that will contain the spanning tree.
+   *
+   * @return Pointer to the tree node corresponding to the root.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   * @throw std::domain_error If the graph is empty.
+   */
+  typename GT::Node * operator () (GT & g, GT & tree)
+  {
+    ah_domain_error_if(g.get_num_nodes() == 0)
+      << "Find_Breadth_First_Spanning_Tree: graph is empty";
 
-        Durante la ejecución, el algoritmo marca los nodos y
-        arcos visitados con el bit el spanning_tree.
+    auto start = g.get_first_node();
+    this->build_tree(g, start, tree);
+    return static_cast<typename GT::Node *>(NODE_COOKIE(start));
+  }
+};
 
-        El orden de visita del grafo no necesariamente es el mismo que
-        el de la primitiva breadth_first_traversal(). 
-
-        @param[in] g el grafo sobre el cual se desea construir el árbol
-        abarcador en amplitud.
-        @param[in] gnode puntero al nodo origen de la búsqueda en
-        amplitud. 
-        @param[out] tree grafo donde se colocará el árbol abarcador de
-        amplitud. 
-    */
-    void operator () (GT & g, typename GT::Node * gnode, GT & tree) 
-    {
-      find_breadth_first_spanning_tree <GT, SA> (g, gnode, tree);
-    }
-  };
-
-
-      /** Construye un árbol abarcador de un grafo representado con arreglos.
-
-          Esta clase toma un grafo g y un árbol abarcador
-          representado mediante los arreglos de nodos pred y de arcos
-          arcs y construye en tree el árbol abarcador.
-
-         @ingroup Grafos
-       */
-      template <class GT>
+/** @brief Build a spanning tree from an array of arcs.
+ *
+ * This class constructs a spanning tree graph from an array of arcs
+ * that were previously computed by another algorithm (e.g., Kruskal, Prim).
+ *
+ * ## Usage example:
+ *
+ * @code
+ * DynArray<Graph::Arc*> mst_arcs;
+ * // ... populate mst_arcs from MST algorithm ...
+ * 
+ * Build_Spanning_Tree<Graph> builder;
+ * Graph tree = builder(&mst_arcs);
+ * @endcode
+ *
+ * @tparam GT Graph type.
+ *
+ * @ingroup Graphs
+ */
+template <class GT>
 class Build_Spanning_Tree
 {
 public:
 
-    /** Invoca la construcción del árbol abarcador mediante arreglos.
-
-          @param[in] g el grafo sobre el cual se desea construir el árbol
-          abarcador alterno.
-          @param[out] tree el árbol abarcador alterno obtenido de los
-          arreglos pred y arcs.
-          @param[in] pred el arreglo de punteros a nodos.
-          @param[in] arcs el arreglo de punteros a arcos.
-          @param[in] with_map indica si el árbol abarcador tree debe
-          mapearse con el grafo g.
-          @throw bad_alloc si no hay suficiente memoria para construir el
-          árbol abarcado tree.
-     */
-  GT operator () (const DynArray<typename GT::Arc> *  arcs) const
+  /** @brief Construct spanning tree from array of arc pointers.
+   *
+   * @param[in] arcs Array of arc pointers that form the spanning tree.
+   *
+   * @return A new graph containing only the nodes and arcs from the
+   *         spanning tree.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   */
+  GT operator () (const DynArray<typename GT::Arc*> & arcs) const
   {
-    return build_spanning_tree(arcs);
+    return build_spanning_tree<GT>(arcs);
+  }
+
+  /** @brief Construct spanning tree from pointer to array of arc pointers.
+   *
+   * @param[in] arcs Pointer to array of arc pointers that form the spanning tree.
+   *
+   * @return A new graph containing only the nodes and arcs from the
+   *         spanning tree.
+   *
+   * @throw std::bad_alloc If memory allocation fails.
+   * @throw std::invalid_argument If `arcs` is `nullptr`.
+   */
+  GT operator () (const DynArray<typename GT::Arc*> * arcs) const
+  {
+    ah_invalid_argument_if(arcs == nullptr)
+      << "Build_Spanning_Tree: arcs array cannot be null";
+    return build_spanning_tree<GT>(*arcs);
   }
 };
-
 
 } // end namespace Aleph
 

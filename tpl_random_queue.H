@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/** @file tpl_random_queue.H
+ *  @brief Random access queue (bag) with O(1) random pop.
+ *
+ *  Collection allowing random element extraction.
+ *  Also defines Random_Set for random set operations.
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RANDOM_QUEUE_H
 # define TPL_RANDOM_QUEUE_H
 
@@ -32,6 +42,8 @@
 # include <htlist.H>
 # include <ah-dry.H>
 # include <tpl_dynArray.H>
+# include <utility>
+ # include <ah-errors.H>
 
 namespace Aleph {
 
@@ -45,7 +57,7 @@ namespace Aleph {
 	By default, the Mersene twister is used and the seed is taken from
 	system time. 
 
-	@ingroup Secuencias 
+	@ingroup Sequences 
      */
     template <class T> 
 class Random_Set
@@ -67,19 +79,18 @@ public:
   using Item_Type = T; /// The type of data contained in the queue
 
   /// Return a pointer to random number generator
-  gsl_rng * get_rng() const { return r; }
+  [[nodiscard]] gsl_rng * get_rng() const { return r; }
 
-  /// Set the seed of ramdom number generator
-  void set_seed(unsigned long seed) noexcept { gsl_rng_set(r, seed); }
+  /// Set the seed of random number generator
+  void set_seed(unsigned long seed) const noexcept { gsl_rng_set(r, seed); }
 
-  /// Return the number of items inthe queue
-  size_t size() const { return array.size(); }
+  /// Return the number of items in the queue
+  [[nodiscard]] size_t size() const { return array.size(); }
   
   Random_Set() : array(0), r(nullptr)
   {
     r = gsl_rng_alloc (gsl_rng_mt19937);
-    if (r == nullptr)
-      throw std::bad_alloc();
+    ah_bad_alloc_if(r == nullptr);
 
     gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
   }
@@ -91,30 +102,27 @@ public:
     std::swap(r, s.r);
   }
 
-  /// Copy constrcutor
+  /// Copy constructor
   Random_Set(const Random_Set & s) : Random_Set()
   {
     s.for_each([this] (auto item) { this->append(item); });
   }
 
   /// Move constructor
-  Random_Set(Random_Set && s) { swap(s); }
+  Random_Set(Random_Set && s)  noexcept { swap(s); }
 
   Random_Set & operator = (const Random_Set & s)
   {
     if (this == &s)
       return *this;
 
-    if (s.size() > size())
-      array.reserve(s.size());
-    else
-      array.cut(s.size);
+    array.cut(0);  // Clear the array first
     s.for_each([this] (auto item) { this->append(item); });
 
     return *this;
   }
 
-  Random_Set & operator = (Random_Set && s) 
+  Random_Set & operator = (Random_Set && s) noexcept
   {
     swap(s);
     return *this;
@@ -126,7 +134,7 @@ public:
     l.for_each([this] (const T & item) { append(item); });
   }
 
-  /// Initialize the ramdom queue with the items between `b` and `e`
+  /// Initialize the random queue with the items between `b` and `e`
   /// where these parameters are stl iterators
   template <class It> Random_Set(It b, It e) : Random_Set()
   {
@@ -156,7 +164,12 @@ public:
       @param[in] item reference to the item to be inserted
       @throw bad_alloc if there is no enough memory
   */
-  void put(const T & item) { array.append(item); }
+  void put(const T & item)
+  {
+    static_assert(std::is_copy_constructible_v<T>,
+                  "Random_Set::put requires copyable T");
+    array.append(item);
+  }
 
   
   /** Insert an item by moving
@@ -168,45 +181,54 @@ public:
       @param[in] item rvalue reference to the item to be moved
       @throw bad_alloc if there is no enough memory
   */
-  void put(T && item) { array.append(std::forward<T>(item)); }
+  void put(T && item)
+  {
+    static_assert(std::is_move_constructible_v<T>,
+                  "Random_Set::put requires moveable T");
+    array.append(std::forward<T>(item));
+  }
 
   /** Insert randomly an item by copy.
 
-      `append(item)` perform a random choice. Use this method if you
-      must to obtain fastly a random array. Ypu simply append the items
-      tothe queue and afterward yo get the array reference.
+      `append(item)` performs a random choice. Use this method if you
+      must obtain fastly a random array. It returns a reference to the
+      stored element so callers can mutate it in place, same as other
+      Aleph sequences.
 
       @param[in] item reference to the item to be inserted
+      @return reference to the inserted item inside the queue
       @throw bad_alloc if there is no enough memory
   */
-  void append(const T & item)
+  T & append(const T & item)
   {
     put(item);
-    auto pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    std::swap(array(pos), array(array.size() - 1));
+    const size_t last_index = array.size() - 1;
+    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    if (pos != last_index)
+      std::swap(array(pos), array(last_index));
+    return array(pos);
   }
 
    /** Insert randomly an item by moving.
 
-      `append(item)` perform a random choice. Use this method if you
-      must to obtain fastly a random array. Ypu simply append the items
-      tothe queue and afterward yo get the array reference.
-
       @param[in] item rvalue reference to the item to be inserted
+      @return reference to the inserted item inside the queue
       @throw bad_alloc if there is no enough memory
   */
-  void append(T && item)
+  T & append(T && item)
   {
-    put(move(item));
-    auto pos = gsl_rng_uniform_int(r, array.size()); // al azar
-    std::swap(array(pos), array(array.size() - 1));
+    put(std::forward<T>(item));
+    const size_t last_index = array.size() - 1;
+    const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
+    if (pos != last_index)
+      std::swap(array(pos), array(last_index));
+    return array(pos);
   }
 
   /// Extract randomly an item 
   T get()
   {
-    if (array.size() == 0)
-      throw std::underflow_error("Random set is empty");
+    ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
     T ret_val = array.access(pos);
@@ -218,8 +240,7 @@ public:
   // pick() is like get() but without removing the item
   T pick() const
   {
-    if (array.size() == 0)
-      throw std::underflow_error("Random set is empty");
+    ah_underflow_error_if(array.size() == 0) << "Random set is empty";
 
     const size_t pos = gsl_rng_uniform_int(r, array.size()); // al azar
     T ret_val = array.access(pos);
@@ -232,10 +253,10 @@ public:
 
   /** Iterator of the items of the queue.
 
-      The order will be ramdom if the insertion were performed with
+      The order will be random if the insertion were performed with
       `append()`: otherwise, the order will be the same that the put order.
 
-      @ingroup Secuencias 
+      @ingroup Sequences 
    */
   struct Iterator : public DynArray<T>
   {
@@ -243,10 +264,10 @@ public:
     using Base::Base;
   };
 
-  /** Conditinal traversing of the ramdom queue
+  /** Conditional traversing of the random queue
 
       @param[in] operation to be performed on each item. If it return
-      `true` the the traversing continues; otherwise stops.
+      `true` then the traversing continues; otherwise stops.
   */
   template <class Operation>
   bool traverse(Operation & operation) 
@@ -283,7 +304,7 @@ public:
 
     @param[in] c container to be shuffled
     @return a shuffled permutation of `c`
-    @ingroup Secuencias 
+    @ingroup Sequences 
  */
   template <typename T, template <typename> class C>
 auto shuffle(const C<T> & c)
@@ -304,7 +325,7 @@ auto shuffle(const C<T> & c)
      @param[in] c container to be shuffled
      @return a shuffled permutation of pointer to items in the sequence `c`
 
-    @ingroup Secuencias 
+    @ingroup Sequences 
  */
   template <typename T, template <typename> class C>
 C<T*> shuffle_ptr(const C<T> & c)

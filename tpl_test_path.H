@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,14 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_test_path.H
+ *  @brief Path existence testing.
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TEST_PATH_H
 # define TEST_PATH_H
 
@@ -49,7 +56,7 @@ namespace Aleph {
           visitados durante la búsqueda.
 
          @see find_path_depth_first() find_path_breadth_first()
-         @ingroup Grafos
+         @ingroup Graphs
        */
       template <class GT, class SA = Dft_Show_Arc<GT> > 
 class Test_For_Path

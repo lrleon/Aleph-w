@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +24,17 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/** @file tpl_binNodeXt.H
+ *  @brief Extended binary node with subtree count.
+ *
+ *  Binary node augmented with subtree size for order statistics.
+ *
+ *  @see tpl_binNodeAux.H Base node
+ *  @ingroup Trees
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BINNODEXT_H
 # define TPL_BINNODEXT_H
 
@@ -37,7 +47,7 @@ namespace Aleph {
 
 class BinNodeXt_Data
 {
-  size_t count; // cardinalidad del árbol
+  size_t count; // Cardinality of the tree
 
 public:
 
@@ -54,14 +64,14 @@ public:
 
     \class BinNodeXt
 
-    @ingroup Arboles
+    @ingroup Trees
 */
 DECLARE_BINNODE_SENTINEL(BinNodeXt, 255, BinNodeXt_Data);
 
   /** Return the number of nodes of the tree fron `p` is root.
 
       @param p pointer to root
-      @ingroup Arboles
+      @ingroup Trees
    */
 template <class Node> inline auto & COUNT(Node * p) noexcept
 {
@@ -93,13 +103,12 @@ Node * __select_rec(Node * r, const size_t i) noexcept
       of overall  tree
       @see select()
 
-      @ingroup Arboles
+      @ingroup Trees
   */
     template <class Node> inline
 Node * select_rec(Node * r, const size_t i)
 {
-  if (i >= COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(i >= COUNT(r)) << "infix position out of range";
 
   return __select_rec(r, i);
 }
@@ -112,13 +121,13 @@ Node * select_rec(Node * r, const size_t i)
         @return a pointer to the node at the inorder position pos
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select_ne(Node * r, const size_t pos) noexcept
 {
   assert(COUNT(Node::NullPtr) == 0);
-  for (size_t i = pos; i != COUNT(LLINK(r)); /* nada */)
+  for (size_t i = pos; i != COUNT(LLINK(r)); /* nothing */)
     {
       assert(i < COUNT(r) and
 	     COUNT(LLINK(r)) + COUNT(RLINK(r)) + 1 == COUNT(r));
@@ -135,7 +144,7 @@ Node * select_ne(Node * r, const size_t pos) noexcept
   return r;
 }
 
-      /** Iterative selection of a node according to inorder psoition
+      /** Iterative selection of a node according to inorder position
 
         @param[in] r root of tree
         @param[in] pos position inorder whose node wants to be located
@@ -144,14 +153,12 @@ Node * select_ne(Node * r, const size_t pos) noexcept
         of nodes.
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select(Node * r, const size_t pos)
 {
-  assert(COUNT(Node::NullPtr) == 0);
-  if (pos >= COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(r)) << "infix position out of range";
 
   return select_ne(r, pos);
 }
@@ -159,7 +166,7 @@ Node * select(Node * r, const size_t pos)
     /** Iterative selection of a node according to inorder psoition and
 	determination of parent of selected node
 
-        @param[in] r root of tree
+        @param[in] root root of tree
         @param[in] pos position inorder whose node wants to be located
         @param[out] parent of selected node
         @return a pointer to the node at the inorder position pos
@@ -167,15 +174,12 @@ Node * select(Node * r, const size_t pos)
         of nodes.
 
         @see select_rec()
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select(Node * root, const size_t pos, Node *& parent)
 {
-  assert(COUNT(Node::NullPtr) == 0);
-
-  if (pos >= COUNT(root))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
 
   parent = Node::NullPtr;
   for (size_t i = pos; i != COUNT(LLINK(root)); /* nada */)
@@ -204,7 +208,7 @@ Node * select(Node * root, const size_t pos, Node *& parent)
     @param[in] cmp comparison criteria
     @return inorder position of `key`
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node, class Compare> inline
 long inorder_position(Node * r,
@@ -218,18 +222,15 @@ long inorder_position(Node * r,
 
   if (cmp(key, KEY(r)))
     return inorder_position(LLINK(r), key, p, cmp);
-  else if (cmp(KEY(r), key))
+  if (cmp(KEY(r), key))
     {
       long ret = inorder_position(RLINK(r), key, p, cmp);
       if (ret != -1)
         return ret + COUNT(LLINK(r)) + 1;
       return ret;
     }
-  else
-    {
-      p = r;
-      return COUNT(LLINK(r));
-    }
+  p = r;
+  return COUNT(LLINK(r));
 }
 
 /// \overload inorder_position()
@@ -275,7 +276,7 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
         maximum key in the tree.
         -# For any other case, the returned value is the position that
         would have `key` if this was in the tree and `p` is the node
-        whose key is inmediataly greater than `key`.
+        whose key is immediately greater than `key`.
 
         @param[in] r root of tree
         @param[in] key to be searched
@@ -283,7 +284,7 @@ inline long inorder_position(Node * r, const typename Node::key_type & key,
         @param[in] cmp comparison criteria
         @return the positions of `key` in the tree
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
@@ -292,31 +293,34 @@ long find_position(Node * r, const typename Node::key_type & key,
 {
   assert(COUNT(Node::NullPtr) == 0);
 
-  Node * parent = nullptr;
-  long pos = COUNT(LLINK(r));
+  long offset = 0;
+  Node * candidate = Node::NullPtr;
 
   while (r != Node::NullPtr)
-    if (cmp(key, KEY(r)))
-      {
-        parent = r;
-        r = LLINK(r);
-        pos -= (COUNT(RLINK(r)) + 1);
-      }
-    else if (cmp(KEY(r), key))
-      {
-        parent = r;
-        r = RLINK(r);
-        pos += COUNT(LLINK(r)) + 1;
-      }
-    else
-      {
-        p = r;
-        return pos;
-      }
+      if (cmp(key, KEY(r)))
+        {
+          candidate = r;
+          r = LLINK(r);
+        }
+      else if (cmp(KEY(r), key))
+        {
+          offset += static_cast<long>(COUNT(LLINK(r)) + 1);
+          r = RLINK(r);
+        }
+      else
+        {
+          p = r;
+          return offset + static_cast<long>(COUNT(LLINK(r)));
+        }
 
-  p = parent;
+  if (candidate != Node::NullPtr)
+    {
+      p = candidate;
+      return offset + static_cast<long>(COUNT(LLINK(candidate))) - 1;
+    }
 
-  return pos;
+  p = Node::NullPtr;
+  return offset - 1;
 }
 
 template <class Node,
@@ -338,7 +342,7 @@ long find_position(Node * r, const typename Node::key_type & key,
         @return if `p->get_key()` is not in the tree, then `p` is
         returned (is was inserted). Otherwise it returns `Node::NullPtr`
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
@@ -383,7 +387,7 @@ Node * insert_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
     @param[in] cmp comparison criteria
     @return the pointer p
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node, class Compare> inline
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
@@ -410,20 +414,21 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
 Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
       noexcept
 {
-  return insert_by_key_xt(r, p, cmp);
+  return insert_dup_by_key_xt(r, p, cmp);
 }
 
 /** Search or insert a node in an extended binary search tree.
 
     `search_or_insert_by_key_xt(r, p, cmp)` searches in the extended
     tree with root `r` the key contained in node `p`. If the key is
-    found, the function returns the containing the key; otherwise `p` is
+    found, the function returns the node containing the key; otherwise `p` is
     inserted in the tree and this pointer is returned.
 
-    @param[in] r root of tre
+    @param[in] r root of tree
     @param[in] p pointer to node to search or insert
+    @param[in] cmp comparison functor for key ordering
     @return if `p` is inserted, then this is returned; otherwise the
-    pointer to the node containing the key of is returned
+    pointer to the node containing the key is returned
 */
     template <class Node, class Compare> inline
 Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
@@ -436,14 +441,14 @@ Node * search_or_insert_by_key_xt(Node *& r, Node * p, Compare & cmp) noexcept
   Node * q;
   if (cmp(KEY(p), KEY(r)))
     {
-      q = insert_by_key_xt(LLINK(r), p, cmp);
-      if (q != Node::NullPtr)
+      q = search_or_insert_by_key_xt(LLINK(r), p, cmp);
+      if (q == p)
         ++COUNT(r);
     }
   else if (cmp(KEY(r), KEY(p)))
     {
-      q = insert_by_key_xt(RLINK(r), p, cmp);
-      if (q != Node::NullPtr)
+      q = search_or_insert_by_key_xt(RLINK(r), p, cmp);
+      if (q == p)
         ++COUNT(r);
     }
   else
@@ -494,25 +499,26 @@ bool __split_key_rec_xt(Node * root, const typename Node::key_type & key,
   return true;
 }
 
-/** Split an extended binary search tree accoding to a key
+/** Split an extended binary search tree according to a key
 
     `split_key_rec_xt(root, key, l, r, cmp)` splits a tree according a
-    non existing key
+    non-existing key
 
     @param[in,out] root pointer to tree root
     @param[in] key for splitting
     @param[out] l tree with keys lesser than `key`
     @param[out] r tree with keys greater than `key`
+    @param[in,out] cmp comparison function
     @return `true` if tree was split; that is if `key` is not in the
     tree. Otherwise, if `key` is in the tree, `false` is returned
 
-    @ingroup Arboles
+    @ingroup Trees
 */
 template <class Node, class Compare> inline
 bool split_key_rec_xt(Node *& root, const typename Node::key_type & key,
                       Node *& l, Node *& r, Compare & cmp) noexcept
 {
-  bool ret = __split_key_rec_xt(root, key, l, r, cmp);
+  const bool ret = __split_key_rec_xt(root, key, l, r, cmp);
   if (ret)
     root = Node::NullPtr;
   return ret;
@@ -554,7 +560,7 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
 }
 
 
-/** Split an extended binary search tree accoding to a key which can be
+/** Split an extended binary search tree according to a key which can be
     in the tree.
 
     `split_key__dup_rec_xt(root, key, l, r, cmp)` splits a tree according a
@@ -566,7 +572,7 @@ void __split_key_dup_rec_xt(Node * root, const typename Node::key_type & key,
     @param[out] r tree with keys greater than `key`
     @param[in] cmp comparison criteria
 
-    @ingroup Arboles
+    @ingroup Trees
 */
  template <class Node, class Compare> inline
 void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
@@ -596,10 +602,10 @@ void split_key_dup_rec_xt(Node *& root, const typename Node::key_type & key,
         @param[in] p pointer to the node to insert
         @param[in] cmp comparison criteria
         @return if the key contained in `p` is not in tree, then returns
-        `p`, since this was inserted and has became the root. Otherwise,
+        `p`, since this was inserted and has become the root. Otherwise,
         it returns `Node::NullPtr`
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
@@ -640,13 +646,17 @@ Node * insert_root_xt(Node *& root, Node * p, Compare && cmp = Compare())
         @param[in] cmp comparison criteria
         @return pointer to the inserted node `p` that has became root
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node, class Compare> inline
 Node * insert_dup_root_xt(Node *& root, Node * p, Compare & cmp) noexcept
 {
   if (root == Node::NullPtr)
-    return p;
+    {
+      COUNT(p) = 1;
+      LLINK(p) = RLINK(p) = Node::NullPtr;
+      return root = p;
+    }
 
   split_key_dup_rec_xt(root, KEY(p), LLINK(p), RLINK(p), cmp);
   COUNT(p) = COUNT(LLINK(p)) + COUNT(RLINK(p)) + 1;
@@ -704,15 +714,14 @@ void __split_pos_rec(Node * r, size_t i, Node *& ts, Node *& tg) noexcept
         @param[out] ts tree where the rank of keys \f$[0, i)\f$ will be put
         @param[out] tg tree where the rank of keys \f$[i, n]\f$ will be put
 
-        @ingroup Arboles
+        @ingroup Trees
     */
 template <class Node> inline
 void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
 {
-  if (i > COUNT(r))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(i > COUNT(r)) << "infix position out of range";
 
-  if (i == COUNT(r)) // ¿Es la última posición?
+  if (i == COUNT(r)) // Is it the last position?
     {
       ts = r;
       r = tg = Node::NullPtr;
@@ -729,14 +738,14 @@ void split_pos_rec(Node *& r, const size_t i, Node *& ts, Node *& tg)
         `insert_by_pos_xt(r, p, pos)` inserts in the position `pos` the
         node `p`.
 
-        \warning According the key contained in `p`, the isnertion could
+        \warning According to the key contained in `p`, the insertion could
         violate the required order for a binary search tree
 
         @param[in,out] r root of tree
         @param[in] p node to insert
         @param[in] pos position to insert the node
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node>  inline
 void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
@@ -757,7 +766,7 @@ void insert_by_pos_xt(Node *& r, Node * p, size_t pos)
         @param[in] ts extended binary search tree with keys lesser than `tg`
         @param[in] tg extended binary search tree with keys greater than `tg`
 
-        @ingroup Arboles
+        @ingroup Trees
         @see remove_by_key_xt()
      */
     template <class Node> inline
@@ -772,12 +781,12 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
   LLINK(tg) = join_exclusive_xt(RLINK(ts), LLINK(tg));
   RLINK(ts) = tg;
 
-      // actualizar contadores
+      // Update Counters
   COUNT(tg) = COUNT(LLINK(tg)) + 1 + COUNT(RLINK(tg));
   COUNT(ts) = COUNT(LLINK(ts)) + 1 + COUNT(RLINK(ts));
 
   Node * ret_val = ts;
-  ts = tg = Node::NullPtr; // deben quedar vacíos después del join
+  ts = tg = Node::NullPtr; // should be empty after joining
 
   return ret_val;
 }
@@ -793,18 +802,16 @@ Node * join_exclusive_xt(Node *& ts, Node *& tg) noexcept
     @param[in] key to search and eventually to remove
     @param[in] cmp comparison criteria
     @return if key is found, then a pointer to the removed node is
-    returned. Otherwise the function returns `Node::NullPtr`
+    returned. Otherwise, the function returns `Node::NullPtr`
 
     @see join_exclusive_xt()
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node,
               class Compare = Aleph::less<typename Node::key_type>> inline
 Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 			Compare & cmp) noexcept
 {
-  assert(root != Node::NullPtr);
-
   if (root == Node::NullPtr)
     return Node::NullPtr;
 
@@ -817,7 +824,7 @@ Node * remove_by_key_xt(Node *& root, const typename Node::key_type & key,
 
       return ret_val;
     }
-  else if (cmp(KEY(root), key))
+  if (cmp(KEY(root), key))
     {
       ret_val = remove_by_key_xt(RLINK(root), key, cmp);
       if (ret_val != Node::NullPtr)
@@ -877,20 +884,19 @@ Node * __remove_by_pos_xt(Node *& root, size_t pos) noexcept
     @return pointer to the removed node
     \throw out_of_range if `pos` is greater than the number of nodes of tree
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node> inline
 Node * remove_by_pos_xt(Node *& root, size_t pos)
 {
-  if (pos >= COUNT(root))
-    throw std::out_of_range("infix position out of range");
+  ah_out_of_range_error_if(pos >= COUNT(root)) << "infix position out of range";
 
   return __remove_by_pos_xt(root, pos);
 }
 
 /** Return `true` if `root` is a valid extended binary tree.
 
-    @ingroup Arboles
+    @ingroup Trees
 */
     template <class Node> inline
 bool check_rank_tree(Node * root) noexcept
@@ -908,7 +914,7 @@ bool check_rank_tree(Node * root) noexcept
 
 	 @param[in] p root to rotate
 	 @return pointer to the new root
-         @ingroup Arboles
+         @ingroup Trees
      */
     template <class Node> inline
 Node * rotate_to_right_xt(Node* p) noexcept
@@ -925,11 +931,11 @@ Node * rotate_to_right_xt(Node* p) noexcept
   return q;
 }
 
-    /**  Rotate to left the extended bianry tree with root `p`.
+    /**  Rotate to left the extended binary tree with root `p`.
 
          @param[in] p root to rotate.
          @return pointer to the new root.
-         @ingroup Arboles
+         @ingroup Trees
      */
     template <class Node> inline
 Node * rotate_to_left_xt(Node* p) noexcept
@@ -966,7 +972,7 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
 
   if (cmp(KEY(p), KEY(root)))
     { // insert in left subtree
-      Node * left_branch = search_or_insert_root_rec_xt(LLINK(root), p, cmp);
+      Node * left_branch = search_or_insert_root_rec_xt<Node, Key>(LLINK(root), p, cmp);
       if (left_branch == p) // p was inserted?
         {
           ++COUNT(root);
@@ -977,9 +983,9 @@ Node * search_or_insert_root_rec_xt(Node * root, Node * p, Compare & cmp)
 
         return left_branch;
     }
-  else if (cmp(KEY(root), KEY(p)))
+  if (cmp(KEY(root), KEY(p)))
     { // insert in right subtree
-      Node * right_branch = search_or_insert_root_rec_xt(RLINK(root), p, cmp);
+      Node * right_branch = search_or_insert_root_rec_xt<Node, Key>(RLINK(root), p, cmp);
       if (right_branch == p) // p was inserted?
         {
           ++COUNT(root);
@@ -1000,8 +1006,243 @@ template <class Node, class Key,
 Node * search_or_insert_root_rec_xt(Node * root, Node * p,
                                     Compare && cmp = Compare()) noexcept
 {
-  return search_or_insert_root_rec_xt(root, p, cmp);
+  return search_or_insert_root_rec_xt<Node, Key>(root, p, cmp);
 }
+
+
+/** Base iterator template for ranked binary search trees.
+
+    This template provides a common implementation for iterators
+    on trees that support O(log n) select and position operations
+    via subtree counters.
+
+    The TreeType must provide:
+    - getRoot() returning Node*&
+    - key_comp() returning Compare&
+    - remove(const Key&) returning Node*
+
+    @tparam TreeType the tree class type
+    @tparam Node the node type
+    @tparam Key the key type
+    @tparam Compare comparison functor
+
+    @ingroup Trees
+*/
+template <class TreeType, class Node, typename Key, class Compare>
+class BinTreeXt_Iterator
+{
+protected:
+
+  mutable TreeType * tree_ptr;
+  mutable Node * curr;
+  mutable int curr_pos;
+
+  static constexpr int Pos_Not_Current = -1;
+  static constexpr int Pos_Empty_Container = -2;
+  static constexpr int Pos_Not_Updated = -3;
+
+private:
+
+  bool is_container_empty() const noexcept
+  {
+    return COUNT(tree_ptr->getRoot()) == 0;
+  }
+
+  bool pos_updated() const noexcept
+  {
+    return curr_pos != Pos_Not_Updated;
+  }
+
+  bool curr_updated() const noexcept
+  {
+    return curr != nullptr;
+  }
+
+  void update_pos() const noexcept
+  {
+    assert(curr != nullptr);
+    curr_pos = BinTreeXt_Operation<Node, Compare>(tree_ptr->key_comp()).
+      inorder_position(tree_ptr->getRoot(), KEY(curr), curr);
+  }
+
+  void update_curr() const noexcept
+  {
+    assert(curr_pos != Pos_Not_Updated);
+
+    if (curr_pos == Pos_Empty_Container or curr_pos == Pos_Not_Current or
+        curr_pos == static_cast<int>(COUNT(tree_ptr->getRoot())))
+      return;
+
+    curr = Aleph::select(tree_ptr->getRoot(), curr_pos);
+  }
+
+public:
+
+  BinTreeXt_Iterator() noexcept
+    : tree_ptr(nullptr), curr(nullptr), curr_pos(Pos_Not_Current)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const TreeType & __tree) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)), curr(nullptr)
+  {
+    curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
+  }
+
+  BinTreeXt_Iterator(const TreeType & __tree, Node * __curr) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)),
+      curr(__curr), curr_pos(Pos_Not_Updated)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const TreeType & __tree, const size_t pos) noexcept
+    : tree_ptr(&const_cast<TreeType&>(__tree)),
+      curr(nullptr), curr_pos(pos)
+  { /* empty */ }
+
+  BinTreeXt_Iterator(const BinTreeXt_Iterator & itor) noexcept
+    : tree_ptr(itor.tree_ptr), curr(itor.curr), curr_pos(itor.curr_pos)
+  { /* empty */ }
+
+  BinTreeXt_Iterator & operator = (const BinTreeXt_Iterator & itor) noexcept
+  {
+    if (this == &itor)
+      return *this;
+
+    tree_ptr = itor.tree_ptr;
+    curr = itor.curr;
+    curr_pos = itor.curr_pos;
+
+    return *this;
+  }
+
+  void reset_first() noexcept
+  {
+    curr = nullptr;
+    curr_pos = is_container_empty() ? Pos_Empty_Container : 0;
+  }
+
+  void reset_last() noexcept
+  {
+    curr = nullptr;
+    curr_pos = is_container_empty() ? Pos_Empty_Container :
+      static_cast<int>(COUNT(tree_ptr->getRoot())) - 1;
+  }
+
+  void end() noexcept
+  {
+    put_itor_at_the_end(*this);
+  }
+
+  void reset_to_key(const Key & key) noexcept
+  {
+    std::pair<long, Node*> p = tree_ptr->find_position(key);
+    curr_pos = p.first;
+  }
+
+  void reset_to_node(Node * node) noexcept
+  {
+    curr = node;
+    curr_pos = Pos_Not_Updated;
+  }
+
+  void reset_to_pos(const size_t pos) noexcept
+  {
+    curr = nullptr;
+    curr_pos = pos;
+  }
+
+  Node * get_curr_ne() const noexcept
+  {
+    if (not curr_updated())
+      update_curr();
+    return curr;
+  }
+
+  Node * get_curr() const noexcept
+  {
+    return get_curr_ne();
+  }
+
+  size_t get_current_position() const
+  {
+    if (not pos_updated())
+      update_pos();
+
+    ah_range_error_if(curr_pos < -1) << "Iterator has no current";
+    ah_range_error_if(curr_pos > static_cast<int>(COUNT(tree_ptr->getRoot())))
+      << "Iterator has no current";
+
+    return curr_pos;
+  }
+
+  size_t get_pos() const { return get_current_position(); }
+
+  bool has_curr() const noexcept
+  {
+    if (not pos_updated())
+      update_pos();
+
+    return curr_pos >= 0 and
+      curr_pos < static_cast<int>(COUNT(tree_ptr->getRoot()));
+  }
+
+  void prev()
+  {
+    ah_underflow_error_if(not has_curr()) << "Iterator has no current";
+    --curr_pos;
+    curr = nullptr;
+  }
+
+  void next_ne() noexcept
+  {
+    ++curr_pos;
+    curr = nullptr;
+  }
+
+  void next()
+  {
+    ah_overflow_error_if(not has_curr()) << "Iterator has no current";
+    next_ne();
+  }
+
+  Node * del()
+  {
+    ah_underflow_error_if(not has_curr()) << "Iterator has no current";
+
+    if (not curr_updated())
+      update_curr();
+
+    Node * ret_val = tree_ptr->remove(KEY(curr));
+    curr = nullptr;
+
+    return ret_val;
+  }
+
+  bool operator == (const BinTreeXt_Iterator & itor) const noexcept
+  {
+    if (is_container_empty() and itor.is_container_empty())
+      return true;
+
+    if (pos_updated() and itor.pos_updated())
+      return curr_pos == itor.curr_pos;
+
+    if (curr_updated() and itor.curr_updated())
+      return curr == itor.curr;
+
+    if (not pos_updated())
+      {
+        update_pos();
+        return curr_pos == itor.curr_pos;
+      }
+
+    itor.update_pos();
+    return curr_pos == itor.curr_pos;
+  }
+
+  bool operator != (const BinTreeXt_Iterator & itor) const
+  {
+    return not (*this == itor);
+  }
+}; // end class BinTreeXt_Iterator
 
 
 } // end namespace Aleph

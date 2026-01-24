@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,36 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file eepicgeom.H
+ *  @brief EEPIC/LaTeX geometric drawing utilities.
+ *
+ *  This file provides classes for generating EEPIC (Extended EPIC) code
+ *  for LaTeX documents. EEPIC is a macro package that extends the standard
+ *  LaTeX picture environment with additional drawing primitives.
+ *
+ *  The main components are:
+ *  - @ref Eepic_Plane A 2D canvas that holds geometric objects and generates
+ *    the LaTeX picture environment
+ *  - @ref Eepic_Geom_Object Abstract base class for drawable geometric objects
+ *  - Various Eepic_* wrapper classes for Points, Segments, Polygons, etc.
+ *
+ *  @section eepicgeom_usage Usage Example
+ *  @code
+ *  Eepic_Plane plane(500, 500);  // 500x500 point canvas
+ *  Point p1(0, 0), p2(100, 100);
+ *  Segment seg(p1, p2);
+ *  put_in_plane(plane, seg);
+ *
+ *  std::ofstream file("output.tex");
+ *  plane.draw(file);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef EEPICGEOM_H
 # define EEPICGEOM_H
 
@@ -33,188 +62,292 @@
 # include <tpl_sort_utils.H>
 # include <point.H>
 # include <polygon.H>
+# include <ah-errors.H>
 
+/** @brief Global flag to enable tiny font size for keys/labels.
+ *
+ *  When set to true, text labels will be rendered using LaTeX's \\tiny
+ *  font size modifier. Useful for dense diagrams with many labels.
+ */
 extern bool tiny_keys;
 
-// TODO: curvas de poligonos punteadas
+// TODO: dotted polygon curves
 
 class Eepic_Plane;
 
 
-// Objeto geométrico abstracto para dibujarse en un plano Eeepic
+/** @brief Abstract base class for EEPIC-drawable geometric objects.
+ *
+ *  This class serves as the polymorphic base for all geometric objects that
+ *  can be rendered in EEPIC format. Each derived class wraps a concrete
+ *  geometric object (Point, Segment, Polygon, etc.) and provides:
+ *  - A draw() method that generates the EEPIC LaTeX code
+ *  - Methods to query extreme points for bounding box calculations
+ *  - A clone() method for polymorphic copying
+ *
+ *  @section memory_management Memory Management
+ *  The wrapped geometric object can be owned by this class (to_delete=true)
+ *  or externally managed (to_delete=false). When owned, the destructor
+ *  will delete the wrapped object.
+ *
+ *  @section subclassing Creating New Drawable Types
+ *  Use the DEFINE_EEPIC_CLASS macro to create new drawable types:
+ *  @code
+ *  DEFINE_EEPIC_CLASS(MyGeomType);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
+ */
 class Eepic_Geom_Object
 {
   Eepic_Geom_Object();
 
-  Eepic_Geom_Object(const Eepic_Geom_Object&);
+  Eepic_Geom_Object(const Eepic_Geom_Object &);
 
 protected:
+  /** @brief Pointer to the wrapped geometric object.
+   *
+   *  This pointer is const-qualified to prevent accidental modification.
+   *  Memory management depends on the to_delete flag.
+   */
+  const Geom_Object *const geom_object_ptr;
 
-  // copia del objeto geométrico ==> es responsabilidad de esta
-  // clase de manejar su memoria 
-  const Geom_Object * const geom_object_ptr; 
-
-  bool to_delete; // esta bandera en falso indica que no debe llamarse a
-		  // delete geom_object_ptr; en el destructor
+  /** @brief Flag indicating ownership of geom_object_ptr.
+   *
+   *  When true, the destructor will delete geom_object_ptr.
+   *  When false, the caller is responsible for memory management.
+   */
+  bool to_delete;
 
 public:
-
-  Eepic_Geom_Object(Geom_Object * ptr, const bool & __to_delete = false) 
+  /** @brief Construct an EEPIC wrapper for a geometric object.
+   *
+   *  @param ptr Pointer to the geometric object to wrap
+   *  @param __to_delete If true, this object takes ownership and will
+   *                     delete ptr in the destructor
+   */
+  Eepic_Geom_Object(Geom_Object *ptr, const bool & __to_delete = false)
     : geom_object_ptr(ptr), to_delete(__to_delete)
   {
     // empty
   }
 
-  virtual ~Eepic_Geom_Object() 
-  { 
+  /** @brief Virtual destructor.
+   *
+   *  Deletes geom_object_ptr only if to_delete is true.
+   */
+  virtual ~Eepic_Geom_Object()
+  {
     if (to_delete)
       delete geom_object_ptr;
   }
 
-  virtual void draw(Eepic_Plane *, ostream &) const
+  /** @brief Generate EEPIC code for this object.
+   *
+   *  Derived classes must override this method to produce the appropriate
+   *  EEPIC LaTeX commands for their geometric type.
+   *
+   *  @param plane The Eepic_Plane providing coordinate transformation
+   *  @param output The output stream to write EEPIC code to
+   *
+   *  @throws std::domain_error if geom_object_ptr is null
+   *  @throws std::logic_error if called on the base class (not overridden)
+   */
+  virtual void draw(Eepic_Plane *plane, std::ostream & output) const
   {
-    if (geom_object_ptr == nullptr)
-      throw std::domain_error("Eepic_Geom_Object is null");
+    (void)plane;
+    (void)output;
 
-    throw std::logic_error("Call to draw() method from abstract class");
+    ah_domain_error_if(geom_object_ptr == nullptr)
+      << "Eepic_Geom_Object is null";
+
+    ah_logic_error() << "Call to draw() method from abstract class";
   }
 
-  // debe retornar un objeto de la clase derivada
+  /** @brief Create a polymorphic copy of this object.
+   *
+   *  Derived classes must implement this to return a new instance of
+   *  their specific type.
+   *
+   *  @return A new heap-allocated copy of this object
+   */
   virtual Eepic_Geom_Object * clone() const = 0;
 
+  /** @brief Get the highest point (maximum y-coordinate) of this object.
+   *  @return The point with the maximum y-coordinate
+   */
   virtual Point highest_point() const = 0;
 
+  /** @brief Get the lowest point (minimum y-coordinate) of this object.
+   *  @return The point with the minimum y-coordinate
+   */
   virtual Point lowest_point() const = 0;
 
+  /** @brief Get the leftmost point (minimum x-coordinate) of this object.
+   *  @return The point with the minimum x-coordinate
+   */
   virtual Point leftmost_point() const = 0;
 
+  /** @brief Get the rightmost point (maximum x-coordinate) of this object.
+   *  @return The point with the maximum x-coordinate
+   */
   virtual Point rightmost_point() const = 0;
 };
 
 
+/** @brief 2D canvas for generating EEPIC/LaTeX picture environments.
+ *
+ *  Eepic_Plane serves as a container for geometric objects and handles the
+ *  transformation from geometric coordinates to EEPIC picture coordinates.
+ *  It generates a complete LaTeX picture environment that can be included
+ *  in any LaTeX document with the eepic package.
+ *
+ *  @section coordinate_system Coordinate System
+ *  The plane maintains two coordinate systems:
+ *  - **Geometric coordinates**: The original coordinates of the objects
+ *  - **EEPIC coordinates**: Normalized coordinates for the picture environment
+ *
+ *  The transformation between these systems handles:
+ *  - Scaling to fit the specified width and height
+ *  - Optional aspect ratio preservation (squarize mode)
+ *  - Offset adjustments for margins
+ *
+ *  @section drawing_methods Drawing Methods
+ *  The class provides primitive drawing methods for:
+ *  - Points (draw_point)
+ *  - Segments in various styles (draw_segment, draw_dotted_segment, etc.)
+ *  - Arrows (draw_arrow, draw_arrow_extreme)
+ *  - Ellipses (draw_ellipse)
+ *  - Polygons (draw_polygon, draw_closed_polygon, etc.)
+ *  - Splines (draw_spline, draw_dash_spline)
+ *  - Text (draw_text, draw_point_text)
+ *
+ *  @section example Example Usage
+ *  @code
+ *  // Create a 500x500 point canvas
+ *  Eepic_Plane plane(500, 500);
+ *
+ *  // Add geometric objects
+ *  Point p1(0, 0), p2(100, 100);
+ *  Segment seg(p1, p2);
+ *  put_in_plane(plane, seg);
+ *
+ *  // Generate EEPIC output
+ *  std::ofstream file("diagram.tex");
+ *  plane.draw(file);
+ *  @endcode
+ *
+ *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
+ */
 class Eepic_Plane
 {
-  // marco de ambiente picture definido en tiempo de construcción
-  double wide;   // ancho en puntos de la resolución
-  double height; // altura en puntos de la resolución
+  // Picture environment frame defined at construction time
+  double wide; ///< Width in resolution points
+  double height; ///< Height in resolution points
 
-  // marco final resultante según que el usuario decida o no escalar
-  // la figura  
-  double real_wide = 0;   // ancho en puntos de la resolución
-  double real_height = 0; // altura en puntos de la resolución
+  // Final frame dimensions based on user's scaling choice
+  double real_wide = 0; ///< Actual width after scaling
+  double real_height = 0; ///< Actual height after scaling
 
-  double xoffset;   // margen adicional de ancho
-  double yoffset; // margen adicional de altura
+  double xoffset; ///< Additional horizontal margin
+  double yoffset; ///< Additional vertical margin
 
-  Geom_Number geom_wide;   // ancho desde el punto más a la izquierda
-			   // hasta el más a la derecha
-  Geom_Number geom_height; // ancho desde el punto más bajo hasta el
-                           // más alto
+  Geom_Number geom_wide; ///< Width from leftmost to rightmost point
+  Geom_Number geom_height; ///< Height from lowest to highest point
 
-  DynDlist<Eepic_Geom_Object*> list;
+  DynDlist<Eepic_Geom_Object *> list; ///< List of geometric objects
 
-  Geom_Number geom_x_min; // mínimo valor de x en coordenadas reales
-  Geom_Number geom_y_min; // mínimo valor de y en coordenadas reales
+  Geom_Number geom_x_min; ///< Minimum x value in geometric coordinates
+  Geom_Number geom_y_min; ///< Minimum y value in geometric coordinates
 
-  // ATENCIÓN: estos valores deben inicializarse en cero porque son
-  // usados para calcularse a sí mismos
-  double x_min; // mínimo valor de x en el plano
-  double y_min; // mínimo valor de y en el plano
+  // NOTE: These must be initialized to zero as they are used in
+  // self-referential calculations
+  double x_min; ///< Minimum x value in plane coordinates
+  double y_min; ///< Minimum y value in plane coordinates
 
-  // puntos extremos con los cuales calcular el ancho y la altura de los
-  // objetos (geom_x_min y geom_y_min)
-  Point __leftmost;
-  Point __rightmost;
-  Point __highest;
-  Point __lowest;
+  // Extreme points for computing object dimensions
+  Point __leftmost; ///< Point with minimum x-coordinate
+  Point __rightmost; ///< Point with maximum x-coordinate
+  Point __highest; ///< Point with maximum y-coordinate
+  Point __lowest; ///< Point with minimum y-coordinate
 
-  bool with_cartesian_axis; // indica que se deben dibujar dos segmentos
-			    // correspondientes a los ejes cartesianos 
+  bool with_cartesian_axis; ///< Flag to draw Cartesian axes
 
-  // Radio por omisión en resolución de un punto en el plano. Se utiliza
-  // también para la altura de las letras
+  /// Default radius for drawing points (also used for text height)
   static const double default_r;
 
-  double r; // el radio en puntos reales con que se dibuja un punto
+  double r; ///< Actual radius in real points for drawing a point
 
-  // parámetros que ajustan la manera en que se define el ambiente latex
-  // picture  
-  double resolution; // resolución en milímetros (0.05mm por omisión)
+  // Parameters that control the LaTeX picture environment
+  double resolution; ///< Resolution in millimeters (default: 0.05mm)
 
-  string fill_type; // tipo de relleno (black)
+  std::string fill_type; ///< Fill type for shapes (e.g., "black")
+  std::string shade_type; ///< Shading type for segments
 
-  string shade_type; // tipo de sombreado para segmentos 
+  static const double normal_thickness; ///< Default line thickness
+  static const double default_shade_thickness; ///< Default shading thickness
 
-  static const double normal_thickness;
+  double shade_thickness; ///< Current shading thickness
 
-  static const double default_shade_thickness;
+  static const double dotgap; ///< Gap between dots in dotted lines
 
-  double shade_thickness;
+  /** Rescales a coordinate value `p` from a geometric scale `geom_max` into
+      the plane scale `max`.
 
-  static const double dotgap; 
-
-  /*
-    Realiza una cambio de escala de un punto p en un plano a escala
-    geom_max a un plano de escala max.
-
-    p * max
-    result = ----------
-    geom_max
+      Formula: result = p * max / geom_max
   */
   double geom_number_to_plane(const Geom_Number & p,
-			      const Geom_Number & geom_max,
-			      const double &      max) const
-  { 
+                              const Geom_Number & geom_max,
+                              const double & max) const
+  {
     const Geom_Number ratio = p / geom_max;
 
     double result = geom_number_to_double(ratio);
 
     result = max * result;
-    
+
     return result;
   }
 
-  /* Los puntos deben normalizarse al tamaño del plano en pixels. Estas
-     rutinas toman la coordenada y la normalizan al eje cero (x o y)
+  /** Points must be normalized to the plane size (in picture coordinates).
+      These routines normalize a coordinate with respect to the origin
+      (x or y axis).
   */
 
-  // normaliza al eje x
+  /// Normalize to x-axis origin.
   double xpic(const double & x) const
   {
     return x - x_min;
   }
 
-  // normaliza al eje x
+  /// Normalize to y-axis origin.
   double ypic(const double & y) const
   {
     return y - y_min;
   }
 
 public:
-
-  // calcula una proporción Geom_Number de x a su equivalente en en el
-  // plano según wide
+  /// Convert a geometric x proportion into plane units using `wide`.
   double h_geom_number_to_eepic(const Geom_Number & x) const
   {
     return geom_number_to_plane(x, geom_wide, wide);
   }
 
-  // calcula una proporción Geom_Number de y a su equivalente en en el
-  // plano según height
+  /// Convert a geometric y proportion into plane units using `height`.
   double v_geom_number_to_eepic(const Geom_Number & y) const
   {
     return geom_number_to_plane(y, geom_height, height);
   }
 
-  // calcula una coordenada x de tipo Geom_Number a su equivalente
-  // en en el plano 
+  /// Convert a geometric x coordinate into plane x coordinate.
   double x_geom_number_to_eepic(const Geom_Number & x) const
   {
     return xpic(geom_number_to_plane(x, geom_wide, wide));
   }
 
-  // calcula una coordenada y de tipo Geom_Number a su equivalente
-  // en en el plano 
+  /// Convert a geometric y coordinate into plane y coordinate.
   double y_geom_number_to_eepic(const Geom_Number & y) const
   {
     const double result = geom_number_to_plane(y, geom_height, height);
@@ -222,293 +355,302 @@ public:
     return ypic(result);
   }
 
-  // Realiza un barrido lineal de todos los objetos geométricos
-  // presentes y calcula los punto extremos
+  /// Linear scan over all objects to compute extreme points.
   void compute_extreme_points()
   {
-    // recorrer todos lo objetos en búsqueda de las coordenadas extremas
-    // (más a la izquierad, a la derecha, alto y bajo
-    DynDlist<Eepic_Geom_Object*>::Iterator it(list);
+    // Scan all objects searching extreme coordinates (left, right, top, bottom).
+    DynDlist<Eepic_Geom_Object *>::Iterator it(list);
 
-    Eepic_Geom_Object * curr = it.get_curr();
+    Eepic_Geom_Object *curr = it.get_curr();
 
-    __lowest    = curr->lowest_point();
-    __highest   = curr->highest_point();
-    __leftmost  = curr->leftmost_point();
+    __lowest = curr->lowest_point();
+    __highest = curr->highest_point();
+    __leftmost = curr->leftmost_point();
     __rightmost = curr->rightmost_point();
 
     for (it.next(); it.has_curr(); it.next_ne())
       {
-	curr = it.get_curr();
+        curr = it.get_curr();
 
-	if (curr->lowest_point().get_y() < __lowest.get_y())
-	  __lowest = curr->lowest_point();
+        if (curr->lowest_point().get_y() < __lowest.get_y())
+          __lowest = curr->lowest_point();
 
-	if (curr->highest_point().get_y() > __highest.get_y())
-	  __highest = curr->highest_point();
+        if (curr->highest_point().get_y() > __highest.get_y())
+          __highest = curr->highest_point();
 
-	if (curr->leftmost_point().get_x() < __leftmost.get_x())
-	  __leftmost = curr->leftmost_point();
+        if (curr->leftmost_point().get_x() < __leftmost.get_x())
+          __leftmost = curr->leftmost_point();
 
-	if (curr->rightmost_point().get_x() > __rightmost.get_x())
-	  __rightmost = curr->rightmost_point();
+        if (curr->rightmost_point().get_x() > __rightmost.get_x())
+          __rightmost = curr->rightmost_point();
       }
   }
 
-  // Aumenta y disminuye el plano eepic en puntos. Este es el método a
-  // emplear para aumentar o disminuir el objeto eepic picture
+  /// Scale the EEPIC plane in real points (zoom in/out).
   void zoom(const double & factor)
   {
-    if (factor <= 0)
-      throw std::domain_error("zoom factor must be greater than zero");
+    ah_domain_error_if(factor <= 0) << "zoom factor must be greater than zero";
 
     height *= factor;
     wide *= factor;
   }
 
 private:
-
-  // calcula las coordenadas extremas y con ella el ancho y la altura de
-  // los objetos geométricos colocados en el plano 
-  // El parámetro square == true hace que la rescala del dibujo se
-  // ajuste para que los objetos no se distorsionen 
+  /// Compute extreme coordinates and derive width/height of all objects.
+  /// If `squarize` is true, rescaling preserves aspect ratio (no distortion).
   void compute_geom_plane(const bool & squarize)
   {
     compute_extreme_points();
-    
-    // calcular los márgenes mínimos según las figuras contenidas
-    geom_height = __highest.get_y()   - __lowest.get_y();
-    geom_wide   = __rightmost.get_x() - __leftmost.get_x();
 
-    // Calcular las coordenadas mínimas x e y
-    geom_x_min = geom_number_to_double(__leftmost.get_x()); 
+    // Compute minimal bounding box from contained figures.
+    geom_height = __highest.get_y() - __lowest.get_y();
+    geom_wide = __rightmost.get_x() - __leftmost.get_x();
+
+    // Compute minimal x/y.
+    geom_x_min = geom_number_to_double(__leftmost.get_x());
     geom_y_min = geom_number_to_double(__lowest.get_y());
 
-    // según los puntos mínimos, ajustamos al plano (0,0)
+    // Shift so that min point maps to plane origin (0,0).
     x_min = h_geom_number_to_eepic(geom_x_min);
     y_min = v_geom_number_to_eepic(geom_y_min);
 
-    if (squarize) // esta opción indica que el plano no debe deformar a
-		  // las figuras
-      { 
-	if (geom_wide > geom_height)
-	  {
-	    geom_height = geom_wide;
-	    real_height = y_geom_number_to_eepic(__highest.get_y());
-	    real_wide = wide;
-	  }
-	else
-	  { 
-	    geom_wide = geom_height;
-	    real_wide = x_geom_number_to_eepic(__rightmost.get_x());
-	    real_height = height;
-	  }
+    if (squarize) // Preserve aspect ratio (avoid distorting figures).
+      {
+        if (geom_wide > geom_height)
+          {
+            geom_height = geom_wide;
+            real_height = y_geom_number_to_eepic(__highest.get_y());
+            real_wide = wide;
+          }
+        else
+          {
+            geom_wide = geom_height;
+            real_wide = x_geom_number_to_eepic(__rightmost.get_x());
+            real_height = height;
+          }
       }
     else
       {
-	real_wide = wide;
-	real_height = height;
+        real_wide = wide;
+        real_height = height;
       }
 
     assert(geom_height > 0 and geom_wide > 0);
   }
 
-  void draw_cartesian_axis(ostream & output);
+  void draw_cartesian_axis(std::ostream & output);
 
 public:
+  const Point &leftmost() const { return __leftmost; }
 
-  const Point & leftmost() const { return __leftmost; }
+  const Point &rightmost() const { return __rightmost; }
 
-  const Point & rightmost() const { return __rightmost; }
+  const Point &highest() const { return __highest; }
 
-  const Point & highest() const { return __highest; }
+  const Point &lowest() const { return __lowest; }
 
-  const Point & lowest() const { return __lowest; }
-
-  // dado el punto p, genera un string de la forma "(x, y)" con
-  // coordenadas normalizadas al plano. Este string se usa para la
-  // propia generación eepic
-  string point_string(const Point & p)
+  /// Given point p, returns "(x,y)" in normalized plane coordinates.
+  std::string point_string(const Point & p)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
     const double y = y_geom_number_to_eepic(p.get_y());
-    return "(" + to_string(x) + "," + to_string(y) + ")";
+    return "(" + std::to_string(x) + "," + std::to_string(y) + ")";
   }
 
-  /* genera en el stream output un ambiente
-     \begin{picture}...\end{picture} contentivo de las figuras
-     geométricas presentes.
+  /**
+      Emits a complete LaTeX `picture` environment containing the geometric objects.
 
-     El parámetro squarize == false implica que la escala de los objetos
-     son transformadas para caber exactamente en el plano definido en
-     tiempo de construcción. squarize == true garantiza que las figuras
-     se dibujen sin deformación pero en detrimento del espacio aprovechado
+      If `squarize == false`, objects are scaled independently in x/y to fit exactly
+      in the plane defined at construction time.
+
+      If `squarize == true`, aspect ratio is preserved (no distortion) but the
+      available space may be used less efficiently.
+
   */
-  void draw(ostream & output, const bool & squarize = true)
+  void draw(std::ostream & output, const bool & squarize = true)
   {
     compute_geom_plane(squarize);
-    
-    // fija el formato de salida punto flotante
-    output << fixed << setprecision(6);
 
-    // genera medidas y abre encabezado
-    output << "\\setlength{\\unitlength}{" << resolution << "mm}" << endl
-	   << endl
-	   << "\\filltype{" << fill_type << "}" << endl
-	   << endl
-	   << "% leftmost point is " << __leftmost.to_string() << " --> "
-	   << point_string(__leftmost) << endl
-	   << "% rightmost point is " << __rightmost.to_string()  << " --> "
-	   << point_string(__rightmost) << endl
-	   << "% highest point is " << __highest.to_string()  << " --> "
-	   << point_string(__highest) << endl
-	   << "% lowest point is " << __lowest.to_string()  << " --> "
-	   << point_string(__lowest) << endl
-	   << "% " << list.size() << " geometric objects were put in the plane"
-	   << endl
-	   << "\\begin{picture}(" << real_wide << "," << real_height << ")" 
-	   << "(" << xoffset << "," << yoffset << ")" << endl
-	   << endl;
+    // Set floating point output format.
+    output << std::fixed << std::setprecision(6);
 
-    draw_cartesian_axis(output); // en caso de que la bandera sea cierta
+    // Emit header and open picture environment.
+    output << "\\setlength{\\unitlength}{" << resolution << "mm}" << std::endl
+        << std::endl
+        << "\\filltype{" << fill_type << "}" << std::endl
+        << std::endl
+        << "% leftmost point is " << __leftmost.to_string() << " --> "
+        << point_string(__leftmost) << std::endl
+        << "% rightmost point is " << __rightmost.to_string() << " --> "
+        << point_string(__rightmost) << std::endl
+        << "% highest point is " << __highest.to_string() << " --> "
+        << point_string(__highest) << std::endl
+        << "% lowest point is " << __lowest.to_string() << " --> "
+        << point_string(__lowest) << std::endl
+        << "% " << list.size() << " geometric objects were put in the plane"
+        << std::endl
+        << "\\begin{picture}(" << real_wide << "," << real_height << ")"
+        << "(" << xoffset << "," << yoffset << ")" << std::endl
+        << std::endl;
 
-    // recorre cada objeto y lo dibuja
-    for (DynDlist<Eepic_Geom_Object*>::Iterator it(list); 
-	 it.has_curr(); it.next_ne())
+    draw_cartesian_axis(output); // Only if enabled.
+
+    // Draw each object.
+    for (DynDlist<Eepic_Geom_Object *>::Iterator it(list);
+         it.has_curr(); it.next_ne())
       {
-	Eepic_Geom_Object * curr = it.get_curr();
-	
-        // reinicia cada vez al grosor por omisión de forma
-	output << "\\thinlines" << std::endl 
-	       << std::endl;
+        Eepic_Geom_Object *curr = it.get_curr();
 
-	curr->draw(this, output); 
+        // Reset to default thickness each time.
+        output << "\\thinlines" << std::endl
+            << std::endl;
+
+        curr->draw(this, output);
       }
 
-    // cierra encabezado
+    // Close picture environment.
     output << "\\end{picture}" << std::endl
-	   << std::endl;
+        << std::endl;
   }
 
-  /*
-    observadores del plano
-  */
-  const double & get_wide() const { return wide; }
+  /** Plane accessors. */
+  /// Picture width (in EEPIC units).
+  const double &get_wide() const { return wide; }
 
-  const double & get_height() const { return height; }
+  /// Picture height (in EEPIC units).
+  const double &get_height() const { return height; }
 
-  const double & get_yoffset() const { return yoffset; }
+  /// Y offset of the LaTeX picture environment.
+  const double &get_yoffset() const { return yoffset; }
 
-  const double & get_xoffset() const { return xoffset; }
+  /// X offset of the LaTeX picture environment.
+  const double &get_xoffset() const { return xoffset; }
 
-  const double & get_r() const { return r; }
+  /// Radius used to draw points (also used as text baseline offset).
+  const double &get_r() const { return r; }
 
+  /** Construct a plane with a fixed picture frame.
+   *
+   *  @param __wide Picture width.
+   *  @param __height Picture height.
+   *  @param __xoffset X offset for the LaTeX picture environment.
+   *  @param __yoffset Y offset for the LaTeX picture environment.
+   */
   Eepic_Plane(const double & __wide,
-	      const double & __height,
-	      const double & __xoffset = 0.0,
-	      const double & __yoffset = 0.0)
-    : wide(__wide), height(__height), 
-      xoffset(__xoffset), yoffset(__yoffset), 
+              const double & __height,
+              const double & __xoffset = 0.0,
+              const double & __yoffset = 0.0)
+    : wide(__wide), height(__height),
+      xoffset(__xoffset), yoffset(__yoffset),
       x_min(0), y_min(0), with_cartesian_axis(false),
       r(default_r), resolution(0.05), shade_thickness(default_shade_thickness)
   {
     // empty
   }
 
+  /// Destructor: deletes all stored Eepic_Geom_Object clones.
   ~Eepic_Plane()
   {
     while (not list.is_empty())
       delete list.remove_first_ne();
   }
 
+  /// Enable drawing Cartesian axes when calling draw().
   void put_cartesian_axis()
   {
     with_cartesian_axis = true;
   }
 
-  /* Eepic_Plane maneja objetos de tipo Eepic_Geom_Object. Sin embargo,
-     el fin es manejar directamente objetos derivados de
-     Geom_Object. Esto seria posible con una clase Geom_Object altamente
-     polimórfica que permita manejar los métodos clone, draw y puntos
-     extremos virtualmente. Pero este enfoque conlleva dos
-     problemas. (1) Geom_Object deviene de "grano grueso", pues, por
-     ejemplo, Point es altamente usado. Esto implicaría un coste de al
-     menos 7 punteros en la tabla virtual. (2) El carácter polimórfico
-     varía según el plano; en la ocurrencia, dibujar en eepic no es
-     igual a dibujar en un lienzo gtk+. El polimorfismo en Geom_Object
-     no garantiza generalidad para el dibujado, pues éste depende del
-     tipo de plano o fondo.
-
-     Por la razón anterior, definimos, más adelante, un método externo,
-     llamado put_in_plane(plane, geom_obj) el cual hace:
-     
-     1-. Clona geom_obj a su correspondiente eepic_geom_obj
-
-     2-. Inserta el nuevo eepic_geom_obj en el plano
-
-     Por simplicidad de implantación, esta funcion es pública, pero su
-     uso es privado (de todos modos) no es simple lograr su invocación
-  */
+  /** Design note: why Eepic_Plane stores Eepic_Geom_Object wrappers.
+   *
+   *  Eepic_Plane stores objects of type Eepic_Geom_Object. However, the goal is
+   *  to let users work directly with objects derived from Geom_Object.
+   *
+   *  One approach would be to make Geom_Object highly polymorphic (virtual clone,
+   *  virtual draw, virtual extreme points). This header avoids that for two reasons:
+   *
+   *  1. Geom_Object would become "coarse-grained": even small types like Point
+   *     would pay the cost of a larger vtable (at least ~7 virtual methods).
+   *  2. The required polymorphism depends on the rendering backend: drawing in
+   *     EEPIC is not the same as drawing on a GUI canvas. Baking the rendering
+   *     API into Geom_Object would not be general.
+   *
+   *  For that reason, this header defines an external helper:
+   *  put_in_plane(plane, geom_obj), which:
+   *  - wraps/clones geom_obj into its corresponding Eepic_* wrapper
+   *  - inserts the wrapper into the plane
+   *
+   *  For implementation simplicity, the insertion primitive is public, but its
+   *  intended usage is indirect (via put_in_plane()).
+   */
+  /** Insert an already-wrapped EEPIC drawable into the plane.
+   *
+   *  This method clones the input object (polymorphic copy via clone())
+   *  and stores it in the plane. Typical usage is through the helper
+   *  `put_in_plane(plane, geom_obj)` which builds the right wrapper type.
+   *
+   *  @param __eepic_geom_obj An Eepic_Geom_Object wrapper to clone and store.
+   */
   void put(const Eepic_Geom_Object & __eepic_geom_obj)
   {
-    Eepic_Geom_Object * eepic_geom_obj = __eepic_geom_obj.clone();
+    Eepic_Geom_Object *eepic_geom_obj = __eepic_geom_obj.clone();
 
     list.append(eepic_geom_obj);
   }
 
+  /// Set the output resolution in millimeters (unitlength = res mm).
   void set_resolution(const double & res)
   {
     resolution = res;
   }
 
-  const double & get_resolution() const { return resolution; }
+  /// Return the current output resolution in millimeters.
+  const double &get_resolution() const { return resolution; }
 
-  void set_fill_type(const string & ftype)
+  /// Set the fill type used by LaTeX eepic (e.g., "black").
+  void set_fill_type(const std::string & ftype)
   {
     fill_type = ftype;
   }
 
+  /// Set the thickness used for shaded primitives.
   void set_shade_thickness(const double & __thickness)
   {
     shade_thickness = __thickness;
   }
 
+  /// Return the current shading thickness.
   double get_shade_thickness() const { return shade_thickness; }
 
+  /// Return the dot gap used for dotted/dashed lines.
   double get_dotgap() const { return dotgap; }
 
-  /***************************************************************** 
+  /** EEPIC "primitive drawing" methods.
+   *
+   *  The draw() method of each Eepic_* wrapper may call one (or more) of these
+   *  primitives. They are also callable by users (at their own risk).
+   *
+   *  This family of primitives assumes that the extreme points required to map
+   *  geometric coordinates into EEPIC coordinates were already computed by
+   *  compute_geom_plane().
+   */
 
-     Definición de "métodos primitivos" de dibujado eepic de objetos
-     geométricos. Los métodos draw() de cada clase pueden invocar
-     alguno(s) de estos métodos. También, los métodos pueden ser
-     invocados por el usuario (a su riesgo, por supuesto)
-
-     Esta familia de "métodos primitivos" asume que los puntos extremos
-     necesarios para mapear un punto al plano eepic ya han sido
-     calculados mediante el método compute_geom_plane();
-
-  *****************************************************************/
-
-  // escribe en el stream output el código eepic para dibujar el
-  // punto p
-  void draw_point(const Point & p, ostream & output)
+  /// Emit EEPIC code to draw point `p` into `output`.
+  void draw_point(const Point & p, std::ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
     const double y = y_geom_number_to_eepic(p.get_y());
 
     output << "    %% Point " << p.to_string()
-	   << "    %% mapped in this plane to (" << x << "," << y << ")"
-	   << std::endl
-	   << "\\put(" << x << "," << y << "){\\ellipse{" << r
-	   << "}{" << r << "}}" << std::endl
-	   << std::endl;
+        << "    %% mapped in this plane to (" << x << "," << y << ")"
+        << std::endl
+        << "\\put(" << x << "," << y << "){\\ellipse{" << r
+        << "}{" << r << "}}" << std::endl
+        << std::endl;
   }
 
-  // cálculo general de coordenadas origen y destino de un segmento. La
-  // colocamos como macro para evitarnos líneas demás so por
-  // declaraciones e invocación de método
+  // Compute source/target EEPIC coordinates for a segment (macro for brevity).
 # define COMPUTE_SEGMENT_EEPIC_COORDENATES()                            \
   const double src_x = x_geom_number_to_eepic(sg.get_src_point().get_x()); \
                                                                         \
@@ -516,11 +658,9 @@ public:
                                                                         \
   const double tgt_x = x_geom_number_to_eepic(sg.get_tgt_point().get_x()); \
                                                                         \
-  const double tgt_y = y_geom_number_to_eepic(sg.get_tgt_point().get_y()); 
+  const double tgt_y = y_geom_number_to_eepic(sg.get_tgt_point().get_y());
 
-  // En el mismo espíritu del macro anterior (y además porque refiere a
-  // variables locales allí definidas), este macro dibuja el segmento sg
-  // en el stream output
+  // Draw the segment `sg` to `output` (macro uses locals above).
 # define DRAW_SEGMENT(sg, output)                                       \
   COMPUTE_SEGMENT_EEPIC_COORDENATES();                                  \
   output << "    %% Segment from " << sg.get_src_point().to_string()    \
@@ -529,11 +669,9 @@ public:
   << ") to (" << tgt_x << "," << tgt_y << ")" << std::endl              \
   << "\\path(" << src_x << "," << src_y                                 \
   << ")(" << tgt_x << "," << tgt_y << ")" << std::endl                  \
-  << std::endl;                                                         \
-
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento sg
-  void draw_segment(const Segment & sg, ostream & output)
+  << std::endl;
+  /// Emit EEPIC code to draw segment `sg`.
+  void draw_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_SEGMENT(sg, output);
   }
@@ -542,13 +680,9 @@ public:
 
   static const double arrow_lenght_in_mm;
 
-  // cálculo general de las coordenadas de dos rectas que pictorizan los
-  // filos de las puntas de una flecha y su dibujado en el según las
-  // coordenadas origen y destino usadas en el macro
-  // COMPUTE_SEGMENT_EEPIC_COORDENATES. Usamos un macro por las mismas
-  // razones anteriores. La longitud y amplitus de los filos están
-  // determinados por las constantes anteriores arrow_width_in_mm y
-  // arrow_lenght_in_mm 
+  // Compute and draw the two small segments that form an arrow head.
+  // Uses src/tgt coordinates from COMPUTE_SEGMENT_EEPIC_COORDENATES().
+  // Geometry is controlled by arrow_width_in_mm and arrow_lenght_in_mm.
 # define PUT_ARROW()                                                    \
   const double arrow_width  = arrow_width_in_mm/resolution;             \
   const double arrow_lenght = arrow_lenght_in_mm/resolution;            \
@@ -575,28 +709,26 @@ public:
       dy2 = -dy2;                                                       \
     }                                                                   \
                                                                         \
-  output << endl                                                        \
+  output << std::endl                                                        \
   << "    % Drawing of arrow's edges at (" << tgt_x                     \
-  << "," << tgt_y << ")" << endl                                        \
+  << "," << tgt_y << ")" << std::endl                                        \
   << "\\path(" << tgt_x << "," << tgt_y << ")("                         \
-  << tgt_x + dx1 << "," << tgt_y + dy1 << ")" << endl                   \
+  << tgt_x + dx1 << "," << tgt_y + dy1 << ")" << std::endl                   \
   << "\\path(" << tgt_x << "," << tgt_y << ")("                         \
-  << tgt_x + dx2 << "," << tgt_y + dy2 << ")" << endl << endl; 
+  << tgt_x + dx2 << "," << tgt_y + dy2 << ")" << std::endl << std::endl;
 
-  // genera en el stream output código eepic para dibujar segmento
-  // sg con puntas de flecha
+  // Draw segment plus arrow head.
 # define DRAW_ARROW(sg, output)                 \
   DRAW_SEGMENT(sg, output);                     \
   PUT_ARROW();
 
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento sg con filos de flecha
-  void draw_arrow(const Segment & sg, ostream & output)
+  /// Emit EEPIC code to draw segment `sg` with an arrow head.
+  void draw_arrow(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW(sg, output);
   }
 
-  // macro para dibujar un segmento puntillado
+  // Macro to draw a dotted segment.
 # define DRAW_DOTTED_SEGMENT(sg, output)                                \
   COMPUTE_SEGMENT_EEPIC_COORDENATES();                                  \
                                                                         \
@@ -606,17 +738,15 @@ public:
   << ") to (" << tgt_x << "," << tgt_y << ")" << std::endl              \
   << "\\dottedline{" << dotgap << "}(" << src_x                         \
   << "," << src_y << ")(" << tgt_x << "," << tgt_y << ")" << std::endl  \
-  << std::endl; 
+  << std::endl;
 
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento puntillado sg
-  void draw_dotted_segment(const Segment & sg, ostream & output)
+  /// Emit EEPIC code to draw dotted segment `sg`.
+  void draw_dotted_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_DOTTED_SEGMENT(sg, output);
   }
 
-  // macro para generar código eepic en el setream output del
-  // segmento sg en forma de línea partida
+  // Macro to draw a dashed segment.
 # define DRAW_DASH_SEGMENT(sg, output)                                  \
   COMPUTE_SEGMENT_EEPIC_COORDENATES();                                  \
                                                                         \
@@ -626,16 +756,15 @@ public:
   << ") to (" << tgt_x << "," << tgt_y << ")" << std::endl              \
   << "\\dashline{" << dotgap << "}(" << src_x                           \
   << "," << src_y << ")(" << tgt_x << "," << tgt_y << ")" << std::endl  \
-  << std::endl; 
+  << std::endl;
 
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento sg con línea partida
-  void draw_dash_segment(const Segment & sg, ostream & output)
+  /// Emit EEPIC code to draw dashed segment `sg`.
+  void draw_dash_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_DASH_SEGMENT(sg, output);
   }
 
-  // dibuja segmento puntillado sg con puntas de flecha
+  // Dotted segment with arrow head (macro).
 # define DRAW_ARROW_DOTTED_SEGMENT(sg, output)                          \
   COMPUTE_SEGMENT_EEPIC_COORDENATES();                                  \
                                                                         \
@@ -648,14 +777,13 @@ public:
   << std::endl;                                                         \
   PUT_ARROW();
 
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento puntillado sg con puntas de flecha
-  void draw_arrow_dotted_segment(const Segment & sg, ostream & output)
+  /// Emit EEPIC code to draw dotted segment `sg` with arrow head.
+  void draw_arrow_dotted_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW_DOTTED_SEGMENT(sg, output);
   }
 
-  // dibuja un segmento con línea partida y punta de flecha
+  // Dashed segment with arrow head (macro).
 # define DRAW_ARROW_DASH_SEGMENT(sg, output)                            \
   COMPUTE_SEGMENT_EEPIC_COORDENATES();                                  \
                                                                         \
@@ -668,350 +796,307 @@ public:
   << std::endl;                                                         \
   PUT_ARROW();
 
-  // escribe en el stream output el código eepic para dibujar el
-  // segmento sg con línea partida y punta de flecha
-  void draw_arrow_dash_segment(const Segment & sg, ostream & output)
+  /// Emit EEPIC code to draw dashed segment `sg` with arrow head.
+  void draw_arrow_dash_segment(const Segment & sg, std::ostream & output)
   {
     DRAW_ARROW_DASH_SEGMENT(sg, output);
   }
 
-  // escribe en el stream output el código eepic para dibujar la
-  // elipse e
-  void draw_ellipse(const Ellipse & e, ostream & output)
+  /// Emit EEPIC code to draw ellipse `e`.
+  void draw_ellipse(const Ellipse & e, std::ostream & output)
   {
     const Point & center = e.get_center();
 
     const double x = x_geom_number_to_eepic(center.get_x());
-    
+
     const double y = y_geom_number_to_eepic(center.get_y());
 
-    const double hd = h_geom_number_to_eepic(2*e.get_hradius());
-    
-    const double vd = v_geom_number_to_eepic(2*e.get_vradius());
+    const double hd = h_geom_number_to_eepic(2 * e.get_hradius());
+
+    const double vd = v_geom_number_to_eepic(2 * e.get_vradius());
 
     output << "    %% Ellipse with center in " << center.to_string()
-	   << " with horizontal radius of " << e.get_hradius()
-	   << " and vertical radius of " << e.get_vradius() << std::endl
-	   << "    %% mapped in the plane at center (" << x
-	   << "," << y << ") with horizontal radius of " << hd
-	   << " and vertical radius of " << vd << std::endl
-	   << "\\put(" << x << "," << y << "){\\ellipse{" << hd
-	   << "}{" << vd << "}}" << std::endl
-	   << std::endl;
+        << " with horizontal radius of " << e.get_hradius()
+        << " and vertical radius of " << e.get_vradius() << std::endl
+        << "    %% mapped in the plane at center (" << x
+        << "," << y << ") with horizontal radius of " << hd
+        << " and vertical radius of " << vd << std::endl
+        << "\\put(" << x << "," << y << "){\\ellipse{" << hd
+        << "}{" << vd << "}}" << std::endl
+        << std::endl;
   }
 
-  // definición de puntero a función para dibujar segmento. Este
-  // puntero permite usar una sola función para dibujar polígonos;
-  // vistos sus lados como segmentos
-  typedef void (Eepic_Plane::*Draw_Segment_Fct)(const Segment & poly, 
-						ostream &     output);
+  // Member-function pointer type used to draw a segment.
+  // Lets us implement polygon drawing generically by viewing polygon sides as segments.
+  typedef void (Eepic_Plane::*Draw_Segment_Fct)(const Segment & poly,
+                                                std::ostream & output);
 
 
-  // escribe en el stream output el código eepic para dibujar el
-  // polígono según los lados que lo conforman. draw_sg_fct es un
-  // puntero a la función encargada de dibujar un segmento, la cual
-  // se invoca cada vez que se requiera dibujar un lado.
-  // Nótese que la función es genérica; en efecto, se usa tambien
-  // para dibujar polígonos regulares
+  // Draw a polygon by iterating its sides (segments).
+  // draw_sg_fct is the member-function pointer used to draw each side.
+  // This is generic and is also used for regular polygons.
   template <class Poly>
-  void draw_polygon(Poly &           poly, 
-		    ostream &       output,
-		    Draw_Segment_Fct draw_sg_fct)
+  void draw_polygon(Poly & poly,
+                    std::ostream & output,
+                    Draw_Segment_Fct draw_sg_fct)
   {
     for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       (this->*draw_sg_fct)(it.get_current_segment(), output);
   }
 
-  // escribe en el stream output el código eepic para dibujar el
-  // polígono poly con su interior sombreado. Es independiente de
-  // que esté o no cerrado. La diferencia con la versión
-  // sobrecargada de tres parámetros es que este genera un camino de
-  // vértices en lugar de una serie de segmentos. Esta version es
-  // mucho más rápida que la versión de tres parámetros; aunque más
-  // menos versátil (nada es sin costes; así es la vida)
+  // Draw polygon interior shading using a vertex path.
+  // Faster than the segment-based version, but less flexible.
   template <class Poly>
-  void draw_closed_polygon(Poly & poly, ostream & output)
+  void draw_closed_polygon(Poly & poly, std::ostream & output)
   {
-    output << "    % Drawing of polygon of " << poly.size() 
-	   << " sides" << endl
-	   << "\\shade\\path";
+    output << "    % Drawing of polygon of " << poly.size()
+        << " sides" << std::endl
+        << "\\shade\\path";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
-  // escribe en el stream output el código eepic para dibujar el
-  // polígono con su interior sombreado y las líneas de sus lados
-  // punteadas. Es independiente de que esté o no cerrado
+  // Draw shaded polygon with dotted border.
   template <class Poly>
-  void draw_dotted_closed_polygon(Poly &  poly, ostream & output)
+  void draw_dotted_closed_polygon(Poly & poly, std::ostream & output)
   {
-    output << "    % Drawing of dotted line Polygon" << endl
-	   << "\\shade\\dottedline{" << dotgap << "}";
+    output << "    % Drawing of dotted line Polygon" << std::endl
+        << "\\shade\\dottedline{" << dotgap << "}";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
-  // escribe en el stream output el código eepic para dibujar los
-  // puntos correspondientes los puntos vértices del polígono
-  // poly. ATENCIÓN: NO DIBUJA LOS LADOS; SÓLO DIBUJA LOS
-  // VÉRTICES 
+  // Draw only polygon vertices as points (does NOT draw sides).
   template <class Poly>
-  void draw_dots_from_polygon(Poly & poly, ostream & output)
+  void draw_dots_from_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       {
-	Vertex & vertex = it.get_current_vertex();
-      
-	draw_point(vertex, output);
+        Vertex & vertex = it.get_current_vertex();
+
+        draw_point(vertex, output);
       }
   }
 
-  // genera código eepic en el stream output para el filo de flecha
-  // del segmento sg
-  void draw_arrow_extreme(const Segment & sg, ostream & output)
-  {    // ¡tal cual!
+  // Draw only the arrow head of segment sg.
+  void draw_arrow_extreme(const Segment & sg, std::ostream & output)
+  { // ¡tal cual!
     COMPUTE_SEGMENT_EEPIC_COORDENATES();
     PUT_ARROW();
   }
 
-  // escribe en el stream output el código eepic para dibujar las
-  // puntas de flecha correspondientes los puntos vértices del
-  // polígono poly. ATENCIÓN: NO DIBUJA LOS LADOS; SÓLO DIBUJA LOS
-  // LOS FILOS DE FLECHA DE LO QUE SON LOS LADOS DEL POLÍGONO
-  // VISTOS COMO SEGMENTOS
+  // Draw arrow heads for each polygon side (does NOT draw the sides).
   template <class Poly>
-  void draw_arrows_in_polygon(Poly & poly, ostream & output)
+  void draw_arrows_in_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Segment_Iterator it(poly); it.has_curr(); it.next_ne())
       {
-	const Segment & sg = it.get_current_segment();
-      
-	draw_arrow_extreme(sg, output);
+        const Segment & sg = it.get_current_segment();
+
+        draw_arrow_extreme(sg, output);
       }
   }
 
   template <class Poly>
-  void draw_closed_polygon_with_arrows(Poly & poly, ostream & output)
+  void draw_closed_polygon_with_arrows(Poly & poly, std::ostream & output)
   {
     draw_closed_polygon(poly, output);
     draw_arrows_in_polygon(poly, output);
   }
 
-  // escribe en el stream output el código eepic para dibujar el
-  // punto texto correspondiente al punto p. El texto es de la forma
-  // "(x,y)". La coordenada y se desplaza ligeramente hacia arriba
-  // en r de modo tal de dejar espacio para escribir el número de
-  // vértice por debajo
-  void draw_point_text(const Point & p, ostream & output)
+  // Draw a text label for point p (as "(x,y)"), slightly shifted in y.
+  void draw_point_text(const Point & p, std::ostream & output)
   {
     const double x = x_geom_number_to_eepic(p.get_x());
 
     const double y = y_geom_number_to_eepic(p.get_y()) + r;
 
-    const string str = p.to_string();
+    const std::string str = p.to_string();
 
     output << "    %% Text Point " << str
-	   << "    %% mapped in this plane to (" << x << "," << y << ")"
-	   << std::endl
-	   << "\\put(" << x << "," << y << "){\\texttt{" << str
-	   << "}}" << std::endl
-	   << std::endl;
+        << "    %% mapped in this plane to (" << x << "," << y << ")"
+        << std::endl
+        << "\\put(" << x << "," << y << "){\\texttt{" << str
+        << "}}" << std::endl
+        << std::endl;
   }
 
-  // escribe en el stream output el código eepic para dibujar los
-  // textos de los vértices del polígono poly. ATENCIÓN: NO DIBUJA
-  // LOS LADOS; SÓLO DIBUJA LOS TEXTOS DE LOS VÉRTICES
-  // TODO: Escribir el texto fuera o dentro del polígono sin que
-  // cruce un lado ==> que se requiere el contexto de los lados ==>
-  // que no se podría usar draw_point_text
+  // Draw text labels for polygon vertices (does NOT draw sides).
+  // TODO: place text inside/outside without crossing edges.
   template <class Poly>
-  void draw_points_text_in_polygon(Poly & poly, ostream & output)
+  void draw_points_text_in_polygon(Poly & poly, std::ostream & output)
   {
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       draw_point_text(it.get_current_vertex(), output);
   }
 
-  // escribe en el stream output el código eepic para dibujar los
-  // números de vértice del polígono poly. ATENCIÓN: NO DIBUJA LOS
-  // LADOS; SÓLO DIBUJA LOS NÚMEROS DE LOS VÉRTICES TODO: Escribir el
-  // texto fuera o dentro del polígono sin que cruce un lado ==> que
-  // se requiere el contexto de los lados ==> que no se podría usar
-  // draw_point_text
+  // Draw vertex numbers (does NOT draw sides).
+  // TODO: place numbers inside/outside without crossing edges.
   template <class Poly>
-  void draw_vertex_numbers_in_polygon(Poly & poly, ostream & output)
+  void draw_vertex_numbers_in_polygon(Poly & poly, std::ostream & output)
   {
     int n = 0;
 
-    for (typename Poly::Vertex_Iterator it(poly); 
-	 it.has_curr(); it.next_ne(), ++n)
+    for (typename Poly::Vertex_Iterator it(poly);
+         it.has_curr(); it.next_ne(), ++n)
       {
-	Vertex & vertex = it.get_current_vertex();
-      
-	const double x = x_geom_number_to_eepic(vertex.get_x());
+        Vertex & vertex = it.get_current_vertex();
 
-	const double y = y_geom_number_to_eepic(vertex.get_y()) - r;
+        const double x = x_geom_number_to_eepic(vertex.get_x());
 
-	output << "    %% Poligon Vertex Number " << n
-               << "    %% mapped in this plane to (" << x << "," << y << ")"
-               << std::endl
-               << "\\put(" << x << "," << y << "){$" << n << "$}" << std::endl
-               << std::endl;
+        const double y = y_geom_number_to_eepic(vertex.get_y()) - r;
+
+        output << "    %% Poligon Vertex Number " << n
+            << "    %% mapped in this plane to (" << x << "," << y << ")"
+            << std::endl
+            << "\\put(" << x << "," << y << "){$" << n << "$}" << std::endl
+            << std::endl;
       }
   }
 
-  // escribe en el stream output el código eepic para dibujar la
-  // curva spline caracterizada por los puntos del polígono y que
-  // pasa por sus puntos extremos
+  // Draw a spline through polygon vertices.
   template <class Poly>
-  void draw_spline(Poly & poly, ostream & output)
+  void draw_spline(Poly & poly, std::ostream & output)
   {
-    output << "    % Drawing spline of " << poly.size() 
-	   << " points" << endl
-	   << "\\spline";
+    output << "    % Drawing spline of " << poly.size()
+        << " points" << std::endl
+        << "\\spline";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
-  // escribe en el stream output el código eepic para dibujar la
-  // curva a línea partida caracterizada por los puntos del polígono
-  // y que pasa por sus puntos extremos
+  // Draw a piecewise-linear curve through polygon vertices.
   template <class Poly>
-  void draw_dash_spline(Poly & poly, ostream & output)
+  void draw_dash_spline(Poly & poly, std::ostream & output)
   {
-    output << "    % Drawing dash curve of " << poly.size() 
-	   << " points" << endl
-	   << "\\closecurve";
+    output << "    % Drawing dash curve of " << poly.size()
+        << " points" << std::endl
+        << "\\closecurve";
 
     for (typename Poly::Vertex_Iterator it(poly); it.has_curr(); it.next_ne())
       output << point_string(it.get_current_vertex());
 
     if (poly.is_closed())
-      output << point_string(poly.get_first_vertex()) << endl;
+      output << point_string(poly.get_first_vertex()) << std::endl;
   }
 
-  // escribe en el stream output el código eepic para dibujar la
-  // curva spline caracterizada por los puntos del polígono y que
-  // pasa por sus puntos extremos y cuyo último vértice tiene punta
-  // de flecha
+  // Draw spline plus an arrow head at the last segment.
   template <class Poly>
-  void draw_spline_arrow(Poly & poly, ostream & output)
+  void draw_spline_arrow(Poly & poly, std::ostream & output)
   {
-    draw_spline(poly, output); // dibujamos primero la curva
+    draw_spline(poly, output); // draw curve first
 
-    // ahora dibujamos los filos de las flechas según la pendiente del
-    // último segmento del polígono
-    
-    draw_arrow_extreme(poly.get_last_segment(), output);
-  }
-
-  // escribe en el stream output el código eepic para dibujar la
-  // curva spline a línea partida caracterizada por los puntos del
-  // polígono y que pasa por sus puntos extremos y cuyo último
-  // vértice tiene punta de flecha
-  template <class Poly>
-  void draw_dash_spline_arrow(Poly & poly, ostream & output)
-  {
-    draw_dash_spline(poly, output); // dibujamos primero la curva
-
-    // ahora dibujamos los filos de las flechas según la pendiente del
-    // último segmento del polígono
+    // Now draw the arrow head using the slope of the last segment.
 
     draw_arrow_extreme(poly.get_last_segment(), output);
   }
 
-  void draw_text(const Text & t, ostream & output, 
-		 const double & hfactor, const double & vfactor)
+  // Draw dashed curve plus an arrow head at the last segment.
+  template <class Poly>
+  void draw_dash_spline_arrow(Poly & poly, std::ostream & output)
+  {
+    draw_dash_spline(poly, output); // draw curve first
+
+    // Now draw the arrow head using the slope of the last segment.
+
+    draw_arrow_extreme(poly.get_last_segment(), output);
+  }
+
+  void draw_text(const Text & t, std::ostream & output,
+                 const double & hfactor, const double & vfactor)
   {
     const Point & p = t.get_point();
 
-    const double str_size_in_points = t.len()*Text::font_width_in_points;
+    const double str_size_in_points = t.len() * Text::font_width_in_points;
 
-    const double x = 
-      x_geom_number_to_eepic(p.get_x()) - hfactor*str_size_in_points; 
+    const double x =
+        x_geom_number_to_eepic(p.get_x()) - hfactor * str_size_in_points;
 
-    const double y = (y_geom_number_to_eepic(p.get_y()) - 
-		      vfactor*Text::font_height_in_points); 
+    const double y = (y_geom_number_to_eepic(p.get_y()) -
+                      vfactor * Text::font_height_in_points);
 
-    output << "%    string at " << p.to_string() << endl 
-	   << "%    mapped to the plane at (" << x << "," << y << ")" << endl 
-	   << "\\put(" << x << "," << y << "){\\texttt{" 
-	   << (tiny_keys ? "\\tiny " : "") << t.get_str() 
-	   << "}}" << endl 
-	   << endl;
+    output << "%    std::string at " << p.to_string() << std::endl
+        << "%    mapped to the plane at (" << x << "," << y << ")" << std::endl
+        << "\\put(" << x << "," << y << "){\\texttt{"
+        << (tiny_keys ? "\\tiny " : "") << t.get_str()
+        << "}}" << std::endl
+        << std::endl;
   }
 };
 
 
-/*****************************************************************
-
-   Definición del generador de objetos derivados de Eepic_Geom_Object
-
-*****************************************************************/
+/** Generator macros for Eepic_Geom_Object-derived wrapper types.
+ *
+ *  The macros below generate Eepic_* wrapper classes for underlying geometric
+ *  primitives (Point, Segment, Polygon, ...). Each wrapper provides:
+ *  - bounding box helpers (highest/lowest/leftmost/rightmost points)
+ *  - clone() for polymorphic copying
+ *  - draw() to emit EEPIC commands for that wrapper
+ */
 
 # define DEFINE_EEPIC_COPY_CTOR(Type)                                   \
-  Eepic_##Type(const Type & o) : Eepic_Geom_Object(new Type(o), true) { } 
+  Eepic_##Type(const Type & o) : Eepic_Geom_Object(new Type(o), true) { }
 
 
-// métodos en común que siempre tiene una clase Eepic_Type
+/// Common methods always provided by an Eepic_Type wrapper class.
 # define DEFINE_EEPIC_COMMON_METHODS(Type)                              \
   friend void put_in_plane(Eepic_Plane & plane, const Type & geom_obj); \
                                                                         \
   ~Eepic_##Type() { }                                                   \
                                                                         \
-  virtual Point highest_point() const                                   \
+  Point highest_point() const override                                  \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->highest_point();  \
   }                                                                     \
                                                                         \
-  virtual Point lowest_point() const                                    \
+  Point lowest_point() const override                                   \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->lowest_point();   \
   }                                                                     \
                                                                         \
-  virtual Point leftmost_point() const                                  \
+  Point leftmost_point() const override                                 \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->leftmost_point(); \
   }                                                                     \
                                                                         \
-  virtual Point rightmost_point() const                                 \
+  Point rightmost_point() const override                                \
   {                                                                     \
     return static_cast<const Type*>(geom_object_ptr)->rightmost_point(); \
   }                                                                     \
                                                                         \
-  virtual Eepic_Geom_Object * clone() const                             \
+  Eepic_Geom_Object * clone() const override                            \
   {                                                                     \
     return new Eepic_##Type(static_cast<const Type&>(*geom_object_ptr)); \
   }                                                                     \
                                                                         \
-  virtual void draw(Eepic_Plane *, ostream &) const;
+  void draw(Eepic_Plane * plane, std::ostream & output) const override;
 
 
-// Métodos comunes de Eepic_Type más el constructor copia
+/// Common methods plus a copy-constructor that owns a deep copy of the wrapped object.
 # define DEFINE_EEPIC_COMMON_WITH_COPY_CTOR(Type)       \
   DEFINE_EEPIC_COPY_CTOR(Type)                          \
   DEFINE_EEPIC_COMMON_METHODS(Type)
 
 
-// Métodos comunes de Eepic_Type pero el constructor copia sólo está
-// declarado ==> debe escribirse después 
+/// Common methods, but the copy-constructor is only declared and must be implemented later.
 # define DEFINE_EEPIC_COMMON_WITHOUT_COPY_CTOR(Type)    \
   DEFINE_EEPIC_COMMON_METHODS(Type)                     \
   Eepic_##Type(const Type &);
 
 
-// Método de insertar un objeto Eepic_Type en un Eepic_Plane
+/// Declare put_in_plane(plane, geom_obj) for a given geometric type.
 # define DEFINE_PUT_IN_PLANE(Type)                                      \
   extern void put_in_plane(Eepic_Plane & plane, const Type & geom_obj)
 
@@ -1022,28 +1107,28 @@ public:
     Eepic_##Type eepic_obj(geom_obj);                           \
                                                                 \
     plane.put(eepic_obj);                                       \
-  } 
+  }
 
-/*
-  Este es el macro fundamental para declarar una clase derivada de
-  Eepic_Geom_Object 
-*/
+/** Fundamental macro to declare a class derived from Eepic_Geom_Object.
+ *
+ *  It generates the wrapper type Eepic_Type plus the corresponding put_in_plane()
+ *  declaration for the underlying geometric type.
+ */
 
-// definición típica de una clase Eepic_Type. Sólo se debe implantar
-// la función virtual Eepic_Plane::put(const Eepic_Type &)
+// Typical definition of an Eepic_Type wrapper class.
+// Only Eepic_Plane::put(const Eepic_Type&) needs to be implemented.
 # define DEFINE_EEPIC_CLASS(Type)               \
   class Eepic_##Type : public Eepic_Geom_Object \
   {                                             \
     DEFINE_EEPIC_COMMON_WITH_COPY_CTOR(Type)    \
   };                                            \
                                                 \
-  DEFINE_PUT_IN_PLANE(Type) 
+  DEFINE_PUT_IN_PLANE(Type)
 
 
-// definición típica de una clase Eepic_Type con otros
-// atributos. Esto implica que hay que definir por separado el
-// constructor copia que realice la inicialización de los atributos
-// adicionales 
+// Typical definition of an Eepic_Type wrapper class with extra members.
+// This implies defining the copy-constructor separately to initialize
+// additional attributes.
 # define DEFINE_EEPIC_CLASS_AND_MEMBERS(Type, ...)	\
   class Eepic_##Type : public Eepic_Geom_Object         \
   {                                                     \
@@ -1051,16 +1136,12 @@ public:
     DEFINE_EEPIC_COMMON_WITHOUT_COPY_CTOR(Type)         \
   };                                                    \
                                                         \
-  DEFINE_PUT_IN_PLANE(Type) 
+  DEFINE_PUT_IN_PLANE(Type)
 
 
-/*****************************************************************
-
-  A partir de aquí el asunto sólo consiste en definir nuevas clases
-  Eepic según el objeto y la funcionalidad de dibujado que se desee
-  implantar 
-
-*****************************************************************/
+/** From here on, the rest of the file defines concrete Eepic_* wrapper classes
+    and their specific drawing behavior.
+*/
 
 DEFINE_EEPIC_CLASS(Point);
 
@@ -1068,12 +1149,9 @@ DEFINE_EEPIC_CLASS(Point);
 DEFINE_EEPIC_CLASS(Segment);
 
 
-/*****************************************************************
-  
-  Requerimos definir varias maneras de dibujar segmentos. Este macro
-  define una nueva clase derivada de Segment. Su único propósito es
-  tener un nuevo nombre de objeto geométrico que permita definir
-  comportamientos de dibujado distintos
+/** We need several ways of drawing segments. This macro defines a new class
+    derived from Segment. Its only purpose is to give a different geometric type
+    name so we can attach different EEPIC drawing behaviors.
 */
 # define DEFINE_CLASS_DERIVATED_FROM_SEGMENT(Name)      \
   struct Name : public Segment                          \
@@ -1099,23 +1177,25 @@ DEFINE_EEPIC_CLASS(Segment);
     }                                                   \
   };
 
-// define una clase derivada de segmento con nombre Name - El propósito
-// es nombramiento para distiguirlo de Segment 
+// Define a Segment-derived type named Name. Purpose: provide a distinct geometric
+// type name (different from Segment) so it can have different EEPIC drawing behavior.
 # define DEFINE_EEPIC_SEGMENT_CLASS(Name)       \
   DEFINE_CLASS_DERIVATED_FROM_SEGMENT(Name)     \
   DEFINE_EEPIC_CLASS(Name);
 
 
-// Igual que la anterior pero permite incorpora otro miembros en el
-// parámetro macro Members
+// Same as DEFINE_EEPIC_SEGMENT_CLASS, but allows extra members to be injected
+// via the macro parameter list.
 # define DEFINE_EEPIC_SEGMENT_CLASS_AND_MEMBERS(Name, ...)	\
   DEFINE_CLASS_DERIVATED_FROM_SEGMENT(Name)                     \
   DEFINE_EEPIC_CLASS_AND_MEMBERS(Name, __VA_ARGS__);
 
 
-/*****************************************************************
-  Familia de clases de maneras para dibujar un segmento
-*/
+/** Segment-drawing variants (types).
+ *
+ *  These are distinct Segment-derived types so they can have distinct EEPIC
+ *  drawing behavior.
+ */
 
 DEFINE_EEPIC_SEGMENT_CLASS(Arrow)
 
@@ -1136,23 +1216,15 @@ DEFINE_EEPIC_SEGMENT_CLASS(Dash_Arrow);
 DEFINE_EEPIC_SEGMENT_CLASS(Thick_Dash_Arrow);
 
 
-/*****************************************************************
-
-   Triangulo
-
-*/
+/** Triangle wrapper. */
 DEFINE_EEPIC_CLASS(Triangle);
 
 
-/*****************************************************************
-
-  Elipse
-*/
+/** Ellipse wrapper. */
 DEFINE_EEPIC_CLASS(Ellipse);
 
 
-// define una nueva clase derivada de elipse que permita definir
-// conductas de dibujado distintas
+// Define an Ellipse-derived type to allow different drawing behaviors.
 # define DEFINE_CLASS_DERIVATED_FROM_ELLIPSE(Name)      \
   struct Name : public Ellipse                          \
   {                                                     \
@@ -1174,15 +1246,15 @@ DEFINE_EEPIC_CLASS(Ellipse);
 
 
 DEFINE_CLASS_DERIVATED_FROM_ELLIPSE(Shade_Ellipse);
+
 DEFINE_CLASS_DERIVATED_FROM_ELLIPSE(Thick_Ellipse);
+
 DEFINE_EEPIC_CLASS(Shade_Ellipse);
+
 DEFINE_EEPIC_CLASS(Thick_Ellipse);
 
 
-/*****************************************************************
-
-  Texto
-*/
+/** Text wrappers. */
 
 # define DEFINE_CLASS_DERIVATED_FROM_TEXT(Name)         \
   struct Name : public Text                             \
@@ -1205,26 +1277,29 @@ DEFINE_EEPIC_CLASS(Thick_Ellipse);
 DEFINE_EEPIC_CLASS(Text);
 
 DEFINE_CLASS_DERIVATED_FROM_TEXT(Left_Text);
+
 DEFINE_CLASS_DERIVATED_FROM_TEXT(Right_Text);
+
 DEFINE_CLASS_DERIVATED_FROM_TEXT(Center_Text);
 
 DEFINE_EEPIC_CLASS(Left_Text);
+
 DEFINE_EEPIC_CLASS(Right_Text);
+
 DEFINE_EEPIC_CLASS(Center_Text);
 
 
-/*****************************************************************
+/** Polygon wrappers and variants.
+ *
+ *  We define multiple Polygon-derived types so each can map to a different
+ *  EEPIC drawing behavior.
+ */
 
-   Ahora requerimos varias maneras de dibujar polígonos generales
-*/
-
-// La más simple forma de dibujar un polígono
+// The simplest polygon wrapper (default drawing behavior).
 DEFINE_EEPIC_CLASS(Polygon);
 
 
-
-// define una nueva clase derivada de poligono que permita definir
-// conductas de dibujado distintas
+// Define a Polygon-derived type to allow different drawing behaviors.
 # define DEFINE_CLASS_DERIVATED_FROM_POLYGON(Name)      \
   struct Name : public Polygon                          \
   {                                                     \
@@ -1242,122 +1317,118 @@ DEFINE_EEPIC_CLASS(Polygon);
   DEFINE_EEPIC_CLASS(Name);
 
 
-// Familia de polígonos
+// Polygon variants.
 
-// con círculos punto en los vértices
-DEFINE_EEPIC_POLYGON(Polygon_With_Points); 
+// With point circles at vertices.
+DEFINE_EEPIC_POLYGON(Polygon_With_Points);
 
-// con círculos punto en los vértices
-DEFINE_EEPIC_POLYGON(Polygon_With_Arrows); 
+// With point circles at vertices and arrow heads on sides.
+DEFINE_EEPIC_POLYGON(Polygon_With_Arrows);
 
-// lados puntillados
+// Dotted sides.
 DEFINE_EEPIC_POLYGON(Dotted_Polygon);
 
-// lados línea partida
+// Dashed sides.
 DEFINE_EEPIC_POLYGON(Dash_Polygon);
 
-// lados puntillados y círculos en los vértices
-DEFINE_EEPIC_POLYGON(Dotted_Polygon_With_Points); 
+// Dotted sides with point circles at vertices.
+DEFINE_EEPIC_POLYGON(Dotted_Polygon_With_Points);
 
-// lados líneas partidas con círculos en los vértices
+// Dashed sides with point circles at vertices.
 DEFINE_EEPIC_POLYGON(Dash_Polygon_With_Points);
 
-// lados líneas partidas con punta d eflecha en último segmento
+// Dashed sides with an arrow head on the last segment.
 DEFINE_EEPIC_POLYGON(Dash_Polygon_With_Arrow);
 
-// el interior del polígono es sobreado (gris)
-DEFINE_EEPIC_POLYGON(Shade_Polygon); 
+// Shaded interior (gray).
+DEFINE_EEPIC_POLYGON(Shade_Polygon);
 
-// el interior del polígono es sobreado (gris) con círculos en los vértices
+// Shaded interior with point circles at vertices.
 DEFINE_EEPIC_POLYGON(Shade_Polygon_With_Points);
 
-// el interior del polígono es sobreado (gris) y lados son flechas
+// Shaded interior, sides drawn as arrows.
 DEFINE_EEPIC_POLYGON(Shade_Polygon_With_Arrows);
 
-// interior sobreado (gris) y con coordenadas de los vértices
+// Shaded interior with vertex coordinate labels.
 DEFINE_EEPIC_POLYGON(Shade_Polygon_With_Text_Points);
 
-// interior sobreado (gris) y con números de los vértices
+// Shaded interior with vertex numbers.
 DEFINE_EEPIC_POLYGON(Shade_Polygon_With_Vertex_Numbers);
 
-// Curva spline construida según los puntos del polígono
+// Spline curve built from polygon vertices.
 DEFINE_EEPIC_POLYGON(Spline);
 
-// Curva spline a línea partida construida según los puntos del polígono
+// Piecewise-linear curve built from polygon vertices.
 DEFINE_EEPIC_POLYGON(Dash_Spline);
 
-// Curva spline construida según los puntos del polígono con flecha
+// Spline curve with arrow head at the end.
 DEFINE_EEPIC_POLYGON(Spline_Arrow);
 
-// Curva spline a línea partida construida según los puntos del
-// polígono con flecha
+// Piecewise-linear curve with arrow head at the end.
 DEFINE_EEPIC_POLYGON(Dash_Spline_Arrow);
 
-// con círculos punto en los vértices
-DEFINE_EEPIC_POLYGON(Thick_Polygon_With_Points); 
+// With point circles at vertices.
+DEFINE_EEPIC_POLYGON(Thick_Polygon_With_Points);
 
-// con círculos punto en los vértices
-DEFINE_EEPIC_POLYGON(Thick_Polygon_With_Arrows); 
+// With point circles at vertices.
+DEFINE_EEPIC_POLYGON(Thick_Polygon_With_Arrows);
 
-// lados puntillados
+// Dotted sides.
 DEFINE_EEPIC_POLYGON(Thick_Dotted_Polygon);
 
-// lados línea partida
+// Dashed sides.
 DEFINE_EEPIC_POLYGON(Thick_Dash_Polygon);
 
-// lados puntillados y círculos en los vértices
-DEFINE_EEPIC_POLYGON(Thick_Dotted_Polygon_With_Points); 
+// Dotted sides with point circles at vertices.
+DEFINE_EEPIC_POLYGON(Thick_Dotted_Polygon_With_Points);
 
-// lados líneas partidas con círculos en los vértices
+// Dashed sides with point circles at vertices.
 DEFINE_EEPIC_POLYGON(Thick_Dash_Polygon_With_Points);
 
-// lados líneas partidas con puntas de flechas
+// Dashed sides with arrow heads.
 DEFINE_EEPIC_POLYGON(Thick_Dash_Polygon_With_Arrow);
 
-// el interior del polígono es sobreado (gris)
-DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon); 
+// Shaded interior (gray).
+DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon);
 
-// el interior del polígono es sobreado (gris) con círculos en los vértices
+// Shaded interior with point circles at vertices.
 DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon_With_Points);
 
-// el interior del polígono es sobreado (gris) y lados son flechas
+// Shaded interior, sides drawn as arrows.
 DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon_With_Arrows);
 
-// interior sobreado (gris) y con coordenadas de los vértices
+// Shaded interior with vertex coordinate text.
 DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon_With_Text_Points);
 
-// interior sobreado (gris) y con números de los vértices
+// Shaded interior with vertex numbers.
 DEFINE_EEPIC_POLYGON(Thick_Shade_Polygon_With_Vertex_Numbers);
 
-// Curva spline construida según los puntos del polígono
+// Thick spline curve built from polygon vertices.
 DEFINE_EEPIC_POLYGON(Thick_Spline);
 
-// Curva spline a línea partida construida según los puntos del polígono
+// Thick piecewise-linear curve built from polygon vertices.
 DEFINE_EEPIC_POLYGON(Thick_Dash_Spline);
 
-// Curva spline construida según los puntos del polígono con flecha
+// Thick spline curve with arrow head.
 DEFINE_EEPIC_POLYGON(Thick_Spline_Arrow);
 
-// Curva spline a línea partida construida según los puntos del
-// polígono con flecha
+// Thick piecewise-linear curve with arrow head.
 DEFINE_EEPIC_POLYGON(Thick_Dash_Spline_Arrow);
 
-/*****************************************************************
+/** Regular polygons.
+ *
+ *  NOTE: In practice, because Polygon(Regular_Polygon) exists and there is a
+ *  conversion from Regular_Polygon to Polygon, regular polygons could be drawn
+ *  using the same Eepic_* classes used for irregular polygons.
+ *
+ *  The purpose of defining dedicated regular-polygon wrappers is mainly
+ *  efficiency/constant-factor improvements: a regular polygon can be drawn a
+ *  bit faster than a general polygon, even though the time complexity remains
+ *  \(O(n)\) in both cases.
+ */
 
- Ahora haremos casi lo mismo para los polígonos regulares.
-
- NOTA: en realidad, con la definición del constructor de
- Polygon(Regular_Polygon) y del operador de conversión Regular_Polygon
- hacia Polygon se puede dibujar polígonos regulares mediante las clases
- para dibujar polígonos irregulares. El asunto es, pues, sólo de un poco
- de eficiencia: se puede dibujar un polígono regular en tiempo constante
- más rápido que uno irregular. En todo caso, la complejidad de tiempo es
- la misma O(n) para las dos clases
-*/
-
-// define una nueva clase derivada de poligono regular que permita
-// definir conductas de dibujado distintas. Hay que definir una
-// nueva porque el constructor es distinto
+// Define a new class derived from Regular_Polygon to allow different drawing behaviors.
+// A new type is needed because the constructor differs.
 # define DEFINE_CLASS_DERIVATED_FROM_REGULAR_POLYGON(Name)      \
   struct Name : public Regular_Polygon                          \
   {                                                             \
@@ -1386,18 +1457,26 @@ DEFINE_EEPIC_POLYGON(Thick_Dash_Spline_Arrow);
 
 DEFINE_EEPIC_CLASS(Regular_Polygon);
 
-// Definiciones para los polígonos regulares
+// Regular polygon variants.
 DEFINE_EEPIC_REGULAR_POLYGON(Regular_Polygon_With_Points);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Dotted_Regular_Polygon);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Dash_Regular_Polygon);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Dotted_Regular_Polygon_With_Points);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Dash_Regular_Polygon_With_Points);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Shade_Regular_Polygon);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Shade_Regular_Polygon_With_Points);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Shade_Regular_Polygon_With_Arrows);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Shade_Regular_Polygon_With_Text_Points);
+
 DEFINE_EEPIC_REGULAR_POLYGON(Shade_Regular_Polygon_With_Vertex_Numbers);
 
-  
 
 # endif // EEPICGEOM_H

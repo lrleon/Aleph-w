@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file btreepic_avl.H
+ *  @brief AVL tree visualization utilities.
+ *
+ *  Provides preorder traversal and utilities for generating
+ *  visual representations of AVL trees.
+ *
+ *  @ingroup Trees
+ *  @author Leandro Rabindranath León
+ */
+
 # include <tpl_avl.H>
 
 
@@ -40,8 +51,8 @@ struct Preorder_Nodes
 
   ~Preorder_Nodes()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -62,8 +73,8 @@ struct Inorder_Nodes
 
   ~Inorder_Nodes()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -84,8 +95,8 @@ struct Inorder_Keys
 
   ~Inorder_Keys()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)
@@ -106,8 +117,8 @@ struct Inorder_Diff
 
   ~Inorder_Diff()
   {
-    output << endl
-	   << endl;
+    output << std::endl
+	   << std::endl;
   }
 
   void operator () (Node * p)

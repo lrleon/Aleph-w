@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,30 +23,39 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_test_connectivity.H
+ *  @brief Graph connectivity testing.
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_TEST_CONNECTIVITY_H
 # define TPL_TEST_CONNECTIVITY_H
 
 # include <tpl_graph_utils.H>
+ # include <ah-errors.H>
 
 
-       /** Determina si un grafo g es conexo.
+       /** Determines if a graph g is connected.
 
-           Esta clase realiza una prueba de conectividad del grafo g. La
-           prueba apela a un recorrido en profundidad.
+           This class performs a connectivity test on graph g. The test
+           uses a depth-first traversal.
 
-           La clase verifica la
-           cantidad de arcos. Si esta cantidad es menor que el número de
-           nodos, entonces el grafo se considera inconexo.
+           The class verifies the number of arcs. If this number is less than
+           the number of nodes minus one, then the graph is considered
+           disconnected.
 
-           La función toma dos parámetros tipo:
-           -# GT: el tipo de grafo, el cual debe ser derivado de List_Graph.
-           -# SA: clase que se encarga de mostrar el arco. Internamente, la
-           función emplea el iterador filtro Node_Arc_Iterator (basado
-           en Filter_Iterator) para recorrer los arcos de cada nodo. SA es
-           el la clase que determina si el arco debe o no mostrarse al
-           recorrido. 
+           The function takes two type parameters:
+           -# GT: the graph type, which must be derived from List_Graph.
+           -# SA: class responsible for showing the arc. Internally, the
+           function uses the filtered iterator Node_Arc_Iterator (based
+           on Filter_Iterator) to traverse the arcs of each node. SA is
+           the class that determines whether the arc should be shown during
+           traversal.
 
-           @ingroup Grafos
+           @ingroup Graphs
            @see depth_first_traversal() is_reachable()
         */
     template <class GT, class SA = Dft_Show_Arc<GT> > 
@@ -55,22 +63,21 @@ class Test_Connectivity
 {
 public:
 
-        /** Invoca a la prueba de conectividad.
+        /** Invokes the connectivity test.
 
-	    Esta versión se emplea cuando se requiera que el filtro de arcos
-	    mantenga un estado.
+            This version is used when the arc filter needs to maintain state.
 
-            @param[in] g el grafo o digrafo a verificar.
-	    \param[in] sa el filtro de arcos del grafo.
-            @return true si el grafo es conexo; false de lo contrario.
-            @note Debido a la prueba con el número de arcos, esta función
-            es incorrecta para multigrafos.
-            @throw domain_error si la rutina es invocada sobre un digrafo.
+            @param[in] g the graph or digraph to verify.
+            @param[in] sa the arc filter for the graph (default: Dft_Show_Arc<GT>)
+            @return true if the graph is connected; false otherwise.
+            @note Due to the test with the number of arcs, this function
+            is incorrect for multigraphs.
+            @throw domain_error if the routine is invoked on a digraph.
          */
   bool operator () (GT & g, SA && sa = SA()) const
   {
-    if (g.is_digraph()) // sólo es válida para grafos, no digrafos
-      throw std::domain_error("test_connectivity() does not work on digraphs");
+    ah_domain_error_if(g.is_digraph())
+      << "test_connectivity() does not work on digraphs";
 
     if (g.get_num_arcs() < g.get_num_nodes() - 1)
       return false;
@@ -80,22 +87,21 @@ public:
     return traversal(g) == g.get_num_nodes();
   }
 
-/** Invoca a la prueba de conectividad.
+/** Invokes the connectivity test.
 
-	    Esta versión se emplea cuando se requiera que el filtro de arcos
-	    mantenga un estado.
+    This version is used when the arc filter needs to maintain state.
 
-            @param[in] g el grafo o digrafo a verificar.
-	    \param[in] sa el filtro de arcos del grafo.
-            @return true si el grafo es conexo; false de lo contrario.
-            @note Debido a la prueba con el número de arcos, esta función
-            es incorrecta para multigrafos.
-            @throw domain_error si la rutina es invocada sobre un digrafo.
-         */
+    @param[in] g the graph or digraph to verify.
+    @param[in] sa the arc filter for the graph (by reference)
+    @return true if the graph is connected; false otherwise.
+    @note Due to the test with the number of arcs, this function
+    is incorrect for multigraphs.
+    @throw domain_error if the routine is invoked on a digraph.
+ */
   bool operator () (GT & g, SA & sa) const
   {
-    if (g.is_digraph()) // sólo es válida para grafos, no digrafos
-      throw std::domain_error("test_connectivity() does not work on digraphs");
+    ah_domain_error_if(g.is_digraph())
+      << "test_connectivity() does not work on digraphs";
 
     if (g.get_num_arcs() < g.get_num_nodes() - 1) 
       return false;

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,56 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+/**
+ * @file useCondVar.H
+ * @brief Wrapper class for POSIX condition variables
+ * 
+ * This file provides a simple C++ wrapper around pthread condition
+ * variables, offering a cleaner interface for thread synchronization.
+ * 
+ * ## Features
+ * 
+ * - **Wait**: Block until signaled
+ * - **Signal**: Wake one waiting thread
+ * - **Broadcast**: Wake all waiting threads
+ * 
+ * ## Usage Example
+ * 
+ * ```cpp
+ * pthread_mutex_t mutex;
+ * pthread_cond_t cond;
+ * 
+ * pthread_mutex_init(&mutex, nullptr);
+ * pthread_cond_init(&cond, nullptr);
+ * 
+ * // In waiting thread:
+ * {
+ *     UseMutex lock(&mutex);
+ *     UseCondVar cv(&cond, &mutex);
+ *     while (!condition_met)
+ *         cv.wait();
+ * }
+ * 
+ * // In signaling thread:
+ * {
+ *     UseMutex lock(&mutex);
+ *     condition_met = true;
+ *     UseCondVar cv(&cond, &mutex);
+ *     cv.signal();
+ * }
+ * ```
+ * 
+ * @note Always hold the associated mutex when calling wait/signal/broadcast.
+ * @note Consider using std::condition_variable for modern C++ code.
+ * 
+ * @see useMutex.H For the companion mutex wrapper
+ * 
+ * @author Leandro Rabindranath León *
+ *  @ingroup Utilities
+
+ */
+
 /*
   Aleph Distributed System License & Copyright Note
 
@@ -72,6 +121,16 @@
 
 #include <pthread.h>
 
+/**
+ * @class UseCondVar
+ * @brief Wrapper class for POSIX condition variables
+ * 
+ * Provides a simple interface for pthread condition variable operations.
+ * Does not own the condition variable or mutex - they must be managed
+ * separately. *
+ *  @ingroup Utilities
+
+ */
 class UseCondVar 
 {
 private:
@@ -81,30 +140,57 @@ private:
 
 public:
 
+  /**
+   * @brief Construct wrapper for condition variable and mutex
+   * @param c Pointer to initialized condition variable
+   * @param m Pointer to initialized mutex (must be held when waiting) *
+ *  @ingroup Utilities
+
+   */
   UseCondVar(pthread_cond_t *c, pthread_mutex_t *m)
   {
     mutex = m;
     cond = c;
   }
 
+  /**
+   * @brief Wait for the condition variable to be signaled
+   * @return 0 on success, error code on failure
+   * @note The mutex must be held when calling this function *
+ *  @ingroup Utilities
+
+   */
   int wait()
   {
     int retVal = pthread_cond_wait(cond, mutex);
     return retVal;
   }
 
+  /**
+   * @brief Signal one waiting thread
+   * @return 0 on success, error code on failure *
+ *  @ingroup Utilities
+
+   */
   int signal()
   {
     int retVal = pthread_cond_signal(cond);
     return retVal;
   }
 	
+  /**
+   * @brief Wake all waiting threads
+   * @return 0 on success, error code on failure *
+ *  @ingroup Utilities
+
+   */
   int broadcast()
   {
     int retVal = pthread_cond_broadcast(cond);
     return retVal;
   }
 
+  /// Destructor (does not destroy the condition variable)
   ~UseCondVar()
   {
     //nullptr;

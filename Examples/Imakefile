@@ -2,12 +2,13 @@ DEPEND = sh ./depend.sh
 
 # just delete or comment these four lines if you wish to use gnu
 # compiler suite
-CC = clang
+CC = cc
 AS = llvm-as
 AR = llvm-ar clq
+AR = llvm-ar clq
 LD = llvm-link
-CCLINK = clang++ -fsanitize=address,undefined
-CXX = clang++
+CCLINK = g++ -fsanitize=address,undefined
+CXX = g++
 
 SRCS= btreepic.C deway.C evalExp.C fibonacci.C generate_forest.C	\
 	gen_rand_graph.C graphpic.C joseph.C ntreepic.C polinom.C 	\
@@ -57,7 +58,7 @@ LOCALLIBS=	../libAleph.a
 
 DEPLIBS=	../libAleph.a
 
-SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lasprintf -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
+SYSLIBS=	 -lgmpxx -lgmp -lstdc++ -lpthread -lmpfr -lgsl -lgslcblas -lm -lX11 -lc
 
 INCLUDES =      -I../
 
@@ -72,7 +73,7 @@ DEFINES=	-D_GLIBCXX__PTHREADS
 
 OPTIONS=	$(FLAGS) $(MSG) $(WARN) $(DEFINES)
 
-CXXFLAGS=	 -std=c++20 $(INCLUDES) $(OPTIONS)
+CXXFLAGS=	 -std=c++23 $(INCLUDES) $(OPTIONS)
 
 AllTarget(btreepic)
 NormalProgramTarget(btreepic,btreepic.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,11 +23,49 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_indexGraph.H
+ *  @brief Graph indexing utilities for O(log n) node/arc lookup.
+ *
+ *  @par Example: Fast node lookup by value
+ *  @code
+ *  using GT = List_Graph<Graph_Node<int>, Graph_Arc<int>>;
+ *  GT g;
+ *  Index_Graph<GT> idx(g);
+ *  
+ *  // Insert nodes
+ *  auto n1 = idx.insert_node(100);
+ *  auto n2 = idx.insert_node(200);
+ *  auto n3 = idx.insert_node(300);
+ *  
+ *  // O(log n) search by value
+ *  auto found = idx.search_node(200);
+ *  if (found)
+ *    cout << "Found node: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: Fast arc lookup
+ *  @code
+ *  idx.insert_arc(n1, n2, 12);
+ *  
+ *  // O(log n) arc search
+ *  auto arc = idx.search_arc(n1, n2);
+ *  if (arc)
+ *    cout << "Arc weight: " << arc->get_info() << endl;
+ *  @endcode
+ *
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_INDEXGRAPH
 # define TPL_INDEXGRAPH
 
 # include <tpl_indexNode.H>
 # include <tpl_indexArc.H>
+
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -67,7 +104,7 @@ namespace Aleph
 
       @see IndexArc IndexNode
 
-      @ingroup Grafos
+      @ingroup Graphs
       @author Leandro Rabindranath León (lrleon en ula punto ve)
       @author Alejandro Mujica (aledrums en gmail punto com)
   */
@@ -117,11 +154,11 @@ public:
   GT_Arc * insert_arc(GT_Node * src, GT_Node * tgt,
                       const GT_Arc_Type & info = GT_Arc_Type())
   {
-    if (idx_node.search(src) == nullptr)
-      throw std::domain_error("src node not in index");
+    ah_domain_error_if(idx_node.search(src) == nullptr)
+        << "src node not in index";
 
-    if (idx_node.search(tgt) == nullptr)
-      throw std::domain_error("tgt node not in index");
+    ah_domain_error_if(idx_node.search(tgt) == nullptr)
+        << "tgt node not in index";
 
     return idx_arc.insert_in_graph(src, tgt, info);
   }

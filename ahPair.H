@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
 /*
  *
  * Copyright (c) 1994
@@ -50,94 +50,41 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  */
 
+/** @file ahPair.H
+ *  @brief Pair utilities and make_pair function.
+ *
+ *  Provides pair-related utilities compatible with std::pair.
+ *  Based on SGI STL implementation with Aleph-w extensions.
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef AHPAIR_H
 # define AHPAIR_H 1
 
+# include <utility>
+
 namespace Aleph
 {
-      template<class _T1, class _T2>
-  struct pair
-  {
-    typedef _T1 first_type;    
-    typedef _T2 second_type;   
+  /** @brief Alias to `std::pair` kept for backwards compatibility.
+   *
+   * Aleph historically provided its own `pair` type prior to C++11. Modern
+   * compilers already ship a standards-compliant implementation in
+   * `<utility>`, so this header simply re-exports that type within the
+   * Aleph namespace to avoid code churn in legacy headers.
+   *
+   * All constructors, assignment operators and comparison operators behave
+   * exactly like the ones provided by `std::pair`.
+   *
+   * @tparam First First element type.
+   * @tparam Second Second element type.
+   */
+  template<typename First, typename Second>
+  using pair = std::pair<First, Second>;
 
-    _T1 first;                 
-    _T2 second;                
-
-    pair() : first(), second() { }
-
-    pair(const _T1 & __a, const _T2 & __b) : first(__a), second(__b) { }
-
-    pair(const _T1& __a) : first(__a) { }
-
-        template<class _U1, class _U2>
-    pair(const pair<_U1, _U2> & __p)
-      : first(__p.first), second(__p.second) { }
-
-    pair & operator = (const pair & p)
-    {
-      if (this == &p)
-	return *this;
-
-      first  = p.first;
-      second = p.second;
-
-      return *this;
-    }
-  };
-
-
-      template<class _T1, class _T2> inline 
-  bool operator == (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return __x.first == __y.first and __x.second == __y.second; 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator < (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return __x.first < __y.first
-      or (not (__y.first < __x.first) and __x.second < __y.second); 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator != (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return not (__x == __y); 
-  }
-
-
-      template<class _T1, class _T2> inline 
-  bool operator > (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  {
-    return __y < __x; 
-  }
-
-
-      template<class _T1, class _T2> inline
-  bool operator <= (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  { 
-    return not (__y < __x); 
-  }
-
-
-      template<class _T1, class _T2> inline
-  bool operator >= (const pair<_T1, _T2>& __x, const pair<_T1, _T2>& __y)
-  {
-    return not (__x < __y); 
-  }
-
-  
-      template<class _T1, class _T2> inline
-  pair<_T1, _T2> make_pair(_T1 __x, _T2 __y) 
-  {
-    return pair<_T1, _T2>(__x, __y); 
-  }
-
-
+  /// Re-export `std::make_pair` so existing code can refer to Aleph::std::make_pair.
+  using std::make_pair;
 } // namespace Aleph
 
 # endif /* AHPAIR_H */

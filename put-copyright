@@ -14,7 +14,7 @@ note = %Q<
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2022 Leandro Rabindranath Leon
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,11 +31,42 @@ note = %Q<
 */
 >
 
-pat = /\/\* Aleph-w.*\*\//m
+pat = /\/\* Aleph-w.*?\*\//m
 
+def process_file(file_name, pat, note)
+  file = File.new(file_name).read
+  file.gsub(pat, note)
+end
 
-file_name = ARGV.shift
+def collect_files(paths)
+  files = []
+  paths.each do |path|
+    if File.directory?(path)
+      Dir.glob("#{path}/*.{h,H,c,C,cc}").each { |f| files << f }
+    elsif File.file?(path)
+      files << path
+    end
+  end
+  files
+end
 
-file = File.new(file_name).read
-
-puts file.gsub(pat, note)
+if ARGV.empty?
+  files = collect_files(['.', 'Tests', 'Examples'])
+  files.each do |file_name|
+    puts "Processing: #{file_name}"
+    result = process_file(file_name, pat, note)
+    File.write("#{file_name}.tmp", result)
+    FileUtils.mv("#{file_name}.tmp", file_name)
+  end
+elsif ARGV.length == 1 && !ARGV[0].include?('/')
+  file_name = ARGV[0]
+  puts process_file(file_name, pat, note)
+else
+  files = collect_files(ARGV)
+  files.each do |file_name|
+    puts "Processing: #{file_name}"
+    result = process_file(file_name, pat, note)
+    File.write("#{file_name}.tmp", result)
+    FileUtils.mv("#{file_name}.tmp", file_name)
+  end
+end

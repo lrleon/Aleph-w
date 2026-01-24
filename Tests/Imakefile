@@ -124,5 +124,6 @@ NormalProgramTarget(al-matrix,al-matrix.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 AllTarget(ah-arena)
 NormalProgramTarget(ah-arena,ah-arena.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 
-
+AllTarget(ah-string-utils)
+NormalProgramTarget(ah-string-utils,ah-string-utils.o,$(DEPLIBS),$(LOCALLIBS),$(SYSLIBS))
 DependTarget()

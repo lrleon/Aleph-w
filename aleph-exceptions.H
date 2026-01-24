@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,55 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file aleph-exceptions.H
+ *  @brief Custom exception classes with source location tracking.
+ *
+ *  This file provides AlephException, a custom exception class that
+ *  captures file name, line number, and function name where the
+ *  exception was thrown.
+ *
+ *  ## Key Features
+ *
+ *  - Inherits from std::runtime_error
+ *  - Captures source location (file, line, function)
+ *  - Human-readable error messages
+ *  - Macro for defining new exception types
+ *
+ *  ## AlephException Members
+ *
+ *  - `line_number`: Line where exception was thrown
+ *  - `file_name`: Source file name
+ *  - `function_name`: Function where thrown
+ *
+ *  ## Defining Custom Exceptions
+ *
+ *  Use the DEFINE_ALEPH_EXCEPTION macro:
+ *
+ *  ```cpp
+ *  DEFINE_ALEPH_EXCEPTION(MyError);
+ *
+ *  // Usage:
+ *  throw MyError(__FILE__, __LINE__, "my_function", "Something failed");
+ *  ```
+ *
+ *  ## Recommended Alternative
+ *
+ *  For new code, prefer using `ah-errors.H` macros which provide
+ *  automatic source location capture:
+ *
+ *  ```cpp
+ *  ah_domain_error_if(x < 0, "x must be positive");
+ *  ```
+ *
+ *  @see ah-errors.H Modern error handling macros
+ *  @see ahUtils.H Utility functions used by exceptions
+ *
+ *  @ingroup Exceptions
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_EXCEPTIONS_H
 # define ALEPH_EXCEPTIONS_H
 
@@ -31,8 +79,6 @@
 # include <sstream>
 
 # include <ahUtils.H>
-
-using namespace std;
 
 /** Aleph exception class
 
@@ -47,24 +93,24 @@ struct AlephException : public std::runtime_error
   const size_t line_number = 0;
   
   /// file name where the exception was thrown 
-  const string file_name = "No defined"; 
+  const std::string file_name = "No defined"; 
 
-  const string type = "No defined"; /// Type name
-  const string msg = "No defined"; /// Message describing the error
+  const std::string type = "No defined"; /// Type name
+  const std::string msg = "No defined"; /// Message describing the error
 
 protected:
 
-  string category_msg = "No defined";
+  std::string category_msg = "No defined";
 
 private:
 
-  static string make_what(const string & category_msg,
-			  size_t line_number,
-			  const string & file_name,
-			  const string & type,
-			  const string & msg)
+  static std::string make_what(const std::string & category_msg,
+			       size_t line_number,
+			       const std::string & file_name,
+			       const std::string & type,
+			       const std::string & msg)
   {
-    ostringstream s;
+    std::ostringstream s;
     s << category_msg << "|" << file_name << "|" << line_number
       << "|" << type << "|" << msg;
     return s.str();
@@ -72,13 +118,13 @@ private:
 
 public:
 
-  AlephException() : runtime_error(msg) {}
+  AlephException() : std::runtime_error(msg) {}
 
-  AlephException(const string & category_msg,
+  AlephException(const std::string & category_msg,
 	       const size_t line_number,
-	       const string & file_name,
-	       const string & type,
-	       const string & msg)
+	       const std::string & file_name,
+	       const std::string & type,
+	       const std::string & msg)
     : runtime_error(make_what(category_msg, line_number, file_name, type, msg)),
       line_number(line_number), file_name(file_name), type(type) {}
 };
@@ -95,9 +141,9 @@ public:
   struct name : public AlephException					\
   {									\
     name(const size_t line_number,					\
-	 const string & file_name,					\
-	 const string & type,						\
-	 const string & msg)						\
+	 const std::string & file_name,					\
+	 const std::string & type,					\
+	 const std::string & msg)					\
       : AlephException(#category_msg, line_number, file_name, type, msg) {} \
   };
 
@@ -106,6 +152,7 @@ public:
    @param[in] type aleph exception class name
    @param[in] msg message describing the error
    @ingroup Exceptions
+ *  @author Leandro Rabindranath León
  */
 # define ALEPHTHROW(type, msg) throw type(__LINE__, __FILE__, #type, msg)
 

@@ -1,29 +1,89 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-   / \  | | ___ _ __ | |__      __      __
-   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-   |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
-   This file is part of Aleph-w library
+  This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program. If not, see <https://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file Tarjan.H
+ *  @brief Tarjan's algorithm for strongly connected components.
+ *
+ *  This file implements Tarjan's algorithm for finding strongly connected
+ *  components (SCCs) in directed graphs. An SCC is a maximal subset of
+ *  vertices where every vertex is reachable from every other vertex.
+ *
+ *  ## Algorithm Overview
+ *
+ *  Tarjan's algorithm uses a single DFS traversal with a stack to identify
+ *  SCCs. Each node is assigned:
+ *  - **index**: Order of first visit
+ *  - **lowlink**: Lowest index reachable from subtree
+ *
+ *  When lowlink[v] == index[v], v is the root of an SCC.
+ *
+ *  ## Key Features
+ *
+ *  - Single DFS pass (optimal)
+ *  - Returns SCCs in reverse topological order
+ *  - Can build condensation graph (DAG of SCCs)
+ *  - Detects cycles in digraphs
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time | Space |
+ *  |-----------|------|-------|
+ *  | Find all SCCs | O(V + E) | O(V) |
+ *  | Build condensation | O(V + E) | O(V + E) |
+ *
+ *  ## Applications
+ *
+ *  - Detecting cycles in directed graphs
+ *  - Computing 2-SAT satisfiability
+ *  - Finding strongly connected components
+ *  - Building DAG condensation for topological analysis
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  List_Digraph<Node, Arc> g;
+ *  // ... build digraph ...
+ *
+ *  DynList<DynList<Node*>> sccs;
+ *  Tarjan_Connected_Components<decltype(g)> tarjan;
+ *  tarjan.connected_components(g, sccs);
+ *
+ *  for (auto& scc : sccs) {
+ *    std::cout << "SCC with " << scc.size() << " nodes\n";
+ *  }
+ *  ```
+ *
+ *  @see Kosaraju.H Alternative SCC algorithm (two DFS passes)
+ *  @see topological_sort.H Topological ordering for DAGs
+ *
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TARJAN_H
 # define TARJAN_H
 
@@ -32,20 +92,73 @@
 # include <htlist.H>
 # include <tpl_graph_utils.H>
 # include <tpl_find_path.H>
+# include <ah-errors.H>
 
-namespace Aleph {
-
-
-  /** Operaciones sobre componentes fuertemente conexos de un digrafo
-      empleando el algoritmo de Tarjan para el cálculo de los
-      componentes fuertemente conexos de un grafo.
-
-      La clase emplea dos parámetros tipo:
-      -# GT: la clase digrafo.
-      -# SA: el filtro de arcos que emplea el iterador interno.
-
-      @ingroup Grafos
-  */
+namespace Aleph
+{
+  /**
+   * @class Tarjan_Connected_Components
+   * @brief Computes strongly connected components (SCCs) in a directed graph
+   *        using Tarjan's algorithm.
+   *
+   * This class implements Tarjan's algorithm for finding strongly connected
+   * components in directed graphs. A strongly connected component is a maximal
+   * set of vertices where every vertex is reachable from every other vertex in
+   * the component.
+   *
+   * Tarjan's algorithm performs a single depth-first traversal to identify all
+   * SCCs in O(V + E) time complexity, where V is the number of vertices and E
+   * is the number of edges.
+   *
+   * @tparam GT The directed graph type (based on List_Graph or similar).
+   * @tparam Itor The iterator template for traversing adjacent nodes/arcs.
+   *              Defaults to Out_Iterator for outgoing arcs.
+   * @tparam SA The arc filter class used by the internal iterator.
+   *            Defaults to Dft_Show_Arc<GT> which shows all arcs.
+   *
+   * The class provides multiple overloaded methods for computing SCCs in
+   * different output formats:
+   * - As a list of subgraphs (mapped copies of original graph components)
+   * - As a list of node lists (lightweight, no graph copying)
+   * - As a list of component sizes (counts only)
+   *
+   * Additional functionality:
+   * - Cycle detection: `has_cycle()`, `is_dag()`
+   * - Cycle construction: `compute_cycle()`
+   * - Strong connectivity testing: `test_connectivity()`
+   *
+   * Usage example:
+   * @code
+   * List_Digraph<int> g;
+   * // ... build graph ...
+   *
+   * Tarjan_Connected_Components<List_Digraph<int>> tarjan;
+   *
+   * // Get SCCs as node lists
+   * auto sccs = tarjan.connected_components(g);
+   * for (auto & scc : sccs)
+   *   {
+   *     // Process each SCC
+   *     for (auto node : scc)
+   *       process(node);
+   *   }
+   *
+   * // Check for cycles
+   * if (tarjan.has_cycle(g))
+   *   std::cout << "Graph contains a cycle" << '\n';
+   * @endcode
+   *
+   * @note The algorithm uses node bits (Aleph::Min, Aleph::Depth_First) and
+   *       node counters/cookies for bookkeeping during traversal.
+   *
+   * @warning This class is NOT thread-safe. Concurrent access to the same
+   *          instance or to the same graph from multiple threads will result
+   *          in undefined behavior.
+   *
+   * @see Compute_Cycle_In_Digraph
+   * @ingroup Graphs
+   * @author Leandro Rabindranath León (lrleon at ula dot ve)
+   */
   template <class GT,
             template <typename, class> class Itor = Out_Iterator,
             class SA = Dft_Show_Arc<GT>>
@@ -53,45 +166,69 @@ namespace Aleph {
   {
     SA sa;
 
-    GT * g_ptr = nullptr;
+    GT *g_ptr = nullptr;
 
-    DynListStack<typename GT::Node*> stack;
+    DynListStack<typename GT::Node *> stack;
 
     long df_count = 0;
-    mutable size_t n = 0; // número de nodos del grafo
+	    mutable size_t n = 0; // number of nodes in the graph
 
-    // lista de listas; cada lista almacena los nodos de los bloques
-    DynList<DynList<typename GT::Node*>> * list_list_ptr = nullptr;
-
-    DynList <GT> * block_list_ptr = nullptr; // lista de bloques fuertemente conexos
-
-    DynList<size_t> * list_len_ptr = nullptr; // lista de tamaños de componentes
-
-    Path<GT> * path_ptr = nullptr;
+	    Path<GT> *path_ptr = nullptr;
 
   public:
+    /// Tarjan instances should not be copied (they hold internal traversal state)
+    Tarjan_Connected_Components(const Tarjan_Connected_Components &) = delete;
 
-    Tarjan_Connected_Components(SA  __sa = SA())
-      : sa(__sa) { /* empty */ }
+    Tarjan_Connected_Components &operator=(const Tarjan_Connected_Components &) = delete;
+
+    /// Move is allowed
+    Tarjan_Connected_Components(Tarjan_Connected_Components &&) = default;
+
+    Tarjan_Connected_Components &operator=(Tarjan_Connected_Components &&) = default;
+
+    /** Constructs a Tarjan algorithm instance for computing strongly connected components.
+
+        @param[in] __sa Arc filter functor used by the internal iterator.
+                        Defaults to Dft_Show_Arc<GT> which shows all arcs.
+     */
+    Tarjan_Connected_Components(SA __sa = SA()) noexcept
+      : sa(std::move(__sa))
+    { /* empty */
+    }
 
   private:
-
+    /** @brief Functor to initialize node metadata for Tarjan traversal.
+     *
+     *  Resets all bits, counters (df), and sets low to -1 for each node.
+     */
     struct Init_Tarjan_Node
     {
-      void operator () (const GT & g, typename GT::Node * p) const noexcept
+      void operator ()(const GT & g, typename GT::Node *p) const noexcept
       {
         g.reset_bits(p);
-        g.reset_counter(p); // inicializa df
-        low <GT> (p) = -1;  // inicializa low
+        g.reset_counter(p); // initialize df
+        low<GT>(p) = -1; // initialize low
       }
     };
 
-    bool is_node_in_stack(typename GT::Node * p) const noexcept
+    /** @brief Check if a node is currently on the traversal stack.
+     *  @param p The node to check.
+     *  @return true if the node is on the stack, false otherwise.
+     */
+    bool is_node_in_stack(typename GT::Node *p) const noexcept
     {
+      assert(p != nullptr);
       return IS_NODE_VISITED(p, Aleph::Min);
     }
 
-    void init_node_and_push_in_stack(typename GT::Node * p)
+    /** @brief Initialize a node and push it onto the traversal stack.
+     *
+     *  Sets the Min and Depth_First bits, assigns df and low values,
+     *  and pushes the node onto the stack.
+     *
+     *  @param p The node to initialize and push.
+     */
+    void init_node_and_push_in_stack(typename GT::Node *p)
     {
       assert(not is_node_in_stack(p));
 
@@ -101,6 +238,9 @@ namespace Aleph {
       df<GT>(p) = low<GT>(p) = df_count++;
     }
 
+    /** @brief Pop a node from the traversal stack.
+     *  @return The popped node.
+     */
     typename GT::Node * pop_from_stack()
     {
       auto ret = stack.pop();
@@ -109,34 +249,38 @@ namespace Aleph {
       return ret;
     }
 
-    void scc_by_blocks(typename GT::Node * v)
-    {
-      init_node_and_push_in_stack(v);
+    /** @brief Recursive DFS to find SCCs and build mapped subgraphs.
+     *
+     *  For each SCC found, creates a mapped copy subgraph and appends
+     *  it to block_list_ptr.
+     *
+     *  @param v The current node being visited.
+     */
+	    void scc_by_blocks(typename GT::Node *v, DynList<GT> & blk_list)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        {
-          auto w = g_ptr->get_tgt_node(it.get_curr());
-          if (not IS_NODE_VISITED(w, Aleph::Depth_First))
-            {
-              scc_by_blocks(w);
-              low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
-            }
-          else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
-            low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
-        }
+	      // depth-first traverse all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_blocks(w, blk_list);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
-      if (low <GT> (v) == df <GT> (v)) // ¿primer nodo visitado del bloque?
-        {	    // sí ==> saque los nodos del bloque que están en pila
-          const auto & blk_idx = block_list_ptr->size();
-          GT & blk = block_list_ptr->append(GT());
+	      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+	        { // yes ==> pop block nodes from stack
+	          const auto & blk_idx = blk_list.size();
+	          GT & blk = blk_list.append(GT());
 
-          while (true) // sacar el bloque de la pila hasta sacar a v
+          while (true) // remove block from stack until v is removed
             {
               auto p = pop_from_stack();
               auto q = blk.insert_node(p->get_info());
-              *q = *q; // copia contenido del nodo
+              *q = *p; // copy node content
               NODE_COOKIE(p) = NODE_COOKIE(q) = nullptr;
               GT::map_nodes(p, q);
               NODE_COUNTER(p) = NODE_COUNTER(q) = blk_idx;
@@ -146,88 +290,121 @@ namespace Aleph {
         }
     }
 
-    void scc_by_lists(typename GT::Node * v)
-    {
-      init_node_and_push_in_stack(v);
+    /** @brief Recursive DFS to find SCCs and collect nodes into lists.
+     *
+     *  For each SCC found, collects the node pointers into a list
+     *  and appends it to list_list_ptr.
+     *
+     *  @param v The current node being visited.
+     */
+	    void scc_by_lists(typename GT::Node *v,
+	                      DynList<DynList<typename GT::Node *>> & blks)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        {
-          auto w = g_ptr->get_tgt_node(it.get_curr());
-          if (not IS_NODE_VISITED(w, Aleph::Depth_First))
-            {
-              scc_by_lists(w);
-              low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
-            }
-          else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
-            low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
-        }
+	      // depth traversal all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_lists(w, blks);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
-        {     // sí ==> saque los nodos del bloque que están en pila
-          auto & l = list_list_ptr->append(DynList<typename GT::Node*>());
-          while (true) // sacar bloque de pila hasta llegar a v
-            {
-              auto p = pop_from_stack();
-              l.append(p);
+	      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+	        { // yes pop out block nodes that are on stack
+	          auto & l = blks.append(DynList<typename GT::Node *>());
+	          while (true) // remove block from stack until reaching v
+	            {
+	              auto p = pop_from_stack();
+	              l.append(p);
               if (p == v)
                 break;
             }
         }
     }
 
-    void scc_by_len(typename GT::Node * v)
-    {
-      init_node_and_push_in_stack(v);
+    /** @brief Recursive DFS to find SCCs and count their sizes.
+     *
+     *  For each SCC found, counts the number of nodes and appends
+     *  the count to list_len_ptr.
+     *
+     *  @param v The current node being visited.
+     */
+	    void scc_by_len(typename GT::Node *v, DynList<size_t> & sizes)
+	    {
+	      init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
-        {
-          auto w = g_ptr->get_tgt_node(it.get_curr());
-          if (not IS_NODE_VISITED(w, Aleph::Depth_First))
-            {
-              scc_by_len(w);
-              low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
-            }
-          else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
-            low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
-        }
+	      // depth traverse all nodes connected to v
+	      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+	        if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
+	          {
+	            scc_by_len(w, sizes);
+	            low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
+	          }
+	        else if (is_node_in_stack(w))
+	          // if on stack ==> v was visited before w
+	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
-        {     // sí ==> saque los nodos del bloque que están en pila
+      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+        { // yes, pop out block nodes that are on stack
           size_t count = 0;
-          while (true) // sacar bloque de pila hasta llegar a v
+          while (true) // remove block from stack until reaching v
             {
               auto p = pop_from_stack();
               ++count;
 
-              if (p == v)
-                break;
-            }
-          list_len_ptr->append(count);
-        }
-    }
+	              if (p == v)
+	                break;
+	            }
+	          sizes.append(count);
+	        }
+	    }
 
+    /** @brief Initialize internal state for a Tarjan traversal.
+     *
+     *  Resets node metadata, clears the stack, and stores a pointer
+     *  to the graph.
+     *
+     *  @param g The graph to traverse.
+     *
+     *  @note Uses const_cast internally because the algorithm modifies
+     *        node metadata (bits, counters, cookies) but not the graph
+     *        structure itself.
+     */
     void init_tarjan(const GT & g)
     {
-      Operate_On_Nodes <GT, Init_Tarjan_Node> () (g); // inicia bits, df y low
-      df_count = 0; // contador de visitas
+      Operate_On_Nodes<GT, Init_Tarjan_Node>()(g); // initialize bits, df and low
+      df_count = 0; // visitor counter
       stack.empty();
       n = g.get_num_nodes();
-      g_ptr = &const_cast<GT&>(g);
+
+      g_ptr = &const_cast<GT &>(g);
     }
 
-    // retorna true si se encuentra un ciclo desde v
-    bool has_cycle(typename GT::Node * v)
+    /** @brief Recursive DFS to detect if a cycle exists starting from v.
+     *
+     *  Detects cycles including self-loops (cycles of length 1) and
+     *  strongly connected components with 2+ nodes.
+     *
+     *  @param v The current node being visited.
+     *  @return true if a cycle is found, false otherwise.
+     */
+    bool has_cycle(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+      // depth traverse all nodes connected to v
+      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
+
+          // Check for self-loop (a cycle of length 1)
+          if (w == v)
+            return true;
+
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (has_cycle(w))
@@ -236,41 +413,49 @@ namespace Aleph {
               low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before w
             low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado de bloque?
-        {     // sí ==> verifique si tiene dos o más nodos
-          int i = 0;
-          for (; i < 2; ++i) // sacar bloque de la pila hasta sacar a v
-            if (pop_from_stack() == v)
-              break;
+      if (low<GT>(v) == df<GT>(v)) // first visited node of block?
+        { // yes, check if component has two or more nodes
+          size_t count = 0;
+          while (true)
+            {
+              ++count;
+              if (pop_from_stack() == v)
+                break;
+            }
 
-          return i >= 2; // si i>= 2 ==> hay un ciclo
+          return count >= 2; // if count >= 2 ==> there is a cycle
         }
 
-      return false; // se recorrió todo v sin encontrar ciclo
+      return false; // everything was covered without finding a cycle
     }
 
-    // Toma el bloque block, que está mapeado del grafo original, que es
-    // fuertemente conexo, y construye en path_ptr el ciclo
+    /** @brief Build a cycle path from a strongly connected block.
+     *
+     *  Takes a mapped strongly connected subgraph and constructs the
+     *  cycle path in path_ptr using the node mapping table.
+     *
+     *  @param block The strongly connected subgraph (mapped from original).
+     *  @param table Bidirectional mapping between original and block nodes.
+     */
     void
-    build_path(const GT &                                             block, 
-               DynMapAvlTree<typename GT::Node*, typename GT::Node*> & table)
+    build_path(const GT & block,
+               DynMapAvlTree<typename GT::Node *, typename GT::Node *> & table)
     {
-      // buscar ciclo en blk.
-      auto a     = block.get_first_arc();
+      // Search for a cycle in the block
+      auto a = block.get_first_arc();
       auto start = block.get_tgt_node(a);
-      auto end   = block.get_src_node(a);
+      auto end = block.get_src_node(a);
       assert(start != end);
 
       auto aux_path = Directed_Find_Path<GT, Itor, SA>(block, sa).dfs(start, end);
-      assert(not aux_path.is_empty()); // como es conexo debe encontrarse
+      assert(not aux_path.is_empty()); // since it's connected it must be found
 
-      // aux_path es sobre el bloque mapeado. Pero nosotros necesitamos
-      // que el camino sea sobre el grafo original. Los nodos del grafo
-      // original se recuperan del mapeo table
+      // aux_path is about the mapped block. We need to translate it back
+      // to the original graph using the mapping table.
       path_ptr->empty();
       for (typename Path<GT>::Iterator i(aux_path); i.has_curr(); i.next_ne())
         path_ptr->append_directed(table.find(i.get_current_node_ne()));
@@ -278,16 +463,32 @@ namespace Aleph {
       path_ptr->append_directed(path_ptr->get_first_node());
     }
 
-    // retorna true si encuentra un ciclo, en cuyo caso lo pone en
-    // path. De lo contrario, retorna false y path queda intacto
-    bool build_cycle(typename GT::Node * v)
+    /** @brief Recursive DFS to find and construct a cycle starting from v.
+     *
+     *  If a cycle is found (including self-loops), constructs it in path_ptr.
+     *
+     *  @param v The current node being visited.
+     *  @return true if a cycle is found and stored in path_ptr, false otherwise.
+     */
+    bool build_cycle(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+      // depth traverse all nodes connected to v
+      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
           auto w = g_ptr->get_tgt_node(it.get_curr());
+
+          // Check for self-loop (a cycle of length 1)
+          if (w == v)
+            {
+              // Build a simple self-loop path: v -> v
+              path_ptr->empty();
+              path_ptr->init(v);
+              path_ptr->append_directed(v);
+              return true;
+            }
+
           if (not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (build_cycle(w))
@@ -296,23 +497,23 @@ namespace Aleph {
               low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
             }
           else if (is_node_in_stack(w))
-            // si está en pila ==> v fue visitado antes que p
+            // if on stack ==> v was visited before w
             low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado del bloque?
+      if (low<GT>(v) == df<GT>(v)) //first visited node of the block?
         {
-          GT blk; // grafo auxiliar
+          GT blk; // auxiliary graph
 
-          // mapeo de nodos de g con blk (los cookies están ocupados)
-          DynMapAvlTree<typename GT::Node*, typename GT::Node*> table;
+          //g node mapping to blk (cookies are busy)
+          DynMapAvlTree<typename GT::Node *, typename GT::Node *> table;
 
-          // saque nodos de pila e insertelos en bloque auxiliar
-          while (true) // saca el componente y lo inserta en blk
+          // pop nodes from stack and insert them into auxiliary block
+          while (true) // pop the component and insert into blk
             {
               auto p = pop_from_stack();
               auto q = blk.insert_node();
-              *q = *p; // copia contenido del nodo
+              *q = *p; // copy node content
               table.insert(q, p);
               table.insert(p, q);
               if (p == v)
@@ -320,25 +521,25 @@ namespace Aleph {
             }
 
           if (blk.get_num_nodes() == 1)
-            return false; // si blk sólo tiene un nodo no hay ciclo
+            return false; // single node without self-loop ==> no cycle
 
-    	    // terminanos de construir el bloque con los arcos
+          // finish constructing the block with the arcs
           for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
             {
               auto bsrc = j.get_curr();
               auto gsrc = table.find(bsrc);
 
-    	        // recorrer los arcos de gsrc
-              for (Itor <GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
+              // traverse the arcs of gsrc
+              for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
                 {
-                  auto ga   = k.get_curr();
+                  auto ga = k.get_curr();
                   auto gtgt = g_ptr->get_tgt_node(ga);
-                  auto ptr  = table.search(gtgt);
-                  if (ptr == nullptr) // ¿arco del bloque?
+                  auto ptr = table.search(gtgt);
+                  if (ptr == nullptr) // arc of the block?
                     continue;
 
                   auto ta = blk.insert_arc(bsrc, ptr->second);
-                  *ta = *ga; // copia contenido del arco
+                  *ta = *ga; // copy arc content
                 }
             }
 
@@ -352,27 +553,34 @@ namespace Aleph {
       return false;
     }
 
-    bool is_connected(typename GT::Node * v)
+    /** @brief Recursive DFS to test if the graph is strongly connected.
+     *
+     *  Returns true if and only if all nodes belong to a single SCC.
+     *  The algorithm detects early if multiple SCCs exist.
+     *
+     *  @param v The current node being visited.
+     *  @return true if all visited nodes so far form one SCC, false otherwise.
+     */
+    bool is_connected(typename GT::Node *v)
     {
       init_node_and_push_in_stack(v);
 
-      // recorrer en profundidad todos los nodos conectados a v
-      for (Itor <GT, SA> it(v, sa); it.has_curr(); it.next_ne())
+      // depth-first traverse all nodes connected to v
+      for (Itor<GT, SA> it(v, sa); it.has_curr(); it.next_ne())
         {
-          auto w = g_ptr->get_tgt_node(it.get_curr());
-          if (not IS_NODE_VISITED(w, Aleph::Depth_First))
+          if (auto w = g_ptr->get_tgt_node(it.get_curr()); not IS_NODE_VISITED(w, Aleph::Depth_First))
             {
               if (not is_connected(w))
                 return false;
 
-              low <GT> (v) = std::min(low <GT> (v), low <GT> (w));
+              low<GT>(v) = std::min(low<GT>(v), low<GT>(w));
             }
           else if (is_node_in_stack(w))
-            low <GT> (v) = std::min(low <GT> (v), df <GT> (w));
+            low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
         }
 
-      if (low<GT>(v) == df<GT>(v)) // ¿primer nodo visitado de bloque?
-        {     // saque nodos de pila hasta encontrar a v
+      if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
+        { // pop nodes from stack until v is found
           while (pop_from_stack() != v);
 
           return stack.is_empty();
@@ -382,195 +590,213 @@ namespace Aleph {
     }
 
   public:
+    /** Computes the strongly connected components of a digraph.
 
-    /** Calcula los componentes fuertemente conexos de un digrafo.
+        connected_components() takes a digraph g (supposedly weakly connected),
+        computes its disconnected subgraphs or components, and stores them in
+        a dynamic list blk_list of mapped subdigraphs (both nodes and arcs are
+        mapped). The emphasis on the supposed connected character of the graph
+        is because if the graph were not connected, then the resulting list
+        would contain only one element corresponding to the mapped copy digraph
+        of g. If this were the case, then it is preferable to use the
+        copy_graph() function instead.
 
-        connected_components() toma un digrafo g,
-        "supuestamente débilmente conexo", calcula sus subgrafos o componentes
-        inconexos y los almacena en una lista dinámica blk_list de subdigrafos
-        mapeados, tanto en los nodos como en los arcos. El énfasis en el
-        supuesto carácter conexo del grafo se debe a que si el grafo no
-        fuese conexo, entonces la lista resultante contendría un solo
-        elemento correspondiente al digrafo copia mapeado de g. Si este
-        fuese el caso, entonces es preferible hacerlo con la función
-        copy_graph().
+        The function is based on Tarjan's algorithm.
 
-        La función se basa en el algoritmo de Tarjan.
+        The function uses the build_subtree bit to mark visited nodes and arcs.
 
-        La función se vale del bit build_subtree para marcar nodos y
-        arcos visitados.
+        The algorithm internally discovers components through depth-first search.
 
-        El algoritmo internamente descubre los componentes mediante
-        búsquedas en profundidad.
-
-        @param[in] g el grafo sobre el cual se desea calcular sus bloques.
-        @param[out] blk_list lista de subgrafos mapeados a g con los
-        subgrafos o componentes inconexos de g.
-        @param[out] arc_list lista de arcos que conectan a los bloques.
-        @throw bad_alloc si no hay memoria para construir algún bloque o
-        insertar en la lista.
+        @param[in] g the graph on which to compute its blocks.
+        @param[out] blk_list list of subgraphs mapped to g containing the
+        disconnected subgraphs or components of g.
+        @param[out] arc_list list of arcs connecting the blocks.
+        @throw bad_alloc if there is not enough memory to build a block or
+        insert into the list.
         @see copy_graph()
     */
-    void connected_components(const GT & g, DynList<GT> & blk_list,
-                              DynList<typename GT::Arc*> & arc_list)
-    {
-      init_tarjan(g);
+	    void connected_components(const GT & g, DynList<GT> & blk_list,
+	                              DynList<typename GT::Arc *> & arc_list)
+	    {
+	      init_tarjan(g);
 
-      block_list_ptr = &blk_list;
-
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First))
-            scc_by_blocks(v);
-        }
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_blocks(v, blk_list);
 
       assert(stack.is_empty());
 
-      // recorrer cada uno de subgrafos parciales y añadir sus arcos
+      // traverse each partial subgraph and add its arcs
       for (typename DynList<GT>::Iterator i(blk_list); i.has_curr(); i.next_ne())
-        {     // recorrer todos los nodos del bloque
+        { // traverse all nodes of the block
           GT & blk = i.get_curr();
           for (typename GT::Node_Iterator j(blk); j.has_curr(); j.next_ne())
             {
               auto bsrc = j.get_curr();
               auto gsrc = mapped_node<GT>(bsrc);
 
-              // recorrer arcos de gsrc
+              // traverse arcs of gsrc
               for (Itor<GT, SA> k(gsrc, sa); k.has_curr(); k.next_ne())
                 {
-                  auto ga   = k.get_curr();
+                  auto ga = k.get_curr();
                   auto gtgt = g_ptr->get_tgt_node(ga);
                   if (NODE_COUNTER(gsrc) != NODE_COUNTER(gtgt))
-                    {   // arco inter-bloque ==> añádalo a arc_list
+                    { // inter-block arc ==> add it to arc_list
                       arc_list.append(ga);
                       continue;
                     }
 
-                  // insertar y mapear el arco en el sub-bloque
+                  // insert and map the arc in the sub-block
                   auto btgt = mapped_node<GT>(gtgt);
                   auto ba = blk.insert_arc(bsrc, btgt);
-                  *ba = *ga; // copia contenido del arco
+                  *ba = *ga; // copy arc content
                   GT::map_arcs(ga, ba);
                 }
             }
         }
     }
 
-    /** Calcula los componentes fuertemente conexos de un digrafo.
+    /** Computes the strongly connected components of a digraph.
 
-        Esta versión sobrecargada connected_components() toma un digrafo g,
-        "supuestamente débilmente conexo", calcula sus subgrafos o componentes
-        inconexos y los almacena en una lista dinámica list de listas de nodos.
+        This overloaded version of connected_components() takes a digraph g
+        (supposedly weakly connected), computes its disconnected subgraphs or
+        components, and stores them in a dynamic list of node lists.
 
-        Cada lista contiene los nodos que pertenecen al componente
-        fuertemente conexo.
+        Each list contains the nodes belonging to the strongly connected
+        component.
 
-        Úsese esta función si no es necesario obtener copias mapeadas de
-        los componentes fuertemente conexos.
+        Use this function if you do not need to obtain mapped copies of
+        the strongly connected components.
 
-        La función se basa en el algoritmo de Tarjan.
+        The function is based on Tarjan's algorithm.
 
-        La función se vale del bit build_subtree para marcar nodos y
-        arcos visitados.
+        The function uses the build_subtree bit to mark visited nodes and arcs.
 
-        El algoritmo internamente descubre los componentes mediante
-        búsquedas en profundidad.
+        The algorithm internally discovers components through depth-first search.
 
-        Puesto que se ahorra el mapeo, esta rutina es más rápida y
-        menos onerosa en memoria que la versión anterior. La
-        desventaja quizá es que no calcula los posibles arcos que
-        podrían interconectar un bloque en un solo sentido.
+        Since mapping is avoided, this routine is faster and less memory
+        intensive than the previous version. The disadvantage is perhaps that
+        it does not compute the possible arcs that could interconnect a block
+        in a single direction.
 
-        @param[in] g el grafo sobre el cual se desea calcular sus bloques.
-        @param[out] blks lista de listas de nodos. Cada lista
-        contiene los nodos que conforman un componente conexo.
+        @param[in] g the graph on which to compute its blocks.
+        @param[out] blks list of node lists. Each list contains the nodes
+        that form a connected component.
 
-        @throw bad_alloc si no hay memoria para insertar en la lista.
+        @throw bad_alloc if there is not enough memory to insert into the list.
 
         @see copy_graph()
     */
-    void connected_components(const GT & g,
-                              DynList<DynList<typename GT::Node*>> & blks)
-    {
-      init_tarjan(g);
-      list_list_ptr = &blks;
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First))
-            scc_by_lists(v);
-        }
-    }
+	    void connected_components(const GT & g,
+	                              DynList<DynList<typename GT::Node *>> & blks)
+	    {
+	      init_tarjan(g);
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_lists(v, blks);
+	    }
 
-    DynList<DynList<typename GT::Node*>> connected_components(const GT & g)
+    [[nodiscard]] DynList<DynList<typename GT::Node *>> connected_components(const GT & g)
     {
-      DynList<DynList<typename GT::Node*>> blks;
+      DynList<DynList<typename GT::Node *>> blks;
       connected_components(g, blks);
       return blks;
     }
 
-    /** Calcula los componentes fuertemente conexos de un digrafo.
+    /** Returns the number of strongly connected components in the graph.
 
-        Esta versión sobrecargada connected_components() toma un digrafo g,
-        "supuestamente débilmente conexo" y cuenta sus subgrafos o componentes
-        inconexos junto con sus tamaños.
+        This is a convenience method that computes SCCs and returns only
+        the count, which is more efficient than getting the full list
+        when only the count is needed.
 
-        La función se basa en el algoritmo de Tarjan.
+        @param[in] g The directed graph.
+        @return The number of strongly connected components.
+        @throw bad_alloc if there is not enough memory.
+     */
+    [[nodiscard]] size_t num_connected_components(const GT & g)
+    {
+      DynList<size_t> sizes;
+      connected_components(g, sizes);
+      return sizes.size();
+    }
 
-        La función se vale del bit build_subtree para marcar nodos y
-        arcos visitados.
+    /** Computes the strongly connected components of a digraph.
 
-        El algoritmo internamente descubre los componentes mediante
-        búsquedas en profundidad.
+        This overloaded version of connected_components() takes a digraph g
+        (supposedly weakly connected) and counts its disconnected subgraphs or
+        components along with their sizes.
 
-        @param[in] g el grafo sobre el cual se desea calcular sus bloques.
-        @param[out] blks lista de enteros positivos. Cada lista
-        contiene el tamaño de un componente conexo distinto.
+        The function is based on Tarjan's algorithm.
 
-        @throw bad_alloc si no hay memoria para insertar en la lista.
+        The function uses the build_subtree bit to mark visited nodes and arcs.
+
+        The algorithm internally discovers components through depth-first search.
+
+        @param[in] g the graph on which to compute its blocks.
+        @param[out] blks list of positive integers. Each entry contains the
+        size of a distinct connected component.
+
+        @throw bad_alloc if there is not enough memory to insert into the list.
 
         @see copy_graph()
     */
-    void connected_components(const GT & g, DynList<size_t> & blks)
-    {
-      init_tarjan(g);
-      list_len_ptr = &blks;
-      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First))
-            scc_by_len(v);
-        }
-    }
+	    void connected_components(const GT & g, DynList<size_t> & blks)
+	    {
+	      init_tarjan(g);
+	      for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
+	        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+	          scc_by_len(v, blks);
+	    }
 
-    /// \overload connected_components
-    void operator () (const GT &                   g,
-                      DynList <GT> &               blk_list,
-                      DynList<typename GT::Arc*> & arc_list)
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as mapped subgraphs
+     *  with bridges (arcs connecting different SCCs).
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blk_list List of strongly connected components as mapped subgraphs.
+     *  @param[out] arc_list List of bridge arcs connecting different SCCs.
+     */
+    void operator ()(const GT & g,
+                     DynList<GT> & blk_list,
+                     DynList<typename GT::Arc *> & arc_list)
     {
       connected_components(g, blk_list, arc_list);
     }
 
-    /// \overload connected_components
-    void operator () (const GT &                             g,
-                      DynList<DynList<typename GT::Node*>> & blks)
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as lists of nodes.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blks List of strongly connected components, each as a list of nodes.
+     */
+    void operator ()(const GT & g,
+                     DynList<DynList<typename GT::Node *>> & blks)
     {
       connected_components(g, blks);
     }
 
-    DynDlist<DynDlist<typename GT::Node*>> operator () (const GT & g)
+    DynList<DynList<typename GT::Node *>> operator ()(const GT & g)
     {
       return connected_components(g);
     }
 
-    /// \overload connected_components
-    void operator () (const GT &                    g,
-                      DynDlist <GT> &               blk_list,
-                      DynDlist<typename GT::Arc*> & arc_list)
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as mapped subgraphs
+     *  with bridges, using DynDlist containers.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blk_list List of strongly connected components as mapped subgraphs.
+     *  @param[out] arc_list List of bridge arcs connecting different SCCs.
+     */
+    void operator ()(const GT & g,
+                     DynDlist<GT> & blk_list,
+                     DynDlist<typename GT::Arc *> & arc_list)
     {
       DynList<GT> blist;
-      DynList<typename GT::Arc*> alist;
+      DynList<typename GT::Arc *> alist;
       connected_components(g, blist, alist);
 
       for (typename DynList<GT>::Iterator it(blist); it.has_curr(); it.next_ne())
@@ -580,22 +806,29 @@ namespace Aleph {
           curr.swap(block);
         }
 
-      for (typename DynList<typename GT::Arc*>::Iterator it(alist);
+      for (typename DynList<typename GT::Arc *>::Iterator it(alist);
            it.has_curr(); it.next_ne())
         arc_list.append(it.get_curr());
     }
 
-    /// \overload connected_components
-    void operator () (const GT &                               g,
-                      DynDlist<DynDlist<typename GT::Node*>> & blks)
+    /** \overload
+     *
+     *  Compute strongly connected components and return them as lists of nodes,
+     *  using DynDlist containers.
+     *
+     *  @param[in] g The directed graph.
+     *  @param[out] blks List of strongly connected components, each as a list of nodes.
+     */
+    void operator ()(const GT & g,
+                     DynDlist<DynDlist<typename GT::Node *>> & blks)
     {
-      DynList<DynList<typename GT::Node*>> b;
+      DynList<DynList<typename GT::Node *>> b;
       connected_components(g, b);
 
-      for (typename DynList<DynList<typename GT::Node*>>::Iterator it(b);
+      for (typename DynList<DynList<typename GT::Node *>>::Iterator it(b);
            it.has_curr(); it.next_ne())
         {
-          auto & tgt_list = blks.append(DynDlist<typename GT::Node*>());
+          auto & tgt_list = blks.append(DynDlist<typename GT::Node *>());
 
           auto & blk = it.get_curr();
           while (not blk.is_empty())
@@ -603,27 +836,56 @@ namespace Aleph {
         }
     }
 
-    /// Retorna true si el digrafo g contiene al menos un ciclo
-    bool has_cycle(const GT & g)
+    /** Determines whether the digraph contains at least one cycle.
+
+        Uses Tarjan's algorithm to detect if the directed graph has any cycles.
+        A directed graph has a cycle if there exists a path from a vertex back
+        to itself.
+
+        @param[in] g The directed graph to check for cycles.
+        @return true if the graph contains at least one cycle, false otherwise.
+        @throw bad_alloc if there is not enough memory.
+        @see is_dag(), compute_cycle()
+     */
+    [[nodiscard]] bool has_cycle(const GT & g)
     {
       init_tarjan(g);
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First))
-            if (has_cycle(v))
-              return true;
-        }
+        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+          if (has_cycle(v))
+            return true;
 
       return false;
     }
 
-    /// Retorna true si el grafo dirigido es acíclico
-    bool is_dag(const GT & g)
+    /** Determines whether the directed graph is acyclic (a DAG).
+
+        A Directed Acyclic Graph (DAG) is a directed graph with no cycles.
+        This method is equivalent to `!has_cycle(g)`.
+
+        @param[in] g The directed graph to check.
+        @return true if the graph is a DAG (has no cycles), false otherwise.
+        @throw bad_alloc if there is not enough memory.
+        @see has_cycle(), compute_cycle()
+     */
+    [[nodiscard]] bool is_dag(const GT & g)
     {
       return not has_cycle(g);
     }
 
+    /** Finds and constructs a cycle in the digraph, if one exists.
+
+        Uses Tarjan's algorithm to detect a cycle in the directed graph.
+        If a cycle is found, it is stored in the provided path parameter.
+
+        @param[in] g The directed graph to search for cycles.
+        @param[out] path A Path object where the cycle will be stored if found.
+                         The path will form a cycle (start node == end node).
+                         If no cycle exists, path is emptied.
+        @return true if a cycle was found and stored in path, false otherwise.
+        @throw bad_alloc if there is not enough memory.
+        @see has_cycle(), is_dag()
+     */
     bool compute_cycle(const GT & g, Path<GT> & path)
     {
       init_tarjan(g);
@@ -631,107 +893,180 @@ namespace Aleph {
       path_ptr->set_graph(g);
 
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First)) // ¿p visitado?
-            if (build_cycle(v))
-              return true;
-        }
+        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First)) // p visited?
+          if (build_cycle(v))
+            return true;
 
       path.empty();
       return false;
     }
 
-    bool compute_cycle(const GT & g, typename GT::Node * src, Path<GT> & path)
+    /** Finds and constructs a cycle starting from a specific node, if one exists.
+
+        Uses Tarjan's algorithm starting from the specified source node to
+        detect a cycle. If a cycle is found that includes the source node,
+        it is stored in the provided path parameter.
+
+        @param[in] g The directed graph to search for cycles.
+        @param[in] src The source node from which to start the cycle search.
+        @param[out] path A Path object where the cycle will be stored if found.
+                         The path will form a cycle containing the source node.
+        @return true if a cycle was found starting from src, false otherwise.
+        @throw bad_alloc if there is not enough memory.
+        @see has_cycle(), compute_cycle(const GT &, Path<GT> &)
+     */
+    [[nodiscard]] bool compute_cycle(const GT & g, typename GT::Node *src, Path<GT> & path)
     {
+      ah_domain_error_if(src == nullptr)
+          << "compute_cycle: source node cannot be null";
+
       init_tarjan(g);
       path_ptr = &path;
       path_ptr->set_graph(g);
       return build_cycle(src);
     }
 
-    bool test_connectivity(const GT & g)
+    /** Tests whether the digraph is strongly connected.
+
+        A directed graph is strongly connected if there is a path from every
+        vertex to every other vertex. This method uses Tarjan's algorithm to
+        determine strong connectivity.
+
+        @param[in] g The directed graph to test.
+        @return true if the graph is strongly connected, false otherwise.
+        @throw bad_alloc if there is not enough memory.
+        @see connected_components()
+     */
+    [[nodiscard]] bool test_connectivity(const GT & g)
     {
       init_tarjan(g);
+
+      // In a strongly connected graph, a single DFS from any node should reach
+      // all nodes. If we have to start from a second unvisited node, it means
+      // the graph has multiple disconnected components.
+      bool started = false;
       for (typename GT::Node_Iterator it(g); df_count < n; it.next_ne())
-        {
-          auto v = it.get_curr();
-          if (not IS_NODE_VISITED(v, Aleph::Depth_First))
+        if (auto v = it.get_curr(); not IS_NODE_VISITED(v, Aleph::Depth_First))
+          {
+            if (started)  // Second DFS root → not strongly connected
+              return false;
+            started = true;
             if (not is_connected(v))
               return false;
-        }
+          }
 
       assert(stack.is_empty());
 
       return true;
     }
+
+    /// @name Accessors
+    /// @{
+
+    /** Returns the arc filter used by this instance.
+        @return Reference to the arc filter.
+     */
+    SA &get_filter() noexcept { return sa; }
+
+    /** Returns the arc filter used by this instance (const version).
+        @return Const reference to the arc filter.
+     */
+    const SA &get_filter() const noexcept { return sa; }
+
+    /** Check if a computation has been performed.
+        @return true if a graph has been processed, false otherwise.
+     */
+    [[nodiscard]] bool has_computation() const noexcept { return g_ptr != nullptr; }
+
+    /** Get the graph of the last computation.
+        @return Pointer to the graph, or nullptr if no computation done.
+     */
+    [[nodiscard]] GT * get_graph() const noexcept { return g_ptr; }
+
+    /// @}
   };
 
 
+  /** Determines if a digraph contains a cycle and constructs it.
 
-  /** Determina si un digrafo contiene un ciclo y lo construye.
+      Compute_Cycle_In_Digraph() takes a digraph g, determines if it
+      contains a cycle, and if so, constructs a path containing the cycle
+      in question.
 
-      Compute_Cycle_In_Digraph() toma un digrafo g, determina si
-      contiene un ciclo y, en caso afirmativo, construye un camino
-      contentivo del ciclo en cuestión.
+      The class is based on Tarjan's algorithm.
 
-      La clase se basa en el algoritmo de Tarjan.
+      The function uses two type parameters:
+      -# GT: the digraph class.
+      -# SA: the arc filter used by the internal iterator.
 
-      La función emplea dos parámetros tipo:
-      -# GT: la clase digrafo.
-      -# SA: el filtro de arcos que emplea el iterador interno.
+      The class uses the build_subtree bit to mark visited nodes and arcs.
 
-      La clase se vale del bit build_subtree para marcar nodos y
-      arcos visitados.
+      @ingroup Graphs
 
-      @ingroup Grafos
-      @throw domain_error si g es un grafo (no un digrafo)
+      @note This class is intended for directed graphs. Behavior on undirected
+            graphs is undefined.
   */
   template <class GT,
             template <typename, class> class Itor = Out_Iterator,
             class SA = Dft_Show_Arc<GT>>
   class Compute_Cycle_In_Digraph
   {
-    SA & sa;
+    SA sa;
 
   public:
+    /** Constructs a cycle computation instance with an arc filter.
 
-    Compute_Cycle_In_Digraph(SA && __sa = SA())
-      : sa(__sa) { /* empty */ }
+        @param[in] __sa Arc filter functor.
+                        Defaults to Dft_Show_Arc<GT>.
+     */
+    Compute_Cycle_In_Digraph(SA __sa = SA())
+      : sa(std::move(__sa))
+    { /* empty */
+    }
 
-    Compute_Cycle_In_Digraph(SA & __sa)
-      : sa(__sa) { /* empty */ }
+    /** Invokes the computation of a cycle in a digraph.
 
-    /** Invoca al cálculo de un ciclo en un digrafo.
-
-        @param[in] g el grafo sobre el cual se desea calcular sus bloques.
-        @param[out] path camino que define el ciclo.
-        @return true si el grafo contiene un ciclo; false de lo
-        contrario. En este último caso el valor de path es indeterminado.
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] g the graph on which to compute its blocks.
+        @param[out] path path that defines the cycle.
+        @return true if the graph contains a cycle; false otherwise.
+        In the latter case the value of path is indeterminate.
+        @throw bad_alloc if there is not enough memory.
     */
-    bool operator () (const GT & g, Path<GT> & path) const
+    [[nodiscard]] bool operator ()(const GT & g, Path<GT> & path) const
     {
       Tarjan_Connected_Components<GT, Itor, SA> tarjan(sa);
 
       return tarjan.compute_cycle(g, path);
     }
 
-    Path<GT> operator () (const GT & g) const
+    /** Computes and returns a cycle in the digraph.
+
+        @param[in] g The graph to search for cycles.
+        @return A Path containing the cycle if found, empty path otherwise.
+        @throw bad_alloc if there is not enough memory.
+     */
+    [[nodiscard]] Path<GT> operator ()(const GT & g) const
     {
       Path<GT> ret(g);
-      Tarjan_Connected_Components<GT, Itor, SA> (sa).compute_cycle(g, ret);
+      Tarjan_Connected_Components<GT, Itor, SA>(sa).compute_cycle(g, ret);
       return ret;
     }
 
-    Path<GT> operator () (const GT & g, typename GT::Node * src) const
+    /** Computes and returns a cycle starting from a specific node.
+
+        @param[in] g The graph to search for cycles.
+        @param[in] src The source node to start the search from (must not be null).
+        @return A Path containing the cycle if found, empty path otherwise.
+        @throw domain_error if src is null.
+        @throw bad_alloc if there is not enough memory.
+     */
+    [[nodiscard]] Path<GT> operator ()(const GT & g, typename GT::Node *src) const
     {
       Path<GT> ret(g);
-      Tarjan_Connected_Components<GT, Itor, SA>(sa).compute_cycle(g, src, ret);
+      (void) Tarjan_Connected_Components<GT, Itor, SA>(sa).compute_cycle(g, src, ret);
       return ret;
     }
   };
-
 } // end namespace Aleph
 
 # endif // TARJAN_H

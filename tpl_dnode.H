@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,12 +24,69 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/** @file tpl_dnode.H
+ *  @brief Doubly linked list node with typed data.
+ *
+ *  This file provides Dnode<T>, a node for circular doubly linked lists
+ *  that inherits from Dlink. Each node stores a value of type T.
+ *
+ *  ## Key Features
+ *
+ *  - Circular doubly linked structure
+ *  - Inherits navigation from Dlink
+ *  - O(1) insertion and removal
+ *  - Bidirectional traversal
+ *
+ *  ## Memory Layout
+ *
+ *  ```
+ *  +------+------+------+
+ *  | prev | next | data |
+ *  +------+------+------+
+ *  ```
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | insert_next/prev | O(1) |
+ *  | remove_next/prev | O(1) |
+ *  | get_data | O(1) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Dnode<int> head;  // Header node (sentinel)
+ *
+ *  head.insert_next(new Dnode<int>(42));
+ *  head.insert_next(new Dnode<int>(17));
+ *
+ *  // Traverse forward
+ *  for (auto* p = head.get_next(); p != &head; p = p->get_next())
+ *    std::cout << p->get_data() << " ";
+ *  ```
+ *
+ *  ## Design Pattern
+ *
+ *  Uses a sentinel (header) node pattern: the list is never empty as
+ *  the header always exists. This simplifies boundary conditions.
+ *
+ *  @see dlink.H Base doubly linked structure
+ *  @see tpl_dynDlist.H High-level doubly linked list
+ *  @see tpl_snode.H Singly linked node alternative
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DNODE_H
 # define TPL_DNODE_H
 
 # include <type_traits>
 # include <ahFunction.H>
 # include <dlink.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -38,7 +94,7 @@ namespace Aleph {
 
     /** Node belonging to a double circular linked list with header node.
 
-        @ingroup Secuencias
+        @ingroup Sequences
         @see Dnode::Iterator
     */ 
 template <typename T> class Dnode : public Dlink 
@@ -70,16 +126,14 @@ public:
   /// Get the first node
   Dnode<T> *& get_first() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return get_first_ne();
   } 
 
   /// Get the last node
   Dnode<T> *& get_last() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return get_last_ne();
   }
 
@@ -98,16 +152,14 @@ public:
   /// Remove the last node and return its address
   Dnode<T>* remove_last()
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return remove_last_ne();
   }
 
   /// Remove the first node and return its address
   Dnode<T>* remove_first()
   {
-    if (this->is_empty())
-      throw std::underflow_error("Dnode is empty");
+    ah_underflow_error_if(this->is_empty()) << "Dnode is empty";
     return remove_first_ne();
   }
   
@@ -125,11 +177,10 @@ public:
   }
 
   /// Construct a new node with the item moved
-  Dnode(T && item)
+  Dnode(T && item) : data(std::move(item))
   {
     static_assert(std::is_move_constructible<T>::value,
 		  "No move constructor for T");
-    std::swap(data, item);
   }
 
   /// Swap `this` with `p`
@@ -150,8 +201,8 @@ public:
   }
 
   /// Move constructor
-  Dnode(Dnode && node)
-  : Dlink(node), data(std::forward<T>(node.data))
+  Dnode(Dnode && node) noexcept
+  : Dlink(std::move(node)), data(std::move(node.data))
   {
     /* empty */ 
   }
@@ -199,7 +250,7 @@ public:
 
       /** Iterator on a list of `Dnode` objects
 
-          @ingroup Secuencias
+          @ingroup Sequences
        */
   class Iterator : public Dlink::Iterator
   {
@@ -241,6 +292,10 @@ public:
     */
     Dnode * del() 
     { return static_cast<Dnode*>(Dlink::Iterator::del()); }
+
+    /// Same as del() but without exception check
+    Dnode * del_ne() noexcept
+    { return static_cast<Dnode*>(Dlink::Iterator::del_ne()); }
   };
 };
 

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,88 +24,394 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-/** Line equation helper class
 
-    Aleph-w Leandro Rabindranath Leon    
+/** @file line.H
+ *  @brief 2D infinite line representation using slope-intercept form.
+ *
+ *  This file provides the LineEq class for representing infinite lines
+ *  in 2D space using the slope-intercept form: y = y0 + m*x
+ *
+ *  ## Line Equation Form
+ *
+ *  The line is stored as:
+ *  - y0: y-intercept (where line crosses y-axis)
+ *  - m: slope (rise over run)
+ *
+ *  This gives the equation: y = y0 + m*x
+ *
+ *  ## Features
+ *
+ *  - Construction from slope and intercept
+ *  - Construction from a point and slope
+ *  - Construction from two points
+ *  - Line evaluation at any x-coordinate
+ *  - Intersection computation between lines
+ *  - Parallel line detection
+ *  - Comparison operations with epsilon tolerance
+ *
+ *  ## Usage Example
+ *
+ *  @code{.cpp}
+ *  #include <line.H>
+ *  
+ *  // Line through origin with slope 2
+ *  LineEq line1(0.0, 2.0);  // y = 2x
+ *
+ *  // Line through two points
+ *  LineEq line2(Point(0, 0), Point(1, 1));  // y = x
+ *
+ *  // Evaluate line at x = 5
+ *  double y = line1(5.0);  // y = 10
+ *
+ *  // Find intersection
+ *  auto [x, y] = line1.intersection(line2);
+ *  
+ *  // Check if parallel
+ *  if (line1.is_parallel_to(line2))
+ *    std::cout << "Lines are parallel\n";
+ *  @endcode
+ *
+ *  ## Limitations
+ *
+ *  This representation cannot handle vertical lines (infinite slope).
+ *  For vertical lines, consider using parametric or implicit form.
+ *
+ *  @see segment.H Finite line segments
+ *  @see point.H Point representation
+ *
+ *  @ingroup Geometry
+ *  @author Leandro Rabindranath León
  */
 
 #ifndef LINE_H
 #define LINE_H
 
-# include <aleph-exceptions.H>
+#include <cmath>
+#include <utility>
+#include <string>
+#include <sstream>
+#include <ah-errors.H>
 
-/** Build a Lin equation
-   
-    @author Leandro Rabindranath Leon
-    @ingroup Utils
+namespace Aleph
+{
+
+/** @brief Default epsilon for floating-point comparisons.
+ *  @ingroup Geometry
+ */
+inline constexpr double LINE_EPSILON = 1e-10;
+
+/**
+ * @brief 2D infinite line in slope-intercept form.
+ *
+ * Represents an infinite line using the equation y = y0 + m*x where:
+ * - y0 is the y-intercept (value of y when x = 0)
+ * - m is the slope (dy/dx)
+ *
+ * @note This representation cannot handle vertical lines (infinite slope).
+ *       For vertical lines, use parametric or implicit form.
+ *
+ * @ingroup Geometry
  */
 struct LineEq
 {
-  mutable double y0 = 0;
-  mutable double m = 1;
+  double y0 = 0;  ///< Y-intercept (where line crosses y-axis)
+  double m = 1;   ///< Slope (dy/dx)
 
-  /// Build y = x
-  LineEq() {}
+  /**
+   * @brief Default constructor creates line y = x.
+   *
+   * The default line passes through origin with slope 1.
+   */
+  constexpr LineEq() noexcept = default;
 
-  /// Build a line given cut with y axis and its slope
-  LineEq(const double __y0, const double __m) : y0(__y0), m(__m) {}
+  /**
+   * @brief Construct line from y-intercept and slope.
+   *
+   * Creates line: y = y0 + m*x
+   *
+   * @param __y0 Y-intercept (value of y when x = 0)
+   * @param __m Slope of the line
+   *
+   * @par Example
+   * @code
+   * LineEq line(5.0, 2.0);  // y = 5 + 2x
+   * @endcode
+   */
+  constexpr LineEq(double __y0, double __m) noexcept 
+    : y0(__y0), m(__m) {}
 
-  /// Build a line given a point (x1,y1) and its slope
-  LineEq(const double x1, const double y1, const double __m) : m(__m)
+  /**
+   * @brief Construct line through a point with given slope.
+   *
+   * Computes y-intercept from point and slope using: y0 = y1 - m*x1
+   *
+   * @param x1 X-coordinate of point on the line
+   * @param y1 Y-coordinate of point on the line
+   * @param __m Slope of the line
+   *
+   * @par Example
+   * @code
+   * // Line through (2, 4) with slope 3
+   * LineEq line(2.0, 4.0, 3.0);  // y = -2 + 3x
+   * @endcode
+   */
+  constexpr LineEq(double x1, double y1, double __m) noexcept
+    : y0(y1 - __m * x1), m(__m) {}
+
+  /**
+   * @brief Construct line through two points.
+   *
+   * Computes slope and y-intercept from the two points.
+   * The slope is: m = (y2 - y1) / (x2 - x1)
+   *
+   * @param x1 X-coordinate of first point
+   * @param y1 Y-coordinate of first point
+   * @param x2 X-coordinate of second point
+   * @param y2 Y-coordinate of second point
+   *
+   * @throws std::domain_error if x1 == x2 (vertical line, undefined slope)
+   *
+   * @note Horizontal lines (y1 == y2) are valid and result in slope = 0.
+   *
+   * @par Example
+   * @code
+   * LineEq line(0.0, 0.0, 2.0, 6.0);  // y = 3x
+   * LineEq horizontal(0.0, 5.0, 10.0, 5.0);  // y = 5 (horizontal)
+   * @endcode
+   */
+  LineEq(double x1, double y1, double x2, double y2)
   {
-    y0 = y1 - m*x1;
+    ah_domain_error_if(std::abs(x1 - x2) < LINE_EPSILON)
+      << "Cannot create line from points with same x-coordinate (vertical line): "
+      << "x1 = " << x1 << ", x2 = " << x2;
+    
+    m = (y2 - y1) / (x2 - x1);
+    y0 = y1 - m * x1;
   }
 
-  /// Build a line given two points
-  LineEq(const double x1, const double y1, const double x2, const double y2)
-  {
-    if (x1 >= x2)
-      ALEPHTHROW(OutOfRange, "value x1 = " + ::to_string(x1) +
-	       " is greater or equal than x2 = " + ::to_string(x2));
-    if (y1 == y2)
-      ALEPHTHROW(OutOfRange, "value of y1 = " + ::to_string(y1) + " == y2 = " +
-	       ::to_string(y2));
-    m = (y2 - y1)/(x2 - x1);
-    y0 = y1 - m*x1;
+  /**
+   * @brief Evaluate line at given x-coordinate.
+   *
+   * Computes y = y0 + m*x
+   *
+   * @param x X-coordinate to evaluate
+   * @return Y-coordinate on the line
+   *
+   * @par Example
+   * @code
+   * LineEq line(1.0, 2.0);  // y = 1 + 2x
+   * double y = line(3.0);   // y = 7
+   * @endcode
+   */
+  [[nodiscard]] constexpr double operator()(double x) const noexcept 
+  { 
+    return y0 + m * x; 
   }
 
-  /// Return the line value at x value
-  double operator() (const double x) const noexcept { return y0 + m*x; }
+  /**
+   * @brief Get the slope of the line.
+   * @return The slope (m)
+   */
+  [[nodiscard]] constexpr double slope() const noexcept { return m; }
 
-  /// Return a pair with the intersection point of this with
-  /// `l`. Throws `OutOfRange` if lines are parallel
-  pair<double, double> intersection(const LineEq & l) const
+  /**
+   * @brief Get the y-intercept of the line.
+   * @return The y-intercept (y0)
+   */
+  [[nodiscard]] constexpr double y_intercept() const noexcept { return y0; }
+
+  /**
+   * @brief Check if the line is horizontal (slope = 0).
+   * @param epsilon Tolerance for floating-point comparison
+   * @return True if the line is horizontal
+   */
+  [[nodiscard]] constexpr bool is_horizontal(double epsilon = LINE_EPSILON) const noexcept
   {
-    if (m == l.m)
-      ALEPHTHROW(OutOfRange, "parallel lines");
-
-    double x = (y0 - l.y0)/(l.m - m);
-
-    return pair<double, double>(x, (*this)(x));
+    return std::abs(m) < epsilon;
   }
 
-  bool operator == (const LineEq & l) const noexcept
+  /**
+   * @brief Check if this line is parallel to another.
+   *
+   * Two lines are parallel if they have the same slope.
+   *
+   * @param l The other line
+   * @param epsilon Tolerance for floating-point comparison
+   * @return True if lines are parallel
+   */
+  [[nodiscard]] constexpr bool is_parallel_to(const LineEq & l, 
+                                               double epsilon = LINE_EPSILON) const noexcept
   {
-    return y0 == l.y0 and m == l.m;
+    return std::abs(m - l.m) < epsilon;
   }
 
-  bool operator != (const LineEq & l) const noexcept
+  /**
+   * @brief Check if this line is perpendicular to another.
+   *
+   * Two lines are perpendicular if m1 * m2 = -1
+   *
+   * @param l The other line
+   * @param epsilon Tolerance for floating-point comparison
+   * @return True if lines are perpendicular
+   */
+  [[nodiscard]] constexpr bool is_perpendicular_to(const LineEq & l,
+                                                    double epsilon = LINE_EPSILON) const noexcept
+  {
+    return std::abs(m * l.m + 1.0) < epsilon;
+  }
+
+  /**
+   * @brief Compute x-coordinate for a given y-coordinate.
+   *
+   * Solves x = (y - y0) / m
+   *
+   * @param y Y-coordinate
+   * @return X-coordinate on the line
+   * @throws std::domain_error if line is horizontal (undefined x)
+   */
+  [[nodiscard]] double x_at(double y) const
+  {
+    ah_domain_error_if(is_horizontal())
+      << "Cannot compute x for horizontal line (slope = 0)";
+    return (y - y0) / m;
+  }
+
+  /**
+   * @brief Compute intersection point with another line.
+   *
+   * Solves the system of equations to find where lines cross:
+   * - y = y0_1 + m_1 * x
+   * - y = y0_2 + m_2 * x
+   *
+   * Solution: x = (y0_1 - y0_2) / (m_2 - m_1)
+   *
+   * @param l The other line
+   * @param epsilon Tolerance for parallel line detection
+   * @return Pair (x, y) of intersection coordinates
+   * @throws std::domain_error if lines are parallel (no unique intersection)
+   *
+   * @par Example
+   * @code
+   * LineEq l1(0.0, 1.0);   // y = x
+   * LineEq l2(2.0, -1.0);  // y = 2 - x
+   * auto [x, y] = l1.intersection(l2);  // (1, 1)
+   * @endcode
+   */
+  [[nodiscard]] std::pair<double, double> intersection(const LineEq & l,
+                                                        double epsilon = LINE_EPSILON) const
+  {
+    ah_domain_error_if(is_parallel_to(l, epsilon))
+      << "Cannot compute intersection of parallel lines: "
+      << "slope1 = " << m << ", slope2 = " << l.m;
+
+    double x = (y0 - l.y0) / (l.m - m);
+    return {x, (*this)(x)};
+  }
+
+  /**
+   * @brief Compute perpendicular line through a point.
+   *
+   * Returns the line perpendicular to this one that passes through
+   * the given point. The perpendicular slope is -1/m.
+   *
+   * @param px X-coordinate of point
+   * @param py Y-coordinate of point
+   * @return Perpendicular line through (px, py)
+   * @throws std::domain_error if this line is horizontal (perpendicular would be vertical)
+   */
+  [[nodiscard]] LineEq perpendicular_through(double px, double py) const
+  {
+    ah_domain_error_if(is_horizontal())
+      << "Cannot compute perpendicular to horizontal line (would be vertical)";
+    
+    double perp_slope = -1.0 / m;
+    return LineEq(px, py, perp_slope);
+  }
+
+  /**
+   * @brief Compute distance from a point to this line.
+   *
+   * Uses the formula: d = |y_point - (y0 + m*x_point)| / sqrt(1 + m^2)
+   *
+   * @param px X-coordinate of point
+   * @param py Y-coordinate of point
+   * @return Perpendicular distance from point to line
+   */
+  [[nodiscard]] double distance_to(double px, double py) const noexcept
+  {
+    double diff = py - (y0 + m * px);
+    return std::abs(diff) / std::sqrt(1.0 + m * m);
+  }
+
+  /**
+   * @brief Check if a point lies on this line.
+   *
+   * @param px X-coordinate of point
+   * @param py Y-coordinate of point
+   * @param epsilon Tolerance for floating-point comparison
+   * @return True if point is on the line
+   */
+  [[nodiscard]] bool contains_point(double px, double py, 
+                                    double epsilon = LINE_EPSILON) const noexcept
+  {
+    return std::abs(py - (*this)(px)) < epsilon;
+  }
+
+  /**
+   * @brief Test equality of two lines.
+   *
+   * Lines are equal if they have the same slope and y-intercept
+   * (within epsilon tolerance).
+   *
+   * @param l Line to compare with
+   * @return True if lines are identical
+   */
+  [[nodiscard]] bool operator==(const LineEq & l) const noexcept
+  {
+    return std::abs(y0 - l.y0) < LINE_EPSILON and 
+           std::abs(m - l.m) < LINE_EPSILON;
+  }
+
+  /**
+   * @brief Test inequality of two lines.
+   *
+   * @param l Line to compare with
+   * @return True if lines differ
+   */
+  [[nodiscard]] bool operator!=(const LineEq & l) const noexcept
   {
     return not (*this == l);
   }
 
-  string to_string() const
+  /**
+   * @brief Convert line to string representation.
+   *
+   * @return String in format "y = y0 + m * x"
+   */
+  [[nodiscard]] std::string to_string() const
   {
-    ostringstream s;
+    std::ostringstream s;
     s << "y = " << y0 << " + " << m << " * x";
     return s.str();
   }
 
-  friend ostream & operator << (ostream & out, const LineEq & l)
+  /**
+   * @brief Output stream operator.
+   *
+   * @param out Output stream
+   * @param l Line to output
+   * @return Reference to output stream
+   */
+  friend std::ostream & operator<<(std::ostream & out, const LineEq & l)
   {
     return out << l.to_string();
   }
 };
 
-#endif
- 
+} // namespace Aleph
+
+// Global namespace compatibility
+using Aleph::LineEq;
+using Aleph::LINE_EPSILON;
+
+#endif // LINE_H

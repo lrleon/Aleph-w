@@ -1,15 +1,15 @@
 
-/* Aleph-w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
 /* gmpfrxx.h -- C++ class wrapper for GMP and MPFR types.
 
 this is a re-write of gmpxx.h to replace mpf with mpfr
@@ -1126,7 +1127,13 @@ struct __gmp_cbrt_function // not in gmpxx
 struct __gmp_root_function // not in gmpxx
 {
   static void eval(mpfr_ptr f, mpfr_srcptr g, unsigned long int l)
-  { mpfr_root(f, g, l, MpFrC::get_rnd()); }
+  {
+#if MPFR_VERSION_MAJOR >= 4
+    mpfr_rootn_ui(f, g, l, MpFrC::get_rnd());  // New API (MPFR >= 4.0)
+#else
+    mpfr_root(f, g, l, MpFrC::get_rnd());      // Legacy API (MPFR < 4.0)
+#endif
+  }
 };
 
 struct __gmp_pow_function // not in gmpxx
@@ -1682,7 +1689,7 @@ struct __gmp_alloc_cstring
   ~__gmp_alloc_cstring()
   {
     void (*freefunc) (void *, size_t);
-    mp_get_memory_functions (NULL, NULL, &freefunc);
+    mp_get_memory_functions (nullptr, nullptr, &freefunc);
     (*freefunc) (str, std::strlen(str)+1);
   }
 };
@@ -4106,7 +4113,7 @@ __GMP_DEFINE_UNARY_TYPE_FUNCTION(int, sgn, __gmp_sgn_function)
 __GMP_DEFINE_BINARY_TYPE_FUNCTION(int, cmp, __gmp_cmp_function)
 
 // member operators for mpz_class
-
+/// \cond
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __GMPZ_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4122,9 +4129,10 @@ __GMPZ_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __GMPZ_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __GMPZ_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 // member operators for mpq_class
-
+/// \cond
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __GMPQ_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4135,9 +4143,10 @@ __GMPQ_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __GMPQ_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __GMPQ_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 // member operators for mpfr_class
-
+/// \cond
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator+=, __gmp_binary_plus)
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator-=, __gmp_binary_minus)
 __MPFR_DEFINE_COMPOUND_OPERATOR(operator*=, __gmp_binary_multiplies)
@@ -4148,6 +4157,7 @@ __MPFR_DEFINE_COMPOUND_OPERATOR_UI(operator>>=, __gmp_binary_rshift)
 
 __MPFR_DEFINE_INCREMENT_OPERATOR(operator++, __gmp_unary_increment)
 __MPFR_DEFINE_INCREMENT_OPERATOR(operator--, __gmp_unary_decrement)
+/// \endcond
 
 
 

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,16 +24,93 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/**
+ * @file deway.C
+ * @brief Dewey ("deway") numbering for tree nodes (path-based hierarchical addresses).
+ *
+ * ## Overview
+ *
+ * This example demonstrates **Dewey / Deway numbering**: assign each node in a
+ * rooted tree a hierarchical address that encodes its full path from the root.
+ *
+ * Conceptually, each node address is a sequence of child indices. For instance:
+ *
+ * - root: empty address
+ * - first child: `0`
+ * - second child of the first child: `0.1`
+ *
+ * ## Data model used by this example
+ *
+ * This file builds and prints multiple representations:
+ *
+ * - a random **binary search tree** using `BinNode<int>`
+ * - a converted **forest / general tree** using `Tree_Node<int>`
+ *
+ * Then it prints the Dewey numbering on the forest.
+ *
+ * ## Usage / CLI
+ *
+ * This example uses TCLAP:
+ *
+ * - `--nodes` / `-n <int>`: number of nodes (default: 10).
+ * - `--seed` / `-s <unsigned>`: RNG seed (`0` means use `time()`; default: 0).
+ * - `--help`: show help.
+ *
+ * ```bash
+ * ./deway
+ * ./deway --nodes 20
+ * ./deway --nodes 30 --seed 42
+ * ./deway --help
+ * ```
+ *
+ * ## Algorithm
+ *
+ * 1. Build a random BST by recursive insertion in a numeric range.
+ * 2. Convert the binary tree to a forest (`bin_to_forest`).
+ * 3. Fix the `is_root` flag for sibling roots created by the conversion.
+ * 4. Print traversals and finally compute and print Dewey numbers.
+ *
+ * ## Complexity
+ *
+ * - Tree generation and traversals are linear in the number of nodes: `O(n)`.
+ * - Dewey numbering visits each node once: `O(n)`.
+ *
+ * ## Pitfalls and edge cases
+ *
+ * - Dewey addresses are **not stable** under insertions/removals: changing sibling order
+ *   changes addresses.
+ * - The initial tree is a BST built from random values; its height can vary.
+ *
+ * ## References / see also
+ *
+ * - `generate_forest.C` (related forest utilities)
+ * - `tpl_tree_node.H` (n-ary tree nodes)
+ *
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ */
+
 # include <iostream>
+# include <tclap/CmdLine.h>
 # include <tpl_binNodeUtils.H>
 # include <tpl_tree_node.H>
 # include <generate_tree.H>
+# include <ah-errors.H>
 
 using namespace std;
 using namespace Aleph;
 
+/**
+ * @brief Recursively compute and print Deway numbering for a tree node
+ * 
+ * @param p Current node
+ * @param prefix Array storing the current Deway address
+ * @param len Current depth in the tree
+ * @param dim Maximum dimension of prefix array
+ */
 void deway(Tree_Node<int> * p, int prefix[], const int & len, 
-	   const size_t & dim)
+           const size_t & dim)
 {
   int i = 1;
 
@@ -48,37 +124,31 @@ void deway(Tree_Node<int> * p, int prefix[], const int & len,
 
   cout << " \"" << p->get_key() << "\"" << endl;
   
-  if (len >= dim)
-    throw std::overflow_error("Array dimension es smaller than Deway chain");
+  if (static_cast<size_t>(len) >= dim)
+    ah_overflow_error_if(true) << "Array dimension is smaller than Deway chain";
   
   Tree_Node<int> * child = p->get_left_child(); 
   
-  for (int i = 0; child != NULL; ++i, child = child->get_right_sibling())
+  for (int j = 0; child != nullptr; ++j, child = child->get_right_sibling())
     {
-      prefix[len + 1] = i;
+      prefix[len + 1] = j;
       deway(child, prefix, len + 1, dim);
     }
 }
 
-struct Convert
-{
-  const string operator () (Tree_Node<int> * p)
-  {
-    char buf[512];
-    snprintf(buf, 512, "%d", p->get_key());
-    
-    return string(buf);
-  }
-};
-
-
+/**
+ * @brief Print Deway numbering for a forest
+ * 
+ * @param p Root of the first tree in the forest
+ * @param h Height of the original binary tree (used to size prefix array)
+ */
 void deway(Tree_Node<int> * p, const int & h)
 {
-  const size_t dim = 10*h;
+  const size_t dim = 10 * h;
 
   int * prefix = new int [dim];
 
-  for (int i = 0; p != NULL; ++i, p = p->get_right_sibling())
+  for (int i = 0; p != nullptr; ++i, p = p->get_right_sibling())
     {
       prefix[0] = i;
       deway(p, prefix, 0, dim);
@@ -87,32 +157,32 @@ void deway(Tree_Node<int> * p, const int & h)
   delete [] prefix;
 }
 
-
-    template <class Node>
+template <class Node>
 static void printNode(Node * node, int, int)
 { 
   cout << " " << node->get_key();
 }
 
-
-int random(int l, int r)
+/**
+ * @brief Generate a random integer in range [l, r]
+ */
+int random_int(int l, int r)
 {
   assert(l <= r);
-
-  int n = r - l;
-
-  int rd = 1 + (int) (1.0*n*rand()/(RAND_MAX+1.0));
-
+  const int n = r - l;
+  const int rd = 1 + static_cast<int>(1.0 * n * rand() / (RAND_MAX + 1.0));
   return l + rd - 1;
 }
 
-
+/**
+ * @brief Recursively build a random binary search tree
+ */
 BinNode<int> * random_tree(int l, int r)
 {
   if (l > r)
-    return NULL;
+    return nullptr;
 
-  BinNode<int> * root = new BinNode<int> (random(l, r));
+  auto * root = new BinNode<int>(random_int(l, r));
 
   LLINK(root) = random_tree(l, KEY(root) - 1);
   RLINK(root) = random_tree(KEY(root) + 1, r);
@@ -120,47 +190,86 @@ BinNode<int> * random_tree(int l, int r)
   return root;
 }
 
-
-int main(int argn, char * argc[])
+int main(int argc, char * argv[])
 {
-  int n = argc[1] ? atoi(argc[1]) : 2;
+  try
+    {
+      TCLAP::CmdLine cmd("Deway numbering example for trees", ' ', "1.0");
 
-  unsigned int t = time(0);
+      TCLAP::ValueArg<int> nArg("n", "nodes", 
+                                 "Number of nodes in the tree",
+                                 false, 10, "int");
+      cmd.add(nArg);
 
-  if (argn > 2)
-    t = atoi(argc[2]);
+      TCLAP::ValueArg<unsigned int> seedArg("s", "seed",
+                                             "Random seed (0 = use time)",
+                                             false, 0, "unsigned int");
+      cmd.add(seedArg);
 
-  srand(t);
+      cmd.parse(argc, argv);
 
-  cout << argc[0] << " " << n << " " << t << endl;
+      int n = nArg.getValue();
+      unsigned int t = seedArg.getValue();
 
-  BinNode<int> * bp = random_tree(1, n);
+      if (t == 0)
+        t = time(nullptr);
 
-  cout << "Prefijo:";
-  preOrderRec(bp,  printNode);
-  cout << endl << endl;
-  
-  cout << "Infijo:";
-  inOrderRec(bp,  printNode);
-  cout << endl << endl;
-  
-  Tree_Node<int> * tree = bin_to_forest< Tree_Node<int>, BinNode<int> > (bp);
+      srand(t);
 
-  cout << "Preorder:" << endl;
-  forest_preorder_traversal(tree, printNode);
-  cout << endl << endl;
+      cout << "Deway Numbering Example" << endl;
+      cout << "=======================" << endl;
+      cout << "Parameters: n=" << n << ", seed=" << t << endl << endl;
 
-  cout << "Postorder:" << endl;
-  forest_postorder_traversal(tree, printNode);
-  cout << endl << endl;
+      // Generate random binary tree
+      BinNode<int> * bp = random_tree(1, n);
 
-  BinNode<int> * prb = forest_to_bin< Tree_Node<int>, BinNode<int> > (tree);
+      cout << "Binary tree (preorder):";
+      preOrderRec(bp, printNode);
+      cout << endl << endl;
+      
+      cout << "Binary tree (inorder):";
+      inOrderRec(bp, printNode);
+      cout << endl << endl;
+      
+      // Convert to forest
+      Tree_Node<int> * tree = bin_to_forest<Tree_Node<int>, BinNode<int>>(bp);
 
-  assert(areEquivalents(prb, bp));
+      // bin_to_forest creates a forest where sibling trees are linked,
+      // but the is_root flag is not set correctly for siblings.
+      // We fix this by setting is_root=true for all sibling trees.
+      for (auto* t = tree; t != nullptr; t = t->get_right_sibling())
+        t->set_is_root(true);
 
-  deway(tree, computeHeightRec(bp));
+      cout << "Forest (preorder):";
+      forest_preorder_traversal(tree, printNode);
+      cout << endl << endl;
 
-  destroyRec(bp);
-  destroyRec(prb);
-  destroy_forest(tree);
+      cout << "Forest (postorder):";
+      forest_postorder_traversal(tree, printNode);
+      cout << endl << endl;
+
+      // Verify conversion is reversible
+      BinNode<int> * prb = forest_to_bin<Tree_Node<int>, BinNode<int>>(tree);
+      assert(areEquivalents(prb, bp));
+      cout << "Conversion verification: PASSED" << endl << endl;
+
+      // Print Deway numbering
+      cout << "Deway Numbering:" << endl;
+      cout << "----------------" << endl;
+      deway(tree, computeHeightRec(bp));
+
+      // Cleanup
+      destroyRec(bp);
+      destroyRec(prb);
+      destroy_forest(tree);
+
+      cout << endl << "Done." << endl;
+    }
+  catch (TCLAP::ArgException &e)
+    {
+      cerr << "Error: " << e.error() << " for arg " << e.argId() << endl;
+      return 1;
+    }
+
+  return 0;
 }

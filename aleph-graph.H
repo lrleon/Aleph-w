@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,19 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file aleph-graph.H
+ *  @brief Simplified graph interface for common use cases.
+ *
+ *  Provides AlephGraph, a simplified graph class that wraps
+ *  the more complex List_Graph with easier-to-use methods
+ *  and automatic memory management.
+ *
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef ALEPH_GRAPH_H
 # define ALEPH_GRAPH_H
 
@@ -49,7 +61,7 @@ static const long No_Visited = 0; // nodo o arco no ha sido visitado
 
       @see Bit_Fields
 
-      @ingroup Grafos
+      @ingroup Graphs
    */
 enum Graph_Bits
 {
@@ -70,21 +82,21 @@ enum Graph_Bits
 
 
   /** The node or arc has already been processed
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Processed; 
 
   /** The node are being processed; probably it is inside a queue, stack
       or heap 
 
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Processing;
 
   /** The node have not bees processed. This must be the initial state
       before general processing 
 
-      @ingroup Grafos
+      @ingroup Graphs
   */
   extern const unsigned char Unprocessed;
 
@@ -110,7 +122,7 @@ enum Graph_Bits
         some systems. Possibly this would only happen on little-endian
         systems. Therefore, do not use these mechanisms.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
 class Bit_Fields
 {
@@ -138,7 +150,7 @@ public:
       /// All the bits are set to zero
   Bit_Fields() noexcept
   {
-    memset(this, 0, sizeof *this);
+    reset();
   }
 
       /** Get a control bit.
@@ -151,7 +163,7 @@ public:
           @return the logical value of bit
           @throw out_of_range if bit is greater or equal than Num_Bits_Graph.
        */
-  bool get_bit(int bit) const noexcept
+  [[nodiscard]] bool get_bit(int bit) const noexcept
   {
     switch (bit)
       {
@@ -203,19 +215,19 @@ public:
   }
 
   /// Return the state value
-  unsigned int get_state() const noexcept { return state; }
+  [[nodiscard]] unsigned int get_state() const noexcept { return state; }
 
-  /// Return a stringficated version of state
-  std::string str_state() const 
+  /// Return a stringification version of state
+  [[nodiscard]] std::string str_state() const
   {
     switch (state)
       {
-      case 0: return std::string("Unprocessed");
-      case 1: return std::string("Processing");
-      case 2: return std::string("Processed");
+      case 0: return {"Unprocessed"};
+      case 1: return {"Processing"};
+      case 2: return {"Processed"};
       default: break;
       }
-    return std::string("Undefined");
+    return {"Undefined"};
   }
 
   /// Set the state to the value `s`
@@ -231,7 +243,18 @@ public:
       /// Reset all bits and state to zero
   void reset() noexcept
   {
-    memset(this, 0, sizeof *this);
+    depth_first = 0;
+    breadth_first = 0;
+    test_cycle = 0;
+    find_path = 0;
+    euler = 0;
+    maximum_flow = 0;
+    spanning_tree = 0;
+    build_subtree = 0;
+    convert_tree = 0;
+    cut = 0;
+    min = 0;
+    state = 0;
   }
 };
 
@@ -251,26 +274,26 @@ public:
          the bit fields and the counter. The three main uses of this
          pointer are:
 
-	 1. For mapping nodes and/or arcs to other isomorphic
-	    subgraphs. By example, you could compute a spanning tree of
-	    the graph. Now, in order to know which node or arc of
-	    spanning tree corresponds to its counterpart in the original
-	    graph, you could use this `cookie` and to perform an
-	    map. This has the great advantage that the map is
-	    deterministically \f$O(1)\f$, by contrast with the
-	    probabilistic \f$O(1)\f$ of a hash table or the \f$O(\lg
-	    n)\f$ of a binary search tree. In addition, this
-	    alternative, when required, is less space expensive.
+         - For mapping nodes and/or arcs to other isomorphic
+            subgraphs. By example, you could compute a spanning tree of
+            the graph. Now, in order to know which node or arc of
+            spanning tree corresponds to its counterpart in the original
+            graph, you could use this `cookie` and to perform an
+            map. This has the great advantage that the map is
+            deterministically \f$O(1)\f$, by contrast with the
+            probabilistic \f$O(1)\f$ of a hash table or the \f$O(\lg
+            n)\f$ of a binary search tree. In addition, this
+            alternative, when required, is less space expensive.
 
-	 2. If you need to associate to the node or arc a more
-	    sophisticated state, the you could define it with a class
+         - If you need to associate to the node or arc a more
+            sophisticated state, the you could define it with a class
 	    (or tuple or whatever else you need), and then allocate it
 	    and storing via this `cookie` pointer. Of course, be careful
 	    and be sure of deallocating it when it is not longer
 	    needed. Also, consider that you will need to cast the
 	    `cookie` to the type of information that you have defined.
 
-	 3. Reverse path tracing. This is a very useful and powerful
+         - Reverse path tracing. This is a very useful and powerful
 	    technique for storing partial and definitive path during
 	    graph processing. The general rule is: when in a search you
 	    visit a new node, the you saves the parent (the caller) in
@@ -280,7 +303,7 @@ public:
 
     @see Bit_Fields NODE_BITS NODE_COUNTER NODE_COLOR IS_NODE_VISITED NODE_COOKIE ARC_COUNTER ARC_COLOR ARC_BITS IS_ARC_VISITED ARC_COOKIE
 
-    @ingroup Grafos
+    @ingroup Graphs
  */
 struct Graph_Attr
 {
@@ -300,19 +323,19 @@ struct Graph_Attr
 
     /** Get the control bits of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
      */
 # define NODE_BITS(p)            ((p)->attrs.control_bits)
 
     /** Get the counter of a node.
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COUNTER(p)         ((p)->attrs.counter)
 
     /** Synonymous of NODE_COUNTER
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COLOR(p)         ((p)->attrs.counter)
 
@@ -322,31 +345,31 @@ struct Graph_Attr
         @param bit number of bit to read
         @return true if the bit is 1; false if 0
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define IS_NODE_VISITED(p, bit) (NODE_BITS(p).get_bit(bit))
 
     /** Return the node `cookie`
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define NODE_COOKIE(p)          ((p)->attrs.cookie) 
 
     /** Return the `counter` of arc p
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COUNTER(p)          ((p)->attrs.counter)
 
     /** Return the color of arc p 
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COLOR(p)          ((p)->attrs.counter)
 
     /** Return the control bits of arc p
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_BITS(p)             ((p)->attrs.control_bits)
 
@@ -355,13 +378,13 @@ struct Graph_Attr
         @param p pointer to arc
         @param bit number of bit to be read
         @return true if `bit` is 1; false otherwise (`bit` is set to 0)
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define IS_ARC_VISITED(p, bit)  (ARC_BITS(p).get_bit(bit))
 
     /** Return the arc `cookie`
 
-        @ingroup Grafos
+        @ingroup Graphs
     */
 # define ARC_COOKIE(p)           ((p)->attrs.cookie) 
 

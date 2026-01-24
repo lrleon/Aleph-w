@@ -1,7 +1,36 @@
+
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
 # include <time.h>
 # include <gsl/gsl_rng.h>
 # include <stdexcept>
 # include "hash-fct.H"
+
+# include <ah-errors.H>
 
 namespace Aleph
 { 
@@ -15,7 +44,7 @@ static bool init = false;
 void init_jsw() noexcept
 {
   gsl_rng * r = gsl_rng_alloc (gsl_rng_mt19937);
-  gsl_rng_set(r, time(NULL) % gsl_rng_max(r));
+  gsl_rng_set(r, time(nullptr) % gsl_rng_max(r));
 
   for (int i = 0; i < 256; ++i)
     tab[i] = gsl_rng_get(r);
@@ -25,26 +54,26 @@ void init_jsw() noexcept
   init = true; 
 }
 
-size_t jsw_hash(void * key, int len) 
+size_t jsw_hash(const void * key, size_t len)
 {
-  if (not init)
-    throw std::domain_error("jsw_hash: init_jsw() has not been called");
+  ah_domain_error_if(not init)
+      << "jsw_hash: init_jsw() has not been called";
 
-  unsigned char *p = (unsigned char*) key;
+  const unsigned char *p = (const unsigned char*) key;
   size_t h = 16777551;
-  
-  for (int i = 0; i < len; i++)
+
+  for (size_t i = 0; i < len; i++)
     h = (h << 1 | h >> 31) ^ tab[p[i]];
-  
+
   return h;
 }
 
 size_t jsw_hash(const char * key)
 {
-  if (not init)
-    throw std::domain_error("jsw_hash: init_jsw() has not been called");
+  ah_domain_error_if(not init)
+      << "jsw_hash: init_jsw() has not been called";
 
-  unsigned char * p = (unsigned char*) key;
+  const unsigned char * p = (const unsigned char*) key;
   size_t h = 16777551;
   
   while (*p)
@@ -162,8 +191,8 @@ void MurmurHash3_x86_32 ( const void * key, int len,
 
   switch(len & 3)
   {
-  case 3: k1 ^= tail[2] << 16;
-  case 2: k1 ^= tail[1] << 8;
+  case 3: k1 ^= tail[2] << 16; [[fallthrough]];
+  case 2: k1 ^= tail[1] << 8;  [[fallthrough]];
   case 1: k1 ^= tail[0];
           k1 *= c1; k1 = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
   };
@@ -238,26 +267,26 @@ void MurmurHash3_x86_128 ( const void * key, const int len,
 
   switch(len & 15)
   {
-  case 15: k4 ^= tail[14] << 16;
-  case 14: k4 ^= tail[13] << 8;
+  case 15: k4 ^= tail[14] << 16; [[fallthrough]];
+  case 14: k4 ^= tail[13] << 8;  [[fallthrough]];
   case 13: k4 ^= tail[12] << 0;
            k4 *= c4; k4  = ROTL32(k4,18); k4 *= c1; h4 ^= k4;
-
-  case 12: k3 ^= tail[11] << 24;
-  case 11: k3 ^= tail[10] << 16;
-  case 10: k3 ^= tail[ 9] << 8;
+           [[fallthrough]];
+  case 12: k3 ^= tail[11] << 24; [[fallthrough]];
+  case 11: k3 ^= tail[10] << 16; [[fallthrough]];
+  case 10: k3 ^= tail[ 9] << 8;  [[fallthrough]];
   case  9: k3 ^= tail[ 8] << 0;
            k3 *= c3; k3  = ROTL32(k3,17); k3 *= c4; h3 ^= k3;
-
-  case  8: k2 ^= tail[ 7] << 24;
-  case  7: k2 ^= tail[ 6] << 16;
-  case  6: k2 ^= tail[ 5] << 8;
+           [[fallthrough]];
+  case  8: k2 ^= tail[ 7] << 24; [[fallthrough]];
+  case  7: k2 ^= tail[ 6] << 16; [[fallthrough]];
+  case  6: k2 ^= tail[ 5] << 8;  [[fallthrough]];
   case  5: k2 ^= tail[ 4] << 0;
            k2 *= c2; k2  = ROTL32(k2,16); k2 *= c3; h2 ^= k2;
-
-  case  4: k1 ^= tail[ 3] << 24;
-  case  3: k1 ^= tail[ 2] << 16;
-  case  2: k1 ^= tail[ 1] << 8;
+           [[fallthrough]];
+  case  4: k1 ^= tail[ 3] << 24; [[fallthrough]];
+  case  3: k1 ^= tail[ 2] << 16; [[fallthrough]];
+  case  2: k1 ^= tail[ 1] << 8;  [[fallthrough]];
   case  1: k1 ^= tail[ 0] << 0;
            k1 *= c1; k1  = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
   };
@@ -328,22 +357,22 @@ void MurmurHash3_x64_128 ( const void * key, const int len,
 
   switch(len & 15)
   {
-  case 15: k2 ^= (uint64_t)(tail[14]) << 48;
-  case 14: k2 ^= (uint64_t)(tail[13]) << 40;
-  case 13: k2 ^= (uint64_t)(tail[12]) << 32;
-  case 12: k2 ^= (uint64_t)(tail[11]) << 24;
-  case 11: k2 ^= (uint64_t)(tail[10]) << 16;
-  case 10: k2 ^= (uint64_t)(tail[ 9]) << 8;
+  case 15: k2 ^= (uint64_t)(tail[14]) << 48; [[fallthrough]];
+  case 14: k2 ^= (uint64_t)(tail[13]) << 40; [[fallthrough]];
+  case 13: k2 ^= (uint64_t)(tail[12]) << 32; [[fallthrough]];
+  case 12: k2 ^= (uint64_t)(tail[11]) << 24; [[fallthrough]];
+  case 11: k2 ^= (uint64_t)(tail[10]) << 16; [[fallthrough]];
+  case 10: k2 ^= (uint64_t)(tail[ 9]) << 8;  [[fallthrough]];
   case  9: k2 ^= (uint64_t)(tail[ 8]) << 0;
            k2 *= c2; k2  = ROTL64(k2,33); k2 *= c1; h2 ^= k2;
-
-  case  8: k1 ^= (uint64_t)(tail[ 7]) << 56;
-  case  7: k1 ^= (uint64_t)(tail[ 6]) << 48;
-  case  6: k1 ^= (uint64_t)(tail[ 5]) << 40;
-  case  5: k1 ^= (uint64_t)(tail[ 4]) << 32;
-  case  4: k1 ^= (uint64_t)(tail[ 3]) << 24;
-  case  3: k1 ^= (uint64_t)(tail[ 2]) << 16;
-  case  2: k1 ^= (uint64_t)(tail[ 1]) << 8;
+           [[fallthrough]];
+  case  8: k1 ^= (uint64_t)(tail[ 7]) << 56; [[fallthrough]];
+  case  7: k1 ^= (uint64_t)(tail[ 6]) << 48; [[fallthrough]];
+  case  6: k1 ^= (uint64_t)(tail[ 5]) << 40; [[fallthrough]];
+  case  5: k1 ^= (uint64_t)(tail[ 4]) << 32; [[fallthrough]];
+  case  4: k1 ^= (uint64_t)(tail[ 3]) << 24; [[fallthrough]];
+  case  3: k1 ^= (uint64_t)(tail[ 2]) << 16; [[fallthrough]];
+  case  2: k1 ^= (uint64_t)(tail[ 1]) << 8;  [[fallthrough]];
   case  1: k1 ^= (uint64_t)(tail[ 0]) << 0;
            k1 *= c1; k1  = ROTL64(k1,31); k1 *= c2; h1 ^= k1;
   };

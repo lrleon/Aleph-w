@@ -1,47 +1,97 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-   / \  | | ___ _ __ | |__      __      __
-   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-   |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
-   This file is part of Aleph-w library
+  This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program. If not, see <https://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_slist.H
+ *  @brief Singly linked list with typed nodes.
+ *
+ *  This file provides Slist, a simple singly linked list where each node
+ *  stores a value of type T. Designed for minimal memory overhead and
+ *  simple forward traversal.
+ *
+ *  ## Key Features
+ *
+ *  - One pointer per node (minimal overhead)
+ *  - O(1) insertion at head
+ *  - Forward traversal only
+ *  - Move semantics support
+ *
+ *  ## Complexity
+ *
+ *  | Operation | Time |
+ *  |-----------|------|
+ *  | insert_first | O(1) |
+ *  | remove_first | O(1) |
+ *  | search | O(n) |
+ *  | reverse | O(n) |
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  Slist<int> list;
+ *
+ *  list.insert_first(new Snode<int>(42));
+ *  list.insert_first(new Snode<int>(17));
+ *
+ *  for (auto it = list.get_first(); it != nullptr; it = it->get_next())
+ *    std::cout << it->get_data() << " ";
+ *  ```
+ *
+ *  ## When to Use
+ *
+ *  - Memory is extremely constrained
+ *  - Only forward traversal needed
+ *  - LIFO access pattern (stack-like)
+ *
+ *  @see tpl_dnode.H Doubly linked nodes
+ *  @see tpl_dynDlist.H Full-featured doubly linked list
+ *  @see tpl_snode.H Node definition
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
 
 # ifndef TPL_SLIST_H
 # define TPL_SLIST_H
 
 # include <ahDefs.H>
 # include <tpl_snode.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
 namespace Aleph {
 
-  /** Lista simplemente enlazada de nodos conteniendo datos de tipo T.
+  /** Singly linked list of nodes that store values of type `T`.
 
-      Slist<T> es una lista cuyos elementos son nodos. Cada nodo
-      contiene un dato de tipo genérico T.
+      `Slist<T>` is a node-based list where each element is a `Snode<T>`
+      storing the payload of type `T`.
 
-      @param T el tipo de dato que alberga cada nodo.
-      @ingroup Secuencias
+      @tparam T data type held by each node
+      @ingroup Sequences
   */
   template <typename T> class Slist : public Snode<T>
   {
@@ -50,15 +100,12 @@ namespace Aleph {
 
     typedef Snode<T> Node;
 
-    /// Constructor vacío.
-    Slist() { /* empty */ }
+    /// Default constructor.
+    Slist() = default;
 
-    /** Inserta un nodo después de this.
+    /** Insert `node` right after this sentinel (at the beginning).
 
-        insert_first(node) inserta el nodo justamente después del nodo
-        this.
-
-        @param[in] node el nodo a insertar.
+        @param[in] node pointer to the node to insert
     */
     void insert_first(Node * node)
     {
@@ -68,41 +115,54 @@ namespace Aleph {
       this->insert_next(node);
     }
 
+    /// Remove and return the first node without checking emptiness.
     Node * remove_first_ne() noexcept
     {
       return this->remove_next();
     }
 
-    /** Elimina el primer nodo de la lista y retorna su dirección.
+    /** Remove the first node of the list.
 
-        Elimina el primer nodo de la lista.
-
-        @throw underflow_error si la lista está vacía.
-        @return un puntero al nodo eliminado.
+        @throw underflow_error if the list is empty
+        @return pointer to the removed node
     */
     Node * remove_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error ("list is empty");
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
       return this->remove_next();
     }
 
-    /// Retorna el primer nodo de la lista.
+    /// Return a pointer to the first node; throw if the list is empty.
     Node * get_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error ("list is empty");
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
       return this->get_next();
     }
 
-    /** Iterador sobre lista de nodos simples.
+    /// Return a pointer to the first node (const overload).
+    const Node * get_first() const
+    {
+      ah_underflow_error_if(this->is_empty()) << "list is empty";
 
-        Esta clase define un iterador sobre una lista simplemente enlazada
-        de nodos.
+      return reinterpret_cast<const Node*>(this->Slink::get_next());
+    }
 
-        @ingroup Secuencias
+    /// Return the first node without checking emptiness.
+    Node * get_first_ne() noexcept { return this->get_next(); }
+
+    /// Return the first node without checking emptiness (const overload).
+    const Node * get_first_ne() const noexcept
+    {
+      return reinterpret_cast<const Node*>(this->Slink::get_next());
+    }
+
+    /** Iterator over singly linked nodes.
+
+        This iterator walks the list from the head sentinel forward.
+
+        @ingroup Sequences
         @see Slist
     */
     class Iterator
@@ -114,58 +174,60 @@ namespace Aleph {
       Node  * current;
 
     public:
-      /// El tipo de conjunto sobre el cual se itera.
+      /// Type of the set being iterated.
       typedef Snode<T> Set_Type;
-      /// El tipo de elemento que retorna get_curr().
+      /// Type of the element returned by get_curr().
       typedef Snode<T> * Item_Type;
 
-      /** Constructor.
+      /** Construct an iterator over `list`.
 
-          Construye un iterador sobre la lista de nodos list.
-
-          @param[in] _list la lista sobre la cual se desea iterar.
+          @param[in] _list list to traverse
       */
-      Iterator(Slist & _list) : list(&_list), current(list->get_first()) {}
+      explicit Iterator(Slist & _list) noexcept
+        : list(&_list), current(_list.is_empty() ? &_list
+                                                 : _list.get_first_ne())
+      {
+      }
 
-      /// Retorna true si el iterador tiene nodo actual.
-      bool has_curr() const { return current != list; }
+      /// Return true if the iterator currently points to a node.
+      bool has_curr() const noexcept { return current != list; }
 
-      /** Retorna el nodo actual sobre el cual está posicionado el iterador.
+      /** Return the current node.
 
-          @return un apuntador al elemento actual.
-          @throw overflow_error si el iterador no está posicionado sobre
-          un elemento.
+          @return pointer to the current node
+          @throw overflow_error if the iterator is not positioned on a node
       */
       Node * get_curr()
       {
-        if (not this->has_curr())
-          throw std::overflow_error ("");
+        ah_overflow_error_if(not this->has_curr()) << "Slist::Iterator overflow";
 
         return current;
       }
-      /** Avanza el iterador hacia adelante.
+      /** Advance the iterator to the next node.
 
-          Avanza el iterador hacia el elemento siguiente del actual.
-
-          Si el iterador se encuentra en el último elemento de la secuencia,
-          entonces éste queda en un estado en que no hay elemento actual.
-
-          @throw overflow_error si el iterador no se encuentra sobre un elemento
-          actual.
+          @throw overflow_error if the iterator is not positioned on a node
       */
       void next()
 
       {
-        if (not this->has_curr())
-          throw std::overflow_error ("");
+        ah_overflow_error_if(not this->has_curr()) << "Slist::Iterator overflow";
 
         current = current->get_next();
       }
-      /// Coloca el iterador en el primer elemento de la lista.
-      void reset_first() { current = list->get_next(); }
+      /// Reset the iterator to the first node of the list.
+      void reset_first() noexcept
+      {
+        current = list->is_empty() ? list : list->get_first_ne();
+      }
+
+      /** Assign the iterator to point to `node`.
+
+          @param[in] node node to point to
+          @return reference to this iterator
+      */
       Iterator & operator = (Node * node)
       {
-        if (this == node)
+        if (current == node)
           return *this;
 
         current = node;

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,13 +24,18 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+
+
+/**
+ * @file array_utils.cc
+ * @brief Tests for Array Utils
+ */
+# include <gtest/gtest.h>
 
 # include <iostream>
 
 # include <array_utils.H>
 # include <ah-string-utils.H>
-# include <htlist.H>
 
 using namespace std;
 using namespace testing;
@@ -117,7 +121,7 @@ TEST_F(SimpleArray, close_gap_by_copy_left)
   close_gap(a, n, 0, 1);
   for (size_t i = 0; i < n - 1; ++i)
     EXPECT_EQ(a[i], i + 1);
-  EXPECT_THAT(a[n-1], n - 1);
+  EXPECT_EQ(a[n-1], n - 1);
 }
 
 TEST_F(SimpleArray, close_gap_by_copy_right)
@@ -126,8 +130,8 @@ TEST_F(SimpleArray, close_gap_by_copy_right)
   close_gap(a, n, n - 2, 1);
   for (size_t i = 0; i < n - 2; ++i)
     EXPECT_EQ(a[i], i);
-  EXPECT_THAT(a[n - 1], n - 1);
-  EXPECT_THAT(a[n - 1], n - 1);
+  EXPECT_EQ(a[n - 1], n - 1);
+  EXPECT_EQ(a[n - 1], n - 1);
 }
 
 TEST_F(SimpleArray, n_close_gap_by_copy_left)

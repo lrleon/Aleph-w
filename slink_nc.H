@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,10 +23,19 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file slink_nc.H
+ *  @brief Singly linked node (no check variant).
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef SLINK_NC_H
 # define SLINK_NC_H
 
 # include <aleph.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -36,7 +44,7 @@ namespace Aleph
       Slink_Nc modeliza un puntero a un nodo dentro de una lista
       simplemente enlazada no circular. 
 
-      @ingroup Secuencias
+      @ingroup Sequences
       @see Snode Slist DynSlist Dlink 
    */
   class Slink_Nc
@@ -59,10 +67,9 @@ namespace Aleph
       if (&link == this)
         return *this;
 
-      if (not is_empty())
-        throw std::invalid_argument("link is not empty");
+      ah_invalid_argument_if(not is_empty()) << "link is not empty";
 
-      next = nullptr; 
+      next = nullptr;
     }
 
     /// Reinicia enlace a que apunte a nullptr
@@ -175,11 +182,10 @@ namespace Aleph
         return curr;
       }
 
-      Slink_Nc * get_curr()  
+      Slink_Nc * get_curr()
       {
-        if (not has_curr())
-          throw std::overflow_error("Not element in list");
-	return get_curr_ne();
+        ah_overflow_error_if(not has_curr()) << "Not element in list";
+        return get_curr_ne();
       }
 
       /// Retorna true si iterador está sobre primer elemento
@@ -193,9 +199,8 @@ namespace Aleph
 
       void next() throw(std::exception, std::overflow_error)
       {
-        if (not has_curr())
-          throw std::overflow_error("Not next element in list");
-	next_ne();
+        ah_overflow_error_if(not has_curr()) << "Not next element in list";
+        next_ne();
       }
 
       /// Retorna true si iteradores están sobre el mismo elemento.

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,25 +24,72 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
 # ifndef DLINK_H
 # define DLINK_H
 
-# include <aleph.H>
+/** @file dlink.H
+    @brief Doubly linked circular list implementation.
 
-using namespace Aleph;
+    This file provides the Dlink class, a low-level building block for
+    doubly linked circular lists with a sentinel header node. The design
+    allows O(1) insertion and removal at any position, and O(1) list
+    concatenation and splitting.
+
+    The circular design with sentinel node simplifies boundary conditions
+    and enables symmetric forward/backward traversal.
+
+    @ingroup Sequences
+ *  @author Leandro Rabindranath León
+*/
+
+# include <aleph.H>
+# include <ah-errors.H>
 
 namespace Aleph {
 
   template <typename T> class Dnode; // Forward declaration of derived class
 
-  /**  Double link of a node belonging to a double circular linked
-       list with header node.
+  /** @brief Doubly linked circular list node.
 
-       This class implements many operations on double circular linked
-       list with header node.
+      Dlink is the fundamental building block for doubly linked circular
+      lists in Aleph-w. Each node contains pointers to its previous and
+      next neighbors, forming a circular structure. An empty list consists
+      of a single sentinel node pointing to itself.
 
-       @ingroup Secuencias
-       @see Macros_Dlink Dlink::Iterator Dnode Dlist DynDlist
+      This class provides low-level operations for manipulating the list
+      structure. For a higher-level interface with data storage, see Dnode
+      and DynDlist.
+
+      @par Design Principles:
+      - Circular structure: last->next == first, first->prev == last
+      - Sentinel node: empty list has sentinel->next == sentinel
+      - Intrusive design: nodes can be embedded in other structures
+
+      @par Complexity:
+      - Insert/remove at known position: O(1)
+      - Concatenate two lists: O(1)
+      - Split list: O(1)
+      - Traverse: O(n)
+
+      @par Example:
+      @code
+      Dlink header;  // sentinel node
+      Dlink node1, node2, node3;
+
+      header.insert_next(&node1);  // Insert after header
+      node1.insert_next(&node2);   // Insert after node1
+      header.insert_prev(&node3);  // Insert before header (at end)
+
+      // Traverse forward
+      for (auto it = header.get_next(); it != &header; it = it->get_next())
+        process(it);
+      @endcode
+
+      @see Dnode Node with embedded data.
+      @see DynDlist High-level dynamic doubly linked list.
+      @see Dlink::Iterator Bidirectional iterator for Dlink lists.
+      @ingroup Sequences
   */
   class Dlink
   {
@@ -54,10 +100,14 @@ namespace Aleph {
 
   public:
 
-    template <typename T> inline Dnode<T> * to_dnode() noexcept;
-    template <typename T> inline const Dnode<T> * to_dnode() const noexcept;
-    template <typename T> inline T& to_data() noexcept;
-    template <typename T> inline const T& to_data() const noexcept;
+    template <typename T>
+    Dnode<T> * to_dnode() noexcept;
+    template <typename T>
+    const Dnode<T> * to_dnode() const noexcept;
+    template <typename T>
+    T& to_data() noexcept;
+    template <typename T>
+    const T& to_data() const noexcept;
 
     /// Initialize a node or an empty list
     Dlink() noexcept : prev(this), next(this) { assert(is_empty()); }
@@ -157,13 +207,12 @@ namespace Aleph {
 
         Assign a rvalue list to `this` without copying.
 
+        @param[in] l rvalue reference to the list to move from.
         \note Since `l` is rvalue reference, take care of that if you are
         interested in to avoid the copy. So, if you have a lvalue
         reference to a list, use `std::move()`, upon your responsability,
         if and only if you are absolutely sure that the list will not be
         needed after.
-
-        \param[in] rvalue reference to list to be copied
     */
     Dlink & operator = (Dlink && l) noexcept
     {
@@ -189,13 +238,13 @@ namespace Aleph {
     }
 
     /// Return `true` if `this` (as header node) is empty
-    bool is_empty() const noexcept { return this == next and this == prev; }
+    [[nodiscard]] constexpr bool is_empty() const noexcept { return this == next and this == prev; }
 
     /// Return `true` if `this` (as header node) has exactly one element
-    bool is_unitarian() const noexcept { return this != next and next == prev; }
+    [[nodiscard]] constexpr bool is_unitarian() const noexcept { return this != next and next == prev; }
 
-    /// Return `true` if `this` (as header node) has zeor or one element
-    bool is_unitarian_or_empty() const noexcept { return next == prev; }
+    /// Return `true` if `this` (as header node) has zero or one element
+    [[nodiscard]] constexpr bool is_unitarian_or_empty() const noexcept { return next == prev; }
 
     /** Insert `node` after `this`.
 
@@ -220,9 +269,9 @@ namespace Aleph {
       insert(node);
     }
 
-    /** Insert `node`before `this`.
+    /** Insert `node` before `this`.
 
-        @param[in] node pointer to an empty node (it must no be
+        @param[in] node pointer to an empty node (it must not be
         inserted in another list)
     */
     void append(Dlink * node) noexcept
@@ -238,30 +287,30 @@ namespace Aleph {
     }
 
     /// Return the link that is after `this`
-    Dlink *& get_next() const noexcept
+    [[nodiscard]] Dlink *& get_next() const noexcept
     {
       assert(next != nullptr and prev != nullptr);
       return next;
     }
 
     /// Return the link that is before `this`
-    Dlink *& get_prev() const noexcept
+    [[nodiscard]] Dlink *& get_prev() const noexcept
     {
       assert(next != nullptr and prev != nullptr);
       return prev;
     }
 
     /// If `this` is a header node, it return the first node of `this`
-    Dlink *& get_first_ne() const noexcept { return next; }
+    [[nodiscard]] constexpr Dlink *& get_first_ne() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
-    Dlink *& get_last_ne() const noexcept { return prev; }
+    [[nodiscard]] constexpr Dlink *& get_last_ne() const noexcept { return prev; }
 
     /// If `this` is a header node, it return the first node of `this`
-    Dlink *& get_first() const noexcept { return next; }
+    [[nodiscard]] constexpr Dlink *& get_first() const noexcept { return next; }
 
     /// If `this` is a header node, it return the last node of `this`
-    Dlink *& get_last() const noexcept { return prev; }
+    [[nodiscard]] constexpr Dlink *& get_last() const noexcept { return prev; }
 
     /** Wrap a header to a list (without header).
 
@@ -441,38 +490,41 @@ namespace Aleph {
       return retValue;
     }
 
-    Dlink * remove_last_ne() noexcept /// \overload remove_prev()
+    /// \overload remove_prev()
+    Dlink * remove_last_ne() noexcept
     {
       return remove_prev();
     }
 
-    Dlink * remove_first_ne() noexcept /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * remove_first_ne() noexcept
     {
       return remove_next();
     }
 
-    Dlink * remove_last() noexcept /// \overload remove_prev()
+    /// \overload remove_prev()
+    Dlink * remove_last() noexcept
     {
       return remove_prev();
     }
 
-    Dlink * remove_first() noexcept /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * remove_first() noexcept
     {
       return remove_next();
     }
 
     /// \overload get_next()
-    Dlink * top()
+    Dlink * top() const
     {
-      if (is_empty())
-        throw std::underflow_error("Dlink as stack is not empty");
+      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
       return get_next();
     }
 
-    Dlink * pop() /// \overload remove_next()
+    /// \overload remove_next()
+    Dlink * pop()
     {
-      if (is_empty())
-        throw std::underflow_error("Dlink as stack is not empty");
+      ah_underflow_error_if(is_empty()) << "Dlink as stack is empty";
       return remove_next();
     }
 
@@ -504,12 +556,12 @@ namespace Aleph {
          cuts the list in two lists `l` and `r` respectively. After the
          operation, `this` becomes empty.
 
-         \note `l`
+         \note `l` and `r` must be empty before calling this method.
 
          @param[out] l first n/2 items of `this`
          @param[out] r last  n/2 items of `this`
-         @return total number of nodes of both list (what is the same
-         number of node that had `this` before the split
+         @return total number of nodes of both lists (which is the same
+         number of nodes that `this` had before the split)
     */
     size_t split_list_ne(Dlink & l, Dlink & r) noexcept
     {
@@ -584,7 +636,7 @@ namespace Aleph {
 
     /**  Iterator on `Dlink` lists
 
-         @ingroup Secuencias
+         @ingroup Sequences
     */
     class Iterator
     {
@@ -655,19 +707,19 @@ namespace Aleph {
       }
 
       /// Return `true` if the iterator has current item
-      bool has_curr() const noexcept
+      [[nodiscard]] bool has_curr() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
         return curr != head;
       }
 
-      bool is_last() const noexcept
+      [[nodiscard]] bool is_last() const noexcept
       {
         return head->is_empty() ? false : curr == head->prev;
       }
 
       /// Return the current link guaranteeing no exception. Be careful.
-      Dlink * get_curr_ne() const noexcept
+      [[nodiscard]] Dlink * get_curr_ne() const noexcept
       {
         assert(curr != nullptr and head != nullptr);
         return curr;
@@ -678,22 +730,21 @@ namespace Aleph {
           \return a pointer to the current node
           \throw overflow_error if there is not current node
       */
-      Dlink * get_curr() const
+      [[nodiscard]] Dlink * get_curr() const
       {
-        if (not has_curr())
-          throw std::overflow_error("Not element in list");
+        ah_overflow_error_if(not has_curr()) << "Not element in list";
 
         return get_curr_ne();
       }
 
       ///  Return `true` if the iterator is positiones on the first item
-      bool is_in_first() const noexcept
+      [[nodiscard]] constexpr bool is_in_first() const noexcept
       {
         return head->is_empty() ? false : curr == head->next;
       }
 
       ///  Return `true` if the iterator is positiones on the last item
-      bool is_in_last() const noexcept { return is_last(); }
+      [[nodiscard]] bool is_in_last() const noexcept { return is_last(); }
 
       /// Move the iterator one position backward guaranteeing no
       /// exception. Be careful.
@@ -705,8 +756,7 @@ namespace Aleph {
       */
       void prev()
       {
-        if (not has_curr())
-          throw std::underflow_error("Not previous element in list");
+        ah_underflow_error_if(not has_curr()) << "Not previous element in list";
         prev_ne();
       }
 
@@ -720,17 +770,16 @@ namespace Aleph {
       */
       void next()
       {
-        if (not has_curr())
-          throw std::overflow_error("Not next element in list");
+        ah_overflow_error_if(not has_curr()) << "Not next element in list";
         next_ne();
       }
 
       /// Return `true` if `this` and it are positioned on the same item
-      bool operator == (const Iterator & it) const noexcept
+      [[nodiscard]] constexpr bool operator == (const Iterator & it) const noexcept
       { return curr == it.curr; }
 
       /// Return `true` if `this` and `it` hace different states
-      bool operator != (const Iterator & it) const noexcept
+      [[nodiscard]] constexpr bool operator != (const Iterator & it) const noexcept
       { return curr != it.curr; }
 
       /** Remove from the list the current node and move the iterator one
@@ -761,10 +810,10 @@ namespace Aleph {
       }
 
       /// Return `true` if the iterator is on the list pointed by `l`
-      bool verify(Dlink * l) const { return head == l; }
+      [[nodiscard]] constexpr bool verify(Dlink * l) const noexcept { return head == l; }
 
       /// Return `true` if `this` and `it` are on the same list
-      bool verify(const Iterator & it) const { return head == it.head; }
+      [[nodiscard]] constexpr bool verify(const Iterator & it) const noexcept { return head == it.head; }
     };
 
     /** Remove and free memory for all the items of list.
@@ -804,8 +853,7 @@ namespace Aleph {
         {
           if (n == 0)
             return;
-          else
-            throw std::domain_error("List is empty");
+          ah_domain_error() << "List is empty";
         }
 
       for (size_t i = 0; i < n; ++i)
@@ -819,8 +867,7 @@ namespace Aleph {
         {
           if (n == 0)
             return;
-          else
-            throw std::domain_error("List is empty");
+          ah_domain_error() << "List is empty";
         }
 
       for (size_t i = 0; i < n; ++i)
@@ -886,7 +933,7 @@ namespace Aleph {
       `Dlink` field
       @param link_name the name of the `Dlink` field inside the class
       or struct.
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define DLINK_TO_TYPE(type_name, link_name)                            \
   inline static type_name * dlink_to_##type_name(Dlink * link) noexcept \
@@ -936,7 +983,7 @@ namespace Aleph {
       @param type_name the name of struct or class containing to the
       `Dlink` object.
       @param link_name the name of `Dlink` field
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define LINKNAME_TO_TYPE(type_name, link_name)                         \
   inline static type_name * link_name##_to_##type_name(Dlink * link) noexcept \
@@ -972,7 +1019,7 @@ namespace Aleph {
       @param type_name the name of class of struct containing the
       `Dlink` field.
       @param link_name the name of `Dlink` field inside the class or struct
-      @ingroup Secuencias
+      @ingroup Sequences
   */
 # define DLINK_TO_BASE(type_name, link_name)                            \
   inline static type_name * dlink_to_base(Dlink * link)	noexcept        \

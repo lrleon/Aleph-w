@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,1272 +23,1284 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TPL_MAT_GRAPH_H
-# define TPL_MAT_GRAPH_H
 
-# include <tpl_graph.H>
-# include <tpl_sort_utils.H>
 
-using namespace Aleph;
+/** @file tpl_matgraph.H
+ *  @brief Adjacency matrix representations for graphs.
+ *
+ *  This file provides several adjacency matrix representations for graphs:
+ *
+ *  - **Map_Matrix_Graph**: Maps to an existing adjacency list graph.
+ *    Entries are pointers to arcs in the list representation.
+ *
+ *  - **Matrix_Graph**: Stores copies of node/arc attributes from a graph.
+ *    Entries contain the arc attribute type.
+ *
+ *  - **Ady_Mat**: Auxiliary matrix with user-defined entry type.
+ *    Useful for algorithms like Floyd-Warshall that need custom data.
+ *
+ *  - **Bit_Mat_Graph**: Compact bit matrix for connectivity queries.
+ *    Uses 1 bit per entry for minimal memory usage.
+ *
+ *  ## When to Use Adjacency Matrices
+ *
+ *  Use adjacency matrices when:
+ *  - The graph is dense (many edges relative to vertices)
+ *  - O(1) edge existence queries are needed
+ *  - Algorithms like Floyd-Warshall are applied
+ *
+ *  For sparse graphs, prefer adjacency list representations.
+ *
+ *  @see tpl_graph.H Adjacency list graph representation
+ *  @see Floyd_Warshall.H Floyd-Warshall algorithm
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
 
-namespace Aleph 
+#ifndef TPL_MAT_GRAPH_H
+#define TPL_MAT_GRAPH_H
+
+#include <tpl_graph.H>
+#include <tpl_sort_utils.H>
+#include <ah-errors.H>
+
+namespace Aleph
 {
 
-      template <typename GT> inline static 
-typename GT::Node * get_node(DynArray<typename GT::Node *> & nodes, 
-			     const long &                    i)
-{
-  if (i >= nodes.size())
-    throw std::out_of_range("Index of node out of range");
+// =============================================================================
+// Internal Helper Functions
+// =============================================================================
 
+namespace matgraph_detail
+{
+
+/**
+ * @brief Get node pointer from sorted node array by index.
+ * @tparam GT Graph type
+ * @param nodes Sorted array of node pointers
+ * @param i Index to retrieve
+ * @return Pointer to node at index i
+ * @throw std::out_of_range if i >= nodes.size()
+ */
+template <typename GT>
+[[nodiscard]] inline typename GT::Node*
+get_node(DynArray<typename GT::Node*>& nodes, long i)
+{
+  ah_out_of_range_error_if(i < 0 or static_cast<size_t>(i) >= nodes.size())
+    << "Node index " << i << " out of range [0, " << nodes.size() << ")";
   return nodes.access(i);
-} 
+}
 
-      template <typename GT> inline static long 
-node_index(DynArray<typename GT::Node *> & nodes, 
-	   const long & n, typename GT::Node * p) 
+/**
+ * @brief Get node pointer from sorted node array by index (const version).
+ * @tparam GT Graph type
+ * @param nodes Sorted array of node pointers
+ * @param i Index to retrieve
+ * @return Pointer to node at index i
+ * @throw std::out_of_range if i >= nodes.size()
+ */
+template <typename GT>
+[[nodiscard]] inline typename GT::Node*
+get_node(const DynArray<typename GT::Node*>& nodes, long i)
+{
+  ah_out_of_range_error_if(i < 0 or static_cast<size_t>(i) >= nodes.size())
+    << "Node index " << i << " out of range [0, " << nodes.size() << ")";
+  return nodes.access(i);
+}
+
+/**
+ * @brief Find index of node in sorted array using binary search.
+ * @tparam GT Graph type
+ * @param nodes Sorted array of node pointers
+ * @param n Number of nodes
+ * @param p Node pointer to find
+ * @return Index of node, or -1 if not found
+ */
+template <typename GT>
+[[nodiscard]] inline long
+node_index(const DynArray<typename GT::Node*>& nodes, long n, typename GT::Node* p)
 {
   return Aleph::binary_search(nodes, p, 0, n - 1);
 }
 
-      inline static long 
-index_array(const long & i, const long & j, const long & n) 
+/**
+ * @brief Convert 2D matrix indices to 1D array index.
+ * @param i Row index
+ * @param j Column index
+ * @param n Matrix dimension
+ * @return Linear index for row-major storage
+ * @throw std::out_of_range if indices are out of bounds
+ */
+[[nodiscard]] inline long
+index_array(long i, long j, long n) noexcept
 {
-  if (i >= n or j >= n)
-    throw std::out_of_range("Matrix index out of range");
-
-  return i + j*n;
+  return i + j * n;
 }
 
-      template <typename Entry>
-inline static Entry * read_matrix(const DynArray<Entry> & mat,
-				  const long & i, const long & j, 
-				  const long & n)
+/**
+ * @brief Validate and convert indices to linear index.
+ * @param i Row index
+ * @param j Column index
+ * @param n Matrix dimension
+ * @return Linear index
+ * @throw std::out_of_range if i or j >= n
+ */
+[[nodiscard]] inline long
+checked_index_array(long i, long j, long n)
 {
-  const long index = index_array(i, j, n);
-  if (not mat.exist(index)) 
-    return nullptr;
+  ah_out_of_range_error_if(i < 0 or i >= n or j < 0 or j >= n)
+    << "Matrix index (" << i << ", " << j << ") out of range [0, " << n << ")";
+  return index_array(i, j, n);
+}
 
+/**
+ * @brief Read matrix entry if it exists.
+ * @tparam Entry Entry type
+ * @param mat Dynamic array storing matrix
+ * @param i Row index
+ * @param j Column index
+ * @param n Matrix dimension
+ * @return Pointer to entry if exists, nullptr otherwise
+ */
+template <typename Entry>
+[[nodiscard]] inline Entry*
+read_matrix(const DynArray<Entry>& mat, long i, long j, long n)
+{
+  const long index = checked_index_array(i, j, n);
+  if (not mat.exist(index))
+    return nullptr;
   return &const_cast<Entry&>(mat.access(index));
 }
 
-      template <typename Entry>
-inline static void write_matrix(DynArray<Entry> & mat,
-				const long &      i, 
-				const long &      j, 
-				const long &      n, 
-				const Entry &     entry)
+/**
+ * @brief Write entry to matrix.
+ * @tparam Entry Entry type
+ * @param mat Dynamic array storing matrix
+ * @param i Row index
+ * @param j Column index
+ * @param n Matrix dimension
+ * @param entry Value to write
+ */
+template <typename Entry>
+inline void
+write_matrix(DynArray<Entry>& mat, long i, long j, long n, const Entry& entry)
 {
-  mat[index_array(i, j, n)] = entry;
+  mat[checked_index_array(i, j, n)] = entry;
 }
 
-        /** Matriz de adyacencia de un grafo mapeada a un grafo
-            representado mediante una variante de GT.
-            
-            La clase Map_Matrix_Graph modeliza una matriz de adyacencia
-            mapeo hacia los arcos de un grafo representado con listas de
-            adyacencia. Ella constituye la más simple manera de
-            construir una matriz de adyacencia en Aleph. Se trata de una
-            matriz cuyas entradas son punteros hacia arcos de un grafo
-            representado mediante alguna clase basada en GT. Una
-            entrada con valor nullptr indica ausencia de arco.
+} // namespace matgraph_detail
 
-            Para construir un objeto de tipo
-            Map_Matrix_Graph se requiere tener una instancia del grafo
-            basada en un objeto derivado de GT.
 
-            El acceso a la matriz se realiza mediante el operador (i,j). 
-            Si mat es un objeto de tipo Map_Matrix_Graph, entonces el
-            mat(i,j) refiere al arco entre el nodo i y j. Un valor igual a nullptr
-            indica que no hay arco; de lo contrario, mat(i,j) es un
-            apuntador de tipo GT::Arc al arco en la representación con
-            listas de adyacencia.
+// =============================================================================
+// Map_Matrix_Graph - Mapped Adjacency Matrix
+// =============================================================================
 
-            Las entradas a las matriz también pueden referirse mediante
-            punteros a nodos. En este sentido mat(src,tgt) refiere al
-            arco entre los nodos apuntados por src y tgt.
-
-            Puede decirse que el uso de memoria de un objeto
-            Map_Matrix_Graph trata de ser lo más eficiente posible. Por lo
-            general, el consumo de memoria es proporcional al número de
-            arcos. Internamente, esta eficiencia se implanta a través del
-            uso de un arreglo dinámico DynArray.
-
-            No está permitido modificar una entrada de una matrix
-            Map_Matrix_Graph. No hay ningún control sobre la matriz y su
-            relación con el objeto List_graph asociado. Dicho de otro
-            modo, cambios topológicos (inserción y eliminación de nodos y
-            arcos) en el objeto GT no se verán reflejados en la
-            matriz. Sin embargo, la capacidad de acceso nodos y arcos en
-            la representación con listas permite sin ningún problema modificar
-            cualquiera de sus atributos.
-
-            Map_Matrix_Graph no está concebido para multigrafos o
-            multidigrafos. 
-
-            @param GT el tipo de grafo derivado de una clase basada en
-            GT. 
-            @see Matrix_Graph Ady_Mat Bit_Mat_Graph DynArray
-            @ingroup Grafos
-         */
-        template <class GT, class SA = Dft_Show_Arc<GT> >
+/**
+ * @brief Adjacency matrix mapped to an adjacency list graph.
+ *
+ * Map_Matrix_Graph provides an adjacency matrix view of a graph that is
+ * represented using adjacency lists. Matrix entries are pointers to arcs
+ * in the underlying graph. A nullptr entry indicates no arc exists.
+ *
+ * ## Key Features
+ *
+ * - O(1) edge existence check by indices
+ * - O(log n) edge check by node pointers (binary search)
+ * - Memory proportional to number of arcs (sparse storage)
+ * - Read-only view of graph topology
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * List_Graph<int, double> g;
+ * // ... build graph ...
+ *
+ * Map_Matrix_Graph<List_Graph<int,double>> mat(g);
+ *
+ * // Access by indices
+ * auto arc = mat(0, 1);  // Arc from node 0 to node 1
+ *
+ * // Access by node pointers
+ * auto arc2 = mat(src_node, tgt_node);
+ *
+ * // Get node by index
+ * auto node = mat(2);
+ * ```
+ *
+ * @warning Changes to the underlying graph are NOT reflected in the matrix.
+ *          Rebuild the matrix after modifying the graph.
+ *
+ * @warning Not suitable for multigraphs or multidigraphs.
+ *
+ * @tparam GT Graph type (derived from List_Graph or similar)
+ * @tparam SA Arc filter (default: show all arcs)
+ *
+ * @see Matrix_Graph For a matrix that stores copies of attributes
+ * @see Ady_Mat For auxiliary matrices with custom entry types
+ * @ingroup Graphs
+ */
+template <class GT, class SA = Dft_Show_Arc<GT>>
 class Map_Matrix_Graph
 {
 public:
-        /// El tipo de Graph_List asociado a la matriz
-  typedef GT Graph_Type;
+  /// The associated graph type
+  using Graph_Type = GT;
 
-  /// El tipo atributo de nodo que guarda los nodos en el objeto GT
-  typedef typename GT::Node_Type Node_Type;
+  /// Node attribute type from the graph
+  using Node_Type = typename GT::Node_Type;
 
-  /// El tipo atributo de arco que guarda los nodos en el objeto GT
-  typedef typename GT::Arc_Type Arc_Type;
+  /// Arc attribute type from the graph
+  using Arc_Type = typename GT::Arc_Type;
 
-        /// El tipo de nodo que se maneja el objeto GT
-  typedef typename GT::Node Node;
+  /// Node type from the graph
+  using Node = typename GT::Node;
 
-        /// El tipo de arco que se maneja el objeto GT
-  typedef typename GT::Arc Arc;
+  /// Arc type from the graph
+  using Arc = typename GT::Arc;
 
 private:
-
-  DynArray<Node*> nodes;
-  GT * lgraph;
-  mutable size_t num_nodes;
-  SA & sa;
-
   struct Mat_Entry
   {
-    Arc * arc;
-    Mat_Entry(Arc * __arc = nullptr) : arc(__arc) { /* empty */ }
+    Arc* arc = nullptr;
+    Mat_Entry() = default;
+    explicit Mat_Entry(Arc* a) : arc(a) {}
   };
 
+  DynArray<Node*>    nodes;
+  GT*                lgraph = nullptr;
+  mutable size_t     num_nodes = 0;
+  SA                 sa;
   DynArray<Mat_Entry> mat;
 
 public:
+  /**
+   * @brief Copy graph structure to matrix.
+   *
+   * Rebuilds the matrix from the given graph. Previous contents are cleared.
+   *
+   * @param g Graph to copy from
+   */
+  void copy_list_graph(GT& g);
 
-        /// Copia a la matriz el grafo g representado con listas de adyacencia; 
-        /// los valores anteriores de la matriz son borrados.
-  inline void copy_list_graph(GT & g);
+  /**
+   * @brief Construct from adjacency list graph.
+   * @param g Source graph
+   * @param __sa Arc filter (rvalue reference)
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Map_Matrix_Graph(GT& g, SA&& __sa = SA())
+    : lgraph(&g), num_nodes(g.get_num_nodes()), sa(std::move(__sa))
+  {
+    copy_list_graph(g);
+  }
 
-    /// Constructor a partir de un grafo representado con listas de adyacencia.
-  Map_Matrix_Graph(GT & g, SA && __sa = SA())
+  /**
+   * @brief Construct from adjacency list graph.
+   * @param g Source graph
+   * @param __sa Arc filter (lvalue reference)
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Map_Matrix_Graph(GT& g, SA& __sa)
     : lgraph(&g), num_nodes(g.get_num_nodes()), sa(__sa)
   {
-    copy_list_graph(g); 
+    copy_list_graph(g);
   }
 
-  Map_Matrix_Graph(GT & g, SA & __sa)
-    : lgraph(&g), num_nodes(g.get_num_nodes()), sa(__sa)
+  /// Copy constructor
+  Map_Matrix_Graph(Map_Matrix_Graph& other)
+    : lgraph(other.lgraph), num_nodes(other.num_nodes), sa(other.sa)
   {
-    copy_list_graph(g); 
+    copy_list_graph(*other.lgraph);
   }
 
-    /// Constructor copia.
-  Map_Matrix_Graph(Map_Matrix_Graph & mat)
+  /// Copy assignment
+  Map_Matrix_Graph& operator=(Map_Matrix_Graph& other);
+
+  /// Assign from graph
+  Map_Matrix_Graph& operator=(GT& g);
+
+  /**
+   * @brief Get node pointer by index.
+   * @param i Node index
+   * @return Pointer to node
+   * @throw std::out_of_range if i >= num_nodes
+   */
+  [[nodiscard]] Node* operator()(long i)
   {
-    copy_list_graph(*(mat.lgraph));
+    return matgraph_detail::get_node<GT>(nodes, i);
   }
 
-      /// Asignación de matriz de adyacencia
-  inline Map_Matrix_Graph & operator = (Map_Matrix_Graph & mat);
+  /**
+   * @brief Get index of node.
+   * @param node Node pointer
+   * @return Index of node in matrix
+   * @note O(log n) binary search
+   */
+  [[nodiscard]] long operator()(Node* node) const
+  {
+    return matgraph_detail::node_index<GT>(nodes, num_nodes, node);
+  }
 
-        /** Asignación de grafo representado con listas de adyacencia.
+  /**
+   * @brief Get arc by node pointers.
+   * @param src_node Source node
+   * @param tgt_node Target node
+   * @return Arc pointer, or nullptr if no arc exists
+   * @note O(log n) for each node lookup
+   */
+  [[nodiscard]] Arc* operator()(Node* src_node, Node* tgt_node) const
+  {
+    Mat_Entry* entry = matgraph_detail::read_matrix<Mat_Entry>(
+      mat,
+      matgraph_detail::node_index<GT>(nodes, num_nodes, src_node),
+      matgraph_detail::node_index<GT>(nodes, num_nodes, tgt_node),
+      num_nodes);
+    return entry ? entry->arc : nullptr;
+  }
 
-            Limpia la matriz (toda la memoria es liberada) y construye una
-            nueva matriz de adyacencia basada en el grafo representado con
-            listas de adyacencia g.
+  /**
+   * @brief Get arc by indices.
+   * @param i Source node index
+   * @param j Target node index
+   * @return Arc pointer, or nullptr if no arc exists
+   * @throw std::out_of_range if indices out of bounds
+   * @note O(1) access
+   */
+  [[nodiscard]] Arc* operator()(long i, long j) const
+  {
+    Mat_Entry* entry = matgraph_detail::read_matrix<Mat_Entry>(mat, i, j, num_nodes);
+    return entry ? entry->arc : nullptr;
+  }
 
-            @param[in] g el grafo representado con listas a ser asignado.
-            @throw bad_alloc si no hay suficiente memoria para la matriz.
-         */
-  inline Map_Matrix_Graph & operator = (GT & g);
+  /// Get reference to underlying graph
+  [[nodiscard]] GT& get_list_graph() noexcept { return *lgraph; }
 
-       /** Retorna el puntero a nodo en la representación con listas
-           correspondiente al índice i en la matriz.
+  /// Get reference to underlying graph (const)
+  [[nodiscard]] const GT& get_list_graph() const noexcept { return *lgraph; }
 
-           El operador (i) con i entero retorna un puntero al nodo de la
-           representación con listas del grafo asociado a la matriz del
-           índice i.
-
-           @param[in] i índice de la matriz.
-           @return puntero al nodo de la representación con listas del grafo
-           asociado a la matriz del índice i. 
-           @throw out_of_range si i es mayor o igual a la cantidad de nodos.
-        */
-  inline Node * operator () (const long & i);
-
-        /** Retorna el índice en la matriz del nodo node en la representación 
-            con listas.
-
-            El operador (node) con node un puntero a nodo, retorna el índice 
-            dentro de la matriz de adyacencia.
-
-            No se hacen verificaciones sobre la correctitud del puntero.
-
-            @param[in] node puntero a nodo en la representación con listas 
-            de adyacencia. 
-            @return puntero al nodo de la representación con listas del grafo
-            asociado a la matriz del índice i. 
-            @throw out_of_range si i es mayor o igual a la cantidad de nodos.
-        */
-  
-  inline long operator () (Node * node) const;
-
-        /** Retorna un puntero a un arco con nodo origen src_node y destino
-            tgt_node. 
-
-            El operador (src_node,tgt_node) lee la entrada de la matriz
-            correspondiente al nodo origen src_node y nodo destino tgt_node
-            y retorna un apuntador al arco. Si no existe el arco, entonces
-            se retorna nullptr.
-
-            No se realiza verificación sobre la correctitud de los
-            apuntadores. 
-
-            Este modo de acceso es logarítmico. Por esa razón, es preferible
-            primero indagar los índices de los nodos y luego utilizar el
-            mismo operador (i,j) con los índices de los nodos.
-
-            @param[in] src_node puntero al nodo origen.
-            @param[in] tgt_node puntero al nodo destino.
-            @return puntero al arco si éste existe; nullptr de lo contrario.
-         */
-  inline Arc * operator () (Node * src_node, Node * tgt_node) const;
-  
-      /** Retorna un puntero al arco contenido en la entrada (i,j) de 
-	  la matriz de adyacencia.
-
-	  El operador (i,j) lee la entrada de la matriz correspondiente
-	  y retorna un apuntador al arco. Si no existe el arco, entonces
-	  se retorna nullptr.
-
-	  Este modo de acceso es constante.
-
-	  @param[in] i índice del nodo origen.
-	  @param[in] j índice del nodo destino.
-	  @throw out_of_range si i o j es mayor o igual a la cantidad de nodos 
-	  del grafo.
-	  @return puntero al arco si éste existe; nullptr de lo contrario.
-      */
-  inline Arc * operator () (const long & i, const long & j) const;  
-
-      /// Retorna una referencia al grafo representado con listas enlazadas.
-  GT & get_list_graph() { return *lgraph; }
-
-        /// Retorna el número de nodos que tiene el grafo (equivalente a 
-        /// la dimensión de la matriz.
-  const size_t & get_num_nodes() const { return num_nodes; }
+  /// Get number of nodes (matrix dimension)
+  [[nodiscard]] size_t get_num_nodes() const noexcept { return num_nodes; }
 };
 
+// Implementation
 
-    template <class GT, class SA> typename GT::Node * 
-Map_Matrix_Graph<GT, SA>::operator () (const long & i) 
+template <class GT, class SA>
+Map_Matrix_Graph<GT, SA>&
+Map_Matrix_Graph<GT, SA>::operator=(Map_Matrix_Graph& other)
 {
-  return get_node <GT> (nodes, i); 
-}
-
-      template <class GT, class SA> long 
-Map_Matrix_Graph<GT, SA>::operator () (typename GT::Node * node) const
-{
-  return node_index <GT> (nodes, num_nodes, node);
-}
-
-      template <class GT, class SA> typename GT::Arc * 
-Map_Matrix_Graph<GT, SA>::operator () (const long & i, const long & j) const
-{ 
-  Mat_Entry * mat_entry = read_matrix<Mat_Entry>(mat, i, j, num_nodes); 
-  if (mat_entry == nullptr) 
-    return nullptr;
-
-  return mat_entry->arc;
-} 
-
-      template <class GT, class SA> typename GT::Arc * 
-Map_Matrix_Graph<GT, SA>::operator () (Node * src_node, Node * tgt_node) const
-{ 
-  Mat_Entry * mat_entry = 
-    read_matrix<Mat_Entry>(mat, node_index<GT>(nodes, num_nodes, src_node), 
-			   node_index<GT>(nodes, num_nodes, tgt_node), 
-			   num_nodes); 
-  if (mat_entry == nullptr)
-    return nullptr;
-
-  return mat_entry->arc;
-} 
-
-    template <class GT, class SA> Map_Matrix_Graph<GT, SA> & 
-Map_Matrix_Graph<GT, SA>::operator = (Map_Matrix_Graph & mat)
-{
-  if (this == &mat)
-    return *this;
-
-  copy_list_graph(*(mat.lgraph));
+  if (this != &other)
+    copy_list_graph(*other.lgraph);
   return *this;
 }
 
-      template <class GT, class SA>
-Map_Matrix_Graph<GT, SA> & Map_Matrix_Graph<GT, SA>::operator = (GT & g)
+template <class GT, class SA>
+Map_Matrix_Graph<GT, SA>&
+Map_Matrix_Graph<GT, SA>::operator=(GT& g)
 {
   copy_list_graph(g);
+  return *this;
 }
 
-      template <class GT, class SA>
-void Map_Matrix_Graph<GT, SA>::copy_list_graph(GT & g)
+template <class GT, class SA>
+void
+Map_Matrix_Graph<GT, SA>::copy_list_graph(GT& g)
 {
-      // copiar atributos
-  lgraph    = &g;
+  lgraph = &g;
   num_nodes = g.get_num_nodes();
-  nodes.cut(); // limpiar arreglos dinámicos de contenidos anteriores
+  nodes.cut();
   mat.cut();
-  int i = 0; 
+
+  // Copy nodes to array
+  long i = 0;
   for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
     nodes[i] = it.get_current_node_ne();
 
-  quicksort(nodes); // ordenar nodes para soportar búsqueda binaria
+  // Sort for binary search
+  quicksort(nodes);
+
+  // Copy arcs to matrix
   for (typename GT::Node_Iterator nit(g); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node_ne();
-      const long src_idx = node_index<GT>(nodes, num_nodes, src);
+      Node* src = nit.get_current_node_ne();
+      const long src_idx = matgraph_detail::node_index<GT>(nodes, num_nodes, src);
 
-          // para cada arco de src escribirlo en la matriz mat
       for (Node_Arc_Iterator<GT, SA> ait(src, sa); ait.has_curr(); ait.next_ne())
         {
-          Arc * arc = ait.get_current_arc_ne();
-          Node * tgt = g.get_connected_node(arc, src);
-          const long tgt_idx = node_index<GT>(nodes, num_nodes, tgt);
-          write_matrix<Mat_Entry>(mat, src_idx, tgt_idx, num_nodes, arc);
+          Arc* arc = ait.get_current_arc_ne();
+          Node* tgt = g.get_connected_node(arc, src);
+          const long tgt_idx = matgraph_detail::node_index<GT>(nodes, num_nodes, tgt);
+          matgraph_detail::write_matrix<Mat_Entry>(mat, src_idx, tgt_idx, num_nodes, Mat_Entry(arc));
         }
     }
 }
- 
-     /** Matriz de adyacencia de un grafo extraída de un grafo
-         representado con listas de adyacencia.
 
-	 La clase Matrix_Graph modeliza una matriz de adyacencia que
-	 guarda los atributos contenidos en los nodos y arcos de un
-	 grafo que previamente fue representado con listas de adyacencia
-	 (derivación de la clase GT).
 
-          Un objeto Matrix_Graph es una copia de un grafo representado con
-          listas de adyacencia o de un objeto Map_Matrix_Graph (que está
-          asociado a una representación con listas de adyacencia).
-          A diferencia de Map_Matrix_Graph, Matrix_Graph es modificable en
-          el sentido de que permite añadir nuevos arcos en el grafo por
-          modificación de una entrada nula de la matriz.
+// =============================================================================
+// Matrix_Graph - Attribute-Copying Adjacency Matrix
+// =============================================================================
 
-          Cuando se construye un objeto Matrix_Graph, se debe especificar
-          un valor constante que representa a la entrada nula; es decir, a
-          la ausencia de arco. 
-
-          Es esperado que el consumo de memoria por los arcos sea proporcional 
-          a su cantidad.
-
-          @note Puesto que la matriz guarda los atributos asociados a los
-          nodos y arcos, Matrix_Graph no sirve para guardar atributos
-          derivados hermanos de las clases Graph_Node o Graph_Arc.
-    
-          @see Map_Matrix_Graph Ady_Mat
-          @ingroup Grafos
-      */
-      template <typename GT, class SA = Dft_Show_Arc<GT> >
+/**
+ * @brief Adjacency matrix storing copies of graph attributes.
+ *
+ * Matrix_Graph creates a self-contained adjacency matrix by copying the
+ * node and arc attributes from an adjacency list graph. Unlike Map_Matrix_Graph,
+ * this matrix does not maintain references to the original graph.
+ *
+ * ## Key Features
+ *
+ * - Stores actual attribute values, not pointers
+ * - Modifiable entries (can add arcs by setting entries)
+ * - null_value() indicates absence of arc
+ * - Memory proportional to number of arcs (sparse storage)
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * List_Graph<std::string, int> g;
+ * // ... build graph ...
+ *
+ * // -1 indicates no arc
+ * Matrix_Graph<List_Graph<std::string,int>> mat(g, -1);
+ *
+ * // Read arc weight
+ * int weight = mat(0, 1);  // Returns -1 if no arc
+ *
+ * // Add/modify arc
+ * mat(0, 2) = 5;  // Set arc weight
+ * ```
+ *
+ * @note Only stores primitive attribute values, not derived node/arc types.
+ *
+ * @tparam GT Graph type
+ * @tparam SA Arc filter (default: show all arcs)
+ *
+ * @see Map_Matrix_Graph For pointer-based matrix
+ * @see Ady_Mat For auxiliary matrices with custom types
+ * @ingroup Graphs
+ */
+template <typename GT, class SA = Dft_Show_Arc<GT>>
 class Matrix_Graph
 {
 public:
+  /// Graph type
+  using Graph_Type = GT;
 
-        /// El tipo de grafo representado con listas de adyacencia.
-  typedef GT Graph_Type;
+  /// Node attribute type
+  using Node_Type = typename GT::Node_Type;
 
-        /// El tipo de atributo que guardan los nodos del grafo
-        /// representado con listas de adyacencia 
-  typedef typename GT::Node_Type Node_Type;
+  /// Arc attribute type
+  using Arc_Type = typename GT::Arc_Type;
 
-        /// El tipo de atributo que guardan los arcos del grafo
-        /// representado con listas de adyacencia 
-  typedef typename GT::Arc_Type Arc_Type;
+  /// Node type
+  using Node = typename GT::Node;
 
-        /// El tipo de Graph_Node que usado en el GT.
-  typedef typename GT::Node Node;
-
-        /// El tipo de Graph_Arc que usado en el GT.
-  typedef typename GT::Arc Arc;
+  /// Arc type
+  using Arc = typename GT::Arc;
 
 private:
-
   DynArray<Node_Type> nodes;
   DynArray<Arc_Type>  arcs;
-  mutable size_t      n;
-  mutable Arc_Type    Null_Value;
-  SA &                sa;
-  
-  void copy(Matrix_Graph & mat)
+  mutable size_t      n = 0;
+  mutable Arc_Type    Null_Value{};
+  SA                  sa;
+
+  void copy(Matrix_Graph& other)
   {
-    if (this == &mat)
+    if (this == &other)
       return;
 
-    n          = mat.n; // copiar atributos
-    Null_Value = mat.Null_value;
-    nodes.cut(); // limpiar memoria de arreglos dinámicos
+    n = other.n;
+    Null_Value = other.Null_Value;
+    nodes.cut();
     arcs.cut();
     arcs.set_default_initial_value(Null_Value);
 
-    // recorrer mat[i,j] y copiarla a nodes[], arcs[] 
-    for (int i = 0; i < n; ++i) 
+    for (size_t i = 0; i < n; ++i)
       {
-	nodes[i] = mat.nodes[i];
-	for (int j = 0; j < n; ++j)
-	  {
-	    const long mat_index = index_array(i, j, n);
-	    if (not arcs.exist(mat_index))
-	      continue;
-	    arcs.touch(mat_index) = mat.arcs.access(mat_index);
-	  }
+        nodes[i] = other.nodes[i];
+        for (size_t j = 0; j < n; ++j)
+          {
+            const long idx = matgraph_detail::index_array(i, j, n);
+            if (other.arcs.exist(idx))
+              arcs.touch(idx) = other.arcs.access(idx);
+          }
       }
   }
 
-  void copy(GT & g)
+  void copy(GT& g)
   {
     n = g.get_num_nodes();
-    DynArray<typename GT::Node *> ptr; // arreglo temporal 
+    DynArray<typename GT::Node*> ptr;
 
-    int i = 0;
+    long i = 0;
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
       ptr[i] = it.get_current_node_ne();
 
-    quicksort(ptr); // ordenar por si se relaciona con Map_Matrix_Graph
+    quicksort(ptr);
+    arcs.set_default_initial_value(Null_Value);
 
-    arcs.set_default_initial_value(Null_Value); 
-
-    for (i = 0; i < n; ++i) // coloca contenidos de ptr[] en nodes[]
+    for (size_t idx = 0; idx < n; ++idx)
       {
-	typename GT::Node * src = ptr[i];
-	nodes[i] = src->get_info();
-	for (Node_Arc_Iterator<GT, SA> it(src); it.has_curr(); it.next_ne())
-	  {
-	    typename GT::Arc * arc = it.get_current_arc_ne();
-	    typename GT::Node * tgt = it.get_tgt_node();
-	    const long j = node_index<GT>(ptr, n, tgt);
-	    const long mat_index = index_array(i, j, n);
-	    arcs[mat_index] = arc->get_info();
-	  }
+        typename GT::Node* src = ptr[idx];
+        nodes[idx] = src->get_info();
+        for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
+          {
+            typename GT::Arc* arc = it.get_current_arc_ne();
+            typename GT::Node* tgt = it.get_tgt_node();
+            const long j = matgraph_detail::node_index<GT>(ptr, n, tgt);
+            arcs[matgraph_detail::index_array(idx, j, n)] = arc->get_info();
+          }
       }
   }
 
 public:
+  /// Get number of nodes (matrix dimension)
+  [[nodiscard]] size_t get_num_nodes() const noexcept { return n; }
 
-  /// Retorna el número de nodos del grafo (que es la dimensión de la matriz)
-  const size_t & get_num_nodes() const { return n; }
+  /// Get the null value indicating no arc
+  [[nodiscard]] const Arc_Type& null_value() const noexcept { return Null_Value; }
 
-         /// El valor constante que representa la entrada nula en la matriz.
-  const Arc_Type & null_value() const { return Null_Value; }
+  /**
+   * @brief Construct from graph with null value.
+   * @param g Source graph
+   * @param null Value indicating absence of arc
+   * @param __sa Arc filter
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Matrix_Graph(GT& g, const Arc_Type& null, SA&& __sa = SA())
+    : Null_Value(null), sa(std::move(__sa))
+  {
+    copy(g);
+  }
 
-      /** Constructor a partir de un grafo g representado con listas de
-          adyacencia. 
-
-          Este constructor recibe un grafo basado en GT g y un valor
-          de tipo GT::Arc::Arc_Type correspondiente al valor que será
-          considerado como entrada nula. Para cada nodo p del grafo, de tipo
-          GT::Node, se copia su atributo interno obtenido mediante
-          p->get_info(). De igual manera se hace para los arcos.
-
-          @param[in] g el grafo representado con listas de adyacencia partir
-          del cual se copiará la matriz.
-          @param[in] null el valor que será considerado como entrada nula de
-          la matriz y que indicará ausencia de arco.
-	  @paramïn] __sa filtro de arcos.
-          @throw bad_alloc si no hay suficiente memoria para construir la
-          matriz. 
-       */
-  Matrix_Graph(GT & g, const Arc_Type & null, SA && __sa = SA()) 
+  Matrix_Graph(GT& g, const Arc_Type& null, SA& __sa)
     : Null_Value(null), sa(__sa)
   {
     copy(g);
   }
-  
-  Matrix_Graph(GT & g, const Arc_Type & null, SA & __sa) 
-    : Null_Value(null), sa(__sa)
+
+  /// Copy constructor
+  Matrix_Graph(Matrix_Graph& other) { copy(other); }
+
+  /// Copy assignment
+  Matrix_Graph& operator=(Matrix_Graph& other)
   {
-    copy(g);
-  }
-  
-      /** Constructor copia.
-
-          Construye una matriz a partir de otra matriz.
-
-          @param[in] mat la matriz a ser copiada.
-          @throw bad_alloc si no hay suficiente memoria para construir la
-          matriz. 
-       */
-  Matrix_Graph(Matrix_Graph & mat) 
-  {
-    copy(mat);
-  }
-  
-      /** Asigna a una matriz otra matriz.
-
-          Borra todo el estado de this y luego copia el grafo representado
-          con la matriz de adyacencia mat. 
-
-          @param[in] mat la matriz a ser copiada.
-          @throw bad_alloc si no hay suficiente memoria para construir la
-          matriz. 
-          @note Los tipos de grafos GT usados para construir this y
-          mat  deben corresponderse exactamente; de lo contrario ocurrirá un
-          error de compilación.
-       */
-  Matrix_Graph & operator = (Matrix_Graph & mat) 
-  {
-    copy(mat);
+    copy(other);
     return *this;
   }
 
-      /** Asigna a una matriz un grafo representado con listas de adyacencia.
-
-          Borra todo el estado de this y luego copia el grafo representado
-          con listas de adyacencia g. 
-
-          @param[in] g el grafo representado con listas de adyacencia a ser
-          copiado.
-          @throw bad_alloc si no hay suficiente memoria para construir la
-          matriz. 
-          @note El tipo GT debe corresponderse exactamente con el tipo
-          GT asociado a la matriz; de lo contrario ocurrirá un
-          error de compilación.
-       */
-  Matrix_Graph & operator = (GT & g) 
+  /// Assign from graph
+  Matrix_Graph& operator=(GT& g)
   {
     copy(g);
     return *this;
   }
 
-  /** Retorna una referencia al atributo de arco contenido en la entrada 
-      (i,j) de la matriz de adyacencia.
-
-      El operador (i,j) lee la entrada de la matriz correspondiente y
-      retorna el atributo del arco. Si no existe el arco, entonces se
-      retorna el valor Matrix_Graph::null_value().
-
-      Este modo de acceso es constante.
-
-      @param[in] i índice del nodo origen.
-      @param[in] j índice del nodo destino.
-      @throw out_of_range si i o j es mayor o igual a la cantidad de nodos 
-      del grafo.
-      @return referencia al atributo del arco; recuérdese que
-      Matrix_Graph::null_value() indica ausencia de arco.
-  */
-  const Arc_Type & operator () (const long & i, const long & j) const
+  /**
+   * @brief Get arc attribute by indices (const).
+   * @param i Source index
+   * @param j Target index
+   * @return Arc attribute, or null_value() if no arc
+   * @throw std::out_of_range if indices out of bounds
+   */
+  [[nodiscard]] const Arc_Type& operator()(long i, long j) const
   {
-    const long mat_index = index_array(i, j, n);
-    if (not arcs.exist(mat_index)) // ¿Existe entrada?
-      return Null_Value; // No ==> no hay arco
-
-    return arcs.access(mat_index);      
+    const long idx = matgraph_detail::checked_index_array(i, j, n);
+    return arcs.exist(idx) ? arcs.access(idx) : Null_Value;
   }
 
-      /** Retorna el atributo asociado al nodo cuyo índice es i.
-
-          El operador (i) con i entero retorna el valor de atributo asociado
-          al nodo cuyo índice es i.
-
-          @param[in] i índice de la matriz.
-          @return una referencia al atributo del nodo. 
-          @throw out_of_range si i es mayor o igual a la cantidad de nodos.
-      */
-  Node_Type & operator () (const long & i) const
+  /**
+   * @brief Get node attribute by index.
+   * @param i Node index
+   * @return Reference to node attribute
+   * @throw std::out_of_range if i >= n
+   */
+  [[nodiscard]] Node_Type& operator()(long i) const
   {
-    if (i >= n)
-      throw std::out_of_range("node index out of range");
-
-    return const_cast<Node_Type &>(nodes.access(i));
+    ah_out_of_range_error_if(i < 0 or static_cast<size_t>(i) >= n)
+      << "Node index " << i << " out of range";
+    return const_cast<Node_Type&>(nodes.access(i));
   }
 
-  /** Retorna una referencia al atributo de arco contenido en la 
-      entrada (i,j) de la matriz de adyacencia.
-
-      El operador (i,j) lee la entrada de la matriz
-      correspondiente y retorna el atributo del arco. Si no existe 
-      el arco, entonces se retorna el valor Matrix_Graph::null_value().
-
-      Este modo de acceso es constante.
-
-      @param[in] i índice del nodo origen.
-      @param[in] j índice del nodo destino.
-      @throw out_of_range si i o j es mayor o igual a la cantidad de nodos 
-      del grafo.
-      @return referencia al atributo del arco; recuérdese que
-      Matrix_Graph::null_value() indica ausencia de arco.
-  */
-  Arc_Type & operator () (const long & i, const long & j) 
+  /**
+   * @brief Get/set arc attribute by indices.
+   * @param i Source index
+   * @param j Target index
+   * @return Reference to arc entry (creates if needed)
+   */
+  [[nodiscard]] Arc_Type& operator()(long i, long j)
   {
-    const long mat_index = index_array(i, j, n);
-
-    return arcs.touch(mat_index);
+    return arcs.touch(matgraph_detail::checked_index_array(i, j, n));
   }
 };
 
-        /** Matriz de adyacencia auxiliar.
 
-            Muchas aplicaciones sobre grafos basadas en matrices de
-            adyacencia utilizan información temporal, información de tipo
-            distinto al guardado en los atributos del gafo o una parte de los
-            atributos. En estas tres situaciones el uso del tipo
-            Matriz_Graph o es muy restringido o imposible. 
-        
-            Para paliar la situación anterior, el tipo Ady_Mat define una
-            matriz asociada a un grafo representado con listas de
-            adyacencia pero cuyas entradas son de un tipo definido por el
-            usuario. 
+// =============================================================================
+// Ady_Mat - Auxiliary Adjacency Matrix
+// =============================================================================
 
-            Al igual que con otros tipos de matrices de adyacencia,
-            Ady_Mat maneja el elemento nulo Ady_Mat::null_value(), pero en
-            este caso no necesariamente representa presencia o ausencia de
-            arco. Aún así, entradas cuyo valor sea Ady_Mat::null_value()
-            tienden a no ocupar memoria. 
-
-            Ady_Mat<GT,__Entry_Type> maneja dos parámetros tipo:
-            -# GT: el tipo de grafo representado con listas de adyacencia.
-            -# __Entry_Type: el tipo de dato a guardar en la matriz
-
-            @see Matrix_Graph Map_Matrix_Graph
-            @ingroup Grafos
-         */
-  template <class GT, typename __Entry_Type, class SA = Dft_Show_Arc<GT> >
+/**
+ * @brief Auxiliary adjacency matrix with custom entry type.
+ *
+ * Ady_Mat provides an adjacency matrix with a user-defined entry type,
+ * useful for algorithms that need temporary storage or computations
+ * different from the graph's native attributes.
+ *
+ * ## Key Features
+ *
+ * - Custom entry type (not tied to graph arc type)
+ * - Associated with an adjacency list graph
+ * - Sparse storage (memory proportional to non-null entries)
+ * - Operations to iterate over arcs
+ *
+ * ## Common Uses
+ *
+ * - Floyd-Warshall shortest path algorithm
+ * - Transitive closure computation
+ * - Any algorithm needing matrix operations on graphs
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * List_Digraph<std::string, int> g;
+ * // ... build graph ...
+ *
+ * // Matrix storing distances (int) with infinity as null
+ * Ady_Mat<decltype(g), int> dist(g, INT_MAX);
+ *
+ * // Initialize from arcs
+ * dist.operate_all_arcs_list_graph<Init_Dist>();
+ *
+ * // Access entries
+ * dist(0, 1) = 5;
+ * int d = dist(0, 1);
+ * ```
+ *
+ * @tparam GT Graph type
+ * @tparam __Entry_Type Type of matrix entries
+ * @tparam SA Arc filter (default: show all arcs)
+ *
+ * @see Floyd_Warshall.H Usage in Floyd-Warshall algorithm
+ * @ingroup Graphs
+ */
+template <class GT, typename __Entry_Type, class SA = Dft_Show_Arc<GT>>
 class Ady_Mat
 {
 public:
+  /// Graph type
+  using Graph_Type = GT;
 
-        /// El tipo de grafo representado con listas de adyacencia.
-  typedef GT Graph_Type;
+  /// Entry type stored in matrix
+  using Entry_Type = __Entry_Type;
 
-        /// El tipo de dato que alberga la matriz
-  typedef __Entry_Type Entry_Type;
+  /// Node attribute type from graph
+  using Node_Type = typename GT::Node_Type;
 
-        /// El tipo de dato que guardan los nodos en el grafo representado con
-        /// listas de adyacencia. 
-  typedef typename GT::Node_Type Node_Type;
+  /// Arc attribute type from graph
+  using Arc_Type = typename GT::Arc_Type;
 
-        /// El tipo de dato que guardan los arcos en el grafo representado con
-        /// listas de adyacencia. 
-  typedef typename GT::Arc_Type Arc_Type;
+  /// Node type from graph
+  using Node = typename GT::Node;
 
-  /// El tipo de nodo usado en la representación con listas de adyacencia. 
-  typedef typename GT::Node Node;
-
-  /// El tipo de arco usado en la representación con listas de adyacencia. 
-  typedef typename GT::Arc Arc;
+  /// Arc type from graph
+  using Arc = typename GT::Arc;
 
 private:
-
-  GT *                 lgraph;
+  GT*                  lgraph = nullptr;
   DynArray<Node*>      nodes;
   DynArray<Entry_Type> mat;
-  mutable size_t       num_nodes;
-  mutable Entry_Type   Null_Value;
+  mutable size_t       num_nodes = 0;
+  mutable Entry_Type   Null_Value{};
 
-  void test_same_graph(Ady_Mat & mat)
+  void test_same_graph(const Ady_Mat& other) const
   {
-    if (lgraph == mat.lgraph) 
-      return;
-
-    throw 
-      std::domain_error("mat does not refers the same GT than this");
+    ah_domain_error_if(lgraph != other.lgraph)
+      << "Matrices refer to different graphs";
   }
 
-  void copy_nodes(GT & g)
+  void copy_nodes(GT& g)
   {
-    lgraph     = &g;
-    num_nodes  = g.get_num_nodes();
-    nodes.cut(); // limpiar memoria por los nodos
+    lgraph = &g;
+    num_nodes = g.get_num_nodes();
+    nodes.cut();
 
-          // coloca punteros a nodos en el arreglo nodes[]
-    int i = 0;
+    long i = 0;
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne(), ++i)
       nodes[i] = it.get_current_node_ne();
 
-    quicksort(nodes); // ordena para luego hacer búsqueda binaria
+    quicksort(nodes);
   }
 
-  Ady_Mat & copy(Ady_Mat & mat)
+  Ady_Mat& copy(Ady_Mat& other)
   {
-    if (this == &mat) 
+    if (this == &other)
       return *this;
 
-    test_same_graph(mat);
-    Null_Value = mat.Null_Value;
-    copy(mat.lgraph);
-    
+    test_same_graph(other);
+    Null_Value = other.Null_Value;
+    copy_nodes(*other.lgraph);
     return *this;
   }
 
 public:
-
-      /// retorna el puntero al nodo dentro de la representación con listas
-      /// de adyacencia del índice i en la matriz auxiliar.
-  Node * operator () (const long & i) 
+  /**
+   * @brief Get node pointer by index.
+   * @param i Node index
+   * @return Pointer to node in underlying graph
+   * @throw std::out_of_range if index out of bounds
+   */
+  [[nodiscard]] Node* operator()(long i)
   {
-    return Aleph::get_node<GT>(nodes, i);
+    return matgraph_detail::get_node<GT>(nodes, i);
   }
 
-        /// Retorna el índice dentro de la matriz auxiliar de node dentro en
-        /// la representación mediante listas de adyacencia.
-  long operator () (Node * node) const
+  /**
+   * @brief Get node pointer by index (const).
+   * @param i Node index
+   * @return Pointer to node in underlying graph
+   * @throw std::out_of_range if index out of bounds
+   */
+  [[nodiscard]] Node* operator()(long i) const
   {
-    return node_index<GT>(nodes, num_nodes, node);
+    return matgraph_detail::get_node<GT>(nodes, i);
   }
 
-      /** Retorna una referencia a la entrada (i,j) de la matriz de
-	  adyacencia auxiliar. 
-
-	  El operador (i,j) lee la entrada de la matriz auxiliar
-	  correspondiente y retorna su entrada.
-
-	  Este modo de acceso es constante.
-	  
-	  @param[in] i índice del nodo origen.
-	  @param[in] j índice del nodo destino.
-	  @throw out_of_range si i o j es mayor o igual a la cantidad de nodos 
-	  del grafo.
-	  @return referencia a la entrada (i,j).
-      */
-  Entry_Type & operator () (const long & i, const long & j)
+  /**
+   * @brief Get index of node.
+   * @param node Node pointer
+   * @return Index in matrix
+   * @note O(log n) binary search
+   */
+  [[nodiscard]] long operator()(Node* node) const
   {
-    return mat.touch(index_array(i, j, num_nodes));
+    return matgraph_detail::node_index<GT>(nodes, num_nodes, node);
   }
 
-  /** Retorna una referencia constante a la entrada (i,j) de la matriz de
-      adyacencia auxiliar. 
-
-      El operador (i,j) lee la entrada de la matriz auxiliar
-      correspondiente y retorna su entrada.
-
-      Este modo de acceso es constante.
-
-      @param[in] i índice del nodo origen.
-      @param[in] j índice del nodo destino.
-      @throw out_of_range si i o j es mayor o igual a la cantidad de nodos 
-      del grafo.
-      @return una referencia constante a la entrada (i,j).
-  */
-  const Entry_Type & operator () (const long & i, const long & j) const
+  /**
+   * @brief Access entry by indices (modifiable).
+   * @param i Row index
+   * @param j Column index
+   * @return Reference to entry (creates if needed)
+   * @throw std::out_of_range if indices out of bounds
+   */
+  [[nodiscard]] Entry_Type& operator()(long i, long j)
   {
-    const long index = index_array(i, j, num_nodes);
-
-    if (mat.exist(index)) 
-      return mat.access(index);
-        
-    return Null_Value;
+    return mat.touch(matgraph_detail::checked_index_array(i, j, num_nodes));
   }
 
-        /** Retorna una referencia a una entrada de la matriz de
-            adyacencia auxiliar dados los punteros a sus nodos origen y
-            destino dentro de la representación con listas de adyacencia.  
-
-            El operador (src,tgt) lee la entrada de la matriz auxiliar
-            correspondiente a los punteros a los nodos src y tgt en la
-            representación con listas de adyacencia y retorna su entrada.
-
-            Este modo de acceso es logarítmico. Por tanto, es recomendable
-            utilizar los índices de los nodos.
-
-            @param[in] src puntero al nodo origen en la representación con
-            listas de adyacencia.
-            @param[in] tgt puntero al nodo destino en la representación con
-            listas de adyacencia.
-            @return una referencia constante a la entrada correspondiente.
-         */
-  Entry_Type & operator () (Node * src, Node * tgt) 
+  /**
+   * @brief Access entry by indices (const).
+   * @param i Row index
+   * @param j Column index
+   * @return Entry value, or null_value() if not set
+   * @throw std::out_of_range if indices out of bounds
+   */
+  [[nodiscard]] const Entry_Type& operator()(long i, long j) const
   {
-    return (*this)(node_index <GT> (nodes, num_nodes, src),
-		   node_index <GT> (nodes, num_nodes, tgt));
+    const long index = matgraph_detail::checked_index_array(i, j, num_nodes);
+    return mat.exist(index) ? mat.access(index) : Null_Value;
   }
 
-        /** Retorna una referencia constante a una entrada de la matriz de
-            adyacencia auxiliar dados los punteros a sus nodos origen y
-            destino dentro de la representación con listas de adyacencia.  
-
-            El operador (src,tgt) lee la entrada de la matriz auxiliar
-            correspondiente a los punteros a los nodos src y tgt en la
-            representación con listas de adyacencia y retorna su entrada.
-
-            Este modo de acceso es logarítmico. Por tanto, es recomendable
-            utilizar los índices de los nodos.
-
-            @param[in] src puntero al nodo origen en la representación con
-            listas de adyacencia.
-            @param[in] tgt puntero al nodo destino en la representación con
-            listas de adyacencia.
-            @return una referencia constante a la entrada correspondiente.
-         */
-  const Entry_Type & operator () (Node * src, Node * tgt) const
+  /**
+   * @brief Access entry by node pointers (modifiable).
+   * @param src Source node
+   * @param tgt Target node
+   * @return Reference to entry
+   * @note O(log n) for each node lookup
+   */
+  [[nodiscard]] Entry_Type& operator()(Node* src, Node* tgt)
   {
-    return (*this)(node_index <GT> (nodes, num_nodes, src),
-		   node_index <GT> (nodes, num_nodes, tgt));
+    return (*this)(matgraph_detail::node_index<GT>(nodes, num_nodes, src),
+                   matgraph_detail::node_index<GT>(nodes, num_nodes, tgt));
   }
 
-  /// Retorna una referencia al grafo representado con lista de adyacencia.
-  GT & get_list_graph() { return *lgraph; }
-
-        /// Retorna el valor considerado como nulo
-  const Entry_Type & null_value() const { return Null_Value; }
-
-        /// Retorna la cantidad de nodos del grafo (o sea, la dimensión de
-        /// la matriz).  
-  const size_t & get_num_nodes() const { return num_nodes; }
-
-        /** Constructor de matriz auxiliar a partir de un grafo representado
-            con listas de adyacencia. 
-
-            Este constructor toma un grafo g representado
-            con listas de adyacencia y construye una matriz auxiliar cuyas
-            entradas no están inicializadas.
-
-            Si se desea explícitamente ahorrar memoria por un elemento
-            designado como valor nulo, entonces éste valor debe indicarse
-            con la primitiva  Ady_Mat::set_null_value(). 
-
-            @param[in] g el grafo representado con listas de adyacencia.
-            @throw bad_alloc si no hay suficiente memoria.
-            @see Ady_Mat::set_null_value() Ady_Mat::null_value()
-        */
-  Ady_Mat(GT & g)
-    : lgraph(&g), num_nodes(lgraph->get_num_nodes())
+  /**
+   * @brief Access entry by node pointers (const).
+   * @param src Source node
+   * @param tgt Target node
+   * @return Entry value, or null_value() if not set
+   * @note O(log n) for each node lookup
+   */
+  [[nodiscard]] const Entry_Type& operator()(Node* src, Node* tgt) const
   {
-    copy_nodes(g); 
+    return (*this)(matgraph_detail::node_index<GT>(nodes, num_nodes, src),
+                   matgraph_detail::node_index<GT>(nodes, num_nodes, tgt));
   }
 
-  /** Constructor de matriz auxiliar a partir de un grafo representado
-      con listas de adyacencia y con definición de valor nulo.
+  /// Get reference to underlying graph
+  [[nodiscard]] GT& get_list_graph() noexcept { return *lgraph; }
 
-      Este constructor toma un grafo g representado con listas de
-      adyacencia, un valor nulo y construye una matriz auxiliar cuyas
-      entradas no están inicializadas.
+  /// Get const reference to underlying graph
+  [[nodiscard]] const GT& get_list_graph() const noexcept { return *lgraph; }
 
-      Un acceso a la entrada (i,j) retornará el valor Ady_Mat::null_value().
+  /// Get the null value
+  [[nodiscard]] const Entry_Type& null_value() const noexcept { return Null_Value; }
 
-      @param[in] g el grafo representado con listas de adyacencia.
-      @param[in]  null el valor del elemento designado como nulo.
-      @throw bad_alloc si no hay suficiente memoria.
-      @see Ady_Mat::set_null_value() Ady_Mat::null_value()
-  */
-  Ady_Mat(GT & g, const Entry_Type & null) 
-    : lgraph(&g), num_nodes(lgraph->get_num_nodes()), Null_Value(null) 
+  /// Get number of nodes (matrix dimension)
+  [[nodiscard]] size_t get_num_nodes() const noexcept { return num_nodes; }
+
+  /**
+   * @brief Construct from graph without null value.
+   *
+   * Creates matrix with uninitialized entries. Use set_null_value()
+   * to define the null value.
+   *
+   * @param g Source graph
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  explicit Ady_Mat(GT& g)
+    : lgraph(&g), num_nodes(g.get_num_nodes())
   {
-    copy_nodes(*lgraph); 
-  }
-  
-       /// Declara un valor nulo para la matriz de adyacencia auxiliar.
-  void set_null_value(const Entry_Type & null) { Null_Value = null; }
-  
-    /// Constructor copia.
-  Ady_Mat(Ady_Mat & mat) 
-  {
-    copy(mat);
+    copy_nodes(g);
   }
 
-        /** Efectúa una operación sobre la matriz auxiliar según cada arco
-            del grafo representado con listas de adyacencia.
+  /**
+   * @brief Construct from graph with null value.
+   * @param g Source graph
+   * @param null Value indicating no entry
+   * @throw std::bad_alloc if memory allocation fails
+   */
+  Ady_Mat(GT& g, const Entry_Type& null)
+    : lgraph(&g), num_nodes(g.get_num_nodes()), Null_Value(null)
+  {
+    copy_nodes(g);
+  }
 
-            operate_all_arcs_list_graph() recorre los arcos del grafo
-            representado con listas de adyacencia e invoca a la operación
-            Operation()(mat, arc, i, j, entry) donde:
-            -# mat: es una referencia a la matrix sobre el
-                    cual se está realizando la operación.
-            -# arc: es un apuntador al arco dentro del GT asociado a 
-            la matriz. 
-            -# i: es el índice del nodo origen en la matriz.
-            -# j: es el índice del nodo destino en la matriz.
-            -# entry: es una referencia al contenido de la entrada
-                    (i,j) en la matriz.
+  /// Set the null value
+  void set_null_value(const Entry_Type& null) noexcept { Null_Value = null; }
 
-            El uso de este método es principalmente para escribir los
-            valores iniciales dentro de la matriz según los contenidos de
-            los arcos en el grafo representado con listas de adyacencia.
+  /// Copy constructor
+  Ady_Mat(Ady_Mat& other) { copy(other); }
 
-            Nótese que la operación sólo se ejecuta para las entradas que
-            refieren a un arco. El resto de las entradas contiene el valor
-            Ady_Mat::null_value() y probablemente no ocupen memoria.
-         */
-  template <class Operation> void operate_all_arcs_list_graph();
+  /// Copy assignment
+  Ady_Mat& operator=(Ady_Mat& other) { return copy(other); }
 
-        /** Efectúa una operación sobre la matriz auxiliar según cada arco
-            del grafo representado con listas de adyacencia y le transmite a
-            la operación un puntero opaco por donde enviar y recibir
-            información. 
+  /**
+   * @brief Apply operation to all arcs from the graph.
+   *
+   * Iterates over all arcs in the underlying graph and invokes:
+   * ```
+   * Operation()(mat, arc, i, j, entry)
+   * ```
+   *
+   * Where:
+   * - mat: reference to this matrix
+   * - arc: pointer to arc in graph
+   * - i, j: indices in matrix
+   * - entry: reference to matrix entry
+   *
+   * @tparam Operation Functor type with above signature
+   */
+  template <class Operation>
+  void operate_all_arcs_list_graph();
 
-            operate_all_arcs_list_graph() recorre los arcos del grafo
-            representado con listas de adyacencia e invoca a la operación
-            Operation()(mat, arc, i, j, entry, ptr) donde:
-            -# mat: es una referencia a la matrix sobre el cual se está 
-               realizando la operación. 
-            -# arc: es un apuntador al arco dentro del GT asociado a 
-               la matriz. 
-            -# i: es el índice del nodo origen en la matriz.
-            -# j: es el índice del nodo destino en la matriz.
-            -# entry: es una referencia al contenido de la entrada
-                    (i,j) en la matriz.
-            -# ptr: puntero opaco.
+  /**
+   * @brief Apply operation to all arcs with user data.
+   *
+   * Same as operate_all_arcs_list_graph() but passes additional pointer:
+   * ```
+   * Operation()(mat, arc, i, j, entry, ptr)
+   * ```
+   *
+   * @tparam Operation Functor type
+   * @param ptr User data pointer
+   */
+  template <class Operation>
+  void operate_all_arcs_list_graph(void* ptr);
 
-            El uso de este método es principalmente para escribir los
-            valores iniciales dentro de la matriz según los contenidos de
-            los arcos en el grafo representado con listas de adyacencia.
+  /**
+   * @brief Apply operation to all matrix entries.
+   *
+   * Iterates over all n×n entries and invokes:
+   * ```
+   * Operation()(mat, src, tgt, i, j, entry)
+   * ```
+   *
+   * @warning This forces all entries to be allocated.
+   *
+   * @tparam Operation Functor type
+   */
+  template <class Operation>
+  void operate_all_arcs_matrix();
 
-            Nótese que la operación sólo se ejecuta para las entradas que
-            refieren a un arco. El resto de las entradas contiene el valor
-            Ady_Mat::null_value() y probablemente no ocupen memoria.
+  /**
+   * @brief Apply operation to all matrix entries with user data.
+   * @tparam Operation Functor type
+   * @param ptr User data pointer
+   */
+  template <class Operation>
+  void operate_all_arcs_matrix(void* ptr);
+};
 
-             @param[in] ptr puntero a información opaca que se desea
-             transmitir a la operación
-         */
-  template <class Operation> void operate_all_arcs_list_graph(void * ptr);
-  
-      /** Efectúa una operación sobre todas las entradas de matriz auxiliar.
+// Implementation of operate_* methods
 
-          operate_all_arcs_matrix() recorre todas las entradas de matriz
-          auxiliar e invoca una operación Operation()(mat,src,tgt,s,t,entry)
-          cuyos parámetros se definen así:
-          -# mat: referencia a la matriz
-          -# src: puntero al nodo origen.
-          -# tgt: puntero al nodo destino.
-          -# s: índice del nodo origen.
-          -# t: índice del nodo destino.
-          -# entry: referencia a la entrada de la matriz.
-
-          Si se invoca este método, entonces la matriz ocupa el máximo de
-          memoria, pues cada entrada debe ser escrita de modo tal que se
-          garantice una referencia válida a mat(s,t).
-
-          Nótese que no hay acceso directo al arco en la representación con
-          listas de adyacencia.
-       */
-  template <class Operation> void operate_all_arcs_matrix();
-
-      /** Efectúa una operación sobre todas las entradas de matriz auxiliar
-          con un puntero opaco por donde enviar o recibir información.
-
-          operate_all_arcs_matrix() recorre todas las entradas de matriz
-          auxiliar e invoca una operación Operation()(mat,src,tgt,s,t,entry)
-          cuyos parámetros se definen así:
-          -# mat: referencia a la matriz
-          -# src: puntero al nodo origen.
-          -# tgt: puntero al nodo destino.
-          -# s: índice del nodo origen.
-          -# t: índice del nodo destino.
-          -# entry: referencia a la entrada de la matriz.
-          -# ptr: puntero opaco a pasar a la operación.
-
-          Si se invoca este método, entonces la matriz ocupa el máximo de
-          memoria, pues cada entrada debe ser escrita de modo tal que se
-          garantice una referencia válida a mat(s,t).
-
-          Nótese que no hay acceso directo al arco en la representación con
-          listas de adyacencia.
-
-          @param[in] ptr puntero a información opaca que se desea
-          transmitir a la operación
-       */
-      template <class Operation> 
-  void operate_all_arcs_matrix(void * ptr); 
-}; 
-
-
-      template <class GT, typename __Entry_Type, class SA>
-      template <class Operation>
-void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph()
-{      // recorrer todos los nodos del grafo
+template <class GT, typename __Entry_Type, class SA>
+template <class Operation>
+void
+Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph()
+{
   for (typename GT::Node_Iterator nit(*lgraph); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node_ne();
-      const long src_idx = node_index<Graph_Type>(nodes, num_nodes, src);
+      Node* src = nit.get_current_node_ne();
+      const long src_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, src);
 
-            // recorrer todos los arcos del nodo origen
       for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
-	{
-	  Arc * arc = at.get_current_arc_ne();
-	  const long tgt_idx = 
-	    node_index<Graph_Type>(nodes, num_nodes, arc->get_tgt_node());
-	  Entry_Type & entry = 
-	    mat.touch(index_array(src_idx, tgt_idx, num_nodes));
-
-	  Operation () (*this, arc, src_idx, tgt_idx, entry);
-	}
+        {
+          Arc* arc = at.get_current_arc_ne();
+          Node* tgt = at.get_tgt_node();
+          const long tgt_idx =
+            matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, tgt);
+          Entry_Type& entry =
+            mat.touch(matgraph_detail::index_array(src_idx, tgt_idx, num_nodes));
+          Operation()(*this, arc, src_idx, tgt_idx, entry);
+        }
     }
 }
 
-      template <class GT, typename __Entry_Type, class SA>
-      template <class Operation>
-void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix()
+template <class GT, typename __Entry_Type, class SA>
+template <class Operation>
+void
+Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph(void* ptr)
 {
-  const long & n = num_nodes;
-  for (int s = 0; s < n; ++s)
-    {
-      Node * src_node = get_node<GT>(nodes, s);
-      for (int t = 0; t < n; ++t)
-	{
-	  Node * tgt_node = get_node<GT>(nodes, t);
-	  Entry_Type & entry = mat.touch(index_array(s, t, num_nodes));
-
-	  Operation () (*this, src_node, tgt_node, s, t, entry);
-	}
-    }
-}
-
-      template <class GT, typename __Entry_Type, class SA>
-      template <class Operation>
-void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_list_graph(void * ptr)
-{      // recorrer todos los nodos del grafo
   for (typename GT::Node_Iterator nit(*lgraph); nit.has_curr(); nit.next_ne())
     {
-      Node * src = nit.get_current_node_ne();
-      const long src_idx = node_index<Graph_Type>(nodes, num_nodes, src);
+      Node* src = nit.get_current_node_ne();
+      const long src_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, src);
 
-            // recorrer todos los arcos del nodo origen
       for (Node_Arc_Iterator<GT, SA> at(src); at.has_curr(); at.next_ne())
-	{
-	  Arc * arc = at.get_current_arc_ne();
-	  Node * tgt = lgraph->get_tgt_node(arc);
-	  const long tgt_idx = node_index<Graph_Type>(nodes, num_nodes, tgt);
-	  Entry_Type & entry = // asegurar acceso a mat(src_idx, tgt_idx)
-	    mat.touch(index_array(src_idx, tgt_idx, num_nodes));
-
-	  Operation () (*this, arc, src_idx, tgt_idx, entry, ptr);
-	}
+        {
+          Arc* arc = at.get_current_arc_ne();
+          Node* tgt = lgraph->get_tgt_node(arc);
+          const long tgt_idx = matgraph_detail::node_index<Graph_Type>(nodes, num_nodes, tgt);
+          Entry_Type& entry =
+            mat.touch(matgraph_detail::index_array(src_idx, tgt_idx, num_nodes));
+          Operation()(*this, arc, src_idx, tgt_idx, entry, ptr);
+        }
     }
 }
 
-      template <class GT, typename __Entry_Type, class SA>
-      template <class Operation>
-void Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix(void * ptr)
+template <class GT, typename __Entry_Type, class SA>
+template <class Operation>
+void
+Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix()
 {
-  const long & n = num_nodes;
-
-  for (int s = 0; s < n; ++s)
+  const long n = num_nodes;
+  for (long s = 0; s < n; ++s)
     {
-      Node * src_node = get_node<GT>(nodes, s);
-
-      for (int t = 0; t < n; ++t)
-	{
-	  Node * tgt_node = get_node<GT>(nodes, t);
-	  Entry_Type & entry = mat.touch(index_array(s, t, num_nodes));
-	  Operation () (*this, src_node, tgt_node, s, t, entry, ptr);
-	}
+      Node* src_node = matgraph_detail::get_node<GT>(nodes, s);
+      for (long t = 0; t < n; ++t)
+        {
+          Node* tgt_node = matgraph_detail::get_node<GT>(nodes, t);
+          Entry_Type& entry = mat.touch(matgraph_detail::index_array(s, t, num_nodes));
+          Operation()(*this, src_node, tgt_node, s, t, entry);
+        }
     }
 }
 
-        /** Matriz de bit de adyacencia de un grafo.
+template <class GT, typename __Entry_Type, class SA>
+template <class Operation>
+void
+Ady_Mat<GT, __Entry_Type, SA>::operate_all_arcs_matrix(void* ptr)
+{
+  const long n = num_nodes;
+  for (long s = 0; s < n; ++s)
+    {
+      Node* src_node = matgraph_detail::get_node<GT>(nodes, s);
+      for (long t = 0; t < n; ++t)
+        {
+          Node* tgt_node = matgraph_detail::get_node<GT>(nodes, t);
+          Entry_Type& entry = mat.touch(matgraph_detail::index_array(s, t, num_nodes));
+          Operation()(*this, src_node, tgt_node, s, t, entry, ptr);
+        }
+    }
+}
 
-            El tipo Bit_Mat_Graph define la más simple matriz de
-            adyacencia sobre un grafo. Al igual que los tipos de matrices
-            de adyacencia de Aleph, Bit_Mat_Graph puede asociar un
-            grafo representado con listas de adyacencia basado sobre
-            GT, pero a diferencia de las matrices anteriores, esta
-            asociación no es obligatoria.
 
-            Se trata de una matriz de bits implementada mediante el tipo
-            BitArray. Una entrada (i,j) con valor 1 indica presencia del
-            arco, mientras que el valor 0 indica ausencia.
+// =============================================================================
+// Bit_Mat_Graph - Bit Matrix for Connectivity
+// =============================================================================
 
-            Este tipo de matriz ocupa toda la memoria posible. Es decir,
-            la dimensión de la matriz dividida entre 8.
-
-            @see BitArray warshall_compute_transitive_clausure()
-            @ingroup Grafos
-         */
-      template <class GT, class SA = Dft_Show_Arc<GT> >
+/**
+ * @brief Bit matrix for graph connectivity.
+ *
+ * Bit_Mat_Graph provides a compact bit matrix representation for
+ * connectivity queries. Each entry uses only 1 bit: 1 indicates an
+ * arc exists, 0 indicates no arc.
+ *
+ * ## Key Features
+ *
+ * - Minimal memory: n²/8 bytes for n nodes
+ * - O(1) edge existence check
+ * - Can be created without a graph (just dimension)
+ * - Modifiable entries
+ *
+ * ## Usage Example
+ *
+ * ```cpp
+ * List_Graph<int, int> g;
+ * // ... build graph ...
+ *
+ * Bit_Mat_Graph<decltype(g)> bits(g);
+ *
+ * // Check connectivity
+ * if (bits(0, 1))
+ *   std::cout << "Edge exists\n";
+ *
+ * // Modify
+ * bits(0, 2) = 1;  // Add edge
+ * bits(0, 1) = 0;  // Remove edge
+ * ```
+ *
+ * @tparam GT Graph type
+ * @tparam SA Arc filter
+ *
+ * @see BitArray Underlying bit array implementation
+ * @see warshall_compute_transitive_closure()
+ * @ingroup Graphs
+ */
+template <class GT, class SA = Dft_Show_Arc<GT>>
 class Bit_Mat_Graph
 {
 public:
+  /// Graph type
+  using Graph_Type = GT;
 
-        /// El tipo de grafo GT.
-  typedef GT Graph_Type;
+  /// Node type
+  using Node = typename GT::Node;
 
-        /// El tipo de nodo en GT.
-  typedef typename GT::Node Node;
-
-        /// El tipo de arco en GT.
-  typedef typename GT::Arc Arc;
+  /// Arc type
+  using Arc = typename GT::Arc;
 
 private:
-
-  BitArray bit_array;
-  GT *                         lgraph;
+  BitArray                     bit_array;
+  GT*                          lgraph = nullptr;
   DynArray<typename GT::Node*> nodes;
-  mutable size_t               n;
-  
-  void copy_list_graph(GT & g)
+  mutable size_t               n = 0;
+
+  void copy_list_graph(GT& g)
   {
     n = g.get_num_nodes();
-    nodes.cut(); // liberar memoria 
+    nodes.cut();
 
-    // copiar todos los nodos de g al arreglo nodes[]
-    int i = 0;
+    long i = 0;
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       nodes[i++] = static_cast<typename GT::Node*>(it.get_current_node_ne());
 
-    quicksort(nodes); // ordenar para luego hacer búsqueda binaria
+    quicksort(nodes);
 
-    // recorrer todos los nodos de g para asignar los arcos en bit_array
     for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
       {
-	typename GT::Node * src = it.get_current_node_ne();
-	const size_t src_idx = node_index<Graph_Type>(nodes, n, src);
-          
-	// recorrer los arcos de src para asignar entrada en matriz
-	for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_curr(); jt.next_ne())
-	  { 
-	    typename GT::Node * tgt = jt.get_tgt_node_ne();
-	    const size_t tgt_idx = node_index<Graph_Type>(nodes, n, tgt);
-	    bit_array[index_array(src_idx, tgt_idx, n)] = 1;
-	  }
+        typename GT::Node* src = it.get_current_node_ne();
+        const size_t src_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, src);
+
+        for (Node_Arc_Iterator<GT, SA> jt(src); jt.has_curr(); jt.next_ne())
+          {
+            typename GT::Node* tgt = jt.get_tgt_node_ne();
+            const size_t tgt_idx = matgraph_detail::node_index<Graph_Type>(nodes, n, tgt);
+            bit_array[matgraph_detail::index_array(src_idx, tgt_idx, n)] = 1;
+          }
       }
   }
 
+  /// Proxy for bit access
   struct Proxy
   {
-    BitArray & bit_array;
-
+    BitArray&    bit_array;
     const size_t bit_index;
 
-    Proxy(Bit_Mat_Graph & __bitmat, const long & i, const long & j)
-      : bit_array(__bitmat.bit_array), bit_index(index_array(i, j, __bitmat.n))
-    {
-      // empty
-    }
+    Proxy(Bit_Mat_Graph& bitmat, long i, long j)
+      : bit_array(bitmat.bit_array),
+        bit_index(matgraph_detail::index_array(i, j, bitmat.n))
+    {}
 
-    Proxy& operator = (const Proxy & proxy)
+    Proxy& operator=(const Proxy& other)
     {
-      bit_array[bit_index] = proxy.bit_array[proxy.bit_index];
-    }
-      
-    Proxy& operator = (const int & i)
-    {
-      bit_array[bit_index] = i;
-
+      bit_array[bit_index] = other.bit_array[other.bit_index];
       return *this;
     }
 
-    operator int () const
+    Proxy& operator=(int value)
     {
-      return bit_array[bit_index];
+      bit_array[bit_index] = value;
+      return *this;
     }
+
+    operator int() const { return bit_array[bit_index]; }
   };
 
-public: 
+public:
+  /// Get number of nodes (matrix dimension)
+  [[nodiscard]] size_t get_num_nodes() const noexcept { return n; }
 
-        /// Retorna el número de nodos del grafo (dimensión de la matriz).
-  const size_t & get_num_nodes() const { return n; }
+  /// Default constructor (empty matrix)
+  Bit_Mat_Graph() = default;
 
-      /// Constructor vacío.
-  Bit_Mat_Graph() : lgraph(nullptr) {}
-
-       /// Constructor a partir de un grafo g representado con listas de
-       /// adyacencia. 
-  Bit_Mat_Graph(GT & g) 
-    : bit_array(g.get_num_nodes()*g.get_num_nodes()), lgraph(&g)
-  { 
-    copy_list_graph(g); 
-  }
-  
-      /// Constructor copia.
-  Bit_Mat_Graph(const Bit_Mat_Graph & bitmat)
-    : bit_array(bitmat.bit_array), lgraph(bitmat.lgraph), 
-      nodes(bitmat.nodes), n(bitmat.n) 
+  /**
+   * @brief Construct from graph.
+   * @param g Source graph
+   */
+  explicit Bit_Mat_Graph(GT& g)
+    : bit_array(g.get_num_nodes() * g.get_num_nodes()), lgraph(&g)
   {
-    // empty
+    copy_list_graph(g);
   }
 
-        /// Constructor especificando una dimensión.
-  Bit_Mat_Graph(const size_t & dim) 
-    : bit_array(dim*dim), lgraph(nullptr), nodes(dim), n(dim) 
-  {
-    // empty
-  }
+  /// Copy constructor
+  Bit_Mat_Graph(const Bit_Mat_Graph& other)
+    : bit_array(other.bit_array), lgraph(other.lgraph),
+      nodes(other.nodes), n(other.n)
+  {}
 
-      /// Asocia la matriz de bits al grafo g representado con listas de
-      /// adyacencia. 
-  void set_list_graph(GT & g)
+  /**
+   * @brief Construct with dimension only.
+   * @param dim Matrix dimension
+   */
+  explicit Bit_Mat_Graph(size_t dim)
+    : bit_array(dim * dim), nodes(dim), n(dim)
+  {}
+
+  /**
+   * @brief Associate with a graph.
+   * @param g Graph to associate
+   */
+  void set_list_graph(GT& g)
   {
-    const size_t & n = g.get_num_nodes();
-    bit_array.set_size(n*n);
+    const size_t new_n = g.get_num_nodes();
+    bit_array.set_size(new_n * new_n);
     lgraph = &g;
     copy_list_graph(g);
   }
 
-        /// Retorna un puntero al grafo representado con listas de
-        /// adyacencia; si el valor es nullptr, entonces no hay grafo asociado.
-  GT * get_list_graph() { return lgraph; }
+  /// Get pointer to associated graph (nullptr if none)
+  [[nodiscard]] GT* get_list_graph() noexcept { return lgraph; }
 
-         /// Asignación de matriz.
-  Bit_Mat_Graph & operator = (const Bit_Mat_Graph & bitmat)
+  /// Get pointer to associated graph (const)
+  [[nodiscard]] const GT* get_list_graph() const noexcept { return lgraph; }
+
+  /// Copy assignment
+  Bit_Mat_Graph& operator=(const Bit_Mat_Graph& other)
   {
-    if (this == &bitmat) 
-      return *this;
-
-    lgraph    = bitmat.lgraph;
-    bit_array = bitmat.bit_array;
-
+    if (this != &other)
+      {
+        lgraph = other.lgraph;
+        bit_array = other.bit_array;
+        nodes = other.nodes;
+        n = other.n;
+      }
     return *this;
   }
 
-         /// Asignación de grafo representado con listas de adyacencia.
-  Bit_Mat_Graph & operator = (GT & g)
+  /// Assign from graph
+  Bit_Mat_Graph& operator=(GT& g)
   {
-    if (&g == lgraph) 
-      return *this;
-
-    copy_list_graph(g);
-
+    if (&g != lgraph)
+        set_list_graph(g);
     return *this;
   }
-  
-      /// Retorna el puntero al nodo en la representación con listas de
-      /// adyacencia correspondiente al índice i.
-  Node * operator () (const long & i) 
-  {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
 
-    return Aleph::get_node<GT>(nodes, i);
-  }
-        /// Retorna el índice en la matriz del nodo en la representación con
-        /// listas de adyacencia.
-  long operator () (Node * node) const
+  /**
+   * @brief Get node by index.
+   * @param i Node index
+   * @return Pointer to node
+   * @throw std::domain_error if no graph associated
+   * @throw std::out_of_range if index out of bounds
+   */
+  [[nodiscard]] Node* operator()(long i)
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
-
-    return node_index<GT>(nodes, n, node);
+    ah_domain_error_if(lgraph == nullptr)
+      << "No graph associated with bit matrix";
+    return matgraph_detail::get_node<GT>(nodes, i);
   }
 
-  Proxy operator () (const long & i, const long & j)
+  /**
+   * @brief Get index of node.
+   * @param node Node pointer
+   * @return Index in matrix
+   * @throw std::domain_error if no graph associated
+   */
+  [[nodiscard]] long operator()(Node* node) const
+  {
+    ah_domain_error_if(lgraph == nullptr)
+      << "No graph associated with bit matrix";
+    return matgraph_detail::node_index<GT>(nodes, n, node);
+  }
+
+  /// Access bit by indices
+  Proxy operator()(long i, long j)
   {
     return Proxy(*this, i, j);
   }
 
-  Proxy operator () (const long & i, const long & j) const
+  /// Access bit by indices (const)
+  Proxy operator()(long i, long j) const
   {
     return Proxy(const_cast<Bit_Mat_Graph&>(*this), i, j);
   }
 
-  Proxy operator () (Node * src_node, Node * tgt_node) 
+  /// Access bit by node pointers
+  Proxy operator()(Node* src_node, Node* tgt_node)
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
-
-    return Proxy(*this, node_index<GT>(nodes, n, src_node), 
-		 node_index<GT>(nodes, n, tgt_node)); 
+    ah_domain_error_if(lgraph == nullptr)
+      << "No graph associated with bit matrix";
+    return Proxy(*this,
+                 matgraph_detail::node_index<GT>(nodes, n, src_node),
+                 matgraph_detail::node_index<GT>(nodes, n, tgt_node));
   }
 
-  Proxy operator () (Node * src_node, Node * tgt_node) const
+  /// Access bit by node pointers (const)
+  Proxy operator()(Node* src_node, Node* tgt_node) const
   {
-    if (lgraph == nullptr)
-      throw std::domain_error("There is no a GT object");
-
-    return Proxy(*this, node_index<GT>(nodes, n, src_node), 
-		 node_index<GT>(nodes, n, tgt_node)); 
+    ah_domain_error_if(lgraph == nullptr)
+      << "No graph associated with bit matrix";
+    return Proxy(const_cast<Bit_Mat_Graph&>(*this),
+                 matgraph_detail::node_index<GT>(nodes, n, src_node),
+                 matgraph_detail::node_index<GT>(nodes, n, tgt_node));
   }
 };
 
+
+// =============================================================================
+// Legacy Helper Functions (for backward compatibility)
+// =============================================================================
+
+/// @cond INTERNAL
+
+template <typename GT>
+[[nodiscard]] inline typename GT::Node*
+get_node(DynArray<typename GT::Node*>& nodes, long i)
+{
+  return matgraph_detail::get_node<GT>(nodes, i);
+}
+
+template <typename GT>
+[[nodiscard]] inline long
+node_index(const DynArray<typename GT::Node*>& nodes, long n, typename GT::Node* p)
+{
+  return matgraph_detail::node_index<GT>(nodes, n, p);
+}
+
+[[nodiscard]] inline long
+index_array(long i, long j, long n)
+{
+  return matgraph_detail::index_array(i, j, n);
+}
+
+template <typename Entry>
+[[nodiscard]] inline Entry*
+read_matrix(const DynArray<Entry>& mat, long i, long j, long n)
+{
+  return matgraph_detail::read_matrix(mat, i, j, n);
+}
+
+template <typename Entry>
+inline void
+write_matrix(DynArray<Entry>& mat, long i, long j, long n, const Entry& entry)
+{
+  matgraph_detail::write_matrix(mat, i, j, n, entry);
+}
+
+/// @endcond
+
 } // end namespace Aleph
 
-# endif // TPL_MAT_GRAPH_H
+#endif // TPL_MAT_GRAPH_H

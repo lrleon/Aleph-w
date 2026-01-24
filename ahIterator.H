@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,49 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file ahIterator.H
+ *  @brief Iterator traits and STL-compatible iterator wrappers.
+ *
+ *  This file provides iterator infrastructure for Aleph-w containers,
+ *  enabling compatibility with STL algorithms and C++20 ranges.
+ *
+ *  ## Features
+ *
+ *  - `iterator_traits<Itor>`: Type traits for iterators
+ *  - `__iterator<Set>`: Mutable STL-compatible iterator wrapper
+ *  - `__const_iterator<Set>`: Const STL-compatible iterator wrapper
+ *  - `STL_ALEPH_ITERATOR`: Macro to add begin/end to containers
+ *
+ *  ## Usage Example
+ *
+ *  ```cpp
+ *  // Container uses macro to get STL interface
+ *  class MyContainer {
+ *    using Iterator = ...;
+ *    STL_ALEPH_ITERATOR(MyContainer);
+ *  };
+ *
+ *  // Now works with range-for and STL algorithms
+ *  MyContainer c;
+ *  for (auto& item : c) { ... }
+ *  std::find(c.begin(), c.end(), value);
+ *  ```
+ *
+ *  ## C++20 Ranges Compatibility
+ *
+ *  The iterators satisfy `std::input_iterator` requirements:
+ *  - `operator*` is const (required for `std::indirectly_readable`)
+ *  - Proper `==` and `!=` operators
+ *  - Prefix and postfix `++`
+ *
+ *  @see ah-ranges.H C++20 ranges support
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHITERATOR_H
 # define AHITERATOR_H
 
@@ -32,14 +74,22 @@
 namespace Aleph
 {
 
-    template <class Itor>
-struct iterator_traits
-{
-  typedef typename Itor::value_type        value_type;
-  typedef typename Itor::difference_type   difference_type;
-  typedef typename Itor::pointer           pointer;
-  typedef typename Itor::reference         reference;
-};
+/**
+ * @brief Iterator traits for Aleph-w iterators.
+ *
+ * Provides standard type aliases for iterator properties,
+ * similar to std::iterator_traits.
+ *
+ * @tparam Itor Iterator type with nested type definitions
+ */
+  template <class Itor>
+  struct iterator_traits
+  {
+    typedef typename Itor::value_type value_type;         ///< Element type
+    typedef typename Itor::difference_type difference_type; ///< Distance type
+    typedef typename Itor::pointer pointer;               ///< Pointer to element
+    typedef typename Itor::reference reference;           ///< Reference to element
+  };
 
 # define STL_ITOR_SPEC(It_Name)						\
   public:								\
@@ -79,56 +129,75 @@ struct iterator_traits
   }
 
 
-  // Define an general iterator whose interface is minimally std-c++ compliant
-    template <class Set_Type>
-struct __iterator : public Set_Type::Iterator
-{
-  STL_ITOR_SPEC(__iterator);
-
-  T & operator * () { return const_cast<T&>(this->get_curr()); }
-
-  T * operator -> ()
-  { 
-    return &const_cast<T&>(this->get_curr()); 
-  }
-
-  static __iterator begin(const Set_Type & s) noexcept
+/**
+ * @brief STL-compatible mutable iterator wrapper.
+ *
+ * Wraps an Aleph-w Iterator to provide STL-compatible interface
+ * including `operator*`, `operator->`, `operator++`, and comparison.
+ *
+ * @tparam Set_Type Container type with nested Iterator class
+ *
+ * @note `operator*` is const to satisfy `std::indirectly_readable` concept.
+ */
+  template <class Set_Type>
+  struct __iterator : public Set_Type::Iterator
   {
-    return __iterator(s);
-  }
+    STL_ITOR_SPEC(__iterator);
 
-  static __iterator end(const Set_Type & s) noexcept
+    // Note: operator* must be const to satisfy std::indirectly_readable concept
+    // (required by std::ranges::input_iterator). The constness of the iterator
+    // does not affect the constness of the pointed-to value.
+    T &operator *() const { return const_cast<T &>(this->get_curr()); }
+
+    T * operator ->() const
+    {
+      return &const_cast<T &>(this->get_curr());
+    }
+
+    static __iterator begin(const Set_Type & s) noexcept
+    {
+      return __iterator(s);
+    }
+
+    static __iterator end(const Set_Type & s) noexcept
+    {
+      __iterator it(s);
+      it.Itor::end();
+      return it;
+    }
+  };
+
+/**
+ * @brief STL-compatible const iterator wrapper.
+ *
+ * Like `__iterator` but provides only const access to elements.
+ *
+ * @tparam Set_Type Container type with nested Iterator class
+ */
+  template <class Set_Type>
+  struct __const_iterator : public Set_Type::Iterator
   {
-    __iterator it(s);
-    it.Itor::end();
-    return it;
-  }
-};
+    STL_ITOR_SPEC(__const_iterator);
 
-    template <class Set_Type>
-struct __const_iterator : public Set_Type::Iterator
-{
-  STL_ITOR_SPEC(__const_iterator);
+    const T &operator *() const noexcept { return this->get_curr(); }
 
-  const T & operator * () const noexcept { return this->get_curr(); }
+    T const * operator ->() const noexcept
+    {
+      return const_cast<T *>(&this->get_curr());
+    }
 
-  T const * operator -> () const noexcept
-  { 
-    return const_cast<T*>(&this->get_curr()); 
-  }
+    static __const_iterator cbegin(const Set_Type & s) noexcept
+    {
+      return __const_iterator(s);
+    }
 
-  static __const_iterator cbegin(const Set_Type & s) noexcept
-  {
-    return __const_iterator(s);
-  }
-
-  static __const_iterator cend(const Set_Type & s) noexcept
-  {
-    __const_iterator it(s);
-    it.Itor::end();
-    return it;
-  }
-};
+    static __const_iterator cend(const Set_Type & s) noexcept
+    {
+      __const_iterator it(s);
+      it.Itor::end();
+      return it;
+    }
+  };
 
 
 # define STL_ALEPH_ITERATOR(Set_Name)					\
@@ -187,22 +256,21 @@ struct __const_iterator : public Set_Type::Iterator
   friend iterator end(Set_Name & s) noexcept { return s.end(); }
 
 # ifdef nada
-    inline template <class Itor>
-typename iterator_traits<Itor>::difference_type distance(Itor it1, Itor it2)
-{
-  typename iterator_traits<Itor>::difference_type d = 0;
+  inline template <class Itor>
+  typename iterator_traits<Itor>::difference_type distance(Itor it1, Itor it2)
+  {
+    typename iterator_traits<Itor>::difference_type d = 0;
 
-  while (it1 not_eq it2)
-    {
-      d++;
-      it1++;
-    }
+    while (it1 not_eq it2)
+      {
+        d++;
+        it1++;
+      }
 
-  return d;
-}
+    return d;
+  }
 
 # endif
-
 }; // end namespace Aleph
 
 # endif // AHITERATOR_H

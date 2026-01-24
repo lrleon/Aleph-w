@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,14 +23,28 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file ahUtils.H
+ *  @brief General utility functions and helpers.
+ *
+ *  This file provides miscellaneous utility functions including bit manipulation,
+ *  memory utilities, file operations, string formatting, type name demangling,
+ *  and various mathematical helpers used throughout Aleph-w.
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AHUTILS_H
 # define AHUTILS_H
 
 # include <sys/stat.h>
-//# include <stdlib.h>
 # include <cstdlib>
 # include <cassert>
 # include <cmath>
+# include <cstdint>
+# include <cstring>
 # include <memory>
 # include <limits>
 # include <cxxabi.h>
@@ -40,93 +53,104 @@
 # include <iostream>
 # include <fstream>
 # include <typeinfo>
+# include <algorithm>
 
 # include <ahFunction.H>
-//# include <ah-convert.H>
-// # include <htlist.H>
-// # include <tpl_array.H>
 
-using namespace std;
+// build a string with the file name and line number
+/** String literal with the current source position (`file:line`).
 
-namespace Aleph {
+    Intended for error messages and diagnostics.
 
+    @ingroup Utilities
+*/
+# define POSITION_TRACE (std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-    /** Retorna un puntero a la mediana entre tres datos.
-
-	Se retorna un puntero a efectos de ahorrar la copia y, muy
-	especialmente, para emplear la igualdad por punteros.
-
-	@ingroup fcts
-     */
-  template <class T, class Compare = Aleph::less<T>> inline
-const T * median(const T & a, const T & b, const T & c, Compare & cmp)
+namespace Aleph
 {
-  if (cmp(a, b))
-    if (cmp(b, c))
-      return &b;
-    else if (cmp(a, c))
-      return &c;
-    else
-      return &a;
-  else if (cmp(a, c))
-    return &a;
-  else if (cmp(b, c))
-    return &c;
-  else
-    return &b;
-}
+  /** Return a pointer to the median value among three elements.
 
+      A pointer is returned to avoid copies and to allow pointer
+      equality comparisons.
 
-  /** Retorna <code>true</code> si n es par
-
-     @ingroup fcts
+      @ingroup Functions
    */
-inline bool is_even(long n)
-{
-  return (n % 2) == 0;
-}
+  template <class T, class Compare = Aleph::less<T>>
+  inline const T * median(const T & a, const T & b, const T & c, const Compare & cmp = Compare())
+  {
+    if (cmp(a, b))
+      {
+        if (cmp(b, c)) return &b; // a < b < c
+        if (cmp(a, c)) return &c; // a < c <= b
+        return &a; // c <= a < b
+      }
+    if (cmp(a, c)) return &a; // b <= a < c
+    if (cmp(b, c)) return &c; // b < c <= a
+    return &b; // c <= b <= a
+  }
 
-  /** Retorna <code>true</code> si n es impar
 
-     @ingroup fcts
+  /** Return `true` if `n` is even.
+
+      @ingroup Functions
    */
-inline bool is_odd(long n)
-{
-  return not is_even(n);
-}
+  inline bool is_even(const long n)
+  {
+    return n % 2 == 0;
+  }
 
-  /** Convierte una nibla almaceneda en un <code>int</code> a un
-      <code<>char/code>.
+  /** Return `true` if `n` is odd.
 
-      @ingroup fcts
+      @ingroup Functions
    */
-inline char nibble_to_char(const int & i)
-{
-  assert(i >= 0 and i <= 15);
+  inline bool is_odd(const long n)
+  {
+    return not is_even(n);
+  }
 
-  const char ret = i < 10 ? i + '0' : i - 10 + 'A';
+  /** Convert a 4-bit nibble stored in an `int` to its hex character.
 
-  assert((ret >= '0' and ret <= '9') or (ret >= 'A' and ret <= 'F'));
+      Valid values are 0..15; the result is in `0..9A..F`.
 
-  return ret;
-}
-
-  /** Convierte una nibla almaceneda en un <code<>char/code> a un
-      <code>int</code>.
-
-      @ingroup fcts
+      @ingroup Functions
    */
-inline int char_to_nibble(const char & c)
-{
-  assert((c >= '0' and c <= '9') or (c >= 'A' and c <= 'F'));
+  inline char nibble_to_char(const int i)
+  {
+    assert(i >= 0 and i <= 15);
 
-  const int ret = c < 'A' ? c - '0' : c - 'A' + 10;
+    const char ret = i < 10 ? i + '0' : i - 10 + 'A';
 
-  assert(ret >= 0 and ret <= 15);
+    assert((ret >= '0' and ret <= '9') or (ret >= 'A' and ret <= 'F'));
 
-  return ret;
-}
+    return ret;
+  }
 
+  /** Convert a hex character in `0..9A..F` to its 4-bit nibble value.
+
+      @ingroup Functions
+   */
+  inline int char_to_nibble(const char c)
+  {
+    assert((c >= '0' and c <= '9') or (c >= 'A' and c <= 'F'));
+
+    const int ret = c < 'A' ? c - '0' : c - 'A' + 10;
+
+    assert(ret >= 0 and ret <= 15);
+
+    return ret;
+  }
+
+  /** Define a derived iterator type from an existing iterator base.
+
+      This macro is used throughout the library to create a thin derived
+      iterator type that forwards constructors and copy assignment.
+
+      @param container_name Container type name.
+      @param base_it_name   Base iterator type name.
+      @param it_name        New iterator type name.
+
+      @ingroup Utilities
+  */
 # define DERIVATE_ITERATOR(container_name,  base_it_name, it_name) \
   struct it_name : public base_it_name                             \
   {                                                                \
@@ -149,245 +173,325 @@ inline int char_to_nibble(const char & c)
   };
 
 
-/** Reajusta el tamaño de la pila sistema a new_size. Retorna true si
-    tiene éxito; false de lo contrario
+  /** Resize the process stack to `new_size`.
 
-   @ingroup fcts
- */
-extern bool resize_process_stack(size_t new_size);
+      @param[in] new_size Requested stack size in bytes.
+      @return `true` on success; `false` otherwise.
 
-inline size_t u_index(const size_t & i)
-{
-  return i >> 1; // divide i entre 2
-}
+      @ingroup Functions
+   */
+  extern bool resize_process_stack(size_t new_size);
 
-inline size_t l_index(const size_t & i)
-{
-  return i << 1; // multiplica i por 2
-}
+  /** Map a binary heap index to the index of its parent.
 
-/**
+      For 1-based heaps, `u_index(i)` returns `i/2`.
 
-    Taken from http://stackoverflow.com/questions/3638431/determine-if-an-int-is-a-power-of-2-or-not-in-a-single-line
+      @param[in] i Node index.
+      @return Parent index.
 
-    @ingroup utils
-*/
-inline bool is_power_of_2(unsigned long x)
-{
-  return x && !(x & (x - 1UL));
-}
+      @ingroup Utilities
+  */
+  inline size_t u_index(const size_t & i)
+  {
+    return i >> 1; // divide i entre 2
+  }
 
-/** Given a linker symbol name generated by a c++ compiler, this
-  functions decodes it into a user level name.
+  /** Map a binary heap index to the index of its left child.
 
-  @ingroup fcts
- */
-inline std::string demangle(const char* name)
-{
-  int status = -4; // some arbitrary value to eliminate the compiler warning
-  // enable c++11 by passing the flag -std=c++11 to g++
-  std::unique_ptr<char, void(*)(void*)> res
-    { abi::__cxa_demangle(name, NULL, NULL, &status), std::free };
-  return (status==0) ? res.get() : name ;
-}
+      For 1-based heaps, `l_index(i)` returns `2*i`.
 
-/** Given a pointer, it returns the class name
+      @param[in] i Node index.
+      @return Left child index.
 
-  @ingroup fcts
- */
-# define CLASSNAME_TO_STRING(class_ptr) demangle(typeid(*class_ptr).name())
+      @ingroup Utilities
+  */
+  inline size_t l_index(const size_t i)
+  {
+    return i << 1;
+  }
 
-/** Print a error message and aborts
+  /**
 
-   @ingroup fcts
- */
-inline void error_msg(const string & msg)
-{
-  cout << msg << endl;
-  abort();
-}
+      Taken from http://stackoverflow.com/questions/3638431/determine-if-an-int-is-a-power-of-2-or-not-in-a-single-line
 
-/** Return `true` if it exists a file of `name`
+      @ingroup Utilities
+  */
+  inline bool is_power_of_2(unsigned long x)
+  {
+    return x && ! (x & (x - 1UL));
+  }
 
-   @ingroup fcts
- */
-inline bool exists_file(const string & name)
-{
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
-}
+  /**
+      In x is not exact power of 2, it returns the next power of 2
 
-/** Return a string with R specification of a vector with `name` and
-   data stored in container `c`
+      @ingroup Utilities
+  */
+  inline unsigned long next_power_of_2(unsigned long x)
+  {
+    if (is_power_of_2(x))
+      return x;
 
-   @ingroup fcts
- */
-template <class C>
-inline std::string Rvector(const std::string & name, const C & c)
-{
-  std::ostringstream s;
-  s << name << " <- c(";
-  auto last_ptr = &c.get_last();
-  for (auto it = c.get_it(); it.has_curr(); it.next())
-    {
-      auto & v = it.get_curr();
-      s << v;
-      if (&v != last_ptr)
-	s << ", ";
-    }
-  s << ")";
+    unsigned long ret = 1;
+    while (ret < x)
+      ret <<= 1;
 
-  return s.str();
-}
+    return ret;
+  }
 
-template <class C>
-inline std::string Rvector(const C & c)
-{
-  std::ostringstream s;
-  s << c.get_first() << " <- c(";
-  auto last_ptr = &c.get_last();
-  for (auto it = c.get_it(1); it.has_curr(); it.next())
-    {
-      auto & v = it.get_curr();
-      s << v;
-      if (&v != last_ptr)
-	s << ", ";
-    }
-  s << ")";
+  /** Given a linker symbol name generated by a c++ compiler, this
+    functions decodes it into a user level name.
 
-  return s.str();
-}
+    @ingroup Functions
+   */
+  inline std::string demangle(const char *name)
+  {
+    int status = -4; // some arbitrary value to eliminate the compiler warning
+    // enable c++11 by passing the flag -std=c++11 to g++
+    std::unique_ptr<char, void(*)(void *)> res
+        {abi::__cxa_demangle(name, nullptr, nullptr, &status), std::free};
+    return (status == 0) ? res.get() : name;
+  }
 
-/** Basic linear interpolation
+  /** Given a pointer, it returns the class name
 
-   This function receives a pair of points in a plane plus a x point
-   and computes the value of f(x) through linear interpolation
+    @ingroup Functions
+   */
+# define CLASSNAME_TO_STRING(class_ptr) ::Aleph::demangle(typeid(*class_ptr).name())
 
-   @param[in] x1 minimum in x
-   @param[in] x2 maximum in x
-   @param[in] y1 value of f(x1)
-   @param[in] y2 value of f(x2)
-   @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2`
+  /** Display message and abort program execution.
 
-  @ingroup fcts
- */
-inline
-double interpolate(double x1, double x2, double y1, double y2, double x)
-{
-  assert(x2 > x1 and x <= x2 and x >= x1);
-  return y1 + (y2 - y1)*(x - x1)/(x2 - x1);
-}
+     @ingroup Functions
+   */
+  inline void error_msg(const std::string & msg)
+  {
+    std::cerr << msg << '\n';
+    abort();
+  }
 
-/** Basic linear extrapolation
+  /** Return `true` if it exists a file of `name`
 
-   This function receives a pair of points in a plane plus a x point
-   less than `x1` and `x2` and computes the value of f(x)
+     @ingroup Functions
+   */
+  inline bool exists_file(const std::string & name)
+  {
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+  }
 
-   @param[in] x1 minimum in x
-   @param[in] x2 maximum in x
-   @param[in] y1 value of f(x1)
-   @param[in] y2 value of f(x2)
-   @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2` and `x` must be less
-   than `x1`
+  /** Return a string with R specification of a vector with `name` and
+     data stored in container `c`
 
-   @ingroup fcts
- */
-inline
-double extrapolate_left(double x1, double x2, double y1, double y2, double x)
-{
-  assert(x2 > x1 and x < x1);
-  return y1 - (y2 - y1)*(x1 - x)/(x2 - x1);
-}
+     @ingroup Functions
+   */
+  template <class C>
+  inline std::string Rvector(const std::string & name, const C & c)
+  {
+    std::ostringstream s;
+    s << name << " <- c(";
+    auto last_ptr = &c.get_last();
+    for (auto it = c.get_it(); it.has_curr(); it.next())
+      {
+        auto & v = it.get_curr();
+        s << v;
+        if (&v != last_ptr)
+          s << ", ";
+      }
+    s << ")";
 
-/** Return x^2
-   @ingroup fcts
- */
-inline double pow2(double x) { return x*x; }
+    return s.str();
+  }
 
-/** Return x^3
-   @ingroup fcts
- */
-inline double pow3(double x) { return x*pow2(x); }
+  /** Return a string with an R assignment for a container interpreted as
+      `[name, value1, value2, ...]`.
 
-/** Basic linear extrapolation
+      The first element of `c` is used as the R variable name, and the
+      remaining elements are used as the vector data.
 
-   This function receives a pair of points in a plane plus a x point
-   less than `x1` and `x2` and computes the value of f(x)
+      @ingroup Functions
+   */
+  template <class C>
+  inline std::string Rvector(const C & c)
+  {
+    std::ostringstream s;
+    s << c.get_first() << " <- c(";
+    auto last_ptr = &c.get_last();
+    for (auto it = c.get_it(1); it.has_curr(); it.next())
+      {
+        auto & v = it.get_curr();
+        s << v;
+        if (&v != last_ptr)
+          s << ", ";
+      }
+    s << ")";
 
-   @param[in] x1 minimum in x
-   @param[in] x2 maximum in x
-   @param[in] y1 value of f(x1)
-   @param[in] y2 value of f(x2)
-   @param[in] x for which f(x) should be computed
-   @note `x1` must be greater or equal to `x2` and `x` must be greater
-   than `x2`
+    return s.str();
+  }
 
-   @ingroup fcts
- */
-inline
-double extrapolate_right(double x1, double x2, double y1, double y2, double x)
-{
-  assert(x2 > x1 and x > x2);
-  return y2 + (y2 - y1)*(x - x2)/(x2 - x1);
-}
+  /** Basic linear interpolation
 
-/** Return the next representable floating-point value to `val`
+     This function receives a pair of points in a plane plus a x point
+     and computes the value of f(x) through linear interpolation
 
-   @ingroup fcts
- */
-inline double next_value(double val)
-{
-  return nextafter(val, numeric_limits<double>::max());
-}
+     @param[in] x1 minimum in x
+     @param[in] x2 maximum in x
+     @param[in] y1 value of f(x1)
+     @param[in] y2 value of f(x2)
+     @param[in] x for which f(x) should be computed
+     @note Requires `x2 > x1` and `x` in [`x1`, `x2`].
 
-/** Return the previous representable floating-point value to `val`
+    @ingroup Functions
+   */
+  inline
+  double interpolate(const double x1, const double x2,
+                     const double y1, const double y2, const double x)
+  {
+    assert(x2 > x1 and x <= x2 and x >= x1);
+    return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+  }
 
-    @ingroup fcts
- */
-inline double prev_value(double val)
-{
-  return nextafter(val, numeric_limits<double>::min());
-}
+  /** Basic linear extrapolation
 
-/** Return `true` if v1 is near of v2 by absolute difference e
+     This function receives a pair of points in a plane plus a x point
+     less than `x1` and `x2` and computes the value of f(x)
 
-    @ingroup fcts
- */
-inline bool are_near(double v1, double v2, double e) { return fabs(v1 - v2) <= e; }
+     @param[in] x1 minimum in x
+     @param[in] x2 maximum in x
+     @param[in] y1 value of f(x1)
+     @param[in] y2 value of f(x2)
+     @param[in] x for which f(x) should be computed
+     @note Requires `x2 > x1` and `x < x1`.
 
-/** Generate and execute a R script from a string (containing the script)
+     @ingroup Functions
+   */
+  inline
+  double extrapolate_left(const double x1, const double x2,
+                          const double y1, const double y2, const double x)
+  {
+    assert(x2 > x1 and x < x1);
+    return y1 - (y2 - y1) * (x1 - x) / (x2 - x1);
+  }
 
-    @param[in] scr string containing the script
-    @param[in] file name of temporal file where the script will be saved
+  /** Return x^2
+     @ingroup Functions
+   */
+  inline double pow2(const double x) { return x * x; }
 
-   @ingroup fcts
- */
-inline
-void execute_R_script(const string & scr, const string & file_name = "tmp.R")
-{
-  std::ofstream tmp(file_name);
-  tmp << "#!/usr/bin/Rscript" << endl
-      << endl
-      << "X11()" << endl
-      << scr << endl
-      << "message(\"Press Return To Continue\")" << endl
-      << "invisible(readLines(\"stdin\", n=1))" << endl;
-  const string cmd = "Rscript " + file_name;
-  system(cmd.c_str());
-}
+  /** Return x^3
+     @ingroup Functions
+   */
+  inline double pow3(const double x) { return x * pow2(x); }
 
-inline bool is_normal_number(double n)
-{
-  int status = fpclassify(n);
-  return (status == FP_NORMAL or status == FP_ZERO) // and status != FP_NAN and
-    // status != FP_INFINITE and status != FP_SUBNORMAL
-    ;
-}
+  /** Basic linear extrapolation
 
+     This function receives a pair of points in a plane plus a x point
+     less than `x1` and `x2` and computes the value of f(x)
+
+     @param[in] x1 minimum in x
+     @param[in] x2 maximum in x
+     @param[in] y1 value of f(x1)
+     @param[in] y2 value of f(x2)
+     @param[in] x for which f(x) should be computed
+     @note Requires `x2 > x1` and `x > x2`.
+
+     @ingroup Functions
+   */
+  inline
+  double extrapolate_right(const double x1, const double x2,
+                           const double y1, const double y2, const double x)
+  {
+    assert(x2 > x1 and x > x2);
+    return y2 + (y2 - y1) * (x - x2) / (x2 - x1);
+  }
+
+  /** Return the next representable floating-point value to `val`
+
+     @ingroup Functions
+   */
+  inline double next_value(const double val)
+  {
+    return nextafter(val, std::numeric_limits<double>::max());
+  }
+
+  /** Return the next representable floating-point value of `val` towards the
+      smallest positive normal number.
+
+      @ingroup Functions
+   */
+  inline double prev_value(const double val)
+  {
+    return nextafter(val, std::numeric_limits<double>::min());
+  }
+
+  /** Return `true` if `v1` is within absolute distance `e` of `v2`.
+
+      @ingroup Functions
+   */
+  [[nodiscard]] constexpr bool are_near(const double v1, const double v2, const double e) noexcept { return std::fabs(v1 - v2) <= e; }
+
+  /** Generate and execute a R script from a string (containing the script)
+
+      @param[in] scr string containing the script
+      @param file_name file name of temporary file where the script will be saved
+
+
+     @ingroup Functions
+   */
+  inline
+  void execute_R_script(const std::string & scr, const std::string & file_name = "tmp.R")
+  {
+    std::ofstream tmp(file_name);
+    tmp << "#!/usr/bin/Rscript" << '\n'
+        << '\n'
+        << "X11()" << '\n'
+        << scr << '\n'
+        << "message(\"Press Return To Continue\")" << '\n'
+        << "invisible(readLines(\"stdin\", n=1))" << '\n';
+    const std::string cmd = "Rscript " + file_name;
+    system(cmd.c_str());
+  }
+
+  /** Return `true` if a floating-point number is normal or zero.
+
+      This excludes NaN, infinities, and subnormal.
+
+      @param[in] n Value to classify.
+      @return `true` if `n` is a finite number classified as `FP_NORMAL`
+              or `FP_ZERO`.
+
+      @ingroup Functions
+  */
+
+  inline bool is_normal_number(const double n)
+  {
+    if constexpr (std::numeric_limits<double>::is_iec559 &&
+                  sizeof(double) == sizeof(std::uint64_t))
+      {
+        // IEEE-754 bit inspection avoids fast-math assuming finiteness.
+        std::uint64_t bits = 0;
+        std::memcpy(&bits, &n, sizeof(bits));
+
+        constexpr std::uint64_t exp_mask = 0x7ff0000000000000ULL;
+        constexpr std::uint64_t frac_mask = 0x000fffffffffffffULL;
+
+        const std::uint64_t exp = bits & exp_mask;
+        const std::uint64_t frac = bits & frac_mask;
+
+        if (exp == exp_mask)
+          return false;
+
+        if (exp == 0)
+          return frac == 0;
+
+        return true;
+      }
+
+    if (not std::isfinite(n))
+      return false;
+
+    const int status = std::fpclassify(n);
+    return (status == FP_NORMAL or status == FP_ZERO);
+  }
 }
 
 
 # endif // AHUTILS_H
-

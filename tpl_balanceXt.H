@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,10 +23,23 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_balanceXt.H
+ *  @brief Tree balancing with extended nodes.
+ *
+ *  Utilities for balancing trees with subtree counts.
+ *
+ *  @see tpl_binNodeXt.H Extended nodes
+ *  @ingroup Trees
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_BALANCEXT_H
 # define TPL_BALANCEXT_H
 
 # include <tpl_binNodeXt.H>
+ # include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -49,7 +61,7 @@ namespace Aleph {
         de nodos del árbol binario.
         @see select() select_rec()
 
-        @ingroup Arboles
+        @ingroup Trees
      */
     template <class Node> inline
 Node * select_gotoup_root(Node * root, const size_t & i) 
@@ -58,7 +70,7 @@ Node * select_gotoup_root(Node * root, const size_t & i)
   assert(COUNT(Node::NullPtr) == 0);
 
   if (i >= COUNT(root))
-    throw std::out_of_range ("");
+    ah_out_of_range_error_if(true) << "";
 
   if (i == COUNT(LLINK(root))) 
     return root;

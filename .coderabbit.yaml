@@ -1,0 +1,41 @@
+# CodeRabbit Configuration for Aleph-w
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+language: "es-ES"
+
+reviews:
+  # Enable reviews on ALL branches, not just default
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  # Enable auto review
+  auto_review:
+    enabled: true
+    drafts: false
+    # Review PRs only to main, develop, and release branches
+    base_branches:
+      - "^main$"
+      - "^develop$"
+      - "^release/.*"
+  
+  path_instructions:
+    - path: "**/*.H"
+      instructions: |
+        Este es un archivo de cabecera C++ de la biblioteca Aleph-w.
+        Revisa: correctitud de algoritmos, memory leaks, exception safety,
+        uso correcto de templates, y adherencia al estilo del proyecto
+        (sin 'using namespace std' en headers).
+    
+    - path: "**/*.C"
+      instructions: |
+        Archivo de implementación C++. Verifica correctitud y rendimiento.
+    
+    - path: "Tests/**"
+      instructions: |
+        Archivo de tests con Google Test. Verifica cobertura de casos edge,
+        que los tests sean determinísticos, y que no haya memory leaks.
+
+chat:
+  auto_reply: true

@@ -1,0 +1,646 @@
+/**
+ * @file hamiltonian_example.C
+ * @brief Example demonstrating Hamiltonian graph testing in Aleph-w
+ *
+ * A Hamiltonian cycle (or path) visits every **vertex** exactly once,
+ * which is fundamentally different from Eulerian paths (which visit
+ * every **edge** exactly once). Finding Hamiltonian cycles is NP-complete,
+ * so we can only test sufficient conditions, not necessary ones.
+ *
+ * ## What is a Hamiltonian Path/Cycle?
+ *
+ * ### Hamiltonian Path
+ *
+ * A **Hamiltonian path** is a path that visits every vertex exactly once.
+ * The path may start and end at different vertices.
+ *
+ * ### Hamiltonian Cycle
+ *
+ * A **Hamiltonian cycle** (or circuit) is a Hamiltonian path that starts
+ * and ends at the same vertex, forming a cycle.
+ *
+ * ### Key Difference from Eulerian
+ *
+ * | Property | Hamiltonian | Eulerian |
+ * |----------|-------------|----------|
+ * | Visits | Every **vertex** once | Every **edge** once |
+ * | Complexity | **NP-complete** | Polynomial O(V+E) |
+ * | Test | **Sufficiency only** | Exact conditions |
+ * | Solution | No efficient algorithm | Efficient algorithm exists |
+ *
+ * ## Why is it Hard?
+ *
+ * **NP-completeness**: Determining if a graph has a Hamiltonian cycle
+ * is NP-complete, meaning:
+ * - No known polynomial-time algorithm
+ * - Best known: Exponential time (backtracking)
+ * - If P ≠ NP, no polynomial algorithm exists
+ *
+ * **Implication**: We can only test **sufficient** conditions (if
+ * condition holds, graph is Hamiltonian), not **necessary** conditions
+ * (graph may be Hamiltonian without satisfying condition).
+ *
+ * ## Sufficient Conditions
+ *
+ * ### Ore's Theorem (1960)
+ *
+ * **Statement**: For a graph with n ≥ 3 vertices:
+ *
+ * If for every pair of **non-adjacent** vertices u, v:
+ * ```
+ *   deg(u) + deg(v) ≥ n
+ * ```
+ * Then the graph has a Hamiltonian cycle.
+ *
+ * **Intuition**: If vertices have high enough degrees, there are enough
+ * edges to form a Hamiltonian cycle.
+ *
+ * ### Dirac's Theorem (1952)
+ *
+ * **Statement**: For a graph with n ≥ 3 vertices:
+ *
+ * If every vertex has degree ≥ n/2:
+ * ```
+ *   deg(v) ≥ n/2  for all v
+ * ```
+ * Then the graph has a Hamiltonian cycle.
+ *
+ * **Note**: Dirac's is a special case of Ore's (if all degrees ≥ n/2,
+ * then sum of any two ≥ n).
+ *
+ * ### Other Sufficient Conditions
+ *
+ * - **Pósa's condition**: More complex degree sequence condition
+ * - **Chvátal's condition**: Degree sequence-based
+ * - **Toughness**: Graph toughness conditions
+ *
+ * ## Important Limitations
+ *
+ * ### Sufficiency vs Necessity
+ *
+ * **Sufficient**: If condition holds → graph is Hamiltonian
+ * **Necessary**: If graph is Hamiltonian → condition holds
+ *
+ * **Ore's theorem is sufficient but NOT necessary**:
+ * - ✅ If Ore's condition holds → Hamiltonian cycle exists
+ * - ❌ If Ore's condition fails → may still be Hamiltonian!
+ *
+ * ### Example: Hamiltonian Without Ore's
+ *
+ * ```
+ * Graph: Complete graph K_n (all vertices connected)
+ * 
+ * Ore's condition: Not needed (all vertices adjacent)
+ * Result: Hamiltonian (trivially, any permutation works)
+ * ```
+ *
+ * Many Hamiltonian graphs don't satisfy Ore's condition but are still Hamiltonian.
+ *
+ * ## Applications
+ *
+ * ### Traveling Salesman Problem (TSP)
+ * - **TSP**: Find shortest Hamiltonian cycle
+ * - **Reduction**: TSP reduces to Hamiltonian cycle
+ * - **Complexity**: Both NP-complete
+ *
+ * ### Route Planning
+ * - **Delivery routes**: Visit all locations once
+ * - **Tour planning**: Visit all cities in a tour
+ * - **Circuit design**: Visit all components
+ *
+ * ### Puzzles and Games
+ * - **Knight's tour**: Visit all squares on chessboard
+ * - **Icosian game**: Historical puzzle
+ * - **Sudoku**: Some variants use Hamiltonian paths
+ *
+ * ### Network Design
+ * - **Network topology**: Design networks visiting all nodes
+ * - **Testing**: Test all network nodes
+ *
+ * ## Finding Hamiltonian Cycles
+ *
+ * ### Backtracking Algorithm
+ *
+ * ```
+ * Find_Hamiltonian_Cycle(G, path):
+ *   If path.length == V:
+ *     If path[0] adjacent to path[V-1]:
+ *       Return path + path[0]  // Found cycle!
+ *     Return null
+ *   
+ *   For each neighbor v of path[last]:
+ *     If v not in path:
+ *       result = Find_Hamiltonian_Cycle(G, path + v)
+ *       If result != null:
+ *         Return result
+ *   Return null
+ * ```
+ *
+ * **Time complexity**: O(V!) worst case (exponential!)
+ *
+ * ### Heuristics
+ *
+ * - **Nearest neighbor**: Greedy approach
+ * - **2-opt**: Local optimization
+ * - **Genetic algorithms**: Evolutionary approach
+ * - **Simulated annealing**: Probabilistic optimization
+ *
+ * ## Complexity
+ *
+ * | Problem | Complexity | Notes |
+ * |---------|-----------|-------|
+ * | Test sufficient condition | O(V²) | Check degrees |
+ * | Find Hamiltonian cycle | O(V!) | Exponential (backtracking) |
+ * | Decision problem | NP-complete | No polynomial algorithm known |
+ *
+ * ## Example: Complete Graph
+ *
+ * ```
+ * Complete graph K_5 (5 vertices, all connected):
+ *
+ *   A---B
+ *   |\ /|
+ *   | X |
+ *   |/ \|
+ *   C---D
+ *    \ /
+ *     E
+ *
+ * Ore's condition: Not applicable (all vertices adjacent)
+ * Result: Hamiltonian (trivially, any order works)
+ * ```
+ *
+ * ## Usage
+ *
+ * ```bash
+ * # Run all Hamiltonian demonstrations
+ * ./hamiltonian_example
+ *
+ * # Run specific demo
+ * ./hamiltonian_example -s compare    # Compare Ore vs Dirac conditions
+ * ./hamiltonian_example -s ore        # Ore's theorem
+ * ./hamiltonian_example -s dirac      # Dirac's theorem
+ * ./hamiltonian_example -s density    # Density experiments
+ * ./hamiltonian_example -s practical  # Practical examples
+ *
+ * # Show help
+ * ./hamiltonian_example --help
+ * ```
+ *
+ * @see hamiltonian.H Hamiltonian sufficiency testing
+ * @see eulerian_example.C Eulerian paths (visits edges, polynomial)
+ * @author Leandro Rabindranath León
+ * @ingroup Examples
+ * @date 2024
+ * @copyright GNU General Public License
+ */
+
+#include <iostream>
+#include <iomanip>
+#include <string>
+
+#include <tclap/CmdLine.h>
+
+#include <tpl_graph.H>
+#include <hamiltonian.H>
+
+using namespace std;
+using namespace Aleph;
+
+// Graph types
+using SNode = Graph_Node<string>;
+using IArc = Graph_Arc<int>;
+using UGraph = List_Graph<SNode, IArc>;
+
+// =============================================================================
+// Helper functions
+// =============================================================================
+
+void print_section(const string& title)
+{
+  cout << "\n" << string(60, '=') << "\n";
+  cout << "  " << title << "\n";
+  cout << string(60, '=') << "\n\n";
+}
+
+void print_subsection(const string& title)
+{
+  cout << "\n--- " << title << " ---\n";
+}
+
+void print_degrees(UGraph& g)
+{
+  cout << "Vertex degrees:" << endl;
+  for (auto it = g.get_node_it(); it.has_curr(); it.next())
+  {
+    auto node = it.get_curr();
+    size_t degree = 0;
+    for (Node_Arc_Iterator<UGraph> ait(node); ait.has_curr(); ait.next())
+      degree++;
+    cout << "  " << node->get_info() << ": degree " << degree << endl;
+  }
+}
+
+// Build complete graph Kn
+void build_complete_graph(UGraph& g, size_t n)
+{
+  vector<UGraph::Node*> nodes;
+  
+  // Create nodes
+  for (size_t i = 0; i < n; i++)
+    nodes.push_back(g.insert_node(to_string(i)));
+  
+  // Connect all pairs
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = i + 1; j < n; j++)
+      g.insert_arc(nodes[i], nodes[j], 1);
+}
+
+// =============================================================================
+// 1. Hamiltonian vs Eulerian
+// =============================================================================
+
+void demo_comparison()
+{
+  print_section("HAMILTONIAN VS EULERIAN");
+  
+  cout << "Hamiltonian: Visit every VERTEX exactly once\n";
+  cout << "Eulerian:    Visit every EDGE exactly once\n\n";
+  
+  // Example: Triangle
+  print_subsection("Example: Triangle (K3)");
+  
+  UGraph triangle;
+  auto a = triangle.insert_node("A");
+  auto b = triangle.insert_node("B");
+  auto c = triangle.insert_node("C");
+  triangle.insert_arc(a, b, 1);
+  triangle.insert_arc(b, c, 1);
+  triangle.insert_arc(c, a, 1);
+  
+  cout << "Triangle: A-B-C-A\n";
+  cout << "  Vertices: 3, Edges: 3\n";
+  cout << "  Each vertex has degree 2\n\n";
+  
+  cout << "Hamiltonian cycle: A -> B -> C -> A (visits each vertex once)\n";
+  cout << "Eulerian cycle:    A -> B -> C -> A (visits each edge once)\n";
+  cout << "\nTriangle is BOTH Hamiltonian AND Eulerian!\n";
+  
+  // Example: Star graph
+  print_subsection("Example: Star graph (K1,4)");
+  
+  UGraph star;
+  auto center = star.insert_node("Center");
+  auto p1 = star.insert_node("P1");
+  auto p2 = star.insert_node("P2");
+  auto p3 = star.insert_node("P3");
+  auto p4 = star.insert_node("P4");
+  star.insert_arc(center, p1, 1);
+  star.insert_arc(center, p2, 1);
+  star.insert_arc(center, p3, 1);
+  star.insert_arc(center, p4, 1);
+  
+  cout << "Star: Center connected to P1, P2, P3, P4\n";
+  cout << "  Center degree: 4\n";
+  cout << "  P1-P4 degrees: 1 each\n\n";
+  
+  cout << "Hamiltonian? NO - Can't visit all without repeating Center\n";
+  cout << "Eulerian?    NO - Peripheral vertices have odd degree\n";
+}
+
+// =============================================================================
+// 2. Ore's Theorem
+// =============================================================================
+
+void demo_ore_theorem()
+{
+  print_section("ORE'S THEOREM (Sufficiency Condition)");
+  
+  cout << "Ore's Theorem states:\n";
+  cout << "For a graph G with n >= 3 vertices, if for every pair of\n";
+  cout << "NON-ADJACENT vertices u, v: deg(u) + deg(v) >= n,\n";
+  cout << "then G has a Hamiltonian cycle.\n\n";
+  
+  // Complete graph K5 - satisfies Ore's condition
+  print_subsection("Example 1: Complete graph K5");
+  
+  UGraph k5;
+  build_complete_graph(k5, 5);
+  
+  cout << "K5: Complete graph with 5 vertices\n";
+  cout << "  All vertices connected to all others\n";
+  cout << "  Each vertex has degree 4\n\n";
+  
+  cout << "Check Ore's condition:\n";
+  cout << "  In K5, every pair IS adjacent (no non-adjacent pairs)\n";
+  cout << "  Condition is trivially satisfied!\n\n";
+  
+  Test_Hamiltonian_Sufficiency<UGraph> test1;
+  cout << "Satisfies Ore's condition? " << (test1(k5) ? "YES" : "NO") << endl;
+  cout << "=> K5 is Hamiltonian\n";
+  
+  // Cycle graph C5 - does NOT satisfy Ore's but IS Hamiltonian
+  print_subsection("Example 2: Cycle C5 (Pentagon)");
+  
+  UGraph c5;
+  auto n0 = c5.insert_node("0");
+  auto n1 = c5.insert_node("1");
+  auto n2 = c5.insert_node("2");
+  auto n3 = c5.insert_node("3");
+  auto n4 = c5.insert_node("4");
+  c5.insert_arc(n0, n1, 1);
+  c5.insert_arc(n1, n2, 1);
+  c5.insert_arc(n2, n3, 1);
+  c5.insert_arc(n3, n4, 1);
+  c5.insert_arc(n4, n0, 1);
+  
+  cout << "C5: Cycle 0-1-2-3-4-0\n";
+  cout << "  Each vertex has degree 2\n\n";
+  
+  cout << "Check Ore's condition:\n";
+  cout << "  Non-adjacent pair (0, 2): deg(0) + deg(2) = 2 + 2 = 4\n";
+  cout << "  Need >= n = 5, but only have 4\n";
+  cout << "  Condition NOT satisfied!\n\n";
+  
+  Test_Hamiltonian_Sufficiency<UGraph> test2;
+  cout << "Satisfies Ore's condition? " << (test2(c5) ? "YES" : "NO") << endl;
+  cout << "\nBUT: C5 IS Hamiltonian! (The cycle itself is Hamiltonian)\n";
+  cout << "=> Ore's is SUFFICIENT but not NECESSARY\n";
+}
+
+// =============================================================================
+// 3. Practical Examples
+// =============================================================================
+
+void demo_practical()
+{
+  print_section("PRACTICAL: Traveling Salesman Setup");
+  
+  cout << "The Hamiltonian cycle problem is the foundation of TSP.\n";
+  cout << "TSP asks: What's the shortest Hamiltonian cycle?\n\n";
+  
+  // Colombian cities as vertices
+  print_subsection("Colombian cities tour");
+  
+  UGraph colombia;
+  auto bog = colombia.insert_node("Bogota");
+  auto med = colombia.insert_node("Medellin");
+  auto cal = colombia.insert_node("Cali");
+  auto bar = colombia.insert_node("Barranquilla");
+  auto car = colombia.insert_node("Cartagena");
+  
+  // Create some connections (not all cities directly connected)
+  colombia.insert_arc(bog, med, 1);  // Bogota-Medellin
+  colombia.insert_arc(bog, cal, 1);  // Bogota-Cali
+  colombia.insert_arc(med, cal, 1);  // Medellin-Cali
+  colombia.insert_arc(med, bar, 1);  // Medellin-Barranquilla
+  colombia.insert_arc(bar, car, 1);  // Barranquilla-Cartagena
+  colombia.insert_arc(bog, bar, 1);  // Bogota-Barranquilla
+  
+  cout << "Cities: Bogota, Medellin, Cali, Barranquilla, Cartagena\n";
+  cout << "Connections:\n";
+  cout << "  Bogota-Medellin, Bogota-Cali, Bogota-Barranquilla\n";
+  cout << "  Medellin-Cali, Medellin-Barranquilla\n";
+  cout << "  Barranquilla-Cartagena\n\n";
+  
+  print_degrees(colombia);
+  
+  cout << "\nNon-adjacent pairs check:\n";
+  cout << "  (Bogota, Cartagena): 3 + 1 = 4 < 5 - FAILS\n";
+  cout << "  (Cali, Barranquilla): 2 + 2 = 4 < 5 - FAILS\n";
+  cout << "  (Cali, Cartagena): 2 + 1 = 3 < 5 - FAILS\n";
+  
+  Test_Hamiltonian_Sufficiency<UGraph> test;
+  cout << "\nSatisfies Ore's condition? " << (test(colombia) ? "YES" : "NO") << endl;
+  
+  cout << "\nThis doesn't mean no Hamiltonian cycle exists!\n";
+  cout << "Let's check manually:\n";
+  cout << "  Bogota -> Medellin -> Barranquilla -> Cartagena -> ?\n";
+  cout << "  Cartagena only connects to Barranquilla - STUCK!\n";
+  cout << "\nNeed to add Cali-Cartagena or Bogota-Cartagena connection.\n";
+  
+  // Add missing connection
+  print_subsection("Adding Cali-Cartagena connection");
+  
+  colombia.insert_arc(cal, car, 1);
+  
+  cout << "Added: Cali-Cartagena\n\n";
+  print_degrees(colombia);
+  
+  cout << "\nNow we can find a Hamiltonian cycle:\n";
+  cout << "  Bogota -> Cali -> Cartagena -> Barranquilla -> Medellin -> Bogota\n";
+  cout << "  (Visits each city exactly once and returns to start)\n";
+}
+
+// =============================================================================
+// 4. Dense vs Sparse Graphs
+// =============================================================================
+
+void demo_density()
+{
+  print_section("GRAPH DENSITY AND HAMILTONICITY");
+  
+  cout << "Dense graphs are more likely to satisfy Ore's condition.\n\n";
+  
+  // Compare different densities
+  vector<tuple<string, size_t, size_t>> configs = {
+    {"Sparse (n edges)", 8, 8},
+    {"Medium (2n edges)", 8, 16},
+    {"Dense (3n edges)", 8, 24},
+    {"Complete (n(n-1)/2)", 8, 28}
+  };
+  
+  cout << setw(25) << "Configuration" << setw(15) << "Satisfies Ore?" << endl;
+  cout << string(40, '-') << endl;
+  
+  for (auto& [name, n, target_edges] : configs)
+  {
+    UGraph g;
+    vector<UGraph::Node*> nodes;
+    
+    // Create nodes
+    for (size_t i = 0; i < n; i++)
+      nodes.push_back(g.insert_node(to_string(i)));
+    
+    // Add edges up to target
+    size_t edges = 0;
+    for (size_t i = 0; i < n and edges < target_edges; i++)
+    {
+      for (size_t j = i + 1; j < n and edges < target_edges; j++)
+      {
+        g.insert_arc(nodes[i], nodes[j], 1);
+        edges++;
+      }
+    }
+    
+    Test_Hamiltonian_Sufficiency<UGraph> test;
+    cout << setw(25) << name << setw(15) << (test(g) ? "YES" : "NO") << endl;
+  }
+  
+  cout << "\nConclusion: Denser graphs more likely to be Hamiltonian.\n";
+}
+
+// =============================================================================
+// 5. Dirac's Theorem (Faster Alternative)
+// =============================================================================
+
+void demo_dirac()
+{
+  print_section("DIRAC'S THEOREM (O(V) Alternative to Ore)");
+  
+  cout << "Dirac's Theorem:\n";
+  cout << "For a graph G with n >= 3 vertices, if deg(v) >= n/2 for ALL vertices,\n";
+  cout << "then G has a Hamiltonian cycle.\n\n";
+  
+  cout << "Comparison with Ore's Theorem:\n";
+  cout << "  | Property     | Dirac       | Ore         |\n";
+  cout << "  |--------------|-------------|-------------|\n";
+  cout << "  | Complexity   | O(V)        | O(V^2)      |\n";
+  cout << "  | Condition    | deg >= n/2  | sum >= n    |\n";
+  cout << "  | Strictness   | More strict | Less strict |\n\n";
+  
+  // Complete graph K6 - satisfies both
+  print_subsection("Example 1: Complete graph K6");
+  
+  UGraph k6;
+  build_complete_graph(k6, 6);
+  
+  cout << "K6: Complete graph with 6 vertices\n";
+  cout << "  Each vertex has degree 5\n";
+  cout << "  n/2 = 3, so need deg >= 3\n";
+  cout << "  5 >= 3 ✓\n\n";
+  
+  Test_Dirac_Condition<UGraph> dirac1;
+  Test_Hamiltonian_Sufficiency<UGraph> ore1;
+  
+  cout << "Dirac: " << (dirac1(k6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Ore:   " << (ore1(k6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Min required degree: " << dirac1.min_required_degree(k6) << endl;
+  
+  // Cycle C5 - fails Dirac but may satisfy Ore in some cases
+  print_subsection("Example 2: Cycle C6");
+  
+  UGraph c6;
+  vector<UGraph::Node*> cycle_nodes;
+  for (int i = 0; i < 6; i++)
+    cycle_nodes.push_back(c6.insert_node(to_string(i)));
+  for (int i = 0; i < 6; i++)
+    c6.insert_arc(cycle_nodes[i], cycle_nodes[(i+1) % 6], 1);
+  
+  cout << "C6: Cycle 0-1-2-3-4-5-0\n";
+  cout << "  Each vertex has degree 2\n";
+  cout << "  n/2 = 3, need deg >= 3\n";
+  cout << "  2 < 3 ✗\n\n";
+  
+  Test_Dirac_Condition<UGraph> dirac2;
+  Test_Hamiltonian_Sufficiency<UGraph> ore2;
+  
+  cout << "Dirac: " << (dirac2(c6) ? "SATISFIED" : "NOT satisfied") << endl;
+  cout << "Ore:   " << (ore2(c6) ? "SATISFIED" : "NOT satisfied") << endl;
+  
+  auto [min_deg, min_node] = dirac2.find_min_degree_vertex(c6);
+  cout << "Min degree found: " << min_deg << " (at vertex " << min_node->get_info() << ")\n";
+  cout << "\nBUT: C6 IS Hamiltonian! (The cycle itself is the Hamiltonian cycle)\n";
+  
+  // Near-complete graph - satisfies Dirac
+  print_subsection("Example 3: Dense graph (nearly complete)");
+  
+  UGraph dense;
+  vector<UGraph::Node*> dense_nodes;
+  const size_t n = 8;
+  for (size_t i = 0; i < n; i++)
+    dense_nodes.push_back(dense.insert_node(to_string(i)));
+  
+  // Connect each vertex to at least n/2 others
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = i + 1; j < n; j++)
+      if (j - i <= n/2 or i + n - j <= n/2)  // Connect nearby vertices
+        dense.insert_arc(dense_nodes[i], dense_nodes[j], 1);
+  
+  print_degrees(dense);
+  
+  Test_Dirac_Condition<UGraph> dirac3;
+  cout << "\nMin required degree (n/2): " << dirac3.min_required_degree(dense) << endl;
+  cout << "Dirac: " << (dirac3(dense) ? "SATISFIED" : "NOT satisfied") << endl;
+  
+  // Speed comparison
+  print_subsection("Why use Dirac over Ore?");
+  
+  cout << "For large graphs:\n";
+  cout << "  - Ore checks ALL pairs of non-adjacent vertices: O(V^2)\n";
+  cout << "  - Dirac checks EACH vertex's degree: O(V)\n\n";
+  
+  cout << "Example timing for n=1000:\n";
+  cout << "  Ore:   ~1,000,000 pair comparisons\n";
+  cout << "  Dirac: ~1,000 degree checks\n\n";
+  
+  cout << "Use Dirac when:\n";
+  cout << "  - Graph is expected to be dense\n";
+  cout << "  - Quick preliminary test needed\n";
+  cout << "  - Performance is critical\n\n";
+  
+  cout << "Note: If Dirac passes, Ore also passes (but not vice versa).\n";
+}
+
+// =============================================================================
+// Main
+// =============================================================================
+
+int main(int argc, char* argv[])
+{
+  try
+  {
+    TCLAP::CmdLine cmd(
+      "Hamiltonian graph example for Aleph-w.\n"
+      "Demonstrates Ore's sufficiency condition for Hamiltonian cycles.",
+      ' ', "1.0"
+    );
+    
+    TCLAP::ValueArg<string> sectionArg(
+      "s", "section",
+      "Run specific section: compare, ore, practical, density, dirac, or 'all'",
+      false, "all", "section", cmd
+    );
+    
+    cmd.parse(argc, argv);
+    
+    string section = sectionArg.getValue();
+    
+    cout << "\n";
+    cout << "============================================================\n";
+    cout << "          ALEPH-W HAMILTONIAN GRAPHS EXAMPLE\n";
+    cout << "============================================================\n";
+    
+    if (section == "all" or section == "compare")
+      demo_comparison();
+    
+    if (section == "all" or section == "ore")
+      demo_ore_theorem();
+    
+    if (section == "all" or section == "practical")
+      demo_practical();
+    
+    if (section == "all" or section == "density")
+      demo_density();
+    
+    if (section == "all" or section == "dirac")
+      demo_dirac();
+    
+    cout << "\n" << string(60, '=') << "\n";
+    cout << "Hamiltonian graphs demo completed!\n";
+    cout << string(60, '=') << "\n\n";
+    
+    return 0;
+  }
+  catch (TCLAP::ArgException& e)
+  {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+  catch (exception& e)
+  {
+    cerr << "Error: " << e.what() << endl;
+    return 1;
+  }
+}
+

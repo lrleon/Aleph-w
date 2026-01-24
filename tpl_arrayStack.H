@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,20 +24,31 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAYSTACK_H
-# define TPL_ARRAYSTACK_H
 
-# include <iostream>
-# include <aleph.H>
-# include <htlist.H>
-# include <tpl_dynDlist.H>
-# include <ah-args-ctor.H>
-# include <ah-dry.H>
-# include <tpl_memArray.H>
+/** @file tpl_arrayStack.H
+    @brief Stack implementations backed by dynamic or fixed arrays.
 
-using namespace std;
+    This file provides two stack implementations:
+    - `ArrayStack<T>`: Dynamic stack with bounds checking and automatic resizing
+    - `FixedStack<T>`: Fixed-capacity stack without bounds checking (fastest)
 
-using namespace Aleph;
+    Both provide LIFO semantics with push/pop operations.
+
+    @ingroup Sequences
+ *  @author Leandro Rabindranath León
+*/
+
+#ifndef TPL_ARRAYSTACK_H
+#define TPL_ARRAYSTACK_H
+
+#include <iostream>
+#include <aleph.H>
+#include <htlist.H>
+#include <tpl_dynDlist.H>
+#include <ah-args-ctor.H>
+#include <ah-dry.H>
+#include <tpl_memArray.H>
+#include <ah-errors.H>
 
 namespace Aleph {
 
@@ -49,16 +59,16 @@ namespace Aleph {
       `T`. The stack is store into an internal contiguous array which
       grows and ungrows dynamically according to the number of elements.
 
-      `ArrayStack<T>` is a good trade off between performance and memory
+      `ArrayStack<T>` is a good trade-off between performance and memory
       consumption. In general is faster than a stack implemented with
       linked list, but since the internal array growths in two powers,
       the waste of memory could reach twice the number of elements.
 
       You could use `FixedStack`, which other than the internal array
-      does not dynamically grow, it does not still perform bound checks.
+      does not dynamically grow, it does not still perform bound_min_clock checks.
 
       @see FixedStack DynListStack
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class ArrayStack : public LocateFunctions<ArrayStack<T>, T>,
@@ -80,8 +90,8 @@ public:
   ArrayStack(const ArrayStack & s) : array(s.array) { /* empty */ }
 
       /// Move constructor
-  ArrayStack(ArrayStack && s)
-    : array(std::forward<MemArray<T>>(s.array)) { /* empty */ }
+  ArrayStack(ArrayStack && s) noexcept
+    : array(std::move(s.array)) { /* empty */ }
 
   Special_Ctors(ArrayStack, T);
 
@@ -99,7 +109,7 @@ public:
   /// Swap `this` with `s`
   void swap(ArrayStack & s) noexcept
   {
-    std::swap(*this, s);
+    array.swap(s.array);
   }
 
   /// Assign by moving `s` to `this`
@@ -211,8 +221,7 @@ public:
   T & top(size_t i) const
   {
     const size_t sz = array.size();
-    if (i >= sz)
-      throw std::out_of_range("top index out of range");
+    ah_out_of_range_error_if(i >= sz) << "top index out of range";
     return array.access(sz - i - 1);
   }
 
@@ -221,7 +230,7 @@ public:
     /// Empty the stack
   void empty() noexcept { array.empty(); }
 
-    /// Retrun `true` if stack is empty
+    /// Return `true` if stack is empty
   bool is_empty() const noexcept { return array.size() == 0; }
 
     /// Return the number of elements stored in the stack
@@ -268,7 +277,7 @@ public:
 
       The visit order goes from the oldest to the youngest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Iterator : public MemArray<T>::Iterator
   {
@@ -294,7 +303,7 @@ public:
       maximum stack size and this last is not too big.
 
       @see ArrayStack DynListStack
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class FixedStack : public LocateFunctions<FixedStack<T>, T>,
@@ -522,7 +531,7 @@ public:
 
       The visit order goes from the youngest item to the oldest.
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   class Iterator : public Array_Iterator<T>
   {

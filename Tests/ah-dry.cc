@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,8 +24,15 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+
+/**
+ * @file ah-dry.cc
+ * @brief Tests for Ah Dry
+ */
 # include <gtest/gtest.h>
 
+# include <vector>
 # include <ah-zip.H>
 # include <ahFunctional.H>
 # include <ah-string-utils.H>
@@ -47,6 +53,7 @@
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 template <class Ctype>
 struct Container : public testing::Test
@@ -61,7 +68,7 @@ struct Container : public testing::Test
 	c.append(i);
 	item_list.append(i);
       }
-    sort(item_list);
+    item_list = sort(item_list);
   }
 };
 
@@ -142,8 +149,18 @@ TYPED_TEST_P(Container, iterator_operations)
   //auto N = this->N;
   auto c = this->c;
   const DynList<int> l = to_dynlist(c); // in the same order than iterator
+  const std::vector<int> v = c.to_vector(); // test to_vector method
+  const DynList<int> l2 = c.to_dynlist(); // test to_dynlist method
 
   ASSERT_EQ(l.size(), c.size());
+  ASSERT_EQ(v.size(), c.size());
+  ASSERT_EQ(l2.size(), c.size());
+  
+  // Verify to_vector and to_dynlist produce same content
+  size_t idx = 0;
+  l2.for_each([&v, &idx](int x) {
+    EXPECT_EQ(x, v[idx++]);
+  });
 
   auto itl = l.get_it();
   for (auto & item : c)
@@ -324,7 +341,7 @@ struct CtorContainer : public ::testing::Test
   {
     ptr_1 = new C(range<int>(N));
     ptr_2 = new C({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 });
-    ptr_3 = new C(ptr_1->begin(), ptr_2->end());
+    ptr_3 = new C(ptr_1->begin(), ptr_1->end());  // Use same container for begin/end
   }
   ~CtorContainer()
   {

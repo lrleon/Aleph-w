@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,28 +23,89 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_dynDlist.H
+ *  @brief Dynamic doubly linked list implementation.
+ *
+ *  This file provides `DynDlist`, a dynamic doubly linked list that supports
+ *  efficient insertion and removal at both ends, bidirectional iteration,
+ *  and a rich set of functional operations (map, filter, fold, etc.).
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYNDLIST_H
 # define TPL_DYNDLIST_H
 
 # include <ahFunctional.H>
 # include <ahDry.H>
+# include <ah-dry.H>
 # include <ah-args-ctor.H>
 # include <ahIterator.H>
 # include <ah-iterator.H>
 # include <tpl_dnode.H>
-
-using namespace Aleph;
+# include <stdexcept>
+# include <ah-errors.H>
 
 namespace Aleph {
 
-# include <ah-dry.H>
+  /** @brief Dynamic doubly linked list with O(1) size and bidirectional access.
 
-  /** Dynamic list of items of generic items of type T based on double
-      linked lists.
+      DynDlist<T> is a doubly linked circular list that maintains a count
+      of elements, enabling O(1) size queries. Unlike DynList (singly linked),
+      DynDlist supports efficient operations at both ends and bidirectional
+      iteration.
 
-      @see DynDlist::Iterator
+      This container combines the flexibility of linked lists with a rich set
+      of functional programming operations inherited from FunctionalMethods.
 
-      @ingroup Secuencias
+      @tparam T The type of elements stored in the list (default: int).
+
+      @par Complexity:
+      - insert() / append(): O(1)
+      - remove_first() / remove_last(): O(1)
+      - size(): O(1) - maintained by counter
+      - Access by index: O(n)
+      - Search: O(n)
+
+      @par Key Features:
+      - O(1) insertion/removal at both ends
+      - O(1) size query (unlike DynList)
+      - Bidirectional iteration
+      - Comprehensive functional operations (map, filter, fold, etc.)
+      - Support for initializer lists and range construction
+
+      @par Example:
+      @code
+      DynDlist<int> list = {1, 2, 3, 4, 5};
+
+      // O(1) operations
+      list.insert(0);           // Insert at head
+      list.append(6);           // Insert at tail
+      auto first = list.remove_first();
+      auto last = list.remove_last();
+
+      // Functional operations
+      auto doubled = list.maps<int>([](int x) { return x * 2; });
+      int sum = list.foldl(0, [](int acc, int x) { return acc + x; });
+
+      // Bidirectional iteration
+      for (auto it = list.get_it(); it.has_curr(); it.next())
+        std::cout << it.get_curr() << " ";
+
+      for (auto it = list.get_last_it(); it.has_curr(); it.prev())
+        std::cout << it.get_curr() << " ";
+      @endcode
+
+      @note The size is maintained automatically, so size() is O(1).
+      @note This is a circular doubly linked list with sentinel header.
+
+      @see DynList Singly linked list alternative (no size counter).
+      @see Dlink Low-level doubly linked list node.
+      @see FunctionalMethods Inherited functional operations.
+      @ingroup Sequences
    */
     template <typename T = int>
 class DynDlist
@@ -73,7 +133,7 @@ public:
   /// Return the number of elements (constant time)
   const size_t & size() const noexcept { return num_elem; }
 
-  DynDlist() { /* Empty */ }
+  DynDlist() = default;
 
   // using CtorBase = SpecialCtors<DynDlist<T>, T>;
   // using CtorBase::CtorBase;
@@ -144,7 +204,7 @@ public:
 
         @param[in] item to be copied and appended at the end of the list
         @return a modifiable reference to the appended item in the list
-        @throw bad_alloc si no hay memoria para el nuevo elemento.
+        @throw bad_alloc if there is no memory for the new item.
      */
   T & append(const T & item)
   {
@@ -194,7 +254,7 @@ public:
     __insert(l);
   }
 
-  /// \overload insert_list(DynDlist & list)
+  /// \overload insert(const DynDlist & list)
   void insert(DynDlist && list) noexcept
   {
     __insert(list);
@@ -204,13 +264,13 @@ public:
 
       @param[in] list to insert after `this`
   */
-  void append(const DynDlist & list) noexcept
+  void append(const DynDlist & list)
   {
     auto l = list; // perform a copy of list
     __append(l);
   }
 
-  /// \overload append_list(DynDlist & list)
+  /// \overload append(const DynDlist & list)
   void append(DynDlist && list) noexcept
   {
     __append(list);
@@ -231,16 +291,16 @@ public:
       /// Return a modifiable reference to first item in the list
   T & get_first() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return get_first_ne();
   }
 
     /// Return a modifiable reference to last item in the list
   T & get_last() const
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return get_last_ne();
   }
 
@@ -279,8 +339,8 @@ public:
     */
   T remove_first()
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return remove_first_ne();
   }
 
@@ -291,8 +351,8 @@ public:
   */
   T remove_last()
   {
-    if (this->is_empty())
-      throw std::underflow_error("DynDlist is empty");
+    ah_underflow_error_if(this->is_empty())
+      << "DynDlist is empty";
     return remove_last_ne();
   }
 
@@ -333,7 +393,7 @@ public:
 
         \warning Unpredictable results if the reference is not valid. So
         be sure that you do not pass a reference to a copy of the
-        item. It must be a reference to the item returned by some of
+        item. It must be a reference to the item returned by some
         accessor methods of this class.
 
         \param[in] data valid reference to the item in the list.
@@ -367,18 +427,24 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containg the first n/2 first items
-      \param[out] l list containg the last n/2 first items
-      @throw domain_error any of the lists is noty empty
+      \param[out] l list containing the first n/2 items
+      \param[out] r list containing the last n/2 items
+      @throw domain_error any of the lists is not empty
      */
   void split_list_ne(DynDlist & l, DynDlist & r) noexcept
   {
     Dlink::split_list(l, r);
-    l.num_elem = r.num_elem = num_elem/2;
 
-    if (num_elem % 2 == 1) // ¿es num_elem impar?
-      l.num_elem++;
+    const auto count_nodes = [] (const DynDlist & list) noexcept -> size_t
+    {
+      size_t count = 0;
+      for (auto it = list.get_it(); it.has_curr(); it.next_ne())
+        ++count;
+      return count;
+    };
 
+    l.num_elem = count_nodes(l);
+    r.num_elem = count_nodes(r);
     num_elem = 0;
   }
 
@@ -389,18 +455,19 @@ public:
       `r`. After operation `this` becomes empty. The order of items is
       preserved through `l` and `r`.
 
-      \param[out] l list containg the first n/2 first items
-      \param[out] l list containg the last n/2 first items
-      @throw domain_error any of the lists is noty empty
+      \param[out] l list containing the first n/2 items (must be empty)
+      \param[out] r list containing the last n/2 items (must be empty)
+      @throw domain_error if any of the lists is not empty
      */
   void split_list(DynDlist & l, DynDlist & r)
   {
-    if ((not l.is_empty()) or (not r.is_empty()))
-      throw std::domain_error("lists are not empty");
+    ah_domain_error_if((not l.is_empty()) or (not r.is_empty()))
+      << "lists are not empty";
     split_list_ne(l, r);
   }
 
-  /// \overload split_list
+  /// \overload
+  /// Alias for split_list. See split_list for parameter documentation.
   void split(DynDlist & l, DynDlist & r)
   {
     split_list(l, r);
@@ -408,7 +475,7 @@ public:
 
        /** Iterator dynamic list.
 
-           @ingroup Secuencias
+           @ingroup Sequences
        */
   class Iterator : public Dnode<T>::Iterator
   {
@@ -466,7 +533,7 @@ public:
       pos = list_ptr->num_elem - 1;
     }
 
-    /// Put theiterator at the end state (where there is no current item)
+    /// Put the iterator at the end state (where there is no current item)
     void end() noexcept
     {
       put_itor_at_the_end(*this);
@@ -513,8 +580,8 @@ public:
        */
     void insert(const T & item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->insert(new Dnode<T>(item));
       ++list_ptr->num_elem;
@@ -532,8 +599,8 @@ public:
     */
     void insert(T && item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->
         insert(new Dnode<T>(std::forward<T>(item)));
@@ -551,8 +618,8 @@ public:
     */
     void append(const T & item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->append(new Dnode<T>(item));
       ++list_ptr->num_elem;
@@ -570,8 +637,8 @@ public:
     */
     void append(T && item)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->
         append(new Dnode<T>(std::forward<T>(item)));
@@ -595,8 +662,8 @@ public:
     */
     void insert_list(DynDlist & list)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->insert_list(&list);
       list_ptr->num_elem += list.num_elem;
@@ -622,8 +689,8 @@ public:
     */
     void append_list(DynDlist & list)
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T>::Iterator::get_curr()->append_list(&list);
       list_ptr->num_elem += list.num_elem;
@@ -640,8 +707,8 @@ public:
     */
     T del()
     {
-      if (not this->has_curr())
-        throw std::overflow_error ("DynDlist Iterator has not current");
+      ah_overflow_error_if(not this->has_curr())
+        << "DynDlist Iterator has not current";
 
       Dnode<T> * ptr = Dnode<T>::Iterator::get_curr();
       T ret_val      = ptr->get_data();
@@ -669,7 +736,7 @@ public:
 
     empty();
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+    for (Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr(); itor.next_ne())
       this->append(itor.get_curr());
 
@@ -687,7 +754,7 @@ public:
   {
     assert(this->is_empty());
 
-    for (typename DynDlist<T>::Iterator itor(const_cast<DynDlist&>(list));
+    for (Iterator itor(const_cast<DynDlist&>(list));
          itor.has_curr();itor.next_ne())
       this->append(itor.get_curr());
   }
@@ -720,13 +787,16 @@ public:
     return *this;
   }
 
-  /// Return a modifiable reference to the i-th item of the list. Throw
-  /// `overflow_error` if `n` is greater than the list size
-  T & operator [] (const size_t & n) const
+  /// Return a modifiable reference to the i-th item of the list.
+  /// @throw out_of_range if `n` is greater than or equal to the list size.
+  T & operator [] (const size_t n) const
   {
-    typename DynDlist<T>::Iterator it(*this);
+    auto it = this->get_it();
+    for (size_t i = 0; i < n && it.has_curr(); ++i)
+      it.next_ne();
 
-    for (int i = 0; i < n and it.has_curr(); i++, it.next_ne()) ;
+    ah_out_of_range_error_if(not it.has_curr())
+      << "DynDlist index out of range";
 
     return it.get_curr();
   }

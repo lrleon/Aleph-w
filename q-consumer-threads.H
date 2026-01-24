@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,24 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file q-consumer-threads.H
+ *  @brief Queue-based consumer thread pool.
+ *
+ *  Pool of threads consuming from a shared queue for
+ *  producer-consumer patterns.
+ *
+ *  ## Features
+ *  - Thread-safe queue
+ *  - Configurable pool size
+ *  - Graceful shutdown
+ *
+ *  @see worker_pool.H Alternative thread pool
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef Q_CONSUMER_THREADS_H
 # define Q_CONSUMER_THREADS_H
 
@@ -31,15 +48,14 @@
 # include <condition_variable>
 # include <mutex>
 # include <tpl_dynListQueue.H>
-
-using namespace std;
+# include <ah-errors.H>
 
 template <typename T>
 class ConsumerQueueEvent
 {
   enum class Status { Ready, Executing };
 
-  atomic<Status> status = { Status::Ready };
+  std::atomic<Status> status = { Status::Ready };
 
 public:
 
@@ -58,7 +74,7 @@ public:
 
 /** Pool of consumer threads form a queue.
 
-    @ingroup utils
+    @ingroup Utilities
  */
 template <typename T>
 class QueueTheadsPool
@@ -94,15 +110,15 @@ public:
 
 private:
 
-  mutex lck;
-  condition_variable cond;
+  std::mutex lck;
+  std::condition_variable cond;
   DynList<ConsumerQueueEvent*> event_list;
   size_t num_threads = 0;
   size_t num_active = 0;
   bool suspended = true;
   bool shutting_down = false;
   bool shutdown_done = false;
-  condition_variable shutdown_cv;
+  std::condition_variable shutdown_cv;
 
   DynListQueue<T> q;
 
@@ -110,9 +126,9 @@ public:
 
   ~QueueTheadsPool()
   {
-    unique_lock<mutex> cs(lck);
-    if (not shutdown_done)
-      throw domain_error("~QueueTheadsPool: shutdown not done");
+    std::unique_lock<std::mutex> cs(lck);
+    ah_domain_error_if(not shutdown_done)
+      << "~QueueTheadsPool: shutdown not done";
   }
 
 private:
@@ -129,14 +145,14 @@ public:
 
   void create_thread(ConsumerQueueEvent * event)
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
 
-    auto th = thread(handler, this, event);
+    auto th = std::thread(handler, this, event);
     th.detach();
 
     // check if event is already owned by another thread
-    if (event_list.exists([event] (auto e) { return e == event; }))
-      throw domain_error("Thread creation with an event owned by another");
+    ah_domain_error_if(event_list.exists([event] (auto e) { return e == event; }))
+      << "Thread creation with an event owned by another";
 
     event_list.append(event);
     ++num_threads;
@@ -146,10 +162,10 @@ public:
   {
     try
       {
-        unique_lock<mutex> critical_section(lck);
+        std::unique_lock<std::mutex> critical_section(lck);
         if (num_threads == 0)
-          throw domain_error("there is no any thread created");
-        q.put(forward<T>(item));
+          ah_domain_error_if(true) << "there is no any thread created";
+        q.put(std::forward<T>(item));
         if (not suspended)
           cond.notify_one(); // for waking up a thread
       }
@@ -163,7 +179,7 @@ public:
 
   void resume()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -173,7 +189,7 @@ public:
 
   void suspend()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -183,19 +199,19 @@ public:
 
   bool is_suspended()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     return suspended;
   }
 
   bool is_shutdown()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     return shutdown_done;
   }
 
   void shutdown()
   {
-    unique_lock<mutex> critical_section(lck);
+    std::unique_lock<std::mutex> critical_section(lck);
     if (shutting_down)
       return;
 
@@ -211,7 +227,7 @@ public:
 template <typename T>
 void QueueTheadsPool<T>::run_event(ConsumerQueueEvent * event)
 {
-  unique_lock<mutex> critical_section(lck);
+  std::unique_lock<std::mutex> critical_section(lck);
 
   while (true)
     {

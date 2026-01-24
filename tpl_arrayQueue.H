@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,18 +24,30 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# ifndef TPL_ARRAYQUEUE_H
-# define TPL_ARRAYQUEUE_H
 
-# include <ahAssert.H>
-# include <ahDefs.H>
-# include <htlist.H>
-# include <ah-dry.H>
-# include <ah-args-ctor.H>
-# include <tpl_dynDlist.H>
-# include <tpl_memArray.H>
+/** @file tpl_arrayQueue.H
+    @brief Circular queue implementations backed by arrays.
 
-using namespace Aleph;
+    This file provides two queue implementations:
+    - `ArrayQueue<T>`: Dynamic circular queue with bounds checking
+    - `FixedQueue<T>`: Fixed-capacity circular queue (no bounds checking)
+
+    Both use circular indexing for O(1) enqueue/dequeue operations.
+
+    @ingroup Sequences
+ *  @author Leandro Rabindranath León
+*/
+
+#ifndef TPL_ARRAYQUEUE_H
+#define TPL_ARRAYQUEUE_H
+
+#include <ahAssert.H>
+#include <ahDefs.H>
+#include <htlist.H>
+#include <ah-dry.H>
+#include <ah-args-ctor.H>
+#include <tpl_dynDlist.H>
+#include <tpl_memArray.H>
 
 namespace Aleph {
 
@@ -49,9 +60,9 @@ namespace Aleph {
       The array is allocated with `new` operator and dynamically grows
       according to the size.
 
-      @ingroup Secuencias
+      @ingroup Sequences
       @note If you are sure of knowing the bounds, then use `FixedStack`,
-      which is faster because it does not perform bound checks,
+      which is faster because it does not perform bound_statics checks,
    */
     template <typename T>
 class ArrayQueue : public MemArray<T>,
@@ -64,7 +75,7 @@ class ArrayQueue : public MemArray<T>,
 private:
 
   size_t front_index; // items are extracted from this point
-  size_t rear_index;  // new item are inserted by this point
+  size_t rear_index;  // new item is inserted by this point
 
   void increase_index(size_t & i, const size_t inc = 1) const noexcept
   {
@@ -74,7 +85,14 @@ private:
 
   T & rear_item(const size_t i = 0) const noexcept
   {
-    return this->access((size_t) (rear_index - i - 1) % this->dim);
+    const size_t offset = (rear_index + this->dim - (i + 1) % this->dim) % this->dim;
+    return this->access(offset);
+  }
+
+  void recenter_indices() noexcept
+  {
+    front_index = 0;
+    rear_index = this->n;
   }
 
 public:
@@ -106,11 +124,12 @@ public:
   }
 
   /// Move constructor
-  ArrayQueue(ArrayQueue && q)
-    : MemArray<T>(std::forward<ArrayQueue>(q)),
+  ArrayQueue(ArrayQueue && q) noexcept
+    : MemArray<T>(std::move(q)),
       front_index(q.front_index), rear_index(q.rear_index)
   {
-    // empty
+    q.front_index = 0;
+    q.rear_index = 0;
   }
 
   Special_Ctors(ArrayQueue, T);
@@ -159,10 +178,7 @@ public:
   T & put(const T & item)
   {
     if (this->expand(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
     this->access(rear_index) = item;
     return complete_put();
   }
@@ -171,10 +187,7 @@ public:
   T & put(T && item)
   {
     if (this->expand(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
     this->access(rear_index) = std::forward<T>(item);
     return complete_put();
   }
@@ -207,19 +220,25 @@ public:
   T & putn(size_t sz)
   {
     const size_t max_sz = 2*this->dim - this->n;
-    if (sz > max_sz)
-      throw std::overflow_error("Maximum putn size reached");
+    ah_overflow_error_if(sz > max_sz) << "Maximum putn size reached";
 
-    const int avail_n = this->dim - this->n;
-    if (avail_n <= sz)
+    size_t remaining = sz;
+    while (remaining > 0)
       {
-        sz -= this->dim - this->n;
-        this->n = this->dim;
-        this->expand(front_index);
+        const size_t available = this->dim - this->n;
+        if (available == 0)
+          {
+            if (this->expand(front_index))
+              recenter_indices();
+            continue;
+          }
+
+        const size_t delta = remaining < available ? remaining : available;
+        increase_index(rear_index, delta);
+        this->n += delta;
+        remaining -= delta;
       }
 
-    increase_index(rear_index, sz);
-    this->n += sz;
     return rear_item();
   }
 
@@ -230,18 +249,14 @@ public:
   */
   T get()
   {
-    if (this->n == 0)
-      throw std::underflow_error ("queue is empty");
+    ah_underflow_error_if(this->n == 0) << "queue is empty";
 
-    T ret_val = std::forward<T>(this->access(front_index));
+    T ret_val = std::move(this->access(front_index));
     this->n--;
     increase_index(front_index);
 
     if (this->contract(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
 
     return ret_val;
   }
@@ -254,17 +269,13 @@ public:
   */
   T & getn(const size_t i)
   {
-    if (i >= this->n)
-      throw std::underflow_error ("queue is empty");
+    ah_underflow_error_if(i >= this->n) << "queue is empty";
 
     this->n -= i;
     increase_index(front_index, i);
 
     if (this->contract(front_index))
-      {
-        front_index = 0;
-        rear_index = this->n;
-      }
+      recenter_indices();
 
     return this->access(front_index);
   }
@@ -277,8 +288,7 @@ public:
   */
   T & front(const size_t i = 0) const
   {
-    if (i >= this->n)
-      throw std::range_error ("index of front out of range");
+    ah_range_error_if(i >= this->n) << "index of front out of range";
 
     return this->access((front_index + i) % this->dim);
   }
@@ -291,8 +301,7 @@ public:
   */
   T & rear(const size_t i = 0) const
   {
-    if (i >= this->n)
-      throw std::range_error ("index of rear out of range");
+    ah_range_error_if(i >= this->n) << "index of rear out of range";
 
     return rear_item(i);
   }
@@ -341,7 +350,7 @@ public:
 
       The visit order is from the youngest to the oldest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public MemArray<T>::Iterator
   {
@@ -361,11 +370,11 @@ public:
       to the next two power immediately greater.
 
       This queue is the fastest of `Aleph-w` (\f$\aleph_\omega\f$), but
-      take in account that no bound cheks are performed. You must be
+      take in account that no bound_statics cheks are performed. You must be
       sure that you usage is correct.
 
       @see ArrayQueue DynListQueue
-      @ingroup Secuencias
+      @ingroup Sequences
    */
     template <typename T>
 class FixedQueue : public LocateFunctions<FixedQueue<T>, T>,
@@ -424,17 +433,17 @@ public:
           The resulting capacity will be the first number such \f$2^k
           \geq d\f$,
 
-          @param[in] minimum capacity
+          @param[in] d minimum capacity
        */
-  FixedQueue(size_t d = 1024)
-    // Don't change the default value because you would risk of
-    // breaking the tests
-    : array(nullptr), front_index(0), rear_index(0), num_items(0)
-  {
-    size_t k = log2(d);
-    dim = is_power_of_2(d) ? d : 1 << ++k;
-    mask = dim - 1;
-    array = new T [dim];
+	  FixedQueue(size_t d = 1024)
+	    // Don't change the default value because you would risk of
+	    // breaking the tests
+	    : dim(0), array(nullptr), front_index(0), rear_index(0), mask(0), num_items(0)
+	  {
+	    size_t k = log2(d);
+	    dim = is_power_of_2(d) ? d : 1 << ++k;
+	    mask = dim - 1;
+	    array = new T [dim];
   }
 
   ~FixedQueue()
@@ -460,18 +469,16 @@ public:
 
   Special_Ctors(FixedQueue, T);
 
-  /// Copy assign
-  FixedQueue & operator = (const FixedQueue & q)
-  {
-    if (this == &q)
-      return *this;
+	  /// Copy assign
+	  FixedQueue & operator = (const FixedQueue & q)
+	  {
+	    if (this == &q)
+	      return *this;
 
-    if (array != nullptr)
-      delete [] array;
-
-    new (this) FixedQueue(q);
-    return *this;
-  }
+	    FixedQueue tmp(q);
+	    swap(tmp);
+	    return *this;
+	  }
 
   /// Move assign
   FixedQueue & operator = (FixedQueue && q) noexcept
@@ -581,13 +588,13 @@ public:
   }
 
   /// Return the number of items
-  size_t size() const noexcept { return num_items; }
+  [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
       /// Return `true` if the queue is empty
-  bool is_empty() const noexcept { return num_items == 0; }
+  [[nodiscard]] constexpr bool is_empty() const noexcept { return num_items == 0; }
 
   /// Return the queue capacity (maximum number of element to be stored)
-  size_t capacity() const noexcept { return dim; }
+  [[nodiscard]] constexpr size_t capacity() const noexcept { return dim; }
 
   /** Traverse all the elements from the youngest to the oldest and execute
       `operation` on each on them.
@@ -632,7 +639,7 @@ public:
 
       The visit order is from the youngest to the oldest item
 
-      @ingroup Secuencias
+      @ingroup Sequences
   */
   struct Iterator : public MemArray<T>::Iterator
   {
@@ -649,8 +656,6 @@ public:
 } // end namespace Aleph
 
 # endif /* TPL_ARRAYQUEUE_H */
-
-
 
 
 

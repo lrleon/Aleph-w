@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,10 +24,14 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+
+/**
+ * @file ah-arena.cc
+ * @brief Tests for Ah Arena
+ */
+# include <cstdlib>
 # include <gsl/gsl_rng.h>
-
-# include <tclap/CmdLine.h>
-
 # include <gtest/gtest.h>
 
 # include <ah-arena.H>
@@ -37,7 +40,6 @@
 using namespace std;
 using namespace Aleph;
 using namespace testing;
-using namespace TCLAP;
 
 struct StaticArenaFixture : public Test
 {
@@ -51,7 +53,8 @@ struct StaticArenaFixture : public Test
 
 TEST_F(StaticArenaFixture, simple_fail)
 {
-  void * ptr = arena.alloc(sz);
+  // Allocating more than available should fail
+  void * ptr = arena.alloc(sz + 1);
   ASSERT_EQ(ptr, nullptr);
 }
 
@@ -66,31 +69,35 @@ TEST_F(StaticArenaFixture, free_under_lifo_order)
 
 TEST_F(StaticArenaFixture, one_alloc_next_fail)
 {
-  void * ptr = arena.alloc(sz - 1);
+  // Allocate all available space
+  void * ptr = arena.alloc(sz);
   ASSERT_NE(ptr, nullptr);
   ASSERT_EQ(ptr, arena.base_addr());
   ASSERT_EQ((void*) ((char*) ptr + sz), arena.end_addr());
+  ASSERT_EQ(arena.available_size(), 0);
 
+  // Now any allocation should fail
   void * ptr1 = arena.alloc(1);
   ASSERT_EQ(ptr1, nullptr);
 }
 
-CmdLine cmd = { "ah_arena", ' ', "0" };
-
-ValueArg<unsigned long> seed =
-  { "s", "seed", "seed for random generator", false, 0,
-    "seed for random generator", cmd };
+// Default seed for random tests (can be overridden via environment)
+static unsigned long get_seed()
+{
+  const char* env_seed = std::getenv("ALEPH_TEST_SEED");
+  return env_seed ? std::stoul(env_seed) : 0;
+}
 
 TEST_F(StaticArenaFixture, random_allocs)
 {
   DynList<pair<const char*, size_t>> blocks;
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
+  gsl_rng_set(r, get_seed());
   size_t size = 0;
   while (true)
     {
       size = 1 + gsl_rng_uniform_int(r, sz - 2);
-      const char * addr = (const char*) arena.alloc(size);
+      const char * addr = static_cast<const char *>(arena.alloc(size));
       if (addr == nullptr)
         break;
     }
@@ -157,11 +164,11 @@ TEST_F(StaticArenaFixture, object_alloc)
 TEST(Tree, tree)
 {
   gsl_rng * r = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set(r, seed.getValue() % gsl_rng_max(r));
+  gsl_rng_set(r, get_seed());
 
-  size_t n = 1024;
-  char buf[1024];
-  DynSetTree<int> tree(buf, 1024);
+  constexpr size_t n = 1024;
+  char buf[n];
+  DynSetTree<int> tree(buf, n);
   
   for (int i = 0; true; ++i)
     {
@@ -190,8 +197,5 @@ TEST(Tree, tree)
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-
-  cmd.parse(argc, argv);
-
   return RUN_ALL_TESTS();
 }

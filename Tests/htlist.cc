@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,12 +24,19 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+
+
+/**
+ * @file htlist.cc
+ * @brief Tests for Htlist
+ */
+# include <gtest/gtest.h>
 
 # include <htlist.H>
 
 using namespace std;
 using namespace testing;
+using namespace Aleph;
 
 struct List_of_25_nodes : public Test
 {
@@ -155,7 +161,7 @@ TEST(HTList, Iterator_on_empty_list)
 {
   HTList l;
   HTList::Iterator it(l);
-  EXPECT_THAT(it.has_curr(), false);
+  ASSERT_EQ(it.has_curr(), false);
   EXPECT_THROW(it.get_curr(), std::overflow_error);
   EXPECT_FALSE(it.is_in_last());
   EXPECT_FALSE(it.is_in_first());

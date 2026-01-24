@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,10 +23,19 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_dyn_slist_nc.H
+ *  @brief Dynamic singly linked list (no check).
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_DYN_SLIST_NC_H
 # define TPL_DYN_SLIST_NC_H
 
 # include <tpl_snode_nc.H>
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -42,7 +50,7 @@ namespace Aleph
 
       @see Slink, Snode_Nc, Dyn_Slist_Nc::Iterator
 
-      @ingroup Secuencias
+      @ingroup Sequences
 
       @author Leandro R. León
       @author Alejandro J. Mujica
@@ -113,8 +121,7 @@ namespace Aleph
     /// Retorna una referencia al primer elemento de la lista.
     T & get_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       return this->get_next()->get_data();
     }
@@ -122,8 +129,7 @@ namespace Aleph
     /// Retorna una referencia al último elemento de la lista.
     T & get_last()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       return head->get_data();
     }
@@ -136,8 +142,7 @@ namespace Aleph
     */
     T remove_first()
     {
-      if (this->is_empty())
-        throw std::underflow_error("List is empty");
+      ah_underflow_error_if(this->is_empty()) << "List is empty";
 
       Node * p = Node::remove_next();
       T ret_val = p->get_data();

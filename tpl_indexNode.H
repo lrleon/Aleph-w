@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,13 +23,54 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_indexNode.H
+ *  @brief Node indexing for fast O(log n) lookup by key.
+ *
+ *  @par Example: Fast node search by value
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT g;
+ *  IndexNode<GT> node_index(g);
+ *  
+ *  // Insert and index nodes
+ *  auto alice = node_index.insert_in_graph("Alice");
+ *  auto bob = node_index.insert_in_graph("Bob");
+ *  auto charlie = node_index.insert_in_graph("Charlie");
+ *  
+ *  // O(log n) search by value
+ *  auto found = node_index.search("Bob");
+ *  if (found)
+ *    cout << "Found: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: User database with unique IDs
+ *  @code
+ *  struct User { int id; string name; };
+ *  using UserGraph = List_Graph<Graph_Node<User>, Graph_Arc<Empty_Class>>;
+ *  
+ *  // Custom comparator by ID
+ *  struct UserCmp {
+ *    bool operator()(UserGraph::Node* a, UserGraph::Node* b) const {
+ *      return a->get_info().id < b->get_info().id;
+ *    }
+ *  };
+ *  
+ *  IndexNode<UserGraph, UserCmp> users(graph);
+ *  // Fast lookup by user ID
+ *  @endcode
+ *
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_INDEXNODE_H
 # define TPL_INDEXNODE_H
 
 # include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
-
-using namespace Aleph;
+# include <ah-errors.H>
 
 namespace Aleph
 {
@@ -45,75 +85,72 @@ namespace Aleph
     }
   };
 
-  /** Construye un índice de nodos para su rápida búsqueda y recuperación.
-
-      IndexNode indiza los nodos de un grafo según un clave dada
-      definida por el usuario.
-
-      La clase recibe los siguientes parámetros tipo:
-      -# GT: el tipo de grafo basado en List_Graph.
-      -# Compare: clase de comparación para la clave de indización. El
-      contrato de esta clase es intrumentar el operador () así:
-      \code
-      template <class GT>
-      struct Dft_Node_Cmp
-      {
-      bool
-      operator () (typename GT::Node * p1, typename GT::Node * p2) const
-      {
-	    // acceso a los nodos y comparación según el campo deseado 
-      }
-      };
-      \endcode
-
-      IndexNode recibe esta clase por omisión programada para comparar
-      el valor retornado por get_info() sobre cada nodo. Para ello, el
-      operador < del tipo GT::Node_Type debe estar implementado.
-      -# SN: clase filtro para el iterador de nodos en caso de que se construya
-      -# Tree: el tipo de árbol binario de búsqueda usado internamente
-      para indizar las claves. Por omisión se usan treaps.
-
-      @see IndexArc Index_Graph
-
-      @ingroup Grafos
-      @author Leandro Rabindranath León (lrleon en ula punto ve)
-      @author Alejandro Mujica (aledrums en gmail punto com)
-  */
+  /**
+   * @class IndexNode
+   * @brief Builds an index of nodes for fast search and retrieval.
+   *
+   * IndexNode indexes the nodes of a graph according to a user-defined key.
+   *
+   * @tparam GT The graph type, based on List_Graph.
+   * @tparam Compare The comparison class for the indexing key. The contract
+   *                 for this class is to implement the () operator as follows:
+   * \code
+   * template <class GT>
+   * struct Dft_Node_Cmp
+   * {
+   *   bool
+   *   operator () (typename GT::Node * p1, typename GT::Node * p2) const
+   *   {
+   *     // access nodes and compare based on the desired field
+   *   }
+   * };
+   * \endcode
+   * By default, IndexNode uses a class that compares the value returned by
+   * get_info() on each node. For this, the < operator of the GT::Node_Type
+   * must be implemented.
+   * @tparam SN The filter class for the node iterator, if one is constructed.
+   * @tparam Tree The binary search tree type used internally for indexing keys.
+   *              By default, Treaps are used.
+   *
+   * @see IndexArc, Index_Graph
+   * @ingroup Graphs
+   * @author Leandro Rabindranath León (lrleon at ula dot ve)
+   * @author Alejandro Mujica (aledrums at gmail dot com)
+   */
   template <class GT, class Compare = Dft_Node_Cmp<GT>,
             template <class /* Key */, class /* Compare */> class Tree = Treap,
             class SN = Dft_Show_Node<GT> >
   class IndexNode
   {
-  private:
-
     typedef typename GT::Node GT_Node;
     typedef typename GT::Node_Type GT_Node_Type;
 
     DynSetTree<GT_Node*, Tree, Compare> index;
 
     GT & g;
-    SN & sn;
+    SN sn;
 
   public:
 
-    /** Inserta el nodo p en índice.
-
-        @param[in] p puntero al nodo que se desea guardar en el índice
-        @throw bad_alloc si no hay suficiente memoria
-    */
+    /**
+     * @brief Inserts the node p into the index.
+     * @param p Pointer to the node to be stored in the index.
+     * @return A pointer to the inserted node.
+     * @throw std::bad_alloc if there is not enough memory.
+     */
     GT_Node * insert(GT_Node * p)
     {
       index.put(p);
       return p;
     }
 
-    /** Crea un nuevo nodo con contenido genérico info, lo inserta en
-        el grafo y luego en el índice
-
-        @param[in] info Contenido asociado al nuevo nodo.
-        @return puntero al nodo
-        @throw bad_alloc si no hay suficiente memoria
-    */
+    /**
+     * @brief Creates a new node with generic content info, inserts it into
+     *        the graph, and then into the index.
+     * @param info Content associated with the new node.
+     * @return A pointer to the created node.
+     * @throw std::bad_alloc if there is not enough memory.
+     */
     GT_Node * insert_in_graph(const GT_Node_Type & info)
     {
       GT_Node * ret_val = g.insert_node(info);
@@ -121,7 +158,6 @@ namespace Aleph
       try
         {
           insert(ret_val);
-
           return ret_val;
         }
       catch (...)
@@ -131,15 +167,14 @@ namespace Aleph
         }
     }
 
-    /// \overload insert_in_graph
-    GT_Node * insert_in_graph(GT_Node_Type && info = GT_Node_Type())
+    /// \overload insert_in_graph(const GT_Node_Type & info)
+    GT_Node * insert_in_graph(GT_Node_Type && info)
     {
       GT_Node * ret_val = g.insert_node(std::forward<GT_Node_Type>(info));
 
       try
         {
           insert(ret_val);
-
           return ret_val;
         }
       catch (...)
@@ -149,15 +184,15 @@ namespace Aleph
         }
     }
 
-    /** Busca un nodo según el contenido de p.
-
-        Tome en cuenta que el criterio de búsqueda está determinado
-        por la clase parámetro de comparación Compare.
-
-        @param[in] p el nodo cuya información se desea buscar.
-        @return puntero al nodo si es encontrado o nulo de lo
-        contrario.
-    */
+    /**
+     * @brief Searches for a node based on the content of p.
+     *
+     * Note that the search criterion is determined by the Compare
+     * template parameter class.
+     *
+     * @param p The node whose information is to be searched for.
+     * @return A pointer to the node if found, or nullptr otherwise.
+     */
     GT_Node * search(GT_Node * p)
     {
       GT_Node ** ret_val = index.search(p);
@@ -168,51 +203,47 @@ namespace Aleph
       return *ret_val;
     }
 
-    /** Busca un nodo según la información info.
-
-        Tome en cuenta que el criterio de búsqueda está determinado
-        por la clase parámetro de comparación Compare.
-
-        @param[in] info información según la cual se desea realizar la
-        búsqueda (la cual depende de la clase parámetro de comparación
-        Compare.
-        @return puntero al nodo si es encontrado o nulo de lo
-        contrario.
-    */
+    /**
+     * @brief Searches for a node based on the info.
+     *
+     * Note that the search criterion is determined by the Compare
+     * template parameter class.
+     *
+     * @param info The information to search for.
+     * @return A pointer to the node if found, or nullptr otherwise.
+     */
     GT_Node * search(const GT_Node_Type & info)
     {
       GT_Node dummy_node(info);
-      GT_Node * dummy_node_ptr = &dummy_node;
-
-      return search(dummy_node_ptr);
+      return search(&dummy_node);
     }
 
-    /// Elimina del índice el nodo con dirección p.
+    /// Removes the node at address p from the index.
     void remove(GT_Node * p)
     {
       index.remove(p);
     }
 
-    /** Elimina el nodo p del grafo y del ìndice.
-
-        @param[in] p puntero al nodo a eliminar
-        @throw domain_error si el nodo està insertado en el índice (lo
-        que posiblemente signifique que tampoco en el grafo).
-    */
+    /**
+     * @brief Removes the node p from the graph and the index.
+     * @param p Pointer to the node to be removed.
+     * @throw std::domain_error if the node is not in the index (which
+     *        likely means it's not in the graph either).
+     */
     void remove_from_graph(GT_Node * p)
     {
-      index.find(p); // dispara excepción si p no está en el índice
+      index.find(p); // Throws an exception if p is not in the index
       index.remove(p);
       g.remove_node(p);
     }
 
-    /// Borra el índice; todos los nodos son eliminados.
+    /// Clears the index; all nodes are removed from it.
     void clear_index()
     {
       index.empty();
     }
 
-    /// Inserta todos los nodos del grafo en el índice.
+    /// Inserts all nodes from the graph into the index.
     void build_index()
     {
       for (Node_Iterator<GT, SN> it(g, sn); it.has_curr(); it.next_ne())
@@ -223,11 +254,11 @@ namespace Aleph
         }
     }
 
-    /// Elimina todos los nodos del grafo y del índice.
+    /// Removes all nodes from the graph and the index.
     void clear_graph()
     {
       clear_index();
-      g.clear_graph();
+      Aleph::clear_graph(g);
     }
 
   private:
@@ -240,28 +271,21 @@ namespace Aleph
 
   public:
 
-    /** Crea un índice a partir de los nodos insertado en el grafo.
-
-        @param[in] __g el grafo
-        \param[in] build_index indica si se debe construir el índice
-        durante la construcción
-        @throw bad_alloc si no hay suficiente memoria.
-    */
-    IndexNode(GT & __g, SN && __sn = SN()) : g(__g), sn(__sn)
+    /**
+     * @brief Creates an index from the nodes inserted in the graph.
+     * @param __g The graph.
+     * @param __sn A node filter object.
+     * @throw std::bad_alloc if there is not enough memory.
+     */
+    IndexNode(GT & __g, SN __sn = SN()) : g(__g), sn(std::move(__sn))
     {
       init();
     }
 
-    IndexNode(GT & __g, SN & __sn) : g(__g), sn(__sn)
-    {
-      init();
-    }
-
-    /// Retorna la cantidad de arcos que contiene el índice.
+    /// Returns the number of items contained in the index.
     size_t size() const { return index.size(); }
   };
 
 }
 
 # endif
-

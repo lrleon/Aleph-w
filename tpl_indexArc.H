@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-  |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,11 +23,54 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file tpl_indexArc.H
+ *  @brief Arc indexing for fast lookup by endpoint nodes.
+ *
+ *  @par Example: Fast arc search between nodes
+ *  @code
+ *  using GT = List_Graph<Graph_Node<string>, Graph_Arc<int>>;
+ *  GT g;
+ *  IndexArc<GT> arc_index(g);
+ *  
+ *  auto a = g.insert_node("A");
+ *  auto b = g.insert_node("B");
+ *  auto c = g.insert_node("C");
+ *  
+ *  // Insert and index arcs
+ *  auto ab = arc_index.insert_in_graph(a, b, 10);
+ *  auto bc = arc_index.insert_in_graph(b, c, 20);
+ *  
+ *  // O(log n) search for arc between two nodes
+ *  auto found = arc_index.search(a, b);
+ *  if (found)
+ *    cout << "Arc weight: " << found->get_info() << endl;
+ *  @endcode
+ *
+ *  @par Example: Road network queries
+ *  @code
+ *  // Quickly find road between two cities
+ *  auto road = arc_index.search(city1, city2);
+ *  if (road)
+ *    cout << "Distance: " << road->get_info() << " km" << endl;
+ *  @endcode
+ *
+ *  @ingroup Graphs
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_INDEXARC_H
 # define TPL_INDEXARC_H
 
+# include <cassert>
+# include <functional>
+# include <stdexcept>
+# include <utility>
+
 # include <tpl_dynSetTree.H>
 # include <tpl_graph.H>
+# include <ah-errors.H>
 
 using namespace Aleph;
 
@@ -36,29 +78,34 @@ namespace Aleph
 {
 
 
-  /** Construye un índice de arcos para su rápida búsqueda y
-      recuperación dado sus nodos.
+  /** Index for fast arc lookup by its endpoint nodes.
 
-      IndexArc indiza los arcos de un grafo según el par de nodos que el
-      arco relaciona. La idea es implementar la detección de existencia
-      de arco y su recuperación en tiempo logarítmico.
+      `IndexArc` indexes the arcs of a graph by the pair of endpoint
+      nodes the arc connects.
 
-      La clase recibe los siguientes parámetros tipo:
-      -# GT: el tipo de grafo basado en List_Graph.
-      -# Tree: el tipo de árbol binario de búsqueda usado internamente
-      para indizar las claves. Por omisión se usan treaps.
+      - For directed graphs, the key is the ordered pair `(src, tgt)`.
+      - For non-directed graphs, the key is the unordered pair
+        `{src, tgt}` (so `(src, tgt)` and `(tgt, src)` refer to the same
+        indexed arc).
 
-      @warning Para que la compilación correcta es imperativo que el
-      exista el constructor GT::Arc(void * src, void * tgt,
-      GT::Arc_Type). Del mismo modo, también debe existir el constructor
-      por omisión GT::Arc_Type().
+      Main operations are:
+      - `search(src, tgt)`: find an arc between two nodes.
+      - `insert(arc)`: insert an already existing arc into the index.
+      - `insert_in_graph(src, tgt, info)`: create an arc in the graph
+        and index it.
+
+      @tparam GT Graph type (typically `List_Graph` or `List_Digraph`).
+      @tparam Tree Binary-search-tree type used internally by `DynSetTree`.
+      @tparam SA Arc filter type used by iterators when building the index.
+
+      @note `IndexArc` assumes a *simple graph* for correctness of the
+      “one key -> one arc” mapping (no parallel arcs connecting the same
+      endpoints). If the underlying graph contains parallel arcs, only one
+      of them can be indexed.
 
       @see IndexNode Index_Graph
-
-      @ingroup Grafos
-      @author Leandro Rabindranath León (lrleon en ula punto ve)
-      @author Alejandro Mujica (aledrums en gmail punto com)
-  */
+      @ingroup Graphs
+   */
   template <
     class GT,
     template <class /* Key */, class /* Compare */> class Tree = Rand_Tree,
@@ -73,70 +120,74 @@ namespace Aleph
     typedef typename GT::Arc_Type GT_Arc_Type;
     typedef typename GT::Node_Type GT_Node_Type;
 
-    typedef std::pair<void*, void*> Node_Pair;
-
     struct Cmp_Arc
     {
-      bool operator () (GT_Arc * a1, GT_Arc * a2) const
-      {
-        if (a1->src_node < a2->src_node)
-          return true;
+      bool directed = false;
 
-        return not (a2->src_node < a1->src_node) and a1->tgt_node < a2->tgt_node;
+      static bool ptr_less(void * a, void * b) noexcept
+      {
+        return std::less<void*>{}(a, b);
+      }
+
+      Cmp_Arc() = default;
+
+      explicit Cmp_Arc(bool __directed) noexcept : directed(__directed) {}
+
+      static std::pair<void*, void*> endpoints(const GT_Arc * a, const bool directed) noexcept
+      {
+        if (directed)
+          return { a->src_node, a->tgt_node };
+
+        auto u = a->src_node;
+        auto v = a->tgt_node;
+        if (ptr_less(v, u))
+          std::swap(u, v);
+        return {u, v};
+      }
+
+      bool operator () (const GT_Arc * a1, const GT_Arc * a2) const
+      {
+        const auto e1 = endpoints(a1, directed);
+        const auto e2 = endpoints(a2, directed);
+        if (ptr_less(e1.first, e2.first))
+          return true;
+        if (ptr_less(e2.first, e1.first))
+          return false;
+        return ptr_less(e1.second, e2.second);
       }
     };
 
     GT & g;
     DynSetTree <GT_Arc *, Tree, Cmp_Arc> index;
-    SA & sa;
+    SA sa;
 
   public:
 
-    /// Inserta en el índice el arco a.
+    /// Insert an arc pointer into the index.
+    ///
+    /// If an arc with the same endpoints already exists in the index,
+    /// then no insertion is performed and the already indexed arc is
+    /// returned.
+    ///
+    /// @param[in] e Arc pointer to index.
+    /// @return The indexed arc pointer (either `e` or the already indexed one).
     GT_Arc * insert(GT_Arc * e)
     {
-      return *index.put(e);
+      auto p = index.contains_or_insert(e);
+      return *p.first;
     }
 
-    /** Busca un arco que conecte a dos nodos.
+    /** Search an arc that connects two nodes.
 
-        @param[in] src nodo origen.
-        @param[in] tgt nodo destino.
-        @return puntero al arco si éste existe o nullptr de lo contrario.
+        For directed graphs, only the arc `(src, tgt)` is searched.
+        For non-directed graphs, `(src, tgt)` and `(tgt, src)` refer to
+        the same indexed arc.
+
+        @param[in] src Source node pointer.
+        @param[in] tgt Target node pointer.
+        @return A pointer to the indexed arc if it exists; `nullptr` otherwise.
     */
-    GT_Arc * search(void * src, void * tgt)
-    {
-      GT_Arc arc;
-      arc.src_node = src;
-      arc.tgt_node = tgt;
-
-      GT_Arc ** ret_val = index.search(&arc);
-
-      if (ret_val != nullptr)
-        return *ret_val;
-
-      if (g.is_digraph())
-        return nullptr;
-
-      std::swap(arc.src_node, arc.tgt_node);
-      ret_val = index.search(&arc);
-
-      if (ret_val == nullptr)
-        return nullptr;
-
-      assert(((src == (*ret_val)->src_node) and (tgt == (*ret_val)->tgt_node)) or
-             ((tgt == (*ret_val)->src_node) and (src == (*ret_val)->tgt_node)));
-
-      return *ret_val;
-    }
-
-    /** Busca un arco que conecte a dos nodos.
-
-        @param[in] src nodo origen.
-        @param[in] tgt nodo destino.
-        @return puntero al arco si éste existe o nullptr de lo contrario.
-    */
-    GT_Arc * search_directed(void * src, void * tgt)
+    GT_Arc * search(void * src, void * tgt) const
     {
       GT_Arc arc;
       arc.src_node = src;
@@ -147,34 +198,57 @@ namespace Aleph
       return ret_val != nullptr ? *ret_val : nullptr;
     }
 
-    /** Busca un arco según puntero.
+    /** Search an arc that connects two nodes as a directed pair.
 
-        @param[in] a arco que se desea buscar.
-        @return puntero al arco si éste existe o nullptr de lo contrario.
+        In directed graphs this is equivalent to `search(src, tgt)`.
+        In non-directed graphs, direction is not meaningful and this
+        method behaves like `search(src, tgt)`.
+
+        @param[in] src Source node pointer.
+        @param[in] tgt Target node pointer.
+        @return A pointer to the indexed arc if it exists; `nullptr` otherwise.
     */
-    GT_Arc * search(GT_Arc * a)
+    GT_Arc * search_directed(void * src, void * tgt) const
+    {
+      GT_Arc arc;
+      arc.src_node = src;
+      arc.tgt_node = tgt;
+
+      GT_Arc ** ret_val = index.search(&arc);
+
+      return ret_val != nullptr ? *ret_val : nullptr;
+    }
+
+    /** Search an arc by using its endpoint pointers.
+
+        @param[in] a Arc whose endpoints are used as search key.
+        @return A pointer to the indexed arc if it exists; `nullptr` otherwise.
+    */
+    GT_Arc * search(GT_Arc * a) const
     {
       return search(a->src_node, a->tgt_node);
     }
 
-    /** Crea un nuevo arco entre dos nodos, lo inserta en el grafo y
-        luego en el índice.
+    /** Create a new arc between two nodes, insert it into the graph and index it.
 
-        @param[in] src nodo origen.
-        @param[in] tgt nodo destino.
-        @param[in] info información a copiarse como contenido del
-        nodo. Por omisión se copia el contenido que arroje el
-        constructor GT::Arc_Type().
-        @return puntero al arco creado.
-        @throw bad_alloc si no hay suficiente memoria.
+        This method enforces the *simple-graph* constraint: if an arc
+        between these endpoints already exists (according to the index),
+        a `std::domain_error` is thrown.
+
+        @param[in] src Source node.
+        @param[in] tgt Target node.
+        @param[in] info Arc payload to copy/move into the new arc.
+        @return Pointer to the created arc.
+        @throw std::bad_alloc if there is not enough memory.
+        @throw std::domain_error if there is already an arc between these nodes.
     */
     GT_Arc * insert_in_graph(GT_Node * src, GT_Node * tgt,
                              const GT_Arc_Type & info)
     {
       GT_Arc * a = search(src, tgt);
 
-      if (a != nullptr)
-        throw std::domain_error("There is already in arc between these nodes");
+      ah_domain_error_if(a != nullptr)
+        << "There is already an arc between these nodes";
 
       a = g.insert_arc(src, tgt, info);
       insert(a);
@@ -182,14 +256,14 @@ namespace Aleph
       return a;
     }
 
-    /// \overload  insert_in_graph
+    /// \overload insert_in_graph(GT_Node * src, GT_Node * tgt, const GT_Arc_Type & info)
     GT_Arc * insert_in_graph(GT_Node * src, GT_Node * tgt,
                              GT_Arc_Type && info = GT_Arc_Type())
     {
       GT_Arc * a = search(src, tgt);
 
-      if (a != nullptr)
-        throw std::domain_error("There is already in arc between these nodes");
+      ah_domain_error_if(a != nullptr)
+        << "There is already an arc between these nodes";
 
       a = g.insert_arc(src, tgt, std::forward<GT_Arc_Type>(info));
       insert(a);
@@ -197,34 +271,31 @@ namespace Aleph
       return a;
     }
 
-    /// Elimina del índice el arco e.
+    /// Remove an arc from the index.
     void remove(GT_Arc * e)
     {
       index.remove(e);
     }
 
-    /// Elimina del índice y del grafo el arco a.
+    /// Remove an arc from both index and graph.
     void remove_from_graph(GT_Arc * a)
     {
       remove(a);
       g.remove_arc(a);
     }
 
-    /// Elimina todos los arcos del índice.
+    /// Remove all arcs from the index.
     void clear_index()
     {
       index.empty();
     }
 
-    /// Inserta todos los arcos del grafo en el índice.
+    /// Insert into the index all arcs currently present in the graph.
     void build_index()
     {
       for (Arc_Iterator<GT, SA> it(g, sa); it.has_curr(); it.next_ne())
-        {
-          GT_Arc * a = it.get_curr();
-          if (search(a) != a)
+          if (GT_Arc * a = it.get_curr(); search(a) == nullptr)
             insert(a);
-        }
     }
 
   private:
@@ -237,36 +308,37 @@ namespace Aleph
 
   public:
 
-    /** Crea un índice a partir de los arcos insertado en el grafo.
+    /** Construct an arc index for a graph.
 
-        @param[in] __g el grafo
-        @param[in] with_init si el valor es true, entonces los arcos de
-        __g son insertados en el índice; de lo contrario, el índice
-        permanece vacío
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] __g Graph to be indexed.
+        @param[in] with_init If `true`, all current arcs of `__g` are inserted
+        into the index at construction time.
+        @param[in] __sa Arc filter used when iterating arcs.
+        @throw std::bad_alloc if there is not enough memory.
     */
-    IndexArc(GT & __g, bool with_init = true, SA && __sa = SA()) 
-      : g(__g), sa(__sa)
+    IndexArc(GT & __g, bool with_init = true, SA && __sa = SA())
+      : g(__g), index(Cmp_Arc(__g.is_digraph())), sa(std::move(__sa))
     {
       if (with_init)
         init();
     }
 
-    /** Crea un índice a partir de los arcos insertado en el grafo.
+    /** Construct an arc index for a graph (lvalue filter overload).
 
-        @param[in] __g el grafo
-        @param[in] with_init si el valor es true, entonces los arcos de
-        __g son insertados en el índice; de lo contrario, el índice
-        permanece vacío
-        @throw bad_alloc si no hay suficiente memoria.
+        @param[in] __g Graph to be indexed.
+        @param[in] with_init If `true`, all current arcs of `__g` are inserted
+        into the index at construction time.
+        @param[in] __sa Arc filter used when iterating arcs.
+        @throw std::bad_alloc if there is not enough memory.
     */
-    IndexArc(GT & __g, bool with_init, SA & __sa) : g(__g), sa(__sa)
+    IndexArc(GT & __g, bool with_init, SA & __sa)
+      : g(__g), index(Cmp_Arc(__g.is_digraph())), sa(__sa)
     {
       if (with_init)
         init();
     }
 
-    /// Retorna la cantidad de arcos que contiene el índice.
+    /// Return the number of arcs currently stored in the index.
     size_t size() const { return index.size(); }
   };
 

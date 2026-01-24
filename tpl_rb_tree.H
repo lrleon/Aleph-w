@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +24,27 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+
+/** @file tpl_rb_tree.H
+ *  @brief Red-Black tree implementation (bottom-up balancing).
+ *
+ *  Self-balancing BST with color constraints ensuring O(log n) height.
+ *  Uses bottom-up insertion with post-insertion rebalancing.
+ *
+ *  ## Properties
+ *  - Every node is red or black
+ *  - Root is black
+ *  - No two adjacent red nodes
+ *  - All paths have same black-height
+ *
+ *  ## Complexity: O(log n) for all operations
+ *
+ *  @see tpl_tdRbTree.H Top-down variant
+ *  @see tpl_rbRk.H With rank support
+ *  @ingroup Trees
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_RB_TREE_H
 # define TPL_RB_TREE_H
 
@@ -33,108 +53,178 @@
 # include <tpl_binNodeUtils.H>
 # include <rbNode.H>
 
-using namespace Aleph;
+namespace Aleph
+{
 
-namespace Aleph {
+/** @brief Red-black binary search tree implementation (bottom-up).
 
-   /** Árbol binario de búsqueda rojo-negro.
+    A red-black tree is a self-balancing binary search tree where each node
+    has a color (red or black). The tree maintains balance through five
+    invariants that guarantee the height is at most 2*log₂(n+1), ensuring
+    O(log n) worst-case time for all operations.
 
-       Un árbol binario de búsqueda rojo negro es un árbol binario de búsqueda
-       cuya altura está acotada a \f$O(\lg n)\f$ y sus operaciones de
-       modificación acotadas en tiempo por \f$O(\lg n)\f$ nodos
-       inspeccionados. 
+    @par Red-Black Tree Properties:
+    1. Every node is either red or black
+    2. The root is black
+    3. All leaves (null nodes) are black
+    4. Red nodes have only black children
+    5. Every path from root to leaf has the same number of black nodes
 
-       Esta clase es genérica en el sentido de que maneja nodos con o
-       sin destructor virtual. No está destinada a usarse
-       normalmente. En su lugar, use las clases derivadas Rb_Tree o
-       Rb_Tree_Vtl. 
+    These properties ensure the tree remains approximately balanced, with
+    the longest path at most twice the length of the shortest path.
 
-       @param NodeType el tipo de nodo entre RbNode y RbNodeVtl (no
-       están documentados). 
-       @param Key el tipo de clave que albergan los nodos del árbol.
-       @param Compare clase de comparación entre las claves.
-       @see Rb_Tree Rb_Tree_Vtl
-       @ingroup Arboles
-    */
-  template <template <typename> class NodeType, typename Key, class Compare>
-class Gen_Rb_Tree 
+    This is the bottom-up implementation that uses a stack to track ancestors
+    during descent and repairs violations by ascending back to the root.
+
+    @tparam NodeType Node template (typically RbNode or RbNodeVtl).
+    @tparam Key The type of keys stored in the tree.
+    @tparam Compare Comparison functor for ordering keys.
+
+    @par Complexity:
+    - Search: O(log n) worst case
+    - Insert: O(log n) worst case, at most 2 rotations
+    - Delete: O(log n) worst case, at most 3 rotations
+    - Size: O(1)
+    - Space: O(n) + O(log n) for ancestor stack during operations
+
+    @par Example:
+    @code
+    Rb_Tree<int> tree;
+    tree.insert(new Rb_Tree<int>::Node(42));
+    tree.insert(new Rb_Tree<int>::Node(17));
+    tree.insert(new Rb_Tree<int>::Node(99));
+
+    auto node = tree.search(42);
+    if (node != nullptr)
+      std::cout << "Found: " << node->get_key() << '\n';
+
+    tree.remove(42);
+    @endcode
+
+    @note This is a low-level implementation managing raw nodes.
+          For automatic memory management, use DynSetRbTree.
+
+    @see GenTdRbTree Top-down (single-pass) alternative implementation.
+    @see DynSetRbTree High-level wrapper with automatic memory management.
+    @see Avl_Tree Alternative balanced tree (stricter balance, more rotations).
+    @ingroup Trees
+ */
+template <template <typename> class NodeType, typename Key, class Compare>
+class Gen_Rb_Tree
 {
 public:
-
-  typedef NodeType<Key> Node;
+  using Node = NodeType<Key>;
+  using key_type = Key;
+  using compare_type = Compare;
 
 private:
+  Node head_node;                    ///< Sentinel header node
+  Node *head;                        ///< Pointer to sentinel
+  Node *& root;                      ///< Reference to root (right child of head)
+  FixedStack<Node *> rb_stack;       ///< Stack for ancestor path
+  Compare cmp;                       ///< Comparison functor
+  size_t num_nodes;                  ///< Number of nodes in tree
+  static constexpr signed char CmpLess = -1;
+  static constexpr signed char CmpEqual = 0;
+  static constexpr signed char CmpGreater = 1;
 
-  Node              head_node; // cabecera centinela
-  Node *            head;      // puntero a centinela
-  Node *&           root; 
-  FixedStack<Node*> rb_stack; 
-  Compare           cmp;
-
-  Node * search_and_stack_rb(const Key & key)             
+  /// Search for key and stack ancestors (optimistic duplicate detection)
+  Node * search_and_stack_rb(const Key & key,
+                             signed char & cmp_result) noexcept
   {
-    Node * p = root; 
+    Node *p = root;
+    Node *candidate = nullptr;  // Tracks potential duplicate when going right
+    size_t candidate_pos = 0;   // Stack size when candidate was set
+
     rb_stack.push(head);
-    do 
+    do
       {
-        rb_stack.push(p); 
-        if (cmp(key, KEY(p)))
-          p = LLINK(p);
-        else if (cmp(KEY(p), key))
-          p = RLINK(p);
+        rb_stack.push(p);
+        if (cmp(key, KEY(p)))  // key < KEY(p)
+          {
+            cmp_result = CmpLess;
+            p = LLINK(p);
+          }
+        else  // key >= KEY(p), could be equal
+          {
+            candidate = p;
+            candidate_pos = rb_stack.size();
+            cmp_result = CmpGreater;
+            p = RLINK(p);
+          }
+      }
+    while (p != Node::NullPtr);
+
+    // Optimistic duplicate check: when going right, key >= KEY(candidate)
+    // If also KEY(candidate) >= key (i.e., not less), then key == KEY(candidate)
+    if (candidate != nullptr and not cmp(KEY(candidate), key)) [[unlikely]]
+      {
+        cmp_result = CmpEqual;
+        // Truncate stack: remove nodes pushed after candidate
+        rb_stack.popn(rb_stack.size() - candidate_pos);
+        return candidate;
+      }
+
+    return rb_stack.top();
+  }
+
+  /// Search for insertion point (allows duplicates) and stack ancestors
+  Node * search_dup_and_stack_rb(const Key & key,
+                                 signed char & cmp_result) noexcept
+  {
+    Node *p = root;
+    rb_stack.push(head);
+    cmp_result = CmpEqual;
+    do
+      {
+        rb_stack.push(p);
+        const Key & pk = KEY(p);
+        if (cmp(key, pk))
+          {
+            cmp_result = CmpLess;
+            p = LLINK(p);
+          }
         else
-          return p;
+          {
+            cmp_result = CmpGreater;
+            p = RLINK(p);
+          }
       }
     while (p != Node::NullPtr);
 
     return rb_stack.top();
   }
 
-  Node * search_dup_and_stack_rb(const Key & key)                 
-  {
-    Node * p = root; 
-    rb_stack.push(head);
-    do 
-      {
-        rb_stack.push(p); 
-        if (cmp(key, KEY(p)))
-          p = LLINK(p);
-        else 
-          p = RLINK(p);
-      }
-    while (p != Node::NullPtr);
-
-    return rb_stack.top();
-  }
-
-  void fix_red_condition(Node * p)
+  /// Fix red-red violation after insertion
+  void fix_red_condition(Node *p) noexcept
   {
     assert(COLOR(p) == RED);
 
-    while (p != root) 
+    while (p != root)
       {
-        Node * pp = rb_stack.pop(); // padre de p
-        if (COLOR(pp) == BLACK) // ¿padre de p negro?
-          break; // sí ==> no hay rojos consecutivos ==> terminar
+        Node *pp = rb_stack.pop();  // parent of p
+        if (COLOR(pp) == BLACK)     // is p's parent black?
+          break;                    // yes ==> no consecutive reds ==> done
 
-        if (root == pp) // ¿p es hijo directo de la raíz?
-          {    // sí ==> colorear raíz de negro y terminar
-            COLOR(root) = BLACK; 
-            break; 
+        if (root == pp)             // is p a direct child of the root?
+          {
+            COLOR(root) = BLACK;
+            break;
           }
 
-        Node * ppp = rb_stack.pop(); // abuelo de p
-        Node * spp = LLINK(ppp) == pp ? RLINK(ppp) : LLINK(ppp); // tío
-        if (COLOR(spp) == RED) // ¿tío de p rojo?
-          {     // intercambiar colores entre los niveles
+        Node *ppp = rb_stack.pop();  // grandparent of p
+        Node *spp = LLINK(ppp) == pp ? RLINK(ppp) : LLINK(ppp);  // uncle
+        
+        if (COLOR(spp) == RED)       // is p's uncle red?
+          {
             COLOR(ppp) = RED;
-            COLOR(pp)  = BLACK;
+            COLOR(pp) = BLACK;
             COLOR(spp) = BLACK;
             p = ppp;
-            continue; // ir próximo ancestro, verificar violaciones
+            continue;
           }
 
-        Node * pppp = rb_stack.pop(); // bisabuelo de p
+        Node *pppp = rb_stack.pop();  // great-grandparent of p
         if (LLINK(pp) == p and LLINK(ppp) == pp)
           {
             rotate_to_right(ppp, pppp);
@@ -145,7 +235,7 @@ private:
             rotate_to_left(ppp, pppp);
             COLOR(pp) = BLACK;
           }
-        else 
+        else
           {
             if (RLINK(pp) == p)
               {
@@ -161,110 +251,111 @@ private:
           }
 
         COLOR(ppp) = RED;
-        break; // árbol es rojo-negro ==> terminar
+        break;
       }
 
-     rb_stack.empty();
+    rb_stack.empty();
   }
 
-  void find_succ_and_swap(Node * p, Node *& pp)
+  /// Find successor and swap with node being deleted
+  void find_succ_and_swap(Node *p, Node *& pp) noexcept
   {
-    Node *& ref_rb_stack = rb_stack.top(); 
+    Node *& ref_rb_stack = rb_stack.top();
 
-    /* Find successor while updating rb_stack */
-    Node * fSucc = p;        // successor's parent
-    Node * succ  = RLINK(p); // Searching starts from p's right child 
+    Node *fSucc = p;
+    Node *succ = RLINK(p);
     rb_stack.push(succ);
 
-    while (LLINK(succ) != Node::NullPtr)  // go down to leftmost
+    while (LLINK(succ) != Node::NullPtr)
       {
         fSucc = succ;
-        succ  = LLINK(succ);
+        succ = LLINK(succ);
         rb_stack.push(succ);
       }
 
-    ref_rb_stack   = succ; /* swap old top with current top */
-    rb_stack.top() = p; 
+    ref_rb_stack = succ;
+    rb_stack.top() = p;
 
-    if (LLINK(pp) == p) /* Setting of parent of p to new child(succ) */ 
+    if (LLINK(pp) == p)
       LLINK(pp) = succ;
     else
       RLINK(pp) = succ;
 
-    LLINK(succ) = LLINK(p); /* Swaps left branches */
-    LLINK(p)    = Node::NullPtr; 
+    LLINK(succ) = LLINK(p);
+    LLINK(p) = Node::NullPtr;
 
-    if (RLINK(p) == succ) /* For right branches there are two cases */
-      { /* successor is just right child of p */   
-	RLINK(p)    = RLINK(succ); 
-	RLINK(succ) = p;
-	pp          = succ;
+    if (RLINK(p) == succ)
+      {
+        RLINK(p) = RLINK(succ);
+        RLINK(succ) = p;
+        pp = succ;
       }
     else
-      { /* Successor is leftmost node descending from right child of p */ 
-	Node *succr  = RLINK(succ); 
-	RLINK(succ)  = RLINK(p);
-	LLINK(fSucc) = p;
-	RLINK(p)     = succr;
-	pp           = fSucc;
+      {
+        Node *succr = RLINK(succ);
+        RLINK(succ) = RLINK(p);
+        LLINK(fSucc) = p;
+        RLINK(p) = succr;
+        pp = fSucc;
       }
 
     std::swap(COLOR(succ), COLOR(p));
   }
 
-  void fix_black_condition(Node * p)
+  /// Fix black-height violation after deletion
+  void fix_black_condition(Node *p) noexcept
   {
-    if (COLOR(p) == RED) // ¿p es rojo?
-      {     // sí ==> lo pintamos de negro y terminamos
-        COLOR(p) = BLACK; // esto compensa el déficit 
+    if (COLOR(p) == RED)
+      {
+        COLOR(p) = BLACK;
         return;
       }
 
-    Node * pp = rb_stack.popn(2); // padre de p
+    Node *pp = rb_stack.popn(2);
     while (p != root)
       {
         assert(LLINK(pp) == p or RLINK(pp) == p);
         assert(LLINK(rb_stack.top()) == pp or RLINK(rb_stack.top()) == pp);
 
-        Node * sp = LLINK(pp) == p ? RLINK(pp) : LLINK(pp); // hermano p
-        if (COLOR(sp) == RED) // ¿hermano de p es rojo?
+        Node *sp = LLINK(pp) == p ? RLINK(pp) : LLINK(pp);
+        if (COLOR(sp) == RED)
           {
-            Node *& ppp = rb_stack.top(); // abuelo de p
+            Node *& ppp = rb_stack.top();
 
             if (LLINK(pp) == p)
               {
-                sp  = LLINK(sp);
+                sp = LLINK(sp);
                 ppp = rotate_to_left(pp, ppp);
               }
             else
               {
-                sp  = RLINK(sp);
+                sp = RLINK(sp);
                 ppp = rotate_to_right(pp, ppp);
               }
 
             COLOR(ppp) = BLACK;
-            COLOR(pp)  = RED;
+            COLOR(pp) = RED;
           }
 
-        Node * np, * snp; // sobrinos de nodo p
-        if (LLINK(pp) == p) // ¿p es hijo izquierdo?
-          {     // sí ==> que sp es hijo derechos
-            np  = RLINK(sp);
+        Node *np, *snp;
+        if (LLINK(pp) == p)
+          {
+            np = RLINK(sp);
             snp = LLINK(sp);
           }
         else
           {
-            np  = LLINK(sp);
+            np = LLINK(sp);
             snp = RLINK(sp);
           }
 
-        if (COLOR(np) == RED) // ¿np es rojo?
+        if (COLOR(np) == RED)
           {
-            Node * ppp = rb_stack.top();
+            Node *ppp = rb_stack.top();
 
             if (RLINK(sp) == np)
               rotate_to_left(pp, ppp);
-             else
+            else
               rotate_to_right(pp, ppp);
 
             COLOR(sp) = COLOR(pp);
@@ -274,9 +365,9 @@ private:
             return;
           }
 
-        if (COLOR(snp) == RED) // ¿snp es rojo?
+        if (COLOR(snp) == RED)
           {
-            Node * ppp = rb_stack.top();
+            Node *ppp = rb_stack.top();
 
             if (LLINK(sp) == snp)
               {
@@ -290,259 +381,314 @@ private:
               }
 
             COLOR(snp) = COLOR(pp);
-            COLOR(pp)  = BLACK;;
+            COLOR(pp) = BLACK;
 
             return;
           }
 
-        if (COLOR(pp) == RED) // ¿pp es rojo?
+        if (COLOR(pp) == RED)
           {
             COLOR(pp) = BLACK;
-            COLOR(sp) = RED;;
+            COLOR(sp) = RED;
             return;
           }
 
-          // no hay nodo rojo en las adyacencias de p ==> desplazar el
-          // déficit hacia pp y repetir la iteración
         COLOR(sp) = RED;
-        p         = pp;
-        pp        = rb_stack.pop(); 
+        p = pp;
+        pp = rb_stack.pop();
       }
+  }
+
+  /// Initialize tree state
+  void init() noexcept
+  {
+    num_nodes = 0;
   }
 
 public:
+  /// Returns a reference to the comparison criteria
+  Compare & key_comp() noexcept { return cmp; }
+  const Compare & key_comp() const noexcept { return cmp; }
 
-     /// El tipo de clave que contiene el nodo
-  typedef Key key_type;
+  /// \overload key_comp()
+  Compare & get_compare() noexcept { return cmp; }
+  const Compare & get_compare() const noexcept { return cmp; }
 
-      /// Retorna una referencia al criterio de comparación
-  Compare & key_comp() { return cmp; }
-
-      /// \overload key_comp()
-  Compare & get_compare() { return key_comp(); }
-
-      /// Instancia un árbol rojo-negro.
-  Gen_Rb_Tree(Compare __cmp = Compare()) 
-    : head(&head_node), root(head_node.getR()), 
-      rb_stack(Node::MaxHeight), cmp(__cmp)
+  /// Default constructor with optional comparator
+  Gen_Rb_Tree(Compare __cmp = Compare()) noexcept
+    : head(&head_node), root(head_node.getR()),
+      rb_stack(Node::MaxHeight), cmp(__cmp), num_nodes(0)
   {
-    /* empty */ 
+    /* empty */
   }
 
-  /** Intercambia todos los elementos del treap this con el treap tree
-      en tiempo contante (y extremadamente rápido).
-
-      @param[in] tree el treap a intercambiar con this
-  */
-  void swap (Gen_Rb_Tree & tree)
+  /** Swaps all elements with another tree in constant time.
+      @param[in] tree the red-black tree to swap with
+   */
+  void swap(Gen_Rb_Tree & tree) noexcept
   {
     std::swap(root, tree.root);
+    std::swap(num_nodes, tree.num_nodes);
     std::swap(cmp, tree.cmp);
   }
 
-      /// Destruye un árbol rojo-negro.
-  virtual ~Gen_Rb_Tree() { /* empty */ }
-
-      /// Busca un nodo con clave key. Retorna un puntero al nodo
-      /// contentivo de key si éste se encuentra en el árbol; nullptr de lo
-      /// contrario. 
-  Node * search(const Key & key)
+  /// Move constructor
+  Gen_Rb_Tree(Gen_Rb_Tree && tree) noexcept
+    : head(&head_node), root(head_node.getR()),
+      rb_stack(Node::MaxHeight), cmp(std::move(tree.cmp)), 
+      num_nodes(tree.num_nodes)
   {
-    Node * retVal = Aleph::searchInBinTree <Node, Compare> (root, key, cmp);
-    return retVal == Node::NullPtr ? nullptr : retVal;
+    root = tree.root;
+    tree.root = Node::NullPtr;
+    tree.num_nodes = 0;
   }
 
-      /// Obtiene un puntero a la raíz del árbol.
-  Node *& getRoot() { return root; }
-      /// Inserta el nodo p en el árbol rojo-negro. Si la clave de p no
-      /// está contenida en el árbol, entonces el nodo es insertado y se
-      /// retorna el puntero a p. De lo contrario no ocurre la inserción y
-      /// se retorna nullptr.
-  Node * insert(Node * p)
+  /// Move assignment operator
+  Gen_Rb_Tree & operator=(Gen_Rb_Tree && tree) noexcept
   {
+    if (this != &tree)
+      {
+        root = tree.root;
+        num_nodes = tree.num_nodes;
+        cmp = std::move(tree.cmp);
+        tree.root = Node::NullPtr;
+        tree.num_nodes = 0;
+      }
+    return *this;
+  }
+
+  /// Destructor
+  virtual ~Gen_Rb_Tree() = default;
+
+  /** @brief Search for a key in the tree.
+      @param key Key to search for.
+      @return Pointer to node containing key, or nullptr if not found.
+   */
+  Node * search(const Key & key) const noexcept
+  {
+    Node *p = root;
+    while (p != Node::NullPtr)
+      {
+        if (cmp(key, KEY(p)))
+          p = LLINK(p);
+        else if (cmp(KEY(p), key))
+          p = RLINK(p);
+        else
+          return p;
+      }
+    return nullptr;
+  }
+
+  /// Get reference to root pointer
+  Node *& getRoot() noexcept { return root; }
+  
+  /// Get const root pointer
+  Node * getRoot() const noexcept { return root; }
+
+  /// Returns true if the tree is empty
+  bool is_empty() const noexcept { return root == Node::NullPtr; }
+
+  /// Returns the number of nodes in the tree (O(1))
+  size_t size() const noexcept { return num_nodes; }
+
+  /// Reset tree to empty state (does not free nodes)
+  void reset() noexcept
+  {
+    root = Node::NullPtr;
+    num_nodes = 0;
+  }
+
+  /** @brief Insert a node into the tree.
+      
+      @param p Node to insert (must be red with null children).
+      @return Pointer to inserted node, or nullptr if key already exists.
+   */
+  Node * insert(Node *p) noexcept
+  {
+    assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
 
-    if (root == Node::NullPtr) 
-      return root = p; // inserción en árbol vacío
+    if (root == Node::NullPtr)
+      {
+        ++num_nodes;
+        return root = p;
+      }
 
-    Node * q = search_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q))) 
+    signed char cmp_result = CmpEqual;
+    Node *q = search_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
-    else if (cmp(KEY(q), KEY(p))) 
+    else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
       {
         rb_stack.empty();
-        return nullptr;  // clave duplicada
+        return nullptr;  // duplicate key
       }
+    
+    ++num_nodes;
     fix_red_condition(p);
 
     return p;
   }
 
-       /** Busca la clave de p en el árbol rojo negro o lo inserta
-           en caso de no encontrarse.
-
-           search_or_insert(p) busca en el árbol rojo-negro un nodo cuya clave
-           sea <code>KEY(p)</code>. Si la clave se encuentra, entonces se
-           rerona un puntero al nodo que la alberga. De lo contrario se
-           inserta p en el árbol binario de búsqueda this. 
-
-           @param[in] p el nodo a buscar o insertar.
-           @return puntero al nodo insertado si la clave de p no está
-           contenida dentro del árbol; De lo contrario, se retorna un
-           puntero al nodo dentro del árbol que contiene a
-           <code>KEY(p)</code>. 
-       */
-  Node * search_or_insert(Node * p)
+  /** @brief Search for key or insert if not found.
+      
+      @param p Node to search or insert.
+      @return Pointer to p if inserted, or pointer to existing node with same key.
+   */
+  Node * search_or_insert(Node *p) noexcept
   {
+    assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
 
-    if (root == Node::NullPtr) 
-      return root = p; // inserción en árbol vacío
+    if (root == Node::NullPtr)
+      {
+        ++num_nodes;
+        return root = p;
+      }
 
-    Node * q = search_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q))) 
+    signed char cmp_result = CmpEqual;
+    Node *q = search_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
-    else if (cmp(KEY(q), KEY(p))) 
+    else if (cmp_result == CmpGreater)
       RLINK(q) = p;
     else
       {
         rb_stack.empty();
-        return q;  // clave duplicada
+        return q;  // return existing node
       }
+    
+    ++num_nodes;
     fix_red_condition(p);
 
     return p;
   }
 
-      /// Inserta el nodo p en el árbol rojo-negro. Si la clave de p no
-      /// está contenida en el árbol, entonces el nodo es insertado y se
-      /// retorna el puntero a p. De lo contrario no ocurre la inserción y
-      /// se retorna nullptr.
-  Node * insert_dup(Node * p)
+  /** @brief Insert a node allowing duplicates.
+      
+      @param p Node to insert.
+      @return Pointer to inserted node (always succeeds).
+   */
+  Node * insert_dup(Node *p) noexcept
   {
+    assert(p != nullptr and p != Node::NullPtr);
     assert(COLOR(p) == RED);
 
-    if (root == Node::NullPtr) 
-      return root = p; // inserción en árbol vacío
+    if (root == Node::NullPtr)
+      {
+        ++num_nodes;
+        return root = p;
+      }
 
-    Node * q = search_dup_and_stack_rb(KEY(p));
-    if (cmp(KEY(p), KEY(q))) 
+    signed char cmp_result = CmpEqual;
+    Node *q = search_dup_and_stack_rb(KEY(p), cmp_result);
+    if (cmp_result == CmpLess)
       LLINK(q) = p;
-    else 
+    else
       RLINK(q) = p;
 
+    ++num_nodes;
     fix_red_condition(p);
 
     return p;
   }
 
-  bool verify() const { return is_red_black_tree(root) ; }
+  /// Verify that tree satisfies red-black properties
+  bool verify() const noexcept { return is_red_black_bst(root, cmp); }
 
-      /// Elimina el nodo contentivo de la clave key. Si la clave se
-      /// encuentra en el árbol, entonces se elimina el nodo que la
-      /// contiene y se retorna su dirección. De lo contrario se retorna
-      /// nullptr. 
-  Node* remove(const Key & key)
+  /** @brief Remove the node containing key.
+      
+      @param key Key to remove.
+      @return Pointer to removed node, or nullptr if not found.
+   */
+  Node * remove(const Key & key) noexcept
   {
-    if (root == Node::NullPtr) 
+    if (root == Node::NullPtr)
       return nullptr;
 
-    Node * q = search_and_stack_rb(key);
-    if (no_equals<Key, Compare> (KEY(q), key, cmp)) // ¿clave no encontrada?
-      {    
+    signed char cmp_result = CmpEqual;
+    Node *q = search_and_stack_rb(key, cmp_result);
+    if (cmp_result != CmpEqual)
+      {
         rb_stack.empty();
         return nullptr;
       }
 
-    Node * pq = rb_stack.top(1); // padre de 1
-    Node * p; // hijo de q luego de que éste ha sido eliminado
-    while (true) // eliminación clásica árbol binario de búsqueda
+    Node *pq = rb_stack.top(1);
+    Node *p;
+    while (true)
       {
-        if (LLINK(q) == Node::NullPtr) 
+        if (LLINK(q) == Node::NullPtr)
           {
             if (LLINK(pq) == q)
               p = LLINK(pq) = RLINK(q);
             else
               p = RLINK(pq) = RLINK(q);
-
-            break; // goto end;
+            break;
           }
 
-        if (RLINK(q) == Node::NullPtr) 
+        if (RLINK(q) == Node::NullPtr)
           {
             if (LLINK(pq) == q)
               p = LLINK(pq) = LLINK(q);
             else
               p = RLINK(pq) = LLINK(q);
-
-            break; // goto end;
+            break;
           }
 
         find_succ_and_swap(q, pq);
       }
 
-    if (COLOR(q) == BLACK) // ¿se eliminó un nodo negro?
+    if (COLOR(q) == BLACK)
       fix_black_condition(p);
 
     q->reset();
     rb_stack.empty();
+    --num_nodes;
 
     return q;
   }
 
-  /** Iterador sobre los nodos.
-
-      Esta clase permite recorrer los nodos del árbol en forma
-      ordenada según el criterio de comparación especificado en el
-      momento de instanciación del árbol.
-
-     @ingroup Arboles
-  */
+  /** @brief Iterator over tree nodes in sorted order.
+      
+      Allows traversing nodes according to the comparison criteria.
+      
+      @ingroup Trees
+   */
   struct Iterator : public BinNodeInfixIterator<Node>
   {
+    /// Default constructor creates an "end" iterator
+    Iterator() noexcept = default;
     Iterator(Gen_Rb_Tree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
+    Iterator(const Gen_Rb_Tree & t) : BinNodeInfixIterator<Node>(t.getRoot()) {}
   };
 };
-    /** Árbol binario de búsqueda rojo-negro con nodos sin destructor virtual.
 
-       Un árbol binario de búsqueda rojo negro es un árbol binario de búsqueda
-       cuya altura está acotada a \f$O(\lg n)\f$ y sus operaciones de
-       modificación acotadas en tiempo por \f$O(\lg n)\f$ nodos
-       inspeccionados. 
+/** @brief Red-black tree with nodes without virtual destructor.
 
-       Esta clase maneja nodos sin destructor virtual.
-
-       @param Key el tipo de clave que albergan los nodos del árbol.
-       @param Compare clase de comparación entre las claves.
-       @see Rb_Tree_Vtl
-       @ingroup Arboles
-    */
-    template <typename Key, class Compare = Aleph::less<Key>>
-struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare> 
+   @tparam Key Key type stored in tree nodes.
+   @tparam Compare Comparison functor between keys.
+   @see Rb_Tree_Vtl
+   @ingroup Trees
+*/
+template <typename Key, class Compare = Aleph::less<Key>>
+struct Rb_Tree : public Gen_Rb_Tree<RbNode, Key, Compare>
 {
   using Base = Gen_Rb_Tree<RbNode, Key, Compare>;
   using Base::Base;
 };
 
-    /** Árbol binario de búsqueda rojo-negro con destructor virtual en
-        sus nodos.  
+/** @brief Red-black tree with virtual destructor in nodes.
 
-       Un árbol binario de búsqueda rojo negro es un árbol binario de búsqueda
-       cuya altura está acotada a \f$O(\lg n)\f$ y sus operaciones de
-       modificación acotadas en tiempo por \f$O(\lg n)\f$ nodos
-       inspeccionados. 
-
-       Esta clase maneja nodos con destructor virtual.
-
-       @param Key el tipo de clave que albergan los nodos del árbol.
-       @param Compare clase de comparación entre las claves.
-       @see Rb_Tree_Vtl
-       @ingroup Arboles
-    */
-    template <typename Key, class Compare = Aleph::less<Key>>
-struct Rb_Tree_Vtl : public Gen_Rb_Tree<RbNodeVtl, Key, Compare> 
+   @tparam Key Key type stored in tree nodes.
+   @tparam Compare Comparison functor between keys.
+   @see Rb_Tree
+   @ingroup Trees
+*/
+template <typename Key, class Compare = Aleph::less<Key>>
+struct Rb_Tree_Vtl : public Gen_Rb_Tree<RbNodeVtl, Key, Compare>
 {
   using Base = Gen_Rb_Tree<RbNodeVtl, Key, Compare>;
   using Base::Base;
@@ -551,4 +697,3 @@ struct Rb_Tree_Vtl : public Gen_Rb_Tree<RbNodeVtl, Key, Compare>
 } // end namespace Aleph
 
 # endif // TPL_RB_TREE_H
-

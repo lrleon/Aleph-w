@@ -1,277 +1,358 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-   / \  | | ___ _ __ | |__      __      __
-   / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-   /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-   |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
-   This file is part of Aleph-w library
+  This file is part of Aleph-w library
 
-   Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-   General Public License for more details.
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program. If not, see <https://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-# ifndef TOPOLOGICAL_SORT_H
-# define TOPOLOGICAL_SORT_H
 
-# include <tpl_dynListQueue.H>
-# include <tpl_graph.H>
+
+/** @file topological_sort.H
+    @brief Topological sorting algorithms for directed acyclic graphs (DAGs).
+
+    This header provides two implementations of topological sorting:
+
+    1. `Topological_Sort`: Uses depth-first search with postfix ordering.
+       Visits nodes recursively and inserts them in reverse postorder.
+
+    2. `Q_Topological_Sort`: Uses breadth-first search (Kahn's algorithm).
+       Repeatedly removes source nodes (in-degree 0) and updates degrees.
+       Also provides rank-based ordering for parallel execution.
+
+    Both algorithms assume the input is a DAG. Behavior is undefined
+    if the graph contains cycles.
+
+    @ingroup Graphs
+ *  @author Leandro Rabindranath León
+*/
+
+#ifndef TOPOLOGICAL_SORT_H
+#define TOPOLOGICAL_SORT_H
+
+#include <tpl_dynListQueue.H>
+#include <tpl_graph.H>
 
 namespace Aleph {
 
+/** @brief Computes topological ordering using depth-first search.
 
-  /** Calcula un ordenamiento topológico para un digrafo en modo sufijo. 
+    This class performs topological sorting by recursively visiting
+    nodes in depth-first order and inserting them in postfix order
+    (after all successors have been visited).
 
-      Topological_Sort recorre recursivamente en profundidad y
-      en sufijo los nodos de un grafo y efectúa un ordenamiento topológico
-      cuyo resultado lo almacena un la lista dada en parámetro.
+    The resulting order is a valid topological ordering where for
+    every directed edge (u, v), u appears before v in the list.
 
-      @ingroup Grafos
+    @tparam GT The directed graph type.
+    @tparam Itor Iterator type for traversing outgoing arcs (default: Out_Iterator).
+    @tparam SA Arc filter/selector (default: Dft_Show_Arc<GT>).
+
+    @ingroup Graphs
+*/
+template <class GT,
+          template <typename, class> class Itor = Out_Iterator,
+          class SA = Dft_Show_Arc<GT>>
+class Topological_Sort
+{
+  SA & sa;
+  const GT * gptr;
+
+public:
+
+  /** @brief Constructor with rvalue arc filter.
+      @param __sa Arc filter/selector (moved).
   */
-  template <class GT, 
-            template <typename, class> class Itor = Out_Iterator,
-            class SA = Dft_Show_Arc<GT>> 
-  class Topological_Sort
-  {
-    SA & sa;
-    const GT * gptr;
+  Topological_Sort(SA && __sa = SA())
+    : sa(__sa), gptr(nullptr) { /* empty */ }
 
-  public:
-
-    Topological_Sort(SA && __sa = SA()) 
-      : sa(__sa), gptr(nullptr) { /* empty */ }
-
-    Topological_Sort(SA & __sa) 
-      : sa(__sa), gptr(nullptr)  { /* empty */ }
-
-  private:
- 
-    template <template <class> class List>
-    void topological_sort(typename GT::Node * curr, 
-                          List<typename GT::Node*> & list)
-    {
-      assert(gptr != nullptr);
-
-      if (IS_NODE_VISITED(curr, Depth_First))
-        return;
-
-      NODE_BITS(curr).set_bit(Depth_First, 1); // marcarlo como visitado
-
-      const auto & n = gptr->get_num_nodes();
-
-      // visitar recursivamente en sufijo los nodos adyacentes a curr
-      for (Itor<GT,SA> it(curr,sa); it.has_curr() and list.size() < n; it.next_ne()) 
-        topological_sort(it.get_tgt_node_ne(), list);
-
-      list.insert(curr); // inserción sufija de nodo que devino sumidero
-    }
-
-  public:
-
-    /** Retorna un ordenamiento topológico por sufijo.
-
-        @param[in] g el digrafo acíclico.
-        @return una lista de nodos correspondiente al ordenamiento
-        topológico. 
-        @throw bad_alloc si no hay suficiente memoria para insertar en
-        list.
-        @note La rutina no verifica si g es en efecto un digrafo acíclico. 
-    */
-    template <template <class> class List>
-    List<typename GT::Node*> perform (const GT & g)
-    {
-      g.reset_bit_nodes(Depth_First); // iniciar bit de marca de visita en nodos
-
-      gptr = &g;
-      List<typename GT::Node*> list;
-
-      // recorrer todos los nodos
-      const auto & n = gptr->get_num_nodes();
-      for (auto it = g.get_node_it(); it.has_curr() and list.size() < n; 
-           it.next_ne())
-        {
-          auto curr = it.get_current_node_ne();
-          if (not IS_NODE_VISITED(curr, Depth_First))
-            topological_sort(curr, list);
-        }
-    
-      return list;
-    }
-
-    /// Sobrecarga de () sólo por razones de compatibilidad con versiones
-    /// anteriores
-    void operator () (const GT & g, DynDlist<typename GT::Node*> & list) 
-    {
-      perform<DynDlist>(g).swap(list);
-    }
-  };
-
-  /** Calcula un ordenamiento topológico para el digrafo mediante un
-      recorrido en amplitud. 
-
-      Q_Topdological_Sort recorre  en amplitud
-      los nodos de un digrafo g y efectúa un ordenamiento topológico
-      cuyo resultado lo almacena en una lista dada.
-
-      @ingroup Grafos
+  /** @brief Constructor with lvalue arc filter.
+      @param __sa Arc filter/selector (referenced).
   */
-  template <class GT, 
-            template <typename, class> class Itor = Out_Iterator,
-            class SA = Dft_Show_Arc<GT>> 
-  class Q_Topological_Sort
+  Topological_Sort(SA & __sa)
+    : sa(__sa), gptr(nullptr)  { /* empty */ }
+
+private:
+
+  /// @brief Recursive helper for DFS-based topological sort.
+  /// @param curr Current node being visited.
+  /// @param list Output list accumulating sorted nodes.
+  template <template <class> class List>
+  void topological_sort(typename GT::Node * curr,
+                        List<typename GT::Node*> & list)
   {
-    SA & sa;
+    assert(gptr != nullptr);
 
-  public:
+    if (IS_NODE_VISITED(curr, Depth_First))
+      return;
 
-    Q_Topological_Sort(SA && __sa = SA()) 
-      : sa(__sa) { /* empty */ }
+    NODE_BITS(curr).set_bit(Depth_First, 1); // mark as visited
 
-    Q_Topological_Sort(SA & __sa) 
-      : sa(__sa) { /* empty */ }
+    const auto & n = gptr->get_num_nodes();
 
-    /** Retorna un ordenamiento topológico en amplitud.
-      
-        @param[in] g el digrafo acíclico.
-        @return lista de nodos correspondiente al ordenamiento
-        topológico. 
-        @throw bad_alloc si no hay suficiente memoria para insertar en
-        list o en la cola interna que se requiere para recorrer el
-        digrafo en amplitud.
-        @throw domain_error si g no es un digrafo.
-        @note La rutina no verifica si g es en efecto un digrafo acíclico. 
-    */
-    template <template <class> class List>
-    List<typename GT::Node*> perform (const GT & g)
-    {
-      g.reset_counter_nodes();
+    // recursively visit adjacent nodes in postfix order
+    for (Itor<GT,SA> it(curr,sa); it.has_curr() and list.size() < n; it.next_ne())
+      topological_sort(it.get_tgt_node_ne(), list);
 
-      List<typename GT::Node*> list;
+    list.insert(curr); // postfix insertion of node that became a sink
+  }
 
-      // recorra todos los arcos y contar grados de entrada
-      for (Arc_Iterator<GT,SA> it(g, sa); it.has_curr(); it.next_ne()) 
-        NODE_COUNTER(it.get_tgt_node_ne())++; 
+public:
 
-      // buscar nodos con grado de entrada 0 y meterlos en cola
-      DynListQueue<typename GT::Node*> q; // cola de fuentes
-      for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
-        {
-          auto p = it.get_current_node_ne();
-          if (NODE_COUNTER(p) == 0) // ¿es un nodo fuente?
-            q.put(p); // sí ==> colocarlo en la cola
-        }
+  /** @brief Compute topological ordering using DFS.
 
-      while (not q.is_empty()) 
-        {
-          auto p = q.get(); // saque último fuente
+      Performs depth-first traversal of the graph, inserting nodes
+      in postfix order to produce a valid topological ordering.
 
-          assert(NODE_COUNTER(p) == 0);
+      @tparam List Container type for the result (e.g., DynList, DynDlist).
+      @param g The directed acyclic graph.
+      @return A list of nodes in topological order.
 
-          list.append(p); // insértelo en el orden topológico
+      @throw std::bad_alloc If memory allocation fails.
 
-          // decrementar grado de entrada de cada nodo adyacente a p
-          for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-            {
-              auto tgt = it.get_tgt_node_ne();
-              if (--NODE_COUNTER(tgt) == 0) // ¿tgt deviene fuente?
-                q.put(tgt); // sí ==> colóquelo en la cola
-            }
-        }
+      @note This function does not verify that g is acyclic.
+            If g contains cycles, the result is undefined.
+  */
+  template <template <class> class List>
+  [[nodiscard]] List<typename GT::Node*> perform(const GT & g)
+  {
+    g.reset_bit_nodes(Depth_First); // initialize visit marks
 
-      return list;
-    }
+    gptr = &g;
+    List<typename GT::Node*> list;
 
-    /** Retorna el ordenamiento topológico en amplitud por rangos.
-      
-        @param[in] g el digrafo acíclico.
-        @param[out] ranks lista de rangos correspondiente al ordenamiento
-        topológico. Cada rango especifica un conjunto de nodos que
-        pueden mirarse en paralelo.
-        @throw bad_alloc si no hay suficiente memoria para insertar en
-        list o en la cola interna que se requiere para recorrer el
-        digrafo en amplitud.
-        @throw domain_error si g no es un digrafo.
-        @note La rutina no verifica si g es en efecto un digrafo acíclico. 
-    */
-    template <template <class> class RankList = DynList, 
-              template <class> class List = DynList>
-    RankList<List<typename GT::Node*>> ranks(const GT & g)
-    {
-      g.reset_counter_nodes();
+    // traverse all nodes
+    const auto & n = gptr->get_num_nodes();
+    for (auto it = g.get_node_it(); it.has_curr() and list.size() < n;
+         it.next_ne())
+      {
+        auto curr = it.get_current_node_ne();
+        if (not IS_NODE_VISITED(curr, Depth_First))
+          topological_sort(curr, list);
+      }
 
-      // recorra todos los nodos para contabilizar grado de entrada
-      for (typename GT::Node_Iterator i(g); i.has_curr(); i.next_ne()) 
-        for (Itor<GT, SA> j(i.get_current_node_ne(), sa);
-             j.has_curr(); j.next_ne())
-          NODE_COUNTER(j.get_tgt_node())++;
+    return list;
+  }
 
-      // revisar nodos con grado de entrada 0 y meterlos en cola
-      DynListQueue<typename GT::Node*> q; // cola de fuentes
-      for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
-        {
-          auto p = it.get_current_node_ne();
-          if (NODE_COUNTER(p) == 0) // ¿es un nodo fuente?
-            q.put(p); // sí ==> colocarlo en la cola
-        }
-    
-      RankList<List<typename GT::Node*>> ranks; // valor de retorno
-      while (not q.is_empty()) 
-        {
-          List<typename GT::Node*> rank;
-          DynListQueue<typename GT::Node*> aq;
+  /** @brief Operator() overload for backward compatibility.
+      @param g The directed acyclic graph.
+      @param list Output list to receive the topological ordering.
+  */
+  void operator()(const GT & g, DynDlist<typename GT::Node*> & list)
+  {
+    perform<DynDlist>(g).swap(list);
+  }
+};
 
-          while (not q.is_empty()) // saca todos los nodos del nivel i
-            {
-              auto p = q.get(); // saque último fuente
-              rank.append(p); // insértelo en el rango topológico
+/** @brief Computes topological ordering using breadth-first search (Kahn's algorithm).
 
-              // decrementar grado entrada de cada nodo adyacente a p
-              for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-                {
-                  auto tgt = it.get_tgt_node_ne();
-                  if (--NODE_COUNTER(tgt) == 0) // ¿tgt deviene fuente?
-                    aq.put(tgt); // sí ==> colóquelo en cola auxiliar
-                }
-            }
+    This class performs topological sorting using a queue-based approach.
+    It repeatedly:
+    1. Finds all source nodes (in-degree 0)
+    2. Removes them from the graph (conceptually)
+    3. Updates in-degrees of their successors
+    4. Repeats until all nodes are processed
 
-          ranks.append(std::move(rank));
-          q.swap(aq);
-          assert(aq.is_empty());
-        }
+    Also provides rank-based ordering where nodes at the same "level"
+    (same topological depth) are grouped together, useful for
+    identifying parallelizable tasks.
 
-      return ranks; 
-    }
+    @tparam GT The directed graph type.
+    @tparam Itor Iterator type for traversing outgoing arcs (default: Out_Iterator).
+    @tparam SA Arc filter/selector (default: Dft_Show_Arc<GT>).
 
-    void operator () (const GT & g, DynDlist<DynList<typename GT::Node *>> & list)
-    {
-      this->ranks<>(g).swap(list);
-    }
+    @ingroup Graphs
+*/
+template <class GT,
+          template <typename, class> class Itor = Out_Iterator,
+          class SA = Dft_Show_Arc<GT>>
+class Q_Topological_Sort
+{
+  SA & sa;
 
-    void operator () (const GT & g, DynList<DynList<typename GT::Node *>> & list)
-    {
-      this->ranks<DynList>(g).swap(list);
-    }
+public:
 
-    /// Sobrecarga de () por razones compatibilidad
-    void operator () (const GT & g, DynDlist<typename GT::Node*> & list) 
-    {
-      this->perform<DynDlist>(g).swap(list);
-    }
-  };
+  /** @brief Constructor with rvalue arc filter.
+      @param __sa Arc filter/selector (moved).
+  */
+  Q_Topological_Sort(SA && __sa = SA())
+    : sa(__sa) { /* empty */ }
+
+  /** @brief Constructor with lvalue arc filter.
+      @param __sa Arc filter/selector (referenced).
+  */
+  Q_Topological_Sort(SA & __sa)
+    : sa(__sa) { /* empty */ }
+
+  /** @brief Compute topological ordering using BFS (Kahn's algorithm).
+
+      Uses in-degree counting and a queue to process source nodes,
+      producing a valid topological ordering.
+
+      @tparam List Container type for the result (e.g., DynList, DynDlist).
+      @param g The directed acyclic graph.
+      @return A list of nodes in topological order.
+
+      @throw std::bad_alloc If memory allocation fails.
+      @throw std::domain_error If g is not a digraph.
+
+      @note This function does not verify that g is acyclic.
+            If g contains cycles, not all nodes will be in the result.
+  */
+  template <template <class> class List>
+  [[nodiscard]] List<typename GT::Node*> perform(const GT & g)
+  {
+    g.reset_counter_nodes();
+
+    List<typename GT::Node*> list;
+
+    // traverse all arcs and count in-degrees
+    for (Arc_Iterator<GT,SA> it(g, sa); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_tgt_node_ne())++;
+
+    // find nodes with in-degree 0 and enqueue them
+    DynListQueue<typename GT::Node*> q; // queue of sources
+    for (auto it = g.get_node_it(); it.has_curr(); it.next_ne())
+      {
+        auto p = it.get_current_node_ne();
+        if (NODE_COUNTER(p) == 0) // is it a source node?
+          q.put(p); // yes => enqueue it
+      }
+
+    while (not q.is_empty())
+      {
+        auto p = q.get(); // dequeue last source
+
+        assert(NODE_COUNTER(p) == 0);
+
+        list.append(p); // insert in topological order
+
+        // decrement in-degree of each node adjacent to p
+        for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+          {
+            auto tgt = it.get_tgt_node_ne();
+            if (--NODE_COUNTER(tgt) == 0) // does tgt become a source?
+              q.put(tgt); // yes => enqueue it
+          }
+      }
+
+    return list;
+  }
+
+  /** @brief Compute rank-based topological ordering.
+
+      Returns the topological ordering organized by ranks (levels).
+      Each rank contains nodes that can be processed in parallel,
+      as they have no dependencies on each other within the same rank.
+
+      @tparam RankList Outer container type for ranks (default: DynList).
+      @tparam List Inner container type for nodes in each rank (default: DynList).
+      @param g The directed acyclic graph.
+      @return A list of ranks, where each rank is a list of nodes at that level.
+
+      @throw std::bad_alloc If memory allocation fails.
+      @throw std::domain_error If g is not a digraph.
+
+      @note This function does not verify that g is acyclic.
+            If g contains cycles, not all nodes will be in the result.
+  */
+  template <template <class> class RankList = DynList,
+            template <class> class List = DynList>
+  [[nodiscard]] RankList<List<typename GT::Node*>> ranks(const GT & g)
+  {
+    g.reset_counter_nodes();
+
+    // traverse all nodes to count in-degrees
+    for (typename GT::Node_Iterator i(g); i.has_curr(); i.next_ne())
+      for (Itor<GT, SA> j(i.get_current_node_ne(), sa);
+           j.has_curr(); j.next_ne())
+        NODE_COUNTER(j.get_tgt_node())++;
+
+    // find nodes with in-degree 0 and enqueue them
+    DynListQueue<typename GT::Node*> q; // queue of sources
+    for (typename GT::Node_Iterator it(g); it.has_curr(); it.next_ne())
+      {
+        auto p = it.get_current_node_ne();
+        if (NODE_COUNTER(p) == 0) // is it a source node?
+          q.put(p); // yes => enqueue it
+      }
+
+    RankList<List<typename GT::Node*>> ranks; // return value
+    while (not q.is_empty())
+      {
+        List<typename GT::Node*> rank;
+        DynListQueue<typename GT::Node*> aq;
+
+        while (not q.is_empty()) // extract all nodes at level i
+          {
+            auto p = q.get(); // dequeue last source
+            rank.append(p); // insert in current rank
+
+            // decrement in-degree of each node adjacent to p
+            for (Itor<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+              {
+                auto tgt = it.get_tgt_node_ne();
+                if (--NODE_COUNTER(tgt) == 0) // does tgt become a source?
+                  aq.put(tgt); // yes => enqueue in auxiliary queue
+              }
+          }
+
+        ranks.append(std::move(rank));
+        q.swap(aq);
+        assert(aq.is_empty());
+      }
+
+    return ranks;
+  }
+
+  /** @brief Operator() overload returning ranks as DynDlist of DynList.
+      @param g The directed acyclic graph.
+      @param list Output list to receive the rank-based ordering.
+  */
+  void operator()(const GT & g, DynDlist<DynList<typename GT::Node *>> & list)
+  {
+    auto result = this->ranks<>(g);
+    list.empty();
+    for (auto it = result.get_it(); it.has_curr(); it.next_ne())
+      list.append(std::move(it.get_curr()));
+  }
+
+  /** @brief Operator() overload returning ranks as DynList of DynList.
+      @param g The directed acyclic graph.
+      @param list Output list to receive the rank-based ordering.
+  */
+  void operator()(const GT & g, DynList<DynList<typename GT::Node *>> & list)
+  {
+    this->ranks<DynList>(g).swap(list);
+  }
+
+  /** @brief Operator() overload for backward compatibility (flat list).
+      @param g The directed acyclic graph.
+      @param list Output list to receive the topological ordering.
+  */
+  void operator()(const GT & g, DynDlist<typename GT::Node*> & list)
+  {
+    this->perform<DynDlist>(g).swap(list);
+  }
+};
 
 } // end namespace Aleph
 
-# endif // TOPOLOGICAL_SORT_H
+#endif // TOPOLOGICAL_SORT_H

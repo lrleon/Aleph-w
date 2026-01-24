@@ -1,4 +1,47 @@
 
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+/** @file tpl_linHash.H
+ *  @brief Linear hashing with chaining.
+ *
+ *  Hash table with linear expansion and separate chaining.
+ *  Combines benefits of chaining and incremental growth.
+ *
+ *  ## Features
+ *  - Incremental bucket splitting
+ *  - Handles high load factors
+ *  - No clustering
+ *
+ *  @see tpl_lhash.H Alternative linear hashing
+ *  @see tpl_odhash.H Open addressing
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef TPL_LINHASH_H
 # define TPL_LINHASH_H
 
@@ -11,7 +54,7 @@
 # include <hashDry.H>
 # include <hash-fct.H>
 # include <hash-dry.H>
-
+# include <ah-errors.H>
 
 # ifdef N
 # define NBACKUP N
@@ -49,10 +92,10 @@ public:                                                 \
  DLINK_TO_BASE(BUCKETNAME, link);
 
 
-    /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado.
+    /** Bucket without virtual destructor for a hash table with collision
+        resolution by separate chaining.
 
-        @param Key clave de búsqueda hash
+        @param Key hash search key
         @see LhashTable
         @ingroup Hash
      */
@@ -62,10 +105,10 @@ class LinHashBucket : public Dnode<Key>
   LINBUCKET_BODY(LinHashBucket);
 };
 
-    /** Cubeta sin destructor virtual para una tabla hash con resolución
-        de colisiones por encadenamiento separado.
+    /** Bucket with virtual destructor for a hash table with collision
+        resolution by separate chaining.
 
-        @param Key clave de búsqueda hash
+        @param Key hash search key
         @see LhashTable
         @ingroup Hash
      */
@@ -74,32 +117,31 @@ class LinHashBucketVtl : public Dnode<Key>
 {
   LINBUCKET_BODY(LinHashBucketVtl);
 
-      /// destructor virtual.
+      /// virtual destructor.
   virtual ~LinHashBucketVtl() {}
 };
 
 
-   /** Tabla hash lineal genérica.
+   /** Generic linear hash table.
 
-        Básicamente, una tabla hash lineal es una tabla hash con
-        resolución de colisiones por encadenamiento separado pero con la
-        diferencia de que el tamaño de la tabla aumenta dinámicamente
-        para asegurar que el factor de carga, típicamente llamado
-        \f$\alpha\f$, esté delimitado entre dos valores inferior y
-        superior, respectivamente.
+        Basically, a linear hash table is a hash table with collision
+        resolution by separate chaining but with the difference that
+        the table size increases dynamically to ensure that the load
+        factor, typically called \f$\alpha\f$, is bounded between two
+        lower and upper values, respectively.
 
-        Internamente, la tabla utiliza un arreglo dinámico del tipo
-        DynArray. Esto conlleva ahorros de memoria por entradas de la
-        tabla que no hayan sido escritas.
+        Internally, the table uses a dynamic array of type DynArray.
+        This leads to memory savings for table entries that have not
+        been written.
 
-        Este tipo es genérico y no está destinado a usarse. En su lugar,
-        utilícese LinearHashTable o LinearHashTableVtl según se desee
-        utilizar cubetas sin o con destructor virtual.
+        This type is generic and is not intended to be used directly.
+        Instead, use LinearHashTable or LinearHashTableVtl depending on
+        whether you want buckets without or with a virtual destructor.
 
-        @param Key el tipo de clave por el cual se indiza la tabla.
-        @param BucketType el tipo de cubeta entre LinHashBucket o
+        @param Key the key type by which the table is indexed.
+        @param BucketType the bucket type between LinHashBucket or
         LinHashBucketVtl.
-        @param Cmp clase de comparación entre las claves.
+        @param Cmp comparison class between keys.
 
         @see DynArray LinearHashTable LinearHashTableVtl
         @ingroup Hash
@@ -113,12 +155,12 @@ class GenLinearHashTable
 
 public:
 
-      /// El tipo de función hash. Debe retornar valores positivos seudo
-      /// aleatorios, entre cero y el número más grande posible.
+      /// The hash function type. Must return pseudo-random positive values,
+      /// between zero and the largest possible number.
   using Hash_Fct     = std::function<size_t(const Key &)>;
   using Hash_Fct_Ptr = size_t (*) (const Key &);
 
-  /// El tipo de cubeta.
+  /// The bucket type.
   using Bucket = BucketType<Key>;
 
   using Key_Type = Key;
@@ -131,9 +173,9 @@ private:
 
   using BucketItor = typename Dnode<Key>::Iterator;
 
-  static size_t multiply_by_two(const size_t & n) noexcept { return n << 1; }
+  static size_t multiply_by_two(size_t n) noexcept { return n << 1; }
 
-  static size_t divide_by_two(const size_t & n) noexcept { return n >> 1; }
+  static size_t divide_by_two(size_t n) noexcept { return n >> 1; }
 
   DynArray<BucketList> table;
   Dlink                entries_list;
@@ -145,23 +187,23 @@ protected:
 
 private:
 
-  size_t               M; // Tamaño de la tabla
-  size_t               N; // Número de elementos que tiene la tabla
-  size_t               busy_slots_counter; // Cantidad de entradas ocupadas
-  bool                 remove_all_buckets; // Indica si destructor debe liberar
-                                           // las cubetas
+  size_t               M; // Table size
+  size_t               N; // Number of elements in the table
+  size_t               busy_slots_counter; // Number of occupied entries
+  bool                 remove_all_buckets; // Indicates if destructor should free
+                                           // the buckets
 
 protected:
 
-  float upper_alpha; // factor de carga superior
-  float lower_alpha; // factor de carga inferior
+  float upper_alpha; // upper load factor
+  float lower_alpha; // lower load factor
 
 private:
 
-  size_t p; // índice de la lista que se particiona (o aumenta)
-  size_t l; // cantidad de veces que se ha duplicado la tabla
-  size_t MP; // guarda el valor p + M
-  size_t MM; // producto 2*M
+  size_t p; // index of the list being partitioned (or expanded)
+  size_t l; // number of times the table has been doubled
+  size_t MP; // stores the value p + M
+  size_t MM; // product 2*M
 
 protected:
 
@@ -177,81 +219,81 @@ private:
   }
 
   void expand()
-  { // expandir la tabla hasta que la carga esté debajo de upper_alpha
+  { // expand the table until load is below upper_alpha
     for (float alpha = 1.0*N/MP; alpha >= upper_alpha; alpha = 1.0*N/MP)
       {
         BucketList * src_list_ptr = table.test(p);
-        if (src_list_ptr != nullptr) // ¿table[p] está escrita?
-          if (not src_list_ptr->is_empty()) // ¿table[p] no está vacía'
+        if (src_list_ptr != nullptr) // is table[p] written?
+          if (not src_list_ptr->is_empty()) // is table[p] not empty?
             {
               BucketList * tgt_list_ptr = nullptr;
 
-                  // recorrer lista colisiones y mover cubetas de table[p+M]
-              for (BucketItor it(*src_list_ptr); it.has_curr(); /* nada */)
+                  // traverse collision list and move buckets to table[p+M]
+              for (BucketItor it(*src_list_ptr); it.has_curr(); /* nothing */)
                 {
                   Bucket * bucket = static_cast<Bucket*>(it.get_curr());
 
-                  it.next_ne(); // avance al siguiente elemento de la lista
+                  it.next_ne(); // advance to the next element in the list
 
                   const Key & key = bucket->get_key();
-                  const int i = hash_fct(key) % MM;
-                  if (i == p) // ¿pertenece esta clave a table[p]?
-                    continue; // sí ==> clave sigue en table[p] ==> siguiente
+                  const size_t i = hash_fct(key) % MM;
+                  if (i == p) // does this key belong to table[p]?
+                    continue; // yes ==> key stays in table[p] ==> next
 
                   if (tgt_list_ptr == nullptr)
                     tgt_list_ptr = &table.touch(MP);
 
-                    // bucket no pertenece a table[p] sino a table[p+m] ==>
-                    // eliminar bucket de table[i] e insertarlo en table[p+m]
+                    // bucket does not belong to table[p] but to table[p+m] ==>
+                    // remove bucket from table[i] and insert it in table[p+m]
                   bucket->del();
                   tgt_list_ptr->append(bucket);
                 }
 
-              if (src_list_ptr->is_empty()) // ¿table[p] quedó vacía?
-                --busy_slots_counter; // sí ==> un slot vacío
+              if (src_list_ptr->is_empty()) // did table[p] become empty?
+                --busy_slots_counter; // yes ==> one empty slot
 
-              ++busy_slots_counter; // uno nuevo por table[p+M]
+              ++busy_slots_counter; // one new for table[p+M]
             }
         ++p;
         ++MP;
-        if (p == M) // (p == 2*M) ¿debe duplicarse el tamaño de la tabla?
-          {     // sí ==> modificar el tamaño de la tabla a 2*M
-            ++l;   // Cantidad de veces que se ha duplicado la tabla
+        if (p == M) // (p == 2*M) should the table size be doubled?
+          {     // yes ==> change table size to 2*M
+            ++l;   // Number of times the table has been doubled
             p = 0;
-            MP = M = MM; // se les asigna 2*M
+            MP = M = MM; // assign 2*M to them
             MM = multiply_by_two(MM);
           }
       }
   }
 
   void contract() noexcept
-  { // contraer la tabla hasta que carga esté debajo de lower_alpha
+  { // contract the table until load is below lower_alpha
     for (float alpha = (1.0*N)/MP; alpha <= lower_alpha and MP > len;
          alpha = (1.0*N)/MP)
       {
-        if (p == 0) // ¿debe dividirse entre 2 el tamaño de la tabla?
-          {     // sí ==> actualizar tamaño de la tabla a M/2
-            --l; // Cantidad de veces que se ha duplicado la tabla disminuye
-            MM = M; // se divide entre dos
+        if (p == 0) // should the table size be halved?
+          {     // yes ==> update table size to M/2
+            --l; // Number of times the table has been doubled decreases
+            MM = M; // divide by two
             M = divide_by_two(M);
             p = M - 1;
           }
         else
-          --p;   // no ==> sólo reducir índice p
+          --p;   // no ==> just reduce index p
 
         --MP;
-        if (MP < table.size()) // ¿Existe table[MP]]?
+        if (MP < table.size()) // Does table[MP] exist?
           {
             BucketList * src_list_ptr = table.test(MP);
-            if (src_list_ptr != nullptr) // ¿existe entrada para table[p+M]?
+            if (src_list_ptr != nullptr) // does entry for table[p+M] exist?
               {
-                if (not src_list_ptr->is_empty()) // ¿table[p+M] está vacía?
-                  {     // no ==> fusionar las listas
-                    BucketList & tgt_list = table.touch(p);// aparta table[p]
+                if (not src_list_ptr->is_empty()) // is table[p+M] empty?
+                  {     // no ==> merge the lists
+                    BucketList & tgt_list = table.touch(p);// allocate table[p]
                     tgt_list.concat_list(src_list_ptr);
-                    --busy_slots_counter; // table[p+M] devino vacía
+                    --busy_slots_counter; // table[p+M] became empty
                   }
-                table.cut_ne(MP); // eventualmente liberar memoria de table[p+M]
+                table.cut_ne(MP); // eventually free memory of table[p+M]
               }
           }
       }
@@ -289,39 +331,39 @@ public:
       upper_alpha(__upper_alpha), lower_alpha(__lower_alpha),
       p(0), l(0), MP(M), MM(multiply_by_two(M)), len(__len)
   {
-    if (M == 0)
-      std::length_error("table's length is zero");
+    ah_length_error_if(M == 0) << "table's length is zero";
 
-    if (MM > table.max_size())
-      throw std::length_error("table's length too big");
+    ah_length_error_if(MM > table.max_size()) << "table's length too big";
 
-    if (upper_alpha <= lower_alpha)
-      throw std::domain_error("lower alpha is greater than lower alpha");
+    ah_domain_error_if(upper_alpha <= lower_alpha)
+      << "upper alpha must be greater than lower alpha";
   }
 
  public:
 
-  /** Instancia una tabla hash lineal genérica.
+  /** Instantiate a generic linear hash table.
 
-      Instancia una tabla hash lineal genérica de tamaño __len.
+      Instantiate a generic linear hash table of size `len`.
 
-      @param[in] __hash_fct función hash.
-      @param[in] __len tamaño inicial y mínimo de la tabla.
-      @param[in] __upper_alpha umbral superior en que la tabla debe
-      expandirse.
-      @param[in] __lower_alpha umbral inferior en que la tabla debe
-      contraerse.
-      @param[in] __remove_all_buckets si es true, entonces se liberan
-      las cuvetas de la tabla. De lo contrario, éstas permanecen
-      intactas. Por omisión el valor es true.
+      @param[in] len initial and minimum table size.
+      @param[in] hash_fct hash function.
+      @param[in] cmp comparison functor for keys.
+      @param[in] lower_alpha lower threshold at which the table should
+      contract.
+      @param[in] upper_alpha upper threshold at which the table should
+      expand.
+      @param[in] remove_all_buckets if true, then the table's buckets
+      are freed. Otherwise, they remain intact. By default the value is true.
+      @param[in] with_resize if true, the table will resize automatically
+      based on load factors.
 
-      @throw length_error si __ es igual a superior que la máxima
-      dimensión permitida para un arreglo dinámico.
-      @throw domain_error si __upper_alpha es menor o igual a
-      __lower_alpha.
-      @throw bad_alloc si no hay suficiente memoria
-      @throw overflow_error si ocurre un desborde desde DynArray
-      (causado por sus cálculos internos).
+      @throw length_error if `len` is equal or greater than the maximum
+      dimension allowed for a dynamic array.
+      @throw domain_error if `upper_alpha` is less than or equal to
+      `lower_alpha`.
+      @throw bad_alloc if there is not enough memory
+      @throw overflow_error if an overflow occurs from DynArray
+      (caused by its internal calculations).
   */
   GenLinearHashTable(size_t       len                = Primes::DefaultPrime,
                      Hash_Fct_Ptr hash_fct           = Aleph::dft_hash_fct<Key>,
@@ -337,7 +379,9 @@ public:
   void swap(GenLinearHashTable & other) noexcept
   {
     std::swap(table, other.table);
+    entries_list.swap(other.entries_list);
     std::swap(hash_fct, other.hash_fct);
+    std::swap(cmp, other.cmp);
     std::swap(M, other.M);
     std::swap(N, other.N);
     std::swap(busy_slots_counter, other.busy_slots_counter);
@@ -351,29 +395,16 @@ public:
     std::swap(len, other.len);
   }
 
-  /** \fn set_upper_alpha
 
-      Cambia el umbral superior de carga en que la tabla comienza a
-       expandirse. Dispara domain_error si el nuevo umbral es inferior
-      que el umbral inferior (lower_alpha)
-  */
-
-  /** \fn set_lower_alpha
-
-      Cambia el umbral inferior de carga en que la tabla comienza a
-      contraerse. Dispara domain_error si el nuevo umbral es superior
-      que el umbral superior (upper_alpha)
-  */
-
-      /// Vacía toda la tabla. Todas las cubetas son liberadas y el tamaño
-      /// es ajustado al inicial.
+      /// Empty the entire table. All buckets are freed and the size
+      /// is adjusted to the initial one.
   void empty() noexcept
   {
     while (not entries_list.is_empty())
       {
         Bucket * bucket = Bucket::dlink_to_base(entries_list.remove_first_ne());
-        bucket->del();             // borra de la lista en el arreglo
-        bucket->get_link()->del(); // borra de entries list
+        bucket->del();             // remove from the list in the array
+        bucket->get_link()->del(); // remove from entries list
         delete bucket;
       }
 
@@ -406,15 +437,15 @@ private:
 
 public:
 
-      /// Busca la clave key en la tabla hash lineal. Retorna un puntero a
-      /// la cubeta que contiene key si ésta se encuentra en la tabla;
-      /// nullptr de lo contrario.
+      /// Search for key in the linear hash table. Returns a pointer to
+      /// the bucket containing key if it is found in the table;
+      /// nullptr otherwise.
   Bucket * search(const Key & key) const noexcept
   {
     auto i = call_hash_fct(key);
     BucketList * list = table.test(i);
-    if (list == nullptr) // ¿Ha sido escrita alguna vez table[i]?
-      return nullptr; // No ==> el elemento no se encuentra en la tabla
+    if (list == nullptr) // Has table[i] ever been written?
+      return nullptr; // No ==> element is not in the table
 
     if (list->is_empty())
       return nullptr;
@@ -422,27 +453,26 @@ public:
     return search_in_bucket_list(list, key);
   }
 
-     /// Retorna la cantidad de elementos que tiene la tabla.
+     /// Returns the number of elements in the table.
   const size_t & size() const noexcept { return N; }
 
       /// return true is table is empty
   bool is_empty() const noexcept { return N == 0; }
 
-      /// Retorna el tamaño de la tabla.
+      /// Returns the table capacity.
   const size_t & capacity() const noexcept { return MP; }
 
-      /// Retorna la cantidad de entradas vacía que tiene la tabla
+      /// Returns the number of busy slots in the table.
   const size_t & busy_slots() const noexcept { return busy_slots_counter; }
 
-      /// Retorna el nivel de expansiones que se han realizado sobre la
-      /// tabla.
+      /// Returns the expansion level performed on the table.
   const size_t & expansions() const noexcept { return l; }
 
       /// Insert bucket in the table. Return bucket if bucket->get_key()
       /// is not in the table, nullptr otherwise
   Bucket * insert(Bucket * bucket)
   {
-    const int i       = call_hash_fct(bucket->get_key());
+    const size_t i = call_hash_fct(bucket->get_key());
     BucketList & list = table.touch(i); // allocates memory for table[i]
     if (list.is_empty())
       ++busy_slots_counter;
@@ -460,7 +490,7 @@ public:
 
   Bucket * search_or_insert(Bucket * bucket)
   {
-    const int i       = call_hash_fct(bucket->get_key());
+    const size_t i = call_hash_fct(bucket->get_key());
     BucketList & list = table.touch(i); // allocates memory for table[i]
     if (list.is_empty())
       ++busy_slots_counter;
@@ -493,10 +523,10 @@ private:
 
     Bucket * next = static_cast<Bucket*>(bucket->get_next());
 
-    bucket->del();             // elimine de lista de colisiones
+    bucket->del();             // remove from collision list
 
-    if (next->is_empty()) // ¿lista de colisiones vacía?
-      --busy_slots_counter; // sí ==> un slot vacío
+    if (next->is_empty()) // collision list empty?
+      --busy_slots_counter; // yes ==> one empty slot
 
     --N;
     contract();
@@ -506,19 +536,19 @@ private:
 
 public:
 
-      /// Elimina la cubeta bucket. Atención: no se verifica si la cubeta
-      /// pertenece a la tabla.
+      /// Remove bucket from table. Warning: it is not verified whether
+      /// the bucket belongs to the table.
   Bucket * remove(Bucket * bucket) noexcept
   {
-    bucket->get_link()->del(); // elimine de entries_list
+    bucket->get_link()->del(); // remove from entries_list
     return remove_bucket(bucket);
   }
 
   void print()
   {
-    for (int i = 0; i < MP; ++i)
+    for (size_t i = 0; i < MP; ++i)
       {
-        cout << "table[" << i << "] = [ ";
+        std::cout << "table[" << i << "] = [ ";
 
         if (table.exist(i))
           {
@@ -529,10 +559,10 @@ public:
                 {
                   Bucket * bucket = static_cast<Bucket*>(it.get_curr());
                   const Key & key = bucket->get_key();
-                  cout << key << ",";
+                  std::cout << key << ",";
                 }
           }
-        cout << "]" << endl;
+        std::cout << "]" << '\n';
       }
   }
 
@@ -545,13 +575,13 @@ public:
 
   public:
 
-       /// El tipo de conjunto sobre el cual se itera.
+       /// The set type being iterated over.
     using Set_Type = GenLinearHashTable;
 
-      /// El tipo de elemento que retorna get_curr().
+      /// The element type returned by get_curr().
     using Item_Type = Bucket *;
 
-        /// Instancia un iterador sobre la tabla hash table.
+        /// Instantiate an iterator over the hash table.
     Iterator(const GenLinearHashTable & table) noexcept
       : Dlink::Iterator(const_cast<Dlink &>(table.entries_list)),
         hash_table(& const_cast<GenLinearHashTable &>(table))
@@ -559,7 +589,7 @@ public:
       // Empty
     }
 
-        /// Instancia un iterador vacío.
+        /// Instantiate an empty iterator.
     Iterator() noexcept { /* Empty */ }
 
     Bucket * get_curr_ne() noexcept
@@ -567,7 +597,7 @@ public:
       return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr_ne());
     }
 
-        /// Retorna la cubeta actual.
+        /// Return the current bucket.
     Bucket * get_curr()
     {
       return Bucket::dlink_to_base(this->Dlink::Iterator::get_curr());
@@ -602,21 +632,20 @@ public:
 };
 
 
-    /** Tabla hash lineal con cubetas sin destructor virtual.
+    /** Linear hash table with buckets without virtual destructor.
 
-        Básicamente, una tabla hash lineal es una tabla hash con
-        resolución de colisiones por encadenamiento separado pero con la
-        diferencia de que el tamaño de la tabla aumenta dinámicamente
-        para asegurar que el factor de carga, típicamente llamado
-        \f$\alpha\f$, esté delimitado entre dos valores inferior y
-        superior, respectivamente.
+        Basically, a linear hash table is a hash table with collision
+        resolution by separate chaining but with the difference that
+        the table size increases dynamically to ensure that the load
+        factor, typically called \f$\alpha\f$, is bounded between two
+        lower and upper values, respectively.
 
-        Internamente, la tabla utiliza un arreglo dinámico del tipo
-        DynArray. Esto conlleva ahorros de memoria por entradas de la
-        tabla que no hayan sido escritas.
+        Internally, the table uses a dynamic array of type DynArray.
+        This leads to memory savings for table entries that have not
+        been written.
 
-        @param Key el tipo de clave por el cual se indiza la tabla.
-        @param Cmp clase de comparación entre las claves.
+        @param Key the key type by which the table is indexed.
+        @param Cmp comparison class between keys.
 
         @see DynArray LinearHashTableVtl
         @ingroup Hash
@@ -625,21 +654,20 @@ template <typename Key, class Cmp = Aleph::equal_to<Key>>
 using LinearHashTable = GenLinearHashTable<Key, LinHashBucket, Cmp>;
 
 
-    /** Tabla hash lineal con destructor virtual en sus cubetas.
+    /** Linear hash table with virtual destructor in its buckets.
 
-        Básicamente, una tabla hash lineal es una tabla hash con
-        resolución de colisiones por encadenamiento separado pero con la
-        diferencia de que el tamaño de la tabla aumenta dinámicamente
-        para asegurar que el factor de carga, típicamente llamado
-        \f$\alpha\f$, esté delimitado entre dos valores inferior y
-        superior, respectivamente.
+        Basically, a linear hash table is a hash table with collision
+        resolution by separate chaining but with the difference that
+        the table size increases dynamically to ensure that the load
+        factor, typically called \f$\alpha\f$, is bounded between two
+        lower and upper values, respectively.
 
-        Internamente, la tabla utiliza un arreglo dinámico del tipo
-        DynArray. Esto conlleva ahorros de memoria por entradas de la
-        tabla que no hayan sido escritas.
+        Internally, the table uses a dynamic array of type DynArray.
+        This leads to memory savings for table entries that have not
+        been written.
 
-        @param Key el tipo de clave por el cual se indiza la tabla.
-        @param Cmp clase de comparación entre las claves.
+        @param Key the key type by which the table is indexed.
+        @param Cmp comparison class between keys.
 
         @see DynArray LinearHashTable
         @ingroup Hash

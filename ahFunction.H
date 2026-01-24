@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,20 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file ahFunction.H
+ *  @brief Standard functor implementations and comparison objects.
+ *
+ *  This file provides STL-compatible function objects for common operations
+ *  including arithmetic operations, comparisons, logical operations, and
+ *  hash functions. These functors are used throughout Aleph-w for generic
+ *  algorithm implementations.
+ *
+ *  @ingroup Functors
+ *  @author Leandro Rabindranath León
+ */
+
 // Functor implementations -*- C++ -*-
 
 /*
@@ -819,7 +832,7 @@ namespace Aleph
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool less_than(const T & op1, const T & op2, Compare & cmp)
@@ -829,7 +842,7 @@ bool less_than(const T & op1, const T & op2, Compare & cmp)
 
  
   /**
-     @ingroup fcts
+     @ingroup Functions
      \overload less_than()
   */
     template <class T, class Compare> inline
@@ -843,7 +856,7 @@ bool less_than(const T & op1, const T & op2, Compare && cmp = Compare())
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool less_or_equal_than(const T& op1, const T& op2, Compare & cmp)
@@ -859,7 +872,7 @@ bool less_or_equal_than(const T& op1, const T& op2, Compare & cmp)
 
 
   /**
-     @ingroup fcts
+     @ingroup Functions
      \overload less_or_equal_than()
   */
     template <class T, class Compare> inline
@@ -873,7 +886,7 @@ bool less_or_equal_than(const T& op1, const T& op2, Compare && cmp = Compare())
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_than(const T& op1, const T& op2, Compare && cmp = Compare())
@@ -884,7 +897,7 @@ bool greater_than(const T& op1, const T& op2, Compare && cmp = Compare())
 
   /** \overload greater_than()
 
-      @ingroup fcts
+      @ingroup Functions
   */
   template <class T, class Compare> inline
 bool greater_than(const T& op1, const T& op2, Compare & cmp)
@@ -896,7 +909,7 @@ bool greater_than(const T& op1, const T& op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_or_equal_than(const T& op1, const T & op2, 
@@ -907,7 +920,7 @@ bool greater_or_equal_than(const T& op1, const T & op2,
 
   /** \overload greater_or_equal_than()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
@@ -919,7 +932,7 @@ bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
@@ -929,7 +942,7 @@ bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 
   /** \overload no_equals()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare & cmp)
@@ -941,7 +954,7 @@ bool no_equals(const T & op1, const T & op2, Compare & cmp)
       de comparación excluyente < o >. A usar con programas genericos
       que usen una comparacion.
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool are_equals(const T & op1, const T & op2, Compare && cmp = Compare())
@@ -951,7 +964,7 @@ bool are_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 
   /** \overload are_equals()
 
-      @ingroup fcts
+      @ingroup Functions
   */
     template <class T, class Compare> inline
 bool are_equals(const T & op1, const T & op2, Compare & cmp) 
@@ -963,16 +976,16 @@ bool are_equals(const T & op1, const T & op2, Compare & cmp)
 
       Si, por ejemplo, Compare es <, entonces Inversed_Compare efectúa >=.
 
-      @ingroup fcts
+      @ingroup Functions
    */
     template <class T, class Compare>
 class Inversed_Compare
 {
-  Compare & cmp;
+  const Compare & cmp;
 
 public:
 
-  Inversed_Compare(Compare & __cmp) noexcept : cmp(__cmp) { /* empty */ }
+  Inversed_Compare(const Compare & __cmp) noexcept : cmp(__cmp) { /* empty */ }
 
   Inversed_Compare(Compare && cmp = Compare()) noexcept
   : Inversed_Compare(cmp)
@@ -986,7 +999,7 @@ public:
 
    /**
 
-     @ingroup fcts
+     @ingroup Functions
    */
     template <class T, class Compare>
 struct Compare_Dup 

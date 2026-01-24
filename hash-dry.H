@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,18 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file hash-dry.H
+ *  @brief Common hash table utilities and base classes.
+ *
+ *  Provides default hash functions, equal comparators, and common
+ *  utilities used by all hash table implementations.
+ *
+ *  @ingroup Hash
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef HASH_DRY_H
 # define HASH_DRY_H
 
@@ -46,7 +57,7 @@ private:                                                                \
                                                                         \
    Key * key_ptr = search(key_copy);                                    \
    assert(key_ptr != nullptr);                                          \
-   assert(*key_ptr == key_copy);                                        \
+   assert(cmp(*key_ptr, key_copy));                                     \
                                                                         \
    return key_ptr;                                                      \
  }                                                                      \

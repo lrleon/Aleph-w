@@ -1,3 +1,30 @@
+
+/*
+                          Aleph_w
+
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
+
+  This file is part of Aleph-w library
+
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
 // this file implements the routines required by gmpfrxx.h
 // it is modeled on mpfr-2.2.1/out_str.c
 //                   gmp-4.2.1/mpz/set_f.c
@@ -56,12 +83,12 @@ ostream & operator<<(ostream &os, mpfr_srcptr a)
 	return os;
     }
 
-    s = mpfr_get_str (NULL, &e,
+    s = mpfr_get_str (nullptr, &e,
 		      mpfr_class::get_base(),
 		      0, a,
 		      mpfr_class::get_rnd());
 
-    t = mpfr_get_str (NULL, &e,
+    t = mpfr_get_str (nullptr, &e,
 		      mpfr_class::get_base(),
 		      os.precision(), a,
 		      mpfr_class::get_rnd());
@@ -113,7 +140,7 @@ void mpz_set_mpfr(mpz_ptr w, mpfr_srcptr u)
 
     // note: this is done in hex to represent u exactly
     // example: for u=3.1416 we have s = "31416" and e = 1
-    s = mpfr_get_str (NULL, &e, 16, 0, u, GMP_RNDN);
+    s = mpfr_get_str (nullptr, &e, 16, 0, u, GMP_RNDN);
     sz = strlen(s);
 
     if (*s == '-')
@@ -153,7 +180,7 @@ void mpq_set_mpfr(mpq_ptr w, mpfr_srcptr u)
 
     // note: this is done in binary to represent u exactly
     // example:   u=10.1001  -->  s = "101001", e = 2
-    s = mpfr_get_str (NULL, &e, 2, 0, u, GMP_RNDN);
+    s = mpfr_get_str (nullptr, &e, 2, 0, u, GMP_RNDN);
     sz = strlen(s);
 
     t = s+sz;

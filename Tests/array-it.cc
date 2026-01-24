@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,9 +24,19 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-# include <gmock/gmock.h>
+
+
+/**
+ * @file array-it.cc
+ * @brief Tests for Array It
+ */
+# include <gtest/gtest.h>
 
 # include <array_it.H>
+
+using namespace std;
+using namespace testing;
+using namespace Aleph;
 
 TEST(Array_Container, empty_array)
 {
@@ -46,6 +55,21 @@ TEST(Array_Container, container_operations)
   EXPECT_EQ(a.size(), 20);
   EXPECT_NO_THROW(a.get_first());
   EXPECT_NO_THROW(a.get_last());
+}
+
+TEST(Array_Container, helper_make_array_container)
+{
+  int ptr[4] = {0, 1, 2, 3};
+  auto c = make_array_container(ptr, 4);
+
+  EXPECT_FALSE(c.is_empty());
+  EXPECT_EQ(c.size(), 4);
+  EXPECT_EQ(c.get_first(), 0);
+  EXPECT_EQ(c.get_last(), 3);
+
+  auto it = c.get_it();
+  for (int i = 0; it.has_curr(); it.next(), ++i)
+    EXPECT_EQ(it.get_curr(), i);
 }
 
 TEST(Array_Iterator, iterator_on_empty_array)
@@ -68,6 +92,18 @@ TEST(Array_Iterator, iterator_on_empty_array)
   EXPECT_THROW(it.get_curr(), std::underflow_error);
   EXPECT_THROW(it.next(), std::overflow_error);
   EXPECT_THROW(it.prev(), std::underflow_error);
+}
+
+TEST(Array_Iterator, invalid_parameters)
+{
+  int ptr[10];
+
+  EXPECT_THROW(Array_Iterator<int>(nullptr, 5, 1), std::invalid_argument);
+  EXPECT_THROW(Array_Iterator<int>(ptr, 5, 6), std::domain_error);
+  EXPECT_THROW(Array_Iterator<int>(ptr, 0, 1), std::domain_error);
+  EXPECT_THROW(Array_Iterator<int>(ptr, 5, 3, 4, 5), std::domain_error);
+
+  EXPECT_NO_THROW(Array_Iterator<int>(ptr, 5, 3, 1, 2));
 }
 
 constexpr size_t N = 29;

@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +23,19 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file ah-time.H
+ *  @brief Low-level time utilities using POSIX timespec.
+ *
+ *  Provides Time type and macros for time arithmetic using
+ *  struct timespec. Includes conversion macros for milliseconds,
+ *  microseconds, and nanoseconds.
+ *
+ *  @ingroup Utilities
+ *  @author Leandro Rabindranath León
+ */
+
 # ifndef AH_TIME_H
 # define AH_TIME_H
 
@@ -61,9 +73,9 @@ inline long usec_to_nsec(const long & usec)
 }
 
 
-inline char * time_to_char(const Time & t, char * str)
+inline char * time_to_char(const Time & t, char * str, size_t str_size = 64)
 {
-  sprintf(str, "(%ld sec, %ld nsec)", t.tv_sec, t.tv_nsec);
+  snprintf(str, str_size, "(%ld sec, %ld nsec)", t.tv_sec, t.tv_nsec);
 
   return str;
 }

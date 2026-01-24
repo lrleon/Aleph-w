@@ -1,15 +1,14 @@
 
-/* Aleph-w
+/*
+                          Aleph_w
 
-     / \  | | ___ _ __ | |__      __      __
-    / _ \ | |/ _ \ '_ \| '_ \ ____\ \ /\ / / Data structures & Algorithms
-   / ___ \| |  __/ |_) | | | |_____\ V  V /  version 1.9c
-  /_/   \_\_|\___| .__/|_| |_|      \_/\_/   https://github.com/lrleon/Aleph-w
-                 |_|         
+  Data structures & Algorithms
+  version 2.0.0b
+  https://github.com/lrleon/Aleph-w
 
   This file is part of Aleph-w library
 
-  Copyright (c) 2002-2018 Leandro Rabindranath Leon 
+  Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +23,20 @@
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+
+
+/** @file deque.H
+ *  @brief Double-ended queue implementation.
+ *
+ *  Provides deque class supporting efficient insertion and removal
+ *  at both ends, implemented using Aleph's Vector.
+ *
+ *  @ingroup Sequences
+ *  @author Leandro Rabindranath León
+ */
+
 # include <Vector.H>
+ # include <ah-errors.H>
 
 template <class Key>
 class deque : public vector<Key>
@@ -67,8 +79,8 @@ public:
 
     void verify_array(DynArray<Key> * array_ptr) const
     {
-      if (array_ptr not_eq dyn_array_ptr)
-	throw std::domain_error("Iterator is not set to same array");
+      ah_domain_error_if(array_ptr not_eq dyn_array_ptr)
+        << "Iterator is not set to same array";
     }
 
     DynArray<Key> * get_dyn_array_ptr() { return dyn_array_ptr; }
