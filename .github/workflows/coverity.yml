@@ -5,9 +5,9 @@ on:
   push:
     paths:
       - '.github/workflows/coverity.yml'
-  # Weekly automatic scan on default branch only (Sunday at midnight UTC)
+  # Weekly automatic scan on default branch only (Sunday at 06:00 UTC)
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: '0 6 * * 0'
   # Manual trigger - can select any branch from GitHub Actions UI
   workflow_dispatch:
 
