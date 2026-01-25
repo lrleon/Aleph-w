@@ -206,7 +206,9 @@ auto even_squares = numbers
 - **MUST**: **Prefer Aleph containers over standard library containers when available and appropriate**
   - Aleph containers are optimized for graph algorithms and provide domain-specific functionality
   - Examples of Aleph containers to prefer:
-    - `DynList<T>` → instead of `std::list<T>` or `std::vector<T>` (dynamic list with rich functional API)
+    - `DynList<T>` (dynamic list with rich functional API, tuned for graph algorithms)
+      - Prefer over `std::list<T>` for graph-centric workloads where `DynList`'s API and iteration patterns are beneficial.
+      - Prefer over `std::vector<T>` only when `DynList`'s semantics or operations are more important than contiguous storage and cache locality; otherwise, `std::vector<T>` often remains the best choice for random-access, contiguous sequences.
     - `DynSet<T>`, `DynSetTree<T>` → instead of `std::set<T>` (ordered set with graph-specific operations)
     - `DynMap<K, V>`, `DynMapTree<K, V>` → instead of `std::map<K, V>` (ordered map)
     - `ArrayQueue<T>`, `DynListQueue<T>` → instead of `std::queue<T>`
