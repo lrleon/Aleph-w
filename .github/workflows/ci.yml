@@ -366,7 +366,25 @@ jobs:
             [ "$1" = "success" ] || [ "$1" = "skipped" ]
           }
 
-          if ! is_ok "${{ needs.policy-checks.result }}" || ! is_ok "${{ needs.clang-tidy.result }}" || ! is_ok "${{ needs.build-and-test.result }}" || ! is_ok "${{ needs.sanitizers.result }}" || ! is_ok "${{ needs.tsan.result }}"; then
+          all_ok=1
+
+          check_job() {
+            job_name="$1"
+            job_result="$2"
+
+            if ! is_ok "$job_result"; then
+              echo "Job '$job_name' did not succeed (result: $job_result)"
+              all_ok=0
+            fi
+          }
+
+          check_job "policy-checks" "${{ needs.policy-checks.result }}"
+          check_job "clang-tidy" "${{ needs.clang-tidy.result }}"
+          check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "sanitizers" "${{ needs.sanitizers.result }}"
+          check_job "tsan" "${{ needs.tsan.result }}"
+
+          if [ "$all_ok" -ne 1 ]; then
             echo "CI failed"
             exit 1
           fi
