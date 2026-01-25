@@ -181,7 +181,7 @@ public:
     static std::atomic<EventId> nextId;
 
     EventId event_id;
-    Execution_Status execution_status;
+    std::atomic<Execution_Status> execution_status;
     std::string event_name;
     CompletionCallback on_completed;
 
