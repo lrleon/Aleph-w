@@ -12,7 +12,8 @@ on:
       - '**/*.cpp'
       - '**/*.cxx'
       - 'CMakeLists.txt'
-  # Weekly automatic scan on default branch only (Sunday at 06:00 UTC)
+  # Weekly automatic scan on default branch only (Sunday at 06:00 UTC).
+  # Scheduled 4 hours after the full_analysis workflow (02:00 UTC) to avoid resource contention.
   schedule:
     - cron: '0 6 * * 0'
   # Manual trigger - can select any branch from GitHub Actions UI
