@@ -280,7 +280,6 @@ jobs:
     name: tsan (ubuntu-24.04, clang, Debug)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    if: github.event_name == 'pull_request'
     env:
       CC: clang
       CXX: clang++

@@ -50,13 +50,14 @@
 #ifndef ASTAR_H
 #define ASTAR_H
 
-#include <iostream>
-#include <ahFunction.H>
-#include <ah-errors.H>
-#include <archeap.H>
-#include <tpl_find_path.H>
-#include <tpl_agraph.H>
-#include <shortest_path_common.H>
+# include <cmath>
+# include <iostream>
+# include <ahFunction.H>
+# include <ah-errors.H>
+# include <archeap.H>
+# include <tpl_find_path.H>
+# include <tpl_agraph.H>
+# include <shortest_path_common.H>
 
 namespace Aleph
 {
@@ -594,7 +595,7 @@ public:
     return ret;
   }
 
-  /** Computes partial spanning tree from start to end (without heuristic).
+  /** Computes the partial spanning tree from start to end (without a heuristic).
    *
    *  Uses Dijkstra's algorithm (zero heuristic) but stops when end is reached.
    *

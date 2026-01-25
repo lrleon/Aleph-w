@@ -37,8 +37,8 @@ typedef unsigned char Byte;
 
 static char * hexadecimalize(const Byte & byte, char *& str)
 {
-  Byte l = byte & 0x0F;
-  Byte h = (byte & 0xF0) >> 4;
+  const Byte l = byte & 0x0F;
+  const Byte h = (byte & 0xF0) >> 4;
 
   *str++ = nibble_to_char(h);
   *str++ = nibble_to_char(l);
@@ -49,8 +49,8 @@ static char * hexadecimalize(const Byte & byte, char *& str)
 
 static char unhexadecimalize(char *& str)
 {
-  Byte h = char_to_nibble(*str++) << 4;
-  Byte l = char_to_nibble(*str++);
+  const Byte h = char_to_nibble(*str++) << 4;
+  const Byte l = char_to_nibble(*str++);
 
   return h | l;
 }
@@ -78,9 +78,9 @@ char * Uid::stringficate(char *buffer,
 
 void Uid::destringficate(char *str)
 {
-  char *this_str = (char *) this;
+  char *this_str = reinterpret_cast<char *>(this);
 
-  // convertir el string en ascii a la representación en nibbles
+  // Convert the string in ASCII to the rendering in Nibbles
   for (int i = 0; i < sizeof(Uid); ++i)
     *this_str++ = unhexadecimalize(str);
 }
