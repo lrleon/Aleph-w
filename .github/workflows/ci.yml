@@ -108,14 +108,14 @@ jobs:
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
             # Use libc++ with Clang for better C++20 std::ranges support
-            # Note: -stdlib=libc++ only applies to C++, not C
-            echo "CXX=clang++ -stdlib=libc++" >> "$GITHUB_ENV"
-            # Don't set LDFLAGS or CXXFLAGS globally as they can affect CMake's tests
-            # CMake will add -lc++abi when needed via CMAKE_EXE_LINKER_FLAGS
+            # Set flags in separate variable to avoid CMake issues
+            echo "CXXFLAGS_STDLIB=-stdlib=libc++" >> "$GITHUB_ENV"
           else
             echo "CC=gcc" >> "$GITHUB_ENV"
             echo "CXX=g++" >> "$GITHUB_ENV"
+            echo "CXXFLAGS_STDLIB=" >> "$GITHUB_ENV"
           fi
 
       - name: Cache ccache
@@ -150,9 +150,9 @@ jobs:
             # Use the configured C and C++ compilers to avoid mixing toolchains
             # Pass libc++ flags only to C++ compiler, not C
             sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
-              -DCMAKE_C_COMPILER="$CC" \
-              -DCMAKE_CXX_COMPILER="$CXX" \
-              -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
+              -DCMAKE_C_COMPILER="${CC}" \
+              -DCMAKE_CXX_COMPILER="${CXX}" \
+              -DCMAKE_CXX_FLAGS="${CXXFLAGS_STDLIB}" \
               -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
             sudo cmake --build "$GTEST_SRC/build"
             sudo cmake --install "$GTEST_SRC/build"
@@ -185,15 +185,18 @@ jobs:
       - name: Configure
         run: |
           rm -rf build
-          # For Clang, add libc++abi to linker flags
+          # For Clang, add libc++abi to linker flags and stdlib to CXX flags
           EXTRA_LINKER_FLAGS=""
+          EXTRA_CXX_FLAGS=""
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             EXTRA_LINKER_FLAGS="-lc++abi"
+            EXTRA_CXX_FLAGS="${CXXFLAGS_STDLIB}"
           fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_CXX_FLAGS="$EXTRA_CXX_FLAGS" \
             -DCMAKE_EXE_LINKER_FLAGS="$EXTRA_LINKER_FLAGS" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_TESTS=ON
