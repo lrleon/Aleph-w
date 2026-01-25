@@ -146,13 +146,23 @@ TEST(TimeoutQueueTest, ScheduleAndExecuteSingleEvent)
   condition_variable cv;
   bool executed = false;
 
+  bool completed = false;
+
   auto* event = new SignalingEvent(time_from_now_ms(100), mtx, cv, executed);
+  event->set_completion_callback([&](TimeoutQueue::Event*, TimeoutQueue::Event::Execution_Status status) {
+    {
+      lock_guard<mutex> lock(mtx);
+      completed = (status == TimeoutQueue::Event::Executed);
+    }
+    cv.notify_all();
+  });
   g_queue->schedule_event(event);
 
   unique_lock<mutex> lock(mtx);
   ASSERT_TRUE(cv.wait_for(lock, chrono::milliseconds(500),
-                          [&]{ return executed; }));
+                          [&]{ return completed; }));
   EXPECT_TRUE(executed);
+  EXPECT_TRUE(completed);
 
   delete event;
 }
