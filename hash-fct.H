@@ -102,6 +102,79 @@
     @ingroup Hash
 */
 
+
+/** @file hash-fct.H
+    @brief Collection of general-purpose hash functions.
+
+    This file provides a comprehensive collection of hash functions suitable
+    for use in hash tables, bloom filters, checksums, and other applications
+    requiring hash computation.
+
+    ## Hash Function Categories
+
+    The functions are organized into several categories:
+
+    ### Simple Hash Functions (Educational/Legacy)
+    - `add_hash()` - Simple additive hash (poor distribution)
+    - `xor_hash()` - XOR folding hash (poor distribution)
+    - `rot_hash()` - Rotating hash (acceptable minimum)
+
+    ### Production-Quality Hash Functions
+    - `djb_hash()` - Dan Bernstein's hash (good for small strings)
+    - `sax_hash()` - Shift-Add-XOR hash (flexible, good distribution)
+    - `fnv_hash()` - Fowler-Noll-Vo hash (simple, effective)
+    - `oat_hash()` - One-at-a-Time hash by Bob Jenkins
+    - `jsw_hash()` - Julienne Walker's hash (uses random table)
+    - `elf_hash()` - ELF object file hash (well-tested)
+
+    ### High-Quality Hash Functions
+    - `jen_hash()` - Jenkins hash (excellent avalanche properties)
+    - `SuperFastHash()` - Paul Hsieh's fast hash
+    - `murmur3hash()` - MurmurHash3 (modern, high-quality)
+
+    ## Usage Examples
+
+    @code
+    #include <hash-fct.H>
+    using namespace Aleph;
+
+    // Hash a string
+    std::string key = "example";
+    size_t h1 = dft_hash_fct(key);  // Uses SuperFastHash
+    size_t h2 = fnv_hash(key);      // Uses FNV hash
+
+    // Hash an integer
+    int value = 42;
+    size_t h3 = djb_hash(value);
+
+    // Hash raw bytes
+    char data[] = {1, 2, 3, 4};
+    size_t h4 = jen_hash(data, sizeof(data));
+
+    // Hash with seed (for double hashing)
+    size_t h5 = murmur3hash(key, 12345);
+    @endcode
+
+    ## References
+
+    Most simple hash functions are adapted from Julienne Walker's tutorial:
+    http://eternallyconfuzzled.com/tuts/algorithms/jsw_tut_hashing.aspx
+
+    MurmurHash3 is ported from Austin Appleby's implementation:
+    https://github.com/aappleby/smhasher
+
+    SuperFastHash is by Paul Hsieh:
+    http://www.azillionmonkeys.com/qed/hash.html
+
+    @author Julienne Walker (original simple hashes)
+    @author Bob Jenkins (Jenkins hash, One-at-a-Time)
+    @author Austin Appleby (MurmurHash3)
+    @author Paul Hsieh (SuperFastHash)
+    @author Leandro Rabindranath Leon (adaptation and integration)
+
+    @ingroup Hash
+*/
+
 # ifndef HASH_FCT_H
 # define HASH_FCT_H
 
