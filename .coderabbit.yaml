@@ -14,8 +14,9 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    # Review PRs only to main, develop, and release branches
+    # Review PRs only to master, main, develop, and release branches
     base_branches:
+      - "^master$"
       - "^main$"
       - "^develop$"
       - "^release/.*"
