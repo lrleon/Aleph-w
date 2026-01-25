@@ -1180,7 +1180,7 @@ namespace Aleph
 
     int c = read_char_from_stream(input_stream);
 
-    // Must start with letter or underscore
+    // Must start with a letter or underscore
     if (not std::isalpha(c) and c != '_')
       throw ParseError("Identifier must start with letter or underscore");
 

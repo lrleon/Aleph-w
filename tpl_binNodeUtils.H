@@ -1411,7 +1411,8 @@ namespace Aleph
       is found
       @param[in] l lower index
       @param[in] r upper index
-      @return root of resulting tree
+      @param cmp comparison criteria
+      @return root of the resulting tree
       \throw bad_alloc if there is no enough memory
       @ingroup Trees
    */

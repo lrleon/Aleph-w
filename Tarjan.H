@@ -257,9 +257,10 @@ namespace Aleph
     /** @brief Recursive DFS to find SCCs and build mapped subgraphs.
      *
      *  For each SCC found, creates a mapped copy subgraph and appends
-     *  it to block_list_ptr.
+     *  it to block_list.
      *
      *  @param v The current node being visited.
+     *  @param[out] blk_list block list where the SCC will be put
      */
 	    void scc_by_blocks(typename GT::Node *v, DynList<GT> & blk_list)
 	    {
@@ -301,6 +302,7 @@ namespace Aleph
      *  and appends it to list_list_ptr.
      *
      *  @param v The current node being visited.
+     *  @param blks block list where the SCC node lists will be put
      */
 	    void scc_by_lists(typename GT::Node *v,
 	                      DynList<DynList<typename GT::Node *>> & blks)
@@ -337,6 +339,7 @@ namespace Aleph
      *  the count to list_len_ptr.
      *
      *  @param v The current node being visited.
+     *  @param sizes list of block sizes in number of nodes
      */
 	    void scc_by_len(typename GT::Node *v, DynList<size_t> & sizes)
 	    {
@@ -354,9 +357,9 @@ namespace Aleph
 	          low<GT>(v) = std::min(low<GT>(v), df<GT>(w));
 
       if (low<GT>(v) == df<GT>(v)) // first visited node of the block?
-        { // yes, pop out block nodes that are on stack
+        { // yes, pop out block nodes that are on the stack
           size_t count = 0;
-          while (true) // remove block from stack until reaching v
+          while (true) // remove block from the stack until reaching v
             {
               auto p = pop_from_stack();
               ++count;

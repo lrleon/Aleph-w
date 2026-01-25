@@ -95,14 +95,14 @@
  *   `find_min_path(g, s, s, path)` may return `Inf` and an empty path; handle the trivial
  *   case explicitly if you need distance 0 and path `[s]`.
  * - **Directed vs undirected modeling**: for undirected graphs you must insert both
- *   directions, or use an undirected graph container.
+ *   directions or use an undirected graph container.
  *
  * ## References / see also
  *
  * - `Dijkstra.H` (implementation)
  * - `bellman_ford_example.cc` / `Bellman_Ford.H` (negative weights)
  * - `johnson_example.cc` (all-pairs shortest paths with negative weights but no negative cycles)
- * - `astar_example.cc` / `AStar.H` (heuristic-guided shortest path)
+ * - `astar_example.cc` / `AStar.H` (the heuristic-guided shortest path)
  *
  * @author Leandro Rabindranath León
  * @ingroup Examples

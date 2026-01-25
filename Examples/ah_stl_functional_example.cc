@@ -29,7 +29,7 @@
 */
 
 /**
- * @file ah-stl-functional-example.cc
+ * @file ah_stl_functional_example.cc
  * @brief Comprehensive examples of ah-stl-functional.H usage
  *
  * This file demonstrates the functional programming utilities available

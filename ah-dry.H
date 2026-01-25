@@ -1297,11 +1297,6 @@ public:
       \throw anything that could throw op  or `bad_alloc` if there is
       no enough memory
   */
-  /** Partition the container at the n‑th element.
-
-      @param[in] n number of elements for the first list
-      @return pair of lists (first n, remaining)
-  */
   template <class Operation>
   std::pair<Aleph::DynList<T>, Aleph::DynList<T>> partition(size_t n) const
   {

@@ -2,7 +2,6 @@
  * @file timeoutQueue_example.C
  * @brief Example demonstrating TimeoutQueue usage for timed event scheduling
  *
- * @doxygen
  * @brief TimeoutQueue - Priority-based timed event scheduler
  *
  * This example demonstrates:
@@ -32,7 +31,6 @@
  * ./timeoutQueue_example
  * ```
  *
- * @enddoxygen
  */
 
 # include <iostream>
