@@ -161,7 +161,7 @@ jobs:
           fi
 
           # For GCC, use system GoogleTest if available
-          if pkg-config --exists gtest; then
+          if pkg-config --exists gtest gtest_main; then
             echo "gtest found via pkg-config"
             exit 0
           fi
