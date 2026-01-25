@@ -104,14 +104,15 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
     return false;
 
   const auto callback = event->on_completed;
-  event->set_execution_status(Event::Canceled);
 
   prioQueue.remove(event);
   eventMap.erase(event->get_id());
 
+  // Invoke callback BEFORE setting final status to avoid race
   if (callback)
     callback(event, Event::Canceled);
 
+  event->set_execution_status(Event::Canceled);
   ++canceledCount;
 
   cond.notify_one();
@@ -228,17 +229,20 @@ void TimeoutQueue::triggerEvent()
           if (event_to_execute->get_execution_status() == Event::To_Delete)
             {
               final_status = Event::Deleted;
-              event_to_execute->set_execution_status(Event::Deleted);
+              // Invoke callback BEFORE setting final status to avoid race:
+              // Once status is Deleted, we delete the event ourselves
               if (callback)
                 callback(event_to_execute, final_status);
+              event_to_execute->set_execution_status(Event::Deleted);
               delete event_to_execute;
             }
           else
             {
-              event_to_execute->set_execution_status(Event::Executed);
-              // After this point, event_to_execute may be deleted by user code
+              // Invoke callback BEFORE setting final status to avoid race:
+              // Once status is Executed, user code may delete the event
               if (callback)
                 callback(event_to_execute, final_status);
+              event_to_execute->set_execution_status(Event::Executed);
             }
 
           // Notify if queue became empty
@@ -252,10 +256,11 @@ void TimeoutQueue::triggerEvent()
     {
       auto* event = static_cast<Event*>(prioQueue.getMin());
       auto callback = event->on_completed;
-      event->set_execution_status(Event::Canceled);
       eventMap.erase(event->get_id());
+      // Invoke callback BEFORE setting final status to avoid race
       if (callback)
         callback(event, Event::Canceled);
+      event->set_execution_status(Event::Canceled);
       ++canceledCount;
     }
 
@@ -319,10 +324,11 @@ size_t TimeoutQueue::clear_all()
     {
       auto* event = static_cast<Event*>(prioQueue.getMin());
       auto callback = event->on_completed;
-      event->set_execution_status(Event::Canceled);
       eventMap.erase(event->get_id());
+      // Invoke callback BEFORE setting final status to avoid race
       if (callback)
         callback(event, Event::Canceled);
+      event->set_execution_status(Event::Canceled);
       ++count;
       ++canceledCount;
     }
@@ -426,11 +432,12 @@ bool TimeoutQueue::cancel_by_id(Event::EventId id)
     return false;
 
   const auto callback = event->on_completed;
-  event->set_execution_status(Event::Canceled);
   prioQueue.remove(event);
   eventMap.erase(it);
+  // Invoke callback BEFORE setting final status to avoid race
   if (callback)
     callback(event, Event::Canceled);
+  event->set_execution_status(Event::Canceled);
   ++canceledCount;
   cond.notify_one();
 
