@@ -21,14 +21,22 @@ reviews:
       - "^release/.*"
   
   path_instructions:
-    - path: "**/*.H"
+    - path: "**/*"
+      instructions: |
+        Instrucciones generales de review:
+        - Entrega feedback en estas secciones: "Must fix", "Should fix", "Nice to have".
+        - Prioriza: correctitud (UB, data races, lifetime), seguridad, regresiones, luego performance.
+        - Si el PR cambia comportamiento, exige tests o explica por qué no aplican.
+        - Evita sugerencias fuera de alcance (refactors masivos, formateos globales) salvo necesidad.
+
+    - path: "**/*.{h,H,hpp,hxx,hh}"
       instructions: |
         Este es un archivo de cabecera C++ de la biblioteca Aleph-w.
         Revisa: correctitud de algoritmos, memory leaks, exception safety,
         uso correcto de templates, y adherencia al estilo del proyecto
         (sin 'using namespace std' en headers).
     
-    - path: "**/*.C"
+    - path: "**/*.{c,C,cc,cpp,cxx}"
       instructions: |
         Archivo de implementación C++. Verifica correctitud y rendimiento.
     

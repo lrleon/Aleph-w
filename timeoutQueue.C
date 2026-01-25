@@ -43,7 +43,8 @@ std::atomic<TimeoutQueue::Event::EventId> TimeoutQueue::Event::nextId{0};
 // Convert POSIX timespec to std::chrono::time_point
 static auto timespec_to_timepoint(const Time& t)
 {
-  return system_clock::time_point(seconds(t.tv_sec) + nanoseconds(t.tv_nsec));
+  return system_clock::time_point(duration_cast<system_clock::duration>(
+      seconds(t.tv_sec) + nanoseconds(t.tv_nsec)));
 }
 
 
