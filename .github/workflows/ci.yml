@@ -342,7 +342,49 @@ jobs:
             build-tsan/Testing/Temporary/LastTest.log
             build-tsan/CMakeCache.txt
 
-  ci-success:
+  ci-success-push:
+    name: CI Success
+    runs-on: ubuntu-24.04
+    needs:
+      - build-and-test
+      - sanitizers
+      - tsan
+    if: always() && github.event_name == 'push'
+    steps:
+      - name: Check results
+        run: |
+          set -euo pipefail
+          echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "sanitizers result: ${{ needs.sanitizers.result }}"
+          echo "tsan result: ${{ needs.tsan.result }}"
+
+          is_ok() {
+            [ "$1" = "success" ] || [ "$1" = "skipped" ]
+          }
+
+          all_ok=1
+
+          check_job() {
+            job_name="$1"
+            job_result="$2"
+
+            if ! is_ok "$job_result"; then
+              echo "Job '$job_name' did not succeed (result: $job_result)"
+              all_ok=0
+            fi
+          }
+
+          check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "sanitizers" "${{ needs.sanitizers.result }}"
+          check_job "tsan" "${{ needs.tsan.result }}"
+
+          if [ "$all_ok" -ne 1 ]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"
+
+  ci-success-pr:
     name: CI Success
     runs-on: ubuntu-24.04
     needs:
@@ -351,7 +393,7 @@ jobs:
       - build-and-test
       - sanitizers
       - tsan
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     steps:
       - name: Check results
         run: |
