@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -114,6 +113,7 @@
 #include <cstdlib>
 #include <cctype>
 #include <cmath>
+#include <utility>
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
@@ -186,7 +186,7 @@ namespace Aleph
    * Safely adds a character to a buffer, checking that the buffer
    * has not been exceeded. If the buffer is full, an error is raised.
    *
-   * @param start_addr Reference to current write position; incremented after write
+   * @param start_addr Reference to the current write position; incremented after write
    * @param end_addr   Pointer to one past the end of the buffer
    * @param c          Character to append
    *
@@ -204,7 +204,7 @@ namespace Aleph
    * // buffer now contains "Hi"
    * @endcode
    */
-  inline void put_char_in_buffer(char *& start_addr, char *end_addr, int c)
+  inline void put_char_in_buffer(char *& start_addr, const char *end_addr, int c)
   {
     if (start_addr >= end_addr)
       AH_ERROR("String too long (buffer overflow in parse_utils)");
@@ -250,7 +250,7 @@ namespace Aleph
    *
    * @see init_token_scanning()
    */
-  inline void close_token_scanning(char *buffer, char *& start_addr, char *end_addr)
+  inline void close_token_scanning(const char *buffer, char *& start_addr, const char *end_addr)
   {
     put_char_in_buffer(start_addr, end_addr, '\0');
     token_instance = buffer;
@@ -320,7 +320,7 @@ namespace Aleph
    */
   inline void skip_white_spaces(std::ifstream & input_stream)
   {
-    while (std::isspace(read_char_from_stream(input_stream))); // Skip whitespace
+    while (std::isspace(read_char_from_stream(input_stream))) {} // Skip whitespace
     input_stream.unget();
   }
 
@@ -375,7 +375,7 @@ namespace Aleph
             c = read_char_from_stream(input_stream);
 
             if (not std::isdigit(c))
-              return std::atol(buffer);
+              return std::strtol(buffer, nullptr, 10);
           }
 
         while (true)
@@ -391,7 +391,7 @@ namespace Aleph
             if (std::isspace(c))
               {
                 close_token_scanning(buffer, start_addr, end_addr);
-                return std::atol(buffer);
+                return std::strtol(buffer, nullptr, 10);
               }
 
             ah_domain_error_if(true) << "Invalid number format";
@@ -401,7 +401,7 @@ namespace Aleph
       {
         // EOF reached - return what we have
         close_token_scanning(buffer, start_addr, end_addr);
-        return std::atol(buffer);
+        return std::strtol(buffer, nullptr, 10);
       }
   }
 
@@ -438,7 +438,7 @@ namespace Aleph
   {
     char buffer[Buffer_Size];
     char *start_addr = buffer;
-    char *end_addr = buffer + Buffer_Size;
+    const char *end_addr = buffer + Buffer_Size;
 
     bool quoted = false;
 
@@ -468,7 +468,7 @@ namespace Aleph
       }
 
     close_token_scanning(buffer, start_addr, end_addr);
-    return std::string(buffer);
+    return {buffer};
   }
 
   // ============================================================================
@@ -608,26 +608,26 @@ namespace Aleph
     SourceLocation() = default;
 
     /// Construct with all fields
-    SourceLocation(const std::string & file, int ln, int col)
-      : filename(file), line(ln), column(col) {}
+    SourceLocation(std::string file, const int ln, const int col)
+      : filename(std::move(file)), line(ln), column(col) {}
 
-    /// Construct from current global parsing state
+    /// Construct from the current global parsing state
     static SourceLocation current(const std::string & file = "")
     {
-      return SourceLocation(file, current_line_number, current_col_number);
+      return {file, current_line_number, current_col_number};
     }
 
-    /// Construct from previous (token start) global parsing state
+    /// Construct from the previous (token start) global parsing state
     static SourceLocation previous(const std::string & file = "")
     {
-      return SourceLocation(file, previous_line_number, previous_col_number);
+      return {file, previous_line_number, previous_col_number};
     }
 
     /**
      * @brief Convert to human-readable string
      * @return String in format "filename:line:column" or "line:column"
      */
-    std::string to_string() const
+    [[nodiscard]] std::string to_string() const
     {
       std::ostringstream oss;
       if (not filename.empty())
@@ -675,7 +675,7 @@ namespace Aleph
     {}
 
     /// Get the source location of the error
-    const SourceLocation &location() const { return loc; }
+    [[nodiscard]] const SourceLocation &location() const { return loc; }
   };
 
   // ============================================================================
@@ -688,8 +688,8 @@ namespace Aleph
   struct StreamPosition
   {
     std::streampos pos; ///< Stream position
-    int line; ///< Line number at this position
-    int column; ///< Column number at this position
+    int line{}; ///< Line number at this position
+    int column{}; ///< Column number at this position
   };
 
   /**
@@ -714,7 +714,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Mark current position for potential backtracking
+   * @brief Mark the current position for potential backtracking
    *
    * Saves the current stream position and line/column state so
    * that it can be restored later if needed.
@@ -774,11 +774,9 @@ namespace Aleph
    */
   inline void skip_line_comment(std::ifstream & input_stream)
   {
-    int c;
     while (not input_stream.eof())
       {
-        c = input_stream.get();
-        if (c == '\n')
+        if (const int c = input_stream.get(); c == '\n')
           {
             current_line_number++;
             current_col_number = 0;
@@ -803,16 +801,16 @@ namespace Aleph
    * @note The open parameter is for documentation; this function assumes
    *       the opening sequence has already been consumed.
    */
-	  inline void skip_block_comment(std::ifstream & input_stream,
-	                                 const std::string & open = "/" "*",
-	                                 const std::string & close = "*" "/")
-	  {
-	    (void)open; // Documented for clarity; opening sequence already consumed.
-	    size_t match_pos = 0;
+  inline void skip_block_comment(std::ifstream & input_stream,
+                                 const std::string & open = "/" "*",
+                                 const std::string & close = "*" "/")
+  {
+    (void) open; // Documented for clarity; opening sequence already consumed.
+    size_t match_pos = 0;
 
-	    while (not input_stream.eof())
-	      {
-	        if (const int c = input_stream.get(); c == '\n')
+    while (not input_stream.eof())
+      {
+        if (const int c = input_stream.get(); c == '\n')
           {
             current_line_number++;
             current_col_number = 0;
@@ -1335,7 +1333,7 @@ namespace Aleph
    * - `\\'` → single quote
    * - `\\0` → null
    */
-  inline char process_escape(int c)
+  inline char process_escape(const int c)
   {
     switch (c)
       {
@@ -1376,7 +1374,7 @@ namespace Aleph
   {
     char buffer[Buffer_Size];
     char *ptr = buffer;
-    char *end = buffer + Buffer_Size;
+    const char *end = buffer + Buffer_Size;
 
     init_token_scanning();
     skip_white_spaces(input_stream);
@@ -1401,7 +1399,7 @@ namespace Aleph
             c = read_char_from_stream(input_stream);
             if (c == EOF)
               throw ParseError("Unterminated escape sequence");
-            c = process_escape(c);
+            c = static_cast<unsigned char>(process_escape(c));
           }
 
         put_char_in_buffer(ptr, end, c);
@@ -1420,7 +1418,7 @@ namespace Aleph
    * @param input_stream The input file stream
    * @return The parsed character
    *
-   * @throws ParseError if format is invalid
+   * @throws ParseError if the format is invalid
    *
    * @par Accepted formats
    * - `'a'`
@@ -1442,7 +1440,7 @@ namespace Aleph
     if (c == '\\')
       {
         c = read_char_from_stream(input_stream);
-        c = process_escape(c);
+        c = static_cast<unsigned char>(process_escape(c));
       }
 
     char result = static_cast<char>(c);
@@ -1515,8 +1513,8 @@ namespace Aleph
     Token() = default;
 
     /// Construct with all fields
-    Token(TokenType t, const std::string & v, const SourceLocation & loc)
-      : type(t), value(v), location(loc) {}
+    Token(TokenType t, std::string  v, SourceLocation  loc)
+      : type(t), value(std::move(v)), location(std::move(loc)) {}
 
     /// Check if this is an end-of-file token
     [[nodiscard]] bool is_eof() const { return type == TokenType::END_OF_FILE; }
@@ -1593,7 +1591,6 @@ namespace Aleph
 
     return result;
   }
-
 } // namespace Aleph
 
 // ============================================================================
