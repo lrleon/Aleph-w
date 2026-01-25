@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install -y \
             cmake ninja-build pkg-config ccache \
             g++ \
-            python3 doxygen \
+            ruby-full doxygen \
             cppcheck \
             libgmp-dev libmpfr-dev libgsl-dev \
             libx11-dev libpthread-stubs0-dev \
@@ -77,11 +77,11 @@ jobs:
         run: |
           rm -f doxygen_err.txt
           doxygen Doxyfile 2> doxygen_err.txt
-          python3 scripts/doxygen_warnings_summary.py doxygen_err.txt docs/doxygen_warnings.md
+          ruby scripts/doxygen_warnings_summary.rb doxygen_err.txt docs/doxygen_warnings.md
 
       - name: Header audit report
         run: |
-          python3 scripts/header_audit.py --repo . --out docs/header_audit.md
+          ruby scripts/header_audit.rb --repo . --out docs/header_audit.md
 
       - name: Upload full analysis reports
         uses: actions/upload-artifact@v4
