@@ -229,20 +229,20 @@ void TimeoutQueue::triggerEvent()
           if (event_to_execute->get_execution_status() == Event::To_Delete)
             {
               final_status = Event::Deleted;
-              // Invoke callback BEFORE setting final status to avoid race:
-              // Once status is Deleted, we delete the event ourselves
+              // Set final status BEFORE callback to avoid use-after-free:
+              // User code may delete the event in the callback
+              event_to_execute->set_execution_status(Event::Deleted);
               if (callback)
                 callback(event_to_execute, final_status);
-              event_to_execute->set_execution_status(Event::Deleted);
               delete event_to_execute;
             }
           else
             {
-              // Invoke callback BEFORE setting final status to avoid race:
-              // Once status is Executed, user code may delete the event
+              // Set final status BEFORE callback to avoid use-after-free:
+              // User code may delete the event in the callback
+              event_to_execute->set_execution_status(Event::Executed);
               if (callback)
                 callback(event_to_execute, final_status);
-              event_to_execute->set_execution_status(Event::Executed);
             }
 
           // Notify if queue became empty
@@ -257,11 +257,12 @@ void TimeoutQueue::triggerEvent()
       auto* event = static_cast<Event*>(prioQueue.getMin());
       auto callback = event->on_completed;
       eventMap.erase(event->get_id());
-      // Invoke callback BEFORE setting final status to avoid race
-      if (callback)
-        callback(event, Event::Canceled);
+      // Set final status BEFORE callback to avoid use-after-free:
+      // User code may delete the event in the callback
       event->set_execution_status(Event::Canceled);
       ++canceledCount;
+      if (callback)
+        callback(event, Event::Canceled);
     }
 
   emptyCondition.notify_all();

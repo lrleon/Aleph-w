@@ -4,6 +4,7 @@ require 'open3'
 require 'pathname'
 
 SOURCE_EXTS = %w[.c .C .cc .cpp .cxx].freeze
+HEADER_EXTS = %w[.h .H .hh .hpp .hxx].freeze
 
 
 def run!(cmd, env: {})
@@ -41,9 +42,16 @@ def main
   base = base_ref
   files = changed_files(base)
   sources = files.select { |f| SOURCE_EXTS.include?(File.extname(f)) }
+  headers = files.select { |f| HEADER_EXTS.include?(File.extname(f)) }
 
-  if sources.empty?
-    puts '[ok] no changed C/C++ source files'
+  # Only analyze library files (exclude Tests/ and Examples/)
+  sources = sources.reject { |f| f.start_with?('Tests/', 'Examples/') }
+  headers = headers.reject { |f| f.start_with?('Tests/', 'Examples/') }
+
+  all_files = sources + headers
+
+  if all_files.empty?
+    puts '[ok] no changed library C/C++ source or header files'
     return 0
   end
 
@@ -53,7 +61,7 @@ def main
     'cmake', '-S', '.', '-B', build_dir.to_s, '-G', 'Ninja',
     '-DCMAKE_BUILD_TYPE=Debug',
     '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
-    '-DBUILD_EXAMPLES=OFF',
+    '-DBUILD_EXAMPLES=ON',
     '-DBUILD_TESTS=ON',
     '-DCMAKE_C_COMPILER=clang',
     '-DCMAKE_CXX_COMPILER=clang++'
@@ -62,21 +70,35 @@ def main
   run!(cmake_args)
 
   failures = 0
-  sources.each do |src|
-    next unless File.exist?(src)
+  all_files.each do |file|
+    next unless File.exist?(file)
 
-    puts "[info] clang-tidy: #{src}"
+    puts "[info] clang-tidy: #{file}"
+
+    # For headers, we need to provide compilation flags since they may not be in compile_commands.json
+    if HEADER_EXTS.include?(File.extname(file))
+      # Add extra flags for header-only files
+      extra_args = [
+        '--extra-arg=-std=c++20',
+        '--extra-arg=-I.',
+        '--extra-arg=-Wno-unknown-warning-option'
+      ]
+      cmd = ['clang-tidy', '-p', build_dir.to_s] + extra_args + [file, '--']
+    else
+      cmd = ['clang-tidy', '-p', build_dir.to_s, file, '--']
+    end
+
     begin
-      run!(['clang-tidy', '-p', build_dir.to_s, src, '--'])
+      run!(cmd)
     rescue StandardError => e
       failures += 1
-      warn "[fail] clang-tidy failed for #{src}: #{e.message.lines.first.strip}"
+      warn "[fail] clang-tidy failed for #{file}: #{e.message.lines.first.strip}"
     end
   end
 
   return 1 if failures > 0
 
-  puts "[ok] clang-tidy passed for #{sources.size} changed source file(s)"
+  puts "[ok] clang-tidy passed for #{all_files.size} changed file(s) (#{sources.size} source, #{headers.size} header)"
   0
 end
 
