@@ -325,10 +325,13 @@ TEST(TimeoutQueueTest, MultipleEventsExecuteInOrder)
 
   this_thread::sleep_for(chrono::milliseconds(400));
 
-  ASSERT_EQ(execution_order.size(), 3u);
-  EXPECT_EQ(execution_order[0], 2);
-  EXPECT_EQ(execution_order[1], 3);
-  EXPECT_EQ(execution_order[2], 1);
+  {
+    lock_guard<mutex> lock(order_mutex);
+    ASSERT_EQ(execution_order.size(), 3u);
+    EXPECT_EQ(execution_order[0], 2);
+    EXPECT_EQ(execution_order[1], 3);
+    EXPECT_EQ(execution_order[2], 1);
+  }
 
   delete e1;
   delete e2;
