@@ -108,11 +108,10 @@ jobs:
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
             echo "CC=clang" >> "$GITHUB_ENV"
-            echo "CXX=clang++" >> "$GITHUB_ENV"
             # Use libc++ with Clang for better C++20 std::ranges support
             # Note: -stdlib=libc++ only applies to C++, not C
-            echo "CXXFLAGS=-stdlib=libc++" >> "$GITHUB_ENV"
-            # Don't set LDFLAGS globally as it affects C compiler tests
+            echo "CXX=clang++ -stdlib=libc++" >> "$GITHUB_ENV"
+            # Don't set LDFLAGS or CXXFLAGS globally as they can affect CMake's tests
             # CMake will add -lc++abi when needed via CMAKE_EXE_LINKER_FLAGS
           else
             echo "CC=gcc" >> "$GITHUB_ENV"
