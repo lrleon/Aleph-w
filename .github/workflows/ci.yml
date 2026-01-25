@@ -147,11 +147,11 @@ jobs:
             fi
             
             sudo rm -rf "$GTEST_SRC/build" 2>/dev/null || true
-            # Use clang for both C and C++ to avoid mixing compilers
+            # Use the configured C and C++ compilers to avoid mixing toolchains
             # Pass libc++ flags only to C++ compiler, not C
             sudo cmake -S "$GTEST_SRC" -B "$GTEST_SRC/build" -G Ninja \
-              -DCMAKE_C_COMPILER=clang \
-              -DCMAKE_CXX_COMPILER=clang++ \
+              -DCMAKE_C_COMPILER="$CC" \
+              -DCMAKE_CXX_COMPILER="$CXX" \
               -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
               -DCMAKE_EXE_LINKER_FLAGS="-lc++abi"
             sudo cmake --build "$GTEST_SRC/build"
@@ -342,7 +342,49 @@ jobs:
             build-tsan/Testing/Temporary/LastTest.log
             build-tsan/CMakeCache.txt
 
-  ci-success:
+  ci-success-push:
+    name: CI Success
+    runs-on: ubuntu-24.04
+    needs:
+      - build-and-test
+      - sanitizers
+      - tsan
+    if: always() && github.event_name == 'push'
+    steps:
+      - name: Check results
+        run: |
+          set -euo pipefail
+          echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "sanitizers result: ${{ needs.sanitizers.result }}"
+          echo "tsan result: ${{ needs.tsan.result }}"
+
+          is_ok() {
+            [ "$1" = "success" ] || [ "$1" = "skipped" ]
+          }
+
+          all_ok=1
+
+          check_job() {
+            job_name="$1"
+            job_result="$2"
+
+            if ! is_ok "$job_result"; then
+              echo "Job '$job_name' did not succeed (result: $job_result)"
+              all_ok=0
+            fi
+          }
+
+          check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "sanitizers" "${{ needs.sanitizers.result }}"
+          check_job "tsan" "${{ needs.tsan.result }}"
+
+          if [ "$all_ok" -ne 1 ]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "CI passed"
+
+  ci-success-pr:
     name: CI Success
     runs-on: ubuntu-24.04
     needs:
@@ -351,7 +393,7 @@ jobs:
       - build-and-test
       - sanitizers
       - tsan
-    if: always()
+    if: always() && github.event_name == 'pull_request'
     steps:
       - name: Check results
         run: |
