@@ -89,12 +89,12 @@
  *
  * ## Pitfalls and edge cases
  *
- * - **Negative weights**: Dijkstra is invalid if any arc weight is negative.
- * - **Disconnected graphs**: unreachable nodes will not appear in the computed tree.
- * - **Source == destination**: this example documents Aleph-w's observed behavior where
+ * - @b Negative @b weights: Dijkstra is invalid if any arc weight is negative.
+ * - @b Disconnected @b graphs: unreachable nodes will not appear in the computed tree.
+ * - @b Source==destination: this example documents Aleph-w's observed behavior where
  *   `find_min_path(g, s, s, path)` may return `Inf` and an empty path; handle the trivial
  *   case explicitly if you need distance 0 and path `[s]`.
- * - **Directed vs undirected modeling**: for undirected graphs you must insert both
+ * - @b Directed @b vs @b undirected @b modeling: for undirected graphs you must insert both
  *   directions or use an undirected graph container.
  *
  * ## References / see also

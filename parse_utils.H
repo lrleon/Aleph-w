@@ -119,6 +119,7 @@
 #include <algorithm>
 #include <aleph.H>
 #include <ah-errors.H>
+# include <ah-string-utils.H>
 
 namespace Aleph
 {
@@ -1593,28 +1594,6 @@ namespace Aleph
     return result;
   }
 
-  /// @brief Trim whitespace from both ends of a string
-  ///
-  /// Removes leading and trailing whitespace characters from the input string
-  /// and returns a new trimmed string.
-  ///
-  /// @param[in] text The string to trim
-  /// @return Trimmed string with leading and trailing whitespace removed
-  inline std::string trim(const std::string & text)
-  {
-    size_t start = 0;
-    while (start < text.size() and std::isspace(text[start]))
-      start++;
-
-    if (start == text.size())
-      return "";
-
-    size_t end = text.size() - 1;
-    while (end > start and std::isspace(text[end]))
-      end--;
-
-    return text.substr(start, end - start + 1);
-  }
 } // namespace Aleph
 
 // ============================================================================
