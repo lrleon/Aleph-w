@@ -202,22 +202,46 @@ auto even_squares = numbers
 
 ## 6. STL and Standard Library Usage
 
-### Aleph Containers vs. Standard Library (IMPORTANT)
-- **MUST**: **Prefer Aleph containers over standard library containers when available and appropriate**
+### Aleph Containers vs. Standard Library (CRITICAL RULE)
+- **MUST**: **ALWAYS use Aleph containers when an equivalent exists. Standard library containers are ONLY permitted when no Aleph equivalent is available.**
+  - This is a strict library policy, not a suggestion or preference
   - Aleph containers are optimized for graph algorithms and provide domain-specific functionality
-  - Examples of Aleph containers to prefer:
-    - `DynList<T>` → instead of `std::list<T>` or `std::vector<T>` (dynamic list with rich functional API)
-    - `DynSet<T>`, `DynSetTree<T>` → instead of `std::set<T>` (ordered set with graph-specific operations)
-    - `DynMap<K, V>`, `DynMapTree<K, V>` → instead of `std::map<K, V>` (ordered map)
-    - `ArrayQueue<T>`, `DynListQueue<T>` → instead of `std::queue<T>`
-    - `ArrayStack<T>`, `DynListStack<T>` → instead of `std::stack<T>`
-    - `SkipList<T>` → probabilistic data structure (no direct STL equivalent)
-    - Aleph heap implementations → instead of `std::priority_queue<T>`
-    - Aleph hash tables → instead of `std::unordered_map`/`std::unordered_set`
-- **MUST**: Use standard library containers only when:
-  - No equivalent Aleph container exists
-  - Interfacing with external libraries that require STL types
-  - The standard library container provides significantly better performance for the specific use case (document why)
+  
+#### Mandatory Aleph Container Usage (DO NOT use STL equivalents)
+- **MUST**: Use these Aleph containers instead of their STL counterparts:
+  - `DynList<T>` → **NEVER** `std::list<T>` or `std::vector<T>` (dynamic list with rich functional API)
+  - `DynSetTree<T>` → **NEVER** `std::set<T>` (ordered set with graph-specific operations)
+  - `DynMapTree<K, V>` → **NEVER** `std::map<K, V>` (ordered map)
+  - `OLhashTable<Key, Data>` → **NEVER** `std::unordered_map<Key, Data>` (open addressing linear hash table, best hash table implementation)
+  - `ArrayQueue<T>`, `DynListQueue<T>` → **NEVER** `std::queue<T>`
+  - `ArrayStack<T>`, `DynListStack<T>` → **NEVER** `std::stack<T>`
+  - Aleph heap implementations → **NEVER** `std::priority_queue<T>`
+  - `SkipList<T>` → probabilistic data structure (no direct STL equivalent)
+  
+#### Hash Tables: Prefer OLhashTable
+- **MUST**: Use `OLhashTable<Key, Data>` as the default hash table implementation
+  - OLhashTable is the preferred Aleph hash table (open addressing, linear probing)
+  - Other Aleph hash tables exist but OLhashTable is recommended for general use
+  - **NEVER** use `std::unordered_map` or `std::unordered_set` when a hash table is needed
+
+#### ONLY Acceptable Use of Standard Library Containers
+- **MUST**: Use standard library containers **ONLY** when:
+  1. **No equivalent Aleph container exists** for the required data structure
+  2. **Interfacing with external libraries** that explicitly require STL types as part of their API contract (e.g., third-party library function signatures)
+  3. **`std::vector` as return type for functional programming operations** where:
+     - The number of elements is **known a priori** (can be calculated before insertion)
+     - Memory can be **pre-reserved** using `reserve()` before populating
+     - Compactness and memory layout efficiency are critical
+     - Example: `map()`, `filter()`, `zip()`, or similar functional operations where output size is deterministic
+     - **MUST**: Always call `reserve(expected_size)` before insertions when using this exception
+  
+- **IMPORTANT**: The following are **NOT** valid reasons to use STL containers:
+  - ❌ "STL might be faster" (use Aleph containers regardless)
+  - ❌ "STL is more familiar" (learn Aleph containers)
+  - ❌ "STL has better documentation" (consult Aleph headers and examples)
+  - ❌ "Easier to integrate with std algorithms" (use Aleph containers and convert if absolutely necessary)
+  - ❌ "Memory efficiency concerns" (use Aleph containers unless this is the functional programming return case above)
+
 - **SHOULD**: Familiarize with Aleph container APIs before suggesting STL alternatives
 - **SHOULD**: Check header files (`htlist.H`, `tpl_dynSetTree.H`, `tpl_dynMapTree.H`, etc.) for available Aleph containers
 
@@ -243,11 +267,38 @@ auto even_squares = numbers
 
 ## 7. Error Handling
 
+### Aleph Exception Macros (CRITICAL RULE)
+- **MUST**: **ALWAYS use Aleph exception macros from `ah-errors.H` instead of raw `throw` statements**
+  - Aleph macros automatically include file location (`file:line`) in error messages
+  - Provides consistent error reporting across the library
+  - Supports stream-style error message composition
+  
+- **MUST**: Use these Aleph exception macros (defined in `ah-errors.H`):
+  - `ah_domain_error_if(condition)` → for domain/logic errors (replaces `throw std::domain_error`)
+  - `ah_runtime_error_if(condition)` → for runtime errors (replaces `throw std::runtime_error`)
+  - `ah_range_error_if(condition)` → for out-of-range errors (replaces `throw std::range_error`)
+  - `ah_invalid_argument_if(condition)` → for invalid arguments (replaces `throw std::invalid_argument`)
+  - Unconditional versions: `ah_domain_error()`, `ah_runtime_error()`, `ah_range_error()`, `ah_invalid_argument()`
+  - `_unless` variants: `ah_domain_error_unless(condition)`, etc. (inverted logic)
+  - `ah_fatal_error()` → for unrecoverable fatal errors
+
+- **Example (Aleph style - CORRECT)**:
+  ```cpp
+  ah_domain_error_if(x < 0) << "sqrt requires non-negative value, got " << x;
+  ah_range_error_if(index >= size) << "Index " << index << " out of range [0, " << size << ")";
+  ah_runtime_error_unless(file.is_open()) << "Failed to open file: " << filename;
+  ```
+
+- **Example (Raw throw - INCORRECT, DO NOT USE)**:
+  ```cpp
+  if (x < 0)  // ❌ DO NOT DO THIS
+    throw std::domain_error("sqrt requires non-negative value");
+  ```
+
 ### Exception Safety
 - **MUST**: Document exception safety guarantees (no-throw, strong, basic)
 - **MUST**: Use RAII to ensure cleanup on exception
 - **MUST**: Catch exceptions by const reference: `catch (const std::exception& e)`
-- **SHOULD**: Throw standard exceptions (`std::invalid_argument`, `std::runtime_error`, etc.)
 - **SHOULD**: Mark functions as `noexcept` when they guarantee no exceptions
 - **NICE**: Avoid exceptions in destructors and move operations
 
