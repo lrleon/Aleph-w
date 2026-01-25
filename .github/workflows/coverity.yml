@@ -1,10 +1,17 @@
 name: Coverity Scan
 
 on:
-  # Trigger on push to workflow file (makes it visible in Actions UI)
+  # Trigger on push to workflow file and relevant source/build files
   push:
     paths:
       - '.github/workflows/coverity.yml'
+      - 'src/**'
+      - 'include/**'
+      - '**/*.c'
+      - '**/*.cc'
+      - '**/*.cpp'
+      - '**/*.cxx'
+      - 'CMakeLists.txt'
   # Weekly automatic scan on default branch only (Sunday at 06:00 UTC)
   schedule:
     - cron: '0 6 * * 0'
