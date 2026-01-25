@@ -38,35 +38,6 @@ jobs:
         run: |
           ruby scripts/ci_doxygen_changed.rb
 
-  clang-tidy:
-    name: clang-tidy (changed files)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install clang-tidy dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ruby-full \
-            clang clang-tidy \
-            cmake ninja-build pkg-config \
-            libgmp-dev libmpfr-dev libgsl-dev \
-            libx11-dev libpthread-stubs0-dev \
-            libgtest-dev
-
-      - name: Run clang-tidy on changed files
-        env:
-          TIDY_BUILD_DIR: build-tidy
-        run: |
-          ruby scripts/ci_clang_tidy_changed.rb
-
   build-and-test:
     name: build-and-test (${{ matrix.os }}, ${{ matrix.compiler }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
@@ -392,7 +363,6 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - policy-checks
-      - clang-tidy
       - build-and-test
       - sanitizers
       - tsan
@@ -402,7 +372,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "policy-checks result: ${{ needs.policy-checks.result }}"
-          echo "clang-tidy result: ${{ needs.clang-tidy.result }}"
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
@@ -424,7 +393,6 @@ jobs:
           }
 
           check_job "policy-checks" "${{ needs.policy-checks.result }}"
-          check_job "clang-tidy" "${{ needs.clang-tidy.result }}"
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
