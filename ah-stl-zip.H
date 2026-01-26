@@ -338,7 +338,7 @@ namespace Aleph
 
     /** @brief Get iterator to beginning.
      *
-     * @return Iterator positioned at first tuple.
+     * @return Iterator positioned at the first tuple.
      */
     [[nodiscard]] constexpr iterator begin() const
     {
@@ -360,7 +360,7 @@ namespace Aleph
                           }, containers_);
     }
 
-    /** @brief Check if view is empty.
+    /** @brief Check if the view is empty.
      *
      * @return `true` if any container is empty.
      */
@@ -369,7 +369,7 @@ namespace Aleph
       return not begin().has_curr();
     }
 
-    /** @brief Get number of tuples (minimum size of all containers).
+    /** @brief Get the number of tuples (minimum size of all containers).
      *
      * @return Number of tuples that would be produced.
      * @note This iterates through all elements - O(n) complexity.
@@ -440,7 +440,7 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Check if predicate holds for all zipped tuples.
+   * @brief Check if the predicate holds for all zipped tuples.
    *
    * Iterates over zipped containers and tests each tuple with the predicate.
    * Returns `true` only if the predicate returns `true` for every tuple.
@@ -500,7 +500,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Check if predicate holds for any zipped tuple.
+   * @brief Check if the predicate holds for any zipped tuple.
    *
    * Returns `true` if at least one tuple satisfies the predicate.
    * Short-circuits on first `true`.
@@ -564,7 +564,7 @@ namespace Aleph
    * @brief Apply operation to each zipped tuple (for side effects).
    *
    * Iterates over all zipped tuples, applying the callable to each.
-   * This is a side effect operation that returns void.
+   * This is a side-effect operation that returns void.
    *
    * @param op Callable to apply to each tuple.
    * @param cs Containers to zip.
@@ -718,7 +718,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Find first tuple satisfying predicate.
+   * @brief Find the first tuple satisfying predicate.
    *
    * @param pred Predicate to test.
    * @param cs Containers to zip.
@@ -927,7 +927,7 @@ namespace Aleph
    * @brief Traverse while predicate returns true.
    *
    * Iterates over zipped tuples, calling the predicate for each.
-   * Stops early if predicate returns false.
+   * Stops early if the predicate returns false.
    *
    * @param pred Predicate `(tuple) -> bool`.
    * @param cs Containers to zip.
@@ -1223,10 +1223,10 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Get first tuple from zipped containers.
+   * @brief Get the first tuple from zipped containers.
    *
    * @param cs Containers to zip.
-   * @return std::optional containing first tuple, or empty if containers are empty.
+   * @return std::optional containing the first tuple, or empty if containers are empty.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1238,10 +1238,10 @@ namespace Aleph
   }
 
   /**
-   * @brief Get last tuple from zipped containers.
+   * @brief Get the last tuple from zipped containers.
    *
    * @param cs Containers to zip.
-   * @return std::optional containing last tuple, or empty if containers are empty.
+   * @return std::optional containing the last tuple, or empty if containers are empty.
    *
    * @note This iterates through all elements - O(n) complexity.
    *
@@ -1285,11 +1285,11 @@ namespace Aleph
   }
 
   /**
-   * @brief Find index of first tuple satisfying predicate.
+   * @brief Find index of the first tuple satisfying predicate.
    *
    * @param pred Predicate to test.
    * @param cs Containers to zip.
-   * @return Index of first match, or total count if not found.
+   * @return Index of the first match, or total count if not found.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1714,8 +1714,8 @@ namespace Aleph
    *
    * Uses default comparison (operator<) for elements at corresponding positions.
    *
-   * @tparam Containers1 Types of first set of containers.
-   * @tparam Containers2 Types of second set of containers.
+   * @tparam Containers1 Types of the first set of containers.
+   * @tparam Containers2 Types of the second set of containers.
    * @param cs1 First set of containers (as tuple).
    * @param cs2 Second set of containers (as tuple).
    * @return -1 if first < second, 0 if equal, 1 if first > second.
