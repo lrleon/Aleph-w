@@ -1292,7 +1292,7 @@ namespace Aleph
           const char * array_name_k[] = { key in prefix order };
 
       The first array is a bit array containing the tree code (its
-      Lukasiewicz word). The second array contains a stringficated version
+      Lukasiewicz word). The second array contains a stringified version
       of the key values that were generated through the functor `Get_Key`,
       whose structure must be as follows:
 
