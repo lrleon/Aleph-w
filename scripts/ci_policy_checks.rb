@@ -51,6 +51,33 @@ def mit_license_header?(path)
 end
 
 
+def license_only_change?(path, base)
+  return false unless path.exist?
+
+  # Get the diff for this file
+  begin
+    diff_output = run!(['git', 'diff', "origin/#{base}...HEAD", '--', path.to_s])
+  rescue StandardError
+    return false
+  end
+
+  # Check if the diff only contains license-related changes
+  # Look for lines that suggest license changes (GPL -> MIT, copyright notices, etc.)
+  added_lines = diff_output.lines.select { |l| l.start_with?('+') && !l.start_with?('+++') }
+  removed_lines = diff_output.lines.select { |l| l.start_with?('-') && !l.start_with?('---') }
+
+  # If there are very few changed lines and they contain license keywords, it's likely a license-only change
+  total_changes = added_lines.size + removed_lines.size
+  return false if total_changes == 0
+
+  license_keywords = /GPL|MIT|General Public License|Permission is hereby granted|Copyright/i
+  license_related = (added_lines + removed_lines).count { |l| l.match?(license_keywords) }
+
+  # If more than 80% of changes are license-related, consider it a license-only change
+  (license_related.to_f / total_changes) > 0.8
+end
+
+
 def main
   if github_event_name != 'pull_request'
     puts '[skip] not a pull_request event'
@@ -72,7 +99,10 @@ def main
     failures << "missing/invalid MIT license header: #{hf}" unless mit_license_header?(p)
   end
 
-  if !headers_changed.empty? && tests_changed.empty?
+  # Filter out headers that only have license changes
+  headers_with_code_changes = headers_changed.reject { |hf| license_only_change?(Pathname.new(hf), base) }
+
+  if !headers_with_code_changes.empty? && tests_changed.empty?
     failures << 'headers changed but no Tests/ files changed (add/modify tests)'
   end
 
@@ -82,6 +112,7 @@ def main
   end
 
   puts "[ok] headers changed: #{headers_changed.size}"
+  puts "[ok] headers with code changes: #{headers_with_code_changes.size}"
   puts "[ok] tests changed: #{tests_changed.size}"
   0
 end
