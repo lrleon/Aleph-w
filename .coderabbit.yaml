@@ -1,7 +1,7 @@
 # CodeRabbit Configuration for Aleph-w
 # https://docs.coderabbit.ai/guides/configure-coderabbit
 
-language: "es-ES"
+language: "en-US"
 
 reviews:
   # Enable reviews on ALL branches, not just default
@@ -24,27 +24,27 @@ reviews:
   path_instructions:
     - path: "**/*"
       instructions: |
-        Instrucciones generales de review:
-        - Entrega feedback en estas secciones: "Must fix", "Should fix", "Nice to have".
-        - Prioriza: correctitud (UB, data races, lifetime), seguridad, regresiones, luego performance.
-        - Si el PR cambia comportamiento, exige tests o explica por qué no aplican.
-        - Evita sugerencias fuera de alcance (refactors masivos, formateos globales) salvo necesidad.
+        General review guidelines:
+        - Provide feedback in these sections: "Must fix", "Should fix", "Nice to have".
+        - Prioritize: correctness (UB, data races, lifetime), security, regressions, then performance.
+        - If the PR changes behavior, require tests or explain why they don't apply.
+        - Avoid out-of-scope suggestions (massive refactors, global formatting) unless necessary.
 
     - path: "**/*.{h,H,hpp,hxx,hh}"
       instructions: |
-        Este es un archivo de cabecera C++ de la biblioteca Aleph-w.
-        Revisa: correctitud de algoritmos, memory leaks, exception safety,
-        uso correcto de templates, y adherencia al estilo del proyecto
-        (sin 'using namespace std' en headers).
-    
+        This is a C++ header file in the Aleph-w library.
+        Review: algorithm correctness, memory leaks, exception safety,
+        correct template usage, and adherence to project style
+        (no 'using namespace std' in headers).
+
     - path: "**/*.{c,C,cc,cpp,cxx}"
       instructions: |
-        Archivo de implementación C++. Verifica correctitud y rendimiento.
-    
+        C++ implementation file. Verify correctness and performance.
+
     - path: "Tests/**"
       instructions: |
-        Archivo de tests con Google Test. Verifica cobertura de casos edge,
-        que los tests sean determinísticos, y que no haya memory leaks.
+        Test file with Google Test. Check edge case coverage,
+        that tests are deterministic, and no memory leaks.
 
 chat:
   auto_reply: true
