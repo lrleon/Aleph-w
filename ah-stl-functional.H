@@ -639,7 +639,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Check if no element satisfies predicate.
+   * @brief Check if no element satisfies the predicate.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -655,11 +655,11 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Find first element satisfying predicate.
+   * @brief Find the first element satisfying predicate.
    *
    * @param pred Predicate `(element) -> bool`.
    * @param c Container.
-   * @return std::optional with element if found.
+   * @return std::optional with an element if found.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -677,11 +677,11 @@ namespace Aleph
   }
 
   /**
-   * @brief Find last element satisfying predicate.
+   * @brief Find the last element satisfying predicate.
    *
    * @param pred Predicate `(element) -> bool`.
    * @param c Container.
-   * @return std::optional with element if found.
+   * @return std::optional with an element if found.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -700,7 +700,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Find index of first element satisfying predicate.
+   * @brief Find index of the first element satisfying predicate.
    *
    * @param pred Predicate `(element) -> bool`.
    * @param c Container.
@@ -750,7 +750,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Check if element exists in container (mem in ML).
+   * @brief Check if an element exists in container (mem in ML).
    *
    * @param target Element to search for.
    * @param c Container.
@@ -981,10 +981,10 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Get first element.
+   * @brief Get the first element.
    *
    * @param c Container.
-   * @return std::optional with first element if container is not empty.
+   * @return std::optional with the first element if container is not empty.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1001,7 +1001,7 @@ namespace Aleph
   }
 
   /**
-   * @brief Get last element.
+   * @brief Get the last element.
    *
    * @param c Container.
    * @return std::optional with last element if container is not empty.
@@ -1025,7 +1025,7 @@ namespace Aleph
       }
     else
       {
-        // Fallback: iterate through entire container (for forward_list, etc.)
+        // Fallback: iterate through the entire container (for forward_list, etc.)
         T last = *it;
         ++it;
         for (; it != c.end(); ++it)
@@ -1039,7 +1039,7 @@ namespace Aleph
    *
    * @param n Index (0-based).
    * @param c Container.
-   * @return std::optional with n-th element if exists.
+   * @return std::optional with the n-th element if exists.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1093,7 +1093,7 @@ namespace Aleph
    * @brief Get maximum element.
    *
    * @param c Container.
-   * @return std::optional with maximum element.
+   * @return std::optional with the maximum element.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1151,7 +1151,7 @@ namespace Aleph
    *
    * @param key Key extractor `(element) -> comparable`.
    * @param c Container.
-   * @return std::optional with element having minimum key.
+   * @return std::optional with the element having minimum key.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1187,7 +1187,7 @@ namespace Aleph
    *
    * @param key Key extractor `(element) -> comparable`.
    * @param c Container.
-   * @return std::optional with element having maximum key.
+   * @return std::optional with the element having maximum key.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -1430,7 +1430,7 @@ namespace Aleph
   // ============================================================================
 
   /**
-   * @brief Return reversed copy of container.
+   * @brief Return a reversed copy of container.
    *
    * @param c Container.
    * @return std::vector with elements in reverse order.
@@ -2060,7 +2060,7 @@ namespace Aleph
     if (containers.empty())
       return result;
 
-    // Start with first container
+    // Start with the first container
     for (const auto & elem: containers[0])
       result.push_back({elem});
 
@@ -2289,7 +2289,7 @@ namespace Aleph
    * @brief Get all elements except the last (init in Haskell).
    *
    * @param c Container.
-   * @return Vector without last element.
+   * @return Vector without the last element.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León
@@ -2310,7 +2310,7 @@ namespace Aleph
    * @brief Get all elements except the first (tail in Haskell).
    *
    * @param c Container.
-   * @return Vector without first element.
+   * @return Vector without the first element.
    *
    * @ingroup Algorithms
    *  @author Leandro Rabindranath León

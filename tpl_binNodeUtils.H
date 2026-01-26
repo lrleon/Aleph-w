@@ -84,7 +84,7 @@ namespace Aleph
       -# `pos`: ordinal indicating the visited order
 
       \deprecated Probably this function will be removed in future
-      versions. Use the functor `For_Each_In_Order` or `traverse()` instead
+      versions. Use the functor `For_Each_In_Order` or `traverse()` instead of
 
       @param[in] root pointer to tree's root
       @param[in] visitFct pointer to visit function
@@ -1292,7 +1292,7 @@ namespace Aleph
           const char * array_name_k[] = { key in prefix order };
 
       The first array is a bit array containing the tree code (its
-      Lukasiewicz word). The second array contains a strinficted version
+      Lukasiewicz word). The second array contains a stringficated version
       of the key values that were generated through the functor `Get_Key`,
       whose structure must be as follows:
 
