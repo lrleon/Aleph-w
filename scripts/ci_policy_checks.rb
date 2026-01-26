@@ -62,19 +62,16 @@ def license_only_change?(path, base)
   end
 
   # Check if the diff only contains license-related changes
-  # Look for lines that suggest license changes (GPL -> MIT, copyright notices, etc.)
   added_lines = diff_output.lines.select { |l| l.start_with?('+') && !l.start_with?('+++') }
   removed_lines = diff_output.lines.select { |l| l.start_with?('-') && !l.start_with?('---') }
 
-  # If there are very few changed lines and they contain license keywords, it's likely a license-only change
-  total_changes = added_lines.size + removed_lines.size
-  return false if total_changes == 0
+  return false if added_lines.empty? && removed_lines.empty?
 
-  license_keywords = /GPL|MIT|General Public License|Permission is hereby granted|Copyright/i
-  license_related = (added_lines + removed_lines).count { |l| l.match?(license_keywords) }
+  # License-related patterns (must match ALL changed lines to be considered license-only)
+  license_keywords = /GPL|MIT|General Public License|Permission is hereby granted|Copyright|LICENSE|WARRANTY|NONINFRINGEMENT|sublicense/i
 
-  # If more than 80% of changes are license-related, consider it a license-only change
-  (license_related.to_f / total_changes) > 0.8
+  # ALL changed lines must contain license keywords for this to be a license-only change
+  (added_lines + removed_lines).all? { |l| l.match?(license_keywords) }
 end
 
 
