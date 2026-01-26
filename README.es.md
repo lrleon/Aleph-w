@@ -29,6 +29,8 @@ Idioma: Español | [English](README.md)
 - [Resumen](#resumen)
 - [Requisitos](#requisitos)
 - [Instalación](#instalación)
+- [Referencia de API](#referencia-de-api)
+  - [Documentación en línea](#documentación-en-línea)
 - [Uso rápido](#uso-rápido)
 - [Pruebas](#pruebas)
 - [Contribuir](#contribuir)
@@ -134,6 +136,21 @@ FetchContent_MakeAvailable(aleph-w)
 
 target_link_libraries(your_target PRIVATE Aleph)
 ```
+
+---
+
+## Referencia de API
+
+### Documentación en línea
+
+La **documentación completa de la API de Doxygen** está disponible en:
+[https://lrleon.github.io/Aleph-w/](https://lrleon.github.io/Aleph-w/)
+
+Esto incluye:
+- Documentación detallada de clases y funciones
+- Ejemplos de código para cada estructura de datos
+- Detalles de implementación
+- Documentación de parámetros de plantilla
 
 ---
 

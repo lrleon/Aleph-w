@@ -51,6 +51,7 @@ Language: English | [Español](README.es.md)
 - [Functional Programming](#functional-programming)
 - [Tutorial](#tutorial)
 - [API Reference](#api-reference)
+  - [Online Documentation](#online-documentation)
 - [Benchmarks](#benchmarks)
 - [Examples](#examples)
 - [Testing](#testing)
@@ -1713,6 +1714,17 @@ int main() {
 ---
 
 ## API Reference
+
+### Online Documentation
+
+The complete **Doxygen API documentation** is available at:
+[https://lrleon.github.io/Aleph-w/](https://lrleon.github.io/Aleph-w/)
+
+This includes:
+- Detailed class and function documentation
+- Code examples for each data structure
+- Cross-referenced implementation details
+- Template parameter documentation
 
 ### Quick Reference by Category
 
