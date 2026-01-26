@@ -84,7 +84,7 @@ namespace Aleph
       -# `pos`: ordinal indicating the visited order
 
       \deprecated Probably this function will be removed in future
-      versions. Use the functor `For_Each_In_Order` or `traverse()` instead of
+      versions. Use the functor `For_Each_In_Order` or `traverse()` instead of `inOrderRec()`.
 
       @param[in] root pointer to tree's root
       @param[in] visitFct pointer to visit function
