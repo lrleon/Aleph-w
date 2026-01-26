@@ -23,12 +23,16 @@ def base_ref
 end
 
 
+# Files to exclude from doxygen warning checks (preexisting warnings, not code)
+EXCLUDED_FILES = %w[README.md README.es.md].freeze
+
+
 def changed_files(base)
   return [] if base.nil? || base.empty?
 
   run!(['git', 'fetch', '--no-tags', '--prune', 'origin', "#{base}:#{base}"])
   out = run!(['git', 'diff', '--name-only', '--diff-filter=ACMR', "origin/#{base}...HEAD"])
-  out.lines.map(&:strip).reject(&:empty?)
+  out.lines.map(&:strip).reject(&:empty?).reject { |f| EXCLUDED_FILES.include?(f) }
 end
 
 

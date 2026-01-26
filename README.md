@@ -2028,7 +2028,7 @@ ctest --test-dir build-debug
 
 Aleph-w is licensed under the **MIT License**.
 
-```
+```text
 Copyright (C) 2002-2026 Leandro Rabindranath León
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
