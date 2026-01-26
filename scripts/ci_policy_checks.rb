@@ -51,7 +51,7 @@ def mit_license_header?(path)
 end
 
 
-def license_only_change?(path, base)
+def docs_or_license_only_change?(path, base)
   return false unless path.exist?
 
   # Get the diff for this file
@@ -61,17 +61,32 @@ def license_only_change?(path, base)
     return false
   end
 
-  # Check if the diff only contains license-related changes
+  # Check if the diff only contains license-related or documentation changes
   added_lines = diff_output.lines.select { |l| l.start_with?('+') && !l.start_with?('+++') }
   removed_lines = diff_output.lines.select { |l| l.start_with?('-') && !l.start_with?('---') }
 
   return false if added_lines.empty? && removed_lines.empty?
 
-  # License-related patterns (must match ALL changed lines to be considered license-only)
+  # Patterns for non-functional changes (license, comments, docs)
   license_keywords = /GPL|MIT|General Public License|Permission is hereby granted|Copyright|LICENSE|WARRANTY|NONINFRINGEMENT|sublicense/i
+  comment_patterns = %r{
+    ^\+\s*//|              # C++ single-line comment
+    ^\+\s*/\*|             # C-style comment start
+    ^\+\s*\*|              # C-style comment continuation
+    ^\+\s*\*/|             # C-style comment end
+    ^\-\s*//|              # Removed C++ comment
+    ^\-\s*/\*|             # Removed C-style comment start
+    ^\-\s*\*|              # Removed C-style comment continuation
+    ^\-\s*\*/|             # Removed C-style comment end
+    ^\+\s*$|               # Added blank line
+    ^\-\s*$|               # Removed blank line
+    @param|@return|@brief|@note|@see|@tparam  # Doxygen tags
+  }x
 
-  # ALL changed lines must contain license keywords for this to be a license-only change
-  (added_lines + removed_lines).all? { |l| l.match?(license_keywords) }
+  # ALL changed lines must be license-related, comments, or whitespace
+  (added_lines + removed_lines).all? do |line|
+    line.match?(license_keywords) || line.match?(comment_patterns)
+  end
 end
 
 
@@ -96,8 +111,8 @@ def main
     failures << "missing/invalid MIT license header: #{hf}" unless mit_license_header?(p)
   end
 
-  # Filter out headers that only have license changes
-  headers_with_code_changes = headers_changed.reject { |hf| license_only_change?(Pathname.new(hf), base) }
+  # Filter out headers that only have license or documentation changes
+  headers_with_code_changes = headers_changed.reject { |hf| docs_or_license_only_change?(Pathname.new(hf), base) }
 
   if !headers_with_code_changes.empty? && tests_changed.empty?
     failures << 'headers changed but no Tests/ files changed (add/modify tests)'
