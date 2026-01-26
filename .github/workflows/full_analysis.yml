@@ -1,0 +1,95 @@
+name: Full Analysis
+
+on:
+  schedule:
+    # Weekly on Sunday at 02:00 UTC, intentionally 4 hours before the Coverity scan
+    # at 06:00 UTC to avoid overlap and resource contention.
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-analysis:
+    name: full-analysis (ubuntu-24.04, gcc, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache \
+            g++ \
+            ruby-full doxygen \
+            cppcheck \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Configure
+        run: |
+          rm -rf build-full
+          cmake -S . -B build-full -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: |
+          cmake --build build-full --parallel
+
+      - name: Test
+        run: |
+          ctest --test-dir build-full --output-on-failure --parallel 2 --timeout 600
+
+      - name: cppcheck (full repo)
+        run: |
+          rm -f cppcheck.xml cppcheck.txt
+          cppcheck \
+            --enable=warning,performance,portability \
+            --inconclusive \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            --error-exitcode=1 \
+            --xml --xml-version=2 \
+            -I . \
+            . 2> cppcheck.xml
+          # also provide a human-friendly text output
+          cppcheck \
+            --enable=warning,performance,portability \
+            --inconclusive \
+            --inline-suppr \
+            --suppress=missingIncludeSystem \
+            -I . \
+            . 2> cppcheck.txt || true
+
+      - name: Doxygen (collect warnings)
+        run: |
+          rm -f doxygen_err.txt
+          doxygen Doxyfile 2> doxygen_err.txt
+          ruby scripts/doxygen_warnings_summary.rb doxygen_err.txt docs/doxygen_warnings.md
+
+      - name: Header audit report
+        run: |
+          ruby scripts/header_audit.rb --repo . --out docs/header_audit.md
+
+      - name: Upload full analysis reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-analysis-reports
+          path: |
+            cppcheck.xml
+            cppcheck.txt
+            doxygen_err.txt
+            docs/doxygen_warnings.md
+            docs/header_audit.md

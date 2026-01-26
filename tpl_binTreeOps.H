@@ -9,18 +9,23 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
 
@@ -64,8 +69,8 @@ namespace Aleph
 
     using key_type = typename Node::key_type; /// The type of key
 
-    /// Initialize the functor with comparison criteria `__cmp`
-    BinTree_Operation(Cmp __cmp = Cmp()) noexcept : cmp(__cmp)
+    /// Initialize the functor with comparison criteria `cmp_`
+    BinTree_Operation(Cmp cmp_ = Cmp()) noexcept : cmp(cmp_)
     { /* empty */
     }
 
@@ -76,7 +81,7 @@ namespace Aleph
         @return a pointer to a node containing the key if this was found;
         `Node::NullPtr` otherwise
     */
-    Node * search(Node *root, const Key & key) noexcept
+    [[nodiscard]] Node * search(Node *root, const Key & key) noexcept
     {
       return searchInBinTree(root, key, cmp);
     }
@@ -90,7 +95,7 @@ namespace Aleph
         @return a valid pointer to a node containing `key` if this is
         found; otherwise, it returns a pointer to the last visited node
     */
-    Node * search_parent(Node *root, const Key & key, Node *& parent) noexcept
+    [[nodiscard]] Node * search_parent(Node *root, const Key & key, Node *& parent) noexcept
     {
       return Aleph::search_parent<Node, Cmp>(root, key, parent, cmp);
     }
@@ -112,7 +117,7 @@ namespace Aleph
         @note It is not verified if the tree is empty
         @ingroup Trees
     */
-    Node * search_rank_parent(Node *root, const Key & key) noexcept
+    [[nodiscard]] Node * search_rank_parent(Node *root, const Key & key) noexcept
     {
       return Aleph::search_rank_parent<Node, Cmp>(root, key, cmp);
     }
@@ -127,7 +132,7 @@ namespace Aleph
         @return `p` if this was inserted; that is if `p->get_key()` is
         not in the tree; otherwise, `Node::NullPtr` is returned
     */
-    Node * insert(Node *& root, Node *p) noexcept
+    [[nodiscard]] Node * insert(Node *& root, Node *p) noexcept
     {
       if (root == Node::NullPtr)
         return root = p;
@@ -181,7 +186,7 @@ namespace Aleph
         containing `p->get_key()`. If found, then this node is
         returned. Otherwise, `p` is inserted and returned.
 
-        @param[in,out] r roor of tree
+        @param[in,out] r root of tree
         @param[in] p node to search or insert
         @return `p` if its key was not in the tree; otherwise, a pointer
         containing the tree is returned.
@@ -208,7 +213,7 @@ namespace Aleph
     }
 
   private:
-    bool __split_key_rec(Node *root, const Key & key, Node *& ts, Node *& tg)
+    bool split_key_rec_helper(Node *root, const Key & key, Node *& ts, Node *& tg)
       noexcept
     {
       if (root == Node::NullPtr)
@@ -219,7 +224,7 @@ namespace Aleph
 
       if (cmp(key, KEY(root))) // ¿key < KEY(root)?
         {
-          if (__split_key_rec(LLINK(root), key, ts, LLINK(root)))
+          if (split_key_rec_helper(LLINK(root), key, ts, LLINK(root)))
             {
               tg = root;
               return true;
@@ -228,7 +233,7 @@ namespace Aleph
         }
 
       if (cmp(KEY(root), key)) // ¿key > KEY(root)?
-        if (__split_key_rec(RLINK(root), key, RLINK(root), tg))
+        if (split_key_rec_helper(RLINK(root), key, RLINK(root), tg))
           {
             ts = root;
             return true;
@@ -250,20 +255,20 @@ namespace Aleph
         @param[in] key for slitting
         @param[out] ts tree with keys lesser than `key`
         @param[out] tg tree with keys greater than `key`
-        @return `true` if the tree wa split; that if `key` was not in the
+        @return `true` if the tree was split; that is if `key` was not in the
         tree. Otherwise, the split is not performed and it return `false`
     */
     bool split_key_rec(Node *& root, const Key & key, Node *& ts, Node *& tg)
       noexcept
     {
-      const bool ret = __split_key_rec(root, key, ts, tg);
+      const bool ret = split_key_rec_helper(root, key, ts, tg);
       if (ret)
         root = Node::NullPtr;
       return ret;
     }
 
   private:
-    void __split_key_dup_rec(Node *root, const typename Node::key_type & key,
+    void split_key_dup_rec_helper(Node *root, const typename Node::key_type & key,
                              Node *& ts, Node *& tg) noexcept
     {
       if (root == Node::NullPtr)
@@ -273,11 +278,11 @@ namespace Aleph
         }
 
       if (cmp(key, KEY(root))) // ¿key < KEY(root)?
-        __split_key_dup_rec(LLINK(root), key, ts, LLINK(root));
+        split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root));
       else if (cmp(KEY(root), key)) // ¿key > KEY(root)?
-        __split_key_dup_rec(RLINK(root), key, RLINK(root), tg);
+        split_key_dup_rec_helper(RLINK(root), key, RLINK(root), tg);
       else // key == KEY(root)
-        __split_key_dup_rec(LLINK(root), key, ts, LLINK(root));
+        split_key_dup_rec_helper(LLINK(root), key, ts, LLINK(root));
     }
 
   public:
@@ -295,7 +300,7 @@ namespace Aleph
     void split_key_dup_rec(Node *& root, const typename Node::key_type & key,
                            Node *& ts, Node *& tg) noexcept
     {
-      __split_key_dup_rec(root, key, ts, tg);
+      split_key_dup_rec_helper(root, key, ts, tg);
       root = Node::NullPtr;
     }
 
@@ -306,7 +311,7 @@ namespace Aleph
         @return a valid pointer to the removed node if `key` was found
         in the tree, `Node::NullPtr` otherwise
     */
-    Node * remove(Node *& root, const Key & key) noexcept
+    [[nodiscard]] Node * remove(Node *& root, const Key & key) noexcept
     {
       if (root == Node::NullPtr)
         return Node::NullPtr;
@@ -324,7 +329,7 @@ namespace Aleph
       return ret_val;
     }
 
-    /** Insert the node `p` as root of a binary search tree
+    /** Insert the node `p` as the root of a binary search tree
 
         `insert_root(root, p)` inserts in the tree `root` the node
         `p`. After insertion, `p` becomes the new root of tree.
@@ -373,7 +378,7 @@ namespace Aleph
         @param[out] dup root of tree where the duplicated keys will be put
         @return a pointer to the resulting root of tree
     */
-    Node * join_preorder(Node *t1, Node *t2, Node *& dup) noexcept
+    [[nodiscard]] Node * join_preorder(Node *t1, Node *t2, Node *& dup) noexcept
     {
       if (t2 == Node::NullPtr)
         return t1;
@@ -401,7 +406,7 @@ namespace Aleph
         @param[out] dup tree where the duplicated keys of t2 are put
         @return pointer to the root of resulting join
     */
-    Node * join(Node *t1, Node *t2, Node *& dup) noexcept
+    [[nodiscard]] Node * join(Node *t1, Node *t2, Node *& dup) noexcept
     {
       if (t1 == Node::NullPtr)
         return t2;
@@ -420,7 +425,7 @@ namespace Aleph
 
           assert(p != Node::NullPtr);
 
-          insert(dup, t1);
+          insert(dup, p);  // Insert the removed node, not t1
         }
 
       LLINK(t2) = join(l, LLINK(t2), dup);
@@ -432,7 +437,7 @@ namespace Aleph
     /** Split a binary search tree according to a key.
 
         `split_key(root, key, l, r)` splits the tree `root`
-        according to `key`. At the end, `l` contains all the keays lesser
+        according to `key`. At the end, `l` contains all the keys lesser
         than `key` and `r ` all the keys greater or equal than `key`.
 
         @param[in,out] root of tree to split
@@ -450,7 +455,7 @@ namespace Aleph
 
       Node **current_parent = nullptr;
       Node **pending_child = nullptr;
-      char current_is_right;
+      bool current_is_right;
       if (cmp(key, KEY(root)))
         {
           r = root;
@@ -673,6 +678,8 @@ namespace Aleph
             parent = r;
             r = next;
 
+            // After moving left: new position is COUNT(LLINK(new_r))
+            // which equals old_pos - COUNT(RLINK(new_r)) - 1
             pos -= (COUNT(RLINK(r)) + 1);
           }
         else if (this->cmp(kr, key)) // KEY(r) < key: go right
@@ -683,6 +690,7 @@ namespace Aleph
             parent = r;
             r = next;
 
+            // After moving right: add parent + parent's left subtree
             pos += (COUNT(LLINK(r)) + 1);
           }
         else

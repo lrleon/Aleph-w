@@ -10,18 +10,23 @@
 
   Copyright (c) 2002-2026 Leandro Rabindranath Leon
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
 
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-  General Public License for more details.
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
 
-  You should have received a copy of the GNU General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
 */
 
 
@@ -84,20 +89,20 @@
  *
  * ## Pitfalls and edge cases
  *
- * - **Negative weights**: Dijkstra is invalid if any arc weight is negative.
- * - **Disconnected graphs**: unreachable nodes will not appear in the computed tree.
- * - **Source == destination**: this example documents Aleph-w's observed behavior where
+ * - @b Negative @b weights: Dijkstra is invalid if any arc weight is negative.
+ * - @b Disconnected @b graphs: unreachable nodes will not appear in the computed tree.
+ * - @b Source==destination: this example documents Aleph-w's observed behavior where
  *   `find_min_path(g, s, s, path)` may return `Inf` and an empty path; handle the trivial
  *   case explicitly if you need distance 0 and path `[s]`.
- * - **Directed vs undirected modeling**: for undirected graphs you must insert both
- *   directions, or use an undirected graph container.
+ * - @b Directed @b vs @b undirected @b modeling: for undirected graphs you must insert both
+ *   directions or use an undirected graph container.
  *
  * ## References / see also
  *
  * - `Dijkstra.H` (implementation)
  * - `bellman_ford_example.cc` / `Bellman_Ford.H` (negative weights)
  * - `johnson_example.cc` (all-pairs shortest paths with negative weights but no negative cycles)
- * - `astar_example.cc` / `AStar.H` (heuristic-guided shortest path)
+ * - `astar_example.cc` / `AStar.H` (the heuristic-guided shortest path)
  *
  * @author Leandro Rabindranath León
  * @ingroup Examples
