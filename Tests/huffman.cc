@@ -62,7 +62,7 @@ vector<char> to_c_buffer(const string &s)
 
 string decode_bits(BinNode<string> *root, const string &end_symbol, BitArray &bits)
 {
-  Huffman_Decoder_Engine decoder(root, end_symbol);
+  const Huffman_Decoder_Engine decoder(root, end_symbol);
   ostringstream out;
   decoder.decode(bits, out);
   return out.str();
