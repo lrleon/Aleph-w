@@ -226,5 +226,5 @@ PRs son bienvenidos.
 
 ## Licencia
 
-Aleph-w se distribuye bajo **GNU GPL v3.0**. Ver `LICENSE`.
+Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
 
