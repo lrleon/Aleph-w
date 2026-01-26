@@ -2209,7 +2209,7 @@ namespace Aleph
   /** Random search for an element in a Dnode<T> list.
 
       random_search(list,x) uses the partition algorithm
-      quicksort to find element x in the list.
+      quicksort to find an element x in the list.
 
       The method uses two type parameters:
       -# T: the type of elements that the array has.
@@ -2221,10 +2221,10 @@ namespace Aleph
       search the list is partially ordered.
 
       A specialization uses the "less than" relationship as
-      comparison criterion and saves writing that
+      a comparison criterion and saves writing that
       class.
 
-      @param[in,out] list list in which the search is performed;
+      @param[in,out] list in which the search is performed;
       is partially modified after the search.
       @param[in] x element to search for.
       @param cmp Comparison functor defining "less than" relationship.
@@ -2244,7 +2244,7 @@ namespace Aleph
   /** Random search for an element in a dynamic list.
 
       random_search(list,x) uses the partition algorithm
-      quicksort to find element x in the dynamic list list.
+      quicksort to find an element x in the dynamic list.
 
       The method uses two type parameters:
       -# T: the type of elements that the array has.
@@ -2291,7 +2291,7 @@ namespace Aleph
     if (i == pivot)
       return a[i];
 
-    if (i < pivot) // Is it in left partition?
+    if (i < pivot) // Is it in the left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
@@ -2363,7 +2363,7 @@ namespace Aleph
     long i = l - 1;
     long j = r;
 
-    // Move selected pivot to position r
+    // Move the selected pivot to position r
     if (const long pivot_idx = select_pivot_op<T, Compare>(a, l, r, cmp); pivot_idx != r)
       std::swap(a(pivot_idx), a(r));
 
@@ -2418,7 +2418,7 @@ namespace Aleph
     if (i == pivot)
       return a(i);
 
-    if (i < pivot) // is it in left partition?
+    if (i < pivot) // is it in the left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
@@ -2438,7 +2438,7 @@ namespace Aleph
     if (i == pivot)
       return a(i);
 
-    if (i < pivot) // Is it in left partition?
+    if (i < pivot) // Is it in the left partition?
       return __random_select<T, Compare>(a, i, l, pivot - 1, cmp);
     return __random_select<T, Compare>(a, i, pivot + 1, r, cmp);
   }
@@ -3016,7 +3016,7 @@ namespace Aleph
     auto nc = Negate_Compare<T, Compare>(cmp);
 
     // Floyd's heap construction: O(n) instead of O(n log n)
-    // Start from last non-leaf node and sift down each node
+    // Start from the last non-leaf node and sift down each node
     for (long i = n / 2; i >= 1; --i)
       sift_down<T, Negate_Compare<T, Compare>>(a, i, n, nc);
 
@@ -3226,10 +3226,9 @@ namespace Aleph
         --depth_limit;
 
         // Partition and continue
-        const long pivot = partition(a, l, r, cmp);
 
         // Recurse on smaller partition, iterate on larger (tail call elimination)
-        if (pivot - l < r - pivot)
+        if (const long pivot = partition(a, l, r, cmp); pivot - l < r - pivot)
           {
             introsort_loop<T, Compare>(a, l, pivot - 1, depth_limit, cmp);
             l = pivot + 1;

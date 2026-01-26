@@ -186,7 +186,7 @@ namespace Aleph
    * Safely adds a character to a buffer, checking that the buffer
    * has not been exceeded. If the buffer is full, an error is raised.
    *
-   * @param start_addr Reference to the current write position; incremented after write
+   * @param start_addr Reference to the current write position; incremented after itwriting
    * @param end_addr   Pointer to one past the end of the buffer
    * @param c          Character to append
    *
