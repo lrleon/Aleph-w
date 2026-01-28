@@ -202,7 +202,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **BitArray**: compact bit-vector container (see \ref Aleph::BitArray)
+- **BitArray**: compact bit-vector container (see Aleph::BitArray)
 
 ### Algorithms
 
