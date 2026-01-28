@@ -200,8 +200,8 @@ void TimeoutQueue::triggerEvent()
       auto* event_to_schedule = static_cast<Event*>(prioQueue.top());
 
       // Compute time when the event must be triggered
-      const Time& t = EVENT_TIME(event_to_schedule);
-      auto trigger_point = timespec_to_timepoint(t);
+      const Time original_trigger_time = EVENT_TIME(event_to_schedule);
+      auto trigger_point = timespec_to_timepoint(original_trigger_time);
 
       // Wait until trigger time or notification
       const auto wait_result = cond.wait_until(lock, trigger_point);
@@ -219,12 +219,10 @@ void TimeoutQueue::triggerEvent()
             continue;
 
           // Peek at the soonest event without extracting it
-          auto* next = static_cast<Event*>(prioQueue.top());
-
           // If the top changed (original was canceled/rescheduled) and
           // the new top is in the future, go back to wait for it
-          if (next != event_to_schedule and
-              EVENT_TIME(next) > EVENT_TIME(event_to_schedule))
+          if (const auto* next = static_cast<Event*>(prioQueue.top()); next != event_to_schedule and
+              EVENT_TIME(next) > original_trigger_time)
             continue;
 
           // Now extract the event we are going to execute
