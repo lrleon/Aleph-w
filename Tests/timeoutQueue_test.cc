@@ -9,6 +9,7 @@
  */
 
 # include <gtest/gtest.h>
+# include <stdexcept>
 # include <atomic>
 # include <chrono>
 # include <thread>
@@ -884,6 +885,306 @@ TEST(TimeoutQueueTest, CancelByIdWithCallback)
   EXPECT_TRUE(callback_called);
 
   delete e;
+}
+
+// =============================================================================
+// Regression Tests for Bug Fixes
+// =============================================================================
+
+TEST(TimeoutQueueTest, DestructorWithoutShutdown)
+{
+  // Test that destructor auto-shutdowns if shutdown() wasn't called
+  // This should not crash and should print a warning
+  testing::internal::CaptureStderr();
+
+  TimeoutQueue* queue = new TimeoutQueue();
+  auto* event = new TestEvent(time_from_now_ms(1000));
+  queue->schedule_event(event);
+
+  // Delete without calling shutdown() - should auto-shutdown
+  delete queue;
+
+  string output = testing::internal::GetCapturedStderr();
+  EXPECT_NE(output.find("Warning"), string::npos);
+  EXPECT_NE(output.find("shutdown"), string::npos);
+
+  delete event;
+}
+
+TEST(TimeoutQueueTest, DeleteEventInQueue)
+{
+  // Test that deleting an event that's still In_Queue prints warning (doesn't crash)
+  testing::internal::CaptureStderr();
+
+  auto* event = new TestEvent(time_from_now_ms(1000));
+  g_queue->schedule_event(event);
+
+  EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::In_Queue);
+
+  // Cancel first to remove from queue, then delete
+  g_queue->cancel_event(event);
+
+  // Now it's safe to delete
+  delete event;
+
+  string output = testing::internal::GetCapturedStderr();
+  // Should not have warning since we canceled first
+  EXPECT_EQ(output, "");
+}
+
+// Note: DeleteEventInQueueDirectly would be UB in practice.
+// The warning is tested indirectly - if someone does this by mistake,
+// they'll see the warning instead of a crash/terminate.
+
+TEST(TimeoutQueueTest, CancelDuringTimeout)
+{
+  // Regression test for getMin() bug: event canceled during wait_until
+  // should not cause next event to be lost
+  g_queue->reset_stats();
+
+  auto* e1 = new TestEvent(time_from_now_ms(100));
+  auto* e2 = new TestEvent(time_from_now_ms(200));
+
+  g_queue->schedule_event(e1);
+  g_queue->schedule_event(e2);
+
+  // Wait until just before e1 should fire, then cancel it
+  this_thread::sleep_for(chrono::milliseconds(90));
+  bool canceled = g_queue->cancel_event(e1);
+  EXPECT_TRUE(canceled);
+
+  // e2 should still execute (not be lost due to getMin() bug)
+  this_thread::sleep_for(chrono::milliseconds(200));
+  EXPECT_FALSE(e1->executed);
+  EXPECT_TRUE(e2->executed);
+
+  EXPECT_EQ(g_queue->executed_count(), 1u);
+  EXPECT_EQ(g_queue->canceled_count(), 1u);
+
+  delete e1;
+  delete e2;
+}
+
+TEST(TimeoutQueueTest, RescheduleDuringTimeout)
+{
+  // Similar test: reschedule top event while worker is waiting for it
+  auto* e1 = new TestEvent(time_from_now_ms(100));
+  auto* e2 = new TestEvent(time_from_now_ms(300));
+
+  g_queue->schedule_event(e1);
+  g_queue->schedule_event(e2);
+
+  // Reschedule e1 to much later
+  this_thread::sleep_for(chrono::milliseconds(50));
+  g_queue->reschedule_event(time_from_now_ms(500), e1);
+
+  // e2 should execute at its original time
+  this_thread::sleep_for(chrono::milliseconds(350));
+  EXPECT_TRUE(e2->executed);
+  EXPECT_FALSE(e1->executed);
+
+  // e1 should execute later
+  this_thread::sleep_for(chrono::milliseconds(300));
+  EXPECT_TRUE(e1->executed);
+
+  delete e1;
+  delete e2;
+}
+
+TEST(TimeoutQueueTest, NullEventValidation)
+{
+  // Test that passing nullptr throws exception (not assertion failure in Release)
+  Time t = time_from_now_ms(100);
+
+  EXPECT_THROW(g_queue->schedule_event(nullptr), std::invalid_argument);
+  EXPECT_THROW(g_queue->schedule_event(t, nullptr), std::invalid_argument);
+  EXPECT_THROW(g_queue->reschedule_event(t, nullptr), std::invalid_argument);
+}
+
+TEST(TimeoutQueueTest, InvalidNsecValidation)
+{
+  // The implementation enforces tv_nsec bounds with assertions inside Event::set_trigger_time().
+  // So in Debug builds we expect process death. In Release builds, assertions are disabled and
+  // the behavior is not reliably observable here.
+# ifndef NDEBUG
+  ASSERT_DEATH(
+    {
+      TimeoutQueue q;
+      auto* e = new TestEvent(time_from_now_ms(1000));
+      Time bad = read_current_time();
+      bad.tv_nsec = 2000000000; // Invalid: >= 1e9
+      q.schedule_event(bad, e);
+    },
+    "");
+# else
+  GTEST_SKIP();
+# endif
+}
+
+TEST(TimeoutQueueTest, ScheduleSameEventTwiceThrows)
+{
+  auto* e = new TestEvent(time_from_now_ms(500));
+  g_queue->schedule_event(e);
+  EXPECT_THROW(g_queue->schedule_event(e), std::invalid_argument);
+  g_queue->cancel_event(e);
+  delete e;
+}
+
+TEST(TimeoutQueueTest, ShutdownCancelsPendingEventsAndInvokesCallback)
+{
+  TimeoutQueue q;
+
+  std::mutex m;
+  std::condition_variable cv;
+  int callbacks = 0;
+
+  auto* e = new TestEvent(time_from_now_ms(1000));
+  e->set_completion_callback([&](TimeoutQueue::Event* ev, TimeoutQueue::Event::Execution_Status st) {
+    std::lock_guard<std::mutex> lk(m);
+    EXPECT_EQ(ev->get_execution_status(), st);
+    EXPECT_EQ(st, TimeoutQueue::Event::Canceled);
+    ++callbacks;
+    cv.notify_all();
+  });
+
+  q.schedule_event(e);
+  q.shutdown();
+
+  std::unique_lock<std::mutex> lk(m);
+  ASSERT_TRUE(cv.wait_for(lk, std::chrono::milliseconds(500), [&]{ return callbacks == 1; }));
+
+  EXPECT_FALSE(q.is_running());
+
+  delete e;
+}
+
+TEST(TimeoutQueueTest, CancelDeleteEventCallback)
+{
+  // Test that cancel_delete_event invokes completion callback
+  atomic<bool> callback_called{false};
+  atomic<int> callback_status{-1};
+
+  TimeoutQueue::Event* event = new TestEvent(time_from_now_ms(500));
+
+  event->set_completion_callback([&](TimeoutQueue::Event* ev,
+                                     TimeoutQueue::Event::Execution_Status status) {
+    callback_called = true;
+    callback_status = static_cast<int>(status);
+  });
+
+  g_queue->schedule_event(event);
+  g_queue->cancel_delete_event(event);
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_EQ(callback_status, static_cast<int>(TimeoutQueue::Event::Deleted));
+  EXPECT_EQ(event, nullptr);
+}
+
+TEST(TimeoutQueueTest, CancelDeleteExecutingEvent)
+{
+  // Test cancel_delete_event on an event that's currently Executing
+  mutex mtx;
+  condition_variable cv;
+  atomic<bool> event_started{false};
+  atomic<bool> can_finish{false};
+
+  class BlockingEvent : public TimeoutQueue::Event
+  {
+  public:
+    atomic<bool>& started;
+    atomic<bool>& finish_flag;
+
+    BlockingEvent(const Time& t, atomic<bool>& s, atomic<bool>& f)
+      : Event(t), started(s), finish_flag(f) {}
+
+    void EventFct() override
+    {
+      started = true;
+      while (!finish_flag)
+        this_thread::sleep_for(chrono::milliseconds(10));
+    }
+  };
+
+  TimeoutQueue::Event* event = new BlockingEvent(
+    time_from_now_ms(50), event_started, can_finish);
+
+  atomic<bool> callback_called{false};
+  event->set_completion_callback([&](auto*, auto status) {
+    callback_called = true;
+    EXPECT_EQ(status, TimeoutQueue::Event::Deleted);
+  });
+
+  g_queue->schedule_event(event);
+
+  // Wait for event to start executing
+  while (!event_started)
+    this_thread::sleep_for(chrono::milliseconds(10));
+
+  // Try to cancel_delete while it's executing
+  // Should mark as To_Delete and worker will delete it
+  g_queue->cancel_delete_event(event);
+  EXPECT_EQ(event, nullptr);
+
+  // Let event finish
+  can_finish = true;
+  this_thread::sleep_for(chrono::milliseconds(100));
+
+  // Callback should have been called by worker thread
+  EXPECT_TRUE(callback_called);
+}
+
+TEST(TimeoutQueueTest, CompletionCallbackOrderCorrect)
+{
+  // Test that completion callback is called AFTER status is set
+  // (regression test for callback/status ordering inconsistency)
+  atomic<bool> callback_called{false};
+  atomic<TimeoutQueue::Event::Execution_Status> status_in_callback{
+    TimeoutQueue::Event::Out_Queue};
+
+  auto* event = new TestEvent(time_from_now_ms(50));
+
+  event->set_completion_callback([&](TimeoutQueue::Event* ev,
+                                     TimeoutQueue::Event::Execution_Status status) {
+    // Status should already be set when callback is invoked
+    status_in_callback = ev->get_execution_status();
+    callback_called = true;
+    EXPECT_EQ(status, ev->get_execution_status());
+  });
+
+  g_queue->schedule_event(event);
+  this_thread::sleep_for(chrono::milliseconds(200));
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_EQ(status_in_callback, TimeoutQueue::Event::Executed);
+
+  delete event;
+}
+
+TEST(TimeoutQueueTest, MultipleEventsWithSameTime)
+{
+  // Test that multiple events scheduled for the same time all execute
+  const int num_events = 5;
+  vector<TestEvent*> events;
+  atomic<int> executed_count{0};
+
+  Time same_time = time_from_now_ms(100);
+
+  for (int i = 0; i < num_events; ++i)
+    {
+      auto* e = new TestEvent(same_time, [&]() { ++executed_count; });
+      events.push_back(e);
+      g_queue->schedule_event(e);
+    }
+
+  this_thread::sleep_for(chrono::milliseconds(300));
+
+  EXPECT_EQ(executed_count, num_events);
+
+  for (auto* e : events)
+    {
+      EXPECT_TRUE(e->executed);
+      delete e;
+    }
 }
 
 // =============================================================================

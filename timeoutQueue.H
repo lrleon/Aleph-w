@@ -106,6 +106,7 @@
 # define TIMEOUTQUEUE_H
 
 # include <unistd.h>
+# include <iostream>
 # include <mutex>
 # include <condition_variable>
 # include <thread>
@@ -225,8 +226,9 @@ public:
 
     ~Event() override
     {
-      ah_runtime_error_if(execution_status == In_Queue)
-        << "Attempting to delete an event in queue (" << this << ")";
+      if (execution_status == In_Queue)
+        std::cerr << "Warning: deleting Event " << this
+                  << " that is still In_Queue" << std::endl;
     }
 
     [[nodiscard]] Execution_Status get_execution_status() const { return execution_status; }
@@ -277,6 +279,13 @@ private:
   std::condition_variable  emptyCondition;
 
   void triggerEvent();
+
+  // Set isShutdown and notify; caller must hold mtx
+  void shutdown_locked()
+  {
+    isShutdown = true;
+    cond.notify_one();
+  }
 
 public:
 
