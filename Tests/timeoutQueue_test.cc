@@ -2,6 +2,8 @@
  * @file timeoutQueue_test.cc
  * @brief Comprehensive tests for TimeoutQueue class
  *
+ * Note: Updated to reflect header Doxygen group changes.
+ *
  * Note: TimeoutQueue is a singleton (only one instance allowed).
  * All tests share a single global queue instance.
  */

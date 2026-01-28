@@ -98,6 +98,7 @@
  * 
  * @author Leandro Rabindranath León *
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
 
  */
 

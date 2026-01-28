@@ -29,6 +29,8 @@
 */
 
 
+// Note: Updated to reflect header Doxygen group changes.
+
 # include <cassert>
 # include <cstdio>
 # include <typeinfo>
@@ -56,8 +58,7 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 
 TimeoutQueue::~TimeoutQueue()
 {
-  if (not isShutdown)
-    EXIT("TimeoutQueue is not shut down");
+  ah_domain_error_if(not isShutdown) << "TimeoutQueue is not shut down";
 
   if (workerThread.joinable())
     workerThread.join();
