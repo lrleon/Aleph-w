@@ -19,7 +19,7 @@ Key points:
 - The wrapper preserves the usual Aleph iterator interface (`has_curr()`, `get_curr()`, `next()` / `next_ne()`, etc.).
 - You can attach context via `set_cookie()` / `get_cookie()` if needed.
 
-@code
+```cpp
 #include <filter_iterator.H>
 #include <tpl_dynDlist.H>
 
@@ -43,7 +43,7 @@ int main()
       (void) x;
     }
 }
-@endcode
+```
 
 ## 2) Graph arc/node filters (practical example)
 
@@ -54,7 +54,7 @@ This is used throughout \ref tpl__graph_8H and shortest-path algorithms like \re
 
 If your arc payload indicates whether an arc represents a highway, you can provide a `Show_Arc` filter so that Dijkstra ignores those arcs.
 
-@code
+```cpp
 #include <tpl_graph.H>
 #include <Dijkstra.H>
 
@@ -91,7 +91,7 @@ int main()
   auto d = dij(g, s, t, path);
   (void) d;
 }
-@endcode
+```
 
 Notes:
 - The filter functor (`NoHighways`) is the `SA` template parameter in `Dijkstra_Min_Paths`.

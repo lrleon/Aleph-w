@@ -18,7 +18,7 @@ See \ref thread__pool_8H and the runnable example \ref thread__pool__example_8cc
 
 Typical usage pattern:
 
-@code
+```cpp
 #include <thread_pool.H>
 
 Aleph::ThreadPool pool(4);
@@ -26,7 +26,7 @@ Aleph::ThreadPool pool(4);
 auto f = pool.enqueue([](int x) { return x * x; }, 5);
 int v = f.get();
 (void) v;
-@endcode
+```
 
 ## TimeoutQueue (timed events)
 
