@@ -1003,9 +1003,10 @@ TEST(TimeoutQueueTest, NullEventValidation)
 
 TEST(TimeoutQueueTest, InvalidNsecValidation)
 {
-  // The implementation enforces tv_nsec bounds with assertions inside Event::set_trigger_time().
-  // So in Debug builds we expect process death. In Release builds, assertions are disabled and
-  // the behavior is not reliably observable here.
+  // The implementation enforces tv_nsec bounds with assertions inside Event::set_trigger_time()
+  // and with ah_domain_error_if inside schedule_event(Event*).
+  // In Debug builds, the assert triggers first (process death).
+  // In Release builds, assertions are disabled but ah_domain_error_if throws std::domain_error.
 # ifndef NDEBUG
   ASSERT_DEATH(
     {
@@ -1017,7 +1018,12 @@ TEST(TimeoutQueueTest, InvalidNsecValidation)
     },
     "");
 # else
-  GTEST_SKIP();
+  TimeoutQueue q;
+  auto* e = new TestEvent(time_from_now_ms(1000));
+  Time bad = read_current_time();
+  bad.tv_nsec = 2000000000; // Invalid: >= 1e9
+  EXPECT_THROW(q.schedule_event(bad, e), std::domain_error);
+  delete e; // Clean up since schedule_event threw before taking ownership
 # endif
 }
 
