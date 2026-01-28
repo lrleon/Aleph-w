@@ -112,7 +112,7 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
   if (event->get_execution_status() != Event::In_Queue)
     return false;
 
-  const auto callback = event->on_completed;
+  const Event::CompletionCallback callback = event->on_completed;
 
   prioQueue.remove(event);
   eventMap.erase(event->get_id());
@@ -150,7 +150,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
     }
   else
     {
-      const auto callback = event->on_completed;
+      const Event::CompletionCallback callback = event->on_completed;
       event->set_execution_status(Event::Deleted);
       if (callback)
         callback(event, Event::Deleted);
@@ -245,7 +245,7 @@ void TimeoutQueue::triggerEvent()
           // Copy callback before setting final status to avoid race condition:
           // Once we set status to Executed/Deleted, user code may delete the event
           // while we're still trying to invoke the callback
-          auto callback = event_to_execute->on_completed;
+          const Event::CompletionCallback callback = event_to_execute->on_completed;
           auto final_status = Event::Executed;
 
           if (event_to_execute->get_execution_status() == Event::To_Delete)
@@ -277,7 +277,7 @@ void TimeoutQueue::triggerEvent()
   while (prioQueue.size() > 0)
     {
       auto* event = static_cast<Event*>(prioQueue.getMin());
-      auto callback = event->on_completed;
+      const Event::CompletionCallback callback = event->on_completed;
       eventMap.erase(event->get_id());
       // Set final status BEFORE callback to avoid use-after-free:
       // User code may delete the event in the callback
@@ -343,7 +343,7 @@ size_t TimeoutQueue::clear_all()
   while (prioQueue.size() > 0)
     {
       auto* event = static_cast<Event*>(prioQueue.getMin());
-      auto callback = event->on_completed;
+      const Event::CompletionCallback callback = event->on_completed;
       eventMap.erase(event->get_id());
       event->set_execution_status(Event::Canceled);
       ++count;
@@ -450,7 +450,7 @@ bool TimeoutQueue::cancel_by_id(Event::EventId id)
   if (event->get_execution_status() != Event::In_Queue)
     return false;
 
-  const auto callback = event->on_completed;
+  const Event::CompletionCallback callback = event->on_completed;
   prioQueue.remove(event);
   eventMap.erase(it);
   event->set_execution_status(Event::Canceled);

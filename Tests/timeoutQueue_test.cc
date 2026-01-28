@@ -23,7 +23,7 @@ using namespace std;
 // Global queue (singleton)
 static TimeoutQueue* g_queue = nullptr;
 
-// Helper to get current time plus milliseconds
+// Helper to get the current time plus milliseconds
 static Time time_from_now_ms(int ms)
 {
   return time_plus_msec(read_current_time(), ms);
@@ -83,7 +83,7 @@ public:
     executed = true;
   }
 
-  int elapsed_ms() const
+  [[nodiscard]] int elapsed_ms() const
   {
     return chrono::duration_cast<chrono::milliseconds>(
       executed_at - scheduled_at).count();
