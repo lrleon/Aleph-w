@@ -731,6 +731,31 @@ TEST(TimeoutQueueTest, WaitUntilEmptyTimeout)
   delete e;
 }
 
+TEST(TimeoutQueueTest, WaitUntilEmptyAfterCancel)
+{
+  auto* e = new TestEvent(time_from_now_ms(300));
+  g_queue->schedule_event(e);
+
+  EXPECT_TRUE(g_queue->cancel_event(e));
+
+  EXPECT_TRUE(g_queue->wait_until_empty(200));
+  EXPECT_TRUE(g_queue->is_empty());
+
+  delete e;
+}
+
+TEST(TimeoutQueueTest, WaitUntilEmptyAfterCancelDelete)
+{
+  TimeoutQueue::Event* e = new TestEvent(time_from_now_ms(300));
+  g_queue->schedule_event(e);
+
+  g_queue->cancel_delete_event(e);
+  EXPECT_EQ(e, nullptr);
+
+  EXPECT_TRUE(g_queue->wait_until_empty(200));
+  EXPECT_TRUE(g_queue->is_empty());
+}
+
 TEST(TimeoutQueueTest, EventName)
 {
   // Create event with name
@@ -757,6 +782,7 @@ TEST(TimeoutQueueTest, CompletionCallback)
 
   auto* e = new TestEvent(time_from_now_ms(50));
   e->set_completion_callback([&](TimeoutQueue::Event* ev, TimeoutQueue::Event::Execution_Status status) {
+    (void) ev;
     callback_called = true;
     final_status = static_cast<int>(status);
   });
@@ -1024,6 +1050,7 @@ TEST(TimeoutQueueTest, InvalidNsecValidation)
   bad.tv_nsec = 2000000000; // Invalid: >= 1e9
   EXPECT_THROW(q.schedule_event(bad, e), std::domain_error);
   delete e; // Clean up since schedule_event threw before taking ownership
+  q.shutdown();
 # endif
 }
 
@@ -1074,6 +1101,7 @@ TEST(TimeoutQueueTest, CancelDeleteEventCallback)
 
   event->set_completion_callback([&](TimeoutQueue::Event* ev,
                                      TimeoutQueue::Event::Execution_Status status) {
+    (void) ev;
     callback_called = true;
     callback_status = static_cast<int>(status);
   });
@@ -1164,6 +1192,29 @@ TEST(TimeoutQueueTest, CompletionCallbackOrderCorrect)
   EXPECT_EQ(status_in_callback, TimeoutQueue::Event::Executed);
 
   delete event;
+}
+
+TEST(TimeoutQueueTest, CompletionCallbackCanClearAllWithoutDeadlock)
+{
+  atomic<bool> callback_called{false};
+
+  auto* e1 = new TestEvent(time_from_now_ms(50), [&]() { g_queue->clear_all(); });
+  auto* e2 = new TestEvent(time_from_now_ms(200));
+
+  e1->set_completion_callback([&](auto*, auto) { callback_called = true; });
+
+  g_queue->schedule_event(e1);
+  g_queue->schedule_event(e2);
+
+  this_thread::sleep_for(chrono::milliseconds(400));
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_TRUE(e1->executed);
+  EXPECT_FALSE(e2->executed); // should have been canceled by clear_all()
+  EXPECT_TRUE(g_queue->is_empty());
+
+  delete e1;
+  delete e2;
 }
 
 TEST(TimeoutQueueTest, MultipleEventsWithSameTime)

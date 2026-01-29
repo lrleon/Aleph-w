@@ -41,7 +41,7 @@ using namespace std::chrono;
 // Initialize static event ID counter
 std::atomic<TimeoutQueue::Event::EventId> TimeoutQueue::Event::nextId{0};
 
-// Convert POSIX timespec to std::chrono::time_point
+// Convert POSIX timespec to std::chrono::time_point (system_clock)
 static auto timespec_to_timepoint(const Time& t)
 {
   return system_clock::time_point(duration_cast<system_clock::duration>(
@@ -107,7 +107,7 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 
 bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
 {
-  std::lock_guard<std::mutex> lock(mtx);
+  std::unique_lock<std::mutex> lock(mtx);
 
   if (event->get_execution_status() != Event::In_Queue)
     return false;
@@ -120,8 +120,15 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
   event->set_execution_status(Event::Canceled);
   ++canceledCount;
 
+  const bool became_empty = prioQueue.size() == 0;
+
+  lock.unlock();
+
   if (callback)
     callback(event, Event::Canceled);
+
+  if (became_empty)
+    emptyCondition.notify_all();
 
   cond.notify_one();
 
@@ -134,30 +141,51 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   if (event == nullptr)
     return;
 
-  std::lock_guard<std::mutex> lock(mtx);
+  std::unique_lock<std::mutex> lock(mtx);
 
   if (event->get_execution_status() == Event::In_Queue)
     {
       prioQueue.remove(event);
       eventMap.erase(event->get_id());
-      ++canceledCount;
     }
 
   if (event->get_execution_status() == Event::Executing)
     {
       // Worker thread will invoke callback and delete after EventFct() returns
       event->set_execution_status(Event::To_Delete);
+      event = nullptr;
+      lock.unlock();
+      cond.notify_one();
+      return;
+    }
+
+  const Event::CompletionCallback callback = event->on_completed;
+
+  Event::Execution_Status final_status = Event::Deleted;
+
+  if (event->get_execution_status() == Event::In_Queue)
+    {
+      event->set_execution_status(Event::Canceled);
+      ++canceledCount;
     }
   else
     {
-      const Event::CompletionCallback callback = event->on_completed;
       event->set_execution_status(Event::Deleted);
-      if (callback)
-        callback(event, Event::Deleted);
-      delete event;
     }
 
+  const bool became_empty = prioQueue.size() == 0;
+
+  lock.unlock();
+
+  if (callback)
+    callback(event, final_status);
+
+  delete event;
   event = nullptr;
+
+  if (became_empty)
+    emptyCondition.notify_all();
+
   cond.notify_one();
 }
 
@@ -168,6 +196,9 @@ void TimeoutQueue::reschedule_event(const Time & trigger_time,
   ah_invalid_argument_if(event == nullptr) << "event is nullptr";
 
   std::lock_guard<std::mutex> lock(mtx);
+
+  if (isShutdown)
+    return;
 
   if (event->get_execution_status() == Event::In_Queue)
     prioQueue.remove(event);  // eventMap entry stays, ID doesn't change
@@ -203,8 +234,15 @@ void TimeoutQueue::triggerEvent()
       const Time original_trigger_time = EVENT_TIME(event_to_schedule);
       auto trigger_point = timespec_to_timepoint(original_trigger_time);
 
+      // Compute duration to wait using steady clock to avoid wall clock jumps
+      const auto now = system_clock::now();
+      auto remaining = trigger_point - now;
+      if (remaining < system_clock::duration::zero())
+        remaining = system_clock::duration::zero();
+
       // Wait until trigger time or notification
-      const auto wait_result = cond.wait_until(lock, trigger_point);
+      const auto wait_result = cond.wait_for(
+        lock, duration_cast<std::chrono::steady_clock::duration>(remaining));
 
       if (isShutdown)
         break;
@@ -240,34 +278,33 @@ void TimeoutQueue::triggerEvent()
           ++executedCount;
           eventMap.erase(event_to_execute->get_id());
 
-          // Copy callback before setting final status to avoid race condition:
-          // Once we set status to Executed/Deleted, user code may delete the event
-          // while we're still trying to invoke the callback
           const Event::CompletionCallback callback = event_to_execute->on_completed;
           auto final_status = Event::Executed;
 
           if (event_to_execute->get_execution_status() == Event::To_Delete)
             {
               final_status = Event::Deleted;
-              // Set final status BEFORE callback to avoid use-after-free:
-              // User code may delete the event in the callback
               event_to_execute->set_execution_status(Event::Deleted);
-              if (callback)
-                callback(event_to_execute, final_status);
-              delete event_to_execute;
             }
           else
             {
-              // Set final status BEFORE callback to avoid use-after-free:
-              // User code may delete the event in the callback
               event_to_execute->set_execution_status(Event::Executed);
-              if (callback)
-                callback(event_to_execute, final_status);
             }
 
-          // Notify if queue became empty
-          if (prioQueue.size() == 0)
+          const bool became_empty = prioQueue.size() == 0;
+
+          lock.unlock();
+
+          if (callback)
+            callback(event_to_execute, final_status);
+
+          if (final_status == Event::Deleted)
+            delete event_to_execute;
+
+          if (became_empty)
             emptyCondition.notify_all();
+
+          lock.lock();
         }
     }
 
@@ -281,8 +318,10 @@ void TimeoutQueue::triggerEvent()
       // User code may delete the event in the callback
       event->set_execution_status(Event::Canceled);
       ++canceledCount;
+      lock.unlock();
       if (callback)
         callback(event, Event::Canceled);
+      lock.lock();
     }
 
   emptyCondition.notify_all();
@@ -335,7 +374,7 @@ Time TimeoutQueue::next_event_time() const
 
 size_t TimeoutQueue::clear_all()
 {
-  std::lock_guard<std::mutex> lock(mtx);
+  std::unique_lock<std::mutex> lock(mtx);
 
   size_t count = 0;
   while (prioQueue.size() > 0)
@@ -346,8 +385,10 @@ size_t TimeoutQueue::clear_all()
       event->set_execution_status(Event::Canceled);
       ++count;
       ++canceledCount;
+      lock.unlock();
       if (callback)
         callback(event, Event::Canceled);
+      lock.lock();
     }
 
   cond.notify_one();
@@ -438,7 +479,7 @@ bool TimeoutQueue::cancel_by_id(Event::EventId id)
   if (id == Event::InvalidId)
     return false;
 
-  std::lock_guard<std::mutex> lock(mtx);
+  std::unique_lock<std::mutex> lock(mtx);
 
   const auto it = eventMap.find(id);
   if (it == eventMap.end())
@@ -453,11 +494,16 @@ bool TimeoutQueue::cancel_by_id(Event::EventId id)
   eventMap.erase(it);
   event->set_execution_status(Event::Canceled);
   ++canceledCount;
+
+   const bool became_empty = prioQueue.size() == 0;
+
+  lock.unlock();
+
   if (callback)
     callback(event, Event::Canceled);
   cond.notify_one();
 
-  if (prioQueue.size() == 0)
+  if (became_empty)
     emptyCondition.notify_all();
 
   return true;
