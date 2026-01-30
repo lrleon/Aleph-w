@@ -61,8 +61,11 @@ TimeoutQueue::~TimeoutQueue()
     std::lock_guard<std::mutex> lock(mtx);
     if (not isShutdown)
       {
-        std::cerr << "Warning: TimeoutQueue destructor called without prior shutdown(). "
-                  << "Invoking shutdown() automatically." << std::endl;
+#ifndef NDEBUG
+        ah_warning(std::cerr)
+          << "TimeoutQueue destructor called without prior shutdown(). "
+          << "Invoking shutdown() automatically." << std::endl;
+#endif
         shutdown_locked();
       }
   }
