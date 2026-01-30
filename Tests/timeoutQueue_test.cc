@@ -961,15 +961,16 @@ TEST(TimeoutQueueTest, DeleteEventInQueue)
 // Death test: Verify that deleting an In_Queue event throws fatal error
 TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
 {
-  // This test verifies fail-fast behavior to prevent use-after-free
+  // This test verifies fail-fast behavior to prevent use-after-free.
+  // When Event::~Event() throws from destructor, std::terminate() is called.
   ASSERT_DEATH({
     TimeoutQueue queue;
     auto* event = new TestEvent(time_from_now_ms(1000));
     queue.schedule_event(event);
-    // Deleting without cancel should throw fatal error
+    // Deleting without cancel should throw fatal error, causing terminate
     delete event;
     queue.shutdown();
-  }, "FATAL.*In_Queue.*use-after-free");
+  }, "terminate called after throwing.*In_Queue.*use-after-free");
 }
 
 TEST(TimeoutQueueTest, CancelDuringTimeout)
