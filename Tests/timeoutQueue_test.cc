@@ -938,7 +938,7 @@ TEST(TimeoutQueueTest, DestructorWithoutShutdown)
   EXPECT_NE(output.find("shutdown"), string::npos);
 # else
   // In release builds, no warning should be printed
-  EXPECT_TRUE(output.empty() || output.find("WARNING") == string::npos);
+  EXPECT_EQ(output.find("WARNING"), string::npos);
 # endif
 
   delete event;
