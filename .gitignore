@@ -319,3 +319,4 @@ CMakePresets.json
 *.copy
 PR_DESCRIPTION.md
 CHANGELOG_v3.md
+/test_*

@@ -920,7 +920,8 @@ TEST(TimeoutQueueTest, CancelByIdWithCallback)
 TEST(TimeoutQueueTest, DestructorWithoutShutdown)
 {
   // Test that destructor auto-shutdowns if shutdown() wasn't called
-  // This should not crash and should print a warning
+  // In Debug builds, this should print a warning to stderr
+  // In Release builds, it should silently auto-shutdown
   testing::internal::CaptureStderr();
 
   TimeoutQueue* queue = new TimeoutQueue();
@@ -931,8 +932,14 @@ TEST(TimeoutQueueTest, DestructorWithoutShutdown)
   delete queue;
 
   string output = testing::internal::GetCapturedStderr();
-  EXPECT_NE(output.find("Warning"), string::npos);
+# ifndef NDEBUG
+  // In debug builds, expect warning message
+  EXPECT_NE(output.find("WARNING"), string::npos);
   EXPECT_NE(output.find("shutdown"), string::npos);
+# else
+  // In release builds, no warning should be printed
+  EXPECT_EQ(output.find("WARNING"), string::npos);
+# endif
 
   delete event;
 }
