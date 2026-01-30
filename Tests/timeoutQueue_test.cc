@@ -1119,7 +1119,7 @@ TEST(TimeoutQueueTest, CancelDeleteEventCallback)
 
   event->set_completion_callback([&](TimeoutQueue::Event* ev,
                                      TimeoutQueue::Event::Execution_Status status) {
-    (void) ev;
+    EXPECT_EQ(ev, nullptr);  // Event already destroyed when status is Deleted
     callback_called = true;
     callback_status = static_cast<int>(status);
   });
@@ -1161,8 +1161,11 @@ TEST(TimeoutQueueTest, CancelDeleteExecutingEvent)
     time_from_now_ms(50), event_started, can_finish);
 
   atomic<bool> callback_called{false};
-  event->set_completion_callback([&](auto*, auto status) {
+  atomic<TimeoutQueue::Event*> callback_ev{reinterpret_cast<TimeoutQueue::Event*>(0x1)}; // sentinel
+  event->set_completion_callback([&](auto* ev, auto status) {
+    callback_ev = ev;
     callback_called = true;
+    EXPECT_EQ(ev, nullptr);  // Event already destroyed when status is Deleted
     EXPECT_EQ(status, TimeoutQueue::Event::Deleted);
   });
 
@@ -1183,6 +1186,52 @@ TEST(TimeoutQueueTest, CancelDeleteExecutingEvent)
 
   // Callback should have been called by worker thread
   EXPECT_TRUE(callback_called);
+  EXPECT_EQ(callback_ev.load(), nullptr);
+}
+
+TEST(TimeoutQueueTest, CallbackReceivesNullptrOnlyForDeleted)
+{
+  // Verify that Deleted status yields nullptr, while Executed/Canceled yield
+  // a valid pointer.
+  atomic<TimeoutQueue::Event*> exec_ptr{nullptr};
+  atomic<TimeoutQueue::Event*> cancel_ptr{nullptr};
+  atomic<TimeoutQueue::Event*> delete_ptr{reinterpret_cast<TimeoutQueue::Event*>(0x1)};
+
+  // 1. Executed path: callback must receive non-null pointer
+  auto* e1 = new TestEvent(time_from_now_ms(50));
+  e1->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
+    EXPECT_EQ(status, TimeoutQueue::Event::Executed);
+    EXPECT_NE(ev, nullptr);
+    exec_ptr = ev;
+  });
+  g_queue->schedule_event(e1);
+  this_thread::sleep_for(chrono::milliseconds(200));
+  EXPECT_NE(exec_ptr.load(), nullptr);
+  delete e1;
+
+  // 2. Canceled path (cancel_event): callback must receive non-null pointer
+  auto* e2 = new TestEvent(time_from_now_ms(500));
+  e2->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
+    EXPECT_EQ(status, TimeoutQueue::Event::Canceled);
+    EXPECT_NE(ev, nullptr);
+    cancel_ptr = ev;
+  });
+  g_queue->schedule_event(e2);
+  g_queue->cancel_event(e2);
+  EXPECT_NE(cancel_ptr.load(), nullptr);
+  delete e2;
+
+  // 3. Deleted path (cancel_delete_event): callback must receive nullptr
+  TimeoutQueue::Event* e3 = new TestEvent(time_from_now_ms(500));
+  e3->set_completion_callback([&](TimeoutQueue::Event* ev, auto status) {
+    EXPECT_EQ(status, TimeoutQueue::Event::Deleted);
+    EXPECT_EQ(ev, nullptr);
+    delete_ptr = ev;
+  });
+  g_queue->schedule_event(e3);
+  g_queue->cancel_delete_event(e3);
+  EXPECT_EQ(delete_ptr.load(), nullptr);
+  EXPECT_EQ(e3, nullptr);
 }
 
 TEST(TimeoutQueueTest, CompletionCallbackOrderCorrect)

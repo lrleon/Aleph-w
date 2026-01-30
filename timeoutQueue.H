@@ -169,7 +169,12 @@ public:
         Deleted      ///< Memory freed
       };
 
-    /// Optional callback type for post-execution notification
+    /// Optional callback invoked after an event completes, is canceled, or is
+    /// deleted.
+    ///
+    /// @note When the callback receives @c Deleted status, the event has
+    ///       already been destroyed by the queue and the pointer parameter
+    ///       is @c nullptr.  The callback must not attempt to dereference it.
     using CompletionCallback = std::function<void(Event*, Execution_Status)>;
 
     /// Type for unique event identifiers
@@ -334,10 +339,18 @@ public:
   void reschedule_event(const Time &trigger_time, Event*);
 
   /**
-   * @brief Cancel and delete an event
-   * @param event Pointer to event (set to nullptr after deletion) *
- *  @ingroup Utilities
-
+   * @brief Cancel and delete an event.
+   *
+   * If the event is currently executing, its status is set to @c To_Delete
+   * and the worker thread will delete it after @c EventFct() returns.
+   * Otherwise the event is deleted immediately before invoking the
+   * completion callback.
+   *
+   * The completion callback receives @c nullptr as the event pointer and
+   * @c Deleted as the status, since the event has already been destroyed.
+   *
+   * @param event Pointer to event (set to nullptr after deletion).
+   * @ingroup Utilities
    */
   void cancel_delete_event(Event *&);
 

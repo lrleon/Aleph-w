@@ -280,6 +280,7 @@ set(TEST_PROGRAMS
     johnson_test
     graph_copy_test
     thread_pool_test
+    timeoutQueue_test
     graph_traverse_test
     test_ah_errors
     dynliststack_test
