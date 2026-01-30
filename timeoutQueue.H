@@ -226,9 +226,12 @@ public:
 
     ~Event() override
     {
-      if (execution_status == In_Queue)
-        std::cerr << "Warning: deleting Event " << this
-                  << " that is still In_Queue" << std::endl;
+      if (execution_status == In_Queue) [[unlikely]]
+        ah_fatal_error()
+          << "FATAL: Deleting Event " << this << " (ID " << event_id << ", name: '"
+          << event_name << "') that is still In_Queue. "
+          << "This causes use-after-free when the worker thread accesses it. "
+          << "Must call cancel_event() or use cancel_delete_event() before destroying.";
     }
 
     [[nodiscard]] Execution_Status get_execution_status() const { return execution_status; }
