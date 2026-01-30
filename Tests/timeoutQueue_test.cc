@@ -946,7 +946,7 @@ TEST(TimeoutQueueTest, DestructorWithoutShutdown)
 
 TEST(TimeoutQueueTest, DeleteEventInQueue)
 {
-  // Test that deleting an event that's still In_Queue prints warning (doesn't crash)
+  // Test that canceling an event before deletion is safe (no error)
   testing::internal::CaptureStderr();
 
   auto* event = new TestEvent(time_from_now_ms(1000));
@@ -961,13 +961,24 @@ TEST(TimeoutQueueTest, DeleteEventInQueue)
   delete event;
 
   string output = testing::internal::GetCapturedStderr();
-  // Should not have warning since we canceled first
+  // Should not have warning/error since we canceled first
   EXPECT_EQ(output, "");
 }
 
-// Note: DeleteEventInQueueDirectly would be UB in practice.
-// The warning is tested indirectly - if someone does this by mistake,
-// they'll see the warning instead of a crash/terminate.
+// Death test: Verify that deleting an In_Queue event throws fatal error
+TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
+{
+  // This test verifies fail-fast behavior to prevent use-after-free.
+  // When Event::~Event() throws from destructor, std::terminate() is called.
+  ASSERT_DEATH({
+    TimeoutQueue queue;
+    auto* event = new TestEvent(time_from_now_ms(1000));
+    queue.schedule_event(event);
+    // Deleting without cancel should throw fatal error, causing terminate
+    delete event;
+    queue.shutdown();
+  }, "terminate called after throwing.*In_Queue.*use-after-free");
+}
 
 TEST(TimeoutQueueTest, CancelDuringTimeout)
 {
