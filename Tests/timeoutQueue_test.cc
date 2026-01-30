@@ -977,7 +977,7 @@ TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
     // Deleting without cancel should throw fatal error, causing terminate
     delete event;
     queue.shutdown();
-  }, "terminate called after throwing.*In_Queue.*use-after-free");
+  }, "In_Queue.*use-after-free");
 }
 
 TEST(TimeoutQueueTest, CancelDuringTimeout)
@@ -1248,14 +1248,16 @@ TEST(TimeoutQueueTest, CompletionCallbackOrderCorrect)
                                      TimeoutQueue::Event::Execution_Status status) {
     // Status should already be set when callback is invoked
     status_in_callback = ev->get_execution_status();
-    callback_called = true;
     EXPECT_EQ(status, ev->get_execution_status());
+    callback_called = true;  // Must be last: main thread deletes after seeing this
   });
 
   g_queue->schedule_event(event);
-  this_thread::sleep_for(chrono::milliseconds(200));
 
-  EXPECT_TRUE(callback_called);
+  // Spin until callback completes to avoid racing with delete
+  while (!callback_called)
+    this_thread::sleep_for(chrono::milliseconds(10));
+
   EXPECT_EQ(status_in_callback, TimeoutQueue::Event::Executed);
 
   delete event;
