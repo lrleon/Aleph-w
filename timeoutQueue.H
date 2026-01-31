@@ -105,6 +105,7 @@
 # ifndef TIMEOUTQUEUE_H
 # define TIMEOUTQUEUE_H
 
+# include <cassert>
 # include <unistd.h>
 # include <iostream>
 # include <mutex>

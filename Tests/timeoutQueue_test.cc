@@ -944,7 +944,7 @@ TEST(TimeoutQueueTest, DestructorWithoutShutdown)
   delete event;
 }
 
-TEST(TimeoutQueueTest, DeleteEventInQueue)
+TEST(TimeoutQueueTest, CancelThenDeleteEventIsSafe)
 {
   // Test that canceling an event before deletion is safe (no error)
   testing::internal::CaptureStderr();

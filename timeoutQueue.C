@@ -179,6 +179,8 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
     final_status = Event::Deleted;
   }
 
+  // Delete the event first. The callback receives nullptr, so it cannot
+  // attempt to delete the event (avoiding any double-free risk).
   delete local;
   event = nullptr;
 
@@ -236,20 +238,23 @@ void TimeoutQueue::triggerEvent()
       const Time original_trigger_time = EVENT_TIME(event_to_schedule);
       const auto trigger_sys = timespec_to_timepoint(original_trigger_time);
 
-      // Anchor both clocks under the same lock to avoid skew
+      // Anchor both clocks at the same instant to correlate them
       const auto sys_now = system_clock::now();
       const auto steady_now = steady_clock::now();
 
-      // Compute delta in system_clock domain, clamp negative to zero
+      // Compute wait duration from wall-clock trigger time and current wall-clock
       auto delta = trigger_sys - sys_now;
       if (delta < system_clock::duration::zero())
         delta = system_clock::duration::zero();
 
-      // Convert delta to steady_clock and build a steady deadline
+      // Convert delta to steady_clock domain and wait on steady deadline.
+      // This makes the wait immune to wall-clock jumps that occur *during* the wait.
+      // (Note: Wall-clock jumps before this point will affect when the event fires,
+      //  as events are inherently scheduled against wall-clock times.)
       const auto deadline_steady =
         steady_now + duration_cast<steady_clock::duration>(delta);
 
-      // Wait until deadline or notification (immune to wall-clock jumps)
+      // Wait until deadline or notification
       const auto wait_result = cond.wait_until(lock, deadline_steady);
 
       if (isShutdown)
@@ -301,6 +306,10 @@ void TimeoutQueue::triggerEvent()
 
           lock.unlock();
 
+          // Ownership model for event deletion:
+          // - Deleted status: Queue deletes event before invoking callback (passes nullptr).
+          // - Executed status: User owns event after callback (must delete if needed).
+          // This ensures no double-free regardless of user callback behavior.
           if (final_status == Event::Deleted)
             {
               delete event_to_execute;
