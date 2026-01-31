@@ -209,8 +209,9 @@ public:
     }
 
   protected:
-    Event(const Time & t, std::string name = "") : BinHeapVtl<Time>::Node(t), event_id(++nextId),
-                                                   execution_status(Out_Queue), event_name(std::move(name))
+    Event(const Time & t, std::string name = "")
+      : BinHeapVtl<Time>::Node(t), event_id(++nextId),
+        execution_status(Out_Queue), event_name(std::move(name))
     {
       assert(EVENT_NSEC(this) >= 0 and EVENT_NSEC(this) < NSEC);
     }
@@ -225,11 +226,12 @@ public:
     }
 
   public:
-    ~Event() override
+    ~Event() noexcept override
     {
       if (execution_status == In_Queue) [[unlikely]]
         {
-          std::cerr << "FATAL: Deleting Event " << this << " (ID " << event_id << ", name: '"
+          ah_warning(std::cerr)
+              << "FATAL: Deleting Event " << this << " (ID " << event_id << ", name: '"
               << event_name << "') that is still In_Queue. "
               << "This causes use-after-free when the worker thread accesses it. "
               << "Must call cancel_event() or use cancel_delete_event() before destroying.";
@@ -314,7 +316,7 @@ public:
  *  @ingroup Utilities
 
    */
-  void schedule_event(Event *);
+  void schedule_event(Event * event);
 
   /**
    * @brief Cancel a scheduled event
@@ -323,7 +325,7 @@ public:
  *  @ingroup Utilities
 
    */
-  bool cancel_event(Event *);
+  bool cancel_event(Event * event);
 
   /**
    * @brief Reschedule an event to a new time
@@ -332,7 +334,7 @@ public:
  *  @ingroup Utilities
 
    */
-  void reschedule_event(const Time & trigger_time, Event *);
+  void reschedule_event(const Time & trigger_time, Event *event);
 
   /**
    * @brief Cancel and delete an event.
@@ -346,9 +348,18 @@ public:
    * @c Deleted as the status, since the event has already been destroyed.
    *
    * @param event Pointer to event (set to nullptr after deletion).
+   * @throws std::system_error Thrown by std::mutex::lock (if lock acquisition fails) or
+   *         std::condition_variable::notify_one/notify_all (if system errors occur).
+   *         No exception is thrown for the nullptr argument (early return).
+   * @par Complexity
+   * Average: O(1) when the event is executing or not in queue.
+   * Worst: O(log n) when the event is in the priority queue (heap removal).
+   * Space: O(1) additional.
+   * @par Exception safety
+   * Strong guarantee: if an exception is thrown, the event reference is unchanged.
    * @ingroup Utilities
    */
-  void cancel_delete_event(Event *&);
+  void cancel_delete_event(Event *& event);
 
   /// Shut down the queue and stop the background thread
   void shutdown();

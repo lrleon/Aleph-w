@@ -84,6 +84,7 @@
 #define USECONDVAR_H
 
 #include <pthread.h>
+#include <utility>
 
 /**
  * @class UseCondVar
@@ -93,6 +94,8 @@
  * Does not own the condition variable or mutex - they must be managed
  * separately. *
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
+ * @par Thread safety
 
  */
 class UseCondVar 
@@ -106,8 +109,12 @@ public:
 
   /**
    * @brief Construct wrapper for condition variable and mutex
+   * @pre c != nullptr && m != nullptr
    * @param c Pointer to initialized condition variable
-   * @param m Pointer to initialized mutex (must be held when waiting) *
+   * @param m Pointer to initialized mutex (must be held when waiting)
+   * @throws None
+   * @par Complexity O(1)
+   * @par Exception safety
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
 
