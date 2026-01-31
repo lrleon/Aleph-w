@@ -109,6 +109,7 @@ public:
    * @param c Pointer to initialized condition variable
    * @param m Pointer to initialized mutex (must be held when waiting) *
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
 
    */
   UseCondVar(pthread_cond_t *c, pthread_mutex_t *m)
