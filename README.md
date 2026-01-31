@@ -1,4 +1,4 @@
-# Aleph-w
+# Aleph-w {#aleph-w}
 
 <div align="center">
 
@@ -25,7 +25,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## Table of Contents
+## Table of Contents {#table-of-contents}
 
 - [Overview](#overview)
 - [History and Philosophy](#history-and-philosophy)
@@ -59,7 +59,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## Overview
+## Overview {#overview}
 
 **Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
 
@@ -87,7 +87,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## History and Philosophy
+## History and Philosophy {#history-and-philosophy}
 
 ### Origins (2002)
 
@@ -169,7 +169,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
-## Features at a Glance
+## Features at a Glance {#features-at-a-glance}
 
 ### Data Structures
 
@@ -239,7 +239,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
-## Requirements
+## Requirements {#requirements}
 
 ### Compiler Support
 
@@ -286,7 +286,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-## Installation
+## Installation {#installation}
 
 For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
 
@@ -367,7 +367,7 @@ ctest --preset default
 
 ---
 
-## Quick Start
+## Quick Start {#quick-start}
 
 ### 5-Minute Examples
 
@@ -436,8 +436,10 @@ int main() {
     Path<Graph> path(city_map);
     double distance = dijkstra_min_path(city_map, ny, la, path);
 
-    std::cout << "Shortest distance: " << distance << " miles\n";
-    std::cout << "Route: ";
+    std::cout << "Shortest distance: " << distance << "\n";
+
+    // Print path
+    std::cout << "Path: ";
     path.for_each_node([](auto* node) {
         std::cout << node->get_info() << " → ";
     });
@@ -451,7 +453,6 @@ int main() {
 
 ```cpp
 #include <tpl_dynSetTree.H>
-#include <iostream>
 
 int main() {
     // Allocate arena on stack (zero heap allocations!)
@@ -479,9 +480,9 @@ int main() {
 
 ---
 
-## Data Structures
+## Data Structures {#data-structures}
 
-### Balanced Search Trees
+### Balanced Search Trees {#balanced-search-trees}
 
 Aleph-w provides **8 different balanced tree implementations**, each optimized for specific use cases.
 
@@ -593,7 +594,7 @@ int main() {
                                   [60]  [80]
 ```
 
-### Hash Tables
+### Hash Tables {#hash-tables}
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
 
@@ -684,7 +685,7 @@ int main() {
 }
 ```
 
-### Heaps and Priority Queues
+### Heaps and Priority Queues {#heaps-and-priority-queues}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -740,7 +741,7 @@ int main() {
 }
 ```
 
-### Lists and Sequential Structures
+### Lists and Sequential Structures {#lists-and-sequential-structures}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -802,7 +803,7 @@ int main() {
 }
 ```
 
-### Graphs
+### Graphs {#graphs}
 
 Aleph-w provides multiple graph representations optimized for different use cases:
 
@@ -916,16 +917,15 @@ int main() {
 
 ---
 
-## Algorithms
+## Algorithms {#algorithms}
 
-### Shortest Path Algorithms
+### Shortest Path Algorithms {#shortest-path-algorithms}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      SHORTEST PATH ALGORITHMS                               │
 ├────────────────┬────────────┬────────────┬──────────────────────────────────┤
 │   Algorithm    │ Complexity │  Negative  │  Best For                        │
-│                │            │   Edges    │                                  │
 ├────────────────┼────────────┼────────────┼──────────────────────────────────┤
 │ Dijkstra       │O((V+E)logV)│     No     │ Single source, non-negative      │
 │ Bellman-Ford   │   O(VE)    │    Yes     │ Negative weights, cycle detection│
@@ -1021,7 +1021,7 @@ int main() {
 }
 ```
 
-### Minimum Spanning Trees
+### Minimum Spanning Trees {#minimum-spanning-trees}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1083,7 +1083,7 @@ int main() {
 }
 ```
 
-### Network Flows
+### Network Flows {#network-flows}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1114,7 +1114,7 @@ int main() {
 │  Each edge has: capacity AND cost                                           │
 │  Goal: Find max flow with minimum total cost                                │
 │                                                                             │
-│  Algorithms: Successive Shortest Path, Network Simplex                      │                                                                             │
+│  Algorithms: Successive Shortest Path, Network Simplex                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1176,7 +1176,7 @@ int main() {
 }
 ```
 
-### Graph Connectivity
+### Graph Connectivity {#graph-connectivity}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1246,7 +1246,7 @@ int main() {
 }
 ```
 
-### Sorting Algorithms
+### Sorting Algorithms {#sorting-algorithms}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1292,9 +1292,9 @@ int main() {
 
 ---
 
-## Memory Management
+## Memory Management {#memory-management}
 
-### Arena Allocators
+### Arena Allocators {#arena-allocators}
 
 Arena allocation provides **ultra-fast memory management** for temporary data structures.
 
@@ -1421,7 +1421,7 @@ int main() {
 
 ---
 
-## Parallel Computing
+## Parallel Computing {#parallel-computing}
 
 ### Thread Pool
 
@@ -1493,7 +1493,7 @@ int main() {
 
 ---
 
-## Functional Programming
+## Functional Programming {#functional-programming}
 
 All Aleph-w containers support a rich set of functional operations:
 
@@ -1584,7 +1584,7 @@ int main() {
 
 ---
 
-## Tutorial
+## Tutorial {#tutorial}
 
 ### Complete Example: Building a Social Network Analysis Tool
 
@@ -1714,7 +1714,7 @@ int main() {
 
 ---
 
-## API Reference
+## API Reference {#api-reference}
 
 ### Quick Reference by Category
 
@@ -1794,7 +1794,7 @@ int main() {
 
 ---
 
-## Benchmarks
+## Benchmarks {#benchmarks}
 
 ### Tree Performance (1 Million Operations)
 
@@ -1899,7 +1899,7 @@ int main() {
 
 ---
 
-## Examples
+## Examples {#examples}
 
 The `Examples/` directory contains **80+ programs** demonstrating library usage:
 
@@ -1944,7 +1944,7 @@ cmake --build build
 
 ---
 
-## Testing
+## Testing {#testing}
 
 ### Running Tests
 
@@ -1989,7 +1989,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ---
 
-## Contributing
+## Contributing {#contributing}
 
 Contributions are welcome! Here's how to get started:
 
@@ -2026,7 +2026,7 @@ ctest --test-dir build-debug
 
 ---
 
-## License
+## License {#license}
 
 Aleph-w is licensed under the **MIT License**.
 

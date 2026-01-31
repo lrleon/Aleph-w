@@ -7,14 +7,14 @@ This module groups Aleph-w facilities related to **concurrency** and **thread-ba
 
 It covers:
 
-- \ref thread__pool_8H (\ref Aleph::ThreadPool): modern task-based thread pool returning `std::future`.
-- \ref worker__pool_8H (\ref WorkersSet): worker-function pool for processing queued `void*` work items.
-- \ref timeoutQueue_8H (\ref TimeoutQueue): timed event scheduler running a background thread.
-- \ref useMutex_8H / \ref useCondVar_8H: POSIX mutex/condvar wrappers.
+- \ref thread_pool.H (\ref Aleph::ThreadPool): modern task-based thread pool returning `std::future`.
+- \ref worker_pool.H (\ref WorkersSet): worker-function pool for processing queued `void*` work items.
+- \ref timeoutQueue.H (\ref TimeoutQueue): timed event scheduler running a background thread.
+- \ref useMutex.H / \ref useCondVar.H: POSIX mutex/condvar wrappers.
 
 ## ThreadPool (task-based)
 
-See \ref thread__pool_8H and the runnable example \ref thread__pool__example_8cc.
+See \ref thread_pool.H and the runnable example \ref thread_pool_example.cc.
 
 Typical usage pattern:
 
@@ -30,7 +30,7 @@ int v = f.get();
 
 ## TimeoutQueue (timed events)
 
-See \ref timeoutQueue_8H and the runnable example \ref timeoutQueue__example_8C.
+See \ref timeoutQueue.H and the runnable example \ref timeoutQueue_example.C.
 
 ## Notes
 

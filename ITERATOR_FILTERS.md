@@ -7,8 +7,8 @@ This module documents iterator-level filtering in Aleph-w.
 
 Aleph-w provides filtering in two complementary ways:
 
-1. **Generic filtered iterators** using \ref filter__iterator_8H (\ref Aleph::Filter_Iterator)
-2. **Graph-specific filtered iterators** (nodes/arcs) in \ref tpl__graph_8H, built on top of \ref Aleph::Filter_Iterator
+1. **Generic filtered iterators** using \ref filter_iterator.H (\ref Aleph::Filter_Iterator)
+2. **Graph-specific filtered iterators** (nodes/arcs) in \ref tpl_graph.H, built on top of \ref Aleph::Filter_Iterator
 
 ## 1) Generic `Filter_Iterator`
 
@@ -48,7 +48,7 @@ int main()
 ## 2) Graph arc/node filters (practical example)
 
 Graph traversal in Aleph-w often exposes a filter hook via a functor parameter (commonly called `Show_Arc` or `Show_Node`).
-This is used throughout \ref tpl__graph_8H and shortest-path algorithms like \ref Dijkstra_8H.
+This is used throughout \ref tpl_graph.H and shortest-path algorithms like \ref Dijkstra.H.
 
 ### Example: exclude "highways" from shortest-path
 

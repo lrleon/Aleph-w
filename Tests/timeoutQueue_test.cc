@@ -966,7 +966,25 @@ TEST(TimeoutQueueTest, DeleteEventInQueue)
 }
 
 // Death test: Verify that deleting an In_Queue event throws fatal error
+// Disabled under ThreadSanitizer: TSAN does not support fork() after threads
+// have been created, and ASSERT_DEATH uses fork().
+#if defined(__SANITIZE_THREAD__)
+  // GCC defines __SANITIZE_THREAD__ when compiled with -fsanitize=thread
+#  define TSAN_ENABLED 1
+#endif
+
+#ifdef __clang__
+  // Clang uses __has_feature(thread_sanitizer)
+#  if __has_feature(thread_sanitizer)
+#    define TSAN_ENABLED 1
+#  endif
+#endif
+
+#ifdef TSAN_ENABLED
+TEST(TimeoutQueueDeathTest, DISABLED_DeleteEventInQueueDirectlyThrows)
+#else
 TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
+#endif
 {
   // This test verifies fail-fast behavior to prevent use-after-free.
   // When Event::~Event() throws from destructor, std::terminate() is called.

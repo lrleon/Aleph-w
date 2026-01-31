@@ -10,16 +10,16 @@ This module covers two related layers:
 
 ## Headers in this module
 
-- \ref ah-zip_8H
-- \ref ah-zip-utils_8H
-- \ref ah-uni-functional_8H
-- \ref ah-stl-functional_8H
-- \ref ah-ranges_8H
-- \ref ah-parallel_8H
+- \ref ah-zip.H
+- \ref ah-zip-utils.H
+- \ref ah-uni-functional.H
+- \ref ah-stl-functional.H
+- \ref ah-ranges.H
+- \ref ah-parallel.H
 
 ## Container-level functional methods (via `FunctionalMixin`)
 
-Many Aleph-w containers provide functional operations as **member functions** because they inherit from the CRTP mixin `FunctionalMixin` (see \ref ah-dry-mixin_8H).
+Many Aleph-w containers provide functional operations as **member functions** because they inherit from the CRTP mixin `FunctionalMixin` (see \ref ah-dry-mixin.H).
 
 In practice, this means that if a container provides a suitable `traverse()` method (directly or via `TraverseMixin`), it automatically gets methods such as:
 
@@ -32,7 +32,7 @@ In practice, this means that if a container provides a suitable `traverse()` met
 
 ### Example: `DynSetTree` supports `maps()` and `foldl()`
 
-See \ref tpl__dynSetTree_8H.
+See \ref tpl_dynSetTree.H.
 
 @code
 #include <tpl_dynSetTree.H>
@@ -57,7 +57,7 @@ int main()
 ### Example: `BitArray` is also a functional container
 
 `BitArray` inherits from `FunctionalMixin`, so it also supports the same family of member functions.
-See \ref bitArray_8H.
+See \ref bitArray.H.
 
 ## Graph functional helpers
 
@@ -69,7 +69,7 @@ Common patterns include:
 - Predicates and counting helpers over nodes/arcs (e.g. `none_node`, `count_nodes`, etc.).
 - Mapping utilities for node/arc information (e.g. `nodes_map`, `arcs_map`).
 
-See \ref tpl__graph_8H and \ref graph-dry_8H.
+See \ref tpl_graph.H and \ref graph-dry.H.
 
 @code
 #include <tpl_graph.H>
