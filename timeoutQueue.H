@@ -107,6 +107,7 @@
 # include <unistd.h>
 # include <iostream>
 # include <cassert>
+# include <cstdlib>
 # include <mutex>
 # include <condition_variable>
 # include <thread>
