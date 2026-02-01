@@ -82,8 +82,8 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 {
   ah_invalid_argument_if(event == nullptr)
     << "nullptr event";
-  ah_domain_error_if(EVENT_NSEC(event) < 0 or EVENT_NSEC(event) >= NSEC)
-    << "event nsec out of range: " << EVENT_NSEC(event);
+  ah_domain_error_if(event->time_key().tv_nsec < 0 or event->time_key().tv_nsec >= NSEC)
+    << "event nsec out of range: " << event->time_key().tv_nsec;
 
   std::lock_guard<std::mutex> lock(mtx);
 
@@ -150,9 +150,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   Event *local = event;
   Event::CompletionCallback callback;
   Event::Execution_Status final_status = Event::Deleted;
-  bool became_empty = false;
-
-  {
+  bool became_empty = false; {
     bool was_in_queue = false;
     std::lock_guard<std::mutex> lock(mtx);
 
@@ -243,7 +241,7 @@ void TimeoutQueue::triggerEvent()
       auto *event_to_schedule = static_cast<Event *>(prio_queue.top());
 
       // Compute time when the event must be triggered (wall clock)
-      const Time original_trigger_time = EVENT_TIME(event_to_schedule);
+      const Time original_trigger_time = event_to_schedule->time_key();
       const auto trigger_sys = timespec_to_timepoint(original_trigger_time);
 
       // Anchor both clocks under the same lock to avoid skew
@@ -278,7 +276,7 @@ void TimeoutQueue::triggerEvent()
           // If the top changed (original was canceled/rescheduled) and
           // the new top is in the future, go back to wait for it
           if (const auto *next = static_cast<Event *>(prio_queue.top()); next != event_to_schedule and
-                                                                         EVENT_TIME(next) > original_trigger_time)
+                                                                         next->time_key() > original_trigger_time)
             continue;
 
           // Now extract the event we are going to execute
@@ -289,12 +287,17 @@ void TimeoutQueue::triggerEvent()
           lock.unlock();
 
           try { event_to_execute->EventFct(); }
-          catch (...) { /* Exceptions are only caught */ }
+          catch (...)
+            {
+              ah_warning(std::cerr) << "Uncaught exception in TimeoutQueue event execution (ID "
+                  << event_to_execute->get_id() << ", name: '"
+                  << event_to_execute->get_name() << "')" << std::endl;
+            }
 
           lock.lock();
 
           ++executedCount;
-          
+
           const auto current_status = event_to_execute->get_execution_status();
           const Event::CompletionCallback callback = event_to_execute->on_completed;
           auto final_status = Event::Executed;
@@ -391,7 +394,7 @@ Time TimeoutQueue::next_event_time() const
   std::lock_guard<std::mutex> lock(mtx);
   if (prio_queue.size() == 0)
     return {0, 0};
-  return EVENT_TIME(static_cast<Event*>(prio_queue.top()));
+  return static_cast<Event *>(prio_queue.top())->time_key();
 }
 
 size_t TimeoutQueue::clear_all()

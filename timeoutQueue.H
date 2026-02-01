@@ -192,10 +192,13 @@ public:
     std::string event_name;
     CompletionCallback on_completed;
 
+    Time& time_key() { return this->get_key(); }
+    const Time& time_key() const { return this->get_key(); }
+
     void set_trigger_time(const Time _t)
     {
       assert(_t.tv_nsec >= 0 and _t.tv_nsec < NSEC);
-      EVENT_TIME(this) = _t;
+      time_key() = _t;
     }
 
     void set_execution_status(Execution_Status status)
@@ -214,7 +217,7 @@ public:
       : BinHeapVtl<Time>::Node(t), event_id(++nextId),
         execution_status(Out_Queue), event_name(std::move(name))
     {
-      assert(EVENT_NSEC(this) >= 0 and EVENT_NSEC(this) < NSEC);
+      assert(time_key().tv_nsec >= 0 and time_key().tv_nsec < NSEC);
     }
 
     Event(const long sec, const long nsec, std::string name = "")
@@ -222,8 +225,8 @@ public:
     {
       assert(nsec >= 0 and nsec < NSEC);
 
-      EVENT_SEC(this) = sec;
-      EVENT_NSEC(this) = nsec;
+      time_key().tv_sec = sec;
+      time_key().tv_nsec = nsec;
     }
 
   public:
@@ -242,7 +245,7 @@ public:
 
     [[nodiscard]] Execution_Status get_execution_status() const { return execution_status; }
 
-    [[nodiscard]] Time getAbsoluteTime() const { return EVENT_TIME(this); }
+    [[nodiscard]] Time getAbsoluteTime() const { return time_key(); }
 
     void set_for_deletion() { execution_status = To_Delete; }
 
@@ -323,9 +326,9 @@ public:
   /**
    * @brief Cancel a scheduled event
    * @param event Event to cancel
-   * @return true if the event was in queue and canceled *
- *  @ingroup Utilities
-
+   * @return true if the event was in queue and canceled. Returns false if the event
+   *         is currently executing or not in the queue.
+   *  @ingroup Utilities
    */
   bool cancel_event(Event * event);
 
