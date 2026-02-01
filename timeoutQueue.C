@@ -320,8 +320,27 @@ void TimeoutQueue::triggerEvent()
             }
           else
             {
-              event_map.remove(event_to_execute->get_id());
-              event_registry.remove(event_to_execute);
+              // Cleanup: event should be removed from internal registries.
+              // In rare races, another thread may already have removed it; in that
+              // case DynMapTree::remove() (and similar) can throw. We ignore such
+              // failures here to avoid terminating the worker thread.
+              try
+                {
+                  event_map.remove(event_to_execute->get_id());
+                }
+              catch (...)
+                {
+                  // Already removed or inconsistent; ignore in post-execution cleanup.
+                }
+
+              try
+                {
+                  event_registry.remove(event_to_execute);
+                }
+              catch (...)
+                {
+                  // Already removed or inconsistent; ignore in post-execution cleanup.
+                }
               event_to_execute->set_execution_status(Event::Executed);
             }
 
