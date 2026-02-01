@@ -84,7 +84,6 @@
 #define USECONDVAR_H
 
 #include <pthread.h>
-#include <utility>
 
 /**
  * @class UseCondVar
@@ -96,6 +95,7 @@
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
  * @par Thread safety
+ *    Thread-safe only with external synchronization and correct mutex usage.
 
  */
 class UseCondVar 
@@ -114,7 +114,7 @@ public:
    * @param m Pointer to initialized mutex (must be held when waiting)
    * @throws None
    * @par Complexity O(1)
-   * @par Exception safety
+   * @par Exception safety No-throw
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
 
