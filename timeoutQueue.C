@@ -105,17 +105,11 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 
 bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr)
-    << "nullptr event";
-
   Event::CompletionCallback callback;
   bool became_empty = false; {
     std::lock_guard<std::mutex> lock(mtx);
 
-    if (event_registry.contains(event) == false)
-      return false;
-
-    if (event->get_execution_status() != Event::In_Queue)
+    if (not event_registry.contains(event) or event->get_execution_status() != Event::In_Queue)
       return false;
 
     callback = event->on_completed;
@@ -150,7 +144,9 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   Event *local = event;
   Event::CompletionCallback callback;
   Event::Execution_Status final_status = Event::Deleted;
-  bool became_empty = false; {
+  bool became_empty = false;
+
+  {
     bool was_in_queue = false;
     std::lock_guard<std::mutex> lock(mtx);
 
@@ -207,12 +203,10 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
 void TimeoutQueue::reschedule_event(const Time & trigger_time,
                                     TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr)
-    << "nullptr event";
-
   std::lock_guard<std::mutex> lock(mtx);
 
-  event_registry.insert(event);
+  ah_invalid_argument_unless(event_registry.contains(event))
+    << "Event " << event << " not found in timeoutQueue";
 
   if (isShutdown)
     return;
@@ -320,27 +314,8 @@ void TimeoutQueue::triggerEvent()
             }
           else
             {
-              // Cleanup: event should be removed from internal registries.
-              // In rare races, another thread may already have removed it; in that
-              // case DynMapTree::remove() (and similar) can throw. We ignore such
-              // failures here to avoid terminating the worker thread.
-              try
-                {
-                  event_map.remove(event_to_execute->get_id());
-                }
-              catch (...)
-                {
-                  // Already removed or inconsistent; ignore in post-execution cleanup.
-                }
-
-              try
-                {
-                  event_registry.remove(event_to_execute);
-                }
-              catch (...)
-                {
-                  // Already removed or inconsistent; ignore in post-execution cleanup.
-                }
+              event_map.remove(event_to_execute->get_id());
+              event_registry.remove(event_to_execute);
               event_to_execute->set_execution_status(Event::Executed);
             }
 

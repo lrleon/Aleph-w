@@ -233,8 +233,8 @@ TEST(TimeoutQueueTest, CancelEventNotInQueue)
 {
   auto* event = new TestEvent(time_from_now_ms(100));
 
-  bool canceled = g_queue->cancel_event(event);
-  EXPECT_FALSE(canceled);
+  // Now throws exception if event is not in registry
+  EXPECT_FALSE(g_queue->cancel_event(event));
 
   delete event;
 }
@@ -280,10 +280,8 @@ TEST(TimeoutQueueTest, RescheduleNotInQueue)
 {
   auto* event = new TestEvent(time_from_now_ms(100));
 
-  g_queue->reschedule_event(time_from_now_ms(50), event);
-
-  this_thread::sleep_for(chrono::milliseconds(200));
-  EXPECT_TRUE(event->executed);
+  // Now throws exception if event is not in registry
+  EXPECT_THROW(g_queue->reschedule_event(time_from_now_ms(50), event), std::invalid_argument);
 
   delete event;
 }

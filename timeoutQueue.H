@@ -313,7 +313,7 @@ public:
  *  @ingroup Utilities
 
    */
-  void schedule_event(const Time & trigger_time, Event *);
+  void schedule_event(const Time & trigger_time, Event * event);
 
   /**
    * @brief Schedule an event using its internal trigger time
@@ -336,8 +336,8 @@ public:
    * @brief Reschedule an event to a new time
    * @param trigger_time New absolute trigger time
    * @param event Event to reschedule *
+   * @throw invalid_argument if the event is not found in the queue
  *  @ingroup Utilities
-
    */
   void reschedule_event(const Time & trigger_time, Event *event);
 
