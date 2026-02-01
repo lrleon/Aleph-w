@@ -307,7 +307,6 @@ build*/
 cmake-build-*/
 Tests/build-*/
 Testing/
-CMakePresets.json
 *.Tree
 /Examples/.btreepic
 /.cache/*
@@ -320,3 +319,6 @@ CMakePresets.json
 PR_DESCRIPTION.md
 CHANGELOG_v3.md
 /test_*
+
+!CMakeLists.txt
+!Tests/CMakeLists.txt

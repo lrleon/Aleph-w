@@ -93,12 +93,11 @@
  * @see tpl_binHeap.H For the underlying priority queue
  * @see ah-time.H For time utilities
  *
- * @note Uses C++11 threading primitives (std::mutex, std::condition_variable, std::thread)
+ * @note Uses C++20 threading primitives (std::mutex, std::condition_variable, std::thread)
  *
  * @author Leandro Rabindranath León *
  *  @ingroup Utilities
  *  @ingroup ThreadsAndConcurrency
-
  */
 
 # ifndef TIMEOUTQUEUE_H
@@ -116,10 +115,12 @@
 # include <string>
 # include <atomic>
 # include <cstdint>
-# include <unordered_map>
+# include <ah-errors.H>
+# include <tpl_dynMapTree.H>
+# include <tpl_dynSetTree.H>
 # include <tpl_binHeap.H>
 # include <ah-time.H>
-#include <utility>
+# include <utility>
 
 /**
  * @class TimeoutQueue
@@ -254,7 +255,7 @@ public:
     /// Set the event name
     void set_name(const std::string & name) { event_name = name; }
 
-    /// Set the completion callback (called after EventFct completes or event is canceled)
+    /// Set the completion callback (called after EventFct completes or the event is canceled)
     void set_completion_callback(CompletionCallback cb) { on_completed = std::move(cb); }
 
     /**
@@ -270,8 +271,9 @@ public:
   }; /* end class Event */
 
 private:
-  BinHeapVtl<Time> prioQueue;
-  std::unordered_map<Event::EventId, Event *> eventMap; // For O(1) lookup by ID
+  BinHeapVtl<Time> prio_queue;
+  DynMapTree<Event::EventId, Event *> event_map; // For O(log n) lookup by ID
+  DynSetTree<Event *> event_registry; // Currently managed event pointers
 
   mutable std::mutex mtx;
   std::condition_variable cond;
@@ -321,7 +323,7 @@ public:
   /**
    * @brief Cancel a scheduled event
    * @param event Event to cancel
-   * @return true if event was in queue and canceled *
+   * @return true if the event was in queue and canceled *
  *  @ingroup Utilities
 
    */
@@ -341,7 +343,7 @@ public:
    *
    * If the event is currently executing, its status is set to @c To_Delete
    * and the worker thread will delete it after @c EventFct() returns.
-   * Otherwise the event is deleted immediately before invoking the
+   * Otherwise, the event is deleted immediately before invoking the
    * completion callback.
    *
    * The completion callback receives @c nullptr as the event pointer and
@@ -373,11 +375,11 @@ public:
   /// Check if the queue has no pending events
   [[nodiscard]] bool is_empty() const;
 
-  /// Check if queue is running (not shut down)
+  /// Check if the queue is running (not shut down)
   [[nodiscard]] bool is_running() const;
 
   /**
-   * @brief Schedule an event relative to current time
+   * @brief Schedule an event relative to the current time
    * @param ms_from_now Milliseconds from now to trigger
    * @param event Event to schedule
    */
@@ -385,7 +387,7 @@ public:
 
   /**
    * @brief Get the trigger time of the next (soonest) event
-   * @return Time of next event, or {0,0} if queue is empty
+   * @return Time of the next event, or {0,0} if the queue is empty
    */
   [[nodiscard]] Time next_event_time() const;
 
@@ -410,7 +412,7 @@ public:
   /// Resume event execution after pause
   void resume();
 
-  /// Check if queue is paused
+  /// Check if the queue is paused
   [[nodiscard]] bool is_paused() const;
 
   /**
@@ -423,14 +425,14 @@ public:
   /**
    * @brief Find a scheduled event by its ID
    * @param id The event ID to search for
-   * @return Pointer to the event if found and still in queue, nullptr otherwise
+   * @return Pointer to the event if found and still in the queue, nullptr otherwise
    */
-  [[nodiscard]] Event * find_by_id(Event::EventId id) const;
+  [[nodiscard]] Event * find_by_id(const Event::EventId id) const;
 
   /**
    * @brief Cancel a scheduled event by its ID
    * @param id The event ID to cancel
-   * @return true if event was found and canceled, false if not found or not in queue
+   * @return true if the event was found and canceled, false if not found or not in queue
    */
   bool cancel_by_id(Event::EventId id);
 };

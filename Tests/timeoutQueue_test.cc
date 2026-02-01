@@ -944,7 +944,7 @@ TEST(TimeoutQueueTest, DestructorWithoutShutdown)
   delete event;
 }
 
-TEST(TimeoutQueueTest, DeleteEventInQueue)
+TEST(TimeoutQueueTest, CancelBeforeDeleteIsSafe)
 {
   // Test that canceling an event before deletion is safe (no error)
   testing::internal::CaptureStderr();
@@ -954,7 +954,7 @@ TEST(TimeoutQueueTest, DeleteEventInQueue)
 
   EXPECT_EQ(event->get_execution_status(), TimeoutQueue::Event::In_Queue);
 
-  // Cancel first to remove from queue, then delete
+  // Cancel first to remove from the queue, then delete
   g_queue->cancel_event(event);
 
   // Now it's safe to delete
@@ -992,7 +992,7 @@ TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
     TimeoutQueue queue;
     auto* event = new TestEvent(time_from_now_ms(1000));
     queue.schedule_event(event);
-    // Deleting without cancel should throw fatal error, causing terminate
+    // Deleting without cancel should throw a fatal error, causing terminate
     delete event;
     queue.shutdown();
   }, "In_Queue.*use-after-free");
@@ -1001,7 +1001,7 @@ TEST(TimeoutQueueDeathTest, DeleteEventInQueueDirectlyThrows)
 TEST(TimeoutQueueTest, CancelDuringTimeout)
 {
   // Regression test for getMin() bug: event canceled during wait_until
-  // should not cause next event to be lost
+  // should not cause the next event to be lost
   g_queue->reset_stats();
 
   auto* e1 = new TestEvent(time_from_now_ms(100));

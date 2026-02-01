@@ -28,9 +28,6 @@
   SOFTWARE.
 */
 
-
-// Note: Updated to reflect header Doxygen group changes.
-
 # include <cstdio>
 # include <typeinfo>
 # include <timeoutQueue.H>
@@ -48,12 +45,10 @@ static auto timespec_to_timepoint(const Time & t)
                                                                         seconds(t.tv_sec) + nanoseconds(t.tv_nsec)));
 }
 
-
 TimeoutQueue::TimeoutQueue() : isShutdown(false)
 {
   workerThread = std::thread(&TimeoutQueue::triggerEvent, this);
 }
-
 
 TimeoutQueue::~TimeoutQueue()
 { {
@@ -73,24 +68,26 @@ TimeoutQueue::~TimeoutQueue()
     workerThread.join();
 }
 
-
 void TimeoutQueue::schedule_event(const Time & trigger_time,
                                   TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr) << "event is nullptr";
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
 
   event->set_trigger_time(trigger_time);
   schedule_event(event);
 }
 
-
 void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr) << "event is nullptr";
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
   ah_domain_error_if(EVENT_NSEC(event) < 0 or EVENT_NSEC(event) >= NSEC)
     << "event nsec out of range: " << EVENT_NSEC(event);
 
   std::lock_guard<std::mutex> lock(mtx);
+
+  event_registry.insert(event);
 
   ah_invalid_argument_if(event->get_execution_status() == Event::In_Queue)
       << "Event has already been inserted in timeoutQueue";
@@ -100,33 +97,38 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 
   event->set_execution_status(Event::In_Queue);
 
-  prioQueue.insert(event);
-  eventMap[event->get_id()] = event;
+  prio_queue.insert(event);
+  event_map[event->get_id()] = event;
 
   cond.notify_one();
 }
 
-
 bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr) << "event is nullptr";
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
 
   Event::CompletionCallback callback;
   bool became_empty = false; {
     std::lock_guard<std::mutex> lock(mtx);
+
+    if (event_registry.contains(event) == false)
+      return false;
 
     if (event->get_execution_status() != Event::In_Queue)
       return false;
 
     callback = event->on_completed;
 
-    prioQueue.remove(event);
-    eventMap.erase(event->get_id());
+    prio_queue.remove(event);
+    if (event_map.contains(event->get_id()))
+      event_map.remove(event->get_id());
+    event_registry.remove(event);
 
     event->set_execution_status(Event::Canceled);
     ++canceledCount;
 
-    became_empty = prioQueue.size() == 0;
+    became_empty = prio_queue.size() == 0;
   }
 
   if (callback)
@@ -140,7 +142,6 @@ bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
   return true;
 }
 
-
 void TimeoutQueue::cancel_delete_event(Event *& event)
 {
   if (event == nullptr)
@@ -150,14 +151,21 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   Event::CompletionCallback callback;
   Event::Execution_Status final_status = Event::Deleted;
   bool became_empty = false;
-  bool was_in_queue = false; {
+
+  {
+    bool was_in_queue = false;
     std::lock_guard<std::mutex> lock(mtx);
+
+    ah_invalid_argument_unless(event_registry.contains(local))
+      << "Event " << local << " not found in timeoutQueue";
 
     if (local->get_execution_status() == Event::In_Queue)
       {
-        prioQueue.remove(local);
-        eventMap.erase(local->get_id());
-        became_empty = prioQueue.size() == 0;
+        prio_queue.remove(local);
+        if (event_map.contains(local->get_id()))
+          event_map.remove(local->get_id());
+        event_registry.remove(local);
+        became_empty = prio_queue.size() == 0;
         was_in_queue = true;
       }
 
@@ -165,6 +173,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
       {
         // Worker thread will invoke callback and delete after EventFct() returns
         local->set_execution_status(Event::To_Delete);
+        event_registry.remove(local);
         event = nullptr;
         cond.notify_one();
         return;
@@ -191,30 +200,31 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   cond.notify_one();
 }
 
-
 void TimeoutQueue::reschedule_event(const Time & trigger_time,
                                     TimeoutQueue::Event *event)
 {
-  ah_invalid_argument_if(event == nullptr) << "event is nullptr";
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
 
   std::lock_guard<std::mutex> lock(mtx);
+
+  event_registry.insert(event);
 
   if (isShutdown)
     return;
 
   if (event->get_execution_status() == Event::In_Queue)
-    prioQueue.remove(event); // eventMap entry stays, ID doesn't change
+    prio_queue.remove(event); // eventMap entry stays, ID doesn't change
 
   event->set_trigger_time(trigger_time);
 
   event->set_execution_status(Event::In_Queue);
 
-  prioQueue.insert(event);
-  eventMap[event->get_id()] = event; // Re-add in case it wasn't there
+  prio_queue.insert(event);
+  event_map[event->get_id()] = event; // Re-add in case it wasn't there
 
   cond.notify_one();
 }
-
 
 void TimeoutQueue::triggerEvent()
 {
@@ -223,14 +233,14 @@ void TimeoutQueue::triggerEvent()
   while (true)
     {
       // Sleep if there are no events or if paused
-      while ((prioQueue.size() == 0 or isPaused) and not isShutdown)
+      while ((prio_queue.size() == 0 or isPaused) and not isShutdown)
         cond.wait(lock);
 
       if (isShutdown)
         break;
 
       // Read the soonest event
-      auto *event_to_schedule = static_cast<Event *>(prioQueue.top());
+      auto *event_to_schedule = static_cast<Event *>(prio_queue.top());
 
       // Compute time when the event must be triggered (wall clock)
       const Time original_trigger_time = EVENT_TIME(event_to_schedule);
@@ -247,7 +257,7 @@ void TimeoutQueue::triggerEvent()
 
       // Convert delta to steady_clock and build a steady deadline
       const auto deadline_steady =
-        steady_now + duration_cast<steady_clock::duration>(delta);
+          steady_now + duration_cast<steady_clock::duration>(delta);
 
       // Wait until deadline or notification (immune to wall-clock jumps)
       const auto wait_result = cond.wait_until(lock, deadline_steady);
@@ -261,18 +271,18 @@ void TimeoutQueue::triggerEvent()
 
       if (wait_result == std::cv_status::timeout)
         {
-          if (prioQueue.size() == 0)
+          if (prio_queue.size() == 0)
             continue;
 
           // Peek at the soonest event without extracting it
           // If the top changed (original was canceled/rescheduled) and
           // the new top is in the future, go back to wait for it
-          if (const auto *next = static_cast<Event *>(prioQueue.top()); next != event_to_schedule and
-                                                                        EVENT_TIME(next) > original_trigger_time)
+          if (const auto *next = static_cast<Event *>(prio_queue.top()); next != event_to_schedule and
+                                                                         EVENT_TIME(next) > original_trigger_time)
             continue;
 
           // Now extract the event we are going to execute
-          auto *event_to_execute = static_cast<Event *>(prioQueue.getMin());
+          auto *event_to_execute = static_cast<Event *>(prio_queue.getMin());
 
           event_to_execute->set_execution_status(Event::Executing);
 
@@ -284,20 +294,29 @@ void TimeoutQueue::triggerEvent()
           lock.lock();
 
           ++executedCount;
-          eventMap.erase(event_to_execute->get_id());
-
+          
+          const auto current_status = event_to_execute->get_execution_status();
           const Event::CompletionCallback callback = event_to_execute->on_completed;
           auto final_status = Event::Executed;
 
-          if (event_to_execute->get_execution_status() == Event::To_Delete)
+          if (current_status == Event::To_Delete)
             {
               final_status = Event::Deleted;
               event_to_execute->set_execution_status(Event::Deleted);
             }
+          else if (current_status == Event::In_Queue)
+            {
+              // Event was rescheduled during EventFct() - still in queue, don't touch
+              final_status = Event::Executed;
+            }
           else
-            event_to_execute->set_execution_status(Event::Executed);
+            {
+              event_map.remove(event_to_execute->get_id());
+              event_registry.remove(event_to_execute);
+              event_to_execute->set_execution_status(Event::Executed);
+            }
 
-          const bool became_empty = prioQueue.size() == 0;
+          const bool became_empty = prio_queue.size() == 0;
 
           lock.unlock();
 
@@ -318,11 +337,12 @@ void TimeoutQueue::triggerEvent()
     }
 
   // Shutdown requested - cancel all pending events
-  while (prioQueue.size() > 0)
+  while (prio_queue.size() > 0)
     {
-      auto *event = static_cast<Event *>(prioQueue.getMin());
+      auto *event = static_cast<Event *>(prio_queue.getMin());
       const Event::CompletionCallback callback = event->on_completed;
-      eventMap.erase(event->get_id());
+      event_map.remove(event->get_id());
+      event_registry.remove(event);
       // Set final status BEFORE callback to avoid use-after-free:
       // User code may delete the event in the callback
       event->set_execution_status(Event::Canceled);
@@ -336,27 +356,23 @@ void TimeoutQueue::triggerEvent()
   emptyCondition.notify_all();
 }
 
-
 void TimeoutQueue::shutdown()
 {
   std::lock_guard<std::mutex> lock(mtx);
   shutdown_locked();
 }
 
-
 size_t TimeoutQueue::size() const
 {
   std::lock_guard<std::mutex> lock(mtx);
-  return prioQueue.size();
+  return prio_queue.size();
 }
-
 
 bool TimeoutQueue::is_empty() const
 {
   std::lock_guard<std::mutex> lock(mtx);
-  return prioQueue.size() == 0;
+  return prio_queue.size() == 0;
 }
-
 
 bool TimeoutQueue::is_running() const
 {
@@ -364,33 +380,31 @@ bool TimeoutQueue::is_running() const
   return not isShutdown;
 }
 
-
 void TimeoutQueue::schedule_after_ms(int ms_from_now, Event *event)
 {
-  Time trigger_time = time_plus_msec(read_current_time(), ms_from_now);
+  const Time trigger_time = time_plus_msec(read_current_time(), ms_from_now);
   schedule_event(trigger_time, event);
 }
-
 
 Time TimeoutQueue::next_event_time() const
 {
   std::lock_guard<std::mutex> lock(mtx);
-  if (prioQueue.size() == 0)
+  if (prio_queue.size() == 0)
     return {0, 0};
-  return EVENT_TIME(static_cast<Event*>(prioQueue.top()));
+  return EVENT_TIME(static_cast<Event*>(prio_queue.top()));
 }
-
 
 size_t TimeoutQueue::clear_all()
 {
   std::unique_lock<std::mutex> lock(mtx);
 
   size_t count = 0;
-  while (prioQueue.size() > 0)
+  while (prio_queue.size() > 0)
     {
-      auto *event = static_cast<Event *>(prioQueue.getMin());
+      auto *event = static_cast<Event *>(prio_queue.getMin());
       const Event::CompletionCallback callback = event->on_completed;
-      eventMap.erase(event->get_id());
+      event_map.remove(event->get_id());
+      event_registry.remove(event);
       event->set_execution_status(Event::Canceled);
       ++count;
       ++canceledCount;
@@ -406,20 +420,17 @@ size_t TimeoutQueue::clear_all()
   return count;
 }
 
-
 size_t TimeoutQueue::executed_count() const
 {
   std::lock_guard<std::mutex> lock(mtx);
   return executedCount;
 }
 
-
 size_t TimeoutQueue::canceled_count() const
 {
   std::lock_guard<std::mutex> lock(mtx);
   return canceledCount;
 }
-
 
 void TimeoutQueue::reset_stats()
 {
@@ -428,13 +439,11 @@ void TimeoutQueue::reset_stats()
   canceledCount = 0;
 }
 
-
 void TimeoutQueue::pause()
 {
   std::lock_guard<std::mutex> lock(mtx);
   isPaused = true;
 }
-
 
 void TimeoutQueue::resume()
 {
@@ -443,47 +452,44 @@ void TimeoutQueue::resume()
   cond.notify_one();
 }
 
-
 bool TimeoutQueue::is_paused() const
 {
   std::lock_guard<std::mutex> lock(mtx);
   return isPaused;
 }
 
-
-bool TimeoutQueue::wait_until_empty(int timeout_ms)
+bool TimeoutQueue::wait_until_empty(const int timeout_ms)
 {
   std::unique_lock<std::mutex> lock(mtx);
 
-  if (prioQueue.size() == 0)
+  if (prio_queue.size() == 0)
     return true;
 
   if (timeout_ms <= 0)
     {
-      emptyCondition.wait(lock, [this]() { return prioQueue.size() == 0 or isShutdown; });
-      return prioQueue.size() == 0;
+      emptyCondition.wait(lock, [this]() { return prio_queue.size() == 0 or isShutdown; });
+      return prio_queue.size() == 0;
     }
 
   return emptyCondition.wait_for(lock, std::chrono::milliseconds(timeout_ms),
-                                 [this]() { return prioQueue.size() == 0 or isShutdown; });
+                                 [this]() { return prio_queue.size() == 0 or isShutdown; });
 }
 
-
-TimeoutQueue::Event * TimeoutQueue::find_by_id(Event::EventId id) const
+TimeoutQueue::Event * TimeoutQueue::find_by_id(const Event::EventId id) const
 {
   if (id == Event::InvalidId)
     return nullptr;
 
   std::lock_guard<std::mutex> lock(mtx);
 
-  if (const auto it = eventMap.find(id); it != eventMap.end() and it->second->get_execution_status() == Event::In_Queue)
-    return it->second;
+  if (const auto ptr_pair = event_map.search(id);
+    ptr_pair != nullptr and ptr_pair->second->get_execution_status() == Event::In_Queue)
+    return ptr_pair->second;
 
   return nullptr;
 }
 
-
-bool TimeoutQueue::cancel_by_id(Event::EventId id)
+bool TimeoutQueue::cancel_by_id(const Event::EventId id)
 {
   if (id == Event::InvalidId)
     return false;
@@ -493,21 +499,22 @@ bool TimeoutQueue::cancel_by_id(Event::EventId id)
   bool became_empty = false; {
     std::lock_guard<std::mutex> lock(mtx);
 
-    const auto it = eventMap.find(id);
-    if (it == eventMap.end())
+    const auto event_pair = event_map.search(id);
+    if (event_pair == nullptr)
       return false;
 
-    event = it->second;
+    event = event_pair->second;
     if (event->get_execution_status() != Event::In_Queue)
       return false;
 
     callback = event->on_completed;
-    prioQueue.remove(event);
-    eventMap.erase(it);
+    prio_queue.remove(event);
+    event_map.remove(id);
+    event_registry.remove(event);
     event->set_execution_status(Event::Canceled);
     ++canceledCount;
 
-    became_empty = prioQueue.size() == 0;
+    became_empty = prio_queue.size() == 0;
   }
 
   if (callback)
