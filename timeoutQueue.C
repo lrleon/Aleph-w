@@ -172,6 +172,12 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
         // Worker thread will invoke callback and delete after EventFct() returns
         local->set_execution_status(Event::To_Delete);
         event_registry.remove(local);
+
+        // Also remove from event_map to prevent find_by_id() from returning a pointer
+        // that is about to be deleted by the worker thread.
+        if (event_map.contains(local->get_id()))
+          event_map.remove(local->get_id());
+
         event = nullptr;
         cond.notify_one();
         return;
