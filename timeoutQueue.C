@@ -51,7 +51,7 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 }
 
 TimeoutQueue::~TimeoutQueue()
-{
+{ {
     std::lock_guard<std::mutex> lock(mtx);
     if (not isShutdown)
       {
@@ -105,11 +105,17 @@ void TimeoutQueue::schedule_event(TimeoutQueue::Event *event)
 
 bool TimeoutQueue::cancel_event(TimeoutQueue::Event *event)
 {
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
+
   Event::CompletionCallback callback;
   bool became_empty = false; {
     std::lock_guard<std::mutex> lock(mtx);
 
-    if (not event_registry.contains(event) or event->get_execution_status() != Event::In_Queue)
+    ah_invalid_argument_unless(event_registry.contains(event))
+      << "Event " << event << " not found in timeoutQueue";
+
+    if (event->get_execution_status() != Event::In_Queue)
       return false;
 
     callback = event->on_completed;
@@ -144,9 +150,7 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
   Event *local = event;
   Event::CompletionCallback callback;
   Event::Execution_Status final_status = Event::Deleted;
-  bool became_empty = false;
-
-  {
+  bool became_empty = false; {
     bool was_in_queue = false;
     std::lock_guard<std::mutex> lock(mtx);
 
@@ -179,12 +183,6 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
         return;
       }
 
-    // For all non-Executing paths, ensure the event is no longer referenced
-    // from internal registries before we delete it.
-    if (event_registry.contains(local))
-      event_registry.remove(local);
-    if (event_map.contains(local->get_id()))
-      event_map.remove(local->get_id());
     callback = local->on_completed;
 
     if (was_in_queue)
@@ -209,6 +207,9 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
 void TimeoutQueue::reschedule_event(const Time & trigger_time,
                                     TimeoutQueue::Event *event)
 {
+  ah_invalid_argument_if(event == nullptr)
+    << "nullptr event";
+
   std::lock_guard<std::mutex> lock(mtx);
 
   ah_invalid_argument_unless(event_registry.contains(event))
@@ -281,8 +282,7 @@ void TimeoutQueue::triggerEvent()
           // Peek at the soonest event without extracting it
           // If the top changed (original was canceled/rescheduled) and
           // the new top is in the future, go back to wait for it
-          if (const auto *next = static_cast<Event *>(prio_queue.top()); next != event_to_schedule and
-                                                                         next->time_key() > original_trigger_time)
+          if (const auto *next = static_cast<Event *>(prio_queue.top()); next->time_key() > original_trigger_time)
             continue;
 
           // Now extract the event we are going to execute
@@ -310,16 +310,7 @@ void TimeoutQueue::triggerEvent()
 
           if (current_status == Event::To_Delete)
             {
-              // Event was marked for deletion by cancel_delete_event() during execution.
-              // Defensively remove from registries if still present (should already be done by
-              // cancel_delete_event(), but ensure cleanup to prevent use-after-free).
-              if (event_map.contains(event_to_execute->get_id()))
-                event_map.remove(event_to_execute->get_id());
-              if (event_registry.contains(event_to_execute))
-                event_registry.remove(event_to_execute);
               final_status = Event::Deleted;
-              event_map.remove(event_to_execute->get_id());
-              event_registry.remove(event_to_execute);
               event_to_execute->set_execution_status(Event::Deleted);
             }
           else if (current_status == Event::In_Queue)

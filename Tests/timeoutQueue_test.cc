@@ -233,8 +233,8 @@ TEST(TimeoutQueueTest, CancelEventNotInQueue)
 {
   auto* event = new TestEvent(time_from_now_ms(100));
 
-  // Returns false if event is not in registry (no exception thrown)
-  EXPECT_FALSE(g_queue->cancel_event(event));
+  // Now throws exception if event is not in registry
+  EXPECT_THROW(g_queue->cancel_event(event), std::invalid_argument);
 
   delete event;
 }
@@ -490,8 +490,12 @@ TEST(TimeoutQueueTest, ConcurrentCancellation)
       threads.emplace_back([&, t]() {
         for (size_t i = t; i < events.size(); i += 2)
           {
-            if (g_queue->cancel_event(events[i]))
-              ++canceled_count;
+            try {
+              if (g_queue->cancel_event(events[i]))
+                ++canceled_count;
+            } catch (const std::invalid_argument&) {
+              // Ignore if already canceled/deleted
+            }
           }
       });
     }
