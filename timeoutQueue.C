@@ -318,6 +318,8 @@ void TimeoutQueue::triggerEvent()
               if (event_registry.contains(event_to_execute))
                 event_registry.remove(event_to_execute);
               final_status = Event::Deleted;
+              event_map.remove(event_to_execute->get_id());
+              event_registry.remove(event_to_execute);
               event_to_execute->set_execution_status(Event::Deleted);
             }
           else if (current_status == Event::In_Queue)
