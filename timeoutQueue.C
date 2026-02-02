@@ -51,7 +51,7 @@ TimeoutQueue::TimeoutQueue() : isShutdown(false)
 }
 
 TimeoutQueue::~TimeoutQueue()
-{ {
+{
     std::lock_guard<std::mutex> lock(mtx);
     if (not isShutdown)
       {
