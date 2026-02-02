@@ -304,6 +304,13 @@ void TimeoutQueue::triggerEvent()
 
           if (current_status == Event::To_Delete)
             {
+              // Event was marked for deletion by cancel_delete_event() during execution.
+              // Defensively remove from registries if still present (should already be done by
+              // cancel_delete_event(), but ensure cleanup to prevent use-after-free).
+              if (event_map.contains(event_to_execute->get_id()))
+                event_map.remove(event_to_execute->get_id());
+              if (event_registry.contains(event_to_execute))
+                event_registry.remove(event_to_execute);
               final_status = Event::Deleted;
               event_to_execute->set_execution_status(Event::Deleted);
             }
