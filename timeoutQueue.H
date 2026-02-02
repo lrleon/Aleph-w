@@ -353,6 +353,8 @@ public:
    * @c Deleted as the status, since the event has already been destroyed.
    *
    * @param event Pointer to event (set to nullptr after deletion).
+   * @throws std::invalid_argument if the event is not registered in this
+   *         TimeoutQueue (via ah_invalid_argument_unless(...)).
    * @throws std::system_error Thrown by std::mutex::lock (if lock acquisition fails) or
    *         std::condition_variable::notify_one/notify_all (if system errors occur).
    *         No exception is thrown for the nullptr argument (early return).
