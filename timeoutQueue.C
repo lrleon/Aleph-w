@@ -179,6 +179,12 @@ void TimeoutQueue::cancel_delete_event(Event *& event)
         return;
       }
 
+    // For all non-Executing paths, ensure the event is no longer referenced
+    // from internal registries before we delete it.
+    if (event_registry.contains(local))
+      event_registry.remove(local);
+    if (event_map.contains(local->get_id()))
+      event_map.remove(local->get_id());
     callback = local->on_completed;
 
     if (was_in_queue)
