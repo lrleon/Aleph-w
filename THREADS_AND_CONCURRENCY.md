@@ -10,7 +10,8 @@ It covers:
 - \ref thread_pool.H (\ref Aleph::ThreadPool): modern task-based thread pool returning `std::future`.
 - \ref worker_pool.H (\ref WorkersSet): worker-function pool for processing queued `void*` work items.
 - \ref timeoutQueue.H (\ref TimeoutQueue): timed event scheduler running a background thread.
-- \ref useMutex.H / \ref useCondVar.H: POSIX mutex/condvar wrappers.
+- \ref useMutex.H (\ref UseMutex): POSIX mutex wrapper.
+- \ref useCondVar.H (\ref UseCondVar): POSIX condition variable wrapper.
 
 ## ThreadPool (task-based)
 
