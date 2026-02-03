@@ -79,6 +79,9 @@
  * 
  * destroy_mutex(&mutex);
  * ```
+ *
+ * @ingroup ThreadsAndConcurrency
+ * ```
  * 
  * ## Macros
  * 

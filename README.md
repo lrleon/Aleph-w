@@ -191,8 +191,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  LISTS                    ARRAYS                   GRAPHS                  │
 │  ├─ Singly-linked        ├─ Dynamic Array         ├─ Adjacency List        │
 │  ├─ Doubly-linked        ├─ Fixed Array           ├─ Adjacency Matrix      │
-│  ├─ Circular             └─ 2D Matrix             ├─ Network (flows)       │
-│  └─ Skip List                                     └─ Euclidean             │
+│  ├─ Circular             ├─ 2D Matrix             ├─ Network (flows)       │
+│  └─ Skip List            └─ BitArray              └─ Euclidean             │
 │                                                                            │
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
@@ -201,8 +201,6 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
-
-- **BitArray**: compact bit-vector container (see Aleph::BitArray)
 
 ### Algorithms
 

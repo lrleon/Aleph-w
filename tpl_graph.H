@@ -1330,9 +1330,9 @@ namespace Aleph
         @tparam T Result type
         @tparam Container Container type (default: DynList)
         @tparam SN Node filter type (default: Dft_Show_Node<GT>)
-        @param[in] g the graph
-        @param[in] transformation function `Node* -> T`
-        @param[in] sn node filter functor (default: Dft_Show_Node<GT>)
+        @param g the graph
+        @param transformation function `Node* -> T` that transforms each node
+        @param sn node filter functor (default: Dft_Show_Node<GT>)
         @return a `Container<T>` object with all the nodes mapped through the
         transformation
 
@@ -1359,9 +1359,9 @@ namespace Aleph
         @tparam T Result type
         @tparam Container Container type (default: DynList)
         @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
-        @param[in] g the graph
-        @param[in] transformation function `Arc* -> T`
-        @param[in] sa arc filter functor (default: Dft_Show_Arc<GT>)
+        @param g the graph
+        @param transformation function `Arc* -> T` that transforms each arc
+        @param sa arc filter functor (default: Dft_Show_Arc<GT>)
         @return a `Container<T>` object with all the arcs mapped through the
         transformation
         @ingroup Graphs
@@ -1391,10 +1391,10 @@ namespace Aleph
    *  @tparam T Result type
    *  @tparam Container Container type (default: DynList)
    *  @tparam SA Arc filter type (default: Dft_Show_Arc<GT>)
-   *  @param[in] g the graph
-   *  @param[in] p node pointer (arcs connected to this node are filtered)
-   *  @param[in] transformation function `Arc* -> T`
-   *  @param[in] sa arc filter functor (default: Dft_Show_Arc<GT>)
+   *  @param g the graph
+   *  @param p node pointer (arcs connected to this node are filtered)
+   *  @param transformation function `Arc* -> T` that transforms each arc
+   *  @param sa arc filter functor (default: Dft_Show_Arc<GT>)
    *  @return a `Container<T>` object with all the arcs mapped through the
    *          transformation
    *  @see arcs_map(GT &, std::function<T (typename GT::Arc *)>, SA) For the

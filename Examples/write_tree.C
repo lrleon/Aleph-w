@@ -114,7 +114,7 @@
  *
  * ### File Naming
  *
- * Files are named: `<prefix><tree_type>.Tree`
+ * Files are named: `@p prefix + @p tree_type + ".Tree"`
  * - Examples: `test_avl.Tree` (use `-o test_`), `rb.Tree` (default prefix), `mytree_splay.Tree` (use `-o mytree_`)
  *
  * ### Format Details

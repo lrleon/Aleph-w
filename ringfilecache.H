@@ -31,17 +31,47 @@
 
 
 /** @file ringfilecache.H
- *  @brief File-backed ring buffer cache.
+ *  @brief File-backed ring buffer cache for persistent storage.
  *
- *  Circular buffer cache stored in a file for persistent
- *  storage with fixed memory footprint.
+ *  Provides a circular buffer cache that persists data to disk, enabling
+ *  recovery after program restart. Ideal for caches that must survive crashes
+ *  or for applications with memory constraints.
  *
  *  ## Features
- *  - Persistent storage
- *  - Ring buffer semantics
- *  - Fixed memory usage
+ *  - **Persistent storage**: Cache survives program restarts
+ *  - **Ring buffer semantics**: Fixed-size circular buffer (FIFO)
+ *  - **Fixed memory usage**: Only cache metadata in RAM, data on disk
+ *  - **Binary serialization**: Direct binary I/O for performance
  *
- *  @ingroup Hash
+ *  ## Use Cases
+ *  - Persistent LRU caches
+ *  - Logging systems with bounded disk usage
+ *  - Database write-ahead logs
+ *  - Time-series data buffers
+ *
+ *  ## Requirements
+ *  - Type `T` must be trivially copyable (no pointers/references)
+ *  - Type `T` must be default constructible
+ *
+ *  @par Example
+ *  @code
+ *  struct CacheEntry {
+ *    int key;
+ *    double value;
+ *    time_t timestamp;
+ *  };
+ *
+ *  RingFileCache<CacheEntry> cache("cache.dat", "cache.pars", 1000);
+ *
+ *  CacheEntry entry{42, 3.14, time(nullptr)};
+ *  cache.insert(entry);
+ *
+ *  CacheEntry retrieved;
+ *  if (cache.get(retrieved))
+ *    std::cout << "Retrieved: " << retrieved.key << '\n';
+ *  @endcode
+ *
+ *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
 
@@ -63,17 +93,40 @@
 # include <ah-errors.H>
 # include <tpl_array.H>
 
-// Maximum expected length of the cache filename stored in the pars file
+/** @brief Maximum length for cache filename in parameter file. */
 inline constexpr size_t Ring_Max_Name_Size = 4096;
 
-/** Ring cache stored in a file.
-
-    The cache stores `T` objects by writing their binary representation
-    to disk; `T` should therefore be trivially copyable and default
-    constructible.
-
-    @author Leandro Rabindranath Leon
-*/
+/** @brief Persistent ring buffer cache with file-backed storage.
+ *
+ *  Implements a circular buffer that stores elements on disk, providing
+ *  persistent storage with bounded memory usage. The cache uses two files:
+ *  - **Data file**: Binary storage of cache entries
+ *  - **Parameter file**: Metadata (capacity, size, head, tail pointers)
+ *
+ *  ## Ring Buffer Semantics
+ *
+ *  - **Capacity**: Fixed at construction
+ *  - **Insert**: Writes to tail, advances tail pointer (wraps around)
+ *  - **Get**: Reads from head, advances head pointer (wraps around)
+ *  - **Full**: When tail catches up to head, oldest entry is overwritten
+ *
+ *  ## Persistence
+ *
+ *  The cache can be closed and reopened, preserving all data and state.
+ *  Use `save_pars()` to ensure metadata is synchronized to disk.
+ *
+ *  @tparam T Element type (must be trivially copyable and default constructible)
+ *
+ *  @par Complexity
+ *  - Insert: O(1) + disk I/O
+ *  - Get: O(1) + disk I/O
+ *  - Space: O(capacity) on disk, O(1) in RAM
+ *
+ *  @par Thread Safety
+ *  Not thread-safe. Use external synchronization for concurrent access.
+ *
+ *  @ingroup Utilities
+ */
 template <typename T>
 class RingFileCache
 {
