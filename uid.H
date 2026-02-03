@@ -172,10 +172,10 @@ public:
    *  Generates a string representation suitable for storage or transmission.
    *
    *  @param str output buffer (must be at least `stringSize` bytes)
-   *  @param size of output buffer
+   *  @param size size of output buffer
    *  @return pointer to the output buffer
    */
-  char* getStringUid(char * str, const size_t &) const;
+  char* getStringUid(char * str, const size_t & size) const;
 
   /** @brief Get IP address component.
    *  @return the IPv4 address
