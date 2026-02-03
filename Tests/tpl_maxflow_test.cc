@@ -374,15 +374,15 @@ double compute_min_cut_capacity(Net& net)
   
   // Find reachable nodes from source via residual network
   std::set<Node*> reachable;
-  std::queue<Node*> q;
+  DynListQueue<Node*> q;
   
   reachable.insert(source);
-  q.push(source);
+  q.put(source);
   
-  while (!q.empty())
+  while (!q.is_empty())
   {
     Node* u = q.front();
-    q.pop();
+    q.get();
     
     // Explore all adjacent arcs
     for (typename Net::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
@@ -400,7 +400,7 @@ double compute_min_cut_capacity(Net& net)
       if (residual > 1e-9)  // Has residual capacity
       {
         reachable.insert(v);
-        q.push(v);
+        q.put(v);
       }
     }
   }
@@ -571,15 +571,15 @@ TEST(MinCutTest, VerifyCutPartition)
   
   // Find reachable set from source
   std::set<Node*> S_side;  // Source side of cut
-  std::queue<Node*> q;
+  DynListQueue<Node*> q;
   
   S_side.insert(source);
-  q.push(source);
+  q.put(source);
   
-  while (!q.empty())
+  while (!q.is_empty())
   {
     Node* u = q.front();
-    q.pop();
+    q.get();
     
     for (typename TestNet::Node_Arc_Iterator it(u); it.has_curr(); it.next_ne())
     {
@@ -595,7 +595,7 @@ TEST(MinCutTest, VerifyCutPartition)
       if (residual > 1e-9)
       {
         S_side.insert(v);
-        q.push(v);
+        q.put(v);
       }
     }
   }

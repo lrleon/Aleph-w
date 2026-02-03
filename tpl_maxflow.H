@@ -81,8 +81,8 @@
 #define TPL_MAXFLOW_H
 
 #include <limits>
-#include <vector>
-#include <queue>
+#include <tpl_array.H>
+#include <tpl_dynListQueue.H>
 #include <tpl_net.H>
 #include <tpl_dynDlist.H>
 #include <ah-errors.H>
@@ -200,14 +200,14 @@ namespace Aleph
       }
 
     // BFS from source
-    std::queue<Node *> queue;
+    DynListQueue<Node *> queue;
     dinic_level<Net>(source) = 0;
-    queue.push(source);
+    queue.put(source);
 
-    while (not queue.empty())
+    while (not queue.is_empty())
       {
         Node *curr = queue.front();
-        queue.pop();
+        queue.get();
 
         // Explore all adjacent arcs
         for (typename Net::Node_Arc_Iterator it(curr); it.has_curr(); it.next_ne())
@@ -229,7 +229,7 @@ namespace Aleph
             if (residual > Flow_Type{0})
               {
                 dinic_level<Net>(next) = dinic_level<Net>(curr) + 1;
-                queue.push(next);
+                queue.put(next);
               }
           }
       }
@@ -355,8 +355,8 @@ namespace Aleph
     Node *source = net.get_source();
     Node *sink = net.get_sink();
 
-    // Allocate node info using std::vector to allow taking address of elements
-    std::vector<Dinic_Node_Info<Flow_Type>> node_info(net.vsize());
+    // Allocate node info with default-constructed elements
+    auto node_info = Array<Dinic_Node_Info<Flow_Type>>::create(net.vsize());
     size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
       NODE_COOKIE(it.get_curr()) = &node_info[idx];
@@ -474,14 +474,14 @@ namespace Aleph
             DynMapTree<Node *, Arc *> parent_arc;
             DynMapTree<Node *, bool> is_forward;
 
-            std::queue<Node *> queue;
-            queue.push(source);
+            DynListQueue<Node *> queue;
+            queue.put(source);
             parent[source] = nullptr;
 
-            while (not queue.empty() and not parent.has(sink))
+            while (not queue.is_empty() and not parent.has(sink))
               {
                 Node *curr = queue.front();
-                queue.pop();
+                queue.get();
 
                 for (typename Net::Node_Arc_Iterator it(curr); it.has_curr();
                      it.next_ne())
@@ -505,7 +505,7 @@ namespace Aleph
                         parent[next] = curr;
                         parent_arc[next] = arc;
                         is_forward[next] = forward;
-                        queue.push(next);
+                        queue.put(next);
                       }
                   }
               }
@@ -750,7 +750,7 @@ namespace Aleph
               }
 
             if (next_arc == nullptr)
-              break; // No outgoing arc with positive flow
+              break; // No outgoing arc with a positive flow
 
             Node *next_node = net.get_tgt_node(next_arc);
 
@@ -766,7 +766,7 @@ namespace Aleph
                 auto node_it = path.nodes.get_it();
                 auto arc_it = path.arcs.get_it();
 
-                // Skip to cycle start position
+                // Skip to the cycle start position
                 for (size_t i = 0; i < cycle_start; ++i)
                   {
                     node_it.next_ne();
@@ -886,8 +886,8 @@ namespace Aleph
           excess[source] -= delta;
         }
 
-    // Active nodes organized by height
-    std::vector<DynList<Node *>> buckets(2 * n + 1);
+    // Active nodes organized by height (empty DynLists by default)
+    auto buckets = Array<DynList<Node *>>::create(2 * n + 1);
     long max_height = 0;
 
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())

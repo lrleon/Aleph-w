@@ -51,7 +51,6 @@
 
 #include <gtest/gtest.h>
 #include <tpl_graph.H>
-#include <tpl_graph_copy.H>
 #include <vector>
 
 using namespace Aleph;

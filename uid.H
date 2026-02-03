@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -95,37 +94,34 @@ class Uid
 {
   friend struct Uid_Offsets;
 
-  mutable Aleph::IPv4_Address ipAddr;        ///< IPv4 address component
-  mutable uint32_t            port_number;   ///< Port number component
-  mutable uint64_t            counter;       ///< Counter component
-  mutable uint64_t            random_number; ///< Random number component
+  mutable Aleph::IPv4_Address ipAddr = 0; ///< IPv4 address component
+  mutable uint32_t port_number = 0; ///< Port number component
+  mutable uint64_t counter = 0; ///< Counter component
+  mutable uint64_t random_number = 0; ///< Random number component
 
 public:
-
   /** @brief Required buffer size for string representation.
    *
    *  The string representation uses hexadecimal encoding, requiring
    *  2 characters per byte plus null terminator.
    */
-  static constexpr int stringSize = 2*(sizeof(uint32_t) + sizeof(uint32_t) +
-                                       sizeof(uint64_t) + sizeof(uint64_t)) + 1;
+  static constexpr int stringSize = 2 * (sizeof(uint32_t) + sizeof(uint32_t) +
+                                         sizeof(uint64_t) + sizeof(uint64_t)) + 1;
 
 private:
-
   /** @brief Convert UID components to hexadecimal string.
    *  @param buffer output buffer for string
    *  @param src_size size of output buffer
    *  @return pointer to buffer
    */
-  char * stringficate(char * buffer, const size_t & src_size) const;
+  char * stringficate(char *buffer, const size_t & src_size) const;
 
   /** @brief Parse hexadecimal string and populate UID components.
    *  @param str input string in hexadecimal format
    */
-  void destringficate(char * str);
+  void destringficate(char *str);
 
 public:
-
   /** @brief Default constructor.
    *
    *  Creates an uninitialized UID. Components must be set manually
@@ -161,7 +157,7 @@ public:
    *  @note Complexity: O(1) (fixed size parsing)
    *  @note Exception safety: strong
    */
-  Uid(char* str);
+  Uid(char *str);
 
   /** @brief Compare two UIDs for equality.
    *
@@ -173,7 +169,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  bool operator == (const Uid& uid) const;
+  bool operator ==(const Uid & uid) const;
 
   /** @brief Convert UID to hexadecimal string representation.
    *
@@ -186,7 +182,7 @@ public:
    *  @note Complexity: O(1) (fixed size generation)
    *  @note Exception safety: strong
    */
-  char* getStringUid(char * str, const size_t & size) const;
+  char * getStringUid(char *str, const size_t & size) const;
 
   /** @brief Get IP address component.
    *  @return the IPv4 address
@@ -194,7 +190,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const Aleph::IPv4_Address & getIpAddr() const { return ipAddr; }
+  const Aleph::IPv4_Address &getIpAddr() const { return ipAddr; }
 
   /** @brief Get port number component.
    *  @return the port number
@@ -202,7 +198,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint32_t & get_port_number() const { return port_number; }
+  const uint32_t &get_port_number() const { return port_number; }
 
   /** @brief Get counter component.
    *  @return the counter value
@@ -210,7 +206,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint64_t & get_counter() const { return counter; }
+  const uint64_t &get_counter() const { return counter; }
 
   /** @brief Get random number component.
    *  @return the random number
@@ -218,7 +214,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint64_t & get_random_number() const { return random_number; }
+  const uint64_t &get_random_number() const { return random_number; }
 
   /** @brief Print UID components to standard output.
    *
@@ -227,11 +223,11 @@ public:
   void print()
   {
     std::cout << "Uid:" << '\n'
-	      << "    ipAddr        = " << ipAddr << '\n'
-	      << "    port_number   = " << port_number << '\n'
-	      << "    counter       = " << counter << '\n'
-	      << "    random_number = " << random_number << '\n'
-	      << '\n';
+        << "    ipAddr        = " << ipAddr << '\n'
+        << "    port_number   = " << port_number << '\n'
+        << "    counter       = " << counter << '\n'
+        << "    random_number = " << random_number << '\n'
+        << '\n';
   }
 };
 

@@ -143,8 +143,52 @@ public:
   using Item_Type = T; /// The type of element
   using Key_Type = T;  /// The type of key
 
-  /// Initializes a stack with a capacity of `dim`
+  /// Initializes an array with a capacity of `dim`
   Array(size_t dim = 32) : array(dim) { /* empty */ }
+
+  /** Create an array with `n` elements initialized to `value`.
+
+      This constructor creates an array of size `n` where each element
+      is copy-constructed from `value`. Similar to std::vector(n, value).
+
+      @param[in] n number of elements to create
+      @param[in] value the value to copy into each element
+      @throw bad_alloc if there is no enough memory
+
+      @par Example
+      @code
+      Array<int> zeros(100, 0);        // 100 zeros
+      Array<std::string> names(10, "unnamed");  // 10 "unnamed" strings
+      @endcode
+  */
+  Array(size_t n, const T& value) : array(n)
+  {
+    for (size_t i = 0; i < n; ++i)
+      array.put(value);
+  }
+
+  /** Create an array with `n` default-constructed elements.
+
+      This static factory creates an array of size `n` where each element
+      is default-constructed. Use this when T has a meaningful default
+      constructor and you need immediate indexed access.
+
+      @param[in] n number of elements to create
+      @return Array with n default-constructed elements
+      @throw bad_alloc if there is no enough memory
+
+      @par Example
+      @code
+      auto arr = Array<MyClass>::create(100);  // 100 default-constructed MyClass
+      arr[50].doSomething();  // immediate indexed access
+      @endcode
+  */
+  static Array create(size_t n)
+  {
+    Array ret(n);
+    ret.putn(n);
+    return ret;
+  }
 
   /// Copy constructor
   Array(const Array &s) : array(s.array) { /* empty */ }
