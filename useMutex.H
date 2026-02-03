@@ -93,6 +93,7 @@
  * 
  * @author Leandro Rabindranath León *
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
 
  */
 
@@ -132,6 +133,7 @@ using namespace Aleph;
  * This class wraps POSIX mutexes, providing the same thread safety
  * guarantees as the underlying pthread_mutex_t. *
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
 
  */
 class UseMutex

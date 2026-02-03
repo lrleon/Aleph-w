@@ -12,7 +12,7 @@ on:
       - '**/*.cpp'
       - '**/*.cxx'
       - 'CMakeLists.txt'
-  # Weekly automatic scan on default branch only. GitHub cron schedules run in UTC.
+  # Weekly automatic scan on the default branch only. GitHub cron schedules run in UTC.
   # Currently aligned to run at 06:00 UTC on Sunday, intended to be ~4 hours after the full_analysis workflow (02:00 UTC).
   schedule:
     - cron: '0 6 * * 0'

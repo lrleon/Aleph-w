@@ -64,6 +64,7 @@
  * @note `foldr` is only available for STL containers with reverse iterators.
  *
  * @ingroup Algorithms
+ * @ingroup FunctionalProgramming
  * @author Leandro Rabindranath Leon
  */
 

@@ -103,6 +103,7 @@
  *  @see worker_pool.H Alternative with different API
  *  @see future_utils.H Utilities for working with futures
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
  *  @author Leandro Rabindranath León
  */
 

@@ -67,6 +67,7 @@
  * @endcode
  *
  * @ingroup Algorithms
+ * @ingroup FunctionalProgramming
  * @author Leandro Rabindranath Leon
  */
 

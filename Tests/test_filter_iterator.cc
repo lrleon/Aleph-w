@@ -33,6 +33,8 @@
 /**
  * @file test_filter_iterator.cc
  * @brief Tests for Test Filter Iterator
+ *
+ * Note: Updated to reflect header Doxygen group changes.
  */
 
 /**
