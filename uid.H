@@ -130,6 +130,10 @@ public:
    *
    *  Creates an uninitialized UID. Components must be set manually
    *  or via assignment.
+   *
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   Uid() = default;
 
@@ -140,6 +144,9 @@ public:
    *  @param _ipAddr IPv4 address of the originating machine
    *  @param _counter sequence counter (typically incremented per UID)
    *  @param _port_number port number of the generating process
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   Uid(const Aleph::IPv4_Address & _ipAddr,
       const unsigned int & _counter,
@@ -150,7 +157,9 @@ public:
    *  Reconstructs a UID from its hexadecimal string format.
    *
    *  @param str hexadecimal string (must be at least `stringSize` bytes)
-   *  @throw May throw if string format is invalid
+   *  @throws std::invalid_argument if string format is invalid
+   *  @note Complexity: O(1) (fixed size parsing)
+   *  @note Exception safety: strong
    */
   Uid(char* str);
 
@@ -160,6 +169,9 @@ public:
    *
    *  @param uid the UID to compare against
    *  @return true if UIDs are identical, false otherwise
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   bool operator == (const Uid& uid) const;
 
@@ -170,26 +182,41 @@ public:
    *  @param str output buffer (must be at least `stringSize` bytes)
    *  @param size size of output buffer
    *  @return pointer to the output buffer
+   *  @throws std::length_error if buffer size is insufficient
+   *  @note Complexity: O(1) (fixed size generation)
+   *  @note Exception safety: strong
    */
   char* getStringUid(char * str, const size_t & size) const;
 
   /** @brief Get IP address component.
    *  @return the IPv4 address
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   const Aleph::IPv4_Address & getIpAddr() const { return ipAddr; }
 
   /** @brief Get port number component.
    *  @return the port number
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   const uint32_t & get_port_number() const { return port_number; }
 
   /** @brief Get counter component.
    *  @return the counter value
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   const uint64_t & get_counter() const { return counter; }
 
   /** @brief Get random number component.
    *  @return the random number
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   const uint64_t & get_random_number() const { return random_number; }
 
@@ -209,4 +236,3 @@ public:
 };
 
 # endif  // UID_H
-

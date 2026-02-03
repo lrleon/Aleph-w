@@ -40,8 +40,8 @@ static char * hexadecimalize(const Byte & byte, char *& str)
   const Byte l = byte & 0x0F;
   const Byte h = (byte & 0xF0) >> 4;
 
-  *str++ = nibble_to_char(h);
-  *str++ = nibble_to_char(l);
+  *str++ = Aleph::nibble_to_char(h);
+  *str++ = Aleph::nibble_to_char(l);
 
   return str;
 }
@@ -49,8 +49,8 @@ static char * hexadecimalize(const Byte & byte, char *& str)
 
 static char unhexadecimalize(char *& str)
 {
-  const Byte h = char_to_nibble(*str++) << 4;
-  const Byte l = char_to_nibble(*str++);
+  const Byte h = Aleph::char_to_nibble(*str++) << 4;
+  const Byte l = Aleph::char_to_nibble(*str++);
 
   return h | l;
 }
@@ -86,7 +86,7 @@ void Uid::destringficate(char *str)
 }
 
 
-Uid::Uid(const IPv4_Address & _ipAddr,
+Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const unsigned int & _counter,
          const unsigned int & _port_number)
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)

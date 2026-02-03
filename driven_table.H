@@ -269,7 +269,7 @@ class Static_Event_Table : public Event_Table
   }
 
   /// Read event at index (implements Event_Table virtual method)
-  [[nodiscard]] Event_Fct read_table(int i) const override
+  [[nodiscard]] Event_Fct read_table(const int i) const override
   {
     verify_index(i);
     return table[i];
@@ -289,7 +289,7 @@ class Static_Event_Table : public Event_Table
 
 public:
   /// Get table size (implements Event_Table virtual method)
-  size_t size() const override { return size_table; }
+  [[nodiscard]] size_t size() const override { return size_table; }
 
   /** @brief Construct a static event table with fixed size.
    *
