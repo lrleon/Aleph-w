@@ -280,6 +280,7 @@ set(TEST_PROGRAMS
     johnson_test
     graph_copy_test
     thread_pool_test
+    timeoutQueue_test
     graph_traverse_test
     test_ah_errors
     dynliststack_test
@@ -320,6 +321,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Create executable for each test program
+set(_ALEPH_TEST_EXECUTABLE_TARGETS "")
 foreach(test_program ${TEST_PROGRAMS})
     # Check if source file exists
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
@@ -330,6 +332,7 @@ foreach(test_program ${TEST_PROGRAMS})
         endif()
 
         add_executable(${test_exe} ${test_program}.cc)
+        list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS ${test_exe})
 
         # Link with Aleph library and system libraries
         target_link_libraries(${test_exe} PRIVATE
@@ -347,7 +350,7 @@ foreach(test_program ${TEST_PROGRAMS})
         endif()
 
         # Add test to CTest (gtest_discover_tests for IDE integration)
-        gtest_discover_tests(${test_exe})
+        gtest_discover_tests(${test_exe} DISCOVERY_MODE PRE_TEST)
 
         # Optional: Install test executable
         # install(TARGETS ${test_program} DESTINATION bin/tests)
@@ -361,6 +364,7 @@ endforeach()
 foreach(test_program ${EXHAUSTIVE_TESTS})
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test_program}.cc")
         add_executable(${test_program} ${test_program}.cc)
+        list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS ${test_program})
 
         # Most exhaustive tests are header-only and need minimal dependencies.
         # Some (like tpl_graph_utils_test and test_al_vector) exercise algorithms
@@ -393,7 +397,7 @@ foreach(test_program ${EXHAUSTIVE_TESTS})
             target_compile_options(${test_program} PRIVATE -Wno-unused-result)
         endif()
 
-        gtest_discover_tests(${test_program})
+        gtest_discover_tests(${test_program} DISCOVERY_MODE PRE_TEST)
     else()
         message(WARNING "Source file not found for exhaustive test: ${test_program}.cc")
     endif()
@@ -436,6 +440,7 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
 
     if(NOT TARGET ${_auto_target})
         add_executable(${_auto_target} "${_src}")
+        list(APPEND _ALEPH_TEST_EXECUTABLE_TARGETS ${_auto_target})
 
         # Default linking: prefer the full Aleph link set so most tests "just work".
         # This is intentionally conservative (more deps) to maximize executability.
@@ -450,9 +455,15 @@ foreach(_src ${_ALEPH_ALL_TEST_SOURCES})
             target_compile_options(${_auto_target} PRIVATE -Wno-unused-result)
         endif()
 
-        gtest_discover_tests(${_auto_target})
+        gtest_discover_tests(${_auto_target} DISCOVERY_MODE PRE_TEST)
     endif()
 endforeach()
+
+add_custom_target(aleph_build_tests DEPENDS ${_ALEPH_TEST_EXECUTABLE_TARGETS})
+add_custom_target(aleph_check
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS aleph_build_tests
+)
 
 message(STATUS "Configured ${CMAKE_PROJECT_NAME} with Google Test")
 message(STATUS "  Standard test programs: ${TEST_PROGRAMS}")

@@ -60,6 +60,7 @@
  *       or containers from multiple threads leads to undefined behavior.
  *
  * @ingroup Algorithms
+ * @ingroup FunctionalProgramming
  * @author Leandro Rabindranath Leon
  */
 

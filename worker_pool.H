@@ -66,6 +66,7 @@
  *
  *  @see q-consumer-threads.H Queue-based variant
  *  @ingroup Utilities
+ *  @ingroup ThreadsAndConcurrency
  *  @author Leandro Rabindranath León
  */
 
@@ -207,7 +208,7 @@ public:
   }
 
   /**
-   * @brief Set expected number of work items.
+   * @brief Set the expected number of work items.
    *
    * @param n Number of work items to expect
    */

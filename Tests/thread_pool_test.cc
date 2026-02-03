@@ -34,6 +34,8 @@
 /**
  * @file thread_pool_test.cc
  * @brief Tests for Thread Pool
+ *
+ * Note: Updated to reflect header Doxygen group changes.
  */
 #include <gtest/gtest.h>
 #include <thread_pool.H>

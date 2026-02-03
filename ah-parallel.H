@@ -104,6 +104,7 @@
     - Output containers are constructed locally and returned by value
 
     @ingroup Algorithms
+    @ingroup FunctionalProgramming
     @author Leandro Rabindranath León
 */
 

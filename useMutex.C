@@ -30,6 +30,8 @@
 */
 
 
+// Note: Updated to reflect header Doxygen group changes.
+
 # include <string>
 # include <useMutex.H>
  # include <ah-errors.H>

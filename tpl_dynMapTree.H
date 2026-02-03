@@ -100,7 +100,7 @@ namespace Aleph {
       keys.for_each([this] (auto & k) { this->insert(std::make_pair(k, Data())); });
     }
 
-    DynMapTree() {}
+    DynMapTree() = default;
 
     using Key_Type = Key;
 
@@ -212,12 +212,12 @@ namespace Aleph {
         `remove(key)` deletes from the mapping the pair associated to `key`
 
         @param[in] key to delete
-        @return the data associated to the removed key.
-        @throw domain_error if key is not in the mapping
+        @return the data associated with the removed key.
+        @throw domain_error if the key is not in the mapping
     */
     Data remove(const Key & key)
     {
-      static_assert(std::is_default_constructible<Data>::value,
+      static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::remove() requires Data to be default-constructible");
       Pair p(key, Data());
       return this->del(p).second;
@@ -233,7 +233,7 @@ namespace Aleph {
 
     void remove_key(const Key & key)
     {
-      static_assert(std::is_default_constructible<Data>::value,
+      static_assert(std::is_default_constructible_v<Data>,
                     "DynMapTree::remove_key() requires Data to be default-constructible");
       (void) this->del(Pair(key, Data()));
     }

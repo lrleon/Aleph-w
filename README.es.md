@@ -1,4 +1,4 @@
-# Aleph-w
+# Aleph-w {#aleph-w}
 
 <div align="center">
 
@@ -24,7 +24,7 @@ Idioma: Español | [English](README.md)
 
 ---
 
-## Contenido
+## Contenido {#contenido}
 
 - [Resumen](#resumen)
 - [Requisitos](#requisitos)
@@ -38,7 +38,7 @@ Idioma: Español | [English](README.md)
 
 ---
 
-## Resumen
+## Resumen {#resumen}
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
@@ -47,7 +47,7 @@ Idioma: Español | [English](README.md)
 
 ---
 
-## Requisitos
+## Requisitos {#requisitos}
 
 ### Compiladores
 
@@ -86,7 +86,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-## Instalación
+## Instalación {#instalación}
 
 Guía detallada: `INSTALL.es.md`.
 
@@ -137,7 +137,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 
 ---
 
-## Uso rápido
+## Uso rápido {#uso-rápido}
 
 Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`, etc.).
 
@@ -198,7 +198,7 @@ int main() {
 
 ---
 
-## Pruebas
+## Pruebas {#pruebas}
 
 ```bash
 cmake -S . -B build -DBUILD_TESTS=ON
@@ -215,7 +215,7 @@ Nota: algunos tests largos/de performance están marcados `Disabled/Skipped` int
 
 ---
 
-## Contribuir
+## Contribuir {#contribuir}
 
 PRs son bienvenidos.
 
@@ -224,7 +224,6 @@ PRs son bienvenidos.
 
 ---
 
-## Licencia
+## Licencia {#licencia}
 
 Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
-

@@ -38,6 +38,7 @@
  *  Only elements that satisfy the filter predicate are visible during iteration.
  *
  *  @ingroup Sequences
+ *  @ingroup IteratorFilters
  *  @author Leandro Rabindranath León
  */
 

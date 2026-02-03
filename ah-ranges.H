@@ -104,6 +104,7 @@
  *       internal optimizations and additional range-based utilities.
  *
  * @ingroup Algorithms
+ * @ingroup FunctionalProgramming
  * @author Leandro Rabindranath Leon
  */
 

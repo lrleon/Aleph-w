@@ -75,6 +75,7 @@
  * @note All zip operations stop at the shortest container.
  *
  * @ingroup Algorithms
+ * @ingroup FunctionalProgramming
  * @author Leandro Rabindranath Leon
  */
 
