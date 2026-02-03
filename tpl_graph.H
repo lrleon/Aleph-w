@@ -1330,9 +1330,9 @@ namespace Aleph
         @tparam T Result type
         @tparam Container Container type (default: DynList)
         @tparam SN Node filter type (default: Dft_Show_Node<GT>)
-        @param g the graph
-        @param transformation function `Node* -> T` that transforms each node
-        @param sn node filter functor (default: Dft_Show_Node<GT>)
+        @param[in] g the graph
+        @param[in] transformation function `Node* -> T` that transforms each node
+        @param[in] sn node filter functor (default: Dft_Show_Node<GT>)
         @return a `Container<T>` object with all the nodes mapped through the
         transformation
 
