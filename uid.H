@@ -149,8 +149,8 @@ public:
    *  @note Exception safety: noexcept
    */
   Uid(const Aleph::IPv4_Address & _ipAddr,
-      const unsigned int & _counter,
-      const unsigned int & _port_number);
+      const uint64_t & _counter,
+      const uint32_t & _port_number);
 
   /** @brief Construct UID from string representation.
    *
@@ -182,7 +182,7 @@ public:
    *  @param str output buffer (must be at least `stringSize` bytes)
    *  @param size size of output buffer
    *  @return pointer to the output buffer
-   *  @throws std::length_error if buffer size is insufficient
+   *  @throws std::range_error if buffer size is insufficient
    *  @note Complexity: O(1) (fixed size generation)
    *  @note Exception safety: strong
    */

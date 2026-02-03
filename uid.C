@@ -87,8 +87,8 @@ void Uid::destringficate(char *str)
 
 
 Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
-         const unsigned int & _counter,
-         const unsigned int & _port_number)
+         const uint64_t & _counter,
+         const uint32_t & _port_number)
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
   std::random_device rd;
@@ -113,8 +113,8 @@ bool Uid::operator ==(const Uid & uid) const
 
 char * Uid::getStringUid(char *str, const size_t & str_size) const
 {
-  if (str_size < stringSize)
-    return nullptr;
+  ah_range_error_if(str_size < stringSize)
+    << "Buffer size too small for UID string representation";
 
   return stringficate(str, str_size);
 }

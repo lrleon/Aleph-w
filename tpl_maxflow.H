@@ -106,6 +106,15 @@ namespace Aleph
     long level = -1; ///< BFS level from source (-1 = unreachable)
     bool blocked = false; ///< Whether node is blocked in current phase
 
+    /** @brief Reset node information to initial state.
+     *
+     *  Sets level to -1 and blocked status to false.
+     *
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Not thread-safe for concurrent writers.
+     *  @note Exception safety: noexcept
+     */
     void reset() noexcept
     {
       level = -1;
@@ -115,26 +124,44 @@ namespace Aleph
 
   /** @brief Access node level in Dinic's algorithm.
    *
+   *  Retrieves a reference to the level field stored in the node's cookie.
+   *
+   *  @tparam Net Network type.
    *  @param p Pointer to network node.
    *  @return Reference to the level value.
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Thread safety: Not thread-safe if multiple threads access the same node's cookie.
+   *  @note Exception safety: noexcept
    *  @ingroup Networks
    */
   template <class Net>
   inline long &dinic_level(typename Net::Node *p) noexcept
   {
+    assert(NODE_COOKIE(p) != nullptr &&
+           "NODE_COOKIE not initialized; call dinic_maximum_flow() instead");
     return static_cast<Dinic_Node_Info<typename Net::Flow_Type> *>
         (NODE_COOKIE(p))->level;
   }
 
   /** @brief Check if node is blocked in Dinic's algorithm.
    *
+   *  Retrieves a reference to the blocked flag stored in the node's cookie.
+   *
+   *  @tparam Net Network type.
    *  @param p Pointer to network node.
    *  @return Reference to blocked flag.
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Thread safety: Not thread-safe if multiple threads access the same node's cookie.
+   *  @note Exception safety: noexcept
    *  @ingroup Networks
    */
   template <class Net>
   inline bool &dinic_blocked(typename Net::Node *p) noexcept
   {
+    assert(NODE_COOKIE(p) != nullptr &&
+           "NODE_COOKIE not initialized; call dinic_maximum_flow() instead");
     return static_cast<Dinic_Node_Info<typename Net::Flow_Type> *>
         (NODE_COOKIE(p))->blocked;
   }
@@ -150,6 +177,10 @@ namespace Aleph
    *  @param source Source node.
    *  @param sink Sink node.
    *  @return true if sink is reachable, false otherwise.
+   *  @throws std::bad_alloc if memory allocation for the queue fails.
+   *  @note Complexity: O(E) where E is the number of edges.
+   *  @note Thread safety: Not thread-safe. Modifies node cookies.
+   *  @note Exception safety: Basic guarantee.
    *
    *  @ingroup Networks
    */
@@ -217,6 +248,10 @@ namespace Aleph
    *  @param sink Target sink node.
    *  @param pushed Flow pushed so far on the current path.
    *  @return Amount of flow pushed to sink.
+   *  @throws none (assuming flow operations do not throw).
+   *  @note Complexity: O(V*E) per phase in the worst case.
+   *  @note Thread safety: Not thread-safe. Modifies arc flows and node cookies.
+   *  @note Exception safety: Basic guarantee.
    *
    *  @ingroup Networks
    */
@@ -341,6 +376,10 @@ namespace Aleph
           }
         while (blocked_flow > Flow_Type{0});
       }
+
+    // Clear NODE_COOKIE to avoid dangling pointers after node_info goes out of scope
+    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+      NODE_COOKIE(it.get_curr()) = nullptr;
 
     return max_flow;
   }
@@ -682,7 +721,7 @@ namespace Aleph
         if (start_arc == nullptr)
           break; // No more flow from source
 
-        // Build path by following positive flow
+        // Build path by following positive flow, tracking visited nodes to detect cycles
         FlowPath<Net> path;
         path.nodes.append(source);
 
@@ -690,6 +729,11 @@ namespace Aleph
         path.arcs.append(start_arc);
         path.nodes.append(curr);
         path.flow = remaining_flow[start_arc];
+
+        // Track visited nodes and their position in path for cycle detection
+        DynMapTree<Node *, size_t> visited;
+        visited[source] = 0;
+        visited[curr] = 1;
 
         while (curr != sink)
           {
@@ -706,20 +750,67 @@ namespace Aleph
               }
 
             if (next_arc == nullptr)
-              break; // This shouldn't happen with valid flow, but handle gracefully
+              break; // No outgoing arc with positive flow
+
+            Node *next_node = net.get_tgt_node(next_arc);
+
+            // Check if we've visited this node before (cycle detected)
+            if (visited.contains(next_node))
+              {
+                // Extract the cycle starting from the repeated node
+                size_t cycle_start = visited[next_node];
+                FlowCycle<Net> cycle;
+                cycle.flow = remaining_flow[next_arc];
+
+                // Build cycle from the position where we first saw next_node
+                auto node_it = path.nodes.get_it();
+                auto arc_it = path.arcs.get_it();
+
+                // Skip to cycle start position
+                for (size_t i = 0; i < cycle_start; ++i)
+                  {
+                    node_it.next_ne();
+                    arc_it.next_ne();
+                  }
+
+                // Collect cycle nodes and arcs, compute minimum flow
+                while (arc_it.has_curr())
+                  {
+                    cycle.nodes.append(node_it.get_curr());
+                    cycle.arcs.append(arc_it.get_curr());
+                    cycle.flow = std::min(cycle.flow, remaining_flow[arc_it.get_curr()]);
+                    node_it.next_ne();
+                    arc_it.next_ne();
+                  }
+                // Add the closing arc
+                cycle.arcs.append(next_arc);
+                cycle.flow = std::min(cycle.flow, remaining_flow[next_arc]);
+
+                // Subtract cycle flow from cycle arcs
+                for (auto it = cycle.arcs.get_it(); it.has_curr(); it.next_ne())
+                  remaining_flow[it.get_curr()] -= cycle.flow;
+
+                if (cycle.flow > Flow_Type{0})
+                  result.cycles.append(std::move(cycle));
+
+                // Don't add this arc to path, restart path building
+                break;
+              }
 
             path.arcs.append(next_arc);
             path.flow = std::min(path.flow, remaining_flow[next_arc]);
-            curr = net.get_tgt_node(next_arc);
+            curr = next_node;
             path.nodes.append(curr);
+            visited[curr] = path.nodes.size() - 1;
           }
 
-        // Subtract path flow from all arcs
-        for (auto it = path.arcs.get_it(); it.has_curr(); it.next_ne())
-          remaining_flow[it.get_curr()] -= path.flow;
-
+        // Subtract path flow from all arcs (only if we reached sink)
         if (curr == sink and path.flow > Flow_Type{0})
-          result.paths.append(std::move(path));
+          {
+            for (auto it = path.arcs.get_it(); it.has_curr(); it.next_ne())
+              remaining_flow[it.get_curr()] -= path.flow;
+            result.paths.append(std::move(path));
+          }
       }
 
     return result;
