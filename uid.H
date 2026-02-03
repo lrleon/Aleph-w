@@ -48,8 +48,6 @@
 # include <iostream>
 # include <aleph.H>
 
-using namespace Aleph;
-
 /** @brief Unique identifier for distributed systems.
  *
  *  The Uid class generates and manages globally unique identifiers by combining:
@@ -97,8 +95,6 @@ class Uid
 {
   friend struct Uid_Offsets;
 
-private:
-
   mutable Aleph::IPv4_Address ipAddr;        ///< IPv4 address component
   mutable uint32_t            port_number;   ///< Port number component
   mutable uint64_t            counter;       ///< Counter component
@@ -111,8 +107,8 @@ public:
    *  The string representation uses hexadecimal encoding, requiring
    *  2 characters per byte plus null terminator.
    */
-  static const int stringSize = 2*(sizeof(uint32_t) + sizeof(uint32_t) +
-				   sizeof(uint64_t) + sizeof(uint64_t)) + 1;
+  static constexpr int stringSize = 2*(sizeof(uint32_t) + sizeof(uint32_t) +
+                                       sizeof(uint64_t) + sizeof(uint64_t)) + 1;
 
 private:
 
@@ -135,7 +131,7 @@ public:
    *  Creates an uninitialized UID. Components must be set manually
    *  or via assignment.
    */
-  Uid() { /* empty */ }
+  Uid() = default;
 
   /** @brief Construct UID from components.
    *
@@ -145,7 +141,7 @@ public:
    *  @param _counter sequence counter (typically incremented per UID)
    *  @param _port_number port number of the generating process
    */
-  Uid(const IPv4_Address & _ipAddr,
+  Uid(const Aleph::IPv4_Address & _ipAddr,
       const unsigned int & _counter,
       const unsigned int & _port_number);
 
@@ -180,7 +176,7 @@ public:
   /** @brief Get IP address component.
    *  @return the IPv4 address
    */
-  const IPv4_Address & getIpAddr() const { return ipAddr; }
+  const Aleph::IPv4_Address & getIpAddr() const { return ipAddr; }
 
   /** @brief Get port number component.
    *  @return the port number

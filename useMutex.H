@@ -81,8 +81,7 @@
  * ```
  *
  * @ingroup ThreadsAndConcurrency
- * ```
- * 
+ *
  * ## Macros
  * 
  * - `USE_MUTEX(name, mutex)`: Declare a named lock guard

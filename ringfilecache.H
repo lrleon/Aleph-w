@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -34,7 +33,7 @@
  *  @brief File-backed ring buffer cache for persistent storage.
  *
  *  Provides a circular buffer cache that persists data to disk, enabling
- *  recovery after program restart. Ideal for caches that must survive crashes
+ *  recovery after the program restarts. Ideal for caches that must survive crashes
  *  or for applications with memory constraints.
  *
  *  ## Features
@@ -146,7 +145,7 @@ public:
     size_t size_cache_file = 0; // num of chars of std::string (including '\0')
     char cache_file_name[0]; // be careful with this field. DON'T USE IT!
 
-    std::string to_string() const
+    [[nodiscard]] std::string to_string() const
     {
       std::ostringstream s;
       s << dim << " " << n << " " << tail << " " << head << " "
@@ -173,7 +172,7 @@ private:
   size_t head = 0; // next integral position ready for reading
   size_t tail = 0; // next integral position ready for writing
 
-  /// Position the write pointer at the current tail
+  /// Position the writing pointer at the current tail
   void test_and_set_tail_pointer()
   {
     cache_stream.seekp(tail * sizeof(T));
@@ -201,7 +200,7 @@ private:
     cache_stream.seekg(pos * sizeof(T));
   }
 
-  /// Load an entry from current stream position. WARNING: stream pointer not set here
+  /// Load an entry from the current stream position. WARNING: stream pointer not set here
   T read_entry()
   {
     T ret;
@@ -224,7 +223,7 @@ private:
     return ret;
   }
 
-  /// Write an entry at current stream position
+  /// Write an entry at the current stream position
   void write_entry(const T & item)
   {
     cache_stream.write(reinterpret_cast<const char *>(&item), sizeof item);
@@ -323,7 +322,7 @@ public:
     pars_ptr->dim = num_entries;
     pars_ptr->n = pars_ptr->head = pars_ptr->tail = 0;
     pars_ptr->size_cache_file = cache_file_name.size() + 1;
-    strncpy(pars_ptr->cache_file_name, cache_file_name.c_str(), 
+    strncpy(pars_ptr->cache_file_name, cache_file_name.c_str(),
             pars_ptr->size_cache_file);
     pars_ptr->cache_file_name[pars_ptr->size_cache_file - 1] = '\0';
     pars_stream.write(reinterpret_cast<const char *>(pars_ptr.get()), pars_size);
@@ -445,9 +444,9 @@ public:
     }
 
   public:
-    Pointer() {}
+    Pointer() = default;
 
-    /** Construct a pointer to current head (oldest item in the cache)
+    /** Construct a pointer to the current head (oldest item in the cache)
 
         @param[in] cache the cache
         @param[in] __pos offset relative to the current head of cache
@@ -517,7 +516,7 @@ public:
     }
 
     /// Offset of this pointer relative to the current head of the cache
-    size_t get_pos_respect_to_head() const noexcept
+    [[nodiscard]] size_t get_pos_respect_to_head() const noexcept
     {
       auto head = cache_ptr->head;
       if (pos >= head)
@@ -526,7 +525,7 @@ public:
     }
 
     /// Alias of `get_pos_respect_to_head()`
-    size_t get_pos() const noexcept
+    [[nodiscard]] size_t get_pos() const noexcept
     {
       return get_pos_respect_to_head();
     }
@@ -576,15 +575,15 @@ public:
 
   /** Initialize a cache previously built.
 
-      The internal state of cache is represented by a file specified
+      The internal state of the cache is represented by a file specified
       with the parameters file called `pars_file_name` and passed during
-      `create()` static method. The name of cache is also passed to
+      `create()` static method. The name of the cache is also passed to
       `create()`, but this one is stored in the parameters file.
 
       So, in order to instantiate a cache, it is enough to pass the
       parameters file name.
 
-      @param[in] pars_fname name of cache parameters file
+      @param[in] pars_fname name of a cache parameters file
       @throw domain_error if any file cannot be opened
       @throw std::ios_base::failure if there is a failure in any file.
   */
@@ -602,7 +601,7 @@ public:
 
       @see init()
   */
-  RingFileCache() {}
+  RingFileCache() = default;
 
   /** Tests if pars and cache files have been created.
 
@@ -781,7 +780,7 @@ public:
   */
   T oldest() { return read_first(); }
 
-  /** Read the `i`-th oldest element without removing it.
+  /** Read the `i`-th the oldest element without removing it.
 
       @param[in] i zero-based index from the oldest entry
       @return the entry at position `i` from the head
@@ -798,7 +797,7 @@ public:
   /** Read all entries in insertion order.
 
       @return a dynamic and contiguous array with all the entries of the cache.
-              If the cache is empty the returned array is empty.
+              If the cache is empty, the returned array is empty.
   */
   Array<T> read_all()
   {
@@ -919,7 +918,7 @@ public:
       << "RingFileCache::resize(): file truncation is not implemented (yet?)";
 
     if (sz == dim)
-      return;  // no-op
+      return; // no-op
 
     const size_t old_dim = dim;
 
@@ -962,12 +961,12 @@ public:
   // Iterator for read-only traversal (oldest to youngest).
   // Not reentrant: do not execute other operations on the cache object
   // while iterating.
-	  class Iterator
-	  {
-	    RingFileCache<T> *cache_ptr = nullptr;
-	    T curr{};
-	    size_t pos = 0;
-	    size_t curr_pos = 0;
+  class Iterator
+  {
+    RingFileCache<T> *cache_ptr = nullptr;
+    T curr{};
+    size_t pos = 0;
+    size_t curr_pos = 0;
 
     void set_curr_pointer()
     {
@@ -989,10 +988,10 @@ public:
 
   public:
     /// Logical offset from the head (number of elements already visited)
-    size_t get_pos() const noexcept { return pos; }
+    [[nodiscard]] size_t get_pos() const noexcept { return pos; }
 
     /// True if the iterator currently refers to a valid element
-    bool has_curr() const { return pos < cache_ptr->n; }
+    [[nodiscard]] bool has_curr() const { return pos < cache_ptr->n; }
 
     /** Construct an iterator positioned `offset` entries forward from the
         oldest cache entry

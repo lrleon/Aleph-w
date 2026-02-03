@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -83,14 +82,14 @@
 
 # include <aleph.H>
 # include <tpl_dynArray.H>
- # include <ah-errors.H>
+# include <ah-errors.H>
 
 /** @brief Type alias for event handler functions.
  *
  *  Event functions take a `void*` input parameter and return a `void*` result.
  *  This allows arbitrary data to be passed to and returned from events.
  */
-typedef void * (*Event_Fct)(void*);
+typedef void * (*Event_Fct)(void *);
 
 /** @brief Abstract base class for event tables.
  *
@@ -113,26 +112,22 @@ typedef void * (*Event_Fct)(void*);
  */
 class Event_Table
 {
-private:
-
-  virtual Event_Fct read_table(int i) const = 0;
+  [[nodiscard]] virtual Event_Fct read_table(int i) const = 0;
 
   virtual void write_table(int i, Event_Fct event_fct) = 0;
 
   virtual void cut_table(size_t dim) = 0;
 
 public:
-
   /** @brief Get the number of event slots in the table.
    *  @return Total number of slots (including unused ones)
    */
   virtual size_t size() const = 0;
 
   /** @brief Virtual destructor for proper cleanup in derived classes. */
-  virtual ~Event_Table() { /* empty */ }
+  virtual ~Event_Table() = default;
 
 private:
-
   /** @brief Append an event to the end of the table (internal use).
    *  @param fct Event function to append (must not be nullptr)
    */
@@ -144,7 +139,6 @@ private:
   }
 
 protected:
-
   /** @brief Initialize table slots to nullptr (for use by derived classes).
    *  @param num_events Number of slots to initialize
    */
@@ -155,22 +149,19 @@ protected:
   }
 
 public:
-
   /** @brief Register an event at a specific index.
    *
    *  The index must be valid and must not already contain an event.
    *
-   *  @param index Slot index where event will be registered
+   *  @param index Slot index where the event will be registered
    *  @param fct Event function to register (must not be nullptr)
-   *  @throw domain_error if index is out of range or already in use
+   *  @throw domain_error if the index is out of range or already in use
    */
   void register_event(const size_t index, Event_Fct fct)
   {
     assert(fct not_eq nullptr);
 
-    ah_domain_error_if(index >= size())
-        << "Index out of range";
-
+    ah_domain_error_if(index >= size()) << "Index out of range";
     ah_domain_error_if(read_table(index) not_eq nullptr) << "Index is already used";
 
     write_table(index, fct);
@@ -202,8 +193,7 @@ public:
    */
   void unregister_event(const size_t index)
   {
-    ah_domain_error_if(index >= size())
-        << "Index out of range";
+    ah_domain_error_if(index >= size()) << "Index out of range";
 
     ah_domain_error_if(read_table(index) == nullptr) << "Index is not used";
 
@@ -213,11 +203,11 @@ public:
       cut_table(index - 1);
   }
 
-  /** @brief Check if an event at the given index matches expected function.
+  /** @brief Check if an event at the given index matches the expected function.
    *
    *  @param index Slot index to check
    *  @param fct Expected event function
-   *  @return true if index is valid and registered function matches, false otherwise
+   *  @return true if the index is valid and the registered function matches, false otherwise
    */
   bool check(const size_t index, Event_Fct fct) const
   {
@@ -233,7 +223,7 @@ public:
    *  @return Result returned by the event function
    *  @throw domain_error if index is not in use
    */
-  void * execute_event(const size_t index, void * input = nullptr)
+  void * execute_event(const size_t index, void *input = nullptr) const
   {
     if (read_table(index) == nullptr)
       ah_domain_error_if(true) << "Index is not used";
@@ -265,40 +255,39 @@ public:
  */
 class Static_Event_Table : public Event_Table
 {
-private:
-
-  Event_Fct * table;      ///< Array of event function pointers
-  size_t      size_table; ///< Fixed size of the table
+  Event_Fct *table; ///< Array of event function pointers
+  size_t size_table; ///< Fixed size of the table
 
   /** @brief Verify index is within valid range.
    *  @param i Index to verify
-   *  @throw range_error if index is out of bounds
+   *  @throw range_error if the index is out of bounds
    */
-  void verify_index(int i) const
+  void verify_index(const int i) const
   {
     if (i < 0 or i >= size_table)
       ah_range_error_if(true) << "index out of range";
   }
 
   /// Read event at index (implements Event_Table virtual method)
-  Event_Fct read_table(int i) const override
+  [[nodiscard]] Event_Fct read_table(int i) const override
   {
     verify_index(i);
     return table[i];
   }
 
   /// Write event at index (implements Event_Table virtual method)
-  void write_table(int i, Event_Fct event_fct) override
+  void write_table(const int i, Event_Fct event_fct) override
   {
     verify_index(i);
     table[i] = event_fct;
   }
 
   /// No-op for static table (size is fixed, cannot shrink)
-  void cut_table(size_t) override { /* empty */ }
+  void cut_table(size_t) override
+  { /* empty */
+  }
 
 public:
-
   /// Get table size (implements Event_Table virtual method)
   size_t size() const override { return size_table; }
 
@@ -308,7 +297,7 @@ public:
    *
    *  @param num_events Number of event slots to allocate (default: 0)
    */
-  Static_Event_Table(size_t num_events = 0)
+  Static_Event_Table(const size_t num_events = 0)
     : table(new Event_Fct [num_events]), size_table(num_events)
   {
     fill_table_to_null(num_events);
@@ -316,7 +305,8 @@ public:
 
   /// Copying disabled (would require deep copy of array)
   Static_Event_Table(const Static_Event_Table &) = delete;
-  Static_Event_Table & operator=(const Static_Event_Table &) = delete;
+
+  Static_Event_Table &operator=(const Static_Event_Table &) = delete;
 
   /** @brief Move constructor - transfers ownership of array.
    *
@@ -331,14 +321,14 @@ public:
     other.size_table = 0;
   }
 
-  /** @brief Move assignment - transfers ownership of array.
+  /** @brief Move assignment - transfers ownership of the array.
    *
-   *  Deletes current array and takes ownership of other's array.
+   *  Deletes the current array and takes ownership of other's array.
    *
    *  @param other Table to move from (will be emptied)
    *  @return Reference to this
    */
-  Static_Event_Table & operator=(Static_Event_Table && other) noexcept
+  Static_Event_Table &operator=(Static_Event_Table && other) noexcept
   {
     if (this != &other)
       {
@@ -352,7 +342,7 @@ public:
   }
 
   /** @brief Destructor - frees the underlying array. */
-  ~Static_Event_Table()
+  ~Static_Event_Table() override
   {
     delete [] table;
   }
@@ -399,25 +389,22 @@ public:
  */
 class Dynamic_Event_Table : public Event_Table
 {
-private:
-
   DynArray<Event_Fct> table; ///< Dynamic array of event function pointers
 
   /// Read event at index (implements Event_Table virtual method)
-  Event_Fct read_table(int i) const override { return table[i]; }
+  Event_Fct read_table(const int i) const override { return table[i]; }
 
   /// Write event at index (implements Event_Table virtual method)
-  void write_table(int i, Event_Fct event_fct) override
+  void write_table(const int i, Event_Fct event_fct) override
   {
     table[i] = event_fct;
   }
 
   /// Shrink table to given size (implements Event_Table virtual method)
-  void cut_table(size_t dim) override { table.cut(dim); }
+  void cut_table(const size_t dim) override { table.cut(dim); }
 
 public:
-
-  /// Get current table size (implements Event_Table virtual method)
+  /// Get the current table size (implements Event_Table virtual method)
   size_t size() const override { return table.size(); }
 
   /** @brief Construct a dynamic event table.
