@@ -316,7 +316,7 @@ void TimeoutQueue::triggerEvent()
           else if (current_status == Event::In_Queue)
             {
               // Event was rescheduled during EventFct() - still in queue, don't touch
-              final_status = Event::Executed;
+              final_status = Event::In_Queue;
             }
           else
             {

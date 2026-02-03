@@ -193,7 +193,7 @@ public:
     CompletionCallback on_completed;
 
     Time& time_key() { return this->get_key(); }
-    const Time& time_key() const { return this->get_key(); }
+    [[nodiscard]] const Time& time_key() const { return this->get_key(); }
 
     void set_trigger_time(const Time _t)
     {
