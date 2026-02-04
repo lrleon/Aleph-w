@@ -147,7 +147,7 @@ public:
    */
   Uid(const Aleph::IPv4_Address & _ipAddr,
       const uint64_t & _counter,
-      const uint32_t & _port_number);
+      const uint32_t & _port_number) noexcept;
 
   /** @brief Backward-compatible constructor with legacy parameter types.
    *

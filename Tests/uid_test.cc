@@ -99,7 +99,10 @@ TEST(UidTest, StringConversionRoundTrip) {
 
 TEST(UidTest, StringBufferSizeCheck) {
     IPv4_Address ip = 2130706433; // 127.0.0.1
-    Uid id(ip, 1, 1);
+    // Use explicit types to avoid ambiguity with deprecated constructor
+    uint64_t counter = 1;
+    uint32_t port = 1;
+    Uid id(ip, counter, port);
 
     char small_buffer[10]; // Too small
 

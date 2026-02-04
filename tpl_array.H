@@ -36,7 +36,7 @@
     This file provides the `Array<T>` template class, a simple dynamic
     array that grows and shrinks automatically as elements are added
     or removed. It supports functional programming operations through
-    mixin classes.
+    the mixin classes.
 
     @ingroup Sequences
  *  @author Leandro Rabindranath León
@@ -438,7 +438,7 @@ public:
 
   [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
 
-  /** Iterator on the items of array.
+  /** Iterator on the items of an array.
 
       @ingroup Sequences
   */
