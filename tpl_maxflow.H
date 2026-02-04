@@ -793,7 +793,14 @@ namespace Aleph
                 if (cycle.flow > Flow_Type{0})
                   result.cycles.append(std::move(cycle));
 
-                // Don't add this arc to path, restart path building
+                // At this point we have removed all flow along the detected cycle
+                // from 'remaining_flow'. We intentionally discard the current
+                // partial path (the prefix up to 'cycle_start') and restart path
+                // construction from the source in the outer loop. This does not
+                // lose any flow, because the prefix arcs were not modified and
+                // remain available for future paths/cycles. The trade-off is that
+                // we may re-traverse some nodes/edges, which is acceptable here
+                // under the assumption that cycles in the residual flow are rare.
                 break;
               }
 
