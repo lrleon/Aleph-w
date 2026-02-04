@@ -148,6 +148,23 @@ public:
       const uint64_t & _counter,
       const uint32_t & _port_number);
 
+  /** @brief Backward-compatible constructor with legacy parameter types.
+   *
+   *  This overload preserves source compatibility with older code that used
+   *  unsigned int for the counter and port number. It delegates to the
+   *  constructor taking uint64_t and uint32_t.
+   *
+   *  @deprecated Use Uid(const Aleph::IPv4_Address&, const uint64_t&,
+   *                      const uint32_t&) instead.
+   */
+  [[deprecated("Use Uid(const Aleph::IPv4_Address&, const uint64_t&, const uint32_t&) instead")]]
+  Uid(const Aleph::IPv4_Address & _ipAddr,
+      const unsigned int & _counter,
+      const unsigned int & _port_number)
+    : Uid(_ipAddr,
+          static_cast<uint64_t>(_counter),
+          static_cast<uint32_t>(_port_number))
+  {}
   /** @brief Construct UID from string representation.
    *
    *  Reconstructs a UID from its hexadecimal string format.
