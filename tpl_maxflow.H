@@ -660,7 +660,9 @@ namespace Aleph
    *  - Each arc's flow = sum of flows on paths using that arc
    *
    *  @tparam Net Network type.
-   *  @param net Network with a feasible flow (flow values are NOT modified).
+   *  @param net Network with a feasible flow. Creates a working copy of flow
+   *             values for decomposition; the original network flow values
+   *             remain unchanged.
    *  @return FlowDecomposition containing all paths and cycles.
    *
    *  @throw domain_error If network is not single source/sink.
