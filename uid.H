@@ -1,3 +1,4 @@
+
 /*
                           Aleph_w
 
@@ -94,10 +95,10 @@ class Uid
 {
   friend struct Uid_Offsets;
 
-  mutable Aleph::IPv4_Address ipAddr = 0; ///< IPv4 address component
-  mutable uint32_t port_number = 0; ///< Port number component
-  mutable uint64_t counter = 0; ///< Counter component
-  mutable uint64_t random_number = 0; ///< Random number component
+  Aleph::IPv4_Address ipAddr = 0; ///< IPv4 address component
+  uint32_t port_number = 0; ///< Port number component
+  uint64_t counter = 0; ///< Counter component
+  uint64_t random_number = 0; ///< Random number component
 
 public:
   /** @brief Required buffer size for string representation.
@@ -131,7 +132,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  Uid() = default;
+  Uid() noexcept = default;
 
   /** @brief Construct UID from components.
    *

@@ -455,7 +455,7 @@ namespace Aleph
 
     // Start with the largest power of 2 ≤ max_cap
     Flow_Type delta{1};
-    while (delta * 2 <= max_cap)
+    while (delta <= max_cap / 2)
       delta *= 2;
 
     Flow_Type max_flow{0};
@@ -583,10 +583,22 @@ namespace Aleph
     DynList<Node *> nodes; ///< Nodes in the path
     Flow_Type flow{0}; ///< Flow on this path
 
-    /// Check if a path is empty
+    /** @brief Check if a path is empty.
+     *  @return true if the path has no arcs, false otherwise.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: noexcept
+     */
     [[nodiscard]] bool is_empty() const noexcept { return arcs.is_empty(); }
 
-    /// Get path length (number of arcs)
+    /** @brief Get path length (number of arcs).
+     *  @return Number of arcs in the path.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: noexcept
+     */
     [[nodiscard]] size_t length() const noexcept { return arcs.size(); }
   };
 
@@ -625,7 +637,13 @@ namespace Aleph
     DynList<FlowPath<Net>> paths; ///< Source-to-sink paths
     DynList<FlowCycle<Net>> cycles; ///< Cycles (if any)
 
-    /// Total flow (sum of path flows)
+    /** @brief Total flow (sum of path flows).
+     *  @return Sum of flow values of all paths.
+     *  @throws none
+     *  @note Complexity: O(N) where N is the number of paths.
+     *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: noexcept
+     */
     Flow_Type total_flow() const noexcept
     {
       Flow_Type sum{0};
@@ -634,10 +652,22 @@ namespace Aleph
       return sum;
     }
 
-    /// Number of paths
+    /** @brief Number of paths.
+     *  @return The count of decomposed paths.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: noexcept
+     */
     [[nodiscard]] size_t num_paths() const noexcept { return paths.size(); }
 
-    /// Number of cycles
+    /** @brief Number of cycles.
+     *  @return The count of decomposed cycles.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: noexcept
+     */
     [[nodiscard]] size_t num_cycles() const noexcept { return cycles.size(); }
   };
 

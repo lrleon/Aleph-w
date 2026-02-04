@@ -167,20 +167,25 @@ public:
       array.put(value);
   }
 
-  /** Create an array with `n` default-constructed elements.
+  /** Create an array with `n` elements (uninitialized for PODs).
 
-      This static factory creates an array of size `n` where each element
-      is default-constructed. Use this when T has a meaningful default
-      constructor and you need immediate indexed access.
+      This static factory creates an array of size `n`. Note that elements
+      are NOT value-initialized (similar to `new T[n]`). For POD types,
+      the content is indeterminate. For class types with default constructors,
+      they will be default-constructed.
+
+      The caller MUST assign values to the new positions before reading them
+      if T is a POD type.
 
       @param[in] n number of elements to create
-      @return Array with n default-constructed elements
+      @return Array with n elements (potentially uninitialized)
       @throw bad_alloc if there is no enough memory
 
       @par Example
       @code
-      auto arr = Array<MyClass>::create(100);  // 100 default-constructed MyClass
-      arr[50].doSomething();  // immediate indexed access
+      auto arr = Array<int>::create(100);
+      // arr[0] is undefined (garbage)
+      arr[0] = 42; // Assign before read
       @endcode
   */
   static Array create(size_t n)
@@ -468,4 +473,3 @@ to_stdvector(const Container & c)
 } // end namespace Aleph
 
 # endif /* TPL_ARRAY_H */
-
