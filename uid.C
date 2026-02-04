@@ -88,13 +88,23 @@ void Uid::destringficate(char *str)
 
 Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const uint64_t & _counter,
-         const uint32_t & _port_number)
+         const uint32_t & _port_number) noexcept
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<unsigned int> dis;
-  random_number = dis(gen);
+  try {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<unsigned int> dis;
+    random_number = dis(gen);
+  } catch (...) {
+    // Fallback if random device fails (e.g. no entropy)
+    // We can't throw from noexcept, so we use a simple fallback or 0
+    // Using address of stack variable + time as seed is a common fallback
+    uint64_t seed = reinterpret_cast<uint64_t>(&_ipAddr) + time(nullptr);
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<unsigned int> dis;
+    random_number = dis(gen);
+  }
 }
 
 
