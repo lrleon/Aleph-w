@@ -33,6 +33,7 @@
 # include <cstring>
 # include <cctype>
 # include <ctime>
+# include <cstdint>
 # include <uid.H>
 # include <ah-errors.H>
 
@@ -82,7 +83,7 @@ char * Uid::stringficate(char *buffer,
 
 void Uid::destringficate(char *str)
 {
-  char *this_str = reinterpret_cast<char *>(this);
+  auto this_str = reinterpret_cast<char *>(this);
 
   // Convert the string in ASCII to the rendering in Nibbles
   for (int i = 0; i < sizeof(Uid); ++i)
@@ -95,20 +96,24 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const uint32_t & _port_number) noexcept
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
-  try {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<unsigned int> dis;
-    random_number = dis(gen);
-  } catch (...) {
-    // Fallback if the random device fails (e.g. no entropy)
-    // We can't throw from noexcept, so we use a simple fallback or 0
-    // Using address of stack variable + time as seed is a common fallback
-    const uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(std::time(nullptr));
-    std::mt19937 gen(seed);
-    std::uniform_int_distribution<unsigned int> dis;
-    random_number = dis(gen);
-  }
+  try
+    {
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<unsigned int> dis;
+      random_number = dis(gen);
+    }
+  catch (...)
+    {
+      // Fallback if the random device fails (e.g. no entropy)
+      // We can't throw from noexcept, so we use a simple fallback or 0
+      // Using address of stack variable + time as seed is a common fallback
+      const uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(
+                              std::time(nullptr));
+      std::mt19937 gen(seed);
+      std::uniform_int_distribution<unsigned int> dis;
+      random_number = dis(gen);
+    }
 }
 
 
@@ -116,16 +121,14 @@ Uid::Uid(char *str)
 {
   ah_invalid_argument_if(str == nullptr) << "Null string passed to Uid constructor";
 
-  size_t len = std::strlen(str);
+  const size_t len = std::strlen(str);
   ah_invalid_argument_if(len < static_cast<size_t>(stringSize - 1))
     << "String too short for Uid (expected " << (stringSize - 1) << " chars)";
 
   // Validate hex characters
-  for (size_t i = 0; i < static_cast<size_t>(stringSize - 1); ++i) {
-    if (!std::isxdigit(static_cast<unsigned char>(str[i]))) {
-      ah_invalid_argument_if(true) << "Invalid hex character in Uid string at index " << i;
-    }
-  }
+  for (size_t i = 0; i < static_cast<size_t>(stringSize - 1); ++i)
+    ah_invalid_argument_if(not std::isxdigit(static_cast<unsigned char>(str[i])))
+         << "Invalid hex character in Uid string at index " << i;
 
   destringficate(str);
 }

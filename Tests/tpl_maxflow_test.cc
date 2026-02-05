@@ -327,6 +327,52 @@ TEST(FlowDecompositionTest, ZeroFlow)
   EXPECT_DOUBLE_EQ(decomp.total_flow(), 0.0);
 }
 
+TEST(FlowDecompositionTest, CycleDetection)
+{
+  // Build a network with a cycle: s -> a -> b -> a (cycle a-b-a) -> t
+  TestNet net;
+  auto s = net.insert_node(0);
+  auto a = net.insert_node(1);
+  auto b = net.insert_node(2);
+  auto t = net.insert_node(3);
+
+  // Main path s -> a -> t
+  auto arc_sa = net.insert_arc(s, a, 10);
+  auto arc_at = net.insert_arc(a, t, 10);
+
+  // Cycle a -> b -> a
+  auto arc_ab = net.insert_arc(a, b, 5);
+  auto arc_ba = net.insert_arc(b, a, 5);
+
+  // Manually set flow to create a cycle
+  // Flow goes s -> a -> t (5 units)
+  // And circulates a -> b -> a (5 units)
+  arc_sa->flow = 5;
+  arc_at->flow = 5;
+  arc_ab->flow = 5;
+  arc_ba->flow = 5;
+
+  // Verify manual flow setup is valid (conservation holds)
+  // Node a: in=5(s)+5(b)=10, out=5(t)+5(b)=10. OK.
+  // Node b: in=5(a), out=5(a). OK.
+
+  auto decomp = decompose_flow(net);
+
+  // Should have 1 path (s->a->t) and 1 cycle (a->b->a)
+  EXPECT_EQ(decomp.num_paths(), 1);
+  EXPECT_EQ(decomp.num_cycles(), 1);
+
+  EXPECT_DOUBLE_EQ(decomp.total_flow(), 5.0); // Only path flow counts towards total s-t flow
+
+  // Verify cycle details
+  const auto& cycle = decomp.cycles.get_first();
+  EXPECT_DOUBLE_EQ(cycle.flow, 5.0);
+
+  // Verify path details
+  const auto& path = decomp.paths.get_first();
+  EXPECT_DOUBLE_EQ(path.flow, 5.0);
+}
+
 
 //==============================================================================
 // Flow Statistics Tests

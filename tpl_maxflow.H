@@ -88,6 +88,7 @@
 #include <tpl_net.H>
 #include <tpl_dynDlist.H>
 #include <ah-errors.H>
+#include <cookie_guard.H>
 
 namespace Aleph
 {
@@ -213,18 +214,11 @@ namespace Aleph
     using Flow_Type = typename Net::Flow_Type;
 
     // Runtime guard: verify NODE_COOKIE is initialized for Dinic's algorithm
-    // If not initialized, return false (sink unreachable) to signal failure safely
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      {
-        if (not is_dinic_cookie_valid<Net>(it.get_curr()))
-          {
-            ah_domain_error_if(true)
-              << "NODE_COOKIE not initialized for Dinic's algorithm. "
-              << "Call dinic_maximum_flow() instead of build_level_graph() directly, "
-              << "or initialize Dinic_Node_Info for all nodes before calling.";
-            return false; // Unreachable but satisfies return type
-          }
-      }
+      ah_domain_error_if(not is_dinic_cookie_valid<Net>(it.get_curr()))
+            << "NODE_COOKIE not initialized for Dinic's algorithm. "
+            << "Call dinic_maximum_flow() instead of build_level_graph() directly, "
+            << "or initialize Dinic_Node_Info for all nodes before calling.";
 
     // Reset all levels
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
@@ -285,6 +279,7 @@ namespace Aleph
    *  @return Amount of flow pushed to sink.
    *  @throws none (assuming flow operations do not throw).
    *  @note Complexity: O(V*E) per phase in the worst case.
+   *  @note Space (call stack): O(h) where h ≤ |V| (number of nodes on a root-to-leaf path).
    *  @note Thread safety: Not thread-safe. Modifies arc flows and node cookies.
    *  @note Exception safety: Basic guarantee.
    *
@@ -300,7 +295,7 @@ namespace Aleph
     // Runtime guard: verify NODE_COOKIE is initialized
     if (not is_dinic_cookie_valid<Net>(node))
       {
-        ah_domain_error_if(true)
+        ah_domain_error()
           << "NODE_COOKIE not initialized for Dinic's algorithm. "
           << "Call dinic_maximum_flow() instead of dinic_dfs() directly, "
           << "or initialize Dinic_Node_Info for all nodes before calling.";
@@ -375,7 +370,11 @@ namespace Aleph
    *  @param net Flow network with source and sink.
    *  @return Maximum flow value.
    *
-   *  @throw domain_error If network is not single source/sink.
+   *  @throws domain_error If network is not single source/sink.
+   *  @throws std::bad_alloc If memory allocation fails during algorithm execution.
+   *  @note Complexity: O(V²E) for general graphs, O(E√V) for unit capacity graphs.
+   *  @note Thread safety: Not thread-safe. Modifies network state and node cookies.
+   *  @note Exception safety: Basic guarantee. Network may be partially modified.
    *
    *  @par Example
    *  ```cpp
@@ -400,15 +399,12 @@ namespace Aleph
     Node *source = net.get_source();
     Node *sink = net.get_sink();
 
-    // Save original cookies to restore them after algorithm completion
-    auto prev_cookies = Array<void *>::create(net.vsize());
-    size_t idx = 0;
-    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
-      prev_cookies[idx] = NODE_COOKIE(it.get_curr());
+    // RAII guard to restore original cookies on exit (normal or exception)
+    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
 
     // Allocate node info with default-constructed elements
     auto node_info = Array<Dinic_Node_Info<Flow_Type>>::create(net.vsize());
-    idx = 0;
+    size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
       NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
@@ -428,11 +424,7 @@ namespace Aleph
         while (blocked_flow > Flow_Type{0});
       }
 
-    // Restore original NODE_COOKIE values to avoid dangling pointers
-    idx = 0;
-    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
-      NODE_COOKIE(it.get_curr()) = prev_cookies[idx];
-
+    // Cookie_Saver destructor will restore original NODE_COOKIE values
     return max_flow;
   }
 
@@ -487,7 +479,11 @@ namespace Aleph
    *  @param net Flow network.
    *  @return Maximum flow value.
    *
-   *  @throw domain_error If network is not single source/sink.
+   *  @throws domain_error If network is not single source/sink.
+   *  @throws std::bad_alloc If memory allocation fails during algorithm execution.
+   *  @note Complexity: O(E² log U) where U is the maximum capacity.
+   *  @note Thread safety: Not thread-safe. Modifies network flow values.
+   *  @note Exception safety: Basic guarantee. Network may be partially modified.
    *
    *  @par Example
    *  ```cpp
@@ -758,7 +754,7 @@ namespace Aleph
    *  the flow is assigned to exactly one path.
    *
    *  ## Algorithm
-   *  1. While there exists an arc from the source with positive flow:
+   *  1. While there exists an arc from source with positive flow:
    *     a. Follow arcs with positive flow until reaching sink
    *     b. Find minimum flow on the path
    *     c. Subtract this flow from all arcs on the path
@@ -842,7 +838,7 @@ namespace Aleph
         path.nodes.append(curr);
         path.flow = remaining_flow[start_arc];
 
-        // Track visited nodes and their position in the path for cycle detection
+        // Track visited nodes and their position in path for cycle detection
         DynMapTree<Node *, size_t> visited;
         visited[source] = 0;
         visited[curr] = 1;
@@ -870,7 +866,7 @@ namespace Aleph
             if (visited.contains(next_node))
               {
                 // Extract the cycle starting from the repeated node
-                size_t cycle_start = visited[next_node];
+                const size_t cycle_start = visited[next_node];
                 FlowCycle<Net> cycle;
                 cycle.flow = remaining_flow[next_arc];
 
@@ -910,7 +906,7 @@ namespace Aleph
                 // from 'remaining_flow'. We intentionally discard the current
                 // partial path (the prefix up to 'cycle_start') and restart path
                 // construction from the source in the outer loop. This does not
-                // lose any flow, because the prefix arcs were not modified and
+                // lose any flow because the prefix arcs were not modified and
                 // remain available for future paths/cycles. The trade-off is that
                 // we may re-traverse some nodes/edges, which is acceptable here
                 // under the assumption that cycles in the residual flow are rare.
@@ -930,6 +926,110 @@ namespace Aleph
             for (auto it = path.arcs.get_it(); it.has_curr(); it.next_ne())
               remaining_flow[it.get_curr()] -= path.flow;
             result.paths.append(std::move(path));
+          }
+      }
+
+    // Second phase: find cycles in remaining flow (not connected to source)
+    // These are cycles that exist independently of the s-t flow
+    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+      {
+        Node *start = it.get_curr();
+
+        // Try to find a cycle starting from this node
+        while (true)
+          {
+            // Find an outgoing arc with positive remaining flow
+            Arc *first_arc = nullptr;
+            for (typename Net::Node_Arc_Iterator ait(start); ait.has_curr(); ait.next_ne())
+              {
+                Arc *arc = ait.get_curr();
+                if (net.get_src_node(arc) == start and remaining_flow[arc] > Flow_Type{0})
+                  {
+                    first_arc = arc;
+                    break;
+                  }
+              }
+
+            if (first_arc == nullptr)
+              break; // No outgoing flow from this node
+
+            // Follow the flow to find a cycle
+            FlowCycle<Net> cycle;
+            DynMapTree<Node *, size_t> visited;
+            DynList<Arc *> path_arcs;
+            DynList<Node *> path_nodes;
+
+            path_nodes.append(start);
+            visited[start] = 0;
+
+            Node *curr = net.get_tgt_node(first_arc);
+            path_arcs.append(first_arc);
+            path_nodes.append(curr);
+
+            bool found_cycle = false;
+
+            while (not found_cycle)
+              {
+                if (visited.contains(curr))
+                  {
+                    // Found a cycle starting at 'curr'
+                    const size_t cycle_start = visited[curr];
+                    cycle.flow = std::numeric_limits<Flow_Type>::max();
+
+                    // Skip to cycle start in path
+                    auto node_it = path_nodes.get_it();
+                    auto arc_it = path_arcs.get_it();
+                    for (size_t i = 0; i < cycle_start; ++i)
+                      {
+                        node_it.next_ne();
+                        arc_it.next_ne();
+                      }
+
+                    // Collect cycle and find minimum flow
+                    while (arc_it.has_curr())
+                      {
+                        cycle.nodes.append(node_it.get_curr());
+                        cycle.arcs.append(arc_it.get_curr());
+                        cycle.flow = std::min(cycle.flow, remaining_flow[arc_it.get_curr()]);
+                        node_it.next_ne();
+                        arc_it.next_ne();
+                      }
+
+                    found_cycle = true;
+                    break;
+                  }
+
+                visited[curr] = path_nodes.size() - 1;
+
+                // Find next arc with positive flow
+                Arc *next_arc = nullptr;
+                for (typename Net::Node_Arc_Iterator ait(curr); ait.has_curr(); ait.next_ne())
+                  {
+                    Arc *arc = ait.get_curr();
+                    if (net.get_src_node(arc) == curr and remaining_flow[arc] > Flow_Type{0})
+                      {
+                        next_arc = arc;
+                        break;
+                      }
+                  }
+
+                if (next_arc == nullptr)
+                  break; // Dead end, no cycle from this path
+
+                path_arcs.append(next_arc);
+                curr = net.get_tgt_node(next_arc);
+                path_nodes.append(curr);
+              }
+
+            if (found_cycle and cycle.flow > Flow_Type{0})
+              {
+                // Subtract cycle flow from all cycle arcs
+                for (auto cit = cycle.arcs.get_it(); cit.has_curr(); cit.next_ne())
+                  remaining_flow[cit.get_curr()] -= cycle.flow;
+                result.cycles.append(std::move(cycle));
+              }
+            else
+              break; // No cycle found from this start node
           }
       }
 
@@ -1151,8 +1251,10 @@ namespace Aleph
      *  Builds a formatted string representation of the statistics.
      *
      *  @return Formatted string containing all statistics.
+     *  @throws std::format_error if formatting fails (rare).
      *  @note Complexity: O(1)
      *  @note Thread safety: Thread-safe for read-only access.
+     *  @note Exception safety: Basic guarantee.
      */
     [[nodiscard]] std::string to_string() const
     {
@@ -1172,8 +1274,10 @@ namespace Aleph
      *
      *  Formats the statistics and outputs to stdout.
      *
+     *  @throws std::format_error if formatting fails.
      *  @note Complexity: O(1)
      *  @note Thread safety: Not thread-safe (writes to stdout).
+     *  @note Exception safety: Basic guarantee.
      */
     void print() const
     {
@@ -1186,6 +1290,10 @@ namespace Aleph
    *  @tparam Net Network type.
    *  @param net Network with flow values.
    *  @return FlowStatistics structure.
+   *  @throws none
+   *  @note Complexity: O(E) where E is the number of arcs.
+   *  @note Thread safety: Thread-safe for read-only access.
+   *  @note Exception safety: Basic guarantee.
    *
    *  @ingroup Networks
    */

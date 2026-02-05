@@ -3882,8 +3882,8 @@ namespace Aleph
       for (typename GT::Arc_Iterator it(src); it.has_curr(); it.next_ne())
         {
           Arc *src_arc = it.get_curr();
-          Node *src_src = const_cast<GT &>(src).get_src_node(src_arc);
-          Node *src_tgt = const_cast<GT &>(src).get_tgt_node(src_arc);
+          Node *src_src = src.get_src_node(src_arc);
+          Node *src_tgt = src.get_tgt_node(src_arc);
 
           Node *tgt_src = node_map.find(src_src);
           Node *tgt_tgt = node_map.find(src_tgt);
