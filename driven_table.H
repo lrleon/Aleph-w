@@ -223,10 +223,9 @@ public:
    *  @return Result returned by the event function
    *  @throw domain_error if index is not in use
    */
-  void * execute_event(const size_t index, void *input = nullptr)
+  void * execute_event(const size_t index, void *input = nullptr) const
   {
-    if (read_table(index) == nullptr)
-      ah_domain_error_if(true) << "Index is not used";
+    ah_domain_error_if(read_table(index) == nullptr) << "Index is not used";
 
     return (*read_table(index))(input);
   }
@@ -264,7 +263,7 @@ class Static_Event_Table : public Event_Table
    */
   void verify_index(const size_t i) const
   {
-    if (i >= size_table) ah_range_error_if(true) << "index out of range";
+    ah_range_error_if(i >= size_table) << "index out of range";
   }
 
   /// Read event at index (implements Event_Table virtual method)

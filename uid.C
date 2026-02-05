@@ -28,6 +28,7 @@
   SOFTWARE.
 */
 
+# include <ctime>
 # include <random>
 # include <cstring>
 # include <cctype>
@@ -100,10 +101,10 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
     std::uniform_int_distribution<unsigned int> dis;
     random_number = dis(gen);
   } catch (...) {
-    // Fallback if random device fails (e.g. no entropy)
+    // Fallback if the random device fails (e.g. no entropy)
     // We can't throw from noexcept, so we use a simple fallback or 0
     // Using address of stack variable + time as seed is a common fallback
-    uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(std::time(nullptr));
+    const uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(std::time(nullptr));
     std::mt19937 gen(seed);
     std::uniform_int_distribution<unsigned int> dis;
     random_number = dis(gen);
@@ -137,10 +138,10 @@ bool Uid::operator ==(const Uid & uid) const noexcept
           random_number == uid.random_number);
 }
 
-char * Uid::getStringUid(char *str, const size_t & str_size) const
+char * Uid::getStringUid(char *str, const size_t & size) const
 {
-  ah_range_error_if(str_size < stringSize)
+  ah_range_error_if(size < stringSize)
     << "Buffer size too small for UID string representation";
 
-  return stringficate(str, str_size);
+  return stringficate(str, size);
 }

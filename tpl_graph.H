@@ -4100,7 +4100,7 @@ namespace Aleph
       // But wait, remove_node is called on the *copied graph*. The argument 'node' is a node in copied_graph.
       // If we want to maintain consistency, we should remove the entry from node_map where value == node.
 
-      // Since reverse lookup is expensive and we don't store the reverse mapping,
+      // Since reverse lookup is expensive, and we don't store the reverse mapping,
       // we have two options:
       // 1. Iterate and find (O(N)) - safe but slow.
       // 2. Assume the user handles unmapping if they need to (current behavior, but dangerous).

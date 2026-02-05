@@ -81,7 +81,8 @@
 #define TPL_MAXFLOW_H
 
 #include <limits>
-#include <format>
+#include <sstream>
+#include <iomanip>
 #include <tpl_array.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_net.H>
@@ -841,7 +842,7 @@ namespace Aleph
         path.nodes.append(curr);
         path.flow = remaining_flow[start_arc];
 
-        // Track visited nodes and their position in path for cycle detection
+        // Track visited nodes and their position in the path for cycle detection
         DynMapTree<Node *, size_t> visited;
         visited[source] = 0;
         visited[curr] = 1;
@@ -1146,33 +1147,30 @@ namespace Aleph
 
     /** @brief Format statistics as a string.
      *
-     *  Builds a type-safe formatted string representation of the statistics
-     *  using std::format.
+     *  Builds a formatted string representation of the statistics.
      *
      *  @return Formatted string containing all statistics.
-     *  @throws std::format_error if formatting fails.
      *  @note Complexity: O(1)
      *  @note Thread safety: Thread-safe for read-only access.
      */
     [[nodiscard]] std::string to_string() const
     {
-      return std::format(
-        "=== Flow Statistics ===\n"
-        "Total flow: {}\n"
-        "Total capacity: {}\n"
-        "Saturated arcs: {}\n"
-        "Empty arcs: {}\n"
-        "Partial arcs: {}\n"
-        "Utilization: {:.2f}%\n",
-        total_flow, total_capacity, num_saturated_arcs,
-        num_empty_arcs, num_partial_arcs, utilization * 100);
+      std::ostringstream oss;
+      oss << "=== Flow Statistics ===\n"
+          << "Total flow: " << total_flow << "\n"
+          << "Total capacity: " << total_capacity << "\n"
+          << "Saturated arcs: " << num_saturated_arcs << "\n"
+          << "Empty arcs: " << num_empty_arcs << "\n"
+          << "Partial arcs: " << num_partial_arcs << "\n"
+          << "Utilization: " << std::fixed << std::setprecision(2)
+          << (utilization * 100) << "%\n";
+      return oss.str();
     }
 
     /** @brief Print statistics to standard output.
      *
-     *  Formats the statistics using std::format and outputs to stdout.
+     *  Formats the statistics and outputs to stdout.
      *
-     *  @throws std::format_error if formatting fails.
      *  @note Complexity: O(1)
      *  @note Thread safety: Not thread-safe (writes to stdout).
      */
