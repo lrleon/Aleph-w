@@ -894,9 +894,10 @@ namespace Aleph
                     node_it.next_ne();
                     arc_it.next_ne();
                   }
-                // Add the closing arc
+                // Add the closing arc and closing node to complete the cycle
                 cycle.arcs.append(next_arc);
                 cycle.flow = std::min(cycle.flow, remaining_flow[next_arc]);
+                cycle.nodes.append(next_node);
 
                 // Subtract cycle flow from cycle arcs
                 for (auto it = cycle.arcs.get_it(); it.has_curr(); it.next_ne())
