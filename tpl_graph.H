@@ -4088,9 +4088,9 @@ namespace Aleph
      *  mapping consistent.
      *
      *  @param[in] node Pointer to the node to remove.
-     *  @throws none (assuming graph removal is noexcept).
+     *  @throws Any exception thrown by the underlying mapping or graph removal operations.
      *  @note Complexity: O(degree + V) for List_Graph, O(E + V) for List_Digraph (due to reverse lookup in map).
-     *  @note Exception safety: noexcept.
+     *  @note Exception safety: This function does not add new throwing points beyond those of the underlying containers.
      */
     void remove_node(Node *node)
     {
