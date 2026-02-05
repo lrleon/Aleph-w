@@ -81,6 +81,7 @@
 #define TPL_MAXFLOW_H
 
 #include <limits>
+#include <format>
 #include <tpl_array.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_net.H>
@@ -166,6 +167,25 @@ namespace Aleph
         (NODE_COOKIE(p))->blocked;
   }
 
+  /** @brief Check if a node's cookie is properly initialized for Dinic's algorithm.
+   *
+   *  Validates that NODE_COOKIE points to a valid Dinic_Node_Info structure.
+   *
+   *  @tparam Net Network type.
+   *  @param p Pointer to network node.
+   *  @return true if the cookie is valid, false otherwise.
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Thread safety: Thread-safe for read-only access.
+   *  @note Exception safety: noexcept
+   *  @ingroup Networks
+   */
+  template <class Net>
+  inline bool is_dinic_cookie_valid(typename Net::Node *p) noexcept
+  {
+    return NODE_COOKIE(p) != nullptr;
+  }
+
   /** @brief Build level graph using BFS from source.
    *
    *  Assigns levels to nodes based on the shortest path distance from the source
@@ -190,6 +210,20 @@ namespace Aleph
   {
     using Node = typename Net::Node;
     using Flow_Type = typename Net::Flow_Type;
+
+    // Runtime guard: verify NODE_COOKIE is initialized for Dinic's algorithm
+    // If not initialized, return false (sink unreachable) to signal failure safely
+    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
+      {
+        if (not is_dinic_cookie_valid<Net>(it.get_curr()))
+          {
+            ah_domain_error_if(true)
+              << "NODE_COOKIE not initialized for Dinic's algorithm. "
+              << "Call dinic_maximum_flow() instead of build_level_graph() directly, "
+              << "or initialize Dinic_Node_Info for all nodes before calling.";
+            return false; // Unreachable but satisfies return type
+          }
+      }
 
     // Reset all levels
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
@@ -261,6 +295,16 @@ namespace Aleph
                                     typename Net::Flow_Type pushed)
   {
     using Flow_Type = typename Net::Flow_Type;
+
+    // Runtime guard: verify NODE_COOKIE is initialized
+    if (not is_dinic_cookie_valid<Net>(node))
+      {
+        ah_domain_error_if(true)
+          << "NODE_COOKIE not initialized for Dinic's algorithm. "
+          << "Call dinic_maximum_flow() instead of dinic_dfs() directly, "
+          << "or initialize Dinic_Node_Info for all nodes before calling.";
+        return Flow_Type{0}; // Unreachable but satisfies return type
+      }
 
     if (node == sink)
       return pushed;
@@ -355,9 +399,15 @@ namespace Aleph
     Node *source = net.get_source();
     Node *sink = net.get_sink();
 
+    // Save original cookies to restore them after algorithm completion
+    auto prev_cookies = Array<void *>::create(net.vsize());
+    size_t idx = 0;
+    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
+      prev_cookies[idx] = NODE_COOKIE(it.get_curr());
+
     // Allocate node info with default-constructed elements
     auto node_info = Array<Dinic_Node_Info<Flow_Type>>::create(net.vsize());
-    size_t idx = 0;
+    idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
       NODE_COOKIE(it.get_curr()) = &node_info[idx];
 
@@ -377,9 +427,10 @@ namespace Aleph
         while (blocked_flow > Flow_Type{0});
       }
 
-    // Clear NODE_COOKIE to avoid dangling pointers after node_info goes out of scope
-    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      NODE_COOKIE(it.get_curr()) = nullptr;
+    // Restore original NODE_COOKIE values to avoid dangling pointers
+    idx = 0;
+    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
+      NODE_COOKIE(it.get_curr()) = prev_cookies[idx];
 
     return max_flow;
   }
@@ -390,6 +441,20 @@ namespace Aleph
   template <class Net>
   struct Dinic_Maximum_Flow
   {
+    /** @brief Invoke Dinic's maximum flow algorithm on the given network.
+     *
+     *  This functor provides a convenient way to call dinic_maximum_flow
+     *  as a function object, useful for passing to algorithms or storing
+     *  in containers.
+     *
+     *  @param[in] net Flow network with a single source and sink.
+     *  @return Maximum flow value of type typename Net::Flow_Type.
+     *  @throws domain_error If network is not single source/sink.
+     *  @throws std::bad_alloc If memory allocation fails during algorithm execution.
+     *  @note Complexity: O(V²E) for general graphs, O(E√V) for unit capacity graphs.
+     *  @note Thread safety: Not thread-safe. Modifies network state and node cookies.
+     *  @note Exception safety: Basic guarantee. Network may be partially modified.
+     */
     typename Net::Flow_Type operator()(Net & net) const
     {
       return dinic_maximum_flow(net);
@@ -552,6 +617,20 @@ namespace Aleph
   template <class Net>
   struct Capacity_Scaling_Maximum_Flow
   {
+    /** @brief Invoke capacity scaling maximum flow algorithm on the given network.
+     *
+     *  This functor provides a convenient way to call capacity_scaling_maximum_flow
+     *  as a function object, useful for passing to algorithms or storing
+     *  in containers.
+     *
+     *  @param[in] net Flow network with a single source and sink.
+     *  @return Maximum flow value of type typename Net::Flow_Type.
+     *  @throws domain_error If network is not single source/sink.
+     *  @throws std::bad_alloc If memory allocation fails during algorithm execution.
+     *  @note Complexity: O(E² log U) where U is the maximum capacity.
+     *  @note Thread safety: Not thread-safe. Modifies network flow values.
+     *  @note Exception safety: Basic guarantee. Network may be partially modified.
+     */
     typename Net::Flow_Type operator()(Net & net) const
     {
       return capacity_scaling_maximum_flow(net);
@@ -678,7 +757,7 @@ namespace Aleph
    *  the flow is assigned to exactly one path.
    *
    *  ## Algorithm
-   *  1. While there exists an arc from source with positive flow:
+   *  1. While there exists an arc from the source with positive flow:
    *     a. Follow arcs with positive flow until reaching sink
    *     b. Find minimum flow on the path
    *     c. Subtract this flow from all arcs on the path
@@ -861,6 +940,20 @@ namespace Aleph
   template <class Net>
   struct Decompose_Flow
   {
+    /** @brief Invoke flow decomposition on the given network.
+     *
+     *  This functor provides a convenient way to call decompose_flow
+     *  as a function object, useful for passing to algorithms or storing
+     *  in containers.
+     *
+     *  @param[in] net Network with a feasible flow (single source and sink).
+     *  @return FlowDecomposition<Net> containing all paths and cycles.
+     *  @throws domain_error If network is not single source/sink.
+     *  @throws std::bad_alloc If memory allocation fails during decomposition.
+     *  @note Complexity: O(P*E) where P is the number of paths in the decomposition.
+     *  @note Thread safety: Thread-safe for read-only access to input network.
+     *  @note Exception safety: Strong guarantee. No modifications to input network.
+     */
     FlowDecomposition<Net> operator()(const Net & net) const
     {
       return decompose_flow(net);
@@ -1013,6 +1106,20 @@ namespace Aleph
   template <class Net>
   struct HLPP_Maximum_Flow
   {
+    /** @brief Invoke Highest-Label Preflow-Push algorithm on the given network.
+     *
+     *  This functor provides a convenient way to call hlpp_maximum_flow
+     *  as a function object, useful for passing to algorithms or storing
+     *  in containers.
+     *
+     *  @param[in] net Flow network with single source and sink.
+     *  @return Maximum flow value of type typename Net::Flow_Type.
+     *  @throws domain_error If network is not single source/sink.
+     *  @throws std::bad_alloc If memory allocation fails during algorithm execution.
+     *  @note Complexity: O(V²√E) - often fastest in practice for dense graphs.
+     *  @note Thread safety: Not thread-safe. Modifies network flow values.
+     *  @note Exception safety: Basic guarantee. Network may be partially modified.
+     */
     typename Net::Flow_Type operator()(Net & net) const
     {
       return hlpp_maximum_flow(net);
@@ -1037,15 +1144,41 @@ namespace Aleph
     size_t num_partial_arcs{0}; ///< Arcs with 0 < flow < capacity
     double utilization{0.0}; ///< flow / capacity ratio
 
+    /** @brief Format statistics as a string.
+     *
+     *  Builds a type-safe formatted string representation of the statistics
+     *  using std::format.
+     *
+     *  @return Formatted string containing all statistics.
+     *  @throws std::format_error if formatting fails.
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Thread-safe for read-only access.
+     */
+    [[nodiscard]] std::string to_string() const
+    {
+      return std::format(
+        "=== Flow Statistics ===\n"
+        "Total flow: {}\n"
+        "Total capacity: {}\n"
+        "Saturated arcs: {}\n"
+        "Empty arcs: {}\n"
+        "Partial arcs: {}\n"
+        "Utilization: {:.2f}%\n",
+        total_flow, total_capacity, num_saturated_arcs,
+        num_empty_arcs, num_partial_arcs, utilization * 100);
+    }
+
+    /** @brief Print statistics to standard output.
+     *
+     *  Formats the statistics using std::format and outputs to stdout.
+     *
+     *  @throws std::format_error if formatting fails.
+     *  @note Complexity: O(1)
+     *  @note Thread safety: Not thread-safe (writes to stdout).
+     */
     void print() const
     {
-      std::cout << "=== Flow Statistics ===\n"
-          << "Total flow: " << total_flow << "\n"
-          << "Total capacity: " << total_capacity << "\n"
-          << "Saturated arcs: " << num_saturated_arcs << "\n"
-          << "Empty arcs: " << num_empty_arcs << "\n"
-          << "Partial arcs: " << num_partial_arcs << "\n"
-          << "Utilization: " << (utilization * 100) << "%\n";
+      std::cout << to_string();
     }
   };
 

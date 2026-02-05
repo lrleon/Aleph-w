@@ -125,8 +125,9 @@ private:
 public:
   /** @brief Default constructor.
    *
-   *  Creates an uninitialized UID. Components must be set manually
-   *  or via assignment.
+   *  Creates a zero-initialized UID. All components (`ipAddr`, `port_number`,
+   *  `counter`, `random_number`) are set to 0. Components can be
+   *  overwritten later via assignment or other methods.
    *
    *  @throws none
    *  @note Complexity: O(1)
@@ -166,6 +167,7 @@ public:
           static_cast<uint64_t>(_counter),
           static_cast<uint32_t>(_port_number))
   {}
+
   /** @brief Construct UID from string representation.
    *
    *  Reconstructs a UID from its hexadecimal string format.
@@ -187,7 +189,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  bool operator ==(const Uid & uid) const;
+  bool operator ==(const Uid & uid) const noexcept;
 
   /** @brief Convert UID to hexadecimal string representation.
    *
@@ -208,7 +210,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const Aleph::IPv4_Address &getIpAddr() const { return ipAddr; }
+  [[nodiscard]] const Aleph::IPv4_Address &getIpAddr() const { return ipAddr; }
 
   /** @brief Get port number component.
    *  @return the port number
@@ -216,7 +218,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint32_t &get_port_number() const { return port_number; }
+  [[nodiscard]] const uint32_t &get_port_number() const { return port_number; }
 
   /** @brief Get counter component.
    *  @return the counter value
@@ -224,21 +226,21 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint64_t &get_counter() const { return counter; }
+  [[nodiscard]] const uint64_t &get_counter() const { return counter; }
 
-  /** @brief Get random number component.
+  /** @brief Get a random number component.
    *  @return the random number
    *  @throws none
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  const uint64_t &get_random_number() const { return random_number; }
+  [[nodiscard]] const uint64_t &get_random_number() const noexcept { return random_number; }
 
   /** @brief Print UID components to standard output.
    *
    *  Prints all four components in human-readable format for debugging.
    */
-  void print()
+  void print() const
   {
     std::cout << "Uid:" << '\n'
         << "    ipAddr        = " << ipAddr << '\n'

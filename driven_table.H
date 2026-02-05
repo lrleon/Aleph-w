@@ -93,8 +93,8 @@ typedef void * (*Event_Fct)(void *);
 
 /** @brief Abstract base class for event tables.
  *
- *  Provides interface for registering, unregistering, checking, and executing
- *  events. Concrete implementations must provide storage mechanism (static
+ *  Provides an interface for registering, unregistering, checking, and executing
+ *  events. Concrete implementations must provide a storage mechanism (static
  *  array or dynamic array).
  *
  *  ## Operations
@@ -112,9 +112,9 @@ typedef void * (*Event_Fct)(void *);
  */
 class Event_Table
 {
-  [[nodiscard]] virtual Event_Fct read_table(int i) const = 0;
+  [[nodiscard]] virtual Event_Fct read_table(size_t i) const = 0;
 
-  virtual void write_table(int i, Event_Fct event_fct) = 0;
+  virtual void write_table(size_t i, Event_Fct event_fct) = 0;
 
   virtual void cut_table(size_t dim) = 0;
 
@@ -122,7 +122,7 @@ public:
   /** @brief Get the number of event slots in the table.
    *  @return Total number of slots (including unused ones)
    */
-  virtual size_t size() const = 0;
+  [[nodiscard]] virtual size_t size() const = 0;
 
   /** @brief Virtual destructor for proper cleanup in derived classes. */
   virtual ~Event_Table() = default;
@@ -189,7 +189,7 @@ public:
    *  the table may be shrunk.
    *
    *  @param index Slot index to clear
-   *  @throw domain_error if index is out of range or slot is not in use
+   *  @throw domain_error if the index is out of range or slot is not in use
    */
   void unregister_event(const size_t index)
   {
@@ -219,11 +219,11 @@ public:
    *  Calls the registered event function with the provided input parameter.
    *
    *  @param index Slot index of event to execute
-   *  @param input Optional input parameter to pass to event function (default: nullptr)
+   *  @param input Optional input parameter to pass to the event function (default: nullptr)
    *  @return Result returned by the event function
    *  @throw domain_error if index is not in use
    */
-  void * execute_event(const size_t index, void *input = nullptr) const
+  void * execute_event(const size_t index, void *input = nullptr)
   {
     if (read_table(index) == nullptr)
       ah_domain_error_if(true) << "Index is not used";
@@ -235,7 +235,7 @@ public:
 
 /** @brief Fixed-size event table implementation.
  *
- *  Uses a statically-allocated array of function pointers. The size is
+ *  Uses a statically allocated array of function pointers. The size is
  *  determined at construction and cannot be changed afterward. Suitable
  *  when the number of possible events is known in advance.
  *
@@ -243,7 +243,7 @@ public:
  *
  *  - Owns the underlying array (allocated with `new[]`)
  *  - Non-copyable (would require deep copy)
- *  - Moveable (transfers ownership of array)
+ *  - Moveable (transfers ownership of the array)
  *
  *  @par Complexity
  *  - Space: O(n) where n is table size
@@ -262,21 +262,20 @@ class Static_Event_Table : public Event_Table
    *  @param i Index to verify
    *  @throw range_error if the index is out of bounds
    */
-  void verify_index(const int i) const
+  void verify_index(const size_t i) const
   {
-    if (i < 0 or i >= size_table)
-      ah_range_error_if(true) << "index out of range";
+    if (i >= size_table) ah_range_error_if(true) << "index out of range";
   }
 
   /// Read event at index (implements Event_Table virtual method)
-  [[nodiscard]] Event_Fct read_table(const int i) const override
+  [[nodiscard]] Event_Fct read_table(const size_t i) const override
   {
     verify_index(i);
     return table[i];
   }
 
   /// Write event at index (implements Event_Table virtual method)
-  void write_table(const int i, Event_Fct event_fct) override
+  void write_table(const size_t i, Event_Fct event_fct) override
   {
     verify_index(i);
     table[i] = event_fct;
@@ -291,7 +290,7 @@ public:
   /// Get table size (implements Event_Table virtual method)
   [[nodiscard]] size_t size() const override { return size_table; }
 
-  /** @brief Construct a static event table with fixed size.
+  /** @brief Construct a static event table with a fixed size.
    *
    *  All event slots are initialized to nullptr.
    *
@@ -303,12 +302,12 @@ public:
     fill_table_to_null(num_events);
   }
 
-  /// Copying disabled (would require deep copy of array)
+  /// Copying disabled (would require a deep copy of the array)
   Static_Event_Table(const Static_Event_Table &) = delete;
 
   Static_Event_Table &operator=(const Static_Event_Table &) = delete;
 
-  /** @brief Move constructor - transfers ownership of array.
+  /** @brief Move constructor - transfers ownership of the array.
    *
    *  The moved-from object is left in a valid but empty state.
    *
@@ -392,10 +391,10 @@ class Dynamic_Event_Table : public Event_Table
   DynArray<Event_Fct> table; ///< Dynamic array of event function pointers
 
   /// Read event at index (implements Event_Table virtual method)
-  Event_Fct read_table(const int i) const override { return table[i]; }
+  Event_Fct read_table(const size_t i) const override { return table[i]; }
 
   /// Write event at index (implements Event_Table virtual method)
-  void write_table(const int i, Event_Fct event_fct) override
+  void write_table(const size_t i, Event_Fct event_fct) override
   {
     table[i] = event_fct;
   }
@@ -414,7 +413,7 @@ public:
    *  All initial slots are initialized to nullptr. The table can grow
    *  beyond this initial size as events are added.
    */
-  Dynamic_Event_Table(size_t num_events = 0) : table(num_events)
+  Dynamic_Event_Table(const size_t num_events = 0) : table(num_events)
   {
     fill_table_to_null(num_events);
   }

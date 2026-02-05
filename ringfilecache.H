@@ -780,7 +780,7 @@ public:
   */
   T oldest() { return read_first(); }
 
-  /** Read the `i`-th the oldest element without removing it.
+  /** Read the `i`-th oldest element without removing it.
 
       @param[in] i zero-based index from the oldest entry
       @return the entry at position `i` from the head

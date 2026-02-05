@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -88,16 +87,16 @@ namespace Aleph
   template <typename MT, typename Entry_Info, typename Copy>
   class Ady_MaT;
 
-  /** Node belonging to a graph implemented with double linked
+  /** Node belonging to a graph implemented with a double linked
         adjacency list.
 
-        This class is used for defining a node of graph implemented with
-        double linked adjacency lists.
+        This class is used for defining a node of the graph implemented with
+        double-linked adjacency lists.
 
         Basically, there are three ways for defining the information to
         be stored in a node:
 
-        1. Specifying the data as template parameter of this class.
+        1. Specifying the data as a template parameter of this class.
         2. By inheriting from this class and in the derived class to
         define the data
         3. Combination of two above
@@ -173,7 +172,7 @@ namespace Aleph
           Creates a node and assigns `node->get_info()` as the value of
           the information contained in the node.
 
-          The control bits and counter values are set to zero. The
+          The control bits and the counter values are set to zero. The
           `cookie` is set to `nullptr`.
 
           @param[in] node pointer to the node from which the information
@@ -191,15 +190,14 @@ namespace Aleph
     Dlink arc_list; /// Under no circumstances: do not touch it
   };
 
-  /** Arc of graph implemented with double linked adjacency lists.
+  /** Arc of graph implemented with double-linked adjacency lists.
 
-        This class is used for defining an arc of graph implemented with
-        double linked adjacency lists.
+        This class is used for defining an arc of a graph implemented with double-        linked adjacency lists.
 
         Basically, there are three ways for defining the information to
         be stored in an arc:
 
-        1. Specifying the data as template parameter of this class.
+        1. Specifying the data as a template parameter of this class.
         2. By inheriting from this class and in the derived class to
         define the data
         3. Combination of two above
@@ -286,7 +284,7 @@ namespace Aleph
     Arc_Node(void *__arc) noexcept : arc(__arc) {}
   };
 
-  /** Graph implemented with double linked adjacency lists
+  /** Graph implemented with double-linked adjacency lists
 
         This class manages two template parameters
         - `_Graph_Node`: the type of node, which previously must have
@@ -295,7 +293,7 @@ namespace Aleph
         been defined through of `Graph_Arc` class.
 
         It is highly recommendable to use an alias for the final graph
-        type. Some such as:
+        type. Some such as
 
         using My_Graph = List_Graph<Graph_Node<My_Node_Type>,
         Graph_Arc<My_Arc_Type>>;
@@ -308,7 +306,7 @@ namespace Aleph
         Directed or non-directed? (how and when using them)
         ===================================================
 
-        Using of alias is very "natural". For the previous shown alias
+        Using of alias is very "natural". For the previously shown alias
         example, you could type:
 
         My_Graph::Node * node_ptr = ....
@@ -316,11 +314,11 @@ namespace Aleph
 
         This graph can be directed or non-directed. From a functional
         perspective, what gives the difference between a directed graph
-        and a non-directed one, is the way for accessing to arcs given a
+        and a non-directed one is the way for accessing to arcs given a
         node. Perhaps an example could help to understand
         better. Suppose that you have a graph `g` and two node pointers
-        `p` and `q` respectively. Now, in order to specify an arc, you
-        execute some such as:
+        `p` and `q` respectively. Now, to specify an arc, you
+        execute some such as
 
         auto arc = g.insert_arc(p, q);
 
@@ -386,19 +384,19 @@ namespace Aleph
 
         For `List_Digraph` all operations are \f$O(1)\f$, except node
         removal. In this case, since with this representation there is
-        no direct way for knowing the incoming arcs, the node removal
-        requires to traverse all the arcs for checking for those
+        no direct way to know the incoming arcs, the node removal
+        requires traversing all the arcs for checking for those
         incoming to the removed one. So, the node removal is
         \f$O(E)\f$.
 
         Versatility (`List_Graph` vs `List_Digraph`)
         ---------------------------------------------
 
-        So that, a guideline for choosing `List_Graph` vs `List_Digraph`
+        So that a guideline for choosing `List_Graph` vs `List_Digraph`
         is to ask if the node removal will be used. If yes, then how
         often? If you know that the node removal will be used several
         times, then prefer `List_Graph`; otherwise, that is, you know
-        there is no node removals, then use `List_Digraph`, since it
+        there are no node removals, then use `List_Digraph`, since it
         uses less memory.
 
         Note on validations
@@ -475,27 +473,27 @@ namespace Aleph
 
   public:
     /// Returns reference to internal node Dlink for sorting operations
-    Dlink & get_node_dlink() noexcept { return node_list; }
+    Dlink &get_node_dlink() noexcept { return node_list; }
 
-    /// Returns reference to internal arc Dlink for sorting operations
-    Dlink & get_arc_dlink() noexcept { return arc_list; }
+    /// Returns reference to the internal arc Dlink for sorting operations
+    Dlink &get_arc_dlink() noexcept { return arc_list; }
     /** Insertion of a node already allocated.
 
           This method takes a pointer to a `node` already allocated and
           inserts it in the graph.
 
-          The node allocation and its live in memory is user's
-          responsibility. At this regard, take in account that the graph
+          The node allocation and its life in memory are the user's
+          responsibility. At this regard, take into account that the graph
           destructor and `remove_method()` will assume that the nodes
           were allocated with `new` operator, and consequently it will call
           to `delete` for deallocating. So, it is very dangerous to use
           nodes whose memory does not come from `new`.
 
           \note Since that it is programmer responsibility to allocate
-          memory for the node and in addition the graph destructor and the
-          `remove_noe()` will call to `delete` operator, it is preferable
+          memory for the node, and in addition, the graph destructor and the
+          `remove_noe()` will call `delete` operator, it is preferable
           and highly recommended to use any other overloaded version of
-          `insert_node()` which automatically allocates node's memory. In
+          `insert_node()` which automatically allocates the node's memory. In
           fact, those overloaded methods invoke this version.
 
           @param[in] node a pointer to an already allocated node.
@@ -512,10 +510,10 @@ namespace Aleph
 
           This method removes all the incoming and outcoming arcs
           referred to the node and frees the memory. Then removes the
-          node from graph and frees its memory. All the memory occupied
+          node from the graph and frees its memory. All the memory occupied
           by the arcs related to the node and the node itself is freed.
 
-          The methods takes \f$O(1)\f$ on `List_Graph` objects and
+          The method takes \f$O(1)\f$ on `List_Graph` objects and
           **\f$O(E)\f$ on `List_Digraph` objects**.
 
           @param[in] node to be removed and freed
@@ -531,9 +529,10 @@ namespace Aleph
             remove_arc(arc);
           }
       else // Scan all the arcs and remove those related to node
-        this->remove_arcs_if([node, this](auto a) {
-          return this->get_src_node(a) == node or this->get_tgt_node(a) == node;
-        });
+        this->remove_arcs_if([node, this](auto a)
+                               {
+                                 return this->get_src_node(a) == node or this->get_tgt_node(a) == node;
+                               });
 
       // At this point the node has not more arcs
       node->del(); // unlink it from arc_list
@@ -561,13 +560,13 @@ namespace Aleph
 
     /** Return any arc adjacent to a node.
 
-          This method serves as an arc of depart given a node. Some
+          This method serves as an arc of departure given a node. Some
           algorithms only need any arc adjacent to a node in order to start
           their computations. In these cases, this method is indicated.
 
           \note The idea of "first arc" does not obey any order; the method
-          simply returns a arc. The majority of algorithms should be
-          independent of processing order of arcs
+          simply returns an arc. The majority of algorithms should be
+          independent of the processing order of arcs
 
           \return A pointer to an arc adjacent to `node`
       */
@@ -591,15 +590,15 @@ namespace Aleph
       std::unique_ptr<Arc_Node> src_arc_node = std::make_unique<Arc_Node>(arc);
 
       // step 2: if graph ==> allocate Arc_Node for tgt_node
-      if (not this->digraph) // if digraph ==> do not insert in other node
-        { // insertion in target node
+      if (not this->digraph) // if digraph ==> do not insert in another node
+        { // insertion in the target node
           if (src_node == tgt_node) // is it a loop?
             arc->tgt_arc_node = src_arc_node.get();
           else
             { // allocate arc node for tgt_node
               std::unique_ptr<Arc_Node> tgt_arc_node = std::make_unique<Arc_Node>(arc);
 
-              // insertion in adjacency list of tgt_node
+              // insertion in an adjacency list of tgt_node
               arc->tgt_arc_node = tgt_arc_node.get();
               tgt_node->arc_list.append(tgt_arc_node.get());
               ++tgt_node->num_arcs;
@@ -607,7 +606,7 @@ namespace Aleph
             }
         }
 
-      // step 3 (remainder): insertion in adjacency list of src_node
+      // step 3 (remainder): insertion in the adjacency list of src_node
       arc->src_arc_node = src_arc_node.get();
       src_node->arc_list.append(src_arc_node.get());
       ++src_node->num_arcs;
@@ -649,7 +648,7 @@ namespace Aleph
         }
 
       // arc removal from graph
-      arc->del(); // unlink arc from graph arc list
+      arc->del(); // unlink arc from the graph arc list
       --this->num_arcs;
       delete arc;
     }
@@ -660,7 +659,7 @@ namespace Aleph
           longer belong to the graph. However, the memory is not freed.
 
           Although the use of this method is occasional, it is not
-          exceptional. For example, some situations require temporarily
+          exceptional. For example, some situations require to temporarily
           disconnect the arc and afterward connect it again.
 
           The disconnected arc is already for being reinserted in the graph
@@ -928,7 +927,7 @@ namespace Aleph
         return get_current_arc_ne();
       }
 
-      /// Return the source node of current arc. Throw `overflow_error` if
+      /// Return the source node of the current arc. Throw `overflow_error` if
       /// there is no one. Of course, only has sense if one iterates on a
       /// directed graph
       Node * get_src_node() const
@@ -1039,8 +1038,8 @@ namespace Aleph
         -----------------------------------
 
         For each subclass iterator on a graph, it is exported a filtered
-        iterator with the same name of the subclassed one. Thus, for the
-        subclass `GT::Arc_Iterator` there exists a filtered version named
+        iterator with the same name of subclassed one. Thus, for the
+        subclass `GT::Arc_Iterator` exists a filtered version named
         `Arc_Iterator` and so on for the remainder iterator subclasses on
         the graphs.
 
@@ -1053,22 +1052,22 @@ namespace Aleph
 
         The short answer is: almost always!
 
-        Filtered iterators have, of course, a light but constant impact
+        Filtered iterators have of course a light but constant impact
         on performance. For each seen graph object a boolean predicate is
-        tested. So, if you know that your algorithm does not require
-        filtering, they use the subclass iterator. But if, in pursuit of
-         generalization, your algorithm could profit the filtered version,
+        tested. So, if you know that your algorithm does not require to
+        filter, the use the subclass iterator. But if, in pursuit of
+        generalization your algorithm could profit the filtered version,
         then design your algorithm on filtered iterator. In this way you
-        will provide generality, which allows reusing algorithms in a
+        will provide generality, which allows to reuse algorithms in a
         transparent way.
 
         A very good and concrete example of intensive use of filtered
         iterator is for solving the problem of maximizing a network flow at
-        minimum cost. First, to manage the residual net, the arcs
-        are filtered according to the source node. Second, the residual cut arcs
+        minimum cost. First, in order to manage the residual net, the arcs
+        are filtered according to source node. Second, the residual cut arcs
         are also filtered according to flow value; if the flow is equal to
-        the capacity, then the arc is filtered. Third, to detect
-        negative cycles, the Bellman-Ford algorithm is used with a filter
+        the capacity then the arc is filtered. Third, in order to detect
+        negative cycles the Bellman-Ford algorithm is used with a filter
         that only sees the arcs cost.
         @}
     */
@@ -1192,7 +1191,7 @@ namespace Aleph
 
     Node_Iterator() = default;
 
-    /** Construct an iterator with filter `sn`
+    /** Construct a iterator with filter `sn`
 
           @param[in] g the graph
           @param[in] sn the node filter
@@ -1250,18 +1249,18 @@ namespace Aleph
 
         @ingroup Graphs
     */
-	  template <class GT, class SA = Dft_Show_Arc<GT>>
-	  void for_each_arc(const GT & g,
-	                    typename GT::Node *p,
-	                    std::function<void (typename GT::Arc *)> operation,
-	                    SA sa = SA())
-	  {
-	    (void) g;
-	    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
-	      operation(it.get_curr());
-	  }
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  void for_each_arc(const GT & g,
+                    typename GT::Node *p,
+                    std::function<void (typename GT::Arc *)> operation,
+                    SA sa = SA())
+  {
+    (void) g;
+    for (Node_Arc_Iterator<GT, SA> it(p, sa); it.has_curr(); it.next_ne())
+      operation(it.get_curr());
+  }
 
-  /** Return `true` if the condition `cond` is met on every filtered node of
+  /** Return `true` if condition `cond` is met on every filtered node of
         the graph.
 
         @param[in] g the graph
@@ -1282,7 +1281,7 @@ namespace Aleph
     return true;
   }
 
-  /** Return `true` if the condition `cond` is met on every filtered arc of
+  /** Return `true` if condition `cond` is met on every filtered arc of
         the graph.
 
         @param[in] g the graph
@@ -1420,7 +1419,7 @@ namespace Aleph
   /** Fold the filtered nodes of a graph.
 
         @param[in] g the graph
-        @param[in] init initial value of the folded result
+        @param[in] init initial value of folded result
         @param[in] operation folding operation on the node
         @param[in] sn node filter
         \result the final folded result
@@ -1443,7 +1442,7 @@ namespace Aleph
   /** Fold the filtered arcs of a graph.
 
         @param[in] g the graph
-        @param[in] init initial value of a folded result
+        @param[in] init initial value of folded result
         @param[in] operation folding operation on the arc
         @param[in] sa arc filter
         \result the final folded result
@@ -1620,7 +1619,7 @@ namespace Aleph
     /// there is no current
     void prev() { it.prev(); }
 
-    /// Return `true` the iterator has a current arc
+    /// Return `true` the iterator has an current arc
     [[nodiscard]] bool has_curr() const noexcept
     {
       return it.has_curr();
@@ -1924,7 +1923,7 @@ namespace Aleph
     return ret;
   }
 
-  /** Compute the filtered in the degree of node `p`.
+  /** Compute the filtered in degree of node `p`.
 
         \note This function computes the degree, it does not retrieve it.
 
@@ -2424,17 +2423,17 @@ namespace Aleph
         @ingroup Graphs
     */
   template <class GT, class SA = Dft_Show_Arc<GT>>
-	  typename GT::Arc *
-	  search_directed_arc(const GT & g,
-	                      typename GT::Node *src, typename GT::Node *tgt,
-	                      SA sa = SA()) noexcept
-	  {
-	    (void) g;
-	    assert(src != nullptr and tgt != nullptr);
+  typename GT::Arc *
+  search_directed_arc(const GT & g,
+                      typename GT::Node *src, typename GT::Node *tgt,
+                      SA sa = SA()) noexcept
+  {
+    (void) g;
+    assert(src != nullptr and tgt != nullptr);
 
-	    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
-	      if (typename GT::Arc *a = it.get_curr(); a->src_node == src and a->tgt_node == tgt)
-	        return a;
+    for (Node_Arc_Iterator<GT, SA> it(src, sa); it.has_curr(); it.next_ne())
+      if (typename GT::Arc *a = it.get_curr(); a->src_node == src and a->tgt_node == tgt)
+        return a;
 
     return nullptr;
   }
@@ -2687,8 +2686,7 @@ namespace Aleph
 
     void check_graph()
     {
-      ah_domain_error_if(g == nullptr)
-      << "Path: Graph has not been specified";
+      ah_domain_error_if(g == nullptr) << "Path: Graph has not been specified";
     }
 
   public:
@@ -2807,7 +2805,7 @@ namespace Aleph
     Path(const Path & path) : g(path.g), list(path.list) {}
 
     /// Move constructor
-    Path(Path && path) : g(path.g), list(std::move(path.list)) {}
+    Path(Path && path)  noexcept : g(path.g), list(std::move(path.list)) {}
 
     /// Copy assignment
     Path &operator=(const Path & path)
@@ -2867,12 +2865,12 @@ namespace Aleph
           If the path is empty, the `node` becomes its first node.
 
           If the operation is successful, then `node` becomes the last node
-          of path.
+          of the path.
 
           @param[in] node pointer to the node to append in the path
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void append(Node *node)
@@ -2889,7 +2887,7 @@ namespace Aleph
       Arc *arc = search_arc(*g, last_node, node);
 
       ah_invalid_argument_if(arc == nullptr)
-      << "There is no an arc connecting to the node";
+        << "There is no an arc connecting to the node";
 
       append(arc);
     }
@@ -2906,12 +2904,12 @@ namespace Aleph
           If the path is empty, the `node` becomes its first node.
 
           If the operation is successful, then `node` becomes the last node
-          of path.
+          of the path.
 
           @param[in] p node pointer to the node to append in the path
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void append_directed(Node *p)
@@ -2942,16 +2940,16 @@ namespace Aleph
           the source node of `arc` must match the current last node of
           a directed path.
 
-          \note This method is exclusively for graphs non directed treated
+          \note This method is exclusively for graphs non-directed treated
           as directed.
 
           If the operation is successful, then `node` becomes the last node
-          of a path.
+          of the path.
 
           @param[in] arc pointer
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of a path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void append_directed(Arc *arc)
@@ -2973,16 +2971,16 @@ namespace Aleph
     /** Insert an arc as the first of a path.
 
           This method inserts `arc` at the beginning of a path. For this,
-          the adjacent arcs of the current first node of a path are examined
+          the adjacent arcs of the current first node of the path are examined
           until find an arc linking `node`.
 
           If the operation is successful, then `node` becomes the first node
-          of a path.
+          of the path.
 
           @param[in] arc pointer
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the first
-          node of a path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void insert(Arc *arc)
@@ -3003,17 +3001,17 @@ namespace Aleph
 
     /** Insert a node to the path
 
-          This method inserts `node` at the beginning of path. For this, the
+          This method inserts `node` at the beginning of the path. For this, the
           adjacent arcs of the last node are examined until finding an arc
           linking `node`.
 
           If the operation is successful, then `node` becomes the first node
-          of a path.
+          of the path.
 
           @param[in] node pointer to the node to insert in the path
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of a path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void insert(Node *node)
@@ -3037,19 +3035,19 @@ namespace Aleph
     /** Append a node to a directed path
 
           This method inserts `node` at the end of a directed path. For
-          this, the outcoming arcs of the last node of a path are examined
+          this, the outcoming arcs of the last node of the path are examined
           until finding an arc linking `node`.
 
           \note This method is exclusively for graphs non-directed treated
           as directed.
 
           If the operation is successful, then `node` becomes the last node
-          of a path.
+          of the path.
 
           @param[in] p node pointer to the node to insert in the path
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of a path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void insert_directed(Node *p)
@@ -3082,7 +3080,7 @@ namespace Aleph
           @param[in] arc pointer
           @throw bad_alloc if there is no enough memory
           @throw invalid_argument if `node` is not reachable from the last
-          node of path
+          node of the path
           @throw domain_error if the graph has not been specified
       */
     void insert_directed(Arc *arc)
@@ -3100,14 +3098,14 @@ namespace Aleph
       list.insert(Path_Desc(static_cast<Node *>(arc->src_node), arc));
     }
 
-    /// Return the first node of a path; throws `overflow_error` if a path
+    /// Return the first node of path; throws `overflow_error` if path
     /// is empty
     Node * get_first_node() const
     {
       return list.get_first().node;
     }
 
-    /// Return the last node of a path; throws `overflow_error` if the path
+    /// Return the last node of path; throws `overflow_error` if path
     /// is empty
     Node * get_last_node() const
     {
@@ -3116,7 +3114,7 @@ namespace Aleph
       return last_path_desc.node;
     }
 
-    /// Return the first arc of a path; throws `overflow_error` if the path
+    /// Return the first arc of path; throws `overflow_error` if path
     /// is empty
     Arc * get_first_arc() const
     {
@@ -3154,10 +3152,10 @@ namespace Aleph
       return d.node;
     }
 
-    /** Remove the first node of path
+    /** Remove the first node of a path
 
           \return pointer to the extracted node
-          \throw overflow_error if path is empty
+          \throw overflow_error if the path is empty
       */
     Node * remove_first_node()
     {
@@ -3197,8 +3195,8 @@ namespace Aleph
       }
 
     public:
-      /// Return the current node of path. Throw `overflow_error` if path
-      /// is empty of iterator has not current node
+      /// Return the current node of a path. Throw `overflow_error` if path
+      /// is empty of the iterator has not current node
       Node * get_current_node() const
       {
         return this->get_curr_path_desc().node;
@@ -3209,11 +3207,11 @@ namespace Aleph
         return this->get_curr_path_desc_ne().node;
       }
 
-      /** Return the current arc of path.
+      /** Return the current arc of a path.
 
             \note A path of `n` nodes has `n - 1` arcs. So if the iterator
-            is positioned on the last node, the `get_current_arc()` has not
-            current arc and will throw exception.
+            is positioned on the last node, the `get_current_arc()` has no
+            current arc and will throw an exception.
 
             \return pointer to the current arc
             \throw overflow_error if path is empty of iterator has not
@@ -3221,8 +3219,7 @@ namespace Aleph
         */
       Arc * get_current_arc() const
       {
-        ah_overflow_error_if(this->is_in_last())
-          << "Path iterator is in last node of path";
+        ah_overflow_error_if(this->is_in_last()) << "Path iterator is in last node of path";
 
         return this->get_curr_path_desc().arc;
       }
@@ -3264,7 +3261,7 @@ namespace Aleph
             arc is `nullptr`.
 
             \return a tuple whose first element is the current node and
-            second element its outcoming arc
+            the second element its outcoming arc
             \throw overflow_error if path is empty of iterator has not
             current node
         */
@@ -3430,13 +3427,13 @@ namespace Aleph
     return false;
   }
 
-  /** Depth first search of a path between two nodes.
+  /** Depth-first search of a path between two nodes.
 
         `find_path_depth_first()` recursively searches a path between
         `start_node`  y `end_node`
 
         @param[in] g the graph
-        @param[in] start_node pointer to starting node of search
+        @param[in] start_node pointer to the starting node of search
         @param[in] end_node pointer to ending node of search
         \return a `Path` object containing the path if this was found;
         an empty path otherwise
@@ -3490,13 +3487,13 @@ namespace Aleph
     // implicit base class pointer adjustment from multiple inheritance
     if (NODE_COOKIE(p) == nullptr)
       {
-        NODE_COOKIE(p) = reinterpret_cast<void*>(q);
-        NODE_COOKIE(q) = reinterpret_cast<void*>(p);
+        NODE_COOKIE(p) = reinterpret_cast<void *>(q);
+        NODE_COOKIE(q) = reinterpret_cast<void *>(p);
         return;
       }
 
     NODE_COOKIE(q) = NODE_COOKIE(p);
-    NODE_COOKIE(p) = reinterpret_cast<void*>(q);
+    NODE_COOKIE(p) = reinterpret_cast<void *>(q);
   }
 
   /** Map two arcs of different types of graphs through their cookies
@@ -3639,7 +3636,7 @@ namespace Aleph
       {
         clear_graph(gtgt); // clear this before copying
         DynMapAvlTree<typename GTS::Node *, typename GTT::Node *> map;
-        // phase 1: traverse nodes of src_graph and insert copy in this
+        // phase 1: traverse nodes of src_graph and insert a copy in this
         for (typename GTS::Node_Iterator it(gsrc); it.has_curr(); it.next_ne())
           {
             typename GTS::Node *src_node = it.get_current_node_ne();
@@ -3648,7 +3645,7 @@ namespace Aleph
             map.insert(src_node, tgt_node.get());
 
             typename GTT::Node *tgt = tgt_node.release();
-            gtgt.insert_node(tgt); // insert in target graph
+            gtgt.insert_node(tgt); // insert in the target graph
 
             if (cookie_map)
               map_nodes<GTS, GTT>(src_node, tgt);
@@ -3657,7 +3654,7 @@ namespace Aleph
         assert(gtgt.get_num_nodes() == gsrc.get_num_nodes());
 
         // phase 2: for each arc of src_graph, create in this an
-        // arc connecting the mapped nodes from map
+        // arc connecting the mapped nodes from the map
         for (typename GTS::Arc_Iterator it(gsrc); it.has_curr(); it.next_ne())
           {
             typename GTS::Arc *src_arc = it.get_current_arc_ne();
@@ -3674,7 +3671,7 @@ namespace Aleph
         assert(gtgt.get_num_arcs() == gsrc.get_num_arcs());
       }
     catch (...)
-      { // If exception occurs, clean this
+      { // If an exception occurs, clean this
         clear_graph(gtgt);
         throw;
       }
@@ -3749,7 +3746,7 @@ namespace Aleph
             }
         }
       catch (...)
-        { // If exception occurs, it is cleaned this
+        { // If an exception occurs, it is cleaned this
           clear_graph(gtgt);
           throw;
         }
@@ -3856,322 +3853,324 @@ namespace Aleph
    *  @ingroup Graphs
    *  @see copy_graph map_nodes Johnson
    */
-template <class GT,
-          template <class, class> class Tree = Treap>
-class GraphCopyWithMapping
-{
-public:
-  using Node = typename GT::Node;
-  using Arc = typename GT::Arc;
-  using Node_Type = typename GT::Node_Type;
-  using Arc_Type = typename GT::Arc_Type;
-
-private:
-  GT copied_graph;
-  DynMapTree<Node*, Node*, Tree> node_map;  // original -> copy
-
-  /// Build the copy and mapping
-  void build_copy(const GT& src)
+  template <class GT,
+            template <class, class> class Tree = Treap>
+  class GraphCopyWithMapping
   {
-    // Phase 1: Copy all nodes and build mapping
-    for (typename GT::Node_Iterator it(src); it.has_curr(); it.next_ne())
-      {
-        Node* src_node = it.get_curr();
-        Node* tgt_node = copied_graph.insert_node(src_node->get_info());
-        node_map.insert(src_node, tgt_node);
-      }
+  public:
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
+    using Node_Type = typename GT::Node_Type;
+    using Arc_Type = typename GT::Arc_Type;
 
-    // Phase 2: Copy all arcs using the node mapping
-    for (typename GT::Arc_Iterator it(src); it.has_curr(); it.next_ne())
-      {
-        Arc* src_arc = it.get_curr();
-        Node* src_src = const_cast<GT&>(src).get_src_node(src_arc);
-        Node* src_tgt = const_cast<GT&>(src).get_tgt_node(src_arc);
+  private:
+    GT copied_graph;
+    DynMapTree<Node *, Node *, Tree> node_map; // original -> copy
 
-        Node* tgt_src = node_map.find(src_src);
-        Node* tgt_tgt = node_map.find(src_tgt);
-
-        copied_graph.insert_arc(tgt_src, tgt_tgt, src_arc->get_info());
-      }
-  }
-
-public:
-  /** @brief Construct a copy of the given graph with node mapping.
-   *
-   *  Creates a deep copy of the source graph and builds a mapping from
-   *  source nodes to their corresponding copies.
-   *
-   *  @param[in] src The source graph to copy.
-   *  @throws std::bad_alloc if there is not enough memory.
-   *  @note Complexity: O(V log V + E) due to map insertions.
-   *  @note Exception safety: Strong guarantee.
-   */
-  explicit GraphCopyWithMapping(const GT& src)
-  {
-    build_copy(src);
-  }
-
-  /** @brief Default constructor.
-   *
-   *  Creates an empty graph and an empty mapping.
-   *
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  GraphCopyWithMapping() = default;
-
-  /** @brief Move constructor.
-   *
-   *  Transfers ownership of the graph and mapping from another instance.
-   *
-   *  @param[in,out] other The instance to move from.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  GraphCopyWithMapping(GraphCopyWithMapping&&) = default;
-
-  /** @brief Move assignment operator.
-   *
-   *  Transfers ownership of the graph and mapping from another instance.
-   *
-   *  @param[in,out] other The instance to move from.
-   *  @return Reference to this instance.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  GraphCopyWithMapping& operator=(GraphCopyWithMapping&&) = default;
-
-  // Disable copy (graphs can be large)
-  GraphCopyWithMapping(const GraphCopyWithMapping&) = delete;
-  GraphCopyWithMapping& operator=(const GraphCopyWithMapping&) = delete;
-
-  /** @brief Get the copied graph.
-   *
-   *  @return Reference to the copied graph.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  GT& get_graph() noexcept { return copied_graph; }
-
-  /** @brief Get the copied graph (const version).
-   *
-   *  @return Const reference to the copied graph.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  const GT& get_graph() const noexcept { return copied_graph; }
-
-  /** @brief Get the copy of an original node.
-   *
-   *  Retrieves the node in the copied graph that corresponds to the given
-   *  node in the original graph.
-   *
-   *  @param[in] orig Pointer to the original node.
-   *  @return Pointer to the corresponding node in the copy.
-   *  @throws std::domain_error if the node is not in the mapping.
-   *  @note Complexity: O(log V)
-   *  @note Exception safety: Strong guarantee.
-   */
-  Node* get_copy(Node* orig) const
-  {
-    auto* ptr = node_map.search(orig);
-    ah_domain_error_if(ptr == nullptr)
-      << "Node not found in mapping (not from original graph?)";
-    return ptr->second;
-  }
-
-  /** @brief Search for the copy of an original node (no exception).
-   *
-   *  Retrieves the node in the copied graph that corresponds to the given
-   *  node in the original graph, or nullptr if not found.
-   *
-   *  @param[in] orig Pointer to the original node.
-   *  @return Pointer to the corresponding node in the copy, or nullptr if not found.
-   *  @throws none
-   *  @note Complexity: O(log V)
-   *  @note Exception safety: noexcept
-   */
-  Node* search_copy(Node* orig) const noexcept
-  {
-    auto* ptr = node_map.search(orig);
-    return ptr ? ptr->second : nullptr;
-  }
-
-  /** @brief Check if an original node is in the mapping.
-   *
-   *  @param[in] orig Pointer to the original node.
-   *  @return true if the node is mapped, false otherwise.
-   *  @throws none
-   *  @note Complexity: O(log V)
-   *  @note Exception safety: noexcept
-   */
-  bool has_copy(Node* orig) const noexcept
-  {
-    return node_map.search(orig) != nullptr;
-  }
-
-  /** @brief Get the number of mapped nodes.
-   *
-   *  @return Number of nodes in the mapping.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  [[nodiscard]] size_t num_nodes() const noexcept { return node_map.size(); }
-
-  /** @brief Get the number of arcs in the copied graph.
-   *
-   *  @return Number of arcs in the copy.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept
-   */
-  [[nodiscard]] size_t num_arcs() const noexcept { return copied_graph.get_num_arcs(); }
-
-  /** @brief Apply a function to each (original, copy) node pair.
-   *
-   *  Iterates over all mappings and applies the given function.
-   *
-   *  @tparam Op Function type taking (Node* original, Node* copy).
-   *  @param[in] op Function to apply.
-   *  @throws whatever op throws.
-   *  @note Complexity: O(V)
-   *  @note Exception safety: Basic guarantee (depends on op).
-   */
-  template <typename Op>
-  void for_each_mapping(Op op) const
-  {
-    node_map.for_each([&op](const auto& pair) {
-      op(pair.first, pair.second);
-    });
-  }
-
-  /** @brief Insert a new node into the copied graph (not mapped).
-   *
-   *  Useful for adding auxiliary nodes (like dummy nodes in Johnson's algorithm)
-   *  that don't correspond to any original node.
-   *
-   *  @param[in] info Node information.
-   *  @return Pointer to the new node in the copied graph.
-   *  @throws std::bad_alloc if memory allocation fails.
-   *  @note Complexity: O(1)
-   *  @note Exception safety: Strong guarantee.
-   */
-  Node* insert_unmapped_node(const Node_Type& info = Node_Type())
-  {
-    return copied_graph.insert_node(info);
-  }
-
-  /** @brief Insert a new node into the copied graph (not mapped, move version).
-   *
-   *  Useful for adding auxiliary nodes (like dummy nodes in Johnson's algorithm)
-   *  that don't correspond to any original node.
-   *
-   *  @param[in] info Node information (moved).
-   *  @return Pointer to the new node in the copied graph.
-   *  @throws std::bad_alloc if memory allocation fails.
-   *  @note Complexity: O(1)
-   *  @note Exception safety: Strong guarantee.
-   */
-  Node* insert_unmapped_node(Node_Type&& info)
-  {
-    return copied_graph.insert_node(std::forward<Node_Type>(info));
-  }
-
-  /** @brief Remove a node from the copied graph.
-   *
-   *  If the node was mapped, the mapping entry is removed to keep the
-   *  mapping consistent.
-   *
-   *  @param[in] node Pointer to the node to remove.
-   *  @throws none (assuming graph removal is noexcept).
-   *  @note Complexity: O(degree) for List_Graph, O(E) for List_Digraph.
-   *  @note Exception safety: noexcept.
-   */
-  void remove_node(Node* node)
-  {
-    // Check if this node is a target in the mapping (i.e., it's a copy)
-    // Since node_map maps Original -> Copy, we need to find if 'node' is a value in the map.
-    // However, DynMapTree is optimized for key lookup. Reverse lookup is O(N).
-    // But wait, remove_node is called on the *copied graph*. The argument 'node' is a node in copied_graph.
-    // If we want to maintain consistency, we should remove the entry from node_map where value == node.
-
-    // Since reverse lookup is expensive and we don't store the reverse mapping,
-    // we have two options:
-    // 1. Iterate and find (O(N)) - safe but slow.
-    // 2. Assume the user handles unmapping if they need to (current behavior, but dangerous).
-    // 3. Store reverse mapping (memory overhead).
-
-    // Given the constraints and the request to fix dangling pointers, we must remove it.
-    // But DynMapTree doesn't support efficient value-based removal.
-
-    // Alternative strategy: The user shouldn't be removing mapped nodes manually without updating the map.
-    // But to be safe as requested:
-
-    // Let's try to find the key for this value.
-    // DynMapTree has no direct method for this. We can iterate.
-
-    Node* original_node = nullptr;
-    node_map.for_each([&](const auto& pair) {
-        if (pair.second == node) {
-            original_node = pair.first;
+    /// Build the copy and mapping
+    void build_copy(const GT & src)
+    {
+      // Phase 1: Copy all nodes and build mapping
+      for (typename GT::Node_Iterator it(src); it.has_curr(); it.next_ne())
+        {
+          Node *src_node = it.get_curr();
+          Node *tgt_node = copied_graph.insert_node(src_node->get_info());
+          node_map.insert(src_node, tgt_node);
         }
-    });
 
-    if (original_node) {
-        node_map.remove(original_node);
+      // Phase 2: Copy all arcs using the node mapping
+      for (typename GT::Arc_Iterator it(src); it.has_curr(); it.next_ne())
+        {
+          Arc *src_arc = it.get_curr();
+          Node *src_src = const_cast<GT &>(src).get_src_node(src_arc);
+          Node *src_tgt = const_cast<GT &>(src).get_tgt_node(src_arc);
+
+          Node *tgt_src = node_map.find(src_src);
+          Node *tgt_tgt = node_map.find(src_tgt);
+
+          copied_graph.insert_arc(tgt_src, tgt_tgt, src_arc->get_info());
+        }
     }
 
-    copied_graph.remove_node(node);
-  }
+  public:
+    /** @brief Construct a copy of the given graph with node mapping.
+     *
+     *  Creates a deep copy of the source graph and builds a mapping from
+     *  source nodes to their corresponding copies.
+     *
+     *  @param[in] src The source graph to copy.
+     *  @throws std::bad_alloc if there is not enough memory.
+     *  @note Complexity: O(V log V + E) due to map insertions.
+     *  @note Exception safety: Strong guarantee.
+     */
+    explicit GraphCopyWithMapping(const GT & src)
+    {
+      build_copy(src);
+    }
 
-  /** @brief Insert an arc into the copied graph.
-   *
-   *  @param[in] src Source node (in the copy).
-   *  @param[in] tgt Target node (in the copy).
-   *  @param[in] info Arc information.
-   *  @return Pointer to the new arc.
-   *  @throws std::bad_alloc if memory allocation fails.
-   *  @note Complexity: O(1)
-   *  @note Exception safety: Strong guarantee.
-   */
-  Arc* insert_arc(Node* src, Node* tgt, const Arc_Type& info = Arc_Type())
-  {
-    return copied_graph.insert_arc(src, tgt, info);
-  }
+    /** @brief Default constructor.
+     *
+     *  Creates an empty graph and an empty mapping.
+     *
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    GraphCopyWithMapping() = default;
 
-  /** @brief Remove an arc from the copied graph.
-   *
-   *  @param[in] arc Pointer to the arc to remove.
-   *  @throws none
-   *  @note Complexity: O(1)
-   *  @note Exception safety: noexcept.
-   */
-  void remove_arc(Arc* arc)
-  {
-    copied_graph.remove_arc(arc);
-  }
+    /** @brief Move constructor.
+     *
+     *  Transfers ownership of the graph and mapping from another instance.
+     *
+     *  @param[in,out] other The instance to move from.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    GraphCopyWithMapping(GraphCopyWithMapping && other) = default;
 
-  /** @brief Clear the copied graph and mapping.
-   *
-   *  Removes all nodes and arcs from the copied graph and clears the mapping.
-   *
-   *  @throws none
-   *  @note Complexity: O(V + E)
-   *  @note Exception safety: noexcept.
-   */
-  void clear()
-  {
-    node_map.empty();
-    Aleph::clear_graph(copied_graph);
-  }
-};
+    /** @brief Move assignment operator.
+     *
+     *  Transfers ownership of the graph and mapping from another instance.
+     *
+     *  @param[in,out] other The instance to move from.
+     *  @return Reference to this instance.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    GraphCopyWithMapping &operator=(GraphCopyWithMapping && other) = default;
 
+    // Disable copy (graphs can be large)
+    GraphCopyWithMapping(const GraphCopyWithMapping &) = delete;
+
+    GraphCopyWithMapping &operator=(const GraphCopyWithMapping &) = delete;
+
+    /** @brief Get the copied graph.
+     *
+     *  @return Reference to the copied graph.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    GT &get_graph() noexcept { return copied_graph; }
+
+    /** @brief Get the copied graph (const version).
+     *
+     *  @return Const reference to the copied graph.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    const GT &get_graph() const noexcept { return copied_graph; }
+
+    /** @brief Get the copy of an original node.
+     *
+     *  Retrieves the node in the copied graph that corresponds to the given
+     *  node in the original graph.
+     *
+     *  @param[in] orig Pointer to the original node.
+     *  @return Pointer to the corresponding node in the copy.
+     *  @throws std::domain_error if the node is not in the mapping.
+     *  @note Complexity: O(log V)
+     *  @note Exception safety: Strong guarantee.
+     */
+    Node * get_copy(Node *orig) const
+    {
+      auto *ptr = node_map.search(orig);
+      ah_domain_error_if(ptr == nullptr)
+      << "Node not found in mapping (not from original graph?)";
+      return ptr->second;
+    }
+
+    /** @brief Search for the copy of an original node (no exception).
+     *
+     *  Retrieves the node in the copied graph that corresponds to the given
+     *  node in the original graph, or nullptr if not found.
+     *
+     *  @param[in] orig Pointer to the original node.
+     *  @return Pointer to the corresponding node in the copy, or nullptr if not found.
+     *  @throws none
+     *  @note Complexity: O(log V)
+     *  @note Exception safety: noexcept
+     */
+    Node * search_copy(Node *orig) const noexcept
+    {
+      auto *ptr = node_map.search(orig);
+      return ptr ? ptr->second : nullptr;
+    }
+
+    /** @brief Check if an original node is in the mapping.
+     *
+     *  @param[in] orig Pointer to the original node.
+     *  @return true if the node is mapped, false otherwise.
+     *  @throws none
+     *  @note Complexity: O(log V)
+     *  @note Exception safety: noexcept
+     */
+    bool has_copy(Node *orig) const noexcept
+    {
+      return node_map.search(orig) != nullptr;
+    }
+
+    /** @brief Get the number of mapped nodes.
+     *
+     *  @return Number of nodes in the mapping.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    [[nodiscard]] size_t num_nodes() const noexcept { return node_map.size(); }
+
+    /** @brief Get the number of arcs in the copied graph.
+     *
+     *  @return Number of arcs in the copy.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     */
+    [[nodiscard]] size_t num_arcs() const noexcept { return copied_graph.get_num_arcs(); }
+
+    /** @brief Apply a function to each (original, copy) node pair.
+     *
+     *  Iterates over all mappings and applies the given function.
+     *
+     *  @tparam Op Function type taking (Node* original, Node* copy).
+     *  @param[in] op Function to apply.
+     *  @throws whatever op throws.
+     *  @note Complexity: O(V)
+     *  @note Exception safety: Basic guarantee (depends on op).
+     */
+    template <typename Op>
+    void for_each_mapping(Op op) const
+    {
+      node_map.for_each([&op](const auto & pair)
+                          {
+                            op(pair.first, pair.second);
+                          });
+    }
+
+    /** @brief Insert a new node into the copied graph (not mapped).
+     *
+     *  Useful for adding auxiliary nodes (like dummy nodes in Johnson's algorithm)
+     *  that don't correspond to any original node.
+     *
+     *  @param[in] info Node information.
+     *  @return Pointer to the new node in the copied graph.
+     *  @throws std::bad_alloc if memory allocation fails.
+     *  @note Complexity: O(1)
+     *  @note Exception safety: Strong guarantee.
+     */
+    Node * insert_unmapped_node(const Node_Type & info = Node_Type())
+    {
+      return copied_graph.insert_node(info);
+    }
+
+    /** @brief Insert a new node into the copied graph (not mapped, move version).
+     *
+     *  Useful for adding auxiliary nodes (like dummy nodes in Johnson's algorithm)
+     *  that don't correspond to any original node.
+     *
+     *  @param[in] info Node information (moved).
+     *  @return Pointer to the new node in the copied graph.
+     *  @throws std::bad_alloc if memory allocation fails.
+     *  @note Complexity: O(1)
+     *  @note Exception safety: Strong guarantee.
+     */
+    Node * insert_unmapped_node(Node_Type && info)
+    {
+      return copied_graph.insert_node(std::forward<Node_Type>(info));
+    }
+
+    /** @brief Remove a node from the copied graph.
+     *
+     *  If the node was mapped, the mapping entry is removed to keep the
+     *  mapping consistent.
+     *
+     *  @param[in] node Pointer to the node to remove.
+     *  @throws none (assuming graph removal is noexcept).
+     *  @note Complexity: O(degree + V) for List_Graph, O(E + V) for List_Digraph (due to reverse lookup in map).
+     *  @note Exception safety: noexcept.
+     */
+    void remove_node(Node *node)
+    {
+      // Check if this node is a target in the mapping (i.e., it's a copy)
+      // Since node_map maps Original -> Copy, we need to find if 'node' is a value in the map.
+      // However, DynMapTree is optimized for key lookup. Reverse lookup is O(N).
+      // But wait, remove_node is called on the *copied graph*. The argument 'node' is a node in copied_graph.
+      // If we want to maintain consistency, we should remove the entry from node_map where value == node.
+
+      // Since reverse lookup is expensive and we don't store the reverse mapping,
+      // we have two options:
+      // 1. Iterate and find (O(N)) - safe but slow.
+      // 2. Assume the user handles unmapping if they need to (current behavior, but dangerous).
+      // 3. Store reverse mapping (memory overhead).
+
+      // Given the constraints and the request to fix dangling pointers, we must remove it.
+      // But DynMapTree doesn't support efficient value-based removal.
+
+      // Alternative strategy: The user shouldn't be removing mapped nodes manually without updating the map.
+      // But to be safe as requested:
+
+      // Let's try to find the key for this value.
+      // DynMapTree has no direct method for this. We can iterate.
+
+      Node *original_node = nullptr;
+      node_map.for_each([&](const auto & pair)
+                          {
+                            if (pair.second == node)
+                              {
+                                original_node = pair.first;
+                              }
+                          });
+
+      if (original_node)
+          node_map.remove(original_node);
+
+      copied_graph.remove_node(node);
+    }
+
+    /** @brief Insert an arc into the copied graph.
+     *
+     *  @param[in] src Source node (in the copy).
+     *  @param[in] tgt Target node (in the copy).
+     *  @param[in] info Arc information.
+     *  @return Pointer to the new arc.
+     *  @throws std::bad_alloc if memory allocation fails.
+     *  @note Complexity: O(1)
+     *  @note Exception safety: Strong guarantee.
+     */
+    Arc * insert_arc(Node *src, Node *tgt, const Arc_Type & info = Arc_Type())
+    {
+      return copied_graph.insert_arc(src, tgt, info);
+    }
+
+    /** @brief Remove an arc from the copied graph.
+     *
+     *  @param[in] arc Pointer to the arc to remove.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept.
+     */
+    void remove_arc(Arc *arc)
+    {
+      copied_graph.remove_arc(arc);
+    }
+
+    /** @brief Clear the copied graph and mapping.
+     *
+     *  Removes all nodes and arcs from the copied graph and clears the mapping.
+     *
+     *  @throws none
+     *  @note Complexity: O(V + E)
+     *  @note Exception safety: noexcept.
+     */
+    void clear()
+    {
+      node_map.empty();
+      Aleph::clear_graph(copied_graph);
+    }
+  };
 } // end namespace Aleph
 
 # endif /* TPL_GRAPH_H */

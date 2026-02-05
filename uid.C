@@ -29,6 +29,9 @@
 */
 
 # include <random>
+# include <cstring>
+# include <cctype>
+# include <ctime>
 # include <uid.H>
 # include <ah-errors.H>
 
@@ -62,7 +65,7 @@ char * Uid::stringficate(char *buffer,
   ah_range_error_if(buf_size < 2*sizeof(Uid) + 1)
     << "Buffer size is not enough";
 
-  char *this_str = (char *) this;
+  auto this_str = (char *) this;
   char *ret_val = buffer;
 
   // copiar nibbles convertidas a ascii a buffer
@@ -100,7 +103,7 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
     // Fallback if random device fails (e.g. no entropy)
     // We can't throw from noexcept, so we use a simple fallback or 0
     // Using address of stack variable + time as seed is a common fallback
-    uint64_t seed = reinterpret_cast<uint64_t>(&_ipAddr) + time(nullptr);
+    uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(std::time(nullptr));
     std::mt19937 gen(seed);
     std::uniform_int_distribution<unsigned int> dis;
     random_number = dis(gen);
@@ -110,10 +113,23 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
 
 Uid::Uid(char *str)
 {
+  ah_invalid_argument_if(str == nullptr) << "Null string passed to Uid constructor";
+
+  size_t len = std::strlen(str);
+  ah_invalid_argument_if(len < static_cast<size_t>(stringSize - 1))
+    << "String too short for Uid (expected " << (stringSize - 1) << " chars)";
+
+  // Validate hex characters
+  for (size_t i = 0; i < static_cast<size_t>(stringSize - 1); ++i) {
+    if (!std::isxdigit(static_cast<unsigned char>(str[i]))) {
+      ah_invalid_argument_if(true) << "Invalid hex character in Uid string at index " << i;
+    }
+  }
+
   destringficate(str);
 }
 
-bool Uid::operator ==(const Uid & uid) const
+bool Uid::operator ==(const Uid & uid) const noexcept
 {
   return (ipAddr == uid.ipAddr and
           port_number == uid.port_number and
