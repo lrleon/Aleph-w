@@ -155,14 +155,14 @@ public:
    *
    *  @param index Slot index where the event will be registered
    *  @param fct Event function to register (must not be nullptr)
-   *  @throw domain_error if the index is out of range or already in use
+   *  @throw range_error if the index is out of range or already in use
    */
   void register_event(const size_t index, Event_Fct fct)
   {
     assert(fct not_eq nullptr);
 
-    ah_domain_error_if(index >= size()) << "Index out of range";
-    ah_domain_error_if(read_table(index) not_eq nullptr) << "Index is already used";
+    ah_range_error_if(index >= size()) << "Index out of range";
+    ah_range_error_if(read_table(index) not_eq nullptr) << "Index is already used";
 
     write_table(index, fct);
   }
@@ -189,13 +189,13 @@ public:
    *  the table may be shrunk.
    *
    *  @param index Slot index to clear
-   *  @throw domain_error if the index is out of range or slot is not in use
+   *  @throw range_error if the index is out of range or slot is not in use
    */
   void unregister_event(const size_t index)
   {
-    ah_domain_error_if(index >= size()) << "Index out of range";
+    ah_range_error_if(index >= size()) << "Index out of range";
 
-    ah_domain_error_if(read_table(index) == nullptr) << "Index is not used";
+    ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
 
     write_table(index, nullptr);
 
@@ -221,11 +221,12 @@ public:
    *  @param index Slot index of event to execute
    *  @param input Optional input parameter to pass to the event function (default: nullptr)
    *  @return Result returned by the event function
-   *  @throw domain_error if index is not in use
+   *  @throw range_error if index is not in use
+   *  @throw
    */
   void * execute_event(const size_t index, void *input = nullptr) const
   {
-    ah_domain_error_if(read_table(index) == nullptr) << "Index is not used";
+    ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
 
     return (*read_table(index))(input);
   }
