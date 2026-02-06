@@ -222,7 +222,6 @@ public:
    *  @param input Optional input parameter to pass to the event function (default: nullptr)
    *  @return Result returned by the event function
    *  @throw range_error if index is not in use
-   *  @throw
    */
   void * execute_event(const size_t index, void *input = nullptr) const
   {
