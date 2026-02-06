@@ -192,7 +192,7 @@ namespace Aleph
 
   /** Arc of graph implemented with double-linked adjacency lists.
 
-        This class is used for defining an arc of a graph implemented with double-        linked adjacency lists.
+        This class defines an arc of a graph implemented with double-linked adjacency lists.
 
         Basically, there are three ways for defining the information to
         be stored in an arc:
