@@ -306,6 +306,9 @@ public:
   {
     std::ostringstream s;
 
+    ah_domain_error_if(cache_file_name.size() + 1 > Ring_Max_Name_Size)
+      << "cache_file_name too long (max " << (Ring_Max_Name_Size - 1) << " chars)";
+
     std::fstream pars_stream(pars_file_name, std::ios::binary | std::ios::out);
     ah_domain_error_if(not pars_stream.is_open() or not pars_stream.good())
       << "cannot open " << pars_file_name;

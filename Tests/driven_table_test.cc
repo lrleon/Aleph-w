@@ -101,13 +101,13 @@ TEST(StaticEventTableTest, UnregisterEvent) {
     EXPECT_FALSE(table.check(1, event_hello));
 
     // Executing unregistered event should throw
-    EXPECT_THROW(table.execute_event(1), std::domain_error);
+    EXPECT_THROW(table.execute_event(1), std::range_error);
 }
 
 TEST(StaticEventTableTest, OutOfBoundsAccess) {
     Static_Event_Table table(5);
 
-    EXPECT_THROW(table.register_event(5, event_hello), std::domain_error);
+    EXPECT_THROW(table.register_event(5, event_hello), std::range_error);
     EXPECT_THROW(table.execute_event(5), std::range_error); // read_table checks range first
 }
 
@@ -115,12 +115,12 @@ TEST(StaticEventTableTest, RegisterOnUsedSlot) {
     Static_Event_Table table(5);
     table.register_event(0, event_hello);
 
-    EXPECT_THROW(table.register_event(0, event_echo), std::domain_error);
+    EXPECT_THROW(table.register_event(0, event_echo), std::range_error);
 }
 
 TEST(StaticEventTableTest, UnregisterUnusedSlot) {
     Static_Event_Table table(5);
-    EXPECT_THROW(table.unregister_event(0), std::domain_error);
+    EXPECT_THROW(table.unregister_event(0), std::range_error);
 }
 
 TEST(StaticEventTableTest, MoveSemantics) {
@@ -181,12 +181,12 @@ TEST(DynamicEventTableTest, RegisterAtSpecificIndex) {
     table.register_event(5, event_hello);
     EXPECT_TRUE(table.check(5, event_hello));
 
-    // Should grow if we write beyond current size?
-    // The base class register_event(index, fct) checks: index >= size() -> domain_error
+    // Should grow if we write beyond the current size?
+    // The base class register_event(index, fct) checks: index >= size() -> range_error
     // So we cannot register at arbitrary index beyond size using register_event(index, fct).
     // We must use register_event(fct) to append.
 
-    EXPECT_THROW(table.register_event(20, event_hello), std::domain_error);
+    EXPECT_THROW(table.register_event(20, event_hello), std::range_error);
 }
 
 TEST(DynamicEventTableTest, UnregisterAndShrink) {

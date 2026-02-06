@@ -165,7 +165,7 @@ public:
   [[deprecated("Use Uid(const Aleph::IPv4_Address&, const uint64_t&, const uint32_t&) instead")]]
   Uid(const Aleph::IPv4_Address & _ipAddr,
       const unsigned int & _counter,
-      const unsigned int & _port_number)
+      const unsigned int & _port_number) noexcept
     : Uid(_ipAddr,
           static_cast<uint64_t>(_counter),
           static_cast<uint32_t>(_port_number))
@@ -176,7 +176,7 @@ public:
    *  Reconstructs a UID from its hexadecimal string format.
    *
    *  @param str hexadecimal string (must be at least `stringSize` bytes)
-   *  @throws std::invalid_argument if string format is invalid
+   *  @throws std::invalid_argument if the string format is invalid
    *  @note Complexity: O(1) (fixed size parsing)
    *  @note Exception safety: strong
    */
@@ -213,7 +213,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  [[nodiscard]] const Aleph::IPv4_Address &getIpAddr() const { return ipAddr; }
+  [[nodiscard]] const Aleph::IPv4_Address &getIpAddr() const noexcept { return ipAddr; }
 
   /** @brief Get port number component.
    *  @return the port number
@@ -221,7 +221,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  [[nodiscard]] const uint32_t &get_port_number() const { return port_number; }
+  [[nodiscard]] const uint32_t &get_port_number() const noexcept { return port_number; }
 
   /** @brief Get counter component.
    *  @return the counter value
@@ -229,7 +229,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  [[nodiscard]] const uint64_t &get_counter() const { return counter; }
+  [[nodiscard]] const uint64_t &get_counter() const noexcept { return counter; }
 
   /** @brief Get a random number component.
    *  @return the random number

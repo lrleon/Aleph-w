@@ -929,7 +929,7 @@ namespace Aleph
           }
       }
 
-    // Second phase: find cycles in remaining flow (not connected to source)
+    // Second phase: find cycles in the remaining flow (not connected to source)
     // These are cycles that exist independently of the s-t flow
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
       {
@@ -1208,13 +1208,13 @@ namespace Aleph
   template <class Net>
   struct HLPP_Maximum_Flow
   {
-    /** @brief Invoke Highest-Label Preflow-Push algorithm on the given network.
+    /** @brief Invoke the Highest-Label Preflow-Push algorithm on the given network.
      *
      *  This functor provides a convenient way to call hlpp_maximum_flow
      *  as a function object, useful for passing to algorithms or storing
      *  in containers.
      *
-     *  @param[in] net Flow network with single source and sink.
+     *  @param[in] net Flow network with a single source and sink.
      *  @return Maximum flow value of type typename Net::Flow_Type.
      *  @throws domain_error If network is not single source/sink.
      *  @throws std::bad_alloc If memory allocation fails during algorithm execution.

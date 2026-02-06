@@ -62,9 +62,9 @@ static char unhexadecimalize(char *& str)
 
 
 char * Uid::stringficate(char *buffer,
-                         const size_t & buf_size) const
+                         const size_t & src_size) const
 {
-  ah_range_error_if(buf_size < 2*sizeof(Uid) + 1)
+  ah_range_error_if(src_size < 2*sizeof(Uid) + 1)
     << "Buffer size is not enough";
 
   auto this_str = (char *) this;
