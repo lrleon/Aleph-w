@@ -3927,7 +3927,7 @@ namespace Aleph
      *  @note Complexity: O(1)
      *  @note Exception safety: noexcept
      */
-    GraphCopyWithMapping(GraphCopyWithMapping && other) = default;
+    GraphCopyWithMapping(GraphCopyWithMapping && other) noexcept = default;
 
     /** @brief Move assignment operator.
      *
@@ -3939,7 +3939,7 @@ namespace Aleph
      *  @note Complexity: O(1)
      *  @note Exception safety: noexcept
      */
-    GraphCopyWithMapping &operator=(GraphCopyWithMapping && other) = default;
+    GraphCopyWithMapping &operator=(GraphCopyWithMapping && other) noexcept = default;
 
     // Disable copy (graphs can be large)
     GraphCopyWithMapping(const GraphCopyWithMapping &) = delete;

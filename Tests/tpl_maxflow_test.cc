@@ -857,6 +857,51 @@ TEST(PerformanceTest, Benchmark)
 }
 
 
+// =============================================================================
+// Regression Tests
+// =============================================================================
+
+TEST(RegressionTest, HLPPDisconnectedNodeRelabel)
+{
+  // This test covers a bug where HLPP could set height[u] = 2*n+1
+  // when relabeling a node with no residual neighbors, causing
+  // out-of-bounds access to buckets[2*n+1].
+  //
+  // Network structure that can trigger this:
+  // s -> a -> t (bottleneck at a->t)
+  // If 'a' has excess but all outgoing arcs are saturated and
+  // all incoming arcs have no reverse capacity, relabel would
+  // set height[a] = min_height+1 where min_height could be 2*n.
+
+  TestNet net;
+  auto s = net.insert_node(0);  // source (inferred)
+  auto a = net.insert_node(1);  // intermediate
+  auto t = net.insert_node(2);  // sink (inferred)
+
+  // Create a very small capacity to sink, so 'a' can get excess
+  net.insert_arc(s, a, 100.0);  // large capacity
+  net.insert_arc(a, t, 1.0);    // small capacity (bottleneck)
+
+  // Run HLPP - should not crash or access out of bounds
+  double flow = hlpp_maximum_flow(net);
+
+  // The max flow is limited by the bottleneck
+  EXPECT_DOUBLE_EQ(flow, 1.0);
+
+  // Verify the flow is valid (conservation at intermediate node)
+  double flow_in_a = 0, flow_out_a = 0;
+  for (typename TestNet::Node_Arc_Iterator it(a); it.has_curr(); it.next_ne())
+    {
+      auto arc = it.get_curr();
+      if (net.get_tgt_node(arc) == a)
+        flow_in_a += arc->flow;
+      else
+        flow_out_a += arc->flow;
+    }
+  EXPECT_DOUBLE_EQ(flow_in_a, flow_out_a);
+}
+
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

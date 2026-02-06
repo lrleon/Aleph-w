@@ -52,6 +52,7 @@
 #include <gtest/gtest.h>
 #include <tpl_graph.H>
 #include <vector>
+#include <type_traits>
 
 using namespace Aleph;
 
@@ -495,6 +496,62 @@ TEST_F(GraphCopyTest, Clear)
   EXPECT_EQ(copy.num_nodes(), 0);
   EXPECT_EQ(copy.get_graph().get_num_nodes(), 0);
   EXPECT_EQ(copy.get_graph().get_num_arcs(), 0);
+}
+
+TEST_F(GraphCopyTest, MoveConstructor)
+{
+  // Build a graph with some nodes and arcs
+  auto* n1 = g.insert_node(1);
+  auto* n2 = g.insert_node(2);
+  auto* n3 = g.insert_node(3);
+  g.insert_arc(n1, n3, 10);
+
+  // Create a copy
+  GraphCopyWithMapping<TestGraph> copy1(g);
+  EXPECT_EQ(copy1.num_nodes(), 3);
+  EXPECT_EQ(copy1.get_graph().get_num_nodes(), 3);
+  EXPECT_EQ(copy1.get_graph().get_num_arcs(), 1);
+
+  // Move construct from copy1
+  GraphCopyWithMapping<TestGraph> copy2(std::move(copy1));
+  EXPECT_EQ(copy2.num_nodes(), 3);
+  EXPECT_EQ(copy2.get_graph().get_num_nodes(), 3);
+  EXPECT_EQ(copy2.get_graph().get_num_arcs(), 1);
+
+  // Verify copy1 was moved from (should be empty or in valid state)
+  EXPECT_EQ(copy1.get_graph().get_num_nodes(), 0);
+}
+
+TEST_F(GraphCopyTest, MoveAssignment)
+{
+  // Build a graph with some nodes and arcs
+  auto* n1 = g.insert_node(1);
+  auto* n2 = g.insert_node(2);
+  auto* n3 = g.insert_node(3);
+  g.insert_arc(n1, n3, 10);
+
+  // Create two copies
+  GraphCopyWithMapping<TestGraph> copy1(g);
+  GraphCopyWithMapping<TestGraph> copy2;
+
+  EXPECT_EQ(copy1.num_nodes(), 3);
+  EXPECT_EQ(copy2.num_nodes(), 0);
+
+  // Move assign copy1 to copy2
+  copy2 = std::move(copy1);
+  EXPECT_EQ(copy2.num_nodes(), 3);
+  EXPECT_EQ(copy2.get_graph().get_num_nodes(), 3);
+  EXPECT_EQ(copy2.get_graph().get_num_arcs(), 1);
+
+  // Verify copy1 was moved from
+  EXPECT_EQ(copy1.get_graph().get_num_nodes(), 0);
+}
+
+TEST_F(GraphCopyTest, MoveOperationsAreNoexcept)
+{
+  // Verify that move operations are declared noexcept
+  EXPECT_TRUE(std::is_nothrow_move_constructible<GraphCopyWithMapping<TestGraph>>::value);
+  EXPECT_TRUE(std::is_nothrow_move_assignable<GraphCopyWithMapping<TestGraph>>::value);
 }
 
 // ==================== Main ====================

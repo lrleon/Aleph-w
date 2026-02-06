@@ -144,7 +144,7 @@ protected:
    */
   void fill_table_to_null(const size_t num_events)
   {
-    for (int i = 0; i < num_events; i++)
+    for (size_t i = 0; i < num_events; i++)
       write_table(i, nullptr);
   }
 

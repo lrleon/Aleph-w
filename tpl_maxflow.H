@@ -1193,7 +1193,13 @@ namespace Aleph
         if (excess[u] > Flow_Type{0})
           {
             if (not pushed)
-              height[u] = min_height + 1; // Relabel
+              {
+                // Relabel: clamp to valid height range [0, 2*n]
+                long new_height = min_height + 1;
+                if (new_height > 2 * n)
+                  new_height = 2 * n;
+                height[u] = new_height;
+              }
             buckets[height[u]].append(u);
             max_height = std::max(max_height, height[u]);
           }
