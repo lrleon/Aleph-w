@@ -1251,7 +1251,6 @@ namespace Aleph
      *  Builds a formatted string representation of the statistics.
      *
      *  @return Formatted string containing all statistics.
-     *  @throws std::format_error if formatting fails (rare).
      *  @note Complexity: O(1)
      *  @note Thread safety: Thread-safe for read-only access.
      *  @note Exception safety: Basic guarantee.

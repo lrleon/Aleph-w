@@ -133,7 +133,7 @@ public:
    *  @note Complexity: O(1)
    *  @note Exception safety: noexcept
    */
-  Uid() noexcept = default;
+  Uid() = default;
 
   /** @brief Construct UID from components.
    *
@@ -148,7 +148,7 @@ public:
    */
   Uid(const Aleph::IPv4_Address & _ipAddr,
       const uint64_t & _counter,
-      const uint32_t & _port_number) noexcept;
+      const uint32_t & _port_number);
 
   /** @brief Backward-compatible constructor with legacy parameter types.
    *
@@ -165,7 +165,7 @@ public:
   [[deprecated("Use Uid(const Aleph::IPv4_Address&, const uint64_t&, const uint32_t&) instead")]]
   Uid(const Aleph::IPv4_Address & _ipAddr,
       const unsigned int & _counter,
-      const unsigned int & _port_number) noexcept
+      const unsigned int & _port_number)
     : Uid(_ipAddr,
           static_cast<uint64_t>(_counter),
           static_cast<uint32_t>(_port_number))
