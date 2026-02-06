@@ -96,24 +96,14 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const uint32_t & _port_number) noexcept
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
-  try
-    {
-      std::random_device rd;
-      std::mt19937 gen(rd());
-      std::uniform_int_distribution<unsigned int> dis;
-      random_number = dis(gen);
-    }
-  catch (...)
-    {
-      // Fallback if the random device fails (e.g. no entropy)
-      // We can't throw from noexcept, so we use a simple fallback or 0
-      // Using address of stack variable + time as seed is a common fallback
-      const uint64_t seed = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(&_ipAddr)) + static_cast<uint64_t>(
-                              std::time(nullptr));
-      std::mt19937 gen(seed);
-      std::uniform_int_distribution<unsigned int> dis;
-      random_number = dis(gen);
-    }
+  // Generate the random component directly from std::random_device,
+  // which is typically backed by the operating system CSPRNG.
+  // We intentionally avoid std::mt19937 and any time-based fallback to
+  // keep the UID suitable for security-relevant use cases.
+  std::random_device rd;
+  // If random_number is wider than the result type, additional calls can be
+  // combined; for now we assume 32 bits are sufficient.
+  random_number = static_cast<decltype(random_number)>(rd());
 }
 
 

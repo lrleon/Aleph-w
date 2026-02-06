@@ -150,17 +150,17 @@ public:
       const uint64_t & _counter,
       const uint32_t & _port_number) noexcept;
 
-  /** `@brief` Backward-compatible constructor with legacy parameter types.
+  /** @brief Backward-compatible constructor with legacy parameter types.
    *
    *  This overload preserves source compatibility with older code that used
    *  unsigned int for the counter and port number. It delegates to the
    *  constructor taking uint64_t and uint32_t.
    *
-   *  `@deprecated` Use Uid(const Aleph::IPv4_Address&, const uint64_t&,
+   *  @deprecated Use Uid(const Aleph::IPv4_Address&, const uint64_t&,
    *                      const uint32_t&) instead.
-+  *  `@throws` none
-+  *  `@note` Complexity: O(1)
-+  *  `@note` Exception safety: noexcept
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
    */
   [[deprecated("Use Uid(const Aleph::IPv4_Address&, const uint64_t&, const uint32_t&) instead")]]
   Uid(const Aleph::IPv4_Address & _ipAddr,
