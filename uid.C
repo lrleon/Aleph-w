@@ -92,7 +92,7 @@ void Uid::destringficate(char *str)
 
 Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const uint64_t & _counter,
-         const uint32_t & _port_number) noexcept
+         const uint32_t & _port_number)
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
   // Generate the random component directly from std::random_device,

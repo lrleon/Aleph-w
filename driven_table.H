@@ -185,8 +185,7 @@ public:
 
   /** @brief Unregister an event at the given index.
    *
-   *  The slot is cleared (set to nullptr). If this is the last slot,
-   *  the table may be shrunk.
+   *  The slot is cleared (set to nullptr) and can be reused later.
    *
    *  @param index Slot index to clear
    *  @throw range_error if the index is out of range or slot is not in use
@@ -198,9 +197,6 @@ public:
     ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
 
     write_table(index, nullptr);
-
-    if (index == size() - 1)
-      cut_table(index - 1);
   }
 
   /** @brief Check if an event at the given index matches the expected function.
