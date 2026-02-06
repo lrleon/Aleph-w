@@ -92,7 +92,7 @@ void Uid::destringficate(char *str)
 
 Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
          const uint64_t & _counter,
-         const uint32_t & _port_number)
+         const uint32_t & _port_number) noexcept
   : ipAddr(_ipAddr), port_number(_port_number), counter(_counter)
 {
   // Generate the random component directly from std::random_device,
@@ -100,9 +100,13 @@ Uid::Uid(const Aleph::IPv4_Address & _ipAddr,
   // We intentionally avoid std::mt19937 and any time-based fallback to
   // keep the UID suitable for security-relevant use cases.
   std::random_device rd;
-  // If random_number is wider than the result type, additional calls can be
-  // combined; for now we assume 32 bits are sufficient.
-  random_number = static_cast<decltype(random_number)>(rd());
+
+  // Combine two 32-bit random values to fill the 64-bit random_number
+  // This ensures the full width is utilized even if random_device returns 32-bit values
+  const auto high = static_cast<decltype(random_number)>(rd());
+  const auto low = static_cast<decltype(random_number)>(rd());
+
+  random_number = (high << 32) | low;
 }
 
 
