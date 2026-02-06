@@ -131,10 +131,5 @@ TEST(UidTest, Uniqueness) {
 }
 
 // =============================================================================
-// Main
+// End of tests for Uid
 // =============================================================================
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

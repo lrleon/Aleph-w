@@ -225,9 +225,14 @@ public:
    */
   void * execute_event(const size_t index, void *input = nullptr) const
   {
-    ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
+    ah_range_error_if(index >= size())
+      << "index " << index << " out of range [0, " << size() << ')';
 
-    return (*read_table(index))(input);
+    const auto event_fct = read_table(index);
+
+    ah_range_error_if(event_fct == nullptr) << "Index is not used";
+
+    return (*event_fct)(input);
   }
 };
 
