@@ -199,7 +199,7 @@ public:
 
     write_table(index, nullptr);
 
-    if (index == size())
+    if (index == size() - 1)
       cut_table(index - 1);
   }
 
