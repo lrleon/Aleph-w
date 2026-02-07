@@ -1157,17 +1157,8 @@ namespace Aleph
    */
     void cut(const size_t new_dim = 0)
     {
-      // Fix: Allow new_dim == current_dim (no-op)
-      // The original check was: ah_length_error_if(new_dim > current_dim)
-      // This prevented shrinking if new_dim was equal, but also prevented
-      // calling cut() with the same size, which should be harmless.
-      // However, the error message says "new dimension greater that current dimension",
-      // which implies it forbids growing via cut().
-      // The logic in cut_ne handles shrinking.
-      // If new_dim > current_dim, cut_ne would access invalid memory or misbehave
-      // because it iterates downwards from old_dim-1 to new_dim-1.
-      // So the check MUST ensure new_dim <= current_dim.
-
+      // Only shrinking is allowed; growing must be done via adjust().
+      // If new_dim equals current_dim, this is a no-op and we return early.
       ah_length_error_if(new_dim > current_dim)
       << "new dimension greater than current dimension";
 
