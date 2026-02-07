@@ -1255,6 +1255,7 @@ namespace Aleph
      *  Builds a formatted string representation of the statistics.
      *
      *  @return Formatted string containing all statistics.
+     *  @throws std::bad_alloc If memory allocation fails while building the string.
      *  @note Complexity: O(1)
      *  @note Thread safety: Thread-safe for read-only access.
      *  @note Exception safety: Basic guarantee.
@@ -1277,7 +1278,7 @@ namespace Aleph
      *
      *  Formats the statistics and outputs to stdout.
      *
-     *  @throws std::format_error if formatting fails.
+     *  @throws std::bad_alloc If memory allocation fails while formatting output.
      *  @note Complexity: O(1)
      *  @note Thread safety: Not thread-safe (writes to stdout).
      *  @note Exception safety: Basic guarantee.

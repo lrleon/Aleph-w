@@ -472,10 +472,32 @@ namespace Aleph
     }
 
   public:
-    /// Returns reference to internal node Dlink for sorting operations
+    /** @brief Return a reference to the internal node Dlink for sorting.
+     *
+     *  This accessor, `get_node_dlink()`, exposes the internal `node_list`
+     *  used by sort operations (e.g., `sort_nodes()`).
+     *
+     *  @return Dlink& reference to `node_list`.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     *  @note Intended for sorting operations; mutating the list directly can
+     *        violate graph invariants if used outside that context.
+     */
     Dlink &get_node_dlink() noexcept { return node_list; }
 
-    /// Returns reference to the internal arc Dlink for sorting operations
+    /** @brief Return a reference to the internal arc Dlink for sorting.
+     *
+     *  This accessor, `get_arc_dlink()`, exposes the internal `arc_list`
+     *  used by sort operations (e.g., `sort_arcs()`).
+     *
+     *  @return Dlink& reference to `arc_list`.
+     *  @throws none
+     *  @note Complexity: O(1)
+     *  @note Exception safety: noexcept
+     *  @note Intended for sorting operations; mutating the list directly can
+     *        violate graph invariants if used outside that context.
+     */
     Dlink &get_arc_dlink() noexcept { return arc_list; }
     /** Insertion of a node already allocated.
 
