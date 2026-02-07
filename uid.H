@@ -77,7 +77,7 @@
  *
  *  @par Example
  *  @code
- *  IPv4_Address my_ip("192.168.1.100");
+ *  Aleph::IPv4_Address my_ip = 0xC0A80164u; // 192.168.1.100
  *  Uid id(my_ip, 12345, 8080);
  *
  *  char buffer[Uid::stringSize];
