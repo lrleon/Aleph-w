@@ -13,6 +13,7 @@
 #include <tpl_net.H>
 #include <chrono>
 #include <random>
+#include <stdexcept>
 
 using namespace Aleph;
 
@@ -1470,6 +1471,9 @@ namespace
   void build_random_network(NetT & net, int n, int m, int max_cap,
                             unsigned seed)
   {
+    if (n < 3)
+      throw std::invalid_argument("build_random_network requires n >= 3");
+
     using NodeT = typename NetT::Node;
     std::mt19937 rng(seed);
     std::uniform_int_distribution<int> node_dist(0, n - 1);
@@ -1480,16 +1484,16 @@ namespace
       nodes[i] = net.insert_node(i);
 
     // Ensure source (0) has outgoing and sink (n-1) has incoming
-    net.insert_arc(nodes[0], nodes[1 % n], cap_dist(rng));
-    net.insert_arc(nodes[std::max(0, n - 2)], nodes[n - 1], cap_dist(rng));
+    net.insert_arc(nodes[0], nodes[1], cap_dist(rng));
+    net.insert_arc(nodes[n - 2], nodes[n - 1], cap_dist(rng));
 
     for (int i = 0; i < m - 2; ++i)
       {
         int u = node_dist(rng);
         int v = node_dist(rng);
-        if (u == v) v = (u + 1) % n;
+        if (u == v) v = (u + 1 < n) ? (u + 1) : 0;
         // Avoid creating additional sources/sinks
-        if (v == 0) v = 1 % n;        // don't point to source
+        if (v == 0) v = 1;            // don't point to source
         if (u == n - 1) u = n - 2;    // don't leave from sink
         if (u < 0) u = 0;
         if (u == v) continue;

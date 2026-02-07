@@ -1262,13 +1262,14 @@ namespace Aleph
 
     Node *source = net.get_source();
     Node *sink = net.get_sink();
-    const size_t n = net.vsize();
+    const size_t n_nodes = net.vsize();
+    const long n = static_cast<long>(n_nodes);
 
     // RAII guard to restore original cookies on exit
     Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
 
     // Allocate per-node info in cookies for O(1) access
-    auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n);
+    auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n_nodes);
     {
       size_t idx = 0;
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
@@ -1295,7 +1296,7 @@ namespace Aleph
               auto next = net.get_connected_node(arc, curr);
 
               if (next == source or
-                  hlpp_height<Net>(next) != static_cast<long>(n))
+                  hlpp_height<Net>(next) != n)
                 continue;
 
               // In the residual graph (flow = 0 initially), there is a
@@ -1325,7 +1326,8 @@ namespace Aleph
         }
 
     // --- Initialize bucket structure ---
-    auto buckets = Array<DynList<Node *>>::create(2 * n + 1);
+    const size_t bucket_count = static_cast<size_t>(2 * n + 1);
+    auto buckets = Array<DynList<Node *>>::create(bucket_count);
     long max_height = 0;
 
     // Add active nodes to buckets
@@ -1405,7 +1407,7 @@ namespace Aleph
           {
             if (not pushed)
               {
-                if (min_height >= 2 * static_cast<long>(n))
+                if (min_height >= 2 * n)
                   continue; // no admissible neighbour; drop the node
                 hlpp_height<Net>(u) = min_height + 1;
               }
