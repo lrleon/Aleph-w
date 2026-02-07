@@ -1169,7 +1169,7 @@ namespace Aleph
       // So the check MUST ensure new_dim <= current_dim.
 
       ah_length_error_if(new_dim > current_dim)
-      << "new dimension greater that current dimension";
+      << "new dimension greater than current dimension";
 
       if (new_dim == current_dim)
         return;
