@@ -543,11 +543,11 @@ namespace Aleph
     if (source == sink)
       return Flow_Type{0};
 
-    // RAII guard to restore original cookies on exit (normal or exception)
-    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
-
-    // Allocate node info with default-constructed elements
+    // Allocate node info first so it outlives cookie_saver.
+    // C++ destroys locals in reverse order: cookie_saver restores
+    // original cookies before node_info storage is freed.
     auto node_info = Array<Dinic_Node_Info<Flow_Type>>::create(net.vsize());
+    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
     size_t idx = 0;
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
       NODE_COOKIE(it.get_curr()) = &node_info[idx];
@@ -1269,11 +1269,11 @@ namespace Aleph
     const size_t n_nodes = net.vsize();
     const long n = static_cast<long>(n_nodes);
 
-    // RAII guard to restore original cookies on exit
-    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
-
-    // Allocate per-node info in cookies for O(1) access
+    // Allocate node info first so it outlives cookie_saver.
+    // C++ destroys locals in reverse order: cookie_saver restores
+    // original cookies before node_info storage is freed.
     auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n_nodes);
+    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
     {
       size_t idx = 0;
       for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
