@@ -3924,6 +3924,7 @@ namespace Aleph
      *
      *  @param[in,out] other The instance to move from.
      *  @throws none
+     *  @post other is left in the default-constructed state (empty graph and mapping).
      *  @note Complexity: O(1)
      *  @note Exception safety: noexcept
      */
@@ -3936,6 +3937,8 @@ namespace Aleph
      *  @param[in,out] other The instance to move from.
      *  @return Reference to this instance.
      *  @throws none
+     *  @post other receives the previous contents of *this (swap semantics).
+     *        If *this was empty, other becomes empty.
      *  @note Complexity: O(1)
      *  @note Exception safety: noexcept
      */

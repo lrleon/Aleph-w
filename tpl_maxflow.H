@@ -1194,11 +1194,9 @@ namespace Aleph
           {
             if (not pushed)
               {
-                // Relabel: clamp to valid height range [0, 2*n]
-                long new_height = min_height + 1;
-                if (new_height > 2 * n)
-                  new_height = 2 * n;
-                height[u] = new_height;
+                if (min_height >= 2 * n)
+                  continue; // no admissible neighbour; drop the node
+                height[u] = min_height + 1;
               }
             buckets[height[u]].append(u);
             max_height = std::max(max_height, height[u]);
