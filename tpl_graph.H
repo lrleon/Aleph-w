@@ -4119,27 +4119,9 @@ namespace Aleph
      */
     void remove_node(Node *node)
     {
-      // Check if this node is a target in the mapping (i.e., it's a copy)
-      // Since node_map maps Original -> Copy, we need to find if 'node' is a value in the map.
-      // However, DynMapTree is optimized for key lookup. Reverse lookup is O(N).
-      // But wait, remove_node is called on the *copied graph*. The argument 'node' is a node in copied_graph.
-      // If we want to maintain consistency, we should remove the entry from node_map where value == node.
-
-      // Since reverse lookup is expensive, and we don't store the reverse mapping,
-      // we have two options:
-      // 1. Iterate and find (O(N)) - safe but slow.
-      // 2. Assume the user handles unmapping if they need to (current behavior, but dangerous).
-      // 3. Store reverse mapping (memory overhead).
-
-      // Given the constraints and the request to fix dangling pointers, we must remove it.
-      // But DynMapTree doesn't support efficient value-based removal.
-
-      // Alternative strategy: The user shouldn't be removing mapped nodes manually without updating the map.
-      // But to be safe as requested:
-
-      // Let's try to find the key for this value.
-      // DynMapTree has no direct method for this. We can iterate.
-
+      // Maintain node_map consistency when a copied node is removed:
+      // perform a reverse lookup (value -> key) and erase the corresponding entry.
+      // This is O(N) because DynMapTree is keyed by original node, not by copy.
       Node *original_node = nullptr;
       node_map.for_each([&](const auto & pair)
                           {
