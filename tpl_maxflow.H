@@ -80,6 +80,7 @@
 #ifndef TPL_MAXFLOW_H
 #define TPL_MAXFLOW_H
 
+#include <cassert>
 #include <limits>
 #include <sstream>
 #include <iomanip>
@@ -147,13 +148,13 @@ namespace Aleph
         (NODE_COOKIE(p))->level;
   }
 
-  /** @brief Check if node is blocked in Dinic's algorithm.
+  /** @brief Check if a node is blocked in Dinic's algorithm.
    *
    *  Retrieves a reference to the blocked flag stored in the node's cookie.
    *
    *  @tparam Net Network type.
    *  @param p Pointer to network node.
-   *  @return Reference to blocked flag.
+   *  @return Reference to a blocked flag.
    *  @throws none
    *  @note Complexity: O(1)
    *  @note Thread safety: Not thread-safe if multiple threads access the same node's cookie.
