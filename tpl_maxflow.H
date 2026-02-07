@@ -539,6 +539,9 @@ namespace Aleph
     Node *source = net.get_source();
     Node *sink = net.get_sink();
 
+    if (source == sink)
+      return Flow_Type{0};
+
     // RAII guard to restore original cookies on exit (normal or exception)
     Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
 
