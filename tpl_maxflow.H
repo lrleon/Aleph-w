@@ -84,6 +84,7 @@
 #include <limits>
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 #include <tpl_array.H>
 #include <tpl_dynListQueue.H>
 #include <tpl_net.H>
@@ -108,25 +109,18 @@ namespace Aleph
   struct Dinic_Node_Info
   {
     long level = -1; ///< BFS level from source (-1 = unreachable)
-    bool blocked = false; ///< Whether node is blocked in current phase
+    bool blocked = false; ///< Whether the node is blocked in the current phase
+    size_t current_arc = 0; ///< Current arc index for current-arc optimization
 
-    /** @brief Reset node information to initial state.
-     *
-     *  Sets level to -1 and blocked status to false.
-     *
-     *  @throws none
-     *  @note Complexity: O(1)
-     *  @note Thread safety: Not thread-safe for concurrent writers.
-     *  @note Exception safety: noexcept
-     */
     void reset() noexcept
     {
       level = -1;
       blocked = false;
+      current_arc = 0;
     }
   };
 
-  /** @brief Access node level in Dinic's algorithm.
+  /** @brief Access the node level in Dinic's algorithm.
    *
    *  Retrieves a reference to the level field stored in the node's cookie.
    *
@@ -168,6 +162,26 @@ namespace Aleph
            "NODE_COOKIE not initialized; call dinic_maximum_flow() instead");
     return static_cast<Dinic_Node_Info<typename Net::Flow_Type> *>
         (NODE_COOKIE(p))->blocked;
+  }
+
+  /** @brief Access the current arc index in Dinic's algorithm.
+   *
+   *  Retrieves a reference to the current_arc field stored in the node's cookie.
+   *  Used for the current-arc optimization in the iterative blocking flow.
+   *
+   *  @tparam Net Network type.
+   *  @param p Pointer to network node.
+   *  @return Reference to the current arc index.
+   *  @note Complexity: O(1)
+   *  @ingroup Networks
+   */
+  template <class Net>
+  inline size_t &dinic_current_arc(typename Net::Node *p) noexcept
+  {
+    assert(NODE_COOKIE(p) != nullptr &&
+           "NODE_COOKIE not initialized; call dinic_maximum_flow() instead");
+    return static_cast<Dinic_Node_Info<typename Net::Flow_Type> *>
+        (NODE_COOKIE(p))->current_arc;
   }
 
   /** @brief Check if a node's cookie is properly initialized for Dinic's algorithm.
@@ -214,19 +228,17 @@ namespace Aleph
     using Node = typename Net::Node;
     using Flow_Type = typename Net::Flow_Type;
 
-    // Runtime guard: verify NODE_COOKIE is initialized for Dinic's algorithm
-    for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      ah_domain_error_if(not is_dinic_cookie_valid<Net>(it.get_curr()))
-            << "NODE_COOKIE not initialized for Dinic's algorithm. "
-            << "Call dinic_maximum_flow() instead of build_level_graph() directly, "
-            << "or initialize Dinic_Node_Info for all nodes before calling.";
-
-    // Reset all levels
+    // Validate NODE_COOKIE and reset all levels in a single pass
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
       {
         auto p = it.get_curr();
+        assert(is_dinic_cookie_valid<Net>(p) &&
+               "NODE_COOKIE not initialized for Dinic's algorithm. "
+               "Call dinic_maximum_flow() instead of build_level_graph() directly, "
+               "or initialize Dinic_Node_Info for all nodes before calling.");
         dinic_level<Net>(p) = -1;
         dinic_blocked<Net>(p) = false;
+        dinic_current_arc<Net>(p) = 0;
       }
 
     // BFS from source
@@ -293,15 +305,10 @@ namespace Aleph
   {
     using Flow_Type = typename Net::Flow_Type;
 
-    // Runtime guard: verify NODE_COOKIE is initialized
-    if (not is_dinic_cookie_valid<Net>(node))
-      {
-        ah_domain_error()
-          << "NODE_COOKIE not initialized for Dinic's algorithm. "
-          << "Call dinic_maximum_flow() instead of dinic_dfs() directly, "
-          << "or initialize Dinic_Node_Info for all nodes before calling.";
-        return Flow_Type{0}; // Unreachable but satisfies return type
-      }
+    assert(is_dinic_cookie_valid<Net>(node) &&
+           "NODE_COOKIE not initialized for Dinic's algorithm. "
+           "Call dinic_maximum_flow() instead of dinic_dfs() directly, "
+           "or initialize Dinic_Node_Info for all nodes before calling.");
 
     if (node == sink)
       return pushed;
@@ -347,11 +354,143 @@ namespace Aleph
     return Flow_Type{0};
   }
 
+  /** @brief Find all blocking flows using iterative DFS with current-arc optimization.
+   *
+   *  Uses an explicit stack and per-node current-arc indices to find all
+   *  augmenting paths in the level graph without re-examining dead arcs.
+   *  After each augmentation, retreats to the node before the bottleneck
+   *  arc and continues scanning from its current-arc position.
+   *
+   *  @tparam Net Network type.
+   *  @param net Flow network.
+   *  @param source Source node.
+   *  @param sink Sink node.
+   *  @return Total blocking flow pushed.
+   *  @note Complexity: O(VE) per blocking flow phase.
+   *  @note Thread safety: Not thread-safe. Modifies arc flows and node cookies.
+   *  @ingroup Networks
+   */
+  template <class Net>
+  typename Net::Flow_Type dinic_blocking_flow(Net & net,
+                                              typename Net::Node *source,
+                                              typename Net::Node *sink)
+  {
+    using Node = typename Net::Node;
+    using Arc = typename Net::Arc;
+    using Flow_Type = typename Net::Flow_Type;
+
+    const size_t n = net.vsize();
+
+    // Path stack: stack[0]=source, ..., stack[depth-1]=current node
+    // path_arcs[i] = arc from stack[i] to stack[i+1]
+    // path_fwd[i]  = true if path_arcs[i] is a forward arc
+    auto stack = Array<Node *>::create(n);
+    auto path_arcs = Array<Arc *>::create(n);
+    auto path_fwd = Array<char>::create(n); // char instead of bool for safety
+
+    stack[0] = source;
+    size_t depth = 1;
+    Flow_Type total_flow{0};
+
+    while (depth > 0)
+      {
+        Node *curr = stack[depth - 1];
+
+        if (curr == sink)
+          {
+            // Augmenting path found — compute bottleneck
+            Flow_Type bottleneck = std::numeric_limits<Flow_Type>::max();
+            size_t bottleneck_pos = 0;
+            for (size_t i = 0; i + 1 < depth; ++i)
+              {
+                Flow_Type res = path_fwd[i]
+                    ? (path_arcs[i]->cap - path_arcs[i]->flow)
+                    : path_arcs[i]->flow;
+                if (res < bottleneck)
+                  {
+                    bottleneck = res;
+                    bottleneck_pos = i;
+                  }
+              }
+
+            // Augment flow along the path
+            for (size_t i = 0; i + 1 < depth; ++i)
+              {
+                if (path_fwd[i])
+                  path_arcs[i]->flow += bottleneck;
+                else
+                  path_arcs[i]->flow -= bottleneck;
+              }
+
+            total_flow += bottleneck;
+
+            // Retreat to the node whose outgoing arc was the bottleneck.
+            // That arc is now saturated, so this node will advance its
+            // current_arc past it on the next iteration.
+            depth = bottleneck_pos + 1;
+            continue;
+          }
+
+        // Try to advance from curr using its current-arc index
+        size_t &ca = dinic_current_arc<Net>(curr);
+        bool advanced = false;
+
+        while (ca < curr->num_arcs)
+          {
+            Arc *arc = static_cast<Arc *>(curr->arc_array[ca]);
+            Node *next = net.get_connected_node(arc, curr);
+
+            // Only follow edges to the next level
+            if (dinic_level<Net>(next) != dinic_level<Net>(curr) + 1)
+              {
+                ++ca;
+                continue;
+              }
+
+            // Skip blocked nodes (all their arcs are exhausted)
+            if (dinic_blocked<Net>(next))
+              {
+                ++ca;
+                continue;
+              }
+
+            // Check residual capacity
+            const bool is_forward = (net.get_src_node(arc) == curr);
+            Flow_Type residual = is_forward
+                ? (arc->cap - arc->flow)
+                : arc->flow;
+
+            if (residual <= Flow_Type{0})
+              {
+                ++ca;
+                continue;
+              }
+
+            // Valid arc — push next onto the path
+            path_arcs[depth - 1] = arc;
+            path_fwd[depth - 1] = is_forward ? 1 : 0;
+            stack[depth] = next;
+            ++depth;
+            advanced = true;
+            break;
+          }
+
+        if (not advanced)
+          {
+            // Dead end — block this node and retreat
+            dinic_blocked<Net>(curr) = true;
+            --depth;
+          }
+      }
+
+    return total_flow;
+  }
+
   /** @brief Compute maximum flow using Dinic's algorithm.
    *
    *  Dinic's algorithm computes maximum flow by repeatedly:
    *  1. Building a level graph using BFS
-   *  2. Finding blocking flows using DFS
+   *  2. Finding blocking flows using iterative DFS with current-arc optimization
    *
    *  This is more efficient than Ford-Fulkerson for dense graphs.
    *
@@ -413,17 +552,7 @@ namespace Aleph
 
     // Main loop: build level graph and find blocking flows
     while (build_level_graph(net, source, sink))
-      {
-        // Find all blocking flows in the current level graph
-        Flow_Type blocked_flow;
-        do
-          {
-            blocked_flow = dinic_dfs(net, source, sink,
-                                     std::numeric_limits<Flow_Type>::max());
-            max_flow += blocked_flow;
-          }
-        while (blocked_flow > Flow_Type{0});
-      }
+      max_flow += dinic_blocking_flow(net, source, sink);
 
     // Cookie_Saver destructor will restore original NODE_COOKIE values
     return max_flow;
@@ -523,16 +652,17 @@ namespace Aleph
 
     Flow_Type max_flow{0};
 
-    // Scaling phases
-    while (delta >= Flow_Type{1})
+    // BFS augmentation helper.
+    // Finds and augments all s-t paths where every edge has
+    // residual >= min_residual.  Returns total flow found.
+    auto bfs_augment = [&](Flow_Type min_residual) -> Flow_Type
       {
-        // Find augmenting paths with residual ≥ delta using BFS
+        Flow_Type phase_flow{0};
         bool found_path = true;
         while (found_path)
           {
             found_path = false;
 
-            // BFS to find an augmenting path
             DynMapTree<Node *, Node *> parent;
             DynMapTree<Node *, Arc *> parent_arc;
             DynMapTree<Node *, bool> is_forward;
@@ -563,7 +693,7 @@ namespace Aleph
                     else
                       residual = arc->flow;
 
-                    if (residual >= delta)
+                    if (residual >= min_residual and residual > Flow_Type{0})
                       {
                         parent[next] = curr;
                         parent_arc[next] = arc;
@@ -573,12 +703,10 @@ namespace Aleph
                   }
               }
 
-            // If sink reached, augment flow
             if (parent.has(sink))
               {
                 found_path = true;
 
-                // Find minimum residual on a path
                 Flow_Type path_flow = std::numeric_limits<Flow_Type>::max();
                 for (Node *n = sink; n != source; n = parent[n])
                   {
@@ -589,7 +717,6 @@ namespace Aleph
                     path_flow = std::min(path_flow, residual);
                   }
 
-                // Augment flow
                 for (Node *n = sink; n != source; n = parent[n])
                   {
                     Arc *arc = parent_arc[n];
@@ -599,12 +726,23 @@ namespace Aleph
                       arc->flow -= path_flow;
                   }
 
-                max_flow += path_flow;
+                phase_flow += path_flow;
               }
           }
+        return phase_flow;
+      };
 
+    // Scaling phases (delta = largest power of 2 down to 1)
+    while (delta >= Flow_Type{1})
+      {
+        max_flow += bfs_augment(delta);
         delta /= 2;
       }
+
+    // Final cleanup: capture any fractional residual flow.
+    // For integer capacities the scaling phases already found all flow,
+    // so this is a single O(V+E) no-op BFS.
+    max_flow += bfs_augment(Flow_Type{0});
 
     return max_flow;
   }
@@ -995,6 +1133,8 @@ namespace Aleph
                         node_it.next_ne();
                         arc_it.next_ne();
                       }
+                    // Add the closing node to complete the cycle (as Phase 1 does)
+                    cycle.nodes.append(curr);
 
                     found_cycle = true;
                     break;
@@ -1068,6 +1208,33 @@ namespace Aleph
   // HIGHEST LABEL PREFLOW-PUSH (HLPP)
   //==============================================================================
 
+  /** @brief Node info for HLPP algorithm.
+   *  Stores height label and excess flow for O(1) cookie-based access.
+   *  @ingroup Networks
+   */
+  template <typename Flow_Type>
+  struct HLPP_Node_Info
+  {
+    long height = 0;
+    Flow_Type excess{0};
+  };
+
+  /// Access the height label stored in the node's cookie.
+  template <class Net>
+  inline long &hlpp_height(typename Net::Node *p) noexcept
+  {
+    return static_cast<HLPP_Node_Info<typename Net::Flow_Type> *>
+        (NODE_COOKIE(p))->height;
+  }
+
+  /// Access the excess flow stored in the node's cookie.
+  template <class Net>
+  inline typename Net::Flow_Type &hlpp_excess(typename Net::Node *p) noexcept
+  {
+    return static_cast<HLPP_Node_Info<typename Net::Flow_Type> *>
+        (NODE_COOKIE(p))->excess;
+  }
+
   /** @brief Compute maximum flow using Highest-Label Preflow-Push.
    *
    *  This variant of preflow-push always processes the active node with the
@@ -1097,45 +1264,84 @@ namespace Aleph
     Node *sink = net.get_sink();
     const size_t n = net.vsize();
 
-    // Node data: height, excess
-    DynMapTree<Node *, long> height;
-    DynMapTree<Node *, Flow_Type> excess;
+    // RAII guard to restore original cookies on exit
+    Cookie_Saver<Net> cookie_saver(net, true, false); // save nodes only
 
-    // Initialize
+    // Allocate per-node info in cookies for O(1) access
+    auto node_info = Array<HLPP_Node_Info<Flow_Type>>::create(n);
+    {
+      size_t idx = 0;
+      for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne(), ++idx)
+        NODE_COOKIE(it.get_curr()) = &node_info[idx];
+    }
+
+    // --- Initialize heights via reverse BFS from sink ---
+    // All heights start at n (unreachable); BFS sets exact distances
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
-      {
-        auto p = it.get_curr();
-        height[p] = 0;
-        excess[p] = Flow_Type{0};
-      }
+      hlpp_height<Net>(it.get_curr()) = n;
 
-    height[source] = n;
+    hlpp_height<Net>(sink) = 0;
 
-    // Saturate all arcs from the source
+    {
+      DynListQueue<Node *> queue;
+      queue.put(sink);
+      while (not queue.is_empty())
+        {
+          Node *curr = queue.get();
+          for (typename Net::Node_Arc_Iterator ait(curr);
+               ait.has_curr(); ait.next_ne())
+            {
+              auto arc = ait.get_curr();
+              auto next = net.get_connected_node(arc, curr);
+
+              if (next == source or
+                  hlpp_height<Net>(next) != static_cast<long>(n))
+                continue;
+
+              // In the residual graph (flow = 0 initially), there is a
+              // residual arc next→curr iff the original arc goes
+              // next→curr with cap > 0.
+              if (net.get_src_node(arc) == next and
+                  arc->cap > Flow_Type{0})
+                {
+                  hlpp_height<Net>(next) = hlpp_height<Net>(curr) + 1;
+                  queue.put(next);
+                }
+            }
+        }
+    }
+
+    // Source always has height = n
+    hlpp_height<Net>(source) = n;
+
+    // --- Saturate all arcs from source ---
     for (typename Net::Node_Arc_Iterator it(source); it.has_curr(); it.next_ne())
       if (Arc *arc = it.get_curr(); net.get_src_node(arc) == source)
         {
           Flow_Type delta = arc->cap - arc->flow;
           arc->flow = arc->cap;
-          excess[net.get_tgt_node(arc)] += delta;
-          excess[source] -= delta;
+          hlpp_excess<Net>(net.get_tgt_node(arc)) += delta;
+          hlpp_excess<Net>(source) -= delta;
         }
 
-    // Active nodes organized by height (empty DynLists by default)
+    // --- Initialize bucket structure ---
     auto buckets = Array<DynList<Node *>>::create(2 * n + 1);
     long max_height = 0;
 
+    // Add active nodes to buckets
     for (Node_Iterator<Net> it(net); it.has_curr(); it.next_ne())
       {
         auto p = it.get_curr();
-        if (p != source and p != sink and excess[p] > Flow_Type{0})
+        if (p != source and p != sink and
+            hlpp_excess<Net>(p) > Flow_Type{0})
           {
-            buckets[height[p]].append(p);
-            max_height = std::max(max_height, height[p]);
+            long h = hlpp_height<Net>(p);
+            buckets[h].append(p);
+            max_height = std::max(max_height, h);
           }
       }
 
-    // Main loop
+    // --- Main push/relabel loop ---
     while (max_height >= 0)
       {
         if (buckets[max_height].is_empty())
@@ -1150,7 +1356,8 @@ namespace Aleph
         bool pushed = false;
         long min_height = 2 * n;
 
-        for (typename Net::Node_Arc_Iterator it(u); it.has_curr() and excess[u] > Flow_Type{0};
+        for (typename Net::Node_Arc_Iterator it(u);
+             it.has_curr() and hlpp_excess<Net>(u) > Flow_Type{0};
              it.next_ne())
           {
             Arc *arc = it.get_curr();
@@ -1165,46 +1372,49 @@ namespace Aleph
 
             if (residual > Flow_Type{0})
               {
-                if (height[u] == height[v] + 1)
+                if (hlpp_height<Net>(u) == hlpp_height<Net>(v) + 1)
                   {
                     // Push
-                    Flow_Type delta = std::min(excess[u], residual);
+                    Flow_Type delta = std::min(hlpp_excess<Net>(u), residual);
                     if (is_forward)
                       arc->flow += delta;
                     else
                       arc->flow -= delta;
 
-                    excess[u] -= delta;
-                    excess[v] += delta;
+                    const bool was_inactive =
+                        (v != source and v != sink and
+                         hlpp_excess<Net>(v) <= Flow_Type{0});
 
-                    if (v != source and v != sink and
-                        excess[v] == delta) // v became active
+                    hlpp_excess<Net>(u) -= delta;
+                    hlpp_excess<Net>(v) += delta;
+
+                    if (was_inactive and hlpp_excess<Net>(v) > Flow_Type{0})
                       {
-                        buckets[height[v]].append(v);
-                        max_height = std::max(max_height, height[v]);
+                        buckets[hlpp_height<Net>(v)].append(v);
+                        max_height = std::max(max_height, hlpp_height<Net>(v));
                       }
 
                     pushed = true;
                   }
                 else
-                  min_height = std::min(min_height, height[v]);
+                  min_height = std::min(min_height, hlpp_height<Net>(v));
               }
           }
 
-        if (excess[u] > Flow_Type{0})
+        if (hlpp_excess<Net>(u) > Flow_Type{0})
           {
             if (not pushed)
               {
-                if (min_height >= 2 * n)
+                if (min_height >= 2 * static_cast<long>(n))
                   continue; // no admissible neighbour; drop the node
-                height[u] = min_height + 1;
+                hlpp_height<Net>(u) = min_height + 1;
               }
-            buckets[height[u]].append(u);
-            max_height = std::max(max_height, height[u]);
+            buckets[hlpp_height<Net>(u)].append(u);
+            max_height = std::max(max_height, hlpp_height<Net>(u));
           }
       }
 
-    return excess[sink];
+    return hlpp_excess<Net>(sink);
   }
 
   /** @brief Functor wrapper for HLPP.
