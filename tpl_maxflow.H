@@ -84,6 +84,7 @@
 #include <limits>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 #include <algorithm>
 #include <tpl_array.H>
 #include <tpl_dynListQueue.H>
