@@ -32,16 +32,20 @@
 /** @file driven_table.H
  *  @brief Event-driven table abstraction for event-driven simulations.
  *
- *  This file provides abstract base classes for managing event tables in
- *  event-driven simulations and frameworks. Events are registered as function
- *  pointers and can be executed by index with arbitrary input/output.
+ *  This file provides type-safe event tables for managing event handlers in
+ *  event-driven simulations and frameworks. Events can be registered as function
+ *  pointers, lambdas, functors, or std::function objects, with compile-time
+ *  type safety for arguments and return values.
  *
  *  ## Overview
  *
- *  Event tables map integer indices to event handler functions. Two
+ *  Event tables map integer indices to event handler callables. Two
  *  implementations are provided:
  *  - **Static_Event_Table**: Fixed-size table (array-based)
  *  - **Dynamic_Event_Table**: Growable table (dynamic array-based)
+ *
+ *  Both implementations are templated on the event signature, allowing
+ *  type-safe event handlers with arbitrary arguments and return types.
  *
  *  ## Use Cases
  *
@@ -50,27 +54,37 @@
  *  - Command dispatch tables
  *  - Plugin systems with dynamic event registration
  *
- *  @par Example
+ *  @par Modern Example (with lambdas and type safety)
  *  @code
- *  // Define event handlers
+ *  // Define type-safe event table for events that take an int and return void
+ *  Dynamic_Event_Table<void(int)> table;
+ *
+ *  // Register lambda
+ *  auto start_id = table.register_event([](int x) {
+ *    std::cout << "Starting with " << x << "\n";
+ *  });
+ *
+ *  // Register function
+ *  auto stop_id = table.register_event([](int x) {
+ *    std::cout << "Stopping with " << x << "\n";
+ *  });
+ *
+ *  // Execute events with type-safe arguments
+ *  table.execute_event(start_id, 42);
+ *  table.execute_event(stop_id, 100);
+ *  @endcode
+ *
+ *  @par Legacy Example (backward compatible)
+ *  @code
+ *  // Old style still works for compatibility
  *  void* on_start(void* data) {
  *    std::cout << "Starting...\n";
  *    return nullptr;
  *  }
  *
- *  void* on_stop(void* data) {
- *    std::cout << "Stopping...\n";
- *    return nullptr;
- *  }
- *
- *  // Create event table
- *  Dynamic_Event_Table table;
- *  auto start_id = table.register_event(on_start);
- *  auto stop_id = table.register_event(on_stop);
- *
- *  // Execute events
- *  table.execute_event(start_id);
- *  table.execute_event(stop_id);
+ *  Legacy_Event_Table table;  // or Dynamic_Event_Table<void*(void*)>
+ *  auto id = table.register_event(on_start);
+ *  table.execute_event(id, nullptr);
  *  @endcode
  *
  *  @ingroup Utilities
@@ -83,40 +97,52 @@
 # include <aleph.H>
 # include <tpl_dynArray.H>
 # include <ah-errors.H>
+# include <functional>
+# include <memory>
+# include <type_traits>
 
-/** @brief Type alias for event handler functions.
+/** @brief Type alias for legacy event handler functions.
  *
  *  Event functions take a `void*` input parameter and return a `void*` result.
  *  This allows arbitrary data to be passed to and returned from events.
+ *
+ *  @deprecated Use templated Event_Table with std::function instead for type safety.
  */
 typedef void * (*Event_Fct)(void *);
 
-/** @brief Abstract base class for event tables.
+/** @brief Abstract base class for type-safe event tables.
  *
  *  Provides an interface for registering, unregistering, checking, and executing
- *  events. Concrete implementations must provide a storage mechanism (static
- *  array or dynamic array).
+ *  events with compile-time type safety. Concrete implementations must provide
+ *  a storage mechanism (static array or dynamic array).
+ *
+ *  @tparam Signature Function signature for events (e.g., void(int), int(double, bool))
  *
  *  ## Operations
  *
  *  - **register_event(index, fct)**: Register event at specific index
  *  - **register_event(fct)**: Append event and return auto-assigned index
  *  - **unregister_event(index)**: Remove event at index
- *  - **execute_event(index, input)**: Execute event with optional input
- *  - **check(index, fct)**: Verify event at index matches expected function
+ *  - **execute_event(index, args...)**: Execute event with type-safe arguments
+ *  - **is_registered(index)**: Check if an event is registered at index
  *
  *  @par Thread Safety
  *  Not thread-safe. Use external synchronization if accessing from multiple threads.
  *
  *  @ingroup Utilities
  */
+template <typename Signature>
 class Event_Table
 {
-  [[nodiscard]] virtual Event_Fct read_table(size_t i) const = 0;
+public:
+  using Event_Handler = std::function<Signature>;
 
-  virtual void write_table(size_t i, Event_Fct event_fct) = 0;
+protected:
+  [[nodiscard]] virtual const Event_Handler* read_table(size_t i) const = 0;
 
-  virtual void cut_table(size_t dim) = 0;
+  virtual void write_table(size_t i, Event_Handler&& event_fct) = 0;
+
+  virtual void clear_slot(size_t i) = 0;
 
 public:
   /** @brief Get the number of event slots in the table.
@@ -129,23 +155,11 @@ public:
 
 private:
   /** @brief Append an event to the end of the table (internal use).
-   *  @param fct Event function to append (must not be nullptr)
+   *  @param fct Event handler to append
    */
-  void append_event_to_table(Event_Fct fct)
+  void append_event_to_table(Event_Handler&& fct)
   {
-    assert(fct not_eq nullptr);
-
-    write_table(size(), fct);
-  }
-
-protected:
-  /** @brief Initialize table slots to nullptr (for use by derived classes).
-   *  @param num_events Number of slots to initialize
-   */
-  void fill_table_to_null(const size_t num_events)
-  {
-    for (size_t i = 0; i < num_events; i++)
-      write_table(i, nullptr);
+    write_table(size(), std::move(fct));
   }
 
 public:
@@ -153,39 +167,38 @@ public:
    *
    *  The index must be valid and must not already contain an event.
    *
+   *  @tparam Callable Any callable compatible with Signature (lambda, function, functor)
    *  @param index Slot index where the event will be registered
-   *  @param fct Event function to register (must not be nullptr)
+   *  @param fct Event handler to register
    *  @throw range_error if the index is out of range or already in use
    */
-  void register_event(const size_t index, Event_Fct fct)
+  template <typename Callable>
+  void register_event(const size_t index, Callable&& fct)
   {
-    assert(fct not_eq nullptr);
-
     ah_range_error_if(index >= size()) << "Index out of range";
-    ah_range_error_if(read_table(index) not_eq nullptr) << "Index is already used";
+    ah_range_error_if(read_table(index) != nullptr) << "Index is already used";
 
-    write_table(index, fct);
+    write_table(index, Event_Handler(std::forward<Callable>(fct)));
   }
 
   /** @brief Append a new event and return its auto-assigned index.
    *
    *  The event is registered at the next available slot at the end of the table.
    *
-   *  @param fct Event function to register (must not be nullptr)
+   *  @tparam Callable Any callable compatible with Signature (lambda, function, functor)
+   *  @param fct Event handler to register
    *  @return Index where the event was registered
    */
-  size_t register_event(Event_Fct fct)
+  template <typename Callable>
+  size_t register_event(Callable&& fct)
   {
-    assert(fct not_eq nullptr);
-
-    append_event_to_table(fct);
-
+    append_event_to_table(Event_Handler(std::forward<Callable>(fct)));
     return size() - 1;
   }
 
   /** @brief Unregister an event at the given index.
    *
-   *  The slot is cleared (set to nullptr) and can be reused later.
+   *  The slot is cleared and can be reused later.
    *
    *  @param index Slot index to clear
    *  @throw range_error if the index is out of range or slot is not in use
@@ -193,38 +206,139 @@ public:
   void unregister_event(const size_t index)
   {
     ah_range_error_if(index >= size()) << "Index out of range";
-
     ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
 
-    write_table(index, nullptr);
+    clear_slot(index);
   }
 
-  /** @brief Check if an event at the given index matches the expected function.
+  /** @brief Check if an event is registered at the given index.
    *
    *  @param index Slot index to check
-   *  @param fct Expected event function
-   *  @return true if the index is valid and the registered function matches, false otherwise
+   *  @return true if an event is registered at the index, false otherwise
    */
-  bool check(const size_t index, Event_Fct fct) const
+  bool is_registered(const size_t index) const
   {
-    return index < size() and read_table(index) == fct;
+    return index < size() and read_table(index) != nullptr;
   }
 
-  /** @brief Execute the event at the given index.
+  /** @brief Legacy check method (for backward compatibility).
    *
-   *  Calls the registered event function with the provided input parameter.
+   *  For templated event tables, this always returns false since we cannot
+   *  compare std::function objects. Use is_registered() instead.
    *
+   *  @deprecated Use is_registered() instead
+   */
+  template <typename F>
+  bool check(const size_t, F) const
+  {
+    return false;
+  }
+
+  /** @brief Execute the event at the given index with type-safe arguments.
+   *
+   *  Calls the registered event handler with the provided arguments.
+   *
+   *  @tparam Args Argument types (automatically deduced)
    *  @param index Slot index of event to execute
-   *  @param input Optional input parameter to pass to the event function (default: nullptr)
-   *  @return Result returned by the event function
+   *  @param args Arguments to pass to the event handler
+   *  @return Result returned by the event handler
    *  @throw range_error if index is not in use
    */
-  void * execute_event(const size_t index, void *input = nullptr) const
+  template <typename... Args>
+  auto execute_event(const size_t index, Args&&... args) const
   {
     ah_range_error_if(index >= size())
       << "index " << index << " out of range [0, " << size() << ')';
 
-    const auto event_fct = read_table(index);
+    const auto* event_fct = read_table(index);
+
+    ah_range_error_if(event_fct == nullptr) << "Index is not used";
+
+    return (*event_fct)(std::forward<Args>(args)...);
+  }
+};
+
+
+/** @brief Specialization of Event_Table for legacy void*(void*) signature.
+ *
+ *  Provides backward compatibility with the old Event_Table interface.
+ */
+template <>
+class Event_Table<void*(void*)>
+{
+public:
+  using Event_Handler = std::function<void*(void*)>;
+
+protected:
+  [[nodiscard]] virtual const Event_Handler* read_table(size_t i) const = 0;
+
+  virtual void write_table(size_t i, Event_Handler&& event_fct) = 0;
+
+  virtual void clear_slot(size_t i) = 0;
+
+public:
+  [[nodiscard]] virtual size_t size() const = 0;
+
+  virtual ~Event_Table() = default;
+
+private:
+  void append_event_to_table(Event_Handler&& fct)
+  {
+    write_table(size(), std::move(fct));
+  }
+
+public:
+  template <typename Callable>
+  void register_event(const size_t index, Callable&& fct)
+  {
+    ah_range_error_if(index >= size()) << "Index out of range";
+    ah_range_error_if(read_table(index) != nullptr) << "Index is already used";
+
+    write_table(index, Event_Handler(std::forward<Callable>(fct)));
+  }
+
+  template <typename Callable>
+  size_t register_event(Callable&& fct)
+  {
+    append_event_to_table(Event_Handler(std::forward<Callable>(fct)));
+    return size() - 1;
+  }
+
+  void unregister_event(const size_t index)
+  {
+    ah_range_error_if(index >= size()) << "Index out of range";
+    ah_range_error_if(read_table(index) == nullptr) << "Index is not used";
+
+    clear_slot(index);
+  }
+
+  bool is_registered(const size_t index) const
+  {
+    return index < size() and read_table(index) != nullptr;
+  }
+
+  // Legacy check for void* function pointers - compares function addresses
+  bool check(const size_t index, void* (*fct)(void*)) const
+  {
+    if (index >= size() || !is_registered(index))
+      return false;
+
+    const auto* handler = read_table(index);
+    if (!handler)
+      return false;
+
+    // Get the target function pointer from std::function
+    auto target = handler->template target<void* (*)(void*)>();
+    return target && *target == fct;
+  }
+
+  // Special override for void*(void*) with default nullptr argument
+  void* execute_event(const size_t index, void* input = nullptr) const
+  {
+    ah_range_error_if(index >= size())
+      << "index " << index << " out of range [0, " << size() << ')';
+
+    const auto* event_fct = read_table(index);
 
     ah_range_error_if(event_fct == nullptr) << "Index is not used";
 
@@ -235,14 +349,16 @@ public:
 
 /** @brief Fixed-size event table implementation.
  *
- *  Uses a statically allocated array of function pointers. The size is
- *  determined at construction and cannot be changed afterward. Suitable
- *  when the number of possible events is known in advance.
+ *  Uses a fixed-size array of event handlers. The size is determined at
+ *  construction and cannot be changed afterward. Suitable when the number
+ *  of possible events is known in advance.
+ *
+ *  @tparam Signature Function signature for events (e.g., void(int), int(double, bool))
  *
  *  ## Memory Management
  *
- *  - Owns the underlying array (allocated with `new[]`)
- *  - Non-copyable (would require deep copy)
+ *  - Owns the underlying array (managed by std::unique_ptr)
+ *  - Non-copyable (events may contain non-copyable captures)
  *  - Moveable (transfers ownership of the array)
  *
  *  @par Complexity
@@ -253,9 +369,14 @@ public:
  *
  *  @ingroup Utilities
  */
-class Static_Event_Table : public Event_Table
+template <typename Signature>
+class Static_Event_Table : public Event_Table<Signature>
 {
-  Event_Fct *table; ///< Array of event function pointers
+public:
+  using Event_Handler = typename Event_Table<Signature>::Event_Handler;
+
+private:
+  std::unique_ptr<Event_Handler[]> table; ///< Array of event handlers
   size_t size_table; ///< Fixed size of the table
 
   /** @brief Verify index is within valid range.
@@ -268,22 +389,24 @@ class Static_Event_Table : public Event_Table
   }
 
   /// Read event at index (implements Event_Table virtual method)
-  [[nodiscard]] Event_Fct read_table(const size_t i) const override
+  [[nodiscard]] const Event_Handler* read_table(const size_t i) const override
   {
     verify_index(i);
-    return table[i];
+    return table[i] ? &table[i] : nullptr;
   }
 
   /// Write event at index (implements Event_Table virtual method)
-  void write_table(const size_t i, Event_Fct event_fct) override
+  void write_table(const size_t i, Event_Handler&& event_fct) override
   {
     verify_index(i);
-    table[i] = event_fct;
+    table[i] = std::move(event_fct);
   }
 
-  /// No-op for static table (size is fixed, cannot shrink)
-  void cut_table(size_t) override
-  { /* empty */
+  /// Clear event at index (implements Event_Table virtual method)
+  void clear_slot(size_t i) override
+  {
+    verify_index(i);
+    table[i] = Event_Handler();
   }
 
 public:
@@ -292,20 +415,20 @@ public:
 
   /** @brief Construct a static event table with a fixed size.
    *
-   *  All event slots are initialized to nullptr.
+   *  All event slots are initialized to empty.
    *
    *  @param num_events Number of event slots to allocate (default: 0)
    */
-  Static_Event_Table(const size_t num_events = 0)
-    : table(new Event_Fct [num_events]), size_table(num_events)
+  explicit Static_Event_Table(const size_t num_events = 0)
+    : table(num_events > 0 ? new Event_Handler[num_events] : nullptr),
+      size_table(num_events)
   {
-    fill_table_to_null(num_events);
   }
 
-  /// Copying disabled (would require a deep copy of the array)
-  Static_Event_Table(const Static_Event_Table &) = delete;
+  /// Copying disabled (events may contain non-copyable captures)
+  Static_Event_Table(const Static_Event_Table&) = delete;
 
-  Static_Event_Table &operator=(const Static_Event_Table &) = delete;
+  Static_Event_Table& operator=(const Static_Event_Table&) = delete;
 
   /** @brief Move constructor - transfers ownership of the array.
    *
@@ -313,10 +436,9 @@ public:
    *
    *  @param other Table to move from (will be emptied)
    */
-  Static_Event_Table(Static_Event_Table && other) noexcept
-    : table(other.table), size_table(other.size_table)
+  Static_Event_Table(Static_Event_Table&& other) noexcept
+    : table(std::move(other.table)), size_table(other.size_table)
   {
-    other.table = nullptr;
     other.size_table = 0;
   }
 
@@ -327,24 +449,19 @@ public:
    *  @param other Table to move from (will be emptied)
    *  @return Reference to this
    */
-  Static_Event_Table &operator=(Static_Event_Table && other) noexcept
+  Static_Event_Table& operator=(Static_Event_Table&& other) noexcept
   {
     if (this != &other)
       {
-        delete [] table;
-        table = other.table;
+        table = std::move(other.table);
         size_table = other.size_table;
-        other.table = nullptr;
         other.size_table = 0;
       }
     return *this;
   }
 
-  /** @brief Destructor - frees the underlying array. */
-  ~Static_Event_Table() override
-  {
-    delete [] table;
-  }
+  /** @brief Destructor - automatically frees the underlying array. */
+  ~Static_Event_Table() override = default;
 };
 
 
@@ -354,10 +471,12 @@ public:
  *  the number of events is not known in advance or when events are added
  *  dynamically at runtime.
  *
+ *  @tparam Signature Function signature for events (e.g., void(int), int(double, bool))
+ *
  *  ## Memory Management
  *
  *  - Backed by DynArray (automatic memory management)
- *  - Copyable and moveable (uses DynArray's semantics)
+ *  - Moveable (events may contain non-copyable captures)
  *  - Automatically grows when events are appended beyond current size
  *
  *  ## Growth Strategy
@@ -374,33 +493,45 @@ public:
  *
  *  @par Example
  *  @code
- *  Dynamic_Event_Table table;  // starts empty
+ *  Dynamic_Event_Table<void(int)> table;  // starts empty
  *
- *  // Events can be added dynamically
- *  auto id1 = table.register_event(handler1);
- *  auto id2 = table.register_event(handler2);
- *  auto id3 = table.register_event(handler3);
+ *  // Events can be added dynamically (lambdas, functions, etc.)
+ *  auto id1 = table.register_event([](int x) { std::cout << x << "\n"; });
+ *  auto id2 = table.register_event([](int x) { std::cout << x * 2 << "\n"; });
  *
- *  table.execute_event(id2);
+ *  table.execute_event(id1, 42);  // prints 42
+ *  table.execute_event(id2, 21);  // prints 42
  *  @endcode
  *
  *  @ingroup Utilities
  */
-class Dynamic_Event_Table : public Event_Table
+template <typename Signature>
+class Dynamic_Event_Table : public Event_Table<Signature>
 {
-  DynArray<Event_Fct> table; ///< Dynamic array of event function pointers
+public:
+  using Event_Handler = typename Event_Table<Signature>::Event_Handler;
+
+private:
+  DynArray<Event_Handler> table; ///< Dynamic array of event handlers
 
   /// Read event at index (implements Event_Table virtual method)
-  Event_Fct read_table(const size_t i) const override { return table[i]; }
-
-  /// Write event at index (implements Event_Table virtual method)
-  void write_table(const size_t i, Event_Fct event_fct) override
+  [[nodiscard]] const Event_Handler* read_table(const size_t i) const override
   {
-    table[i] = event_fct;
+    const Event_Handler& handler = table[i];
+    return handler ? &handler : nullptr;
   }
 
-  /// Shrink table to given size (implements Event_Table virtual method)
-  void cut_table(const size_t dim) override { table.cut(dim); }
+  /// Write event at index (implements Event_Table virtual method)
+  void write_table(const size_t i, Event_Handler&& event_fct) override
+  {
+    table[i] = std::move(event_fct);
+  }
+
+  /// Clear event at index (implements Event_Table virtual method)
+  void clear_slot(size_t i) override
+  {
+    table[i] = Event_Handler();
+  }
 
 public:
   /// Get the current table size (implements Event_Table virtual method)
@@ -410,14 +541,53 @@ public:
    *
    *  @param num_events Initial number of event slots (default: 0)
    *
-   *  All initial slots are initialized to nullptr. The table can grow
+   *  All initial slots are initialized to empty. The table can grow
    *  beyond this initial size as events are added.
    */
-  Dynamic_Event_Table(const size_t num_events = 0) : table(num_events)
+  explicit Dynamic_Event_Table(const size_t num_events = 0) : table(num_events)
   {
-    fill_table_to_null(num_events);
+    // Initialize all slots with empty handlers to avoid DynArray access exceptions
+    for (size_t i = 0; i < num_events; ++i)
+      table[i] = Event_Handler();
   }
+
+  /// Copying disabled (events may contain non-copyable captures)
+  Dynamic_Event_Table(const Dynamic_Event_Table&) = delete;
+
+  Dynamic_Event_Table& operator=(const Dynamic_Event_Table&) = delete;
+
+  /// Move constructor
+  Dynamic_Event_Table(Dynamic_Event_Table&&) noexcept = default;
+
+  /// Move assignment
+  Dynamic_Event_Table& operator=(Dynamic_Event_Table&&) noexcept = default;
+
+  /// Default destructor
+  ~Dynamic_Event_Table() override = default;
 };
+
+
+// =============================================================================
+// Legacy Type Aliases for Backward Compatibility
+// =============================================================================
+
+/** @brief Legacy event table type (uses void* for input/output).
+ *
+ *  @deprecated Use templated Event_Table<Signature> for type safety.
+ *
+ *  This alias maintains backward compatibility with code using the old
+ *  Event_Table interface with void* event handlers.
+ */
+using Legacy_Static_Event_Table = Static_Event_Table<void*(void*)>;
+
+/** @brief Legacy dynamic event table type (uses void* for input/output).
+ *
+ *  @deprecated Use templated Dynamic_Event_Table<Signature> for type safety.
+ *
+ *  This alias maintains backward compatibility with code using the old
+ *  Dynamic_Event_Table interface with void* event handlers.
+ */
+using Legacy_Dynamic_Event_Table = Dynamic_Event_Table<void*(void*)>;
 
 
 # endif
