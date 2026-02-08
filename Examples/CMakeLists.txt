@@ -102,6 +102,7 @@ set(EXAMPLE_PROGRAMS
     min_cut_example
     timeoutQueue_example
     ah_stl_functional_example
+    driven_table_example
 )
 
 # Function to get source file from program name
