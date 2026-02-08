@@ -1538,6 +1538,7 @@ TEST(RandomStressTest, SmallRandomGraphs)
 
       EXPECT_TRUE(nets[0].check_network()) << "EK invalid at seed=" << seed;
       EXPECT_TRUE(nets[1].check_network()) << "Dinic invalid at seed=" << seed;
+      EXPECT_TRUE(nets[2].check_network()) << "CapScale invalid at seed=" << seed;
       EXPECT_TRUE(nets[3].check_network()) << "HLPP invalid at seed=" << seed;
     }
 }
