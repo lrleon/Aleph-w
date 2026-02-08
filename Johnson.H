@@ -66,7 +66,7 @@
 
 #include <Dijkstra.H>
 #include <Bellman_Ford.H>
-#include <tpl_graph_copy.H>
+#include <tpl_graph.H>
 #include <tpl_dynList.H>
 #include <ah-errors.H>
 #include <limits>

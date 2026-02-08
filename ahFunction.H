@@ -833,12 +833,17 @@ namespace Aleph
   }
 
 
-  /** Determina si op1 es menor a op2 en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if op1 is less than op2 using a comparison operator.
+   *
+   *  Uses an exclusive comparison operator (< or >). For use with generic
+   *  programs that need comparison functionality.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 < op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
 bool less_than(const T & op1, const T & op2, Compare & cmp)
 {
@@ -857,12 +862,17 @@ bool less_than(const T & op1, const T & op2, Compare && cmp = Compare())
 }
 
 
-  /** Determina si op1 es menor o igual a op2 en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if op1 is less than or equal to op2 using a comparison operator.
+   *
+   *  Uses an exclusive comparison operator (< or >). For use with generic
+   *  programs that need comparison functionality.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 <= op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
 bool less_or_equal_than(const T& op1, const T& op2, Compare & cmp)
 {
@@ -887,12 +897,14 @@ bool less_or_equal_than(const T& op1, const T& op2, Compare && cmp = Compare())
 }
 
 
-  /** Determina si op1 es mayor a op2 en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if op1 is greater than op2 using a comparison operator.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 > op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
 bool greater_than(const T& op1, const T& op2, Compare && cmp = Compare())
 {
@@ -910,14 +922,16 @@ bool greater_than(const T& op1, const T& op2, Compare & cmp)
   return not less_or_equal_than<T, Compare> (op1, op2, cmp);
 }
 
-  /** Determina si op1 es mayor o igual a op2 en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if op1 is greater than or equal to op2 using a comparison operator.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 >= op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
-bool greater_or_equal_than(const T& op1, const T & op2, 
+bool greater_or_equal_than(const T& op1, const T & op2,
 			   Compare && cmp = Compare())
 {
   return not less_than<T, Compare> (op1, op2, std::forward<Compare>(cmp));
@@ -933,12 +947,14 @@ bool greater_or_equal_than(const T& op1, const T& op2, Compare & cmp)
   return not less_than<T, Compare> (op1, op2, cmp);
 }
 
-  /** Determina si los operandos son iguales en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if operands are not equal using a comparison operator.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 != op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
 bool no_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 {
@@ -955,12 +971,14 @@ bool no_equals(const T & op1, const T & op2, Compare & cmp)
   return cmp(op1, op2) or cmp(op2, op1);
 }
 
-  /** Determina si los operandos son iguales en función de un operador
-      de comparación excluyente < o >. A usar con programas genericos
-      que usen una comparacion.
-
-      @ingroup Functions
-  */
+  /** Determines if operands are equal using a comparison operator.
+   *
+   *  @param op1 First operand
+   *  @param op2 Second operand
+   *  @param cmp Comparison functor
+   *  @return true if op1 == op2 according to cmp
+   *  @ingroup Functors
+   */
     template <class T, class Compare> inline
 bool are_equals(const T & op1, const T & op2, Compare && cmp = Compare())
 {
@@ -977,11 +995,13 @@ bool are_equals(const T & op1, const T & op2, Compare & cmp)
   return not no_equals <T, Compare> (op1, op2, cmp);
 }
 
-  /** Efectúa la comparación inversa de Compare.
-
-      Si, por ejemplo, Compare es <, entonces Inversed_Compare efectúa >=.
-
-      @ingroup Functions
+  /** Performs the inverse comparison of Compare.
+   *
+   *  For example, if Compare is <, then Inversed_Compare performs >=.
+   *
+   *  @tparam T Type of values to compare
+   *  @tparam Compare Comparison functor type
+   *  @ingroup Functors
    */
     template <class T, class Compare>
 class Inversed_Compare

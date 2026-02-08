@@ -36,7 +36,7 @@
     This file provides the `Array<T>` template class, a simple dynamic
     array that grows and shrinks automatically as elements are added
     or removed. It supports functional programming operations through
-    mixin classes.
+    the mixin classes.
 
     @ingroup Sequences
  *  @author Leandro Rabindranath León
@@ -143,8 +143,57 @@ public:
   using Item_Type = T; /// The type of element
   using Key_Type = T;  /// The type of key
 
-  /// Initializes a stack with a capacity of `dim`
+  /// Initializes an array with a capacity of `dim`
   Array(size_t dim = 32) : array(dim) { /* empty */ }
+
+  /** @brief Construct an array with `n` copies of `value`.
+   *
+   *  Creates an array of size `n` where each element is initialized by
+   *  copy-constructing from `value`.
+   *
+   *  @param[in] n Number of elements to create.
+   *  @param[in] value The value to copy into each element.
+   *  @throws std::bad_alloc if memory allocation fails.
+   *  @note Complexity: O(n) copies.
+   *  @note Exception safety: Strong guarantee (if allocation fails or T's copy constructor throws, no memory is leaked).
+   *  @note Thread safety: Safe to call concurrently on different instances; not thread-safe on the same instance.
+   */
+  Array(size_t n, const T& value) : array(n)
+  {
+    for (size_t i = 0; i < n; ++i)
+      array.put(value);
+  }
+
+  /** @brief Create an array with `n` elements (uninitialized for PODs).
+   *
+   *  This static factory creates an array of size `n`. Note that elements
+   *  are NOT value-initialized (similar to `new T[n]`). For POD types,
+   *  the content is indeterminate. For class types with default constructors,
+   *  they will be default-constructed.
+   *
+   *  The caller MUST assign values to the new positions before reading them
+   *  if T is a POD type.
+   *
+   *  @param[in] n Number of elements to create.
+   *  @return Array with n elements (potentially uninitialized).
+   *  @throws std::bad_alloc if there is not enough memory.
+   *  @note Complexity: O(n) for allocation and default construction (if applicable).
+   *  @note Exception safety: Strong guarantee.
+   *  @note Thread safety: Safe to call concurrently.
+   *
+   *  @par Example
+   *  @code
+   *  auto arr = Array<int>::create(100);
+   *  // arr[0] is undefined (garbage)
+   *  arr[0] = 42; // Assign before read
+   *  @endcode
+   */
+  static Array create(size_t n)
+  {
+    Array ret(n);
+    ret.putn(n);
+    return ret;
+  }
 
   /// Copy constructor
   Array(const Array &s) : array(s.array) { /* empty */ }
@@ -215,7 +264,7 @@ public:
     return ret.append(a);
   }
 
-  /** insert a copy of `data` at the begining of the array. All the
+  /** insert a copy of `data` at the beginning of the array. All the
       items are moved
 
       @param[in] data to be pushed by copy
@@ -227,7 +276,7 @@ public:
     return array.push(data);
   }
 
-  /** insert a copy of `data` at the begining of the array. All the
+  /** insert a copy of `data` at the beginning of the array. All the
       items are moved
 
       @param[in] data to be pushed by moving
@@ -389,7 +438,7 @@ public:
 
   [[nodiscard]] bool is_valid() const noexcept { return array.is_valid(); }
 
-  /** Iterator on the items of array.
+  /** Iterator on the items of an array.
 
       @ingroup Sequences
   */
@@ -424,4 +473,3 @@ to_stdvector(const Container & c)
 } // end namespace Aleph
 
 # endif /* TPL_ARRAY_H */
-

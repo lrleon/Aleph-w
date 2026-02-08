@@ -42,6 +42,7 @@
 #include <array>
 #include <numeric>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using namespace Aleph;
@@ -246,6 +247,83 @@ TEST(ArrayUtilities, BuildArrayAndStdVector)
   ASSERT_EQ(vec.size(), arr.size());
   for (size_t i = 0; i < vec.size(); ++i)
     EXPECT_EQ(vec[i], arr(i));
+}
+
+namespace
+{
+struct DefaultInit
+{
+  int v;
+  DefaultInit() : v(123) {}
+  explicit DefaultInit(int x) : v(x) {}
+  bool operator==(const DefaultInit &o) const { return v == o.v; }
+};
+}
+
+TEST(ArrayCtors, ValueConstructorInitializesAllElements_POD)
+{
+  const size_t n = 8;
+  const int value = 42;
+  Array<int> arr(n, value);
+  ASSERT_EQ(arr.size(), n);
+  for (size_t i = 0; i < n; ++i)
+    EXPECT_EQ(arr[i], value);
+}
+
+TEST(ArrayCtors, ValueConstructorInitializesAllElements_NonPOD)
+{
+  const size_t n = 6;
+  const std::string value = "abc";
+  Array<std::string> arr(n, value);
+  ASSERT_EQ(arr.size(), n);
+  for (size_t i = 0; i < n; ++i)
+    EXPECT_EQ(arr[i], value);
+}
+
+TEST(ArrayFactory, CreateYieldsLogicalSizeAndRequiresAssignBeforeReadForPOD)
+{
+  const size_t n = 10;
+  auto arr = Array<int>::create(n);
+  static_assert(std::is_trivially_default_constructible_v<int>);
+  ASSERT_EQ(arr.size(), n);
+
+  for (size_t i = 0; i < arr.size(); ++i)
+    arr[i] = static_cast<int>(i * 3);
+  for (size_t i = 0; i < arr.size(); ++i)
+    EXPECT_EQ(arr[i], static_cast<int>(i * 3));
+}
+
+TEST(ArrayFactory, CreateDefaultConstructsClassTypes)
+{
+  const size_t n = 7;
+  auto arr = Array<DefaultInit>::create(n);
+  static_assert(!std::is_trivially_default_constructible_v<DefaultInit>);
+  ASSERT_EQ(arr.size(), n);
+  for (size_t i = 0; i < n; ++i)
+    EXPECT_EQ(arr[i].v, 123);
+
+  arr[0] = DefaultInit(7);
+  EXPECT_EQ(arr[0].v, 7);
+}
+
+TEST(ArrayFactory, PutnAndAppendPopulateBothPODAndNonPOD)
+{
+  Array<int> pod;
+  pod.putn(3);
+  pod[0] = 1;
+  pod[1] = 2;
+  pod[2] = 3;
+  pod.append(4);
+  ASSERT_EQ(pod.size(), 4u);
+  EXPECT_EQ(pod[3], 4);
+
+  Array<std::string> nonpod;
+  nonpod.putn(2);
+  nonpod[0] = "x";
+  nonpod[1] = "y";
+  nonpod.append("z");
+  ASSERT_EQ(nonpod.size(), 3u);
+  EXPECT_EQ(nonpod[2], "z");
 }
 
 } // namespace

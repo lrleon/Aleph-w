@@ -81,10 +81,10 @@ public:
     q.swap(__q.q);
   }
 
-  /// Contruct a empty queue
+  /// Construct an empty queue
   DynListQueue() noexcept : num_items(0) { /* empty */ }
 
-  /// Construc a copy of `__q`
+  /// Construct a copy of `__q`
   DynListQueue(const DynListQueue & __q) : q(__q.q), num_items(__q.num_items)
   {
     // empty
@@ -122,7 +122,7 @@ public:
   [[nodiscard]] constexpr size_t size() const noexcept { return num_items; }
 
   /// Return `true` if `this` is empty
-  bool is_empty() const noexcept { return q.is_empty(); }
+  [[nodiscard]] bool is_empty() const noexcept { return q.is_empty(); }
 
   using Set_Type = DynListQueue; /// The type of set
 
@@ -131,7 +131,7 @@ public:
       /** Put an item by copy
 
           @param[in] data to be copied and put
-          @return a modifiable reference to just recently copy of
+          @return a modifiable reference to just recent copy of
           inserted item
 	  @throw bad_alloc if there is no enough memory
        */
@@ -193,7 +193,7 @@ public:
 
       /** Remove the oldest item of the queue.
 
-          @return a copy of removed item
+          @return a copy of the removed item
           @throw underflow_error if the queue is empty
        */
   T get() 
@@ -271,14 +271,14 @@ public:
     return q.traverse(operation);
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse (Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) const
   {
     return q.traverse(std::forward<Operation>(operation));
   }
 
-  /// \overload traverse(Operation & operation)
+  /// \overload traverse (Operation & operation)
   template <class Operation>
   bool traverse(Operation && operation = Operation()) 
   {

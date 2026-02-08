@@ -341,6 +341,7 @@ auto even_squares = numbers
   - MIT license header
   - Author and date if applicable
 - **MUST**: All public classes must have `@brief` and detailed description
+- **MUST**: **If a new public method or class is added, it MUST be fully documented with Doxygen.**
 - **MUST**: All public member functions must have:
   - `@brief` description
   - `@param` for each parameter
@@ -362,6 +363,9 @@ auto even_squares = numbers
 ## 10. Testing Requirements
 
 ### Test Coverage
+- **MUST**: **If a new public method or class is added, a corresponding unit test MUST be created.**
+  - The test must verify the method's contract (preconditions, postconditions, return values).
+  - The test must be added to the appropriate test file in `Tests/` (e.g., `Tests/ClassName_test.cc`).
 - **MUST**: If headers are modified, corresponding tests must be added or updated
 - **MUST**: Tests must cover edge cases: empty inputs, single element, large inputs
 - **MUST**: Tests must verify algorithmic correctness, not just absence of crashes
@@ -415,6 +419,7 @@ When reviewing a pull request, verify the following:
 
 ### Documentation
 - [ ] All public APIs documented with Doxygen
+- [ ] New methods/classes fully documented
 - [ ] Complexity analysis included
 - [ ] Preconditions and postconditions documented
 - [ ] No Doxygen warnings for changed files
@@ -422,6 +427,7 @@ When reviewing a pull request, verify the following:
 
 ### Testing
 - [ ] Tests added/updated for modified headers
+- [ ] New public methods have corresponding unit tests
 - [ ] Edge cases covered in tests
 - [ ] Tests pass locally and in CI
 
@@ -440,9 +446,9 @@ When reviewing a pull request, verify the following:
 - Memory leaks or undefined behavior
 - Data races or deadlocks
 - Incorrect algorithm logic or complexity
-- Missing Doxygen documentation
+- Missing Doxygen documentation for new or modified code
 - Missing MIT license header in `.H` files
-- Test failures or missing tests for header changes
+- Test failures or missing tests for header changes/new features
 
 ### Important Issues (Should Fix)
 - Non-const member functions that should be const

@@ -429,9 +429,9 @@ Node * insert_dup_by_key_xt(Node *& r, Node * p, Compare && cmp = Compare())
     found, the function returns the node containing the key; otherwise `p` is
     inserted in the tree and this pointer is returned.
 
-    @param[in] r root of tree
-    @param[in] p pointer to node to search or insert
-    @param[in] cmp comparison functor for key ordering
+    @param r root of tree (reference to pointer, may be modified)
+    @param p pointer to node to search or insert
+    @param cmp comparison functor for key ordering
     @return if `p` is inserted, then this is returned; otherwise the
     pointer to the node containing the key is returned
 */

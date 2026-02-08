@@ -72,8 +72,8 @@ public:
 
             This version is used when the arc filter needs to maintain state.
 
-            @param[in] g the graph or digraph to verify.
-            @param[in] sa the arc filter for the graph (default: Dft_Show_Arc<GT>)
+            @param g the graph or digraph to verify
+            @param sa the arc filter for the graph (rvalue reference, default: Dft_Show_Arc<GT>)
             @return true if the graph is connected; false otherwise.
             @note Due to the test with the number of arcs, this function
             is incorrect for multigraphs.
@@ -96,8 +96,8 @@ public:
 
     This version is used when the arc filter needs to maintain state.
 
-    @param[in] g the graph or digraph to verify.
-    @param[in] sa the arc filter for the graph (by reference)
+    @param g the graph or digraph to verify
+    @param sa the arc filter for the graph (lvalue reference)
     @return true if the graph is connected; false otherwise.
     @note Due to the test with the number of arcs, this function
     is incorrect for multigraphs.
