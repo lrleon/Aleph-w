@@ -353,6 +353,10 @@ public:
  *  construction and cannot be changed afterward. Suitable when the number
  *  of possible events is known in advance.
  *
+ *  @warning The auto-append overload `register_event(fct)` (without an
+ *  explicit index) is **not supported** on static tables and will always
+ *  throw `range_error`.  Use `register_event(index, fct)` instead.
+ *
  *  @tparam Signature Function signature for events (e.g., void(int), int(double, bool))
  *
  *  ## Memory Management

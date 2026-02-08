@@ -192,33 +192,26 @@ TEST(LegacyDynamicEventTableTest, RegisterAtSpecificIndex) {
 
 TEST(LegacyDynamicEventTableTest, UnregisterAndShrink) {
     Legacy_Dynamic_Event_Table table;
-    size_t id0 = table.register_event(event_hello);
+    table.register_event(event_hello);
     size_t id1 = table.register_event(event_echo);
 
     EXPECT_EQ(table.size(), 2u);
 
-    // Unregister last event -> should shrink?
-    // Base class unregister_event: if (index == size()) cut_table(index - 1);
-    // Wait, indices are 0-based. size() is count.
-    // If size is 2, indices are 0, 1.
-    // If we unregister 1: index (1) != size() (2).
-    // The logic in Event_Table::unregister_event is:
-    // if (index == size()) cut_table(index - 1);
-    // This looks like a bug in the base class logic or my understanding.
-    // If index is 0-based, valid indices are 0..size()-1.
-    // So index can never be equal to size() inside unregister_event because of the check:
-    // ah_domain_error_if(index >= size())
-    //
-    // Let's test this hypothesis.
+    // Unregister last event: slot is cleared but table does not shrink
+    // (size stays the same because the base class only shrinks when
+    // index == size(), which is unreachable after the range check).
+    table.unregister_event(id1);
+    EXPECT_EQ(table.size(), 2u);
+    EXPECT_FALSE(table.check(id1, event_echo));
 
-    table.unregister_event(id1); // index 1
-    // If the logic is flawed, size remains 2.
-    // If the logic meant (index == size() - 1), it might shrink.
+    // Verify event at id0 was not corrupted by unregistering id1
+    EXPECT_TRUE(table.check(0, event_hello));
+    void* result = table.execute_event(0);
+    EXPECT_EQ(*static_cast<string*>(result), "Hello");
 
-    // Let's check what happens.
-    // If it doesn't shrink, we can still reuse the slot?
-    // No, register_event(fct) appends to END (size()).
-    // register_event(index, fct) writes to specific index.
+    // The cleared slot can be reused via register_event(index, fct)
+    table.register_event(id1, event_hello);
+    EXPECT_TRUE(table.check(id1, event_hello));
 }
 
 TEST(LegacyDynamicEventTableTest, ReuseSlot) {
