@@ -56,6 +56,7 @@ Language: English | [Español](README.es.md)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -2064,6 +2065,7 @@ SOFTWARE.
 - **Universidad de Los Andes** (Mérida, Venezuela) - Birthplace of Aleph-w
 - **Thousands of students** who learned algorithms with this library
 - **Open source community** for continuous feedback
+- **[SYMYL RESEARCH](https://simylresearch.com/en/)** for supporting the development and advancement of Aleph-w
 
 ---
 
