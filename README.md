@@ -45,6 +45,7 @@ Language: English | [Español](README.es.md)
   - [Minimum Spanning Trees](#minimum-spanning-trees)
   - [Network Flows](#network-flows)
   - [Graph Connectivity](#graph-connectivity)
+  - [Matching](#matching)
   - [Sorting Algorithms](#sorting-algorithms)
 - [Memory Management](#memory-management)
   - [Arena Allocators](#arena-allocators)
@@ -219,11 +220,11 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  └─ A* Search                                     ├─ Cut Nodes/Bridges     │
 │                                                   └─ Biconnected           │
 │                                                                            │
-│  NETWORK FLOWS            MINIMUM CUT              SPECIAL                 │
-│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Topological Sort      │
-│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Eulerian Path         │
-│  ├─ Push-Relabel         └─ Stoer-Wagner          ├─ Hamiltonian Path      │
-│  ├─ Dinic                                         └─ Cycle Detection       │
+│  NETWORK FLOWS            MINIMUM CUT              MATCHING                │
+│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Hopcroft-Karp         │
+│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Max-Flow Reduction    │
+│  ├─ Push-Relabel         └─ Stoer-Wagner          └─ Bipartite Coloring    │
+│  ├─ Dinic                                                                  │
 │  ├─ Min-Cost Max-Flow                                                      │
 │  └─ Multicommodity                                                         │
 │                                                                            │
@@ -231,8 +232,9 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
 │  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     └─ Geometric             │
-│  └─ Shell Sort                                                             │
+│  ├─ Introsort                                     ├─ Topological Sort      │
+│  └─ Shell Sort                                    ├─ Eulerian Path         │
+│                                                   └─ Hamiltonian Path      │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1246,6 +1248,21 @@ int main() {
 }
 ```
 
+### Matching
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MATCHING ALGORITHMS                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BIPARTITE MATCHING                                                         │
+│                                                                             │
+│  Hopcroft-Karp: O(E√V)                                                      │
+│  Max-Flow Reduction: O(VE)                                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ### Sorting Algorithms
 
 ```
@@ -2023,6 +2040,31 @@ ctest --test-dir build-debug
 3. Make changes with tests
 4. Ensure CI passes: `ctest --output-on-failure`
 5. Submit Pull Request
+
+---
+
+## Bug Reports
+
+If you find a bug, please report it!
+
+- **Email**: `leandro.r.leon@gmail.com`
+- **GitHub Issues**: [Open a new issue](https://github.com/lrleon/Aleph-w/issues)
+
+Please include a minimal reproducible example if possible.
+
+---
+
+## Join the Community
+
+Imagine a library that grows with your needs. **Aleph-w** is built by developers, for developers.
+
+Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, or adding a brand new data structure, you have the power to shape the future of this project.
+
+- **Have an idea?** Share it in [Discussions](https://github.com/lrleon/Aleph-w/discussions).
+- **Found a better way?** Submit a Pull Request.
+- **Want to learn?** Explore the code and ask questions.
+
+Together, we can build the most comprehensive C++ algorithm library in the world. **Join us!**
 
 ---
 
