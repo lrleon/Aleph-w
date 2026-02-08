@@ -995,9 +995,11 @@ bool are_equals(const T & op1, const T & op2, Compare & cmp)
   return not no_equals <T, Compare> (op1, op2, cmp);
 }
 
-  /** Performs the inverse comparison of Compare.
+  /** Performs order reversal of Compare by swapping operands.
    *
-   *  For example, if Compare is <, then Inversed_Compare performs >=.
+   *  Inversed_Compare evaluates `cmp(op2, op1)`. This is a semantic
+   *  inversion (argument swap), not logical negation of `cmp(op1, op2)`.
+   *  For example: `<` becomes `>`, and `<=` becomes `>=`.
    *
    *  @tparam T Type of values to compare
    *  @tparam Compare Comparison functor type
@@ -1044,5 +1046,4 @@ struct Compare_Dup
 } // namespace Aleph
 
 #endif /* AHFUNCTION_H */
-
 

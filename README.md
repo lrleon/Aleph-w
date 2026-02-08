@@ -1250,7 +1250,7 @@ int main() {
 
 ### Matching
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MATCHING ALGORITHMS                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -2058,7 +2058,7 @@ Please include a minimal reproducible example if possible.
 
 Imagine a library that grows with your needs. **Aleph-w** is built by developers, for developers.
 
-Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, or adding a brand new data structure, you have the power to shape the future of this project.
+Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, or adding a brand-new data structure, you have the power to shape the future of this project.
 
 - **Have an idea?** Share it in [Discussions](https://github.com/lrleon/Aleph-w/discussions).
 - **Found a better way?** Submit a Pull Request.

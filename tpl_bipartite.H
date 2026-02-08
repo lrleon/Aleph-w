@@ -376,8 +376,7 @@ By default, the Ford-Fulkerson algorithm is used.
   // Returns true if an augmenting path from u to a free right-node
   // was found and the matching was augmented along it.
   template <class GT, class SA>
-  static bool hopcroft_karp_dfs(const GT & g, typename GT::Node *u,
-                                long dist_to_free)
+  static bool hopcroft_karp_dfs(const GT & g, typename GT::Node *u)
   {
     using Node = typename GT::Node;
     using Arc = typename GT::Arc;
@@ -405,7 +404,7 @@ By default, the Ford-Fulkerson algorithm is used.
         // pair_v is a left-side node matched to v
         if (NODE_COUNTER(pair_v) == u_dist + 1)
           {
-            if (hopcroft_karp_dfs<GT, SA>(g, pair_v, dist_to_free))
+            if (hopcroft_karp_dfs<GT, SA>(g, pair_v))
               {
                 NODE_COOKIE(u) = arc;
                 NODE_COOKIE(v) = arc;
@@ -513,10 +512,9 @@ By default, the Ford-Fulkerson algorithm is used.
     // Main loop: BFS + DFS phases
     while (bfs())
       {
-        long dist_to_free = INF; // not used by DFS directly; it reads distances
         for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
           if (Node *u = it.get_curr(); NODE_COOKIE(u) == nullptr) // u is free
-            hopcroft_karp_dfs<GT, SA>(g, u, dist_to_free);
+            hopcroft_karp_dfs<GT, SA>(g, u);
       }
 
     // Collect matching arcs from left-side nodes

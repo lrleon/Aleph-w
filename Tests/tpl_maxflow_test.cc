@@ -1094,7 +1094,8 @@ TEST(HLPPStressTest, LadderNetwork)
   auto s = net.insert_node(0);
   auto t = net.insert_node(1);
 
-  std::vector<Node*> chain_a(N), chain_b(N);
+  auto chain_a = Array<Node *>::create(N);
+  auto chain_b = Array<Node *>::create(N);
   for (int i = 0; i < N; ++i)
     {
       chain_a[i] = net.insert_node(10 + i);
@@ -1127,7 +1128,8 @@ TEST(HLPPStressTest, LadderNetwork)
   auto build_ladder = [&](TestNet& n) {
     auto s2 = n.insert_node(0);
     auto t2 = n.insert_node(1);
-    std::vector<Node*> ca(N), cb(N);
+    auto ca = Array<Node *>::create(N);
+    auto cb = Array<Node *>::create(N);
     for (int i = 0; i < N; ++i)
       {
         ca[i] = n.insert_node(10 + i);
@@ -1471,8 +1473,7 @@ namespace
   void build_random_network(NetT & net, int n, int m, int max_cap,
                             unsigned seed)
   {
-    if (n < 3)
-      throw std::invalid_argument("build_random_network requires n >= 3");
+    ah_invalid_argument_if(n < 3, "build_random_network requires n >= 3");
 
     using NodeT = typename NetT::Node;
     std::mt19937 rng(seed);
