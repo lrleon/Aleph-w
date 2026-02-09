@@ -323,11 +323,15 @@ namespace Aleph
 
     Gen_Sparse_Table(const Gen_Sparse_Table &) = default;
 
-    Gen_Sparse_Table(Gen_Sparse_Table &&) noexcept = default;
+    Gen_Sparse_Table(Gen_Sparse_Table &&) noexcept(
+      std::is_nothrow_move_constructible_v<Array<T>> &&
+      std::is_nothrow_move_constructible_v<Op>) = default;
 
     Gen_Sparse_Table & operator=(const Gen_Sparse_Table &) = default;
 
-    Gen_Sparse_Table & operator=(Gen_Sparse_Table &&) noexcept = default;
+    Gen_Sparse_Table & operator=(Gen_Sparse_Table &&) noexcept(
+      std::is_nothrow_move_assignable_v<Array<T>> &&
+      std::is_nothrow_move_assignable_v<Op>) = default;
 
     /** @brief Range query over `[l, r]` in O(1).
      *
