@@ -605,7 +605,7 @@ int main() {
 
 Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and range queries:
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                         FENWICK TREE VARIANTS                              │
 ├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
