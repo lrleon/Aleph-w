@@ -352,7 +352,10 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T>
-    requires (std::is_arithmetic_v<T> && std::totally_ordered<T>)
+  concept FenwickArithmetic =
+      (std::integral<T> && !std::same_as<T, bool>) || std::floating_point<T>;
+
+  template <FenwickArithmetic T>
   struct Fenwick_Tree
       : public Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>
   {
