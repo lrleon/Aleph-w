@@ -273,8 +273,6 @@ namespace Aleph
     {
       ah_out_of_range_error_if(r >= n)
         << "Gen_Fenwick_Tree::query: r=" << r << " >= size " << n;
-      ah_out_of_range_error_if(r >= n)
-        << "Gen_Fenwick_Tree::query: r=" << r << " >= n=" << n;
       ah_out_of_range_error_if(l > r)
         << "Gen_Fenwick_Tree::query: l=" << l << " > r=" << r;
 
