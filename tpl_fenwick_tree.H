@@ -92,6 +92,11 @@ namespace Aleph
       std::is_signed_v<T> &&
       !std::same_as<T, bool>;
 
+  /** @brief Binary operation compatible with Fenwick tree group functors.
+   *
+   *  Requires the functor to be callable with two values of type @p T and
+   *  return a value convertible to @p T.
+   */
   template <typename F, typename T>
   concept FenwickBinaryOp =
       requires(F f, T a, T b)
@@ -229,6 +234,12 @@ namespace Aleph
       fill_from_indexed([&values](size_t i) { return values(i); });
     }
 
+    /** @brief Construct from a std::vector<T> in O(n) time.
+     *
+     *  @param values  source vector with the initial element values.
+     *  @param pop     group operation functor.
+     *  @param mop     group subtraction functor.
+     */
     Gen_Fenwick_Tree(const std::vector<T> & values,
                      Plus pop = Plus(), Minus mop = Minus())
       : tree(values.size() + 1, T()), n(values.size()),
@@ -237,6 +248,12 @@ namespace Aleph
       fill_from_indexed([&values](size_t i) { return values[i]; });
     }
 
+    /** @brief Construct from a DynList<T> in O(n) time.
+     *
+     *  @param values  source list with the initial element values.
+     *  @param pop     group operation functor.
+     *  @param mop     group subtraction functor.
+     */
     Gen_Fenwick_Tree(const DynList<T> & values,
                      Plus pop = Plus(), Minus mop = Minus())
       : tree(values.size() + 1, T()), n(values.size()),
