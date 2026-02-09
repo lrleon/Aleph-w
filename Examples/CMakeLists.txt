@@ -104,6 +104,8 @@ set(EXAMPLE_PROGRAMS
     ah_stl_functional_example
     driven_table_example
     fenwick_tree_example
+    sparse_table_example
+    sparse_table_test
 )
 
 # Function to get source file from program name
