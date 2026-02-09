@@ -108,6 +108,7 @@ set(HLIST
     tpl_odhash.H tpl_memArray.H tpl_dynArray.H ahFuntional.H hash-dry.H
     bloom-filter.H ah-dry.H graph-dry.H tpl_con_queue.H
     q-consumer-threads.H ah-string-utils.H ah-comb.H geom_algorithms.H
+    tpl_fenwick_tree.H
 )
 
 # C++ source files

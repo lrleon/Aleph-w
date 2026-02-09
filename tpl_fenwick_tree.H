@@ -67,8 +67,12 @@
 
 # include <bit>
 # include <cassert>
+# include <concepts>
 # include <initializer_list>
+# include <type_traits>
 # include <vector>
+# include <algorithm>
+# include <utility>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
 # include <ahFunction.H>
@@ -120,7 +124,7 @@ namespace Aleph
 
     /// O(n) bottom-up construction of the tree array from raw values
     /// already placed in tree[1..n].
-    void build() noexcept
+    void build()
     {
       for (size_t i = 1; i <= n; ++i)
         if (const size_t parent = i + (i & (-i)); parent <= n)
@@ -128,7 +132,7 @@ namespace Aleph
     }
 
     template <class F>
-    void fill_from_indexed(F getter) noexcept
+    void fill_from_indexed(F getter)
     {
       for (size_t i = 0; i < n; ++i)
         tree(i + 1) = getter(i);
@@ -136,7 +140,7 @@ namespace Aleph
     }
 
     template <class StdIt>
-    void fill_from_std_iter(StdIt first, StdIt last) noexcept
+    void fill_from_std_iter(StdIt first, StdIt last)
     {
       size_t i = 1;
       for (; first != last; ++first)
@@ -145,7 +149,7 @@ namespace Aleph
     }
 
     template <class AlephIt>
-    void fill_from_aleph_it(AlephIt it) noexcept
+    void fill_from_aleph_it(AlephIt it)
     {
       size_t i = 1;
       for (; it.has_curr(); it.next_ne())
@@ -346,6 +350,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T>
+    requires (std::is_arithmetic_v<T> && std::totally_ordered<T>)
   struct Fenwick_Tree
       : public Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>
   {
