@@ -230,6 +230,52 @@ int main() {
 }
 ```
 
+### Ejemplo 4: Álgebra Lineal Sparse (matrices y vectores dispersos)
+
+```cpp
+#include <al-vector.H>
+#include <al-matrix.H>
+#include <iostream>
+
+int main() {
+    // Vector disperso con dominio de strings
+    AlDomain<std::string> productos;
+    productos.insert("Laptop");
+    productos.insert("Teléfono");
+    productos.insert("Tablet");
+
+    Vector<std::string, double> inventario(productos);
+    inventario.set_entry("Laptop", 150.0);
+    inventario.set_entry("Teléfono", 450.0);
+    // Tablet implícitamente 0 (no se almacena)
+
+    std::cout << "Inventario Laptop: " << inventario["Laptop"] << "\n";
+
+    // Matriz dispersa con indexación por dominio
+    AlDomain<std::string> tiendas;
+    tiendas.insert("Bogotá");
+    tiendas.insert("Medellín");
+    tiendas.insert("Cali");
+
+    Matrix<std::string, std::string, int> ventas(productos, tiendas);
+    ventas.set_entry("Laptop", "Bogotá", 25);
+    ventas.set_entry("Teléfono", "Medellín", 80);
+    // Otras entradas son cero implícitamente (no se almacenan)
+
+    // Multiplicación matriz-vector
+    Vector<std::string, int> total_por_producto = ventas * inventario;
+
+    // Transpuesta
+    auto ventas_t = ventas.transpose();
+
+    // Ventaja: matriz 1000×1000 con 1000 no-ceros:
+    //   Densa:  1,000,000 doubles = 8 MB
+    //   Sparse:     1,000 entries = 8 KB (ahorro 1000×)
+
+    return 0;
+}
+```
+
 ---
 
 ## Pruebas {#pruebas}
