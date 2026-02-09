@@ -671,7 +671,7 @@ size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
 
 Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                   SPARSE LINEAR ALGEBRA STRUCTURES                         │
 ├────────────────────────────────────────────────────────────────────────────┤

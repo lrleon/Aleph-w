@@ -372,7 +372,7 @@ namespace Aleph
      *  @return  0-based index, or `size()` if the total sum is less
      *           than @p k.
      */
-    size_t find_kth(T k) const noexcept
+    size_t find_kth(T k) const
     {
       const size_t nn = this->n;
       if (nn == 0)
@@ -384,8 +384,7 @@ namespace Aleph
 
       while (bit_mask > 0)
         {
-          const size_t next = pos + bit_mask;
-          if (next <= nn && this->tree(next) < k)
+          if (const size_t next = pos + bit_mask; next <= nn && this->tree(next) < k)
             {
               k -= this->tree(next);
               pos = next;
@@ -409,10 +408,10 @@ namespace Aleph
    *    P(i) = (i+1)\,\text{B1.prefix}(i) - \text{B2.prefix}(i)
    *  \f]
    *
-   *  This class is restricted to arithmetic types (it uses
-   *  multiplication and subtraction directly).
+   *  This class is restricted to signed arithmetic types (it uses
+   *  multiplication, subtraction, and negative deltas directly).
    *
-   *  @tparam T arithmetic element type.
+   *  @tparam T signed arithmetic element type.
    *
    *  @par Complexity
    *  | Operation       | Time     |
@@ -438,6 +437,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T>
+    requires (std::is_arithmetic_v<T> && std::is_signed_v<T>)
   class Range_Fenwick_Tree
   {
     Gen_Fenwick_Tree<T> b1; // stores differences d[i]
@@ -587,8 +587,6 @@ namespace Aleph
         << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
       ah_out_of_range_error_if(l > r)
         << "Range_Fenwick_Tree::query: l=" << l << " > r=" << r;
-      ah_out_of_range_error_if(r >= n)
-        << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
 
       return l > 0 ? prefix_sum(r) - prefix_sum(l - 1) : prefix_sum(r);
     }
