@@ -43,9 +43,9 @@
  *  - **Gen_Sparse_Table\<T, Op\>** — fully generic over any idempotent
  *    binary functor `Op`.
  *  - **Sparse_Table\<T\>** — convenient specialisation for range
- *    minimum queries using `std::min`.
+ *    minimum queries using the `Min_Op` functor.
  *  - **Max_Sparse_Table\<T\>** — convenient specialisation for range
- *    maximum queries using `std::max`.
+ *    maximum queries using the `Max_Op` functor.
  *
  *  ## Complexity
  *  | Operation     | Time       |
