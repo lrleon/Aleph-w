@@ -164,20 +164,20 @@ public:
       array.put(value);
   }
 
-  /** @brief Create an array with `n` elements (uninitialized for PODs).
+  /** @brief Create an array with `n` logical elements.
    *
-   *  This static factory creates an array of size `n`. Note that elements
-   *  are NOT value-initialized (similar to `new T[n]`). For POD types,
-   *  the content is indeterminate. For class types with default constructors,
-   *  they will be default-constructed.
+   *  This static factory creates an array and then grows it with
+   *  `ret.putn(n)`. `putn()` delegates to `MemArray::putn()`, which only
+   *  adjusts logical size (and backing storage if needed): it does NOT
+   *  value-initialize new entries for any `T`.
    *
-   *  The caller MUST assign values to the new positions before reading them
-   *  if T is a POD type.
+   *  All new elements are therefore uninitialized, and the caller MUST assign
+   *  each position before reading it.
    *
    *  @param[in] n Number of elements to create.
-   *  @return Array with n elements (potentially uninitialized).
+   *  @return Array with `n` logical elements (all uninitialized).
    *  @throws std::bad_alloc if there is not enough memory.
-   *  @note Complexity: O(n) for allocation and default construction (if applicable).
+   *  @note Complexity: O(n) for allocation; logical growth via `putn()` is O(1) here.
    *  @note Exception safety: Strong guarantee.
    *  @note Thread safety: Safe to call concurrently.
    *
@@ -473,3 +473,4 @@ to_stdvector(const Container & c)
 } // end namespace Aleph
 
 # endif /* TPL_ARRAY_H */
+
