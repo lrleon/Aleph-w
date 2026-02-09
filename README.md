@@ -594,6 +594,70 @@ int main() {
                                   [60]  [80]
 ```
 
+### Fenwick Trees (Binary Indexed Trees)
+
+Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and range queries:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         FENWICK TREE VARIANTS                              │
+├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
+│     Operation    │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ point_update     │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ range_update     │       N/A    │     N/A      │   O(log n)   │            │
+│ find_kth         │       N/A    │   O(log n)   │     N/A      │            │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ Group Operand    │  Arbitrary   │  operator+   │  operator+   │            │
+│                  │  (XOR, +mod) │  operator-   │  operator-   │            │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
+│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
+└──────────────────┴──────────────┴──────────────┴──────────────┴────────────┘
+```
+
+#### Usage Examples
+
+```cpp
+#include <tpl_fenwick_tree.H>
+
+int main() {
+    // Point update + Range query (classic Fenwick tree)
+    Fenwick_Tree<int> ft = {3, 1, 4, 1, 5};
+    ft.update(2, 7);               // a[2] += 7
+    int sum = ft.query(1, 4);      // sum of a[1..4]
+    int kth = ft.find_kth(5);      // smallest i with prefix(i) >= 5
+
+    // Range update + Range query
+    Range_Fenwick_Tree<int> rft(10);
+    rft.update(2, 5, 10);          // add 10 to a[2..5]
+    int range_sum = rft.query(0, 7); // sum of a[0..7]
+
+    // Generic Fenwick over XOR group
+    struct Xor { int op(int a, int b) { return a ^ b; } };
+    Gen_Fenwick_Tree<int, Xor, Xor> xor_ft(8);
+    xor_ft.update(3, 0b1010);      // a[3] ^= 0b1010
+    int prefix_xor = xor_ft.prefix(5);
+
+    return 0;
+}
+```
+
+#### Real-World Application: Order Book Depth
+
+```cpp
+// Stock exchange: find worst price for market order of K shares
+Fenwick_Tree<int> ask_book(20);  // 20 price ticks
+ask_book.update(0, 120);         // 120 shares at tick 0
+ask_book.update(3, 200);         // 200 shares at tick 3
+ask_book.update(7, 300);         // 300 shares at tick 7
+
+size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
+// Result: tick 3 ($100.03) — pay worst price of $100.03
+```
+
 ### Hash Tables
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
@@ -1732,6 +1796,9 @@ int main() {
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |
 | `tpl_arrayQueue.H` | `ArrayQueue<T>` | Queue (array-based) |
 | `tpl_arrayStack.H` | `ArrayStack<T>` | Stack (array-based) |
+| `tpl_fenwick_tree.H` | `Fenwick_Tree<T>` | Fenwick tree (BIT) |
+| `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T,+,->` | Fenwick over abelian groups |
+| `tpl_fenwick_tree.H` | `Range_Fenwick_Tree<T>` | Range update/query Fenwick |
 
 #### Tree Types
 

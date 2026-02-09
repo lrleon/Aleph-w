@@ -197,6 +197,39 @@ int main() {
 }
 ```
 
+### Ejemplo 3: Fenwick Tree (sumas de prefijo y rangos)
+
+```cpp
+#include <tpl_fenwick_tree.H>
+#include <iostream>
+
+int main() {
+    // Fenwick clásico: actualización puntual + consulta de rango
+    Fenwick_Tree<int> ft = {3, 1, 4, 1, 5, 9};
+    std::cout << "Suma [0..3]: " << ft.prefix(3) << "\n";   // 9
+    std::cout << "Suma [2..4]: " << ft.query(2, 4) << "\n";  // 10
+
+    ft.update(2, 6);  // a[2] += 6
+    std::cout << "Suma [2..4] tras update: " << ft.query(2, 4) << "\n"; // 16
+
+    // find_kth: menor índice cuyo prefijo acumulado >= k
+    size_t idx = ft.find_kth(10);  // útil para order statistics
+
+    // Range Fenwick: actualización y consulta por rangos
+    Range_Fenwick_Tree<int> rft(8);
+    rft.update(1, 4, 3);   // a[1..4] += 3
+    rft.update(2, 6, 5);   // a[2..6] += 5
+    std::cout << "Valor en pos 3: " << rft.get(3) << "\n";  // 8
+
+    // Genérico sobre cualquier grupo abeliano (e.g. XOR)
+    struct Xor { int operator()(int a, int b) const { return a ^ b; } };
+    Gen_Fenwick_Tree<int, Xor, Xor> xft(10);
+    xft.update(3, 0b1010);
+
+    return 0;
+}
+```
+
 ---
 
 ## Pruebas {#pruebas}
