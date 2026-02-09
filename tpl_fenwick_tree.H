@@ -37,14 +37,16 @@
  *  operation with identity) and supports prefix and range queries and
  *  point updates in O(log n) time.
  *
- *  Two class templates are provided:
+ *  Three class templates are provided:
  *
  *  - **Gen_Fenwick_Tree\<T, Plus, Minus\>** — fully generic over any
  *    abelian group given by the binary functors `Plus` and `Minus`.
- *  - **Fenwick_Tree\<T\>** — convenient specialisation for arithmetic
+ *  - **Fenwick_Tree\<T\>** — convenient specialisation for signed arithmetic
  *    types (uses `operator+` / `operator-`).  Adds the `find_kth`
  *    order-statistic query that exploits the internal bit layout in
  *    O(log n).
+ *  - **Range_Fenwick_Tree\<T\>** — signed arithmetic variant that
+ *    supports range updates and range queries in O(log n).
  *
  *  ## Complexity
  *  | Operation    | Time      |
@@ -71,7 +73,6 @@
 # include <initializer_list>
 # include <type_traits>
 # include <vector>
-# include <algorithm>
 # include <utility>
 # include <tpl_array.H>
 # include <tpl_dynList.H>
@@ -80,6 +81,17 @@
 
 namespace Aleph
 {
+  /** @brief Arithmetic domain accepted by Fenwick specializations.
+   *
+   *  Signed, totally ordered arithmetic types excluding `bool`.
+   */
+  template <typename T>
+  concept FenwickArithmetic =
+      std::is_arithmetic_v<T> &&
+      std::totally_ordered<T> &&
+      std::is_signed_v<T> &&
+      !std::same_as<T, bool>;
+
   /** @brief Fenwick tree over an arbitrary abelian group.
    *
    *  Maintains an implicit array `a[0..n-1]` and a companion tree
@@ -131,6 +143,7 @@ namespace Aleph
           tree(parent) = plus_op(tree(parent), tree(i));
     }
 
+    /// Fill the internal storage from a 0-based indexed getter and build.
     template <class F>
     void fill_from_indexed(F getter)
     {
@@ -139,6 +152,7 @@ namespace Aleph
       build();
     }
 
+    /// Fill the internal storage from a standard iterator range and build.
     template <class StdIt>
     void fill_from_std_iter(StdIt first, StdIt last)
     {
@@ -148,6 +162,7 @@ namespace Aleph
       build();
     }
 
+    /// Fill the internal storage from an Aleph-style iterator (get_it()) and build.
     template <class AlephIt>
     void fill_from_aleph_it(AlephIt it)
     {
@@ -272,8 +287,6 @@ namespace Aleph
     T query(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
-        << "Gen_Fenwick_Tree::query: r=" << r << " >= size " << n;
-      ah_out_of_range_error_if(r >= n)
         << "Gen_Fenwick_Tree::query: r=" << r << " >= n=" << n;
       ah_out_of_range_error_if(l > r)
         << "Gen_Fenwick_Tree::query: l=" << l << " > r=" << r;
@@ -324,6 +337,7 @@ namespace Aleph
       return ret;
     }
 
+    /** @brief Swap this tree with @p other in O(1). */
     void swap(Gen_Fenwick_Tree & other) noexcept
     {
       tree.swap(other.tree);
@@ -353,8 +367,7 @@ namespace Aleph
    *
    *  @ingroup Sequences
    */
-  template <typename T>
-    requires (std::is_arithmetic_v<T> && std::totally_ordered<T>)
+  template <FenwickArithmetic T>
   struct Fenwick_Tree
       : public Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>
   {
@@ -438,13 +451,12 @@ namespace Aleph
    *  @see Fenwick_Tree      Arithmetic specialisation with find_kth.
    *  @ingroup Sequences
    */
-  template <typename T>
-    requires (std::is_arithmetic_v<T> && std::is_signed_v<T>)
+  template <FenwickArithmetic T>
   class Range_Fenwick_Tree
   {
-    Gen_Fenwick_Tree<T> b1; // stores differences d[i]
-    Gen_Fenwick_Tree<T> b2; // stores d[i] * i
-    size_t n = 0;
+   Gen_Fenwick_Tree<T> b1; // stores differences d[i]
+   Gen_Fenwick_Tree<T> b2; // stores d[i] * i
+   size_t n = 0;
 
     /// Internal: prefix sum P(i) = (i+1)*B1.prefix(i) - B2.prefix(i)
     T prefix_sum(size_t i) const
@@ -629,6 +641,7 @@ namespace Aleph
       return ret;
     }
 
+    /** @brief Swap this tree with @p other in O(1). */
     void swap(Range_Fenwick_Tree & other) noexcept
     {
       b1.swap(other.b1);
