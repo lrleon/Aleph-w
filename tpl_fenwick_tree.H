@@ -94,12 +94,14 @@ namespace Aleph
 
   /** @brief Binary operation compatible with Fenwick tree group functors.
    *
-   *  Requires the functor to be callable with two values of type @p T and
-   *  return a value convertible to @p T.
+   *  Requires the functor to be callable with two (logically) immutable values
+   *  of type @p T and return a value convertible to @p T.  The functor itself
+   *  is also required to be callable through a const reference, matching usage
+   *  from const member functions in Gen_Fenwick_Tree.
    */
   template <typename F, typename T>
   concept FenwickBinaryOp =
-      requires(F f, T a, T b)
+      requires(const F& f, const T& a, const T& b)
         {
           { f(a, b) } -> std::convertible_to<T>;
         };
