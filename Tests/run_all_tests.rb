@@ -4,6 +4,7 @@
 require 'fileutils'
 require 'optparse'
 require 'open3'
+require 'shellwords'
 
 ROOT_DIR = File.expand_path('..', __dir__)
 DEFAULT_BUILD_DIR = File.join(ROOT_DIR, 'build')
@@ -21,12 +22,17 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
   capture_opts = {}
   capture_opts[:chdir] = chdir if chdir
 
-  header = label ? "#{label}: #{cmd}" : cmd
+  cmd_display = cmd.is_a?(Array) ? Shellwords.join(cmd) : cmd
+  header = label ? "#{label}: #{cmd_display}" : cmd_display
   puts "\n>> #{header}"
   started_at = Time.now
 
   unless verbose
-    stdout, stderr, status = Open3.capture3(cmd, **capture_opts)
+    if cmd.is_a?(Array)
+      stdout, stderr, status = Open3.capture3(*cmd, **capture_opts)
+    else
+      stdout, stderr, status = Open3.capture3(cmd, **capture_opts)
+    end
     return [stdout, stderr, status]
   end
 
@@ -34,7 +40,8 @@ def run_command(cmd, chdir: nil, verbose: false, label: nil)
   stderr_buf = +''
   status = nil
 
-  Open3.popen3(cmd, **capture_opts) do |stdin, stdout, stderr, wait_thr|
+  runner = cmd.is_a?(Array) ? [*cmd] : [cmd]
+  Open3.popen3(*runner, **capture_opts) do |stdin, stdout, stderr, wait_thr|
     stdin.close
 
     out_thread = Thread.new do
@@ -171,7 +178,7 @@ cmake_cache = File.join(build_dir, 'CMakeCache.txt')
 unless options[:skip_configure]
   unless File.exist?(cmake_cache)
     FileUtils.mkdir_p(build_dir)
-    configure_cmd = ['cmake', "-S #{ROOT_DIR}", "-B #{build_dir}", *cmake_args].join(' ')
+    configure_cmd = ['cmake', '-S', ROOT_DIR, '-B', build_dir, *cmake_args]
     log('Configuring (first time)...', verbose: verbose)
     stdout, stderr, status = run_command(configure_cmd, verbose: verbose, label: 'configure')
     unless status.success?
@@ -181,7 +188,7 @@ unless options[:skip_configure]
     end
   else
     # Refresh cache to ensure flags like BUILD_EXAMPLES stay in sync.
-    configure_cmd = ['cmake', "-S #{ROOT_DIR}", "-B #{build_dir}", *cmake_args].join(' ')
+    configure_cmd = ['cmake', '-S', ROOT_DIR, '-B', build_dir, *cmake_args]
     log('Re-configuring...', verbose: verbose)
     stdout, stderr, status = run_command(configure_cmd, verbose: verbose, label: 'reconfigure')
     unless status.success?
@@ -194,8 +201,8 @@ end
 
 unless options[:skip_build]
   log('Building...', verbose: verbose)
-  build_cmd = 'cmake --build .'
-  build_cmd += " --parallel #{jobs}" if jobs
+  build_cmd = ['cmake', '--build', '.']
+  build_cmd += ['--parallel', jobs.to_s] if jobs
   stdout, stderr, status = run_command(build_cmd, chdir: build_dir, verbose: verbose, label: 'build')
   unless status.success?
     warn stdout
@@ -208,7 +215,7 @@ ctest_cmd = ['ctest', '--output-on-failure']
 ctest_cmd << '--progress' if verbose
 ctest_cmd += ctest_args
 log('Running ctest...', verbose: verbose)
-stdout, stderr, status = run_command(ctest_cmd.join(' '), chdir: build_dir, verbose: verbose, label: 'ctest')
+stdout, stderr, status = run_command(ctest_cmd, chdir: build_dir, verbose: verbose, label: 'ctest')
 puts stdout unless verbose
 warn stderr if !verbose && stderr && !stderr.empty?
 
@@ -224,7 +231,7 @@ unless status.success?
       failed_tests.each do |t|
         # Anchor the regex to match the test name exactly.
         pattern = "^#{Regexp.escape(t)}$"
-        rerun_cmd = "ctest -VV --output-on-failure -R '#{pattern}'"
+        rerun_cmd = ['ctest', '-VV', '--output-on-failure', '-R', pattern]
         run_command(rerun_cmd, chdir: build_dir, verbose: true, label: "rerun-failed")
       end
     end
