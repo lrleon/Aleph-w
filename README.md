@@ -2226,8 +2226,8 @@ ctest --test-dir build --output-on-failure
 # Run exhaustive / performance-heavy example tests (marked with _test suffix)
 # NOTE: ./build/Examples/sparse_table_test includes large performance benchmarks that
 # can take a long time and use significant memory, especially on constrained machines.
-# Consider running it only on suitable hardware and check `--help` for options to
-# limit or disable performance benchmarks if available.
+# Consider running it only on suitable hardware if you need to evaluate its performance-related behavior.
+#
 ./build/Examples/sparse_table_test
 ./build/Examples/min_cut_test
 
