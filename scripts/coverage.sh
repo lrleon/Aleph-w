@@ -51,14 +51,19 @@ if [ "${COVERAGE_CLEAN}" = "1" ]; then
 fi
 
 echo "[coverage] Configure coverage build in '${BUILD_DIR}'"
-cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}"
+cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
+  -DCMAKE_BUILD_TYPE=Coverage \
+  -DCMAKE_C_FLAGS="--coverage -O0 -g" \
+  -DCMAKE_CXX_FLAGS="--coverage -O0 -g" \
+  -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+  -DCMAKE_SHARED_LINKER_FLAGS="--coverage"
 
 echo "[coverage] Build coverage configuration in '${BUILD_DIR}'"
 cmake --build "${BUILD_DIR}" --parallel
 
 echo "[coverage] Run tests in coverage build directory '${BUILD_DIR}'"
 set +e
-ctest --test-dir "${BUILD_DIR}" "${CTEST_ARGS[@]}"
+ctest --test-dir "${BUILD_DIR}" ${CTEST_ARGS[@]+"${CTEST_ARGS[@]}"}
 TEST_STATUS=$?
 set -e
 
@@ -85,15 +90,15 @@ GCOVR_ARGS=(
 )
 
 echo "[coverage] Generate XML report"
-gcovr "${GCOVR_ARGS[@]}" \
+gcovr ${GCOVR_ARGS[@]+"${GCOVR_ARGS[@]}"} \
   --xml-pretty --output "${BUILD_DIR}/coverage.xml"
 
 echo "[coverage] Generate HTML report"
-gcovr "${GCOVR_ARGS[@]}" \
+gcovr ${GCOVR_ARGS[@]+"${GCOVR_ARGS[@]}"} \
   --html-details --output "${BUILD_DIR}/coverage.html"
 
 echo "[coverage] Generate text summary"
-gcovr "${GCOVR_ARGS[@]}" \
+gcovr ${GCOVR_ARGS[@]+"${GCOVR_ARGS[@]}"} \
   --sort uncovered-percent --print-summary | tee "${BUILD_DIR}/coverage.txt"
 
 echo "[coverage] Reports:"
