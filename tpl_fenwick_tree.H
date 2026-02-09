@@ -92,6 +92,13 @@ namespace Aleph
       std::is_signed_v<T> &&
       !std::same_as<T, bool>;
 
+  template <typename F, typename T>
+  concept FenwickBinaryOp =
+      requires(F f, T a, T b)
+        {
+          { f(a, b) } -> std::convertible_to<T>;
+        };
+
   /** @brief Fenwick tree over an arbitrary abelian group.
    *
    *  Maintains an implicit array `a[0..n-1]` and a companion tree
@@ -125,6 +132,7 @@ namespace Aleph
   template <typename T,
             class Plus = Aleph::plus<T>,
             class Minus = Aleph::minus<T>>
+    requires (FenwickBinaryOp<Plus, T> && FenwickBinaryOp<Minus, T>)
   class Gen_Fenwick_Tree
   {
   protected:
@@ -598,7 +606,7 @@ namespace Aleph
     T query(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
-        << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
+        << "Range_Fenwick_Tree::query: r=" << r << " >= n=" << n;
       ah_out_of_range_error_if(l > r)
         << "Range_Fenwick_Tree::query: l=" << l << " > r=" << r;
 
