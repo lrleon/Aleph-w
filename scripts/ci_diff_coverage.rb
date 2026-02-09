@@ -125,8 +125,13 @@ with_data = []
 missing_data = []
 
 candidates.each do |path|
+  unless coverage.key?(path)
+    missing_data << path
+    next
+  end
+
   cov = coverage[path]
-  if cov.nil? || cov[:valid].zero?
+  if cov[:valid].zero?
     missing_data << path
     next
   end
