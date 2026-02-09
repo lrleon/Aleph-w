@@ -635,7 +635,7 @@ int main() {
     Fenwick_Tree<int> ft = {3, 1, 4, 1, 5};
     ft.update(2, 7);               // a[2] += 7
     int sum = ft.query(1, 4);      // sum of a[1..4]
-    int kth = ft.find_kth(5);      // smallest i with prefix(i) >= 5
+    auto kth = ft.find_kth(5);     // smallest i with prefix(i) >= 5
 
     // Range update + Range query
     Range_Fenwick_Tree<int> rft(10);
@@ -643,7 +643,9 @@ int main() {
     int range_sum = rft.query(0, 7); // sum of a[0..7]
 
     // Generic Fenwick over XOR group
-    struct Xor { int op(int a, int b) { return a ^ b; } };
+    struct Xor {
+        int operator()(int a, int b) const { return a ^ b; }
+    };
     Gen_Fenwick_Tree<int, Xor, Xor> xor_ft(8);
     xor_ft.update(3, 0b1010);      // a[3] ^= 0b1010
     int prefix_xor = xor_ft.prefix(5);
