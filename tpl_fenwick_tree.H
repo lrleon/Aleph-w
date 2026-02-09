@@ -68,13 +68,14 @@
 # include <bit>
 # include <cassert>
 # include <initializer_list>
+# include <vector>
 # include <tpl_array.H>
+# include <tpl_dynList.H>
 # include <ahFunction.H>
 # include <ah-errors.H>
 
 namespace Aleph
 {
-
   /** @brief Fenwick tree over an arbitrary abelian group.
    *
    *  Maintains an implicit array `a[0..n-1]` and a companion tree
@@ -106,16 +107,15 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T,
-            class Plus  = Aleph::plus<T>,
+            class Plus = Aleph::plus<T>,
             class Minus = Aleph::minus<T>>
   class Gen_Fenwick_Tree
   {
   protected:
+    Array<T> tree; // 1-indexed internal storage (position 0 unused)
+    size_t n = 0; // number of logical elements (0-indexed: 0..n-1)
 
-    Array<T> tree;   // 1-indexed internal storage (position 0 unused)
-    size_t   n = 0;  // number of logical elements (0-indexed: 0..n-1)
-
-    Plus  plus_op;
+    Plus plus_op;
     Minus minus_op;
 
     /// O(n) bottom-up construction of the tree array from raw values
@@ -123,15 +123,37 @@ namespace Aleph
     void build() noexcept
     {
       for (size_t i = 1; i <= n; ++i)
-        {
-          const size_t parent = i + (i & (-i));
-          if (parent <= n)
-            tree(parent) = plus_op(tree(parent), tree(i));
-        }
+        if (const size_t parent = i + (i & (-i)); parent <= n)
+          tree(parent) = plus_op(tree(parent), tree(i));
+    }
+
+    template <class F>
+    void fill_from_indexed(F getter) noexcept
+    {
+      for (size_t i = 0; i < n; ++i)
+        tree(i + 1) = getter(i);
+      build();
+    }
+
+    template <class StdIt>
+    void fill_from_std_iter(StdIt first, StdIt last) noexcept
+    {
+      size_t i = 1;
+      for (; first != last; ++first)
+        tree(i++) = *first;
+      build();
+    }
+
+    template <class AlephIt>
+    void fill_from_aleph_it(AlephIt it) noexcept
+    {
+      size_t i = 1;
+      for (; it.has_curr(); it.next_ne())
+        tree(i++) = it.get_curr();
+      build();
     }
 
   public:
-
     /// The type of element stored in the tree.
     using Item_Type = T;
 
@@ -142,7 +164,7 @@ namespace Aleph
      *  @param pop     group operation functor.
      *  @param mop     group subtraction functor.
      */
-    Gen_Fenwick_Tree(size_t num,
+    Gen_Fenwick_Tree(const size_t num,
                      Plus pop = Plus(), Minus mop = Minus())
       : tree(num + 1, T()), n(num),
         plus_op(pop), minus_op(mop)
@@ -163,10 +185,7 @@ namespace Aleph
       : tree(il.size() + 1, T()), n(il.size()),
         plus_op(pop), minus_op(mop)
     {
-      size_t i = 1;
-      for (const auto & v : il)
-        tree(i++) = v;
-      build();
+      fill_from_std_iter(il.begin(), il.end());
     }
 
     /** @brief Construct from an Array\<T\> in O(n) time.
@@ -180,15 +199,32 @@ namespace Aleph
       : tree(values.size() + 1, T()), n(values.size()),
         plus_op(pop), minus_op(mop)
     {
-      for (size_t i = 0; i < n; ++i)
-        tree(i + 1) = values(i);
-      build();
+      fill_from_indexed([&values](size_t i) { return values(i); });
+    }
+
+    Gen_Fenwick_Tree(const std::vector<T> & values,
+                     Plus pop = Plus(), Minus mop = Minus())
+      : tree(values.size() + 1, T()), n(values.size()),
+        plus_op(pop), minus_op(mop)
+    {
+      fill_from_indexed([&values](size_t i) { return values[i]; });
+    }
+
+    Gen_Fenwick_Tree(const DynList<T> & values,
+                     Plus pop = Plus(), Minus mop = Minus())
+      : tree(values.size() + 1, T()), n(values.size()),
+        plus_op(pop), minus_op(mop)
+    {
+      fill_from_aleph_it(values.get_it());
     }
 
     Gen_Fenwick_Tree(const Gen_Fenwick_Tree &) = default;
+
     Gen_Fenwick_Tree(Gen_Fenwick_Tree &&) noexcept = default;
-    Gen_Fenwick_Tree & operator=(const Gen_Fenwick_Tree &) = default;
-    Gen_Fenwick_Tree & operator=(Gen_Fenwick_Tree &&) noexcept = default;
+
+    Gen_Fenwick_Tree &operator=(const Gen_Fenwick_Tree &) = default;
+
+    Gen_Fenwick_Tree &operator=(Gen_Fenwick_Tree &&) noexcept = default;
 
     /** @brief Point update: `a[i] = Plus(a[i], delta)`.
      *
@@ -229,7 +265,7 @@ namespace Aleph
      *  @return  accumulated value over `[l, r]`.
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    T query(size_t l, size_t r) const
+    T query(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(l > r)
         << "Gen_Fenwick_Tree::query: l=" << l << " > r=" << r;
@@ -244,7 +280,7 @@ namespace Aleph
      *  @param i 0-based index.
      *  @throw std::out_of_range if `i >= size()`.
      */
-    T get(size_t i) const
+    T get(const size_t i) const
     {
       return query(i, i);
     }
@@ -257,7 +293,7 @@ namespace Aleph
      *  @param value new value for position i.
      *  @throw std::out_of_range if `i >= size()`.
      */
-    void set(size_t i, const T & value)
+    void set(const size_t i, const T & value)
     {
       update(i, minus_op(value, get(i)));
     }
@@ -311,7 +347,7 @@ namespace Aleph
    */
   template <typename T>
   struct Fenwick_Tree
-    : public Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>
+      : public Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>
   {
     using Base = Gen_Fenwick_Tree<T, Aleph::plus<T>, Aleph::minus<T>>;
     using Base::Base; // inherit all constructors
@@ -360,7 +396,7 @@ namespace Aleph
    *  constant to every element in a contiguous range, as well as
    *  querying the sum over any contiguous range, both in O(log n).
    *
-   *  Internally two classic Fenwick trees (`B1`, `B2`) are kept so
+   *  Internally, two classic Fenwick trees (`B1`, `B2`) are kept so
    *  that the prefix sum can be recovered as
    *  \f[
    *    P(i) = (i+1)\,\text{B1.prefix}(i) - \text{B2.prefix}(i)
@@ -397,8 +433,8 @@ namespace Aleph
   template <typename T>
   class Range_Fenwick_Tree
   {
-    Gen_Fenwick_Tree<T> b1;  // stores differences d[i]
-    Gen_Fenwick_Tree<T> b2;  // stores d[i] * i
+    Gen_Fenwick_Tree<T> b1; // stores differences d[i]
+    Gen_Fenwick_Tree<T> b2; // stores d[i] * i
     size_t n = 0;
 
     /// Internal: prefix sum P(i) = (i+1)*B1.prefix(i) - B2.prefix(i)
@@ -422,11 +458,10 @@ namespace Aleph
     }
 
   public:
-
     using Item_Type = T;
 
     /** @brief Construct a tree with @p num elements, all zero. */
-    Range_Fenwick_Tree(size_t num)
+    Range_Fenwick_Tree(const size_t num)
       : b1(num), b2(num), n(num)
     {
       // empty — all elements are identity
@@ -476,9 +511,12 @@ namespace Aleph
     }
 
     Range_Fenwick_Tree(const Range_Fenwick_Tree &) = default;
+
     Range_Fenwick_Tree(Range_Fenwick_Tree &&) noexcept = default;
-    Range_Fenwick_Tree & operator=(const Range_Fenwick_Tree &) = default;
-    Range_Fenwick_Tree & operator=(Range_Fenwick_Tree &&) noexcept = default;
+
+    Range_Fenwick_Tree &operator=(const Range_Fenwick_Tree &) = default;
+
+    Range_Fenwick_Tree &operator=(Range_Fenwick_Tree &&) noexcept = default;
 
     /** @brief Range update: add @p delta to every `a[i]` with
      *  `l <= i <= r`.
@@ -488,7 +526,7 @@ namespace Aleph
      *  @param delta value to add to each element in `[l, r]`.
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    void update(size_t l, size_t r, const T & delta)
+    void update(size_t l, const size_t r, const T & delta)
     {
       ah_out_of_range_error_if(l > r)
         << "Range_Fenwick_Tree::update: l=" << l << " > r=" << r;
@@ -510,7 +548,7 @@ namespace Aleph
      *
      *  Convenience shorthand for `update(i, i, delta)`.
      */
-    void point_update(size_t i, const T & delta)
+    void point_update(const size_t i, const T & delta)
     {
       update(i, i, delta);
     }
@@ -521,7 +559,7 @@ namespace Aleph
      *  @return  accumulated sum from index 0 through i (inclusive).
      *  @throw std::out_of_range if `i >= size()`.
      */
-    T prefix(size_t i) const
+    T prefix(const size_t i) const
     {
       ah_out_of_range_error_if(i >= n)
         << "Range_Fenwick_Tree::prefix: index " << i << " >= size " << n;
@@ -536,8 +574,10 @@ namespace Aleph
      *  @return  accumulated sum over `[l, r]`.
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    T query(size_t l, size_t r) const
+    T query(const size_t l, const size_t r) const
     {
+      ah_out_of_range_error_if(r >= n)
+        << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
       ah_out_of_range_error_if(l > r)
         << "Range_Fenwick_Tree::query: l=" << l << " > r=" << r;
 
@@ -548,7 +588,7 @@ namespace Aleph
      *
      *  Equivalent to `query(i, i)`.  O(log n).
      */
-    T get(size_t i) const
+    T get(const size_t i) const
     {
       return query(i, i);
     }
@@ -557,7 +597,7 @@ namespace Aleph
      *
      *  Computes the required delta and calls point_update().  O(log n).
      */
-    void set(size_t i, const T & value)
+    void set(const size_t i, const T & value)
     {
       point_update(i, value - get(i));
     }
@@ -587,7 +627,6 @@ namespace Aleph
       std::swap(n, other.n);
     }
   };
-
 } // end namespace Aleph
 
 # endif /* TPL_FENWICK_TREE_H */
