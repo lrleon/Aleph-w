@@ -149,12 +149,22 @@ namespace Aleph
     Plus plus_op;
     Minus minus_op;
 
+    /// Return the least significant set bit of @p x (as a mask).
+    ///
+    /// This is the classic Fenwick-tree "lowbit" helper. Implemented using
+    /// only well-defined unsigned arithmetic to avoid relying on signed-style
+    /// negation of a size_t.
+    static constexpr size_t lowbit(size_t x) noexcept
+    {
+      return x & (~x + 1);
+    }
+
     /// O(n) bottom-up construction of the tree array from raw values
     /// already placed in tree[1..n].
     void build()
     {
       for (size_t i = 1; i <= n; ++i)
-        if (const size_t parent = i + (i & (-i)); parent <= n)
+        if (const size_t parent = i + lowbit(i); parent <= n)
           tree(parent) = plus_op(tree(parent), tree(i));
     }
 
