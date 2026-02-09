@@ -643,7 +643,9 @@ int main() {
     int range_sum = rft.query(0, 7); // sum of a[0..7]
 
     // Generic Fenwick over XOR group
-    struct Xor { int op(int a, int b) { return a ^ b; } };
+    struct Xor {
+        int operator()(int a, int b) const { return a ^ b; }
+    };
     Gen_Fenwick_Tree<int, Xor, Xor> xor_ft(8);
     xor_ft.update(3, 0b1010);      // a[3] ^= 0b1010
     int prefix_xor = xor_ft.prefix(5);
