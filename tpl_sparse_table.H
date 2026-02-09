@@ -203,6 +203,19 @@ namespace Aleph
         log_tbl(i) = log_tbl(i / 2) + 1;
     }
 
+    /// Build levels k >= 1 from already-populated level 0.
+    void build_upper_levels()
+    {
+      // table[k][i] = Op(table[k-1][i], table[k-1][i + 2^(k-1)])
+      for (size_t k = 1; k < levels; ++k)
+        {
+          const size_t half = size_t{1} << (k - 1);
+          const size_t limit = n - (size_t{1} << k) + 1;
+          for (size_t i = 0; i < limit; ++i)
+            at(k, i) = op(at(k - 1, i), at(k - 1, i + half));
+        }
+    }
+
     /// Fill level 0 from a 0-based indexed getter and build higher levels.
     template <class Getter>
     void fill_and_build(Getter getter)
@@ -211,14 +224,7 @@ namespace Aleph
       for (size_t i = 0; i < n; ++i)
         at(0, i) = getter(i);
 
-      // Higher levels: table[k][i] = Op(table[k-1][i], table[k-1][i + 2^(k-1)])
-      for (size_t k = 1; k < levels; ++k)
-        {
-          const size_t half = size_t{1} << (k - 1);
-          const size_t limit = n - (size_t{1} << k) + 1;
-          for (size_t i = 0; i < limit; ++i)
-            at(k, i) = op(at(k - 1, i), at(k - 1, i + half));
-        }
+      build_upper_levels();
     }
 
     /// Fill level 0 from an Aleph-style iterator and build higher levels.
@@ -229,13 +235,7 @@ namespace Aleph
       for (; it.has_curr(); it.next_ne())
         at(0, i++) = it.get_curr();
 
-      for (size_t k = 1; k < levels; ++k)
-        {
-          const size_t half = size_t{1} << (k - 1);
-          const size_t limit = n - (size_t{1} << k) + 1;
-          for (size_t i = 0; i < limit; ++i)
-            at(k, i) = op(at(k - 1, i), at(k - 1, i + half));
-        }
+      build_upper_levels();
     }
 
   public:
