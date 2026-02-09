@@ -70,6 +70,7 @@
 
 # include <bit>
 # include <cassert>
+# include <cstdlib>
 # include <concepts>
 # include <initializer_list>
 # include <type_traits>
@@ -131,7 +132,7 @@ namespace Aleph
   /** @brief Sparse Table over an arbitrary idempotent binary operation.
    *
    *  Maintains a precomputed table `table[k][i]` storing the result of
-   *  applying `Op` over the sub-array `a[i .. i + 2^k - 1]`.  Since the
+   *  applying `Op` over the subarray `a[i .. i + 2^k - 1]`.  Since the
    *  operation is idempotent, overlapping sub-ranges can be combined in
    *  O(1):
    *  \f[
@@ -169,13 +170,19 @@ namespace Aleph
     Op op;
 
     /// Access table[k][i] (0-based row k, 0-based column i).
-    T & at(size_t k, size_t i) { return table(k * n + i); }
-    const T & at(size_t k, size_t i) const { return table(k * n + i); }
+    T & at(const size_t k, const size_t i) { return table(k * n + i); }
+    const T & at(const size_t k, const size_t i) const { return table(k * n + i); }
 
     /// Compute levels = floor(log2(n)) + 1; 0 if n == 0.
-    static constexpr size_t compute_levels(size_t nn) noexcept
+    static constexpr size_t compute_levels(const size_t nn) noexcept
     {
       return nn == 0 ? 0 : static_cast<size_t>(std::bit_width(nn));
+    }
+
+    /// Number of flattened cells needed to store all levels.
+    static constexpr size_t compute_cells(const size_t nn) noexcept
+    {
+      return nn == 0 ? 1 : compute_levels(nn) * nn;
     }
 
     /// Precompute the log lookup table for lengths [0..n].
@@ -239,7 +246,7 @@ namespace Aleph
      */
     Gen_Sparse_Table(const size_t num, const T & init_val,
                      Op oper = Op())
-      : table(num == 0 ? 1 : compute_levels(num) * num, T()),
+      : table(Array<T>::create(compute_cells(num))),
         n(num), levels(compute_levels(num)), op(oper)
     {
       build_log_table();
@@ -256,7 +263,7 @@ namespace Aleph
      *  @endcode
      */
     Gen_Sparse_Table(std::initializer_list<T> il, Op oper = Op())
-      : table(il.size() == 0 ? 1 : compute_levels(il.size()) * il.size(), T()),
+      : table(Array<T>::create(compute_cells(il.size()))),
         n(il.size()), levels(compute_levels(il.size())), op(oper)
     {
       build_log_table();
@@ -273,8 +280,7 @@ namespace Aleph
      *  @param oper   idempotent binary functor.
      */
     Gen_Sparse_Table(const Array<T> & values, Op oper = Op())
-      : table(values.size() == 0 ? 1 :
-              compute_levels(values.size()) * values.size(), T()),
+      : table(Array<T>::create(compute_cells(values.size()))),
         n(values.size()), levels(compute_levels(values.size())), op(oper)
     {
       build_log_table();
@@ -288,8 +294,7 @@ namespace Aleph
      *  @param oper   idempotent binary functor.
      */
     Gen_Sparse_Table(const std::vector<T> & values, Op oper = Op())
-      : table(values.size() == 0 ? 1 :
-              compute_levels(values.size()) * values.size(), T()),
+      : table(Array<T>::create(compute_cells(values.size()))),
         n(values.size()), levels(compute_levels(values.size())), op(oper)
     {
       build_log_table();
@@ -303,8 +308,7 @@ namespace Aleph
      *  @param oper   idempotent binary functor.
      */
     Gen_Sparse_Table(const DynList<T> & values, Op oper = Op())
-      : table(values.size() == 0 ? 1 :
-              compute_levels(values.size()) * values.size(), T()),
+      : table(Array<T>::create(compute_cells(values.size()))),
         n(values.size()), levels(compute_levels(values.size())), op(oper)
     {
       build_log_table();

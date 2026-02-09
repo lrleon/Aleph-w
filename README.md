@@ -986,24 +986,24 @@ int main() {
 
 Sparse Table provides **O(1) range queries** after **O(n log n) preprocessing** for any idempotent operation (min, max, gcd, bitwise AND/OR).
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         SPARSE TABLE (RMQ)                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Original Array: [5, 2, 8, 1, 9, 3, 6, 4, 7]                               │
+│  Original Array: [5, 2, 8, 1, 9, 3, 6, 4, 7]                                │
 │                                                                             │
-│  Level 0 (2^0=1): [5, 2, 8, 1, 9, 3, 6, 4, 7]                             │
-│  Level 1 (2^1=2): [2, 2, 1, 1, 3, 3, 4, 4]                               │
-│  Level 2 (2^2=4): [1, 1, 1, 1, 3, 3]                                      │
-│  Level 3 (2^3=8): [1, 1]                                                   │
+│  Level 0 (2^0=1): [5, 2, 8, 1, 9, 3, 6, 4, 7]                               │
+│  Level 1 (2^1=2): [2, 2, 1, 1, 3, 3, 4, 4]                                  │
+│  Level 2 (2^2=4): [1, 1, 1, 1, 3, 3]                                        │
+│  Level 3 (2^3=8): [1, 1]                                                    │
 │                                                                             │
-│  Query [2, 7] (range length 6):                                            │
-│    k = floor(log2(6)) = 2, 2^k = 4                                         │
-│    Result = min(table[2][2], table[2][4]) = min(1, 3) = 1                  │
+│  Query [2, 7] (range length 6):                                             │
+│    k = floor(log2(6)) = 2, 2^k = 4                                          │
+│    Result = min(table[2][2], table[2][4]) = min(1, 3) = 1                   │
 │                                                                             │
 │  Build:  O(n log n)    Query: O(1)    Space: O(n log n)                     │
-│  Use case: Static arrays with many queries                                 │
+│  Use case: Static arrays with many queries                                  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 

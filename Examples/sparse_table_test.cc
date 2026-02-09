@@ -192,6 +192,23 @@ int brute_or(const vector<int> & v, size_t l, size_t r)
 // 1. Edge Cases
 // ============================================================================
 
+void test_empty_table()
+{
+  TEST("empty table");
+
+  Sparse_Table<int> st(std::vector<int>{});
+  CHECK_EQ(st.size(), 0u, "size");
+  CHECK(st.is_empty(), "is_empty");
+  CHECK_EQ(st.num_levels(), 0u, "levels");
+
+  CHECK_THROWS(std::out_of_range, st.get(0),
+               "get(0) on empty should throw");
+  CHECK_THROWS(std::out_of_range, st.query(0, 0),
+               "query(0,0) on empty should throw");
+
+  PASS();
+}
+
 void test_single_element()
 {
   TEST("single element — min");
@@ -1076,6 +1093,7 @@ int main(int argc, char *argv[])
   cout << "  Seed: " << seed << "\n\n";
 
   cout << "=== 1. Edge Cases ===\n";
+  test_empty_table();
   test_single_element();
   test_single_element_max();
   test_two_elements();
