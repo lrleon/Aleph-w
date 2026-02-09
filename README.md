@@ -2223,7 +2223,11 @@ ctest --test-dir build --output-on-failure
 ./build/Tests/test_dijkstra
 ./build/Tests/latex_floyd_test
 
-# Run exhaustive tests (marked with _test suffix)
+# Run exhaustive / performance-heavy example tests (marked with _test suffix)
+# NOTE: ./build/Examples/sparse_table_test includes large performance benchmarks that
+# can take a long time and use significant memory, especially on constrained machines.
+# Consider running it only on suitable hardware and check `--help` for options to
+# limit or disable performance benchmarks if available.
 ./build/Examples/sparse_table_test
 ./build/Examples/min_cut_test
 
