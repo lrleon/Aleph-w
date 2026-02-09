@@ -1473,7 +1473,8 @@ namespace
   void build_random_network(NetT & net, int n, int m, int max_cap,
                             unsigned seed)
   {
-    ah_invalid_argument_if(n < 3, "build_random_network requires n >= 3");
+    ah_invalid_argument_if(n < 3)
+      << "build_random_network requires n >= 3";
 
     using NodeT = typename NetT::Node;
     std::mt19937 rng(seed);
