@@ -1,4 +1,4 @@
-# Aleph-w {#aleph-w}
+# Aleph-w
 
 <div align="center">
 
@@ -20,12 +20,13 @@ Language: English | [Español](README.es.md)
 [![GCC](https://img.shields.io/badge/GCC-11%2B-orange.svg)](https://gcc.gnu.org/)
 [![Clang](https://img.shields.io/badge/Clang-14%2B-orange.svg)](https://clang.llvm.org/)
 [![Tests](https://img.shields.io/badge/Tests-99.98%25-brightgreen.svg)](https://github.com/lrleon/Aleph-w/actions)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://lrleon.github.io/Aleph-w/)
 
 </div>
 
 ---
 
-## Table of Contents {#table-of-contents}
+## Table of Contents
 
 - [Overview](#overview)
 - [History and Philosophy](#history-and-philosophy)
@@ -56,10 +57,11 @@ Language: English | [Español](README.es.md)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
-## Overview {#overview}
+## Overview
 
 **Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
 
@@ -87,7 +89,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## History and Philosophy {#history-and-philosophy}
+## History and Philosophy
 
 ### Origins (2002)
 
@@ -169,7 +171,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
-## Features at a Glance {#features-at-a-glance}
+## Features at a Glance
 
 ### Data Structures
 
@@ -191,8 +193,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  LISTS                    ARRAYS                   GRAPHS                  │
 │  ├─ Singly-linked        ├─ Dynamic Array         ├─ Adjacency List        │
 │  ├─ Doubly-linked        ├─ Fixed Array           ├─ Adjacency Matrix      │
-│  ├─ Circular             └─ 2D Matrix             ├─ Network (flows)       │
-│  └─ Skip List                                     └─ Euclidean             │
+│  ├─ Circular             ├─ 2D Matrix             ├─ Network (flows)       │
+│  └─ Skip List            └─ BitArray              └─ Euclidean             │
 │                                                                            │
 │  SPECIAL                  SPATIAL                  PROBABILISTIC           │
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
@@ -201,8 +203,6 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
-
-- **BitArray**: compact bit-vector container (see Aleph::BitArray)
 
 ### Algorithms
 
@@ -239,7 +239,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
-## Requirements {#requirements}
+## Requirements
 
 ### Compiler Support
 
@@ -286,7 +286,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-## Installation {#installation}
+## Installation
 
 For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
 
@@ -367,7 +367,7 @@ ctest --preset default
 
 ---
 
-## Quick Start {#quick-start}
+## Quick Start
 
 ### 5-Minute Examples
 
@@ -480,9 +480,9 @@ int main() {
 
 ---
 
-## Data Structures {#data-structures}
+## Data Structures
 
-### Balanced Search Trees {#balanced-search-trees}
+### Balanced Search Trees
 
 Aleph-w provides **8 different balanced tree implementations**, each optimized for specific use cases.
 
@@ -594,7 +594,7 @@ int main() {
                                   [60]  [80]
 ```
 
-### Hash Tables {#hash-tables}
+### Hash Tables
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
 
@@ -685,7 +685,7 @@ int main() {
 }
 ```
 
-### Heaps and Priority Queues {#heaps-and-priority-queues}
+### Heaps and Priority Queues
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -741,7 +741,7 @@ int main() {
 }
 ```
 
-### Lists and Sequential Structures {#lists-and-sequential-structures}
+### Lists and Sequential Structures
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -803,7 +803,7 @@ int main() {
 }
 ```
 
-### Graphs {#graphs}
+### Graphs
 
 Aleph-w provides multiple graph representations optimized for different use cases:
 
@@ -917,9 +917,9 @@ int main() {
 
 ---
 
-## Algorithms {#algorithms}
+## Algorithms
 
-### Shortest Path Algorithms {#shortest-path-algorithms}
+### Shortest Path Algorithms
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1021,7 +1021,7 @@ int main() {
 }
 ```
 
-### Minimum Spanning Trees {#minimum-spanning-trees}
+### Minimum Spanning Trees
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1083,7 +1083,7 @@ int main() {
 }
 ```
 
-### Network Flows {#network-flows}
+### Network Flows
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1176,7 +1176,7 @@ int main() {
 }
 ```
 
-### Graph Connectivity {#graph-connectivity}
+### Graph Connectivity
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1246,7 +1246,7 @@ int main() {
 }
 ```
 
-### Sorting Algorithms {#sorting-algorithms}
+### Sorting Algorithms
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1292,9 +1292,9 @@ int main() {
 
 ---
 
-## Memory Management {#memory-management}
+## Memory Management
 
-### Arena Allocators {#arena-allocators}
+### Arena Allocators
 
 Arena allocation provides **ultra-fast memory management** for temporary data structures.
 
@@ -1421,7 +1421,7 @@ int main() {
 
 ---
 
-## Parallel Computing {#parallel-computing}
+## Parallel Computing
 
 ### Thread Pool
 
@@ -1493,7 +1493,7 @@ int main() {
 
 ---
 
-## Functional Programming {#functional-programming}
+## Functional Programming
 
 All Aleph-w containers support a rich set of functional operations:
 
@@ -1584,7 +1584,7 @@ int main() {
 
 ---
 
-## Tutorial {#tutorial}
+## Tutorial
 
 ### Complete Example: Building a Social Network Analysis Tool
 
@@ -1714,7 +1714,7 @@ int main() {
 
 ---
 
-## API Reference {#api-reference}
+## API Reference
 
 ### Quick Reference by Category
 
@@ -1794,7 +1794,7 @@ int main() {
 
 ---
 
-## Benchmarks {#benchmarks}
+## Benchmarks
 
 ### Tree Performance (1 Million Operations)
 
@@ -1899,7 +1899,7 @@ int main() {
 
 ---
 
-## Examples {#examples}
+## Examples
 
 The `Examples/` directory contains **80+ programs** demonstrating library usage:
 
@@ -1944,7 +1944,7 @@ cmake --build build
 
 ---
 
-## Testing {#testing}
+## Testing
 
 ### Running Tests
 
@@ -1989,7 +1989,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ---
 
-## Contributing {#contributing}
+## Contributing
 
 Contributions are welcome! Here's how to get started:
 
@@ -2026,7 +2026,7 @@ ctest --test-dir build-debug
 
 ---
 
-## License {#license}
+## License
 
 Aleph-w is licensed under the **MIT License**.
 
@@ -2066,6 +2066,7 @@ SOFTWARE.
 - **Universidad de Los Andes** (Mérida, Venezuela) - Birthplace of Aleph-w
 - **Thousands of students** who learned algorithms with this library
 - **Open source community** for continuous feedback
+- **[SYMYL RESEARCH](https://simylresearch.com/en/)** for supporting the development and advancement of Aleph-w
 
 ---
 

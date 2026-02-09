@@ -31,7 +31,12 @@
 
 
 /** @file uid.H
- *  @brief Unique identifier generation.
+ *  @brief Unique identifier generation for distributed systems.
+ *
+ *  This file provides the Uid class for generating globally unique identifiers
+ *  that combine IP address, port number, counter, and random number to ensure
+ *  uniqueness across distributed systems.
+ *
  *  @ingroup Utilities
  *  @author Leandro Rabindranath León
  */
@@ -43,63 +48,210 @@
 # include <iostream>
 # include <aleph.H>
 
-using namespace Aleph;
-
-
+/** @brief Unique identifier for distributed systems.
+ *
+ *  The Uid class generates and manages globally unique identifiers by combining:
+ *  - IPv4 address (32 bits)
+ *  - Port number (32 bits)
+ *  - Counter (64 bits)
+ *  - Random number (64 bits)
+ *
+ *  This combination ensures uniqueness even across multiple machines and processes
+ *  running simultaneously in a distributed system.
+ *
+ *  ## String Representation
+ *
+ *  UIDs can be converted to/from hexadecimal string format for storage and
+ *  transmission. The string size is fixed at `stringSize` bytes.
+ *
+ *  ## Use Cases
+ *
+ *  - Distributed database keys
+ *  - Message identifiers in distributed systems
+ *  - Session identifiers
+ *  - Transaction identifiers
+ *
+ *  @par Thread Safety
+ *  Not thread-safe. Use external synchronization if sharing Uid objects
+ *  across threads.
+ *
+ *  @par Example
+ *  @code
+ *  Aleph::IPv4_Address my_ip = 0xC0A80164u; // 192.168.1.100
+ *  Uid id(my_ip, 12345, 8080);
+ *
+ *  char buffer[Uid::stringSize];
+ *  id.getStringUid(buffer, sizeof(buffer));
+ *  std::cout << "UID: " << buffer << '\n';
+ *
+ *  // Reconstruct from string
+ *  Uid id2(buffer);
+ *  assert(id == id2);
+ *  @endcode
+ *
+ *  @ingroup Utilities
+ */
 class Uid
 {
   friend struct Uid_Offsets;
 
-private:
-
-  mutable Aleph::IPv4_Address ipAddr;
-  mutable uint32_t            port_number;
-  mutable uint64_t            counter;
-  mutable uint64_t            random_number;
+  Aleph::IPv4_Address ipAddr = 0; ///< IPv4 address component
+  uint32_t port_number = 0; ///< Port number component
+  uint64_t counter = 0; ///< Counter component
+  uint64_t random_number = 0; ///< Random number component
 
 public:
-
-  static const int stringSize = 2*(sizeof(uint32_t) + sizeof(uint32_t) +
-				   sizeof(uint64_t) + sizeof(uint64_t)) + 1;
+  /** @brief Required buffer size for string representation.
+   *
+   *  The string representation uses hexadecimal encoding, requiring
+   *  2 characters per byte plus null terminator.
+   */
+  static constexpr int stringSize = 2 * (sizeof(uint32_t) + sizeof(uint32_t) +
+                                         sizeof(uint64_t) + sizeof(uint64_t)) + 1;
 
 private:
+  /** @brief Convert UID components to hexadecimal string.
+   *  @param buffer output buffer for string
+   *  @param src_size size of output buffer
+   *  @return pointer to buffer
+   */
+  char * stringficate(char *buffer, const size_t & src_size) const;
 
-  char * stringficate(char * buffer, const size_t & src_size) const;
-
-  void destringficate(char * str);
+  /** @brief Parse hexadecimal string and populate UID components.
+   *  @param str input string in hexadecimal format
+   */
+  void destringficate(char *str);
 
 public:
+  /** @brief Default constructor.
+   *
+   *  Creates a zero-initialized UID. All components (`ipAddr`, `port_number`,
+   *  `counter`, `random_number`) are set to 0. Components can be
+   *  overwritten later via assignment or other methods.
+   *
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  Uid() = default;
 
-  Uid() { /* empty */ }
+  /** @brief Construct UID from components.
+   *
+   *  Creates a unique identifier from the provided components.
+   *
+   *  @param _ipAddr IPv4 address of the originating machine
+   *  @param _counter sequence counter (typically incremented per UID)
+   *  @param _port_number port number of the generating process
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  Uid(const Aleph::IPv4_Address & _ipAddr,
+      const uint64_t & _counter,
+      const uint32_t & _port_number);
 
-  Uid(const IPv4_Address & _ipAddr,
-      const unsigned int & _counter, 
-      const unsigned int & _port_number);
+  /** @brief Backward-compatible constructor with legacy parameter types.
+   *
+   *  This overload preserves source compatibility with older code that used
+   *  unsigned int for the counter and port number. It delegates to the
+   *  constructor taking uint64_t and uint32_t.
+   *
+   *  @deprecated Use Uid(const Aleph::IPv4_Address&, const uint64_t&,
+   *                      const uint32_t&) instead.
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  [[deprecated("Use Uid(const Aleph::IPv4_Address&, const uint64_t&, const uint32_t&) instead")]]
+  Uid(const Aleph::IPv4_Address & _ipAddr,
+      const unsigned int & _counter,
+      const unsigned int & _port_number)
+    : Uid(_ipAddr,
+          static_cast<uint64_t>(_counter),
+          static_cast<uint32_t>(_port_number))
+  {}
 
-  Uid(char* str);
+  /** @brief Construct UID from string representation.
+   *
+   *  Reconstructs a UID from its hexadecimal string format.
+   *
+   *  @param str hexadecimal string (must be at least `stringSize` bytes)
+   *  @throws std::invalid_argument if the string format is invalid
+   *  @note Complexity: O(1) (fixed size parsing)
+   *  @note Exception safety: strong
+   */
+  Uid(char *str);
 
-  bool operator == (const Uid& uid) const;
+  /** @brief Compare two UIDs for equality.
+   *
+   *  Two UIDs are equal if all their components match.
+   *
+   *  @param uid the UID to compare against
+   *  @return true if UIDs are identical, false otherwise
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  bool operator ==(const Uid & uid) const noexcept;
 
-  char* getStringUid(char * str, const size_t &) const; 
+  /** @brief Convert UID to hexadecimal string representation.
+   *
+   *  Generates a string representation suitable for storage or transmission.
+   *
+   *  @param str output buffer (must be at least `stringSize` bytes)
+   *  @param size size of output buffer
+   *  @return pointer to the output buffer
+   *  @throws std::range_error if buffer size is insufficient
+   *  @note Complexity: O(1) (fixed size generation)
+   *  @note Exception safety: strong
+   */
+  char * getStringUid(char *str, const size_t & size) const;
 
-  const IPv4_Address & getIpAddr() const { return ipAddr; }
+  /** @brief Get IP address component.
+   *  @return the IPv4 address
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  [[nodiscard]] const Aleph::IPv4_Address &getIpAddr() const noexcept { return ipAddr; }
 
-  const uint32_t & get_port_number() const { return port_number; }
+  /** @brief Get port number component.
+   *  @return the port number
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  [[nodiscard]] const uint32_t &get_port_number() const noexcept { return port_number; }
 
-  const uint64_t & get_counter() const { return counter; }
+  /** @brief Get counter component.
+   *  @return the counter value
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  [[nodiscard]] const uint64_t &get_counter() const noexcept { return counter; }
 
-  const uint64_t & get_random_number() const { return random_number; }
+  /** @brief Get a random number component.
+   *  @return the random number
+   *  @throws none
+   *  @note Complexity: O(1)
+   *  @note Exception safety: noexcept
+   */
+  [[nodiscard]] const uint64_t &get_random_number() const noexcept { return random_number; }
 
-  void print()
+  /** @brief Print UID components to standard output.
+   *
+   *  Prints all four components in human-readable format for debugging.
+   */
+  void print() const
   {
     std::cout << "Uid:" << '\n'
-	      << "    ipAddr        = " << ipAddr << '\n'
-	      << "    port_number   = " << port_number << '\n'
-	      << "    counter       = " << counter << '\n'
-	      << "    random_number = " << random_number << '\n'
-	      << '\n';
+        << "    ipAddr        = " << ipAddr << '\n'
+        << "    port_number   = " << port_number << '\n'
+        << "    counter       = " << counter << '\n'
+        << "    random_number = " << random_number << '\n'
+        << '\n';
   }
 };
 
 # endif  // UID_H
-

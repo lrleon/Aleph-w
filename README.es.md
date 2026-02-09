@@ -33,6 +33,7 @@ Idioma: Español | [English](README.md)
 - [Pruebas](#pruebas)
 - [Contribuir](#contribuir)
 - [Licencia](#licencia)
+- [Agradecimientos](#agradecimientos)
 
 > Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos).
 
@@ -227,3 +228,14 @@ PRs son bienvenidos.
 ## Licencia {#licencia}
 
 Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
+
+---
+
+## Agradecimientos {#agradecimientos}
+
+- **Universidad de Los Andes** (Mérida, Venezuela) - Cuna de Aleph-w
+- **Miles de estudiantes** que aprendieron algoritmos con esta biblioteca
+- **Comunidad de código abierto** por retroalimentación continua
+- **[SYMYL RESEARCH](https://simylresearch.com/en/)** por apoyar el desarrollo y avance de Aleph-w
+
+---

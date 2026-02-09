@@ -1157,8 +1157,14 @@ namespace Aleph
    */
     void cut(const size_t new_dim = 0)
     {
+      // Only shrinking is allowed; growing must be done via adjust().
+      // If new_dim equals current_dim, this is a no-op and we return early.
       ah_length_error_if(new_dim > current_dim)
-      << "new dimension greater that current dimension";
+      << "new dimension greater than current dimension";
+
+      if (new_dim == current_dim)
+        return;
+
       cut_ne(new_dim);
     }
 
@@ -1312,7 +1318,7 @@ namespace Aleph
       return (*this)[size() - 1];
     }
 
-    /** Iterator on the elements of array.
+    /** Iterator on the items of array.
 
         The visit order is from the lower index 0 to current dimension
         minus one.
