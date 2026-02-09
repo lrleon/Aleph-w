@@ -580,6 +580,8 @@ namespace Aleph
         << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
       ah_out_of_range_error_if(l > r)
         << "Range_Fenwick_Tree::query: l=" << l << " > r=" << r;
+      ah_out_of_range_error_if(r >= n)
+        << "Range_Fenwick_Tree::query: r=" << r << " >= size " << n;
 
       return l > 0 ? prefix_sum(r) - prefix_sum(l - 1) : prefix_sum(r);
     }
