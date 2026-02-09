@@ -26,15 +26,15 @@ if [ "${COVERAGE_CLEAN}" = "1" ]; then
   rm -rf "${BUILD_DIR}"
 fi
 
-echo "[coverage] Configure preset 'coverage'"
-cmake --preset coverage
+echo "[coverage] Configure coverage build in '${BUILD_DIR}'"
+cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}"
 
-echo "[coverage] Build preset 'coverage'"
-cmake --build --preset coverage --parallel
+echo "[coverage] Build coverage configuration in '${BUILD_DIR}'"
+cmake --build "${BUILD_DIR}" --parallel
 
-echo "[coverage] Run tests preset 'coverage'"
+echo "[coverage] Run tests in coverage build directory '${BUILD_DIR}'"
 set +e
-ctest --preset coverage "${CTEST_ARGS[@]}"
+ctest --test-dir "${BUILD_DIR}" "${CTEST_ARGS[@]}"
 TEST_STATUS=$?
 set -e
 
