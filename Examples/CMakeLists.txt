@@ -103,6 +103,7 @@ set(EXAMPLE_PROGRAMS
     timeoutQueue_example
     ah_stl_functional_example
     driven_table_example
+    fenwick_tree_example
 )
 
 # Function to get source file from program name
