@@ -622,7 +622,7 @@ Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and r
 │                  │  (XOR, +mod) │  operator-   │  operator-   │            │
 ├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
 │ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
-│                  │  (XOR, etc)  │  Find k-th   │  Dividends   │            │
+│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
 └──────────────────┴──────────────┴──────────────┴──────────────┴────────────┘
 ```
 
