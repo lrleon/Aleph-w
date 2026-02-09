@@ -34,14 +34,15 @@
  *  @brief Sparse Table for static range queries in O(1).
  *
  *  A Sparse Table preprocesses a fixed array of `n` elements over an
- *  **idempotent** binary operation (one satisfying `Op(a, a) == a`,
+ *  **associative and idempotent** binary operation (one satisfying
+ *  `Op(Op(a, b), c) == Op(a, Op(b, c))` and `Op(a, a) == a`,
  *  such as min, max, gcd, bitwise AND/OR) and answers arbitrary range
  *  queries in O(1) time after an O(n log n) build phase.
  *
  *  Three class templates are provided:
  *
- *  - **Gen_Sparse_Table\<T, Op\>** — fully generic over any idempotent
- *    binary functor `Op`.
+ *  - **Gen_Sparse_Table\<T, Op\>** — fully generic over any associative
+ *    and idempotent binary functor `Op`.
  *  - **Sparse_Table\<T\>** — convenient specialisation for range
  *    minimum queries using the `Min_Op` functor.
  *  - **Max_Sparse_Table\<T\>** — convenient specialisation for range
@@ -87,8 +88,11 @@ namespace Aleph
   /** @brief Binary operation compatible with Sparse Table queries.
    *
    *  Requires the functor to be callable with two immutable values
-   *  of type @p T and return a value convertible to @p T.  The functor
-   *  must be **idempotent**: `Op(a, a) == a` for all `a`.
+   *  of type @p T and return a value convertible to @p T.
+   *
+   *  @note This concept checks only the call signature. For Sparse Table
+   *  correctness, @p F must also satisfy the semantic laws:
+   *  associativity and idempotency.
    */
   template <typename F, typename T>
   concept SparseTableOp =
@@ -99,7 +103,7 @@ namespace Aleph
 
   /** @brief Functor returning the minimum of two values.
    *
-   *  Idempotent binary operation for range-minimum queries.
+   *  Associative and idempotent binary operation for range-minimum queries.
    *
    *  @tparam T a totally ordered type.
    *  @ingroup Functors
@@ -115,7 +119,7 @@ namespace Aleph
 
   /** @brief Functor returning the maximum of two values.
    *
-   *  Idempotent binary operation for range-maximum queries.
+   *  Associative and idempotent binary operation for range-maximum queries.
    *
    *  @tparam T a totally ordered type.
    *  @ingroup Functors
@@ -129,12 +133,13 @@ namespace Aleph
     }
   };
 
-  /** @brief Sparse Table over an arbitrary idempotent binary operation.
+  /** @brief Sparse Table over an arbitrary associative and idempotent
+   *         binary operation.
    *
    *  Maintains a precomputed table `table[k][i]` storing the result of
    *  applying `Op` over the subarray `a[i .. i + 2^k - 1]`.  Since the
-   *  operation is idempotent, overlapping sub-ranges can be combined in
-   *  O(1):
+   *  operation is associative and idempotent, overlapping sub-ranges can
+   *  be combined in O(1):
    *  \f[
    *    \text{query}(l, r) = \text{Op}\bigl(
    *      \text{table}[k][l],\;
@@ -144,7 +149,7 @@ namespace Aleph
    *  \f]
    *
    *  @tparam T  element type.
-   *  @tparam Op idempotent binary functor.
+   *  @tparam Op associative and idempotent binary functor.
    *
    *  @par Example
    *  @code
@@ -242,7 +247,7 @@ namespace Aleph
      *
      *  @param num      number of elements.
      *  @param init_val value for every position.
-     *  @param oper     idempotent binary functor.
+     *  @param oper     associative and idempotent binary functor.
      */
     Gen_Sparse_Table(const size_t num, const T & init_val,
                      Op oper = Op())
@@ -277,7 +282,7 @@ namespace Aleph
     /** @brief Construct from an Array\<T\> in O(n log n) time.
      *
      *  @param values source array with the initial element values.
-     *  @param oper   idempotent binary functor.
+     *  @param oper   associative and idempotent binary functor.
      */
     Gen_Sparse_Table(const Array<T> & values, Op oper = Op())
       : table(Array<T>::create(compute_cells(values.size()))),
@@ -291,7 +296,7 @@ namespace Aleph
     /** @brief Construct from a std::vector\<T\> in O(n log n) time.
      *
      *  @param values source vector with the initial element values.
-     *  @param oper   idempotent binary functor.
+     *  @param oper   associative and idempotent binary functor.
      */
     Gen_Sparse_Table(const std::vector<T> & values, Op oper = Op())
       : table(Array<T>::create(compute_cells(values.size()))),
@@ -305,7 +310,7 @@ namespace Aleph
     /** @brief Construct from a DynList\<T\> in O(n log n) time.
      *
      *  @param values source list with the initial element values.
-     *  @param oper   idempotent binary functor.
+     *  @param oper   associative and idempotent binary functor.
      */
     Gen_Sparse_Table(const DynList<T> & values, Op oper = Op())
       : table(Array<T>::create(compute_cells(values.size()))),
@@ -327,6 +332,8 @@ namespace Aleph
     /** @brief Range query over `[l, r]` in O(1).
      *
      *  Returns `Op(a[l], a[l+1], ..., a[r])`.
+     *
+     *  @note Correctness requires @p Op to be associative and idempotent.
      *
      *  @param l 0-based left index (inclusive).
      *  @param r 0-based right index (inclusive).

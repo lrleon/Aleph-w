@@ -55,7 +55,7 @@ Aleph_w
  * SCENARIO 3 — GCD Queries (Gen_Sparse_Table — custom idempotent op)
  * ====================================================================
  * A number-theory teaching tool: given a sequence of integers, answer
- * range-GCD queries in O(1).  GCD is idempotent (gcd(a, a) = a) so
+ * range-GCD queries in O(1).  GCD is idempotent (gcd(a, a) = a), so
  * it fits the Sparse Table perfectly.
  *
  * COMPILE & RUN:

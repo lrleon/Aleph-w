@@ -1030,6 +1030,34 @@ int main() {
 }
 ```
 
+#### Disjoint Sparse Table — O(1) Range Queries for Any Associative Op
+
+Unlike the classical Sparse Table (which requires idempotency), the **Disjoint Sparse Table** works for **any associative** operation: sum, product, XOR, matrix multiplication, etc.
+
+```cpp
+#include <tpl_disjoint_sparse_table.H>
+
+int main() {
+    // Range Sum — NOT possible with classical Sparse Table!
+    Sum_Disjoint_Sparse_Table<int> sum_tbl = {3, 1, 4, 1, 5, 9};
+    int total = sum_tbl.query(0, 5);  // O(1) -> 23
+    int sub   = sum_tbl.query(2, 4);  // O(1) -> 10
+    
+    // Range Product
+    Product_Disjoint_Sparse_Table<long long> prod = {2, 3, 5, 7, 11};
+    long long p = prod.query(0, 4);   // O(1) -> 2310
+    
+    // Custom: Range XOR
+    struct Xor_Op {
+        unsigned operator()(unsigned a, unsigned b) const { return a ^ b; }
+    };
+    Gen_Disjoint_Sparse_Table<unsigned, Xor_Op> xor_tbl = {0xA3, 0x5F, 0x12};
+    unsigned x = xor_tbl.query(0, 2);  // O(1) -> 0xEE
+    
+    return 0;
+}
+```
+
 #### Fenwick Tree — Dynamic Prefix Queries
 
 For **dynamic** arrays with point updates, use Fenwick Tree (Binary Indexed Tree):
@@ -1990,6 +2018,11 @@ int main() {
 | `tpl_fenwick_tree.H` | `Fenwick_Tree<T>` | Fenwick tree (BIT) |
 | `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T, Plus, Minus>` | Fenwick over abelian groups |
 | `tpl_fenwick_tree.H` | `Range_Fenwick_Tree<T>` | Range update/query Fenwick |
+| `tpl_sparse_table.H` | `Sparse_Table<T>` | Static range min in O(1) |
+| `tpl_sparse_table.H` | `Gen_Sparse_Table<T, Op>` | Static range query (idempotent op) |
+| `tpl_disjoint_sparse_table.H` | `Sum_Disjoint_Sparse_Table<T>` | Static range sum in O(1) |
+| `tpl_disjoint_sparse_table.H` | `Product_Disjoint_Sparse_Table<T>` | Static range product in O(1) |
+| `tpl_disjoint_sparse_table.H` | `Gen_Disjoint_Sparse_Table<T, Op>` | Static range query (associative op) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -2181,6 +2214,7 @@ cmake --build build
 | Trees | `dynset_trees.C` | All tree variants |
 | Heaps | `heap_example.C` | Priority queues |
 | Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
+| Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
@@ -2229,6 +2263,7 @@ ctest --test-dir build --output-on-failure
 # Consider running it only on suitable hardware and check `--help` for options to
 # limit or disable performance benchmarks if available.
 ./build/Examples/sparse_table_test
+./build/Examples/disjoint_sparse_table_test
 ./build/Examples/min_cut_test
 
 # Verbose output

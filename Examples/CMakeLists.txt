@@ -106,6 +106,8 @@ set(EXAMPLE_PROGRAMS
     fenwick_tree_example
     sparse_table_example
     sparse_table_test
+    disjoint_sparse_table_example
+    disjoint_sparse_table_test
 )
 
 # Function to get source file from program name

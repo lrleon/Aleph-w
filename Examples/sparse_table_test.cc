@@ -1072,6 +1072,166 @@ void test_num_levels_correctness()
 }
 
 // ============================================================================
+// 11. Robustness & Algebraic Properties
+// ============================================================================
+
+void test_self_copy_assignment()
+{
+  TEST("self copy-assignment (st = st)");
+  Sparse_Table<int> st = {5, 3, 8, 1, 7, 2, 9};
+  int orig_min = st.query(0, 6);
+  size_t orig_sz = st.size();
+
+  auto & ref = st;
+  st = ref;
+
+  CHECK_EQ(st.size(), orig_sz, "size after self-assign");
+  CHECK_EQ(st.query(0, 6), orig_min, "query after self-assign");
+  for (size_t i = 0; i < st.size(); ++i)
+    CHECK_EQ(st.get(i), st.get(i), "element intact");
+  PASS();
+}
+
+void test_self_swap()
+{
+  TEST("self swap (st.swap(st))");
+  Sparse_Table<int> st = {5, 3, 8, 1, 7, 2, 9};
+  int orig_min = st.query(0, 6);
+  size_t orig_sz = st.size();
+  st.swap(st);
+  CHECK_EQ(st.size(), orig_sz, "size after self-swap");
+  CHECK_EQ(st.query(0, 6), orig_min, "query after self-swap");
+  PASS();
+}
+
+void test_get_equals_point_query()
+{
+  TEST("get(i) == query(i,i) for all i (n=200)");
+  const size_t n = 200;
+  vector<int> v(n);
+  for (auto & x : v) x = static_cast<int>(rng() % 10000);
+  Sparse_Table<int> st(v);
+  for (size_t i = 0; i < n; ++i)
+    CHECK_EQ(st.get(i), st.query(i, i), "get != point query");
+  PASS();
+}
+
+void test_idempotent_overlap_split()
+{
+  TEST("idempotent overlap split: min(query(l,m), query(m',r)) == query(l,r)");
+  const size_t n = 60;
+  vector<int> v(n);
+  for (auto & x : v) x = static_cast<int>(rng() % 1000);
+  Sparse_Table<int> st(v);
+
+  for (size_t l = 0; l < n; ++l)
+    for (size_t r = l; r < n; ++r)
+      {
+        int expected = st.query(l, r);
+        // Try every overlapping split point
+        for (size_t m = l; m < r; ++m)
+          {
+            int combined = min(st.query(l, m), st.query(m, r));
+            CHECK_EQ(combined, expected, "overlap split mismatch");
+          }
+      }
+  PASS();
+}
+
+void test_disjoint_split_min()
+{
+  TEST("disjoint split: min(query(l,m), query(m+1,r)) == query(l,r)");
+  const size_t n = 80;
+  vector<int> v(n);
+  for (auto & x : v) x = static_cast<int>(rng() % 1000);
+  Sparse_Table<int> st(v);
+
+  for (size_t l = 0; l < n; ++l)
+    for (size_t r = l + 1; r < n; ++r)
+      {
+        int expected = st.query(l, r);
+        for (size_t m = l; m < r; ++m)
+          {
+            int combined = min(st.query(l, m), st.query(m + 1, r));
+            CHECK_EQ(combined, expected, "disjoint split mismatch");
+          }
+      }
+  PASS();
+}
+
+void test_adversarial_zigzag()
+{
+  TEST("adversarial: zigzag pattern (alternating high/low)");
+  // 1000, 1, 1000, 1, 1000, 1, ...
+  const size_t n = 100;
+  vector<int> v(n);
+  for (size_t i = 0; i < n; ++i)
+    v[i] = (i % 2 == 0) ? 1000 : 1;
+
+  Sparse_Table<int> st(v);
+  for (size_t l = 0; l < n; ++l)
+    for (size_t r = l; r < n; r += 7)
+      CHECK_EQ(st.query(l, r), brute_min(v, l, r), "zigzag mismatch");
+  PASS();
+}
+
+void test_adversarial_single_outlier()
+{
+  TEST("adversarial: single outlier among equals");
+  const size_t n = 128;
+  for (size_t outlier_pos = 0; outlier_pos < n; outlier_pos += 11)
+    {
+      vector<int> v(n, 100);
+      v[outlier_pos] = -1;
+      Sparse_Table<int> st(v);
+
+      for (size_t l = 0; l < n; ++l)
+        for (size_t r = l; r < n; r += 13)
+          {
+            int expected = (l <= outlier_pos && outlier_pos <= r) ? -1 : 100;
+            CHECK_EQ(st.query(l, r), expected, "outlier mismatch");
+          }
+    }
+  PASS();
+}
+
+void test_adversarial_plateau_with_dip()
+{
+  TEST("adversarial: plateau with single dip at every position");
+  const size_t n = 50;
+  for (size_t dip = 0; dip < n; ++dip)
+    {
+      vector<int> v(n, 999);
+      v[dip] = 0;
+      Sparse_Table<int> st(v);
+
+      // Full range must find the dip
+      CHECK_EQ(st.query(0, n - 1), 0, "full range must find dip");
+      // Range excluding dip must not find 0
+      if (dip > 0)
+        CHECK_EQ(st.query(0, dip - 1), 999, "before dip");
+      if (dip < n - 1)
+        CHECK_EQ(st.query(dip + 1, n - 1), 999, "after dip");
+    }
+  PASS();
+}
+
+void test_sliding_window()
+{
+  TEST("sliding window queries (width=10) across n=200");
+  const size_t n = 200;
+  const size_t w = 10;
+  vector<int> v(n);
+  for (auto & x : v) x = static_cast<int>(rng() % 1000);
+  Sparse_Table<int> st(v);
+
+  for (size_t l = 0; l + w - 1 < n; ++l)
+    CHECK_EQ(st.query(l, l + w - 1), brute_min(v, l, l + w - 1),
+             "sliding window mismatch");
+  PASS();
+}
+
+// ============================================================================
 // Main
 // ============================================================================
 
@@ -1158,6 +1318,17 @@ int main(int argc, char *argv[])
   cout << "\n=== 10. Idempotency & Structure ===\n";
   test_overlapping_ranges_idempotent();
   test_num_levels_correctness();
+
+  cout << "\n=== 11. Robustness & Algebraic Properties ===\n";
+  test_self_copy_assignment();
+  test_self_swap();
+  test_get_equals_point_query();
+  test_idempotent_overlap_split();
+  test_disjoint_split_min();
+  test_adversarial_zigzag();
+  test_adversarial_single_outlier();
+  test_adversarial_plateau_with_dip();
+  test_sliding_window();
 
   cout << "\n";
   cout << "══════════════════════════════════════════════════════════════\n";
