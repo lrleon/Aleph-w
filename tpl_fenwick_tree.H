@@ -236,6 +236,9 @@ namespace Aleph
 
     /** @brief Construct from a std::vector<T> in O(n) time.
      *
+     *  This overload is intentionally provided as STL-interoperability
+     *  convenience. Aleph containers remain the primary API surface.
+     *
      *  @param values  source vector with the initial element values.
      *  @param pop     group operation functor.
      *  @param mop     group subtraction functor.

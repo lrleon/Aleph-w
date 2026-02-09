@@ -611,7 +611,7 @@ Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and r
 ├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
 │     Operation    │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
 ├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ point_update     │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ update(i,delta)  │     O(log n) │   O(log n)   │   O(log n)   │            │
 │ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
 │ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
 │ range_update     │       N/A    │     N/A      │   O(log n)   │            │

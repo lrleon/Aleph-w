@@ -31,7 +31,7 @@
 
 /**
  * @file fenwick_tree.cc
- * @brief Tests for Gen_Fenwick_Tree and Fenwick_Tree
+ * @brief Tests for Gen_Fenwick_Tree, Fenwick_Tree, and Range_Fenwick_Tree
  */
 
 # include <gtest/gtest.h>
@@ -84,6 +84,34 @@ TEST(GenFenwickTree, ArrayConstruction)
   EXPECT_EQ(ft.prefix(0), 10);
   EXPECT_EQ(ft.prefix(2), 60);
   EXPECT_EQ(ft.prefix(4), 150);
+}
+
+TEST(GenFenwickTree, VectorConstruction)
+{
+  std::vector<int> values = {2, 7, 1, 8, 2, 8};
+  Gen_Fenwick_Tree<int> ft(values);
+
+  EXPECT_EQ(ft.size(), values.size());
+  EXPECT_EQ(ft.get(0), 2);
+  EXPECT_EQ(ft.get(3), 8);
+  EXPECT_EQ(ft.prefix(4), 20);   // 2+7+1+8+2
+  EXPECT_EQ(ft.query(1, 4), 18); // 7+1+8+2
+}
+
+TEST(GenFenwickTree, DynListConstruction)
+{
+  DynList<int> values;
+  values.append(4);
+  values.append(6);
+  values.append(1);
+  values.append(3);
+
+  Gen_Fenwick_Tree<int> ft(values);
+
+  EXPECT_EQ(ft.size(), 4U);
+  EXPECT_EQ(ft.get(2), 1);
+  EXPECT_EQ(ft.prefix(3), 14);  // 4+6+1+3
+  EXPECT_EQ(ft.query(1, 3), 10); // 6+1+3
 }
 
 TEST(GenFenwickTree, PointUpdate)
