@@ -833,6 +833,335 @@ TEST(BipartiteColor, EnumValues)
   EXPECT_EQ(Bp_Blue, 2);
 }
 
+// ============================================================================
+// Hopcroft-Karp Matching Tests
+// ============================================================================
+
+// --- Base cases ---
+
+TEST(HopcroftKarp, EmptyGraph)
+{
+  Graph g;
+  DynDlist<Graph::Arc *> matching;
+
+  EXPECT_NO_THROW(hopcroft_karp_matching<Graph>(g, matching));
+  EXPECT_TRUE(matching.is_empty());
+}
+
+TEST(HopcroftKarp, SingleIsolatedNode)
+{
+  Graph g;
+  g.insert_node(0);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_TRUE(matching.is_empty());
+}
+
+TEST(HopcroftKarp, SingleEdge)
+{
+  Graph g;
+  auto * a = g.insert_node(0);
+  auto * b = g.insert_node(1);
+  g.insert_arc(a, b);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 1u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+// --- Standard bipartite graphs ---
+
+TEST(HopcroftKarp, PathGraph4)
+{
+  auto g = create_path_graph(4);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 2u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, PathGraph5)
+{
+  auto g = create_path_graph(5);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 2u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, CompleteBipartiteK22)
+{
+  auto g = create_complete_bipartite(2, 2);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 2u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, CompleteBipartiteK33)
+{
+  auto g = create_complete_bipartite(3, 3);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 3u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, CompleteBipartiteK55)
+{
+  auto g = create_complete_bipartite(5, 5);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 5u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, UnbalancedK25)
+{
+  auto g = create_complete_bipartite(2, 5);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 2u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, StarGraph)
+{
+  auto g = create_star_graph(5);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 1u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, EvenCycle6)
+{
+  auto g = create_cycle_graph(6);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 3u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+// --- Non-bipartite detection ---
+
+TEST(HopcroftKarp, TriangleThrows)
+{
+  auto g = create_triangle();
+
+  DynDlist<Graph::Arc *> matching;
+
+  EXPECT_THROW(hopcroft_karp_matching<Graph>(g, matching), domain_error);
+}
+
+TEST(HopcroftKarp, OddCycleThrows)
+{
+  auto g = create_cycle_graph(5);
+
+  DynDlist<Graph::Arc *> matching;
+
+  EXPECT_THROW(hopcroft_karp_matching<Graph>(g, matching), domain_error);
+}
+
+// --- Disconnected graphs ---
+
+TEST(HopcroftKarp, TwoDisconnectedEdges)
+{
+  auto g = create_disconnected_bipartite();
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 2u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, DisconnectedWithIsolatedNodes)
+{
+  Graph g;
+
+  // Component 1: single edge
+  auto * a = g.insert_node(0);
+  auto * b = g.insert_node(1);
+  g.insert_arc(a, b);
+
+  // Isolated nodes
+  g.insert_node(2);
+  g.insert_node(3);
+
+  // Component 2: K_{2,2}
+  auto * c = g.insert_node(10);
+  auto * d = g.insert_node(11);
+  auto * e = g.insert_node(12);
+  auto * f = g.insert_node(13);
+  g.insert_arc(c, e);
+  g.insert_arc(c, f);
+  g.insert_arc(d, e);
+  g.insert_arc(d, f);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  // 1 from edge + 2 from K_{2,2} = 3
+  EXPECT_EQ(matching.size(), 3u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, TwoDisconnectedCompleteBipartite)
+{
+  Graph g;
+
+  // Component 1: K_{3,3}
+  vector<Graph::Node *> l1(3), r1(3);
+  for (int i = 0; i < 3; ++i)
+    l1[i] = g.insert_node(i);
+  for (int i = 0; i < 3; ++i)
+    r1[i] = g.insert_node(10 + i);
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j)
+      g.insert_arc(l1[i], r1[j]);
+
+  // Component 2: K_{2,2}
+  vector<Graph::Node *> l2(2), r2(2);
+  for (int i = 0; i < 2; ++i)
+    l2[i] = g.insert_node(20 + i);
+  for (int i = 0; i < 2; ++i)
+    r2[i] = g.insert_node(30 + i);
+  for (int i = 0; i < 2; ++i)
+    for (int j = 0; j < 2; ++j)
+      g.insert_arc(l2[i], r2[j]);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  // 3 + 2 = 5
+  EXPECT_EQ(matching.size(), 5u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+// --- Cross-validation with max-flow ---
+
+TEST(HopcroftKarp, CrossValidateK44)
+{
+  auto g = create_complete_bipartite(4, 4);
+
+  DynDlist<Graph::Arc *> hk_matching;
+  hopcroft_karp_matching<Graph>(g, hk_matching);
+
+  DynDlist<Graph::Arc *> ff_matching;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, ff_matching);
+
+  EXPECT_EQ(hk_matching.size(), ff_matching.size());
+  EXPECT_EQ(hk_matching.size(), 4u);
+}
+
+TEST(HopcroftKarp, CrossValidatePath6)
+{
+  auto g = create_path_graph(6);
+
+  DynDlist<Graph::Arc *> hk_matching;
+  hopcroft_karp_matching<Graph>(g, hk_matching);
+
+  DynDlist<Graph::Arc *> ff_matching;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, ff_matching);
+
+  EXPECT_EQ(hk_matching.size(), ff_matching.size());
+  EXPECT_EQ(hk_matching.size(), 3u);
+}
+
+TEST(HopcroftKarp, CrossValidateEvenCycle8)
+{
+  auto g = create_cycle_graph(8);
+
+  DynDlist<Graph::Arc *> hk_matching;
+  hopcroft_karp_matching<Graph>(g, hk_matching);
+
+  DynDlist<Graph::Arc *> ff_matching;
+  compute_maximum_cardinality_bipartite_matching<Graph>(g, ff_matching);
+
+  EXPECT_EQ(hk_matching.size(), ff_matching.size());
+  EXPECT_EQ(hk_matching.size(), 4u);
+}
+
+// --- Functor wrapper ---
+
+TEST(HopcroftKarp, FunctorWrapper)
+{
+  auto g = create_complete_bipartite(3, 3);
+
+  DynDlist<Graph::Arc *> matching;
+  Hopcroft_Karp_Matching<Graph>()(g, matching);
+
+  EXPECT_EQ(matching.size(), 3u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, FunctorMatchesFreeFunction)
+{
+  auto g = create_complete_bipartite(4, 4);
+
+  DynDlist<Graph::Arc *> fn_matching, op_matching;
+  hopcroft_karp_matching<Graph>(g, fn_matching);
+  Hopcroft_Karp_Matching<Graph>()(g, op_matching);
+
+  EXPECT_EQ(fn_matching.size(), op_matching.size());
+}
+
+// --- Stress tests ---
+
+TEST(HopcroftKarp, StressK50_50)
+{
+  auto g = create_complete_bipartite(50, 50);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 50u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, StressK100_100)
+{
+  auto g = create_complete_bipartite(100, 100);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 100u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
+TEST(HopcroftKarp, StressPath200)
+{
+  auto g = create_path_graph(200);
+
+  DynDlist<Graph::Arc *> matching;
+  hopcroft_karp_matching<Graph>(g, matching);
+
+  EXPECT_EQ(matching.size(), 100u);
+  EXPECT_TRUE(verify_matching(g, matching));
+}
+
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

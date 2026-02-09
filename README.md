@@ -1,4 +1,4 @@
-# Aleph-w
+# Aleph-w {#aleph-w}
 
 <div align="center">
 
@@ -40,11 +40,13 @@ Language: English | [Español](README.es.md)
   - [Heaps and Priority Queues](#heaps-and-priority-queues)
   - [Lists and Sequential Structures](#lists-and-sequential-structures)
   - [Graphs](#graphs)
+  - [Linear Algebra (Sparse Structures)](#linear-algebra-sparse-structures)
 - [Algorithms](#algorithms)
   - [Shortest Path Algorithms](#shortest-path-algorithms)
   - [Minimum Spanning Trees](#minimum-spanning-trees)
   - [Network Flows](#network-flows)
   - [Graph Connectivity](#graph-connectivity)
+  - [Matching](#matching)
   - [Sorting Algorithms](#sorting-algorithms)
 - [Memory Management](#memory-management)
   - [Arena Allocators](#arena-allocators)
@@ -200,6 +202,11 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Union-Find           ├─ Quadtree              ├─ Bloom Filter          │
 │  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
 │  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
+│                                                                            │
+│  LINEAR ALGEBRA                                                            │
+│  ├─ Sparse Vector                                                          │
+│  ├─ Sparse Matrix                                                          │
+│  └─ Domain Indexing                                                        │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -592,6 +599,175 @@ int main() {
                              [40]    [70]
                                      /  \
                                   [60]  [80]
+```
+
+### Fenwick Trees (Binary Indexed Trees)
+
+Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and range queries:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         FENWICK TREE VARIANTS                              │
+├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
+│     Operation    │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ update(i,delta)  │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ range_update     │       N/A    │     N/A      │   O(log n)   │            │
+│ find_kth         │       N/A    │   O(log n)   │     N/A      │            │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ Group Operand    │  Arbitrary   │  operator+   │  operator+   │            │
+│                  │  (XOR, +mod) │  operator-   │  operator-   │            │
+├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
+│ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
+│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
+└──────────────────┴──────────────┴──────────────┴──────────────┴────────────┘
+```
+
+#### Usage Examples
+
+```cpp
+#include <tpl_fenwick_tree.H>
+
+int main() {
+    // Point update + Range query (classic Fenwick tree)
+    Fenwick_Tree<int> ft = {3, 1, 4, 1, 5};
+    ft.update(2, 7);               // a[2] += 7
+    int sum = ft.query(1, 4);      // sum of a[1..4]
+    auto kth = ft.find_kth(5);     // smallest i with prefix(i) >= 5
+
+    // Range update + Range query
+    Range_Fenwick_Tree<int> rft(10);
+    rft.update(2, 5, 10);          // add 10 to a[2..5]
+    int range_sum = rft.query(0, 7); // sum of a[0..7]
+
+    // Generic Fenwick over XOR group
+    struct Xor {
+        int operator()(int a, int b) const { return a ^ b; }
+    };
+    Gen_Fenwick_Tree<int, Xor, Xor> xor_ft(8);
+    xor_ft.update(3, 0b1010);      // a[3] ^= 0b1010
+    int prefix_xor = xor_ft.prefix(5);
+
+    return 0;
+}
+```
+
+#### Real-World Application: Order Book Depth
+
+```cpp
+// Stock exchange: find worst price for market order of K shares
+Fenwick_Tree<int> ask_book(20);  // 20 price ticks
+ask_book.update(0, 120);         // 120 shares at tick 0
+ask_book.update(3, 200);         // 200 shares at tick 3
+ask_book.update(7, 300);         // 300 shares at tick 7
+
+size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
+// Result: tick 3 ($100.03) — pay worst price of $100.03
+```
+
+### Linear Algebra (Sparse Structures)
+
+Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                   SPARSE LINEAR ALGEBRA STRUCTURES                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  SPARSE VECTOR (al-vector.H)                                              │
+│  ────────────────────────────                                             │
+│  Vector<T, NumType>                                                        │
+│                                                                            │
+│  • Domain-based indexing (any type T)                                     │
+│  • Stores only non-zero entries (hash-based)                              │
+│  • Epsilon tolerance for near-zero removal                                │
+│  • Operations: +, -, *, dot product, norms                                │
+│                                                                            │
+│  Memory: O(nonzeros) instead of O(dimension)                              │
+│                                                                            │
+│  SPARSE MATRIX (al-matrix.H)                                              │
+│  ────────────────────────────                                             │
+│  Matrix<Trow, Tcol, NumType>                                              │
+│                                                                            │
+│  • Arbitrary row/column domains                                           │
+│  • Stores only non-zero entries                                           │
+│  • Operations: +, -, *, transpose, row/col vectors                        │
+│  • Integration with Vector class                                          │
+│                                                                            │
+│  Memory: O(nonzeros) instead of O(rows × cols)                            │
+│                                                                            │
+│  WHEN TO USE SPARSE?                                                      │
+│  • Sparsity > 90% (most entries are zero)                                │
+│  • Large dimensions with few non-zeros                                    │
+│  • Need domain-based indexing (named rows/columns)                        │
+│                                                                            │
+│  Example: 1000×1000 matrix with 1000 non-zeros:                          │
+│    Dense:  1,000,000 doubles = 8 MB                                       │
+│    Sparse:     1,000 entries = 8 KB  (1000× savings!)                     │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Usage Examples
+
+```cpp
+#include <al-vector.H>
+#include <al-matrix.H>
+
+int main() {
+    // Sparse vector with string domain
+    AlDomain<std::string> products;
+    products.insert("Laptop");
+    products.insert("Phone");
+    products.insert("Tablet");
+
+    Vector<std::string, double> inventory(products);
+    inventory.set_entry("Laptop", 150.0);
+    inventory.set_entry("Phone", 450.0);
+    // Tablet implicitly 0 (not stored)
+
+    std::cout << "Laptop inventory: " << inventory["Laptop"] << "\n";
+
+    // Sparse matrix with domain-based indexing
+    AlDomain<std::string> stores;
+    stores.insert("NYC");
+    stores.insert("LA");
+    stores.insert("CHI");
+
+    Matrix<std::string, std::string, double> sales(products, stores);
+    sales.set_entry("Laptop", "NYC", 25);
+    sales.set_entry("Phone", "LA", 80);
+
+    // Matrix-vector multiplication
+    Vector<std::string, double> total_by_product = sales * inventory;
+
+    // Transpose
+    auto sales_t = sales.transpose();
+
+    return 0;
+}
+```
+
+#### Real-World Application: Sales Analysis
+
+```cpp
+// Track sales across products × stores (mostly zeros for sparse data)
+AlDomain<std::string> products = {"Laptop", "Phone", "Tablet", "Monitor"};
+AlDomain<std::string> stores = {"NYC", "LA", "CHI", "MIA", "SEA"};
+
+Matrix<std::string, std::string, int> sales(products, stores);
+
+// Only record actual sales (most product-store pairs have zero sales)
+sales.set_entry("Laptop", "NYC", 12);
+sales.set_entry("Phone", "LA", 35);
+sales.set_entry("Phone", "NYC", 28);
+// Other entries implicitly zero (not stored)
+
+// Query total sales for a product across all stores
+auto laptop_sales = sales.get_row("Laptop");  // Vector<string, int>
+int total_laptops = laptop_sales.sum();
 ```
 
 ### Hash Tables
@@ -1246,6 +1422,21 @@ int main() {
 }
 ```
 
+### Matching
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MATCHING ALGORITHMS                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BIPARTITE MATCHING                                                         │
+│                                                                             │
+│  Hopcroft-Karp: O(E√V)                                                      │
+│  Max-Flow Reduction: O(VE)                                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ### Sorting Algorithms
 
 ```
@@ -1732,6 +1923,12 @@ int main() {
 | `tpl_binHeap.H` | `BinHeap<T, Cmp>` | Binary heap |
 | `tpl_arrayQueue.H` | `ArrayQueue<T>` | Queue (array-based) |
 | `tpl_arrayStack.H` | `ArrayStack<T>` | Stack (array-based) |
+| `tpl_fenwick_tree.H` | `Fenwick_Tree<T>` | Fenwick tree (BIT) |
+| `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T, Plus, Minus>` | Fenwick over abelian groups |
+| `tpl_fenwick_tree.H` | `Range_Fenwick_Tree<T>` | Range update/query Fenwick |
+| `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
+| `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
+| `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
 
 #### Tree Types
 
@@ -2023,6 +2220,31 @@ ctest --test-dir build-debug
 3. Make changes with tests
 4. Ensure CI passes: `ctest --output-on-failure`
 5. Submit Pull Request
+
+---
+
+## Bug Reports
+
+If you find a bug, please report it!
+
+- **Email**: `leandro.r.leon@gmail.com`
+- **GitHub Issues**: [Open a new issue](https://github.com/lrleon/Aleph-w/issues)
+
+Please include a minimal reproducible example if possible.
+
+---
+
+## Join the Community
+
+Imagine a library that grows with your needs. **Aleph-w** is built by developers, for developers.
+
+Your contribution matters. Whether it's fixing a typo, optimizing an algorithm, or adding a brand-new data structure, you have the power to shape the future of this project.
+
+- **Have an idea?** Share it in [Discussions](https://github.com/lrleon/Aleph-w/discussions).
+- **Found a better way?** Submit a Pull Request.
+- **Want to learn?** Explore the code and ask questions.
+
+Together, we can build the most comprehensive C++ algorithm library in the world. **Join us!**
 
 ---
 

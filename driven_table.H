@@ -1,3 +1,4 @@
+
 /*
                           Aleph_w
 
@@ -82,7 +83,7 @@
  *    return nullptr;
  *  }
  *
- *  Legacy_Event_Table table;  // or Dynamic_Event_Table<void*(void*)>
+ *  Legacy_Static_Event_Table table;  // or Legacy_Dynamic_Event_Table
  *  auto id = table.register_event(on_start);
  *  table.execute_event(id, nullptr);
  *  @endcode
@@ -539,7 +540,7 @@ private:
 
 public:
   /// Get the current table size (implements Event_Table virtual method)
-  size_t size() const override { return table.size(); }
+  [[nodiscard]] size_t size() const override { return table.size(); }
 
   /** @brief Construct a dynamic event table.
    *

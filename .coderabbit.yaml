@@ -20,6 +20,26 @@ reviews:
       - "^main$"
       - "^develop$"
       - "^release/.*"
+
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    custom_checks:
+      - name: "Header Docstring Coverage"
+        mode: warning
+        instructions: |
+          Compute documentation coverage only for library headers in this PR.
+
+          Scope:
+          - Include files matching: **/*.{h,H,hpp,hxx,hh}
+          - Exclude paths: Tests/**, Examples/**, docs/**, .github/**, scripts/**, Testing/**, build*/**, cmake-build-*/**
+
+          For in-scope changed declarations that should be documented (public classes/structs/functions/methods/templates), compute:
+          coverage = documented / total * 100
+
+          Pass condition:
+          - coverage >= 80%
+          - If no in-scope declarations changed, mark as passed.
   
   path_instructions:
     - path: "**/*"

@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -52,9 +51,11 @@
 
 # include <tpl_dynDlist.H>
 # include <tpl_dynMapTree.H>
+# include <tpl_dynListQueue.H>
 # include <tpl_net.H>
 # include <ah-errors.H>
 # include <cookie_guard.H>
+# include <limits>
 
 namespace Aleph
 {
@@ -214,14 +215,14 @@ The routine handles two type parameters:
     typedef Net_Graph<Net_Node<Empty_Class>, Net_Arc<Empty_Class>> AN;
     AN net;
 
-    // Cookie_Guard ensures cookies are cleared when function exits
+    // Cookie_Guard ensures cookies are cleared when a function exits
     // (prevents dangling pointers to destroyed 'net' nodes)
     Cookie_Guard<GT> cookie_guard(g, true, true);
 
     // Use a map to store arc mapping since Max_Flow algorithms reset cookies
     DynMapTree<typename AN::Arc *, typename GT::Arc *> arc_map;
 
-    // traverse nodes of g and insert their image in net
+    // traverse nodes of g and insert their image in the net
     for (Node_Iterator<GT> it(g); it.has_curr(); it.next_ne())
       {
         typename GT::Node *p = it.get_curr();
@@ -231,7 +232,7 @@ The routine handles two type parameters:
 
     typename AN::Node *source = net.insert_node();
 
-    // traverse nodes of l, connect them to source and insert their arcs
+    // traverse nodes of l, connect them to the source and insert their arcs
     for (typename DynDlist<typename GT::Node *>::Iterator i(l);
          i.has_curr(); i.next_ne())
       {
@@ -268,7 +269,7 @@ The routine handles two type parameters:
           continue;
 
         // Look up the original arc in our map
-        auto * pair_ptr = arc_map.search(a);
+        auto *pair_ptr = arc_map.search(a);
         if (pair_ptr == nullptr)
           continue;
 
@@ -299,7 +300,7 @@ By default, the Ford-Fulkerson algorithm is used.
         matching in the list matching.
 
         The procedure computes the bipartition sets, then constructs
-        an equivalent unit-capacity flow network and invokes a
+        an equivalent unit-capacity flow network, and invokes a
         maximum flow algorithm on it.
 
         @param[in] g the bipartite graph.
@@ -310,6 +311,244 @@ By default, the Ford-Fulkerson algorithm is used.
     {
       compute_maximum_cardinality_bipartite_matching<GT, Max_Flow, SA>
           (g, matching);
+    }
+  };
+
+  /** Computes the partition sets of a bipartite graph handling all
+      connected components.
+
+  Unlike compute_bipartite(), this function processes disconnected
+  graphs correctly by running BFS from each unvisited node.
+
+  @param[in] g the graph to test.
+  @param[out] l one partition set (red nodes).
+  @param[out] r the other partition set (blue nodes).
+  @return true if the graph is bipartite, false otherwise.
+  @ingroup Graphs
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  bool compute_bipartite_all_components(const GT & g,
+                                        DynDlist<typename GT::Node *> & l,
+                                        DynDlist<typename GT::Node *> & r)
+  {
+    using Node = typename GT::Node;
+
+    g.reset_nodes();
+    g.reset_arcs();
+
+    for (Node_Iterator<GT> nit(g); nit.has_curr(); nit.next_ne())
+      {
+        Node *start = nit.get_curr();
+        if (color<GT>(start) != Bp_White)
+          continue;
+
+        color<GT>(start) = Bp_Red;
+        l.append(start);
+
+        DynListQueue<Node *> queue;
+        queue.put(start);
+
+        while (not queue.is_empty())
+          {
+            Node *p = queue.get();
+            const long p_color = color<GT>(p);
+            const long neighbor_color = (p_color == Bp_Red) ? Bp_Blue : Bp_Red;
+
+            for (Node_Arc_Iterator<GT, SA> it(p); it.has_curr(); it.next_ne())
+              if (Node *q = it.get_tgt_node(); color<GT>(q) == Bp_White)
+                {
+                  color<GT>(q) = neighbor_color;
+                  if (neighbor_color == Bp_Red)
+                    l.append(q);
+                  else
+                    r.append(q);
+                  queue.put(q);
+                }
+              else if (color<GT>(q) == p_color)
+                return false;
+          }
+      }
+
+    return true;
+  }
+
+  // Helper: DFS for augmenting path in Hopcroft-Karp.
+  // Returns true if an augmenting path from u to a free right-node
+  // was found and the matching was augmented along it.
+  template <class GT, class SA>
+  static bool hopcroft_karp_dfs(const GT & g, typename GT::Node *u)
+  {
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
+
+    constexpr long INF = std::numeric_limits<long>::max();
+    long & u_dist = NODE_COUNTER(u);
+
+    for (Node_Arc_Iterator<GT, SA> it(u); it.has_curr(); it.next_ne())
+      {
+        Arc *arc = it.get_current_arc_ne();
+        Node *v = g.get_connected_node(arc, u); // right-side node
+
+        // v's match partner (maybe nullptr if v is free)
+        Arc *match_arc = static_cast<Arc *>(NODE_COOKIE(v));
+        Node *pair_v = (match_arc != nullptr) ? g.get_connected_node(match_arc, v) : nullptr;
+
+        if (pair_v == nullptr) // v is free → augmenting path found
+          {
+            NODE_COOKIE(u) = arc;
+            NODE_COOKIE(v) = arc;
+            u_dist = INF;
+            return true;
+          }
+
+        // pair_v is a left-side node matched to v
+        if (NODE_COUNTER(pair_v) == u_dist + 1)
+          {
+            if (hopcroft_karp_dfs<GT, SA>(g, pair_v))
+              {
+                NODE_COOKIE(u) = arc;
+                NODE_COOKIE(v) = arc;
+                u_dist = INF;
+                return true;
+              }
+          }
+      }
+
+    u_dist = INF; // mark u as "dead" for this phase
+    return false;
+  }
+
+  /** Computes a maximum cardinality matching on a bipartite graph
+      using the Hopcroft-Karp algorithm.
+
+  The Hopcroft-Karp algorithm runs in O(E * sqrt(V)) time, which is
+  more efficient than the max-flow based approach for sparse bipartite
+  graphs.
+
+  This implementation handles disconnected graphs correctly.
+
+  @param[in] g the bipartite graph.
+  @param[out] matching list of arcs forming the maximum matching.
+  @exception domain_error if the graph is not bipartite.
+  @ingroup Graphs
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  void hopcroft_karp_matching(const GT & g,
+                              DynDlist<typename GT::Arc *> & matching)
+  {
+    using Node = typename GT::Node;
+    using Arc = typename GT::Arc;
+
+    constexpr long INF = std::numeric_limits<long>::max();
+
+    if (g.get_num_nodes() == 0)
+      return;
+
+    DynDlist<Node *> left_nodes, right_nodes;
+
+    // 2-coloring (uses NODE_COUNTER for color)
+    const bool is_bipartite =
+        compute_bipartite_all_components<GT, SA>(g, left_nodes, right_nodes);
+    ah_domain_error_if(not is_bipartite) << "Graph is not bipartite";
+
+    // Now repurpose NODE_COOKIE for matching arcs and
+    // NODE_COUNTER for BFS distances (left-side only).
+    // Cookie_Guard clears cookies on exit.
+    Cookie_Guard<GT> cookie_guard(g, true, false);
+
+    // Initialize: all nodes are free (NODE_COOKIE = nullptr already from guard)
+    // Set all left-side distances to INF
+    for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_curr()) = INF;
+    for (auto it = right_nodes.get_it(); it.has_curr(); it.next_ne())
+      NODE_COUNTER(it.get_curr()) = 0; // right-side counters unused
+
+    // BFS phase: returns true if augmenting paths exist
+    // Sets distances on left-side nodes
+    auto bfs = [&]() -> bool
+      {
+        DynListQueue<Node *> queue;
+        long dist_to_free = INF;
+
+        // Enqueue all free left-side nodes at distance 0
+        for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
+          if (Node *u = it.get_curr(); NODE_COOKIE(u) == nullptr) // u is free
+            {
+              NODE_COUNTER(u) = 0;
+              queue.put(u);
+            }
+          else
+            NODE_COUNTER(u) = INF;
+
+        while (not queue.is_empty())
+          {
+            Node *u = queue.get();
+            const long u_dist = NODE_COUNTER(u);
+
+            if (u_dist >= dist_to_free)
+              continue;
+
+            for (Node_Arc_Iterator<GT, SA> it(u); it.has_curr(); it.next_ne())
+              {
+                Arc *arc = it.get_current_arc_ne();
+                Node *v = g.get_connected_node(arc, u); // right-side
+
+                Arc *match_arc = static_cast<Arc *>(NODE_COOKIE(v));
+                Node *pair_v = (match_arc != nullptr) ? g.get_connected_node(match_arc, v) : nullptr;
+
+                if (pair_v == nullptr) // v is free
+                  dist_to_free = u_dist + 1;
+                else if (NODE_COUNTER(pair_v) == INF)
+                  {
+                    NODE_COUNTER(pair_v) = u_dist + 1;
+                    queue.put(pair_v);
+                  }
+              }
+          }
+
+        return dist_to_free != INF;
+      };
+
+    // Main loop: BFS + DFS phases
+    while (bfs())
+      {
+        for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
+          if (Node *u = it.get_curr(); NODE_COOKIE(u) == nullptr) // u is free
+            hopcroft_karp_dfs<GT, SA>(g, u);
+      }
+
+    // Collect matching arcs from left-side nodes
+    DynSetAvlTree<Arc *> seen;
+    for (auto it = left_nodes.get_it(); it.has_curr(); it.next_ne())
+      {
+        Arc *a = static_cast<Arc *>(NODE_COOKIE(it.get_curr()));
+        if (a != nullptr and not seen.contains(a))
+          {
+            matching.append(a);
+            seen.insert(a);
+          }
+      }
+  }
+
+  /** Functor wrapper for hopcroft_karp_matching.
+
+  @tparam GT the graph type.
+  @tparam SA arc filter (default: Dft_Show_Arc<GT>).
+  @ingroup Graphs
+   */
+  template <class GT, class SA = Dft_Show_Arc<GT>>
+  class Hopcroft_Karp_Matching
+  {
+  public:
+    /** Computes the maximum matching using Hopcroft-Karp.
+
+    @param[in] g the bipartite graph.
+    @param[out] matching list of arcs forming the maximum matching.
+    @exception domain_error if the graph is not bipartite.
+     */
+    void operator()(const GT & g, DynDlist<typename GT::Arc *> & matching)
+    {
+      hopcroft_karp_matching<GT, SA>(g, matching);
     }
   };
 } // end namespace Aleph

@@ -189,6 +189,160 @@ jobs:
             build/Testing/Temporary/LastTest.log
             build/CMakeCache.txt
 
+  coverage:
+    name: coverage (ubuntu-24.04, gcc, Debug)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CC: gcc
+      CXX: g++
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config ccache gcovr ruby-full \
+            g++ \
+            libgmp-dev libmpfr-dev libgsl-dev \
+            libx11-dev libpthread-stubs0-dev \
+            libgtest-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-coverage-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-coverage-ccache-
+
+      - name: Build and install GoogleTest
+        run: |
+          set -euo pipefail
+
+          if pkg-config --exists gtest gtest_main; then
+            echo "gtest found via pkg-config"
+            exit 0
+          fi
+
+          if [ -d /usr/src/googletest ]; then
+            sudo cmake -S /usr/src/googletest -B /usr/src/googletest/build -G Ninja
+            sudo cmake --build /usr/src/googletest/build
+            sudo cmake --install /usr/src/googletest/build
+            exit 0
+          fi
+
+          if [ -d /usr/src/gtest ]; then
+            sudo cmake -S /usr/src/gtest -B /usr/src/gtest/build -G Ninja
+            sudo cmake --build /usr/src/gtest/build
+            sudo cmake --install /usr/src/gtest/build
+            exit 0
+          fi
+
+          echo "No googletest sources found in /usr/src (expected /usr/src/googletest or /usr/src/gtest)"
+          exit 1
+
+      - name: Configure
+        run: |
+          rm -rf build-coverage
+          cmake -S . -B build-coverage -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=ON \
+            -DCMAKE_C_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_CXX_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DCMAKE_SHARED_LINKER_FLAGS="--coverage"
+
+      - name: Build
+        run: |
+          cmake --build build-coverage --parallel
+
+      - name: Test
+        run: |
+          # Exclude this benchmark from coverage runs because instrumentation
+          # changes timing characteristics and can make this test flaky.
+          ctest --test-dir build-coverage --output-on-failure --parallel 2 --timeout 600 \
+            -E 'ParallelTest\.BenchmarkMapSpeedup'
+
+      - name: Generate coverage reports
+        run: |
+          ROOT_DIR="$GITHUB_WORKSPACE"
+          BUILD_DIR="$ROOT_DIR/build-coverage"
+          GCOVR_ARGS=(
+            --root "$ROOT_DIR"
+            --object-directory "$BUILD_DIR"
+            --gcov-exclude "(^|.*/)CMakeFiles/[0-9.]+/CompilerId(C|CXX)/.*"
+            --gcov-exclude "(^|.*/)CompilerId(C|CXX)/.*"
+            --gcov-ignore-errors source_not_found
+            --gcov-ignore-errors no_working_dir_found
+            --gcov-ignore-errors output_error
+            --gcov-ignore-parse-errors negative_hits.warn
+            --exclude "(^|.*/)Tests/.*"
+            --exclude "(^|.*/)Examples/.*"
+            --exclude "(^|.*/)build-coverage/.*"
+            --exclude "(^|.*/)cmake-build-.*/.*"
+            --exclude "(^|.*/)build-.*/.*"
+            --exclude "(^|.*/)CMakeFiles/[0-9.]+/CompilerId(C|CXX)/.*"
+          )
+
+          gcovr "${GCOVR_ARGS[@]}" \
+            --xml-pretty --output build-coverage/coverage.xml
+
+          gcovr "${GCOVR_ARGS[@]}" \
+            --html-details --output build-coverage/coverage.html
+
+          gcovr "${GCOVR_ARGS[@]}" \
+            --sort uncovered-percent --print-summary > build-coverage/coverage.txt
+
+      - name: Diff coverage gate (PR)
+        if: github.event_name == 'pull_request'
+        env:
+          DIFF_COVERAGE_MIN: "20"
+        run: |
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+          ruby scripts/ci_diff_coverage.rb \
+            --coverage-xml build-coverage/coverage.xml \
+            --diff-range "origin/${{ github.base_ref }}...HEAD" \
+            --min-line "${DIFF_COVERAGE_MIN}" \
+            --summary-file "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish coverage summary
+        run: |
+          {
+            echo "## Test Coverage"
+            echo
+            echo '```text'
+            cat build-coverage/coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            build-coverage/coverage.xml
+            build-coverage/coverage.html
+            build-coverage/coverage.txt
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-coverage
+          path: |
+            build-coverage/Testing/Temporary/LastTest.log
+            build-coverage/CMakeCache.txt
+
   sanitizers:
     name: sanitizers (ubuntu-24.04, gcc, Debug)
     runs-on: ubuntu-24.04
@@ -321,6 +475,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - build-and-test
+      - coverage
       - sanitizers
       - tsan
     if: always() && github.event_name == 'push'
@@ -329,6 +484,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
 
@@ -349,6 +505,7 @@ jobs:
           }
 
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
 
@@ -364,6 +521,7 @@ jobs:
     needs:
       - policy-checks
       - build-and-test
+      - coverage
       - sanitizers
       - tsan
     if: always() && github.event_name == 'pull_request'
@@ -373,6 +531,7 @@ jobs:
           set -euo pipefail
           echo "policy-checks result: ${{ needs.policy-checks.result }}"
           echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "coverage result: ${{ needs.coverage.result }}"
           echo "sanitizers result: ${{ needs.sanitizers.result }}"
           echo "tsan result: ${{ needs.tsan.result }}"
 
@@ -394,6 +553,7 @@ jobs:
 
           check_job "policy-checks" "${{ needs.policy-checks.result }}"
           check_job "build-and-test" "${{ needs.build-and-test.result }}"
+          check_job "coverage" "${{ needs.coverage.result }}"
           check_job "sanitizers" "${{ needs.sanitizers.result }}"
           check_job "tsan" "${{ needs.tsan.result }}"
 

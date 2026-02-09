@@ -197,6 +197,85 @@ int main() {
 }
 ```
 
+### Ejemplo 3: Fenwick Tree (sumas de prefijo y rangos)
+
+```cpp
+#include <tpl_fenwick_tree.H>
+#include <iostream>
+
+int main() {
+    // Fenwick clásico: actualización puntual + consulta de rango
+    Fenwick_Tree<int> ft = {3, 1, 4, 1, 5, 9};
+    std::cout << "Suma [0..3]: " << ft.prefix(3) << "\n";   // 9
+    std::cout << "Suma [2..4]: " << ft.query(2, 4) << "\n";  // 10
+
+    ft.update(2, 6);  // a[2] += 6
+    std::cout << "Suma [2..4] tras update: " << ft.query(2, 4) << "\n"; // 16
+
+    // find_kth: menor índice cuyo prefijo acumulado >= k
+    size_t idx = ft.find_kth(10);  // útil para order statistics
+
+    // Range Fenwick: actualización y consulta por rangos
+    Range_Fenwick_Tree<int> rft(8);
+    rft.update(1, 4, 3);   // a[1..4] += 3
+    rft.update(2, 6, 5);   // a[2..6] += 5
+    std::cout << "Valor en pos 3: " << rft.get(3) << "\n";  // 8
+
+    // Genérico sobre cualquier grupo abeliano (e.g. XOR)
+    struct Xor { int operator()(int a, int b) const { return a ^ b; } };
+    Gen_Fenwick_Tree<int, Xor, Xor> xft(10);
+    xft.update(3, 0b1010);
+
+    return 0;
+}
+```
+
+### Ejemplo 4: Álgebra Lineal Sparse (matrices y vectores dispersos)
+
+```cpp
+#include <al-vector.H>
+#include <al-matrix.H>
+#include <iostream>
+
+int main() {
+    // Vector disperso con dominio de strings
+    AlDomain<std::string> productos;
+    productos.insert("Laptop");
+    productos.insert("Teléfono");
+    productos.insert("Tablet");
+
+    Vector<std::string, double> inventario(productos);
+    inventario.set_entry("Laptop", 150.0);
+    inventario.set_entry("Teléfono", 450.0);
+    // Tablet implícitamente 0 (no se almacena)
+
+    std::cout << "Inventario Laptop: " << inventario["Laptop"] << "\n";
+
+    // Matriz dispersa con indexación por dominio
+    AlDomain<std::string> tiendas;
+    tiendas.insert("Bogotá");
+    tiendas.insert("Medellín");
+    tiendas.insert("Cali");
+
+    Matrix<std::string, std::string, int> ventas(productos, tiendas);
+    ventas.set_entry("Laptop", "Bogotá", 25);
+    ventas.set_entry("Teléfono", "Medellín", 80);
+    // Otras entradas son cero implícitamente (no se almacenan)
+
+    // Multiplicación matriz-vector
+    Vector<std::string, int> total_por_producto = ventas * inventario;
+
+    // Transpuesta
+    auto ventas_t = ventas.transpose();
+
+    // Ventaja: matriz 1000×1000 con 1000 no-ceros:
+    //   Densa:  1,000,000 doubles = 8 MB
+    //   Sparse:     1,000 entries = 8 KB (ahorro 1000×)
+
+    return 0;
+}
+```
+
 ---
 
 ## Pruebas {#pruebas}
