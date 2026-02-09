@@ -38,7 +38,6 @@
 
 # include <tpl_fenwick_tree.H>
 
-# include <numeric>
 # include <random>
 # include <vector>
 
