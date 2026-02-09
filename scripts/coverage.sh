@@ -4,7 +4,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT_DIR="$(cd -P "${SCRIPT_DIR}/.." && pwd -P)"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build-coverage}"
-BUILD_DIR="$(realpath -m "${BUILD_DIR}")"
 COVERAGE_CLEAN="${COVERAGE_CLEAN:-1}"
 CTEST_ARGS=("$@")
 
@@ -15,9 +14,34 @@ require_cmd() {
   fi
 }
 
+normalize_path() {
+  local path="$1"
+
+  if command -v realpath >/dev/null 2>&1; then
+    if realpath -m / >/dev/null 2>&1; then
+      realpath -m "${path}"
+      return
+    fi
+  fi
+
+  if command -v ruby >/dev/null 2>&1; then
+    ruby -e 'require "pathname"; puts Pathname.new(ARGV[0]).expand_path.to_s' "${path}"
+    return
+  fi
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "${path}"
+    return
+  fi
+
+  echo "Missing required command: realpath (with -m) or ruby for path normalization" >&2
+  exit 1
+}
+
 require_cmd cmake
 require_cmd ctest
 require_cmd gcovr
+BUILD_DIR="$(normalize_path "${BUILD_DIR}")"
 
 cd "${ROOT_DIR}"
 

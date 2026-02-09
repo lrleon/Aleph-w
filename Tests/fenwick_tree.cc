@@ -587,6 +587,29 @@ TEST(RangeFenwickTree, CopyAndMove)
   EXPECT_EQ(ft3.prefix(3), 410);
 }
 
+TEST(RangeFenwickTree, Swap)
+{
+  Range_Fenwick_Tree<int> a = {1, 2, 3};
+  Range_Fenwick_Tree<int> b = {10, 20, 30, 40};
+
+  a.swap(b);
+
+  EXPECT_EQ(a.size(), 4U);
+  EXPECT_EQ(b.size(), 3U);
+
+  // a now contains former b
+  EXPECT_EQ(a.get(0), 10);
+  EXPECT_EQ(a.get(3), 40);
+  EXPECT_EQ(a.prefix(3), 100);
+  EXPECT_EQ(a.query(1, 2), 50);
+
+  // b now contains former a
+  EXPECT_EQ(b.get(0), 1);
+  EXPECT_EQ(b.get(2), 3);
+  EXPECT_EQ(b.prefix(2), 6);
+  EXPECT_EQ(b.query(0, 1), 3);
+}
+
 TEST(RangeFenwickTree, BoundsChecking)
 {
   Range_Fenwick_Tree<int> ft(3);
