@@ -609,19 +609,20 @@ Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and r
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                         FENWICK TREE VARIANTS                              │
 ├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
-│     Operation    │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
+│  Method          │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
 ├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ point_update     │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_update     │       N/A    │     N/A      │   O(log n)   │            │
-│ find_kth         │       N/A    │   O(log n)   │     N/A      │            │
+│ update(i, δ)     │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ update(l, r, δ)  │       N/A    │     N/A      │   O(log n)   │            │
+│ prefix(i)        │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ query(l, r)      │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ get(i) / set(i)  │     O(log n) │   O(log n)   │   O(log n)   │            │
+│ find_kth(k)      │       N/A    │   O(log n)   │     N/A      │            │
 ├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
 │ Group Operand    │  Arbitrary   │  operator+   │  operator+   │            │
 │                  │  (XOR, +mod) │  operator-   │  operator-   │            │
 ├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
 │ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
-│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
+│                  │  (XOR, etc)  │  Find k-th   │  Dividends   │            │
 └──────────────────┴──────────────┴──────────────┴──────────────┴────────────┘
 ```
 
