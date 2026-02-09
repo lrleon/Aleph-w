@@ -635,7 +635,7 @@ int main() {
     Fenwick_Tree<int> ft = {3, 1, 4, 1, 5};
     ft.update(2, 7);               // a[2] += 7
     int sum = ft.query(1, 4);      // sum of a[1..4]
-    int kth = ft.find_kth(5);      // smallest i with prefix(i) >= 5
+    auto kth = ft.find_kth(5);     // smallest i with prefix(i) >= 5
 
     // Range update + Range query
     Range_Fenwick_Tree<int> rft(10);
