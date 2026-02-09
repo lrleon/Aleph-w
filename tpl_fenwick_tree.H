@@ -34,8 +34,8 @@
  *
  *  A Fenwick tree maintains an implicit array of `n` elements over an
  *  abelian group (an associative, commutative, invertible binary
- *  operation with identity) and answers prefix and range queries in
- *  O(log n) time with O(1) point updates (amortised).
+ *  operation with identity) and supports prefix and range queries and
+ *  point updates in O(log n) time.
  *
  *  Two class templates are provided:
  *
