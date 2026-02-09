@@ -427,27 +427,44 @@ namespace Aleph
      *  @return  0-based index, or `size()` if the total sum is less
      *           than @p k.
      */
-    size_t find_kth(T k) const
+    *          prefix(i) > k, assuming all elements are non-negative.
+    *
+    *  This uses a binary lifting search over the implicit tree
+    *  structure, similar to the classic "find k-th order statistic"
+    *  on a Fenwick tree storing frequencies.
+    *
+    *  This operation is only available when the element type @p T
+    *  is an integral type; it is not enabled for floating-point
+    *  specialisations.
+    *
+    *  @param k Threshold value for the prefix sum.
+    *  @return Smallest index i such that prefix(i) > k; if no such
+    *          index exists (k is at least the total sum), returns n.
+    *
+    *  @pre All elements in the underlying array are assumed to be
+    *       non-negative, so that prefix sums are monotone.
+    */
+    size_t find_kth(T k) const requires std::integral<T>
     {
-      const size_t nn = this->n;
-      if (nn == 0)
-        return 0;
+     const size_t nn = this->n;
+     if (nn == 0)
+       return 0;
 
-      size_t pos = 0;
-      // highest power of 2 that is <= nn
-      size_t bit_mask = std::bit_floor(nn);
+     size_t pos = 0;
+     // highest power of 2 that is <= nn
+     size_t bit_mask = std::bit_floor(nn);
 
-      while (bit_mask > 0)
-        {
-          if (const size_t next = pos + bit_mask; next <= nn && this->tree(next) < k)
-            {
-              k -= this->tree(next);
-              pos = next;
-            }
-          bit_mask >>= 1;
-        }
+     while (bit_mask > 0)
+       {
+         if (const size_t next = pos + bit_mask; next <= nn && this->tree(next) < k)
+           {
+             k -= this->tree(next);
+             pos = next;
+           }
+         bit_mask >>= 1;
+       }
 
-      return pos < nn ? pos : nn;
+     return pos < nn ? pos : nn;
     }
   };
 
