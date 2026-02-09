@@ -1922,7 +1922,7 @@ int main() {
 | `tpl_arrayQueue.H` | `ArrayQueue<T>` | Queue (array-based) |
 | `tpl_arrayStack.H` | `ArrayStack<T>` | Stack (array-based) |
 | `tpl_fenwick_tree.H` | `Fenwick_Tree<T>` | Fenwick tree (BIT) |
-| `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T,+,->` | Fenwick over abelian groups |
+| `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T, Plus, Minus>` | Fenwick over abelian groups |
 | `tpl_fenwick_tree.H` | `Range_Fenwick_Tree<T>` | Range update/query Fenwick |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
