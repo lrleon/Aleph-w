@@ -1,4 +1,4 @@
-# Aleph-w
+# Aleph-w {#aleph-w}
 
 <div align="center">
 
@@ -220,11 +220,11 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  └─ A* Search                                     ├─ Cut Nodes/Bridges     │
 │                                                   └─ Biconnected           │
 │                                                                            │
-│  NETWORK FLOWS            MINIMUM CUT              MATCHING                │
-│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Hopcroft-Karp         │
-│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Max-Flow Reduction    │
-│  ├─ Push-Relabel         └─ Stoer-Wagner          └─ Bipartite Coloring    │
-│  ├─ Dinic                                                                  │
+│  NETWORK FLOWS            MINIMUM CUT              SPECIAL                 │
+│  ├─ Ford-Fulkerson       ├─ Karger                ├─ Topological Sort      │
+│  ├─ Edmonds-Karp         ├─ Karger-Stein          ├─ Eulerian Path         │
+│  ├─ Push-Relabel         └─ Stoer-Wagner          ├─ Hamiltonian Path      │
+│  ├─ Dinic                                         └─ Cycle Detection       │
 │  ├─ Min-Cost Max-Flow                                                      │
 │  └─ Multicommodity                                                         │
 │                                                                            │
@@ -232,9 +232,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
 │  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     ├─ Topological Sort      │
-│  └─ Shell Sort                                    ├─ Eulerian Path         │
-│                                                   └─ Hamiltonian Path      │
+│  ├─ Introsort                                     └─ Geometric             │
+│  └─ Shell Sort                                                             │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```

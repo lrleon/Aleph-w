@@ -1,3 +1,4 @@
+
 /*
                           Aleph_w
 
@@ -539,7 +540,7 @@ private:
 
 public:
   /// Get the current table size (implements Event_Table virtual method)
-  size_t size() const override { return table.size(); }
+  [[nodiscard]] size_t size() const override { return table.size(); }
 
   /** @brief Construct a dynamic event table.
    *
