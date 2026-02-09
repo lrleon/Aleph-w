@@ -440,11 +440,12 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T>
+  requires std::is_arithmetic_v<T>
   class Range_Fenwick_Tree
   {
-    Gen_Fenwick_Tree<T> b1; // stores differences d[i]
-    Gen_Fenwick_Tree<T> b2; // stores d[i] * i
-    size_t n = 0;
+   Gen_Fenwick_Tree<T> b1; // stores differences d[i]
+   Gen_Fenwick_Tree<T> b2; // stores d[i] * i
+   size_t n = 0;
 
     /// Internal: prefix sum P(i) = (i+1)*B1.prefix(i) - B2.prefix(i)
     T prefix_sum(size_t i) const
