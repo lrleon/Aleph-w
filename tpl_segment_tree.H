@@ -64,6 +64,7 @@
 
 # include <cassert>
 # include <concepts>
+# include <algorithm>
 # include <initializer_list>
 # include <limits>
 # include <type_traits>
@@ -191,20 +192,6 @@ namespace Aleph
     }
 
     template <class Getter>
-    void fill_leaves(Getter getter)
-    {
-      for (size_t i = 0; i < n; ++i)
-        tree(n + i) = getter(i);
-
-      // Fill unused leaves with identity
-      for (size_t i = n; i < 4 * n; ++i)
-        if (tree(n + i) == T{} && n + i > 0) {} // already default
-
-      // Actually, use the direct recursive approach instead
-      // Re-fill: place values in leaves of the recursive tree
-    }
-
-    template <class Getter>
     void fill_and_build(Getter getter)
     {
       // Initialize entire tree with identity
@@ -236,12 +223,12 @@ namespace Aleph
     template <class AlephIt>
     void fill_from_aleph_it(AlephIt it)
     {
-      // Collect into temporary vector then use indexed fill
-      std::vector<T> tmp;
+      auto tmp = Array<T>::create(n);
+      size_t i = 0;
       for (; it.has_curr(); it.next_ne())
-        tmp.push_back(it.get_curr());
+        tmp(i++) = it.get_curr();
 
-      auto getter = [&tmp](size_t i) { return tmp[i]; };
+      auto getter = [&tmp](size_t j) { return tmp(j); };
       fill_and_build(getter);
     }
 
@@ -908,11 +895,12 @@ namespace Aleph
     template <class AlephIt>
     void fill_from_aleph_it(AlephIt it)
     {
-      std::vector<value_type> tmp;
+      auto tmp = Array<value_type>::create(n);
+      size_t i = 0;
       for (; it.has_curr(); it.next_ne())
-        tmp.push_back(it.get_curr());
+        tmp(i++) = it.get_curr();
 
-      auto getter = [&tmp](size_t i) { return tmp[i]; };
+      auto getter = [&tmp](size_t j) { return tmp(j); };
       fill_and_build(getter);
     }
 
