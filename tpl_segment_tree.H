@@ -827,8 +827,10 @@ namespace Aleph
    *  asymptotic cost to O(log n).
    *
    *  @par Constness
-   *  `query()` is intentionally non-const because it may trigger
-   *  propagation (`push_down`) and thus mutate internal lazy state.
+   *  `query()` is declared `const` in the public API, but it may still
+   *  trigger propagation (`push_down`) by mutating internal `mutable`
+   *  storage. This preserves logical constness for callers while
+   *  allowing on-demand evaluation of pending updates.
    *
    *  @tparam Policy must satisfy `SegmentTreePolicy`.
    *
@@ -1539,6 +1541,21 @@ namespace Aleph
       init_all_nodes();
       if (n > 0)
         fill_and_build([&values](size_t i) { return values[i]; });
+    }
+
+    Segment_Tree_Beats(const DynList<T> & values)
+      : tree(values.size() == 0 ? 1 : 4 * values.size()),
+        n(values.size())
+    {
+      init_all_nodes();
+      if (n > 0)
+        {
+          auto tmp = Array<T>::create(n);
+          size_t i = 0;
+          for (auto it = values.get_it(); it.has_curr(); it.next_ne())
+            tmp(i++) = it.get_curr();
+          fill_and_build([&tmp](size_t j) { return tmp(j); });
+        }
     }
 
     Segment_Tree_Beats(const Segment_Tree_Beats &) = default;
