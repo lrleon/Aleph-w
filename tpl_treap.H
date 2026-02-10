@@ -58,6 +58,7 @@
 # include <treapNode.H>
 # include <tpl_binTreeOps.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -144,6 +145,7 @@ namespace Aleph
       @ingroup Trees
    */
   template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
   class Gen_Treap
   {
   public:
@@ -607,6 +609,7 @@ namespace Aleph
         @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
      */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Treap : public Gen_Treap<TreapNode, Key, Compare>
   {
     using Base = Gen_Treap<TreapNode, Key, Compare>;
@@ -640,6 +643,7 @@ namespace Aleph
         @see Treap Treap_Vtl Treap_Rk Treap_Rk_Vtl Rand_Tree
      */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Treap_Vtl : public Gen_Treap<TreapNodeVtl, Key, Compare>
   {
     using Base = Gen_Treap<TreapNodeVtl, Key, Compare>;

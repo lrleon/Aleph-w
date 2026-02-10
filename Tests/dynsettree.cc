@@ -1425,6 +1425,8 @@ public:
     std::swap(cmp, other.cmp);
   }
 
+  Node * search(const Key &) noexcept { return root; }
+
   Node * search_or_insert(Node * p)
   {
     if (enabled)
@@ -1435,6 +1437,15 @@ public:
 
     return root;
   }
+
+  Node * insert_dup(Node * p) noexcept
+  {
+    if (root == Node::NullPtr)
+      return root = p;
+    return p;
+  }
+
+  Node * remove(const Key &) noexcept { return nullptr; }
 
   bool verify() const { return true; }
 

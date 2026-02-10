@@ -52,6 +52,7 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_arrayStack.H>
 # include <rbNode.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -80,6 +81,7 @@ namespace Aleph
     @author Leandro Rabindranath León
 */
   template <class Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   class HtdRbTree
   {
   public:
@@ -1028,6 +1030,7 @@ namespace Aleph
     Same as HtdRbTree but uses RbNodeVtl which has virtual destructor.
 */
   template <class Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   class HtdRbTreeVtl : public HtdRbTree<Key, Compare>
   {
   public:

@@ -70,7 +70,6 @@
 
 # include <cassert>
 # include <cstddef>
-# include <concepts>
 # include <initializer_list>
 # include <type_traits>
 # include <utility>
@@ -80,21 +79,10 @@
 # include <tpl_sparse_table.H>
 # include <ahFunction.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
-  /** @brief Binary comparator compatible with Cartesian Tree construction.
-   *
-   *  Requires the functor to be callable with two immutable values
-   *  of type @p T and return a boolean.
-   */
-  template <typename F, typename T>
-  concept CartesianTreeComp =
-      requires(const F & f, const T & a, const T & b)
-        {
-          { f(a, b) } -> std::convertible_to<bool>;
-        };
-
   /** @brief Explicit Cartesian Tree built in O(n) with a monotonic stack.
    *
    *  A Cartesian Tree over an array `a[0..n-1]` is a binary tree where:
@@ -125,7 +113,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T, class Comp>
-    requires CartesianTreeComp<Comp, T>
+    requires StrictWeakOrder<Comp, T>
   class Gen_Cartesian_Tree
   {
   public:
@@ -495,7 +483,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T, class Comp>
-    requires CartesianTreeComp<Comp, T>
+    requires StrictWeakOrder<Comp, T>
   class Gen_Euler_Tour_LCA
   {
     /// Entry for the depth-based Sparse Table: (depth, euler_node_index).
@@ -802,7 +790,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T, class Comp>
-    requires CartesianTreeComp<Comp, T>
+    requires StrictWeakOrder<Comp, T>
   class Gen_Cartesian_Tree_RMQ
   {
     Gen_Euler_Tour_LCA<T, Comp> lca_;

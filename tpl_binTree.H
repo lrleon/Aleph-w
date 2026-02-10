@@ -53,6 +53,7 @@
 # include <utility>
 
 # include <tpl_binTreeOps.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -132,7 +133,8 @@ namespace Aleph {
         @ingroup Trees
      */
   template <template <typename> class NodeType, typename Key, class Compare>
-class GenBinTree 
+    requires StrictWeakOrder<Compare, Key>
+class GenBinTree
 {
 public:
 
@@ -374,6 +376,7 @@ public:
         @ingroup Trees
      */
     template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct BinTree : public GenBinTree<BinNode, Key, Compare>
 {
   using Base = GenBinTree<BinNode, Key, Compare>;
@@ -388,6 +391,7 @@ struct BinTree : public GenBinTree<BinNode, Key, Compare>
         @ingroup Trees
      */
     template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct BinTreeVtl : public GenBinTree<BinNodeVtl, Key, Compare>
 {
   using Base = GenBinTree<BinNodeVtl, Key, Compare>;

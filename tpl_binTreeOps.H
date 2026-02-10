@@ -44,6 +44,7 @@
 
 # include <tpl_binNodeUtils.H>
 # include <tpl_binNodeXt.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -53,6 +54,7 @@ namespace Aleph
       \ingroup Trees
   */
   template <class Node, class Cmp = Aleph::less<typename Node::key_type>>
+    requires StrictWeakOrder<Cmp, typename Node::key_type>
   class BinTree_Operation
   {
   protected:

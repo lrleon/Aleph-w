@@ -73,6 +73,7 @@
 # include <tpl_hRbTreeRk.H>
 # include <tpl_splay_tree.H>
 # include <tpl_splay_treeRk.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -264,6 +265,8 @@ namespace Aleph
   template <typename Key,
             template <typename, class> class Tree = Avl_Tree,
             class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key> &&
+             BSTPolicy<Tree<Key, Compare>, Key>
   class DynSetTree
       : public LocateFunctions<DynSetTree<Key, Tree, Compare>, Key>,
         public FunctionalMethods<DynSetTree<Key, Tree, Compare>, Key>,

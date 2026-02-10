@@ -56,6 +56,7 @@
 # include <tpl_binTreeOps.H>
 # include <tpl_arrayStack.H>
 # include <rbNodeRk.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -89,6 +90,7 @@ namespace Aleph
     @author Leandro Rabindranath León
 */
 template <class Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class HtdRbTreeRk
 {
 public:
@@ -976,6 +978,7 @@ public:
 
 /** @brief Hybrid RB tree with rank and virtual destructor. */
 template <class Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class HtdRbTreeRkVtl : public HtdRbTreeRk<Key, Compare>
 {
 public:

@@ -48,6 +48,7 @@
 
 # include <tpl_binNode.H>
 # include <tpl_binNodeUtils.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -131,6 +132,7 @@ using namespace Aleph;
  *  @author Leandro Rabindranath León
  */
 template <template <class> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
 class GenTdSplayTree
 {
 public:
@@ -389,6 +391,7 @@ public:
 
 
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Splay_Tree : public GenTdSplayTree<BinNode, Key, Compare>
 {
   using Base = GenTdSplayTree<BinNode, Key, Compare>;
@@ -397,6 +400,7 @@ struct Splay_Tree : public GenTdSplayTree<BinNode, Key, Compare>
 
 
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Splay_Tree_Vtl : public GenTdSplayTree<BinNodeVtl, Key, Compare>
 {
   using Base = GenTdSplayTree<BinNodeVtl, Key, Compare>;

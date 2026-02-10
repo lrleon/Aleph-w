@@ -114,6 +114,7 @@
 # include <hashDry.H>
 # include <hash-fct.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -170,6 +171,7 @@ namespace Aleph
       @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   class ODhashTable
       : public OhashCommon<ODhashTable<Key, Cmp>, Key>,
         public GenericTraverse<ODhashTable<Key, Cmp>>,

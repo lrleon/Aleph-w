@@ -56,6 +56,7 @@
 # include <tpl_binNodeXt.H>
 # include <tpl_binTreeOps.H>
 # include <rbNodeRk.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -93,7 +94,8 @@ namespace Aleph
  */
 template <template <class> class NodeType, typename Key, 
           class Compare = std::less<Key>>
-class GenTdRbTreeRk 
+    requires StrictWeakOrder<Compare, Key>
+class GenTdRbTreeRk
 {
 public:
   using Node = NodeType<Key>;
@@ -979,6 +981,7 @@ public:
     @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = std::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRk : public GenTdRbTreeRk<RbNodeRk, Key, Compare>
 {
   using Base = GenTdRbTreeRk<RbNodeRk, Key, Compare>;
@@ -991,6 +994,7 @@ public:
     @tparam Compare Comparison functor.
  */
 template <typename Key, class Compare = std::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeRkVtl : public GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>
 {
   using Base = GenTdRbTreeRk<RbNodeRkVtl, Key, Compare>;

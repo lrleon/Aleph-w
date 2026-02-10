@@ -57,6 +57,7 @@
 # include <tpl_binNodeUtils.H>
 # include <tpl_arrayStack.H>
 # include <rbNode.H>
+# include <ah-concepts.H>
 
 namespace Aleph
 {
@@ -91,9 +92,10 @@ namespace Aleph
     @see Avl_Tree Alternative balanced tree with stricter balance.
     @ingroup Trees
  */
-template <template <class> class NodeType, typename Key, 
+template <template <class> class NodeType, typename Key,
           class Compare = std::less<Key>>
-class GenTdRbTree 
+    requires StrictWeakOrder<Compare, Key>
+class GenTdRbTree
 {
 public:
   using Node = NodeType<Key>;
@@ -888,6 +890,7 @@ public:
     @tparam Compare Comparison functor (default: std::less<Key>).
  */
 template <typename Key, class Compare = std::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTree : public GenTdRbTree<RbNode, Key, Compare>
 {
   using Base = GenTdRbTree<RbNode, Key, Compare>;
@@ -901,6 +904,7 @@ public:
     @tparam Compare Comparison functor (default: std::less<Key>).
  */
 template <typename Key, class Compare = std::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 class TdRbTreeVtl : public GenTdRbTree<RbNodeVtl, Key, Compare>
 {
   using Base = GenTdRbTree<RbNodeVtl, Key, Compare>;

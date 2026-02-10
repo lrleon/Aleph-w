@@ -625,23 +625,23 @@ int main() {
 Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and range queries:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                         FENWICK TREE VARIANTS                              │
-├──────────────────┬───────────────┬────────────────┬───────────────────────┤
-│     Operation    │ Gen (Abelian) │ Fenwick_Tree │  Range_Fen   │  Complexity │
-├──────────────────┼───────────────┼────────────────┼──────────────┼────────────┤
-│ update(i,delta)  │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_update     │       N/A    │     N/A      │   O(log n)   │            │
-│ find_kth         │       N/A    │   O(log n)   │     N/A      │            │
-├──────────────────┼───────────────┼────────────────┼──────────────┼────────────┤
-│ Group Operand    │  Arbitrary   │  operator+   │  operator+   │            │
-│                  │  (XOR, +mod) │  operator-   │  operator-   │            │
-├──────────────────┼───────────────┼────────────────┼──────────────┼────────────┤
-│ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
-│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
-└──────────────────┴───────────────┴────────────────┴──────────────┴────────────┘
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         FENWICK TREE VARIANTS                                 │
+├──────────────────┬───────────────┬───────────────┬────────────────────────────┤
+│     Operation    │ Gen (Abelian) │ Fenwick_Tree  │  Range_Fen                 │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ update(i,delta)  │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ prefix / get     │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ range_query      │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ range_update     │       N/A     │     N/A       │   O(log n)                 │
+│ find_kth         │       N/A     │   O(log n)    │     N/A                    │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ Group Operand    │  Arbitrary    │  operator+    │  operator+                 │
+│                  │  (XOR, +mod)  │  operator-    │  operator-                 │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ Best For         │ Custom ops    │ Order stats   │ Promotions                 │
+│                  │ (XOR, etc)    │ Find k-th     │ Dividends                  │
+└──────────────────┴───────────────┴───────────────┴────────────────────────────┘
 ```
 
 #### Usage Examples
@@ -691,8 +691,8 @@ size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
 Aleph-w provides **three segment tree variants** for dynamic range queries:
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SEGMENT TREE VARIANTS                               │
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        SEGMENT TREE VARIANTS                              │
 ├──────────────────┬───────────────┬────────────────┬───────────────────────┤
 │     Operation    │ Gen_Segment   │ Gen_Lazy_Seg   │  Seg_Tree_Beats       │
 ├──────────────────┼───────────────┼────────────────┼───────────────────────┤
@@ -766,15 +766,15 @@ int cost = payroll.query(0, 7);    // total payroll after raise
 Aleph-w implements the classic chain of reductions **RMQ ↔ LCA ↔ Cartesian Tree**, confirming that Range Minimum Queries and Lowest Common Ancestor are equivalent problems:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                  RMQ  ←→  LCA  ←→  Cartesian Tree                          │
-├──────────────────────┬─────────────┬──────────┬─────────────────────┬───────┤
-│       Class          │    Build    │  Query   │  Space              │       │
-├──────────────────────┼─────────────┼──────────┼─────────────────────┼───────┤
-│ Gen_Cartesian_Tree   │   O(n)      │    —     │  O(n)               │       │
-│ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │       │
-│ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │       │
-└──────────────────────┴─────────────┴──────────┴─────────────────────┴───────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                  RMQ  ←→  LCA  ←→  Cartesian Tree                   │
+├──────────────────────┬─────────────┬──────────┬─────────────────────┤
+│       Class          │    Build    │  Query   │  Space              │
+├──────────────────────┼─────────────┼──────────┼─────────────────────┤
+│ Gen_Cartesian_Tree   │   O(n)      │    —     │  O(n)               │
+│ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │
+│ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │
+└──────────────────────┴─────────────┴──────────┴─────────────────────┘
   * Amortized    ** Expected (randomized)
 ```
 
@@ -821,36 +821,36 @@ Aleph-w provides **sparse vector and matrix classes** with domain-based indexing
 │                   SPARSE LINEAR ALGEBRA STRUCTURES                         │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
-│  SPARSE VECTOR (al-vector.H)                                              │
-│  ────────────────────────────                                             │
+│  SPARSE VECTOR (al-vector.H)                                               │
+│  ────────────────────────────                                              │
 │  Vector<T, NumType>                                                        │
 │                                                                            │
-│  • Domain-based indexing (any type T)                                     │
-│  • Stores only non-zero entries (hash-based)                              │
-│  • Epsilon tolerance for near-zero removal                                │
-│  • Operations: +, -, *, dot product, norms                                │
+│  • Domain-based indexing (any type T)                                      │
+│  • Stores only non-zero entries (hash-based)                               │
+│  • Epsilon tolerance for near-zero removal                                 │
+│  • Operations: +, -, *, dot product, norms                                 │
 │                                                                            │
-│  Memory: O(nonzeros) instead of O(dimension)                              │
+│  Memory: O(nonzeros) instead of O(dimension)                               │
 │                                                                            │
-│  SPARSE MATRIX (al-matrix.H)                                              │
-│  ────────────────────────────                                             │
-│  Matrix<Trow, Tcol, NumType>                                              │
+│  SPARSE MATRIX (al-matrix.H)                                               │
+│  ────────────────────────────                                              │
+│  Matrix<Trow, Tcol, NumType>                                               │
 │                                                                            │
-│  • Arbitrary row/column domains                                           │
-│  • Stores only non-zero entries                                           │
-│  • Operations: +, -, *, transpose, row/col vectors                        │
-│  • Integration with Vector class                                          │
+│  • Arbitrary row/column domains                                            │
+│  • Stores only non-zero entries                                            │
+│  • Operations: +, -, *, transpose, row/col vectors                         │
+│  • Integration with Vector class                                           │
 │                                                                            │
-│  Memory: O(nonzeros) instead of O(rows × cols)                            │
+│  Memory: O(nonzeros) instead of O(rows × cols)                             │
 │                                                                            │
-│  WHEN TO USE SPARSE?                                                      │
-│  • Sparsity > 90% (most entries are zero)                                │
-│  • Large dimensions with few non-zeros                                    │
-│  • Need domain-based indexing (named rows/columns)                        │
+│  WHEN TO USE SPARSE?                                                       │
+│  • Sparsity > 90% (most entries are zero)                                  │
+│  • Large dimensions with few non-zeros                                     │
+│  • Need domain-based indexing (named rows/columns)                         │
 │                                                                            │
-│  Example: 1000×1000 matrix with 1000 non-zeros:                          │
-│    Dense:  1,000,000 doubles = 8 MB                                       │
-│    Sparse:     1,000 entries = 8 KB  (1000× savings!)                     │
+│  Example: 1000×1000 matrix with 1000 non-zeros:                            │
+│    Dense:  1,000,000 doubles = 8 MB                                        │
+│    Sparse:     1,000 entries = 8 KB  (1000× savings!)                      │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1029,13 +1029,13 @@ int main() {
 │                                                                             │
 ├───────────────────────────────────────┬─────────────────────────────────────┤
 │  Operation     │ Binary   │ Fibonacci │  Notes                              │
-├────────────────┼────────────┼────────────┼──────────────────────────────────┤
-│  Insert        │ O(log n)  │ O(1)*     │  * Amortized                        │
+├────────────────┼──────────┼───────────┼─────────────────────────────────────┤
+│  Insert        │ O(log n) │ O(1)*     │  * Amortized                        │
 │  Find-Min      │ O(1)     │ O(1)      │                                     │
-│  Delete-Min    │ O(log n)  │ O(log n)* │                                     │
-│  Decrease-Key  │ O(log n)  │ O(1)*     │  Key advantage of Fibonacci         │
+│  Delete-Min    │ O(log n) │ O(log n)* │                                     │
+│  Decrease-Key  │ O(log n) │ O(1)*     │  Key advantage of Fibonacci         │
 │  Merge         │ O(n)     │ O(1)      │                                     │
-└────────────────┴────────────┴────────────┴──────────────────────────────────┘
+└────────────────┴──────────┴───────────┴─────────────────────────────────────┘
 ```
 
 ```cpp
@@ -1231,14 +1231,14 @@ Aleph-w provides multiple graph representations optimized for different use case
 │                                                                             │
 │  ADJACENCY LIST (List_Graph)         ADJACENCY MATRIX (Array_Graph)         │
 │                                                                             │
-│  ┌───┐   ┌───┐   ┌───┐   ┌───┐      ┌───┬───┬───┬───┐                      │
-│  │ A │───│ B │───│ C │───│ D │      │ A │ B │ C │ D │                      │
-│  └───┘   └───┘   └───┘   └───┘      └───┴───┴───┴───┘                      │
+│  ┌───┐   ┌───┐   ┌───┐   ┌───┐      ┌───┬───┬───┬───┐                       │
+│  │ A │───│ B │───│ C │───│ D │      │ A │ B │ C │ D │                       │
+│  └───┘   └───┘   └───┘   └───┘      └───┴───┴───┴───┘                       │
 │                                                                             │
-│  Space: O(V + E)                   Space: O(V²)                            │
-│  Add edge: O(1)                   Add edge: O(1)                          │
-│  Check edge: O(degree)            Check edge: O(1)                        │
-│  Best for: Sparse graphs          Best for: Dense graphs                  │
+│  Space: O(V + E)                   Space: O(V²)                             │
+│  Add edge: O(1)                   Add edge: O(1)                            │
+│  Check edge: O(degree)            Check edge: O(1)                          │
+│  Best for: Sparse graphs          Best for: Dense graphs                    │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
@@ -1764,15 +1764,15 @@ Arena allocation provides **ultra-fast memory management** for temporary data st
 │                                                                             │
 │  COMPARISON                                                                 │
 │                                                                             │
-│  ┌────────────────┬─────────────┬──────────────────┐                    │
-│  │   Operation    │     malloc  │      Arena       │                    │
-│  ├────────────────┼─────────────┼──────────────────┤                    │
-│  │   Allocate     │   O(log n)* │      O(1)        │                    │
-│  │   Deallocate   │   O(log n)* │  O(1) bulk only  │                    │
-│  │   Fragmentation│     High    │      None        │                    │
-│  │   Cache perf   │     Poor    │    Excellent     │                    │
-│  │   Overhead     │   16+ bytes │    0 bytes       │                    │
-│  └────────────────┴─────────────┴──────────────────┘                    │
+│  ┌────────────────┬─────────────┬──────────────────┐                        │
+│  │   Operation    │     malloc  │      Arena       │                        │
+│  ├────────────────┼─────────────┼──────────────────┤                        │
+│  │   Allocate     │   O(log n)* │      O(1)        │                        │
+│  │   Deallocate   │   O(log n)* │  O(1) bulk only  │                        │
+│  │   Fragmentation│     High    │      None        │                        │
+│  │   Cache perf   │     Poor    │    Excellent     │                        │
+│  │   Overhead     │   16+ bytes │    0 bytes       │                        │
+│  └────────────────┴─────────────┴──────────────────┘                        │
 │  * Depending on allocator implementation                                    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -2291,7 +2291,7 @@ int main() {
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  Arena          ██ 12 ns/alloc                                             │
-│  malloc         ████████████████████████████████████████ 156 ns/alloc        │
+│  malloc         ████████████████████████████████████████ 156 ns/alloc      │
 │  new            ████████████████████████████████████████ 168 ns/alloc      │
 │                                                                            │
 │  Speedup: ~13x faster than malloc                                          │
