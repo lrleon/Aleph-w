@@ -98,8 +98,9 @@ namespace Aleph
   /** @brief Explicit Cartesian Tree built in O(n) with a monotonic stack.
    *
    *  A Cartesian Tree over an array `a[0..n-1]` is a binary tree where:
-   *  - The **heap property** holds: `Comp(a[parent], a[child])` is true
-   *    for every parent-child pair (min-heap by default).
+   *  - The **heap property** holds: no child is strictly better than its
+   *    parent under @p Comp, i.e. `!Comp(a[child], a[parent])` for every
+   *    parent–child pair (min-heap by default; equality is allowed).
    *  - The **inorder traversal** reproduces the original array order
    *    `0, 1, 2, ..., n-1`.
    *
