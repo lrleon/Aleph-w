@@ -39,6 +39,7 @@ Language: English | [Español](README.es.md)
   - [Hash Tables](#hash-tables)
   - [Heaps and Priority Queues](#heaps-and-priority-queues)
   - [Lists and Sequential Structures](#lists-and-sequential-structures)
+  - [Range Query Structures](#range-query-structures)
   - [Graphs](#graphs)
   - [Linear Algebra (Sparse Structures)](#linear-algebra-sparse-structures)
 - [Algorithms](#algorithms)
@@ -977,6 +978,97 @@ int main() {
 
     return 0;
 }
+```
+
+### Range Query Structures
+
+#### Sparse Table — O(1) Range Queries on Static Arrays
+
+Sparse Table provides **O(1) range queries** after **O(n log n) preprocessing** for any idempotent operation (min, max, gcd, bitwise AND/OR).
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SPARSE TABLE (RMQ)                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Original Array: [5, 2, 8, 1, 9, 3, 6, 4, 7]                                │
+│                                                                             │
+│  Level 0 (2^0=1): [5, 2, 8, 1, 9, 3, 6, 4, 7]                               │
+│  Level 1 (2^1=2): [2, 2, 1, 1, 3, 3, 4, 4]                                  │
+│  Level 2 (2^2=4): [1, 1, 1, 1, 3, 3]                                        │
+│  Level 3 (2^3=8): [1, 1]                                                    │
+│                                                                             │
+│  Query [2, 7] (range length 6):                                             │
+│    k = floor(log2(6)) = 2, 2^k = 4                                          │
+│    Result = min(table[2][2], table[2][4]) = min(1, 3) = 1                   │
+│                                                                             │
+│  Build:  O(n log n)    Query: O(1)    Space: O(n log n)                     │
+│  Use case: Static arrays with many queries                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```cpp
+#include <tpl_sparse_table.H>
+
+int main() {
+    // Range Minimum Queries
+    Sparse_Table<int> rmq = {5, 2, 8, 1, 9, 3, 6, 4, 7};
+    int min_val = rmq.query(2, 7);  // O(1) -> 1
+    
+    // Range Maximum Queries  
+    Max_Sparse_Table<int> max_rmq = {5, 2, 8, 1, 9, 3, 6, 4, 7};
+    int max_val = max_rmq.query(0, 4);  // O(1) -> 9
+    
+    // Custom operation: Range GCD
+    struct Gcd_Op {
+        int operator()(int a, int b) const noexcept { return std::gcd(a, b); }
+    };
+    Gen_Sparse_Table<int, Gcd_Op> gcd_rmq = {12, 18, 24, 36, 60};
+    int g = gcd_rmq.query(0, 3);  // O(1) -> 6
+    
+    return 0;
+}
+```
+
+#### Disjoint Sparse Table — O(1) Range Queries for Any Associative Op
+
+Unlike the classical Sparse Table (which requires idempotency), the **Disjoint Sparse Table** works for **any associative** operation: sum, product, XOR, matrix multiplication, etc.
+
+```cpp
+#include <tpl_disjoint_sparse_table.H>
+
+int main() {
+    // Range Sum — NOT possible with classical Sparse Table!
+    Sum_Disjoint_Sparse_Table<int> sum_tbl = {3, 1, 4, 1, 5, 9};
+    int total = sum_tbl.query(0, 5);  // O(1) -> 23
+    int sub   = sum_tbl.query(2, 4);  // O(1) -> 10
+    
+    // Range Product
+    Product_Disjoint_Sparse_Table<long long> prod = {2, 3, 5, 7, 11};
+    long long p = prod.query(0, 4);   // O(1) -> 2310
+    
+    // Custom: Range XOR
+    struct Xor_Op {
+        unsigned operator()(unsigned a, unsigned b) const { return a ^ b; }
+    };
+    Gen_Disjoint_Sparse_Table<unsigned, Xor_Op> xor_tbl = {0xA3, 0x5F, 0x12};
+    unsigned x = xor_tbl.query(0, 2);  // O(1) -> 0xEE
+    
+    return 0;
+}
+```
+
+#### Fenwick Tree — Dynamic Prefix Queries
+
+For **dynamic** arrays with point updates, use Fenwick Tree (Binary Indexed Tree):
+
+```cpp
+#include <tpl_fenwick_tree.H>
+
+Fenwick_Tree<int> ft(10);  // Size 10, all zeros
+ft.update(3, 5);           // a[3] += 5
+int sum = ft.prefix(7);    // sum a[0..7] = O(log n)
+ft.update(2, -3);          // a[2] -= 3
 ```
 
 ### Graphs
@@ -1926,6 +2018,11 @@ int main() {
 | `tpl_fenwick_tree.H` | `Fenwick_Tree<T>` | Fenwick tree (BIT) |
 | `tpl_fenwick_tree.H` | `Gen_Fenwick_Tree<T, Plus, Minus>` | Fenwick over abelian groups |
 | `tpl_fenwick_tree.H` | `Range_Fenwick_Tree<T>` | Range update/query Fenwick |
+| `tpl_sparse_table.H` | `Sparse_Table<T>` | Static range min in O(1) |
+| `tpl_sparse_table.H` | `Gen_Sparse_Table<T, Op>` | Static range query (idempotent op) |
+| `tpl_disjoint_sparse_table.H` | `Sum_Disjoint_Sparse_Table<T>` | Static range sum in O(1) |
+| `tpl_disjoint_sparse_table.H` | `Product_Disjoint_Sparse_Table<T>` | Static range product in O(1) |
+| `tpl_disjoint_sparse_table.H` | `Gen_Disjoint_Sparse_Table<T, Op>` | Static range query (associative op) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -2116,6 +2213,8 @@ cmake --build build
 | Hash tables | `hash_tables_example.C` | Sets and maps |
 | Trees | `dynset_trees.C` | All tree variants |
 | Heaps | `heap_example.C` | Priority queues |
+| Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
+| Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
@@ -2157,6 +2256,15 @@ ctest --test-dir build --output-on-failure
 ./build/Tests/dynlist
 ./build/Tests/test_dijkstra
 ./build/Tests/latex_floyd_test
+
+# Run exhaustive / performance-heavy example tests (marked with _test suffix)
+# NOTE: ./build/Examples/sparse_table_test includes large performance benchmarks that
+# can take a long time and use significant memory, especially on constrained machines.
+# Consider running it only on suitable hardware if you need to evaluate its performance-related behavior.
+#
+./build/Examples/sparse_table_test
+./build/Examples/disjoint_sparse_table_test
+./build/Examples/min_cut_test
 
 # Verbose output
 ctest --test-dir build -V

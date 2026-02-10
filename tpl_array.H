@@ -310,7 +310,7 @@ public:
     array.reserve(cap);
   }
 
-  /// Return a reference to first element of array
+  /// Return a reference to the first element of array
   T &base()
   {
     ah_underflow_error_if(is_empty()) << "Array::base(): empty array";
@@ -402,7 +402,7 @@ public:
 
   Array rev() const { return reverse(); }
 
-  /** Traverse all the items of stack from the youngest to oldest and
+  /** Traverse all the items of the stack from the youngest to the oldest and
       conditionally performs an operation.
 
       @param[in] operation to perform on the current element. If it
