@@ -216,10 +216,6 @@ namespace Aleph
     template <class Getter>
     void fill_and_build(Getter getter)
     {
-      // Initialize entire tree with identity
-      for (size_t i = 0; i < tree.size(); ++i)
-        tree(i) = identity;
-
       // Place values in leaves via recursive descent
       fill_leaves_recursive(1, 0, n - 1, getter);
 
