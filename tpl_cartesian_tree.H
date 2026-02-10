@@ -1,4 +1,3 @@
-
 /*
                           Aleph_w
 
@@ -134,12 +133,12 @@ namespace Aleph
     static constexpr size_t NONE = static_cast<size_t>(-1);
 
   private:
-    Array<T>      data_;    // original values
-    Array<size_t> parent_;  // parent[i] = parent of node i
-    Array<size_t> left_;    // left[i]  = left child of node i
-    Array<size_t> right_;   // right[i] = right child of node i
-    size_t        root_;    // index of the root node
-    size_t        n_;       // number of elements
+    Array<T> data_; // original values
+    Array<size_t> parent_; // parent[i] = parent of node i
+    Array<size_t> left_; // left[i]  = left child of node i
+    Array<size_t> right_; // right[i] = right child of node i
+    size_t root_; // index of the root node
+    size_t n_; // number of elements
 
     Comp comp_;
 
@@ -161,7 +160,7 @@ namespace Aleph
           size_t last_popped = NONE;
 
           // Pop while stack top does not satisfy heap property w.r.t. i
-          while (top > 0 && !comp_(data_(stk(top - 1)), data_(i)))
+          while (top > 0 && ! comp_(data_(stk(top - 1)), data_(i)))
             {
               last_popped = stk(top - 1);
               --top;
@@ -191,13 +190,13 @@ namespace Aleph
     void init_and_build()
     {
       parent_ = Array<size_t>::create(n_);
-      left_   = Array<size_t>::create(n_);
-      right_  = Array<size_t>::create(n_);
+      left_ = Array<size_t>::create(n_);
+      right_ = Array<size_t>::create(n_);
       for (size_t i = 0; i < n_; ++i)
         {
           parent_(i) = NONE;
-          left_(i)   = NONE;
-          right_(i)  = NONE;
+          left_(i) = NONE;
+          right_(i) = NONE;
         }
       build();
     }
@@ -271,13 +270,14 @@ namespace Aleph
     }
 
     Gen_Cartesian_Tree(const Gen_Cartesian_Tree &) = default;
-    Gen_Cartesian_Tree & operator=(const Gen_Cartesian_Tree &) = default;
+
+    Gen_Cartesian_Tree &operator=(const Gen_Cartesian_Tree &) = default;
 
     Gen_Cartesian_Tree(Gen_Cartesian_Tree &&) noexcept(
       std::is_nothrow_move_constructible_v<Array<T>> &&
       std::is_nothrow_move_constructible_v<Comp>) = default;
 
-    Gen_Cartesian_Tree & operator=(Gen_Cartesian_Tree &&) noexcept(
+    Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree &&) noexcept(
       std::is_nothrow_move_assignable_v<Array<T>> &&
       std::is_nothrow_move_assignable_v<Comp>) = default;
 
@@ -319,7 +319,7 @@ namespace Aleph
     /** @brief Value at node @p i.
      *  @throw std::out_of_range if `i >= size()`.
      */
-    const T & data_at(const size_t i) const
+    const T &data_at(const size_t i) const
     {
       ah_out_of_range_error_if(i >= n_)
         << "Gen_Cartesian_Tree::data_at: i=" << i << " >= n=" << n_;
@@ -363,7 +363,11 @@ namespace Aleph
       size_t max_depth = 0;
 
       // DFS with explicit stack: (node, depth)
-      struct Entry { size_t node; size_t depth; };
+      struct Entry
+      {
+        size_t node;
+        size_t depth;
+      };
       auto stk = Array<Entry>::create(n_);
       size_t top = 0;
       stk(top++) = {root_, 1};
@@ -512,14 +516,14 @@ namespace Aleph
     };
 
     Gen_Cartesian_Tree<T, Comp> tree_;
-    Array<size_t> euler_;       // euler tour: 2n-1 node indices
-    Array<size_t> depth_arr_;   // depth at each euler tour position
-    Array<size_t> first_;       // first_[node] = first position in euler
-    Array<size_t> node_depth_;  // depth of each node in the tree
+    Array<size_t> euler_; // euler tour: 2n-1 node indices
+    Array<size_t> depth_arr_; // depth at each euler tour position
+    Array<size_t> first_; // first_[node] = first position in euler
+    Array<size_t> node_depth_; // depth of each node in the tree
     Gen_Sparse_Table<DepthEntry, DepthMinOp> sparse_;
     size_t euler_size_;
 
-    /// Build Euler Tour iteratively using explicit stack with phases.
+    /// Build Euler Tour iteratively using an explicit stack with phases.
     void build_euler_tour()
     {
       const size_t n = tree_.size();
@@ -529,9 +533,9 @@ namespace Aleph
       constexpr size_t NONE = Gen_Cartesian_Tree<T, Comp>::NONE;
 
       euler_size_ = 2 * n - 1;
-      euler_     = Array<size_t>::create(euler_size_);
+      euler_ = Array<size_t>::create(euler_size_);
       depth_arr_ = Array<size_t>::create(euler_size_);
-      first_     = Array<size_t>::create(n);
+      first_ = Array<size_t>::create(n);
       node_depth_ = Array<size_t>::create(n);
 
       for (size_t i = 0; i < n; ++i)
@@ -543,7 +547,12 @@ namespace Aleph
       //          push right child
       // phase 2: back from right — if right existed, record euler;
       //          pop
-      struct Frame { size_t node; int phase; size_t depth; };
+      struct Frame
+      {
+        size_t node;
+        int phase;
+        size_t depth;
+      };
       auto stk = Array<Frame>::create(n);
       size_t top = 0;
       size_t eidx = 0;
@@ -690,8 +699,7 @@ namespace Aleph
     size_t depth_of(const size_t u) const
     {
       ah_out_of_range_error_if(u >= tree_.size())
-        << "Gen_Euler_Tour_LCA::depth_of: u=" << u
-        << " >= n=" << tree_.size();
+        << "Gen_Euler_Tour_LCA::depth_of: u=" << u << " >= n=" << tree_.size();
       return node_depth_(u);
     }
 
@@ -718,7 +726,7 @@ namespace Aleph
     }
 
     /** @brief Const reference to the internal Cartesian Tree. */
-    const Gen_Cartesian_Tree<T, Comp> & tree() const noexcept
+    const Gen_Cartesian_Tree<T, Comp> &tree() const noexcept
     {
       return tree_;
     }
@@ -836,8 +844,7 @@ namespace Aleph
     T query(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= lca_.size())
-        << "Gen_Cartesian_Tree_RMQ::query: r=" << r
-        << " >= n=" << lca_.size();
+        << "Gen_Cartesian_Tree_RMQ::query: r=" << r << " >= n=" << lca_.size();
       ah_out_of_range_error_if(l > r)
         << "Gen_Cartesian_Tree_RMQ::query: l=" << l << " > r=" << r;
 
@@ -853,8 +860,7 @@ namespace Aleph
     size_t query_idx(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= lca_.size())
-        << "Gen_Cartesian_Tree_RMQ::query_idx: r=" << r
-        << " >= n=" << lca_.size();
+        << "Gen_Cartesian_Tree_RMQ::query_idx: r=" << r << " >= n=" << lca_.size();
       ah_out_of_range_error_if(l > r)
         << "Gen_Cartesian_Tree_RMQ::query_idx: l=" << l << " > r=" << r;
 
@@ -886,7 +892,7 @@ namespace Aleph
     }
 
     /** @brief Const reference to the internal LCA engine. */
-    const Gen_Euler_Tour_LCA<T, Comp> & lca_engine() const noexcept
+    const Gen_Euler_Tour_LCA<T, Comp> &lca_engine() const noexcept
     {
       return lca_;
     }
@@ -915,7 +921,6 @@ namespace Aleph
     using Base = Gen_Cartesian_Tree_RMQ<T, Aleph::greater<T>>;
     using Base::Base;
   };
-
 } // end namespace Aleph
 
 # endif /* TPL_CARTESIAN_TREE_H */
