@@ -70,6 +70,7 @@
 
 # include <cassert>
 # include <cstddef>
+# include <concepts>
 # include <initializer_list>
 # include <type_traits>
 # include <utility>
@@ -434,7 +435,14 @@ namespace Aleph
     }
 
     /** @brief Swap with @p other in O(1). */
-    void swap(Gen_Cartesian_Tree & other) noexcept
+    void swap(Gen_Cartesian_Tree & other)
+      noexcept(noexcept(data_.swap(other.data_)) &&
+               noexcept(parent_.swap(other.parent_)) &&
+               noexcept(left_.swap(other.left_)) &&
+               noexcept(right_.swap(other.right_)) &&
+               noexcept(std::swap(root_, other.root_)) &&
+               noexcept(std::swap(n_, other.n_)) &&
+               std::is_nothrow_swappable_v<Comp>)
     {
       data_.swap(other.data_);
       parent_.swap(other.parent_);

@@ -5,7 +5,8 @@ Idioma: Español | [English](INSTALL.md)
 Esta guía cubre la instalación de Aleph-w desde el código fuente usando CMake.
 
 ---
-## Contenido {#install-es-contenido}
+<a name="install-es-contenido"></a>
+## Contenido
 
 - [Prerrequisitos](#install-es-prerrequisitos)
   - [Requisitos de compilador](#install-es-requisitos-de-compilador)
@@ -26,9 +27,11 @@ Esta guía cubre la instalación de Aleph-w desde el código fuente usando CMake
 - [Solución de problemas](#install-es-solucion-de-problemas)
 
 ---
-## Prerrequisitos {#install-es-prerrequisitos}
+<a name="install-es-prerrequisitos"></a>
+## Prerrequisitos
 
-### Requisitos de compilador {#install-es-requisitos-de-compilador}
+<a name="install-es-requisitos-de-compilador"></a>
+### Requisitos de compilador
 
 Aleph-w requiere un compilador moderno con soporte completo de C++20 (C++17 y C++23 también están soportados):
 
@@ -38,12 +41,14 @@ Aleph-w requiere un compilador moderno con soporte completo de C++20 (C++17 y C+
 | **Clang** | 14.0 | 14, 15, 16 | ✅ Soportado |
 | **MSVC** | - | - | ❌ No soportado |
 
-### Herramientas de build {#install-es-herramientas-de-build}
+<a name="install-es-herramientas-de-build"></a>
+### Herramientas de build
 
 - **CMake** 3.18+ (3.21+ si usas `CMakePresets.json`)
 - **Make** o **Ninja** (Ninja recomendado)
 
-### Librerías requeridas {#install-es-librerias-requeridas}
+<a name="install-es-librerias-requeridas"></a>
+### Librerías requeridas
 
 Esta rama enlaza contra:
 
@@ -56,7 +61,8 @@ Esta rama enlaza contra:
 
 Threads (pthreads) son requeridos y normalmente vienen con la libc del sistema (no suele hacer falta un paquete aparte).
 
-### Librerías opcionales {#install-es-librerias-opcionales}
+<a name="install-es-librerias-opcionales"></a>
+### Librerías opcionales
 
 | Librería | Paquete | Propósito |
 |---------|---------|-----------|
@@ -72,9 +78,11 @@ Auto-fetch de GoogleTest requiere acceso a red; usa `-DALEPH_FETCH_GTEST=OFF` pa
 
 ---
 
-## Instalación en Linux {#install-es-instalacion-en-linux}
+<a name="install-es-instalacion-en-linux"></a>
+## Instalación en Linux
 
-### Ubuntu/Debian {#install-es-ubuntudebian}
+<a name="install-es-ubuntudebian"></a>
+### Ubuntu/Debian
 
 ```bash
 sudo apt-get update
@@ -97,7 +105,8 @@ sudo apt-get install -y \
 sudo apt-get install -y libgtest-dev
 ```
 
-### Fedora/RHEL {#install-es-fedorarhel}
+<a name="install-es-fedorarhel"></a>
+### Fedora/RHEL
 
 ```bash
 sudo dnf install -y gcc-c++      # GCC
@@ -114,7 +123,8 @@ sudo dnf install -y \
 sudo dnf install -y gtest-devel
 ```
 
-### Arch Linux {#install-es-arch-linux}
+<a name="install-es-arch-linux"></a>
+### Arch Linux
 
 ```bash
 sudo pacman -S gcc
@@ -128,9 +138,11 @@ sudo pacman -S gtest
 
 ---
 
-## Compilación desde el código fuente {#install-es-compilacion-desde-el-codigo-fuente}
+<a name="install-es-compilacion-desde-el-codigo-fuente"></a>
+## Compilación desde el código fuente
 
-### Build básico {#install-es-build-basico}
+<a name="install-es-build-basico"></a>
+### Build básico
 
 ```bash
 git clone https://github.com/lrleon/Aleph-w.git
@@ -146,7 +158,8 @@ ctest --test-dir build --output-on-failure
 sudo cmake --install build
 ```
 
-### Presets de CMake (opcional) {#install-es-presets-de-cmake-opcional}
+<a name="install-es-presets-de-cmake-opcional"></a>
+### Presets de CMake (opcional)
 
 Si tienes CMake 3.21+, puedes usar `CMakePresets.json`:
 
@@ -163,7 +176,8 @@ cmake -S . -B build
 cmake --build build -j"$(nproc)"
 ```
 
-### Opciones de build {#install-es-opciones-de-build}
+<a name="install-es-opciones-de-build"></a>
+### Opciones de build
 
 | Opción | Default | Descripción |
 |-------|---------|-------------|
@@ -185,7 +199,8 @@ cmake -S . -B build -G Ninja \
 cmake --build build --parallel
 ```
 
-### Tipos de build {#install-es-tipos-de-build}
+<a name="install-es-tipos-de-build"></a>
+### Tipos de build
 
 #### Debug (default)
 
@@ -221,7 +236,8 @@ Si quieres `-Ofast`, pásalo explícitamente vía `CMAKE_CXX_FLAGS_RELEASE` (con
 
 ---
 
-## Configuración avanzada {#install-es-configuracion-avanzada}
+<a name="install-es-configuracion-avanzada"></a>
+## Configuración avanzada
 
 ### Seleccionar estándar C++
 
@@ -264,7 +280,8 @@ cmake .                # ❌
 
 ---
 
-## Verificación {#install-es-verificacion}
+<a name="install-es-verificacion"></a>
+## Verificación
 
 ### Ejecutar tests
 
@@ -329,7 +346,8 @@ g++ -std=c++20 -I/usr/local/include/aleph test.cpp \
 
 ---
 
-## Solución de problemas {#install-es-solucion-de-problemas}
+<a name="install-es-solucion-de-problemas"></a>
+## Solución de problemas
 
 ### 1) CMake muy viejo
 
