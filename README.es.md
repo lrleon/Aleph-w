@@ -90,8 +90,8 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-<a id="readme-es-instalación"></a>
-## Instalación {#readme-es-instalación}
+<a id="readme-es-instalacion"></a>
+## Instalación {#readme-es-instalacion}
 
 Guía detallada: `INSTALL.es.md`.
 
@@ -142,8 +142,8 @@ target_link_libraries(your_target PRIVATE Aleph)
 
 ---
 
-<a id="readme-es-uso-rápido"></a>
-## Uso rápido {#readme-es-uso-rápido}
+<a id="readme-es-uso-rapido"></a>
+## Uso rápido {#readme-es-uso-rapido}
 
 Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`, etc.).
 

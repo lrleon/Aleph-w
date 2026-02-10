@@ -5,8 +5,6 @@ Language: English | [Español](INSTALL.es.md)
 This guide covers the installation of Aleph-w from source using CMake.
 
 ---
-
-<a id="install-table-of-contents"></a>
 ## Table of Contents {#install-table-of-contents}
 
 - [Prerequisites](#install-prerequisites)
@@ -27,11 +25,8 @@ This guide covers the installation of Aleph-w from source using CMake.
 - [Troubleshooting](#install-troubleshooting)
 
 ---
-
-<a id="install-prerequisites"></a>
 ## Prerequisites {#install-prerequisites}
 
-<a id="install-compiler-requirements"></a>
 ### Compiler Requirements {#install-compiler-requirements}
 
 Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 are also supported):
@@ -42,13 +37,11 @@ Aleph-w requires a modern C++ compiler with full C++20 support (C++17 and C++23 
 | **Clang** | 14.0 | 14, 15, 16 | ✅ Fully supported |
 | **MSVC** | - | - | ❌ Not supported |
 
-<a id="install-build-tools"></a>
 ### Build Tools {#install-build-tools}
 
 - **CMake** 3.18 or later (3.21+ if using `CMakePresets.json`)
 - **Make** or **Ninja** (Ninja recommended for faster builds)
 
-<a id="install-required-libraries"></a>
 ### Required Libraries {#install-required-libraries}
 
 The following libraries are **required** to build Aleph-w:
@@ -63,7 +56,6 @@ The following libraries are **required** to build Aleph-w:
 
 Threads (pthreads) are required and typically provided by the OS C library (no separate package needed on most Linux distros).
 
-<a id="install-optional-libraries"></a>
 ### Optional Libraries {#install-optional-libraries}
 
 | Library | Package Name | Purpose |
@@ -80,10 +72,8 @@ Auto-fetching GoogleTest requires network access; set `ALEPH_FETCH_GTEST=OFF` to
 
 ---
 
-<a id="install-installation-on-linux"></a>
 ## Installation on Linux {#install-installation-on-linux}
 
-<a id="install-ubuntudebian"></a>
 ### Ubuntu/Debian {#install-ubuntudebian}
 
 ```bash
@@ -108,7 +98,6 @@ sudo apt-get install -y \
 sudo apt-get install -y libgtest-dev
 ```
 
-<a id="install-fedorarhel"></a>
 ### Fedora/RHEL {#install-fedorarhel}
 
 ```bash
@@ -130,7 +119,6 @@ sudo dnf install -y \
 sudo dnf install -y gtest-devel
 ```
 
-<a id="install-arch-linux"></a>
 ### Arch Linux {#install-arch-linux}
 
 ```bash
@@ -154,10 +142,8 @@ sudo pacman -S gtest
 
 ---
 
-<a id="install-building-from-source"></a>
 ## Building from Source {#install-building-from-source}
 
-<a id="install-basic-build"></a>
 ### Basic Build {#install-basic-build}
 
 ```bash
@@ -194,10 +180,9 @@ If you prefer Make over Ninja:
 
 ```bash
 cmake -S . -B build            # Omit -G Ninja
-cmake --build build -j$(nproc)
+cmake --build build
 ```
 
-<a id="install-build-options"></a>
 ### Build Options {#install-build-options}
 
 Aleph-w provides several CMake options to customize the build:
@@ -223,7 +208,6 @@ cmake -S . -B build \
 cmake --build build
 ```
 
-<a id="install-build-types"></a>
 ### Build Types {#install-build-types}
 
 #### Debug Build (Default)
@@ -272,7 +256,6 @@ If you want `-Ofast`, pass it explicitly via `CMAKE_CXX_FLAGS_RELEASE` (use with
 
 ---
 
-<a id="install-advanced-configuration"></a>
 ## Advanced Configuration {#install-advanced-configuration}
 
 ### Selecting a C++ Standard
@@ -343,7 +326,6 @@ cmake .
 
 ---
 
-<a id="install-verification"></a>
 ## Verification {#install-verification}
 
 ### Running Tests
@@ -417,7 +399,6 @@ g++ -std=c++20 -I/usr/local/include/aleph test.cpp \
 
 ---
 
-<a id="install-troubleshooting"></a>
 ## Troubleshooting {#install-troubleshooting}
 
 ### Common Issues

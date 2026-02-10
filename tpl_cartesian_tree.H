@@ -148,8 +148,8 @@ namespace Aleph
         {
           size_t last_popped = NONE;
 
-          // Pop while stack top does not satisfy heap property w.r.t. i
-          while (top > 0 && ! comp_(data_(stk(top - 1)), data_(i)))
+          // Pop while i is strictly better than stack top (stable on ties)
+          while (top > 0 and comp_(data_(i), data_(stk(top - 1))))
             {
               last_popped = stk(top - 1);
               --top;
@@ -263,11 +263,11 @@ namespace Aleph
     Gen_Cartesian_Tree &operator=(const Gen_Cartesian_Tree &) = default;
 
     Gen_Cartesian_Tree(Gen_Cartesian_Tree &&) noexcept(
-      std::is_nothrow_move_constructible_v<Array<T>> &&
+      std::is_nothrow_move_constructible_v<Array<T>> and
       std::is_nothrow_move_constructible_v<Comp>) = default;
 
     Gen_Cartesian_Tree &operator=(Gen_Cartesian_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<T>> &&
+      std::is_nothrow_move_assignable_v<Array<T>> and
       std::is_nothrow_move_assignable_v<Comp>) = default;
 
     /** @brief Index of the root node.
@@ -328,7 +328,7 @@ namespace Aleph
     {
       ah_out_of_range_error_if(i >= n_)
         << "Gen_Cartesian_Tree::is_leaf: i=" << i << " >= n=" << n_;
-      return left_(i) == NONE && right_(i) == NONE;
+      return left_(i) == NONE and right_(i) == NONE;
     }
 
     /** @brief True if node @p i is the root. */
@@ -341,8 +341,10 @@ namespace Aleph
 
     /** @brief Height of the tree (longest root-to-leaf path).
      *
-     *  Computed via iterative DFS in O(n).
-     *  Returns 0 for an empty tree, 1 for a single node.
+     *  @return Height in number of nodes on the longest root-to-leaf path
+     *          (0 if empty, 1 for a single-node tree). Returned by value.
+     *  @throw std::bad_alloc if temporary DFS stack allocation fails.
+     *  @note Complexity: O(n) time and O(n) auxiliary space (explicit stack).
      */
     [[nodiscard]] size_t height() const
     {
@@ -377,9 +379,14 @@ namespace Aleph
 
     /** @brief Inorder traversal of the tree.
      *
-     *  Returns an Array\<size_t\> with node indices in inorder.
-     *  For a correctly built Cartesian Tree, this is `{0, 1, ..., n-1}`.
-     *  Iterative Morris-style replaced by explicit stack for clarity.
+     *  @return A new `Array<size_t>` with node indices in inorder.
+     *          Ownership is transferred by value to the caller.
+     *          For a correctly built Cartesian Tree, this is
+     *          `{0, 1, ..., n-1}`. If the tree is empty, returns an empty
+     *          array.
+     *  @throw std::bad_alloc if result/stack allocation fails.
+     *  @note Complexity: O(n) time and O(n) space
+     *        (result array + traversal stack).
      */
     [[nodiscard]] Array<size_t> inorder() const
     {
@@ -394,7 +401,7 @@ namespace Aleph
       size_t top = 0;
       size_t curr = root_;
 
-      while (curr != NONE || top > 0)
+      while (curr != NONE or top > 0)
         {
           while (curr != NONE)
             {
@@ -409,7 +416,15 @@ namespace Aleph
       return result;
     }
 
-    /** @brief Copy of the original data array. */
+    /** @brief Copy of the original data array.
+     *
+     *  @return A new `Array<T>` with all stored values in original index
+     *          order. Ownership is transferred by value to the caller.
+     *          If the tree is empty, returns an empty array.
+     *  @throw std::bad_alloc if array allocation fails.
+     *  @throw Any exception thrown by `T` copy assignment during element copy.
+     *  @note Complexity: O(n) time and O(n) space.
+     */
     [[nodiscard]] Array<T> values() const
     {
       auto ret = Array<T>::create(n_);
@@ -550,9 +565,7 @@ namespace Aleph
 
       while (top > 0)
         {
-          auto & frame = stk(top - 1);
-
-          if (frame.phase == 0)
+          if (auto & frame = stk(top - 1); frame.phase == 0)
             {
               // First visit — always record
               euler_(eidx) = frame.node;
@@ -562,15 +575,13 @@ namespace Aleph
               ++eidx;
               frame.phase = 1;
 
-              size_t lc = tree_.left_child(frame.node);
-              if (lc != NONE)
+              if (size_t lc = tree_.left_child(frame.node); lc != NONE)
                 stk(top++) = {lc, 0, frame.depth + 1};
             }
           else if (frame.phase == 1)
             {
               // Back from left subtree
-              size_t lc = tree_.left_child(frame.node);
-              if (lc != NONE)
+              if (const size_t lc = tree_.left_child(frame.node); lc != NONE)
                 {
                   // We actually returned from left child — record again
                   euler_(eidx) = frame.node;
@@ -579,15 +590,13 @@ namespace Aleph
                 }
               frame.phase = 2;
 
-              size_t rc = tree_.right_child(frame.node);
-              if (rc != NONE)
+              if (size_t rc = tree_.right_child(frame.node); rc != NONE)
                 stk(top++) = {rc, 0, frame.depth + 1};
             }
           else
             {
               // Back from right subtree
-              size_t rc = tree_.right_child(frame.node);
-              if (rc != NONE)
+              if (const size_t rc = tree_.right_child(frame.node); rc != NONE)
                 {
                   // We actually returned from right child — record again
                   euler_(eidx) = frame.node;
@@ -840,11 +849,14 @@ namespace Aleph
       return lca_.tree().data_at(lca_.lca(l, r));
     }
 
-    /** @brief Range query returning the index of the optimal position.
+    /** @brief Return the index of the optimal element in `a[l..r]`.
      *
      *  @param l 0-based left index (inclusive).
      *  @param r 0-based right index (inclusive).
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
+     *
+     *  When the optimal value occurs multiple times in the range, this
+     *  returns the leftmost occurrence (stable tie-break).
      */
     size_t query_idx(const size_t l, const size_t r) const
     {

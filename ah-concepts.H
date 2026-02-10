@@ -102,7 +102,7 @@ namespace Aleph
    *  Optional operations (`join`, `select`, `position`, …) are NOT
    *  checked here because not every tree type supports them.
    *
-   *  @tparam T  the fully-instantiated tree type, e.g. `Avl_Tree<int>`.
+   *  @tparam T  the fully instantiated tree type, e.g. `Avl_Tree<int>`.
    *  @tparam Key  the key type stored in the tree.
    *
    *  @ingroup Functors

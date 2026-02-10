@@ -152,7 +152,7 @@ namespace Aleph
     T identity;          // identity element of the monoid
     Op op;
 
-    void build(size_t node, size_t start, size_t end)
+    void build(size_t node, const size_t start, const size_t end)
     {
       if (start == end)
         return;
@@ -163,8 +163,8 @@ namespace Aleph
       tree(node) = op(tree(2 * node), tree(2 * node + 1));
     }
 
-    void update_impl(size_t node, size_t start, size_t end,
-                     size_t idx, const T & delta)
+    void update_impl(size_t node, const size_t start, const size_t end,
+                     const size_t idx, const T & delta)
     {
       if (start == end)
         {
@@ -172,8 +172,7 @@ namespace Aleph
           return;
         }
 
-      const size_t mid = start + (end - start) / 2;
-      if (idx <= mid)
+      if (const size_t mid = start + (end - start) / 2; idx <= mid)
         update_impl(2 * node, start, mid, idx, delta);
       else
         update_impl(2 * node + 1, mid + 1, end, idx, delta);
@@ -181,8 +180,8 @@ namespace Aleph
       tree(node) = op(tree(2 * node), tree(2 * node + 1));
     }
 
-    void set_impl(size_t node, size_t start, size_t end,
-                  size_t idx, const T & val)
+    void set_impl(size_t node, const size_t start, const size_t end,
+                  const size_t idx, const T & val)
     {
       if (start == end)
         {
@@ -190,8 +189,7 @@ namespace Aleph
           return;
         }
 
-      const size_t mid = start + (end - start) / 2;
-      if (idx <= mid)
+      if (const size_t mid = start + (end - start) / 2; idx <= mid)
         set_impl(2 * node, start, mid, idx, val);
       else
         set_impl(2 * node + 1, mid + 1, end, idx, val);
@@ -199,13 +197,13 @@ namespace Aleph
       tree(node) = op(tree(2 * node), tree(2 * node + 1));
     }
 
-    T query_impl(size_t node, size_t start, size_t end,
-                 size_t l, size_t r) const
+    T query_impl(size_t node, const size_t start, const size_t end,
+                 const size_t l, const size_t r) const
     {
       if (r < start || end < l)
         return identity;
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         return tree(node);
 
       const size_t mid = start + (end - start) / 2;
@@ -342,13 +340,13 @@ namespace Aleph
     Gen_Segment_Tree(const Gen_Segment_Tree &) = default;
 
     Gen_Segment_Tree(Gen_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_constructible_v<Array<T>> &&
+      std::is_nothrow_move_constructible_v<Array<T>> and
       std::is_nothrow_move_constructible_v<Op>) = default;
 
     Gen_Segment_Tree & operator=(const Gen_Segment_Tree &) = default;
 
     Gen_Segment_Tree & operator=(Gen_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<T>> &&
+      std::is_nothrow_move_assignable_v<Array<T>> and
       std::is_nothrow_move_assignable_v<Op>) = default;
 
     /** @brief Point update: `a[i] = Op(a[i], delta)`.
@@ -433,7 +431,7 @@ namespace Aleph
 
     /** @brief Swap this tree with @p other in O(1). */
     void swap(Gen_Segment_Tree & other) noexcept(
-      noexcept(std::swap(std::declval<T&>(), std::declval<T&>())) &&
+      noexcept(std::swap(std::declval<T&>(), std::declval<T&>())) and
       noexcept(std::swap(std::declval<Op&>(), std::declval<Op&>())))
     {
       tree.swap(other.tree);
@@ -617,7 +615,7 @@ namespace Aleph
    */
   template <typename P>
   concept SegmentTreePolicy =
-      std::equality_comparable<typename P::lazy_type> &&
+      std::equality_comparable<typename P::lazy_type> and
       requires(const P& p,
                const typename P::value_type& v1,
                const typename P::value_type& v2,
@@ -653,25 +651,25 @@ namespace Aleph
     using value_type = T;
     using lazy_type = T;
 
-    constexpr T combine(const T & a, const T & b) const noexcept
+    static constexpr T combine(const T & a, const T & b) noexcept
     {
       return a + b;
     }
 
-    constexpr T apply(const T & val, const T & delta,
-                      size_t count) const noexcept
+    static constexpr T apply(const T & val, const T & delta,
+                             size_t count) noexcept
     {
       return val + delta * static_cast<T>(count);
     }
 
-    constexpr T compose(const T & old_lazy,
-                        const T & new_lazy) const noexcept
+    static constexpr T compose(const T & old_lazy,
+                               const T & new_lazy) noexcept
     {
       return old_lazy + new_lazy;
     }
 
-    constexpr T value_identity() const noexcept { return T(); }
-    constexpr T lazy_identity() const noexcept { return T(); }
+    static constexpr T value_identity() noexcept { return T(); }
+    static constexpr T lazy_identity() noexcept { return T(); }
   };
 
   /** @brief Range add + range min policy.
@@ -693,19 +691,19 @@ namespace Aleph
     using value_type = T;
     using lazy_type = T;
 
-    constexpr T combine(const T & a, const T & b) const noexcept
+    static constexpr T combine(const T & a, const T & b) noexcept
     {
       return a <= b ? a : b;
     }
 
-    constexpr T apply(const T & val, const T & delta,
-                      size_t) const noexcept
+    static constexpr T apply(const T & val, const T & delta,
+                             size_t) noexcept
     {
       return val + delta;
     }
 
-    constexpr T compose(const T & old_lazy,
-                        const T & new_lazy) const noexcept
+    static constexpr T compose(const T & old_lazy,
+                               const T & new_lazy) noexcept
     {
       return old_lazy + new_lazy;
     }
@@ -715,7 +713,7 @@ namespace Aleph
       return std::numeric_limits<T>::max();
     }
 
-    constexpr T lazy_identity() const noexcept { return T(); }
+    static constexpr T lazy_identity() noexcept { return T(); }
   };
 
   /** @brief Range add + range max policy.
@@ -737,19 +735,19 @@ namespace Aleph
     using value_type = T;
     using lazy_type = T;
 
-    constexpr T combine(const T & a, const T & b) const noexcept
+    static constexpr T combine(const T & a, const T & b) noexcept
     {
       return a >= b ? a : b;
     }
 
-    constexpr T apply(const T & val, const T & delta,
-                      size_t) const noexcept
+    static constexpr T apply(const T & val, const T & delta,
+                             size_t) noexcept
     {
       return val + delta;
     }
 
-    constexpr T compose(const T & old_lazy,
-                        const T & new_lazy) const noexcept
+    static constexpr T compose(const T & old_lazy,
+                               const T & new_lazy) noexcept
     {
       return old_lazy + new_lazy;
     }
@@ -759,7 +757,7 @@ namespace Aleph
       return std::numeric_limits<T>::lowest();
     }
 
-    constexpr T lazy_identity() const noexcept { return T(); }
+    static constexpr T lazy_identity() noexcept { return T(); }
   };
 
   /** @brief Range assign + range sum policy.
@@ -787,26 +785,26 @@ namespace Aleph
     using value_type = T;
     using lazy_type = std::pair<bool, T>;
 
-    constexpr T combine(const T & a, const T & b) const noexcept
+    static constexpr T combine(const T & a, const T & b) noexcept
     {
       return a + b;
     }
 
-    constexpr T apply(const T & val, const lazy_type & lz,
-                      size_t count) const noexcept
+    static constexpr T apply(const T & val, const lazy_type & lz,
+                             size_t count) noexcept
     {
       return lz.first ? lz.second * static_cast<T>(count) : val;
     }
 
-    constexpr lazy_type compose(const lazy_type & old_lz,
-                                const lazy_type & new_lz) const noexcept
+    static constexpr lazy_type compose(const lazy_type & old_lz,
+                                       const lazy_type & new_lz) noexcept
     {
       return new_lz.first ? new_lz : old_lz;
     }
 
-    constexpr T value_identity() const noexcept { return T(); }
+    static constexpr T value_identity() noexcept { return T(); }
 
-    constexpr lazy_type lazy_identity() const noexcept
+    static constexpr lazy_type lazy_identity() noexcept
     {
       return {false, T()};
     }
@@ -856,7 +854,7 @@ namespace Aleph
     size_t n = 0;
     Policy pol;
 
-    void push_down(size_t node, size_t start, size_t end) const
+    void push_down(size_t node, const size_t start, const size_t end) const
     {
       if (lazy(node) == pol.lazy_identity())
         return;
@@ -874,7 +872,7 @@ namespace Aleph
       lazy(node) = pol.lazy_identity();
     }
 
-    void build(size_t node, size_t start, size_t end)
+    void build(size_t node, const size_t start, const size_t end)
     {
       if (start == end)
         return;
@@ -885,13 +883,13 @@ namespace Aleph
       tree(node) = pol.combine(tree(2 * node), tree(2 * node + 1));
     }
 
-    void update_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r, const lazy_type & val)
+    void update_impl(size_t node, const size_t start, const size_t end,
+                     const size_t l, const size_t r, const lazy_type & val)
     {
-      if (r < start || end < l)
+      if (r < start or end < l)
         return;
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         {
           tree(node) = pol.apply(tree(node), val, end - start + 1);
           lazy(node) = pol.compose(lazy(node), val);
@@ -906,13 +904,13 @@ namespace Aleph
       tree(node) = pol.combine(tree(2 * node), tree(2 * node + 1));
     }
 
-    value_type query_impl(size_t node, size_t start, size_t end,
-                          size_t l, size_t r) const
+    value_type query_impl(size_t node, const size_t start, const size_t end,
+                          const size_t l, const size_t r) const
     {
-      if (r < start || end < l)
+      if (r < start or end < l)
         return pol.value_identity();
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         return tree(node);
 
       push_down(node, start, end);
@@ -923,8 +921,8 @@ namespace Aleph
         query_impl(2 * node + 1, mid + 1, end, l, r));
     }
 
-    void set_impl(size_t node, size_t start, size_t end,
-                  size_t idx, const value_type & val)
+    void set_impl(size_t node, const size_t start, const size_t end,
+                  const size_t idx, const value_type & val)
     {
       if (start == end)
         {
@@ -935,8 +933,7 @@ namespace Aleph
 
       push_down(node, start, end);
 
-      const size_t mid = start + (end - start) / 2;
-      if (idx <= mid)
+      if (const size_t mid = start + (end - start) / 2; idx <= mid)
         set_impl(2 * node, start, mid, idx, val);
       else
         set_impl(2 * node + 1, mid + 1, end, idx, val);
@@ -1046,15 +1043,15 @@ namespace Aleph
     Gen_Lazy_Segment_Tree(const Gen_Lazy_Segment_Tree &) = default;
 
     Gen_Lazy_Segment_Tree(Gen_Lazy_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_constructible_v<Array<value_type>> &&
-      std::is_nothrow_move_constructible_v<Array<lazy_type>> &&
+      std::is_nothrow_move_constructible_v<Array<value_type>> and
+      std::is_nothrow_move_constructible_v<Array<lazy_type>> and
       std::is_nothrow_move_constructible_v<Policy>) = default;
 
     Gen_Lazy_Segment_Tree & operator=(const Gen_Lazy_Segment_Tree &) = default;
 
     Gen_Lazy_Segment_Tree & operator=(Gen_Lazy_Segment_Tree &&) noexcept(
-      std::is_nothrow_move_assignable_v<Array<value_type>> &&
-      std::is_nothrow_move_assignable_v<Array<lazy_type>> &&
+      std::is_nothrow_move_assignable_v<Array<value_type>> and
+      std::is_nothrow_move_assignable_v<Array<lazy_type>> and
       std::is_nothrow_move_assignable_v<Policy>) = default;
 
     /** @brief Range update: apply @p val to every `a[i]` with
@@ -1237,7 +1234,7 @@ namespace Aleph
    *  @ingroup Sequences
    */
   template <typename T>
-    requires std::is_arithmetic_v<T> && std::is_signed_v<T>
+    requires std::is_arithmetic_v<T> and std::is_signed_v<T>
   class Segment_Tree_Beats
   {
     struct Node
@@ -1385,13 +1382,13 @@ namespace Aleph
       pull_up(node);
     }
 
-    void chmin_impl(size_t node, size_t start, size_t end,
-                    size_t l, size_t r, T v)
+    void chmin_impl(size_t node, const size_t start, const size_t end,
+                    const size_t l, const size_t r, T v)
     {
-      if (r < start || end < l || tree(node).max_val <= v)
+      if (r < start or end < l or tree(node).max_val <= v)
         return;
 
-      if (l <= start && end <= r && tree(node).second_max < v)
+      if (l <= start and end <= r and tree(node).second_max < v)
         {
           push_chmin_to_child(node, v);
           return;
@@ -1404,13 +1401,13 @@ namespace Aleph
       pull_up(node);
     }
 
-    void chmax_impl(size_t node, size_t start, size_t end,
-                    size_t l, size_t r, T v)
+    void chmax_impl(size_t node, const size_t start, const size_t end,
+                    const size_t l, const size_t r, T v)
     {
-      if (r < start || end < l || tree(node).min_val >= v)
+      if (r < start or end < l or tree(node).min_val >= v)
         return;
 
-      if (l <= start && end <= r && tree(node).second_min > v)
+      if (l <= start and end <= r and tree(node).second_min > v)
         {
           push_chmax_to_child(node, v);
           return;
@@ -1423,13 +1420,13 @@ namespace Aleph
       pull_up(node);
     }
 
-    T query_sum_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r) const
+    T query_sum_impl(size_t node, const size_t start, const size_t end,
+                     const size_t l, const size_t r) const
     {
-      if (r < start || end < l)
+      if (r < start or end < l)
         return T();
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         return tree(node).sum;
 
       push_down(node);
@@ -1438,13 +1435,13 @@ namespace Aleph
              query_sum_impl(2 * node + 1, mid + 1, end, l, r);
     }
 
-    T query_max_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r) const
+    T query_max_impl(size_t node, const size_t start, const size_t end,
+                     const size_t l, const size_t r) const
     {
-      if (r < start || end < l)
+      if (r < start or end < l)
         return NEG_INF;
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         return tree(node).max_val;
 
       push_down(node);
@@ -1453,13 +1450,13 @@ namespace Aleph
                       query_max_impl(2 * node + 1, mid + 1, end, l, r));
     }
 
-    T query_min_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r) const
+    T query_min_impl(size_t node, const size_t start, const size_t end,
+                     const size_t l, const size_t r) const
     {
-      if (r < start || end < l)
+      if (r < start or end < l)
         return INF;
 
-      if (l <= start && end <= r)
+      if (l <= start and end <= r)
         return tree(node).min_val;
 
       push_down(node);
@@ -1476,7 +1473,7 @@ namespace Aleph
     }
 
     template <class Getter>
-    void fill_leaves_recursive(size_t node, size_t start, size_t end,
+    void fill_leaves_recursive(const size_t node, size_t start, size_t end,
                                Getter & getter)
     {
       if (start == end)
