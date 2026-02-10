@@ -80,11 +80,21 @@ namespace Aleph
 {
   /** @brief Binary operation compatible with Segment Tree queries.
    *
-   *  Requires the functor to be callable with two immutable values
-   *  of type @p T and return a value convertible to @p T.
+   *  This concept is used by `Gen_Segment_Tree` to constrain the binary
+   *  operation passed as template parameter.
    *
-   *  @note This concept checks only the call signature.  For Segment
-   *  Tree correctness, @p F must also satisfy associativity.
+   *  @tparam F Binary functor type.
+   *  @tparam T Value type.
+   *
+   *  @par Requirements
+   *  - `f(a, b)` must be well-formed for `const T& a, const T& b`.
+   *  - The result must be convertible to `T`.
+   *
+   *  @note This concept only checks the call signature. For correctness
+   *  of range queries, `F` must define an **associative** operation and
+   *  the caller must provide a correct identity element where required.
+   *
+   *  @ingroup Sequences
    */
   template <typename F, typename T>
   concept SegmentTreeOp =
@@ -99,13 +109,25 @@ namespace Aleph
 
   /** @brief Segment tree over an arbitrary associative binary operation.
    *
-   *  Maintains an implicit binary tree backed by `Array<T>`, 1-indexed,
-   *  of size `4*n`.  Supports point updates and range queries in
-   *  O(log n) time.
+   *  This is the classical segment tree supporting:
+   *
+   *  - Point updates in O(log n)
+   *  - Range queries in O(log n)
+   *
+   *  It maintains an implicit binary tree backed by `Array<T>`,
+   *  using 1-based node indexing and allocating roughly `4*n` nodes.
    *
    *  Unlike Sparse Table, the operation need not be idempotent.
    *  Unlike Fenwick Tree, the operation need not be invertible.
    *  Only associativity is required.
+   *
+   *  @par Identity element
+   *  Queries rely on an identity element `id` such that
+   *  `op(id, x) == x` and `op(x, id) == x`.
+   *
+   *  @par Update semantics
+   *  `update(i, delta)` applies `a[i] = op(a[i], delta)`.
+   *  Use `set(i, val)` if you need assignment semantics.
    *
    *  @tparam T  element type.
    *  @tparam Op associative binary functor.
@@ -475,6 +497,9 @@ namespace Aleph
    *
    *  @tparam T a totally ordered type with numeric_limits support.
    *
+   *  @note This structure supports point updates and range minimum
+   *  queries. For static RMQ with O(1) queries, prefer `Sparse_Table`.
+   *
    *  @par Example
    *  @code
    *  Min_Segment_Tree<int> st = {5, 2, 4, 7, 1};
@@ -519,6 +544,10 @@ namespace Aleph
    *  with identity `numeric_limits<T>::lowest()`.
    *
    *  @tparam T a totally ordered type with numeric_limits support.
+   *
+   *  @note This structure supports point updates and range maximum
+   *  queries. For static range max queries with O(1) queries, prefer
+   *  `Max_Sparse_Table`.
    *
    *  @par Example
    *  @code
@@ -565,6 +594,9 @@ namespace Aleph
 
   /** @brief Policy concept for lazy segment tree.
    *
+   *  This concept describes the interface required by
+   *  `Gen_Lazy_Segment_Tree<Policy>`.
+   *
    *  A policy must provide:
    *  - `value_type` — the type stored in tree nodes.
    *  - `lazy_type` — the type of pending lazy tags.
@@ -575,9 +607,19 @@ namespace Aleph
    *    tags (new on top of old).
    *  - `value_identity() -> value_type` — identity for combine.
    *  - `lazy_identity() -> lazy_type` — identity for compose (no-op tag).
+   *
+   *  Additionally, `lazy_type` must be equality-comparable so that
+   *  `push_down` can test `lazy(node) == pol.lazy_identity()` to
+   *  skip propagation when no tag is pending.
+   *
+   *  @note Correctness requires `combine` to be associative and
+   *  consistent with `apply` and `compose`.
+   *
+   *  @ingroup Sequences
    */
   template <typename P>
   concept SegmentTreePolicy =
+      std::equality_comparable<typename P::lazy_type> &&
       requires(const P& p,
                const typename P::value_type& v1,
                const typename P::value_type& v2,
@@ -596,11 +638,16 @@ namespace Aleph
 
   /** @brief Range add + range sum policy.
    *
+   *  Policy for `Gen_Lazy_Segment_Tree` implementing the classic
+   *  "range add" + "range sum" segment tree.
+   *
    *  - `combine(a, b) = a + b`
    *  - `apply(val, delta, count) = val + delta * count`
    *  - `compose(old, new) = old + new`
    *
    *  @tparam T arithmetic type.
+   *
+   *  @ingroup Sequences
    */
   template <typename T>
   struct Add_Sum_Policy
@@ -631,11 +678,16 @@ namespace Aleph
 
   /** @brief Range add + range min policy.
    *
+   *  Policy for `Gen_Lazy_Segment_Tree` implementing a segment tree
+   *  supporting range additions and range minimum queries.
+   *
    *  - `combine(a, b) = min(a, b)`
    *  - `apply(val, delta, count) = val + delta`
    *  - `compose(old, new) = old + new`
    *
    *  @tparam T a totally ordered arithmetic type.
+   *
+   *  @ingroup Sequences
    */
   template <std::totally_ordered T>
   struct Add_Min_Policy
@@ -670,11 +722,16 @@ namespace Aleph
 
   /** @brief Range add + range max policy.
    *
+   *  Policy for `Gen_Lazy_Segment_Tree` implementing a segment tree
+   *  supporting range additions and range maximum queries.
+   *
    *  - `combine(a, b) = max(a, b)`
    *  - `apply(val, delta, count) = val + delta`
    *  - `compose(old, new) = old + new`
    *
    *  @tparam T a totally ordered arithmetic type.
+   *
+   *  @ingroup Sequences
    */
   template <std::totally_ordered T>
   struct Add_Max_Policy
@@ -709,6 +766,9 @@ namespace Aleph
 
   /** @brief Range assign + range sum policy.
    *
+   *  Policy for `Gen_Lazy_Segment_Tree` implementing "range assign" +
+   *  "range sum" updates/queries.
+   *
    *  - `combine(a, b) = a + b`
    *  - `apply(val, (true, x), count) = x * count`
    *  - `compose(old, new)`: new overrides old if new.first is true.
@@ -717,6 +777,11 @@ namespace Aleph
    *  an assignment is pending.
    *
    *  @tparam T arithmetic type.
+   *
+   *  @note This policy is useful for classic tasks like "set a[l..r] = x"
+   *  while querying range sums.
+   *
+   *  @ingroup Sequences
    */
   template <typename T>
   struct Assign_Sum_Policy
@@ -756,6 +821,15 @@ namespace Aleph
    *  and the combine/apply/compose functions.  Supports range updates
    *  and range queries in O(log n) with lazy propagation.
    *
+   *  @par Lazy propagation
+   *  Updates store a pending tag at internal nodes and push it down to
+   *  children only when required (during updates/queries), keeping the
+   *  asymptotic cost to O(log n).
+   *
+   *  @par Constness
+   *  `query()` is intentionally non-const because it may trigger
+   *  propagation (`push_down`) and thus mutate internal lazy state.
+   *
    *  @tparam Policy must satisfy `SegmentTreePolicy`.
    *
    *  @par Example
@@ -777,12 +851,12 @@ namespace Aleph
     using Item_Type = value_type;
 
   private:
-    Array<value_type> tree;
-    Array<lazy_type> lazy;
+    mutable Array<value_type> tree;
+    mutable Array<lazy_type> lazy;
     size_t n = 0;
     Policy pol;
 
-    void push_down(size_t node, size_t start, size_t end)
+    void push_down(size_t node, size_t start, size_t end) const
     {
       if (lazy(node) == pol.lazy_identity())
         return;
@@ -833,7 +907,7 @@ namespace Aleph
     }
 
     value_type query_impl(size_t node, size_t start, size_t end,
-                          size_t l, size_t r)
+                          size_t l, size_t r) const
     {
       if (r < start || end < l)
         return pol.value_identity();
@@ -1028,14 +1102,16 @@ namespace Aleph
 
     /** @brief Range query over `[l, r]`.
      *
-     *  @note This method is NOT const because it may trigger push_down.
+     *  Lazy tags are propagated internally via `mutable` storage,
+     *  so this method is `const` and safe to call through
+     *  `const` references.
      *
      *  @param l 0-based left index (inclusive).
      *  @param r 0-based right index (inclusive).
      *  @return  combined value over the range.
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    value_type query(const size_t l, const size_t r)
+    value_type query(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
         << "Gen_Lazy_Segment_Tree::query: r=" << r << " >= n=" << n;
@@ -1049,7 +1125,7 @@ namespace Aleph
      *
      *  Equivalent to `query(i, i)`.  O(log n).
      */
-    value_type get(const size_t i)
+    value_type get(const size_t i) const
     {
       return query(i, i);
     }
@@ -1064,7 +1140,7 @@ namespace Aleph
      *
      *  O(n log n).
      */
-    Array<value_type> values()
+    Array<value_type> values() const
     {
       auto ret = Array<value_type>::create(n);
       for (size_t i = 0; i < n; ++i)
@@ -1096,6 +1172,10 @@ namespace Aleph
   };
 
   /** @brief Lazy segment tree for range add + range min.
+   *
+   *  Convenience wrapper around:
+   *  `Gen_Lazy_Segment_Tree<Add_Min_Policy<T>>`.
+   *
    *  @tparam T a totally ordered arithmetic type.
    *  @ingroup Sequences
    */
@@ -1108,6 +1188,10 @@ namespace Aleph
   };
 
   /** @brief Lazy segment tree for range add + range max.
+   *
+   *  Convenience wrapper around:
+   *  `Gen_Lazy_Segment_Tree<Add_Max_Policy<T>>`.
+   *
    *  @tparam T a totally ordered arithmetic type.
    *  @ingroup Sequences
    */
@@ -1133,6 +1217,11 @@ namespace Aleph
    *  count_min, sum.  The push-down uses break/tag conditions for
    *  amortised O(n log^2 n) total complexity.
    *
+   *  @par When to use
+   *  Use this structure when you need range clamping operations
+   *  (`chmin`/`chmax`) in addition to sum/min/max queries.
+   *  For simpler update patterns, prefer `Gen_Lazy_Segment_Tree`.
+   *
    *  @tparam T a signed arithmetic type.
    *
    *  @par Example
@@ -1157,7 +1246,7 @@ namespace Aleph
       T lazy_chmin, lazy_chmax;
     };
 
-    Array<Node> tree;
+    mutable Array<Node> tree;
     size_t n = 0;
 
     static constexpr T INF = std::numeric_limits<T>::max();
@@ -1169,7 +1258,7 @@ namespace Aleph
                     1, 1, INF, NEG_INF};
     }
 
-    void pull_up(size_t node)
+    void pull_up(size_t node) const
     {
       const auto & l = tree(2 * node);
       const auto & r = tree(2 * node + 1);
@@ -1220,7 +1309,7 @@ namespace Aleph
       tree(node).lazy_chmax = NEG_INF;
     }
 
-    void push_chmin_to_child(size_t child, T v)
+    void push_chmin_to_child(size_t child, T v) const
     {
       auto & nd = tree(child);
       if (v >= nd.max_val)
@@ -1242,7 +1331,7 @@ namespace Aleph
       nd.lazy_chmax = std::min(nd.lazy_chmax, v);
     }
 
-    void push_chmax_to_child(size_t child, T v)
+    void push_chmax_to_child(size_t child, T v) const
     {
       auto & nd = tree(child);
       if (v <= nd.min_val)
@@ -1263,7 +1352,7 @@ namespace Aleph
       nd.lazy_chmin = std::max(nd.lazy_chmin, v);
     }
 
-    void push_down(size_t node)
+    void push_down(size_t node) const
     {
       auto & nd = tree(node);
 
@@ -1334,7 +1423,7 @@ namespace Aleph
     }
 
     T query_sum_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r)
+                     size_t l, size_t r) const
     {
       if (r < start || end < l)
         return T();
@@ -1349,7 +1438,7 @@ namespace Aleph
     }
 
     T query_max_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r)
+                     size_t l, size_t r) const
     {
       if (r < start || end < l)
         return NEG_INF;
@@ -1364,7 +1453,7 @@ namespace Aleph
     }
 
     T query_min_impl(size_t node, size_t start, size_t end,
-                     size_t l, size_t r)
+                     size_t l, size_t r) const
     {
       if (r < start || end < l)
         return INF;
@@ -1489,7 +1578,7 @@ namespace Aleph
      *
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    T query_sum(const size_t l, const size_t r)
+    T query_sum(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
         << "Segment_Tree_Beats::query_sum: r=" << r << " >= n=" << n;
@@ -1503,7 +1592,7 @@ namespace Aleph
      *
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    T query_max(const size_t l, const size_t r)
+    T query_max(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
         << "Segment_Tree_Beats::query_max: r=" << r << " >= n=" << n;
@@ -1517,7 +1606,7 @@ namespace Aleph
      *
      *  @throw std::out_of_range if `l > r` or `r >= size()`.
      */
-    T query_min(const size_t l, const size_t r)
+    T query_min(const size_t l, const size_t r) const
     {
       ah_out_of_range_error_if(r >= n)
         << "Segment_Tree_Beats::query_min: r=" << r << " >= n=" << n;
@@ -1528,7 +1617,7 @@ namespace Aleph
     }
 
     /** @brief Retrieve the value at position @p i.  O(log n). */
-    T get(const size_t i)
+    T get(const size_t i) const
     {
       return query_sum(i, i);
     }
@@ -1540,7 +1629,7 @@ namespace Aleph
     [[nodiscard]] constexpr bool is_empty() const noexcept { return n == 0; }
 
     /** @brief Reconstruct all values into an Array.  O(n log n). */
-    Array<T> values()
+    Array<T> values() const
     {
       auto ret = Array<T>::create(n);
       for (size_t i = 0; i < n; ++i)
