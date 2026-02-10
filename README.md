@@ -702,6 +702,7 @@ Aleph-w provides **three segment tree variants** for dynamic range queries:
 | **Segment Tree** | O(n) | O(lg n) | O(lg n) | O(n) | Associative (monoid) |
 | **Lazy Segment Tree** | O(n) | O(lg n) range | O(lg n) | O(n) | Policy-based |
 | **Segment Tree Beats** | O(n) | O(lg n) amort. | O(lg n) | O(n) | Signed arithmetic |
+| **Cartesian Tree RMQ** | O(n lg n) | — | **O(1)** | O(n lg n) | Totally ordered |
 
 #### Usage Examples
 
@@ -740,6 +741,55 @@ int main() {
 Lazy_Sum_Segment_Tree<int> payroll = {50, 45, 60, 55, 70, 48, 52, 65};
 payroll.update(2, 5, 10);          // departments 2-5 get +$10K raise
 int cost = payroll.query(0, 7);    // total payroll after raise
+```
+
+### Cartesian Trees & LCA
+
+Aleph-w implements the classic chain of reductions **RMQ ↔ LCA ↔ Cartesian Tree**, confirming that Range Minimum Queries and Lowest Common Ancestor are equivalent problems:
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│                  RMQ  ←→  LCA  ←→  Cartesian Tree                  │
+├──────────────────────┬─────────────┬──────────┬─────────────────────┤
+│       Class          │    Build    │  Query   │  Space              │
+├──────────────────────┼─────────────┼──────────┼─────────────────────┤
+│ Gen_Cartesian_Tree   │   O(n)      │    —     │  O(n)               │
+│ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │
+│ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │
+└──────────────────────┴─────────────┴──────────┴─────────────────────┘
+```
+
+- **`Gen_Cartesian_Tree<T, Comp>`** — Explicit Cartesian Tree built in O(n) with a monotonic stack.  Satisfies heap property under `Comp` and inorder = original array.
+- **`Gen_Euler_Tour_LCA<T, Comp>`** — O(1) Lowest Common Ancestor via Euler Tour + Sparse Table on the Cartesian Tree.
+- **`Gen_Cartesian_Tree_RMQ<T, Comp>`** — O(1) static range queries via the reduction RMQ → LCA → Cartesian Tree.
+
+#### Usage Examples
+
+```cpp
+#include <tpl_cartesian_tree.H>
+
+int main() {
+    // Build a Cartesian Tree (min-heap)
+    Cartesian_Tree<int> ct = {3, 2, 6, 1, 9};
+    size_t r = ct.root();          // index 3 (value 1 = minimum)
+    auto io = ct.inorder();        // {0, 1, 2, 3, 4}
+
+    // LCA queries in O(1)
+    Euler_Tour_LCA<int> lca = {3, 2, 6, 1, 9};
+    size_t a = lca.lca(0, 2);     // = 1 (common ancestor)
+    size_t d = lca.distance(0, 4); // tree distance
+
+    // O(1) RMQ via Cartesian Tree reduction
+    Cartesian_Tree_RMQ<int> rmq = {5, 2, 4, 7, 1, 3, 6};
+    int m = rmq.query(0, 3);      // min(5, 2, 4, 7) = 2
+    size_t idx = rmq.query_idx(2, 6); // index of min in [2,6]
+
+    // Max variants
+    Max_Cartesian_Tree<int> max_ct = {3, 2, 6, 1, 9};
+    Cartesian_Tree_RMaxQ<int> rmaxq = {5, 2, 4, 7, 1};
+
+    return 0;
+}
 ```
 
 ### Linear Algebra (Sparse Structures)
@@ -2299,6 +2349,7 @@ cmake --build build
 | Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
+| Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
