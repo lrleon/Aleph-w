@@ -1559,9 +1559,11 @@ namespace Aleph
     }
 
     Segment_Tree_Beats(const Segment_Tree_Beats &) = default;
-    Segment_Tree_Beats(Segment_Tree_Beats &&) noexcept = default;
+    Segment_Tree_Beats(Segment_Tree_Beats &&) noexcept(
+      std::is_nothrow_move_constructible_v<Array<Node>>) = default;
     Segment_Tree_Beats & operator=(const Segment_Tree_Beats &) = default;
-    Segment_Tree_Beats & operator=(Segment_Tree_Beats &&) noexcept = default;
+    Segment_Tree_Beats & operator=(Segment_Tree_Beats &&) noexcept(
+      std::is_nothrow_move_assignable_v<Array<Node>>) = default;
 
     /** @brief Range chmin: for each `i` in `[l, r]`, set `a[i] = min(a[i], v)`.
      *
