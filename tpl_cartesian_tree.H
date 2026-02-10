@@ -131,7 +131,7 @@ namespace Aleph
   {
   public:
     /// Sentinel value for absent parent/child links.
-    static constexpr size_t NONE = size_t(-1);
+    static constexpr size_t NONE = static_cast<size_t>(-1);
 
   private:
     Array<T>      data_;    // original values
@@ -167,7 +167,7 @@ namespace Aleph
               --top;
             }
 
-          // The last popped node becomes left child of i
+          // The last popped node becomes the left child of i
           left_(i) = last_popped;
           if (last_popped != NONE)
             parent_(last_popped) = i;
@@ -184,7 +184,7 @@ namespace Aleph
           stk(top++) = i;
         }
 
-      root_ = stk(0); // bottom of the stack is the root
+      root_ = stk(0); // the bottom of the stack is the root
     }
 
     /// Initialize arrays of size n with NONE and build.
@@ -391,7 +391,7 @@ namespace Aleph
     [[nodiscard]] Array<size_t> inorder() const
     {
       if (n_ == 0)
-        return Array<size_t>();
+        return {};
 
       auto result = Array<size_t>::create(n_);
       size_t idx = 0;

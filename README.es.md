@@ -1,4 +1,4 @@
-# Aleph-w {#aleph-w}
+# Aleph-w
 
 <div align="center">
 
@@ -24,22 +24,22 @@ Idioma: Español | [English](README.md)
 
 ---
 
-## Contenido {#contenido}
+## Contenido {#readme-es-contenido}
 
-- [Resumen](#resumen)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
-- [Uso rápido](#uso-rápido)
-- [Pruebas](#pruebas)
-- [Contribuir](#contribuir)
-- [Licencia](#licencia)
-- [Agradecimientos](#agradecimientos)
+- [Resumen](#readme-es-resumen)
+- [Requisitos](#readme-es-requisitos)
+- [Instalación](#readme-es-instalación)
+- [Uso rápido](#readme-es-uso-rápido)
+- [Pruebas](#readme-es-pruebas)
+- [Contribuir](#readme-es-contribuir)
+- [Licencia](#readme-es-licencia)
+- [Agradecimientos](#readme-es-agradecimientos)
 
 > Nota: `README.md` (en inglés) contiene el detalle completo (listados extensos de estructuras, algoritmos, tablas y ejemplos).
 
 ---
 
-## Resumen {#resumen}
+## Resumen {#readme-es-resumen}
 
 **Aleph-w** es una librería C++ (C++20) orientada a enseñanza y uso práctico: incluye implementaciones de estructuras de datos, algoritmos clásicos (especialmente de grafos) y una suite de pruebas amplia.
 
@@ -48,7 +48,7 @@ Idioma: Español | [English](README.md)
 
 ---
 
-## Requisitos {#requisitos}
+## Requisitos {#readme-es-requisitos}
 
 ### Compiladores
 
@@ -87,7 +87,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-## Instalación {#instalación}
+## Instalación {#readme-es-instalación}
 
 Guía detallada: `INSTALL.es.md`.
 
@@ -138,7 +138,7 @@ target_link_libraries(your_target PRIVATE Aleph)
 
 ---
 
-## Uso rápido {#uso-rápido}
+## Uso rápido {#readme-es-uso-rápido}
 
 Los headers están en el raíz del repo (p.ej. `tpl_dynSetTree.H`, `tpl_graph.H`, etc.).
 
@@ -278,7 +278,7 @@ int main() {
 
 ---
 
-## Pruebas {#pruebas}
+## Pruebas {#readme-es-pruebas}
 
 ```bash
 cmake -S . -B build -DBUILD_TESTS=ON
@@ -295,7 +295,7 @@ Nota: algunos tests largos/de performance están marcados `Disabled/Skipped` int
 
 ---
 
-## Contribuir {#contribuir}
+## Contribuir {#readme-es-contribuir}
 
 PRs son bienvenidos.
 
@@ -304,13 +304,13 @@ PRs son bienvenidos.
 
 ---
 
-## Licencia {#licencia}
+## Licencia {#readme-es-licencia}
 
 Aleph-w se distribuye bajo **licencia MIT**. Ver `LICENSE`.
 
 ---
 
-## Agradecimientos {#agradecimientos}
+## Agradecimientos {#readme-es-agradecimientos}
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Cuna de Aleph-w
 - **Miles de estudiantes** que aprendieron algoritmos con esta biblioteca

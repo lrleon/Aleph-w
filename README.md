@@ -1,4 +1,4 @@
-# Aleph-w {#aleph-w}
+# Aleph-w
 
 <div align="center">
 
@@ -26,45 +26,45 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## Table of Contents
+## Table of Contents {#readme-table-of-contents}
 
-- [Overview](#overview)
-- [History and Philosophy](#history-and-philosophy)
-- [Features at a Glance](#features-at-a-glance)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Data Structures](#data-structures)
-  - [Balanced Search Trees](#balanced-search-trees)
-  - [Hash Tables](#hash-tables)
-  - [Heaps and Priority Queues](#heaps-and-priority-queues)
-  - [Lists and Sequential Structures](#lists-and-sequential-structures)
-  - [Range Query Structures](#range-query-structures)
-  - [Graphs](#graphs)
-  - [Linear Algebra (Sparse Structures)](#linear-algebra-sparse-structures)
-- [Algorithms](#algorithms)
-  - [Shortest Path Algorithms](#shortest-path-algorithms)
-  - [Minimum Spanning Trees](#minimum-spanning-trees)
-  - [Network Flows](#network-flows)
-  - [Graph Connectivity](#graph-connectivity)
-  - [Matching](#matching)
-  - [Sorting Algorithms](#sorting-algorithms)
-- [Memory Management](#memory-management)
-  - [Arena Allocators](#arena-allocators)
-- [Parallel Computing](#parallel-computing)
-- [Functional Programming](#functional-programming)
-- [Tutorial](#tutorial)
-- [API Reference](#api-reference)
-- [Benchmarks](#benchmarks)
-- [Examples](#examples)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+- [Overview](#readme-overview)
+- [History and Philosophy](#readme-history-and-philosophy)
+- [Features at a Glance](#readme-features-at-a-glance)
+- [Requirements](#readme-requirements)
+- [Installation](#readme-installation)
+- [Quick Start](#readme-quick-start)
+- [Data Structures](#readme-data-structures-main)
+  - [Balanced Search Trees](#readme-balanced-search-trees)
+  - [Hash Tables](#readme-hash-tables)
+  - [Heaps and Priority Queues](#readme-heaps-and-priority-queues)
+  - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
+  - [Range Query Structures](#readme-range-query-structures)
+  - [Graphs](#readme-graphs)
+  - [Linear Algebra (Sparse Structures)](#readme-linear-algebra-sparse-structures)
+- [Algorithms](#readme-algorithms-main)
+  - [Shortest Path Algorithms](#readme-shortest-path-algorithms)
+  - [Minimum Spanning Trees](#readme-minimum-spanning-trees)
+  - [Network Flows](#readme-network-flows)
+  - [Graph Connectivity](#readme-graph-connectivity)
+  - [Matching](#readme-matching)
+  - [Sorting Algorithms](#readme-sorting-algorithms)
+- [Memory Management](#readme-memory-management)
+  - [Arena Allocators](#readme-arena-allocators)
+- [Parallel Computing](#readme-parallel-computing)
+- [Functional Programming](#readme-functional-programming)
+- [Tutorial](#readme-tutorial)
+- [API Reference](#readme-api-reference)
+- [Benchmarks](#readme-benchmarks)
+- [Examples](#readme-examples)
+- [Testing](#readme-testing)
+- [Contributing](#readme-contributing)
+- [License](#readme-license)
+- [Acknowledgments](#readme-acknowledgments)
 
 ---
 
-## Overview
+## Overview {#readme-overview}
 
 **Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
 
@@ -92,7 +92,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
-## History and Philosophy
+## History and Philosophy {#readme-history-and-philosophy}
 
 ### Origins (2002)
 
@@ -174,9 +174,9 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
-## Features at a Glance
+## Features at a Glance {#readme-features-at-a-glance}
 
-### Data Structures
+### Data Structures {#readme-data-structures}
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -204,6 +204,13 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
 │  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
 │                                                                            │
+│  RANGE QUERIES                                                             │
+│  ├─ Fenwick Tree (BIT)                                                     │
+│  ├─ Sparse Table (RMQ)                                                     │
+│  ├─ Disjoint Sparse Table                                                  │
+│  ├─ Segment Tree / Lazy / Beats                                            │
+│  └─ Cartesian Tree RMQ (via LCA)                                           │
+│                                                                            │
 │  LINEAR ALGEBRA                                                            │
 │  ├─ Sparse Vector                                                          │
 │  ├─ Sparse Matrix                                                          │
@@ -212,7 +219,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Algorithms
+### Algorithms {#readme-algorithms}
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -239,15 +246,15 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
 │  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     └─ Geometric             │
-│  └─ Shell Sort                                                             │
+│  ├─ Introsort                                     ├─ Geometric             │
+│  └─ Shell Sort                                    └─ RMQ/LCA (Euler Tour)  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Requirements
+## Requirements {#readme-requirements}
 
 ### Compiler Support
 
@@ -294,7 +301,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
-## Installation
+## Installation {#readme-installation}
 
 For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
 
@@ -375,7 +382,7 @@ ctest --preset default
 
 ---
 
-## Quick Start
+## Quick Start {#readme-quick-start}
 
 ### 5-Minute Examples
 
@@ -488,9 +495,9 @@ int main() {
 
 ---
 
-## Data Structures
+## Data Structures {#readme-data-structures-main}
 
-### Balanced Search Trees
+### Balanced Search Trees {#readme-balanced-search-trees}
 
 Aleph-w provides **8 different balanced tree implementations**, each optimized for specific use cases.
 
@@ -792,7 +799,7 @@ int main() {
 }
 ```
 
-### Linear Algebra (Sparse Structures)
+### Linear Algebra (Sparse Structures) {#readme-linear-algebra-sparse-structures}
 
 Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
 
@@ -895,7 +902,7 @@ auto laptop_sales = sales.get_row("Laptop");  // Vector<string, int>
 int total_laptops = laptop_sales.sum();
 ```
 
-### Hash Tables
+### Hash Tables {#readme-hash-tables}
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
 
@@ -986,7 +993,7 @@ int main() {
 }
 ```
 
-### Heaps and Priority Queues
+### Heaps and Priority Queues {#readme-heaps-and-priority-queues}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1042,7 +1049,7 @@ int main() {
 }
 ```
 
-### Lists and Sequential Structures
+### Lists and Sequential Structures {#readme-lists-and-sequential-structures}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1104,7 +1111,7 @@ int main() {
 }
 ```
 
-### Range Query Structures
+### Range Query Structures {#readme-range-query-structures}
 
 #### Sparse Table — O(1) Range Queries on Static Arrays
 
@@ -1195,7 +1202,7 @@ int sum = ft.prefix(7);    // sum a[0..7] = O(log n)
 ft.update(2, -3);          // a[2] -= 3
 ```
 
-### Graphs
+### Graphs {#readme-graphs}
 
 Aleph-w provides multiple graph representations optimized for different use cases:
 
@@ -1309,9 +1316,9 @@ int main() {
 
 ---
 
-## Algorithms
+## Algorithms {#readme-algorithms-main}
 
-### Shortest Path Algorithms
+### Shortest Path Algorithms {#readme-shortest-path-algorithms}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1413,7 +1420,7 @@ int main() {
 }
 ```
 
-### Minimum Spanning Trees
+### Minimum Spanning Trees {#readme-minimum-spanning-trees}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1475,7 +1482,7 @@ int main() {
 }
 ```
 
-### Network Flows
+### Network Flows {#readme-network-flows}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1568,7 +1575,7 @@ int main() {
 }
 ```
 
-### Graph Connectivity
+### Graph Connectivity {#readme-graph-connectivity}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1638,7 +1645,7 @@ int main() {
 }
 ```
 
-### Matching
+### Matching {#readme-matching}
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1653,7 +1660,7 @@ int main() {
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Sorting Algorithms
+### Sorting Algorithms {#readme-sorting-algorithms}
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1699,9 +1706,9 @@ int main() {
 
 ---
 
-## Memory Management
+## Memory Management {#readme-memory-management}
 
-### Arena Allocators
+### Arena Allocators {#readme-arena-allocators}
 
 Arena allocation provides **ultra-fast memory management** for temporary data structures.
 
@@ -1828,7 +1835,7 @@ int main() {
 
 ---
 
-## Parallel Computing
+## Parallel Computing {#readme-parallel-computing}
 
 ### Thread Pool
 
@@ -1900,7 +1907,7 @@ int main() {
 
 ---
 
-## Functional Programming
+## Functional Programming {#readme-functional-programming}
 
 All Aleph-w containers support a rich set of functional operations:
 
@@ -1921,7 +1928,7 @@ All Aleph-w containers support a rich set of functional operations:
 | `drop(n)` | Skip first n elements | O(n) |
 | `partition(p)` | Split by predicate | O(n) |
 
-### Examples
+### Examples {#readme-examples}
 
 ```cpp
 #include <tpl_dynList.H>
@@ -1991,7 +1998,7 @@ int main() {
 
 ---
 
-## Tutorial
+## Tutorial {#readme-tutorial}
 
 ### Complete Example: Building a Social Network Analysis Tool
 
@@ -2121,7 +2128,7 @@ int main() {
 
 ---
 
-## API Reference
+## API Reference {#readme-api-reference}
 
 ### Quick Reference by Category
 
@@ -2221,7 +2228,7 @@ int main() {
 
 ---
 
-## Benchmarks
+## Benchmarks {#readme-benchmarks}
 
 ### Tree Performance (1 Million Operations)
 
@@ -2375,7 +2382,7 @@ cmake --build build
 
 ---
 
-## Testing
+## Testing {#readme-testing}
 
 ### Running Tests
 
@@ -2429,7 +2436,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ---
 
-## Contributing
+## Contributing {#readme-contributing}
 
 Contributions are welcome! Here's how to get started:
 
@@ -2491,7 +2498,7 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 
 ---
 
-## License
+## License {#readme-license}
 
 Aleph-w is licensed under the **MIT License**.
 
@@ -2526,7 +2533,7 @@ SOFTWARE.
 
 ---
 
-## Acknowledgments
+## Acknowledgments {#readme-acknowledgments}
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Birthplace of Aleph-w
 - **Thousands of students** who learned algorithms with this library
@@ -2537,7 +2544,7 @@ SOFTWARE.
 
 <div align="center">
 
-**[Back to Top](#aleph-w)**
+**[Back to Top](#readme-table-of-contents)**
 
 Made with passion for algorithms and data structures
 
