@@ -775,7 +775,7 @@ Aleph-w implements the classic chain of reductions **RMQ ↔ LCA ↔ Cartesian T
 │ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │       │
 │ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │       │
 └──────────────────────┴─────────────┴──────────┴─────────────────────┴───────┘
-  * Amortized    ** Expected (randomized)
+  Note: O(1) query structures use Sparse Tables and pay O(n log n) build/space.
 ```
 
 - **`Gen_Cartesian_Tree<T, Comp>`** — Explicit Cartesian Tree built in O(n) with a monotonic stack.  Satisfies heap property under `Comp` and inorder = original array.
