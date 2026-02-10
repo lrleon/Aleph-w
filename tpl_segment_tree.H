@@ -436,7 +436,9 @@ namespace Aleph
     }
 
     /** @brief Swap this tree with @p other in O(1). */
-    void swap(Gen_Segment_Tree & other) noexcept
+    void swap(Gen_Segment_Tree & other) noexcept(
+      noexcept(std::swap(std::declval<T&>(), std::declval<T&>())) &&
+      noexcept(std::swap(std::declval<Op&>(), std::declval<Op&>())))
     {
       tree.swap(other.tree);
       std::swap(n, other.n);
@@ -1151,7 +1153,8 @@ namespace Aleph
     }
 
     /** @brief Swap this tree with @p other in O(1). */
-    void swap(Gen_Lazy_Segment_Tree & other) noexcept
+    void swap(Gen_Lazy_Segment_Tree & other) noexcept(
+      noexcept(std::swap(std::declval<Policy&>(), std::declval<Policy&>())))
     {
       tree.swap(other.tree);
       lazy.swap(other.lazy);
