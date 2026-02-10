@@ -108,6 +108,7 @@ set(EXAMPLE_PROGRAMS
     sparse_table_test
     disjoint_sparse_table_example
     disjoint_sparse_table_test
+    segment_tree_example
 )
 
 # Function to get source file from program name

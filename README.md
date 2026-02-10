@@ -668,6 +668,80 @@ size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
 // Result: tick 3 ($100.03) — pay worst price of $100.03
 ```
 
+### Segment Trees
+
+Aleph-w provides **three segment tree variants** for dynamic range queries:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        SEGMENT TREE VARIANTS                               │
+├──────────────────┬───────────────┬────────────────┬───────────────────────┤
+│     Operation    │ Gen_Segment   │ Gen_Lazy_Seg   │  Seg_Tree_Beats       │
+├──────────────────┼───────────────┼────────────────┼───────────────────────┤
+│ point_update     │   O(log n)    │   O(log n)     │       —               │
+│ range_update     │      —        │   O(log n)     │  O(log n) amort.      │
+│ range_query      │   O(log n)    │   O(log n)     │  O(log n)             │
+│ chmin / chmax    │      —        │      —         │  O(log n) amort.      │
+│ build            │     O(n)      │     O(n)       │    O(n)               │
+├──────────────────┼───────────────┼────────────────┼───────────────────────┤
+│ Requirements     │ Associative   │ Policy-based   │ Signed arithmetic     │
+│                  │ monoid        │ (lazy tags)    │                       │
+├──────────────────┼───────────────┼────────────────┼───────────────────────┤
+│ Best For         │ Sum/min/max   │ Range add/     │ Clamping with         │
+│                  │ + point ops   │ assign queries │ sum/min/max queries   │
+└──────────────────┴───────────────┴────────────────┴───────────────────────┘
+```
+
+**Range Query Structure Comparison:**
+
+| Structure | Build | Update | Query | Space | Requirements |
+|-----------|-------|--------|-------|-------|-------------|
+| Sparse Table | O(n lg n) | — | **O(1)** | O(n lg n) | Idempotent |
+| Disjoint Sparse Table | O(n lg n) | — | **O(1)** | O(n lg n) | Associative |
+| Fenwick Tree | O(n) | O(lg n) | O(lg n) | O(n) | Invertible (group) |
+| **Segment Tree** | O(n) | O(lg n) | O(lg n) | O(n) | Associative (monoid) |
+| **Lazy Segment Tree** | O(n) | O(lg n) range | O(lg n) | O(n) | Policy-based |
+| **Segment Tree Beats** | O(n) | O(lg n) amort. | O(lg n) | O(n) | Signed arithmetic |
+
+#### Usage Examples
+
+```cpp
+#include <tpl_segment_tree.H>
+
+int main() {
+    // Point update + Range query (sum)
+    Sum_Segment_Tree<int> st = {3, 1, 4, 1, 5};
+    st.update(2, 10);               // a[2] += 10
+    int sum = st.query(1, 3);       // sum of a[1..3]
+
+    // Min/Max variants
+    Min_Segment_Tree<int> mn = {5, 2, 4, 7, 1};
+    int m = mn.query(0, 3);          // min(5, 2, 4, 7) = 2
+
+    // Range update + Range query (lazy propagation)
+    Lazy_Sum_Segment_Tree<int> lazy = {1, 2, 3, 4, 5};
+    lazy.update(1, 3, 10);           // a[1..3] += 10
+    int s = lazy.query(0, 4);        // sum of entire array
+
+    // Segment Tree Beats (chmin/chmax)
+    Segment_Tree_Beats<int> beats = {75, 90, 45, 60};
+    beats.chmin(0, 3, 70);           // cap all at 70
+    beats.chmax(0, 3, 50);           // floor at 50
+    int total = beats.query_sum(0, 3);
+
+    return 0;
+}
+```
+
+#### Real-World Application: Salary Adjustments (Lazy Propagation)
+
+```cpp
+// HR system: 8 departments, range salary raises
+Lazy_Sum_Segment_Tree<int> payroll = {50, 45, 60, 55, 70, 48, 52, 65};
+payroll.update(2, 5, 10);          // departments 2-5 get +$10K raise
+int cost = payroll.query(0, 7);    // total payroll after raise
+```
+
 ### Linear Algebra (Sparse Structures)
 
 Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
@@ -2023,6 +2097,15 @@ int main() {
 | `tpl_disjoint_sparse_table.H` | `Sum_Disjoint_Sparse_Table<T>` | Static range sum in O(1) |
 | `tpl_disjoint_sparse_table.H` | `Product_Disjoint_Sparse_Table<T>` | Static range product in O(1) |
 | `tpl_disjoint_sparse_table.H` | `Gen_Disjoint_Sparse_Table<T, Op>` | Static range query (associative op) |
+| `tpl_segment_tree.H` | `Sum_Segment_Tree<T>` | Range sum with point updates |
+| `tpl_segment_tree.H` | `Min_Segment_Tree<T>` | Range min with point updates |
+| `tpl_segment_tree.H` | `Max_Segment_Tree<T>` | Range max with point updates |
+| `tpl_segment_tree.H` | `Gen_Segment_Tree<T, Op>` | Range query (associative monoid) |
+| `tpl_segment_tree.H` | `Lazy_Sum_Segment_Tree<T>` | Range add + range sum (lazy) |
+| `tpl_segment_tree.H` | `Lazy_Min_Segment_Tree<T>` | Range add + range min (lazy) |
+| `tpl_segment_tree.H` | `Lazy_Max_Segment_Tree<T>` | Range add + range max (lazy) |
+| `tpl_segment_tree.H` | `Gen_Lazy_Segment_Tree<Policy>` | Lazy segment tree (custom policy) |
+| `tpl_segment_tree.H` | `Segment_Tree_Beats<T>` | Ji Driver's segment tree (chmin/chmax) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -2215,6 +2298,7 @@ cmake --build build
 | Heaps | `heap_example.C` | Priority queues |
 | Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
+| Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
