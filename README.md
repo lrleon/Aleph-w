@@ -214,7 +214,8 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Sparse Table (RMQ)                                                     │
 │  ├─ Disjoint Sparse Table                                                  │
 │  ├─ Segment Tree / Lazy / Beats                                            │
-│  └─ Cartesian Tree RMQ (via LCA)                                           │
+│  ├─ Cartesian Tree RMQ (via LCA)                                           │
+│  └─ Mo's Algorithm (Offline)                                               │
 │                                                                            │
 │  LINEAR ALGEBRA                                                            │
 │  ├─ Sparse Vector                                                          │
@@ -720,6 +721,7 @@ Aleph-w provides **three segment tree variants** for dynamic range queries:
 | **Lazy Segment Tree** | O(n) | O(lg n) range | O(lg n) | O(n) | Policy-based |
 | **Segment Tree Beats** | O(n) | O(lg n) amort. | O(lg n) | O(n) | Signed arithmetic |
 | **Cartesian Tree RMQ** | O(n lg n) | — | **O(1)** | O(n lg n) | Totally ordered |
+| **Mo's Algorithm** | O(Q lg Q) | — | O((N+Q)√N) total | O(N+Q) | Offline, decomposable |
 
 #### Usage Examples
 
@@ -807,6 +809,64 @@ int main() {
 
     return 0;
 }
+```
+
+### Mo's Algorithm (Offline Range Queries)
+
+Mo's algorithm answers Q offline range queries on a static array of N elements in O((N+Q)√N) time.  It is useful when the query function is "decomposable" (maintainable via add/remove of single elements) but has no algebraic structure (not a monoid, not invertible, not idempotent).
+
+The implementation uses a **snake-optimized sweep** (alternating direction of the right pointer in even/odd blocks) for better cache behaviour.  The algorithm is parameterised by a **policy** (concept `MoPolicy`), so users can plug in arbitrary add/remove logic.
+
+#### Built-in Policies
+
+| Typedef | Policy | Description |
+|---------|--------|-------------|
+| `Distinct_Count_Mo<T>` | `Distinct_Count_Policy<T>` | Count distinct elements in a range |
+| `Powerful_Array_Mo<T>` | `Powerful_Array_Policy<T>` | sum(cnt[x]² · x) for competitive programming |
+| `Range_Mode_Mo<T>` | `Range_Mode_Policy<T>` | Most frequent element (frequency, value) |
+
+#### Usage Examples
+
+```cpp
+#include <tpl_mo_algorithm.H>
+
+int main() {
+    // Count distinct elements in ranges
+    Distinct_Count_Mo<int> mo = {1, 2, 1, 3, 2, 1};
+    auto ans = mo.solve({{0, 2}, {1, 4}, {0, 5}});
+    // ans(0) == 2, ans(1) == 3, ans(2) == 3
+
+    // Powerful array queries
+    Powerful_Array_Mo<int> pa = {1, 2, 1, 1, 2};
+    auto pa_ans = pa.solve({{0, 4}});
+    // pa_ans(0) == 17  (9*1 + 4*2 = 17)
+
+    // Range mode queries
+    Range_Mode_Mo<int> mode = {3, 1, 3, 3, 1, 2};
+    auto m = mode.solve({{0, 5}});
+    // m(0) == {3, 3}  (element 3 appears 3 times)
+
+    return 0;
+}
+```
+
+#### Custom Policies
+
+```cpp
+// Policy: sum of elements in the current window
+struct Sum_Policy {
+    using answer_type = long long;
+    long long sum = 0;
+
+    void init(const Array<int> &, size_t) { sum = 0; }
+    void add(const Array<int> & data, size_t idx) { sum += data(idx); }
+    void remove(const Array<int> & data, size_t idx) { sum -= data(idx); }
+    answer_type answer() const { return sum; }
+};
+
+Gen_Mo_Algorithm<int, Sum_Policy> mo = {3, 1, 4, 1, 5};
+auto ans = mo.solve({{0, 4}, {1, 3}});
+// ans(0) == 14, ans(1) == 6
 ```
 
 <a id="readme-linear-algebra-sparse-structures"></a>
@@ -2196,6 +2256,10 @@ int main() {
 | `tpl_segment_tree.H` | `Lazy_Max_Segment_Tree<T>` | Range add + range max (lazy) |
 | `tpl_segment_tree.H` | `Gen_Lazy_Segment_Tree<Policy>` | Lazy segment tree (custom policy) |
 | `tpl_segment_tree.H` | `Segment_Tree_Beats<T>` | Ji Driver's segment tree (chmin/chmax) |
+| `tpl_mo_algorithm.H` | `Gen_Mo_Algorithm<T, Policy>` | Mo's offline range queries (snake opt.) |
+| `tpl_mo_algorithm.H` | `Distinct_Count_Mo<T>` | Count distinct elements in ranges |
+| `tpl_mo_algorithm.H` | `Powerful_Array_Mo<T>` | Powerful array query (sum cnt²·x) |
+| `tpl_mo_algorithm.H` | `Range_Mode_Mo<T>` | Range mode (most frequent element) |
 | `al-vector.H` | `Vector<T, NumType>` | Sparse vector with domain indexing |
 | `al-matrix.H` | `Matrix<Trow, Tcol, NumType>` | Sparse matrix with domain indexing |
 | `al-domain.H` | `AlDomain<T>` | Domain for vector/matrix indices |
@@ -2391,6 +2455,7 @@ cmake --build build
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
 | Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
+| Mo's algorithm | `mo_algorithm_example.cc` | Offline range queries (distinct count, powerful array, mode) |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
