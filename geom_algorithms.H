@@ -356,7 +356,7 @@ class BruteForceConvexHull
       return not (p2.get_x() < p1.get_x()) and p1.get_y() < p2.get_y();
     }
 
-    bool operator ()(const Segment & s1, const Segment & s2)
+    bool operator ()(const Segment & s1, const Segment & s2) const
     {
       if (cmp_point(s1.get_src_point(), s2.get_src_point()))
         return true;

@@ -151,6 +151,7 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */build/* \
                          */docs/* \
                          */.git/* \
+                         */CHANGELOG_v3.md \
                          */CMakeFiles/*
 EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = Examples \

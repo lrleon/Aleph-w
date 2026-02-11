@@ -50,6 +50,7 @@
 
 # include <tpl_binNodeXt.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -104,6 +105,7 @@ using namespace Aleph;
     @ingroup Trees
 */
 template <template <class> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
 class GenTdSplayTreeRk
 {
 public:
@@ -626,6 +628,7 @@ public:
 
 
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Splay_Tree_Rk : public GenTdSplayTreeRk<BinNodeXt, Key, Compare>
 {
   using Base = GenTdSplayTreeRk<BinNodeXt, Key, Compare>;
@@ -634,6 +637,7 @@ struct Splay_Tree_Rk : public GenTdSplayTreeRk<BinNodeXt, Key, Compare>
 
 
 template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
 struct Splay_Tree_Rk_Vtl : public GenTdSplayTreeRk<BinNodeXtVtl, Key, Compare>
 {
   using Base = GenTdSplayTreeRk<BinNodeXtVtl, Key, Compare>;

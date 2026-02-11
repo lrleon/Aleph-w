@@ -56,6 +56,7 @@
 # include <tpl_arrayStack.H>
 # include <avlNode.H>
 # include <tpl_binNodeUtils.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -103,6 +104,7 @@ namespace Aleph
       @ingroup Trees
    */
   template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
   class Gen_Avl_Tree
   {
   public:
@@ -700,6 +702,7 @@ namespace Aleph
       @ingroup Trees
    */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Avl_Tree : public Gen_Avl_Tree<AvlNode, Key, Compare>
   {
     using Base = Gen_Avl_Tree<AvlNode, Key, Compare>;
@@ -722,6 +725,7 @@ namespace Aleph
       @ingroup Trees
    */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Avl_Tree_Vtl : public Gen_Avl_Tree<AvlNodeVtl, Key, Compare>
   {
     using Base = Gen_Avl_Tree<AvlNodeVtl, Key, Compare>;

@@ -58,6 +58,7 @@
 # include <tpl_binNodeUtils.H>
 # include <avlNodeRk.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -107,6 +108,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
   class Gen_Avl_Tree_Rk
   {
   public:
@@ -1420,6 +1422,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Avl_Tree_Rk : public Gen_Avl_Tree_Rk<AvlNodeRk, Key, Compare>
   {
     using Base = Gen_Avl_Tree_Rk<AvlNodeRk, Key, Compare>;
@@ -1437,6 +1440,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Avl_Tree_Rk_Vtl : public Gen_Avl_Tree_Rk<AvlNodeRkVtl, Key, Compare>
   {
     using Base = Gen_Avl_Tree_Rk<AvlNodeRkVtl, Key, Compare>;

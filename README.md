@@ -1,4 +1,4 @@
-# Aleph-w {#aleph-w}
+# Aleph-w
 
 <div align="center">
 
@@ -26,44 +26,46 @@ Language: English | [Español](README.es.md)
 
 ---
 
+<a id="readme-table-of-contents"></a>
 ## Table of Contents
 
-- [Overview](#overview)
-- [History and Philosophy](#history-and-philosophy)
-- [Features at a Glance](#features-at-a-glance)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Data Structures](#data-structures)
-  - [Balanced Search Trees](#balanced-search-trees)
-  - [Hash Tables](#hash-tables)
-  - [Heaps and Priority Queues](#heaps-and-priority-queues)
-  - [Lists and Sequential Structures](#lists-and-sequential-structures)
-  - [Range Query Structures](#range-query-structures)
-  - [Graphs](#graphs)
-  - [Linear Algebra (Sparse Structures)](#linear-algebra-sparse-structures)
-- [Algorithms](#algorithms)
-  - [Shortest Path Algorithms](#shortest-path-algorithms)
-  - [Minimum Spanning Trees](#minimum-spanning-trees)
-  - [Network Flows](#network-flows)
-  - [Graph Connectivity](#graph-connectivity)
-  - [Matching](#matching)
-  - [Sorting Algorithms](#sorting-algorithms)
-- [Memory Management](#memory-management)
-  - [Arena Allocators](#arena-allocators)
-- [Parallel Computing](#parallel-computing)
-- [Functional Programming](#functional-programming)
-- [Tutorial](#tutorial)
-- [API Reference](#api-reference)
-- [Benchmarks](#benchmarks)
-- [Examples](#examples)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+- [Overview](#readme-overview)
+- [History and Philosophy](#readme-history-and-philosophy)
+- [Features at a Glance](#readme-features-at-a-glance)
+- [Requirements](#readme-requirements)
+- [Installation](#readme-installation)
+- [Quick Start](#readme-quick-start)
+- [Data Structures](#readme-data-structures-main)
+  - [Balanced Search Trees](#readme-balanced-search-trees)
+  - [Hash Tables](#readme-hash-tables)
+  - [Heaps and Priority Queues](#readme-heaps-and-priority-queues)
+  - [Lists and Sequential Structures](#readme-lists-and-sequential-structures)
+  - [Range Query Structures](#readme-range-query-structures)
+  - [Graphs](#readme-graphs)
+  - [Linear Algebra (Sparse Structures)](#readme-linear-algebra-sparse-structures)
+- [Algorithms](#readme-algorithms-main)
+  - [Shortest Path Algorithms](#readme-shortest-path-algorithms)
+  - [Minimum Spanning Trees](#readme-minimum-spanning-trees)
+  - [Network Flows](#readme-network-flows)
+  - [Graph Connectivity](#readme-graph-connectivity)
+  - [Matching](#readme-matching)
+  - [Sorting Algorithms](#readme-sorting-algorithms)
+- [Memory Management](#readme-memory-management)
+  - [Arena Allocators](#readme-arena-allocators)
+- [Parallel Computing](#readme-parallel-computing)
+- [Functional Programming](#readme-functional-programming)
+- [Tutorial](#readme-tutorial)
+- [API Reference](#readme-api-reference)
+- [Benchmarks](#readme-benchmarks)
+- [Examples](#readme-examples)
+- [Testing](#readme-testing)
+- [Contributing](#readme-contributing)
+- [License](#readme-license)
+- [Acknowledgments](#readme-acknowledgments)
 
 ---
 
+<a id="readme-overview"></a>
 ## Overview
 
 **Aleph-w** is a production-ready C++20 library providing over **90 data structures** and **50+ algorithms** for software engineers, researchers, and students. With **238 header files** and **80+ examples**, it is one of the most comprehensive algorithm libraries available.
@@ -92,6 +94,7 @@ Language: English | [Español](README.es.md)
 
 ---
 
+<a id="readme-history-and-philosophy"></a>
 ## History and Philosophy
 
 ### Origins (2002)
@@ -174,8 +177,10 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 
 ---
 
+<a id="readme-features-at-a-glance"></a>
 ## Features at a Glance
 
+<a id="readme-data-structures"></a>
 ### Data Structures
 
 ```
@@ -204,6 +209,13 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ LRU Cache            ├─ 2D-Tree               └─ Skip List             │
 │  └─ Prefix Tree (Trie)   └─ K-d Tree                                       │
 │                                                                            │
+│  RANGE QUERIES                                                             │
+│  ├─ Fenwick Tree (BIT)                                                     │
+│  ├─ Sparse Table (RMQ)                                                     │
+│  ├─ Disjoint Sparse Table                                                  │
+│  ├─ Segment Tree / Lazy / Beats                                            │
+│  └─ Cartesian Tree RMQ (via LCA)                                           │
+│                                                                            │
 │  LINEAR ALGEBRA                                                            │
 │  ├─ Sparse Vector                                                          │
 │  ├─ Sparse Matrix                                                          │
@@ -212,6 +224,7 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
+<a id="readme-algorithms"></a>
 ### Algorithms
 
 ```
@@ -239,14 +252,15 @@ Aleph-w has been used to teach **thousands of students** across Latin America. I
 │  ├─ Quicksort            ├─ Binary Search         ├─ Union-Find            │
 │  ├─ Mergesort            ├─ Interpolation         ├─ Huffman Coding        │
 │  ├─ Heapsort             └─ Pattern Matching      ├─ Simplex (LP)          │
-│  ├─ Introsort                                     └─ Geometric             │
-│  └─ Shell Sort                                                             │
+│  ├─ Introsort                                     ├─ Geometric             │
+│  └─ Shell Sort                                    └─ RMQ/LCA (Euler Tour)  │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
+<a id="readme-requirements"></a>
 ## Requirements
 
 ### Compiler Support
@@ -294,6 +308,7 @@ sudo apt-get install -y libgtest-dev
 
 ---
 
+<a id="readme-installation"></a>
 ## Installation
 
 For detailed, platform-specific instructions and troubleshooting, see `INSTALL.md`.
@@ -375,6 +390,7 @@ ctest --preset default
 
 ---
 
+<a id="readme-quick-start"></a>
 ## Quick Start
 
 ### 5-Minute Examples
@@ -488,8 +504,10 @@ int main() {
 
 ---
 
+<a id="readme-data-structures-main"></a>
 ## Data Structures
 
+<a id="readme-balanced-search-trees"></a>
 ### Balanced Search Trees
 
 Aleph-w provides **8 different balanced tree implementations**, each optimized for specific use cases.
@@ -499,7 +517,7 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                      BALANCED TREE COMPARISON                              │
-├──────────────┬──────────────┬──────────────┬──────────────┬────────────────┤
+├──────────────┬──────────────┬──────────────┬───────────────────────────────┤
 │   Operation  │   AVL Tree   │  Red-Black   │  Splay Tree  │     Treap      │
 ├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
 │   Insert     │  O(log n)    │  O(log n)    │  O(log n)*   │  O(log n)**    │
@@ -513,7 +531,6 @@ Aleph-w provides **8 different balanced tree implementations**, each optimized f
 │  Best For    │ Read-heavy   │  General     │  Locality    │   Simplicity   │
 │              │  workloads   │  purpose     │  patterns    │   randomized   │
 └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘
-  * Amortized    ** Expected (randomized)
 ```
 
 #### Usage Examples
@@ -607,23 +624,23 @@ int main() {
 Aleph-w provides **three Fenwick tree variants** for efficient prefix sums and range queries:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                         FENWICK TREE VARIANTS                              │
-├──────────────────┬──────────────┬──────────────┬──────────────┬────────────┤
-│     Operation    │ Gen (Abelian)│ Fenwick_Tree │  Range_Fen   │  Complexity │
-├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ update(i,delta)  │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ prefix / get     │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_query      │     O(log n) │   O(log n)   │   O(log n)   │            │
-│ range_update     │       N/A    │     N/A      │   O(log n)   │            │
-│ find_kth         │       N/A    │   O(log n)   │     N/A      │            │
-├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ Group Operand    │  Arbitrary   │  operator+   │  operator+   │            │
-│                  │  (XOR, +mod) │  operator-   │  operator-   │            │
-├──────────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ Best For         │ Custom ops   │ Order stats  │ Promotions   │            │
-│                  │ (XOR, etc)   │ Find k-th    │ Dividends    │            │
-└──────────────────┴──────────────┴──────────────┴──────────────┴────────────┘
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                         FENWICK TREE VARIANTS                                 │
+├──────────────────┬───────────────┬───────────────┬────────────────────────────┤
+│     Operation    │ Gen (Abelian) │ Fenwick_Tree  │  Range_Fen                 │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ update(i,delta)  │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ prefix / get     │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ range_query      │     O(log n)  │   O(log n)    │   O(log n)                 │
+│ range_update     │       N/A     │     N/A       │   O(log n)                 │
+│ find_kth         │       N/A     │   O(log n)    │     N/A                    │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ Group Operand    │  Arbitrary    │  operator+    │  operator+                 │
+│                  │  (XOR, +mod)  │  operator-    │  operator-                 │
+├──────────────────┼───────────────┼───────────────┼────────────────────────────┤
+│ Best For         │ Custom ops    │ Order stats   │ Promotions                 │
+│                  │ (XOR, etc)    │ Find k-th     │ Dividends                  │
+└──────────────────┴───────────────┴───────────────┴────────────────────────────┘
 ```
 
 #### Usage Examples
@@ -673,8 +690,8 @@ size_t worst_tick = ask_book.find_kth(250); // Answer: fill 250 shares
 Aleph-w provides **three segment tree variants** for dynamic range queries:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│                        SEGMENT TREE VARIANTS                               │
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        SEGMENT TREE VARIANTS                              │
 ├──────────────────┬───────────────┬────────────────┬───────────────────────┤
 │     Operation    │ Gen_Segment   │ Gen_Lazy_Seg   │  Seg_Tree_Beats       │
 ├──────────────────┼───────────────┼────────────────┼───────────────────────┤
@@ -702,6 +719,7 @@ Aleph-w provides **three segment tree variants** for dynamic range queries:
 | **Segment Tree** | O(n) | O(lg n) | O(lg n) | O(n) | Associative (monoid) |
 | **Lazy Segment Tree** | O(n) | O(lg n) range | O(lg n) | O(n) | Policy-based |
 | **Segment Tree Beats** | O(n) | O(lg n) amort. | O(lg n) | O(n) | Signed arithmetic |
+| **Cartesian Tree RMQ** | O(n lg n) | — | **O(1)** | O(n lg n) | Totally ordered |
 
 #### Usage Examples
 
@@ -742,6 +760,56 @@ payroll.update(2, 5, 10);          // departments 2-5 get +$10K raise
 int cost = payroll.query(0, 7);    // total payroll after raise
 ```
 
+### Cartesian Trees & LCA
+
+Aleph-w implements the classic chain of reductions **RMQ ↔ LCA ↔ Cartesian Tree**, confirming that Range Minimum Queries and Lowest Common Ancestor are equivalent problems:
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                  RMQ  ←→  LCA  ←→  Cartesian Tree                   │
+├──────────────────────┬─────────────┬──────────┬─────────────────────┤
+│       Class          │    Build    │  Query   │  Space              │
+├──────────────────────┼─────────────┼──────────┼─────────────────────┤
+│ Gen_Cartesian_Tree   │   O(n)      │    —     │  O(n)               │
+│ Gen_Euler_Tour_LCA   │ O(n log n)  │  O(1)    │  O(n log n)         │
+│ Gen_Cartesian_Tree_RMQ│ O(n log n) │  O(1)    │  O(n log n)         │
+└──────────────────────┴─────────────┴──────────┴─────────────────────┘
+```
+
+- **`Gen_Cartesian_Tree<T, Comp>`** — Explicit Cartesian Tree built in O(n) with a monotonic stack.  Satisfies heap property under `Comp` and inorder = original array.
+- **`Gen_Euler_Tour_LCA<T, Comp>`** — O(1) Lowest Common Ancestor via Euler Tour + Sparse Table on the Cartesian Tree.
+- **`Gen_Cartesian_Tree_RMQ<T, Comp>`** — O(1) static range queries via the reduction RMQ → LCA → Cartesian Tree.
+
+#### Usage Examples
+
+```cpp
+#include <tpl_cartesian_tree.H>
+
+int main() {
+    // Build a Cartesian Tree (min-heap)
+    Cartesian_Tree<int> ct = {3, 2, 6, 1, 9};
+    size_t r = ct.root();          // index 3 (value 1 = minimum)
+    auto io = ct.inorder();        // {0, 1, 2, 3, 4}
+
+    // LCA queries in O(1)
+    Euler_Tour_LCA<int> lca = {3, 2, 6, 1, 9};
+    size_t a = lca.lca(0, 2);     // = 1 (common ancestor)
+    size_t d = lca.distance(0, 4); // tree distance
+
+    // O(1) RMQ via Cartesian Tree reduction
+    Cartesian_Tree_RMQ<int> rmq = {5, 2, 4, 7, 1, 3, 6};
+    int m = rmq.query(0, 3);      // min(5, 2, 4, 7) = 2
+    size_t idx = rmq.query_idx(2, 6); // index of min in [2,6]
+
+    // Max variants
+    Max_Cartesian_Tree<int> max_ct = {3, 2, 6, 1, 9};
+    Cartesian_Tree_RMaxQ<int> rmaxq = {5, 2, 4, 7, 1};
+
+    return 0;
+}
+```
+
+<a id="readme-linear-algebra-sparse-structures"></a>
 ### Linear Algebra (Sparse Structures)
 
 Aleph-w provides **sparse vector and matrix classes** with domain-based indexing, optimized for data with many zeros:
@@ -751,36 +819,36 @@ Aleph-w provides **sparse vector and matrix classes** with domain-based indexing
 │                   SPARSE LINEAR ALGEBRA STRUCTURES                         │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
-│  SPARSE VECTOR (al-vector.H)                                              │
-│  ────────────────────────────                                             │
+│  SPARSE VECTOR (al-vector.H)                                               │
+│  ────────────────────────────                                              │
 │  Vector<T, NumType>                                                        │
 │                                                                            │
-│  • Domain-based indexing (any type T)                                     │
-│  • Stores only non-zero entries (hash-based)                              │
-│  • Epsilon tolerance for near-zero removal                                │
-│  • Operations: +, -, *, dot product, norms                                │
+│  • Domain-based indexing (any type T)                                      │
+│  • Stores only non-zero entries (hash-based)                               │
+│  • Epsilon tolerance for near-zero removal                                 │
+│  • Operations: +, -, *, dot product, norms                                 │
 │                                                                            │
-│  Memory: O(nonzeros) instead of O(dimension)                              │
+│  Memory: O(nonzeros) instead of O(dimension)                               │
 │                                                                            │
-│  SPARSE MATRIX (al-matrix.H)                                              │
-│  ────────────────────────────                                             │
-│  Matrix<Trow, Tcol, NumType>                                              │
+│  SPARSE MATRIX (al-matrix.H)                                               │
+│  ────────────────────────────                                              │
+│  Matrix<Trow, Tcol, NumType>                                               │
 │                                                                            │
-│  • Arbitrary row/column domains                                           │
-│  • Stores only non-zero entries                                           │
-│  • Operations: +, -, *, transpose, row/col vectors                        │
-│  • Integration with Vector class                                          │
+│  • Arbitrary row/column domains                                            │
+│  • Stores only non-zero entries                                            │
+│  • Operations: +, -, *, transpose, row/col vectors                         │
+│  • Integration with Vector class                                           │
 │                                                                            │
-│  Memory: O(nonzeros) instead of O(rows × cols)                            │
+│  Memory: O(nonzeros) instead of O(rows × cols)                             │
 │                                                                            │
-│  WHEN TO USE SPARSE?                                                      │
-│  • Sparsity > 90% (most entries are zero)                                │
-│  • Large dimensions with few non-zeros                                    │
-│  • Need domain-based indexing (named rows/columns)                        │
+│  WHEN TO USE SPARSE?                                                       │
+│  • Sparsity > 90% (most entries are zero)                                  │
+│  • Large dimensions with few non-zeros                                     │
+│  • Need domain-based indexing (named rows/columns)                         │
 │                                                                            │
-│  Example: 1000×1000 matrix with 1000 non-zeros:                          │
-│    Dense:  1,000,000 doubles = 8 MB                                       │
-│    Sparse:     1,000 entries = 8 KB  (1000× savings!)                     │
+│  Example: 1000×1000 matrix with 1000 non-zeros:                            │
+│    Dense:  1,000,000 doubles = 8 MB                                        │
+│    Sparse:     1,000 entries = 8 KB  (1000× savings!)                      │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -845,6 +913,7 @@ auto laptop_sales = sales.get_row("Laptop");  // Vector<string, int>
 int total_laptops = laptop_sales.sum();
 ```
 
+<a id="readme-hash-tables"></a>
 ### Hash Tables
 
 Aleph-w provides multiple hash table implementations optimized for different scenarios:
@@ -936,6 +1005,7 @@ int main() {
 }
 ```
 
+<a id="readme-heaps-and-priority-queues"></a>
 ### Heaps and Priority Queues
 
 ```
@@ -957,13 +1027,13 @@ int main() {
 │                                                                             │
 ├───────────────────────────────────────┬─────────────────────────────────────┤
 │  Operation     │ Binary   │ Fibonacci │  Notes                              │
-├───────────────────────────────────────┼─────────────────────────────────────┤
+├────────────────┼──────────┼───────────┼─────────────────────────────────────┤
 │  Insert        │ O(log n) │ O(1)*     │  * Amortized                        │
 │  Find-Min      │ O(1)     │ O(1)      │                                     │
 │  Delete-Min    │ O(log n) │ O(log n)* │                                     │
 │  Decrease-Key  │ O(log n) │ O(1)*     │  Key advantage of Fibonacci         │
 │  Merge         │ O(n)     │ O(1)      │                                     │
-└───────────────────────────────────────┴─────────────────────────────────────┘
+└────────────────┴──────────┴───────────┴─────────────────────────────────────┘
 ```
 
 ```cpp
@@ -992,6 +1062,7 @@ int main() {
 }
 ```
 
+<a id="readme-lists-and-sequential-structures"></a>
 ### Lists and Sequential Structures
 
 ```
@@ -1014,9 +1085,9 @@ int main() {
 │                                                                             │
 │  DYNAMIC ARRAY (DynArray)            QUEUE (ArrayQueue)                     │
 │                                                                             │
-│  ┌───┬───┬───┬───┬───┬─────────┐    ┌───┬───┬───┬───┬───┐                   │
-│  │ A │ B │ C │ D │ E │ (space) │    │ A │ B │ C │ D │ E │                   │
-│  └───┴───┴───┴───┴───┴─────────┘    └───┴───┴───┴───┴───┘                   │
+│  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐                                     │
+│  │ A  │  │free│  │ B  │  │free│  │ C  │   Fragmented, scattered             │
+│  └────┘  └────┘  └────┘  └────┘  └────┘                                     │
 │    0   1   2   3   4                  ▲               ▲                     │
 │                                      front           back                   │
 │  Access:  O(1)                                                              │
@@ -1054,6 +1125,7 @@ int main() {
 }
 ```
 
+<a id="readme-range-query-structures"></a>
 ### Range Query Structures
 
 #### Sparse Table — O(1) Range Queries on Static Arrays
@@ -1145,6 +1217,7 @@ int sum = ft.prefix(7);    // sum a[0..7] = O(log n)
 ft.update(2, -3);          // a[2] -= 3
 ```
 
+<a id="readme-graphs"></a>
 ### Graphs
 
 Aleph-w provides multiple graph representations optimized for different use cases:
@@ -1156,17 +1229,14 @@ Aleph-w provides multiple graph representations optimized for different use case
 │                                                                             │
 │  ADJACENCY LIST (List_Graph)         ADJACENCY MATRIX (Array_Graph)         │
 │                                                                             │
-│  A: [B, C, D]                        │ A │ B │ C │ D │                      │
-│  B: [A, D]                         ──┼───┼───┼───┼───│                      │
-│  C: [A, D]                         A │ 0 │ 1 │ 1 │ 1 │                      │
-│  D: [A, B, C]                      B │ 1 │ 0 │ 0 │ 1 │                      │
-│                                    C │ 1 │ 0 │ 0 │ 1 │                      │
-│  Space: O(V + E)                   D │ 1 │ 1 │ 1 │ 0 │                      │
-│  Add edge: O(1)                                                             │
-│  Check edge: O(degree)              Space: O(V²)                            │
-│  Best for: Sparse graphs            Add edge: O(1)                          │
-│                                     Check edge: O(1)                        │
-│                                     Best for: Dense graphs                  │
+│  ┌───┐   ┌───┐   ┌───┐   ┌───┐      ┌───┬───┬───┬───┐                       │
+│  │ A │───│ B │───│ C │───│ D │      │ A │ B │ C │ D │                       │
+│  └───┘   └───┘   └───┘   └───┘      └───┴───┴───┴───┘                       │
+│                                                                             │
+│  Space: O(V + E)                   Space: O(V²)                             │
+│  Add edge: O(1)                   Add edge: O(1)                            │
+│  Check edge: O(degree)            Check edge: O(1)                          │
+│  Best for: Sparse graphs          Best for: Dense graphs                    │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
@@ -1259,8 +1329,10 @@ int main() {
 
 ---
 
+<a id="readme-algorithms-main"></a>
 ## Algorithms
 
+<a id="readme-shortest-path-algorithms"></a>
 ### Shortest Path Algorithms
 
 ```
@@ -1318,6 +1390,7 @@ int main() {
     Graph graph;
     // ... build graph with potentially negative weights ...
 
+    // Compute minimum path
     Path<Graph> path(graph);
     bool has_negative_cycle = false;
 
@@ -1363,6 +1436,7 @@ int main() {
 }
 ```
 
+<a id="readme-minimum-spanning-trees"></a>
 ### Minimum Spanning Trees
 
 ```
@@ -1425,6 +1499,7 @@ int main() {
 }
 ```
 
+<a id="readme-network-flows"></a>
 ### Network Flows
 
 ```
@@ -1518,6 +1593,7 @@ int main() {
 }
 ```
 
+<a id="readme-graph-connectivity"></a>
 ### Graph Connectivity
 
 ```
@@ -1588,6 +1664,7 @@ int main() {
 }
 ```
 
+<a id="readme-matching"></a>
 ### Matching
 
 ```text
@@ -1603,6 +1680,7 @@ int main() {
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+<a id="readme-sorting-algorithms"></a>
 ### Sorting Algorithms
 
 ```
@@ -1649,8 +1727,10 @@ int main() {
 
 ---
 
+<a id="readme-memory-management"></a>
 ## Memory Management
 
+<a id="readme-arena-allocators"></a>
 ### Arena Allocators
 
 Arena allocation provides **ultra-fast memory management** for temporary data structures.
@@ -1665,6 +1745,11 @@ Arena allocation provides **ultra-fast memory management** for temporary data st
 │  ┌────┐  ┌────┐  ┌────┐  ┌────┐  ┌────┐                                     │
 │  │ A  │  │free│  │ B  │  │free│  │ C  │   Fragmented, scattered             │
 │  └────┘  └────┘  └────┘  └────┘  └────┘                                     │
+│    0   1   2   3   4                  ▲               ▲                     │
+│                                      front           back                   │
+│  Access:  O(1)                                                              │
+│  Append:  O(1) amortized             Enqueue: O(1)                          │
+│  Insert:  O(n)                       Dequeue: O(1)                          │
 │                                                                             │
 │  Arena Allocation:                                                          │
 │                                                                             │
@@ -1681,15 +1766,15 @@ Arena allocation provides **ultra-fast memory management** for temporary data st
 │                                                                             │
 │  COMPARISON                                                                 │
 │                                                                             │
-│  ┌────────────────┬─────────────────┬──────────────────┐                    │
-│  │   Operation    │     malloc      │      Arena       │                    │
-│  ├────────────────┼─────────────────┼──────────────────┤                    │
-│  │   Allocate     │   O(log n)*     │      O(1)        │                    │
-│  │   Deallocate   │   O(log n)*     │  O(1) bulk only  │                    │
-│  │   Fragmentation│     High        │      None        │                    │
-│  │   Cache perf   │     Poor        │    Excellent     │                    │
-│  │   Overhead     │   16+ bytes     │    0 bytes       │                    │
-│  └────────────────┴─────────────────┴──────────────────┘                    │
+│  ┌────────────────┬─────────────┬──────────────────┐                        │
+│  │   Operation    │     malloc  │      Arena       │                        │
+│  ├────────────────┼─────────────┼──────────────────┤                        │
+│  │   Allocate     │   O(log n)* │      O(1)        │                        │
+│  │   Deallocate   │   O(log n)* │  O(1) bulk only  │                        │
+│  │   Fragmentation│     High    │      None        │                        │
+│  │   Cache perf   │     Poor    │    Excellent     │                        │
+│  │   Overhead     │   16+ bytes │    0 bytes       │                        │
+│  └────────────────┴─────────────┴──────────────────┘                        │
 │  * Depending on allocator implementation                                    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -1778,6 +1863,7 @@ int main() {
 
 ---
 
+<a id="readme-parallel-computing"></a>
 ## Parallel Computing
 
 ### Thread Pool
@@ -1840,8 +1926,8 @@ int main() {
     });
 
     // Parallel for_each: apply operation to all elements
-    pfor_each(items, [](Item& item) {
-        item.expensive_process();
+    pfor_each(numbers, [](int& x) {
+        x *= 2;
     });
 
     return 0;
@@ -1850,6 +1936,7 @@ int main() {
 
 ---
 
+<a id="readme-functional-programming"></a>
 ## Functional Programming
 
 All Aleph-w containers support a rich set of functional operations:
@@ -1871,6 +1958,7 @@ All Aleph-w containers support a rich set of functional operations:
 | `drop(n)` | Skip first n elements | O(n) |
 | `partition(p)` | Split by predicate | O(n) |
 
+<a id="readme-examples"></a>
 ### Examples
 
 ```cpp
@@ -1941,6 +2029,7 @@ int main() {
 
 ---
 
+<a id="readme-tutorial"></a>
 ## Tutorial
 
 ### Complete Example: Building a Social Network Analysis Tool
@@ -2071,6 +2160,7 @@ int main() {
 
 ---
 
+<a id="readme-api-reference"></a>
 ## API Reference
 
 ### Quick Reference by Category
@@ -2171,6 +2261,7 @@ int main() {
 
 ---
 
+<a id="readme-benchmarks"></a>
 ## Benchmarks
 
 ### Tree Performance (1 Million Operations)
@@ -2207,7 +2298,7 @@ int main() {
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  Arena          ██ 12 ns/alloc                                             │
-│  malloc         ██████████████████████████████████████ 156 ns/alloc        │
+│  malloc         ████████████████████████████████████████ 156 ns/alloc      │
 │  new            ████████████████████████████████████████ 168 ns/alloc      │
 │                                                                            │
 │  Speedup: ~13x faster than malloc                                          │
@@ -2299,6 +2390,7 @@ cmake --build build
 | Range queries | `sparse_table_example.cc` | Sparse Table (RMQ) |
 | Range sum/product | `disjoint_sparse_table_example.cc` | Disjoint Sparse Table |
 | Segment trees | `segment_tree_example.cc` | Point/range updates, lazy propagation, Beats |
+| Cartesian Tree/LCA/RMQ | `cartesian_tree_example.cc` | Cartesian Tree, LCA, RMQ reductions |
 | **Graph Basics** | | |
 | BFS/DFS | `bfs_dfs_example.C` | Traversal algorithms |
 | Components | `graph_components_example.C` | Finding components |
@@ -2324,6 +2416,7 @@ cmake --build build
 
 ---
 
+<a id="readme-testing"></a>
 ## Testing
 
 ### Running Tests
@@ -2378,6 +2471,7 @@ ctest --test-dir build-asan --output-on-failure
 
 ---
 
+<a id="readme-contributing"></a>
 ## Contributing
 
 Contributions are welcome! Here's how to get started:
@@ -2440,6 +2534,7 @@ Together, we can build the most comprehensive C++ algorithm library in the world
 
 ---
 
+<a id="readme-license"></a>
 ## License
 
 Aleph-w is licensed under the **MIT License**.
@@ -2475,6 +2570,7 @@ SOFTWARE.
 
 ---
 
+<a id="readme-acknowledgments"></a>
 ## Acknowledgments
 
 - **Universidad de Los Andes** (Mérida, Venezuela) - Birthplace of Aleph-w
@@ -2486,7 +2582,7 @@ SOFTWARE.
 
 <div align="center">
 
-**[Back to Top](#aleph-w)**
+**[Back to Top](#readme-table-of-contents)**
 
 Made with passion for algorithms and data structures
 

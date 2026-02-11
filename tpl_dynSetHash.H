@@ -55,6 +55,7 @@
 # include <tpl_dynMapOhash.H>
 # include <tpl_dynLhash.H>
 # include <tpl_linHash.H>
+# include <ah-concepts.H>
 
 
 namespace Aleph
@@ -73,6 +74,7 @@ namespace Aleph
   template <typename Key,
             template <typename, class> class HashTable = LhashTable,
             class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   class DynHashTable
       : public HashTable<Key, Cmp>,
         public GenericTraverse<DynHashTable<Key, HashTable, Cmp>>,
@@ -424,6 +426,7 @@ namespace Aleph
      @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   struct DynSetLhash : public DynHashTable<Key, LhashTable, Cmp>
   {
     typedef DynHashTable<Key, LhashTable, Cmp> Base;
@@ -435,6 +438,7 @@ namespace Aleph
      @ingroup Hash
   */
   template <typename Key, class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   struct DynSetLinHash : public DynHashTable<Key, LinearHashTable, Cmp>
   {
     typedef DynHashTable<Key, LinearHashTable, Cmp> Base;
@@ -455,6 +459,7 @@ namespace Aleph
   template <typename Key, typename Data,
             template <class, class> class HashTable = LhashTable,
             class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
   class DynMapHashTable
       : public DynHashTable<std::pair<Key, Data>,
                             HashTable, Dft_Pair_Cmp<Key, Data, Cmp>>

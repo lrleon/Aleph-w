@@ -60,6 +60,7 @@
 # include <hash-fct.H>
 # include <hash-dry.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 # ifdef N
 # define NBACKUP N
@@ -153,6 +154,7 @@ class LinHashBucketVtl : public Dnode<Key>
     */
   template <typename Key, template <class> class BucketType,
             class Cmp = Aleph::equal_to<Key>>
+    requires EqualityComparator<Cmp, Key>
 class GenLinearHashTable
     : public HashStats<GenLinearHashTable<Key, BucketType, Cmp>>
 {

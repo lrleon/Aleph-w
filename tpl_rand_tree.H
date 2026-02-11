@@ -56,6 +56,7 @@
 # include <tpl_randNode.H>
 # include <tpl_binTreeOps.H>
 # include <ah-errors.H>
+# include <ah-concepts.H>
 
 using namespace Aleph;
 
@@ -148,6 +149,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <template <typename> class NodeType, typename Key, class Compare>
+    requires StrictWeakOrder<Compare, Key>
   class Gen_Rand_Tree
   {
   public:
@@ -839,6 +841,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Rand_Tree : public Gen_Rand_Tree<RandNode, Key, Compare>
   {
     using Base = Gen_Rand_Tree<RandNode, Key, Compare>;
@@ -876,6 +879,7 @@ namespace Aleph
       @ingroup Trees
   */
   template <typename Key, class Compare = Aleph::less<Key>>
+    requires StrictWeakOrder<Compare, Key>
   struct Rand_Tree_Vtl : public Gen_Rand_Tree<RandNodeVtl, Key, Compare>
   {
     using Base = Gen_Rand_Tree<RandNodeVtl, Key, Compare>;
