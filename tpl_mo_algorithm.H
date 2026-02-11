@@ -77,14 +77,14 @@
 
 namespace Aleph
 {
-  /** @brief A query for Mo's algorithm: half-open range [l, r] with id.
+  /** @brief A query for Mo's algorithm: closed range [l, r] with id.
    *  @ingroup Sequences
    */
   struct Mo_Query
   {
-    size_t l;   ///< Left endpoint (inclusive, 0-based).
-    size_t r;   ///< Right endpoint (inclusive, 0-based).
-    size_t id;  ///< Original query index (for reordering answers).
+    size_t l; ///< Left endpoint (inclusive, 0-based).
+    size_t r; ///< Right endpoint (inclusive, 0-based).
+    size_t id; ///< Original query index (for reordering answers).
   };
 
   /** @brief Concept constraining a policy for Mo's algorithm.
@@ -168,7 +168,7 @@ namespace Aleph
      *  @param arr  source array (moved from).
      *  @param p    policy object.
      */
-    Gen_Mo_Algorithm(Array<T> && arr, Policy p = Policy())
+    Gen_Mo_Algorithm(Array<T> and arr, Policy p = Policy())
       : data_(std::move(arr)), pol_(std::move(p))
     {}
 
@@ -201,9 +201,9 @@ namespace Aleph
       std::is_nothrow_move_constructible_v<Array<T>> and
       std::is_nothrow_move_constructible_v<Policy>) = default;
 
-    Gen_Mo_Algorithm & operator=(const Gen_Mo_Algorithm &) = default;
+    Gen_Mo_Algorithm &operator=(const Gen_Mo_Algorithm &) = default;
 
-    Gen_Mo_Algorithm & operator=(Gen_Mo_Algorithm &&) noexcept(
+    Gen_Mo_Algorithm &operator=(Gen_Mo_Algorithm &&) noexcept(
       std::is_nothrow_move_assignable_v<Array<T>> and
       std::is_nothrow_move_assignable_v<Policy>) = default;
 
@@ -221,7 +221,7 @@ namespace Aleph
 
     /** @brief Swap with @p other in O(1). */
     void swap(Gen_Mo_Algorithm & other) noexcept(
-      noexcept(std::swap(std::declval<Policy&>(), std::declval<Policy&>())))
+      noexcept(std::swap(std::declval<Policy &>(), std::declval<Policy &>())))
     {
       data_.swap(other.data_);
       std::swap(pol_, other.pol_);
@@ -235,8 +235,7 @@ namespace Aleph
      *  @return Array of answers indexed by original query order.
      *  @throw std::out_of_range if any query is out of bounds.
      */
-    Array<answer_type> solve(
-        const Array<std::pair<size_t, size_t>> & ranges) const
+    Array<answer_type> solve(const Array<std::pair<size_t, size_t>> & ranges) const
     {
       auto queries = Array<Mo_Query>::create(ranges.size());
       for (size_t i = 0; i < ranges.size(); ++i)
@@ -249,10 +248,9 @@ namespace Aleph
      *  @param il  initializer list of (l, r) pairs.
      *  @return Array of answers indexed by original query order.
      */
-    Array<answer_type> solve(
-        std::initializer_list<std::pair<size_t, size_t>> il) const
+    Array<answer_type> solve(const std::initializer_list<std::pair<size_t, size_t>> il) const
     {
-      Array<std::pair<size_t, size_t>> ranges(il);
+      const Array<std::pair<size_t, size_t>> ranges(il);
       return solve(ranges);
     }
 
@@ -262,7 +260,7 @@ namespace Aleph
      *  a sliding window, and the answers are returned in original order.
      *
      *  @param queries  Array of Mo_Query (l, r, id).
-     *  @return Array of answers indexed by original query id.
+     *  @return Array of answers indexed by the original query id.
      *  @throw std::out_of_range if any query is out of bounds.
      */
     Array<answer_type> solve(Array<Mo_Query> queries) const
@@ -282,21 +280,24 @@ namespace Aleph
           ah_out_of_range_error_if(queries(i).l > queries(i).r)
             << "Gen_Mo_Algorithm::solve: query " << i
             << " l=" << queries(i).l << " > r=" << queries(i).r;
+          ah_out_of_range_error_if(queries(i).id >= q)
+            << "Gen_Mo_Algorithm::solve: query " << i
+            << " id=" << queries(i).id << " >= q=" << q;
         }
 
-      const size_t block = std::max<size_t>(1, (size_t)std::sqrt((double)n));
+      const size_t block = std::max<size_t>(1, static_cast<size_t>(std::sqrt(static_cast<double>(n))));
 
       // Snake sort: primary by l/block, secondary alternating by r
       std::sort(&queries(0), &queries(0) + q,
                 [block](const Mo_Query & a, const Mo_Query & b)
-                {
-                  const size_t ba = a.l / block;
-                  const size_t bb = b.l / block;
-                  if (ba != bb)
-                    return ba < bb;
-                  // Even blocks: r ascending; odd blocks: r descending
-                  return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
-                });
+                  {
+                    const size_t ba = a.l / block;
+                    const size_t bb = b.l / block;
+                    if (ba != bb)
+                      return ba < bb;
+                    // Even blocks: r ascending; odd blocks: r descending
+                    return (ba & 1) ? (a.r > b.r) : (a.r < b.r);
+                  });
 
       pol_.init(data_, n);
 
@@ -307,7 +308,7 @@ namespace Aleph
       size_t cur_r = queries(0).l;
       pol_.add(data_, cur_l);
 
-      // Expand to first query's right endpoint
+      // Expand to the first query's right endpoint
       while (cur_r < queries(0).r)
         pol_.add(data_, ++cur_r);
 
@@ -381,7 +382,7 @@ namespace Aleph
         --distinct;
     }
 
-    answer_type answer() const { return distinct; }
+    [[nodiscard]] answer_type answer() const { return distinct; }
   };
 
   /** @brief Policy: "powerful array" sum = sum(cnt[x]^2 * x).
@@ -423,7 +424,7 @@ namespace Aleph
       sum -= (2 * cnt[data(idx)] + 1) * x;
     }
 
-    answer_type answer() const { return sum; }
+    [[nodiscard]] answer_type answer() const { return sum; }
   };
 
   /** @brief Policy: range mode (most frequent element).
@@ -456,7 +457,7 @@ namespace Aleph
     void add(const Array<T> & data, size_t idx)
     {
       const T & x = data(idx);
-      size_t old_f = freq[x];
+      const size_t old_f = freq[x];
       if (old_f > 0)
         --cnt_of_cnt[old_f];
       ++freq[x];
@@ -471,7 +472,7 @@ namespace Aleph
     void remove(const Array<T> & data, size_t idx)
     {
       const T & x = data(idx);
-      size_t old_f = freq[x];
+      const size_t old_f = freq[x];
       --cnt_of_cnt[old_f];
       if (old_f > 1)
         ++cnt_of_cnt[old_f - 1];
@@ -483,13 +484,24 @@ namespace Aleph
           // the window is empty.
           if (max_freq > 0)
             {
-              for (auto & [val, f] : freq)
+              for (auto & [val, f]: freq)
                 if (f == max_freq)
                   {
                     mode_val = val;
                     break;
                   }
             }
+        }
+      else if (old_f == max_freq and x == mode_val)
+        {
+          // x was the mode but other elements still share max_freq;
+          // pick any one of them.
+          for (auto & [val, f]: freq)
+            if (f == max_freq)
+              {
+                mode_val = val;
+                break;
+              }
         }
     }
 
@@ -520,7 +532,6 @@ namespace Aleph
    */
   template <typename T>
   using Range_Mode_Mo = Gen_Mo_Algorithm<T, Range_Mode_Policy<T>>;
-
 } // namespace Aleph
 
 # endif // TPL_MO_ALGORITHM_H

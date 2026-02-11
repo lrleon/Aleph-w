@@ -624,7 +624,7 @@ namespace Aleph
       Children_Iterator(const Children_Iterator & it) noexcept
         : curr(const_cast<Children_Iterator&>(it).curr) {}
 
-      bool has_curr() const noexcept { return curr != nullptr; }
+      [[nodiscard]] bool has_curr() const noexcept { return curr != nullptr; }
 
       Tree_Node * get_curr_ne() const noexcept { return curr; }
 
@@ -710,7 +710,7 @@ namespace Aleph
         curr = root;
       }
 
-      bool has_curr() const noexcept { return curr != nullptr; }
+      [[nodiscard]] bool has_curr() const noexcept { return curr != nullptr; }
 
       Tree_Node * get_curr_ne() const noexcept { return curr; }
 
@@ -754,9 +754,9 @@ namespace Aleph
         pos = -1;
       }
 
-      /// Return the current position of iterator. Only valid if
+      /// Return the current position of the iterator. Only valid if
       // has_curr() == true
-      size_t get_pos() const { return pos; }
+      [[nodiscard]] size_t get_pos() const { return pos; }
     };
 
     Iterator get_it() const
@@ -1176,7 +1176,7 @@ namespace Aleph
 
     if (Equal()(root->get_key(), key))
       {
-        n = current_level + 1; // length of deway array
+        n = current_level + 1; // length of the deway array
         return root;
       }
 

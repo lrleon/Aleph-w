@@ -1277,6 +1277,95 @@ int sum = ft.prefix(7);    // sum a[0..7] = O(log n)
 ft.update(2, -3);          // a[2] -= 3
 ```
 
+#### Mo's Algorithm — Offline Range Queries
+
+Mo's algorithm answers **Q offline range queries** on a static array of N elements in **O((N+Q)√N)** time. It's ideal when you have many queries and can process them all at once.
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        MO'S ALGORITHM OVERVIEW                            │
+├──────────────────┬───────────────┬───────────────┬────────────────────────┤
+│     Phase        │    Time       │    Space      │     Description        │
+├──────────────────┼───────────────┼───────────────┼────────────────────────┤
+│ Sort queries     │   O(Q log Q)  │     O(Q)      │ Block + snake ordering │
+│ Sweep window     │ O((N+Q)√N)    │    O(N+Q)     │ Add/remove operations  │
+│ Total            │ O((N+Q)√N)    │    O(N+Q)     │ All queries answered   │
+└──────────────────┴───────────────┴───────────────┴────────────────────────┘
+```
+
+**Key advantages:**
+- **Batch processing**: Answers many queries faster than individual O(log n) operations
+- **Decomposable queries**: Any operation where you can add/remove elements
+- **Policy-based design**: Same algorithm works for different query types
+
+**Built-in policies:**
+- `Distinct_Count_Policy<T>` — Count distinct elements in range
+- `Powerful_Array_Policy<T>` — Sum of (count² × value)
+- `Range_Mode_Policy<T>` — Most frequent element
+
+##### Usage Examples
+
+```cpp
+#include <tpl_mo_algorithm.H>
+
+// Distinct element queries on static array
+Array<int> arr = {1, 2, 1, 3, 2, 4, 1, 5};
+Distinct_Count_Mo<int> mo(arr);  // Preprocess
+
+// Query distinct elements in ranges
+Array<std::pair<size_t, size_t>> queries = {
+  {0, 3}, {2, 6}, {1, 7}  // [1,2,1,3], [1,3,2,4,1], [2,1,3,2,4,1,5]
+};
+auto answers = mo.solve(queries);
+// answers = {3, 4, 5} distinct elements respectively
+```
+
+```cpp
+// Range mode queries
+Array<int> data = {5, 2, 5, 1, 3, 2, 5, 1};
+Range_Mode_Mo<int> mode_mo(data);
+
+Array<std::pair<size_t, size_t>> ranges = {{0, 4}, {2, 7}};
+auto modes = mode_mo.solve(ranges);
+// modes[0] = {3, 5}  // frequency 3, value 5 (most frequent in [0,4])
+// modes[1] = {2, 5}  // frequency 2, value 5 (most frequent in [2,7])
+```
+
+##### Mo's Algorithm on Trees
+
+Aleph-w extends Mo's algorithm to **tree structures** for subtree and path queries:
+
+```cpp
+#include <tpl_mo_on_trees.H>
+
+// Tree represented as Aleph graph
+List_Graph<Graph_Node<int>, Graph_Arc<Empty_Class>> g;
+auto * root = build_tree(g);  // Your tree construction
+
+// Subtree distinct count
+Distinct_Count_Mo_On_Trees<decltype(g)> mot(g, root);
+auto subtree_answers = mot.subtree_solve({root, child1, child2});
+
+// Path distinct count between nodes
+auto path_answers = mot.path_solve({{node_a, node_b}, {node_c, node_d}});
+```
+
+```cpp
+// Direct Tree_Node support (no graph needed)
+Tree_Node<int> * r = new Tree_Node<int>(1);
+// ... build tree with insert_rightmost_child()
+
+Distinct_Count_Mo_On_Tree_Node<int> mot(r);
+auto answers = mot.subtree_solve({r});  // Distinct values in entire tree
+```
+
+**Real-world scenarios:**
+- **Database analytics**: Count distinct categories in date ranges
+- **Genomics**: Find most frequent k-mers in DNA segments  
+- **Network monitoring**: Mode of latency classes in time windows
+- **File systems**: Distinct file types in directory subtrees
+- **Social networks**: Common interests between user paths
+
 <a id="readme-graphs"></a>
 ### Graphs
 

@@ -111,6 +111,7 @@ set(EXAMPLE_PROGRAMS
     segment_tree_example
     cartesian_tree_example
     mo_algorithm_example
+    mo_on_trees_example
 )
 
 # Function to get source file from program name
